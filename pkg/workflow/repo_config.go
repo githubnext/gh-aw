@@ -11,7 +11,11 @@
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
 //	    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
-//	    "label_triggers": true // set to true to enable all label-triggered jobs (opt-in)
+//	    "label_triggers": true, // set to true to enable all label-triggered jobs (opt-in)
+//	    "compile": {
+//	      "github_token_secret": "MY_REPO_TOKEN", // optional secret name used by compile-workflows job
+//	      "create_pull_request": true // create/update a deduplicated PR instead of an issue
+//	    }
 //	  }                            // maintenance jobs (default: ubuntu-slim)
 //	}
 //
@@ -67,6 +71,16 @@ func (r *RunsOnValue) UnmarshalJSON(data []byte) error {
 }
 
 // MaintenanceConfig holds maintenance-workflow-specific settings from aw.json.
+type MaintenanceCompileConfig struct {
+	// GitHubTokenSecret is the optional secret name used by the compile-workflows
+	// maintenance job for GitHub API calls and branch pushes.
+	GitHubTokenSecret string `json:"github_token_secret,omitempty"`
+
+	// CreatePullRequest enables creating or updating a deduplicated pull request
+	// from the compile-workflows job when generated workflows are out of sync.
+	CreatePullRequest bool `json:"create_pull_request,omitempty"`
+}
+
 type MaintenanceConfig struct {
 	// RunsOn is the runner label or labels used for all jobs in agentics-maintenance.yml.
 	RunsOn RunsOnValue `json:"runs_on,omitempty"`
@@ -81,6 +95,9 @@ type MaintenanceConfig struct {
 	// nil (omitted) or false both disable label-triggered jobs.
 	// To opt in, set label_triggers: true in aw.json.
 	LabelTriggers *bool `json:"label_triggers,omitempty"`
+
+	// Compile controls compile-workflows maintenance job behavior.
+	Compile *MaintenanceCompileConfig `json:"compile,omitempty"`
 }
 
 // IsLabelTriggerEnabled returns true only when label_triggers is explicitly set to true.

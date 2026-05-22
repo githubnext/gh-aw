@@ -6,6 +6,167 @@ const { generateFooterWithMessages, getFooterWorkflowRecompileMessage, getFooter
 const fs = require("fs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
+const RECOMPILE_ISSUE_TITLE = "[aw] agentic workflows out of sync";
+const RECOMPILE_PR_TITLE = "[aw] recompile agentic workflows";
+const RECOMPILE_PR_BRANCH = "aw/recompile-workflows";
+
+function shouldCreatePullRequest() {
+  return process.env.GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST === "true";
+}
+
+async function execWithOutput(command, args, options = {}) {
+  let stdout = "";
+  let stderr = "";
+  const exitCode = await exec.exec(command, args, {
+    ignoreReturnCode: options.ignoreReturnCode === true,
+    listeners: {
+      stdout: data => {
+        stdout += data.toString();
+      },
+      stderr: data => {
+        stderr += data.toString();
+      },
+    },
+  });
+  return { stdout, stderr, exitCode };
+}
+
+function getDefaultBranch() {
+  return context.payload?.repository?.default_branch || "main";
+}
+
+function getRecompileToken() {
+  return process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN || process.env.GITHUB_TOKEN || "";
+}
+
+function buildRecompilePullRequestBody(diffContent, changedFiles, repository, runUrl) {
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Maintenance";
+  const footer = getFooterWorkflowRecompileMessage({ workflowName, runUrl, repository });
+  const xmlMarker = generateXMLMarker(workflowName, runUrl);
+  const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+  const cautionPrefix = detectionCaution ? `${detectionCaution}\n\n` : "";
+  const fileList = changedFiles.map(file => `- \`${file}\``).join("\n");
+
+  return `${cautionPrefix}## Workflow Recompilation
+
+This automated maintenance run detected generated workflow changes and prepared this pull request to update the lock files.
+
+## Changed Files
+
+${fileList}
+
+## Detected Changes
+
+<details>
+<summary>View diff</summary>
+
+\`\`\`diff
+${diffContent}
+\`\`\`
+
+</details>
+
+---
+${footer}
+
+${xmlMarker}
+`;
+}
+
+async function configureGitIdentity() {
+  await exec.exec("git", ["config", "user.email", "github-actions[bot]@users.noreply.github.com"]);
+  await exec.exec("git", ["config", "user.name", "github-actions[bot]"]);
+}
+
+async function stageAndCommitRecompileBranch() {
+  await configureGitIdentity();
+  await exec.exec("git", ["checkout", "-B", RECOMPILE_PR_BRANCH]);
+  await exec.exec("git", ["add", ".github/workflows/*.lock.yml"]);
+
+  const { stdout: stagedOutput } = await execWithOutput("git", ["diff", "--cached", "--name-only"], { ignoreReturnCode: true });
+  const stagedFiles = stagedOutput
+    .split("\n")
+    .map(file => file.trim())
+    .filter(Boolean);
+  if (stagedFiles.length === 0) {
+    throw new Error("No staged workflow lock file changes found for pull request creation");
+  }
+
+  await exec.exec("git", ["commit", "-m", "chore: recompile agentic workflows"]);
+  return stagedFiles;
+}
+
+async function pushRecompileBranch(owner, repo, branchName) {
+  const token = getRecompileToken();
+  if (!token) {
+    throw new Error("Missing GitHub token for maintenance pull request creation");
+  }
+
+  const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  let githubHost = "github.com";
+  try {
+    githubHost = new URL(githubServerUrl).hostname || githubHost;
+  } catch {
+    githubHost = "github.com";
+  }
+  const remoteUrl = `https://x-access-token:${token}@${githubHost}/${owner}/${repo}.git`;
+
+  try {
+    await exec.exec("git", ["remote", "remove", "aw-maintenance-push"]);
+  } catch {
+    // Ignore missing remote.
+  }
+  await exec.exec("git", ["remote", "add", "aw-maintenance-push", remoteUrl]);
+  try {
+    await exec.exec("git", ["push", "aw-maintenance-push", `HEAD:refs/heads/${branchName}`, "--force-with-lease"]);
+  } finally {
+    try {
+      await exec.exec("git", ["remote", "remove", "aw-maintenance-push"]);
+    } catch {
+      // Non-fatal cleanup.
+    }
+  }
+}
+
+async function findExistingRecompilePullRequest(owner, repo) {
+  const result = await github.rest.pulls.list({
+    owner,
+    repo,
+    state: "open",
+    head: `${owner}:${RECOMPILE_PR_BRANCH}`,
+    per_page: 1,
+  });
+  return result.data[0] || null;
+}
+
+async function handlePullRequest(owner, repo, detailedDiff) {
+  const repository = `${owner}/${repo}`;
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
+  const changedFiles = await stageAndCommitRecompileBranch();
+  await pushRecompileBranch(owner, repo, RECOMPILE_PR_BRANCH);
+
+  const existingPR = await findExistingRecompilePullRequest(owner, repo);
+  if (existingPR) {
+    core.info(`Found existing pull request #${existingPR.number}: ${existingPR.html_url}`);
+    core.info("Updated existing pull request branch (avoiding duplicate)");
+    await core.summary.addHeading("Workflow Recompilation Needed", 2).addRaw(`Updated existing pull request [#${existingPR.number}](${existingPR.html_url}) with the latest compiled workflow changes.`).write();
+    return;
+  }
+
+  const diffContent = detailedDiff.substring(0, 50000) + (detailedDiff.length > 50000 ? "\n\n... (diff truncated)" : "");
+  const pullRequest = await github.rest.pulls.create({
+    owner,
+    repo,
+    title: RECOMPILE_PR_TITLE,
+    head: RECOMPILE_PR_BRANCH,
+    base: getDefaultBranch(),
+    body: buildRecompilePullRequestBody(diffContent, changedFiles, repository, runUrl),
+  });
+
+  core.info(`✓ Created pull request #${pullRequest.data.number}: ${pullRequest.data.html_url}`);
+  await core.summary.addHeading("Workflow Recompilation Needed", 2).addRaw(`Created pull request [#${pullRequest.data.number}](${pullRequest.data.html_url}) to update compiled workflow lock files.`).write();
+}
+
 /**
  * Check if workflows need recompilation and create an issue if needed.
  * This script:
@@ -69,11 +230,15 @@ async function main() {
     core.warning(`Could not capture detailed diff: ${getErrorMessage(error)}`);
   }
 
-  // Search for existing open issue about workflow recompilation
-  const issueTitle = "[aw] agentic workflows out of sync";
-  const searchQuery = `repo:${owner}/${repo} is:issue is:open in:title "${issueTitle}"`;
+  if (shouldCreatePullRequest()) {
+    await handlePullRequest(owner, repo, detailedDiff);
+    return;
+  }
 
-  core.info(`Searching for existing issue with title: "${issueTitle}"`);
+  // Search for existing open issue about workflow recompilation
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open in:title "${RECOMPILE_ISSUE_TITLE}"`;
+
+  core.info(`Searching for existing issue with title: "${RECOMPILE_ISSUE_TITLE}"`);
 
   try {
     const searchResult = await github.rest.search.issuesAndPullRequests({
@@ -175,7 +340,7 @@ async function main() {
     const newIssue = await github.rest.issues.create({
       owner,
       repo,
-      title: issueTitle,
+      title: RECOMPILE_ISSUE_TITLE,
       body: issueBody,
       labels: ["agentic-workflows", "maintenance"],
     });
@@ -190,4 +355,4 @@ async function main() {
   }
 }
 
-module.exports = { main };
+module.exports = { main, buildRecompilePullRequestBody, shouldCreatePullRequest };

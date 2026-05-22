@@ -23,6 +23,8 @@ type buildMaintenanceWorkflowYAMLOptions struct {
 	configuredRunsOn    RunsOnValue
 	defaultBranch       string
 	disableLabelTrigger bool
+	compileGitHubToken  string
+	createCompilePR     bool
 }
 
 // buildMaintenanceWorkflowYAML generates the complete YAML content for the
@@ -43,7 +45,9 @@ func buildMaintenanceWorkflowYAML(
 	configuredRunsOn := opts.configuredRunsOn
 	defaultBranch := opts.defaultBranch
 	disableLabelTrigger := opts.disableLabelTrigger
-	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger)
+	compileGitHubToken := opts.compileGitHubToken
+	createCompilePR := opts.createCompilePR
+	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v createCompilePR=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger, createCompilePR)
 
 	var yaml strings.Builder
 
@@ -839,9 +843,17 @@ jobs:
       group: ${{ github.workflow }}-compile-workflows-${{ github.repository }}
       cancel-in-progress: true
     permissions:
-      contents: read
+`)
+		if createCompilePR {
+			yaml.WriteString(`      contents: write
+      pull-requests: write
+`)
+		} else {
+			yaml.WriteString(`      contents: read
       issues: write
-    steps:
+`)
+		}
+		yaml.WriteString(`    steps:
 `)
 
 		// Dev mode: checkout entire repository (no sparse checkout, but no credentials)
@@ -868,9 +880,13 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
-      - name: Check for out-of-sync workflows and create issue if needed
+      - name: Check for out-of-sync workflows and create issue or pull request if needed
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        env:
+          GH_AW_MAINTENANCE_GITHUB_TOKEN: ` + compileGitHubToken + `
+          GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST: ` + strconv.FormatBool(createCompilePR) + `
         with:
+          github-token: ${{ env.GH_AW_MAINTENANCE_GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);

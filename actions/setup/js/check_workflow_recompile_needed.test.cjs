@@ -119,6 +119,10 @@ The following workflow lock files have changes:
           create: vi.fn(),
           createComment: vi.fn(),
         },
+        pulls: {
+          list: vi.fn(),
+          create: vi.fn(),
+        },
       },
     };
 
@@ -132,6 +136,7 @@ The following workflow lock files have changes:
       payload: {
         repository: {
           html_url: "https://github.com/testowner/testrepo",
+          default_branch: "main",
         },
       },
     };
@@ -155,6 +160,8 @@ The following workflow lock files have changes:
     } else {
       delete process.env.GH_AW_PROMPTS_DIR;
     }
+    delete process.env.GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST;
+    delete process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN;
 
     // Clean up the test directory
     const testDir = path.join(os.tmpdir(), "gh-aw-test");
@@ -279,5 +286,93 @@ The following workflow lock files have changes:
 
     await expect(main()).rejects.toThrow("Git command failed");
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to check for workflow changes"));
+  });
+
+  it("should create a pull request when PR mode is enabled", async () => {
+    process.env.GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST = "true";
+    process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN = "ghs_test_token";
+
+    mockExec.exec.mockImplementation(async (cmd, args, options) => {
+      const joinedArgs = args.join(" ");
+      if (joinedArgs === "diff --exit-code .github/workflows/*.lock.yml") {
+        options?.listeners?.stdout?.(Buffer.from("diff content"));
+        return 1;
+      }
+      if (joinedArgs === "diff .github/workflows/*.lock.yml") {
+        options?.listeners?.stdout?.(Buffer.from("detailed diff content"));
+        return 0;
+      }
+      if (joinedArgs === "diff --cached --name-only") {
+        options?.listeners?.stdout?.(Buffer.from(".github/workflows/example.lock.yml\n"));
+        return 0;
+      }
+      return 0;
+    });
+
+    mockGithub.rest.pulls.list.mockResolvedValue({ data: [] });
+    mockGithub.rest.pulls.create.mockResolvedValue({
+      data: {
+        number: 44,
+        html_url: "https://github.com/testowner/testrepo/pull/44",
+      },
+    });
+
+    const { main } = await import("./check_workflow_recompile_needed.cjs");
+    await main();
+
+    expect(mockGithub.rest.pulls.list).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      state: "open",
+      head: "testowner:aw/recompile-workflows",
+      per_page: 1,
+    });
+    expect(mockGithub.rest.pulls.create).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      title: "[aw] recompile agentic workflows",
+      head: "aw/recompile-workflows",
+      base: "main",
+      body: expect.stringContaining("Workflow Recompilation"),
+    });
+    expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+  });
+
+  it("should reuse an existing pull request when PR mode is enabled", async () => {
+    process.env.GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST = "true";
+    process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN = "ghs_test_token";
+
+    mockExec.exec.mockImplementation(async (cmd, args, options) => {
+      const joinedArgs = args.join(" ");
+      if (joinedArgs === "diff --exit-code .github/workflows/*.lock.yml") {
+        options?.listeners?.stdout?.(Buffer.from("diff content"));
+        return 1;
+      }
+      if (joinedArgs === "diff .github/workflows/*.lock.yml") {
+        options?.listeners?.stdout?.(Buffer.from("detailed diff content"));
+        return 0;
+      }
+      if (joinedArgs === "diff --cached --name-only") {
+        options?.listeners?.stdout?.(Buffer.from(".github/workflows/example.lock.yml\n"));
+        return 0;
+      }
+      return 0;
+    });
+
+    mockGithub.rest.pulls.list.mockResolvedValue({
+      data: [
+        {
+          number: 45,
+          html_url: "https://github.com/testowner/testrepo/pull/45",
+        },
+      ],
+    });
+
+    const { main } = await import("./check_workflow_recompile_needed.cjs");
+    await main();
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found existing pull request"));
+    expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
+    expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
   });
 });

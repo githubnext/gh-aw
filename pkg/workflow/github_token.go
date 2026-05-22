@@ -46,6 +46,20 @@ func getEffectiveSafeOutputGitHubToken(customToken string) string {
 	return "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
 }
 
+// getEffectiveMaintenanceGitHubToken returns the GitHub token to use for
+// maintenance compile-workflows operations.
+//
+// Precedence:
+//  1. Configured secret name from aw.json maintenance.compile.github_token_secret
+//  2. secrets.GH_AW_GITHUB_TOKEN
+//  3. github.token
+func getEffectiveMaintenanceGitHubToken(secretName string) string {
+	if strings.TrimSpace(secretName) == "" {
+		return "${{ secrets.GH_AW_GITHUB_TOKEN || github.token }}"
+	}
+	return wrapGitHubExpression(fmt.Sprintf("secrets.%s || secrets.GH_AW_GITHUB_TOKEN || github.token", secretName))
+}
+
 // getEffectiveCopilotRequestsToken returns the GitHub token to use for Copilot-related operations,
 // with precedence:
 // 1. Custom token passed as parameter (e.g., from safe-outputs config github-token field)
