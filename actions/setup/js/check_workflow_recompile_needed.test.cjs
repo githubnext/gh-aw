@@ -212,7 +212,7 @@ The following workflow lock files have changes:
     global.context = originalGlobals.context;
     global.exec = originalGlobals.exec;
 
-    // Reset the module cache because each test dynamically imports the CJS module.
+    // Clear mock state and reset the module cache because each test dynamically imports the CJS module.
     vi.clearAllMocks();
     vi.resetModules();
   });

@@ -17,7 +17,7 @@ function shouldCreatePullRequest() {
   return getRecompileToken() !== "";
 }
 
-async function getDefaultBranch(owner, repo) {
+async function getEffectiveBaseBranch(owner, repo) {
   const { effectiveBaseBranch } = await resolvePullRequestRepo(github, owner, repo, undefined);
   return effectiveBaseBranch || "main";
 }
@@ -64,6 +64,8 @@ ${xmlMarker}
 }
 
 async function getChangedLockFiles() {
+  // Compare the current working tree against HEAD to capture the lock files
+  // changed by this maintenance compile run before any branch operations.
   const { stdout } = await exec.getExecOutput("git", ["diff", "--name-only", ".github/workflows/*.lock.yml"], {
     ignoreReturnCode: true,
   });
@@ -217,7 +219,8 @@ async function handlePullRequest(owner, repo, changedFiles) {
       pull_number: existingPR.number,
       body: pullRequestBody,
     });
-    core.info(pushed ? "Updated existing pull request branch (avoiding duplicate)" : "Existing pull request already had the latest branch contents");
+    const updateMessage = pushed ? "Updated existing pull request branch (avoiding duplicate)" : "Existing pull request already had the latest branch contents";
+    core.info(updateMessage);
     await core.summary
       .addHeading("Workflow Recompilation Needed", 2)
       .addRaw(
@@ -230,7 +233,7 @@ async function handlePullRequest(owner, repo, changedFiles) {
   }
 
   core.info(`Creating maintenance pull request against repository default branch with ${changedFiles.length} changed file(s)`);
-  const defaultBranch = await getDefaultBranch(owner, repo);
+  const defaultBranch = await getEffectiveBaseBranch(owner, repo);
   const pullRequest = await github.rest.pulls.create({
     owner,
     repo,
