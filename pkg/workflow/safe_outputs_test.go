@@ -768,7 +768,7 @@ func TestBuildWorkflowMetadataEnvVarsWithTrackerID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildWorkflowMetadataEnvVarsWithTrackerID(tt.workflowName, tt.workflowSource, tt.trackerID)
+			result := buildWorkflowMetadataEnvVarsWithTrackerID(tt.workflowName, tt.workflowSource, tt.trackerID, "")
 			resultStr := strings.Join(result, "")
 
 			for _, expected := range tt.expectedVars {
