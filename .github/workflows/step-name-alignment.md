@@ -25,11 +25,10 @@ steps:
 - name: Build step alignment manifest
   run: |
     set -euo pipefail
-    AGENT_INPUT_DIR="$GITHUB_WORKSPACE/.gh-aw/agent"
-    mkdir -p "$AGENT_INPUT_DIR"
+    mkdir -p /tmp/gh-aw/agent
     
-    MANIFEST_JSONL="$AGENT_INPUT_DIR/step-alignment-input.jsonl"
-    MANIFEST_JSON="$AGENT_INPUT_DIR/step-alignment-input.json"
+    MANIFEST_JSONL="/tmp/gh-aw/agent/step-alignment-input.jsonl"
+    MANIFEST_JSON="/tmp/gh-aw/agent/step-alignment-input.json"
     : > "$MANIFEST_JSONL"
     
     while IFS= read -r workflow_file; do
@@ -47,6 +46,12 @@ emoji: 📋
 engine:
   id: claude
   max-turns: 30
+sandbox:
+  agent:
+    config:
+      filesystem:
+        allowWrite:
+        - /tmp/gh-aw/agent
 name: Step Name Alignment
 timeout-minutes: 30
 tools:
@@ -69,7 +74,7 @@ You are an AI agent that ensures consistency and accuracy in step names across a
 ## Your Mission
 
 Maintain consistent, accurate, and descriptive step names by:
-1. Reading the pre-built manifest at `.gh-aw/agent/step-alignment-input.json`
+1. Reading the pre-built manifest at `/tmp/gh-aw/agent/step-alignment-input.json`
 2. Analyzing step names against their intent and context
 3. Comparing terminology with the project glossary
 4. Identifying inconsistencies, inaccuracies, or unclear names
@@ -132,7 +137,7 @@ cat docs/src/content/docs/reference/glossary.md
 
 A deterministic pre-agent step has already collected step records from all `.lock.yml` files and written them to:
 
-`.gh-aw/agent/step-alignment-input.json`
+`/tmp/gh-aw/agent/step-alignment-input.json`
 
 Read this manifest first and use it as your primary dataset.
 
