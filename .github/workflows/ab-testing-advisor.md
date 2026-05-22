@@ -115,34 +115,29 @@ grep -rl 'experiments:' .github/workflows/*.md 2>/dev/null || echo "none"
 grep -rL 'experiments:' .github/workflows/*.md 2>/dev/null | grep -v shared | sort
 ```
 
-From the list of workflows **without** an `experiments:` section, pick one at random — **excluding any workflow whose basename appears in the `recently_analyzed` list above** — using:
+From the list of workflows **without** an `experiments:` section, pick one at random — **excluding any workflow whose basename appears in the `recently_analyzed` list above** — and store the chosen path in `SELECTED`:
 
 ```bash
-grep -rL 'experiments:' .github/workflows/*.md 2>/dev/null | grep -v shared | shuf -n 1
+SELECTED=$(grep -rL 'experiments:' .github/workflows/*.md 2>/dev/null | grep -v shared | shuf -n 1)
+echo "$SELECTED"
 ```
 
 If after filtering out recently-analyzed workflows the candidate list is empty, fall back to any eligible workflow (the dedup window has been exhausted):
 
 ```bash
-grep -rL 'experiments:' .github/workflows/*.md 2>/dev/null | grep -v shared | shuf -n 1
+SELECTED=$(grep -rL 'experiments:' .github/workflows/*.md 2>/dev/null | grep -v shared | shuf -n 1)
+echo "$SELECTED"
 ```
 
 ### Step 2 — Analyze the Selected Workflow
 
-Read the selected workflow file in full. Study:
+Use the `workflow-characterizer` agent with the selected workflow file path. Use the returned characterization (`purpose`, `triggers`, `engine`, `prompt_density`, `tools`, `outputs`, `quality_signals`) as the basis for Step 3.
 
-1. **Purpose & trigger** — What problem does it solve? What events trigger it?
-2. **Engine & model** — Which AI engine is used? Is there a specific model set?
-3. **Prompt design** — What instructions does the agent receive? How verbose/prescriptive are they?
-4. **Tool configuration** — Which tools and MCP servers are enabled?
-5. **Output structure** — What safe-outputs are configured? What does it produce?
-6. **Current performance characteristics** — Look at recent workflow run history using the path returned by the `shuf` command above. For example, if the selected workflow is `.github/workflows/daily-news.md`, run:
-   ```bash
-   # Check recent runs (last 10) — replace WORKFLOW_BASENAME with the name from shuf output
-   SELECTED=$(grep -rL 'experiments:' .github/workflows/*.md 2>/dev/null | grep -v shared | shuf -n 1)
-   gh run list --workflow="$(basename "$SELECTED" .md).lock.yml" --limit 10 --json conclusion,createdAt,displayTitle,durationMS
-   ```
-7. **Existing quality signals** — Are there any reported issues, quality labels, or patterns in runs?
+Then check recent run performance with:
+
+```bash
+gh run list --workflow="$(basename "$SELECTED" .md).lock.yml" --limit 10 --json conclusion,createdAt,displayTitle,durationMS
+```
 
 ### Step 3 — Devise an Experiment Campaign
 
@@ -308,12 +303,9 @@ echo "✅ Cache updated — recently analyzed: $(echo "$UPDATED" | jq -r '.recen
 
 ## Side Quest: Improve the Experiment Infrastructure
 
-After completing the primary quest, include a **second issue** (sub-issue of the first) proposing improvements to the experiments infrastructure. Assess the current implementation by reading:
+After completing the primary quest, include a **second issue** (sub-issue of the first) proposing improvements to the experiments infrastructure.
 
-```bash
-cat pkg/workflow/compiler_experiments.go
-cat actions/setup/js/pick_experiment.cjs
-```
+Use the `field-presence-checker` agent with file paths `pkg/workflow/compiler_experiments.go` and `actions/setup/js/pick_experiment.cjs`, and field names `analysis_type`, `tags`, `notify`. Use the returned `present`/`evidence` results when deciding which fields are genuinely absent.
 
 Then review what data is currently captured per experiment run (the artifact uploaded to `/tmp/gh-aw/experiments/state.json`) and consider what would be needed for a complete experiment analytics pipeline.
 
@@ -321,12 +313,7 @@ Propose concrete improvements in the following areas:
 
 ### Area 1: Frontmatter Schema — Verify Genuine Gaps Before Filing
 
-**Important**: Before proposing additions, verify what is already implemented by reading the source files:
-
-```bash
-cat pkg/workflow/compiler_experiments.go
-cat actions/setup/js/pick_experiment.cjs
-```
+**Important**: Before proposing additions, rely on the `field-presence-checker` results rather than re-reading the source files in the main prompt.
 
 The current `ExperimentConfig` already supports the following fields — **do not propose adding these**, they are fully operational:
 
@@ -344,7 +331,7 @@ The current `ExperimentConfig` already supports the following fields — **do no
 | `start_date` / `end_date` | ISO-8601 date range for time-boxed experiments |
 | `issue` | GitHub issue number tracking the experiment |
 
-After reading the compiler and `pick_experiment.cjs`, check whether the following **genuinely unimplemented** fields have been added yet:
+Using the `field-presence-checker` results, check whether the following **genuinely unimplemented** fields have been added yet:
 
 - **`analysis_type`** — declares the statistical test for automated reporting (`t_test`, `mann_whitney`, `proportion_test`, `bayesian_ab`)
 - **`tags`** — free-form labels for filtering experiments in dashboards
@@ -384,3 +371,68 @@ Propose how experiments should integrate with `gh aw audit` and OTEL observabili
 - If all eligible workflows are filtered out (all have experiments), create a single issue celebrating this and suggesting advanced multi-experiment designs
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `workflow-characterizer`
+---
+description: Read a selected workflow file and return a concise structured characterization for experiment design
+model: small
+---
+You receive a single file path to a `.github/workflows/<name>.md` workflow file.
+
+Read the file using `cat <filepath>` via bash and return only JSON with this structure:
+
+```json
+{
+  "purpose": "",
+  "triggers": [],
+  "engine": "",
+  "prompt_density": "",
+  "tools": [],
+  "outputs": [],
+  "quality_signals": []
+}
+```
+
+Requirements:
+- `purpose`: 1-2 sentences describing what problem the workflow solves.
+- `triggers`: list the workflow trigger types you find in frontmatter.
+- `engine`: identify the engine and any explicit model/bare-mode details visible in the file.
+- `prompt_density`: brief characterization such as `minimal`, `moderate`, or `dense`, with a short reason.
+- `tools`: concise list of enabled tools or MCP capabilities that materially affect the workflow.
+- `outputs`: concise list of safe outputs or other concrete artifacts the workflow produces.
+- `quality_signals`: list any notable quality-related signals already visible in the file itself, such as strict mode, validation steps, review guidance, retry/guardrail instructions, or obvious gaps.
+- Be extractive and factual. Do not propose changes.
+
+## agent: `field-presence-checker`
+---
+description: Check whether named experiment fields are genuinely implemented in the compiler and picker code
+model: small
+---
+You receive two file paths:
+- `pkg/workflow/compiler_experiments.go`
+- `actions/setup/js/pick_experiment.cjs`
+
+And three field names to check:
+- `analysis_type`
+- `tags`
+- `notify`
+
+Read both files using `cat <filepath>` via bash. Return only JSON with this structure:
+
+```json
+{
+  "analysis_type": { "present": "yes", "evidence": "" },
+  "tags": { "present": "yes", "evidence": "" },
+  "notify": { "present": "yes", "evidence": "" }
+}
+```
+
+Use strict semantics for `present`:
+- `yes`: the field is parsed into the compiled config and meaningfully used or surfaced at runtime.
+- `partial`: the field is mentioned in types/comments or parsed only on one side, but is not clearly end-to-end implemented.
+- `no`: the field is absent.
+
+Evidence rules:
+- Cite concrete evidence from both files when possible.
+- Keep each `evidence` value to 1-3 sentences.
+- If the implementation is only documented, typed, or parsed without observable runtime use, mark it `partial`, not `yes`.
