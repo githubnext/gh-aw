@@ -221,6 +221,7 @@ Submit a review using `submit_pull_request_review` with an overall summary:
 - **`APPROVE`** — Changes are solid; only minor suggestions
 - **`REQUEST_CHANGES`** — There are important issues that should be addressed
 - **`COMMENT`** — Observations only; no blocking issues
+- If you choose **`APPROVE`**, also call `create_check_run` with `conclusion: "success"` and a short summary that no blocking issues were found.
 
 The review body should apply progressive disclosure — keep the immediately visible portion brief and collapse details:
 
