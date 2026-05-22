@@ -148,6 +148,11 @@
       "version": "v6.0.0",
       "sha": "030e881283bb7a6894de51c315a6bfe6a94e05cf"
     },
+    "docker/setup-buildx-action@v4": {
+      "repo": "docker/setup-buildx-action",
+      "version": "v4",
+      "sha": "d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5"
+    },
     "docker/setup-buildx-action@v4.0.0": {
       "repo": "docker/setup-buildx-action",
       "version": "v4.0.0",
