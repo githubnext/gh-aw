@@ -135,6 +135,18 @@ func extractToolCallsFromGatewayLog(gatewayLogPath string, mcpData *MCPToolUsage
 				continue
 			}
 
+			// Derive status from available fields when not explicitly set.
+			// Post-OTel-collector migrations may omit the "status" string field,
+			// relying instead on "error" or "level" to signal failures.
+			status := entry.Status
+			if status == "" {
+				if entry.Error != "" || entry.Level == "error" {
+					status = "error"
+				} else {
+					status = "success"
+				}
+			}
+
 			// Create individual tool call record
 			toolCall := MCPToolCall{
 				Timestamp:  entry.Timestamp,
@@ -143,7 +155,7 @@ func extractToolCallsFromGatewayLog(gatewayLogPath string, mcpData *MCPToolUsage
 				Method:     entry.Method,
 				InputSize:  entry.InputSize,
 				OutputSize: entry.OutputSize,
-				Status:     entry.Status,
+				Status:     status,
 				Error:      entry.Error,
 			}
 
