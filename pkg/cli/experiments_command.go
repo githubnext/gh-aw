@@ -429,13 +429,27 @@ func findRemoteWorkflowFilenameForExperiment(repoOverride, experimentName string
 		return ""
 	}
 
+	return matchWorkflowFilenameByExperiment(filenames, experimentName)
+}
+
+// matchWorkflowFilenameByExperiment returns the basename (without .md) of the first file in
+// filenames whose sanitized name matches experimentName. Returns "" when no match is found.
+// Logs a warning when more than one file maps to the same sanitized name.
+func matchWorkflowFilenameByExperiment(filenames []string, experimentName string) string {
+	var matches []string
 	for _, filename := range filenames {
 		base := strings.TrimSuffix(filename, ".md")
 		if workflow.SanitizeWorkflowIDForCacheKey(base) == experimentName {
-			return base
+			matches = append(matches, base)
 		}
 	}
-	return ""
+	if len(matches) == 0 {
+		return ""
+	}
+	if len(matches) > 1 {
+		experimentsLog.Printf("Ambiguous experiment name %q: multiple workflow files match (%s); using first", experimentName, strings.Join(matches, ", "))
+	}
+	return matches[0]
 }
 
 // findWorkflowFileForExperiment scans .github/workflows/ for a .md file whose sanitized
