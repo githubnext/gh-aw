@@ -1238,6 +1238,8 @@ async function main(config = {}) {
       bodyLines.unshift(...bodyHeader.split("\n"), "");
     }
 
+    // Keep the protected-files notice directly under detection caution:
+    // this block runs first, then detectionCaution below unshifts to index 0.
     if (manifestProtectionRequestReview && manifestProtectionRequestReview.length > 0) {
       const protectedFilesNoticeTemplatePath = getPromptPath("manifest_protection_request_review.md");
       const protectedFilesNotice = renderTemplateFromFile(protectedFilesNoticeTemplatePath, {
@@ -2069,7 +2071,7 @@ ${patchPreview}`;
           core.info(`Created REQUEST_CHANGES review for PR #${pullRequest.number}`);
         } catch (requestChangesError) {
           const requestChangesErrorMessage = getErrorMessage(requestChangesError);
-          const ownPrMessages = ["Can not request changes on your own pull request", "Can not approve your own pull request"];
+          const ownPrMessages = ["Can not request changes on your own pull request"];
           if (ownPrMessages.some(msg => requestChangesErrorMessage.includes(msg))) {
             core.warning(`Cannot submit REQUEST_CHANGES on own PR #${pullRequest.number}. Retrying with COMMENT.`);
             try {
