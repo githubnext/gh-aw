@@ -13,7 +13,7 @@ const RECOMPILE_PR_BRANCH = "aw/recompile-workflows";
 const MAX_RECOMPILE_DIFF_LENGTH = 50000;
 
 function shouldCreatePullRequest() {
-  return process.env.GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST === "true";
+  return getRecompileToken() !== "";
 }
 
 async function execWithOutput(command, args, options = {}) {
@@ -54,19 +54,20 @@ function requireRecompileToken() {
   return token;
 }
 
-function buildRecompilePullRequestBody(diffContent, changedFiles, repository, runUrl) {
+function buildRecompilePullRequestBody(diffContent, changedFiles, repository, runUrl, linkedIssueNumber) {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Maintenance";
   const footer = getFooterWorkflowRecompileMessage({ workflowName, runUrl, repository });
   const xmlMarker = generateXMLMarker(workflowName, runUrl);
   const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
   const cautionPrefix = detectionCaution ? `${detectionCaution}\n\n` : "";
+  const linkedIssueLine = linkedIssueNumber ? `Fixes #${linkedIssueNumber}\n\n` : "";
   const fileList = changedFiles.map(file => `- \`${file}\``).join("\n");
 
   return `${cautionPrefix}## Workflow Recompilation
 
 This automated maintenance run detected generated workflow changes and prepared this pull request to update the lock files.
 
-## Changed Files
+${linkedIssueLine}## Changed Files
 
 ${fileList}
 
@@ -146,22 +147,47 @@ async function findExistingRecompilePullRequest(owner, repo) {
   return result.data[0] || null;
 }
 
+async function findExistingRecompileIssue(owner, repo) {
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open in:title "${RECOMPILE_ISSUE_TITLE}"`;
+
+  core.info(`Searching for existing issue with title: "${RECOMPILE_ISSUE_TITLE}"`);
+  const searchResult = await github.rest.search.issuesAndPullRequests({
+    q: searchQuery,
+    per_page: 1,
+  });
+  return searchResult.data.total_count > 0 ? searchResult.data.items[0] : null;
+}
+
 async function handlePullRequest(owner, repo, detailedDiff) {
   const repository = `${owner}/${repo}`;
   const runUrl = buildWorkflowRunUrl(context, context.repo);
   core.info(`Preparing maintenance PR for ${repository}`);
+  const existingIssue = await findExistingRecompileIssue(owner, repo);
+  if (existingIssue) {
+    core.info(`Found existing issue #${existingIssue.number} to link from maintenance PR`);
+  } else {
+    core.info("No existing workflow recompile issue found to link from maintenance PR");
+  }
   const changedFiles = await stageAndCommitRecompileBranch();
   await pushRecompileBranch(owner, repo, RECOMPILE_PR_BRANCH);
+  const diffContent = detailedDiff.substring(0, MAX_RECOMPILE_DIFF_LENGTH) + (detailedDiff.length > MAX_RECOMPILE_DIFF_LENGTH ? "\n\n... (diff truncated)" : "");
+  const pullRequestBody = buildRecompilePullRequestBody(diffContent, changedFiles, repository, runUrl, existingIssue?.number);
 
   const existingPR = await findExistingRecompilePullRequest(owner, repo);
   if (existingPR) {
     core.info(`Found existing pull request #${existingPR.number}: ${existingPR.html_url}`);
+    core.info(`Updating existing pull request #${existingPR.number} body`);
+    await github.rest.pulls.update({
+      owner,
+      repo,
+      pull_number: existingPR.number,
+      body: pullRequestBody,
+    });
     core.info("Updated existing pull request branch (avoiding duplicate)");
     await core.summary.addHeading("Workflow Recompilation Needed", 2).addRaw(`Updated existing pull request [#${existingPR.number}](${existingPR.html_url}) with the latest compiled workflow changes.`).write();
     return;
   }
 
-  const diffContent = detailedDiff.substring(0, MAX_RECOMPILE_DIFF_LENGTH) + (detailedDiff.length > MAX_RECOMPILE_DIFF_LENGTH ? "\n\n... (diff truncated)" : "");
   core.info(`Creating maintenance pull request against ${getDefaultBranch()} with ${changedFiles.length} changed file(s)`);
   const pullRequest = await github.rest.pulls.create({
     owner,
@@ -169,7 +195,7 @@ async function handlePullRequest(owner, repo, detailedDiff) {
     title: RECOMPILE_PR_TITLE,
     head: RECOMPILE_PR_BRANCH,
     base: getDefaultBranch(),
-    body: buildRecompilePullRequestBody(diffContent, changedFiles, repository, runUrl),
+    body: pullRequestBody,
   });
 
   core.info(`✓ Created pull request #${pullRequest.data.number}: ${pullRequest.data.html_url}`);
@@ -249,19 +275,9 @@ async function main() {
     return;
   }
 
-  // Search for existing open issue about workflow recompilation
-  const searchQuery = `repo:${owner}/${repo} is:issue is:open in:title "${RECOMPILE_ISSUE_TITLE}"`;
-
-  core.info(`Searching for existing issue with title: "${RECOMPILE_ISSUE_TITLE}"`);
-
   try {
-    const searchResult = await github.rest.search.issuesAndPullRequests({
-      q: searchQuery,
-      per_page: 1,
-    });
-
-    if (searchResult.data.total_count > 0) {
-      const existingIssue = searchResult.data.items[0];
+    const existingIssue = await findExistingRecompileIssue(owner, repo);
+    if (existingIssue) {
       core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
       core.info("Skipping issue creation (avoiding duplicate)");
 

@@ -13,8 +13,7 @@
 //	    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
 //	    "label_triggers": true, // set to true to enable all label-triggered jobs (opt-in)
 //	    "compile": {
-//	      "github_token_secret": "MY_REPO_TOKEN", // optional secret name used by compile-workflows job
-//	      "create_pull_request": true // create/update a deduplicated PR instead of an issue
+//	      "create_pull_request_github_token": "MY_REPO_TOKEN" // create/update a deduplicated PR instead of an issue
 //	    }
 //	  }                            // maintenance jobs (default: ubuntu-slim)
 //	}
@@ -74,13 +73,11 @@ func (r *RunsOnValue) UnmarshalJSON(data []byte) error {
 
 // MaintenanceConfig holds maintenance-workflow-specific settings from aw.json.
 type MaintenanceCompileConfig struct {
-	// GitHubTokenSecret is the optional secret name used by the compile-workflows
-	// maintenance job for GitHub API calls and branch pushes.
-	GitHubTokenSecret string `json:"github_token_secret,omitempty"`
-
-	// CreatePullRequest enables creating or updating a deduplicated pull request
-	// from the compile-workflows job when generated workflows are out of sync.
-	CreatePullRequest bool `json:"create_pull_request,omitempty"`
+	// CreatePullRequestGitHubToken is the secret name used by the compile-workflows
+	// maintenance job for GitHub API calls and branch pushes. When configured,
+	// out-of-sync compiled workflows are reported via a deduplicated pull request
+	// instead of an issue.
+	CreatePullRequestGitHubToken string `json:"create_pull_request_github_token,omitempty"`
 }
 
 type MaintenanceConfig struct {
@@ -228,12 +225,9 @@ func validateRepoConfigValues(cfg *RepoConfig) error {
 		return nil
 	}
 	compileCfg := cfg.Maintenance.Compile
-	secretName := cfg.Maintenance.Compile.GitHubTokenSecret
+	secretName := compileCfg.CreatePullRequestGitHubToken
 	if secretName != "" && !repoConfigSecretNamePattern.MatchString(secretName) {
-		return fmt.Errorf("invalid %s: maintenance.compile.github_token_secret must match %s", RepoConfigFileName, repoConfigSecretNamePattern.String())
-	}
-	if compileCfg.CreatePullRequest && secretName == "" {
-		return fmt.Errorf("invalid %s: maintenance.compile.github_token_secret is required when maintenance.compile.create_pull_request is true", RepoConfigFileName)
+		return fmt.Errorf("invalid %s: maintenance.compile.create_pull_request_github_token must match %s", RepoConfigFileName, repoConfigSecretNamePattern.String())
 	}
 	return nil
 }

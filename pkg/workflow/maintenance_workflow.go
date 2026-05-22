@@ -153,12 +153,9 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		configuredRunsOn = repoConfig.Maintenance.RunsOn
 		disableLabelTrigger = !repoConfig.Maintenance.IsLabelTriggerEnabled()
 		if repoConfig.Maintenance.Compile != nil {
-			compileGitHubTokenSecret = repoConfig.Maintenance.Compile.GitHubTokenSecret
-			enableCompileCreatePullRequest = repoConfig.Maintenance.Compile.CreatePullRequest
+			compileGitHubTokenSecret = repoConfig.Maintenance.Compile.CreatePullRequestGitHubToken
+			enableCompileCreatePullRequest = strings.TrimSpace(compileGitHubTokenSecret) != ""
 		}
-	}
-	if enableCompileCreatePullRequest && strings.TrimSpace(compileGitHubTokenSecret) == "" {
-		return fmt.Errorf("maintenance.compile.github_token_secret is required when maintenance.compile.create_pull_request is true")
 	}
 	runsOnValue := FormatRunsOn(configuredRunsOn, defaultRunsOn)
 

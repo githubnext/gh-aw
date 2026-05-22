@@ -85,14 +85,13 @@ func TestLoadRepoConfig_ActionFailureIssueExpires(t *testing.T) {
 
 func TestLoadRepoConfig_MaintenanceCompileConfig(t *testing.T) {
 	dir := t.TempDir()
-	writeAWJSON(t, dir, `{"maintenance": {"compile": {"github_token_secret": "MAINTENANCE_TOKEN", "create_pull_request": true}}}`)
+	writeAWJSON(t, dir, `{"maintenance": {"compile": {"create_pull_request_github_token": "MAINTENANCE_TOKEN"}}}`)
 
 	cfg, err := LoadRepoConfig(dir)
 	require.NoError(t, err, "valid aw.json should load without error")
 	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
 	require.NotNil(t, cfg.Maintenance.Compile, "compile config should be set")
-	assert.Equal(t, "MAINTENANCE_TOKEN", cfg.Maintenance.Compile.GitHubTokenSecret)
-	assert.True(t, cfg.Maintenance.Compile.CreatePullRequest)
+	assert.Equal(t, "MAINTENANCE_TOKEN", cfg.Maintenance.Compile.CreatePullRequestGitHubToken)
 }
 
 func TestLoadRepoConfig_InvalidJSON(t *testing.T) {
@@ -166,18 +165,10 @@ func TestLoadRepoConfig_InvalidActionFailureIssueExpires(t *testing.T) {
 
 func TestLoadRepoConfig_InvalidMaintenanceCompileGitHubTokenSecret(t *testing.T) {
 	dir := t.TempDir()
-	writeAWJSON(t, dir, `{"maintenance": {"compile": {"github_token_secret": "bad-secret"}}}`)
+	writeAWJSON(t, dir, `{"maintenance": {"compile": {"create_pull_request_github_token": "bad-secret"}}}`)
 
 	_, err := LoadRepoConfig(dir)
-	assert.Error(t, err, "github_token_secret must be a valid secret name")
-}
-
-func TestLoadRepoConfig_MaintenanceCompileCreatePullRequestRequiresGitHubTokenSecret(t *testing.T) {
-	dir := t.TempDir()
-	writeAWJSON(t, dir, `{"maintenance": {"compile": {"create_pull_request": true}}}`)
-
-	_, err := LoadRepoConfig(dir)
-	assert.Error(t, err, "create_pull_request should require github_token_secret")
+	assert.Error(t, err, "create_pull_request_github_token must be a valid secret name")
 }
 
 func TestLoadRepoConfig_GHESTrue(t *testing.T) {

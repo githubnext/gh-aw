@@ -875,7 +875,6 @@ jobs:
       - name: Check for out-of-sync workflows and create issue or pull request if needed
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
-          GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST: ` + strconv.FormatBool(createCompilePR) + `
 `)
 		if compileGitHubToken != "" {
 			yaml.WriteString(`          GH_AW_MAINTENANCE_GITHUB_TOKEN: ` + compileGitHubToken + `

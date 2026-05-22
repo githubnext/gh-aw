@@ -122,6 +122,7 @@ The following workflow lock files have changes:
         pulls: {
           list: vi.fn(),
           create: vi.fn(),
+          update: vi.fn(),
         },
       },
     };
@@ -160,7 +161,6 @@ The following workflow lock files have changes:
     } else {
       delete process.env.GH_AW_PROMPTS_DIR;
     }
-    delete process.env.GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST;
     delete process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN;
 
     // Clean up the test directory
@@ -289,7 +289,6 @@ The following workflow lock files have changes:
   });
 
   it("should create a pull request when PR mode is enabled", async () => {
-    process.env.GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST = "true";
     process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN = "ghs_test_token";
 
     mockExec.exec.mockImplementation(async (cmd, args, options) => {
@@ -309,6 +308,17 @@ The following workflow lock files have changes:
       return 0;
     });
 
+    mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        total_count: 1,
+        items: [
+          {
+            number: 42,
+            html_url: "https://github.com/testowner/testrepo/issues/42",
+          },
+        ],
+      },
+    });
     mockGithub.rest.pulls.list.mockResolvedValue({ data: [] });
     mockGithub.rest.pulls.create.mockResolvedValue({
       data: {
@@ -333,13 +343,12 @@ The following workflow lock files have changes:
       title: "[aw] recompile agentic workflows",
       head: "aw/recompile-workflows",
       base: "main",
-      body: expect.stringContaining("Workflow Recompilation"),
+      body: expect.stringContaining("Fixes #42"),
     });
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
   });
 
   it("should reuse an existing pull request when PR mode is enabled", async () => {
-    process.env.GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST = "true";
     process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN = "ghs_test_token";
 
     mockExec.exec.mockImplementation(async (cmd, args, options) => {
@@ -359,6 +368,17 @@ The following workflow lock files have changes:
       return 0;
     });
 
+    mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        total_count: 1,
+        items: [
+          {
+            number: 42,
+            html_url: "https://github.com/testowner/testrepo/issues/42",
+          },
+        ],
+      },
+    });
     mockGithub.rest.pulls.list.mockResolvedValue({
       data: [
         {
@@ -372,30 +392,49 @@ The following workflow lock files have changes:
     await main();
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found existing pull request"));
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 45,
+      body: expect.stringContaining("Fixes #42"),
+    });
     expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
   });
 
-  it("should fail PR mode without a configured maintenance token secret", async () => {
-    process.env.GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST = "true";
-
-    mockExec.exec.mockImplementation(async (cmd, args, options) => {
-      const joinedArgs = args.join(" ");
-      if (joinedArgs === "diff --exit-code .github/workflows/*.lock.yml") {
-        options?.listeners?.stdout?.(Buffer.from("diff content"));
+  it("should stay in issue mode without a configured maintenance token secret", async () => {
+    mockExec.exec
+      .mockImplementationOnce(async (cmd, args, options) => {
+        if (options?.listeners?.stdout) {
+          options.listeners.stdout(Buffer.from("diff content"));
+        }
         return 1;
-      }
-      if (joinedArgs === "diff .github/workflows/*.lock.yml") {
-        options?.listeners?.stdout?.(Buffer.from("detailed diff content"));
+      })
+      .mockImplementationOnce(async (cmd, args, options) => {
+        if (options?.listeners?.stdout) {
+          options.listeners.stdout(Buffer.from("detailed diff content"));
+        }
         return 0;
-      }
-      return 0;
+      });
+
+    mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        total_count: 0,
+        items: [],
+      },
+    });
+    mockGithub.rest.issues.create.mockResolvedValue({
+      data: {
+        number: 43,
+        html_url: "https://github.com/testowner/testrepo/issues/43",
+      },
     });
 
     const { main } = await import("./check_workflow_recompile_needed.cjs");
+    await main();
 
-    await expect(main()).rejects.toThrow("Missing configured maintenance GitHub token secret");
     expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
+    expect(mockGithub.rest.issues.create).toHaveBeenCalled();
     expect(mockCore.info).toHaveBeenCalledWith("Configured maintenance token present: false");
   });
 });
