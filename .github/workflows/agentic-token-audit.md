@@ -1,6 +1,5 @@
 ---
-emoji: "🔒"
-description: Daily audit of Copilot token usage across all agentic workflows with historical trend tracking
+description: Daily audit of token usage across all agentic workflows with historical trend tracking
 on:
   schedule:
     - cron: "daily around 12:00 on weekdays"
@@ -10,30 +9,23 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
-observability:
-  otlp:
-    endpoint: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
-    headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
-tracker-id: copilot-token-audit
-engine: copilot
+tracker-id: agentic-token-audit
 safe-outputs:
   create-issue:
     expires: 3d
-    title-prefix: "[copilot-token-audit] "
+    title-prefix: "[agentic-token-audit] "
     max: 1
     close-older-issues: true
   upload-asset:
     max: 5
     allowed-exts: [.png, .jpg, .jpeg, .svg]
-imports:
-  - shared/otlp.md
 tools:
   agentic-workflows:
   bash:
     - "*"
   repo-memory:
     branch-name: "memory/token-audit"
-    description: "Historical daily Copilot token usage snapshots (shared with copilot-token-optimizer)"
+    description: "Historical daily workflow token usage snapshots (shared with agentic-token-optimizer)"
     file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
     max-file-size: 102400
     max-patch-size: 51200
@@ -47,52 +39,46 @@ steps:
       mkdir -p /tmp/gh-aw/token-audit/charts /tmp/gh-aw/token-audit/site-packages
   - name: Install Python chart dependencies
     run: |
-      python3 -m pip install --quiet \
-        --target /tmp/gh-aw/token-audit/site-packages \
-        pandas matplotlib seaborn
-  - name: Download Copilot workflow logs
+      python3 -m pip install --quiet --target /tmp/gh-aw/token-audit/site-packages pandas matplotlib seaborn
+  - name: Download agentic workflow logs
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/token-audit
 
-      # Download last 24 hours of Copilot logs as JSON
+      # Download last 24 hours of agentic workflow logs as JSON
       # Allow partial results — gh aw logs streams incrementally, so even if
       # it hits an API rate limit partway through, the JSON written so far is
       # still valid and should be processed by the agent.
       LOGS_EXIT=0
       gh aw logs \
-        --engine copilot \
         --start-date -1d \
         --json \
         -c 100 \
-        > /tmp/gh-aw/token-audit/copilot-logs.json || LOGS_EXIT=$?
+        > /tmp/gh-aw/token-audit/workflow-logs.json || LOGS_EXIT=$?
 
-      if [ -s /tmp/gh-aw/token-audit/copilot-logs.json ]; then
-        TOTAL=$(jq '.runs | length' /tmp/gh-aw/token-audit/copilot-logs.json)
-        echo "✅ Downloaded $TOTAL Copilot workflow runs (last 24 hours)"
+      if [ -s /tmp/gh-aw/token-audit/workflow-logs.json ]; then
+        TOTAL=$(jq '.runs | length' /tmp/gh-aw/token-audit/workflow-logs.json)
+        echo "✅ Downloaded $TOTAL agentic workflow runs (last 24 hours)"
         if [ "$LOGS_EXIT" -ne 0 ]; then
           echo "⚠️ gh aw logs exited with code $LOGS_EXIT (partial results — likely API rate limit)"
         fi
       else
         echo "❌ No log data downloaded (exit code $LOGS_EXIT)"
-        echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/copilot-logs.json
+        echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/workflow-logs.json
       fi
 timeout-minutes: 25
-features:
-  copilot-requests: true
-source: githubnext/agentic-ops/workflows/copilot-token-audit.md@c780d8324935fe1fb30fce545832c10a8f904039
-
+source: githubnext/agentic-ops/workflows/agentic-token-audit.md@e10687ae8f19a5b37b061db524be27948568c411
 ---
 
-# Daily Copilot Token Usage Audit
+# Daily Agentic Workflow Token Usage Audit
 
-You are the Copilot Token Auditor — a workflow that tracks daily token consumption across all Copilot-powered agentic workflows in this repository and maintains a historical record for trend analysis.
+You are the Agentic Workflow Token Auditor — a workflow that tracks daily token consumption across all agentic workflows in this repository and maintains a historical record for trend analysis.
 
 ## Mission
 
-1. Parse the pre-downloaded Copilot workflow logs and compute per-workflow token usage metrics.
+1. Parse the pre-downloaded agentic workflow logs and compute per-workflow token usage metrics.
 2. Persist today's snapshot to repo-memory so the optimizer (and future runs of this audit) can read historical data.
 3. Publish a concise audit issue summarizing today's usage, trends, and cost highlights.
 
@@ -100,7 +86,7 @@ You are the Copilot Token Auditor — a workflow that tracks daily token consump
 
 ### Pre-downloaded logs
 
-The workflow logs are at `/tmp/gh-aw/token-audit/copilot-logs.json`. The file is the raw JSON output of `gh aw logs --json` with this top-level shape:
+The workflow logs are at `/tmp/gh-aw/token-audit/workflow-logs.json`. The file is the raw JSON output of `gh aw logs --json` with this top-level shape:
 
 ```json
 {
@@ -141,7 +127,7 @@ Previous snapshots live at `/tmp/gh-aw/repo-memory/default/`. Each daily snapsho
 
 Write a Python script to `/tmp/gh-aw/token-audit/process_audit.py` and run it. The script must:
 
-1. Load `/tmp/gh-aw/token-audit/copilot-logs.json` and extract `.runs`.
+1. Load `/tmp/gh-aw/token-audit/workflow-logs.json` and extract `.runs`.
 2. Filter to `status == "completed"` runs only.
 3. Group by `workflow_name` and compute per-workflow aggregates:
    - `run_count`, `total_tokens`, `avg_tokens`, `total_cost`, `avg_cost`, `total_turns`, `avg_turns`, `total_action_minutes`, `error_count`, `warning_count`
