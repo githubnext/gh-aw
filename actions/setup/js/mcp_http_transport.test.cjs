@@ -53,6 +53,28 @@ describe("mcp_http_transport.cjs", () => {
         expect(response.error.message).toContain("not supported");
         expect(response.error.message).toContain("Do not attempt to inline files");
       }),
+      it("should reject relative @filepath local file references in tools/call arguments", async () => {
+        const server = new MCPServer({ name: "test-server", version: "1.0.0" });
+        server.tool("echo", "Echo tool", { type: "object" }, async args => ({ content: [{ type: "text", text: JSON.stringify({ echo: args.message }) }] }));
+
+        const responseDot = await server.handleRequest({
+          jsonrpc: "2.0",
+          id: 32,
+          method: "tools/call",
+          params: { name: "echo", arguments: { message: "@./notes.md" } },
+        });
+        expect(responseDot.error).toBeDefined();
+        expect(responseDot.error.code).toBe(-32602);
+
+        const responseDotDot = await server.handleRequest({
+          jsonrpc: "2.0",
+          id: 33,
+          method: "tools/call",
+          params: { name: "echo", arguments: { message: "@../notes.md" } },
+        });
+        expect(responseDotDot.error).toBeDefined();
+        expect(responseDotDot.error.code).toBe(-32602);
+      }),
       it("should return error for unknown tool", async () => {
         const server = new MCPServer({ name: "test-server", version: "1.0.0" }),
           response = await server.handleRequest({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "unknown_tool", arguments: {} } });
