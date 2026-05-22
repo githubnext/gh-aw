@@ -1399,7 +1399,7 @@ jobs:
     needs:
       - activation
       - agent
-    if: always()
+    if: always() && needs.activation.result != 'skipped'
     runs-on: ubuntu-slim
     permissions:
       contents: read
