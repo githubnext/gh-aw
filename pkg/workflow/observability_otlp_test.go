@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"math"
 	"strings"
 	"testing"
 
@@ -1771,6 +1772,24 @@ func TestMergeOTLPCustomAttributes(t *testing.T) {
 		assert.Equal(t, "base-value", result["a"], "base should win for key 'a'")
 		assert.Equal(t, "base-b", result["b"], "base-only key 'b' should be present")
 		assert.Equal(t, "override-c", result["c"], "override-only key 'c' should be present")
+	})
+}
+
+func TestMergedOTLPCustomAttributesCapacity(t *testing.T) {
+	t.Run("handles zero inputs", func(t *testing.T) {
+		assert.Zero(t, mergedOTLPCustomAttributesCapacity(0, 0), "returns zero for empty inputs")
+		assert.Equal(t, 5, mergedOTLPCustomAttributesCapacity(0, 5), "preserves the override size when the base is empty")
+		assert.Equal(t, 5, mergedOTLPCustomAttributesCapacity(5, 0), "preserves the base size when the override is empty")
+	})
+
+	t.Run("sums lengths when the result fits in int", func(t *testing.T) {
+		assert.Equal(t, 5, mergedOTLPCustomAttributesCapacity(2, 3), "sums small lengths that fit in int")
+		assert.Equal(t, 6000, mergedOTLPCustomAttributesCapacity(1000, 5000), "sums typical larger lengths that fit in int")
+		assert.Equal(t, math.MaxInt, mergedOTLPCustomAttributesCapacity(math.MaxInt-1, 1), "allows the exact MaxInt boundary without treating it as overflow")
+	})
+
+	t.Run("returns zero when the sum would overflow int", func(t *testing.T) {
+		assert.Zero(t, mergedOTLPCustomAttributesCapacity(math.MaxInt, 1), "returns zero when the capacity hint would overflow int")
 	})
 }
 

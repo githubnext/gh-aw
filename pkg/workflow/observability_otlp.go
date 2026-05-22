@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math"
 	"net/url"
 	"regexp"
 	"sort"
@@ -350,11 +351,18 @@ func mergeOTLPCustomAttributes(base, override map[string]string) map[string]stri
 	if len(base) == 0 && len(override) == 0 {
 		return nil
 	}
-	merged := make(map[string]string, len(base)+len(override))
+	merged := make(map[string]string, mergedOTLPCustomAttributesCapacity(len(base), len(override)))
 	maps.Copy(merged, override)
 	// base takes precedence
 	maps.Copy(merged, base)
 	return merged
+}
+
+func mergedOTLPCustomAttributesCapacity(baseLen, overrideLen int) int {
+	if baseLen > math.MaxInt-overrideLen {
+		return 0
+	}
+	return baseLen + overrideLen
 }
 
 // collectAllOTLPEndpoints reads the `observability.otlp.endpoint` field from the raw
