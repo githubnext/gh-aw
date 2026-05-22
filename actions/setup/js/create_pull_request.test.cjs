@@ -36,7 +36,8 @@ describe("create_pull_request - draft policy enforcement", () => {
     global.github = {
       rest: {
         pulls: {
-          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test" } }),
+          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test", head: { sha: "abc123" } } }),
+          createReview: vi.fn().mockResolvedValue({ data: { id: 77, html_url: "https://github.com/test/review/77" } }),
         },
         repos: {
           get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
@@ -1470,6 +1471,29 @@ ${diffs}
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("protected files");
+  });
+
+  it("should create PR with caution and request-changes review when protected-files is request_review", async () => {
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "request_review",
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Body text" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.create).toHaveBeenCalledTimes(1);
+    const createPrCall = global.github.rest.pulls.create.mock.calls[0][0];
+    expect(createPrCall.body).toContain("Protected files were modified in this change.");
+    expect(createPrCall.body).toContain(".github/aw/instructions.md");
+
+    expect(global.github.rest.pulls.createReview).toHaveBeenCalledTimes(1);
+    const createReviewCall = global.github.rest.pulls.createReview.mock.calls[0][0];
+    expect(createReviewCall.event).toBe("REQUEST_CHANGES");
+    expect(createReviewCall.body).toContain("Protected files were modified");
+    expect(createReviewCall.body).toContain(".github/aw/instructions.md");
   });
 
   it("should use patch-artifact fallback instructions when protected-files fallback skips push", async () => {

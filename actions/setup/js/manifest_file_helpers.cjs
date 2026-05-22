@@ -193,7 +193,8 @@ function checkForTopLevelDotFolders(patchContent, excludes) {
  * The checks are applied in order and all must pass:
  * 1. If `allowed_files` is set → every file in the patch must match at least one pattern (deny if not).
  * 2. `protected-files` policy applies independently: "allowed" = skip,
- *    "fallback-to-issue" = create review issue, default ("blocked") = deny.
+ *    "fallback-to-issue" = create review issue, "request_review" = create PR with
+ *    request-changes review, default ("blocked") = deny.
  *
  * To allow an agent to write protected files, set both `allowed-files` (strict scope) and
  * `protected-files: allowed` (explicit permission) — neither overrides the other implicitly.
@@ -204,7 +205,7 @@ function checkForTopLevelDotFolders(patchContent, excludes) {
  *
  * @param {string} patchContent - The git patch content
  * @param {HandlerConfig} config
- * @returns {{ action: 'allow' } | { action: 'deny', source: 'allowlist'|'protected', files: string[] } | { action: 'fallback', files: string[] }}
+ * @returns {{ action: 'allow' } | { action: 'deny', source: 'allowlist'|'protected', files: string[] } | { action: 'fallback', files: string[] } | { action: 'request_review', files: string[] }}
  */
 function checkFileProtection(patchContent, config) {
   // Step 1: allowlist check (if configured)
@@ -233,7 +234,13 @@ function checkFileProtection(patchContent, config) {
     return { action: "allow" };
   }
 
-  return config.protected_files_policy === "fallback-to-issue" ? { action: "fallback", files: allFound } : { action: "deny", source: "protected", files: allFound };
+  if (config.protected_files_policy === "fallback-to-issue") {
+    return { action: "fallback", files: allFound };
+  }
+  if (config.protected_files_policy === "request_review") {
+    return { action: "request_review", files: allFound };
+  }
+  return { action: "deny", source: "protected", files: allFound };
 }
 
 module.exports = { extractFilenamesFromPatch, extractPathsFromPatch, checkForManifestFiles, checkForProtectedPaths, checkForTopLevelDotFolders, checkAllowedFiles, checkExcludedFiles, checkFileProtection };

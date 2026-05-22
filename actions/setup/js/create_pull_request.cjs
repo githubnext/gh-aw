@@ -1061,6 +1061,8 @@ async function main(config = {}) {
     // Check file protection: allowlist (strict) or protected-files policy.
     /** @type {string[] | null} Protected files that trigger fallback-to-issue handling */
     let manifestProtectionFallback = null;
+    /** @type {string[] | null} Protected files that trigger request-review handling */
+    let manifestProtectionRequestReview = null;
     /** @type {unknown} */
     let manifestProtectionPushFailedError = null;
     if (!isEmpty) {
@@ -1077,6 +1079,10 @@ async function main(config = {}) {
       if (protection.action === "fallback") {
         manifestProtectionFallback = protection.files;
         core.warning(`Protected file protection triggered (fallback-to-issue): ${protection.files.join(", ")}. Will create review issue instead of pull request.`);
+      }
+      if (protection.action === "request_review") {
+        manifestProtectionRequestReview = protection.files;
+        core.warning(`Protected file protection triggered (request_review): ${protection.files.join(", ")}. Will create pull request with caution and request-changes review.`);
       }
     }
 
@@ -1235,6 +1241,16 @@ async function main(config = {}) {
       // unshift(caution, "", "") places the caution alert at index 0 and two blank
       // separator lines so the main body content follows after a full empty line.
       bodyLines.unshift(detectionCaution, "", "");
+    }
+    if (manifestProtectionRequestReview && manifestProtectionRequestReview.length > 0) {
+      const protectedFilesNotice = [
+        "> [!CAUTION]",
+        "> Protected files were modified in this change.",
+        "> This pull request is in `request_review` mode and requires explicit human scrutiny before merge.",
+        ">",
+        `> Protected files: ${manifestProtectionRequestReview.join(", ")}`,
+      ].join("\n");
+      bodyLines.unshift(protectedFilesNotice, "", "");
     }
 
     // Add fingerprint comment if present
@@ -2029,6 +2045,36 @@ ${patchPreview}`;
           } catch (copilotError) {
             core.warning(`Failed to request copilot as reviewer for PR #${pullRequest.number}: ${copilotError instanceof Error ? copilotError.message : String(copilotError)}`);
           }
+        }
+      }
+
+      if (manifestProtectionRequestReview && manifestProtectionRequestReview.length > 0) {
+        const protectedFilesList = manifestProtectionRequestReview.map(file => `- \`${file}\``).join("\n");
+        const requestChangesBody =
+          "Protected files were modified in this pull request and require manual scrutiny before merge.\n\n" +
+          "Please verify that each protected-file change is intentional, policy-compliant, and safe:\n\n" +
+          `${protectedFilesList}`;
+        core.info(`Creating REQUEST_CHANGES review for PR #${pullRequest.number} due to protected files`);
+        try {
+          /** @type {{ owner: string, repo: string, pull_number: number, event: "REQUEST_CHANGES", body: string, commit_id?: string }} */
+          const requestChangesParams = {
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            pull_number: pullRequest.number,
+            event: "REQUEST_CHANGES",
+            body: requestChangesBody,
+          };
+          if (pullRequest.head && pullRequest.head.sha) {
+            requestChangesParams.commit_id = pullRequest.head.sha;
+          }
+          await withRetry(
+            () => githubClient.rest.pulls.createReview(requestChangesParams),
+            RATE_LIMIT_RETRY_CONFIG,
+            `create REQUEST_CHANGES review for PR #${pullRequest.number}`
+          );
+          core.info(`Created REQUEST_CHANGES review for PR #${pullRequest.number}`);
+        } catch (requestChangesError) {
+          core.warning(`Failed to create REQUEST_CHANGES review for PR #${pullRequest.number}: ${requestChangesError instanceof Error ? requestChangesError.message : String(requestChangesError)}`);
         }
       }
 
