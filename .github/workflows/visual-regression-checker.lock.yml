@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"fe0b5dba3447b48712eae584f9b303155d74303c9d1ec53327f747935a7e6ddd","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f56212613d109f79c6343d60ae9cb0ac8e5523a50886efee86de2c8ab3431fbe","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.51"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.51"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.51"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.17"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -222,21 +222,21 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_8588a54223221ec6_EOF'
+          cat << 'GH_AW_PROMPT_a359c79bca971568_EOF'
           <system>
-          GH_AW_PROMPT_8588a54223221ec6_EOF
+          GH_AW_PROMPT_a359c79bca971568_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/playwright_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_8588a54223221ec6_EOF'
+          cat << 'GH_AW_PROMPT_a359c79bca971568_EOF'
           <safe-output-tools>
           Tools: add_comment, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_8588a54223221ec6_EOF
+          GH_AW_PROMPT_a359c79bca971568_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_8588a54223221ec6_EOF'
+          cat << 'GH_AW_PROMPT_a359c79bca971568_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -265,13 +265,13 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_8588a54223221ec6_EOF
+          GH_AW_PROMPT_a359c79bca971568_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_8588a54223221ec6_EOF'
+          cat << 'GH_AW_PROMPT_a359c79bca971568_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/visual-regression-checker.md}}
-          GH_AW_PROMPT_8588a54223221ec6_EOF
+          GH_AW_PROMPT_a359c79bca971568_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -430,21 +430,39 @@ jobs:
       - name: Build documentation
         run: npm run build
         working-directory: ./docs
-      - name: Start Astro dev server
-        run: npm run dev &
-        working-directory: ./docs
+      - name: Start docs server
+        run: "nohup make dev-docs > /tmp/preview.log 2>&1 &\nPID=$!\necho \"$PID\" > /tmp/server.pid\necho \"Server PID: $PID\"\n"
       - name: Wait for dev server
         run: |-
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; then
-              echo "Dev server is ready"
-              exit 0
+          MAX_WAIT=90
+          WAITED=0
+          until (echo > /dev/tcp/127.0.0.1/4321) > /dev/null 2>&1; do
+            if [ -f /tmp/server.pid ] && ! kill -0 "$(cat /tmp/server.pid)" 2>/dev/null; then
+              echo "Docs server process exited before opening port 4321" >&2
+              cat /tmp/preview.log >&2
+              exit 1
             fi
-            echo "Waiting for dev server... attempt $i/30"
-            sleep 1
+            WAITED=$((WAITED + 3))
+            if [ $WAITED -ge $MAX_WAIT ]; then
+              echo "Docs server port 4321 did not open in ${MAX_WAIT}s" >&2
+              cat /tmp/preview.log >&2
+              exit 1
+            fi
+            echo "Waiting for docs port... ($WAITED/${MAX_WAIT}s)"
+            sleep 3
           done
-          echo "Dev server did not become ready in time" >&2
-          exit 1
+          WAITED=0
+          until curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; do
+            WAITED=$((WAITED + 3))
+            if [ $WAITED -ge $MAX_WAIT ]; then
+              echo "Dev server did not become ready in ${MAX_WAIT}s" >&2
+              cat /tmp/preview.log >&2
+              exit 1
+            fi
+            echo "Waiting for dev server response... ($WAITED/${MAX_WAIT}s)"
+            sleep 3
+          done
+          echo "Dev server is ready"
 
       - name: Configure Git credentials
         env:
@@ -518,9 +536,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_139091ac33bbe129_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_653a04e9e30deb09_EOF'
           {"add_comment":{"max":1},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_139091ac33bbe129_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_653a04e9e30deb09_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -716,7 +734,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_9db7539180735571_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_660d31cc0d2d731a_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -762,7 +780,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_9db7539180735571_EOF
+          GH_AW_MCP_CONFIG_660d31cc0d2d731a_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
