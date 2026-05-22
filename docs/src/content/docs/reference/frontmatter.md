@@ -347,6 +347,9 @@ or an array of endpoint objects for fan-out.
 string.
 `if-missing` supports `error` (default), `warn`, and
 `ignore`.
+`attributes` is an optional map of custom span attributes
+attached to gh-aw job spans; values support GitHub Actions
+expressions.
 
 For full OpenTelemetry reference details, including runtime
 variables, endpoint forms, span attributes, and artifact
