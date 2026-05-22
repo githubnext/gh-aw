@@ -810,7 +810,8 @@ describe("create_pull_request - auto-close-issue configuration", () => {
     global.github = {
       rest: {
         pulls: {
-          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test" } }),
+          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test", head: { sha: "abc123" } } }),
+          createReview: vi.fn().mockResolvedValue({ data: { id: 77, html_url: "https://github.com/test/review/77" } }),
         },
         repos: {
           get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
@@ -1316,7 +1317,8 @@ describe("create_pull_request - allowed-files strict allowlist", () => {
     global.github = {
       rest: {
         pulls: {
-          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test" } }),
+          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test", head: { sha: "abc123" } } }),
+          createReview: vi.fn().mockResolvedValue({ data: { id: 77, html_url: "https://github.com/test/review/77" } }),
         },
         repos: {
           get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
