@@ -279,8 +279,7 @@ func buildDetectionSuccessCondition() ConditionNode {
 
 // buildDetectionPassedCondition builds the condition to check if the detection job either
 // succeeded (no threats found) or was skipped (agent produced no outputs or patch — nothing
-// to detect against). Use this for downstream jobs that must run in both cases, such as
-// update_cache_memory and push_repo_memory.
+// to detect against). Use this for downstream jobs that must run in both cases.
 func buildDetectionPassedCondition() ConditionNode {
 	return BuildOr(
 		buildDetectionSuccessCondition(),

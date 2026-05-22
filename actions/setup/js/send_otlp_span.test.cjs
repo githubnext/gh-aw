@@ -35,6 +35,8 @@ const {
   buildExperimentAttributes,
   hasProxyConfigured,
   resolveEngineId,
+  parseOTLPCustomAttributes,
+  buildCustomOTLPAttributes,
 } = await import("./send_otlp_span.cjs");
 
 const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = await import("./experiment_helpers.cjs");
@@ -5792,5 +5794,269 @@ describe("resolveEngineId", () => {
 
   it("ignores whitespace-only awInfo.engine_id and falls back to context", () => {
     expect(resolveEngineId({ engine_id: "  ", context: { engine_id: "gemini" } })).toBe("gemini");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseOTLPCustomAttributes
+// ---------------------------------------------------------------------------
+
+describe("parseOTLPCustomAttributes", () => {
+  const savedEnv = {};
+
+  beforeEach(() => {
+    savedEnv.GH_AW_OTLP_ATTRIBUTES = process.env.GH_AW_OTLP_ATTRIBUTES;
+    delete process.env.GH_AW_OTLP_ATTRIBUTES;
+  });
+
+  afterEach(() => {
+    if (savedEnv.GH_AW_OTLP_ATTRIBUTES !== undefined) {
+      process.env.GH_AW_OTLP_ATTRIBUTES = savedEnv.GH_AW_OTLP_ATTRIBUTES;
+    } else {
+      delete process.env.GH_AW_OTLP_ATTRIBUTES;
+    }
+  });
+
+  it("returns null when the env var is not set", () => {
+    expect(parseOTLPCustomAttributes()).toBeNull();
+  });
+
+  it("returns null when the env var is an empty string", () => {
+    process.env.GH_AW_OTLP_ATTRIBUTES = "";
+    expect(parseOTLPCustomAttributes()).toBeNull();
+  });
+
+  it("returns null when the env var is not valid JSON", () => {
+    process.env.GH_AW_OTLP_ATTRIBUTES = "not-json";
+    expect(parseOTLPCustomAttributes()).toBeNull();
+  });
+
+  it("returns null when the env var is a JSON array", () => {
+    process.env.GH_AW_OTLP_ATTRIBUTES = '["a","b"]';
+    expect(parseOTLPCustomAttributes()).toBeNull();
+  });
+
+  it("returns null when the env var is JSON null", () => {
+    process.env.GH_AW_OTLP_ATTRIBUTES = "null";
+    expect(parseOTLPCustomAttributes()).toBeNull();
+  });
+
+  it("returns the parsed object when the env var is a valid JSON object", () => {
+    process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
+      "langfuse.session.id": "my-session",
+      "langfuse.user.id": "my-user",
+    });
+    const result = parseOTLPCustomAttributes();
+    expect(result).toEqual({
+      "langfuse.session.id": "my-session",
+      "langfuse.user.id": "my-user",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildCustomOTLPAttributes
+// ---------------------------------------------------------------------------
+
+describe("buildCustomOTLPAttributes", () => {
+  const savedEnv = {};
+
+  beforeEach(() => {
+    savedEnv.GH_AW_OTLP_ATTRIBUTES = process.env.GH_AW_OTLP_ATTRIBUTES;
+    delete process.env.GH_AW_OTLP_ATTRIBUTES;
+  });
+
+  afterEach(() => {
+    if (savedEnv.GH_AW_OTLP_ATTRIBUTES !== undefined) {
+      process.env.GH_AW_OTLP_ATTRIBUTES = savedEnv.GH_AW_OTLP_ATTRIBUTES;
+    } else {
+      delete process.env.GH_AW_OTLP_ATTRIBUTES;
+    }
+  });
+
+  it("returns an empty array when GH_AW_OTLP_ATTRIBUTES is not set", () => {
+    expect(buildCustomOTLPAttributes()).toEqual([]);
+  });
+
+  it("returns static attribute values as-is", () => {
+    process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
+      "langfuse.session.id": "my-session",
+      "langfuse.user.id": "my-user",
+    });
+    const result = buildCustomOTLPAttributes();
+    expect(result).toContainEqual({ key: "langfuse.session.id", value: { stringValue: "my-session" } });
+    expect(result).toContainEqual({ key: "langfuse.user.id", value: { stringValue: "my-user" } });
+  });
+
+  it("omits custom attributes whose value is an empty string", () => {
+    process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
+      "my.attr": "",
+    });
+    const result = buildCustomOTLPAttributes();
+    expect(result).toHaveLength(0);
+  });
+
+  it("preserves static attribute values", () => {
+    process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
+      "deployment.environment": "production",
+    });
+    const result = buildCustomOTLPAttributes();
+    expect(result).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sendJobSetupSpan – custom attributes integration
+// ---------------------------------------------------------------------------
+
+describe("sendJobSetupSpan custom attributes", () => {
+  const savedEnv = {};
+  const envKeys = [
+    "GH_AW_OTLP_ENDPOINTS",
+    "GH_AW_OTLP_ATTRIBUTES",
+    "GITHUB_RUN_ID",
+    "GITHUB_RUN_ATTEMPT",
+    "GITHUB_ACTOR",
+    "GITHUB_REPOSITORY",
+    "GH_AW_SETUP_AW_CONTEXT",
+  ];
+  let mkdirSpy, appendSpy;
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+    for (const k of envKeys) {
+      savedEnv[k] = process.env[k];
+      delete process.env[k];
+    }
+    mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+    appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    for (const k of envKeys) {
+      if (savedEnv[k] !== undefined) {
+        process.env[k] = savedEnv[k];
+      } else {
+        delete process.env[k];
+      }
+    }
+    mkdirSpy.mockRestore();
+    appendSpy.mockRestore();
+  });
+
+  it("emits langfuse.session.id and langfuse.user.id when configured via GH_AW_OTLP_ATTRIBUTES", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://langfuse.example.com" }]);
+    process.env.GITHUB_ACTOR = "octocat";
+    process.env.GITHUB_RUN_ID = "99001122";
+    process.env.GITHUB_RUN_ATTEMPT = "1";
+    process.env.GH_AW_SETUP_AW_CONTEXT = JSON.stringify({
+      episode_id: "99001122-1:owner/repo/.github/workflows/test.lock.yml@refs/heads/main",
+    });
+    process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
+      "langfuse.session.id": "my-session-id",
+      "session.id": "my-session-id",
+      "langfuse.user.id": "my-user-id",
+      "user.id": "my-user-id",
+    });
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobSetupSpan();
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrMap = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+
+    expect(attrMap["langfuse.session.id"]).toBe("my-session-id");
+    expect(attrMap["session.id"]).toBe("my-session-id");
+    expect(attrMap["langfuse.user.id"]).toBe("my-user-id");
+    expect(attrMap["user.id"]).toBe("my-user-id");
+
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sendJobConclusionSpan – custom attributes integration
+// ---------------------------------------------------------------------------
+
+describe("sendJobConclusionSpan custom attributes", () => {
+  const savedEnv = {};
+  const envKeys = [
+    "GH_AW_OTLP_ENDPOINTS",
+    "GH_AW_OTLP_ATTRIBUTES",
+    "GITHUB_RUN_ID",
+    "GITHUB_RUN_ATTEMPT",
+    "GITHUB_ACTOR",
+    "GITHUB_REPOSITORY",
+    "GITHUB_AW_OTEL_TRACE_ID",
+    "GITHUB_AW_OTEL_PARENT_SPAN_ID",
+    "GH_AW_AGENT_CONCLUSION",
+  ];
+  let mkdirSpy, appendSpy;
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+    for (const k of envKeys) {
+      savedEnv[k] = process.env[k];
+      delete process.env[k];
+    }
+    mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+    appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    for (const k of envKeys) {
+      if (savedEnv[k] !== undefined) {
+        process.env[k] = savedEnv[k];
+      } else {
+        delete process.env[k];
+      }
+    }
+    mkdirSpy.mockRestore();
+    appendSpy.mockRestore();
+  });
+
+  it("emits langfuse.session.id and langfuse.user.id on conclusion spans when configured", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://langfuse.example.com" }]);
+    process.env.GITHUB_ACTOR = "monalisa";
+    process.env.GITHUB_RUN_ID = "88002233";
+    process.env.GITHUB_RUN_ATTEMPT = "1";
+    process.env.GITHUB_AW_OTEL_TRACE_ID = "a".repeat(32);
+    process.env.GH_AW_OTLP_ATTRIBUTES = JSON.stringify({
+      "langfuse.session.id": "my-session-id",
+      "langfuse.user.id": "my-user-id",
+    });
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (String(filePath).includes("aw_info.json")) {
+        return JSON.stringify({
+          context: {
+            episode_id: "88002233-1:owner/repo/.github/workflows/test.lock.yml@refs/heads/main",
+          },
+        });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion");
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrMap = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+
+    expect(attrMap["langfuse.session.id"]).toBe("my-session-id");
+    expect(attrMap["langfuse.user.id"]).toBe("my-user-id");
   });
 });

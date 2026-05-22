@@ -568,6 +568,55 @@ function buildExperimentAttributes(assignments) {
 }
 
 // ---------------------------------------------------------------------------
+// Custom OTLP attributes (GH_AW_OTLP_ATTRIBUTES)
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse the GH_AW_OTLP_ATTRIBUTES environment variable into a plain object.
+ * The variable is a JSON-encoded `Record<string, string>` injected by the
+ * gh-aw compiler from the `observability.otlp.attributes` frontmatter field.
+ * Returns null when the variable is absent, empty, or not valid JSON.
+ *
+ * @returns {Record<string, string> | null}
+ */
+function parseOTLPCustomAttributes() {
+  const raw = process.env.GH_AW_OTLP_ATTRIBUTES;
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return /** @type {Record<string, string>} */ (parsed);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build additional OTLP attribute objects from the GH_AW_OTLP_ATTRIBUTES
+ * environment variable.
+ *
+ * Attribute values are used as-is (use GitHub Actions expressions like
+ * `${{ vars.MY_VALUE }}` in workflow frontmatter for dynamic values).
+ * Attributes whose value is an empty string are omitted.  When no custom
+ * attributes are configured, an empty array is returned.
+ *
+ * @returns {Array<{key: string, value: object}>}
+ */
+function buildCustomOTLPAttributes() {
+  const customDefs = parseOTLPCustomAttributes();
+  if (!customDefs) return [];
+
+  const result = [];
+  for (const [key, value] of Object.entries(customDefs)) {
+    if (typeof key !== "string" || !key || typeof value !== "string") continue;
+    if (value !== "") {
+      result.push(buildAttr(key, value));
+    }
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // HTTP transport
 // ---------------------------------------------------------------------------
 
@@ -1143,6 +1192,8 @@ async function sendJobSetupSpan(options = {}) {
   const experimentAssignments = readExperimentAssignments();
   attributes.push(...buildExperimentAttributes(experimentAssignments));
   attributes.push(...buildEpisodeAttributesFromContext(awInfo, runId, runAttempt));
+  // Append user-defined custom attributes from observability.otlp.attributes.
+  attributes.push(...buildCustomOTLPAttributes());
 
   const resourceAttributes = buildGitHubActionsResourceAttributes({
     repository,
@@ -1852,6 +1903,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const conclusionExperimentAssignments = readExperimentAssignments();
   attributes.push(...buildExperimentAttributes(conclusionExperimentAssignments));
 
+  // Append user-defined custom attributes from observability.otlp.attributes.
+  attributes.push(...buildCustomOTLPAttributes());
+
   // Enrich conclusion span with outcome evaluation fleet metrics when available.
   // Written by the outcome-collector workflow's pre-agent step.
   const outcomeSummary = readJSONIfExists("/tmp/gh-aw/outcome-summary.json");
@@ -2094,4 +2148,6 @@ module.exports = {
   OTEL_JSONL_PATH,
   appendToOTLPJSONL,
   buildExperimentAttributes,
+  parseOTLPCustomAttributes,
+  buildCustomOTLPAttributes,
 };

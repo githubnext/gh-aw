@@ -97,6 +97,10 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 	if isOTLPHeadersPresent(data) {
 		steps = append(steps, generateOTLPHeadersMaskStep())
 	}
+	// Mask custom OTLP attribute values so user-supplied values cannot leak into runner logs.
+	if isOTLPAttributesPresent(data) {
+		steps = append(steps, generateOTLPAttributesMaskStep())
+	}
 
 	// Add artifact download steps after setup.
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.

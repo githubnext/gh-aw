@@ -33,6 +33,7 @@ const {
   sendOTLPToAllEndpoints,
   appendToOTLPJSONL,
   readJSONIfExists,
+  buildCustomOTLPAttributes,
 } = require("./send_otlp_span.cjs");
 
 const AW_INFO_PATH = "/tmp/gh-aw/aw_info.json";
@@ -257,6 +258,9 @@ async function main() {
   if (types.length > 0) {
     summaryAttributes.push(buildAttr("gh-aw.outcome.types", types.join(",")));
   }
+
+  // Append user-defined custom attributes from observability.otlp.attributes.
+  summaryAttributes.push(...buildCustomOTLPAttributes());
 
   const summarySpan = buildOTLPSpan({
     traceId,

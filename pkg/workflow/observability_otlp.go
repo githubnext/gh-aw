@@ -240,12 +240,125 @@ func generateOTLPHeadersMaskStep() string {
 	return sb.String()
 }
 
+// isOTLPAttributesPresent returns true when GH_AW_OTLP_ATTRIBUTES has been
+// injected into the workflow-level env block.  This indicates that attribute
+// value masking is needed so that user-supplied values do not leak into
+// GitHub Actions runner logs.
+func isOTLPAttributesPresent(data *WorkflowData) bool {
+	if data == nil {
+		return false
+	}
+	return strings.Contains(data.Env, "GH_AW_OTLP_ATTRIBUTES")
+}
+
+// generateOTLPAttributesMaskStep returns a GitHub Actions step that runs
+// mask_otlp_attributes.sh to issue the ::add-mask:: workflow command for every
+// value in the GH_AW_OTLP_ATTRIBUTES JSON object.  Masking the values prevents
+// user-supplied custom span attribute values (e.g. session IDs, user IDs) from
+// appearing in plaintext in GitHub Actions runner logs.
+func generateOTLPAttributesMaskStep() string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Mask OTLP custom attribute values\n")
+	sb.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/mask_otlp_attributes.sh\"\n")
+	return sb.String()
+}
+
 // otlpEndpointEntry is the wire format used when encoding the GH_AW_OTLP_ENDPOINTS
 // environment variable as a JSON array.  Each entry carries the endpoint URL and
 // its optional normalized (comma-separated key=value) headers string.
 type otlpEndpointEntry struct {
 	URL     string `json:"url"`
 	Headers string `json:"headers,omitempty"`
+}
+
+// collectOTLPCustomAttributes reads the `observability.otlp.attributes` map from
+// a raw frontmatter map and returns it as a map[string]string.  Only string values
+// are accepted; non-string values are silently ignored.  Returns nil when the
+// field is absent or empty.
+func collectOTLPCustomAttributes(frontmatter map[string]any) map[string]string {
+	if frontmatter == nil {
+		return nil
+	}
+	obsAny, ok := frontmatter["observability"]
+	if !ok {
+		return nil
+	}
+	obsMap, ok := obsAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	return extractOTLPCustomAttributesFromObsMap(obsMap)
+}
+
+// extractOTLPCustomAttributesFromObsMap reads the `otlp.attributes` map from
+// a raw observability section map (i.e. the value of the "observability" key in
+// the frontmatter) and returns it as a map[string]string.  Only string values are
+// accepted; non-string values are silently ignored.  Returns nil when the field is
+// absent or empty.
+func extractOTLPCustomAttributesFromObsMap(obsMap map[string]any) map[string]string {
+	if obsMap == nil {
+		return nil
+	}
+	otlpAny, ok := obsMap["otlp"]
+	if !ok {
+		return nil
+	}
+	otlpMap, ok := otlpAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	attrsAny, ok := otlpMap["attributes"]
+	if !ok {
+		return nil
+	}
+	attrsMap, ok := attrsAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	result := make(map[string]string, len(attrsMap))
+	for k, v := range attrsMap {
+		if s, ok := v.(string); ok && k != "" {
+			result[k] = s
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+// encodeOTLPCustomAttributes serialises a map[string]string of custom OTLP span
+// attributes to a compact JSON string suitable for use as the GH_AW_OTLP_ATTRIBUTES
+// environment variable.  Returns an empty string when the map is nil/empty or
+// serialisation fails.
+func encodeOTLPCustomAttributes(attrs map[string]string) string {
+	if len(attrs) == 0 {
+		return ""
+	}
+	b, err := json.Marshal(attrs)
+	if err != nil {
+		otlpLog.Printf("Failed to encode OTLP custom attributes: %v", err)
+		return ""
+	}
+	return string(b)
+}
+
+// mergeOTLPCustomAttributes merges two custom-attribute maps; values in base
+// take precedence over values in override when the same key is present in both.
+// Returns nil when both inputs are empty.
+func mergeOTLPCustomAttributes(base, override map[string]string) map[string]string {
+	if len(base) == 0 && len(override) == 0 {
+		return nil
+	}
+	merged := make(map[string]string, len(base)+len(override))
+	for k, v := range override {
+		merged[k] = v
+	}
+	// base takes precedence
+	for k, v := range base {
+		merged[k] = v
+	}
+	return merged
 }
 
 // collectAllOTLPEndpoints reads the `observability.otlp.endpoint` field from the raw
@@ -418,6 +531,10 @@ func allOTLPHeaders(entries []otlpEndpointEntry) string {
 //     injected for the first endpoint (backward compat) and GH_AW_OTLP_ALL_HEADERS
 //     is injected with all headers across every endpoint (for secret masking).
 //
+//  5. When observability.otlp.attributes is configured, GH_AW_OTLP_ATTRIBUTES is
+//     injected as a JSON-encoded map so that span-emitting scripts can append custom
+//     attributes (including Langfuse session/user IDs) to every span.
+//
 // When no OTLP endpoint is configured the function is a no-op.
 func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	// Collect all endpoint entries from the endpoint field (string, object, or array).
@@ -486,6 +603,22 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	if ifMissingMode == "warn" || ifMissingMode == "ignore" {
 		otlpEnvLines += "\n  GH_AW_OTLP_IF_MISSING: " + ifMissingMode
 		otlpLog.Printf("Injected GH_AW_OTLP_IF_MISSING env var (%s)", ifMissingMode)
+	}
+
+	// 5. Inject GH_AW_OTLP_ATTRIBUTES (JSON object) for custom per-span attributes.
+	//    Attributes from RawFrontmatter take precedence; ParsedFrontmatter is the
+	//    fallback for workflows that were parsed but whose RawFrontmatter was later
+	//    modified (e.g. during observability merge in the orchestrator).
+	customAttrs := collectOTLPCustomAttributes(workflowData.RawFrontmatter)
+	if len(customAttrs) == 0 && workflowData.ParsedFrontmatter != nil &&
+		workflowData.ParsedFrontmatter.Observability != nil &&
+		workflowData.ParsedFrontmatter.Observability.OTLP != nil {
+		customAttrs = workflowData.ParsedFrontmatter.Observability.OTLP.Attributes
+	}
+	if encoded := encodeOTLPCustomAttributes(customAttrs); encoded != "" {
+		escapedEncoded := strings.ReplaceAll(encoded, "'", "''")
+		otlpEnvLines += "\n  GH_AW_OTLP_ATTRIBUTES: '" + escapedEncoded + "'"
+		otlpLog.Printf("Injected GH_AW_OTLP_ATTRIBUTES env var (%d custom attributes)", len(customAttrs))
 	}
 
 	if workflowData.Env == "" {

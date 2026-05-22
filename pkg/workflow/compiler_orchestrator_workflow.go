@@ -175,10 +175,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
 	}
 
-	// Merge observability endpoints from imports with those from the main workflow.
-	// All OTLP endpoints from both sources are combined into an array, deduplicating
-	// by URL (main workflow endpoints take precedence). This allows multiple shared
-	// workflows each defining their own OTLP endpoint to fan out to all collectors.
+	// Merge observability endpoints and custom attributes from imports with those
+	// from the main workflow.  All OTLP endpoints from both sources are combined
+	// into an array, deduplicating by URL (main workflow endpoints take precedence).
+	// Custom attributes follow the same precedence: main workflow values override
+	// imported ones for the same key.
 	if obs := engineSetup.importsResult.MergedObservability; obs != "" {
 		var importedObs map[string]any
 		if err := json.Unmarshal([]byte(obs), &importedObs); err == nil {
@@ -207,14 +208,29 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				}
 			}
 
-			if len(mergedEndpoints) > 0 {
+			// Merge custom OTLP attributes: import attrs provide defaults, main
+			// workflow attrs override them.
+			mainAttrs := extractOTLPCustomAttributesFromObsMap(mainObs)
+			importAttrs := extractOTLPCustomAttributesFromObsMap(importedObs)
+			// mergeOTLPCustomAttributes(base, override) — base wins, so pass main as base.
+			mergedAttrs := mergeOTLPCustomAttributes(mainAttrs, importAttrs)
+
+			if len(mergedEndpoints) > 0 || len(mergedAttrs) > 0 {
 				mainCount := len(mergedEndpoints) - importAdded
+				newOTLP := map[string]any{}
+				if len(mergedEndpoints) > 0 {
+					newOTLP["endpoint"] = mergedEndpoints
+				}
+				if len(mergedAttrs) > 0 {
+					newOTLP["attributes"] = mergedAttrs
+				}
 				workflowData.RawFrontmatter["observability"] = map[string]any{
-					"otlp": map[string]any{
-						"endpoint": mergedEndpoints,
-					},
+					"otlp": newOTLP,
 				}
 				orchestratorWorkflowLog.Printf("Merged OTLP endpoints into RawFrontmatter: %d from main workflow, %d from imports (%d total)", mainCount, importAdded, len(mergedEndpoints))
+				if len(mergedAttrs) > 0 {
+					orchestratorWorkflowLog.Printf("Merged %d custom OTLP attributes into RawFrontmatter", len(mergedAttrs))
+				}
 			}
 		}
 	}

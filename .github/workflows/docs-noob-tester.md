@@ -40,24 +40,35 @@ imports:
   - shared/keep-it-short.md
   - shared/otlp.md
 pre-agent-steps:
-  - name: Install docs dependencies
+  - name: Start docs server
     env:
       EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
     run: |
-      cd "$EXPR_GITHUB_WORKSPACE/docs"
-      npm install
-  - name: Start documentation server
-    env:
-      EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
-    run: |
-      cd "$EXPR_GITHUB_WORKSPACE/docs"
-      nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/preview.log 2>&1 &
+      cd "$EXPR_GITHUB_WORKSPACE"
+      nohup make dev-docs > /tmp/preview.log 2>&1 &
       PID=$!
       echo $PID > /tmp/server.pid
       echo "Server PID: $PID"
   - name: Wait for server readiness
     run: |
       MAX_WAIT=135  # 45 attempts × 3s = 135s max wait
+      WAITED=0
+      until (echo > /dev/tcp/127.0.0.1/4321) > /dev/null 2>&1; do
+        # Check if the server process has already died
+        if [ -f /tmp/server.pid ] && ! kill -0 "$(cat /tmp/server.pid)" 2>/dev/null; then
+          echo "::error::Documentation server process died before opening port 4321. Server log:"
+          cat /tmp/preview.log
+          exit 1
+        fi
+        WAITED=$((WAITED + 3))
+        if [ $WAITED -ge $MAX_WAIT ]; then
+          echo "::error::Documentation server port 4321 did not open after ${MAX_WAIT}s. Server log:"
+          cat /tmp/preview.log
+          exit 1
+        fi
+        echo "Waiting for docs port... ($WAITED/${MAX_WAIT}s)"
+        sleep 3
+      done
       WAITED=0
       until curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; do
         # Check if the server process has already died
@@ -100,7 +111,7 @@ You are a brand new user trying to get started with GitHub Agentic Workflows for
 
 Act as a complete beginner who has never used GitHub Agentic Workflows before. Navigate the documentation site, follow tutorials step-by-step, and document any issues you encounter.
 
-> The documentation server is already running at `http://localhost:4321/gh-aw/`.
+> The workflow started the documentation server and verified readiness. It is running at `http://localhost:4321/gh-aw/`.
 
 ## Step 1: Navigate Documentation as a Noob
 
