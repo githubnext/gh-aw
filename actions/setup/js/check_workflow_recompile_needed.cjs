@@ -169,6 +169,7 @@ async function prepareAndPushRecompileBranch(owner, repo, changedFiles) {
     baseRef,
     cwd: workspaceDir,
     gitAuthEnv: getGitAuthEnv(token),
+    allowGitPushFallback: false,
   });
   return { pushed: true };
 }

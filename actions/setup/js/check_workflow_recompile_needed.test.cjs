@@ -3,6 +3,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
 
 describe("check_workflow_recompile_needed", () => {
   let mockCore;
@@ -441,6 +444,65 @@ The following workflow lock files have changes:
       sha: "base-head-sha",
     });
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+  });
+
+  it("should require signed commits when creating a maintenance pull request", async () => {
+    process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN = "ghs_test_token";
+
+    const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+    const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("signed-oid");
+
+    mockExec.exec.mockImplementation(async (cmd, args, options) => {
+      const joinedArgs = args.join(" ");
+      if (joinedArgs === "diff --exit-code .github/workflows/*.lock.yml") {
+        options?.listeners?.stdout?.(Buffer.from("diff content"));
+        return 1;
+      }
+      if (joinedArgs === "diff .github/workflows/*.lock.yml") {
+        options?.listeners?.stdout?.(Buffer.from("detailed diff content"));
+        return 0;
+      }
+      return 0;
+    });
+    mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
+      const joinedArgs = args.join(" ");
+      if (joinedArgs === "diff --name-only .github/workflows/*.lock.yml") {
+        return { stdout: ".github/workflows/example.lock.yml\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "rev-parse HEAD") {
+        return { stdout: "base-head-sha\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "ls-remote origin refs/heads/aw/recompile-workflows") {
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      return { stdout: "", stderr: "", exitCode: 0 };
+    });
+
+    mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        total_count: 0,
+        items: [],
+      },
+    });
+    mockGithub.rest.pulls.list.mockResolvedValue({ data: [] });
+    mockGithub.rest.pulls.create.mockResolvedValue({
+      data: {
+        number: 44,
+        html_url: "https://github.com/testowner/testrepo/pull/44",
+      },
+    });
+
+    const { main } = await import("./check_workflow_recompile_needed.cjs");
+    await main();
+
+    expect(pushSignedSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "testowner",
+        repo: "testrepo",
+        branch: "aw/recompile-workflows",
+        allowGitPushFallback: false,
+      })
+    );
   });
 
   it("should reuse an existing pull request when PR mode is enabled", async () => {
