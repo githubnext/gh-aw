@@ -72,6 +72,12 @@ func hasLocalModifications(sourceContent, localContent, sourceSpec, localWorkflo
 
 	// Normalize again after processing
 	sourceResolvedNormalized := stringutil.NormalizeWhitespace(sourceResolved)
+	if normalized, normalizeErr := UpdateFieldInFrontmatter(sourceResolvedNormalized, "source", "__gh_aw_source__"); normalizeErr == nil {
+		sourceResolvedNormalized = normalized
+	}
+	if normalized, normalizeErr := UpdateFieldInFrontmatter(localNormalized, "source", "__gh_aw_source__"); normalizeErr == nil {
+		localNormalized = normalized
+	}
 
 	// Compare the normalized contents
 	hasModifications := sourceResolvedNormalized != localNormalized

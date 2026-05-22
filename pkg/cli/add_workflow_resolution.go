@@ -233,10 +233,12 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 			RepoSpec: RepoSpec{
 				RepoSlug: repoSpec.RepoSlug,
 				Version:  repoSpec.Version,
+				PackagePath: repoSpec.PackagePath,
 			},
-			WorkflowPath: installationSource,
-			WorkflowName: workflowName,
-			Host:         host,
+			WorkflowPath:          installationSource,
+			WorkflowName:          workflowName,
+			Host:                  host,
+			FromRepositoryManifest: true,
 		})
 	}
 
