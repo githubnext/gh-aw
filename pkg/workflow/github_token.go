@@ -46,18 +46,20 @@ func getEffectiveSafeOutputGitHubToken(customToken string) string {
 	return "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
 }
 
-// getEffectiveMaintenanceGitHubToken returns the GitHub token to use for
-// maintenance compile-workflows operations.
+// getEffectiveMaintenanceGitHubToken returns the configured GitHub token secret
+// expression to use for maintenance compile-workflows operations.
 //
-// Precedence:
-//  1. Configured secret name from aw.json maintenance.compile.github_token_secret
-//  2. secrets.GH_AW_GITHUB_TOKEN
-//  3. github.token
+// No fallback chain is applied here. Maintenance compile PR mode must use the
+// explicitly configured secret so the generated workflow does not silently fall
+// back to a token without permission to write workflow files.
 func getEffectiveMaintenanceGitHubToken(secretName string) string {
-	if strings.TrimSpace(secretName) == "" {
-		return "${{ secrets.GH_AW_GITHUB_TOKEN || github.token }}"
+	secretName = strings.TrimSpace(secretName)
+	if secretName == "" {
+		tokenLog.Print("No maintenance compile GitHub token secret configured")
+		return ""
 	}
-	return wrapGitHubExpression(fmt.Sprintf("secrets.%s || secrets.GH_AW_GITHUB_TOKEN || github.token", secretName))
+	tokenLog.Printf("Using configured maintenance compile GitHub token secret %q", secretName)
+	return wrapGitHubExpression(fmt.Sprintf("secrets.%s", secretName))
 }
 
 // getEffectiveCopilotRequestsToken returns the GitHub token to use for Copilot-related operations,

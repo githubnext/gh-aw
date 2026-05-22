@@ -843,17 +843,9 @@ jobs:
       group: ${{ github.workflow }}-compile-workflows-${{ github.repository }}
       cancel-in-progress: true
     permissions:
-`)
-		if createCompilePR {
-			yaml.WriteString(`      contents: write
-      pull-requests: write
-`)
-		} else {
-			yaml.WriteString(`      contents: read
+      contents: read
       issues: write
-`)
-		}
-		yaml.WriteString(`    steps:
+    steps:
 `)
 
 		// Dev mode: checkout entire repository (no sparse checkout, but no credentials)
@@ -883,11 +875,19 @@ jobs:
       - name: Check for out-of-sync workflows and create issue or pull request if needed
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
-          GH_AW_MAINTENANCE_GITHUB_TOKEN: ` + compileGitHubToken + `
           GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST: ` + strconv.FormatBool(createCompilePR) + `
-        with:
-          github-token: ${{ env.GH_AW_MAINTENANCE_GITHUB_TOKEN }}
-          script: |
+`)
+		if compileGitHubToken != "" {
+			yaml.WriteString(`          GH_AW_MAINTENANCE_GITHUB_TOKEN: ` + compileGitHubToken + `
+`)
+		}
+		yaml.WriteString(`        with:
+`)
+		if compileGitHubToken != "" {
+			yaml.WriteString(`          github-token: ${{ env.GH_AW_MAINTENANCE_GITHUB_TOKEN }}
+`)
+		}
+		yaml.WriteString(`          script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_workflow_recompile_needed.cjs');

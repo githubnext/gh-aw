@@ -227,9 +227,13 @@ func validateRepoConfigValues(cfg *RepoConfig) error {
 	if cfg == nil || cfg.Maintenance == nil || cfg.Maintenance.Compile == nil {
 		return nil
 	}
+	compileCfg := cfg.Maintenance.Compile
 	secretName := cfg.Maintenance.Compile.GitHubTokenSecret
 	if secretName != "" && !repoConfigSecretNamePattern.MatchString(secretName) {
 		return fmt.Errorf("invalid %s: maintenance.compile.github_token_secret must match %s", RepoConfigFileName, repoConfigSecretNamePattern.String())
+	}
+	if compileCfg.CreatePullRequest && secretName == "" {
+		return fmt.Errorf("invalid %s: maintenance.compile.github_token_secret is required when maintenance.compile.create_pull_request is true", RepoConfigFileName)
 	}
 	return nil
 }

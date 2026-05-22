@@ -172,6 +172,14 @@ func TestLoadRepoConfig_InvalidMaintenanceCompileGitHubTokenSecret(t *testing.T)
 	assert.Error(t, err, "github_token_secret must be a valid secret name")
 }
 
+func TestLoadRepoConfig_MaintenanceCompileCreatePullRequestRequiresGitHubTokenSecret(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"maintenance": {"compile": {"create_pull_request": true}}}`)
+
+	_, err := LoadRepoConfig(dir)
+	assert.Error(t, err, "create_pull_request should require github_token_secret")
+}
+
 func TestLoadRepoConfig_GHESTrue(t *testing.T) {
 	dir := t.TempDir()
 	writeAWJSON(t, dir, `{"ghes": true}`)

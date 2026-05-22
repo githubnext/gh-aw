@@ -1146,16 +1146,19 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 			t.Fatal("Job compile-workflows not found in generated workflow")
 		}
 		jobSection := yaml[compileIdx : compileIdx+compileJobSectionSearchRange]
-		if !strings.Contains(jobSection, "contents: write") {
-			t.Errorf("compile-workflows should request contents: write when PR creation is enabled, got:\n%s", jobSection)
+		if !strings.Contains(jobSection, "contents: read") {
+			t.Errorf("compile-workflows should keep contents: read permission, got:\n%s", jobSection)
 		}
-		if !strings.Contains(jobSection, "pull-requests: write") {
-			t.Errorf("compile-workflows should request pull-requests: write when PR creation is enabled, got:\n%s", jobSection)
+		if !strings.Contains(jobSection, "issues: write") {
+			t.Errorf("compile-workflows should keep issues: write permission, got:\n%s", jobSection)
 		}
-		if strings.Contains(jobSection, "issues: write") {
-			t.Errorf("compile-workflows should not request issues: write in PR mode, got:\n%s", jobSection)
+		if strings.Contains(jobSection, "pull-requests: write") {
+			t.Errorf("compile-workflows should not request pull-requests: write in PR mode, got:\n%s", jobSection)
 		}
-		if !strings.Contains(yaml, "GH_AW_MAINTENANCE_GITHUB_TOKEN: ${{ secrets.MAINTENANCE_TOKEN || secrets.GH_AW_GITHUB_TOKEN || github.token }}") {
+		if strings.Contains(jobSection, "contents: write") {
+			t.Errorf("compile-workflows should not request contents: write in PR mode, got:\n%s", jobSection)
+		}
+		if !strings.Contains(yaml, "GH_AW_MAINTENANCE_GITHUB_TOKEN: ${{ secrets.MAINTENANCE_TOKEN }}") {
 			t.Errorf("workflow should use configured maintenance github token secret, got:\n%s", yaml)
 		}
 		if !strings.Contains(yaml, "GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST: true") {
@@ -1163,6 +1166,32 @@ func TestGenerateMaintenanceWorkflow_PushTrigger(t *testing.T) {
 		}
 		if !strings.Contains(yaml, "github-token: ${{ env.GH_AW_MAINTENANCE_GITHUB_TOKEN }}") {
 			t.Errorf("workflow should pass maintenance token to github-script, got:\n%s", yaml)
+		}
+	})
+
+	t.Run("compile-workflows PR mode requires custom token secret", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		repoConfig := &RepoConfig{
+			Maintenance: &MaintenanceConfig{
+				Compile: &MaintenanceCompileConfig{
+					CreatePullRequest: true,
+				},
+			},
+		}
+		err := GenerateMaintenanceWorkflow(context.Background(), GenerateMaintenanceWorkflowOptions{
+			WorkflowDataList: workflowDataList,
+			WorkflowDir:      tmpDir,
+			Version:          "v1.0.0",
+			ActionMode:       ActionModeDev,
+			ActionTag:        "",
+			RepoConfig:       repoConfig,
+			RepoSlug:         "",
+		})
+		if err == nil {
+			t.Fatal("expected GenerateMaintenanceWorkflow to fail when PR mode has no token secret")
+		}
+		if !strings.Contains(err.Error(), "maintenance.compile.github_token_secret is required") {
+			t.Fatalf("expected missing token secret error, got: %v", err)
 		}
 	})
 }

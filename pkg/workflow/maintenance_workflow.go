@@ -157,6 +157,9 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 			enableCompileCreatePullRequest = repoConfig.Maintenance.Compile.CreatePullRequest
 		}
 	}
+	if enableCompileCreatePullRequest && strings.TrimSpace(compileGitHubTokenSecret) == "" {
+		return fmt.Errorf("maintenance.compile.github_token_secret is required when maintenance.compile.create_pull_request is true")
+	}
 	runsOnValue := FormatRunsOn(configuredRunsOn, defaultRunsOn)
 
 	// Scan workflows for expires fields and track the minimum expires value
@@ -220,6 +223,11 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	defaultBranch := FetchDefaultBranch(repoSlug)
 
 	// Generate the YAML content for the maintenance workflow
+	maintenanceLog.Printf(
+		"Maintenance compile configuration: createPullRequest=%v tokenSecretConfigured=%v",
+		enableCompileCreatePullRequest,
+		strings.TrimSpace(compileGitHubTokenSecret) != "",
+	)
 	content := buildMaintenanceWorkflowYAML(ctx, buildMaintenanceWorkflowYAMLOptions{
 		cronSchedule:        cronSchedule,
 		scheduleDesc:        scheduleDesc,

@@ -375,4 +375,27 @@ The following workflow lock files have changes:
     expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
   });
+
+  it("should fail PR mode without a configured maintenance token secret", async () => {
+    process.env.GH_AW_WORKFLOW_RECOMPILE_CREATE_PULL_REQUEST = "true";
+
+    mockExec.exec.mockImplementation(async (cmd, args, options) => {
+      const joinedArgs = args.join(" ");
+      if (joinedArgs === "diff --exit-code .github/workflows/*.lock.yml") {
+        options?.listeners?.stdout?.(Buffer.from("diff content"));
+        return 1;
+      }
+      if (joinedArgs === "diff .github/workflows/*.lock.yml") {
+        options?.listeners?.stdout?.(Buffer.from("detailed diff content"));
+        return 0;
+      }
+      return 0;
+    });
+
+    const { main } = await import("./check_workflow_recompile_needed.cjs");
+
+    await expect(main()).rejects.toThrow("Missing configured maintenance GitHub token secret");
+    expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith("Configured maintenance token present: false");
+  });
 });

@@ -38,7 +38,20 @@ function getDefaultBranch() {
 }
 
 function getRecompileToken() {
-  return process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN || process.env.GITHUB_TOKEN || "";
+  return process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN || "";
+}
+
+function logConfiguration(createPullRequest) {
+  core.info(`Workflow recompile mode: ${createPullRequest ? "pull-request" : "issue"}`);
+  core.info(`Configured maintenance token present: ${getRecompileToken() !== ""}`);
+}
+
+function requireRecompileToken() {
+  const token = getRecompileToken();
+  if (!token) {
+    throw new Error("Missing configured maintenance GitHub token secret for maintenance compile pull request creation");
+  }
+  return token;
 }
 
 function buildRecompilePullRequestBody(diffContent, changedFiles, repository, runUrl) {
@@ -76,11 +89,13 @@ ${xmlMarker}
 }
 
 async function configureGitIdentity() {
+  core.info("Configuring git identity for maintenance workflow commit");
   await exec.exec("git", ["config", "user.email", "github-actions[bot]@users.noreply.github.com"]);
   await exec.exec("git", ["config", "user.name", "github-actions[bot]"]);
 }
 
 async function stageAndCommitRecompileBranch() {
+  core.info(`Preparing maintenance branch ${RECOMPILE_PR_BRANCH}`);
   await configureGitIdentity();
   await exec.exec("git", ["checkout", "-B", RECOMPILE_PR_BRANCH]);
   await exec.exec("git", ["add", ".github/workflows/*.lock.yml"]);
@@ -94,15 +109,13 @@ async function stageAndCommitRecompileBranch() {
     throw new Error("No staged workflow lock file changes found for pull request creation");
   }
 
+  core.info(`Staged ${stagedFiles.length} workflow lock file(s): ${stagedFiles.join(", ")}`);
   await exec.exec("git", ["commit", "-m", "chore: recompile agentic workflows"]);
   return stagedFiles;
 }
 
 async function pushRecompileBranch(owner, repo, branchName) {
-  const token = getRecompileToken();
-  if (!token) {
-    throw new Error("Missing GitHub token for maintenance pull request creation");
-  }
+  const token = requireRecompileToken();
 
   const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   let githubHost = "github.com";
@@ -112,6 +125,7 @@ async function pushRecompileBranch(owner, repo, branchName) {
     githubHost = "github.com";
   }
   const remoteUrl = `https://${githubHost}/${owner}/${repo}.git`;
+  core.info(`Pushing maintenance branch ${branchName} to ${githubHost}/${owner}/${repo}`);
   await exec.exec("git", ["push", remoteUrl, `HEAD:refs/heads/${branchName}`, "--force-with-lease"], {
     env: {
       ...process.env,
@@ -121,6 +135,7 @@ async function pushRecompileBranch(owner, repo, branchName) {
 }
 
 async function findExistingRecompilePullRequest(owner, repo) {
+  core.info(`Searching for an existing maintenance PR from branch ${owner}:${RECOMPILE_PR_BRANCH}`);
   const result = await github.rest.pulls.list({
     owner,
     repo,
@@ -134,6 +149,7 @@ async function findExistingRecompilePullRequest(owner, repo) {
 async function handlePullRequest(owner, repo, detailedDiff) {
   const repository = `${owner}/${repo}`;
   const runUrl = buildWorkflowRunUrl(context, context.repo);
+  core.info(`Preparing maintenance PR for ${repository}`);
   const changedFiles = await stageAndCommitRecompileBranch();
   await pushRecompileBranch(owner, repo, RECOMPILE_PR_BRANCH);
 
@@ -146,6 +162,7 @@ async function handlePullRequest(owner, repo, detailedDiff) {
   }
 
   const diffContent = detailedDiff.substring(0, MAX_RECOMPILE_DIFF_LENGTH) + (detailedDiff.length > MAX_RECOMPILE_DIFF_LENGTH ? "\n\n... (diff truncated)" : "");
+  core.info(`Creating maintenance pull request against ${getDefaultBranch()} with ${changedFiles.length} changed file(s)`);
   const pullRequest = await github.rest.pulls.create({
     owner,
     repo,
@@ -171,8 +188,10 @@ async function handlePullRequest(owner, repo, detailedDiff) {
 async function main() {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
+  const createPullRequest = shouldCreatePullRequest();
 
   core.info("Checking for out-of-sync workflow lock files");
+  logConfiguration(createPullRequest);
 
   // Execute git diff to check for changes in lock files
   let diffOutput = "";
@@ -207,6 +226,7 @@ async function main() {
   }
 
   core.info("⚠ Detected out-of-sync workflow lock files");
+  core.info(`Workflow diff size from detection step: ${diffOutput.length} byte(s)`);
 
   // Capture the actual diff for the issue body
   let detailedDiff = "";
@@ -221,8 +241,10 @@ async function main() {
   } catch (error) {
     core.warning(`Could not capture detailed diff: ${getErrorMessage(error)}`);
   }
+  core.info(`Detailed workflow diff captured: ${detailedDiff.length} byte(s)`);
 
-  if (shouldCreatePullRequest()) {
+  if (createPullRequest) {
+    requireRecompileToken();
     await handlePullRequest(owner, repo, detailedDiff);
     return;
   }
