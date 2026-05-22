@@ -153,7 +153,7 @@ func isKnownEcosystemIdentifier(id string) bool {
 // getValidEcosystemIdentifiers returns a sorted list of all valid ecosystem identifiers,
 // including both the base identifiers from ecosystemDomains and compound identifiers.
 func getValidEcosystemIdentifiers() []string {
-	ids := make([]string, 0, len(ecosystemDomains)+len(compoundEcosystems))
+	ids := make([]string, 0, safeAllocationCapacity(len(ecosystemDomains), len(compoundEcosystems)))
 	for id := range ecosystemDomains {
 		ids = append(ids, id)
 	}

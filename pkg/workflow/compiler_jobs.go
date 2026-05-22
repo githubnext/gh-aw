@@ -954,7 +954,7 @@ func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) [
 		insertIdx = len(steps)
 	}
 
-	result := make([]string, 0, len(steps)+len(preSteps))
+	result := make([]string, 0, safeAllocationCapacity(len(steps), len(preSteps)))
 	result = append(result, steps[:insertIdx]...)
 	result = append(result, preSteps...)
 	result = append(result, steps[insertIdx:]...)

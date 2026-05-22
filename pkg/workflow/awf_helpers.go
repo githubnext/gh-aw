@@ -88,7 +88,7 @@ func shouldUseWorkflowCallNetworkAllowedInput(data *WorkflowData) bool {
 }
 
 func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
-	ecosystemMap := make(map[string][]string, len(ecosystemDomains)+len(compoundEcosystems))
+	ecosystemMap := make(map[string][]string, safeAllocationCapacity(len(ecosystemDomains), len(compoundEcosystems)))
 	for ecosystem := range ecosystemDomains {
 		ecosystemMap[ecosystem] = getEcosystemDomains(ecosystem)
 	}

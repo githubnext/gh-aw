@@ -185,7 +185,7 @@ func detectSafeJobCycles(jobs map[string]*SafeJobConfig) error {
 		}
 		if state[node] == visiting {
 			// Build the cycle description using original names where available
-			cycleNodes := make([]string, 0, len(path)+1)
+			cycleNodes := make([]string, 0, safeAllocationCapacity(len(path), 1))
 			for _, p := range path {
 				if orig, ok := originalNames[p]; ok {
 					cycleNodes = append(cycleNodes, orig)

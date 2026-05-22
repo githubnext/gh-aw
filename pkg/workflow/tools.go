@@ -235,7 +235,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 							if existingMap != nil && userMap != nil {
 								existingTypes, _ := existingMap["types"].([]any)
 								userTypes, _ := userMap["types"].([]any)
-								merged := make([]any, 0, len(existingTypes)+len(userTypes))
+								merged := make([]any, 0, safeAllocationCapacity(len(existingTypes), len(userTypes)))
 								merged = append(merged, existingTypes...)
 								merged = append(merged, userTypes...)
 								existingMap["types"] = merged

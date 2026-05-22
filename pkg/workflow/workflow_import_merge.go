@@ -149,7 +149,7 @@ func mergeJobPreSteps(mainJob any, importedJob any) (map[string]any, bool) {
 	// any nested structures from other keys.
 	maps.Copy(merged, mainMap)
 
-	mergedPreSteps := make([]any, 0, len(importedPreSteps)+len(mainPreSteps))
+	mergedPreSteps := make([]any, 0, safeAllocationCapacity(len(importedPreSteps), len(mainPreSteps)))
 	mergedPreSteps = append(mergedPreSteps, importedPreSteps...)
 	mergedPreSteps = append(mergedPreSteps, mainPreSteps...)
 	merged["pre-steps"] = mergedPreSteps
