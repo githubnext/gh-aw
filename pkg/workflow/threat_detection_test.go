@@ -1778,3 +1778,30 @@ func TestBuildDetectionEngineExecutionStepPropagatesHarnessScriptOverride(t *tes
 		t.Errorf("expected default harness to be replaced by custom override, got:\n%s", s)
 	}
 }
+
+func TestBuildDetectionEngineExecutionStepOmitsPiCooldownEnv(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "pi",
+		EngineConfig: &EngineConfig{
+			ID: "pi",
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	if len(steps) == 0 {
+		t.Fatal("expected non-empty steps")
+	}
+
+	rendered := strings.Join(steps, "")
+	if !strings.Contains(rendered, "Install Pi CLI") {
+		t.Fatal("expected detection steps to include the Pi install step")
+	}
+	if strings.Contains(rendered, "NPM_CONFIG_MIN_RELEASE_AGE:") {
+		t.Fatalf("expected detection steps to omit npm cooldown env for Pi installs")
+	}
+}

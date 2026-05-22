@@ -26,7 +26,7 @@ const AWF_API_PROXY_REFLECT_URL = "http://api-proxy:10000/reflect";
 // co-located with other AWF firewall observability data so it is included in the agent artifact.
 const AWF_REFLECT_OUTPUT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
 // Milliseconds to wait for the /reflect endpoint before giving up.
-const AWF_REFLECT_TIMEOUT_MS = 5000;
+const AWF_REFLECT_TIMEOUT_MS = 60000;
 // Milliseconds to wait for each models_url fallback fetch (shorter than the main reflect timeout).
 const AWF_MODELS_URL_TIMEOUT_MS = 3000;
 // Gemini model name prefix stripped from model IDs in the Gemini models API response.
@@ -165,7 +165,15 @@ async function enrichReflectModels(reflectData, timeoutMs, logger) {
  *   logger?: (msg: string) => void,
  *   writeFileSync?: (path: string, data: string, options: object) => void,
  * }=} options
- * @returns {Promise<void>}
+ * @returns {Promise<{
+ *   ok: boolean,
+ *   reflectUrl: string,
+ *   outputPath: string,
+ *   bytesWritten?: number,
+ *   reason?: "unexpected_status"|"timeout"|"request_failed",
+ *   status?: number,
+ *   error?: string,
+ * }>}
  */
 async function fetchAWFReflect(options) {
   const reflectUrl = (options && options.reflectUrl) || AWF_API_PROXY_REFLECT_URL;
@@ -178,7 +186,9 @@ async function fetchAWFReflect(options) {
   logger(`awf-reflect: fetching ${reflectUrl} (timeout=${timeoutMs}ms)`);
 
   const ac = new AbortController();
+  let timedOut = false;
   const timer = setTimeout(() => {
+    timedOut = true;
     logger(`awf-reflect: request timed out after ${timeoutMs}ms`);
     ac.abort();
   }, timeoutMs);
@@ -187,7 +197,13 @@ async function fetchAWFReflect(options) {
     const res = await fetch(reflectUrl, { signal: ac.signal });
     if (!res.ok) {
       logger(`awf-reflect: unexpected status ${res.status}, skipping`);
-      return;
+      return {
+        ok: false,
+        reflectUrl,
+        outputPath,
+        reason: "unexpected_status",
+        status: res.status,
+      };
     }
     const reflectData = await res.json();
     // Attempt to fill in null models for configured providers by fetching directly
@@ -198,15 +214,35 @@ async function fetchAWFReflect(options) {
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });
     writeFile(outputPath, enrichedBody, { encoding: "utf8" });
     logger(`awf-reflect: saved ${enrichedBody.length}B to ${outputPath}`);
+    return {
+      ok: true,
+      reflectUrl,
+      outputPath,
+      bytesWritten: enrichedBody.length,
+    };
   } catch (err) {
     const e = /** @type {Error} */ err;
     if (e.name === "AbortError") {
-      return; // already logged above
+      return {
+        ok: false,
+        reflectUrl,
+        outputPath,
+        reason: "timeout",
+        error: timedOut ? `request timed out after ${timeoutMs}ms` : e.message,
+      };
     }
     logger(`awf-reflect: request failed: ${e.message}`);
+    return {
+      ok: false,
+      reflectUrl,
+      outputPath,
+      reason: "request_failed",
+      error: e.message,
+    };
   } finally {
     clearTimeout(timer);
   }
+
 }
 
 if (typeof module !== "undefined" && module.exports) {

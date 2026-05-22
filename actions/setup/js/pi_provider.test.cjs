@@ -76,6 +76,83 @@ describe("pi_provider.cjs", () => {
     expect(stderrOutput.some(line => line.includes("provider=copilot model=copilot/claude-sonnet-4"))).toBe(true);
   });
 
+  it("logs provider request and response diagnostics for inference calls", async () => {
+    process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
+
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+    const ctx = {
+      model: {
+        provider: "copilot",
+        id: "claude-sonnet-4",
+        api: "openai-completions",
+        baseUrl: "http://api-proxy:10002/v1",
+      },
+    };
+
+    module.default(pi);
+    await handlers.before_provider_request({ type: "before_provider_request", payload: {} }, ctx);
+    await handlers.after_provider_response(
+      {
+        type: "after_provider_response",
+        status: 503,
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req-123",
+        },
+      },
+      ctx
+    );
+
+    expect(stderrOutput.some(line => line.includes("provider_request provider=copilot model=claude-sonnet-4 api=openai-completions method=POST url=http://api-proxy:10002/v1/chat/completions"))).toBe(true);
+    expect(stderrOutput.some(line => line.includes("provider_response provider=copilot model=claude-sonnet-4 status=503 method=POST url=http://api-proxy:10002/v1/chat/completions response_headers=content-type,x-request-id"))).toBe(true);
+  });
+
+  it("logs assistant inference errors with the last request target", async () => {
+    process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
+
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+    const ctx = {
+      model: {
+        provider: "copilot",
+        id: "claude-sonnet-4",
+        api: "openai-completions",
+        baseUrl: "http://api-proxy:10002/v1",
+      },
+    };
+
+    module.default(pi);
+    await handlers.before_provider_request({ type: "before_provider_request", payload: {} }, ctx);
+    await handlers.message_end({
+      type: "message_end",
+      message: {
+        role: "assistant",
+        provider: "aw-gateway",
+        model: "claude-sonnet-4",
+        api: "openai-completions",
+        stopReason: "error",
+        errorMessage: "Connection error.",
+      },
+    });
+
+    expect(
+      stderrOutput.some(line =>
+        line.includes('provider_error provider=aw-gateway model=claude-sonnet-4 api=openai-completions status=no-response method=POST url=http://api-proxy:10002/v1/chat/completions response_headers=none error="Connection error."')
+      )
+    ).toBe(true);
+  });
+
   it("calls /reflect on the management port (10000) when AWF_REFLECT_ENABLED is set", async () => {
     process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
     process.env.AWF_REFLECT_ENABLED = "1";
@@ -99,6 +176,31 @@ describe("pi_provider.cjs", () => {
 
     expect(fetchedUrls.every(url => url === "http://api-proxy:10000/reflect")).toBe(true);
     expect(fetchedUrls.length).toBe(2);
+  });
+
+  it("logs reflect failure context when the /reflect call fails", async () => {
+    process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
+    process.env.AWF_REFLECT_ENABLED = "1";
+    global.fetch = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+
+    module.default(pi);
+    await handlers.agent_start();
+
+    expect(
+      stderrOutput.some(line =>
+        line.includes(
+          'reflect_failure phase=agent_start provider=copilot model=copilot/claude-sonnet-4 url=http://api-proxy:10000/reflect output=/tmp/gh-aw/sandbox/firewall/awf-reflect.json reason=request_failed error="ECONNREFUSED"'
+        )
+      )
+    ).toBe(true);
   });
 
   it("skips /reflect when AWF_REFLECT_ENABLED is not set", async () => {
