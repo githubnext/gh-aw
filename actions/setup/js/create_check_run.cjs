@@ -97,12 +97,21 @@ async function main(config = {}) {
 
     const owner = context.repo.owner;
     const repo = context.repo.repo;
-    const headSha = process.env.GITHUB_SHA || context.sha;
+
+    // For pull_request events, GITHUB_SHA is the ephemeral merge commit SHA which is
+    // not visible in the PR checks UI or the GitHub mobile app. Use the actual PR head
+    // SHA from the event payload instead so the check run appears on the PR.
+    const prHeadSha = context.payload?.pull_request?.head?.sha;
+    const headSha = prHeadSha || process.env.GITHUB_SHA || context.sha;
 
     if (!headSha) {
-      const msg = "create_check_run: GITHUB_SHA is not set, cannot determine commit SHA for check run";
+      const msg = "create_check_run: cannot determine commit SHA for check run";
       core.error(msg);
       return { success: false, error: msg };
+    }
+
+    if (prHeadSha) {
+      core.info(`Using PR head SHA ${prHeadSha} (pull_request event)`);
     }
 
     const checkRunName = defaultName;
