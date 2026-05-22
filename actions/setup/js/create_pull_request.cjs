@@ -1066,7 +1066,10 @@ async function main(config = {}) {
     /** @type {unknown} */
     let manifestProtectionPushFailedError = null;
     if (!isEmpty) {
-      const protection = checkFileProtection(patchContent, config);
+      const protection = checkFileProtection(patchContent, {
+        ...config,
+        protected_files_policy: config.protected_files_policy ?? "request_review",
+      });
       if (protection.action === "deny") {
         const filesStr = protection.files.join(", ");
         const message =

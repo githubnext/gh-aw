@@ -3053,6 +3053,42 @@ func TestPRPolicyFieldsExpressionsPassThrough(t *testing.T) {
 	}
 }
 
+func TestCreatePullRequestProtectedFilesPolicyDefault(t *testing.T) {
+	t.Parallel()
+
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			},
+		},
+	}
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "should produce config steps")
+
+	var configJSON string
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			require.Len(t, parts, 2, "should split env var line")
+			configJSON = strings.TrimSpace(parts[1])
+			configJSON = strings.Trim(configJSON, "\"")
+			configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+		}
+	}
+	require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+	var config map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+	handlerCfg, ok := config["create_pull_request"]
+	require.True(t, ok, "create_pull_request handler config should be present")
+	assert.Equal(t, "request_review", handlerCfg["protected_files_policy"], "default protected-files mode should be request_review")
+}
+
 // TestDispatchWorkflowRelayInjectsDispatchCompatibleRef verifies that when a workflow_call
 // trigger is present and dispatch_workflow safe-outputs are configured, the compiler injects
 // needs.activation.outputs.target_ref (the dispatch-compatible branch/tag ref) — not
