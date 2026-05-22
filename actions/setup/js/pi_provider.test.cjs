@@ -178,6 +178,31 @@ describe("pi_provider.cjs", () => {
     expect(fetchedUrls.length).toBe(2);
   });
 
+  it("logs reflect failure context when the /reflect call fails", async () => {
+    process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
+    process.env.AWF_REFLECT_ENABLED = "1";
+    global.fetch = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+
+    module.default(pi);
+    await handlers.agent_start();
+
+    expect(
+      stderrOutput.some(line =>
+        line.includes(
+          'reflect_failure phase=agent_start provider=copilot model=copilot/claude-sonnet-4 url=http://api-proxy:10000/reflect output=/tmp/gh-aw/sandbox/firewall/awf-reflect.json reason=request_failed error="ECONNREFUSED"'
+        )
+      )
+    ).toBe(true);
+  });
+
   it("skips /reflect when AWF_REFLECT_ENABLED is not set", async () => {
     process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
     delete process.env.AWF_REFLECT_ENABLED;
