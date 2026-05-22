@@ -50,6 +50,10 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 	var successes []string
 	var failures []updateFailure
 
+	if len(grouped) == 0 {
+		return successes, failures
+	}
+
 	repoSpec, _, err := parseManifestSourceSpec(source)
 	if err != nil {
 		for _, wf := range grouped {
@@ -73,6 +77,9 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 		return successes, failures
 	}
 	sourceFieldRef := latestRef
+	// Preserve branch-tracking behavior: when source points to a branch, keep the
+	// branch name in source so future updates continue following that branch.
+	// For tags/SHAs, pin to the resolved latest ref.
 	if isBranchRef(currentRef) {
 		sourceFieldRef = currentRef
 	}
