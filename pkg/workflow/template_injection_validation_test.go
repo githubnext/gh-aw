@@ -14,7 +14,7 @@ import (
 // validateNoTemplateInjection is a test helper that parses YAML and validates
 // it for template injection vulnerabilities using validateNoTemplateInjectionFromParsed.
 func validateNoTemplateInjection(yamlContent string) error {
-	if !unsafeContextRegex.MatchString(yamlContent) {
+	if !UnsafeContextPattern.MatchString(yamlContent) {
 		return nil
 	}
 	var workflow map[string]any

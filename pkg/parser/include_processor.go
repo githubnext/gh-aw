@@ -199,7 +199,6 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 					"applyTo":                  true,
 					"inputs":                   true,
 					"import-schema":            true, // Declares parameter schema for 'uses'/'with' import syntax
-					"infer":                    true, // Custom agent format field (Copilot) - deprecated, use disable-model-invocation
 					"disable-model-invocation": true, // Custom agent format field (Copilot)
 					"features":                 true,
 				}

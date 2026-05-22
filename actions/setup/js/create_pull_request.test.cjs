@@ -3048,7 +3048,7 @@ describe("create_pull_request - rate-limit retry", () => {
       const result = await resultPromise;
 
       expect(result.success).toBe(true);
-      expect(result.pull_request_number).toBe(42);
+      expect(result.number).toBe(42);
       // 1 initial (rate-limited) + 1 retry (succeeds) = 2 calls total
       expect(global.github.rest.pulls.create).toHaveBeenCalledTimes(2);
       expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("create pull request"));

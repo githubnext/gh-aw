@@ -194,25 +194,31 @@ function piProviderExtension(pi) {
 
     // Fetch AWF API proxy reflection data before the agent runs to capture initial proxy state.
     // This is best-effort: failures are logged but do not affect the agent session.
-    await fetchAWFReflect({
-      reflectUrl: AWF_API_PROXY_REFLECT_URL,
-      outputPath: AWF_REFLECT_OUTPUT_PATH,
-      timeoutMs: AWF_REFLECT_TIMEOUT_MS,
-      modelsTimeoutMs: AWF_MODELS_URL_TIMEOUT_MS,
-      logger: log,
-    });
+    // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. sandbox.agent: false — no api-proxy running).
+    if (process.env.AWF_REFLECT_ENABLED === "1") {
+      await fetchAWFReflect({
+        reflectUrl: AWF_API_PROXY_REFLECT_URL,
+        outputPath: AWF_REFLECT_OUTPUT_PATH,
+        timeoutMs: AWF_REFLECT_TIMEOUT_MS,
+        modelsTimeoutMs: AWF_MODELS_URL_TIMEOUT_MS,
+        logger: log,
+      });
+    }
   });
 
   pi.on("agent_end", async () => {
     // Fetch AWF API proxy reflection data after the agent finishes for the post-run step summary.
     // This is best-effort: failures are logged but do not affect the agent exit code.
-    await fetchAWFReflect({
-      reflectUrl: AWF_API_PROXY_REFLECT_URL,
-      outputPath: AWF_REFLECT_OUTPUT_PATH,
-      timeoutMs: AWF_REFLECT_TIMEOUT_MS,
-      modelsTimeoutMs: AWF_MODELS_URL_TIMEOUT_MS,
-      logger: log,
-    });
+    // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. sandbox.agent: false — no api-proxy running).
+    if (process.env.AWF_REFLECT_ENABLED === "1") {
+      await fetchAWFReflect({
+        reflectUrl: AWF_API_PROXY_REFLECT_URL,
+        outputPath: AWF_REFLECT_OUTPUT_PATH,
+        timeoutMs: AWF_REFLECT_TIMEOUT_MS,
+        modelsTimeoutMs: AWF_MODELS_URL_TIMEOUT_MS,
+        logger: log,
+      });
+    }
   });
 }
 

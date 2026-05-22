@@ -73,7 +73,7 @@ This specification does not cover:
 
 ### 1.2 Background and Motivation
 
-The Pi agent ecosystem (`@mariozechner/pi-coding-agent`, `pi-agent-core`, `pi-ai`) provides a composable, extension-based SDK for building agentic applications. By implementing all gh-aw-specific capabilities as Pi extensions, those extensions become:
+The Pi agent ecosystem (`@earendil-works/pi-coding-agent`, `pi-agent-core`, `pi-ai`) provides a composable, extension-based SDK for building agentic applications. By implementing all gh-aw-specific capabilities as Pi extensions, those extensions become:
 
 - **Reusable** — They work with standalone Pi CLI and any Pi SDK application.
 - **Composable** — Users can add their own extensions alongside the provided set.
@@ -112,7 +112,7 @@ A **conforming implementation** is one that satisfies all **MUST** and **MUST NO
 : A feature that mounts MCP servers as CLI tools on `PATH`, making them callable as ordinary shell commands within the agent session.
 
 **ExtensionAPI**
-: The Pi SDK interface (`ExtensionAPI` from `@mariozechner/pi-coding-agent`) that a Pi extension receives as its sole argument. Provides `pi.registerTool()`, `pi.registerProvider()`, and `pi.on()`.
+: The Pi SDK interface (`ExtensionAPI` from `@earendil-works/pi-coding-agent`) that a Pi extension receives as its sole argument. Provides `pi.registerTool()`, `pi.registerProvider()`, and `pi.on()`.
 
 **gh-proxy**
 : A feature that provides a pre-authenticated `gh` CLI binary in the agent's bash environment, enabling direct GitHub API access without separate token management.
@@ -479,7 +479,7 @@ A conforming implementation **MUST** execute the workflow as follows:
 >
 > ```typescript
 > // index.ts — entry point
-> import { createAgentSession, SessionManager } from "@mariozechner/pi-coding-agent";
+> import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
 >
 > async function main() {
 >   const { configPath, promptPath } = parseArgs(process.argv);
@@ -954,7 +954,7 @@ A `make aw-harness` Makefile target **SHOULD** be added that runs esbuild and co
 
 The following ordered work items describe the implementation sequence:
 
-1. **Scaffold project** — Initialize TypeScript project in `aw-harness/`. Configure package.json with Pi SDK deps (`@mariozechner/pi-coding-agent`, `pi-agent-core`, `pi-ai`). Set up tsconfig for ES2024/Node 24. Configure esbuild bundle → `dist/aw_harness.cjs`.
+1. **Scaffold project** — Initialize TypeScript project in `aw-harness/`. Configure package.json with Pi SDK deps (`@earendil-works/pi-coding-agent`, `pi-agent-core`, `pi-ai`). Set up tsconfig for ES2024/Node 24. Configure esbuild bundle → `dist/aw_harness.cjs`.
 
 2. **Implement provider setup extension** — Pi extension that registers LLM providers via `pi.registerProvider()` using provider credentials injected by AWF into the container environment. Also detects provider-specific base URL env vars (e.g., `ANTHROPIC_BASE_URL`, `OPENAI_BASE_URL`) and uses them as the provider endpoint when present.
 
@@ -1007,7 +1007,7 @@ This section specifies normative failure-mode responses that a conforming implem
 
 #### 11.2.1 Pi SDK Failure to Load
 
-**Failure mode:** The Pi SDK package (`@mariozechner/pi-coding-agent`) or one of its core dependencies (`pi-agent-core`, `pi-ai`) cannot be loaded at harness startup (e.g., missing from bundle, corrupted installation, incompatible Node.js version).
+**Failure mode:** The Pi SDK package (`@earendil-works/pi-coding-agent`) or one of its core dependencies (`pi-agent-core`, `pi-ai`) cannot be loaded at harness startup (e.g., missing from bundle, corrupted installation, incompatible Node.js version).
 
 **Normative response:**
 
@@ -1170,7 +1170,7 @@ Bradner, S., "Key words for use in RFCs to Indicate Requirement Levels", BCP 14,
 ### 14.2 Informative References
 
 **[Pi SDK]**
-`@mariozechner/pi-coding-agent` — Pi agent SDK providing `createAgentSession()`, `Agent`, `AgentTool`, and `ExtensionAPI`.
+`@earendil-works/pi-coding-agent` — Pi agent SDK providing `createAgentSession()`, `Agent`, `AgentTool`, and `ExtensionAPI`.
 
 **[pi-agent-core]**
 Core agent loop, event dispatch, and message history management for Pi SDK.

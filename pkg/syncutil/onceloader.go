@@ -34,3 +34,15 @@ func (o *OnceLoader[T]) Reset() {
 	o.err = nil
 	o.done = false
 }
+
+// Override stores result and err as the cached value without invoking the
+// loader. Subsequent calls to Get will return this value without invoking the
+// loader. Safe for concurrent use.
+func (o *OnceLoader[T]) Override(result T, err error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	o.result = result
+	o.err = err
+	o.done = true
+}

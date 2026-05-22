@@ -55,13 +55,13 @@ function emitSafeOutputActionOutputs(processingResult) {
   const firstPRResult = successfulResults.find(r => r.type === "create_pull_request");
   if (firstPRResult?.result && !Array.isArray(firstPRResult.result)) {
     const r = firstPRResult.result;
-    if (r.pull_request_number != null) {
-      core.setOutput("created_pr_number", String(r.pull_request_number));
-      core.info(`Exported created_pr_number: ${r.pull_request_number}`);
+    if (r.number != null) {
+      core.setOutput("created_pr_number", String(r.number));
+      core.info(`Exported created_pr_number: ${r.number}`);
     }
-    if (r.pull_request_url) {
-      core.setOutput("created_pr_url", r.pull_request_url);
-      core.info(`Exported created_pr_url: ${r.pull_request_url}`);
+    if (r.url) {
+      core.setOutput("created_pr_url", r.url);
+      core.info(`Exported created_pr_url: ${r.url}`);
     }
   }
 

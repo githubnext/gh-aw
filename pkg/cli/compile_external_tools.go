@@ -34,9 +34,9 @@ var compileExternalToolsLog = logger.New("cli:compile_external_tools")
 
 // RunActionlintOnFiles runs actionlint on multiple lock files in a single batch.
 // This is more efficient than running actionlint once per file.
-func RunActionlintOnFiles(lockFiles []string, verbose bool, strict bool) error {
+func RunActionlintOnFiles(ctx context.Context, lockFiles []string, verbose bool, strict bool) error {
 	return runBatchLockFileTool("actionlint", lockFiles, verbose, strict, func(files []string, runVerbose bool, runStrict bool) error {
-		return runActionlintOnFiles(context.Background(), files, runVerbose, runStrict)
+		return runActionlintOnFiles(ctx, files, runVerbose, runStrict)
 	})
 }
 

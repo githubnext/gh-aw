@@ -770,11 +770,13 @@ func extractOTLPEndpointsFromObsMap(obs map[string]any) []observabilityImportEnd
 // mergeObservabilityConfigs takes a slice of observability config JSON strings (one per
 // import), extracts all OTLP endpoint entries from each (supporting string, object, and
 // array forms), deduplicates by URL (first occurrence wins), and returns a single merged
-// observability JSON string with all endpoints expressed as an array.
-// Returns "" when no valid endpoints are found.
+// observability JSON string with all endpoints expressed as an array.  Custom OTLP
+// attributes are also merged across imports (first occurrence wins per key).
+// Returns "" when no valid endpoints or attributes are found.
 func mergeObservabilityConfigs(configs []string) string {
 	seen := make(map[string]bool)
 	var allEndpoints []observabilityImportEndpoint
+	mergedAttrs := make(map[string]string)
 
 	for i, cfgJSON := range configs {
 		if cfgJSON == "" {
@@ -791,25 +793,72 @@ func mergeObservabilityConfigs(configs []string) string {
 				allEndpoints = append(allEndpoints, e)
 			}
 		}
+		for k, v := range extractOTLPAttributesFromObsMap(obs) {
+			if _, exists := mergedAttrs[k]; !exists {
+				mergedAttrs[k] = v
+			}
+		}
 	}
 
-	if len(allEndpoints) == 0 {
+	if len(allEndpoints) == 0 && len(mergedAttrs) == 0 {
 		return ""
 	}
 
 	// Produce a merged config with the endpoint field as an array so that the
-	// workflow package's collectAllOTLPEndpoints handles it uniformly.
-	merged := map[string]any{
-		"otlp": map[string]any{
-			"endpoint": allEndpoints,
-		},
+	// workflow package's collectAllOTLPEndpoints handles it uniformly.  Include
+	// any merged custom attributes so the orchestrator can propagate them.
+	otlpMap := map[string]any{}
+	if len(allEndpoints) > 0 {
+		otlpMap["endpoint"] = allEndpoints
 	}
+	if len(mergedAttrs) > 0 {
+		otlpMap["attributes"] = mergedAttrs
+	}
+	merged := map[string]any{"otlp": otlpMap}
 	b, err := json.Marshal(merged)
 	if err != nil {
 		parserLog.Printf("Failed to marshal %d merged OTLP endpoints: %v", len(allEndpoints), err)
 		return ""
 	}
 	return string(b)
+}
+
+// extractOTLPAttributesFromObsMap reads the custom OTLP attributes map from a
+// raw observability section (as parsed from an import's frontmatter).  Only
+// string values are accepted; non-string values are silently ignored.
+// Returns nil when the field is absent or empty.
+//
+// Note: this intentionally duplicates the logic of
+// workflow.extractOTLPCustomAttributesFromObsMap.  The parser package must not
+// import the workflow package (circular-dependency risk), so the helper lives
+// here as a local copy.  Both implementations must stay in sync.
+func extractOTLPAttributesFromObsMap(obs map[string]any) map[string]string {
+	if obs == nil {
+		return nil
+	}
+	otlpAny, ok := obs["otlp"]
+	if !ok {
+		return nil
+	}
+	otlpMap, ok := otlpAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	attrsAny, ok := otlpMap["attributes"]
+	if !ok {
+		return nil
+	}
+	attrsMap, ok := attrsAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	result := make(map[string]string, len(attrsMap))
+	for k, v := range attrsMap {
+		if s, ok := v.(string); ok && k != "" {
+			result[k] = s
+		}
+	}
+	return result
 }
 
 // suitable for use in a {{#runtime-import ...}} macro.

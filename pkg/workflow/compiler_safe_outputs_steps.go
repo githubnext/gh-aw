@@ -53,6 +53,12 @@ func buildExtractBaseBranchStep() []string {
 func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	consolidatedSafeOutputsStepsLog.Print("Building shared PR checkout steps")
 	var steps []string
+	fetchDepth := 1
+
+	if defaultCheckout := NewCheckoutManager(data.CheckoutConfigs).GetDefaultCheckoutOverride(); defaultCheckout != nil && defaultCheckout.fetchDepth != nil {
+		fetchDepth = *defaultCheckout.fetchDepth
+		consolidatedSafeOutputsStepsLog.Printf("Using custom checkout fetch-depth for safe_outputs: %d", fetchDepth)
+	}
 
 	// Determine which token to use for checkout
 	// Uses resolvePRCheckoutToken for consistent token resolution (GitHub App or PAT chain)
@@ -149,7 +155,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		steps = append(steps, "          ref: ${{ github.event.repository.default_branch }}\n")
 		steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
 		steps = append(steps, "          persist-credentials: false\n")
-		steps = append(steps, "          fetch-depth: 1\n")
+		steps = append(steps, fmt.Sprintf("          fetch-depth: %d\n", fetchDepth))
 	}
 
 	// Step 1b: Checkout repository with conditional execution
@@ -172,7 +178,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	steps = append(steps, fmt.Sprintf("          ref: %s\n", checkoutRef))
 	steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
 	steps = append(steps, "          persist-credentials: false\n")
-	steps = append(steps, "          fetch-depth: 1\n")
+	steps = append(steps, fmt.Sprintf("          fetch-depth: %d\n", fetchDepth))
 
 	// Step 2: Configure Git credentials with conditional execution
 	// Security: Pass GitHub token through environment variable to prevent template injection

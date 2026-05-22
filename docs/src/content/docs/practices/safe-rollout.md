@@ -67,7 +67,7 @@ That shape is often useful, but it is still rollout guidance rather than a prima
 
 ## Related Documentation
 
-- [SideRepoOps](/gh-aw/patterns/side-repo-ops/)
+- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)
 - [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)
 - [Staged Mode](/gh-aw/reference/staged-mode/)
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)

@@ -40,15 +40,7 @@ Some key toolsets are:
 - `labels` (labels management)
 
 :::note
-`toolsets: [all]` does **not** include the `dependabot` toolset. The `dependabot` toolset must be opted into explicitly:
-
-```yaml wrap
-tools:
-  github:
-    toolsets: [all, dependabot]
-```
-
-See [Using the `dependabot` toolset](#using-the-dependabot-toolset) for authentication requirements.
+`toolsets: [all]` does **not** include the `dependabot` toolset. The `dependabot` toolset must be opted into explicitly. See [Using the `dependabot` toolset](#using-the-dependabot-toolset) for authentication requirements.
 :::
 
 Some toolsets require [additional authentication](#additional-authentication-for-github-tools).
@@ -57,52 +49,9 @@ Some toolsets require [additional authentication](#additional-authentication-for
 
 Sets the minimum integrity level required for content the agent can access. For public repositories, `min-integrity: approved` is applied automatically. See [Integrity Filtering](/gh-aw/reference/integrity/) for levels, examples, user blocking, and approval labels.
 
-## GitHub Repository Access Restrictions (`tools.github.allowed-repos`)
+## GitHub Cross-Repository Reading
 
-You can configure the GitHub Tools to be restricted in which repositories can be accessed via the GitHub tools during AI engine execution.
-
-The setting `tools.github.allowed-repos` specifies which repositories the agent can access through GitHub tools:
-
-- `"all"` — All repositories accessible by the configured token
-- `"public"` — Public repositories only
-- `"current"` — The repository where the workflow is running (normalized to `${{ github.repository }}` in the emitted guard policy)
-- `"${{ github.repository }}"` — Equivalent to `"current"`, kept for backward compatibility
-- Array of patterns — Specific repositories and wildcards:
-  - `"owner/repo"` — Exact repository match
-  - `"owner/*"` — All repositories under an owner
-  - `"owner/prefix*"` — Repositories with a name prefix under an owner
-
-This defaults to `"all"` when omitted. Patterns must be lowercase. Wildcards are only permitted at the end of the repository name component.
-
-Use `current` in reusable or generated workflows that need to express "this repository only" without hard-coding `owner/repo`:
-
-```yaml wrap
-tools:
-  github:
-    toolsets: [issues, pull_requests]
-    allowed-repos: current
-    min-integrity: approved
-```
-
-For example:
-
-```yaml wrap
-tools:
-  github:
-    mode: remote
-    toolsets: [default]
-    allowed-repos:
-      - "myorg/*"
-      - "partner/shared-repo"
-      - "myorg/api-*"
-    min-integrity: approved
-```
-
-:::note
-The `repos` field was renamed to `allowed-repos` to better reflect its purpose. If you have existing workflows using `repos`, run `gh aw fix` to automatically migrate them to `allowed-repos`.
-:::
-
-### GitHub Cross-Repository Reading
+By default, the GitHub Tools can read from the current repository and all public repositories (if permitted by the network firewall). To read from other private repositories, you must configure additional authentication. You can also configure the GitHub Tools to be restricted in which repositories can be accessed via the GitHub tools during AI engine execution by using the `tools.github.allowed-repos` setting. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for details and examples.
 
 By default, the GitHub Tools can read from the current repository and all public repositories (if permitted by the network firewall). To read from other private repositories, you must configure additional authentication. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for details and examples.
 

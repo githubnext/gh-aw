@@ -86,7 +86,7 @@ The markdown body of workflows (excluding frontmatter) is automatically scanned 
 
 ## Inline Sub-Agents
 
-You can define sub-agents directly inside a workflow file using a level-2 heading:
+You can define inline sub-agents directly inside a workflow file using a level-2 heading:
 
 ```markdown
 ## agent: `name`
@@ -97,8 +97,6 @@ description: Short description of the agent
 Agent instructions go here.
 ```
 
-Each sub-agent block ends at the next `##` heading or EOF. At runtime the blocks are extracted to `.agents/agents/<name>.agent.md`, where the Copilot CLI discovers and invokes them by name.
-
 See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the full syntax reference.
 
 ## Related Documentation
@@ -106,5 +104,5 @@ See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the full syntax
 - [Editing Workflows](/gh-aw/guides/editing-workflows/) - When to recompile vs edit directly
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Overall workflow file organization
 - [Frontmatter](/gh-aw/reference/frontmatter/) - YAML configuration options
-- [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining sub-agents inside a workflow file
+- [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining Copilot sub-agents inside a workflow file
 - [Security Guide](/gh-aw/introduction/architecture/) - Comprehensive security guidance

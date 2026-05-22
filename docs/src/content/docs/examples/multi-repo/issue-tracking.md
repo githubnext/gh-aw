@@ -13,23 +13,46 @@ Use cross-repo issue tracking for component-based architectures where multiple t
 
 ## How It Works
 
+```mermaid
+flowchart LR
+    subgraph comp["Component repos"]
+        ev1([Issue opened
+component-alpha]) --> agent1[Tracking agent]
+        ev2([Issue opened
+component-beta]) --> agent2[Tracking agent]
+    end
+    agent1 -->|create-issue| central[central-tracker]
+    agent2 -->|create-issue| central
+```
+
 Workflows in component repositories create tracking issues in a central repository when local issues are opened, updated, or closed. The central repository maintains references to all component issues, enabling organization-wide visibility and reporting.
 
 ## Basic Tracking Issue Creation
 
 Create tracking issues in central repository when component issues are opened:
 
+```mermaid
+flowchart LR
+    subgraph comp["component-alpha"]
+        ev([Issue opened]) --> agent[Tracking agent]
+    end
+    agent -->|create-issue| central["central-tracker\n[component-alpha] ..."]
+```
+
 ```aw wrap
 ---
 on:
   issues:
     types: [opened]
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
@@ -54,17 +77,29 @@ Create tracking issue with link to original, component identifier, summary, sugg
 
 Update tracking issues when component issues change status:
 
+```mermaid
+flowchart LR
+    subgraph comp["component-alpha"]
+        ev(["Issue closed /\nreopened / labeled"]) --> agent[Tracking agent]
+    end
+    agent -->|find tracking issue| central[central-tracker]
+    agent -->|add-comment| central
+```
+
 ```aw wrap
 ---
 on:
   issues:
     types: [closed, reopened, labeled, unlabeled]
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   add-comment:
@@ -86,18 +121,31 @@ Search for tracking issue in `myorg/central-tracker` and add comment with status
 
 Track issues that span multiple component repositories:
 
+```mermaid
+flowchart LR
+    subgraph comp["Component repos"]
+        ev([Cross-component\nissue opened]) --> agent[Tracking agent]
+    end
+    agent -->|create-issue primary| central[central-tracker]
+    agent -->|create-issue child| a[component-alpha]
+    agent -->|create-issue child| b[component-beta]
+```
+
 ```aw wrap
 ---
 on:
   issues:
     types: [opened]
     # Triggered when issue has 'cross-component' label
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
@@ -120,6 +168,15 @@ Identify affected components, create primary tracking issue in central tracker w
 
 Track issues from external/upstream repositories:
 
+```mermaid
+flowchart LR
+    subgraph trigger["Manual trigger"]
+        ev([workflow_dispatch\nexternal URL]) --> agent[Tracking agent]
+    end
+    agent -->|web-fetch| ext[External issue]
+    agent -->|create-issue| tracker["dependency-tracker\n[upstream] ..."]
+```
+
 ```aw wrap
 ---
 on:
@@ -129,12 +186,15 @@ on:
         description: 'URL of external issue to track'
         required: true
         type: string
+
 permissions:
   contents: read
+
 tools:
   github:
     toolsets: [issues]
   web-fetch:
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
@@ -156,17 +216,31 @@ Fetch external issue details, identify affected internal projects, and create tr
 
 Triage component issues and route to appropriate trackers:
 
+```mermaid
+flowchart LR
+    subgraph comp["component-alpha"]
+        ev([Issue opened]) --> agent[Triage agent]
+    end
+    agent -->|security| sec[security-tracker]
+    agent -->|feature| feat[feature-tracker]
+    agent -->|bug| bugs[bug-tracker]
+    agent -->|infra| ops[ops-tracker]
+```
+
 ```aw wrap
 ---
 on:
   issues:
     types: [opened]
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
@@ -188,14 +262,29 @@ Analyze issue severity and route to appropriate tracker: security issues to `myo
 
 Create weekly summary of tracked issues:
 
+```mermaid
+flowchart LR
+    schedule([Weekly schedule]) --> agent[Report agent]
+    subgraph sources["Component repos"]
+        a[component-alpha]
+        b[component-beta]
+        n[component-N]
+    end
+    agent -->|query issues| a & b & n
+    agent -->|create-discussion| central["central-tracker\nweekly summary"]
+```
+
 ```aw wrap
 ---
 on: weekly on monday
+
 permissions:
   contents: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-discussion:
@@ -215,17 +304,30 @@ Summarize issues from all component repositories including open counts by priori
 
 Maintain references between component and tracking issues:
 
+```mermaid
+flowchart LR
+    subgraph comp["component-alpha"]
+        ev([Issue opened]) --> agent[Tracking agent]
+        original[original issue]
+    end
+    agent -->|create-issue| central["central-tracker\n[linked] ..."]
+    agent -->|add-comment| original
+```
+
 ```aw wrap
 ---
 on:
   issues:
     types: [opened]
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
@@ -248,17 +350,31 @@ Create tracking issue in `myorg/central-tracker` with title "[linked] ${{ github
 
 Route issues to different trackers based on priority:
 
+```mermaid
+flowchart LR
+    subgraph comp["component-alpha"]
+        ev(["Issue opened /\nlabeled"]) --> agent[Priority router]
+    end
+    agent -->|P0| inc[incidents]
+    agent -->|P1| p1[priority-tracker]
+    agent -->|P2| central[central-tracker]
+    agent -->|P3| backlog[backlog]
+```
+
 ```aw wrap
 ---
 on:
   issues:
     types: [opened, labeled]
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:

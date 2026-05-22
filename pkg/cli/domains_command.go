@@ -92,7 +92,7 @@ func RunListDomains(jsonOutput bool) error {
 
 	if len(mdFiles) == 0 {
 		if jsonOutput {
-			fmt.Println("[]")
+			fmt.Fprintln(os.Stdout, "[]")
 			return nil
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflow files found."))
@@ -121,7 +121,7 @@ func RunListDomains(jsonOutput bool) error {
 		if err != nil {
 			return fmt.Errorf("failed to marshal JSON: %w", err)
 		}
-		fmt.Println(string(jsonBytes))
+		fmt.Fprintln(os.Stdout, string(jsonBytes))
 		return nil
 	}
 
@@ -161,7 +161,7 @@ func RunWorkflowDomains(workflowArg string, jsonOutput bool) error {
 		if err != nil {
 			return fmt.Errorf("failed to marshal JSON: %w", err)
 		}
-		fmt.Println(string(jsonBytes))
+		fmt.Fprintln(os.Stdout, string(jsonBytes))
 		return nil
 	}
 

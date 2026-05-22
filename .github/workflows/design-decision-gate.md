@@ -341,11 +341,12 @@ Post a comment using `add-comment` explaining the requirement:
 
 This PR {has been labeled `implementation` / makes significant changes to core business logic (>100 new lines)} but does not have a linked Architecture Decision Record (ADR).
 
-**AI has analyzed the PR diff and generated a draft ADR** to help you get started:
+📄 **Draft ADR committed**: `docs/adr/{NNNN}-{title}.md` — review and complete it before merging.
 
-📄 **Draft ADR**: `docs/adr/{NNNN}-{title}.md`
+> 🔒 *This PR cannot merge until an ADR is linked in the PR body.*
 
-### What to do next
+<details>
+<summary>📋 What to do next</summary>
 
 1. **Review the draft ADR** committed to your branch — it was generated from the PR diff
 2. **Complete the missing sections** — add context the AI couldn't infer, refine the decision rationale, and list real alternatives you considered
@@ -355,13 +356,16 @@ This PR {has been labeled `implementation` / makes significant changes to core b
 
 Once an ADR is linked in the PR body, this gate will re-run and verify the implementation matches the decision.
 
-### Why ADRs Matter
+</details>
+
+<details>
+<summary>❓ Why ADRs Matter</summary>
 
 > *"AI made me procrastinate on key design decisions. Because refactoring was cheap, I could always say 'I'll deal with this later.' Deferring decisions corroded my ability to think clearly."*
 
 ADRs create a searchable, permanent record of **why** the codebase looks the way it does. Future contributors (and your future self) will thank you.
 
----
+</details>
 
 <details>
 <summary>📋 Michael Nygard ADR Format Reference</summary>
@@ -376,15 +380,13 @@ An ADR must contain these four sections to be considered complete:
 All ADRs are stored in `docs/adr/` as Markdown files numbered by PR number (e.g., `0042-use-postgresql.md` for PR #42).
 
 </details>
-
-> 🔒 *This PR cannot merge until an ADR is linked in the PR body.*
 ```
 
 ### Report Formatting
 
 - Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.
-- Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
-- Structure: Brief summary (always visible) → Key findings (always visible) → Detailed analysis (in `<details>`) → Recommendations (always visible)
+- Apply **progressive disclosure**: keep the immediately visible text as brief as possible; wrap all verbose sections (next steps, background, reference material) in `<details><summary>…</summary>` tags.
+- Required structure for blocking comments: headline + one-line status (always visible) → "What to do next" (in `<details>`) → "Why ADRs Matter" (in `<details>`) → ADR format reference (in `<details>`) → blocking notice (always visible)
 
 ## Step 4b: If ADR Found — Verify Implementation Matches
 
@@ -414,14 +416,14 @@ Post an approving comment:
 ```markdown
 ### ✅ Design Decision Gate — ADR Verified
 
-The implementation in this PR aligns with the stated Architecture Decision Record.
+**ADR reviewed**: {ADR title and link} — implementation aligns with the stated decision. Great work! 🏗️
 
-**ADR reviewed**: {ADR title and link}
+<details>
+<summary>📋 Verification Summary</summary>
 
-### Verification Summary
 {Brief summary of how the code matches the ADR decision}
 
-The design decision has been recorded and the implementation follows it. Great work! 🏗️
+</details>
 ```
 
 **If there are DIVERGENCES**:
@@ -430,21 +432,27 @@ Post a comment describing the discrepancies:
 ```markdown
 ### ⚠️ Design Decision Gate — Implementation Diverges from ADR
 
-The implementation in this PR has divergences from the linked Architecture Decision Record.
+**ADR reviewed**: {ADR title and link} — {N} divergence(s) found.
 
-**ADR reviewed**: {ADR title and link}
+> Either update the code to align with the ADR, or update the ADR to reflect the revised decision.
 
-### Divergences Found
+<details>
+<summary>🔍 Divergences Found ({N} items)</summary>
 
 {List each divergence with specific file paths and explanation}
 
-### What to do next
+</details>
+
+<details>
+<summary>📋 What to do next</summary>
 
 Either:
 1. **Update the code** to align with the ADR decision, OR
 2. **Update the ADR** to reflect the revised decision (and document why the approach changed)
 
 The ADR and implementation must be in sync before this PR can merge.
+
+</details>
 ```
 
 ## Important: Always Call a Safe Output

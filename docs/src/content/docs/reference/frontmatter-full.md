@@ -1666,15 +1666,8 @@ experiments:
   # (optional)
   storage: "cache"
 
-# DEPRECATED: Use 'disable-model-invocation' instead. Controls whether the custom
-# agent should infer additional context from the conversation. This field is
-# maintained for backward compatibility with existing custom agent files.
-# (optional)
-infer: true
-
 # Controls whether the custom agent should disable model invocation. When set to
-# true, the agent will not make additional model calls. This is the preferred
-# field name for custom agent files (replaces the deprecated 'infer' field).
+# true, the agent will not make additional model calls.
 # (optional)
 disable-model-invocation: true
 
@@ -4279,6 +4272,17 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+    # Conjunctive label constraint: ALL of these labels must be present on the
+    # issue/PR for the operation to proceed.
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # Title prefix constraint: the issue/PR title must start with this prefix for the
+    # operation to proceed.
+    # (optional)
+    required-title-prefix: "example-value"
+
     # If true, emit step summary messages instead of making GitHub API calls for this
     # specific output type (preview mode)
     # (optional)
@@ -4460,11 +4464,11 @@ safe-outputs:
     # (optional)
     base-branch: "example-value"
 
-    # Optional list of allowed source branch patterns (glob syntax, e.g.
-    # 'feature/*', 'release/*'). When configured, the effective create_pull_request
-    # branch must match one of these patterns. Accepts an array or a GitHub Actions
-    # expression resolving to a comma-separated list (e.g. '${{
-    # inputs[\'allowed-branches\'] }}').
+    # Optional list of allowed source branch patterns (glob syntax, e.g. 'feature/*',
+    # 'release/*'). When configured, the effective create_pull_request branch must
+    # match one of these patterns. Accepts an array or a GitHub Actions expression
+    # resolving to a comma-separated list (e.g. '${{ inputs[\'allowed-branches\']
+    # }}').
     # (optional)
     # Accepted formats:
 
@@ -4492,6 +4496,17 @@ safe-outputs:
     # Format 2: GitHub Actions expression resolving to a comma-separated list of base
     # branch patterns (e.g. '${{ inputs[\'allowed-base-branches\'] }}')
     allowed-base-branches: "example-value"
+
+    # Maximum allowed size for git patches in kilobytes (KB) for create-pull-request
+    # only. Overrides safe-outputs max-patch-size for this output type. Defaults to
+    # 1024 KB (1 MB) when unset.
+    # (optional)
+    max-patch-size: 1
+
+    # Maximum allowed number of unique files in a create-pull-request patch. Overrides
+    # safe-outputs max-patch-files for this output type. Defaults to 100 when unset.
+    # (optional)
+    max-patch-files: 1
 
     # Controls whether AI-generated footer is added to the pull request. When false,
     # the visible footer content is omitted but XML markers (workflow-id, tracker-id,
@@ -4694,6 +4709,17 @@ safe-outputs:
     # (optional)
     staged: true
 
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
+
   # Format 2: Enable PR review comment creation with default configuration
   create-pull-request-review-comment: null
 
@@ -4778,6 +4804,17 @@ safe-outputs:
     # (optional)
     staged: true
 
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
+
   # Format 2: Enable PR review submission with default configuration
   submit-pull-request-review: null
 
@@ -4826,6 +4863,17 @@ safe-outputs:
     # (optional)
     staged: true
 
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
+
   # Format 2: Enable with default configuration
   reply-to-pull-request-review-comment: null
 
@@ -4858,6 +4906,17 @@ safe-outputs:
     # specific output type (preview mode)
     # (optional)
     staged: true
+
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
 
   # Format 2: Enable review thread resolution with default configuration
   resolve-pull-request-review-thread: null
@@ -5005,6 +5064,17 @@ safe-outputs:
     allowed-repos: []
       # Array of strings
 
+    # Conjunctive label constraint: ALL of these labels must be present on the
+    # issue/PR for the operation to proceed.
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # Title prefix constraint: the issue/PR title must start with this prefix for the
+    # operation to proceed.
+    # (optional)
+    required-title-prefix: "example-value"
+
     # If true, emit step summary messages instead of making GitHub API calls for this
     # specific output type (preview mode)
     # (optional)
@@ -5067,6 +5137,17 @@ safe-outputs:
     allowed-repos: []
       # Array of strings
 
+    # Conjunctive label constraint: ALL of these labels must be present on the
+    # issue/PR for the operation to proceed.
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # Title prefix constraint: the issue/PR title must start with this prefix for the
+    # operation to proceed.
+    # (optional)
+    required-title-prefix: "example-value"
+
     # If true, emit step summary messages instead of making GitHub API calls for this
     # specific output type (preview mode)
     # (optional)
@@ -5083,9 +5164,10 @@ safe-outputs:
   # Format 2: Configuration for adding reviewers to pull requests from agentic
   # workflow output
   add-reviewer:
-    # Optional list of allowed reviewers. If omitted, any reviewers are allowed.
+    # Optional list of allowed reviewer usernames. If omitted, any reviewers are
+    # allowed.
     # (optional)
-    reviewers: []
+    allowed-reviewers: []
       # Array of strings
 
     # Optional allowed team reviewer or list of allowed team reviewers. If omitted,
@@ -5094,10 +5176,10 @@ safe-outputs:
     # Accepted formats:
 
     # Format 1: string
-    team-reviewers: "example-value"
+    allowed-team-reviewers: "example-value"
 
     # Format 2: array
-    team-reviewers: []
+    allowed-team-reviewers: []
       # Array items: string
 
     # Optional maximum number of reviewers to add (default: 3) Supports integer or
@@ -5130,6 +5212,17 @@ safe-outputs:
     # specific output type (preview mode)
     # (optional)
     staged: true
+
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
 
   # Enable AI agents to assign GitHub milestones to issues or pull requests based on
   # workflow analysis or project planning.
@@ -5173,6 +5266,17 @@ safe-outputs:
     # specific output type (preview mode)
     # (optional)
     staged: true
+
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
 
   # Enable AI agents to assign issues or pull requests to GitHub Copilot (@copilot)
   # for automated handling.
@@ -5339,6 +5443,17 @@ safe-outputs:
     # (optional)
     staged: true
 
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
+
   # Enable AI agents to unassign users from issues or pull requests. Useful for
   # reassigning work or removing users from issues.
   # (optional)
@@ -5399,6 +5514,17 @@ safe-outputs:
     # specific output type (preview mode)
     # (optional)
     staged: true
+
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
 
   # Enable AI agents to create hierarchical relationships between issues using
   # GitHub's sub-issue (tasklist) feature.
@@ -5526,6 +5652,17 @@ safe-outputs:
     # (optional)
     staged: true
 
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
+
   # Format 2: Enable issue updating with default configuration
   update-issue: null
 
@@ -5592,6 +5729,17 @@ safe-outputs:
     # (optional)
     staged: true
 
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
+
   # Format 2: Enable pull request updating with default configuration (title and
   # body updates enabled)
   update-pull-request: null
@@ -5617,19 +5765,14 @@ safe-outputs:
     # Format 2: GitHub Actions expression that resolves to an integer at runtime
     max: "example-value"
 
-    # List of labels that must all be present on the pull request before merge is
+    # List of labels that must ALL be present on the pull request before merge is
     # allowed.
     # (optional)
     required-labels: []
       # Array of strings
 
-    # Exact pull request label names. At least one existing PR label must exactly
-    # match one of these values when configured.
-    # (optional)
-    allowed-labels: []
-      # Array of strings
-
-    # Glob patterns for allowed source branch names (pull request head ref).
+    # Glob patterns for allowed source branch names (pull request head ref). The PR's
+    # branch must match at least one pattern.
     # (optional)
     allowed-branches: []
       # Array of strings
@@ -5643,6 +5786,11 @@ safe-outputs:
     # merge API call.
     # (optional)
     staged: true
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
 
   # Enable AI agents to push commits directly to pull request branches for automated
   # fixes or improvements.
@@ -5680,7 +5828,7 @@ safe-outputs:
     # Required prefix for pull request title. Only pull requests with this prefix will
     # be accepted.
     # (optional)
-    title-prefix: "example-value"
+    required-title-prefix: "example-value"
 
     # Required labels for pull request validation. Only pull requests with all these
     # labels will be accepted. Accepts an array of label names or a GitHub Actions
@@ -5690,12 +5838,12 @@ safe-outputs:
     # Accepted formats:
 
     # Format 1: Array of label names
-    labels: []
+    required-labels: []
       # Array items: string
 
     # Format 2: GitHub Actions expression resolving to a comma-separated list of label
     # names (e.g. '${{ inputs[\'required-labels\'] }}')
-    labels: "example-value"
+    required-labels: "example-value"
 
     # Behavior when no changes to push: 'warn' (default - log warning but succeed),
     # 'error' (fail the action), or 'ignore' (silent success)
@@ -5712,6 +5860,12 @@ safe-outputs:
     # prevent triggering CI on the commit)
     # (optional)
     commit-title-suffix: "example-value"
+
+    # Maximum allowed size for git patches in kilobytes (KB) for
+    # push-to-pull-request-branch only. Overrides safe-outputs max-patch-size for this
+    # output type. Defaults to 1024 KB (1 MB) when unset.
+    # (optional)
+    max-patch-size: 1
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -5907,6 +6061,17 @@ safe-outputs:
     # (optional)
     staged: true
 
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
+
   # Enable AI agents to set or clear the type of GitHub issues. Use an empty string
   # to clear the current type.
   # (optional)
@@ -5963,6 +6128,17 @@ safe-outputs:
     # (optional)
     staged: true
 
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
+
   # Enable AI agents to set one issue field value by field name and value.
   # (optional)
   # Accepted formats:
@@ -6017,6 +6193,17 @@ safe-outputs:
     # specific output type (preview mode)
     # (optional)
     staged: true
+
+    # All of these labels must be present on the target item for this operation to
+    # proceed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # The target item's title must start with this prefix for this operation to
+    # proceed
+    # (optional)
+    required-title-prefix: "example-value"
 
   # Dispatch workflow_dispatch events to other workflows. Used by orchestrators to
   # delegate work to worker workflows with controlled maximum dispatch count.

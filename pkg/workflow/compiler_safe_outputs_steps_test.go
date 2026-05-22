@@ -12,9 +12,12 @@ import (
 
 // TestBuildSharedPRCheckoutSteps tests shared PR checkout step generation
 func TestBuildSharedPRCheckoutSteps(t *testing.T) {
+	fetchDepthZero := 0
+
 	tests := []struct {
 		name             string
 		safeOutputs      *SafeOutputsConfig
+		checkoutConfigs  []*CheckoutConfig
 		trialMode        bool
 		trialRepo        string
 		checkContains    []string
@@ -37,6 +40,21 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"name: Configure Git credentials",
 				"git config --global user.email",
 				"github-actions[bot]@users.noreply.github.com",
+			},
+		},
+		{
+			name: "uses custom checkout fetch-depth",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{FetchDepth: &fetchDepthZero},
+			},
+			checkContains: []string{
+				"fetch-depth: 0",
+			},
+			checkNotContains: []string{
+				"fetch-depth: 1",
 			},
 		},
 		{
@@ -317,8 +335,9 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			}
 
 			workflowData := &WorkflowData{
-				Name:        "Test Workflow",
-				SafeOutputs: tt.safeOutputs,
+				Name:            "Test Workflow",
+				SafeOutputs:     tt.safeOutputs,
+				CheckoutConfigs: tt.checkoutConfigs,
 			}
 
 			steps := compiler.buildSharedPRCheckoutSteps(workflowData)

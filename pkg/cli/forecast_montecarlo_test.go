@@ -241,17 +241,17 @@ func TestGammaSampleEdgeCases(t *testing.T) {
 func TestRunMonteCarloIsReliable(t *testing.T) {
 	rng := deterministicRNG()
 
-	// Below threshold: 3 observations < minObservationsForReliableForecast (5).
+	// Below threshold: 3 observations < minObservationsForReliableForecast (10).
 	smallObs := []int{1000, 1500, 1200}
 	mcSmall := runMonteCarlo(smallObs, len(smallObs), 4.0, rng)
 	require.NotNil(t, mcSmall)
-	assert.False(t, mcSmall.IsReliable, "fewer than 5 observations → IsReliable=false")
+	assert.False(t, mcSmall.IsReliable, "fewer than 10 observations → IsReliable=false")
 
 	// At threshold: exactly minObservationsForReliableForecast observations.
-	atThreshold := []int{1000, 1100, 1200, 1300, 1400}
+	atThreshold := []int{1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900}
 	mcAt := runMonteCarlo(atThreshold, len(atThreshold), 4.0, rng)
 	require.NotNil(t, mcAt)
-	assert.True(t, mcAt.IsReliable, "exactly 5 observations → IsReliable=true")
+	assert.True(t, mcAt.IsReliable, "exactly 10 observations → IsReliable=true")
 
 	// Well above threshold.
 	largeObs := make([]int, 20)

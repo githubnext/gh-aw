@@ -5,6 +5,7 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -41,7 +42,7 @@ This is a test workflow for compilation.
 `
 
 	testFile := filepath.Join(tmpDir, "test-workflow.md")
-	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644), "Failed to write test workflow markdown")
 
 	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
@@ -54,7 +55,7 @@ This is a test workflow for compilation.
 
 	// Verify lock file contains expected content
 	lockContent, err := os.ReadFile(lockFile)
-	require.NoError(t, err)
+	require.NoError(t, err, "Failed to read generated lock file")
 	lockStr := string(lockContent)
 
 	// Verify basic workflow structure
@@ -404,7 +405,7 @@ This is a normal workflow that should generate a reasonable-sized lock file.
 	// Check lock file size
 	lockFile := stringutil.MarkdownToLockFile(testFile)
 	info, err := os.Stat(lockFile)
-	require.NoError(t, err)
+	require.NoError(t, err, "Failed to stat generated lock file")
 
 	// Verify size is reasonable (under MaxLockFileSize)
 	assert.LessOrEqual(t, info.Size(), int64(MaxLockFileSize),
@@ -471,7 +472,7 @@ engine: copilot
 
 	// First compilation
 	err := compiler.CompileWorkflowData(workflowData, markdownPath)
-	require.NoError(t, err)
+	require.NoError(t, err, "First compilation should succeed")
 
 	// Artifact manager should exist
 	require.NotNil(t, compiler.artifactManager, "Artifact manager should be initialized")
@@ -495,7 +496,7 @@ engine: copilot
 	require.NoError(t, os.WriteFile(markdownPath2, []byte(testContent2), 0644))
 
 	err = compiler.CompileWorkflowData(workflowData2, markdownPath2)
-	require.NoError(t, err)
+	require.NoError(t, err, "Second compilation should succeed")
 
 	// Artifact manager should still exist (it's reset, not recreated to nil)
 	require.NotNil(t, compiler.artifactManager, "Artifact manager should persist after reset")
@@ -805,7 +806,7 @@ func TestWriteWorkflowOutput_ContentUnchanged(t *testing.T) {
 
 	// Get initial modification time
 	initialInfo, err := os.Stat(lockFile)
-	require.NoError(t, err)
+	require.NoError(t, err, "Failed to stat lock file before rewrite")
 	initialModTime := initialInfo.ModTime()
 
 	// Sleep to ensure filesystem mtime resolution is exceeded
@@ -815,11 +816,11 @@ func TestWriteWorkflowOutput_ContentUnchanged(t *testing.T) {
 	// Write same content again
 	compiler := NewCompiler()
 	err = compiler.writeWorkflowOutput(lockFile, yamlContent, markdownPath)
-	require.NoError(t, err)
+	require.NoError(t, err, "Writing unchanged content should succeed")
 
 	// Check that modification time hasn't changed (file wasn't rewritten)
 	finalInfo, err := os.Stat(lockFile)
-	require.NoError(t, err)
+	require.NoError(t, err, "Failed to stat lock file after rewrite")
 	finalModTime := finalInfo.ModTime()
 
 	assert.Equal(t, initialModTime, finalModTime, "File should not be rewritten if content is unchanged")
@@ -875,12 +876,7 @@ This is a test workflow for concurrent compilation.
 		errors = append(errors, err)
 	}
 
-	if len(errors) > 0 {
-		t.Errorf("Concurrent compilation failed with %d errors:", len(errors))
-		for _, err := range errors {
-			t.Errorf("  - %v", err)
-		}
-	}
+	assert.Empty(t, errors, "Concurrent compilation should complete without errors")
 
 	// Verify all lock files were created
 	for _, workflowFile := range workflowFiles {
@@ -970,13 +966,11 @@ network:
 			}
 
 			// Check performance
-			if duration > tt.maxDuration {
-				t.Errorf("Compilation took %v, expected under %v (%.1fx slower than expected)",
-					duration, tt.maxDuration, float64(duration)/float64(tt.maxDuration))
-			} else {
-				t.Logf("Compilation completed in %v (%.1f%% of max allowed time)",
-					duration, 100*float64(duration)/float64(tt.maxDuration))
-			}
+			require.LessOrEqual(t, duration, tt.maxDuration,
+				"Compilation took %v, expected under %v (%.1fx slower than expected)",
+				duration, tt.maxDuration, float64(duration)/float64(tt.maxDuration))
+			t.Logf("Compilation completed in %v (%.1f%% of max allowed time)",
+				duration, 100*float64(duration)/float64(tt.maxDuration))
 
 			// Verify lock file was created (if compilation succeeded)
 			if err == nil {
@@ -987,4 +981,89 @@ network:
 			}
 		})
 	}
+}
+
+// TestValidateTemplateInjection_IgnoresMalformedYAMLInFallback verifies malformed YAML in the
+// fallback path does not produce a template-injection error.
+func TestValidateTemplateInjection_IgnoresMalformedYAMLInFallback(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "template-injection-fallback")
+	markdownPath := filepath.Join(tmpDir, "test.md")
+	lockFile := stringutil.MarkdownToLockFile(markdownPath)
+
+	malformedYAML := `name: test
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "${{ github.event.issue.title }}"
+      - invalid: [`
+
+	compiler := NewCompiler()
+	err := compiler.validateTemplateInjection(malformedYAML, lockFile, markdownPath, nil)
+	assert.NoError(t, err, "Malformed YAML in fallback scan path should skip template-injection validation")
+}
+
+func runGitCommand(t *testing.T, repoDir string, args ...string) {
+	t.Helper()
+
+	cmdArgs := append([]string{"-C", repoDir}, args...)
+	cmd := exec.Command("git", cmdArgs...)
+	output, err := cmd.CombinedOutput()
+	require.NoErrorf(t, err, "git %s should succeed: %s", strings.Join(args, " "), strings.TrimSpace(string(output)))
+}
+
+// TestReadLockFileFromHEAD_GitStates verifies readLockFileFromHEAD behavior across
+// multiple repository states.
+func TestReadLockFileFromHEAD_GitStates(t *testing.T) {
+	t.Run("missing git root", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.gitRoot = ""
+
+		_, err := compiler.readLockFileFromHEAD(filepath.Join(os.TempDir(), "nonexistent.lock.yml"))
+		require.Error(t, err, "Missing git root should return an error")
+		assert.Contains(t, err.Error(), "git root not available", "Error should explain missing git root")
+	})
+
+	t.Run("returns committed content from HEAD", func(t *testing.T) {
+		repoDir := testutil.TempDir(t, "read-head")
+		runGitCommand(t, repoDir, "init")
+		runGitCommand(t, repoDir, "config", "user.email", "test@example.com")
+		runGitCommand(t, repoDir, "config", "user.name", "Test User")
+
+		lockFile := filepath.Join(repoDir, "workflow.lock.yml")
+		committedContent := "name: committed\n"
+		require.NoError(t, os.WriteFile(lockFile, []byte(committedContent), 0644), "Failed to write lock file")
+		runGitCommand(t, repoDir, "add", "workflow.lock.yml")
+		runGitCommand(t, repoDir, "commit", "-m", "add lock file")
+
+		require.NoError(t, os.WriteFile(lockFile, []byte("name: modified\n"), 0644), "Failed to modify lock file")
+
+		compiler := NewCompiler()
+		compiler.gitRoot = repoDir
+
+		content, err := compiler.readLockFileFromHEAD(lockFile)
+		require.NoError(t, err, "Reading committed lock file from HEAD should succeed")
+		assert.Equal(t, committedContent, content, "HEAD content should be returned instead of working-tree content")
+	})
+
+	t.Run("errors when lock file is absent in HEAD", func(t *testing.T) {
+		repoDir := testutil.TempDir(t, "read-head-missing")
+		runGitCommand(t, repoDir, "init")
+		runGitCommand(t, repoDir, "config", "user.email", "test@example.com")
+		runGitCommand(t, repoDir, "config", "user.name", "Test User")
+
+		readmeFile := filepath.Join(repoDir, "README.md")
+		require.NoError(t, os.WriteFile(readmeFile, []byte("test\n"), 0644), "Failed to write README")
+		runGitCommand(t, repoDir, "add", "README.md")
+		runGitCommand(t, repoDir, "commit", "-m", "initial commit")
+
+		compiler := NewCompiler()
+		compiler.gitRoot = repoDir
+
+		lockFile := filepath.Join(repoDir, "workflow.lock.yml")
+		_, err := compiler.readLockFileFromHEAD(lockFile)
+		require.Error(t, err, "Reading a non-existent lock file from HEAD should fail")
+		assert.Contains(t, err.Error(), "not found in HEAD commit", "Error should indicate file is absent in HEAD")
+	})
 }

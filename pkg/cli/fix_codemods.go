@@ -72,6 +72,7 @@ func GetAllCodemods() []Codemod {
 		getSandboxMCPContainerRemovalCodemod(),        // Remove deprecated sandbox.mcp.container (now managed internally)
 		getSandboxMCPVersionRemovalCodemod(),          // Remove deprecated sandbox.mcp.version (now managed internally)
 		getSandboxAgentFalseRemovalCodemod(),          // Remove deprecated sandbox.agent: false (rejected in strict mode)
+		getInferToDisableModelInvocationCodemod(),     // Migrate deprecated 'infer' to 'disable-model-invocation'
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
 	return codemods

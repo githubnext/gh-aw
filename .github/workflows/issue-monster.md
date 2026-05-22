@@ -122,6 +122,7 @@ on:
             
             // Labels that indicate an issue is a GOOD candidate for auto-assignment
             const priorityLabels = [
+              'community',
               'good first issue',
               'good-first-issue',
               'bug',
@@ -299,6 +300,11 @@ on:
                 let score = 0;
                 
                 // Score based on priority labels (higher score = higher priority)
+                // Community issues always get the highest priority — these are
+                // requests from external contributors and should be addressed first.
+                if (issueLabels.includes('community')) {
+                  score += 60;
+                }
                 if (issueLabels.includes('good first issue') || issueLabels.includes('good-first-issue')) {
                   score += 50;
                 }
@@ -473,6 +479,7 @@ The issue search has already been performed in the pre-activation job with smart
 
 **Scoring System:**
 Issues are scored and sorted by priority:
+- **Community**: +60 points *(always highest — issues from external contributors)*
 - Good first issue: +50 points
 - Security: +45 points
 - Bug: +40 points

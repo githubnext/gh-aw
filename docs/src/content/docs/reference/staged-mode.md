@@ -16,6 +16,7 @@ Add `staged: true` to the `safe-outputs:` block in your workflow frontmatter:
 ```aw wrap
 ---
 on: issues
+
 safe-outputs:
   staged: true
   create-issue:
