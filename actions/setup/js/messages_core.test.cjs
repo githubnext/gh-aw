@@ -82,6 +82,17 @@ describe("messages_core.cjs", () => {
       const result = renderTemplate("", { key: "value" });
       expect(result).toBe("");
     });
+
+    it("should specially format files placeholder as backticked filenames", async () => {
+      const { renderTemplate } = await import("./messages_core.cjs?" + Date.now());
+      const result = renderTemplate("Changed files: {files}", { files: "a.txt,b/c.md, docs/readme.md " });
+      expect(result).toBe("Changed files: `a.txt`, `b/c.md`, `docs/readme.md`");
+    });
+
+    it("should reject files placeholder values containing backticks", async () => {
+      const { renderTemplate } = await import("./messages_core.cjs?" + Date.now());
+      expect(() => renderTemplate("Changed files: {files}", { files: "safe.txt,`bad`.md" })).toThrow("Invalid {files} value: filenames must not contain backticks");
+    });
   });
 
   describe("renderTemplateFromFile", () => {
@@ -132,6 +143,18 @@ describe("messages_core.cjs", () => {
       try {
         const result = renderTemplateFromFile(tmpFile, {});
         expect(result).toBe("No placeholders here.");
+      } finally {
+        fs.unlinkSync(tmpFile);
+      }
+    });
+
+    it("should format files placeholder when rendering from file", async () => {
+      const { renderTemplateFromFile } = await import("./messages_core.cjs?" + Date.now());
+      const tmpFile = path.join(os.tmpdir(), `msg-core-test-${Date.now()}.md`);
+      fs.writeFileSync(tmpFile, "Changed files: {files}", "utf8");
+      try {
+        const result = renderTemplateFromFile(tmpFile, { files: "one.js, two.ts" });
+        expect(result).toBe("Changed files: `one.js`, `two.ts`");
       } finally {
         fs.unlinkSync(tmpFile);
       }

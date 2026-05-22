@@ -81,7 +81,20 @@ function getMessages() {
 function renderTemplate(template, context) {
   return template.replace(/\{(\w+)\}/g, (match, key) => {
     const value = context[key];
-    return value !== undefined && value !== null ? String(value) : match;
+    if (value === undefined || value === null) {
+      return match;
+    }
+    if (key === "files") {
+      const files = String(value)
+        .split(",")
+        .map(file => file.trim())
+        .filter(Boolean);
+      if (files.some(file => file.includes("`"))) {
+        throw new Error("Invalid {files} value: filenames must not contain backticks");
+      }
+      return files.map(file => `\`${file}\``).join(", ");
+    }
+    return String(value);
   });
 }
 
