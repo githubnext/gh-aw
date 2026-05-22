@@ -77,7 +77,7 @@ safe_outputs:
 
 Not every mention or workflow event should trigger powerful agents. We use role-gating to ensure only authorized users can invoke sensitive operations.
 
-**Example**: The [`q`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/q.md) optimizer requires the user commenting `/q` to be a repository maintainer. Random contributors can't trigger expensive optimization runs.
+**Example**: The [`q`](https://github.com/githubnext/agentics/blob/main/workflows/q.md) optimizer requires the user commenting `/q` to be a repository maintainer. Random contributors can't trigger expensive optimization runs.
 
 **Implementation**:
 
@@ -213,7 +213,7 @@ Interactive agents that require authorization to invoke.
 
 **Use case**: Code review, optimization, debugging assistance
 
-**Example**: [`grumpy-reviewer`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md) requires collaborator access to invoke via `/grumpy`.
+**Example**: [`grumpy-reviewer`](https://github.com/githubnext/agentics/blob/main/workflows/grumpy-reviewer.md) requires collaborator access to invoke via `/grumpy`.
 
 ### Pattern 5: Network Restricted
 

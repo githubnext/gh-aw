@@ -23,6 +23,8 @@ type buildMaintenanceWorkflowYAMLOptions struct {
 	configuredRunsOn    RunsOnValue
 	defaultBranch       string
 	disableLabelTrigger bool
+	compileGitHubToken  string
+	createCompilePR     bool
 }
 
 // buildMaintenanceWorkflowYAML generates the complete YAML content for the
@@ -43,7 +45,9 @@ func buildMaintenanceWorkflowYAML(
 	configuredRunsOn := opts.configuredRunsOn
 	defaultBranch := opts.defaultBranch
 	disableLabelTrigger := opts.disableLabelTrigger
-	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger)
+	compileGitHubToken := opts.compileGitHubToken
+	createCompilePR := opts.createCompilePR
+	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v createCompilePR=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger, createCompilePR)
 
 	var yaml strings.Builder
 
@@ -868,10 +872,21 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
-      - name: Check for out-of-sync workflows and create issue if needed
+      - name: Check for out-of-sync workflows and create issue or pull request if needed
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
-        with:
-          script: |
+`)
+		if compileGitHubToken != "" {
+			yaml.WriteString(`        env:
+          GH_AW_MAINTENANCE_GITHUB_TOKEN: ` + compileGitHubToken + `
+`)
+		}
+		yaml.WriteString(`        with:
+`)
+		if compileGitHubToken != "" {
+			yaml.WriteString(`          github-token: ${{ env.GH_AW_MAINTENANCE_GITHUB_TOKEN }}
+`)
+		}
+		yaml.WriteString(`          script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_workflow_recompile_needed.cjs');

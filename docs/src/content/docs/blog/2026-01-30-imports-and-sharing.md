@@ -37,7 +37,7 @@ Imports provide several game-changing benefits that transformed how we develop a
 
 When we improve report formatting or update an MCP server configuration, the change automatically propagates to all workflows that import it. No need to update 46 workflows individually. That's huge!
 
-For example, when we enhanced the [`reporting.md`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/reporting.md) component with better formatting guidelines, all 46 workflows that imported it immediately benefited. One change, 46 workflows improved. Magic.
+For example, when we enhanced the [`reporting.md`](https://github.com/githubnext/agentics/blob/main/workflows/shared/reporting.md) component with better formatting guidelines, all 46 workflows that imported it immediately benefited. One change, 46 workflows improved. Magic.
 
 ### 🧩 Composable Workflow Capabilities
 
@@ -95,7 +95,7 @@ The factory organized shared components into two main directories:
 
 #### Most Popular Shared Components
 
-**[`reporting.md`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/reporting.md?plain=1)** (46 imports)
+**[`reporting.md`](https://github.com/githubnext/agentics/blob/main/workflows/shared/reporting.md?plain=1)** (46 imports)
 
 - Report formatting guidelines
 - Workflow run references
@@ -193,7 +193,7 @@ The factory organized shared components into two main directories:
 
 - [`context7.md`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/context7.md) - Context-aware search
 - [`deepwiki.md`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/deepwiki.md) - Wikipedia deep search
-- [`microsoft-docs.md`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/microsoft-docs.md) - Microsoft documentation
+- [`microsoft-docs.md`](https://github.com/githubnext/agentics/blob/main/workflows/shared/mcp/microsoft-docs.md) - Microsoft documentation
 - [`arxiv.md`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/shared/mcp/arxiv.md) - Academic paper research
 
 **External Integrations**

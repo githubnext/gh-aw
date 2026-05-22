@@ -11,7 +11,10 @@
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
 //	    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
-//	    "label_triggers": true // set to true to enable all label-triggered jobs (opt-in)
+//	    "label_triggers": true, // set to true to enable all label-triggered jobs (opt-in)
+//	    "compile": {
+//	      "create_pull_request_github_token": "MY_REPO_TOKEN" // create/update a deduplicated PR instead of an issue
+//	    }
 //	  }                            // maintenance jobs (default: ubuntu-slim)
 //	}
 //
@@ -26,12 +29,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
 var repoConfigLog = logger.New("workflow:repo_config")
+var repoConfigSecretNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // RepoConfigFileName is the path of the repository-level configuration file
 // relative to the git root.
@@ -67,6 +72,14 @@ func (r *RunsOnValue) UnmarshalJSON(data []byte) error {
 }
 
 // MaintenanceConfig holds maintenance-workflow-specific settings from aw.json.
+type MaintenanceCompileConfig struct {
+	// CreatePullRequestGitHubToken is the secret name used by the compile-workflows
+	// maintenance job for GitHub API calls and branch pushes. When configured,
+	// out-of-sync compiled workflows are reported via a deduplicated pull request
+	// instead of an issue.
+	CreatePullRequestGitHubToken string `json:"create_pull_request_github_token,omitempty"`
+}
+
 type MaintenanceConfig struct {
 	// RunsOn is the runner label or labels used for all jobs in agentics-maintenance.yml.
 	RunsOn RunsOnValue `json:"runs_on,omitempty"`
@@ -81,6 +94,9 @@ type MaintenanceConfig struct {
 	// nil (omitted) or false both disable label-triggered jobs.
 	// To opt in, set label_triggers: true in aw.json.
 	LabelTriggers *bool `json:"label_triggers,omitempty"`
+
+	// Compile controls compile-workflows maintenance job behavior.
+	Compile *MaintenanceCompileConfig `json:"compile,omitempty"`
 }
 
 // IsLabelTriggerEnabled returns true only when label_triggers is explicitly set to true.
@@ -175,6 +191,9 @@ func LoadRepoConfig(gitRoot string) (*RepoConfig, error) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse %s: %w", RepoConfigFileName, err)
 	}
+	if err := validateRepoConfigValues(&cfg); err != nil {
+		return nil, err
+	}
 
 	return &cfg, nil
 }
@@ -198,6 +217,18 @@ func validateRepoConfigJSON(data []byte, filePath string) error {
 	}
 
 	repoConfigLog.Print("Repo config JSON schema validation passed")
+	return nil
+}
+
+func validateRepoConfigValues(cfg *RepoConfig) error {
+	if cfg == nil || cfg.Maintenance == nil || cfg.Maintenance.Compile == nil {
+		return nil
+	}
+	compileCfg := cfg.Maintenance.Compile
+	secretName := compileCfg.CreatePullRequestGitHubToken
+	if secretName != "" && !repoConfigSecretNamePattern.MatchString(secretName) {
+		return fmt.Errorf("invalid %s: maintenance.compile.create_pull_request_github_token must match %s", RepoConfigFileName, repoConfigSecretNamePattern.String())
+	}
 	return nil
 }
 

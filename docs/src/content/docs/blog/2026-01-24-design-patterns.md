@@ -48,7 +48,7 @@ Here are some examples:
 - [`portfolio-analyst`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/portfolio-analyst.md) - Spots cost optimization opportunities
 - [`session-insights`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/copilot-session-insights.md) - Analyzes Copilot usage patterns
 - [`org-health-report`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/org-health-report.md) - Organization-wide health metrics
-- [`scout`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/scout.md), [`archie`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/archie.md) - Deep research agents
+- [`scout`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/scout.md), [`archie`](https://github.com/githubnext/agentics/blob/main/workflows/archie.md) - Deep research agents
 
 Some key characteristics are:
 
@@ -75,8 +75,8 @@ Use these when:
 
 Here are some examples:
 
-- [`q`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/q.md) - Workflow optimizer (type `/q` and it investigates!)
-- [`grumpy-reviewer`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md) - Critical code review with personality
+- [`q`](https://github.com/githubnext/agentics/blob/main/workflows/q.md) - Workflow optimizer (type `/q` and it investigates!)
+- [`grumpy-reviewer`](https://github.com/githubnext/agentics/blob/main/workflows/grumpy-reviewer.md) - Critical code review with personality
 - [`poem-bot`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/poem-bot.md) - Creative verse generation (because why not?)
 - [`mergefest`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mergefest.md) - Branch merging automation
 - [`pr-fix`](https://github.com/githubnext/agentics/blob/main/workflows/pr-fix.md) - Fixes failing CI checks on demand
@@ -108,7 +108,7 @@ Use these when:
 Here are some examples:
 
 - [`daily-workflow-updater`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-workflow-updater.md) - Keeps actions and dependencies current
-- [`glossary-maintainer`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/glossary-maintainer.md) - Syncs glossary with codebase
+- [`glossary-maintainer`](https://github.com/githubnext/agentics/blob/main/workflows/glossary-maintainer.md) - Syncs glossary with codebase
 - [`daily-file-diet`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-file-diet.md) - Refactors oversized files
 - [`hourly-ci-cleaner`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/hourly-ci-cleaner.md) - Repairs CI issues
 
@@ -171,9 +171,9 @@ Use these when:
 Here are some examples:
 
 - [`issue-triage-agent`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-triage-agent.md) - Auto-labels and categorizes
-- [`issue-arborist`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-arborist.md) - Links related issues
+- [`issue-arborist`](https://github.com/githubnext/agentics/blob/main/workflows/issue-arborist.md) - Links related issues
 - [`mergefest`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mergefest.md) - Merge coordination
-- [`sub-issue-closer`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/sub-issue-closer.md) - Closes completed sub-issues
+- [`sub-issue-closer`](https://github.com/githubnext/agentics/blob/main/workflows/sub-issue-closer.md) - Closes completed sub-issues
 
 Some key characteristics are:
 
@@ -233,7 +233,7 @@ Use these when:
 
 Here are some examples:
 
-- [`duplicate-code-detector`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/duplicate-code-detector.md) - Finds code duplicates
+- [`duplicate-code-detector`](https://github.com/githubnext/agentics/blob/main/workflows/duplicate-code-detector.md) - Finds code duplicates
 - [`semantic-function-refactor`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/semantic-function-refactor.md) - Refactoring opportunities
 - [`terminal-stylist`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/terminal-stylist.md) - Console output analysis
 - [`go-pattern-detector`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/go-pattern-detector.md) - Go-specific patterns
@@ -265,7 +265,7 @@ Use these when:
 
 Here are some examples:
 
-- [`glossary-maintainer`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/glossary-maintainer.md) - Glossary synchronization
+- [`glossary-maintainer`](https://github.com/githubnext/agentics/blob/main/workflows/glossary-maintainer.md) - Glossary synchronization
 - [`technical-doc-writer`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/technical-doc-writer.md) - Technical documentation
 - [`slide-deck-maintainer`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/slide-deck-maintainer.md) - Presentation maintenance
 - [`ubuntu-image-analyzer`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ubuntu-image-analyzer.md) - Environment documentation
@@ -389,7 +389,7 @@ Here are some examples:
 - [`security-compliance`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/security-compliance.md) - Vulnerability campaigns
 - [`firewall`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/firewall.md) - Network security testing
 - [`daily-secrets-analysis`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/daily-secrets-analysis.md) - Secret scanning
-- [`ai-moderator`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/ai-moderator.md) - Comment spam filtering
+- [`ai-moderator`](https://github.com/githubnext/agentics/blob/main/workflows/ai-moderator.md) - Comment spam filtering
 - [`security-fix-pr`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/security-fix-pr.md) - Automated security fixes
 
 Some key characteristics are:

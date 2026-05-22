@@ -215,7 +215,7 @@ This pattern suggests:
 - Provide examples of when to use `get_symbols_overview` vs `Read`
 - Highlight benefits of symbol-based navigation over grep/search
 
-### 3. Leverage Unused Capabilities
+### 3. Use Unused Capabilities
 
 **High-Value Unused Tools:**
 - `get_symbols_overview` - Provides structured codebase understanding through symbol hierarchy
@@ -365,7 +365,7 @@ graph LR
 
 The Serena MCP server successfully provided 23 specialized Go language service tools with 100% response rate reliability. However, actual adoption was modest at 20.45% of total tool calls, with only 6 of 23 tools being used. The agent showed a strong preference for general-purpose builtin tools (77.27% usage), particularly Bash and Read operations.
 
-**Key Takeaway:** While Serena tools are reliable and available, the current workflow design doesn't fully leverage their language-aware capabilities. Future optimizations should focus on:
+**Key Takeaway:** While Serena tools are reliable and available, the current workflow design doesn't fully use their language-aware capabilities. Future optimizations should focus on:
 1. Encouraging Serena tool usage through better prompts
 2. Right-sizing tool registration to reduce overhead
 3. Demonstrating value of language-aware operations over text-based alternatives

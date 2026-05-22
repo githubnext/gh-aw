@@ -81,8 +81,39 @@ function getMessages() {
 function renderTemplate(template, context) {
   return template.replace(/\{(\w+)\}/g, (match, key) => {
     const value = context[key];
-    return value !== undefined && value !== null ? String(value) : match;
+    if (value === undefined || value === null) {
+      return match;
+    }
+    return String(value);
   });
+}
+
+/**
+ * Render a comma-separated files list into markdown inline code spans.
+ * - Trims each entry and drops empty segments
+ * - Accepts filenames already wrapped in backticks
+ * - Redacts unsafe/invalid entries as `redacted`
+ * @param {string|number|boolean} value
+ * @returns {string}
+ */
+function renderFilesList(value) {
+  const files = String(value)
+    .split(",")
+    .map(file => file.trim())
+    .filter(Boolean);
+
+  return files
+    .map(file => {
+      let normalized = file;
+      if (normalized.startsWith("`") && normalized.endsWith("`")) {
+        normalized = normalized.slice(1, -1).trim();
+      }
+      if (!normalized || normalized.includes("`")) {
+        normalized = "redacted";
+      }
+      return `\`${normalized}\``;
+    })
+    .join(", ");
 }
 
 /**
@@ -188,6 +219,7 @@ module.exports = {
   getMessages,
   getPromptPath,
   renderTemplate,
+  renderFilesList,
   renderTemplateFromFile,
   toSnakeCase,
   encodePathSegments,

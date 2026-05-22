@@ -52,7 +52,7 @@ These workflows do the following:
 
 ### Example: Grumpy Reviewer
 
-The [`grumpy-reviewer`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md) workflow is a perfect example of this pattern:
+The [`grumpy-reviewer`](https://github.com/githubnext/agentics/blob/main/workflows/grumpy-reviewer.md) workflow is a perfect example of this pattern:
 
 - Triggered by `/grumpy` on PR comments
 - Performs critical code review with distinctive personality
@@ -315,7 +315,7 @@ These workflows do the following:
 
 ### Example: Duplicate Code Detection
 
-The [`duplicate-code-detector`](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/duplicate-code-detector.md) uses ResearchPlanAssignOps:
+The [`duplicate-code-detector`](https://github.com/githubnext/agentics/blob/main/workflows/duplicate-code-detector.md) uses ResearchPlanAssignOps:
 
 **Research**: Uses Serena MCP for semantic analysis, creates report
 **Plan**: Creates well-scoped issues (max 3 per run) with refactoring strategies

@@ -45,6 +45,23 @@ imports:
   - shared/otlp.md
 tools:
   cli-proxy: true
+experiments:
+  sub_agent_strategy:
+    variants: [single_agent, sub_agents]
+    description: "Test whether decomposing issue creation into sub-agents reduces cost"
+    hypothesis: "H0: no change in effective token count. H1: sub-agents reduce token count by 15-25% and improve success rate."
+    metric: effective_token_count
+    secondary_metrics: [run_duration_seconds, issue_creation_success_rate]
+    guardrail_metrics:
+      - name: all_issues_created
+        threshold: "==3"
+      - name: temporary_id_resolution_rate
+        threshold: ">=0.95"
+    min_samples: 20
+    weight: [50, 50]
+    start_date: "2026-05-23"
+    analysis_type: t_test
+    tags: [cost-efficiency, sub-agents, smoke-tests]
 ---
 
 # Smoke Test: Temporary ID Functionality
@@ -56,9 +73,13 @@ This workflow validates that temporary IDs work correctly for:
 
 **IMPORTANT**: Use the exact temporary ID format `aw_` followed by 3-8 alphanumeric characters (A-Za-z0-9).
 
-## Test 1: Create Parent Issue with Temporary ID
+{{#if experiments.sub_agent_strategy == 'single_agent'}}
 
-Create a parent tracking issue with a temporary ID. Use a 6-character alphanumeric ID.
+## Single-Agent Mode
+
+Create all issues in this context.
+
+### Test 1: Create Parent Issue
 
 ```json
 {
@@ -69,11 +90,7 @@ Create a parent tracking issue with a temporary ID. Use a 6-character alphanumer
 }
 ```
 
-## Test 2: Create Sub-Issues with Cross-References
-
-Create two sub-issues that reference each other and the parent using temporary IDs.
-
-### Sub-Issue 1
+### Test 2: Create Sub-Issue 1
 
 ```json
 {
@@ -85,7 +102,7 @@ Create two sub-issues that reference each other and the parent using temporary I
 }
 ```
 
-### Sub-Issue 2
+### Test 3: Create Sub-Issue 2
 
 ```json
 {
@@ -97,9 +114,46 @@ Create two sub-issues that reference each other and the parent using temporary I
 }
 ```
 
-## Test 3: Verify Link Structure
+{{/if}}
+{{#if experiments.sub_agent_strategy == 'sub_agents'}}
 
-After the issues are created, verify they are properly linked by adding a comment to the parent issue summarizing the test results.
+## Sub-Agent Mode
+
+Launch 3 background `task` agents to create issues in parallel, then wait for completion.
+
+You are the coordinator. Your job:
+
+1. Launch 3 background `task` agents (one per issue) with complete temporary ID instructions
+2. Wait for all 3 agents to complete (you will receive automatic completion notifications)
+3. After all complete, add a summary comment to the parent issue using temporary ID `aw_test01`
+
+### Agent 1: Create Parent Issue
+
+Launch a background task agent using the `task` tool (`agent_type: task`, `mode: background`) with the following prompt:
+
+> Create a parent issue with temporary ID `aw_test01`. Title: "Test Parent: Temporary ID Validation". Body: "This is a parent issue created to test temporary ID functionality.\n\nSub-issues:\n- #aw_test02\n- #aw_test03\n\nAll references should be replaced with actual issue numbers." Use `safeoutputs create_issue` with `temporary_id: aw_test01`.
+
+### Agent 2: Create Sub-Issue 1
+
+Launch a second background task agent using the `task` tool (`agent_type: task`, `mode: background`) with the following prompt:
+
+> Create a sub-issue with temporary ID `aw_test02` and parent `aw_test01`. Title: "Sub-Issue 1: Test Temporary ID References". Body: "This is sub-issue 1.\n\nParent: #aw_test01\nRelated: #aw_test03\n\nAll temporary IDs should be resolved to actual issue numbers." Use `safeoutputs create_issue` with `temporary_id: aw_test02` and `parent: aw_test01`.
+
+### Agent 3: Create Sub-Issue 2
+
+Launch a third background task agent using the `task` tool (`agent_type: task`, `mode: background`) with the following prompt:
+
+> Create a sub-issue with temporary ID `aw_test03` and parent `aw_test01`. Title: "Sub-Issue 2: Test Different ID Length". Body: "This is sub-issue 2 with an 8-character temporary ID.\n\nParent: #aw_test01\nRelated: #aw_test02\n\nTesting that longer temporary IDs (8 chars) work correctly." Use `safeoutputs create_issue` with `temporary_id: aw_test03` and `parent: aw_test01`.
+
+### After All Agents Complete
+
+Once you receive completion notifications for all 3 agents, verify their success and add a summary comment.
+
+{{/if}}
+
+## Final Step: Add Summary Comment
+
+Regardless of strategy, add a comment to the parent issue summarizing test results:
 
 ```json
 {
@@ -111,7 +165,7 @@ After the issues are created, verify they are properly linked by adding a commen
 
 ## Expected Outcome
 
-1. Parent issue #aw_test01 created and assigned actual issue number (e.g., #1234)
+1. Parent issue #aw_test01 created and assigned actual issue number (e.g., github/gh-aw#1234)
 2. Sub-issues #aw_test02 and #aw_test03 created with actual issue numbers
 3. All references like `#aw_test01` replaced with actual numbers like `#1234`
 4. Sub-issues properly linked to parent with `parent` field

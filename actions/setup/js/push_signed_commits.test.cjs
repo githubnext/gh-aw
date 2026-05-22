@@ -821,6 +821,39 @@ describe("push_signed_commits integration tests", () => {
       const localOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
       expect(remoteOid).toBe(localOid);
     });
+
+    it("should refuse git push fallback when explicitly disabled", async () => {
+      execGit(["checkout", "-b", "no-fallback-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "base.txt"), "Base content\n");
+      execGit(["add", "base.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Base commit"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "no-fallback-branch"], { cwd: workDir });
+
+      const remoteOidBefore = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+
+      fs.writeFileSync(path.join(workDir, "extra.txt"), "Extra content\n");
+      execGit(["add", "extra.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Extra commit"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient({ failWithError: new Error("GraphQL: not supported on GHES") });
+
+      await expect(
+        pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "no-fallback-branch",
+          baseRef: "origin/no-fallback-branch",
+          cwd: workDir,
+          allowGitPushFallback: false,
+        })
+      ).rejects.toThrow("git push fallback is disabled");
+
+      const remoteOidAfter = execGit(["rev-parse", "refs/heads/no-fallback-branch"], { cwd: bareDir }).stdout.trim();
+      expect(remoteOidAfter).toBe(remoteOidBefore);
+      expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("falling back to git push"));
+    });
   });
 
   describe("git auth environment propagation", () => {

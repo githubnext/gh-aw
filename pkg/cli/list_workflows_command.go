@@ -36,6 +36,7 @@ Displays a simplified table with workflow name, AI engine, and compilation statu
 Unlike 'status', this command does not check GitHub workflow state or time remaining.
 
 The optional pattern argument filters workflows by name (case-insensitive substring match).
+It accepts workflow IDs (basename without .md) or full filenames.
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` list                              # List all workflows in current repo

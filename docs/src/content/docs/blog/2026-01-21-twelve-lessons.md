@@ -49,7 +49,7 @@ Once we passed 50 workflows, tracking everything manually became impossible. Met
 
 Turns out, agents with distinct personalities - like the meticulous auditor, the helpful janitor, the creative poet - are way easier for teams to understand and trust.
 
-We noticed generic names like "issue-handler" or "code-checker" created confusion. But when we gave agents personalities - like [Grumpy Reviewer](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md) or [Poem Bot](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/poem-bot.md) - their purpose became immediately clear. Team members actually started developing relationships with specific agents. It's kind of adorable.
+We noticed generic names like "issue-handler" or "code-checker" created confusion. But when we gave agents personalities - like [Grumpy Reviewer](https://github.com/githubnext/agentics/blob/main/workflows/grumpy-reviewer.md) or [Poem Bot](https://github.com/github/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/poem-bot.md) - their purpose became immediately clear. Team members actually started developing relationships with specific agents. It's kind of adorable.
 
 ### Cost-Quality Tradeoffs Are Real
 

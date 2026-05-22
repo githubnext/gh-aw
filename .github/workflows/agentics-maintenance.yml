@@ -763,7 +763,7 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
-      - name: Check for out-of-sync workflows and create issue if needed
+      - name: Check for out-of-sync workflows and create issue or pull request if needed
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |

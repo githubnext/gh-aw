@@ -69,7 +69,7 @@ One earlier run also hit a minor hiccup: the pre-agent filter step forgot to wri
 
 💡 **Usage tip**: The `contribution-check` pattern works best when your `CONTRIBUTING.md` is explicit and opinionated — the more specific your guidelines, the more actionable its feedback will be for contributors.
 
-→ [View the workflow on GitHub](https://github.com/github/gh-aw/blob/main/.github/workflows/contribution-check.md)
+→ [View the workflow on GitHub](https://github.com/githubnext/agentics/blob/main/workflows/contribution-check.md)
 
 ## Try It Out
 

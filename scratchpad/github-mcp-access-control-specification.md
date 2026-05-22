@@ -105,7 +105,7 @@ GitHub MCP Server Access Control follows similar integration patterns as Safe In
 - **Configuration Location**: Both extend MCP Gateway server configurations
 - **Validation Timing**: Both validate during workflow compilation
 - **Runtime Enforcement**: Both enforce restrictions at the gateway layer
-- **Schema Extension**: Both leverage MCP Gateway's extensible configuration format
+- **Schema Extension**: Both use MCP Gateway's extensible configuration format
 
 Unlike Safe Inputs (which enables inline tool definition), GitHub MCP Server Access Control restricts access to an existing MCP server (GitHub MCP server) through declarative configuration.
 
