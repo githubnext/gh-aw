@@ -31,6 +31,7 @@ observability:
 | `observability.otlp.endpoint` | string, object, or array | OTLP/HTTP collector endpoint URL. Accepts a plain URL string, a single `{url, headers}` object, or an array of `{url, headers}` objects for concurrent fan-out to multiple collectors. When a static URL is provided, its hostname is automatically added to the network firewall allowlist. |
 | `observability.otlp.headers` | map or string | HTTP headers sent with every OTLP export request. Only applies when `endpoint` is a plain string; object and array endpoint entries carry their own per-endpoint headers. |
 | `observability.otlp.if-missing` | string (`error`, `warn`, `ignore`) | Controls behavior when OTLP endpoint/header values resolve to empty values at runtime. `error` (default) fails startup. `warn` logs a warning and skips MCP gateway OTLP configuration. `ignore` skips MCP gateway OTLP configuration without warning. This setting affects MCP gateway setup only. |
+| `observability.otlp.attributes` | map | Custom attributes attached to the job setup span, job conclusion span, and outcome summary span. Keys are attribute names; values are strings. GitHub Actions expressions such as `${{ vars.SESSION_ID }}` or `${{ github.actor }}` are evaluated at runtime. Values resolving to an empty string are omitted. Each non-empty value is masked from runner logs with `::add-mask::`. |
 
 ### Endpoint forms
 
@@ -110,7 +111,39 @@ When `observability.otlp` is configured, gh-aw injects:
 | `OTEL_SERVICE_NAME` | `gh-aw.<sanitized-workflow-id>` when `WorkflowID` is available (for example, `Repo Triage/Weekly` → `gh-aw.repo-triage-weekly`); falls back to sanitized workflow name when only the name is available, otherwise `gh-aw`. |
 | `GH_AW_OTLP_ENDPOINTS` | JSON array of all endpoint entries, used by gh-aw JavaScript span exporters for fan-out. |
 | `GH_AW_OTLP_IF_MISSING` | Set to `warn` or `ignore` when `observability.otlp.if-missing` is configured. |
+| `GH_AW_OTLP_ATTRIBUTES` | JSON-encoded object of custom span attributes from `observability.otlp.attributes`. Injected only when the field is set. |
 | `COPILOT_OTEL_FILE_EXPORTER_PATH` | Path for Copilot CLI span output (`/tmp/gh-aw/copilot-otel.jsonl`). |
+
+## Custom span attributes
+
+Use `observability.otlp.attributes` to attach arbitrary key/value
+attributes to the spans emitted by gh-aw for each workflow run.
+Attributes are applied to the job setup span, the job conclusion
+span, and the outcome summary span.
+
+```yaml wrap
+observability:
+  otlp:
+    endpoint: ${{ secrets.OTLP_ENDPOINT }}
+    headers:
+      Authorization: ${{ secrets.OTLP_TOKEN }}
+    attributes:
+      deployment.environment: production
+      langfuse.session.id: ${{ github.run_id }}
+      langfuse.user.id: ${{ github.actor }}
+```
+
+Values are plain strings. For dynamic values, use GitHub Actions
+expressions such as `${{ github.run_id }}`, `${{ github.actor }}`,
+`${{ vars.MY_VAR }}`, or `${{ secrets.MY_SECRET }}`; the
+expression is resolved by GitHub Actions before the workflow runs.
+Attributes whose value resolves to an empty string are omitted.
+
+> [!NOTE]
+> Each non-empty value is masked from GitHub Actions runner logs
+> with the `::add-mask::` workflow command so user-supplied
+> identifiers (session IDs, user IDs) do not appear in plaintext
+> in step logs.
 
 ## Agent span attributes
 
