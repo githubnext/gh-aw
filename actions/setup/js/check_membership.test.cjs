@@ -742,9 +742,9 @@ describe("check_membership.cjs", () => {
     });
 
     it("should not emit a roles-mismatch warning when an allowlisted bot triggers the workflow", async () => {
-      // Regression test for: https://github.com/github/gh-aw/issues/<N>
-      // When the actor matches the bots: allowlist, the roles check must be skipped entirely
-      // so that no spurious "permission 'none' does not meet requirements" warning is emitted.
+      // Regression test: when the actor matches the bots: allowlist, the roles check must be
+      // skipped entirely so that no spurious "permission 'none' does not meet requirements"
+      // warning is emitted even though the bot is subsequently authorized.
       process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer,write";
       process.env.GH_AW_ALLOWED_BOTS = "github-actions";
       mockContext.actor = "github-actions[bot]";
