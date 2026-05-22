@@ -89,16 +89,10 @@ async function getBaseBranch(targetRepo = null, options = null) {
       const symbolicRef = execGitSync(["symbolic-ref", "refs/remotes/origin/HEAD"], {
         cwd: options.cwd,
         stdio: ["pipe", "pipe", "pipe"],
+        suppressLogs: true,
       }).trim();
       if (symbolicRef.startsWith("refs/remotes/origin/")) {
         return symbolicRef.slice("refs/remotes/origin/".length);
-      }
-      const shortSymbolicRef = execGitSync(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], {
-        cwd: options.cwd,
-        stdio: ["pipe", "pipe", "pipe"],
-      }).trim();
-      if (shortSymbolicRef.startsWith("origin/")) {
-        return shortSymbolicRef.slice("origin/".length);
       }
     } catch (/** @type {any} */ error) {
       if (typeof core !== "undefined" && typeof core.debug === "function") {
