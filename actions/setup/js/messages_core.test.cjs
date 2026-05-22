@@ -103,6 +103,12 @@ describe("messages_core.cjs", () => {
       expect(result).toBe("`a.txt`, `b/c.md`, `docs/readme.md`");
     });
 
+    it("should format filename arrays as backticked entries", async () => {
+      const { renderFilesList } = await import("./messages_core.cjs?" + Date.now());
+      const result = renderFilesList(["a.txt", "b/c.md", " docs/readme.md "]);
+      expect(result).toBe("`a.txt`, `b/c.md`, `docs/readme.md`");
+    });
+
     it("should redact filenames containing backticks", async () => {
       const { renderFilesList } = await import("./messages_core.cjs?" + Date.now());
       const result = renderFilesList("safe.txt,`bad`.md");

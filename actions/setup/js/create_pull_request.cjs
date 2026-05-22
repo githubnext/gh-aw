@@ -2050,10 +2050,27 @@ ${patchPreview}`;
         }
       }
 
+      const requestChangesSections = [];
       if (manifestProtectionRequestReview && manifestProtectionRequestReview.length > 0) {
-        const protectedFilesList = manifestProtectionRequestReview.map(file => `- \`${file}\``).join("\n");
-        const requestChangesBody =
-          "Protected files were modified in this pull request and require manual scrutiny before merge.\n\n" + "Please verify that each protected-file change is intentional, policy-compliant, and safe:\n\n" + `${protectedFilesList}`;
+        const protectedFilesReviewTemplatePath = getPromptPath("manifest_protection_request_changes_review.md");
+        requestChangesSections.push(
+          renderTemplateFromFile(protectedFilesReviewTemplatePath, {
+            files: renderFilesList(manifestProtectionRequestReview),
+          })
+        );
+      }
+      if (detectionCaution) {
+        const detectionReason = process.env.GH_AW_DETECTION_REASON || "unknown";
+        const detectionWarningReviewTemplatePath = getPromptPath("threat_warning_request_changes_review.md");
+        requestChangesSections.push(
+          renderTemplateFromFile(detectionWarningReviewTemplatePath, {
+            detectionReason,
+            runUrl,
+          })
+        );
+      }
+      if (requestChangesSections.length > 0) {
+        const requestChangesBody = requestChangesSections.join("\n\n---\n\n");
         /** @type {{ owner: string, repo: string, pull_number: number, event: "REQUEST_CHANGES" | "COMMENT", body: string, commit_id?: string }} */
         const requestChangesParams = {
           owner: repoParts.owner,

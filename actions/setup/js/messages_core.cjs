@@ -93,16 +93,14 @@ function renderTemplate(template, context) {
  * - Trims each entry and drops empty segments
  * - Accepts filenames already wrapped in backticks
  * - Redacts unsafe/invalid entries as `redacted`
- * @param {string|number|boolean} value
+ * @param {string[]|string|number|boolean} value
  * @returns {string}
  */
 function renderFilesList(value) {
-  const files = String(value)
-    .split(",")
-    .map(file => file.trim())
-    .filter(Boolean);
+  const files = Array.isArray(value) ? value : String(value).split(",");
+  const normalizedFiles = files.map(file => String(file).trim()).filter(Boolean);
 
-  return files
+  return normalizedFiles
     .map(file => {
       let normalized = file;
       if (normalized.startsWith("`") && normalized.endsWith("`")) {
