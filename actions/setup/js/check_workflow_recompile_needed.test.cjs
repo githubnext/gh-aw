@@ -337,14 +337,20 @@ The following workflow lock files have changes:
       head: "testowner:aw/recompile-workflows",
       per_page: 1,
     });
-    expect(mockGithub.rest.pulls.create).toHaveBeenCalledWith({
-      owner: "testowner",
-      repo: "testrepo",
-      title: "[aw] recompile agentic workflows",
-      head: "aw/recompile-workflows",
-      base: "main",
-      body: expect.stringContaining("Fixes #42"),
-    });
+    expect(mockGithub.rest.pulls.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "testowner",
+        repo: "testrepo",
+        title: "[aw] recompile agentic workflows",
+        head: "aw/recompile-workflows",
+        base: "main",
+      }),
+    );
+    const createdBody = mockGithub.rest.pulls.create.mock.calls[0][0].body;
+    expect(createdBody).toContain("Workflow Recompilation");
+    expect(createdBody).toContain("Fixes #42");
+    expect(createdBody).toContain(".github/workflows/example.lock.yml");
+    expect(createdBody).toContain("detailed diff content");
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
   });
 
@@ -392,12 +398,18 @@ The following workflow lock files have changes:
     await main();
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found existing pull request"));
-    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
-      owner: "testowner",
-      repo: "testrepo",
-      pull_number: 45,
-      body: expect.stringContaining("Fixes #42"),
-    });
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "testowner",
+        repo: "testrepo",
+        pull_number: 45,
+      }),
+    );
+    const updatedBody = mockGithub.rest.pulls.update.mock.calls[0][0].body;
+    expect(updatedBody).toContain("Workflow Recompilation");
+    expect(updatedBody).toContain("Fixes #42");
+    expect(updatedBody).toContain(".github/workflows/example.lock.yml");
+    expect(updatedBody).toContain("detailed diff content");
     expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
   });
