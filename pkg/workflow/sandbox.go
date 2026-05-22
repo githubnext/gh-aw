@@ -27,6 +27,8 @@ const (
 	SandboxTypeDefault SandboxType = "default" // Alias for AWF (backward compat)
 )
 
+const defaultAgentWorkspaceWritePath = "/tmp/gh-aw/agent"
+
 // SandboxConfig represents the top-level sandbox configuration from front matter
 // New format: { agent: "awf"|"srt"|{type, config}, mcp: {port, command, ...} }
 // Legacy format: "default"|"sandbox-runtime" or { type, config }
@@ -149,17 +151,20 @@ func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConf
 	// If no sandbox config exists, create one with awf as default
 	if sandboxConfig == nil {
 		sandboxLog.Print("No sandbox config found, creating default with agent: awf")
-		return &SandboxConfig{
+		sandboxConfig = &SandboxConfig{
 			Agent: &AgentSandboxConfig{
 				Type: SandboxTypeAWF,
 			},
 		}
+		ensureDefaultAgentWritePath(sandboxConfig)
+		return sandboxConfig
 	}
 
 	// If sandbox config exists with legacy Type field set, don't override with awf default
 	// The legacy Type field indicates explicit sandbox configuration
 	if sandboxConfig.Type != "" {
 		sandboxLog.Printf("Sandbox config uses legacy Type field: %s, preserving it", sandboxConfig.Type)
+		ensureDefaultAgentWritePath(sandboxConfig)
 		return sandboxConfig
 	}
 
@@ -169,6 +174,7 @@ func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConf
 		sandboxConfig.Agent = &AgentSandboxConfig{
 			Type: SandboxTypeAWF,
 		}
+		ensureDefaultAgentWritePath(sandboxConfig)
 		return sandboxConfig
 	}
 
@@ -183,5 +189,27 @@ func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConf
 		sandboxConfig.Agent.Type = SandboxTypeAWF
 	}
 
+	ensureDefaultAgentWritePath(sandboxConfig)
 	return sandboxConfig
+}
+
+func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig) {
+	if sandboxConfig == nil || sandboxConfig.Agent == nil {
+		return
+	}
+	if sandboxConfig.Agent.Config == nil {
+		sandboxConfig.Agent.Config = &SandboxRuntimeConfig{}
+	}
+	if sandboxConfig.Agent.Config.Filesystem == nil {
+		sandboxConfig.Agent.Config.Filesystem = &SRTFilesystemConfig{}
+	}
+	for _, path := range sandboxConfig.Agent.Config.Filesystem.AllowWrite {
+		if path == defaultAgentWorkspaceWritePath {
+			return
+		}
+	}
+	sandboxConfig.Agent.Config.Filesystem.AllowWrite = append(
+		sandboxConfig.Agent.Config.Filesystem.AllowWrite,
+		defaultAgentWorkspaceWritePath,
+	)
 }
