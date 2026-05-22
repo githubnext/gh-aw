@@ -196,9 +196,7 @@ describe("pi_provider.cjs", () => {
 
     expect(
       stderrOutput.some(line =>
-        line.includes(
-          'reflect_failure phase=agent_start provider=copilot model=copilot/claude-sonnet-4 url=http://api-proxy:10000/reflect output=/tmp/gh-aw/sandbox/firewall/awf-reflect.json reason=request_failed error="ECONNREFUSED"'
-        )
+        line.includes('reflect_failure phase=agent_start provider=copilot model=copilot/claude-sonnet-4 url=http://api-proxy:10000/reflect output=/tmp/gh-aw/sandbox/firewall/awf-reflect.json reason=request_failed error="ECONNREFUSED"')
       )
     ).toBe(true);
   });

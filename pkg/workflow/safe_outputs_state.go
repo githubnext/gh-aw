@@ -87,6 +87,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.SetIssueField != nil ||
 		safeOutputs.NoOp != nil // 44th field
 }
+
 // The builtin types (noop, missing-data, missing-tool) are excluded from this check
 // because they are always auto-enabled and do not represent a meaningful output action.
 //

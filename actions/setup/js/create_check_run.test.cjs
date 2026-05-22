@@ -8,8 +8,8 @@ describe("create_check_run", () => {
   let originalGlobals;
   let originalEnv;
 
-  const makeChecksCreate = (onCall) => {
-    return async (params) => {
+  const makeChecksCreate = onCall => {
+    return async params => {
       onCall(params);
       return {
         data: {
@@ -41,7 +41,7 @@ describe("create_check_run", () => {
     mockGithub = {
       rest: {
         checks: {
-          create: async (params) => ({
+          create: async params => ({
             data: {
               id: 77313480284,
               html_url: `https://github.com/test-owner/test-repo/runs/77313480284`,
@@ -77,7 +77,7 @@ describe("create_check_run", () => {
     global.github = originalGlobals.github;
     global.context = originalGlobals.context;
     global.getOctokit = originalGlobals.getOctokit;
-    Object.keys(process.env).forEach((k) => {
+    Object.keys(process.env).forEach(k => {
       if (!(k in originalEnv)) delete process.env[k];
     });
     Object.assign(process.env, originalEnv);
@@ -95,12 +95,12 @@ describe("create_check_run", () => {
       };
 
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
       const infoCalls = [];
-      mockCore.info = (msg) => infoCalls.push(msg);
+      mockCore.info = msg => infoCalls.push(msg);
 
       const { main } = require("./create_check_run.cjs");
       const handler = await main({ name: "Test Check", max: 10 });
@@ -108,7 +108,7 @@ describe("create_check_run", () => {
 
       expect(capturedParams.head_sha).toBe(prHeadSha);
       expect(capturedParams.head_sha).not.toBe("merge-commit-sha-xyz789");
-      expect(infoCalls.some((m) => m.includes(prHeadSha) && m.includes("pull_request"))).toBe(true);
+      expect(infoCalls.some(m => m.includes(prHeadSha) && m.includes("pull_request"))).toBe(true);
     });
 
     it("falls back to GITHUB_SHA on push events (no PR payload)", async () => {
@@ -117,7 +117,7 @@ describe("create_check_run", () => {
       mockContext.payload = {};
 
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
@@ -133,7 +133,7 @@ describe("create_check_run", () => {
       mockContext.payload = {};
 
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
@@ -203,7 +203,7 @@ describe("create_check_run", () => {
       const validConclusions = ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required"];
       for (const conclusion of validConclusions) {
         let capturedConclusion;
-        mockGithub.rest.checks.create = makeChecksCreate((p) => {
+        mockGithub.rest.checks.create = makeChecksCreate(p => {
           capturedConclusion = p.conclusion;
         });
         const { main } = require("./create_check_run.cjs");
@@ -241,7 +241,7 @@ describe("create_check_run", () => {
 
     it("truncates summary exceeding 65535 characters (appends truncation notice)", async () => {
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
@@ -257,7 +257,7 @@ describe("create_check_run", () => {
 
     it("truncates text exceeding 65535 characters (appends truncation notice)", async () => {
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
@@ -273,7 +273,7 @@ describe("create_check_run", () => {
 
     it("omits text field from output when text is empty", async () => {
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
@@ -292,16 +292,13 @@ describe("create_check_run", () => {
 
     it("passes correct parameters to checks.create", async () => {
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
       const { main } = require("./create_check_run.cjs");
       const handler = await main({ name: "My Check Run", max: 10 });
-      const result = await handler(
-        { type: "create_check_run", conclusion: "failure", title: "3 issues found", summary: "Details here", text: "More detail" },
-        {},
-      );
+      const result = await handler({ type: "create_check_run", conclusion: "failure", title: "3 issues found", summary: "Details here", text: "More detail" }, {});
 
       expect(result.success).toBe(true);
       expect(capturedParams.owner).toBe("test-owner");
@@ -319,7 +316,7 @@ describe("create_check_run", () => {
     it("uses config name for check run name, falling back to GITHUB_WORKFLOW with (Result) suffix", async () => {
       process.env.GITHUB_WORKFLOW = "My Workflow";
       let capturedName;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedName = p.name;
       });
 
@@ -339,7 +336,7 @@ describe("create_check_run", () => {
     it("appends (Result) suffix when configured name collides with GITHUB_WORKFLOW", async () => {
       process.env.GITHUB_WORKFLOW = "My Workflow";
       let capturedName;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedName = p.name;
       });
 
@@ -353,7 +350,7 @@ describe("create_check_run", () => {
     it("does not append (Result) suffix when config name differs from GITHUB_WORKFLOW", async () => {
       process.env.GITHUB_WORKFLOW = "My Workflow";
       let capturedName;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedName = p.name;
       });
 
@@ -422,7 +419,7 @@ describe("create_check_run", () => {
 
     it("uses config output_title as fallback when agent omits title", async () => {
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
@@ -436,7 +433,7 @@ describe("create_check_run", () => {
 
     it("uses config output_summary as fallback when agent omits summary", async () => {
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
@@ -450,7 +447,7 @@ describe("create_check_run", () => {
 
     it("agent-provided title takes precedence over config output_title", async () => {
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
@@ -464,7 +461,7 @@ describe("create_check_run", () => {
 
     it("agent-provided summary takes precedence over config output_summary", async () => {
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
@@ -478,7 +475,7 @@ describe("create_check_run", () => {
 
     it("succeeds using both config fallbacks when agent omits title and summary", async () => {
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
@@ -493,7 +490,7 @@ describe("create_check_run", () => {
 
     it("sanitizes config output_title (neutralizes @mentions into backtick-escaped form)", async () => {
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
@@ -510,18 +507,21 @@ describe("create_check_run", () => {
 
     it("sanitizes agent-provided title (neutralizes @mentions into backtick-escaped form)", async () => {
       let capturedParams;
-      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+      mockGithub.rest.checks.create = makeChecksCreate(p => {
         capturedParams = p;
       });
 
       const { main } = require("./create_check_run.cjs");
       const handler = await main({ max: 10 });
-      const result = await handler({
-        type: "create_check_run",
-        conclusion: "success",
-        title: "Review by @admin",
-        summary: "Summary",
-      }, {});
+      const result = await handler(
+        {
+          type: "create_check_run",
+          conclusion: "success",
+          title: "Review by @admin",
+          summary: "Summary",
+        },
+        {}
+      );
 
       expect(result.success).toBe(true);
       // @mention is escaped to `@admin` — no longer a bare @mention

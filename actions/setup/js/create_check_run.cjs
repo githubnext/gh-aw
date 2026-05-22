@@ -91,9 +91,7 @@ async function main(config = {}) {
     const rawTitle = (message.title || "").trim();
     const resolvedTitle = rawTitle ? sanitizeContent(rawTitle, MAX_TITLE_LENGTH) : configOutputTitle;
     if (!resolvedTitle) {
-      const msg = configOutputTitle
-        ? "create_check_run: title resolved to empty after sanitization"
-        : "create_check_run requires a non-empty 'title' field (or config output.title fallback)";
+      const msg = configOutputTitle ? "create_check_run: title resolved to empty after sanitization" : "create_check_run requires a non-empty 'title' field (or config output.title fallback)";
       core.error(msg);
       return { success: false, error: msg };
     }
@@ -102,9 +100,7 @@ async function main(config = {}) {
     const rawSummary = (message.summary || "").trim();
     const resolvedSummary = rawSummary ? sanitizeContent(rawSummary, MAX_CONTENT_LENGTH) : configOutputSummary;
     if (!resolvedSummary) {
-      const msg = configOutputSummary
-        ? "create_check_run: summary resolved to empty after sanitization"
-        : "create_check_run requires a non-empty 'summary' field (or config output.summary fallback)";
+      const msg = configOutputSummary ? "create_check_run: summary resolved to empty after sanitization" : "create_check_run requires a non-empty 'summary' field (or config output.summary fallback)";
       core.error(msg);
       return { success: false, error: msg };
     }
@@ -170,7 +166,7 @@ async function main(config = {}) {
             completed_at: new Date().toISOString(),
             output,
           }),
-        RATE_LIMIT_RETRY_CONFIG,
+        RATE_LIMIT_RETRY_CONFIG
       );
 
       const checkRunId = response.data.id;

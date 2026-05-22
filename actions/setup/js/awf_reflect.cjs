@@ -242,7 +242,6 @@ async function fetchAWFReflect(options) {
   } finally {
     clearTimeout(timer);
   }
-
 }
 
 if (typeof module !== "undefined" && module.exports) {
