@@ -8,8 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestExpandBotNames verifies that "copilot" is expanded to the full set of
-// GitHub Copilot bot identifiers and that other bot names pass through unchanged.
+// TestExpandBotNames verifies that "copilot" and "@app/copilot-swe-agent" are
+// expanded to the full set of GitHub Copilot bot identifiers and that other bot
+// names pass through unchanged.
 func TestExpandBotNames(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -32,6 +33,11 @@ func TestExpandBotNames(t *testing.T) {
 			expected: []string{"copilot-swe-agent", "Copilot", "copilot"},
 		},
 		{
+			name:     "@app/copilot-swe-agent alias expands to all copilot bot names",
+			input:    []string{"@app/copilot-swe-agent"},
+			expected: []string{"copilot-swe-agent", "Copilot", "copilot"},
+		},
+		{
 			name:     "non-copilot bots pass through unchanged",
 			input:    []string{"dependabot[bot]", "renovate[bot]"},
 			expected: []string{"dependabot[bot]", "renovate[bot]"},
@@ -40,6 +46,16 @@ func TestExpandBotNames(t *testing.T) {
 			name:     "copilot mixed with other bots deduplicates",
 			input:    []string{"dependabot[bot]", "copilot", "renovate[bot]"},
 			expected: []string{"dependabot[bot]", "copilot-swe-agent", "Copilot", "copilot", "renovate[bot]"},
+		},
+		{
+			name:     "@app/copilot-swe-agent mixed with other bots deduplicates",
+			input:    []string{"dependabot[bot]", "@app/copilot-swe-agent", "renovate[bot]"},
+			expected: []string{"dependabot[bot]", "copilot-swe-agent", "Copilot", "copilot", "renovate[bot]"},
+		},
+		{
+			name:     "copilot and @app/copilot-swe-agent both expand and deduplicate",
+			input:    []string{"copilot", "@app/copilot-swe-agent"},
+			expected: []string{"copilot-swe-agent", "Copilot", "copilot"},
 		},
 		{
 			name:     "copilot-swe-agent explicit does not double-expand",
