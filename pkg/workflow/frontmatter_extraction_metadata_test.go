@@ -232,3 +232,53 @@ func TestExtractToolsStartupTimeout(t *testing.T) {
 		})
 	}
 }
+
+// TestBuildLocalWorkflowSourceURL verifies that buildLocalWorkflowSourceURL derives
+// a correct GitHub URL for a local workflow markdown file.
+func TestBuildLocalWorkflowSourceURL(t *testing.T) {
+	tests := []struct {
+		name         string
+		markdownPath string
+		expected     string
+	}{
+		{
+			name:         "empty path returns empty string",
+			markdownPath: "",
+			expected:     "",
+		},
+		{
+			name:         "absolute path with .github workflows directory",
+			markdownPath: "/home/runner/work/repo/.github/workflows/linter-miner.md",
+			expected:     "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/linter-miner.md",
+		},
+		{
+			name:         "relative path starting with .github",
+			markdownPath: ".github/workflows/my-workflow.md",
+			expected:     "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/my-workflow.md",
+		},
+		{
+			name:         "path where repo is named .github (uses last .github dir)",
+			markdownPath: "/root/.github/.github/workflows/file.md",
+			expected:     "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/file.md",
+		},
+		{
+			name:         "temp path returns empty string",
+			markdownPath: "/tmp/test.md",
+			expected:     "",
+		},
+		{
+			name:         "path not containing .github returns empty string",
+			markdownPath: "/home/user/custom-dir/workflow.md",
+			expected:     "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildLocalWorkflowSourceURL(tt.markdownPath)
+			if result != tt.expected {
+				t.Errorf("buildLocalWorkflowSourceURL(%q) = %q, want %q", tt.markdownPath, result, tt.expected)
+			}
+		})
+	}
+}

@@ -301,6 +301,7 @@ func TestBuildWorkflowMetadataEnvVars(t *testing.T) {
 		name           string
 		workflowName   string
 		workflowSource string
+		localSourceURL string
 		expected       []string
 	}{
 		{
@@ -349,11 +350,31 @@ func TestBuildWorkflowMetadataEnvVars(t *testing.T) {
 				"          GH_AW_WORKFLOW_SOURCE: \"invalid-source\"\n",
 			},
 		},
+		{
+			name:           "local source URL used when no external source",
+			workflowName:   "Linter Miner",
+			localSourceURL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/linter-miner.md",
+			expected: []string{
+				"          GH_AW_WORKFLOW_NAME: \"Linter Miner\"\n",
+				"          GH_AW_WORKFLOW_SOURCE_URL: \"${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/linter-miner.md\"\n",
+			},
+		},
+		{
+			name:           "external source takes precedence over local source URL",
+			workflowName:   "CI Helper",
+			workflowSource: "owner/repo/workflows/ci.md@main",
+			localSourceURL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci.md",
+			expected: []string{
+				"          GH_AW_WORKFLOW_NAME: \"CI Helper\"\n",
+				"          GH_AW_WORKFLOW_SOURCE: \"owner/repo/workflows/ci.md@main\"\n",
+				"          GH_AW_WORKFLOW_SOURCE_URL: \"${{ github.server_url }}/owner/repo/blob/main/workflows/ci.md\"\n",
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildWorkflowMetadataEnvVars(tt.workflowName, tt.workflowSource)
+			result := buildWorkflowMetadataEnvVars(tt.workflowName, tt.workflowSource, tt.localSourceURL)
 
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d env vars, got %d", len(tt.expected), len(result))
