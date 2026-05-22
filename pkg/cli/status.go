@@ -16,6 +16,7 @@ Displays a table with workflow name, AI engine, compilation status, enabled/disa
 and time remaining until expiration (if stop-after is configured).
 
 The optional pattern argument filters workflows by name (case-insensitive substring match).
+It accepts workflow IDs (basename without .md) or full filenames.
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` status                           # Show all workflow status
