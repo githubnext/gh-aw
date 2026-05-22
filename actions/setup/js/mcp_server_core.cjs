@@ -540,6 +540,24 @@ function normalizeTool(name) {
 }
 
 /**
+ * Detect local file reference notation in tool arguments (e.g. "@/tmp/file.md", "@./file.txt").
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function containsAtFilepathReference(value) {
+  if (typeof value === "string") {
+    return /(?:^|\s)@(?:\/|\.{1,2}\/)[^\s]+/.test(value);
+  }
+  if (Array.isArray(value)) {
+    return value.some(item => containsAtFilepathReference(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value).some(item => containsAtFilepathReference(item));
+  }
+  return false;
+}
+
+/**
  * Handle an incoming JSON-RPC request and return a response (for HTTP transport)
  * This function is compatible with the MCPServer class's handleRequest method.
  * @param {MCPServer} server - The MCP server instance
@@ -590,6 +608,13 @@ async function handleRequest(server, request, defaultHandler) {
         throw {
           code: -32602,
           message: "Invalid params: 'name' must be a string",
+        };
+      }
+      if (containsAtFilepathReference(args)) {
+        throw {
+          code: -32602,
+          message:
+            "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead.",
         };
       }
       const tool = server.tools[normalizeTool(name)];
@@ -729,6 +754,14 @@ async function handleMessage(server, req, defaultHandler) {
       const args = params?.arguments ?? {};
       if (!name || typeof name !== "string") {
         server.replyError(id, -32602, "Invalid params: 'name' must be a string");
+        return;
+      }
+      if (containsAtFilepathReference(args)) {
+        server.replyError(
+          id,
+          -32602,
+          "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead."
+        );
         return;
       }
       const tool = server.tools[normalizeTool(name)];
