@@ -2050,10 +2050,24 @@ ${patchPreview}`;
         }
       }
 
+      const requestChangesSections = [];
       if (manifestProtectionRequestReview && manifestProtectionRequestReview.length > 0) {
         const protectedFilesList = manifestProtectionRequestReview.map(file => `- \`${file}\``).join("\n");
-        const requestChangesBody =
-          "Protected files were modified in this pull request and require manual scrutiny before merge.\n\n" + "Please verify that each protected-file change is intentional, policy-compliant, and safe:\n\n" + `${protectedFilesList}`;
+        requestChangesSections.push(
+          "Protected files were modified in this pull request and require manual scrutiny before merge.\n\n" + "Please verify that each protected-file change is intentional, policy-compliant, and safe:\n\n" + `${protectedFilesList}`
+        );
+      }
+      if (detectionCaution) {
+        const detectionReason = process.env.GH_AW_DETECTION_REASON || "unknown";
+        requestChangesSections.push(
+          "Threat detection produced a warning for this pull request output.\n\n" +
+            "These changes need to be scrutinized before merge and only merged after a careful manual review.\n\n" +
+            `- Detection reason: \`${detectionReason}\`\n` +
+            `- Review workflow run logs: ${runUrl}`
+        );
+      }
+      if (requestChangesSections.length > 0) {
+        const requestChangesBody = requestChangesSections.join("\n\n---\n\n");
         /** @type {{ owner: string, repo: string, pull_number: number, event: "REQUEST_CHANGES" | "COMMENT", body: string, commit_id?: string }} */
         const requestChangesParams = {
           owner: repoParts.owner,

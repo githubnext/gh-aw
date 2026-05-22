@@ -1808,6 +1808,7 @@ describe("create_pull_request - configured reviewers", () => {
       rest: {
         pulls: {
           create: vi.fn().mockResolvedValue({ data: { number: 42, html_url: "https://github.com/test/pull/42", node_id: "PR_42" } }),
+          createReview: vi.fn().mockResolvedValue({ data: { id: 77, html_url: "https://github.com/test/review/77" } }),
           requestReviewers: vi.fn().mockResolvedValue({}),
         },
         repos: {
@@ -2294,6 +2295,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
       rest: {
         pulls: {
           create: vi.fn().mockResolvedValue({ data: { number: 42, html_url: "https://github.com/test/pull/42", node_id: "PR_42" } }),
+          createReview: vi.fn().mockResolvedValue({ data: { id: 77, html_url: "https://github.com/test/review/77" } }),
           requestReviewers: vi.fn().mockResolvedValue({}),
         },
         repos: {
@@ -2898,6 +2900,7 @@ describe("create_pull_request - threat detection caution", () => {
       rest: {
         pulls: {
           create: vi.fn().mockResolvedValue({ data: { number: 42, html_url: "https://github.com/test/pull/42", node_id: "PR_42" } }),
+          createReview: vi.fn().mockResolvedValue({ data: { id: 77, html_url: "https://github.com/test/review/77" } }),
           requestReviewers: vi.fn().mockResolvedValue({}),
         },
         repos: {
@@ -2954,6 +2957,11 @@ describe("create_pull_request - threat detection caution", () => {
     const bodyIndex = prBody.indexOf("Agent body content");
     expect(cautionIndex).toBeGreaterThanOrEqual(0);
     expect(bodyIndex).toBeGreaterThan(cautionIndex);
+    expect(global.github.rest.pulls.createReview).toHaveBeenCalledTimes(1);
+    const createReviewCall = global.github.rest.pulls.createReview.mock.calls[0][0];
+    expect(createReviewCall.event).toBe("REQUEST_CHANGES");
+    expect(createReviewCall.body).toContain("Threat detection produced a warning");
+    expect(createReviewCall.body).toContain("need to be scrutinized");
   });
 
   it("should not include caution alert in PR body when GH_AW_DETECTION_CONCLUSION is not warning", async () => {
@@ -2965,6 +2973,7 @@ describe("create_pull_request - threat detection caution", () => {
 
     const prBody = global.github.rest.pulls.create.mock.calls[0][0].body;
     expect(prBody).not.toContain("[!CAUTION]");
+    expect(global.github.rest.pulls.createReview).not.toHaveBeenCalled();
   });
 
   it("should add agentic-threat-detected label when GH_AW_DETECTION_CONCLUSION is warning", async () => {
