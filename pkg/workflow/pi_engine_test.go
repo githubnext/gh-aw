@@ -115,17 +115,17 @@ func TestPiEngine_GetInstallationSteps_NoCustomCommand(t *testing.T) {
 	steps := engine.GetInstallationSteps(workflowData)
 	assert.NotEmpty(t, steps, "Installation steps should not be empty")
 
-	// The steps should reference @mariozechner/pi-coding-agent
+	// The steps should reference @earendil-works/pi-coding-agent
 	found := false
 	for _, step := range steps {
 		for _, line := range step {
-			if strings.Contains(line, "@mariozechner/pi-coding-agent") {
+			if strings.Contains(line, "@earendil-works/pi-coding-agent") {
 				found = true
 				break
 			}
 		}
 	}
-	assert.True(t, found, "Installation steps should install @mariozechner/pi-coding-agent")
+	assert.True(t, found, "Installation steps should install @earendil-works/pi-coding-agent")
 }
 
 func TestPiEngine_GetInstallationSteps_WithCustomCommand(t *testing.T) {
