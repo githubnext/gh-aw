@@ -215,7 +215,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_cff59b2a1dc6993c_EOF'
           <safe-output-tools>
-          Tools: add_comment(max:50), create_issue, create_pull_request_review_comment(max:10), submit_pull_request_review, add_labels(max:100), missing_tool, missing_data, noop
+          Tools: add_comment(max:50), create_issue, create_pull_request_review_comment(max:10), submit_pull_request_review, add_labels(max:100), create_check_run, missing_tool, missing_data, noop
           </safe-output-tools>
           GH_AW_PROMPT_cff59b2a1dc6993c_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
@@ -495,7 +495,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_4818a16f5602a163_EOF'
-          {"add_comment":{"max":50},"add_labels":{"max":100},"create_issue":{"close_older_issues":true,"expires":24,"max":1,"title_prefix":"[PR Triage Report] "},"create_pull_request_review_comment":{"max":10,"side":"RIGHT"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":10240}]},"report_incomplete":{},"submit_pull_request_review":{"max":1}}
+          {"add_comment":{"max":50},"add_labels":{"max":100},"create_check_run":{"max":1},"create_issue":{"close_older_issues":true,"expires":24,"max":1,"title_prefix":"[PR Triage Report] "},"create_pull_request_review_comment":{"max":10,"side":"RIGHT"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":10240}]},"report_incomplete":{},"submit_pull_request_review":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_4818a16f5602a163_EOF
       - name: Generate Safe Outputs Tools
         env:
@@ -504,6 +504,7 @@ jobs:
               "description_suffixes": {
                 "add_comment": " CONSTRAINTS: Maximum 50 comment(s) can be added. Supports reply_to_id for discussion threading.",
                 "add_labels": " CONSTRAINTS: Maximum 100 label(s) can be added.",
+                "create_check_run": " CONSTRAINTS: Maximum 1 check run(s) can be created.",
                 "create_issue": " CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[PR Triage Report] \".",
                 "create_pull_request_review_comment": " CONSTRAINTS: Maximum 10 review comment(s) can be created. Comments will be on the RIGHT side of the diff.",
                 "submit_pull_request_review": " CONSTRAINTS: Maximum 1 review(s) can be submitted."
@@ -1113,6 +1114,7 @@ jobs:
       needs.activation.outputs.stale_lock_file_failed == 'true')
     runs-on: ubuntu-slim
     permissions:
+      checks: write
       contents: read
       discussions: write
       issues: write
@@ -1576,6 +1578,7 @@ jobs:
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     runs-on: ubuntu-slim
     permissions:
+      checks: write
       contents: read
       discussions: write
       issues: write
@@ -1659,7 +1662,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.grafana.net,*.sentry.io,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":50},\"add_labels\":{\"max\":100},\"create_issue\":{\"close_older_issues\":true,\"expires\":24,\"max\":1,\"title_prefix\":\"[PR Triage Report] \"},\"create_pull_request_review_comment\":{\"max\":10,\"side\":\"RIGHT\"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{},\"submit_pull_request_review\":{\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":50},\"add_labels\":{\"max\":100},\"create_check_run\":{\"max\":1},\"create_issue\":{\"close_older_issues\":true,\"expires\":24,\"max\":1,\"title_prefix\":\"[PR Triage Report] \"},\"create_pull_request_review_comment\":{\"max\":10,\"side\":\"RIGHT\"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{},\"submit_pull_request_review\":{\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
