@@ -1537,34 +1537,36 @@ function normalizeRuntimeTokenUsage(rawUsage) {
     return undefined;
   }
 
+  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, cache_read_input_tokens?: number, cache_creation_input_tokens?: number}} */
+  const usage = rawUsage;
   /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number}} */
   const normalized = {};
-  if (typeof rawUsage.input_tokens === "number" && Number.isFinite(rawUsage.input_tokens) && rawUsage.input_tokens >= 0) {
-    normalized.input_tokens = rawUsage.input_tokens;
+  if (typeof usage.input_tokens === "number" && Number.isFinite(usage.input_tokens) && usage.input_tokens >= 0) {
+    normalized.input_tokens = usage.input_tokens;
   }
-  if (typeof rawUsage.output_tokens === "number" && Number.isFinite(rawUsage.output_tokens) && rawUsage.output_tokens >= 0) {
-    normalized.output_tokens = rawUsage.output_tokens;
+  if (typeof usage.output_tokens === "number" && Number.isFinite(usage.output_tokens) && usage.output_tokens >= 0) {
+    normalized.output_tokens = usage.output_tokens;
   }
 
   const cacheReadTokens =
-    typeof rawUsage.cache_read_tokens === "number" && Number.isFinite(rawUsage.cache_read_tokens) && rawUsage.cache_read_tokens >= 0
-      ? rawUsage.cache_read_tokens
-      : typeof rawUsage.cache_read_input_tokens === "number" &&
-          Number.isFinite(rawUsage.cache_read_input_tokens) &&
-          rawUsage.cache_read_input_tokens >= 0
-        ? rawUsage.cache_read_input_tokens
+    typeof usage.cache_read_tokens === "number" && Number.isFinite(usage.cache_read_tokens) && usage.cache_read_tokens >= 0
+      ? usage.cache_read_tokens
+      : typeof usage.cache_read_input_tokens === "number" &&
+          Number.isFinite(usage.cache_read_input_tokens) &&
+          usage.cache_read_input_tokens >= 0
+        ? usage.cache_read_input_tokens
         : undefined;
   if (typeof cacheReadTokens === "number") {
     normalized.cache_read_tokens = cacheReadTokens;
   }
 
   const cacheWriteTokens =
-    typeof rawUsage.cache_write_tokens === "number" && Number.isFinite(rawUsage.cache_write_tokens) && rawUsage.cache_write_tokens >= 0
-      ? rawUsage.cache_write_tokens
-      : typeof rawUsage.cache_creation_input_tokens === "number" &&
-          Number.isFinite(rawUsage.cache_creation_input_tokens) &&
-          rawUsage.cache_creation_input_tokens >= 0
-        ? rawUsage.cache_creation_input_tokens
+    typeof usage.cache_write_tokens === "number" && Number.isFinite(usage.cache_write_tokens) && usage.cache_write_tokens >= 0
+      ? usage.cache_write_tokens
+      : typeof usage.cache_creation_input_tokens === "number" &&
+          Number.isFinite(usage.cache_creation_input_tokens) &&
+          usage.cache_creation_input_tokens >= 0
+        ? usage.cache_creation_input_tokens
         : undefined;
   if (typeof cacheWriteTokens === "number") {
     normalized.cache_write_tokens = cacheWriteTokens;
