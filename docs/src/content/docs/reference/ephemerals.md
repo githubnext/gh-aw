@@ -5,7 +5,7 @@ sidebar:
   order: 9
 ---
 
-GitHub Agentic Workflows includes several "ephemeral" features that automatically expire resources and reduce noise in your repositories. They control costs by stopping scheduled workflows at deadlines, auto-close issues and discussions, hide older comments, and isolate automation via the [side repository pattern](/gh-aw/patterns/multi-repo-ops/#the-side-repository-pattern-isolated-automation).
+GitHub Agentic Workflows includes several "ephemeral" features that automatically expire resources and reduce noise in your repositories. They control costs by stopping scheduled workflows at deadlines, auto-close issues and discussions, hide older comments, and isolate automation via the [side repository pattern](/gh-aw/patterns/multi-repo-ops/#using-a-side-repository).
 
 ## Expiration Features
 
@@ -138,7 +138,7 @@ The `runs_on` field accepts a single string or an array of strings for multi-lab
 
 The `action_failure_issue_expires` field controls expiration (in hours) for failure issues opened by the conclusion job (including grouped parent issues when `group-reports: true`). The default is `168` (7 days).
 
-See [Self-Hosted Runners](/gh-aw/guides/self-hosted-runners/#configuring-the-maintenance-workflow-runner) for more details.
+See [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/#configuring-the-maintenance-workflow-runner) for more details.
 
 **Disable maintenance entirely:**
 
@@ -186,7 +186,7 @@ See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#hide-older-comments)
 
 Run agentic workflows from a separate "side" repository that targets your main codebase. This isolates AI-generated issues, comments, and workflow runs from your main repository, keeping automation infrastructure separate from production code.
 
-See [MultiRepoOps — Side Repository](/gh-aw/patterns/multi-repo-ops/#the-side-repository-pattern-isolated-automation) for complete setup and usage documentation.
+See [MultiRepoOps — Side Repository](/gh-aw/patterns/multi-repo-ops/#using-a-side-repository) for complete setup and usage documentation.
 
 ### Text Sanitization
 

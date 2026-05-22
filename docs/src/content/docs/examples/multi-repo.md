@@ -34,4 +34,4 @@ Rolls out a customized Dependabot configuration across many repositories using a
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Configuration options
 - [GitHub Tools](/gh-aw/reference/github-tools/) - API access configuration
 - [Security Best Practices](/gh-aw/introduction/architecture/) - Authentication and security
-- [Reusing Workflows](/gh-aw/guides/packaging-imports/) - Sharing workflows
+- [Reusing Workflows](/gh-aw/guides/reusing-workflows/) - Sharing workflows

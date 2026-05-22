@@ -83,7 +83,7 @@ This specification does NOT cover:
 
 - The Effective Tokens (ET) computation algorithm (defined in the [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/))
 - The `aw_info.json` artifact schema
-- A/B experiment frontmatter schema (defined in the [A/B Experiments Specification](/gh-aw/practices/experiments-specification/))
+- A/B experiment frontmatter schema (defined in the [A/B Experiments Specification](/gh-aw/experimental/experiments-specification/))
 - Billing, pricing, or financial modeling beyond token projections
 - Streaming or real-time token consumption reporting
 
@@ -1081,7 +1081,7 @@ visibility and access-governance controls.
 - **[RFC 2119]** Bradner, S., "Key words for use in RFCs to Indicate Requirement Levels", BCP 14, RFC 2119, March 1997. <https://www.ietf.org/rfc/rfc2119.txt>
 - **[RFC 3339]** Klyne, G. and Newman, C., "Date and Time on the Internet: Timestamps", RFC 3339, July 2002. <https://www.ietf.org/rfc/rfc3339.txt>
 - **[ET-SPEC]** GitHub Agentic Workflows Team, "Effective Tokens Specification". [effective-tokens-specification](/gh-aw/reference/effective-tokens-specification/)
-- **[EXP-SPEC]** GitHub Agentic Workflows Team, "A/B Experiments Specification". [experiments-specification](/gh-aw/practices/experiments-specification/)
+- **[EXP-SPEC]** GitHub Agentic Workflows Team, "A/B Experiments Specification". [experiments-specification](/gh-aw/experimental/experiments-specification/)
 
 ### Informative References
 

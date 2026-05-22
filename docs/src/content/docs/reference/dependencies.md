@@ -19,7 +19,7 @@ The canonical source is maintained in [microsoft/apm](https://github.com/microso
 gh aw add microsoft/apm/.github/workflows/shared/apm.md --dir shared
 ```
 
-Running `gh aw update` will keep your vendored copy in sync with the canonical source. The `shared/apm.md` file declares a `redirect` to the `microsoft/apm` library, so any copy sourced from gh-aw will automatically follow the redirect and rewrite its `source` field to track the canonical location on the next `gh aw update` run.
+Running `gh aw update` will keep your vendored copy in sync with the canonical source.
 
 The canonical version pins `microsoft/apm-action@v1.5.0` and supports multi-org GitHub App authentication (`apps:[]`) and multi-bundle restore.
 

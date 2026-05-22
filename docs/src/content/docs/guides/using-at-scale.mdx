@@ -1,0 +1,93 @@
+---
+title: Using at Scale in Organizations
+description: Guidance for adopting, sharing, and governing GitHub Agentic Workflows across teams and repositories.
+---
+
+When agentic workflows move beyond a single repository and into an organization or enterprise, something qualitatively different becomes possible. Workflows can coordinate or scale across dozens of repositories simultaneously. For example, workflows can:
+- [Roll out changes org-wide](/gh-aw/examples/multi-repo/dependabot-rollout/)
+- [Assess code quality across 100s of repos](/gh-aw/examples/multi-repo/code-quality-monitoring/)
+- [Synchronize dependency updates](/gh-aw/examples/multi-repo/dependabot-rollout/)
+- [Propagate coding policy changes](/gh-aw/examples/multi-repo/feature-sync/)
+- [Shrink backlogs in multiple maintained repos](/gh-aw/examples/maintaining-repos/)
+- [Enforce coding standards across teams](/gh-aw/examples/multi-repo/code-quality-monitoring/)
+- [Aggregate issue tracking into a single control plane](/gh-aw/examples/multi-repo/issue-tracking/)
+- and many more possibilities.
+
+The possibilities are vast, but so are the challenges of secure authentication, cost management, and operational control at scale.
+
+In this guide, we will explore recurring topics in organization and enterprise adoption of GitHub Agentic Workflows, including how to:
+- Share, reuse, and govern workflows across an organization
+- Coordinate agentic work across multiple repositories securely
+- Introduce production writes safely and roll back when needed
+- Track and reduce AI token costs at scale
+- Use with GitHub Enterprise Server and GitHub Enterprise Cloud
+
+## Reusing and Sharing Workflows in the Organization
+
+There are two complementary layers to workflow distribution across an organization.
+
+[Reusing Workflows](/gh-aw/guides/reusing-workflows/) covers the developer-facing mechanics: use `gh aw add` or `gh aw add-wizard` to install a workflow from another repository, and `gh aw update` to pull in upstream changes while preserving local edits. Use `imports:` in workflow frontmatter to pull in shared components (tool configs, MCP server definitions, prompt snippets) — see [Imports](/gh-aw/reference/imports/) for the full reference.
+
+[Sharing Workflows in the Organization](/gh-aw/practices/sharing-workflows/) covers the organizational governance layer: recommended techniques like maintaining a central `agentic-workflows` repository as the source of truth, versioning with exact tags (`@v1.2.0`), moving major refs (`@v1`), or SHA pins, parameterized shared components via `import-schema`, and controlling discoverability with `private: true`.
+
+## Private Repositories
+
+Workflows that read from or write to repositories other than the one they run in require explicit authentication. Key references:
+
+- [Authentication](/gh-aw/reference/auth/) — PATs and GitHub Apps for cross-repository access; GitHub Apps are preferred for automatic token rotation and fine-grained scoping
+- [Cross-Repository Safe Outputs](/gh-aw/reference/cross-repository/) — writing issues, PRs, and comments to external repositories via `target-repo`; reading from private repositories with `allowed-repos`
+- [Checkout](/gh-aw/reference/checkout/) — checking out private repositories in workflow jobs
+- [Fork Support](/gh-aw/reference/fork-support/) — handling pull requests from forks safely
+
+## Security and Networking
+
+Agentic workflows run inside GitHub Actions and can make outbound network requests through the [network access](/gh-aw/reference/network/) sandbox layer. See the [Network Configuration guide](/gh-aw/guides/network-configuration/) for how to declare allowed domains, configure MCP server connectivity, and restrict outbound access. [Threat Detection](/gh-aw/reference/threat-detection/) provides runtime monitoring for prompt injection and unauthorized tool use.
+
+## Working Across Multiple Repositories
+
+GitHub Agentic Workflows has multiple features and design patterns for coordinating work across repositories. Key technical references:
+
+- [Cross-Repository Safe Outputs](/gh-aw/reference/cross-repository/) — writing issues, PRs, and comments to external repositories via `target-repo`; reading from private repositories with `allowed-repos`
+- [Authentication](/gh-aw/reference/auth/) — PATs and GitHub Apps for cross-repository access; GitHub Apps are preferred for automatic token rotation and fine-grained scoping
+- [GitHub Tools](/gh-aw/reference/github-tools/) — GitHub API toolsets available to the agent across repositories
+- [OrchestratorOps](/gh-aw/patterns/orchestrator-ops/) — dispatching parallel worker workflows for large-scale multi-repo operations
+- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — multi-repo design patterns 
+
+A particularly important design pattern for multi-repo operations is [CentralRepoOps](/gh-aw/patterns/central-repo-ops/), where a central control repository dispatches work to target repositories or aggregates issues from component repositories. See the [CentralRepoOps pattern](/gh-aw/patterns/central-repo-ops/) for detailed examples and templates.
+
+## Safe Rollout
+
+[Safe Rollout](/gh-aw/practices/safe-rollout/) describes how to move from report-only or staged behavior to production writes with evidence and control. One technique inside that progression is shadow evaluation, where the workflow writes to a safe non-production target before promotion.
+
+## Large Repositories with Many Issues
+
+Repositories with thousands of open issues require chunked or parallel processing rather than a single long-running agent job. [BatchOps](/gh-aw/patterns/batch-ops/) covers the main strategies: chunked pagination across scheduled runs, matrix fan-out for parallel sharding, and rate-limit-aware sub-batching. For queues that grow dynamically or span multiple days, [WorkQueueOps](/gh-aw/patterns/workqueue-ops/) with [cache-memory](/gh-aw/reference/cache-memory/) provides durable progress tracking that survives interruptions. Use [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) to cap per-user and per-window dispatch counts.
+
+## Large Monorepos
+
+Monorepos with many packages or deep histories can cause agent jobs to spend most of their time on repository checkout. Use `sparse-checkout` in the `checkout:` field to fetch only the paths a workflow actually needs — this can reduce checkout time from tens of minutes to seconds. For workflows that need to reason about the full codebase without fetching it, the [QMD search tool](/gh-aw/reference/qmd/) runs vector similarity search over indexed repository content without requiring a full clone. When full history is genuinely needed (e.g., changelog generation or blame analysis), `fetch-depth: 0` is available but should be combined with sparse paths to limit clone size.
+
+See [GitHub Repository Checkout](/gh-aw/reference/checkout/) for the full configuration reference and examples, including sparse checkout patterns and multi-repository checkouts.
+
+## Cost Management
+
+Running agentic workflows at scale consumes compute and AI inference tokens. Use the [Cost Management reference](/gh-aw/reference/cost-management/) for an overview of token budgeting, model selection, and spend tracking. Related references:
+
+- [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) — cap per-user and per-window run counts to prevent runaway spend
+- [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) — how token counts are calculated
+
+## OpenTelemetry
+
+GitHub Agentic Workflows can be configured to emit [OpenTelemetry](/gh-aw/reference/open-telemetry/) traces and spans for each workflow run, covering activation, agent execution, safe-output operations, and MCP tool calls. These can be forwarded to any OTLP-compatible backend for dashboards, alerting, and cost analysis. See the [OpenTelemetry (Experimental)](/gh-aw/experimental/opentelemetry/) guide for configuration details.
+
+## GitHub Enterprise Server and Cloud
+
+For deployments on GitHub Enterprise Server or GitHub Enterprise Cloud with data residency, see the [Enterprise Configuration reference](/gh-aw/reference/enterprise-configuration/) for runner configuration, token scoping, and endpoint customization. If you are using GitHub Enterprise Cloud with data residency (`*.ghe.com`), see [Debugging GHE Cloud with Data Residency](/gh-aw/troubleshooting/debug-ghe/) for step-by-step setup and common issues.
+
+## Self-Hosted Runners
+
+Organizations that need to run agentic workflows on their own infrastructure — for network isolation, compliance, or cost reasons — can use self-hosted runners. See the [Self-Hosted Runners guide](/gh-aw/reference/self-hosted-runners/) for configuration requirements, ARC/Kubernetes setup, and GHES-specific considerations. Runners must be Linux with Docker support; use the `runs-on:` frontmatter field to target them.
+
+## A/B Experiments
+
+The [A/B Experiments](/gh-aw/experimental/experiments/) feature lets you define named prompt variants in workflow frontmatter and measure their effect across runs. The activation job selects a variant using a balanced round-robin counter so every variant is exercised equally. Use `gh aw experiments list` and `gh aw experiments analyze` to inspect distribution and statistical readiness. This feature is experimental — see the [Experiments Specification](/gh-aw/experimental/experiments-specification/) for the full schema.

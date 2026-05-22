@@ -22,7 +22,7 @@ import (
 func FuzzParseModelIdentifier(f *testing.F) {
 	// Valid bare names.
 	f.Add("sonnet")
-	f.Add("auto")
+	f.Add("agent")
 	f.Add("gpt-5")
 	f.Add("my_model")
 	f.Add("model.v2")

@@ -225,6 +225,7 @@ func buildRepositoryPermissions(repoName, owner string, additionalRepos []string
 		repoName: {
 			Permissions: map[string]string{
 				"actions":       "write",
+				"checks":        "write",
 				"contents":      "write",
 				"discussions":   "read",
 				"issues":        "read",
