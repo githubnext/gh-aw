@@ -91,7 +91,13 @@ describe("messages_core.cjs", () => {
 
     it("should reject files placeholder values containing backticks", async () => {
       const { renderTemplate } = await import("./messages_core.cjs?" + Date.now());
-      expect(() => renderTemplate("Changed files: {files}", { files: "safe.txt,`bad`.md" })).toThrow("Invalid {files} value: filenames must not contain backticks");
+      expect(() => renderTemplate("Changed files: {files}", { files: "safe.txt,`bad`.md" })).toThrow('Invalid {files} value: filename "`bad`.md" contains backticks');
+    });
+
+    it("should render empty files placeholder value as empty string", async () => {
+      const { renderTemplate } = await import("./messages_core.cjs?" + Date.now());
+      const result = renderTemplate("Changed files: {files}", { files: "" });
+      expect(result).toBe("Changed files: ");
     });
   });
 

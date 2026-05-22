@@ -89,8 +89,9 @@ function renderTemplate(template, context) {
         .split(",")
         .map(file => file.trim())
         .filter(Boolean);
-      if (files.some(file => file.includes("`"))) {
-        throw new Error("Invalid {files} value: filenames must not contain backticks");
+      const invalidFile = files.find(file => file.includes("`"));
+      if (invalidFile) {
+        throw new Error(`Invalid {files} value: filename "${invalidFile}" contains backticks`);
       }
       return files.map(file => `\`${file}\``).join(", ");
     }
