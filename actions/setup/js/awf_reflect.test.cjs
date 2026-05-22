@@ -22,7 +22,7 @@ describe("awf_reflect.cjs", () => {
     it("exports expected default values", () => {
       expect(AWF_API_PROXY_REFLECT_URL).toBe("http://api-proxy:10000/reflect");
       expect(AWF_REFLECT_OUTPUT_PATH).toBe("/tmp/gh-aw/sandbox/firewall/awf-reflect.json");
-      expect(AWF_REFLECT_TIMEOUT_MS).toBe(5000);
+      expect(AWF_REFLECT_TIMEOUT_MS).toBe(60000);
       expect(AWF_MODELS_URL_TIMEOUT_MS).toBe(3000);
       expect(GEMINI_MODEL_NAME_PREFIX).toBe("models/");
     });
@@ -198,7 +198,7 @@ describe("awf_reflect.cjs", () => {
       const logs = [];
 
       try {
-        await fetchAWFReflect({
+        const result = await fetchAWFReflect({
           reflectUrl: "http://api-proxy:10000/reflect",
           outputPath,
           timeoutMs: 3000,
@@ -206,6 +206,12 @@ describe("awf_reflect.cjs", () => {
           logger: msg => logs.push(msg),
         });
 
+        expect(result).toEqual({
+          ok: true,
+          reflectUrl: "http://api-proxy:10000/reflect",
+          outputPath,
+          bytesWritten: expect.any(Number),
+        });
         const saved = JSON.parse(fs.readFileSync(outputPath, "utf8"));
         expect(saved.endpoints[0].models).toEqual(["gpt-4o", "gpt-4o-mini"]);
         expect(logs.some(l => l.includes("saved "))).toBe(true);
@@ -224,7 +230,13 @@ describe("awf_reflect.cjs", () => {
           timeoutMs: 500,
           logger: msg => logs.push(msg),
         })
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual({
+        ok: false,
+        reflectUrl: "http://api-proxy:10000/reflect",
+        outputPath: "/tmp/gh-aw-test-noop.json",
+        reason: "request_failed",
+        error: "ECONNREFUSED",
+      });
       expect(logs.some(l => l.includes("request failed"))).toBe(true);
     });
 
@@ -238,7 +250,13 @@ describe("awf_reflect.cjs", () => {
           timeoutMs: 500,
           logger: msg => logs.push(msg),
         })
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual({
+        ok: false,
+        reflectUrl: "http://api-proxy:10000/reflect",
+        outputPath: "/tmp/gh-aw-test-noop.json",
+        reason: "unexpected_status",
+        status: 503,
+      });
       expect(logs.some(l => l.includes("unexpected status 503"))).toBe(true);
     });
 

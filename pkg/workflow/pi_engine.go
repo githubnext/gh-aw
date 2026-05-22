@@ -186,12 +186,14 @@ func (e *PiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActi
 		version = workflowData.EngineConfig.Version
 	}
 
-	npmSteps := BuildStandardNpmEngineInstallSteps(
+	npmSteps := GenerateNpmInstallSteps(
 		"@earendil-works/pi-coding-agent",
 		version,
 		"Install Pi CLI",
 		"pi",
-		workflowData,
+		true,  // Include Node.js setup
+		false, // Engine CLI installs must never run install scripts
+		false, // Pi installs should not apply the default npm release-age cooldown
 	)
 
 	steps := BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)

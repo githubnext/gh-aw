@@ -126,6 +126,13 @@ func TestPiEngine_GetInstallationSteps_NoCustomCommand(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "Installation steps should install @earendil-works/pi-coding-agent")
+
+	var rendered strings.Builder
+	for _, step := range steps {
+		rendered.WriteString(strings.Join(step, "\n"))
+		rendered.WriteString("\n")
+	}
+	assert.NotContains(t, rendered.String(), "NPM_CONFIG_MIN_RELEASE_AGE", "Pi installation should not set the npm release-age cooldown")
 }
 
 func TestPiEngine_GetInstallationSteps_WithCustomCommand(t *testing.T) {
