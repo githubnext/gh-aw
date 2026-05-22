@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.9  
+**Version**: 1.0.10  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.10` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
 | `1.0.9` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016) and update-check validation (`check-for-updates` handling for CTR-018). Top-level `sandbox: false` is no longer a valid workflow input; `sandbox.agent: false` is the supported field for CTR-004 detection. |
 | `1.0.8` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016) and update-check validation (`check-for-updates` handling for CTR-018). |
 
@@ -140,6 +141,7 @@ A conforming implementation MUST include detection coverage for at least the fol
 - **CTR-016 Compile-Time Manifest Drift**: Detect when recompilation of an existing workflow would introduce new secrets or unapproved action references beyond what was previously approved in the lock file manifest; reject compilation when new restricted secrets or previously-absent action references appear, preventing adversarial workflow sources or prompt-injection from silently expanding the workflow's trust surface during routine updates.
 - **CTR-017 Secret Leakage via Environment Variables**: Detect secrets expressions (`${{ secrets.* }}`) in the top-level `env:` section, in `engine.env` (excluding allowed engine-required vars), and in custom step fields (`pre-steps`, `steps`, `pre-agent-steps`, `post-steps`) outside controlled `env:` bindings and `with:` inputs for `uses:` action steps; these placements expose secrets to the agent container environment. Warn in non-strict mode; reject in strict mode.
 - **CTR-018 Version Integrity Bypass**: Detect `check-for-updates: false` in workflow frontmatter, which disables the compile-agentic version update check that ensures the workflow was compiled with a supported version of gh-aw. Warn in non-strict mode; reject in strict mode.
+- **CTR-019 Cache-Memory Integrity Enforcement**: Enforce that `update_cache_memory` job only runs when threat detection succeeds (not when skipped or failed); prevents cache pollution when agent outputs have not been validated or when detection was bypassed, ensuring cache-memory data integrity and preventing persistence of potentially malicious content from unvalidated agent sessions.
 
 ### 5.2 Compiler Response Requirements
 
@@ -251,14 +253,15 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-016 Compile-Time Manifest Drift | `pkg/workflow/safe_update_enforcement.go` (`EnforceSafeUpdate`, `collectSecretViolations`, `collectActionViolations`, `collectRedirectViolations`), called from `pkg/workflow/compiler.go` | `pkg/workflow/safe_update_enforcement_test.go` |
 | CTR-017 Secret Leakage via Environment Variables | `pkg/workflow/strict_mode_env_validation.go` (`validateEnvSecrets`, `validateEnvSecretsSection`), `pkg/workflow/strict_mode_steps_validation.go` (`validateStepsSecrets`, `validateStepsSectionSecrets`) | `pkg/workflow/env_secrets_validation_test.go`, `pkg/workflow/jobs_secrets_validation_test.go` |
 | CTR-018 Version Integrity Bypass | `pkg/workflow/update_check_validation.go` (`validateUpdateCheck`) | `pkg/workflow/update_check_validation_test.go` |
+| CTR-019 Cache-Memory Integrity Enforcement | `pkg/workflow/cache.go` (`buildUpdateCacheMemoryJob` using `buildDetectionSuccessCondition`), `pkg/workflow/expression_builder.go` (`buildDetectionSuccessCondition`) | `pkg/workflow/cache_memory_threat_detection_test.go`, `pkg/workflow/threat_detection_job_combinations_integration_test.go` |
 
 The mappings above are pattern-based references and MUST be validated against concrete file paths whenever this specification is updated.
 
 When mappings change, this table MUST be updated in the same change set as the implementation update.
 
-### 7.2 Mapping Audit (2026-05-17)
+### 7.2 Mapping Audit (2026-05-22)
 
-Audit result: ✅ all listed `CTR-001` through `CTR-018` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. CTR-004 mapping updated to include `strict_mode_permissions_validation.go`, which is the primary enforcement site for `sandbox.agent: false` rejection in strict mode.
+Audit result: ✅ all listed `CTR-001` through `CTR-019` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Latest addition: CTR-019 Cache-Memory Integrity Enforcement added in version 1.0.10 to document the PR #33885 implementation that tightened `update_cache_memory` job gating to require detection success instead of accepting skipped results.
 
 ---
 
@@ -297,6 +300,7 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 | **T-CTR-016** | CTR-016 Compile-Time Manifest Drift | An existing workflow lock file has a `gh-aw-manifest` section recording approved secrets and action references; when recompiled, the new workflow body introduces a secret not in the approved manifest (e.g., `MY_NEW_SECRET`) or a new action reference not previously recorded | Compilation failure with error identifying each new restricted secret and each added or removed action reference beyond the previously approved manifest baseline, preventing silent trust-surface expansion | `CTR-016` |
 | **T-CTR-017** | CTR-017 Secret Leakage via Environment Variables | A workflow frontmatter declares a secrets expression (e.g., `${{ secrets.MY_SECRET }}`) in the top-level `env:` section, in `engine.env` for a non-engine var, or in a custom step's `run:` field | Compilation warning in non-strict mode identifying the secrets expression and the section where it appears; compilation failure in strict mode | `CTR-017` |
 | **T-CTR-018** | CTR-018 Version Integrity Bypass | A workflow frontmatter sets `check-for-updates: false` | Compilation warning in non-strict mode identifying the disabled version check and advising removal; compilation failure in strict mode | `CTR-018` |
+| **T-CTR-019** | CTR-019 Cache-Memory Integrity Enforcement | A workflow has `cache-memory` enabled with `threat-detection: true`; the compiled lock file's `update_cache_memory` job condition must require `needs.detection.result == 'success'` (not accept `skipped`) | Compilation emits `update_cache_memory` job with condition `always() && needs.detection.result == 'success' && needs.agent.result == 'success'`; verified by integration tests | `CTR-019` |
 
 ### 8.2 Test Coverage Requirements
 
@@ -317,6 +321,14 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 ---
 
 ## 10. Change Log
+
+### 1.0.10 (2026-05-22)
+
+- Added CTR-019 Cache-Memory Integrity Enforcement (enforces that `update_cache_memory` job only runs when threat detection succeeds, not when skipped or failed; prevents cache pollution from unvalidated agent outputs; implemented in `cache.go` via `buildDetectionSuccessCondition` instead of `buildDetectionPassedCondition`)
+- Added T-CTR-019 test ID entry in Section 8.1
+- Extended Section 7.1 baseline rule mapping table with CTR-019 implementation references (`cache.go`, `expression_builder.go`)
+- Updated Section 2 spec-to-implementation sync table to include CTR-019 in lock-file compatibility notes for version 1.0.10
+- Updated Section 7.2 mapping audit timestamp to 2026-05-22 and notes to reflect CTR-019 addition
 
 ### 1.0.9 (2026-05-17)
 
