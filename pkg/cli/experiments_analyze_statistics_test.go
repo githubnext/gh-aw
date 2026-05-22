@@ -635,7 +635,6 @@ func TestWorkflowFileCandidates(t *testing.T) {
 	}
 }
 
-
 // TestAnalysisWithNilConfig verifies analysis runs cleanly without a config.
 func TestAnalysisWithNilConfig(t *testing.T) {
 	exp := ExperimentVariantStats{

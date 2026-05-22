@@ -361,8 +361,9 @@ func loadRemoteExperimentConfigs(repoOverride, experimentName string) map[string
 	// whose sanitized basename matches experimentName (e.g. "ci-coach" for "cicoach").
 	// Fall back to the bare experiment name if the listing is unavailable.
 	candidates := workflowFileCandidates(experimentName)
-	if resolved := findRemoteWorkflowFilenameForExperiment(repoOverride, experimentName); resolved != "" {
+	if resolved := findRemoteWorkflowFilenameForExperiment(repoOverride, experimentName); resolved != "" && resolved != experimentName {
 		// Prepend the resolved name so it is tried before the bare sanitized form.
+		// Skip when resolved == experimentName to avoid a redundant fetch.
 		candidates = append([]string{resolved}, candidates...)
 	}
 
