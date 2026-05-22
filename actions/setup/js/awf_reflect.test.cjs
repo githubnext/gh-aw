@@ -22,7 +22,7 @@ describe("awf_reflect.cjs", () => {
     it("exports expected default values", () => {
       expect(AWF_API_PROXY_REFLECT_URL).toBe("http://api-proxy:10000/reflect");
       expect(AWF_REFLECT_OUTPUT_PATH).toBe("/tmp/gh-aw/sandbox/firewall/awf-reflect.json");
-      expect(AWF_REFLECT_TIMEOUT_MS).toBe(5000);
+      expect(AWF_REFLECT_TIMEOUT_MS).toBe(60000);
       expect(AWF_MODELS_URL_TIMEOUT_MS).toBe(3000);
       expect(GEMINI_MODEL_NAME_PREFIX).toBe("models/");
     });
