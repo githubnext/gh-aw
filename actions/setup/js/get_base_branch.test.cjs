@@ -240,4 +240,30 @@ describe("getBaseBranch", () => {
       fs.rmSync(repoDir, { recursive: true, force: true });
     }
   });
+
+  it("should fall back to payload default branch when origin/HEAD metadata is unavailable", async () => {
+    const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-get-base-branch-no-origin-head-"));
+    try {
+      execSync("git init -b main", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@example.com'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test User'", { cwd: repoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(repoDir, "README.md"), "base\n");
+      execSync("git add README.md", { cwd: repoDir, stdio: "pipe" });
+      execSync("git commit -m 'base commit'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git checkout -b feature/FOO-123", { cwd: repoDir, stdio: "pipe" });
+
+      global.context = {
+        repo: { owner: "workflow-owner", repo: "workflow-repo" },
+        eventName: "push",
+        payload: { repository: { default_branch: "trunk" } },
+      };
+
+      const { getBaseBranch } = await import("./get_base_branch.cjs");
+      const result = await getBaseBranch(null, { preferCheckedOutBranch: true, cwd: repoDir });
+
+      expect(result).toBe("trunk");
+    } finally {
+      fs.rmSync(repoDir, { recursive: true, force: true });
+    }
+  });
 });
