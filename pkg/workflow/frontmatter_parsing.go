@@ -98,16 +98,16 @@ func validateRunsOnValue(value any) error {
 		}
 		return nil
 	case map[string]any:
-		for key, field := range v {
+		for key, value := range v {
 			switch key {
 			case "group":
-				if _, ok := field.(string); !ok {
-					return fmt.Errorf("invalid runs-on.group type %T: expected string", field)
+				if _, ok := value.(string); !ok {
+					return fmt.Errorf("invalid runs-on.group type %T: expected string", value)
 				}
 			case "labels":
-				labels, ok := field.([]any)
+				labels, ok := value.([]any)
 				if !ok {
-					return fmt.Errorf("invalid runs-on.labels type %T: expected array of strings", field)
+					return fmt.Errorf("invalid runs-on.labels type %T: expected array of strings", value)
 				}
 				for _, label := range labels {
 					if _, ok := label.(string); !ok {
