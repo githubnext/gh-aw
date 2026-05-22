@@ -13,6 +13,7 @@ permissions:
   pull-requests: read
 engine:
   id: copilot
+  model: gpt-4.1
   max-continuations: 6
 imports:
   - uses: shared/pr-review-base.md
