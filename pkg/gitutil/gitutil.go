@@ -12,7 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var log = logger.New("gitutil:gitutil")
+var gitutilLog = logger.New("gitutil:gitutil")
 var ErrNotGitRepository = errors.New("not in a git repository")
 
 var fullSHARegex = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -30,7 +30,7 @@ func IsRateLimitError(errMsg string) bool {
 // IsAuthError checks if an error message indicates an authentication issue.
 // This is used to detect when GitHub API calls fail due to missing or invalid credentials.
 func IsAuthError(errMsg string) bool {
-	log.Printf("Checking if error is auth-related: %s", errMsg)
+	gitutilLog.Printf("Checking if error is auth-related: %s", errMsg)
 	lowerMsg := strings.ToLower(errMsg)
 	isAuth := strings.Contains(lowerMsg, "gh_token") ||
 		strings.Contains(lowerMsg, "github_token") ||
@@ -41,7 +41,7 @@ func IsAuthError(errMsg string) bool {
 		strings.Contains(lowerMsg, "permission denied") ||
 		strings.Contains(lowerMsg, "saml enforcement")
 	if isAuth {
-		log.Print("Detected authentication error")
+		gitutilLog.Print("Detected authentication error")
 	}
 	return isAuth
 }
@@ -83,21 +83,21 @@ func ExtractBaseRepo(repoPath string) string {
 // environments where git is not on PATH.
 // Returns an error if not in a git repository.
 func FindGitRoot() (string, error) {
-	log.Print("Finding git root directory")
+	gitutilLog.Print("Finding git root directory")
 
 	dir, err := os.Getwd()
 	if err != nil {
-		log.Printf("Failed to get current directory: %v", err)
+		gitutilLog.Printf("Failed to get current directory: %v", err)
 		return "", fmt.Errorf("failed to get current directory: %w", err)
 	}
 
 	root, err := FindGitRootFrom(dir)
 	if err != nil {
-		log.Printf("Failed to find git root: %v", err)
+		gitutilLog.Printf("Failed to find git root: %v", err)
 		return "", err
 	}
 
-	log.Printf("Found git root: %s", root)
+	gitutilLog.Printf("Found git root: %s", root)
 	return root, nil
 }
 
@@ -171,12 +171,12 @@ func ReadFileFromHEAD(filePath, gitRoot string) (string, error) {
 
 	relPath = filepath.ToSlash(relPath)
 
-	log.Printf("Reading %q from git HEAD (relative path: %s)", filePath, relPath)
+	gitutilLog.Printf("Reading %q from git HEAD (relative path: %s)", filePath, relPath)
 
 	cmd := exec.Command("git", "-C", gitRoot, "show", "HEAD:"+relPath)
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("File %q not found in HEAD commit: %v", filePath, err)
+		gitutilLog.Printf("File %q not found in HEAD commit: %v", filePath, err)
 		return "", fmt.Errorf("file %q not found in HEAD commit: %w", filePath, err)
 	}
 	return string(output), nil
