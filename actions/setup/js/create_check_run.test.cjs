@@ -99,12 +99,16 @@ describe("create_check_run", () => {
         capturedParams = p;
       });
 
+      const infoCalls = [];
+      mockCore.info = (msg) => infoCalls.push(msg);
+
       const { main } = require("./create_check_run.cjs");
       const handler = await main({ name: "Test Check", max: 10 });
       await handler({ type: "create_check_run", conclusion: "success", title: "All good", summary: "Tests passed." }, {});
 
       expect(capturedParams.head_sha).toBe(prHeadSha);
       expect(capturedParams.head_sha).not.toBe("merge-commit-sha-xyz789");
+      expect(infoCalls.some((m) => m.includes(prHeadSha) && m.includes("pull_request"))).toBe(true);
     });
 
     it("falls back to GITHUB_SHA on push events (no PR payload)", async () => {
@@ -198,10 +202,15 @@ describe("create_check_run", () => {
     it("accepts all valid conclusion values", async () => {
       const validConclusions = ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required"];
       for (const conclusion of validConclusions) {
+        let capturedConclusion;
+        mockGithub.rest.checks.create = makeChecksCreate((p) => {
+          capturedConclusion = p.conclusion;
+        });
         const { main } = require("./create_check_run.cjs");
         const handler = await main({ max: 10 });
         const result = await handler({ type: "create_check_run", conclusion, title: "Title", summary: "Summary" }, {});
         expect(result.success).toBe(true);
+        expect(capturedConclusion).toBe(conclusion);
       }
     });
   });
