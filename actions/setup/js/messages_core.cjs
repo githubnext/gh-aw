@@ -89,11 +89,18 @@ function renderTemplate(template, context) {
         .split(",")
         .map(file => file.trim())
         .filter(Boolean);
-      const invalidFile = files.find(file => file.includes("`"));
-      if (invalidFile) {
-        throw new Error(`Invalid {files} value: filename "${invalidFile}" contains backticks`);
-      }
-      return files.map(file => `\`${file}\``).join(", ");
+      return files
+        .map(file => {
+          let normalized = file;
+          if (normalized.startsWith("`") && normalized.endsWith("`") && normalized.length >= 2) {
+            normalized = normalized.slice(1, -1).trim();
+          }
+          if (!normalized || normalized.includes("`")) {
+            normalized = "redacted";
+          }
+          return `\`${normalized}\``;
+        })
+        .join(", ");
     }
     return String(value);
   });
