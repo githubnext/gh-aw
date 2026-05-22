@@ -304,7 +304,7 @@ func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
 func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 	workflowFiles := make([]string, 0, len(mdFiles))
 	for _, file := range mdFiles {
-		firstLine, err := func() (firstLine string, err error) {
+		firstLine, err := func() (line string, err error) {
 			fd, err := os.Open(file)
 			if err != nil {
 				return "", fmt.Errorf("failed to read workflow file %s: %w", file, err)
@@ -317,12 +317,12 @@ func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 			}()
 
 			reader := bufio.NewReader(fd)
-			firstLine, err = reader.ReadString('\n')
+			line, err = reader.ReadString('\n')
 			if err != nil && !errors.Is(err, io.EOF) {
 				return "", fmt.Errorf("failed to read workflow file %s: %w", file, err)
 			}
 
-			return firstLine, nil
+			return line, nil
 		}()
 		if err != nil {
 			return nil, err
@@ -402,7 +402,7 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 
 // extractWorkflowNameFromFile extracts the workflow name from a file's H1 header
 func extractWorkflowNameFromFile(filePath string) (string, error) {
-	title, err := func() (title string, err error) {
+	title, err := func() (workflowTitle string, err error) {
 		fd, err := os.Open(filePath)
 		if err != nil {
 			return "", err
@@ -414,7 +414,8 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 			}
 		}()
 
-		return fastParseTitleFromReader(fd)
+		workflowTitle, err = fastParseTitleFromReader(fd)
+		return workflowTitle, err
 	}()
 	if err != nil {
 		return "", err
