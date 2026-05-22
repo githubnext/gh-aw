@@ -229,6 +229,18 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 		},
 	},
 	{
+		Key:         "create-check-run",
+		StructField: "CreateCheckRun",
+		ToolName:    "create_check_run",
+		NewConfig:   func() any { return &CreateCheckRunConfig{} },
+		PermissionBuilder: func(safeOutputs *SafeOutputsConfig) *Permissions {
+			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CreateCheckRun") {
+				return nil
+			}
+			return NewPermissionsContentsReadChecksWrite()
+		},
+	},
+	{
 		Key:         "add-labels",
 		StructField: "AddLabels",
 		ToolName:    "add_labels",

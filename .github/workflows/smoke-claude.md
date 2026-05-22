@@ -74,6 +74,9 @@ safe-outputs:
       allowed: [smoke-claude]
     create-code-scanning-alert:
       driver: "Smoke Claude"
+    create-check-run:
+      name: "Smoke Claude: Agent Status"
+      max: 1
     update-pull-request:
       title: true
       body: true
@@ -165,47 +168,51 @@ timeout-minutes: 10
    - Verify the tool call succeeds
    - This tests the SARIF artifact upload/download pipeline
 
+13. **Check Run Safe Output Testing**: Use the `create_check_run` safe-output tool to create a check run on the current commit:
+   - Use `conclusion: "success"`, `title: "Smoke Claude - Run ${{ github.run_id }}"`, `summary: "All smoke tests completed."`, and `text: "Detailed results attached."`
+   - Verify the tool call succeeds
+
 ## PR Review Safe Outputs Testing
 
 **IMPORTANT**: The following tests require an open pull request. First, use the GitHub MCP tool to find an open PR in ${{ github.repository }} (or use the triggering PR if this is a pull_request event). Store the PR number for use in subsequent tests.
 
-13. **Update PR Testing**: Use the `update_pull_request` tool to update the PR's body by appending a test message: "✨ PR Review Safe Output Test - Run ${{ github.run_id }}"
+14. **Update PR Testing**: Use the `update_pull_request` tool to update the PR's body by appending a test message: "✨ PR Review Safe Output Test - Run ${{ github.run_id }}"
     - Use `pr_number: <pr_number>` to target the open PR
     - Use `operation: "append"` and `body: "\n\n---\n✨ PR Review Safe Output Test - Run ${{ github.run_id }}"`
     - Verify the tool call succeeds
 
-14. **PR Review Comment Testing**: Use the `create_pull_request_review_comment` tool to add review comments on the PR
+15. **PR Review Comment Testing**: Use the `create_pull_request_review_comment` tool to add review comments on the PR
     - Find a file in the PR's diff (use GitHub MCP to get PR files)
     - Add at least 2 review comments on different lines with constructive feedback
     - Use `pr_number: <pr_number>`, `path: "<file_path>"`, `line: <line_number>`, and `body: "<comment_text>"`
     - Verify the tool calls succeed
 
-15. **Submit PR Review Testing**: Use the `submit_pull_request_review` tool to submit a consolidated review
+16. **Submit PR Review Testing**: Use the `submit_pull_request_review` tool to submit a consolidated review
     - Use `pr_number: <pr_number>`, `event: "COMMENT"`, and `body: "💥 Automated smoke test review - all systems nominal!"`
     - Verify the review is submitted successfully
-    - Note: This will bundle all review comments from test #14
-    - After submitting, use the GitHub MCP tool to list review threads on the PR and note the thread IDs from review comments you created in test #14 — these will be used in test #16
+    - Note: This will bundle all review comments from test #15
+    - After submitting, use the GitHub MCP tool to list review threads on the PR and note the thread IDs from review comments you created in test #15 — these will be used in test #17
 
-16. **Resolve Review Thread Testing**: 
+17. **Resolve Review Thread Testing**: 
     - Use the GitHub MCP tool to list review threads on the PR and filter for threads that are **not yet resolved** (`isResolved: false`)
-    - Prefer resolving a thread created by your own review comments from test #14 in this run
+    - Prefer resolving a thread created by your own review comments from test #15 in this run
     - Use `thread_id: "<thread_id>"` from one of those unresolved threads
     - **IMPORTANT: Only resolve threads that are currently unresolved — attempting to resolve an already-resolved thread will cause an API error**
     - If no unresolved threads exist, mark this test as ⚠️ (skipped - no unresolved threads to resolve)
 
-17. **Add Reviewer Testing**: Use the `add_reviewer` tool to add a reviewer to the PR
+18. **Add Reviewer Testing**: Use the `add_reviewer` tool to add a reviewer to the PR
     - Use `pr_number: <pr_number>` and `reviewers: ["copilot"]` (or another valid reviewer)
     - Verify the tool call succeeds
     - Note: May fail if reviewer is already assigned or doesn't have access
 
-18. **Push to PR Branch Testing**: 
+19. **Push to PR Branch Testing**: 
     - Create a test file at `smoke-test-files/smoke-claude-push-test.md` in the repository workspace with content "Smoke test push — Run ${{ github.run_id }}"
     - Use the `push_to_pull_request_branch` tool to push this change
     - Use `pr_number: <pr_number>` and `commit_message: "test: Add smoke test file"`
     - Verify the push succeeds
     - Note: This test may be skipped if not on a PR branch or if the PR is from a fork
 
-19. **Close PR Testing** (CONDITIONAL - only if a test PR exists):
+20. **Close PR Testing** (CONDITIONAL - only if a test PR exists):
     - If you can identify a test/bot PR that can be safely closed, use the `close_pull_request` tool
     - Use `pr_number: <test_pr_number>` and `comment: "Closing as part of smoke test - Run ${{ github.run_id }}"`
     - If no suitable test PR exists, mark this test as ⚠️ (skipped - no safe PR to close)
@@ -218,7 +225,7 @@ timeout-minutes: 10
 1. **ALWAYS create an issue** with a summary of the smoke test run:
    - Title: "Smoke Test: Claude - ${{ github.run_id }}"
    - Body should include:
-     - Test results (✅ for pass, ❌ for fail, ⚠️ for skipped) for each test (including PR review tests #13-19)
+     - Test results (✅ for pass, ❌ for fail, ⚠️ for skipped) for each test (including PR review tests #14-20)
      - Overall status: PASS (all passed), PARTIAL (some skipped), or FAIL (any failed)
      - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
      - Timestamp
@@ -227,8 +234,8 @@ timeout-minutes: 10
    - This issue MUST be created before any other safe output operations
 
 2. **Only if this workflow was triggered by a pull_request event**: Use the `add_comment` tool to add a **very brief** comment (max 5-10 lines) to the triggering pull request (omit the `item_number` parameter to auto-target the triggering PR) with:
-   - Test results for core tests #1-12 (✅ or ❌)
-   - Test results for PR review tests #13-19 (✅, ❌, or ⚠️)
+   - Test results for core tests #1-13 (✅ or ❌)
+   - Test results for PR review tests #14-20 (✅, ❌, or ⚠️)
    - Overall status: PASS, PARTIAL, or FAIL
 
 3. Use the `add_comment` tool with `item_number` set to the discussion number you extracted in step 9 to add a **fun comic-book style comment** to that discussion - be playful and use comic-book language like "💥 WHOOSH!"

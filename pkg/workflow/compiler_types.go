@@ -616,9 +616,10 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
 type BaseSafeOutputConfig struct {
-	Max         *string `yaml:"max,omitempty"`          // Maximum number of items to create (supports integer or GitHub Actions expression)
-	GitHubToken string  `yaml:"github-token,omitempty"` // GitHub token for this specific output type
-	Staged      bool    `yaml:"staged,omitempty"`       // If true, emit step summary messages instead of making GitHub API calls for this specific output type
+	Max         *string          `yaml:"max,omitempty"`          // Maximum number of items to create (supports integer or GitHub Actions expression)
+	GitHubToken string           `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	GitHubApp   *GitHubAppConfig `yaml:"github-app,omitempty"`   // GitHub App credentials for minting a per-handler installation access token
+	Staged      bool             `yaml:"staged,omitempty"`       // If true, emit step summary messages instead of making GitHub API calls for this specific output type
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -639,6 +640,7 @@ type SafeOutputsConfig struct {
 	ResolvePullRequestReviewThread  *ResolvePullRequestReviewThreadConfig  `yaml:"resolve-pull-request-review-thread,omitempty"`   // Resolve a review thread on a pull request
 	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alerts,omitempty"`
 	AutofixCodeScanningAlert        *AutofixCodeScanningAlertConfig        `yaml:"autofix-code-scanning-alert,omitempty"`
+	CreateCheckRun                  *CreateCheckRunConfig                  `yaml:"create-check-run,omitempty"` // Create GitHub Check Runs to report agent analysis results
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	RemoveLabels                    *RemoveLabelsConfig                    `yaml:"remove-labels,omitempty"`
 	AddReviewer                     *AddReviewerConfig                     `yaml:"add-reviewer,omitempty"`

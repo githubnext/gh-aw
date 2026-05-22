@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -220,6 +221,17 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 
 	var steps []string
 
+	// Add per-handler GitHub App token minting steps before the handler manager step.
+	// These run before the main handler step so the minted token expressions (e.g.
+	// ${{ steps.create-check-run-app-token.outputs.token }}) are resolved at runtime.
+	if data.SafeOutputs != nil && data.SafeOutputs.CreateCheckRun != nil && data.SafeOutputs.CreateCheckRun.GitHubApp != nil {
+		consolidatedSafeOutputsStepsLog.Print("Adding per-handler GitHub App token minting step for create-check-run")
+		permissions := NewPermissionsContentsReadChecksWrite()
+		for _, step := range c.buildGitHubAppTokenMintStep(data.SafeOutputs.CreateCheckRun.GitHubApp, permissions, "") {
+			steps = append(steps, replaceStepID(step, "safe-outputs-app-token", "create-check-run-app-token"))
+		}
+	}
+
 	// Step name and metadata
 	steps = append(steps, "      - name: Process Safe Outputs\n")
 	steps = append(steps, "        id: process_safe_outputs\n")
@@ -414,5 +426,20 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/safe_output_handler_manager.cjs');\n")
 	steps = append(steps, "            await main();\n")
 
+	// Add per-handler GitHub App token invalidation steps after the handler manager step.
+	// These always run (even on failure) to revoke the short-lived installation access tokens.
+	if data.SafeOutputs != nil && data.SafeOutputs.CreateCheckRun != nil && data.SafeOutputs.CreateCheckRun.GitHubApp != nil {
+		consolidatedSafeOutputsStepsLog.Print("Adding per-handler GitHub App token invalidation step for create-check-run")
+		for _, step := range c.buildGitHubAppTokenInvalidationStep() {
+			steps = append(steps, replaceStepID(step, "safe-outputs-app-token", "create-check-run-app-token"))
+		}
+	}
+
 	return steps, nil
+}
+
+// replaceStepID replaces all occurrences of oldID with newID in a YAML step string.
+// Used to generate per-handler token steps from the generic safe-outputs-app-token template.
+func replaceStepID(step, oldID, newID string) string {
+	return strings.ReplaceAll(step, oldID, newID)
 }

@@ -172,6 +172,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.AutofixCodeScanningAlert = autofixCodeScanningAlertConfig
 			}
 
+			// Handle create-check-run
+			createCheckRunConfig := c.parseCreateCheckRunConfig(outputMap)
+			if createCheckRunConfig != nil {
+				config.CreateCheckRun = createCheckRunConfig
+			}
+
 			// Parse allowed-domains configuration (additional domains, unioned with network.allowed; supports ecosystem identifiers)
 			if allowedDomains, exists := outputMap["allowed-domains"]; exists {
 				if domainsArray, ok := allowedDomains.([]any); ok {
@@ -693,7 +699,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 	return config
 }
 
-// parseBaseSafeOutputConfig parses common fields (max, github-token, staged) from a config map.
+// parseBaseSafeOutputConfig parses common fields (max, github-token, github-app, staged) from a config map.
 // If defaultMax is provided (> 0), it will be set as the default value for config.Max
 // before parsing the max field from configMap. Supports both integer values and GitHub
 // Actions expression strings (e.g. "${{ inputs.max }}").
@@ -728,6 +734,14 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 		if githubTokenStr, ok := githubToken.(string); ok {
 			safeOutputsConfigLog.Print("Parsed custom github-token from config")
 			config.GitHubToken = githubTokenStr
+		}
+	}
+
+	// Parse github-app (per-handler GitHub App credentials for token minting)
+	if app, exists := configMap["github-app"]; exists {
+		if appMap, ok := app.(map[string]any); ok {
+			safeOutputsConfigLog.Print("Parsed custom github-app from config")
+			config.GitHubApp = parseAppConfig(appMap)
 		}
 	}
 

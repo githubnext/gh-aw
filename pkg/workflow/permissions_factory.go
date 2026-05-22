@@ -166,6 +166,14 @@ func NewPermissionsContentsReadSecurityEventsWriteActionsRead() *Permissions {
 	})
 }
 
+// NewPermissionsContentsReadChecksWrite creates permissions with contents: read and checks: write
+func NewPermissionsContentsReadChecksWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead,
+		PermissionChecks:   PermissionWrite,
+	})
+}
+
 // Clone returns a deep copy of the Permissions object. The clone shares no underlying
 // state with the original, so callers can safely call Set() on the clone without
 // affecting the original (e.g. when reusing CachedPermissions).

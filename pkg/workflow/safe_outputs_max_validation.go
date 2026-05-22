@@ -124,6 +124,11 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	if config.CreateCheckRun != nil {
+		if err := checkMaxField("create_check_run", config.CreateCheckRun.Max); err != nil {
+			return err
+		}
+	}
 	if config.CreateCodeScanningAlerts != nil {
 		if err := checkMaxField("create_code_scanning_alert", config.CreateCodeScanningAlerts.Max); err != nil {
 			return err

@@ -3,6 +3,8 @@
 package console
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -421,6 +423,8 @@ func TestSpec_PublicAPI_FormatMessages(t *testing.T) {
 		{name: "FormatProgressMessage", fn: FormatProgressMessage},
 		{name: "FormatVerboseMessage", fn: FormatVerboseMessage},
 		{name: "FormatListItem", fn: FormatListItem},
+		{name: "FormatPromptMessage", fn: FormatPromptMessage},
+		{name: "FormatSectionHeader", fn: FormatSectionHeader},
 	}
 
 	for _, tt := range tests {
@@ -453,4 +457,125 @@ func TestSpec_PublicAPI_LogVerbose(t *testing.T) {
 	assert.NotPanics(t, func() {
 		LogVerbose(true, "shown when verbose is true")
 	}, "LogVerbose should not panic when verbose=true")
+}
+
+// TestSpec_Types_ErrorPosition validates the documented ErrorPosition struct fields.
+//
+// Specification:
+//
+//	type ErrorPosition struct {
+//	    File   string
+//	    Line   int
+//	    Column int
+//	}
+func TestSpec_Types_ErrorPosition(t *testing.T) {
+	pos := ErrorPosition{File: "workflow.md", Line: 42, Column: 7}
+	assert.Equal(t, "workflow.md", pos.File, "ErrorPosition.File should be settable as documented")
+	assert.Equal(t, 42, pos.Line, "ErrorPosition.Line should be settable as documented")
+	assert.Equal(t, 7, pos.Column, "ErrorPosition.Column should be settable as documented")
+}
+
+// TestSpec_PublicAPI_FormatError validates the documented FormatError function.
+// Specification: "Formats a structured CompilerError with position information,
+// source context lines, and an optional fix hint."
+func TestSpec_PublicAPI_FormatError(t *testing.T) {
+	// From the documented example
+	err := CompilerError{
+		Position: ErrorPosition{File: "workflow.md", Line: 12, Column: 5},
+		Type:     "error",
+		Message:  "unknown engine: 'myengine'",
+		Context:  []string{"engine: myengine"},
+		Hint:     "Valid engines are: copilot, claude, codex, gemini, crush",
+	}
+	result := FormatError(err)
+	assert.NotEmpty(t, result, "FormatError should return non-empty output")
+	assert.Contains(t, result, "unknown engine: 'myengine'",
+		"FormatError output should contain the documented error message")
+}
+
+// TestSpec_PublicAPI_FormatErrorChain validates the documented FormatErrorChain function.
+// Specification: "Formats an error together with its entire %w-wrapped cause chain.
+// Each level of the chain is shown on a new indented line for easy debugging."
+func TestSpec_PublicAPI_FormatErrorChain(t *testing.T) {
+	inner := errors.New("network failure")
+	middle := fmt.Errorf("dial failed: %w", inner)
+	outer := fmt.Errorf("connection refused: %w", middle)
+
+	result := FormatErrorChain(outer)
+	assert.NotEmpty(t, result, "FormatErrorChain should return non-empty output")
+	assert.Contains(t, result, "connection refused",
+		"FormatErrorChain output should include the outermost error")
+	assert.Contains(t, result, "network failure",
+		"FormatErrorChain output should include the deepest wrapped cause")
+}
+
+// TestSpec_PublicAPI_RenderErrorBox validates the documented RenderErrorBox function.
+// Specification: "Returns a red-bordered error box displaying title."
+func TestSpec_PublicAPI_RenderErrorBox(t *testing.T) {
+	result := RenderErrorBox("Build failed")
+	require.NotEmpty(t, result, "RenderErrorBox should return non-empty []string")
+
+	var sb strings.Builder
+	for _, line := range result {
+		sb.WriteString(line)
+		sb.WriteString("\n")
+	}
+	assert.Contains(t, sb.String(), "Build failed",
+		"RenderErrorBox output should contain the provided title")
+}
+
+// TestSpec_PublicAPI_RenderInfoSection validates the documented RenderInfoSection function.
+// Specification: "Returns content wrapped in a left-bordered info section with muted styling."
+func TestSpec_PublicAPI_RenderInfoSection(t *testing.T) {
+	result := RenderInfoSection("3 jobs completed")
+	require.NotEmpty(t, result, "RenderInfoSection should return non-empty []string")
+
+	var sb strings.Builder
+	for _, line := range result {
+		sb.WriteString(line)
+		sb.WriteString("\n")
+	}
+	assert.Contains(t, sb.String(), "3 jobs completed",
+		"RenderInfoSection output should contain the provided content")
+}
+
+// TestSpec_PublicAPI_RenderComposedSections validates the documented behavior.
+// Specification: "Prints multiple rendered sections to os.Stderr, separated by blank lines."
+func TestSpec_PublicAPI_RenderComposedSections(t *testing.T) {
+	lines := append(
+		RenderTitleBox("Audit Report", 60),
+		RenderInfoSection("3 jobs completed")...,
+	)
+	assert.NotPanics(t, func() {
+		RenderComposedSections(lines)
+	}, "RenderComposedSections should not panic with valid input")
+
+	assert.NotPanics(t, func() {
+		RenderComposedSections([]string{})
+	}, "RenderComposedSections should not panic with empty input")
+}
+
+// TestSpec_PublicAPI_PrintBanner validates the documented PrintBanner function.
+// Specification: "Prints the banner to os.Stderr."
+func TestSpec_PublicAPI_PrintBanner(t *testing.T) {
+	assert.NotPanics(t, func() {
+		PrintBanner()
+	}, "PrintBanner should not panic when called")
+}
+
+// TestSpec_PublicAPI_TerminalControls validates documented terminal control functions.
+// Specification: "These functions emit ANSI control sequences to manage the terminal
+// display. They are no-ops when stderr is not a TTY."
+func TestSpec_PublicAPI_TerminalControls(t *testing.T) {
+	t.Run("ClearScreen does not panic", func(t *testing.T) {
+		assert.NotPanics(t, func() {
+			ClearScreen()
+		}, "ClearScreen should not panic as documented (no-op when not TTY)")
+	})
+
+	t.Run("ClearLine does not panic", func(t *testing.T) {
+		assert.NotPanics(t, func() {
+			ClearLine()
+		}, "ClearLine should not panic as documented (no-op when not TTY)")
+	})
 }

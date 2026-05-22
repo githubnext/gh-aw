@@ -625,6 +625,9 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.AutofixCodeScanningAlert != nil {
 		tools = append(tools, toolWithMaxBudget("autofix_code_scanning_alert", safeOutputs.AutofixCodeScanningAlert.Max))
 	}
+	if safeOutputs.CreateCheckRun != nil {
+		tools = append(tools, toolWithMaxBudget("create_check_run", safeOutputs.CreateCheckRun.Max))
+	}
 	if safeOutputs.UploadAssets != nil {
 		tools = append(tools, toolWithMaxBudget("upload_asset", safeOutputs.UploadAssets.Max))
 	}

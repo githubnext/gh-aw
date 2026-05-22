@@ -613,8 +613,7 @@ async function handleRequest(server, request, defaultHandler) {
       if (containsAtFilepathReference(args)) {
         throw {
           code: -32602,
-          message:
-            "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead.",
+          message: "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead.",
         };
       }
       const tool = server.tools[normalizeTool(name)];
@@ -757,11 +756,7 @@ async function handleMessage(server, req, defaultHandler) {
         return;
       }
       if (containsAtFilepathReference(args)) {
-        server.replyError(
-          id,
-          -32602,
-          "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead."
-        );
+        server.replyError(id, -32602, "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead.");
         return;
       }
       const tool = server.tools[normalizeTool(name)];

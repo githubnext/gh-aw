@@ -225,6 +225,32 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfTrue("staged", c.Staged).
 			Build()
 	},
+	"create_check_run": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CreateCheckRun == nil {
+			return nil
+		}
+		c := cfg.CreateCheckRun
+		builder := newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("name", c.Name).
+			AddIfTrue("staged", c.Staged)
+		if c.Output != nil {
+			builder.
+				AddIfNotEmpty("output_title", c.Output.Title).
+				AddIfNotEmpty("output_summary", c.Output.Summary)
+		}
+		// When a per-handler github-app is configured, the compiler mints a token in a
+		// separate step (create-check-run-app-token) and passes it as github-token so the
+		// JS handler can use it via createAuthenticatedGitHubClient.
+		// Per-handler github-token takes precedence when github-app is NOT set.
+		if c.GitHubApp != nil {
+			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
+			builder.AddIfNotEmpty("github-token", "${{ steps.create-check-run-app-token.outputs.token }}")
+		} else {
+			builder.AddIfNotEmpty("github-token", c.GitHubToken)
+		}
+		return builder.Build()
+	},
 	"create_agent_session": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.CreateAgentSessions == nil {
 			return nil

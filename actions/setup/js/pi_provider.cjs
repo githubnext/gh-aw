@@ -165,9 +165,7 @@ function logReflectFailure(params) {
 
   const status = typeof result.status === "number" ? ` status=${result.status}` : "";
   const error = result.error ? ` error=${JSON.stringify(result.error)}` : "";
-  logger(
-    `reflect_failure phase=${phase} provider=${provider || "(no provider prefix)"} model=${model || "(not set)"} url=${result.reflectUrl} output=${result.outputPath} reason=${result.reason || "unknown"}${status}${error}`
-  );
+  logger(`reflect_failure phase=${phase} provider=${provider || "(no provider prefix)"} model=${model || "(not set)"} url=${result.reflectUrl} output=${result.outputPath} reason=${result.reason || "unknown"}${status}${error}`);
 }
 
 /**

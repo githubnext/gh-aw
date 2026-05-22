@@ -1,18 +1,18 @@
 [
   {
     "name": "create_issue",
-    "description": "WRITE-ONCE: do NOT call this tool with empty or placeholder arguments to probe or discover its schema — required fields (title, body) are listed in this schema; if you are not ready to open the real issue, call `noop` instead. Creates a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead.",
+    "description": "WRITE-ONCE: do NOT call this tool with empty or placeholder arguments to probe or discover its schema \u2014 required fields (title, body) are listed in this schema; if you are not ready to open the real issue, call `noop` instead. Creates a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead.",
     "inputSchema": {
       "type": "object",
       "required": ["title", "body"],
       "properties": {
         "title": {
           "type": "string",
-          "description": "Concise issue title summarizing the bug, feature, or task. Must be the final intended title — not a placeholder or test value. The title appears as the main heading, so keep it brief and descriptive."
+          "description": "Concise issue title summarizing the bug, feature, or task. Must be the final intended title \u2014 not a placeholder or test value. The title appears as the main heading, so keep it brief and descriptive."
         },
         "body": {
           "type": "string",
-          "description": "Detailed issue description in Markdown. Must be the final intended body — not a placeholder or test value. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate."
+          "description": "Detailed issue description in Markdown. Must be the final intended body \u2014 not a placeholder or test value. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate."
         },
         "labels": {
           "type": "array",
@@ -245,14 +245,14 @@
   },
   {
     "name": "add_comment",
-    "description": "WRITE-ONCE: do NOT call this tool with empty or placeholder arguments to probe or discover its schema — the required `body` field is listed in this schema; if you are not ready to post a real comment, call `noop` instead. Adds a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.",
+    "description": "WRITE-ONCE: do NOT call this tool with empty or placeholder arguments to probe or discover its schema \u2014 the required `body` field is listed in this schema; if you are not ready to post a real comment, call `noop` instead. Adds a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.",
     "inputSchema": {
       "type": "object",
       "required": ["body"],
       "properties": {
         "body": {
           "type": "string",
-          "description": "The comment text in Markdown format. Must be the final intended comment — not a placeholder or test value. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation."
+          "description": "The comment text in Markdown format. Must be the final intended comment \u2014 not a placeholder or test value. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation."
         },
         "item_number": {
           "type": ["number", "string"],
@@ -1520,6 +1520,34 @@
         "memory_id": {
           "type": "string",
           "description": "Memory identifier to validate. Defaults to 'default' if not specified."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_check_run",
+    "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["conclusion", "title", "summary"],
+      "properties": {
+        "conclusion": {
+          "type": "string",
+          "enum": ["success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required"],
+          "description": "The final conclusion of the check run. Use \"success\" when the check passes, \"failure\" when issues are found that must be fixed, \"neutral\" for informational results with no required action."
+        },
+        "title": {
+          "type": "string",
+          "description": "Short title summarizing the check result (e.g., \"3 issues found\" or \"All checks passed\"). Shown in the checks UI next to the check run name."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Markdown-formatted summary of the check result. Supports GitHub Flavored Markdown. Shown in the checks detail view. Maximum 65535 characters."
+        },
+        "text": {
+          "type": "string",
+          "description": "Optional detailed Markdown content shown in the check run details. Use this for longer output such as full analysis reports, line-by-line findings, or remediation steps. Maximum 65535 characters."
         }
       },
       "additionalProperties": false
