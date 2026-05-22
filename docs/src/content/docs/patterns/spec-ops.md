@@ -13,14 +13,14 @@ flowchart LR
 
 ## How SpecOps Works
 
-1. **Update specification** — Trigger a workflow with the `w3c-specification-writer` agent to edit the spec document (RFC 2119 keywords, version bump, change log).
+1. **Update specification** — Edit the specification, either by a local agent or by triggering a workflow like [`w3c-specification-writer`](https://github.com/github/gh-aw/blob/main/.github/agents/w3c-specification-writer.agent.md) to edit the spec document (RFC 2119 keywords, version bump, change log).
 2. **Review changes** — Approve the specification pull request.
-3. **Propagate automatically** — On merge, workflows detect updates and create PRs in consuming repositories (like [gh-aw-mcpg](https://github.com/github/gh-aw-mcpg)) to maintain compliance.
+3. **Propagate automatically** — On merge, workflows detect updates and create PRs in consuming repositories to maintain compliance.
 4. **Verify compliance** — Test generation workflows update compliance test suites against the new requirements.
 
 ## Update Specifications
 
-Create a workflow to update specifications using the [`w3c-specification-writer` agent](https://github.com/github/gh-aw/blob/main/.github/agents/w3c-specification-writer.agent.md):
+Create a workflow to update specifications using [`w3c-specification-writer`](https://github.com/github/gh-aw/blob/main/.github/agents/w3c-specification-writer.agent.md):
 
 ```yaml
 ---
@@ -32,9 +32,6 @@ on:
         description: 'What needs to change in the spec?'
         required: true
         type: string
-
-engine: copilot
-strict: true
 
 safe-outputs:
   create-pull-request:
@@ -121,6 +118,7 @@ The MCP Gateway specification has been updated. Propagate changes to consuming r
 W3C-style specifications require: Abstract, Status, Introduction, Conformance, numbered technical sections with RFC 2119 keywords, Compliance testing, References, and a Change log.
 
 **Example RFC 2119 usage**:
+
 ```markdown
 ## 3. Gateway Configuration
 

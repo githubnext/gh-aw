@@ -5,6 +5,10 @@ sidebar:
   order: 7
 ---
 
+:::caution[Experimental]
+A/B Experiments is an experimental feature.
+:::
+
 The `experiments` section of the workflow frontmatter enables statistical A/B testing by defining named experiments, each with a set of variant values. At runtime the activation job selects one variant per experiment using a balanced round-robin counter and exposes the selection to the workflow prompt.
 
 ## Declaring experiments

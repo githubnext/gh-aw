@@ -574,14 +574,56 @@ func TestFindWorkflowFileForExperiment(t *testing.T) {
 	assert.Empty(t, result, "should return empty string when no matching file found")
 }
 
-// TestWorkflowFileCandidates verifies the candidate list for remote lookups.
+// TestMatchWorkflowFilenameByExperiment verifies that the helper correctly resolves
+// hyphenated workflow filenames from sanitized experiment branch names.
+func TestMatchWorkflowFilenameByExperiment(t *testing.T) {
+	files := []string{
+		"ci-coach.md",
+		"daily-issues-report.md",
+		"smoke-copilot.md",
+		"agent-performance-analyzer.md",
+		"deep-report.md",
+		"noHyphen.md",
+	}
+	tests := []struct {
+		experimentName string
+		want           string
+	}{
+		{"cicoach", "ci-coach"},
+		{"dailyissuesreport", "daily-issues-report"},
+		{"smokecopilot", "smoke-copilot"},
+		{"agentperformanceanalyzer", "agent-performance-analyzer"},
+		{"deepreport", "deep-report"},
+		{"nohyphen", "noHyphen"},
+		{"notfound", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.experimentName, func(t *testing.T) {
+			got := matchWorkflowFilenameByExperiment(files, tt.experimentName)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestMatchWorkflowFilenameByExperimentAmbiguous verifies that the first match is returned
+// and a warning is logged when multiple files share the same sanitized name.
+func TestMatchWorkflowFilenameByExperimentAmbiguous(t *testing.T) {
+	// "ci-coach.md" and "cicoach.md" both sanitize to "cicoach".
+	files := []string{"ci-coach.md", "cicoach.md"}
+	got := matchWorkflowFilenameByExperiment(files, "cicoach")
+	assert.Equal(t, "ci-coach", got, "should return the first match")
+}
+
+// TestWorkflowFileCandidates verifies the fallback candidate list for remote lookups.
+// The real resolution is handled by findRemoteWorkflowFilenameForExperiment; this list
+// is only used as a last-resort fallback when the directory listing is unavailable.
 func TestWorkflowFileCandidates(t *testing.T) {
 	tests := []struct {
 		experimentName string
 		wantContains   string
 	}{
 		{"myworkflow", "myworkflow"},
-		{"daily-report", "daily-report"},
+		{"dailyreport", "dailyreport"},
 		{"test123", "test123"},
 	}
 	for _, tt := range tests {

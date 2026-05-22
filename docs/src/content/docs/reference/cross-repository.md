@@ -271,7 +271,7 @@ updates to each PR branch.
 
 - [GitHub Repository Checkout](/gh-aw/reference/checkout/) - Full checkout configuration reference
 - [MultiRepoOps Pattern](/gh-aw/patterns/multi-repo-ops/) - Cross-repository workflow pattern
-- [MultiRepoOps — Central Control Plane](/gh-aw/patterns/multi-repo-ops/#the-central-control-plane-pattern-org-wide-rollouts) — Central control plane pattern
+- [MultiRepoOps — Central Control Plane](/gh-aw/patterns/central-repo-ops/#using-a-central-control-repository) — Central control plane pattern
 - [GitHub Tools Reference](/gh-aw/reference/github-tools/) - Complete GitHub Tools configuration
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
 - [Authentication Reference](/gh-aw/reference/auth/) - PAT and GitHub App setup

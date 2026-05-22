@@ -1543,7 +1543,7 @@ safe-outputs:
 
 The `default-safe-outputs` compound ecosystem is the recommended baseline — it covers infrastructure certificates (`defaults`), GitHub domains (`github`), popular developer tooling (`dev-tools`), and loopback addresses (`local`).
 
-**Reference Escaping** (`allowed-github-references`): Controls which GitHub repository references (`#123`, `owner/repo#456`) are allowed in workflow output. When configured, references to unlisted repositories are escaped with backticks to prevent GitHub from creating timeline items. This is particularly useful for [side repository](/gh-aw/patterns/multi-repo-ops/#the-side-repository-pattern-isolated-automation) workflows to prevent automation from cluttering your main repository's timeline.
+**Reference Escaping** (`allowed-github-references`): Controls which GitHub repository references (`#123`, `owner/repo#456`) are allowed in workflow output. When configured, references to unlisted repositories are escaped with backticks to prevent GitHub from creating timeline items. This is particularly useful for [side repository](/gh-aw/patterns/multi-repo-ops/#using-a-side-repository) workflows to prevent automation from cluttering your main repository's timeline.
 
 - `[]` - Escape all references (prevents all timeline items)
 - `["repo"]` - Allow only the target repository's references
@@ -1603,7 +1603,7 @@ safe-outputs:
 ---
 ```
 
-`safe-outputs.runs-on` overrides `runs-on-slim:` for safe-output jobs specifically. To override the runner for all framework jobs at once, use the top-level [`runs-on-slim:`](/gh-aw/guides/self-hosted-runners/#configuring-the-framework-job-runner) field instead.
+`safe-outputs.runs-on` overrides `runs-on-slim:` for safe-output jobs specifically. To override the runner for all framework jobs at once, use the top-level [`runs-on-slim:`](/gh-aw/reference/self-hosted-runners/#configuring-the-framework-job-runner) field instead.
 
 ### Safe Outputs Job Concurrency (`concurrency-group:`)
 

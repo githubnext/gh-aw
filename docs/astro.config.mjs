@@ -124,8 +124,7 @@ export default defineConfig({
 		'/examples/issue-pr-events/projectops/': '/gh-aw/patterns/project-ops/',
 
 		// Patterns unhyphenated → hyphenated slugs
-		'/patterns/centralrepoops/': '/gh-aw/patterns/multi-repo-ops/',
-		'/patterns/central-repo-ops/': '/gh-aw/patterns/multi-repo-ops/',
+		'/patterns/centralrepoops/': '/gh-aw/patterns/central-repo-ops/',
 		'/patterns/chatops/': '/gh-aw/patterns/chat-ops/',
 		'/patterns/dailyops/': '/gh-aw/patterns/daily-ops/',
 		'/patterns/dataops/': '/gh-aw/patterns/deterministic-ops/',
@@ -147,8 +146,11 @@ export default defineConfig({
 		'/patterns/deterministic-agentic-patterns/': '/gh-aw/patterns/deterministic-ops/',
 		'/guides/organization-practices/safe-rollout/': '/gh-aw/practices/safe-rollout/',
 		'/guides/organization-practices/sharing-workflows/': '/gh-aw/practices/sharing-workflows/',
-		'/guides/organization-practices/': '/gh-aw/practices/organization-practices/',
-		'/guides/maintaining-repos/': '/gh-aw/practices/maintaining-repos/',
+		'/guides/organization-practices/': '/gh-aw/guides/using-at-scale/',
+		'/guides/maintaining-repos/': '/gh-aw/examples/maintaining-repos/',
+		'/practices/maintaining-repos/': '/gh-aw/examples/maintaining-repos/',
+		'/guides/self-hosted-runners/': '/gh-aw/reference/self-hosted-runners/',
+		'/guides/packaging-imports/': '/gh-aw/guides/reusing-workflows/',
 		'/guides/web-search/': '/gh-aw/reference/web-search/',
 		'/guides/custom-otlp-attributes/': '/gh-aw/reference/open-telemetry/',
 		'/guides/telemetry/': '/gh-aw/reference/open-telemetry/',
@@ -171,9 +173,12 @@ export default defineConfig({
 		'/guides/memoryops/': '/gh-aw/patterns/memory-ops/',
 		'/guides/memory-ops/': '/gh-aw/patterns/memory-ops/',
 		'/guides/serena/': '/gh-aw/reference/serena/',
-		'/guides/experiments/': '/gh-aw/practices/experiments/',
+		'/guides/experiments/': '/gh-aw/experimental/experiments/',
+		'/practices/experiments/': '/gh-aw/experimental/experiments/',
+		'/practices/experiments-specification/': '/gh-aw/experimental/experiments-specification/',
 		'/guides/opentelemetry/': '/gh-aw/experimental/opentelemetry/',
-		'/reference/experiments-specification/': '/gh-aw/practices/experiments-specification/',
+		'/reference/experiments-specification/': '/gh-aw/experimental/experiments-specification/',
+		'/practices/organization-practices/': '/gh-aw/guides/using-at-scale/',
 
 		'/reference/awf-reflect/': '/gh-aw/experimental/awf-reflect/',
 
@@ -313,18 +318,19 @@ export default defineConfig({
 					items: [
 						{ label: 'Agentic Authoring', link: '/guides/agentic-authoring/' },
 						{ label: 'Editing Workflows', link: '/guides/editing-workflows/' },
-						{ label: 'Reusing Workflows', link: '/guides/packaging-imports/' },
+						{ label: 'Reusing Workflows', link: '/guides/reusing-workflows/' },
 						{ label: 'Upgrading Workflows', link: '/guides/upgrading/' },
 						{ label: 'Using MCPs', link: '/guides/mcps/' },
 						{ label: 'Network Configuration', link: '/guides/network-configuration/' },
 						{ label: 'GitHub Actions Primer', link: '/guides/github-actions-primer/' },
-						{ label: 'Self-Hosted Runners', link: '/guides/self-hosted-runners/' },
+						{ label: 'Using at Scale in Organizations', link: '/guides/using-at-scale/' },
 					],
 				},
 				{
 					label: 'Design Patterns',
 					items: [
 						{ label: 'BatchOps', link: '/patterns/batch-ops/' },
+						{ label: 'CentralRepoOps', link: '/patterns/central-repo-ops/' },
 						{ label: 'ChatOps', link: '/patterns/chat-ops/' },
 						{ label: 'DeterministicOps', link: '/patterns/deterministic-ops/' },
 						{ label: 'DispatchOps', link: '/patterns/dispatch-ops/' },
@@ -344,17 +350,14 @@ export default defineConfig({
 				{
 					label: 'Practices',
 					items: [
-						{ label: 'A/B Experiments', link: '/practices/experiments/' },
-						{ label: 'A/B Experiments (Spec)', link: '/practices/experiments-specification/' },
-						{ label: 'Maintaining Repositories', link: '/practices/maintaining-repos/' },
-						{ label: 'Organization Practices', link: '/practices/organization-practices/' },
-						{ label: 'Safe Rollout', link: '/practices/safe-rollout/' },
-						{ label: 'Sharing Workflows', link: '/practices/sharing-workflows/' },
+						{ label: 'Safe Rollout in Organziations', link: '/practices/safe-rollout/' },
+						{ label: 'Sharing Workflows  in Organziations', link: '/practices/sharing-workflows/' },
 					],
 				},
 				{
 					label: 'Examples',
 					items: [
+						{ label: 'Automated Repository Maintenance', link: '/examples/maintaining-repos/' },
 						{ label: 'Triage from Side Repo', link: '/examples/multi-repo/triage-from-side-repo/' },
 						{ label: 'Code Quality Monitoring', link: '/examples/multi-repo/code-quality-monitoring/' },
 						{ label: 'Dependabot Rollout', link: '/examples/multi-repo/dependabot-rollout/' },
@@ -419,6 +422,7 @@ export default defineConfig({
 						{ label: 'Safe Outputs (Ephemerals)', link: '/reference/ephemerals/' },
 						{ label: 'Safe Outputs (Footers)', link: '/reference/footers/' },
 						{ label: 'Sandbox', link: '/reference/sandbox/' },
+						{ label: 'Self-Hosted Runners', link: '/reference/self-hosted-runners/' },
 						{ label: 'Sandbox (MCP Gateway)', link: '/reference/mcp-gateway/' },
 						{ label: 'Sandbox (Network Access)', link: '/reference/network/' },
 						{ label: 'Templating', link: '/reference/templating/' },
@@ -441,6 +445,8 @@ export default defineConfig({
 					label: 'Experimental',
 					collapsed: true,
 					items: [
+						{ label: 'A/B Experiments', link: '/experimental/experiments/' },
+						{ label: 'A/B Experiments (Spec)', link: '/experimental/experiments-specification/' },
 						{ label: 'AWF Reflect Route', link: '/experimental/awf-reflect/' },
 						{ label: 'CorrectionOps', link: '/experimental/correction-ops/' },
 						{ label: 'Monitoring with Projects', link: '/experimental/monitoring-with-projects/' },

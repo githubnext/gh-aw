@@ -55,7 +55,7 @@ Create specific review comments on relevant lines of code and add a summary comm
 - [IssueOps](/gh-aw/patterns/issue-ops/) — Event-driven issue automation
 - [DispatchOps](/gh-aw/patterns/dispatch-ops/) — Manual workflow triggers
 - [LabelOps](/gh-aw/patterns/label-ops/) — Label-triggered automation
-- [MultiRepoOps — Side Repository](/gh-aw/patterns/multi-repo-ops/#the-side-repository-pattern-isolated-automation) — Isolated workflow execution
+- [MultiRepoOps — Side Repository](/gh-aw/patterns/multi-repo-ops/#using-a-side-repository) — Isolated workflow execution
 - [Command Triggers](/gh-aw/reference/command-triggers/) — Slash command configuration
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) — Secure write operations
 - [Authentication](/gh-aw/reference/auth/) — PAT and GitHub App setup

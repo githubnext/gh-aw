@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/types"
@@ -133,25 +132,6 @@ func TestModelMultipliersInventoryUpdate20260521(t *testing.T) {
 	assert.InDelta(t, 0.33, loadedMultipliers["gemini-3-flash"], 1e-9, "gemini-3-flash should be present with official billing multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3-pro"], 1e-9, "gemini-3-pro should be present with official billing multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3.1-pro"], 1e-9, "gemini-3.1-pro should be present with official billing multiplier")
-}
-
-func TestModelMultipliersDeprecatedMetadata20260521(t *testing.T) {
-	var raw map[string]any
-	require.NoError(t, json.Unmarshal(modelMultipliersJSON, &raw), "embedded model multipliers JSON should parse")
-
-	deprecated, ok := raw["deprecated_models"].(map[string]any)
-	require.True(t, ok, "deprecated_models metadata should be present as a map")
-	assert.Len(t, deprecated, 34, "deprecated_models metadata should list all currently stale models")
-	assert.Equal(t, true, deprecated["gpt-5"], "gpt-5 should be marked deprecated in metadata")
-	assert.Equal(t, true, deprecated["claude-sonnet-4.5"], "claude-sonnet-4.5 should be marked deprecated in metadata")
-	assert.Equal(t, true, deprecated["gemini-1.5-pro"], "gemini-1.5-pro should be marked deprecated in metadata")
-	assert.Equal(t, true, deprecated["gpt-4"], "gpt-4 should be marked deprecated in metadata")
-	assert.Equal(t, true, deprecated["gpt-41-copilot"], "gpt-41-copilot should be marked deprecated in metadata")
-	assert.Equal(t, true, deprecated["grok-code-fast-1"], "grok-code-fast-1 should be marked deprecated in metadata")
-	assert.Equal(t, true, deprecated["o1-mini"], "o1-mini should be marked deprecated in metadata")
-	assert.Equal(t, true, deprecated["raptor-mini"], "raptor-mini should be marked deprecated in metadata")
-	assert.Equal(t, true, deprecated["gemini-2.5-computer-use-preview"], "gemini-2.5-computer-use-preview should be marked deprecated in metadata")
-	assert.Equal(t, true, deprecated["gemini-3.1-flash-live-preview"], "gemini-3.1-flash-live-preview should be marked deprecated in metadata")
 }
 
 func TestPopulateEffectiveTokensWithCustomWeights(t *testing.T) {

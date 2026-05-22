@@ -1,5 +1,5 @@
 ---
-title: Code Quality Monitoring
+title: 'Example: Code Quality Monitoring'
 description: Run weekly code quality analysis on a main repository from a side repository, checking out the code locally to run linters and producing actionable issues.
 sidebar:
   badge: { text: 'Multi-Repo', variant: 'note' }
