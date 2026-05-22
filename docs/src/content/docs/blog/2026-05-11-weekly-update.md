@@ -50,7 +50,7 @@ The run summary noted with mild concern that `auto-triage-issues` is so reliable
 
 💡 **Usage tip**: Pair `auto-triage-issues` with a `notify` or `discussion` workflow on high-priority labels so the right people are paged the moment a critical bug or security issue lands.
 
-→ [View the workflow on GitHub](https://github.com/githubnext/agentics/blob/main/.github/workflows/auto-triage-issues.md)
+→ [View the workflow on GitHub](https://github.com/github/gh-aw/blob/main/.github/workflows/auto-triage-issues.md)
 
 ## Try It Out
 

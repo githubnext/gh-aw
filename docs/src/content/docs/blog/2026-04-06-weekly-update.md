@@ -59,7 +59,7 @@ In a delightfully meta moment, the observability kit itself hit token-limit erro
 
 💡 **Usage tip**: Pair `agentic-observability-kit` with Slack or email notifications so escalation issues trigger an alert — otherwise the issues it files can sit unread while the token bill quietly grows.
 
-→ [View the workflow on GitHub](https://github.com/githubnext/agentics/blob/main/.github/workflows/agentic-observability-kit.md)
+→ [View the workflow on GitHub](https://github.com/github/gh-aw/blob/main/.github/workflows/agentic-observability-kit.md)
 
 ---
 

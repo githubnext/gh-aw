@@ -60,7 +60,7 @@ Across its recent runs it made 131 `search_repositories` calls. We're not sure w
 
 💡 **Usage tip**: Pair `auto-triage-issues` with a notify workflow on specific labels (e.g., `security` or `needs-repro`) so the right people get pinged automatically without anyone having to watch the inbox.
 
-→ [View the workflow on GitHub](https://github.com/githubnext/agentics/blob/main/.github/workflows/auto-triage-issues.md)
+→ [View the workflow on GitHub](https://github.com/github/gh-aw/blob/main/.github/workflows/auto-triage-issues.md)
 
 ## Try It Out
 
