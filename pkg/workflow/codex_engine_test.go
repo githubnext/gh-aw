@@ -106,6 +106,9 @@ func TestCodexEngine(t *testing.T) {
 	if strings.Contains(stepContent, "--exclude-env OPENAI_API_KEY") {
 		t.Errorf("OPENAI_API_KEY must remain available to Codex runtime, got:\n%s", stepContent)
 	}
+	if strings.Contains(stepContent, "--exclude-env CODEX_API_KEY") {
+		t.Errorf("CODEX_API_KEY must remain available to Codex runtime, got:\n%s", stepContent)
+	}
 }
 
 func TestCodexEngineWithVersion(t *testing.T) {
