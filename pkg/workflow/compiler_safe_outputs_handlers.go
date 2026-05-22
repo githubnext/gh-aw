@@ -234,6 +234,11 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableInt("max", c.Max).
 			AddIfNotEmpty("name", c.Name).
 			AddIfTrue("staged", c.Staged)
+		if c.Output != nil {
+			builder.
+				AddIfNotEmpty("output_title", c.Output.Title).
+				AddIfNotEmpty("output_summary", c.Output.Summary)
+		}
 		// When a per-handler github-app is configured, the compiler mints a token in a
 		// separate step (create-check-run-app-token) and passes it as github-token so the
 		// JS handler can use it via createAuthenticatedGitHubClient.

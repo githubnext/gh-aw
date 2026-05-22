@@ -7890,6 +7890,23 @@
                 "github-app": {
                   "$ref": "#/$defs/github_app",
                   "description": "GitHub App credentials for minting an installation access token scoped to checks:write for this handler. When set, a short-lived token is minted before the handler runs and revoked afterwards."
+                },
+                "output": {
+                  "type": "object",
+                  "description": "Optional static fallback values for the check run output fields. Used when the agent does not provide the corresponding field.",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "maxLength": 256,
+                      "description": "Fallback title for the check run output (max 256 characters). Used when the agent does not supply a title."
+                    },
+                    "summary": {
+                      "type": "string",
+                      "maxLength": 65535,
+                      "description": "Fallback summary for the check run output (max 65535 characters, GitHub API limit). Used when the agent does not supply a summary."
+                    }
+                  },
+                  "additionalProperties": false
                 }
               },
               "additionalProperties": false

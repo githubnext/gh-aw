@@ -181,7 +181,7 @@ describe("create_check_run", () => {
       expect(result.error).toContain("invalid conclusion");
     });
 
-    it("returns error when title is missing", async () => {
+    it("returns error when title is missing and no config fallback", async () => {
       const { main } = require("./create_check_run.cjs");
       const handler = await main({ max: 10 });
       const result = await handler({ type: "create_check_run", conclusion: "success", summary: "Summary" }, {});
@@ -190,7 +190,7 @@ describe("create_check_run", () => {
       expect(result.error).toContain("title");
     });
 
-    it("returns error when summary is missing", async () => {
+    it("returns error when summary is missing and no config fallback", async () => {
       const { main } = require("./create_check_run.cjs");
       const handler = await main({ max: 10 });
       const result = await handler({ type: "create_check_run", conclusion: "success", title: "Title" }, {});
@@ -239,7 +239,7 @@ describe("create_check_run", () => {
       process.env.GITHUB_SHA = "sha-abc123";
     });
 
-    it("truncates summary to 65535 characters", async () => {
+    it("truncates summary exceeding 65535 characters (appends truncation notice)", async () => {
       let capturedParams;
       mockGithub.rest.checks.create = makeChecksCreate((p) => {
         capturedParams = p;
@@ -251,10 +251,11 @@ describe("create_check_run", () => {
       const result = await handler({ type: "create_check_run", conclusion: "success", title: "Title", summary: longSummary }, {});
 
       expect(result.success).toBe(true);
-      expect(capturedParams.output.summary.length).toBe(65535);
+      expect(capturedParams.output.summary.length).toBeLessThanOrEqual(66000);
+      expect(capturedParams.output.summary).toContain("[Content truncated");
     });
 
-    it("truncates text to 65535 characters", async () => {
+    it("truncates text exceeding 65535 characters (appends truncation notice)", async () => {
       let capturedParams;
       mockGithub.rest.checks.create = makeChecksCreate((p) => {
         capturedParams = p;
@@ -266,7 +267,8 @@ describe("create_check_run", () => {
       const result = await handler({ type: "create_check_run", conclusion: "success", title: "Title", summary: "Summary", text: longText }, {});
 
       expect(result.success).toBe(true);
-      expect(capturedParams.output.text.length).toBe(65535);
+      expect(capturedParams.output.text.length).toBeLessThanOrEqual(66000);
+      expect(capturedParams.output.text).toContain("[Content truncated");
     });
 
     it("omits text field from output when text is empty", async () => {
@@ -410,6 +412,130 @@ describe("create_check_run", () => {
       expect(createCalled).toBe(false);
       expect(result.success).toBe(true);
       expect(result.staged).toBe(true);
+    });
+  });
+
+  describe("config output.title / output.summary fallbacks", () => {
+    beforeEach(() => {
+      process.env.GITHUB_SHA = "sha-abc123";
+    });
+
+    it("uses config output_title as fallback when agent omits title", async () => {
+      let capturedParams;
+      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+        capturedParams = p;
+      });
+
+      const { main } = require("./create_check_run.cjs");
+      const handler = await main({ max: 10, output_title: "Config Title" });
+      const result = await handler({ type: "create_check_run", conclusion: "success", summary: "Summary" }, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedParams.output.title).toBe("Config Title");
+    });
+
+    it("uses config output_summary as fallback when agent omits summary", async () => {
+      let capturedParams;
+      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+        capturedParams = p;
+      });
+
+      const { main } = require("./create_check_run.cjs");
+      const handler = await main({ max: 10, output_summary: "Config Summary" });
+      const result = await handler({ type: "create_check_run", conclusion: "success", title: "Title" }, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedParams.output.summary).toBe("Config Summary");
+    });
+
+    it("agent-provided title takes precedence over config output_title", async () => {
+      let capturedParams;
+      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+        capturedParams = p;
+      });
+
+      const { main } = require("./create_check_run.cjs");
+      const handler = await main({ max: 10, output_title: "Config Title" });
+      const result = await handler({ type: "create_check_run", conclusion: "success", title: "Agent Title", summary: "Summary" }, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedParams.output.title).toBe("Agent Title");
+    });
+
+    it("agent-provided summary takes precedence over config output_summary", async () => {
+      let capturedParams;
+      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+        capturedParams = p;
+      });
+
+      const { main } = require("./create_check_run.cjs");
+      const handler = await main({ max: 10, output_summary: "Config Summary" });
+      const result = await handler({ type: "create_check_run", conclusion: "success", title: "Title", summary: "Agent Summary" }, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedParams.output.summary).toBe("Agent Summary");
+    });
+
+    it("succeeds using both config fallbacks when agent omits title and summary", async () => {
+      let capturedParams;
+      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+        capturedParams = p;
+      });
+
+      const { main } = require("./create_check_run.cjs");
+      const handler = await main({ max: 10, output_title: "Config Title", output_summary: "Config Summary" });
+      const result = await handler({ type: "create_check_run", conclusion: "failure" }, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedParams.output.title).toBe("Config Title");
+      expect(capturedParams.output.summary).toBe("Config Summary");
+    });
+
+    it("sanitizes config output_title (neutralizes @mentions into backtick-escaped form)", async () => {
+      let capturedParams;
+      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+        capturedParams = p;
+      });
+
+      const { main } = require("./create_check_run.cjs");
+      // sanitizeContent wraps bare @mentions in backticks so they don't trigger notifications
+      const handler = await main({ max: 10, output_title: "Check by @admin" });
+      const result = await handler({ type: "create_check_run", conclusion: "success", summary: "Summary" }, {});
+
+      expect(result.success).toBe(true);
+      // @mention is escaped to `@admin` — no longer a bare @mention
+      expect(capturedParams.output.title).not.toBe("Check by @admin");
+      expect(capturedParams.output.title).toContain("`@admin`");
+    });
+
+    it("sanitizes agent-provided title (neutralizes @mentions into backtick-escaped form)", async () => {
+      let capturedParams;
+      mockGithub.rest.checks.create = makeChecksCreate((p) => {
+        capturedParams = p;
+      });
+
+      const { main } = require("./create_check_run.cjs");
+      const handler = await main({ max: 10 });
+      const result = await handler({
+        type: "create_check_run",
+        conclusion: "success",
+        title: "Review by @admin",
+        summary: "Summary",
+      }, {});
+
+      expect(result.success).toBe(true);
+      // @mention is escaped to `@admin` — no longer a bare @mention
+      expect(capturedParams.output.title).not.toBe("Review by @admin");
+      expect(capturedParams.output.title).toContain("`@admin`");
+    });
+
+    it("still errors when title and summary are both absent with no config fallbacks", async () => {
+      const { main } = require("./create_check_run.cjs");
+      const handler = await main({ max: 10 });
+      const result = await handler({ type: "create_check_run", conclusion: "success" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("title");
     });
   });
 });

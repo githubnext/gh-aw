@@ -4,10 +4,17 @@ import "github.com/github/gh-aw/pkg/logger"
 
 var createCheckRunLog = logger.New("workflow:create_check_run")
 
+// CreateCheckRunOutputConfig holds optional static defaults for the check run output fields
+type CreateCheckRunOutputConfig struct {
+	Title   string `yaml:"title,omitempty"`   // Optional fallback title (max 256 chars)
+	Summary string `yaml:"summary,omitempty"` // Optional fallback summary (max 65535 chars)
+}
+
 // CreateCheckRunConfig holds configuration for creating GitHub Check Runs from agent output
 type CreateCheckRunConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Name                 string `yaml:"name,omitempty"` // Check run name shown in the GitHub Checks UI
+	Name                 string                      `yaml:"name,omitempty"`   // Check run name shown in the GitHub Checks UI
+	Output               *CreateCheckRunOutputConfig `yaml:"output,omitempty"` // Optional static output defaults
 }
 
 // parseCreateCheckRunConfig handles create-check-run configuration
@@ -26,6 +33,22 @@ func (c *Compiler) parseCreateCheckRunConfig(outputMap map[string]any) *CreateCh
 			if nameStr, ok := name.(string); ok {
 				checkRunConfig.Name = nameStr
 				createCheckRunLog.Printf("Using custom check run name: %s", nameStr)
+			}
+		}
+
+		// Parse optional output defaults block
+		if outputVal, exists := configMap["output"]; exists {
+			if outputConfigMap, ok := outputVal.(map[string]any); ok {
+				outputCfg := &CreateCheckRunOutputConfig{}
+				if title, ok := outputConfigMap["title"].(string); ok {
+					outputCfg.Title = title
+					createCheckRunLog.Printf("Using config output.title: %q", title)
+				}
+				if summary, ok := outputConfigMap["summary"].(string); ok {
+					outputCfg.Summary = summary
+					createCheckRunLog.Printf("Using config output.summary (len=%d)", len(summary))
+				}
+				checkRunConfig.Output = outputCfg
 			}
 		}
 

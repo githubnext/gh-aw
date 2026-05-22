@@ -10,6 +10,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_check_run";
@@ -19,6 +20,9 @@ const VALID_CONCLUSIONS = new Set(["success", "failure", "neutral", "cancelled",
 
 /** @type {number} Maximum length for summary and text fields (GitHub API limit) */
 const MAX_CONTENT_LENGTH = 65535;
+
+/** @type {number} Maximum length for the title field */
+const MAX_TITLE_LENGTH = 256;
 
 /**
  * Main handler factory for create_check_run
@@ -32,6 +36,10 @@ async function main(config = {}) {
   const githubClient = await createAuthenticatedGitHubClient(config);
   const isStaged = isStagedMode(config);
 
+  // Optional config-level output defaults (sanitized at startup so we pay the cost once)
+  const configOutputTitle = config.output_title ? sanitizeContent(String(config.output_title), MAX_TITLE_LENGTH) : "";
+  const configOutputSummary = config.output_summary ? sanitizeContent(String(config.output_summary), MAX_CONTENT_LENGTH) : "";
+
   // Resolve the check run name: config > workflow name env var > fallback.
   // Auto-deduplicate: if the resolved name equals the workflow name, GitHub's UI
   // may collapse the programmatic check run into the workflow's own check suite
@@ -44,6 +52,8 @@ async function main(config = {}) {
   }
 
   core.info(`Create check run configuration: name="${defaultName}", max=${maxCount}`);
+  if (configOutputTitle) core.info(`Config output.title fallback set (${configOutputTitle.length} chars)`);
+  if (configOutputSummary) core.info(`Config output.summary fallback set (${configOutputSummary.length} chars)`);
 
   // Track how many check runs we've created for max limit enforcement
   let processedCount = 0;
@@ -77,31 +87,31 @@ async function main(config = {}) {
       return { success: false, error: msg };
     }
 
-    const title = (message.title || "").trim();
-    if (!title) {
-      const msg = "create_check_run requires a non-empty 'title' field";
+    // Resolve title: agent value (sanitized) > config fallback > error
+    const rawTitle = (message.title || "").trim();
+    const resolvedTitle = rawTitle ? sanitizeContent(rawTitle, MAX_TITLE_LENGTH) : configOutputTitle;
+    if (!resolvedTitle) {
+      const msg = configOutputTitle
+        ? "create_check_run: title resolved to empty after sanitization"
+        : "create_check_run requires a non-empty 'title' field (or config output.title fallback)";
       core.error(msg);
       return { success: false, error: msg };
     }
 
-    const summary = (message.summary || "").trim();
-    if (!summary) {
-      const msg = "create_check_run requires a non-empty 'summary' field";
+    // Resolve summary: agent value (sanitized + truncated) > config fallback > error
+    const rawSummary = (message.summary || "").trim();
+    const resolvedSummary = rawSummary ? sanitizeContent(rawSummary, MAX_CONTENT_LENGTH) : configOutputSummary;
+    if (!resolvedSummary) {
+      const msg = configOutputSummary
+        ? "create_check_run: summary resolved to empty after sanitization"
+        : "create_check_run requires a non-empty 'summary' field (or config output.summary fallback)";
       core.error(msg);
       return { success: false, error: msg };
     }
 
-    // Truncate content if needed
-    const truncatedSummary = summary.length > MAX_CONTENT_LENGTH ? summary.slice(0, MAX_CONTENT_LENGTH) : summary;
+    // Sanitize optional text field
     const rawText = (message.text || "").trim();
-    const truncatedText = rawText.length > MAX_CONTENT_LENGTH ? rawText.slice(0, MAX_CONTENT_LENGTH) : rawText;
-
-    if (summary.length > MAX_CONTENT_LENGTH) {
-      core.warning(`create_check_run: summary truncated from ${summary.length} to ${MAX_CONTENT_LENGTH} characters`);
-    }
-    if (rawText.length > MAX_CONTENT_LENGTH) {
-      core.warning(`create_check_run: text truncated from ${rawText.length} to ${MAX_CONTENT_LENGTH} characters`);
-    }
+    const resolvedText = rawText ? sanitizeContent(rawText, MAX_CONTENT_LENGTH) : "";
 
     const owner = context.repo.owner;
     const repo = context.repo.repo;
@@ -128,7 +138,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview without executing
     if (isStaged) {
-      logStagedPreviewInfo(`Would create check run "${checkRunName}" with conclusion=${conclusion}, title="${title}"`);
+      logStagedPreviewInfo(`Would create check run "${checkRunName}" with conclusion=${conclusion}, title="${resolvedTitle}"`);
       processedCount++;
       return {
         success: true,
@@ -136,16 +146,16 @@ async function main(config = {}) {
         previewInfo: {
           name: checkRunName,
           conclusion,
-          title,
+          title: resolvedTitle,
         },
       };
     }
 
     try {
       const output = {
-        title,
-        summary: truncatedSummary,
-        ...(truncatedText ? { text: truncatedText } : {}),
+        title: resolvedTitle,
+        summary: resolvedSummary,
+        ...(resolvedText ? { text: resolvedText } : {}),
       };
 
       const response = await withRetry(
