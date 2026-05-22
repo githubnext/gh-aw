@@ -699,13 +699,15 @@ describe("generateGitPatch – incremental mode diffSize excludes merged base-br
 
     // Step 2: main advances with many upstream commits (simulating 480 commits).
     // We use a large file to make the upstream changes substantial in size.
+    const UPSTREAM_CONTENT_SIZE_BYTES = 50 * 1024; // 50 KB: much larger than agent's tiny change
+    const ADDITIONAL_UPSTREAM_COMMITS = 5; // several commits to simulate multi-commit upstream advance
     execSync("git checkout main", { cwd: repoDir });
-    const bigContent = "x".repeat(50 * 1024); // 50 KB of upstream changes
+    const bigContent = "x".repeat(UPSTREAM_CONTENT_SIZE_BYTES);
     fs.writeFileSync(path.join(repoDir, "upstream-big.txt"), bigContent);
     execSync("git add upstream-big.txt", { cwd: repoDir });
     execSync('git commit -m "upstream: large change"', { cwd: repoDir });
-    // Add a few more commits to simulate the 480-commit scenario
-    for (let i = 1; i <= 5; i++) {
+    // Add more commits to simulate the 480-commit scenario
+    for (let i = 1; i <= ADDITIONAL_UPSTREAM_COMMITS; i++) {
       fs.writeFileSync(path.join(repoDir, `upstream-${i}.txt`), `upstream commit ${i}\n`);
       execSync("git add .", { cwd: repoDir });
       execSync(`git commit -m "upstream: commit ${i}"`, { cwd: repoDir });
