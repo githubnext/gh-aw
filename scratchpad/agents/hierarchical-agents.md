@@ -243,7 +243,7 @@ Meta-orchestrators provide detailed reports including:
 - Coordinate with related campaigns
 - Adjust priorities based on portfolio analysis
 
-**Leverage cross-campaign coordination:**
+**Use cross-campaign coordination:**
 - Avoid conflicts by checking coordination notes
 - Share resources with related campaigns
 - Sequence work appropriately

@@ -1352,7 +1352,7 @@ gh aw compile --engine mdflow-compat review.claude.md
 
 **Benefits**:
 - Provide migration path for mdflow users
-- Leverage mdflow's simplicity in gh-aw context
+- Adopt mdflow's minimal-configuration approach in the gh-aw context
 - Enable gradual adoption (start with minimal features, add security later)
 
 ### Final Thoughts

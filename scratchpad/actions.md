@@ -41,7 +41,7 @@ Create a custom actions system that:
 - Provides versioning through Git tags/releases
 - Enables reuse via `uses: ./actions/{action-name}`
 - Supports independent testing and validation
-- Leverages existing bundler infrastructure from workflow compilation
+- Reuses existing bundler infrastructure from workflow compilation
 
 ## Architecture
 
@@ -320,7 +320,7 @@ outputContent := filesRegex.ReplaceAllString(
 
 ### Decision 1: Reuse Workflow Bundler Infrastructure
 
-**Decision**: Leverage existing `workflow.GetJavaScriptSources()` instead of creating separate bundling system.
+**Decision**: Reuse existing `workflow.GetJavaScriptSources()` instead of creating a separate bundling system.
 
 **Rationale**:
 - Eliminates code duplication
@@ -912,7 +912,7 @@ jobs:
 2. **Fallback strategy**: If action path not found, automatically falls back to inline mode
 3. **Backward compatibility**: Default mode is inline, no breaking changes to existing workflows
 4. **Token mapping**: Custom actions use `token` input instead of `github-token` parameter
-5. **Reuse existing infrastructure**: Leverages the same script registry and bundler used for inline mode
+5. **Reuse existing infrastructure**: Uses the same script registry and bundler as inline mode
 
 ### Integration Points
 
