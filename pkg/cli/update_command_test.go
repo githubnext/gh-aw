@@ -286,6 +286,41 @@ Content remains the same.`
 	}
 }
 
+func TestMergeWorkflowContent_NormalizesCurrentManifestSource(t *testing.T) {
+	base := `---
+on: push
+---
+
+# Workflow
+`
+
+	current := `---
+on: push
+source: owner/repo@v1.0.0
+---
+
+# Workflow
+`
+
+	new := `---
+on: push
+---
+
+# Workflow
+`
+
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, "owner/repo/workflows/workflow.md@v1.0.0", "owner/repo/workflows/workflow.md@v2.0.0", "", false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if hasConflicts {
+		t.Fatalf("Expected no conflicts for source-format-only difference, got:\n%s", merged)
+	}
+	if !strings.Contains(merged, "source: owner/repo/workflows/workflow.md@v2.0.0") {
+		t.Fatalf("expected updated source field, got:\n%s", merged)
+	}
+}
+
 // TestUpdateSourceFieldInContent tests the source field update function
 func TestUpdateSourceFieldInContent(t *testing.T) {
 	content := `---

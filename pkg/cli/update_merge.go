@@ -147,6 +147,9 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRefOrSourceSpec,
 	baseNormalized := stringutil.NormalizeWhitespace(baseWithSource)
 	currentNormalized := stringutil.NormalizeWhitespace(current)
 	newNormalized := stringutil.NormalizeWhitespace(newWithUpdatedSource)
+	if normalizedCurrent, normalizeErr := UpdateFieldInFrontmatter(currentNormalized, "source", currentSourceSpec); normalizeErr == nil {
+		currentNormalized = normalizedCurrent
+	}
 
 	// Create temporary directory for merge files
 	tmpDir, err := os.MkdirTemp("", "gh-aw-merge-*")
