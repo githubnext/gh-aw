@@ -342,36 +342,72 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("handles top-level runs-on object form", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"runs-on": map[string]any{
-				"group":  "arc-custom",
-				"labels": []any{"self-hosted", "linux"},
+	t.Run("handles top-level runs-on forms", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			runsOn    any
+			assertion func(t *testing.T, got any)
+		}{
+			{
+				name:   "string form",
+				runsOn: "ubuntu-latest",
+				assertion: func(t *testing.T, got any) {
+					parsed, ok := got.(string)
+					if !ok {
+						t.Fatalf("RunsOn should be preserved as a string, got %T", got)
+					}
+					if parsed != "ubuntu-latest" {
+						t.Errorf("RunsOn = %v, want ubuntu-latest", parsed)
+					}
+				},
+			},
+			{
+				name:   "array form",
+				runsOn: []any{"self-hosted", "linux"},
+				assertion: func(t *testing.T, got any) {
+					parsed, ok := got.([]any)
+					if !ok {
+						t.Fatalf("RunsOn should be preserved as a slice, got %T", got)
+					}
+					if len(parsed) != 2 || parsed[0] != "self-hosted" || parsed[1] != "linux" {
+						t.Errorf("RunsOn = %v, want [self-hosted linux]", parsed)
+					}
+				},
+			},
+			{
+				name: "object form",
+				runsOn: map[string]any{
+					"group":  "arc-custom",
+					"labels": []any{"self-hosted", "linux"},
+				},
+				assertion: func(t *testing.T, got any) {
+					parsed, ok := got.(map[string]any)
+					if !ok {
+						t.Fatalf("RunsOn should be preserved as a map, got %T", got)
+					}
+					if parsed["group"] != "arc-custom" {
+						t.Errorf("RunsOn group = %v, want arc-custom", parsed["group"])
+					}
+				},
 			},
 		}
 
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				frontmatter := map[string]any{
+					"runs-on": tt.runsOn,
+				}
 
-		runsOn, ok := config.RunsOn.(map[string]any)
-		if !ok {
-			t.Fatalf("RunsOn should be preserved as a map, got %T", config.RunsOn)
-		}
+				config, err := ParseFrontmatterConfig(frontmatter)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
 
-		if runsOn["group"] != "arc-custom" {
-			t.Errorf("RunsOn group = %v, want arc-custom", runsOn["group"])
-		}
+				tt.assertion(t, config.RunsOn)
 
-		reconstructed := config.ToMap()
-		reconstructedRunsOn, ok := reconstructed["runs-on"].(map[string]any)
-		if !ok {
-			t.Fatalf("reconstructed runs-on should be a map, got %T", reconstructed["runs-on"])
-		}
-
-		if reconstructedRunsOn["group"] != "arc-custom" {
-			t.Errorf("reconstructed runs-on group = %v, want arc-custom", reconstructedRunsOn["group"])
+				reconstructed := config.ToMap()
+				tt.assertion(t, reconstructed["runs-on"])
+			})
 		}
 	})
 
