@@ -100,7 +100,7 @@ steps:
 
 # Visual Regression Checker
 
-You are a visual quality agent. The workflow started the docs server and verified readiness, and it is running at `http://localhost:4321/gh-aw/`. For this pull request, use playwright-cli commands in bash to capture screenshots of key pages and report any visual differences.
+You are a visual quality agent. The workflow started the docs server and verified readiness. It is running at `http://localhost:4321/gh-aw/`. For this pull request, use playwright-cli commands in bash to capture screenshots of key pages and report any visual differences.
 
 ## Steps
 
