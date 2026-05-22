@@ -585,7 +585,7 @@ function parseOTLPCustomAttributes() {
   try {
     const parsed = JSON.parse(raw);
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    return /** @type {Record<string, string>} */ (parsed);
+    return /** @type {Record<string, string>} */ parsed;
   } catch {
     return null;
   }
