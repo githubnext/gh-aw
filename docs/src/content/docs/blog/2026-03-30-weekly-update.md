@@ -76,7 +76,7 @@ It's the classic overachiever problem — sometimes the issues that look the sim
 
 💡 **Usage tip**: If your `auto-triage-issues` scheduled runs are consistently expensive, the new `agentic_fraction` metric in `gh aw audit` can help you identify which turns are pure data-gathering and could be moved to deterministic shell steps.
 
-→ [View the workflow on GitHub](https://github.com/github/gh-aw/blob/main/.github/workflows/auto-triage-issues.md)
+→ [View the workflow on GitHub](https://github.com/githubnext/agentics/blob/main/.github/workflows/auto-triage-issues.md)
 
 ---
 

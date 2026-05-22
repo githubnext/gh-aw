@@ -61,7 +61,7 @@ Even when it can't act, it doesn't just silently fail — it leaves a breadcrumb
 
 💡 **Usage tip**: Pair `auto-triage-issues` with a `notify` workflow on high-priority labels (like `security` or `breaking-change`) so your team gets paged for the things that actually matter.
 
-→ [View the workflow on GitHub](https://github.com/github/gh-aw/blob/main/.github/workflows/auto-triage-issues.md)
+→ [View the workflow on GitHub](https://github.com/githubnext/agentics/blob/main/.github/workflows/auto-triage-issues.md)
 
 ## Try It Out
 

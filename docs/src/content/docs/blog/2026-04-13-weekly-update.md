@@ -62,7 +62,7 @@ That "security" label is doing a lot of work — the workflow spotted MCP and co
 
 💡 **Usage tip**: Pair `auto-triage-issues` with label-based notification rules so your team gets automatically paged for `security` or `critical` issues without anyone having to babysit the issue tracker.
 
-→ [View the workflow on GitHub](https://github.com/github/gh-aw/blob/main/.github/workflows/auto-triage-issues.md)
+→ [View the workflow on GitHub](https://github.com/githubnext/agentics/blob/main/.github/workflows/auto-triage-issues.md)
 
 ## Try It Out
 

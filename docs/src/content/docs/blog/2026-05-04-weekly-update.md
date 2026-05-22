@@ -52,7 +52,7 @@ It spent roughly 500k tokens per run carefully reading workflow files, thinking 
 
 💡 **Usage tip**: Use `ab-testing-advisor` as inspiration for your own repos — it's a great example of a meta-workflow that uses AI to drive continuous improvement of *other* AI workflows.
 
-→ [View the workflow on GitHub](https://github.com/github/gh-aw/blob/main/.github/workflows/ab-testing-advisor.md)
+→ [View the workflow on GitHub](https://github.com/githubnext/agentics/blob/main/.github/workflows/ab-testing-advisor.md)
 
 ## Try It Out
 

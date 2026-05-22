@@ -43,7 +43,7 @@ One of its runs earned an honorable mention from the agentic assessment system: 
 
 💡 **Usage tip**: Pair `auto-triage-issues` with a label-based notification workflow so the right team members get pinged the moment a new issue is categorized.
 
-→ [View the workflow on GitHub](https://github.com/github/gh-aw/blob/main/.github/workflows/auto-triage-issues.md)
+→ [View the workflow on GitHub](https://github.com/githubnext/agentics/blob/main/.github/workflows/auto-triage-issues.md)
 
 ## Try It Out
 
