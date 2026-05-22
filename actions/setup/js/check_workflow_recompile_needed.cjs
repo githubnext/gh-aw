@@ -18,7 +18,7 @@ function shouldCreatePullRequest() {
 }
 
 async function getDefaultBranch(owner, repo) {
-  const { effectiveBaseBranch } = await resolvePullRequestRepo(github, owner, repo, null);
+  const { effectiveBaseBranch } = await resolvePullRequestRepo(github, owner, repo, undefined);
   return effectiveBaseBranch || "main";
 }
 
@@ -101,16 +101,16 @@ async function fetchRemoteBranch(branchName) {
   await exec.exec("git", ["fetch", "origin", `refs/heads/${branchName}:refs/remotes/origin/${branchName}`]);
 }
 
-async function filterFilesNeedingUpdate(refName, changedFiles, workspaceDir) {
+async function filterFilesNeedingUpdate(comparisonRef, changedFiles, workspaceDir) {
   const filesToUpdate = [];
   for (const file of changedFiles) {
     const workingTreePath = `${workspaceDir}/${file}`;
     const workingTreeContent = fs.readFileSync(workingTreePath, "utf8");
-    const { stdout, exitCode } = await exec.getExecOutput("git", ["show", `${refName}:${file}`], {
+    const { stdout, exitCode } = await exec.getExecOutput("git", ["show", `${comparisonRef}:${file}`], {
       ignoreReturnCode: true,
     });
     if (exitCode !== 0) {
-      core.info(`Remote ref ${refName} does not contain ${file}; scheduling update`);
+      core.info(`Remote ref ${comparisonRef} does not contain ${file}; scheduling update`);
       filesToUpdate.push(file);
       continue;
     }
@@ -119,13 +119,13 @@ async function filterFilesNeedingUpdate(refName, changedFiles, workspaceDir) {
       filesToUpdate.push(file);
       continue;
     }
-    core.info(`Compiled workflow file ${file} already matches ${refName}`);
+    core.info(`Compiled workflow file ${file} already matches ${comparisonRef}`);
   }
   return filesToUpdate;
 }
 
 async function stageFiles(files) {
-  if (files.length === 0) {
+  if (!Array.isArray(files) || files.length === 0) {
     return;
   }
   await exec.exec("git", ["add", "--", ...files]);

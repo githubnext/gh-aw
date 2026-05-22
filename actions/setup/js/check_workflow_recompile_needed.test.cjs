@@ -212,7 +212,7 @@ The following workflow lock files have changes:
     global.context = originalGlobals.context;
     global.exec = originalGlobals.exec;
 
-    // Clear all mocks
+    // Reset the module cache because each test dynamically imports the CJS module.
     vi.clearAllMocks();
     vi.resetModules();
   });
@@ -381,9 +381,6 @@ The following workflow lock files have changes:
       }
       if (joinedArgs === "diff-tree -r --raw commit-sha") {
         return { stdout: ":100644 100644 oldhash blobhash M\t.github/workflows/example.lock.yml\n", stderr: "", exitCode: 0 };
-      }
-      if (joinedArgs === "ls-remote origin refs/heads/aw/recompile-workflows") {
-        return { stdout: "", stderr: "", exitCode: 0 };
       }
       if (joinedArgs === "rev-parse commit-sha^") {
         return { stdout: "base-head-sha\n", stderr: "", exitCode: 0 };
