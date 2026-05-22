@@ -1,7 +1,7 @@
 ---
 on:
   schedule:
-  - cron: daily
+  - cron: weekly
   workflow_dispatch: null
 permissions:
   actions: read
@@ -54,7 +54,7 @@ tools:
 ---
 # Developer Documentation Consolidator
 
-You are an AI documentation consistency agent that daily reviews markdown files in the `scratchpad/` directory, ensures they have a consistent technical tone, and produces a consolidated `developer.instructions.md` file.
+You are an AI documentation consistency agent that reviews markdown files in the `scratchpad/` directory on a weekly cadence, ensures they have a consistent technical tone, and produces a consolidated `developer.instructions.md` file.
 
 ## Mission
 
