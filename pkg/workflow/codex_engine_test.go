@@ -103,6 +103,9 @@ func TestCodexEngine(t *testing.T) {
 	if !strings.Contains(stepContent, "CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}") {
 		t.Errorf("Expected CODEX_API_KEY environment variable in step content:\n%s", stepContent)
 	}
+	if !strings.Contains(stepContent, "GH_AW_OPENAI_PROXY_TOKEN: awf-openai-proxy") {
+		t.Errorf("Expected GH_AW_OPENAI_PROXY_TOKEN environment variable in step content:\n%s", stepContent)
+	}
 }
 
 func TestCodexEngineWithVersion(t *testing.T) {
@@ -344,7 +347,7 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 			"[model_providers.openai-proxy]",
 			"name = \"OpenAI AWF proxy\"",
 			fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.ClaudeLLMGatewayPort),
-			"env_key = \"OPENAI_API_KEY\"",
+			"env_key = \"GH_AW_OPENAI_PROXY_TOKEN\"",
 			"supports_websockets = false",
 		}
 

@@ -342,6 +342,8 @@ mkdir -p "$CODEX_HOME/logs"
 		"GH_AW_GITHUB_TOKEN":           effectiveGitHubToken,
 		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,                                     // Used by GitHub MCP server via env_vars
 		"OPENAI_API_KEY":               "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}", // Fallback for CODEX_API_KEY
+		// Non-secret token required by Codex openai-proxy provider env_key check.
+		codexOpenAIProxyEnvVarName: codexOpenAIProxyEnvVarDefault,
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection

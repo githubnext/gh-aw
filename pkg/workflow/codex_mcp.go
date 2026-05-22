@@ -15,6 +15,10 @@ var codexMCPLog = logger.New("workflow:codex_mcp")
 const (
 	codexOpenAIProxyProviderID   = "openai-proxy"
 	codexOpenAIProxyProviderName = "OpenAI AWF proxy"
+	// Codex requires model provider env_key to exist, even when AWF apiProxy holds the
+	// real upstream credentials outside the agent container.
+	codexOpenAIProxyEnvVarName    = "GH_AW_OPENAI_PROXY_TOKEN"
+	codexOpenAIProxyEnvVarDefault = "awf-openai-proxy"
 )
 
 // RenderMCPConfig generates MCP server configuration for Codex
@@ -165,7 +169,7 @@ func (e *CodexEngine) renderOpenAIProxyProviderToml(yaml *strings.Builder, inden
 	yaml.WriteString(indent + "[model_providers." + codexOpenAIProxyProviderID + "]\n")
 	yaml.WriteString(indent + "name = \"" + codexOpenAIProxyProviderName + "\"\n")
 	yaml.WriteString(indent + "base_url = \"" + e.getOpenAIProxyProviderBaseURL() + "\"\n")
-	yaml.WriteString(indent + "env_key = \"OPENAI_API_KEY\"\n")
+	yaml.WriteString(indent + "env_key = \"" + codexOpenAIProxyEnvVarName + "\"\n")
 	yaml.WriteString(indent + "supports_websockets = false\n")
 }
 

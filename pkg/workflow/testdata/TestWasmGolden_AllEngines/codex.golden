@@ -455,7 +455,7 @@ jobs:
           [model_providers.openai-proxy]
           name = "OpenAI AWF proxy"
           base_url = "http://172.30.0.30:10000"
-          env_key = "OPENAI_API_KEY"
+          env_key = "GH_AW_OPENAI_PROXY_TOKEN"
           supports_websockets = false
           [shell_environment_policy]
           inherit = "core"
@@ -500,6 +500,7 @@ jobs:
           CODEX_HOME: /tmp/gh-aw/mcp-config
           GH_AW_MCP_CONFIG: ${{ runner.temp }}/gh-aw/mcp-config/config.toml
           GH_AW_MODEL_DETECTION_CODEX: ${{ vars.GH_AW_MODEL_DETECTION_CODEX || '' }}
+          GH_AW_OPENAI_PROXY_TOKEN: awf-openai-proxy
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_VERSION: dev
