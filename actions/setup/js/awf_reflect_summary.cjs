@@ -185,7 +185,7 @@ function normalizeModelAliasRows(awfConfigData) {
  *   - Available models (first `maxModels` entries, with overflow indicator)
  *
  * @param {object} reflectData - Parsed /reflect JSON response
- * @param {{ maxModels?: number }} options
+ * @param {{ maxModels?: number, runtimeModelsData?: object, awfConfigData?: object }} options
  * @returns {string}
  */
 function buildReflectSummary(reflectData, options) {
