@@ -93,64 +93,64 @@ func filteredEnv(excludedPrefixes ...string) []string {
 }
 
 func TestMaskOTLPAttributesScript(t *testing.T) {
-if runtime.GOOS != "linux" {
-t.Skip("requires Linux bash script behavior")
-}
+	if runtime.GOOS != "linux" {
+		t.Skip("requires Linux bash script behavior")
+	}
 
-_, file, _, ok := runtime.Caller(0)
-require.True(t, ok, "runtime.Caller should resolve the current test file")
+	_, file, _, ok := runtime.Caller(0)
+	require.True(t, ok, "runtime.Caller should resolve the current test file")
 
-scriptPath := filepath.Join(filepath.Dir(file), "..", "..", "actions", "setup", "sh", "mask_otlp_attributes.sh")
+	scriptPath := filepath.Join(filepath.Dir(file), "..", "..", "actions", "setup", "sh", "mask_otlp_attributes.sh")
 
-tests := []struct {
-name string
-env  []string
-want []string
-}{
-{
-name: "masks each attribute value individually",
-env: []string{
-`GH_AW_OTLP_ATTRIBUTES={"langfuse.session.id":"my-session","langfuse.user.id":"my-user"}`,
-},
-want: []string{
-"::add-mask::my-session",
-"::add-mask::my-user",
-},
-},
-{
-name: "empty variable is a no-op",
-env:  []string{"GH_AW_OTLP_ATTRIBUTES="},
-want: []string{},
-},
-{
-name: "invalid JSON is a no-op",
-env:  []string{"GH_AW_OTLP_ATTRIBUTES=not-json"},
-want: []string{},
-},
-{
-name: "empty attribute values are skipped",
-env: []string{
-`GH_AW_OTLP_ATTRIBUTES={"my.attr":""}`,
-},
-want: []string{},
-},
-}
+	tests := []struct {
+		name string
+		env  []string
+		want []string
+	}{
+		{
+			name: "masks each attribute value individually",
+			env: []string{
+				`GH_AW_OTLP_ATTRIBUTES={"langfuse.session.id":"my-session","langfuse.user.id":"my-user"}`,
+			},
+			want: []string{
+				"::add-mask::my-session",
+				"::add-mask::my-user",
+			},
+		},
+		{
+			name: "empty variable is a no-op",
+			env:  []string{"GH_AW_OTLP_ATTRIBUTES="},
+			want: []string{},
+		},
+		{
+			name: "invalid JSON is a no-op",
+			env:  []string{"GH_AW_OTLP_ATTRIBUTES=not-json"},
+			want: []string{},
+		},
+		{
+			name: "empty attribute values are skipped",
+			env: []string{
+				`GH_AW_OTLP_ATTRIBUTES={"my.attr":""}`,
+			},
+			want: []string{},
+		},
+	}
 
-for _, tt := range tests {
-t.Run(tt.name, func(t *testing.T) {
-cmd := exec.Command("bash", scriptPath)
-cmd.Env = append(filteredEnv("GH_AW_OTLP_ATTRIBUTES="), tt.env...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command("bash", scriptPath)
+			cmd.Env = append(filteredEnv("GH_AW_OTLP_ATTRIBUTES="), tt.env...)
 
-out, err := cmd.CombinedOutput()
-require.NoError(t, err, "mask script should succeed, output:\n%s", out)
+			out, err := cmd.CombinedOutput()
+			require.NoError(t, err, "mask script should succeed, output:\n%s", out)
 
-output := string(out)
-for _, want := range tt.want {
-assert.Contains(t, output, want)
-}
-if len(tt.want) == 0 {
-assert.Empty(t, strings.TrimSpace(output), "expected no output for this case")
-}
-})
-}
+			output := string(out)
+			for _, want := range tt.want {
+				assert.Contains(t, output, want)
+			}
+			if len(tt.want) == 0 {
+				assert.Empty(t, strings.TrimSpace(output), "expected no output for this case")
+			}
+		})
+	}
 }

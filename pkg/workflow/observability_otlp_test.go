@@ -1595,93 +1595,93 @@ func TestExtractRawOTLPEndpointMaps(t *testing.T) {
 // TestCollectOTLPCustomAttributes verifies that custom attributes are read from the
 // frontmatter and returned as a map[string]string.
 func TestCollectOTLPCustomAttributes(t *testing.T) {
-tests := []struct {
-name        string
-frontmatter map[string]any
-want        map[string]string
-}{
-{
-name:        "nil frontmatter returns nil",
-frontmatter: nil,
-want:        nil,
-},
-{
-name:        "no observability key returns nil",
-frontmatter: map[string]any{"name": "my-workflow"},
-want:        nil,
-},
-{
-name: "no otlp key in observability returns nil",
-frontmatter: map[string]any{
-"observability": map[string]any{},
-},
-want: nil,
-},
-{
-name: "no attributes key in otlp returns nil",
-frontmatter: map[string]any{
-"observability": map[string]any{
-"otlp": map[string]any{
-"endpoint": "https://traces.example.com",
-},
-},
-},
-want: nil,
-},
-{
-name: "empty attributes map returns nil",
-frontmatter: map[string]any{
-"observability": map[string]any{
-"otlp": map[string]any{
-"attributes": map[string]any{},
-},
-},
-},
-want: nil,
-},
-{
-name: "string attributes are collected",
-frontmatter: map[string]any{
-"observability": map[string]any{
-"otlp": map[string]any{
-"endpoint": "https://traces.example.com",
-"attributes": map[string]any{
-"langfuse.session.id": "{{ gh-aw.episode.id }}",
-"langfuse.user.id":    "{{ github.actor }}",
-},
-},
-},
-},
-want: map[string]string{
-"langfuse.session.id": "{{ gh-aw.episode.id }}",
-"langfuse.user.id":    "{{ github.actor }}",
-},
-},
-{
-name: "non-string values are silently ignored",
-frontmatter: map[string]any{
-"observability": map[string]any{
-"otlp": map[string]any{
-"attributes": map[string]any{
-"valid.key":   "valid-value",
-"number.key":  42,
-"bool.key":    true,
-},
-},
-},
-},
-want: map[string]string{
-"valid.key": "valid-value",
-},
-},
-}
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		want        map[string]string
+	}{
+		{
+			name:        "nil frontmatter returns nil",
+			frontmatter: nil,
+			want:        nil,
+		},
+		{
+			name:        "no observability key returns nil",
+			frontmatter: map[string]any{"name": "my-workflow"},
+			want:        nil,
+		},
+		{
+			name: "no otlp key in observability returns nil",
+			frontmatter: map[string]any{
+				"observability": map[string]any{},
+			},
+			want: nil,
+		},
+		{
+			name: "no attributes key in otlp returns nil",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "empty attributes map returns nil",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"attributes": map[string]any{},
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "string attributes are collected",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+						"attributes": map[string]any{
+							"langfuse.session.id": "{{ gh-aw.episode.id }}",
+							"langfuse.user.id":    "{{ github.actor }}",
+						},
+					},
+				},
+			},
+			want: map[string]string{
+				"langfuse.session.id": "{{ gh-aw.episode.id }}",
+				"langfuse.user.id":    "{{ github.actor }}",
+			},
+		},
+		{
+			name: "non-string values are silently ignored",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"attributes": map[string]any{
+							"valid.key":  "valid-value",
+							"number.key": 42,
+							"bool.key":   true,
+						},
+					},
+				},
+			},
+			want: map[string]string{
+				"valid.key": "valid-value",
+			},
+		},
+	}
 
-for _, tt := range tests {
-t.Run(tt.name, func(t *testing.T) {
-got := collectOTLPCustomAttributes(tt.frontmatter)
-assert.Equal(t, tt.want, got)
-})
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := collectOTLPCustomAttributes(tt.frontmatter)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 // TestInjectOTLPConfig_CustomAttributes verifies that injectOTLPConfig injects the
@@ -1776,13 +1776,13 @@ assert.Equal(t, "override-c", result["c"], "override-only key 'c' should be pres
 
 // TestEncodeOTLPCustomAttributes verifies serialisation to JSON.
 func TestEncodeOTLPCustomAttributes(t *testing.T) {
-t.Run("nil returns empty string", func(t *testing.T) {
-assert.Equal(t, "", encodeOTLPCustomAttributes(nil))
-})
+	t.Run("nil returns empty string", func(t *testing.T) {
+		assert.Empty(t, encodeOTLPCustomAttributes(nil))
+	})
 
-t.Run("empty map returns empty string", func(t *testing.T) {
-assert.Equal(t, "", encodeOTLPCustomAttributes(map[string]string{}))
-})
+	t.Run("empty map returns empty string", func(t *testing.T) {
+		assert.Empty(t, encodeOTLPCustomAttributes(map[string]string{}))
+	})
 
 t.Run("non-empty map is valid JSON", func(t *testing.T) {
 encoded := encodeOTLPCustomAttributes(map[string]string{
