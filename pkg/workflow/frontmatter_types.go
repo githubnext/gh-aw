@@ -308,7 +308,7 @@ type FrontmatterConfig struct {
 	Secrets         map[string]any    `json:"secrets,omitempty"`
 
 	// Workflow execution settings
-	RunsOn        string         `json:"runs-on,omitempty"`
+	RunsOn        any            `json:"runs-on,omitempty"`      // Supports string, array, or object GitHub Actions runner forms
 	RunsOnSlim    string         `json:"runs-on-slim,omitempty"` // Runner for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
 	RunName       string         `json:"run-name,omitempty"`
 	PreSteps      []any          `json:"pre-steps,omitempty"`       // Pre-workflow steps (run before checkout)

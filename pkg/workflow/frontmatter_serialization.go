@@ -180,7 +180,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	}
 
 	// Execution settings
-	if fc.RunsOn != "" {
+	if fc.RunsOn != nil {
 		result["runs-on"] = fc.RunsOn
 	}
 	if fc.RunsOnSlim != "" {

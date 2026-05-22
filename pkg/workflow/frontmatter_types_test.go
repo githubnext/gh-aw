@@ -342,6 +342,39 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("handles top-level runs-on object form", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"runs-on": map[string]any{
+				"group":  "arc-custom",
+				"labels": []any{"self-hosted", "linux"},
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		runsOn, ok := config.RunsOn.(map[string]any)
+		if !ok {
+			t.Fatalf("RunsOn should be preserved as a map, got %T", config.RunsOn)
+		}
+
+		if runsOn["group"] != "arc-custom" {
+			t.Errorf("RunsOn group = %v, want arc-custom", runsOn["group"])
+		}
+
+		reconstructed := config.ToMap()
+		reconstructedRunsOn, ok := reconstructed["runs-on"].(map[string]any)
+		if !ok {
+			t.Fatalf("reconstructed runs-on should be a map, got %T", reconstructed["runs-on"])
+		}
+
+		if reconstructedRunsOn["group"] != "arc-custom" {
+			t.Errorf("reconstructed runs-on group = %v, want arc-custom", reconstructedRunsOn["group"])
+		}
+	})
+
 	t.Run("preserves complex nested structures", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"safe-outputs": map[string]any{
