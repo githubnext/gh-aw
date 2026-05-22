@@ -72,10 +72,14 @@ func UpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error {
 	manifestGroups := make(map[string][]*workflowWithSource)
 	var directWorkflows []*workflowWithSource
 	for _, wf := range workflows {
-		if _, ok, err := parseManifestSourceSpec(wf.SourceSpec); err != nil {
+		if repoSpec, ok, err := parseManifestSourceSpec(wf.SourceSpec); err != nil {
+			errMsg := err.Error()
+			if repoSpec != nil {
+				errMsg = fmt.Sprintf("%s (%s)", errMsg, repositoryPackageIdentifier(repoSpec.RepoSlug, repoSpec.PackagePath))
+			}
 			failedUpdates = append(failedUpdates, updateFailure{
 				Name:  wf.Name,
-				Error: err.Error(),
+				Error: errMsg,
 			})
 			continue
 		} else if ok {

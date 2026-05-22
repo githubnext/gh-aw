@@ -401,13 +401,13 @@ func validateUniqueManifestWorkflowFilenames(paths []string, manifestPath string
 		if !strings.HasSuffix(strings.ToLower(installPath), ".md") {
 			continue
 		}
-		base := strings.TrimSuffix(filepath.Base(installPath), filepath.Ext(installPath))
-		key := strings.ToLower(strings.TrimSpace(base))
+		filenameWithoutExt := strings.TrimSuffix(filepath.Base(installPath), filepath.Ext(installPath))
+		key := strings.ToLower(strings.TrimSpace(filenameWithoutExt))
 		if key == "" {
 			continue
 		}
 		if previous, exists := seen[key]; exists {
-			return fmt.Errorf("invalid Agentic Workflow manifest %q: duplicate workflow filename %q in files entries %q and %q (filenames must be unique across a package)", manifestPath, base, previous, installPath)
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: duplicate workflow filename %q in files entries %q and %q (filenames must be unique across a package)", manifestPath, filenameWithoutExt, previous, installPath)
 		}
 		seen[key] = installPath
 	}

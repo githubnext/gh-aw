@@ -40,8 +40,8 @@ func manifestWorkflowPathByName(paths []string) map[string]string {
 		if !strings.HasSuffix(strings.ToLower(p), ".md") {
 			continue
 		}
-		key := normalizeWorkflowID(filepath.Base(p))
-		byName[key] = p
+		workflowID := normalizeWorkflowID(filepath.Base(p))
+		byName[workflowID] = p
 	}
 	return byName
 }
