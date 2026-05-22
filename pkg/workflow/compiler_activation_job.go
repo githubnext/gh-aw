@@ -498,7 +498,7 @@ func injectIfConditionAfterName(step, condition string) string {
 		fieldIndent = nameIndent + "  "
 	}
 
-	newLines := make([]string, 0, len(lines)+1)
+	newLines := make([]string, 0, safeAllocationCapacity(len(lines), 1))
 	newLines = append(newLines, lines[:nameLineIdx+1]...)
 	newLines = append(newLines, fieldIndent+"if: "+condition)
 	newLines = append(newLines, lines[nameLineIdx+1:]...)

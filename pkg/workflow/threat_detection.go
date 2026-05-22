@@ -805,7 +805,7 @@ func (c *Compiler) buildCustomThreatDetectionSteps(steps []any) []string {
 			// Inject the detection guard condition unless the user already provided an if: condition.
 			if _, hasIf := stepMap["if"]; !hasIf {
 				// Clone the map to avoid mutating the original config.
-				injected := make(map[string]any, len(stepMap)+1)
+				injected := make(map[string]any, safeAllocationCapacity(len(stepMap), 1))
 				maps.Copy(injected, stepMap)
 				injected["if"] = detectionStepCondition
 				stepMap = injected

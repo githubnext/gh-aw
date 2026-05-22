@@ -204,8 +204,23 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
             }
           }
 
+          // If origin/<defaultBranch> is unavailable (e.g. credentials were cleaned),
+          // fall back to the local base branch ref when it exists.
+          let defaultBranchRef = null;
           if (hasLocalDefaultBranch) {
-            baseRef = execGitSync(["merge-base", "--", `origin/${defaultBranch}`, branchName], { cwd }).trim();
+            defaultBranchRef = `origin/${defaultBranch}`;
+          } else {
+            try {
+              execGitSync(["show-ref", "--verify", "--quiet", `refs/heads/${defaultBranch}`], { cwd });
+              defaultBranchRef = defaultBranch;
+              debugLog(`Strategy 1 (full): Using local branch ${defaultBranch} as fallback base ref`);
+            } catch {
+              // No local branch fallback either
+            }
+          }
+
+          if (defaultBranchRef) {
+            baseRef = execGitSync(["merge-base", "--", defaultBranchRef, branchName], { cwd }).trim();
             debugLog(`Strategy 1 (full): Computed merge-base: ${baseRef}`);
           } else {
             // No remote refs available - fall through to Strategy 2
