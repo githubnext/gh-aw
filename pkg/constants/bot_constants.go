@@ -1,25 +1,17 @@
 package constants
 
-// CopilotBotNames is the canonical list of GitHub bot login identifiers that
-// represent the Copilot family. Any "copilot" shorthand alias in a workflow
-// expands to these three identities:
+// CopilotBotNames is the canonical list of all GitHub identifiers associated
+// with the Copilot family — both runtime bot logins and recognized input aliases.
+// When any entry from this list appears in a workflow's bots field, it is
+// expanded to the entire set:
 //
-//   - "copilot-swe-agent" — the Copilot Coding Agent (actor: copilot-swe-agent[bot])
-//   - "Copilot"           — the @Copilot interactive bot (actor: Copilot)
-//   - "copilot"           — the base copilot bot form (actor: copilot[bot])
+//   - "copilot-swe-agent"    — Copilot Coding Agent runtime login (actor: copilot-swe-agent[bot])
+//   - "Copilot"              — @Copilot interactive bot (actor: Copilot)
+//   - "copilot"              — base copilot bot form + canonical shorthand alias (actor: copilot[bot])
+//   - "@app/copilot-swe-agent" — GitHub App slug alias for the Copilot Coding Agent
 var CopilotBotNames = []string{
 	"copilot-swe-agent",
 	"Copilot",
 	"copilot",
-}
-
-// CopilotBotAliases is the set of shorthand strings that all expand to
-// CopilotBotNames. Keeping aliases here ensures a single authoritative list
-// that any package can import without depending on pkg/workflow.
-//
-//   - "copilot"                — the canonical shorthand alias
-//   - "@app/copilot-swe-agent" — the GitHub App slug alias for the Copilot Coding Agent
-var CopilotBotAliases = map[string]bool{
-	"copilot":               true,
-	"@app/copilot-swe-agent": true,
+	"@app/copilot-swe-agent",
 }

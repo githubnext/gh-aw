@@ -322,8 +322,8 @@ Test workflow content.`
 	require.NoError(t, err, "Failed to read lock file")
 	lockStr := string(lockContent)
 
-	// The "copilot" alias must be expanded to all three Copilot bot identities
-	assert.Contains(t, lockStr, `GH_AW_ALLOWED_BOTS: "copilot-swe-agent,Copilot,copilot"`,
+	// The "copilot" alias must be expanded to all Copilot bot identities
+	assert.Contains(t, lockStr, `GH_AW_ALLOWED_BOTS: "copilot-swe-agent,Copilot,copilot,@app/copilot-swe-agent"`,
 		`Expected compiled workflow to expand "copilot" alias to all Copilot bot identifiers`)
 }
 
