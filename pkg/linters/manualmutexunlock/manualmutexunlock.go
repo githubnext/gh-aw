@@ -163,21 +163,21 @@ func isMutexType(t types.Type) bool {
 	if t == nil {
 		return false
 	}
-	
+
 	// Handle pointer types
 	if ptr, ok := t.(*types.Pointer); ok {
 		t = ptr.Elem()
 	}
-	
+
 	named, ok := t.(*types.Named)
 	if !ok {
 		return false
 	}
-	
+
 	obj := named.Obj()
 	if obj == nil || obj.Pkg() == nil {
 		return false
 	}
-	
+
 	return obj.Pkg().Path() == "sync" && (obj.Name() == "Mutex" || obj.Name() == "RWMutex")
 }
