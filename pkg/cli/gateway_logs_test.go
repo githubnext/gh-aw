@@ -1054,14 +1054,14 @@ func TestExtractToolCallsStatusInference(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			gatewayLogPath := filepath.Join(tmpDir, "gateway.jsonl")
-			require.NoError(t, os.WriteFile(gatewayLogPath, []byte(tt.logLine+"\n"), 0644))
+			require.NoError(t, os.WriteFile(gatewayLogPath, []byte(tt.logLine+"\n"), 0600))
 
 			mcpData := &MCPToolUsageData{ToolCalls: []MCPToolCall{}}
 			require.NoError(t, extractToolCallsFromGatewayLog(gatewayLogPath, mcpData))
 			require.Len(t, mcpData.ToolCalls, 1, "should have exactly one tool call record")
 
 			tc := mcpData.ToolCalls[0]
-			assert.Equal(t, tt.wantStatus, tc.Status, "tool call status mismatch")
+			require.Equal(t, tt.wantStatus, tc.Status, "tool call status mismatch")
 			assert.Equal(t, tt.wantErrField, tc.Error, "tool call error field mismatch")
 		})
 	}
