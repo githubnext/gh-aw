@@ -4,6 +4,7 @@
 const fs = require("fs");
 
 const AWF_REFLECT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
+const AWF_MODELS_PATH = "/tmp/gh-aw/sandbox/firewall/models.json";
 
 /**
  * Read the AWF reflect payload that was persisted to disk by copilot_harness.cjs.
@@ -16,6 +17,23 @@ function readReflectData() {
   }
   try {
     return JSON.parse(fs.readFileSync(AWF_REFLECT_PATH, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read the sandbox.firewall models.json payload when available.
+ * Returns null when the file is absent or unparseable.
+ *
+ * @returns {object|null}
+ */
+function readRuntimeModelsData() {
+  if (!fs.existsSync(AWF_MODELS_PATH)) {
+    return null;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(AWF_MODELS_PATH, "utf8"));
   } catch {
     return null;
   }
@@ -41,6 +59,84 @@ function formatModelList(models, maxModels) {
 }
 
 /**
+ * Normalize runtime model entries to a common table-friendly shape.
+ *
+ * Supported payload shapes:
+ *   - { endpoints: [...] }
+ *   - { providers: { name: ... } }
+ *   - { provider: "x", models: [...] }
+ *
+ * @param {any} runtimeModelsData
+ * @returns {Array<{provider: string, endpoint: string, models: string[]}>}
+ */
+function normalizeRuntimeModelRows(runtimeModelsData) {
+  if (!runtimeModelsData || typeof runtimeModelsData !== "object") {
+    return [];
+  }
+
+  /** @type {Array<{provider: string, endpoint: string, models: string[]}>} */
+  const rows = [];
+
+  /**
+   * @param {string} provider
+   * @param {any} entry
+   */
+  function pushRow(provider, entry) {
+    const modelIds = extractRuntimeModelIds(
+      entry?.models || entry?.available_models || entry?.detected_models || entry?.model_ids || entry?.availableModels
+    );
+    rows.push({
+      provider: String(provider || entry?.provider || entry?.name || "unknown"),
+      endpoint: String(
+        entry?.endpoint || entry?.base_url || entry?.baseUrl || entry?.url || entry?.models_url || entry?.modelsUrl || "—"
+      ),
+      models: modelIds,
+    });
+  }
+
+  if (Array.isArray(runtimeModelsData.endpoints)) {
+    for (const entry of runtimeModelsData.endpoints) {
+      pushRow(entry?.provider, entry);
+    }
+  }
+
+  if (runtimeModelsData.providers && typeof runtimeModelsData.providers === "object") {
+    for (const [provider, entry] of Object.entries(runtimeModelsData.providers)) {
+      pushRow(provider, entry);
+    }
+  }
+
+  if (typeof runtimeModelsData.provider === "string" && Array.isArray(runtimeModelsData.models)) {
+    pushRow(runtimeModelsData.provider, runtimeModelsData);
+  }
+
+  return rows
+    .filter(row => row.provider)
+    .sort((a, b) => a.provider.localeCompare(b.provider) || a.endpoint.localeCompare(b.endpoint));
+}
+
+/**
+ * Extract model IDs from runtime models.json payload entries.
+ *
+ * @param {any} models
+ * @returns {string[]}
+ */
+function extractRuntimeModelIds(models) {
+  if (!Array.isArray(models)) {
+    return [];
+  }
+
+  return models
+    .map(model => {
+      if (typeof model === "string") return model;
+      if (!model || typeof model !== "object") return null;
+      return model.id || model.name || model.model || null;
+    })
+    .filter(Boolean)
+    .sort();
+}
+
+/**
  * Build a markdown step summary from AWF /reflect response data.
  *
  * The summary is wrapped in a <details>/<summary> block so it stays collapsed by
@@ -58,6 +154,7 @@ function buildReflectSummary(reflectData, options) {
   const maxModels = options && options.maxModels != null ? options.maxModels : 5;
   const endpoints = Array.isArray(reflectData.endpoints) ? reflectData.endpoints : [];
   const fetchComplete = reflectData.models_fetch_complete === true;
+  const runtimeModelRows = normalizeRuntimeModelRows(options && options.runtimeModelsData);
 
   const lines = [];
   lines.push("<details>");
@@ -70,6 +167,8 @@ function buildReflectSummary(reflectData, options) {
     lines.push("No endpoint information available.");
   } else {
     const fetchNote = fetchComplete ? "" : " *(model list may be incomplete — fetch in progress)*";
+    lines.push("Configured endpoints");
+    lines.push("");
     lines.push(`| Provider | Port | Configured | Available models${fetchNote} |`);
     lines.push("|----------|------|:----------:|-----------------|");
 
@@ -82,6 +181,17 @@ function buildReflectSummary(reflectData, options) {
     }
   }
 
+  if (runtimeModelRows.length > 0) {
+    lines.push("");
+    lines.push("Runtime models.json");
+    lines.push("");
+    lines.push("| Provider | Endpoint | Available models |");
+    lines.push("|----------|----------|------------------|");
+    for (const row of runtimeModelRows) {
+      lines.push(`| ${row.provider} | ${row.endpoint} | ${formatModelList(row.models, maxModels)} |`);
+    }
+  }
+
   lines.push("");
   lines.push("</details>");
   lines.push("");
@@ -91,23 +201,28 @@ function buildReflectSummary(reflectData, options) {
 
 async function main() {
   const reflectData = readReflectData();
+  const runtimeModelsData = readRuntimeModelsData();
 
   if (!reflectData) {
     core.info("AWF reflect data not available (AWF not enabled or /reflect not reachable), skipping summary");
     return;
   }
 
-  const markdown = buildReflectSummary(reflectData, {});
+  const markdown = buildReflectSummary(reflectData, { runtimeModelsData });
   await core.summary.addRaw(markdown).write();
   core.info("AWF reflect summary written to step summary");
 }
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    AWF_MODELS_PATH,
     AWF_REFLECT_PATH,
     buildReflectSummary,
+    extractRuntimeModelIds,
     formatModelList,
     main,
     readReflectData,
+    readRuntimeModelsData,
+    normalizeRuntimeModelRows,
   };
 }
