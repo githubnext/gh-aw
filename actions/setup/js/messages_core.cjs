@@ -92,7 +92,7 @@ function renderTemplate(template, context) {
       return files
         .map(file => {
           let normalized = file;
-          if (normalized.startsWith("`") && normalized.endsWith("`") && normalized.length >= 2) {
+          if (normalized.startsWith("`") && normalized.endsWith("`")) {
             normalized = normalized.slice(1, -1).trim();
           }
           if (!normalized || normalized.includes("`")) {
