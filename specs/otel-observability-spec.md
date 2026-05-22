@@ -1,9 +1,9 @@
 ---
 title: OTel Observability Specification
-version: 0.2.0
+version: 0.3.0
 status: Working Draft
 date: 2026-05-19
-last_updated: 2026-05-21
+last_updated: 2026-05-22
 editors:
   - GitHub gh-aw Team
 ---
@@ -40,6 +40,7 @@ Changes to `observability.otlp`, OTLP environment injection, MCP gateway tracing
 8. [Security and Privacy Requirements](#8-security-and-privacy-requirements)
 9. [Trace Model](#9-trace-model)
 10. [Span Attribute Contract](#10-span-attribute-contract)
+    - [10.7 MCP Gateway Span Attribute Contract](#107-mcp-gateway-span-attribute-contract)
 11. [Resource Attributes](#11-resource-attributes)
 12. [Trace ID Propagation and Lookup](#12-trace-id-propagation-and-lookup)
 13. [Implementation Mapping](#13-implementation-mapping)
@@ -303,6 +304,16 @@ Single Trace: trace_id (32-char hex, shared across all jobs in a run)
 │   │   └── gh-aw.agent.agent          (parent: agent conclusion span)
 │   │       [dedicated AI latency measurement]
 │   │
+│   └── MCP Gateway (service: mcp-gateway)
+│       ├── gateway.request            (parent: agent setup span)
+│       │   └── mcp.tool_call          (parent: gateway.request)
+│       │       └── gateway.backend.execute  (parent: mcp.tool_call)
+│       ├── gateway.request            (repeated per MCP request)
+│       │   └── ...
+│       └── API Proxy (when DIFC active)
+│           ├── proxy.difc_pipeline    (parent: gateway.request)
+│           │   └── proxy.backend.forward  (parent: proxy.difc_pipeline)
+│           └── ...
 │
 └── Other Jobs
     ├── gh-aw.<job-name>.setup         (parent: root setup parent)
@@ -318,6 +329,11 @@ Span kind assignments MUST follow these rules:
 | `gh-aw.*.setup` | `SPAN_KIND_INTERNAL` (1) | Internal job lifecycle |
 | `gh-aw.*.conclusion` | `SPAN_KIND_INTERNAL` (1) | Internal job lifecycle |
 | `gh-aw.*.agent` | `SPAN_KIND_CLIENT` (3) | Outbound AI model request |
+| `gateway.request` | `SPAN_KIND_SERVER` (2) | MCP gateway HTTP handler |
+| `mcp.tool_call` | `SPAN_KIND_INTERNAL` (1) | MCP tool call lifecycle |
+| `gateway.backend.execute` | `SPAN_KIND_CLIENT` (3) | Backend MCP server invocation |
+| `proxy.difc_pipeline` | `SPAN_KIND_INTERNAL` (1) | API proxy DIFC evaluation |
+| `proxy.backend.forward` | `SPAN_KIND_CLIENT` (3) | API proxy upstream request |
 
 ### 9.5 Span Status
 
@@ -525,6 +541,67 @@ The fleet summary span (`gh-aw.outcome.summary`) aggregates all evaluated outcom
 | `gh-aw.outcome.workflows` | string | Comma-separated distinct workflow names |
 | `gh-aw.outcome.types` | string | Comma-separated distinct outcome types |
 
+### 10.7 MCP Gateway Span Attribute Contract
+
+This section defines the attributes emitted by the MCP gateway (`gh-aw-mcpg`). These spans are emitted under the `mcp-gateway` service but share the workflow's trace ID (linked via `GITHUB_AW_OTEL_TRACE_ID` and `GITHUB_AW_OTEL_PARENT_SPAN_ID` passed to the gateway container per §6.3).
+
+The canonical reference for gateway span attributes is [`gh-aw-mcpg/docs/otel-sentry.md`](https://github.com/github/gh-aw-mcpg/blob/main/docs/otel-sentry.md). This section summarizes the contract for cross-referencing with workflow-level spans.
+
+#### 10.7.1 `gateway.request` Span
+
+Emitted once per MCP JSON-RPC request received by the gateway.
+
+| Attribute | Type | Description |
+|---|---|---|
+| `http.request.method` | string | HTTP method (always `POST`) |
+| `http.response.status_code` | int | Response status code |
+| `url.path` | string | Request path (e.g., `/mcp`) |
+| `gen_ai.conversation.id` | string | Truncated session ID for correlation |
+| `gateway.tag` | string | Handler log tag (e.g., `unified`, `routed:<backendID>`) |
+
+#### 10.7.2 `mcp.tool_call` Span
+
+Emitted once per tool call lifecycle. This is the key span for per-tool-call granularity.
+
+| Attribute | Type | Description |
+|---|---|---|
+| `gen_ai.tool.name` | string | Tool name (e.g., `search_code`, `get_file_contents`, `create_issue`) |
+| `gen_ai.agent.id` | string | Backend MCP server ID (e.g., `github`, `slack`, `playwright`) |
+| `mcp.method` | string | JSON-RPC method (always `tools/call`) |
+| `http.response.status_code` | int | Response status code (success or error) |
+
+This span covers phases 0–6 of the tool call pipeline: parse, guard, route, execute, filter, respond.
+
+#### 10.7.3 `gateway.backend.execute` Span
+
+Emitted for each backend MCP server invocation.
+
+| Attribute | Type | Description |
+|---|---|---|
+| `gen_ai.tool.name` | string | Tool name being executed |
+| `gen_ai.agent.id` | string | Backend MCP server ID |
+| `rate_limit.hit` | boolean | Whether a rate limit was triggered during execution |
+
+Transport errors are recorded via `span.RecordError()` with a generic message (`"tool execution failed"`) to avoid leaking internal details.
+
+#### 10.7.4 `proxy.difc_pipeline` Span
+
+Emitted when the API proxy (DIFC enforcement) evaluates an outbound request.
+
+| Attribute | Type | Description |
+|---|---|---|
+| `gen_ai.tool.name` | string | Tool name associated with the proxied request |
+| `url.path` | string | Upstream API path |
+
+#### 10.7.5 `proxy.backend.forward` Span
+
+Emitted for each upstream GitHub API request forwarded through the proxy.
+
+| Attribute | Type | Description |
+|---|---|---|
+| `gen_ai.tool.name` | string | Tool name associated with the forwarded request |
+| `url.path` | string | Upstream API endpoint path |
+
 ---
 
 ## 11. Resource Attributes
@@ -657,6 +734,7 @@ This section maps the normative behavior in this specification to the current `g
 | §8 | Security and Privacy Requirements | `pkg/workflow/observability_otlp.go`, `pkg/workflow/mcp_renderer.go`, `pkg/workflow/mcp_setup_generator.go`, `actions/setup/js/send_otlp_span.cjs` |
 | §9 | Trace Model | `actions/setup/js/send_otlp_span.cjs`, `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/action_conclusion_otlp.cjs` |
 | §10 | Span Attribute Contract | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/action_conclusion_otlp.cjs`, `actions/setup/js/send_otlp_span.cjs`, `actions/setup/js/evaluate_outcomes.cjs`, `actions/setup/js/emit_outcome_spans.cjs` |
+| §10.7 | MCP Gateway Span Attribute Contract | `gh-aw-mcpg` tracing package, `gh-aw-mcpg/docs/otel-sentry.md` |
 | §11 | Resource Attributes | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/send_otlp_span.cjs` |
 | §12 | Trace ID Propagation | `actions/setup/js/action_setup_otlp.cjs`, `actions/setup/js/aw_context.cjs`, `pkg/workflow/compiler_yaml.go` |
 
@@ -685,6 +763,10 @@ A conforming implementation MUST include automated coverage for the following be
 | `T-OTEL-OBS-013` | Span attribute contract | Setup and conclusion spans contain all required attributes from §10. | `actions/setup/js/action_setup_otlp.test.cjs`, `actions/setup/js/action_conclusion_otlp.test.cjs` |
 | `T-OTEL-OBS-014` | Resource attributes | All exported spans include required resource attributes from §11. | `actions/setup/js/send_otlp_span.test.cjs` |
 | `T-OTEL-OBS-015` | Trace ID resolution order | Trace ID follows the priority chain: explicit option → action input → parent context → generate new. | `actions/setup/js/action_setup_otlp.test.cjs` |
+| `T-OTEL-OBS-016` | Gateway span linkage | Gateway spans (`gateway.request`, `mcp.tool_call`, `gateway.backend.execute`) appear as children of the agent job's setup span in the same trace. | `gh-aw-mcpg` integration tests |
+| `T-OTEL-OBS-017` | Gateway tool name attribute | Every `mcp.tool_call` span includes `gen_ai.tool.name` identifying the tool invoked. | `gh-aw-mcpg` integration tests |
+| `T-OTEL-OBS-018` | Gateway rate limit attribute | `gateway.backend.execute` spans include `rate_limit.hit` when a rate limit is triggered. | `gh-aw-mcpg` integration tests |
+| `T-OTEL-OBS-019` | Proxy DIFC span emission | When API proxy is active, `proxy.difc_pipeline` and `proxy.backend.forward` spans are emitted. | `gh-aw-mcpg` integration tests |
 
 Additional tests SHOULD be added when new helper APIs, new OTLP normalization rules, or new runtime sinks become normative.
 
@@ -726,6 +808,14 @@ The following agentic workflows provide runtime conformance validation:
 ---
 
 ## 16. Change Log
+
+### Version 0.3.0 (Working Draft)
+
+- Extended §9.3 span hierarchy to include MCP gateway and API proxy spans
+- Extended §9.4 span kinds table with gateway span types (`gateway.request`, `mcp.tool_call`, `gateway.backend.execute`, `proxy.difc_pipeline`, `proxy.backend.forward`)
+- Added §10.7 MCP Gateway Span Attribute Contract: attribute tables for `gateway.request`, `mcp.tool_call`, `gateway.backend.execute`, `proxy.difc_pipeline`, `proxy.backend.forward`
+- Added compliance tests T-OTEL-OBS-016 through T-OTEL-OBS-019 for gateway span linkage, tool names, rate limits, and proxy spans
+- Source: [gh-aw-mcpg OTEL Sentry docs](https://github.com/github/gh-aw-mcpg/blob/main/docs/otel-sentry.md)
 
 ### Version 0.2.0 (Working Draft)
 

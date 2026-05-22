@@ -28,6 +28,10 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 		return nil, fmt.Errorf("failed to unmarshal frontmatter into config: %w", err)
 	}
 
+	if err := validateRunsOnValue(config.RunsOn); err != nil {
+		return nil, err
+	}
+
 	// Parse typed Runtimes field if runtimes exist
 	if len(config.Runtimes) > 0 {
 		runtimesTyped, err := parseRuntimesConfig(config.Runtimes)
@@ -76,6 +80,48 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 
 	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%v", config.Name, config.Engine)
 	return &config, nil
+}
+
+func validateRunsOnValue(value any) error {
+	if value == nil {
+		return nil
+	}
+
+	switch v := value.(type) {
+	case string:
+		return nil
+	case []any:
+		for _, label := range v {
+			if _, ok := label.(string); !ok {
+				return fmt.Errorf("invalid runs-on array entry type %T: expected string", label)
+			}
+		}
+		return nil
+	case map[string]any:
+		for key, value := range v {
+			switch key {
+			case "group":
+				if _, ok := value.(string); !ok {
+					return fmt.Errorf("invalid runs-on.group type %T: expected string", value)
+				}
+			case "labels":
+				labels, ok := value.([]any)
+				if !ok {
+					return fmt.Errorf("invalid runs-on.labels type %T: expected array of strings", value)
+				}
+				for _, label := range labels {
+					if _, ok := label.(string); !ok {
+						return fmt.Errorf("invalid runs-on.labels entry type %T: expected string", label)
+					}
+				}
+			default:
+				return fmt.Errorf("invalid runs-on object key %q: expected only group or labels", key)
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("invalid runs-on type %T: expected string, array of strings, or object", value)
+	}
 }
 
 func parseOnNeedsConfig(on map[string]any) ([]string, error) {

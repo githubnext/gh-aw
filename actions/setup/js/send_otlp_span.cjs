@@ -1522,17 +1522,67 @@ function getErrorMessage(errorEntry) {
  * @property {number | undefined} estimatedCostUsd
  * @property {string | undefined} stopReason
  * @property {string | undefined} resolvedModel
+ * @property {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number} | undefined} tokenUsage
  * @property {number} warningCount
  */
 
 /**
- * Read turns, estimated cost, and warning volume from agent-stdio.log.
+ * Normalize token usage counters from an engine result event usage block.
+ *
+ * @param {unknown} rawUsage
+ * @returns {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number} | undefined}
+ */
+function normalizeRuntimeTokenUsage(rawUsage) {
+  if (!rawUsage || typeof rawUsage !== "object" || Array.isArray(rawUsage)) {
+    return undefined;
+  }
+
+  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, cache_read_input_tokens?: number, cache_creation_input_tokens?: number}} */
+  const usage = rawUsage;
+  /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number}} */
+  const normalized = {};
+  if (typeof usage.input_tokens === "number" && Number.isFinite(usage.input_tokens) && usage.input_tokens >= 0) {
+    normalized.input_tokens = usage.input_tokens;
+  }
+  if (typeof usage.output_tokens === "number" && Number.isFinite(usage.output_tokens) && usage.output_tokens >= 0) {
+    normalized.output_tokens = usage.output_tokens;
+  }
+
+  const cacheReadTokens =
+    typeof usage.cache_read_tokens === "number" && Number.isFinite(usage.cache_read_tokens) && usage.cache_read_tokens >= 0
+      ? usage.cache_read_tokens
+      : typeof usage.cache_read_input_tokens === "number" &&
+          Number.isFinite(usage.cache_read_input_tokens) &&
+          usage.cache_read_input_tokens >= 0
+        ? usage.cache_read_input_tokens
+        : undefined;
+  if (typeof cacheReadTokens === "number") {
+    normalized.cache_read_tokens = cacheReadTokens;
+  }
+
+  const cacheWriteTokens =
+    typeof usage.cache_write_tokens === "number" && Number.isFinite(usage.cache_write_tokens) && usage.cache_write_tokens >= 0
+      ? usage.cache_write_tokens
+      : typeof usage.cache_creation_input_tokens === "number" &&
+          Number.isFinite(usage.cache_creation_input_tokens) &&
+          usage.cache_creation_input_tokens >= 0
+        ? usage.cache_creation_input_tokens
+        : undefined;
+  if (typeof cacheWriteTokens === "number") {
+    normalized.cache_write_tokens = cacheWriteTokens;
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+/**
+ * Read turns, estimated cost, token usage, and warning volume from agent-stdio.log.
  *
  * @returns {AgentRuntimeMetrics}
  */
 function readAgentRuntimeMetrics() {
   /** @type {AgentRuntimeMetrics} */
-  const metrics = { turns: undefined, estimatedCostUsd: undefined, stopReason: undefined, resolvedModel: undefined, warningCount: 0 };
+  const metrics = { turns: undefined, estimatedCostUsd: undefined, stopReason: undefined, resolvedModel: undefined, tokenUsage: undefined, warningCount: 0 };
 
   try {
     const content = fs.readFileSync(AGENT_STDIO_LOG_PATH, "utf8");
@@ -1564,6 +1614,10 @@ function readAgentRuntimeMetrics() {
       }
       if (typeof parsed.stop_reason === "string" && parsed.stop_reason) {
         metrics.stopReason = parsed.stop_reason;
+      }
+      const tokenUsage = normalizeRuntimeTokenUsage(parsed.usage);
+      if (tokenUsage) {
+        metrics.tokenUsage = tokenUsage;
       }
     };
 
@@ -2016,7 +2070,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // to avoid double-counting in backends that sum gen_ai.usage.* across all spans.
   // When no agent span is emitted the attributes fall through to the conclusion span
   // so a single query is still sufficient for observability.
-  const agentUsage = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || {};
+  const agentUsage = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || runtimeMetrics.tokenUsage || {};
   const usageAttrs = [];
   if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
     usageAttrs.push(buildAttr("gen_ai.usage.input_tokens", agentUsage.input_tokens));

@@ -2750,24 +2750,7 @@
             "description": "Name of the job"
           },
           "runs-on": {
-            "oneOf": [
-              {
-                "type": "string",
-                "description": "Runner type as string"
-              },
-              {
-                "type": "array",
-                "description": "Runner type as array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              {
-                "type": "object",
-                "description": "Runner type as object",
-                "additionalProperties": false
-              }
-            ],
+            "$ref": "#/$defs/github_actions_runs_on",
             "description": "Runner label or environment where the job executes. Can be a string (single runner) or array (multiple runner requirements)."
           },
           "steps": {
@@ -3086,38 +3069,7 @@
       }
     },
     "runs-on": {
-      "description": "Runner type for workflow execution (GitHub Actions standard field). Supports multiple forms: simple string for single runner label (e.g., 'ubuntu-latest'), array for runner selection with fallbacks, or object for GitHub-hosted runner groups with specific labels. For agentic workflows, runner selection matters when AI workloads require specific compute resources or when using self-hosted runners with specialized capabilities. Typically configured at the job level instead. See https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job",
-      "oneOf": [
-        {
-          "type": "string",
-          "description": "Simple runner label string. Use for standard GitHub-hosted runners (e.g., 'ubuntu-latest', 'windows-latest', 'macos-latest') or self-hosted runner labels. Most common form for agentic workflows."
-        },
-        {
-          "type": "array",
-          "description": "Array of runner labels for selection with fallbacks. GitHub Actions will use the first available runner that matches any label in the array. Useful for high-availability setups or when multiple runner types are acceptable.",
-          "items": {
-            "type": "string"
-          }
-        },
-        {
-          "type": "object",
-          "description": "Runner group configuration for GitHub-hosted runners. Use this form to target specific runner groups (e.g., larger runners with more CPU/memory) or self-hosted runner pools with specific label requirements. Agentic workflows may benefit from larger runners for complex AI processing tasks.",
-          "additionalProperties": false,
-          "properties": {
-            "group": {
-              "type": "string",
-              "description": "Runner group name for self-hosted runners or GitHub-hosted runner groups"
-            },
-            "labels": {
-              "type": "array",
-              "description": "List of runner labels for self-hosted runners or GitHub-hosted runner selection",
-              "items": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      ],
+      "$ref": "#/$defs/github_actions_runs_on",
       "examples": [
         "ubuntu-latest",
         [
@@ -11743,6 +11695,40 @@
     }
   ],
   "$defs": {
+    "github_actions_runs_on": {
+      "description": "Runner type for workflow execution (GitHub Actions standard field). Supports multiple forms: simple string for single runner label (e.g., 'ubuntu-latest'), array for runner selection with fallbacks, or object for GitHub-hosted runner groups with specific labels. For agentic workflows, runner selection matters when AI workloads require specific compute resources or when using self-hosted runners with specialized capabilities. Typically configured at the job level instead. See https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Simple runner label string. Use for standard GitHub-hosted runners (e.g., 'ubuntu-latest', 'windows-latest', 'macos-latest') or self-hosted runner labels. Most common form for agentic workflows."
+        },
+        {
+          "type": "array",
+          "description": "Array of runner labels for selection with fallbacks. GitHub Actions will use the first available runner that matches any label in the array. Useful for high-availability setups or when multiple runner types are acceptable.",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "object",
+          "description": "Runner group configuration for GitHub-hosted runners. Use this form to target specific runner groups (e.g., larger runners with more CPU/memory) or self-hosted runner pools with specific label requirements. Agentic workflows may benefit from larger runners for complex AI processing tasks.",
+          "additionalProperties": false,
+          "properties": {
+            "group": {
+              "type": "string",
+              "description": "Runner group name for self-hosted runners or GitHub-hosted runner groups"
+            },
+            "labels": {
+              "type": "array",
+              "description": "List of runner labels for self-hosted runners or GitHub-hosted runner selection",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
     "github_toolset_name": {
       "type": "string",
       "description": "A GitHub MCP server toolset name that enables a specific group of GitHub API functionalities.",

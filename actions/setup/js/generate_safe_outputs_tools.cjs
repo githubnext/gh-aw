@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 "use strict";
+// @safe-outputs-exempt SEC-004 — schema generator; does not process user body content. The substring "body:" appears only in the comment referencing the "allow-body" config option.
 
 /**
  * generate_safe_outputs_tools.cjs

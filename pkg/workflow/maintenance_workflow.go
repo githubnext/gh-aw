@@ -147,9 +147,15 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	const defaultRunsOn = "ubuntu-slim"
 	var configuredRunsOn RunsOnValue
 	disableLabelTrigger := true // default: disable label-triggered jobs (opt-in)
+	var compileGitHubTokenSecret string
+	enableCompileCreatePullRequest := false
 	if repoConfig != nil && repoConfig.Maintenance != nil {
 		configuredRunsOn = repoConfig.Maintenance.RunsOn
 		disableLabelTrigger = !repoConfig.Maintenance.IsLabelTriggerEnabled()
+		if repoConfig.Maintenance.Compile != nil {
+			compileGitHubTokenSecret = repoConfig.Maintenance.Compile.CreatePullRequestGitHubToken
+			enableCompileCreatePullRequest = strings.TrimSpace(compileGitHubTokenSecret) != ""
+		}
 	}
 	runsOnValue := FormatRunsOn(configuredRunsOn, defaultRunsOn)
 
@@ -214,6 +220,11 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 	defaultBranch := FetchDefaultBranch(repoSlug)
 
 	// Generate the YAML content for the maintenance workflow
+	maintenanceLog.Printf(
+		"Maintenance compile configuration: createPullRequest=%v tokenSecretConfigured=%v",
+		enableCompileCreatePullRequest,
+		strings.TrimSpace(compileGitHubTokenSecret) != "",
+	)
 	content := buildMaintenanceWorkflowYAML(ctx, buildMaintenanceWorkflowYAMLOptions{
 		cronSchedule:        cronSchedule,
 		scheduleDesc:        scheduleDesc,
@@ -226,6 +237,8 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		configuredRunsOn:    configuredRunsOn,
 		defaultBranch:       defaultBranch,
 		disableLabelTrigger: disableLabelTrigger,
+		compileGitHubToken:  getEffectiveMaintenanceGitHubToken(compileGitHubTokenSecret),
+		createCompilePR:     enableCompileCreatePullRequest,
 	})
 
 	// Write the maintenance workflow file
