@@ -492,7 +492,8 @@ For each provider's enriched data, attempt to infer or validate the ET multiplie
 Produce a consolidated multiplier gap table listing:
 - Models present in the live inventory but **missing** from `model_multipliers.json` — include
   the provider name for each model (e.g. "openai", "anthropic", "gemini", "copilot")
-- Models in `model_multipliers.json` that are **no longer returned** by any API (stale)
+- Models in `model_multipliers.json` that are **not currently returned** by live APIs; keep these
+  in the payload as historical entries (do not propose automatic removals)
 - Models where the **inferred multiplier** differs from the stored one
 
 ### Step 4: Identify New or Updated Model Families
@@ -570,9 +571,11 @@ in the enriched `models.json` artifact (context limits, capabilities, billing fi
 |----------|----------|--------------------:|-------|
 | ...      | ...      | ...                 | ...   |
 
-#### Stale entries (no longer returned by any API)
+#### Historical entries not currently returned
 
 List model IDs that appear in `model_multipliers.json` but are absent from all live inventories.
+Treat these as historical records that should remain in the payload unless a human explicitly
+decides to delete them.
 
 #### Inferred vs stored discrepancies
 
@@ -596,7 +599,7 @@ List the complete sorted model IDs for each provider.
 
 ### Notes
 
-Any caveats, stale patterns removed, or aliases that are already well-covered.
+Any caveats, historical entries retained, or aliases that are already well-covered.
 ```
 
 If no updates are needed (all live models are already covered by existing aliases, all
