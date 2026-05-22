@@ -75,7 +75,7 @@ safe-outputs:
     create-code-scanning-alert:
       driver: "Smoke Claude"
     create-check-run:
-      name: "Smoke Claude"
+      name: "Smoke Claude: Agent Status"
       max: 1
     update-pull-request:
       title: true
