@@ -2751,15 +2751,7 @@ describe("handle_agent_failure", () => {
 
     beforeEach(() => {
       vi.resetModules();
-      ({
-        detectAndHandleFailureCascade,
-        findRecentFailureIssues,
-        CASCADE_THRESHOLD,
-        CASCADE_LABEL,
-        CASCADE_ROLLUP_LABEL,
-        CASCADE_ROLLUP_TITLE,
-        CASCADE_WINDOW_MINUTES,
-      } = require("./handle_agent_failure.cjs"));
+      ({ detectAndHandleFailureCascade, findRecentFailureIssues, CASCADE_THRESHOLD, CASCADE_LABEL, CASCADE_ROLLUP_LABEL, CASCADE_ROLLUP_TITLE, CASCADE_WINDOW_MINUTES } = require("./handle_agent_failure.cjs"));
     });
 
     it("exports cascade constants with expected values", () => {

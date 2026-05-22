@@ -60,20 +60,20 @@
               "description": "Set to false to disable all label-triggered jobs (disable_agentic_workflow, label_apply_safe_outputs, etc.). When absent or true (default), all label-triggered jobs are included in the maintenance workflow.",
               "type": "boolean"
             },
-              "compile": {
-                "description": "Configuration for the compile-workflows maintenance job.",
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "create_pull_request_github_token": {
-                    "description": "GitHub Actions secret name used by the compile-workflows job for GitHub API calls and branch pushes when compile drift should create or update a deduplicated pull request instead of opening an issue.",
-                    "type": "string",
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
-                    "examples": ["GH_AW_GITHUB_TOKEN", "MAINTENANCE_GITHUB_TOKEN"]
-                  }
+            "compile": {
+              "description": "Configuration for the compile-workflows maintenance job.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "create_pull_request_github_token": {
+                  "description": "GitHub Actions secret name used by the compile-workflows job for GitHub API calls and branch pushes when compile drift should create or update a deduplicated pull request instead of opening an issue.",
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+                  "examples": ["GH_AW_GITHUB_TOKEN", "MAINTENANCE_GITHUB_TOKEN"]
                 }
               }
+            }
           }
         }
       ]

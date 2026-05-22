@@ -1621,12 +1621,7 @@ async function ensureLabelExists(owner, repo, labelName) {
     await github.rest.issues.getLabel({ owner, repo, name: labelName });
   } catch (err) {
     // 404 → label does not exist, create it
-    const statusCode =
-      err &&
-      typeof err === "object" &&
-      "status" in err
-        ? /** @type {any} */ (err).status
-        : undefined;
+    const statusCode = err && typeof err === "object" && "status" in err ? /** @type {any} */ err.status : undefined;
     if (statusCode !== 404) {
       core.warning(`Could not check label "${labelName}": ${getErrorMessage(err)}`);
       return;
@@ -1731,24 +1726,18 @@ async function detectAndHandleFailureCascade(owner, repo, triggeringIssueNumber)
     issueNumbers.add(triggeringIssueNumber);
 
     if (issueNumbers.size < CASCADE_THRESHOLD) {
-      core.info(
-        `Cascade check: ${issueNumbers.size} failure issue(s) in the last ${CASCADE_WINDOW_MINUTES} min (threshold: ${CASCADE_THRESHOLD}) — no cascade`
-      );
+      core.info(`Cascade check: ${issueNumbers.size} failure issue(s) in the last ${CASCADE_WINDOW_MINUTES} min (threshold: ${CASCADE_THRESHOLD}) — no cascade`);
       return;
     }
 
-    core.info(
-      `⚠️ Cascade detected: ${issueNumbers.size} failure issues in the last ${CASCADE_WINDOW_MINUTES} min — creating rollup and labeling individual issues`
-    );
+    core.info(`⚠️ Cascade detected: ${issueNumbers.size} failure issues in the last ${CASCADE_WINDOW_MINUTES} min — creating rollup and labeling individual issues`);
 
     // Ensure required labels exist
     await ensureLabelExists(owner, repo, CASCADE_LABEL);
     await ensureLabelExists(owner, repo, CASCADE_ROLLUP_LABEL);
 
     // Build rollup body
-    const affectedList = recentIssues
-      .map(i => `- [#${i.number}](${i.html_url}) — ${i.title}`)
-      .join("\n");
+    const affectedList = recentIssues.map(i => `- [#${i.number}](${i.html_url}) — ${i.title}`).join("\n");
     const windowStart = new Date(Date.now() - CASCADE_WINDOW_MS);
     const rollupBody = [
       `## ⚠️ Failure Cascade Detected`,
