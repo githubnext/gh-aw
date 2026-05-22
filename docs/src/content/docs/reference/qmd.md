@@ -176,6 +176,20 @@ tools:
 ---
 ```
 
+```aw wrap title="Same import pattern with Claude"
+---
+on: push
+engine: claude
+imports:
+  - shared/otlp.md
+  - shared/qmd-otlp.md
+tools:
+  qmd:
+    checkouts:
+      - pattern: "docs/**/*.md"
+---
+```
+
 ## Related Documentation
 
 - [Tools](/gh-aw/reference/tools/) - Overview of all available tools and configuration

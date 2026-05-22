@@ -160,8 +160,10 @@ Override the main workflow engine for threat detection:
 safe-outputs:
   create-pull-request:
   threat-detection:
-    engine: copilot  # Use Copilot instead of main workflow engine
+    engine: claude   # Use Claude instead of main workflow engine
 ```
+
+The `engine` value also accepts other non-default engines such as `codex` and `gemini`.
 
 **Object Format:**
 

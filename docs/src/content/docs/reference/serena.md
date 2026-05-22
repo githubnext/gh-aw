@@ -30,6 +30,21 @@ imports:
 ---
 ```
 
+Equivalent configuration with a non-Copilot engine:
+
+```aw wrap
+---
+on: issues
+
+engine: claude
+
+imports:
+  - uses: shared/mcp/serena.md
+    with:
+      languages: ["go", "typescript"]
+---
+```
+
 For Go-only workflows, use the convenience wrapper (copy [`shared/mcp/serena-go.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena-go.md) into your repository before importing it):
 
 ```aw wrap

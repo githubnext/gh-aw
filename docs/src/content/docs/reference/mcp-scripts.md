@@ -264,6 +264,20 @@ safe-outputs:
 Analyze provided text using the `analyze-text` tool and create a discussion with results.
 ```
 
+```yaml wrap title="Same structure with Gemini"
+---
+on: workflow_dispatch
+engine: gemini
+imports:
+  - shared/pr-data-mcp-script.md
+mcp-scripts:
+  analyze-text:
+    description: "Analyze text and return statistics"
+    script: |
+      return { ok: true };
+---
+```
+
 ## Security Considerations
 
 MCP Scripts tools run on the GitHub Actions **runner host** — outside the agent container — so they can access the runner's file system and environment but are isolated from the AI's own execution environment. Tools also provide secret isolation (only specified env vars are forwarded), process isolation (separate execution), and output sanitization (large outputs saved to files). Only predefined tools are available to agents.

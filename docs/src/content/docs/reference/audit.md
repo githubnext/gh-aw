@@ -191,6 +191,25 @@ permissions:
 Use the `agentic-workflows` MCP tool `audit` with run ID ${{ github.event.workflow_run.id }}, identify the pull request that triggered it, and post a comment summarizing key findings and blocked domains. Highlight issues with severity `high` or `critical`. If there are no findings, post a brief "no issues found" comment.
 ```
 
+```aw wrap title="Same pattern with Claude"
+---
+description: Post audit findings as a PR comment after each agent run
+on:
+  workflow_run:
+    workflows: ['my-workflow']
+    types: [completed]
+engine: claude
+tools:
+  github:
+    toolsets: [pull_requests]
+  agentic-workflows:
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+---
+```
+
 ### Detecting regressions with diff
 
 ```aw wrap

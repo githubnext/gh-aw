@@ -33,6 +33,20 @@ Search the web for information about: ${{ github.event.issue.title }}
 Use the tavily search tool to find recent information.
 ```
 
+```aw wrap title="Same setup with Codex"
+---
+on: issues
+engine: codex
+mcp-servers:
+  tavily:
+    command: npx
+    args: ["-y", "@tavily/mcp"]
+    env:
+      TAVILY_API_KEY: "${{ secrets.TAVILY_API_KEY }}"
+    allowed: ["search", "search_news"]
+---
+```
+
 **Setup:**
 1. Sign up at [tavily.com](https://tavily.com/) and get your API key
 2. Add as repository secret: `gh aw secrets set TAVILY_API_KEY --value "<your-api-key>"`
@@ -73,4 +87,3 @@ network:
 - [Model Context Protocol Specification](https://github.com/modelcontextprotocol/specification)
 - [Tavily MCP Server](https://github.com/tavily-ai/tavily-mcp)
 - [Tavily Documentation](https://tavily.com/)
-

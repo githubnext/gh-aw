@@ -25,6 +25,18 @@ imports:
 Workflow instructions here...
 ```
 
+```aw wrap title="Same syntax with Claude"
+---
+on: issues
+
+engine: claude
+
+imports:
+  - shared/common-tools.md
+  - shared/mcp/tavily.md
+---
+```
+
 ### Parameterized imports (`uses`/`with`)
 
 Shared workflows that declare an `import-schema` accept runtime parameters. Use the `uses`/`with` form to pass values:

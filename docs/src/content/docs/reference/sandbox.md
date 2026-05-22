@@ -218,6 +218,18 @@ Reproduce the bug described in this issue, add a regression test, and fix it.
 Build with `cmake --build build -j$(nproc)` and verify with `ctest --output-on-failure`.
 ```
 
+```yaml wrap title="Same timeout/sandbox setup with Gemini"
+---
+on: issues
+engine: gemini
+runs-on: [self-hosted, linux, x64, large]
+timeout-minutes: 30
+tools:
+  bash: [":*"]
+  timeout: 300
+---
+```
+
 ### Splitting Build and Test into Separate Steps
 
 Instead of relying on a single large timeout, break long workflows into a custom `jobs:` setup step that caches build outputs, then runs the agent on the pre-built workspace:

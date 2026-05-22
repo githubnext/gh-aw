@@ -123,6 +123,15 @@ Follow these coding guidelines:
 Review the code changes and provide feedback.
 ```
 
+```aw wrap title="Same runtime import flow with Claude"
+---
+on: issues
+engine: claude
+---
+
+{{#runtime-import coding-standards.md}}
+```
+
 **Line range extraction:**
 
 ```aw wrap
