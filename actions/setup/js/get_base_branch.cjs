@@ -89,6 +89,7 @@ async function getBaseBranch(targetRepo = null, options = null) {
       const symbolicRef = execGitSync(["symbolic-ref", "refs/remotes/origin/HEAD"], {
         cwd: options.cwd,
         stdio: ["pipe", "pipe", "pipe"],
+        // Missing origin/HEAD is expected in some side-repo checkouts; avoid noisy annotations.
         suppressLogs: true,
       }).trim();
       if (symbolicRef.startsWith("refs/remotes/origin/")) {
