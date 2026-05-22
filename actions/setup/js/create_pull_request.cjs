@@ -27,7 +27,7 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
-const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
+const { renderTemplateFromFile, renderFilesList, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
@@ -1243,7 +1243,7 @@ async function main(config = {}) {
     if (manifestProtectionRequestReview && manifestProtectionRequestReview.length > 0) {
       const protectedFilesNoticeTemplatePath = getPromptPath("manifest_protection_request_review.md");
       const protectedFilesNotice = renderTemplateFromFile(protectedFilesNoticeTemplatePath, {
-        files: manifestProtectionRequestReview.join(", "),
+        files: renderFilesList(manifestProtectionRequestReview.join(", ")),
       });
       bodyLines.unshift(protectedFilesNotice, "", "");
     }
