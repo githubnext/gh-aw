@@ -323,21 +323,21 @@ if storage is not None:
         stats["after_alpha_filter"] = len(storage)
 
     # ── 3. Near-duplicate removal ─────────────────────────────────────────────
-    for DeduplicatorClass, kwargs, name in [
-        ("dataflow.operators.dedup", "MinHashDeduplicator", {"threshold": 0.85}, "MinHashDeduplicator"),
-        ("dataflow.operators.dedup", "HashDeduplicator",    {},                  "HashDeduplicator"),
+    for module_path, class_name, kwargs in [
+        ("dataflow.operators.dedup", "MinHashDeduplicator", {"threshold": 0.85}),
+        ("dataflow.operators.dedup", "HashDeduplicator",    {}),
     ]:
         try:
-            mod = __import__(DeduplicatorClass, fromlist=[name])
-            cls = getattr(mod, name)
+            mod = __import__(module_path, fromlist=[class_name])
+            cls = getattr(mod, class_name)
             op = cls(**kwargs)
             op.run(storage=storage.step(), input_key="text")
             stats["after_dedup"] = len(storage)
-            stats["operators_used"].append(name)
-            print(f"After {name}: {stats['after_dedup']} records")
+            stats["operators_used"].append(class_name)
+            print(f"After {class_name}: {stats['after_dedup']} records")
             break
         except Exception as e:
-            print(f"{name} skipped: {e}")
+            print(f"{class_name} skipped: {e}")
     else:
         stats["after_dedup"] = len(storage)
 
@@ -515,7 +515,7 @@ except FileNotFoundError:
 
 run_id   = "${{ github.run_id }}"
 repo     = "${{ github.repository }}"
-run_url  = f"https://github.com/{repo}/actions/runs/{run_id}"
+run_url  = f"${{ github.server_url }}/{repo}/actions/runs/{run_id}"
 date_str = __import__('datetime').date.today().isoformat()
 
 by_source_rows = "\n".join(
