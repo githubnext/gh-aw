@@ -45,7 +45,7 @@ func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
 
 // buildWorkflowMetadataEnvVars builds workflow name and source environment variables
 // This extracts the duplicated workflow metadata setup logic from safe-output job builders
-func buildWorkflowMetadataEnvVars(workflowName string, workflowSource string) []string {
+func buildWorkflowMetadataEnvVars(workflowName string, workflowSource string, localSourceURL string) []string {
 	var customEnvVars []string
 
 	// Add workflow name
@@ -58,14 +58,18 @@ func buildWorkflowMetadataEnvVars(workflowName string, workflowSource string) []
 		if sourceURL != "" {
 			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
 		}
+	} else if localSourceURL != "" {
+		// For local workflows (no external source), use the local file URL so that
+		// failure issue links point to the workflow source file rather than "#".
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE_URL: %q\n", localSourceURL))
 	}
 
 	return customEnvVars
 }
 
 // buildWorkflowMetadataEnvVarsWithTrackerID builds workflow metadata env vars including tracker-id
-func buildWorkflowMetadataEnvVarsWithTrackerID(workflowName string, workflowSource string, trackerID string) []string {
-	customEnvVars := buildWorkflowMetadataEnvVars(workflowName, workflowSource)
+func buildWorkflowMetadataEnvVarsWithTrackerID(workflowName string, workflowSource string, trackerID string, localSourceURL string) []string {
+	customEnvVars := buildWorkflowMetadataEnvVars(workflowName, workflowSource, localSourceURL)
 
 	// Add tracker-id if present
 	if trackerID != "" {
@@ -105,7 +109,7 @@ func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepo
 	var customEnvVars []string
 
 	// Add workflow metadata (name, source, and tracker-id)
-	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID, buildLocalWorkflowSourceURL(c.markdownPath))...)
 
 	// Add engine metadata (id, version, model) for XML comment marker
 	customEnvVars = append(customEnvVars, buildEngineMetadataEnvVars(data.EngineConfig)...)
