@@ -600,8 +600,7 @@ describe("check_membership.cjs", () => {
     it("should authorize a bot in the allowlist when [bot] form is active on the repo", async () => {
       process.env.GH_AW_ALLOWED_BOTS = "greptile-apps";
 
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-        .mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check ([bot] form)
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check ([bot] form)
 
       await runScript();
 
@@ -632,8 +631,7 @@ describe("check_membership.cjs", () => {
       process.env.GH_AW_ALLOWED_BOTS = "greptile-apps";
 
       const notFoundError = { status: 404, message: "Not Found" };
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-        .mockRejectedValue(notFoundError); // bot status checks all return 404
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(notFoundError); // bot status checks all return 404
 
       await runScript();
 
@@ -659,8 +657,7 @@ describe("check_membership.cjs", () => {
       process.env.GH_AW_ALLOWED_BOTS = "Copilot";
       mockContext.actor = "Copilot";
 
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-        .mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check (Copilot[bot] form) → active
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check (Copilot[bot] form) → active
 
       await runScript();
 
@@ -674,8 +671,7 @@ describe("check_membership.cjs", () => {
       mockContext.actor = "Copilot";
 
       const notFoundError = { status: 404, message: "Not Found" };
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-        .mockRejectedValue(notFoundError); // all bot status checks → 404
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(notFoundError); // all bot status checks → 404
 
       await runScript();
 
@@ -749,8 +745,7 @@ describe("check_membership.cjs", () => {
       process.env.GH_AW_ALLOWED_BOTS = "github-actions";
       mockContext.actor = "github-actions[bot]";
 
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-        .mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check only
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check only
 
       await runScript();
 
@@ -766,8 +761,7 @@ describe("check_membership.cjs", () => {
     it("should authorize actor that is the second entry in a multi-bot allowlist", async () => {
       process.env.GH_AW_ALLOWED_BOTS = "some-other-bot,greptile-apps";
 
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-        .mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check ([bot] form)
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check ([bot] form)
 
       await runScript();
 
@@ -780,8 +774,7 @@ describe("check_membership.cjs", () => {
     it("should authorize actor when the allowlist entry includes the [bot] suffix", async () => {
       process.env.GH_AW_ALLOWED_BOTS = "greptile-apps[bot]";
 
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-        .mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check ([bot] form)
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check ([bot] form)
 
       await runScript();
 
@@ -794,8 +787,7 @@ describe("check_membership.cjs", () => {
       process.env.GH_AW_ALLOWED_BOTS = "greptile-apps";
 
       const notFoundError = { status: 404, message: "Not Found" };
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-        .mockRejectedValue(notFoundError); // all bot status checks → 404
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(notFoundError); // all bot status checks → 404
 
       await runScript();
 
@@ -810,8 +802,7 @@ describe("check_membership.cjs", () => {
       process.env.GH_AW_ALLOWED_BOTS = "greptile-apps";
 
       const serverError = { status: 500, message: "Internal Server Error" };
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-        .mockRejectedValueOnce(serverError); // bot status [bot] form → 500
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValueOnce(serverError); // bot status [bot] form → 500
 
       await runScript();
 
