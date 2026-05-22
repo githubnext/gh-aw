@@ -252,6 +252,46 @@ func TestUpdateCommand_RepoFlag(t *testing.T) {
 	assert.NotContains(t, outputStr, "unknown flag", "The --repo flag should be recognized")
 }
 
+// TestUpdateCommand_AfterManifestAddIntegration verifies a manifest package can be
+// added and then updated in place.
+func TestUpdateCommand_AfterManifestAddIntegration(t *testing.T) {
+	skipWithoutGitHubAuth(t)
+
+	setup := setupUpdateIntegrationTest(t)
+	defer setup.cleanup()
+
+	addCmd := exec.Command(setup.binaryPath, "add", "githubnext/agentic-ops@v-1", "--verbose")
+	addCmd.Dir = setup.tempDir
+	addOutput, addErr := addCmd.CombinedOutput()
+	addOutputStr := string(addOutput)
+	require.NoError(t, addErr, "add command should succeed: %s", addOutputStr)
+
+	entries, err := os.ReadDir(setup.workflowsDir)
+	require.NoError(t, err, "should read workflows directory")
+	require.NotEmpty(t, entries, "add should create at least one workflow")
+
+	var workflowPath string
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		workflowPath = filepath.Join(setup.workflowsDir, entry.Name())
+		break
+	}
+	require.NotEmpty(t, workflowPath, "expected at least one markdown workflow file")
+
+	content, err := os.ReadFile(workflowPath)
+	require.NoError(t, err, "should read added workflow")
+	assert.Contains(t, string(content), "source: githubnext/agentic-ops@", "workflow source should be manifest-scoped")
+
+	updateCmd := exec.Command(setup.binaryPath, "update", "--verbose")
+	updateCmd.Dir = setup.tempDir
+	updateOutput, updateErr := updateCmd.CombinedOutput()
+	updateOutputStr := string(updateOutput)
+	require.NoError(t, updateErr, "update command should succeed after manifest add: %s", updateOutputStr)
+	assert.NotContains(t, updateOutputStr, "no workflows found", "update should detect added workflows")
+}
+
 // --- Merge Behavior Integration Tests ---
 
 // TestUpdateCommand_MergeIsDefault verifies that merge is the default behavior
