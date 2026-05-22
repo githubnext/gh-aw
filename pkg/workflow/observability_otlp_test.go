@@ -1595,201 +1595,201 @@ func TestExtractRawOTLPEndpointMaps(t *testing.T) {
 // TestCollectOTLPCustomAttributes verifies that custom attributes are read from the
 // frontmatter and returned as a map[string]string.
 func TestCollectOTLPCustomAttributes(t *testing.T) {
-tests := []struct {
-name        string
-frontmatter map[string]any
-want        map[string]string
-}{
-{
-name:        "nil frontmatter returns nil",
-frontmatter: nil,
-want:        nil,
-},
-{
-name:        "no observability key returns nil",
-frontmatter: map[string]any{"name": "my-workflow"},
-want:        nil,
-},
-{
-name: "no otlp key in observability returns nil",
-frontmatter: map[string]any{
-"observability": map[string]any{},
-},
-want: nil,
-},
-{
-name: "no attributes key in otlp returns nil",
-frontmatter: map[string]any{
-"observability": map[string]any{
-"otlp": map[string]any{
-"endpoint": "https://traces.example.com",
-},
-},
-},
-want: nil,
-},
-{
-name: "empty attributes map returns nil",
-frontmatter: map[string]any{
-"observability": map[string]any{
-"otlp": map[string]any{
-"attributes": map[string]any{},
-},
-},
-},
-want: nil,
-},
-{
-name: "string attributes are collected",
-frontmatter: map[string]any{
-"observability": map[string]any{
-"otlp": map[string]any{
-"endpoint": "https://traces.example.com",
-"attributes": map[string]any{
-"langfuse.session.id": "{{ gh-aw.episode.id }}",
-"langfuse.user.id":    "{{ github.actor }}",
-},
-},
-},
-},
-want: map[string]string{
-"langfuse.session.id": "{{ gh-aw.episode.id }}",
-"langfuse.user.id":    "{{ github.actor }}",
-},
-},
-{
-name: "non-string values are silently ignored",
-frontmatter: map[string]any{
-"observability": map[string]any{
-"otlp": map[string]any{
-"attributes": map[string]any{
-"valid.key":   "valid-value",
-"number.key":  42,
-"bool.key":    true,
-},
-},
-},
-},
-want: map[string]string{
-"valid.key": "valid-value",
-},
-},
-}
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		want        map[string]string
+	}{
+		{
+			name:        "nil frontmatter returns nil",
+			frontmatter: nil,
+			want:        nil,
+		},
+		{
+			name:        "no observability key returns nil",
+			frontmatter: map[string]any{"name": "my-workflow"},
+			want:        nil,
+		},
+		{
+			name: "no otlp key in observability returns nil",
+			frontmatter: map[string]any{
+				"observability": map[string]any{},
+			},
+			want: nil,
+		},
+		{
+			name: "no attributes key in otlp returns nil",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "empty attributes map returns nil",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"attributes": map[string]any{},
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "string attributes are collected",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+						"attributes": map[string]any{
+							"langfuse.session.id": "{{ gh-aw.episode.id }}",
+							"langfuse.user.id":    "{{ github.actor }}",
+						},
+					},
+				},
+			},
+			want: map[string]string{
+				"langfuse.session.id": "{{ gh-aw.episode.id }}",
+				"langfuse.user.id":    "{{ github.actor }}",
+			},
+		},
+		{
+			name: "non-string values are silently ignored",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"attributes": map[string]any{
+							"valid.key":  "valid-value",
+							"number.key": 42,
+							"bool.key":   true,
+						},
+					},
+				},
+			},
+			want: map[string]string{
+				"valid.key": "valid-value",
+			},
+		},
+	}
 
-for _, tt := range tests {
-t.Run(tt.name, func(t *testing.T) {
-got := collectOTLPCustomAttributes(tt.frontmatter)
-assert.Equal(t, tt.want, got)
-})
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := collectOTLPCustomAttributes(tt.frontmatter)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 // TestInjectOTLPConfig_CustomAttributes verifies that injectOTLPConfig injects the
 // GH_AW_OTLP_ATTRIBUTES env var when observability.otlp.attributes is configured.
 func TestInjectOTLPConfig_CustomAttributes(t *testing.T) {
-c := &Compiler{}
+	c := &Compiler{}
 
-t.Run("injects GH_AW_OTLP_ATTRIBUTES when attributes are configured via ParsedFrontmatter", func(t *testing.T) {
-wd := &WorkflowData{
-ParsedFrontmatter: &FrontmatterConfig{
-Observability: &ObservabilityConfig{
-OTLP: &OTLPConfig{
-Endpoint: "https://traces.example.com",
-Attributes: map[string]string{
-"langfuse.session.id": "{{ gh-aw.episode.id }}",
-"langfuse.user.id":    "{{ github.actor }}",
-},
-},
-},
-},
-}
-c.injectOTLPConfig(wd)
-assert.Contains(t, wd.Env, "GH_AW_OTLP_ATTRIBUTES", "should inject GH_AW_OTLP_ATTRIBUTES env var")
-assert.Contains(t, wd.Env, "langfuse.session.id", "should include the attribute key")
-assert.Contains(t, wd.Env, "gh-aw.episode.id", "should include the template value")
-})
+	t.Run("injects GH_AW_OTLP_ATTRIBUTES when attributes are configured via ParsedFrontmatter", func(t *testing.T) {
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{
+						Endpoint: "https://traces.example.com",
+						Attributes: map[string]string{
+							"langfuse.session.id": "{{ gh-aw.episode.id }}",
+							"langfuse.user.id":    "{{ github.actor }}",
+						},
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.Contains(t, wd.Env, "GH_AW_OTLP_ATTRIBUTES", "should inject GH_AW_OTLP_ATTRIBUTES env var")
+		assert.Contains(t, wd.Env, "langfuse.session.id", "should include the attribute key")
+		assert.Contains(t, wd.Env, "gh-aw.episode.id", "should include the template value")
+	})
 
-t.Run("injects GH_AW_OTLP_ATTRIBUTES when attributes are configured via RawFrontmatter", func(t *testing.T) {
-wd := &WorkflowData{
-RawFrontmatter: map[string]any{
-"observability": map[string]any{
-"otlp": map[string]any{
-"endpoint": "https://traces.example.com",
-"attributes": map[string]any{
-"session.id": "{{ gh-aw.episode.id }}",
-"user.id":    "{{ github.actor }}",
-},
-},
-},
-},
-ParsedFrontmatter: &FrontmatterConfig{},
-}
-c.injectOTLPConfig(wd)
-assert.Contains(t, wd.Env, "GH_AW_OTLP_ATTRIBUTES", "should inject GH_AW_OTLP_ATTRIBUTES env var")
-assert.Contains(t, wd.Env, "session.id", "should include the attribute key")
-})
+	t.Run("injects GH_AW_OTLP_ATTRIBUTES when attributes are configured via RawFrontmatter", func(t *testing.T) {
+		wd := &WorkflowData{
+			RawFrontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+						"attributes": map[string]any{
+							"session.id": "{{ gh-aw.episode.id }}",
+							"user.id":    "{{ github.actor }}",
+						},
+					},
+				},
+			},
+			ParsedFrontmatter: &FrontmatterConfig{},
+		}
+		c.injectOTLPConfig(wd)
+		assert.Contains(t, wd.Env, "GH_AW_OTLP_ATTRIBUTES", "should inject GH_AW_OTLP_ATTRIBUTES env var")
+		assert.Contains(t, wd.Env, "session.id", "should include the attribute key")
+	})
 
-t.Run("does not inject GH_AW_OTLP_ATTRIBUTES when no attributes are configured", func(t *testing.T) {
-wd := &WorkflowData{
-ParsedFrontmatter: &FrontmatterConfig{
-Observability: &ObservabilityConfig{
-OTLP: &OTLPConfig{
-Endpoint: "https://traces.example.com",
-},
-},
-},
-}
-c.injectOTLPConfig(wd)
-assert.NotContains(t, wd.Env, "GH_AW_OTLP_ATTRIBUTES", "should not inject GH_AW_OTLP_ATTRIBUTES when no attributes are set")
-})
+	t.Run("does not inject GH_AW_OTLP_ATTRIBUTES when no attributes are configured", func(t *testing.T) {
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{
+						Endpoint: "https://traces.example.com",
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.NotContains(t, wd.Env, "GH_AW_OTLP_ATTRIBUTES", "should not inject GH_AW_OTLP_ATTRIBUTES when no attributes are set")
+	})
 }
 
 // TestMergeOTLPCustomAttributes verifies that mergeOTLPCustomAttributes correctly
 // merges two attribute maps with base taking precedence.
 func TestMergeOTLPCustomAttributes(t *testing.T) {
-t.Run("nil inputs return nil", func(t *testing.T) {
-assert.Nil(t, mergeOTLPCustomAttributes(nil, nil))
-})
+	t.Run("nil inputs return nil", func(t *testing.T) {
+		assert.Nil(t, mergeOTLPCustomAttributes(nil, nil))
+	})
 
-t.Run("base only is returned as-is", func(t *testing.T) {
-base := map[string]string{"a": "1"}
-result := mergeOTLPCustomAttributes(base, nil)
-assert.Equal(t, map[string]string{"a": "1"}, result)
-})
+	t.Run("base only is returned as-is", func(t *testing.T) {
+		base := map[string]string{"a": "1"}
+		result := mergeOTLPCustomAttributes(base, nil)
+		assert.Equal(t, map[string]string{"a": "1"}, result)
+	})
 
-t.Run("override only is returned as-is", func(t *testing.T) {
-override := map[string]string{"b": "2"}
-result := mergeOTLPCustomAttributes(nil, override)
-assert.Equal(t, map[string]string{"b": "2"}, result)
-})
+	t.Run("override only is returned as-is", func(t *testing.T) {
+		override := map[string]string{"b": "2"}
+		result := mergeOTLPCustomAttributes(nil, override)
+		assert.Equal(t, map[string]string{"b": "2"}, result)
+	})
 
-t.Run("base keys override the same key from override", func(t *testing.T) {
-base := map[string]string{"a": "base-value", "b": "base-b"}
-override := map[string]string{"a": "override-value", "c": "override-c"}
-result := mergeOTLPCustomAttributes(base, override)
-require.NotNil(t, result)
-assert.Equal(t, "base-value", result["a"], "base should win for key 'a'")
-assert.Equal(t, "base-b", result["b"], "base-only key 'b' should be present")
-assert.Equal(t, "override-c", result["c"], "override-only key 'c' should be present")
-})
+	t.Run("base keys override the same key from override", func(t *testing.T) {
+		base := map[string]string{"a": "base-value", "b": "base-b"}
+		override := map[string]string{"a": "override-value", "c": "override-c"}
+		result := mergeOTLPCustomAttributes(base, override)
+		require.NotNil(t, result)
+		assert.Equal(t, "base-value", result["a"], "base should win for key 'a'")
+		assert.Equal(t, "base-b", result["b"], "base-only key 'b' should be present")
+		assert.Equal(t, "override-c", result["c"], "override-only key 'c' should be present")
+	})
 }
 
 // TestEncodeOTLPCustomAttributes verifies serialisation to JSON.
 func TestEncodeOTLPCustomAttributes(t *testing.T) {
-t.Run("nil returns empty string", func(t *testing.T) {
-assert.Equal(t, "", encodeOTLPCustomAttributes(nil))
-})
+	t.Run("nil returns empty string", func(t *testing.T) {
+		assert.Empty(t, encodeOTLPCustomAttributes(nil))
+	})
 
-t.Run("empty map returns empty string", func(t *testing.T) {
-assert.Equal(t, "", encodeOTLPCustomAttributes(map[string]string{}))
-})
+	t.Run("empty map returns empty string", func(t *testing.T) {
+		assert.Empty(t, encodeOTLPCustomAttributes(map[string]string{}))
+	})
 
-t.Run("non-empty map is valid JSON", func(t *testing.T) {
-encoded := encodeOTLPCustomAttributes(map[string]string{
-"langfuse.session.id": "{{ gh-aw.episode.id }}",
-})
-assert.NotEmpty(t, encoded)
-assert.Contains(t, encoded, "langfuse.session.id")
-assert.True(t, strings.HasPrefix(encoded, "{"), "should be a JSON object")
-})
+	t.Run("non-empty map is valid JSON", func(t *testing.T) {
+		encoded := encodeOTLPCustomAttributes(map[string]string{
+			"langfuse.session.id": "{{ gh-aw.episode.id }}",
+		})
+		assert.NotEmpty(t, encoded)
+		assert.Contains(t, encoded, "langfuse.session.id")
+		assert.True(t, strings.HasPrefix(encoded, "{"), "should be a JSON object")
+	})
 }

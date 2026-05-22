@@ -351,13 +351,9 @@ func mergeOTLPCustomAttributes(base, override map[string]string) map[string]stri
 		return nil
 	}
 	merged := make(map[string]string, len(base)+len(override))
-	for k, v := range override {
-		merged[k] = v
-	}
+	maps.Copy(merged, override)
 	// base takes precedence
-	for k, v := range base {
-		merged[k] = v
-	}
+	maps.Copy(merged, base)
 	return merged
 }
 

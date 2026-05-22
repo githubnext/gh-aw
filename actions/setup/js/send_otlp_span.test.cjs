@@ -5911,15 +5911,7 @@ describe("buildCustomOTLPAttributes", () => {
 
 describe("sendJobSetupSpan custom attributes", () => {
   const savedEnv = {};
-  const envKeys = [
-    "GH_AW_OTLP_ENDPOINTS",
-    "GH_AW_OTLP_ATTRIBUTES",
-    "GITHUB_RUN_ID",
-    "GITHUB_RUN_ATTEMPT",
-    "GITHUB_ACTOR",
-    "GITHUB_REPOSITORY",
-    "GH_AW_SETUP_AW_CONTEXT",
-  ];
+  const envKeys = ["GH_AW_OTLP_ENDPOINTS", "GH_AW_OTLP_ATTRIBUTES", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_ACTOR", "GITHUB_REPOSITORY", "GH_AW_SETUP_AW_CONTEXT"];
   let mkdirSpy, appendSpy;
 
   beforeEach(() => {
@@ -5978,7 +5970,6 @@ describe("sendJobSetupSpan custom attributes", () => {
     expect(attrMap["session.id"]).toBe("my-session-id");
     expect(attrMap["langfuse.user.id"]).toBe("my-user-id");
     expect(attrMap["user.id"]).toBe("my-user-id");
-
   });
 });
 
@@ -5988,17 +5979,7 @@ describe("sendJobSetupSpan custom attributes", () => {
 
 describe("sendJobConclusionSpan custom attributes", () => {
   const savedEnv = {};
-  const envKeys = [
-    "GH_AW_OTLP_ENDPOINTS",
-    "GH_AW_OTLP_ATTRIBUTES",
-    "GITHUB_RUN_ID",
-    "GITHUB_RUN_ATTEMPT",
-    "GITHUB_ACTOR",
-    "GITHUB_REPOSITORY",
-    "GITHUB_AW_OTEL_TRACE_ID",
-    "GITHUB_AW_OTEL_PARENT_SPAN_ID",
-    "GH_AW_AGENT_CONCLUSION",
-  ];
+  const envKeys = ["GH_AW_OTLP_ENDPOINTS", "GH_AW_OTLP_ATTRIBUTES", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_ACTOR", "GITHUB_REPOSITORY", "GITHUB_AW_OTEL_TRACE_ID", "GITHUB_AW_OTEL_PARENT_SPAN_ID", "GH_AW_AGENT_CONCLUSION"];
   let mkdirSpy, appendSpy;
 
   beforeEach(() => {
