@@ -1600,10 +1600,13 @@ function buildEngineFailureContext() {
 
 /** Cascade detection constants */
 const CASCADE_WINDOW_MINUTES = 60;
+const CASCADE_WINDOW_MS = CASCADE_WINDOW_MINUTES * 60 * 1000;
 const CASCADE_THRESHOLD = 10;
 const CASCADE_ROLLUP_TITLE = "[aw] Failure cascade detected";
 const CASCADE_LABEL = "cascade-suspected";
 const CASCADE_ROLLUP_LABEL = "cascade-rollup";
+/** Matches the exact title pattern produced by handle_agent_failure for individual failure issues */
+const FAILURE_TITLE_PATTERN = /^\[aw\] .+ failed$/;
 
 /**
  * Ensure a GitHub label exists in the repository, creating it with a deterministic
@@ -1656,7 +1659,7 @@ async function ensureLabelExists(owner, repo, labelName) {
  *   Issues that belong to the cascade window (may be empty).
  */
 async function findRecentFailureIssues(owner, repo) {
-  const windowStart = new Date(Date.now() - CASCADE_WINDOW_MINUTES * 60 * 1000);
+  const windowStart = new Date(Date.now() - CASCADE_WINDOW_MS);
   const since = windowStart.toISOString().slice(0, 19) + "Z"; // e.g. "2026-05-22T02:00:00Z"
 
   // GitHub search API supports `created:>=YYYY-MM-DDTHH:MM:SSZ`
@@ -1670,7 +1673,7 @@ async function findRecentFailureIssues(owner, repo) {
       order: "asc",
     });
     return result.data.items
-      .filter(item => /^\[aw\] .+ failed$/.test(item.title))
+      .filter(item => FAILURE_TITLE_PATTERN.test(item.title))
       .map(item => ({
         number: item.number,
         title: item.title,
@@ -1746,7 +1749,7 @@ async function detectAndHandleFailureCascade(owner, repo, triggeringIssueNumber)
     const affectedList = recentIssues
       .map(i => `- [#${i.number}](${i.html_url}) — ${i.title}`)
       .join("\n");
-    const windowStart = new Date(Date.now() - CASCADE_WINDOW_MINUTES * 60 * 1000);
+    const windowStart = new Date(Date.now() - CASCADE_WINDOW_MS);
     const rollupBody = [
       `## ⚠️ Failure Cascade Detected`,
       ``,
@@ -2598,8 +2601,10 @@ module.exports = {
   detectAndHandleFailureCascade,
   findRecentFailureIssues,
   CASCADE_WINDOW_MINUTES,
+  CASCADE_WINDOW_MS,
   CASCADE_THRESHOLD,
   CASCADE_LABEL,
   CASCADE_ROLLUP_LABEL,
   CASCADE_ROLLUP_TITLE,
+  FAILURE_TITLE_PATTERN,
 };

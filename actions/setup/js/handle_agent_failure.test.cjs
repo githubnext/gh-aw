@@ -2735,6 +2735,20 @@ describe("handle_agent_failure", () => {
     let CASCADE_ROLLUP_TITLE;
     let CASCADE_WINDOW_MINUTES;
 
+    /**
+     * Build a list of N fake `[aw] * failed` items starting at issue number `startNum`.
+     * @param {number} count
+     * @param {number} [startNum=100]
+     */
+    function makeFailureItems(count, startNum = 100) {
+      return Array.from({ length: count }, (_, i) => ({
+        number: startNum + i,
+        title: `[aw] Workflow ${i} failed`,
+        html_url: `https://github.com/owner/repo/issues/${startNum + i}`,
+        created_at: new Date().toISOString(),
+      }));
+    }
+
     beforeEach(() => {
       vi.resetModules();
       ({
@@ -2762,17 +2776,8 @@ describe("handle_agent_failure", () => {
       const searchMock = vi.fn(async ({ q }) => {
         if (q.includes("cascade-rollup")) return { data: { total_count: 0, items: [] } };
         // Return 5 issues — below threshold
-        return {
-          data: {
-            total_count: 5,
-            items: Array.from({ length: 5 }, (_, i) => ({
-              number: 100 + i,
-              title: `[aw] Workflow ${i} failed`,
-              html_url: `https://github.com/owner/repo/issues/${100 + i}`,
-              created_at: new Date().toISOString(),
-            })),
-          },
-        };
+        const items = makeFailureItems(5);
+        return { data: { total_count: items.length, items } };
       });
 
       global.github = {
@@ -2801,12 +2806,7 @@ describe("handle_agent_failure", () => {
       const addLabelsMock = vi.fn().mockResolvedValue({});
       const getLabelMock = vi.fn().mockResolvedValue({ data: {} });
 
-      const recentItems = Array.from({ length: 10 }, (_, i) => ({
-        number: 100 + i,
-        title: `[aw] Workflow ${i} failed`,
-        html_url: `https://github.com/owner/repo/issues/${100 + i}`,
-        created_at: new Date().toISOString(),
-      }));
+      const recentItems = makeFailureItems(10);
 
       const searchMock = vi.fn(async ({ q }) => {
         if (q.includes("cascade-rollup")) return { data: { total_count: 0, items: [] } };
@@ -2850,12 +2850,7 @@ describe("handle_agent_failure", () => {
       const addLabelsMock = vi.fn().mockResolvedValue({});
 
       // Search returns only 9 issues (not the triggering one — simulating indexing lag)
-      const recentItems = Array.from({ length: 9 }, (_, i) => ({
-        number: 100 + i,
-        title: `[aw] Workflow ${i} failed`,
-        html_url: `https://github.com/owner/repo/issues/${100 + i}`,
-        created_at: new Date().toISOString(),
-      }));
+      const recentItems = makeFailureItems(9);
 
       const searchMock = vi.fn(async ({ q }) => {
         if (q.includes("cascade-rollup")) return { data: { total_count: 0, items: [] } };
@@ -2888,12 +2883,7 @@ describe("handle_agent_failure", () => {
       const updateIssueMock = vi.fn().mockResolvedValue({});
       const addLabelsMock = vi.fn().mockResolvedValue({});
 
-      const recentItems = Array.from({ length: 10 }, (_, i) => ({
-        number: 100 + i,
-        title: `[aw] Workflow ${i} failed`,
-        html_url: `https://github.com/owner/repo/issues/${100 + i}`,
-        created_at: new Date().toISOString(),
-      }));
+      const recentItems = makeFailureItems(10);
 
       const searchMock = vi.fn(async ({ q }) => {
         if (q.includes("cascade-rollup")) {
@@ -2935,12 +2925,7 @@ describe("handle_agent_failure", () => {
       });
       const addLabelsMock = vi.fn().mockResolvedValue({});
 
-      const recentItems = Array.from({ length: 10 }, (_, i) => ({
-        number: 100 + i,
-        title: `[aw] Workflow ${i} failed`,
-        html_url: `https://github.com/owner/repo/issues/${100 + i}`,
-        created_at: new Date().toISOString(),
-      }));
+      const recentItems = makeFailureItems(10);
 
       const searchMock = vi.fn(async ({ q }) => {
         if (q.includes("cascade-rollup")) return { data: { total_count: 0, items: [] } };
@@ -2979,12 +2964,7 @@ describe("handle_agent_failure", () => {
         return { data: { number: 203, html_url: "https://github.com/owner/repo/issues/203", node_id: "I_203" } };
       });
 
-      const recentItems = Array.from({ length: 10 }, (_, i) => ({
-        number: 100 + i,
-        title: `[aw] Workflow ${i} failed`,
-        html_url: `https://github.com/owner/repo/issues/${100 + i}`,
-        created_at: new Date().toISOString(),
-      }));
+      const recentItems = makeFailureItems(10);
 
       const searchMock = vi.fn(async ({ q }) => {
         if (q.includes("cascade-rollup")) return { data: { total_count: 0, items: [] } };
