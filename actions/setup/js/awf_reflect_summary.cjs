@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 
+const AWF_CONFIG_PATH = "/tmp/gh-aw/awf-config.json";
 const AWF_REFLECT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
 const AWF_MODELS_PATH = "/tmp/gh-aw/sandbox/firewall/models.json";
 
@@ -17,6 +18,23 @@ function readReflectData() {
   }
   try {
     return JSON.parse(fs.readFileSync(AWF_REFLECT_PATH, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read the AWF config payload when available.
+ * Returns null when the file is absent or unparseable.
+ *
+ * @returns {object|null}
+ */
+function readAWFConfigData() {
+  if (!fs.existsSync(AWF_CONFIG_PATH)) {
+    return null;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(AWF_CONFIG_PATH, "utf8"));
   } catch {
     return null;
   }
@@ -131,6 +149,32 @@ function extractRuntimeModelIds(models) {
 }
 
 /**
+ * Normalize model aliases from awf-config.json into a table-friendly shape.
+ *
+ * @param {any} awfConfigData
+ * @returns {Array<{alias: string, label: string, targets: string[]}>}
+ */
+function normalizeModelAliasRows(awfConfigData) {
+  const aliasMap = awfConfigData?.apiProxy?.models;
+  if (!aliasMap || typeof aliasMap !== "object" || Array.isArray(aliasMap)) {
+    return [];
+  }
+
+  return Object.entries(aliasMap)
+    .filter(([, targets]) => Array.isArray(targets))
+    .map(([alias, targets]) => ({
+      alias,
+      label: alias === "" ? "(default)" : alias,
+      targets: targets.map(target => String(target)),
+    }))
+    .sort((a, b) => {
+      if (a.alias === "") return -1;
+      if (b.alias === "") return 1;
+      return a.alias.localeCompare(b.alias);
+    });
+}
+
+/**
  * Build a markdown step summary from AWF /reflect response data.
  *
  * The summary is wrapped in a <details>/<summary> block so it stays collapsed by
@@ -149,6 +193,7 @@ function buildReflectSummary(reflectData, options) {
   const endpoints = Array.isArray(reflectData.endpoints) ? reflectData.endpoints : [];
   const fetchComplete = reflectData.models_fetch_complete === true;
   const runtimeModelRows = normalizeRuntimeModelRows(options && options.runtimeModelsData);
+  const modelAliasRows = normalizeModelAliasRows(options && options.awfConfigData);
 
   const lines = [];
   lines.push("<details>");
@@ -186,6 +231,17 @@ function buildReflectSummary(reflectData, options) {
     }
   }
 
+  if (modelAliasRows.length > 0) {
+    lines.push("");
+    lines.push("Model aliases");
+    lines.push("");
+    lines.push("| Alias | Resolution order |");
+    lines.push("|-------|------------------|");
+    for (const row of modelAliasRows) {
+      lines.push(`| ${row.label} | ${formatModelList(row.targets, maxModels)} |`);
+    }
+  }
+
   lines.push("");
   lines.push("</details>");
   lines.push("");
@@ -194,6 +250,7 @@ function buildReflectSummary(reflectData, options) {
 }
 
 async function main() {
+  const awfConfigData = readAWFConfigData();
   const reflectData = readReflectData();
   const runtimeModelsData = readRuntimeModelsData();
 
@@ -202,19 +259,22 @@ async function main() {
     return;
   }
 
-  const markdown = buildReflectSummary(reflectData, { runtimeModelsData });
+  const markdown = buildReflectSummary(reflectData, { awfConfigData, runtimeModelsData });
   await core.summary.addRaw(markdown).write();
   core.info("AWF reflect summary written to step summary");
 }
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    AWF_CONFIG_PATH,
     AWF_MODELS_PATH,
     AWF_REFLECT_PATH,
     buildReflectSummary,
     extractRuntimeModelIds,
     formatModelList,
     main,
+    normalizeModelAliasRows,
+    readAWFConfigData,
     readReflectData,
     readRuntimeModelsData,
     normalizeRuntimeModelRows,
