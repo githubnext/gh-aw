@@ -149,6 +149,8 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRefOrSourceSpec,
 	newNormalized := stringutil.NormalizeWhitespace(newWithUpdatedSource)
 	if normalizedCurrent, normalizeErr := UpdateFieldInFrontmatter(currentNormalized, "source", currentSourceSpec); normalizeErr == nil {
 		currentNormalized = normalizedCurrent
+	} else if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to normalize source in current content: %v", normalizeErr)))
 	}
 
 	// Create temporary directory for merge files
