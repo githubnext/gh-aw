@@ -11,8 +11,8 @@ func TestBuildSourceStringWithCommitSHA_ManifestSource(t *testing.T) {
 			Version:     "v1.2.3",
 			PackagePath: "packages/repo-assist",
 		},
-		WorkflowPath:            "workflows/triage.md",
-		FromRepositoryManifest:  true,
+		WorkflowPath:           "workflows/triage.md",
+		FromRepositoryManifest: true,
 	}
 
 	got := buildSourceStringWithCommitSHA(workflow, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
@@ -41,11 +41,11 @@ func TestBuildSourceStringWithCommitSHA_ManifestSourceRoot(t *testing.T) {
 
 func TestParseManifestSourceSpec(t *testing.T) {
 	tests := []struct {
-		source         string
-		wantManifest   bool
-		wantRepo       string
-		wantPackage    string
-		wantVersion    string
+		source       string
+		wantManifest bool
+		wantRepo     string
+		wantPackage  string
+		wantVersion  string
 	}{
 		{source: "owner/repo@v1.0.0", wantManifest: true, wantRepo: "owner/repo", wantVersion: "v1.0.0"},
 		{source: "owner/repo/packages/repo-assist@main", wantManifest: true, wantRepo: "owner/repo", wantPackage: "packages/repo-assist", wantVersion: "main"},
