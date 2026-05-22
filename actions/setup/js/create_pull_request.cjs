@@ -2052,24 +2052,21 @@ ${patchPreview}`;
 
       const requestChangesSections = [];
       if (manifestProtectionRequestReview && manifestProtectionRequestReview.length > 0) {
-        const protectedFilesList = manifestProtectionRequestReview.map(file => `- \`${file}\``).join("\n");
+        const protectedFilesReviewTemplatePath = getPromptPath("manifest_protection_request_changes_review.md");
         requestChangesSections.push(
-          `Protected files were modified in this pull request and require manual scrutiny before merge.
-
-Please verify that each protected-file change is intentional, policy-compliant, and safe:
-
-${protectedFilesList}`
+          renderTemplateFromFile(protectedFilesReviewTemplatePath, {
+            files: renderFilesList(manifestProtectionRequestReview.join(",")),
+          })
         );
       }
       if (detectionCaution) {
         const detectionReason = process.env.GH_AW_DETECTION_REASON || "unknown";
+        const detectionWarningReviewTemplatePath = getPromptPath("threat_warning_request_changes_review.md");
         requestChangesSections.push(
-          `Threat detection produced a warning for this pull request output.
-
-These changes need to be scrutinized before merge and only merged after a careful manual review.
-
-- Detection reason: \`${detectionReason}\`
-- Review workflow run logs: ${runUrl}`
+          renderTemplateFromFile(detectionWarningReviewTemplatePath, {
+            detectionReason,
+            runUrl,
+          })
         );
       }
       if (requestChangesSections.length > 0) {
