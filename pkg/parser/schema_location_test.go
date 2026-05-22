@@ -298,6 +298,48 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsJobRunsOnOb
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsJobRunsOnStringForm(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"jobs": map[string]any{
+			"my-prefetch": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"steps": []any{
+					map[string]any{
+						"run": "echo hello",
+					},
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/test/workflow.md")
+	if err != nil {
+		t.Fatalf("ValidateMainWorkflowFrontmatterWithSchemaAndLocation() unexpected error = %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsJobRunsOnArrayForm(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"jobs": map[string]any{
+			"my-prefetch": map[string]any{
+				"runs-on": []any{"self-hosted", "linux"},
+				"steps": []any{
+					map[string]any{
+						"run": "echo hello",
+					},
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/test/workflow.md")
+	if err != nil {
+		t.Fatalf("ValidateMainWorkflowFrontmatterWithSchemaAndLocation() unexpected error = %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsAllowedBaseBranchesInCreatePullRequest(t *testing.T) {
 	frontmatter := map[string]any{
 		"on": map[string]any{
