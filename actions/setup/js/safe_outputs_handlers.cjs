@@ -376,8 +376,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Get base branch for the resolved target repository.
     // Prefer explicit safe-output config value when provided, otherwise fall back
     // to dynamic resolution from trigger context/default branch. For side-repo
-    // checkouts, prefer the actual checked-out branch before the repository default
-    // branch so release-branch workflows generate patches against the right base.
+    // checkouts, prefer repository default-branch resolution from local git
+    // metadata before payload/API fallback.
     const baseBranch =
       prConfig.base_branch ||
       (await getBaseBranch(repoParts, {
@@ -671,8 +671,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
 
     // Get base branch for the resolved target repository.
-    // For side-repo checkouts, prefer the actual checked-out branch before falling
-    // back to the repository default branch.
+    // For side-repo checkouts, prefer repository default-branch resolution from
+    // local git metadata before payload/API fallback.
     const baseBranch = await getBaseBranch(repoParts, {
       preferCheckedOutBranch: Boolean(repoCwd),
       cwd: repoCwd || undefined,

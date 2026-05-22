@@ -1,4 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { execSync } from "child_process";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
 describe("getBaseBranch", () => {
   let originalEnv;
@@ -209,5 +213,31 @@ describe("getBaseBranch", () => {
     const result = await getBaseBranch({ owner: "owner", repo: "repo" });
 
     expect(result).toBe("main");
+  });
+
+  it("should resolve repository default branch from origin/HEAD instead of checked-out feature branch", async () => {
+    const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-get-base-branch-"));
+    try {
+      execSync("git init -b main", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.email 'test@example.com'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git config user.name 'Test User'", { cwd: repoDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(repoDir, "README.md"), "base\n");
+      execSync("git add README.md", { cwd: repoDir, stdio: "pipe" });
+      execSync("git commit -m 'base commit'", { cwd: repoDir, stdio: "pipe" });
+      execSync("git checkout -b feature/FOO-123", { cwd: repoDir, stdio: "pipe" });
+
+      // Simulate checkout metadata where repository default branch is main.
+      const mainSha = execSync("git rev-parse main", { cwd: repoDir, stdio: "pipe" }).toString().trim();
+      execSync("git remote add origin https://github.com/test-owner/test-repo.git", { cwd: repoDir, stdio: "pipe" });
+      execSync(`git update-ref refs/remotes/origin/main ${mainSha}`, { cwd: repoDir, stdio: "pipe" });
+      execSync("git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main", { cwd: repoDir, stdio: "pipe" });
+
+      const { getBaseBranch } = await import("./get_base_branch.cjs");
+      const result = await getBaseBranch({ owner: "test-owner", repo: "test-repo" }, { preferCheckedOutBranch: true, cwd: repoDir });
+
+      expect(result).toBe("main");
+    } finally {
+      fs.rmSync(repoDir, { recursive: true, force: true });
+    }
   });
 });
