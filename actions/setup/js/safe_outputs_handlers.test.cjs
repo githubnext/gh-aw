@@ -908,7 +908,7 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
-    it("should derive base_branch from side-repo default branch metadata for patch generation", async () => {
+    it("should use side-repo origin/HEAD base branch so patch includes branch commits since main", async () => {
       const { targetRepoDir } = createSideRepoOnReleaseBranchWithLocalCommit();
 
       handlers = createHandlers(mockServer, mockAppendSafeOutput, {
@@ -926,7 +926,8 @@ describe("safe_outputs_handlers", () => {
 
       expect(result.isError).toBeUndefined();
       expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining(`Found repo checkout at: ${targetRepoDir}`));
-      // No base-branch override is configured and the side-repo default branch is main.
+      // No base-branch override is configured. The checked-out branch is release-1.12.x,
+      // but origin/HEAD points to origin/main, so base_branch must resolve to main.
       expect(mockAppendSafeOutput).toHaveBeenCalledWith(
         expect.objectContaining({
           type: "create_pull_request",
@@ -938,6 +939,8 @@ describe("safe_outputs_handlers", () => {
 
       const appendedEntry = mockAppendSafeOutput.mock.calls.at(-1)[0];
       const patchContent = fs.readFileSync(appendedEntry.patch_path, "utf8");
+      // Diffing release-1.12.x against base main includes both release-only commits:
+      // the tracked release commit and the local-only fix.
       expect(patchContent).toContain("local only fix");
       expect(patchContent).toContain("release tracked commit");
       expect(patchContent).not.toContain("MAIN_ONLY.md");
