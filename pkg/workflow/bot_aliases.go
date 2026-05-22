@@ -17,6 +17,10 @@ var copilotBotNames = []string{
 // full set of GitHub Copilot bot identifiers. Other entries are passed through
 // unchanged. Duplicates are removed from the result.
 //
+// A nil or empty input slice is returned as-is. The nil/empty distinction is
+// preserved so callers can distinguish "no bots configured" (nil) from "bots
+// field present but empty" ([]string{}).
+//
 // The "copilot" alias covers:
 //   - copilot-swe-agent / copilot-swe-agent[bot] — Copilot Coding Agent
 //   - Copilot                                     — @Copilot interactive bot
@@ -35,7 +39,9 @@ func expandBotNames(bots []string) []string {
 	if !needsExpansion {
 		return bots
 	}
-	expanded := make([]string, 0, len(bots)+len(copilotBotNames))
+	// Pre-allocate with the worst-case capacity: every entry is a "copilot"
+	// alias that expands to len(copilotBotNames) entries.
+	expanded := make([]string, 0, len(bots)*len(copilotBotNames))
 	for _, b := range bots {
 		if b == "copilot" {
 			expanded = append(expanded, copilotBotNames...)
