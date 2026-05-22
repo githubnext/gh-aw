@@ -5,36 +5,21 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { getFooterWorkflowRecompileMessage, getFooterWorkflowRecompileCommentMessage, generateXMLMarker, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const fs = require("fs");
 const { getGitAuthEnv } = require("./git_helpers.cjs");
+const { resolvePullRequestRepo } = require("./pr_helpers.cjs");
+const { pushSignedCommits } = require("./push_signed_commits.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 
 const RECOMPILE_ISSUE_TITLE = "[aw] agentic workflows out of sync";
 const RECOMPILE_PR_TITLE = "[aw] recompile agentic workflows";
 const RECOMPILE_PR_BRANCH = "aw/recompile-workflows";
-const MAX_RECOMPILE_DIFF_LENGTH = 50000;
 
 function shouldCreatePullRequest() {
   return getRecompileToken() !== "";
 }
 
-async function execWithOutput(command, args, options = {}) {
-  let stdout = "";
-  let stderr = "";
-  const exitCode = await exec.exec(command, args, {
-    ignoreReturnCode: options.ignoreReturnCode === true,
-    listeners: {
-      stdout: data => {
-        stdout += data.toString();
-      },
-      stderr: data => {
-        stderr += data.toString();
-      },
-    },
-  });
-  return { stdout, stderr, exitCode };
-}
-
-function getDefaultBranch() {
-  return context.payload?.repository?.default_branch || "main";
+async function getDefaultBranch(owner, repo) {
+  const { effectiveBaseBranch } = await resolvePullRequestRepo(github, owner, repo, null);
+  return effectiveBaseBranch || "main";
 }
 
 function getRecompileToken() {
@@ -54,7 +39,7 @@ function requireRecompileToken() {
   return token;
 }
 
-function buildRecompilePullRequestBody(diffContent, changedFiles, repository, runUrl, linkedIssueNumber) {
+function buildRecompilePullRequestBody(changedFiles, repository, runUrl, linkedIssueNumber) {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Maintenance";
   const footer = getFooterWorkflowRecompileMessage({ workflowName, runUrl, repository });
   const xmlMarker = generateXMLMarker(workflowName, runUrl);
@@ -71,17 +56,6 @@ ${linkedIssueLine}## Changed Files
 
 ${fileList}
 
-## Detected Changes
-
-<details>
-<summary>View diff</summary>
-
-\`\`\`diff
-${diffContent}
-\`\`\`
-
-</details>
-
 ---
 ${footer}
 
@@ -89,50 +63,112 @@ ${xmlMarker}
 `;
 }
 
-async function configureGitIdentity() {
-  core.info("Configuring git identity for maintenance workflow commit");
-  await exec.exec("git", ["config", "user.email", "github-actions[bot]@users.noreply.github.com"]);
-  await exec.exec("git", ["config", "user.name", "github-actions[bot]"]);
-}
-
-async function stageAndCommitRecompileBranch() {
-  core.info(`Preparing maintenance branch ${RECOMPILE_PR_BRANCH}`);
-  await configureGitIdentity();
-  await exec.exec("git", ["checkout", "-B", RECOMPILE_PR_BRANCH]);
-  await exec.exec("git", ["add", ".github/workflows/*.lock.yml"]);
-
-  const { stdout: stagedOutput } = await execWithOutput("git", ["diff", "--cached", "--name-only"], { ignoreReturnCode: true });
-  const stagedFiles = stagedOutput
+async function getChangedLockFiles() {
+  const { stdout } = await exec.getExecOutput("git", ["diff", "--name-only", ".github/workflows/*.lock.yml"], {
+    ignoreReturnCode: true,
+  });
+  return stdout
     .split("\n")
     .map(file => file.trim())
     .filter(Boolean);
-  if (stagedFiles.length === 0) {
-    throw new Error("No staged workflow lock file changes found for pull request creation");
-  }
-
-  core.info(`Staged ${stagedFiles.length} workflow lock file(s): ${stagedFiles.join(", ")}`);
-  await exec.exec("git", ["commit", "-m", "chore: recompile agentic workflows"]);
-  return stagedFiles;
 }
 
-async function pushRecompileBranch(owner, repo, branchName) {
-  const token = requireRecompileToken();
+async function getLocalHeadSha() {
+  const { stdout } = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
+  return stdout.trim();
+}
 
-  const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-  let githubHost = "github.com";
-  try {
-    githubHost = new URL(githubServerUrl).hostname || githubHost;
-  } catch {
-    githubHost = "github.com";
-  }
-  const remoteUrl = `https://${githubHost}/${owner}/${repo}.git`;
-  core.info(`Pushing maintenance branch ${branchName} to ${githubHost}/${owner}/${repo}`);
-  await exec.exec("git", ["push", remoteUrl, `HEAD:refs/heads/${branchName}`, "--force-with-lease"], {
-    env: {
-      ...process.env,
-      ...getGitAuthEnv(token),
-    },
+async function getRemoteBranchHead(branchName) {
+  const { stdout, exitCode, stderr } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branchName}`], {
+    ignoreReturnCode: true,
   });
+  if (exitCode !== 0) {
+    core.info(`Could not query remote branch ${branchName}: ${stderr.trim() || `exit code ${exitCode}`}`);
+    return "";
+  }
+  const trimmed = stdout.trim();
+  if (!trimmed) {
+    core.info(`Remote branch ${branchName} does not exist yet`);
+    return "";
+  }
+  const remoteHead = trimmed.split(/\s+/)[0] || "";
+  core.info(`Remote branch ${branchName} currently points to ${remoteHead}`);
+  return remoteHead;
+}
+
+async function fetchRemoteBranch(branchName) {
+  core.info(`Fetching remote branch ${branchName} for comparison`);
+  await exec.exec("git", ["fetch", "origin", `refs/heads/${branchName}:refs/remotes/origin/${branchName}`]);
+}
+
+async function filterFilesNeedingUpdate(refName, changedFiles, workspaceDir) {
+  const filesToUpdate = [];
+  for (const file of changedFiles) {
+    const workingTreePath = `${workspaceDir}/${file}`;
+    const workingTreeContent = fs.readFileSync(workingTreePath, "utf8");
+    const { stdout, exitCode } = await exec.getExecOutput("git", ["show", `${refName}:${file}`], {
+      ignoreReturnCode: true,
+    });
+    if (exitCode !== 0) {
+      core.info(`Remote ref ${refName} does not contain ${file}; scheduling update`);
+      filesToUpdate.push(file);
+      continue;
+    }
+    if (stdout !== workingTreeContent) {
+      core.info(`Detected updated compiled workflow content for ${file}`);
+      filesToUpdate.push(file);
+      continue;
+    }
+    core.info(`Compiled workflow file ${file} already matches ${refName}`);
+  }
+  return filesToUpdate;
+}
+
+async function stageFiles(files) {
+  if (files.length === 0) {
+    return;
+  }
+  await exec.exec("git", ["add", "--", ...files]);
+}
+
+async function prepareAndPushRecompileBranch(owner, repo, changedFiles) {
+  const token = requireRecompileToken();
+  const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
+  const baseHead = await getLocalHeadSha();
+  core.info(`Current repository HEAD before maintenance branch commit: ${baseHead}`);
+
+  const remoteHead = await getRemoteBranchHead(RECOMPILE_PR_BRANCH);
+  let filesToCommit = changedFiles;
+  let baseRef = baseHead;
+  if (remoteHead) {
+    await fetchRemoteBranch(RECOMPILE_PR_BRANCH);
+    filesToCommit = await filterFilesNeedingUpdate(`refs/remotes/origin/${RECOMPILE_PR_BRANCH}`, changedFiles, workspaceDir);
+    baseRef = remoteHead;
+  }
+
+  core.info(`Preparing maintenance branch ${RECOMPILE_PR_BRANCH}`);
+  await exec.exec("git", ["checkout", "-B", RECOMPILE_PR_BRANCH]);
+
+  if (filesToCommit.length === 0) {
+    core.info("Existing maintenance branch already contains the latest compiled workflow lock files");
+    return { pushed: false };
+  }
+
+  await stageFiles(filesToCommit);
+  core.info(`Staging ${filesToCommit.length} workflow lock file(s): ${filesToCommit.join(", ")}`);
+  await exec.exec("git", ["commit", "-m", "chore: recompile agentic workflows"]);
+
+  core.info(`Pushing maintenance branch ${RECOMPILE_PR_BRANCH} via signed commit helper (baseRef=${baseRef})`);
+  await pushSignedCommits({
+    githubClient: github,
+    owner,
+    repo,
+    branch: RECOMPILE_PR_BRANCH,
+    baseRef,
+    cwd: workspaceDir,
+    gitAuthEnv: getGitAuthEnv(token),
+  });
+  return { pushed: true };
 }
 
 async function findExistingRecompilePullRequest(owner, repo) {
@@ -158,7 +194,7 @@ async function findExistingRecompileIssue(owner, repo) {
   return searchResult.data.total_count > 0 ? searchResult.data.items[0] : null;
 }
 
-async function handlePullRequest(owner, repo, detailedDiff) {
+async function handlePullRequest(owner, repo, changedFiles) {
   const repository = `${owner}/${repo}`;
   const runUrl = buildWorkflowRunUrl(context, context.repo);
   core.info(`Preparing maintenance PR for ${repository}`);
@@ -168,10 +204,8 @@ async function handlePullRequest(owner, repo, detailedDiff) {
   } else {
     core.info("No existing workflow recompile issue found to link from maintenance PR");
   }
-  const changedFiles = await stageAndCommitRecompileBranch();
-  await pushRecompileBranch(owner, repo, RECOMPILE_PR_BRANCH);
-  const diffContent = detailedDiff.substring(0, MAX_RECOMPILE_DIFF_LENGTH) + (detailedDiff.length > MAX_RECOMPILE_DIFF_LENGTH ? "\n\n... (diff truncated)" : "");
-  const pullRequestBody = buildRecompilePullRequestBody(diffContent, changedFiles, repository, runUrl, existingIssue?.number);
+  const { pushed } = await prepareAndPushRecompileBranch(owner, repo, changedFiles);
+  const pullRequestBody = buildRecompilePullRequestBody(changedFiles, repository, runUrl, existingIssue?.number);
 
   const existingPR = await findExistingRecompilePullRequest(owner, repo);
   if (existingPR) {
@@ -183,18 +217,26 @@ async function handlePullRequest(owner, repo, detailedDiff) {
       pull_number: existingPR.number,
       body: pullRequestBody,
     });
-    core.info("Updated existing pull request branch (avoiding duplicate)");
-    await core.summary.addHeading("Workflow Recompilation Needed", 2).addRaw(`Updated existing pull request [#${existingPR.number}](${existingPR.html_url}) with the latest compiled workflow changes.`).write();
+    core.info(pushed ? "Updated existing pull request branch (avoiding duplicate)" : "Existing pull request already had the latest branch contents");
+    await core.summary
+      .addHeading("Workflow Recompilation Needed", 2)
+      .addRaw(
+        pushed
+          ? `Updated existing pull request [#${existingPR.number}](${existingPR.html_url}) with the latest compiled workflow changes.`
+          : `Existing pull request [#${existingPR.number}](${existingPR.html_url}) already contains the latest compiled workflow changes.`
+      )
+      .write();
     return;
   }
 
-  core.info(`Creating maintenance pull request against ${getDefaultBranch()} with ${changedFiles.length} changed file(s)`);
+  core.info(`Creating maintenance pull request against repository default branch with ${changedFiles.length} changed file(s)`);
+  const defaultBranch = await getDefaultBranch(owner, repo);
   const pullRequest = await github.rest.pulls.create({
     owner,
     repo,
     title: RECOMPILE_PR_TITLE,
     head: RECOMPILE_PR_BRANCH,
-    base: getDefaultBranch(),
+    base: defaultBranch,
     body: pullRequestBody,
   });
 
@@ -253,6 +295,8 @@ async function main() {
 
   core.info("⚠ Detected out-of-sync workflow lock files");
   core.info(`Workflow diff size from detection step: ${diffOutput.length} byte(s)`);
+  const changedFiles = await getChangedLockFiles();
+  core.info(`Changed workflow lock file count: ${changedFiles.length}`);
 
   // Capture the actual diff for the issue body
   let detailedDiff = "";
@@ -271,7 +315,7 @@ async function main() {
 
   if (createPullRequest) {
     requireRecompileToken();
-    await handlePullRequest(owner, repo, detailedDiff);
+    await handlePullRequest(owner, repo, changedFiles);
     return;
   }
 

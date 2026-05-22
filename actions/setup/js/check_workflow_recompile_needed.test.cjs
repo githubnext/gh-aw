@@ -11,15 +11,24 @@ describe("check_workflow_recompile_needed", () => {
   let mockExec;
   let originalGlobals;
   let originalEnv;
+  let workspaceDir;
   const testPromptsDir = path.join(os.tmpdir(), "gh-aw-test", "prompts");
   const templatePath = path.join(testPromptsDir, "workflow_recompile_issue.md");
 
   beforeEach(() => {
     // Save original environment
-    originalEnv = process.env.GH_AW_PROMPTS_DIR;
+    originalEnv = {
+      GH_AW_PROMPTS_DIR: process.env.GH_AW_PROMPTS_DIR,
+      GH_AW_MAINTENANCE_GITHUB_TOKEN: process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN,
+      GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE,
+    };
 
     // Set test prompts directory
     process.env.GH_AW_PROMPTS_DIR = testPromptsDir;
+    workspaceDir = path.join(os.tmpdir(), "gh-aw-test", "workspace");
+    process.env.GITHUB_WORKSPACE = workspaceDir;
+    fs.mkdirSync(path.join(workspaceDir, ".github", "workflows"), { recursive: true });
+    fs.writeFileSync(path.join(workspaceDir, ".github", "workflows", "example.lock.yml"), "name: example\n", "utf8");
 
     // Create the template file for testing
     const templateDir = path.dirname(templatePath);
@@ -124,7 +133,25 @@ The following workflow lock files have changes:
           create: vi.fn(),
           update: vi.fn(),
         },
+        git: {
+          createRef: vi.fn(),
+        },
       },
+      graphql: vi.fn().mockImplementation(query => {
+        if (String(query).includes("createCommitOnBranch")) {
+          return Promise.resolve({
+            createCommitOnBranch: {
+              commit: { oid: "signed-oid" },
+            },
+          });
+        }
+        return Promise.resolve({
+          repository: {
+            id: "repo-id",
+            defaultBranchRef: { name: "main" },
+          },
+        });
+      }),
     };
 
     // Setup mock context
@@ -145,6 +172,7 @@ The following workflow lock files have changes:
     // Setup mock exec module
     mockExec = {
       exec: vi.fn(),
+      getExecOutput: vi.fn(),
     };
 
     // Set globals for the module
@@ -156,12 +184,21 @@ The following workflow lock files have changes:
 
   afterEach(() => {
     // Restore environment variable
-    if (originalEnv !== undefined) {
-      process.env.GH_AW_PROMPTS_DIR = originalEnv;
+    if (originalEnv.GH_AW_PROMPTS_DIR !== undefined) {
+      process.env.GH_AW_PROMPTS_DIR = originalEnv.GH_AW_PROMPTS_DIR;
     } else {
       delete process.env.GH_AW_PROMPTS_DIR;
     }
-    delete process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN;
+    if (originalEnv.GH_AW_MAINTENANCE_GITHUB_TOKEN !== undefined) {
+      process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN = originalEnv.GH_AW_MAINTENANCE_GITHUB_TOKEN;
+    } else {
+      delete process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN;
+    }
+    if (originalEnv.GITHUB_WORKSPACE !== undefined) {
+      process.env.GITHUB_WORKSPACE = originalEnv.GITHUB_WORKSPACE;
+    } else {
+      delete process.env.GITHUB_WORKSPACE;
+    }
 
     // Clean up the test directory
     const testDir = path.join(os.tmpdir(), "gh-aw-test");
@@ -177,11 +214,13 @@ The following workflow lock files have changes:
 
     // Clear all mocks
     vi.clearAllMocks();
+    vi.resetModules();
   });
 
   it("should report no changes when workflows are up to date", async () => {
     // Mock exec to return no changes (empty diff output)
     mockExec.exec.mockResolvedValue(0);
+    mockExec.getExecOutput.mockResolvedValue({ stdout: "", stderr: "", exitCode: 0 });
 
     const { main } = await import("./check_workflow_recompile_needed.cjs");
     await main();
@@ -205,6 +244,13 @@ The following workflow lock files have changes:
         }
         return 0;
       });
+    mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
+      const joinedArgs = args.join(" ");
+      if (joinedArgs === "diff --name-only .github/workflows/*.lock.yml") {
+        return { stdout: ".github/workflows/example.lock.yml\n", stderr: "", exitCode: 0 };
+      }
+      return { stdout: "", stderr: "", exitCode: 0 };
+    });
 
     // Mock search to return existing issue
     mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
@@ -249,6 +295,13 @@ The following workflow lock files have changes:
         }
         return 0;
       });
+    mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
+      const joinedArgs = args.join(" ");
+      if (joinedArgs === "diff --name-only .github/workflows/*.lock.yml") {
+        return { stdout: ".github/workflows/example.lock.yml\n", stderr: "", exitCode: 0 };
+      }
+      return { stdout: "", stderr: "", exitCode: 0 };
+    });
 
     // Mock search to return no existing issue
     mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
@@ -281,6 +334,7 @@ The following workflow lock files have changes:
   it("should handle errors gracefully", async () => {
     // Mock exec to throw error
     mockExec.exec.mockRejectedValue(new Error("Git command failed"));
+    mockExec.getExecOutput.mockResolvedValue({ stdout: "", stderr: "", exitCode: 0 });
 
     const { main } = await import("./check_workflow_recompile_needed.cjs");
 
@@ -305,7 +359,39 @@ The following workflow lock files have changes:
         options?.listeners?.stdout?.(Buffer.from(".github/workflows/example.lock.yml\n"));
         return 0;
       }
+      if (joinedArgs === "cat-file blob blobhash") {
+        options?.listeners?.stdout?.(Buffer.from("name: example\n"));
+        return 0;
+      }
       return 0;
+    });
+    mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
+      const joinedArgs = args.join(" ");
+      if (joinedArgs === "diff --name-only .github/workflows/*.lock.yml") {
+        return { stdout: ".github/workflows/example.lock.yml\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "rev-parse HEAD") {
+        return { stdout: "base-head-sha\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "ls-remote origin refs/heads/aw/recompile-workflows") {
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "rev-list --parents --topo-order --reverse base-head-sha..HEAD") {
+        return { stdout: "commit-sha base-head-sha\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "diff-tree -r --raw commit-sha") {
+        return { stdout: ":100644 100644 oldhash blobhash M\t.github/workflows/example.lock.yml\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "ls-remote origin refs/heads/aw/recompile-workflows") {
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "rev-parse commit-sha^") {
+        return { stdout: "base-head-sha\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "log -1 --format=%B commit-sha") {
+        return { stdout: "chore: recompile agentic workflows\n", stderr: "", exitCode: 0 };
+      }
+      return { stdout: "", stderr: "", exitCode: 0 };
     });
 
     mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
@@ -344,13 +430,19 @@ The following workflow lock files have changes:
         title: "[aw] recompile agentic workflows",
         head: "aw/recompile-workflows",
         base: "main",
-      }),
+      })
     );
     const createdBody = mockGithub.rest.pulls.create.mock.calls[0][0].body;
     expect(createdBody).toContain("Workflow Recompilation");
     expect(createdBody).toContain("Fixes #42");
     expect(createdBody).toContain(".github/workflows/example.lock.yml");
-    expect(createdBody).toContain("detailed diff content");
+    expect(createdBody).not.toContain("detailed diff content");
+    expect(mockGithub.rest.git.createRef).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      ref: "refs/heads/aw/recompile-workflows",
+      sha: "base-head-sha",
+    });
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
   });
 
@@ -371,7 +463,36 @@ The following workflow lock files have changes:
         options?.listeners?.stdout?.(Buffer.from(".github/workflows/example.lock.yml\n"));
         return 0;
       }
+      if (joinedArgs === "cat-file blob blobhash") {
+        options?.listeners?.stdout?.(Buffer.from("name: example\n"));
+        return 0;
+      }
       return 0;
+    });
+    mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
+      const joinedArgs = args.join(" ");
+      if (joinedArgs === "diff --name-only .github/workflows/*.lock.yml") {
+        return { stdout: ".github/workflows/example.lock.yml\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "rev-parse HEAD") {
+        return { stdout: "base-head-sha\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "ls-remote origin refs/heads/aw/recompile-workflows") {
+        return { stdout: "remote-head-sha\trefs/heads/aw/recompile-workflows\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "show refs/remotes/origin/aw/recompile-workflows:.github/workflows/example.lock.yml") {
+        return { stdout: "older: true\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "rev-list --parents --topo-order --reverse remote-head-sha..HEAD") {
+        return { stdout: "commit-sha remote-head-sha\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "diff-tree -r --raw commit-sha") {
+        return { stdout: ":100644 100644 oldhash blobhash M\t.github/workflows/example.lock.yml\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "log -1 --format=%B commit-sha") {
+        return { stdout: "chore: recompile agentic workflows\n", stderr: "", exitCode: 0 };
+      }
+      return { stdout: "", stderr: "", exitCode: 0 };
     });
 
     mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
@@ -403,15 +524,79 @@ The following workflow lock files have changes:
         owner: "testowner",
         repo: "testrepo",
         pull_number: 45,
-      }),
+      })
     );
     const updatedBody = mockGithub.rest.pulls.update.mock.calls[0][0].body;
     expect(updatedBody).toContain("Workflow Recompilation");
     expect(updatedBody).toContain("Fixes #42");
     expect(updatedBody).toContain(".github/workflows/example.lock.yml");
-    expect(updatedBody).toContain("detailed diff content");
+    expect(updatedBody).not.toContain("detailed diff content");
+    expect(mockGithub.rest.git.createRef).not.toHaveBeenCalled();
     expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+  });
+
+  it("should skip signed commit push when the existing maintenance branch already matches", async () => {
+    process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN = "ghs_test_token";
+
+    mockExec.exec.mockImplementation(async (cmd, args, options) => {
+      const joinedArgs = args.join(" ");
+      if (joinedArgs === "diff --exit-code .github/workflows/*.lock.yml") {
+        options?.listeners?.stdout?.(Buffer.from("diff content"));
+        return 1;
+      }
+      if (joinedArgs === "diff .github/workflows/*.lock.yml") {
+        options?.listeners?.stdout?.(Buffer.from("detailed diff content"));
+        return 0;
+      }
+      return 0;
+    });
+    mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
+      const joinedArgs = args.join(" ");
+      if (joinedArgs === "diff --name-only .github/workflows/*.lock.yml") {
+        return { stdout: ".github/workflows/example.lock.yml\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "rev-parse HEAD") {
+        return { stdout: "base-head-sha\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "ls-remote origin refs/heads/aw/recompile-workflows") {
+        return { stdout: "remote-head-sha\trefs/heads/aw/recompile-workflows\n", stderr: "", exitCode: 0 };
+      }
+      if (joinedArgs === "show refs/remotes/origin/aw/recompile-workflows:.github/workflows/example.lock.yml") {
+        return { stdout: "name: example\n", stderr: "", exitCode: 0 };
+      }
+      return { stdout: "", stderr: "", exitCode: 0 };
+    });
+
+    mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        total_count: 1,
+        items: [
+          {
+            number: 42,
+            html_url: "https://github.com/testowner/testrepo/issues/42",
+          },
+        ],
+      },
+    });
+    mockGithub.rest.pulls.list.mockResolvedValue({
+      data: [
+        {
+          number: 45,
+          html_url: "https://github.com/testowner/testrepo/pull/45",
+        },
+      ],
+    });
+
+    const { main } = await import("./check_workflow_recompile_needed.cjs");
+    await main();
+
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pull_number: 45,
+      })
+    );
+    expect(mockCore.info).toHaveBeenCalledWith("Existing maintenance branch already contains the latest compiled workflow lock files");
   });
 
   it("should stay in issue mode without a configured maintenance token secret", async () => {
@@ -428,6 +613,7 @@ The following workflow lock files have changes:
         }
         return 0;
       });
+    mockExec.getExecOutput.mockResolvedValueOnce({ stdout: ".github/workflows/example.lock.yml\n", stderr: "", exitCode: 0 });
 
     mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
       data: {
