@@ -4,6 +4,52 @@
 const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus, isAllowedBot, isConfusedDeputyAttack } = require("./check_permissions_utils.cjs");
 const { writeDenialSummary } = require("./pre_activation_summary.cjs");
 
+/**
+ * Attempt to authorize the actor via the bots allowlist.
+ *
+ * Returns `{ handled: true }` when a final authorization decision was reached (either
+ * `authorized_bot` or `bot_not_active`) and outputs/summary have already been set.
+ * Returns `{ handled: false }` when the actor is not in the allowlist, when the
+ * allowlist is empty, or when the bot-status check failed entirely — in all of these
+ * cases the caller should fall through to the standard repository roles check.
+ *
+ * @param {string} actorToValidate
+ * @param {string[]} allowedBots
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {Promise<{ handled: boolean }>}
+ */
+async function checkBotAllowlistAuthorization(actorToValidate, allowedBots, owner, repo) {
+  if (allowedBots.length === 0 || !isAllowedBot(actorToValidate, allowedBots)) {
+    return { handled: false };
+  }
+
+  core.info(`Actor '${actorToValidate}' matched the allowed bots list: ${allowedBots.join(", ")}`);
+
+  // Verify the bot is active/installed on the repository
+  const botStatus = await checkBotStatus(actorToValidate, owner, repo);
+
+  if (botStatus.isBot && botStatus.isActive) {
+    core.info(`✅ Bot '${actorToValidate}' is active on the repository and authorized`);
+    core.setOutput("is_team_member", "true");
+    core.setOutput("result", "authorized_bot");
+    core.setOutput("user_permission", "bot");
+    return { handled: true };
+  } else if (botStatus.isBot && !botStatus.isActive) {
+    const errorMessage = `Access denied: Bot '${actorToValidate}' is not active/installed on this repository`;
+    core.warning(`Bot '${actorToValidate}' is in the allowed list but not active/installed on ${owner}/${repo}`);
+    core.setOutput("is_team_member", "false");
+    core.setOutput("result", "bot_not_active");
+    core.setOutput("user_permission", "bot");
+    core.setOutput("error_message", errorMessage);
+    await writeDenialSummary(errorMessage, "The bot is in the allowed list but is not installed or active on this repository. Install the GitHub App and try again.");
+    return { handled: true };
+  } else {
+    core.info(`Actor '${actorToValidate}' is in allowed bots list but bot status check failed`);
+    return { handled: false };
+  }
+}
+
 function readWorkflowDispatchAwContext(payload) {
   try {
     const rawAwContext = payload?.inputs?.aw_context;
@@ -160,32 +206,9 @@ async function main() {
   // mismatch (bots typically have "none" repo permission) is expected and not actionable.
   // Checking bots first also avoids a spurious "permission does not meet requirements"
   // warning that would otherwise be emitted by the roles check before authorization succeeds.
-  if (allowedBots.length > 0 && isAllowedBot(actorToValidate, allowedBots)) {
-    core.info(`Checking if actor '${actorToValidate}' is in allowed bots list: ${allowedBots.join(", ")}`);
-    core.info(`Actor '${actorToValidate}' is in the allowed bots list`);
-
-    // Verify the bot is active/installed on the repository
-    const botStatus = await checkBotStatus(actorToValidate, owner, repo);
-
-    if (botStatus.isBot && botStatus.isActive) {
-      core.info(`✅ Bot '${actorToValidate}' is active on the repository and authorized`);
-      core.setOutput("is_team_member", "true");
-      core.setOutput("result", "authorized_bot");
-      core.setOutput("user_permission", "bot");
-      return;
-    } else if (botStatus.isBot && !botStatus.isActive) {
-      const errorMessage = `Access denied: Bot '${actorToValidate}' is not active/installed on this repository`;
-      core.warning(`Bot '${actorToValidate}' is in the allowed list but not active/installed on ${owner}/${repo}`);
-      core.setOutput("is_team_member", "false");
-      core.setOutput("result", "bot_not_active");
-      core.setOutput("user_permission", "bot");
-      core.setOutput("error_message", errorMessage);
-      await writeDenialSummary(errorMessage, "The bot is in the allowed list but is not installed or active on this repository. Install the GitHub App and try again.");
-      return;
-    } else {
-      core.info(`Actor '${actorToValidate}' is in allowed bots list but bot status check failed`);
-      // Fall through to the standard permission check below.
-    }
+  const botResult = await checkBotAllowlistAuthorization(actorToValidate, allowedBots, owner, repo);
+  if (botResult.handled) {
+    return;
   }
 
   // Check if the actor has the required repository permissions
@@ -216,4 +239,4 @@ async function main() {
   }
 }
 
-module.exports = { main };
+module.exports = { main, checkBotAllowlistAuthorization };

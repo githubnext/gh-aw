@@ -100,7 +100,7 @@ describe("check_membership.cjs", () => {
     };
 
     // Remove the main() call/export at the end and execute
-    const scriptWithoutMain = scriptContent.replace("module.exports = { main };", "");
+    const scriptWithoutMain = scriptContent.replace("module.exports = { main, checkBotAllowlistAuthorization };", "");
     const scriptFunction = new Function("core", "github", "context", "process", "require", scriptWithoutMain + "\nreturn main();");
     await scriptFunction(mockCore, mockGithub, mockContext, process, mockRequire);
   };
@@ -622,7 +622,7 @@ describe("check_membership.cjs", () => {
 
       await runScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith("Actor 'greptile-apps' is in the allowed bots list");
+      expect(mockCore.info).toHaveBeenCalledWith("Actor 'greptile-apps' matched the allowed bots list: greptile-apps");
       expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized_bot");
       expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "bot");
@@ -761,6 +761,64 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "bot");
       // Only 1 API call (bot status) — initial permission check is skipped for allowlisted bots
       expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledTimes(1);
+    });
+
+    it("should authorize actor that is the second entry in a multi-bot allowlist", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "some-other-bot,greptile-apps";
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check ([bot] form)
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("Actor 'greptile-apps' matched the allowed bots list: some-other-bot, greptile-apps");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized_bot");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "bot");
+    });
+
+    it("should authorize actor when the allowlist entry includes the [bot] suffix", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "greptile-apps[bot]";
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockResolvedValueOnce({ data: { permission: "none" } }); // bot status check ([bot] form)
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "authorized_bot");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "bot");
+    });
+
+    it("should set user_permission to bot when denying a bot_not_active result", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "greptile-apps";
+
+      const notFoundError = { status: 404, message: "Not Found" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockRejectedValue(notFoundError); // all bot status checks → 404
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "bot_not_active");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "bot");
+    });
+
+    it("should fall through to roles check when actor is in allowlist but bot status check fails non-404", async () => {
+      // When the bot [bot] form check fails with a non-404 error (not a 404, so isBot: true,
+      // isActive: false) the result is bot_not_active — the roles check is not reached.
+      process.env.GH_AW_ALLOWED_BOTS = "greptile-apps";
+
+      const serverError = { status: 500, message: "Internal Server Error" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+        .mockRejectedValueOnce(serverError); // bot status [bot] form → 500
+
+      await runScript();
+
+      // Non-404 bot status failure → bot_not_active (not a fallthrough to roles)
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringMatching(/Failed to check bot status/));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "bot_not_active");
     });
   });
 });
