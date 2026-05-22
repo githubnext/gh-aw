@@ -32,7 +32,7 @@ These agents respond to commands, providing on-demand assistance whenever you ne
 
 - **[Q](https://github.com/githubnext/agentics/blob/main/workflows/q.md?plain=1)** - Workflow optimizer that investigates performance and creates PRs - **69 merged PRs out of 88 proposed (78% merge rate)**  
 - **[Grumpy Reviewer](https://github.com/githubnext/agentics/blob/main/workflows/grumpy-reviewer.md?plain=1)** - Performs critical code reviews with personality - creates issues for downstream agents
-- **[Workflow Generator](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/workflow-generator.md?plain=1)** - Creates new workflows from issue requests - scaffolds workflow files
+- **[Workflow Generator](https://github.com/github/gh-aw/blob/main/.github/workflows/workflow-generator.md?plain=1)** - Creates new workflows from issue requests - scaffolds workflow files
 
 Interactive workflows changed how we think about agent invocation. Instead of everything running on a schedule, these respond to slash commands and reactions - `/q` summons the workflow optimizer, a 🚀 reaction triggers analysis. Q (yes, named after the James Bond quartermaster) became our go-to troubleshooter - it has contributed **69 merged PRs out of 88 proposed (78% merge rate)**, responding to commands and investigating workflow issues on demand. Recent examples include [fixing the daily-fact workflow action-tag](https://github.com/github/gh-aw/pull/14127) and [configuring PR triage reports with 1-day expiration](https://github.com/github/gh-aw/pull/13903).
 
@@ -61,7 +61,7 @@ gh aw add-wizard https://github.com/githubnext/agentics/blob/main/workflows/grum
 **Workflow Generator:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/workflow-generator.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/main/.github/workflows/workflow-generator.md
 ```
 
 Then edit and remix the workflow specifications to meet your needs, regenerate the lock file using `gh aw compile`, and push to your repository. See our [Quick Start](https://github.github.com/gh-aw/setup/quick-start/) for further installation and setup instructions.

@@ -29,8 +29,8 @@ Now let's talk about the daily rituals of software development: managing issues 
 These agents enhance issue and pull request workflows:
 
 - **[Issue Arborist](https://github.com/githubnext/agentics/blob/main/workflows/issue-arborist.md?plain=1)** - Links related issues as sub-issues - **77 discussion reports** and **18 parent issues** created  
-- **[Issue Monster](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/issue-monster.md?plain=1)** - Assigns issues to the asynchronous [GitHub Copilot coding agent](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) one at a time - **task dispatcher** for the whole system
-- **[Mergefest](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/mergefest.md?plain=1)** - Automatically merges main branch into PR branches - **orchestrator workflow**
+- **[Issue Monster](https://github.com/github/gh-aw/blob/main/.github/workflows/issue-monster.md?plain=1)** - Assigns issues to the asynchronous [GitHub Copilot coding agent](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) one at a time - **task dispatcher** for the whole system
+- **[Mergefest](https://github.com/github/gh-aw/blob/main/.github/workflows/mergefest.md?plain=1)** - Automatically merges main branch into PR branches - **orchestrator workflow**
 - **[Sub Issue Closer](https://github.com/githubnext/agentics/blob/main/workflows/sub-issue-closer.md?plain=1)** - Closes completed sub-issues automatically - **orchestrator workflow**
 
 The Issue Arborist is an **organizational workflow** that has created **77 discussion reports** (titled "[Issue Arborist] Issue Arborist Report") and **18 parent issues** to group related sub-issues. It keeps the issue tracker organized by automatically linking related issues, building a dependency tree we'd never maintain manually. For example, [#12037](https://github.com/github/gh-aw/issues/12037) grouped engine documentation updates.
@@ -56,13 +56,13 @@ gh aw add-wizard https://github.com/githubnext/agentics/blob/main/workflows/issu
 **Issue Monster:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/issue-monster.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/main/.github/workflows/issue-monster.md
 ```
 
 **Mergefest:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/mergefest.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/main/.github/workflows/mergefest.md
 ```
 
 **Sub Issue Closer:**

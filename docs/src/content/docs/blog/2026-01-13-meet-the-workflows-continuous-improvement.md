@@ -24,8 +24,8 @@ In our [previous posts](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-sim
 
 ## Continuous Improvement Workflows
 
-- **[Go Module Usage Expert (aka Go Fan)](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/go-fan.md?plain=1)** - Daily Go module usage reviewer  
-- **[Typist](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/typist.md?plain=1)** - Analyzes type usage patterns for improved safety  
+- **[Go Module Usage Expert (aka Go Fan)](https://github.com/github/gh-aw/blob/main/.github/workflows/go-fan.md?plain=1)** - Daily Go module usage reviewer  
+- **[Typist](https://github.com/github/gh-aw/blob/main/.github/workflows/typist.md?plain=1)** - Analyzes type usage patterns for improved safety  
 - **[Functional Pragmatist](https://github.com/github/gh-aw/blob/main/.github/workflows/functional-programming-enhancer.md?plain=1)** - Applies functional techniques pragmatically  
 - **[Repository Quality Improver](https://github.com/githubnext/agentics/blob/main/workflows/repository-quality-improver.md?plain=1)** - Holistic code quality analysis  
 
@@ -119,13 +119,13 @@ You can add these workflows to your own repository and remix them. Get going wit
 **Go Module Usage Expert:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/go-fan.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/main/.github/workflows/go-fan.md
 ```
 
 **Typist:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/typist.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/main/.github/workflows/typist.md
 ```
 
 **Functional Pragmatist:**
