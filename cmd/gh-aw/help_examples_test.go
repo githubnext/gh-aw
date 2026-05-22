@@ -3,12 +3,12 @@
 package main
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 func TestHelpExamplesAreValid(t *testing.T) {
@@ -27,7 +27,7 @@ func TestHelpExamplesAreValid(t *testing.T) {
 }
 
 func extractCommandExamples(cmd *cobra.Command) []string {
-	examples := make([]string, 0)
+	var examples []string
 
 	appendFromLine := func(line string) {
 		withoutComment := strings.TrimSpace(strings.SplitN(line, "#", 2)[0])
@@ -106,7 +106,7 @@ func resolveExampleCommand(tokens []string) (*cobra.Command, int, error) {
 	}
 
 	if current == rootCmd {
-		return nil, consumed, pflag.ErrHelp
+		return nil, consumed, errors.New("no valid command found after 'gh aw'")
 	}
 
 	return current, consumed, nil
@@ -118,7 +118,7 @@ func validateExampleTokens(t *testing.T, cmd *cobra.Command, tokens []string) {
 	for i := 0; i < len(tokens); i++ {
 		token := tokens[i]
 		if !strings.HasPrefix(token, "-") || token == "-" {
-			validatePathToken(t, token)
+			validateExampleToken(t, token)
 			continue
 		}
 
@@ -133,7 +133,7 @@ func validateExampleTokens(t *testing.T, cmd *cobra.Command, tokens []string) {
 				t.Fatalf("unknown flag %q in example for command %q", "--"+name, cmd.CommandPath())
 			}
 			if hasValue {
-				validatePathToken(t, strings.SplitN(nameValue, "=", 2)[1])
+				validateExampleToken(t, strings.SplitN(nameValue, "=", 2)[1])
 				continue
 			}
 			if flag.Value.Type() == "bool" {
@@ -143,7 +143,7 @@ func validateExampleTokens(t *testing.T, cmd *cobra.Command, tokens []string) {
 				t.Fatalf("flag %q in example for command %q is missing a value", "--"+name, cmd.CommandPath())
 			}
 			i++
-			validatePathToken(t, tokens[i])
+			validateExampleToken(t, tokens[i])
 			continue
 		}
 
@@ -160,7 +160,9 @@ func validateExampleTokens(t *testing.T, cmd *cobra.Command, tokens []string) {
 	}
 }
 
-func validatePathToken(t *testing.T, token string) {
+// validateExampleToken checks path-like values used in examples while allowing
+// URLs, placeholders, and repository references.
+func validateExampleToken(t *testing.T, token string) {
 	t.Helper()
 
 	trimmed := strings.Trim(token, `"'`)
@@ -188,9 +190,30 @@ func validatePathToken(t *testing.T, token string) {
 }
 
 func looksLikePath(token string) bool {
+	if looksLikeRepoReference(token) {
+		return false
+	}
+
 	return strings.Contains(token, "/") ||
 		strings.HasSuffix(token, ".md") ||
 		strings.HasSuffix(token, ".yml") ||
 		strings.HasSuffix(token, ".yaml") ||
 		strings.HasSuffix(token, ".json")
+}
+
+func looksLikeRepoReference(token string) bool {
+	repoPart, _, _ := strings.Cut(token, "@")
+	parts := strings.Split(repoPart, "/")
+	if len(parts) != 2 {
+		return false
+	}
+	for _, part := range parts {
+		if part == "" || strings.HasPrefix(part, ".") {
+			return false
+		}
+	}
+	if strings.Contains(repoPart, ".md") || strings.Contains(repoPart, ".yml") || strings.Contains(repoPart, ".yaml") || strings.Contains(repoPart, ".json") {
+		return false
+	}
+	return true
 }
