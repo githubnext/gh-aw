@@ -65,7 +65,10 @@
         },
         "anthropicCacheTailTtl": {
           "type": "string",
-          "enum": ["5m", "1h"],
+          "enum": [
+            "5m",
+            "1h"
+          ],
           "description": "TTL for Anthropic cache tail optimization. Only applies when anthropicAutoCache is enabled. Allowed values: \"5m\" or \"1h\"."
         },
         "maxEffectiveTokens": {
@@ -85,6 +88,24 @@
           "type": "integer",
           "minimum": 1,
           "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'max_runs_exceeded'. See spec §11."
+        },
+        "modelFallback": {
+          "type": "object",
+          "description": "Model fallback policy for unresolved model selections. Enabled by default as a safety net.",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable or disable middle-power fallback when model resolution fails."
+            },
+            "strategy": {
+              "type": "string",
+              "enum": [
+                "middle_power"
+              ],
+              "description": "Fallback selection strategy. Currently only 'middle_power' is supported."
+            }
+          }
         },
         "targets": {
           "type": "object",
@@ -359,7 +380,12 @@
       "properties": {
         "logLevel": {
           "type": "string",
-          "enum": ["debug", "info", "warn", "error"],
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
           "description": "Log verbosity level. Defaults to \"info\"."
         },
         "diagnosticLogs": {
