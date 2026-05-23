@@ -27,7 +27,7 @@ const (
 	SandboxTypeDefault SandboxType = "default" // Alias for AWF (backward compat)
 )
 
-const defaultAgentWorkspaceWritePath = "/tmp/gh-aw/"
+const defaultAgentWorkspaceWritePath = "/tmp/gh-aw/agent"
 
 // SandboxConfig represents the top-level sandbox configuration from front matter
 // New format: { agent: "awf"|"srt"|{type, config}, mcp: {port, command, ...} }
