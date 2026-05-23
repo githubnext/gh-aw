@@ -398,6 +398,9 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
                     bestBaseCommit = candidateBase;
                     bestBaseRef = ref;
                     bestCommitCount = candidateCommitCount;
+                    if (bestCommitCount === 1) {
+                      break;
+                    }
                   }
                 } catch {
                   // Try next ref
