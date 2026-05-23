@@ -48,6 +48,23 @@ func getVersionForSetup(data *WorkflowData) string {
 	}
 }
 
+// getAWFVersionForSetup returns the AWF runtime version to inject as
+// GH_AW_INFO_AWF_VERSION in setup steps so all job-local OTel spans can
+// attribute telemetry to the firewall runtime that executed the job.
+func getAWFVersionForSetup(data *WorkflowData) string {
+	if data == nil {
+		return ""
+	}
+	firewallConfig := getFirewallConfig(data)
+	if firewallConfig == nil || !firewallConfig.Enabled {
+		return ""
+	}
+	if firewallConfig.Version != "" {
+		return firewallConfig.Version
+	}
+	return string(constants.DefaultFirewallVersion)
+}
+
 // getInstallationVersion returns the version that will be installed for the given engine.
 // This matches the logic in BuildStandardNpmEngineInstallSteps.
 func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string {
