@@ -380,7 +380,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
               let bestCommitCount = Number.POSITIVE_INFINITY;
               for (const ref of remoteRefs) {
                 try {
-                  const candidateBase = execGitSync(["merge-base", ref, branchName], { cwd }).trim();
+                  const candidateBase = execGitSync(["merge-base", ref, "--", branchName], { cwd }).trim();
                   if (!candidateBase) {
                     continue;
                   }

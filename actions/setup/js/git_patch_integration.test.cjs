@@ -941,6 +941,8 @@ describe("git patch integration tests", () => {
       // Keep origin/main and stale refs available for Strategy 3 candidate scoring.
       execGit(["fetch", "origin", "main"], { cwd: workingRepo });
       execGit(["fetch", "origin", "aaa-stale"], { cwd: workingRepo });
+      // Ensure the lexicographically first remote ref is stale in this regression setup.
+      execGit(["update-ref", "-d", "refs/remotes/origin/HEAD"], { cwd: workingRepo, allowFailure: true });
 
       // Force full-mode fallthrough into Strategy 3.
       const origSha = process.env.GITHUB_SHA;
