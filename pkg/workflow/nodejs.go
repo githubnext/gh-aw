@@ -154,8 +154,8 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 // hostedtoolcache bin directories for npm packages.
 //
 // Both direct toolcache paths and /host-prefixed bind mounts are searched:
-// - /opt/hostedtoolcache + /home/runner/work/_tool (+ /home/runner/work/_tool/Node)
-// - /host/opt/hostedtoolcache + /host/home/runner/work/_tool (+ /host/home/runner/work/_tool/Node)
+// - /opt/hostedtoolcache, /home/runner/work/_tool, and /home/runner/work/_tool/Node
+// - /host/opt/hostedtoolcache, /host/home/runner/work/_tool, and /host/home/runner/work/_tool/Node
 // This ensures node is found regardless of runner type and AWF filesystem layout.
 //
 // Returns:

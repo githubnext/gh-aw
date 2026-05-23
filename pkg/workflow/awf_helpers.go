@@ -182,19 +182,21 @@ fi`,
 
 	// Bind-mount setup-node toolcache Node directories into /host when present so
 	// AWF chroot can resolve Node.js runtimes inside the sandboxed container.
+	// We include both lowercase and uppercase Node directory variants because
+	// runner images can expose either layout.
 	nodeMountProbe := fmt.Sprintf(`%s=""
 if [ -d /opt/hostedtoolcache/node ]; then
   %s="%s --mount /opt/hostedtoolcache/node:/host/opt/hostedtoolcache/node:ro"
 fi
-	if [ -d /opt/hostedtoolcache/Node ]; then
-	  %s="%s --mount /opt/hostedtoolcache/Node:/host/opt/hostedtoolcache/Node:ro"
-	fi
-	if [ -d /home/runner/work/_tool/node ]; then
-	  %s="%s --mount /home/runner/work/_tool/node:/host/home/runner/work/_tool/node:ro"
-	fi
-	if [ -d /home/runner/work/_tool/Node ]; then
-	  %s="%s --mount /home/runner/work/_tool/Node:/host/home/runner/work/_tool/Node:ro"
-	fi`,
+if [ -d /opt/hostedtoolcache/Node ]; then
+  %s="%s --mount /opt/hostedtoolcache/Node:/host/opt/hostedtoolcache/Node:ro"
+fi
+if [ -d /home/runner/work/_tool/node ]; then
+  %s="%s --mount /home/runner/work/_tool/node:/host/home/runner/work/_tool/node:ro"
+fi
+if [ -d /home/runner/work/_tool/Node ]; then
+  %s="%s --mount /home/runner/work/_tool/Node:/host/home/runner/work/_tool/Node:ro"
+fi`,
 			awfNodeMountArgsVarName,
 			awfNodeMountArgsVarName, fmt.Sprintf("${%s}", awfNodeMountArgsVarName),
 			awfNodeMountArgsVarName, fmt.Sprintf("${%s}", awfNodeMountArgsVarName),
