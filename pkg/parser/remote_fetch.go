@@ -338,21 +338,33 @@ func writeDownloadedIncludeToTempFile(content []byte) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
+	cleanupOnError := true
+	fileClosed := false
+	defer func() {
+		if cleanupOnError {
+			if !fileClosed {
+				if closeErr := tempFile.Close(); closeErr != nil {
+					remoteLog.Printf("Warning: failed to close temp file during deferred cleanup: %v", closeErr)
+				}
+			}
+			if rmErr := os.Remove(tempFile.Name()); rmErr != nil && !os.IsNotExist(rmErr) {
+				remoteLog.Printf("Warning: failed to remove temp file %s: %v", tempFile.Name(), rmErr)
+			}
+		}
+	}()
 	if _, err := tempFile.Write(content); err != nil {
 		if closeErr := tempFile.Close(); closeErr != nil {
 			remoteLog.Printf("Warning: failed to close temp file during cleanup: %v", closeErr)
 		}
-		if rmErr := os.Remove(tempFile.Name()); rmErr != nil {
-			remoteLog.Printf("Warning: failed to remove temp file %s: %v", tempFile.Name(), rmErr)
-		}
+		fileClosed = true
 		return "", fmt.Errorf("failed to write temp file: %w", err)
 	}
 	if err := tempFile.Close(); err != nil {
-		if rmErr := os.Remove(tempFile.Name()); rmErr != nil {
-			remoteLog.Printf("Warning: failed to remove temp file %s: %v", tempFile.Name(), rmErr)
-		}
+		fileClosed = true
 		return "", fmt.Errorf("failed to close temp file: %w", err)
 	}
+	cleanupOnError = false
+	fileClosed = true
 	return tempFile.Name(), nil
 }
 
