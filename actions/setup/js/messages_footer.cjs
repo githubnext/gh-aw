@@ -12,7 +12,7 @@ const { getMessages, renderTemplate, renderTemplateFromFile, toSnakeCase, getPro
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall_blocked_domains.cjs");
 const { getDifcFilteredEvents, generateDifcFilteredSection } = require("./gateway_difc_filtered.cjs");
-const { formatET, reduceModelNameToIdentifier } = require("./effective_tokens.cjs");
+const { formatET, reduceModelNameToIdentifier, resolveActualModelName } = require("./effective_tokens.cjs");
 const { getDetectionWarningMessage } = require("./messages_run_status.cjs");
 
 /**
@@ -86,7 +86,9 @@ function getFooterMessage(ctx) {
   // Use effectiveTokens from context if provided, otherwise fall back to env var.
   // This ensures callers that don't pass effectiveTokens (e.g. update_activation_comment.cjs)
   // still get the effective token count in the footer when GH_AW_EFFECTIVE_TOKENS is set.
-  const resolvedModelName = ctx.model || process.env.GH_AW_ENGINE_MODEL || "";
+  // Prefer the actual model name from token-usage data (primary_model in agent_usage.json)
+  // over GH_AW_ENGINE_MODEL, which may be a user-supplied alias (e.g. "agent").
+  const resolvedModelName = ctx.model || resolveActualModelName();
   const { effectiveTokens: envEffectiveTokens, effectiveTokensFormatted: envEffectiveTokensFormatted, effectiveTokensSuffix: envEffectiveTokensSuffix } = getEffectiveTokensFromEnv(resolvedModelName);
   const effectiveTokens = ctx.effectiveTokens ?? envEffectiveTokens;
 
@@ -180,7 +182,7 @@ function getFooterWorkflowRecompileMessage(ctx) {
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
   // Read effective tokens from environment variable if available
-  const modelName = process.env.GH_AW_ENGINE_MODEL || "";
+  const modelName = resolveActualModelName();
   const { effectiveTokens, effectiveTokensFormatted, effectiveTokensSuffix } = getEffectiveTokensFromEnv(modelName);
 
   // Create context with both camelCase and snake_case keys
@@ -207,7 +209,7 @@ function getFooterWorkflowRecompileCommentMessage(ctx) {
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
   // Read effective tokens from environment variable if available
-  const modelName = process.env.GH_AW_ENGINE_MODEL || "";
+  const modelName = resolveActualModelName();
   const { effectiveTokens, effectiveTokensFormatted, effectiveTokensSuffix } = getEffectiveTokensFromEnv(modelName);
 
   // Create context with both camelCase and snake_case keys
@@ -247,7 +249,7 @@ function getFooterAgentFailureIssueMessage(ctx) {
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
   // Read effective tokens from environment variable if available
-  const modelName = process.env.GH_AW_ENGINE_MODEL || "";
+  const modelName = resolveActualModelName();
   const { effectiveTokens, effectiveTokensFormatted, effectiveTokensSuffix } = getEffectiveTokensFromEnv(modelName);
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
@@ -289,7 +291,7 @@ function getFooterAgentFailureCommentMessage(ctx) {
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
   // Read effective tokens from environment variable if available
-  const modelName = process.env.GH_AW_ENGINE_MODEL || "";
+  const modelName = resolveActualModelName();
   const { effectiveTokens, effectiveTokensFormatted, effectiveTokensSuffix } = getEffectiveTokensFromEnv(modelName);
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
@@ -413,7 +415,8 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
   // Read effective tokens from environment variable if available.
   // GH_AW_EFFECTIVE_TOKENS is set by parse_mcp_gateway_log.cjs after computing ET
   // from the token-usage.jsonl produced by the firewall proxy.
-  const modelName = process.env.GH_AW_ENGINE_MODEL || "";
+  // Prefer the actual model name from token-usage data over GH_AW_ENGINE_MODEL alias.
+  const modelName = resolveActualModelName();
   const { effectiveTokens } = getEffectiveTokensFromEnv(modelName);
 
   // Read workflow emoji from environment variable if available.

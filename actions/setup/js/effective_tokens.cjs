@@ -326,6 +326,27 @@ function _resetCache() {
 }
 
 /**
+ * Resolve the actual model name to use in footer rendering.
+ *
+ * Prefers `primary_model` from agent_usage.json (the actual model name recorded
+ * by the firewall proxy during the run) over `GH_AW_ENGINE_MODEL` (which may be
+ * a user-supplied alias such as "agent" that hasn't been resolved to a real name).
+ *
+ * Falls back to `GH_AW_ENGINE_MODEL` when agent_usage.json is absent, unreadable,
+ * or does not contain a `primary_model` field (e.g. single-model runs before this
+ * field was introduced, or runs without token-usage.jsonl data).
+ *
+ * @returns {string}
+ */
+function resolveActualModelName() {
+  const usage = readAgentUsage();
+  if (usage && typeof usage.primary_model === "string" && usage.primary_model) {
+    return usage.primary_model;
+  }
+  return process.env.GH_AW_ENGINE_MODEL || "";
+}
+
+/**
  * Read effective tokens from the GH_AW_EFFECTIVE_TOKENS environment variable and return
  * a pre-formatted suffix string suitable for appending to footer text.
  * Returns "" when the variable is absent or the parsed value is not a positive integer.
@@ -336,7 +357,7 @@ function getEffectiveTokensSuffix() {
   const parsed = parseInt(raw, 10);
 
   if (!isNaN(parsed) && parsed > 0) {
-    const reducedModel = reduceModelNameToIdentifier(process.env.GH_AW_ENGINE_MODEL);
+    const reducedModel = reduceModelNameToIdentifier(resolveActualModelName());
     const modelPrefix = reducedModel ? `${reducedModel} ` : "";
     return ` · ● ${modelPrefix}${formatET(parsed)}`;
   }
@@ -444,6 +465,7 @@ module.exports = {
   computeEffectiveTokens,
   formatET,
   reduceModelNameToIdentifier,
+  resolveActualModelName,
   getEffectiveTokensSuffix,
   AGENT_USAGE_PATH,
   readAgentUsage,
