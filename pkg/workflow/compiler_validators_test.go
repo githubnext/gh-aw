@@ -371,9 +371,9 @@ func TestWarnPromptTmpPaths(t *testing.T) {
 // warning counter and emits a message when the markdown body has problematic /tmp paths.
 func TestValidatePromptTmpPaths(t *testing.T) {
 	tests := []struct {
-		name         string
-		markdown     string
-		expectWarn   bool
+		name       string
+		markdown   string
+		expectWarn bool
 	}{
 		{
 			name:       "no tmp reference — no warning",
