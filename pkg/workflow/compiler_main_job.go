@@ -246,7 +246,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 	// Add inference_access_error, mcp_policy_error, agentic_engine_timeout, and
 	// model_not_supported_error outputs for engines that provide an error detection step.
-	// These outputs are written by the host-runner detect-copilot-errors step (via the
+	// These outputs are written by the host-runner detect-agent-errors step (via the
 	// engine's GetErrorDetectionScriptId script) rather than from inside the AWF container,
 	// because GITHUB_OUTPUT is not accessible inside the sandbox.
 	engine, engineErr := c.getAgenticEngine(data.AI)

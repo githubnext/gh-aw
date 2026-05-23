@@ -13,7 +13,7 @@ import (
 )
 
 // TestInferenceAccessErrorDetectionStep tests that a Copilot engine workflow exposes
-// inference_access_error from the detect-copilot-errors step.
+// inference_access_error from the detect-agent-errors step.
 func TestInferenceAccessErrorDetectionStep(t *testing.T) {
 	testDir := testutil.TempDir(t, "test-inference-access-error-*")
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
@@ -49,13 +49,13 @@ Test workflow`
 	}
 
 	// Check that a separate detection step is generated on the host runner
-	if !strings.Contains(lockStr, "id: detect-copilot-errors") {
-		t.Error("Expected agent job to have a separate detect-copilot-errors step")
+	if !strings.Contains(lockStr, "id: detect-agent-errors") {
+		t.Error("Expected agent job to have a separate detect-agent-errors step")
 	}
 
 	// Check that the agent job exposes inference_access_error output from the detection step
-	if !strings.Contains(lockStr, "inference_access_error: ${{ steps.detect-copilot-errors.outputs.inference_access_error || 'false' }}") {
-		t.Error("Expected agent job to have inference_access_error output from detect-copilot-errors step")
+	if !strings.Contains(lockStr, "inference_access_error: ${{ steps.detect-agent-errors.outputs.inference_access_error || 'false' }}") {
+		t.Error("Expected agent job to have inference_access_error output from detect-agent-errors step")
 	}
 }
 
@@ -130,9 +130,9 @@ Test workflow`
 
 	lockStr := string(lockContent)
 
-	// Check that non-Copilot engines do NOT have the detect-copilot-errors step
-	if strings.Contains(lockStr, "id: detect-copilot-errors") {
-		t.Error("Expected non-Copilot engine to NOT have detect-copilot-errors step")
+	// Check that non-Copilot engines do NOT have the detect-agent-errors step
+	if strings.Contains(lockStr, "id: detect-agent-errors") {
+		t.Error("Expected non-Copilot engine to NOT have detect-agent-errors step")
 	}
 
 	// Check that non-Copilot engines do NOT have the inference_access_error output

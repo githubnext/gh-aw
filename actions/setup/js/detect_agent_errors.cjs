@@ -71,7 +71,7 @@ function detectErrors(logContent) {
 function writeOutputs(results) {
   const outputFile = process.env.GITHUB_OUTPUT;
   if (!outputFile) {
-    process.stderr.write("[detect-copilot-errors] GITHUB_OUTPUT not set — skipping output\n");
+    process.stderr.write("[detect-agent-errors] GITHUB_OUTPUT not set — skipping output\n");
     return;
   }
 
@@ -90,22 +90,22 @@ function main() {
   if (fs.existsSync(LOG_FILE)) {
     logContent = fs.readFileSync(LOG_FILE, "utf8");
   } else {
-    process.stderr.write(`[detect-copilot-errors] Log file not found: ${LOG_FILE}\n`);
+    process.stderr.write(`[detect-agent-errors] Log file not found: ${LOG_FILE}\n`);
   }
 
   const results = detectErrors(logContent);
 
   if (results.inferenceAccessError) {
-    process.stderr.write("[detect-copilot-errors] Detected inference access error in agent log\n");
+    process.stderr.write("[detect-agent-errors] Detected inference access error in agent log\n");
   }
   if (results.mcpPolicyError) {
-    process.stderr.write("[detect-copilot-errors] Detected MCP policy error in agent log\n");
+    process.stderr.write("[detect-agent-errors] Detected MCP policy error in agent log\n");
   }
   if (results.agenticEngineTimeout) {
-    process.stderr.write("[detect-copilot-errors] Detected timeout: engine process was killed by signal (step timeout-minutes likely exceeded)\n");
+    process.stderr.write("[detect-agent-errors] Detected timeout: engine process was killed by signal (step timeout-minutes likely exceeded)\n");
   }
   if (results.modelNotSupportedError) {
-    process.stderr.write("[detect-copilot-errors] Detected model-not-supported error: the requested model is unavailable for this subscription tier\n");
+    process.stderr.write("[detect-agent-errors] Detected model-not-supported error: the requested model is unavailable for this subscription tier\n");
   }
 
   writeOutputs(results);

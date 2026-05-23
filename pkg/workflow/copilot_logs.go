@@ -452,11 +452,11 @@ func (e *CopilotEngine) GetLogParserScriptId() string {
 	return "parse_copilot_log"
 }
 
-// GetErrorDetectionScriptId returns the JavaScript script name for detecting Copilot errors
+// GetErrorDetectionScriptId returns the JavaScript script name for detecting agent errors
 // from the agent stdio log. The script runs on the host runner after the AWF container exits,
 // allowing it to write GITHUB_OUTPUT values that are not accessible inside the container.
 func (e *CopilotEngine) GetErrorDetectionScriptId() string {
-	return "detect_copilot_errors"
+	return "detect_agent_errors"
 }
 
 // GetLogFileForParsing returns the log directory for Copilot CLI logs
