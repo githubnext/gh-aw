@@ -33,6 +33,8 @@ const AWF_MODELS_URL_TIMEOUT_MS = 3000;
 const AWF_MODELS_URL_MAX_ATTEMPTS = 5;
 // Base delay between models_url fallback retries. Uses exponential backoff.
 const AWF_MODELS_URL_RETRY_BASE_MS = 250;
+// Cap for exponential backoff delay between retries.
+const AWF_MODELS_URL_RETRY_MAX_MS = 2000;
 // Gemini model name prefix stripped from model IDs in the Gemini models API response.
 // Example: { name: "models/gemini-1.5-pro" } → "gemini-1.5-pro"
 const GEMINI_MODEL_NAME_PREFIX = "models/";
@@ -98,7 +100,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
       const res = await fetch(modelsUrl, { signal: ac.signal });
       if (!res.ok) {
         if (res.status === 503 && attempt < AWF_MODELS_URL_MAX_ATTEMPTS) {
-          const backoffMs = AWF_MODELS_URL_RETRY_BASE_MS * 2 ** (attempt - 1);
+          const backoffMs = Math.min(AWF_MODELS_URL_RETRY_BASE_MS * 2 ** (attempt - 1), AWF_MODELS_URL_RETRY_MAX_MS);
           logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}; retrying in ${backoffMs}ms (attempt ${attempt + 1}/${AWF_MODELS_URL_MAX_ATTEMPTS})`);
           await new Promise(resolve => setTimeout(resolve, backoffMs));
           continue;
@@ -265,6 +267,7 @@ if (typeof module !== "undefined" && module.exports) {
     AWF_MODELS_URL_TIMEOUT_MS,
     AWF_MODELS_URL_MAX_ATTEMPTS,
     AWF_MODELS_URL_RETRY_BASE_MS,
+    AWF_MODELS_URL_RETRY_MAX_MS,
     GEMINI_MODEL_NAME_PREFIX,
     enrichReflectModels,
     extractModelIds,

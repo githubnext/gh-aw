@@ -12,6 +12,7 @@ const {
   AWF_MODELS_URL_TIMEOUT_MS,
   AWF_MODELS_URL_MAX_ATTEMPTS,
   AWF_MODELS_URL_RETRY_BASE_MS,
+  AWF_MODELS_URL_RETRY_MAX_MS,
   GEMINI_MODEL_NAME_PREFIX,
   enrichReflectModels,
   extractModelIds,
@@ -28,6 +29,7 @@ describe("awf_reflect.cjs", () => {
       expect(AWF_MODELS_URL_TIMEOUT_MS).toBe(3000);
       expect(AWF_MODELS_URL_MAX_ATTEMPTS).toBe(5);
       expect(AWF_MODELS_URL_RETRY_BASE_MS).toBe(250);
+      expect(AWF_MODELS_URL_RETRY_MAX_MS).toBe(2000);
       expect(GEMINI_MODEL_NAME_PREFIX).toBe("models/");
     });
   });
