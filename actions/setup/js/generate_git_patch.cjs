@@ -386,7 +386,11 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
                   }
 
                   const candidateCommitCount = parseInt(execGitSync(["rev-list", "--count", `${candidateBase}..${branchName}`], { cwd }).trim(), 10);
-                  if (Number.isNaN(candidateCommitCount) || candidateCommitCount <= 0) {
+                  if (Number.isNaN(candidateCommitCount)) {
+                    debugLog(`Strategy 3: Ignoring merge-base ${candidateBase} from ref ${ref} due to invalid commit count`);
+                    continue;
+                  }
+                  if (candidateCommitCount <= 0) {
                     continue;
                   }
 
