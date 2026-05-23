@@ -53,6 +53,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 ### Meta-Aliases
 
 Meta-aliases reference other aliases by name. They are resolved recursively until a concrete pattern is reached.
+Some meta-aliases also bake in model parameters (for example, `opusplan` sets `effort=high`).
 
 | Meta-alias | Expands to |
 |------------|------------|
