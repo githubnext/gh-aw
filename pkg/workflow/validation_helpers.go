@@ -21,7 +21,7 @@
 //   - Reduce cognitive overhead when writing new validators
 //
 // For the validation architecture overview, see validation.go.
-// Parse/coercion helpers (parseStringSliceAny, preprocessProtectedFilesField) live in parse_helpers.go.
+// Parse/coercion helpers live in parse_helpers.go and config_preprocessing.go.
 
 package workflow
 

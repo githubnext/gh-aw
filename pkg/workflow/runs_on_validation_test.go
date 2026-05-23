@@ -187,3 +187,63 @@ func TestExtractRunnerLabels(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateRunsOnValue(t *testing.T) {
+	tests := []struct {
+		name       string
+		value      any
+		wantErr    bool
+		errContain string
+	}{
+		{
+			name:    "string is valid",
+			value:   "ubuntu-latest",
+			wantErr: false,
+		},
+		{
+			name:    "array of strings is valid",
+			value:   []any{"self-hosted", "linux"},
+			wantErr: false,
+		},
+		{
+			name: "object with group and labels is valid",
+			value: map[string]any{
+				"group":  "my-group",
+				"labels": []any{"linux", "x64"},
+			},
+			wantErr: false,
+		},
+		{
+			name:       "array with non-string entry is invalid",
+			value:      []any{"linux", 42},
+			wantErr:    true,
+			errContain: "array entry type int",
+		},
+		{
+			name: "object with invalid key is invalid",
+			value: map[string]any{
+				"runner": "ubuntu-latest",
+			},
+			wantErr:    true,
+			errContain: `invalid runs-on object key "runner"`,
+		},
+		{
+			name:       "unsupported type is invalid",
+			value:      123,
+			wantErr:    true,
+			errContain: "invalid runs-on type int",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateRunsOnValue(tt.value)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContain)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}

@@ -679,11 +679,11 @@ jobs:
 
 	// Add validate_workflows job for workflow_dispatch with operation == 'validate'
 	// This job uses ubuntu-latest by default (needs full runner for CLI installation).
-	validateRunsOnValue := FormatRunsOn(configuredRunsOn, "ubuntu-latest")
+	formattedRunsOn := FormatRunsOn(configuredRunsOn, "ubuntu-latest")
 	yaml.WriteString(`
   validate_workflows:
     if: ${{ ` + RenderCondition(buildDispatchOperationCondition("validate")) + ` }}
-    runs-on: ` + validateRunsOnValue + `
+    runs-on: ` + formattedRunsOn + `
     permissions:
       contents: read
       issues: write

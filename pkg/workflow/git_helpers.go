@@ -19,11 +19,7 @@
 //
 // # Key Functions
 //
-// Tag Detection:
-//   - GetCurrentGitTag() - Detect current Git tag from environment or repository
-//
 // Command Execution with Spinner:
-//   - RunGit() - Execute git command with spinner, returning stdout
 //   - RunGitCombined() - Execute git command with spinner, returning combined stdout+stderr
 //
 // # Usage Patterns

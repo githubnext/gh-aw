@@ -181,22 +181,22 @@ func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowDat
 	}
 }
 
-// addSafeOutputGitHubTokenForConfig adds github-token to the with section, preferring per-config token over global
-// Uses precedence: config token > safe-outputs global github-token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
-func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
+func (c *Compiler) addResolvedSafeOutputGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string, resolver func(string) string, allowGitHubApp bool) {
 	var safeOutputsToken string
+	var githubApp *GitHubAppConfig
 	if data.SafeOutputs != nil {
 		safeOutputsToken = data.SafeOutputs.GitHubToken
+		githubApp = data.SafeOutputs.GitHubApp
 	}
 
-	// If app is configured, use app token
-	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
-		if data.SafeOutputs.GitHubApp.shouldIgnoreMissingKey() {
-			effectiveCustomToken := configToken
-			if effectiveCustomToken == "" {
-				effectiveCustomToken = safeOutputsToken
-			}
-			fallbackToken := getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
+	effectiveCustomToken := configToken
+	if effectiveCustomToken == "" {
+		effectiveCustomToken = safeOutputsToken
+	}
+
+	if allowGitHubApp && githubApp != nil {
+		if githubApp.shouldIgnoreMissingKey() {
+			fallbackToken := resolver(effectiveCustomToken)
 			*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", combineTokenExpressions("${{ steps.safe-outputs-app-token.outputs.token }}", fallbackToken)))
 			return
 		}
@@ -204,49 +204,20 @@ func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *Work
 		return
 	}
 
-	// Choose the first non-empty custom token for precedence
-	effectiveCustomToken := configToken
-	if effectiveCustomToken == "" {
-		effectiveCustomToken = safeOutputsToken
-	}
-
-	// Get effective token
-	effectiveToken := getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
+	effectiveToken := resolver(effectiveCustomToken)
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
+}
+
+// addSafeOutputGitHubTokenForConfig adds github-token to the with section, preferring per-config token over global
+// Uses precedence: config token > safe-outputs global github-token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
+	c.addResolvedSafeOutputGitHubTokenForConfig(steps, data, configToken, getEffectiveSafeOutputGitHubToken, true)
 }
 
 // addSafeOutputCopilotGitHubTokenForConfig adds github-token to the with section for Copilot-related operations
 // Uses precedence: config token > safe-outputs global github-token > COPILOT_GITHUB_TOKEN
 func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
-	var safeOutputsToken string
-	if data.SafeOutputs != nil {
-		safeOutputsToken = data.SafeOutputs.GitHubToken
-	}
-
-	// If app is configured, use app token
-	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
-		if data.SafeOutputs.GitHubApp.shouldIgnoreMissingKey() {
-			effectiveCustomToken := configToken
-			if effectiveCustomToken == "" {
-				effectiveCustomToken = safeOutputsToken
-			}
-			fallbackToken := getEffectiveCopilotRequestsToken(effectiveCustomToken)
-			*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", combineTokenExpressions("${{ steps.safe-outputs-app-token.outputs.token }}", fallbackToken)))
-			return
-		}
-		*steps = append(*steps, "          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
-		return
-	}
-
-	// Choose the first non-empty custom token for precedence
-	effectiveCustomToken := configToken
-	if effectiveCustomToken == "" {
-		effectiveCustomToken = safeOutputsToken
-	}
-
-	// Get effective token
-	effectiveToken := getEffectiveCopilotRequestsToken(effectiveCustomToken)
-	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
+	c.addResolvedSafeOutputGitHubTokenForConfig(steps, data, configToken, getEffectiveCopilotRequestsToken, true)
 }
 
 // addSafeOutputAgentGitHubTokenForConfig adds github-token to the with section for agent assignment operations
@@ -257,21 +228,8 @@ func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, dat
 // The Copilot assignment API only accepts PATs (fine-grained or classic), not GitHub App
 // installation tokens. Callers must provide an explicit github-token or rely on GH_AW_AGENT_TOKEN.
 func (c *Compiler) addSafeOutputAgentGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
-	// Get safe-outputs level token
-	var safeOutputsToken string
-	if data.SafeOutputs != nil {
-		safeOutputsToken = data.SafeOutputs.GitHubToken
-	}
-
-	// Choose the first non-empty custom token for precedence
-	effectiveCustomToken := configToken
-	if effectiveCustomToken == "" {
-		effectiveCustomToken = safeOutputsToken
-	}
-
 	// Get effective token - falls back to ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 	// when no explicit token is provided. GitHub App tokens are never used here because the
 	// Copilot assignment API rejects them.
-	effectiveToken := getEffectiveCopilotCodingAgentGitHubToken(effectiveCustomToken)
-	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
+	c.addResolvedSafeOutputGitHubTokenForConfig(steps, data, configToken, getEffectiveCopilotCodingAgentGitHubToken, false)
 }
