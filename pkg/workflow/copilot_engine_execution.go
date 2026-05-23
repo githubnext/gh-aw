@@ -532,24 +532,6 @@ touch %s
 	return steps
 }
 
-// generateCopilotErrorDetectionStep generates a single step that detects known Copilot CLI
-// errors by scanning the agent stdio log. It sets four outputs:
-//   - inference_access_error: token lacks inference access (policy access denied)
-//   - mcp_policy_error: MCP servers blocked by enterprise/organization policy
-//   - agentic_engine_timeout: process killed by signal (SIGTERM/SIGKILL/SIGINT), typically step timeout
-//   - model_not_supported_error: requested model unavailable for the subscription tier
-func generateCopilotErrorDetectionStep() GitHubActionStep {
-	var step []string
-
-	step = append(step, "      - name: Detect Copilot errors")
-	step = append(step, "        id: detect-copilot-errors")
-	step = append(step, "        if: always()")
-	step = append(step, "        continue-on-error: true")
-	step = append(step, "        run: node \"${RUNNER_TEMP}/gh-aw/actions/detect_copilot_errors.cjs\"")
-
-	return GitHubActionStep(step)
-}
-
 // copilotSupportsNoAskUser returns true when the effective Copilot CLI version supports the
 // --no-ask-user flag, which enables fully autonomous agentic runs by suppressing interactive prompts.
 //

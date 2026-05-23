@@ -256,7 +256,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR: ${{ needs.%s.outputs.effective_tokens_rate_limit_error || 'false' }}\n", mainJobName))
 
 	// Pass Copilot-engine-specific error detection outputs to the conclusion job.
-	// These are set by the detect-copilot-errors step in the agent job and cover:
+	// These are set by the copilot_harness.cjs logic in the agentic_execution step and cover:
 	//   - inference_access_error: token lacks inference access
 	//   - mcp_policy_error: MCP servers blocked by enterprise/organization policy
 	//   - agentic_engine_timeout: engine process killed by signal (step timeout)
