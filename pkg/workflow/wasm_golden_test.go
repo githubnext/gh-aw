@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/exp/golden"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,12 +25,11 @@ var testAWFImageTagDigestRE = regexp.MustCompile(`,[a-z-]+=sha256:[0-9a-f]{64}`)
 func normalizeOutput(content string) string {
 	normalized := testContainerPinRE.ReplaceAllString(normalizeHeredocDelimiters(content), "")
 	// Keep golden fixtures stable across copilot default model fallback updates.
-	normalized = strings.ReplaceAll(normalized, "|| 'claude-sonnet-4.5'", "|| 'default'")
+	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.CopilotBYOKDefaultModel), "|| 'default'")
 	// Keep golden fixtures stable across temporary workspace-path allowlist shape changes.
-	normalized = strings.ReplaceAll(normalized, "Edit(/tmp/gh-aw/*)", "Edit(/tmp/gh-aw/agent/*)")
-	normalized = strings.ReplaceAll(normalized, "MultiEdit(/tmp/gh-aw/*)", "MultiEdit(/tmp/gh-aw/agent/*)")
-	normalized = strings.ReplaceAll(normalized, "Read(/tmp/gh-aw/*)", "Read(/tmp/gh-aw/agent/*)")
-	normalized = strings.ReplaceAll(normalized, "Write(/tmp/gh-aw/*)", "Write(/tmp/gh-aw/agent/*)")
+	for _, op := range []string{"Edit", "MultiEdit", "Read", "Write"} {
+		normalized = strings.ReplaceAll(normalized, fmt.Sprintf("%s(/tmp/gh-aw/*)", op), fmt.Sprintf("%s(/tmp/gh-aw/agent/*)", op))
+	}
 	return testAWFImageTagDigestRE.ReplaceAllString(normalized, "")
 }
 
