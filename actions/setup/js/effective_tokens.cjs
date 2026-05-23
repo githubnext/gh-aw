@@ -230,18 +230,18 @@ function reduceModelNameToIdentifier(modelName) {
     .toLowerCase();
   if (!normalized) return "";
 
-  /** @type {Array<{ familyPattern: RegExp, prefix: string }>} */
+  /** @type {Array<{ familyPattern: RegExp, versionPattern: RegExp, prefix: string }>} */
   const shortcuts = [
-    { familyPattern: /sonnet/, prefix: "son" },
-    { familyPattern: /opus/, prefix: "opu" },
-    { familyPattern: /haiku/, prefix: "hai" },
-    { familyPattern: /gpt/, prefix: "gpt" },
-    { familyPattern: /gemini/, prefix: "gem" },
+    { familyPattern: /sonnet/, versionPattern: /sonnet[-_\s]*([0-9]+)(?:[._-]+([0-9]+))?/, prefix: "son" },
+    { familyPattern: /opus/, versionPattern: /opus[-_\s]*([0-9]+)(?:[._-]+([0-9]+))?/, prefix: "opu" },
+    { familyPattern: /haiku/, versionPattern: /haiku[-_\s]*([0-9]+)(?:[._-]+([0-9]+))?/, prefix: "hai" },
+    { familyPattern: /gpt/, versionPattern: /gpt[-_\s]*([0-9]+)(?:[._-]+([0-9]+))?/, prefix: "gpt" },
+    { familyPattern: /gemini/, versionPattern: /gemini[-_\s]*([0-9]+)(?:[._-]+([0-9]+))?/, prefix: "gem" },
   ];
 
-  for (const { familyPattern, prefix } of shortcuts) {
+  for (const { familyPattern, versionPattern, prefix } of shortcuts) {
     if (!familyPattern.test(normalized)) continue;
-    const version = extractModelVersionDigits(normalized, familyPattern);
+    const version = extractModelVersionDigits(normalized, versionPattern);
     return `${prefix}${version}`;
   }
 
@@ -250,11 +250,11 @@ function reduceModelNameToIdentifier(modelName) {
 
 /**
  * @param {string} normalizedModelName
- * @param {RegExp} familyPattern
+ * @param {RegExp} familyVersionPattern
  * @returns {string}
  */
-function extractModelVersionDigits(normalizedModelName, familyPattern) {
-  const familyMatch = normalizedModelName.match(new RegExp(`${familyPattern.source}[-_\\s]*([0-9]+)(?:[._-]+([0-9]+))?`));
+function extractModelVersionDigits(normalizedModelName, familyVersionPattern) {
+  const familyMatch = normalizedModelName.match(familyVersionPattern);
   if (familyMatch) {
     return normalizeVersionDigits(familyMatch[1], familyMatch[2]);
   }
@@ -273,12 +273,21 @@ function extractModelVersionDigits(normalizedModelName, familyPattern) {
  * @returns {string}
  */
 function normalizeVersionDigits(major, minor) {
-  const majorMatch = major ? major.match(/\d/) : null;
-  const majorDigit = majorMatch ? majorMatch[0] : "0";
+  const majorDigit = getFirstDigit(major);
   const minorIsDateLike = minor && /^\d{3,}$/.test(minor);
-  const minorMatch = minor && !minorIsDateLike ? minor.match(/\d/) : null;
-  const minorDigit = minorMatch ? minorMatch[0] : "0";
+  const minorDigit = getFirstDigit(minor, Boolean(minorIsDateLike));
   return `${majorDigit}${minorDigit}`;
+}
+
+/**
+ * @param {string|undefined} value
+ * @param {boolean} [treatAsMissing=false]
+ * @returns {string}
+ */
+function getFirstDigit(value, treatAsMissing = false) {
+  if (!value || treatAsMissing) return "0";
+  const digitMatch = value.match(/\d/);
+  return digitMatch ? digitMatch[0] : "0";
 }
 
 /**
@@ -289,6 +298,7 @@ function buildFallbackModelIdentifier(normalizedModelName) {
   const compact = normalizedModelName.replace(/[^a-z0-9]+/g, "");
   if (!compact) return "";
 
+  // Pad with "x" to keep a fixed 3-letter family slot for short/unknown model names.
   const letterPart = compact.replace(/[0-9]/g, "").slice(0, 3).padEnd(3, "x");
   const digitPart = compact
     .replace(/[^0-9]/g, "")
