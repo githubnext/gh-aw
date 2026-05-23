@@ -28,92 +28,83 @@ func hasIncludeDirectives(content string) bool {
 // ExpandIncludesWithManifest recursively expands @include and @import directives and returns list of included files
 func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (string, []string, error) {
 	includeExpanderLog.Printf("Expanding includes: baseDir=%s, extractTools=%t, content_size=%d", baseDir, extractTools, len(content))
-
-	// Fast path: skip expansion entirely when no include/import directives are present.
-	// This avoids scanner and buffer allocations in the common case where there are no includes.
-	// For content mode, preserve the scanner's trailing-newline normalization behavior.
-	if !hasIncludeDirectives(content) {
-		includeExpanderLog.Print("Fast path: no include directives found")
-		if extractTools {
-			return "{}", nil, nil
-		}
-		if !strings.HasSuffix(content, "\n") {
-			return content + "\n", nil, nil
-		}
-		return content, nil, nil
+	if noIncludeContent, done := handleNoIncludeFastPath(content, extractTools); done {
+		return noIncludeContent, nil, nil
 	}
+	currentContent, visited, err := expandIncludesIteratively(content, baseDir, extractTools)
+	if err != nil {
+		return "", nil, err
+	}
+	includedFiles := buildIncludedFilesManifest(baseDir, visited)
+	includeExpanderLog.Printf("Include expansion complete: visited_files=%d", len(includedFiles))
+	if extractTools {
+		mergedTools, err := mergeToolsFromJSON(currentContent)
+		return mergedTools, includedFiles, err
+	}
+	return currentContent, includedFiles, nil
+}
 
+func handleNoIncludeFastPath(content string, extractTools bool) (string, bool) {
+	if hasIncludeDirectives(content) {
+		return "", false
+	}
+	includeExpanderLog.Print("Fast path: no include directives found")
+	if extractTools {
+		return "{}", true
+	}
+	if !strings.HasSuffix(content, "\n") {
+		return content + "\n", true
+	}
+	return content, true
+}
+
+func expandIncludesIteratively(content, baseDir string, extractTools bool) (string, map[string]bool, error) {
 	const maxDepth = 10
 	currentContent := content
 	visited := make(map[string]bool)
-
 	for depth := range maxDepth {
 		includeExpanderLog.Printf("Include expansion depth: %d", depth)
-		// Process includes in current content
 		processedContent, err := processIncludesWithVisited(currentContent, baseDir, extractTools, visited)
 		if err != nil {
 			return "", nil, err
 		}
-
-		// For tools mode, check if we still have @include or @import directives
-		if extractTools {
-			if !strings.Contains(processedContent, "@include") && !strings.Contains(processedContent, "@import") {
-				// No more includes to process for tools mode
-				currentContent = processedContent
-				break
-			}
-		} else {
-			// For content mode, check if content changed
-			if processedContent == currentContent {
-				// No more includes to process
-				break
-			}
+		if includeExpansionComplete(currentContent, processedContent, extractTools) {
+			currentContent = processedContent
+			break
 		}
-
 		currentContent = processedContent
 	}
+	return currentContent, visited, nil
+}
 
-	// Find the repo root by walking up from baseDir to the parent of the .github folder.
-	// This allows files outside baseDir (e.g. .github/shared/ when baseDir is .github/workflows/)
-	// to be recorded with a clean repo-root-relative path instead of an absolute path.
-	repoRoot := findGitHubRepoRoot(baseDir)
-
-	// Convert visited map to slice of file paths (make them relative to baseDir if possible,
-	// falling back to repo-root-relative, and only as a last resort using the absolute path)
-	var includedFiles []string
-	for filePath := range visited {
-		// First: try to make path relative to baseDir for cleaner output
-		relPath, err := filepath.Rel(baseDir, filePath)
-		if err == nil && !strings.HasPrefix(relPath, "..") {
-			// Normalize to Unix paths (forward slashes) for cross-platform compatibility
-			relPath = filepath.ToSlash(relPath)
-			includedFiles = append(includedFiles, relPath)
-			continue
-		}
-
-		// Second: try repo-root-relative path to avoid absolute paths for files in sibling
-		// directories (e.g. .github/shared/ relative to .github/workflows/)
-		if repoRoot != "" {
-			repoRelPath, repoRelErr := filepath.Rel(repoRoot, filePath)
-			if repoRelErr == nil && !strings.HasPrefix(repoRelPath, "..") {
-				repoRelPath = filepath.ToSlash(repoRelPath)
-				includedFiles = append(includedFiles, repoRelPath)
-				continue
-			}
-		}
-
-		// Fallback: use the absolute path (should be rare)
-		includedFiles = append(includedFiles, filepath.ToSlash(filePath))
-	}
-
-	includeExpanderLog.Printf("Include expansion complete: visited_files=%d", len(includedFiles))
+func includeExpansionComplete(currentContent, processedContent string, extractTools bool) bool {
 	if extractTools {
-		// For tools mode, merge all extracted JSON objects
-		mergedTools, err := mergeToolsFromJSON(currentContent)
-		return mergedTools, includedFiles, err
+		return !strings.Contains(processedContent, "@include") && !strings.Contains(processedContent, "@import")
 	}
+	return processedContent == currentContent
+}
 
-	return currentContent, includedFiles, nil
+func buildIncludedFilesManifest(baseDir string, visited map[string]bool) []string {
+	repoRoot := findGitHubRepoRoot(baseDir)
+	includedFiles := make([]string, 0, len(visited))
+	for filePath := range visited {
+		includedFiles = append(includedFiles, relativizeIncludedFilePath(baseDir, repoRoot, filePath))
+	}
+	return includedFiles
+}
+
+func relativizeIncludedFilePath(baseDir, repoRoot, filePath string) string {
+	relPath, err := filepath.Rel(baseDir, filePath)
+	if err == nil && !strings.HasPrefix(relPath, "..") {
+		return filepath.ToSlash(relPath)
+	}
+	if repoRoot != "" {
+		repoRelPath, repoRelErr := filepath.Rel(repoRoot, filePath)
+		if repoRelErr == nil && !strings.HasPrefix(repoRelPath, "..") {
+			return filepath.ToSlash(repoRelPath)
+		}
+	}
+	return filepath.ToSlash(filePath)
 }
 
 // findGitHubRepoRoot walks up the directory tree from dir to find the parent of the
