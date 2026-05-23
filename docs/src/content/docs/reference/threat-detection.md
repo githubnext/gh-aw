@@ -331,6 +331,10 @@ Reasons:
 
 If the detection process itself fails (e.g., network issues, tool errors), the workflow stops and safe outputs are not applied. This fail-safe approach prevents potentially malicious content from being processed.
 
+**When Detection Returns a Warning:**
+
+A warning is a lower-severity signal than a hard threat: the safe output is allowed to proceed, but human review is required before merge. When `create-pull-request` is the safe output, the handler submits a `REQUEST_CHANGES` pull request review whose body includes the detection reason and a link to the workflow run logs. If a `request_review` protected-files gate also fires in the same run, both signals are composed into a single review body separated by a horizontal rule.
+
 ## Supply Chain Protection (Protected Files)
 
 Beyond AI-powered threat detection, GitHub Agentic Workflows includes a static, rule-based protection layer that guards against **supply chain attacks** — cases where an AI agent could (intentionally or accidentally) modify files that control how software is built, tested, or deployed.
@@ -360,7 +364,8 @@ Configure how each safe output handles protected file changes using the `protect
 
 | Value | Behavior |
 |-------|-----------|
-| `blocked` (default) | Hard-block: the safe output fails with an error message |
+| `request_review` (default) | Create the pull request and submit a `REQUEST_CHANGES` review listing the protected files. A human reviewer must approve before merge. |
+| `blocked` | Hard-block: the safe output fails with an error message |
 | `allowed` | No restriction — all protected file changes are permitted |
 | `fallback-to-issue` | Create a review issue instead of a PR / push, so a human can inspect and apply the changes manually |
 

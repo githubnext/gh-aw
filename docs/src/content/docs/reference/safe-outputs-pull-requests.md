@@ -415,7 +415,8 @@ The `protected-files` field accepts either a string policy value or an object wi
 
 | Value | Behavior |
 |-------|-----------|
-| `blocked` (default) | Hard-block: the safe output fails with an error |
+| `request_review` (default) | Create the pull request and submit a `REQUEST_CHANGES` review listing the protected files. The agent's work is preserved, and a human reviewer must approve before merge. |
+| `blocked` | Hard-block: the safe output fails with an error |
 | `fallback-to-issue` | Create a review issue with instructions for the human to apply or reject the changes manually |
 | `allowed` | No restriction — all protected file changes are permitted. **Use only when the workflow is explicitly designed to manage these files.** |
 
@@ -425,7 +426,7 @@ The `protected-files` field accepts either a string policy value or an object wi
 safe-outputs:
   create-pull-request:
     protected-files:
-      policy: fallback-to-issue   # same values as string form (default: blocked)
+      policy: fallback-to-issue   # same values as string form (default: request_review)
       exclude:
         - AGENTS.md               # allow the agent to update its own instruction file
         - CHANGELOG.md            # allow the agent to update the changelog
@@ -475,7 +476,7 @@ on:
         type: string
         default: fallback-to-issue
         description: >
-          Protected-file policy: 'blocked', 'fallback-to-issue', or 'allowed'.
+          Protected-file policy: 'request_review', 'blocked', 'fallback-to-issue', or 'allowed'.
       patch-format:
         type: string
         default: bundle
