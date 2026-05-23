@@ -735,8 +735,12 @@ func TestBuildAWFCommand_AddsConditionalNodeToolcacheMounts(t *testing.T) {
 
 	assert.Contains(t, command, `if [ -d /opt/hostedtoolcache/node ]; then`, "expected conditional mount check for hosted runner node toolcache")
 	assert.Contains(t, command, `--mount /opt/hostedtoolcache/node:/host/opt/hostedtoolcache/node:ro`, "expected hosted runner node toolcache mount")
+	assert.Contains(t, command, `if [ -d /opt/hostedtoolcache/Node ]; then`, "expected conditional mount check for hosted runner Node toolcache")
+	assert.Contains(t, command, `--mount /opt/hostedtoolcache/Node:/host/opt/hostedtoolcache/Node:ro`, "expected hosted runner Node toolcache mount")
 	assert.Contains(t, command, `if [ -d /home/runner/work/_tool/node ]; then`, "expected conditional mount check for self-hosted runner node toolcache")
 	assert.Contains(t, command, `--mount /home/runner/work/_tool/node:/host/home/runner/work/_tool/node:ro`, "expected self-hosted runner node toolcache mount")
+	assert.Contains(t, command, `if [ -d /home/runner/work/_tool/Node ]; then`, "expected conditional mount check for self-hosted runner Node toolcache")
+	assert.Contains(t, command, `--mount /home/runner/work/_tool/Node:/host/home/runner/work/_tool/Node:ro`, "expected self-hosted runner Node toolcache mount")
 	assert.Contains(t, command, `${GH_AW_NODE_MOUNT_ARGS}`, "expected AWF invocation to include computed node mount args")
 }
 

@@ -154,8 +154,8 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 // hostedtoolcache bin directories for npm packages.
 //
 // Both direct toolcache paths and /host-prefixed bind mounts are searched:
-// - /opt/hostedtoolcache + /home/runner/work/_tool (directly visible paths)
-// - /host/opt/hostedtoolcache + /host/home/runner/work/_tool (AWF chroot bind mounts)
+// - /opt/hostedtoolcache + /home/runner/work/_tool (+ /home/runner/work/_tool/Node)
+// - /host/opt/hostedtoolcache + /host/home/runner/work/_tool (+ /host/home/runner/work/_tool/Node)
 // This ensures node is found regardless of runner type and AWF filesystem layout.
 //
 // Returns:
@@ -172,7 +172,7 @@ func GetNpmBinPathSetup() string {
 	// alphabetically, so go/1.23.12 shadows go/1.25.0. Re-prepending GOROOT/bin
 	// ensures the Go version set by actions/setup-go takes precedence.
 	// AWF's entrypoint.sh exports GOROOT before the user command runs.
-	return `export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool /host/opt/hostedtoolcache /host/home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true`
+	return `export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool /home/runner/work/_tool/Node /host/opt/hostedtoolcache /host/home/runner/work/_tool /host/home/runner/work/_tool/Node -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true`
 }
 
 // GenerateNpmInstallStepsWithScope generates npm installation steps with control over global vs local installation.
