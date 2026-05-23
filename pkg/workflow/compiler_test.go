@@ -317,7 +317,7 @@ func TestCompileWorkflow_CachesResolvedManifestBaseline(t *testing.T) {
 	testContent := `---
 on: push
 engine: copilot
-strict: false
+strict: true
 ---
 
 # Test Workflow
@@ -342,6 +342,32 @@ Caching baseline manifest data should not change behavior.
 	require.True(t, ok, "cached baseline should remain available after second compile")
 	require.NotNil(t, secondBaseline, "cached baseline should be non-nil")
 	require.Same(t, firstBaseline, secondBaseline, "cache should keep the first baseline without overwrite")
+}
+
+func TestCompileWorkflow_SkipsManifestBaselineWhenSafeUpdateDisabled(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "compiler-manifest-skip-cache")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+Safe update disabled should skip baseline resolution and caching.
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler(WithNoEmit(true))
+	manifestCache := map[string]*GHAWManifest{}
+	compiler.SetPriorManifests(manifestCache)
+
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockFile := filepath.Clean(stringutil.MarkdownToLockFile(testFile))
+	_, ok := manifestCache[lockFile]
+	require.False(t, ok, "baseline manifest should not be cached when safe update is disabled")
 }
 
 func TestCompileWorkflow_DoesNotCacheNilLegacyBaseline(t *testing.T) {
