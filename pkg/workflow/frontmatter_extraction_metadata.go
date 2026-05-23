@@ -197,7 +197,7 @@ func buildLocalWorkflowSourceURL(markdownPath string) string {
 		return ""
 	}
 
-	url := fmt.Sprintf("${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/%s", relPath)
+	url := "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/" + relPath
 	frontmatterMetadataLog.Printf("Built local workflow source URL for %s", relPath)
 	return url
 }

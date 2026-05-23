@@ -28,7 +28,7 @@ func normalizeOutput(content string) string {
 	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.CopilotBYOKDefaultModel), "|| 'default'")
 	// Keep golden fixtures stable across temporary workspace-path allowlist shape changes.
 	for _, op := range []string{"Edit", "MultiEdit", "Read", "Write"} {
-		normalized = strings.ReplaceAll(normalized, fmt.Sprintf("%s(/tmp/gh-aw/*)", op), fmt.Sprintf("%s(/tmp/gh-aw/agent/*)", op))
+		normalized = strings.ReplaceAll(normalized, op+"(/tmp/gh-aw/*)", op+"(/tmp/gh-aw/agent/*)")
 	}
 	return testAWFImageTagDigestRE.ReplaceAllString(normalized, "")
 }
