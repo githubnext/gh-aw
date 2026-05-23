@@ -102,7 +102,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 
 	// A newer version is available – upgrade automatically
 	updateExtensionCheckLog.Printf("Upgrading extension from %s to %s", currentVersion, latestVersion)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Upgrading gh-aw extension from %s to %s...", currentVersion, latestVersion)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Upgrading gh-aw extension from %s to %s...", renderReleaseVersion(currentVersion), renderReleaseVersion(latestVersion))))
 
 	// When targeting a prerelease version on platforms that do not lock running
 	// binaries (i.e., not Linux or Windows), gh extension upgrade --force resolves
@@ -127,9 +127,9 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		pinCmd.Stdout = os.Stderr
 		pinCmd.Stderr = os.Stderr
 		if pinErr := pinCmd.Run(); pinErr != nil {
-			return false, "", fmt.Errorf("failed to install gh-aw extension at version %s: %w", latestVersion, pinErr)
+			return false, "", fmt.Errorf("failed to install gh-aw extension at version %s: %w", renderReleaseVersion(latestVersion), pinErr)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+latestVersion))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+renderReleaseVersion(latestVersion)))
 		return true, "", nil
 	}
 
@@ -154,7 +154,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 			// Replay the buffered output that was not shown during the attempt.
 			_, _ = io.Copy(os.Stderr, &firstAttemptBuf)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+latestVersion))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+renderReleaseVersion(latestVersion)))
 		return true, "", nil
 	}
 
@@ -286,7 +286,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		cleanupExecutableBackup(backupPath)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+latestVersion))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+renderReleaseVersion(latestVersion)))
 	return true, installPath, nil
 }
 
@@ -431,9 +431,16 @@ func prereleaseChannelNotice(currentVersion, latestStable string, includePrerele
 		return nil
 	}
 	return []string{
-		fmt.Sprintf("Current gh-aw version %s is a pre-release; the latest stable release is %s.", currentVersion, latestStable),
+		fmt.Sprintf("Current gh-aw version %s is newer than the latest stable release %s.", renderReleaseVersion(currentVersion), renderReleaseVersion(latestStable)),
 		"Run `gh aw upgrade --pre-releases` to check for newer pre-releases.",
 	}
+}
+
+func renderReleaseVersion(version string) string {
+	if isPrereleaseVersion(version) {
+		return version + " (pre-release)"
+	}
+	return version
 }
 
 func extensionUpgradeHelpCommand(targetVersion string) string {

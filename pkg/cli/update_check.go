@@ -210,7 +210,7 @@ func checkForUpdates(noCheckUpdate bool, verbose bool) {
 	// A newer version is available - display update message
 	updateCheckLog.Printf("Newer version available: %s (current: %s)", latestVersion, currentVersion)
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("A new version of gh-aw is available: %s (current: %s)", latestVersion, currentVersion)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("A new version of gh-aw is available: %s (current: %s)", renderReleaseVersion(latestVersion), renderReleaseVersion(currentVersion))))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Update with: gh extension upgrade github/gh-aw"))
 	fmt.Fprintln(os.Stderr, "")
 }

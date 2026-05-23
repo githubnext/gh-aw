@@ -291,7 +291,7 @@ func TestPrereleaseChannelNotice(t *testing.T) {
 			latestStable:       "v0.74.8",
 			includePrereleases: false,
 			want: []string{
-				"Current gh-aw version v0.75.3-beta.1 is a pre-release; the latest stable release is v0.74.8.",
+				"Current gh-aw version v0.75.3-beta.1 (pre-release) is newer than the latest stable release v0.74.8.",
 				"Run `gh aw upgrade --pre-releases` to check for newer pre-releases.",
 			},
 		},
@@ -335,4 +335,9 @@ func TestExtensionHelpCommands(t *testing.T) {
 		"gh extension install github/gh-aw --force --pin v0.75.3-beta.1",
 		extensionInstallHelpCommand("v0.75.3-beta.1"),
 		"pre-release reinstalls should preserve the exact tag")
+}
+
+func TestRenderReleaseVersion(t *testing.T) {
+	assert.Equal(t, "v0.74.8", renderReleaseVersion("v0.74.8"))
+	assert.Equal(t, "v0.75.3-beta.1 (pre-release)", renderReleaseVersion("v0.75.3-beta.1"))
 }
