@@ -866,9 +866,11 @@ if err != nil || !confirmed {
 
 **Internal**:
 - `github.com/github/gh-aw/pkg/logger` — debug-level console logging
-- `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by console package tests
 - `github.com/github/gh-aw/pkg/styles` — adaptive color constants and pre-configured lipgloss styles
 - `github.com/github/gh-aw/pkg/tty` — terminal detection for spinner and progress bar
+
+**Test-only**:
+- `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by console package tests
 
 **External**:
 - `charm.land/lipgloss/v2` — terminal styling and layout
