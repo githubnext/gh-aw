@@ -322,19 +322,19 @@ func TestParseWorkflowFile_StrictMode(t *testing.T) {
 		{
 			name:        "strict mode explicitly true",
 			cliStrict:   false,
-			yamlStrict:  ptrBool(true),
+			yamlStrict:  new(true),
 			expectError: false,
 		},
 		{
 			name:        "strict mode explicitly false",
 			cliStrict:   false,
-			yamlStrict:  ptrBool(false),
+			yamlStrict:  new(false),
 			expectError: false,
 		},
 		{
 			name:        "cli strict mode overrides yaml",
 			cliStrict:   true,
-			yamlStrict:  ptrBool(false),
+			yamlStrict:  new(false),
 			expectError: false,
 		},
 	}
@@ -365,11 +365,6 @@ func TestParseWorkflowFile_StrictMode(t *testing.T) {
 			}
 		})
 	}
-}
-
-// ptrBool returns a pointer to a boolean value
-func ptrBool(b bool) *bool {
-	return &b
 }
 
 // TestCopyFrontmatterWithoutInternalMarkers tests internal marker removal

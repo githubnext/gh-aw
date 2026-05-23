@@ -596,12 +596,12 @@ func safeOutputPointerFieldValue(config *SafeOutputsConfig, fieldName string) (r
 	}
 
 	value := reflect.ValueOf(config)
-	if value.Kind() != reflect.Ptr || value.IsNil() {
+	if value.Kind() != reflect.Pointer || value.IsNil() {
 		return reflect.Value{}, false
 	}
 
 	field := value.Elem().FieldByName(fieldName)
-	if !field.IsValid() || field.Kind() != reflect.Ptr {
+	if !field.IsValid() || field.Kind() != reflect.Pointer {
 		return reflect.Value{}, false
 	}
 

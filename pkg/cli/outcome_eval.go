@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -253,7 +254,7 @@ func medianFloat(vals []float64) float64 {
 // https://github.com/owner/repo/pull/42 or .../issues/108
 func parseNumberFromURL(url string) int {
 	parts := strings.Split(url, "/")
-	for i := len(parts) - 1; i >= 0; i-- {
+	for i := range slices.Backward(parts) {
 		var n int
 		if _, err := fmt.Sscanf(parts[i], "%d", &n); err == nil && n > 0 {
 			return n

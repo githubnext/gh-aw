@@ -74,7 +74,7 @@ func TestHasSafeOutputTypeNewKeys(t *testing.T) {
 			cfg := &SafeOutputsConfig{}
 			field := reflect.ValueOf(cfg).Elem().FieldByName(handler.StructField)
 			require.True(t, field.IsValid(), "descriptor references unknown field %q", handler.StructField)
-			require.Equal(t, reflect.Ptr, field.Kind(), "descriptor field %q must be a pointer", handler.StructField)
+			require.Equal(t, reflect.Pointer, field.Kind(), "descriptor field %q must be a pointer", handler.StructField)
 			var configValue any
 			if handler.NewConfig != nil {
 				configValue = handler.NewConfig()

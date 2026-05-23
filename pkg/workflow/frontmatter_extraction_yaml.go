@@ -650,7 +650,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			// Only do this if NOT using native label filtering for this section
 			if !nativeLabelFilterSections[currentSection] {
 				if len(result) > 0 {
-					for i := len(result) - 1; i >= 0; i-- {
+					for i := range slices.Backward(result) {
 						prevLine := result[i]
 						prevTrimmed := strings.TrimSpace(prevLine)
 

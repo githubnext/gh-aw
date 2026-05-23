@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -517,7 +518,7 @@ func genericURLWorkflowName(rawURL string) string {
 
 	// Walk path segments from the end looking for a non-empty one.
 	segments := strings.Split(strings.Trim(parsed.Path, "/"), "/")
-	for i := len(segments) - 1; i >= 0; i-- {
+	for i := range slices.Backward(segments) {
 		seg := segments[i]
 		if seg == "" {
 			continue
