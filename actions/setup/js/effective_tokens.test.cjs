@@ -1,7 +1,17 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { defaultTokenClassWeights, getTokenClassWeights, getModelMultiplier, computeBaseWeightedTokens, computeEffectiveTokens, formatET, _resetCache } = require("./effective_tokens.cjs");
+const {
+  defaultTokenClassWeights,
+  getTokenClassWeights,
+  getModelMultiplier,
+  computeBaseWeightedTokens,
+  computeEffectiveTokens,
+  formatET,
+  reduceModelNameToIdentifier,
+  getEffectiveTokensSuffix,
+  _resetCache,
+} = require("./effective_tokens.cjs");
 
 // Model multipliers JSON used in tests (matches pkg/cli/data/model_multipliers.json)
 const TEST_MULTIPLIERS_JSON = JSON.stringify({
@@ -327,6 +337,48 @@ describe("effective_tokens", () => {
       expect(formatET(1)).toBe("1");
       expect(formatET(900)).toBe("900");
       expect(formatET(999)).toBe("999");
+    });
+
+    describe("reduceModelNameToIdentifier", () => {
+      test("uses well-known sonnet shortcut", () => {
+        expect(reduceModelNameToIdentifier("claude-sonnet-4.6")).toBe("son46");
+      });
+
+      test("uses well-known gpt shortcut", () => {
+        expect(reduceModelNameToIdentifier("gpt-5.5")).toBe("gpt55");
+      });
+
+      test("uses well-known opus shortcut", () => {
+        expect(reduceModelNameToIdentifier("claude-opus-4-7")).toBe("opu47");
+      });
+
+      test("handles date-like suffixes deterministically", () => {
+        expect(reduceModelNameToIdentifier("gpt-5-2025-08-07")).toBe("gpt50");
+        expect(reduceModelNameToIdentifier("claude-sonnet-4-20250514")).toBe("son40");
+      });
+
+      test("returns deterministic 5-character fallback for unknown models", () => {
+        expect(reduceModelNameToIdentifier("my-custom-engine-v2")).toBe("myc20");
+      });
+    });
+
+    describe("getEffectiveTokensSuffix", () => {
+      afterEach(() => {
+        delete process.env.GH_AW_EFFECTIVE_TOKENS;
+        delete process.env.GH_AW_ENGINE_MODEL;
+      });
+
+      test("prepends reduced model identifier when model is available", () => {
+        process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
+        process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(getEffectiveTokensSuffix()).toBe(" · ● son46 12.5K");
+      });
+
+      test("falls back to token-only suffix when model is unavailable", () => {
+        process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
+        delete process.env.GH_AW_ENGINE_MODEL;
+        expect(getEffectiveTokensSuffix()).toBe(" · ● 12.5K");
+      });
     });
 
     test("formats values in the thousands as K", () => {

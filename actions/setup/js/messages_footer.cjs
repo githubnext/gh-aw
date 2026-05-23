@@ -12,7 +12,7 @@ const { getMessages, renderTemplate, renderTemplateFromFile, toSnakeCase, getPro
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall_blocked_domains.cjs");
 const { getDifcFilteredEvents, generateDifcFilteredSection } = require("./gateway_difc_filtered.cjs");
-const { formatET } = require("./effective_tokens.cjs");
+const { formatET, reduceModelNameToIdentifier } = require("./effective_tokens.cjs");
 const { getDetectionWarningMessage } = require("./messages_run_status.cjs");
 
 /**
@@ -37,14 +37,17 @@ function getDetectionCautionAlert(workflowName, runUrl) {
  * both the raw count, compact formatted string, and a pre-formatted suffix.
  * Returns undefined/empty for all fields when the variable is absent or the parsed value
  * is not a positive integer.
+ * @param {string} [modelName]
  * @returns {{ effectiveTokens: number|undefined, effectiveTokensFormatted: string|undefined, effectiveTokensSuffix: string }}
  */
-function getEffectiveTokensFromEnv() {
+function getEffectiveTokensFromEnv(modelName = process.env.GH_AW_ENGINE_MODEL || "") {
   const raw = process.env.GH_AW_EFFECTIVE_TOKENS;
   const parsed = raw ? parseInt(raw, 10) : NaN;
   if (!isNaN(parsed) && parsed > 0) {
+    const reducedModel = reduceModelNameToIdentifier(modelName);
+    const modelPrefix = reducedModel ? `${reducedModel} ` : "";
     const effectiveTokensFormatted = formatET(parsed);
-    return { effectiveTokens: parsed, effectiveTokensFormatted, effectiveTokensSuffix: ` · ● ${effectiveTokensFormatted}` };
+    return { effectiveTokens: parsed, effectiveTokensFormatted, effectiveTokensSuffix: ` · ● ${modelPrefix}${effectiveTokensFormatted}` };
   }
   return { effectiveTokens: undefined, effectiveTokensFormatted: undefined, effectiveTokensSuffix: "" };
 }
@@ -60,6 +63,7 @@ function getEffectiveTokensFromEnv() {
  * @property {string} [historyUrl] - GitHub search URL for items created by this workflow (for the history link)
  * @property {string} [historyLink] - Pre-formatted markdown history link (e.g. " · [◷](url)"), or "" if unavailable
  * @property {number} [effectiveTokens] - Total effective token count for the run (shown as ● N when > 0, in compact format)
+ * @property {string} [model] - Model name used for the run, used to build a compact model identifier in ET suffixes
  * @property {string} [emoji] - Optional emoji representing the workflow (from frontmatter)
  */
 
@@ -74,7 +78,8 @@ function getFooterMessage(ctx) {
   // Use effectiveTokens from context if provided, otherwise fall back to env var.
   // This ensures callers that don't pass effectiveTokens (e.g. update_activation_comment.cjs)
   // still get the effective token count in the footer when GH_AW_EFFECTIVE_TOKENS is set.
-  const { effectiveTokens: envEffectiveTokens } = getEffectiveTokensFromEnv();
+  const resolvedModelName = ctx.model || process.env.GH_AW_ENGINE_MODEL || "";
+  const { effectiveTokens: envEffectiveTokens } = getEffectiveTokensFromEnv(resolvedModelName);
   const effectiveTokens = ctx.effectiveTokens ?? envEffectiveTokens;
 
   // Pre-compute history_link as a ready-to-use markdown suffix (empty string when unavailable)
@@ -85,8 +90,10 @@ function getFooterMessage(ctx) {
 
   // Pre-compute effective_tokens_formatted and effective_tokens_suffix for use in custom templates
   const effectiveTokensFormatted = effectiveTokens ? formatET(effectiveTokens) : undefined;
+  const reducedModel = reduceModelNameToIdentifier(resolvedModelName);
+  const modelPrefix = reducedModel ? `${reducedModel} ` : "";
   // effective_tokens_suffix is always a string: either " · ● 1.2K" or "" (for safe use in templates)
-  const effectiveTokensSuffix = effectiveTokensFormatted ? ` · ● ${effectiveTokensFormatted}` : "";
+  const effectiveTokensSuffix = effectiveTokensFormatted ? ` · ● ${modelPrefix}${effectiveTokensFormatted}` : "";
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
   const templateContext = toSnakeCase({ ...ctx, effectiveTokens, historyLink, agenticWorkflowUrl, effectiveTokensFormatted, effectiveTokensSuffix });
@@ -104,7 +111,7 @@ function getFooterMessage(ctx) {
   }
   // Append effective tokens with ● symbol when available (compact format, no "ET" label)
   if (effectiveTokens) {
-    defaultFooter += ` · ● ${formatET(effectiveTokens)}`;
+    defaultFooter += effectiveTokensSuffix;
   }
   // Append history link when available
   if (ctx.historyUrl) {

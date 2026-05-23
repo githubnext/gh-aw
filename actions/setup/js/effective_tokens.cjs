@@ -213,6 +213,91 @@ function formatET(n) {
 }
 
 /**
+ * Build a deterministic 5-character model identifier for footer rendering.
+ * Uses well-known shortcuts for popular model families and a deterministic fallback.
+ *
+ * Examples:
+ * - claude-sonnet-4.6 -> son46
+ * - gpt-5.5 -> gpt55
+ * - claude-opus-4-7 -> opu47
+ *
+ * @param {string|undefined|null} modelName
+ * @returns {string}
+ */
+function reduceModelNameToIdentifier(modelName) {
+  const normalized = String(modelName || "")
+    .trim()
+    .toLowerCase();
+  if (!normalized) return "";
+
+  /** @type {Array<{ familyPattern: RegExp, prefix: string }>} */
+  const shortcuts = [
+    { familyPattern: /sonnet/, prefix: "son" },
+    { familyPattern: /opus/, prefix: "opu" },
+    { familyPattern: /haiku/, prefix: "hai" },
+    { familyPattern: /gpt/, prefix: "gpt" },
+    { familyPattern: /gemini/, prefix: "gem" },
+  ];
+
+  for (const { familyPattern, prefix } of shortcuts) {
+    if (!familyPattern.test(normalized)) continue;
+    const version = extractModelVersionDigits(normalized, familyPattern);
+    return `${prefix}${version}`;
+  }
+
+  return buildFallbackModelIdentifier(normalized);
+}
+
+/**
+ * @param {string} normalizedModelName
+ * @param {RegExp} familyPattern
+ * @returns {string}
+ */
+function extractModelVersionDigits(normalizedModelName, familyPattern) {
+  const familyMatch = normalizedModelName.match(new RegExp(`${familyPattern.source}[-_\\s]*([0-9]+)(?:[._-]+([0-9]+))?`));
+  if (familyMatch) {
+    return normalizeVersionDigits(familyMatch[1], familyMatch[2]);
+  }
+
+  const firstNumericMatch = normalizedModelName.match(/([0-9]+)(?:[._-]+([0-9]+))?/);
+  if (firstNumericMatch) {
+    return normalizeVersionDigits(firstNumericMatch[1], firstNumericMatch[2]);
+  }
+
+  return "00";
+}
+
+/**
+ * @param {string|undefined} major
+ * @param {string|undefined} minor
+ * @returns {string}
+ */
+function normalizeVersionDigits(major, minor) {
+  const majorMatch = major ? major.match(/\d/) : null;
+  const majorDigit = majorMatch ? majorMatch[0] : "0";
+  const minorIsDateLike = minor && /^\d{3,}$/.test(minor);
+  const minorMatch = minor && !minorIsDateLike ? minor.match(/\d/) : null;
+  const minorDigit = minorMatch ? minorMatch[0] : "0";
+  return `${majorDigit}${minorDigit}`;
+}
+
+/**
+ * @param {string} normalizedModelName
+ * @returns {string}
+ */
+function buildFallbackModelIdentifier(normalizedModelName) {
+  const compact = normalizedModelName.replace(/[^a-z0-9]+/g, "");
+  if (!compact) return "";
+
+  const letterPart = compact.replace(/[0-9]/g, "").slice(0, 3).padEnd(3, "x");
+  const digitPart = compact
+    .replace(/[^0-9]/g, "")
+    .slice(0, 2)
+    .padEnd(2, "0");
+  return `${letterPart}${digitPart}`.slice(0, 5);
+}
+
+/**
  * Resets the cached multipliers (for testing purposes).
  * @internal
  */
@@ -231,7 +316,9 @@ function getEffectiveTokensSuffix() {
   const parsed = parseInt(raw, 10);
 
   if (!isNaN(parsed) && parsed > 0) {
-    return ` · ● ${formatET(parsed)}`;
+    const reducedModel = reduceModelNameToIdentifier(process.env.GH_AW_ENGINE_MODEL);
+    const modelPrefix = reducedModel ? `${reducedModel} ` : "";
+    return ` · ● ${modelPrefix}${formatET(parsed)}`;
   }
   return "";
 }
@@ -336,6 +423,7 @@ module.exports = {
   computeBaseWeightedTokens,
   computeEffectiveTokens,
   formatET,
+  reduceModelNameToIdentifier,
   getEffectiveTokensSuffix,
   AGENT_USAGE_PATH,
   readAgentUsage,
