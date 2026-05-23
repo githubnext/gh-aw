@@ -121,6 +121,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Compiler Threat Spec Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-compiler-threat-spec-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.48"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
@@ -385,6 +386,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Compiler Threat Spec Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-compiler-threat-spec-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.48"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Set runtime paths
         id: set-runtime-paths
@@ -1071,6 +1073,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Compiler Threat Spec Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-compiler-threat-spec-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.48"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1231,6 +1234,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Compiler Threat Spec Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-compiler-threat-spec-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.48"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1461,6 +1465,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Compiler Threat Spec Optimizer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-compiler-threat-spec-optimizer.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.48"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
