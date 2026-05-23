@@ -719,6 +719,43 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
+    it("should reject create_pull_request when branch still equals base_branch after detection (unresolvable base)", async () => {
+      // Simulates the scenario where getBaseBranch() incorrectly resolves to the
+      // feature branch itself (e.g., GITHUB_BASE_REF set to the feature branch).
+      // Detection calls getCurrentBranch() which also returns the feature branch,
+      // so both entry.branch and entry.base_branch remain the same value.
+      // This must be rejected with a clear error rather than writing a malformed
+      // safe output that causes a cryptic git exit-1 in the safe_outputs job.
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          allow_empty: true,
+        },
+      });
+
+      // GITHUB_BASE_REF set to the feature branch (incorrectly), simulating the bug
+      process.env.GITHUB_BASE_REF = "repo-assist/fix-issue-129";
+      process.env.GITHUB_HEAD_REF = "repo-assist/fix-issue-129";
+      process.env.GITHUB_REF_NAME = "repo-assist/fix-issue-129";
+      try {
+        const result = await handlers.createPullRequestHandler({
+          branch: "repo-assist/fix-issue-129",
+          title: "Fix issue 129",
+          body: "Applies the fix for issue 129",
+        });
+
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("equals base_branch");
+        expect(responseData.error).toContain("Cannot create a pull request from a branch into itself");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        delete process.env.GITHUB_BASE_REF;
+        delete process.env.GITHUB_HEAD_REF;
+        delete process.env.GITHUB_REF_NAME;
+      }
+    });
+
     it("should enforce create_pull_request allowed_branches against resolved branch", async () => {
       handlers = createHandlers(mockServer, mockAppendSafeOutput, {
         create_pull_request: {
@@ -1070,6 +1107,31 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.error).toContain("Repository 'test-owner/test-repo' not found in workspace");
       expect(responseData.error).toContain("actions/checkout");
       expect(responseData.error).toContain("'path' input");
+    });
+
+    it("should reject push_to_pull_request_branch when branch still equals base_branch after detection", async () => {
+      // Simulates the scenario where getBaseBranch() incorrectly resolves to the
+      // feature branch itself. Detection cannot recover when getCurrentBranch()
+      // also returns the same branch, so the handler must reject with a clear error.
+      process.env.GITHUB_BASE_REF = "repo-assist/fix-issue-129";
+      process.env.GITHUB_HEAD_REF = "repo-assist/fix-issue-129";
+      process.env.GITHUB_REF_NAME = "repo-assist/fix-issue-129";
+      try {
+        const result = await handlers.pushToPullRequestBranchHandler({
+          branch: "repo-assist/fix-issue-129",
+        });
+
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("equals base_branch");
+        expect(responseData.error).toContain("Cannot push to a pull request branch that targets itself");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        delete process.env.GITHUB_BASE_REF;
+        delete process.env.GITHUB_HEAD_REF;
+        delete process.env.GITHUB_REF_NAME;
+      }
     });
 
     it("should detect branch from defaultTargetRepo checkout when entry.repo is not provided", async () => {
