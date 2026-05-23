@@ -390,13 +390,9 @@ describe("effective_tokens", () => {
     });
 
     describe("resolveActualModelName", () => {
-      let tmpDir;
       let originalAgentUsagePath;
 
       beforeEach(() => {
-        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "resolve-model-test-"));
-        // Override AGENT_USAGE_PATH by monkey-patching the module's constant is not directly possible,
-        // so we test by writing to the real AGENT_USAGE_PATH (ensure cleanup after each test).
         if (fs.existsSync(AGENT_USAGE_PATH)) {
           originalAgentUsagePath = fs.readFileSync(AGENT_USAGE_PATH, "utf8");
           fs.unlinkSync(AGENT_USAGE_PATH);
@@ -405,7 +401,6 @@ describe("effective_tokens", () => {
 
       afterEach(() => {
         delete process.env.GH_AW_ENGINE_MODEL;
-        // Restore original agent_usage.json if it existed before
         if (originalAgentUsagePath !== undefined) {
           fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
           fs.writeFileSync(AGENT_USAGE_PATH, originalAgentUsagePath);
@@ -413,7 +408,6 @@ describe("effective_tokens", () => {
         } else if (fs.existsSync(AGENT_USAGE_PATH)) {
           fs.unlinkSync(AGENT_USAGE_PATH);
         }
-        fs.rmSync(tmpDir, { recursive: true, force: true });
       });
 
       test("returns primary_model from agent_usage.json when present", () => {
@@ -431,6 +425,13 @@ describe("effective_tokens", () => {
       });
 
       test("falls back to GH_AW_ENGINE_MODEL when agent_usage.json is absent", () => {
+        process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
+      });
+
+      test("falls back to GH_AW_ENGINE_MODEL when agent_usage.json contains invalid JSON", () => {
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, "not valid json");
         process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
         expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
       });

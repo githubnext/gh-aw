@@ -120,7 +120,7 @@ async function main() {
     let primaryModel = "";
     let primaryModelET = -1;
     for (const [model, usage] of Object.entries(summary.byModel || {})) {
-      if (model !== "unknown" && usage.effectiveTokens > primaryModelET) {
+      if (model !== "unknown" && usage && typeof usage.effectiveTokens === "number" && usage.effectiveTokens > primaryModelET) {
         primaryModelET = usage.effectiveTokens;
         primaryModel = model;
       }
