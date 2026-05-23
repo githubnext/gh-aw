@@ -207,7 +207,10 @@ False positives occur when a CTR rule triggers on a workflow input that is not a
 
 2. **Audit trail requirement**: Every active suppression annotation **MUST** be recorded in the compiled lock file (`.lock.yml`) manifest section so that reviewers can audit which rules are suppressed and why. The lock file **MUST** include the full `rule`, `reason`, and `expires` values for each suppression. Suppressions absent from the lock file manifest **MUST** be treated by subsequent compilations as unapproved and re-evaluated against the current CTR rule.
 
-3. **SLA for resolution**: Suppressions marked as false positives that affect a `MUST`-level security control (as defined in Section 5.1 — specifically those rules whose compiler action is `reject` in non-strict mode) **SHOULD** be resolved within **10 business days** — either by confirming the suppression is correct and updating the rule's detection logic to eliminate the false positive, or by removing the suppression when the workflow is corrected. The daily optimizer **SHOULD** surface unresolved suppressions older than 10 business days in its daily output. A suppression **MUST** be re-evaluated and explicitly renewed if the `expires` date passes; expired suppressions **MUST** be treated by the compiler as if they do not exist.
+3. **SLA for resolution**: Suppressions marked as false positives that affect a `MUST`-level security control (as defined in Section 5.1 — specifically those rules whose compiler action is `reject` in non-strict mode) **SHOULD** be resolved within **10 business days** — either by confirming the suppression is correct and updating the rule's detection logic to eliminate the false positive, or by removing the suppression when the workflow is corrected.
+4. **SLA enforcement in daily optimizer output**: The daily optimizer **MUST** compute suppression age from suppression creation date (or first-observed date when unavailable). Suppressions older than 10 business days **MUST** be emitted in daily output as `SLA_BREACH` entries that include `rule`, `reason`, `age_business_days`, `owner`, and `expires`.
+5. **Escalation requirement**: Suppressions older than 20 business days for `MUST`-level controls **MUST** create a follow-up sync action in the same daily output (for example, PR task, issue task, or explicit policy exception record) so unresolved suppressions cannot remain silent.
+6. **Expiration handling**: A suppression **MUST** be re-evaluated and explicitly renewed if the `expires` date passes; expired suppressions **MUST** be treated by the compiler as if they do not exist.
 
 ### 6.5 Threat Category Lifecycle
 
@@ -262,6 +265,17 @@ When mappings change, this table MUST be updated in the same change set as the i
 ### 7.2 Mapping Audit (2026-05-22)
 
 Audit result: ✅ all listed `CTR-001` through `CTR-019` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Latest addition: CTR-019 Cache-Memory Integrity Enforcement added in version 1.0.10 to document the PR #33885 implementation that tightened `update_cache_memory` job gating to require detection success instead of accepting skipped results.
+
+### 7.3 Sync Protocol for CTR Rule and Manifest Updates
+
+When adding, removing, or materially changing any `CTR-*` rule, the same pull request **MUST** update all synchronized artifacts:
+
+1. Section 5.1 rule catalog entry.
+2. Section 7.1 implementation mapping row.
+3. Section 8.1 test ID coverage entry.
+4. Lock file manifest schema and compiler emission logic for any new or changed suppression/manifest fields tied to the rule.
+
+If a CTR rule change lands without a matching lock file manifest update, CI policy **MUST** fail the change as out-of-sync. Recompilation of affected workflows **MUST** occur in the same change set when manifest shape changes.
 
 ---
 

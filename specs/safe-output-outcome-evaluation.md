@@ -216,6 +216,13 @@ Status meanings:
 | `ghaw.outcome.labels.retained` | int | Labels still present |
 | `ghaw.outcome.labels.removed` | int | Labels that were removed |
 
+**API failure safeguards (`add_labels`):**
+
+1. If `GET /repos/{owner}/{repo}/issues/{number}/labels` returns `404`, the evaluator **MUST** classify as `rejected` because the authoritative labeling target is no longer reachable.
+2. If the API returns `5xx`, timeout, or transport failure, the evaluator **MUST** classify as `pending`, record retry metadata, and retry without emitting a terminal outcome.
+3. If the API returns rate-limit responses (`403` exhaustion or `429`), the evaluator **MUST** classify as `pending` and reschedule evaluation using the reset window.
+4. While any transient API failure condition exists, evaluators **MUST NOT** emit `accepted` or `rejected` for label stickiness.
+
 ---
 
 ## 5. `add_reviewer`
@@ -682,3 +689,13 @@ When the OTLP exporter is unavailable (e.g., endpoint unreachable, network timeo
 1. **Graceful degradation**: Outcome evaluation workers **MUST** complete their classification logic (determining `accepted`, `rejected`, `ignored`, etc.) regardless of OTLP exporter availability. The computed outcome **MUST** be persisted to a local audit fallback log (e.g., a NDJSON file at a known path such as `/tmp/gh-aw/outcome-audit.ndjson`) before any attempt to export to OTLP. If the OTLP export fails, the local audit log entry **MUST** still be written and **MUST NOT** be discarded. This ensures the outcome is recoverable even when the telemetry backend is down.
 
 2. **Audit fallback and retry**: When OTLP export fails, the evaluation worker **SHOULD** schedule a retry using an exponential back-off strategy (initial delay: 5 seconds; maximum delay: 5 minutes; maximum attempts: 5). If all retries are exhausted without a successful export, the worker **MUST** record the export failure in the local audit log with a `export_failed: true` flag and the final error reason. A downstream reconciliation process **SHOULD** periodically sweep the local audit log and re-attempt export for any entries marked `export_failed: true`.
+
+### Conformance Safeguard Coverage Requirements
+
+Conformance suites **MUST** include explicit safeguard coverage classes in addition to happy-path outcome checks:
+
+1. **Class A (state success/failure):** validates standard accepted/rejected/ignored/pending transitions from authoritative object state.
+2. **Class B (human override/lifecycle):** validates human edits, deletions, reopen events, and lifecycle outcomes where applicable.
+3. **Class C (API degradation):** validates `404`, `5xx`, timeout, and rate-limit behaviors, including retry metadata and non-terminal handling.
+
+Every safe-output type **MUST** have at least one Class A test. Types that query GitHub APIs for evaluation **MUST** also include at least one Class C test case.
