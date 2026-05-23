@@ -19,6 +19,12 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = 24 * 7;
+const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
+// Engine-side 429/rate-limit signatures:
+// - HTTP 429 accompanied by "too many requests"/"rate limit" phrasing
+// - provider error codes like rate_limit_error / rate_limit_exceeded
+// - Copilot/CAPI "CAPIError: 429" and utility-model quota text
+// - retry wrapper text that includes the canonical "Failed to get response..." phrase
 const ENGINE_RATE_LIMIT_429_RE =
   /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|rate_limit_(?:error|exceeded)|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
 
@@ -1113,7 +1119,7 @@ function hasEngineRateLimit429Signal(content) {
  * @returns {boolean}
  */
 function hasEngineRateLimit429InOTELMirror(otelJsonlPathOverride) {
-  const otelJsonlPath = otelJsonlPathOverride || process.env.GH_AW_OTEL_JSONL_PATH || "/tmp/gh-aw/otel.jsonl";
+  const otelJsonlPath = otelJsonlPathOverride || process.env.GH_AW_OTEL_JSONL_PATH || DEFAULT_OTEL_JSONL_PATH;
   try {
     if (!fs.existsSync(otelJsonlPath)) {
       return false;
@@ -1131,12 +1137,13 @@ function hasEngineRateLimit429InOTELMirror(otelJsonlPathOverride) {
  * @returns {string}
  */
 function buildEngineRateLimit429Context(engineLabel) {
+  const normalizedEngineLabel = engineLabel.trim() || "AI";
   const templatePath = getPromptPath("engine_rate_limit_429.md");
   try {
-    return "\n" + renderTemplateFromFile(templatePath, { engine_label: engineLabel.trim() || "AI" });
+    return "\n" + renderTemplateFromFile(templatePath, { engine_label: normalizedEngineLabel });
   } catch {
     return (
-      `\n**🚦 Engine Rate Limited (HTTP 429)**: The ${engineLabel} engine hit provider rate limits and could not complete this run.\n\n` +
+      `\n**🚦 Engine Rate Limited (HTTP 429)**: The ${normalizedEngineLabel} engine hit provider rate limits and could not complete this run.\n\n` +
       "This signal was detected from engine runtime logs/OTLP telemetry.\n\n" +
       "Retry after a short delay. If this recurs, reduce concurrent runs or review provider quota/rate-limit policies.\n"
     );
