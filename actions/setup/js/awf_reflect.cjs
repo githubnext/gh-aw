@@ -108,8 +108,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
       const attempt = original?.attempt ?? 1;
       const shouldRetry = status === 503 && attempt < AWF_MODELS_URL_MAX_ATTEMPTS;
       if (shouldRetry) {
-        const backoffMs = Math.min(AWF_MODELS_URL_RETRY_BASE_MS * 2 ** (attempt - 1), AWF_MODELS_URL_RETRY_MAX_MS);
-        logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}; retrying in ${backoffMs}ms (attempt ${attempt + 1}/${AWF_MODELS_URL_MAX_ATTEMPTS})`);
+        logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}; retrying (attempt ${attempt + 1}/${AWF_MODELS_URL_MAX_ATTEMPTS})`);
       }
       return shouldRetry;
     },

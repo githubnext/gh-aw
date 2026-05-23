@@ -191,7 +191,7 @@ describe("awf_reflect.cjs", () => {
       const logs = [];
       const result = await fetchModelsFromUrl("http://api-proxy:10000/v1/models", 1000, msg => logs.push(msg));
       expect(result).toEqual(["gpt-4o"]);
-      expect(logs.filter(l => l.includes("retrying in")).length).toBe(2);
+      expect(logs.filter(l => l.includes("retrying (attempt")).length).toBe(2);
       expect(logs.some(l => l.includes("fetched 1 model(s)"))).toBe(true);
     });
 
@@ -201,7 +201,7 @@ describe("awf_reflect.cjs", () => {
       const logs = [];
       const result = await fetchModelsFromUrl("http://api-proxy:10000/v1/models", 1000, msg => logs.push(msg));
       expect(result).toBeNull();
-      expect(logs.filter(l => l.includes("retrying in")).length).toBe(AWF_MODELS_URL_MAX_ATTEMPTS - 1);
+      expect(logs.filter(l => l.includes("retrying (attempt")).length).toBe(AWF_MODELS_URL_MAX_ATTEMPTS - 1);
       expect(logs.some(l => l.includes("models fetch returned 503"))).toBe(true);
     });
   });
