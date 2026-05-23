@@ -48,18 +48,18 @@ cat .github/workflows/cjs.yml
 
 **Step 1: Get complete list of all tests**
 ```bash
-go test -list='^Test' ./... 2>&1 | grep -E '^Test' > /tmp/all-tests.txt
+go test -list='^Test' ./... 2>&1 | grep -E '^Test' > /tmp/gh-aw/agent/all-tests.txt
 ```
 
 **Step 2: Analyze unit/integration split**
 ```bash
-grep -r "//go:build integration" --include="*_test.go" . | cut -d: -f1 | sort -u > /tmp/integration-test-files.txt
+grep -r "//go:build integration" --include="*_test.go" . | cut -d: -f1 | sort -u > /tmp/gh-aw/agent/integration-test-files.txt
 ```
 
 **Step 3: Analyze integration matrix coverage**
 ```bash
-cat .github/workflows/ci.yml | grep -A 2 'pattern:' | grep 'pattern:' > /tmp/matrix-patterns.txt
-cat .github/workflows/ci.yml | grep -B 2 'pattern: ""' | grep 'name:' > /tmp/catchall-groups.txt
+cat .github/workflows/ci.yml | grep -A 2 'pattern:' | grep 'pattern:' > /tmp/gh-aw/agent/matrix-patterns.txt
+cat .github/workflows/ci.yml | grep -B 2 'pattern: ""' | grep 'name:' > /tmp/gh-aw/agent/catchall-groups.txt
 ```
 
 **Step 4: Identify coverage gaps**

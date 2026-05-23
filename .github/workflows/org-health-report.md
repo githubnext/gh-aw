@@ -77,10 +77,10 @@ Generate an organization-wide health report that:
 Create working directories for data storage and processing:
 
 ```bash
-mkdir -p /tmp/gh-aw/org-health
-mkdir -p /tmp/gh-aw/org-health/repos
-mkdir -p /tmp/gh-aw/org-health/issues
-mkdir -p /tmp/gh-aw/org-health/prs
+mkdir -p /tmp/gh-aw/agent/org-health
+mkdir -p /tmp/gh-aw/agent/org-health/repos
+mkdir -p /tmp/gh-aw/agent/org-health/issues
+mkdir -p /tmp/gh-aw/agent/org-health/prs
 mkdir -p /tmp/gh-aw/python/data
 mkdir -p /tmp/gh-aw/cache-memory/org-health
 ```
@@ -93,17 +93,17 @@ mkdir -p /tmp/gh-aw/cache-memory/org-health
    - Query: `org:github archived:false`
    - Fetch repositories in batches with pagination
    - Add 2-3 second delays between pages to avoid rate limiting
-   - Save repository list to `/tmp/gh-aw/org-health/repos/repositories.json`
+   - Save repository list to `/tmp/gh-aw/agent/org-health/repos/repositories.json`
 
 2. **Extract repository names** for subsequent queries:
    ```bash
    jq '[.[] | {name: .name, full_name: .full_name, stars: .stargazers_count, open_issues: .open_issues_count}]' \
-     /tmp/gh-aw/org-health/repos/repositories.json > /tmp/gh-aw/org-health/repos/repo_list.json
+     /tmp/gh-aw/agent/org-health/repos/repositories.json > /tmp/gh-aw/agent/org-health/repos/repo_list.json
    ```
 
 3. **Log progress**:
    ```bash
-   echo "Found $(jq 'length' /tmp/gh-aw/org-health/repos/repo_list.json) public repositories"
+   echo "Found $(jq 'length' /tmp/gh-aw/agent/org-health/repos/repo_list.json) public repositories"
    ```
 
 ### Phase 2: Collect Issues Data
@@ -116,7 +116,7 @@ mkdir -p /tmp/gh-aw/cache-memory/org-health
    - Use the `search_issues` tool with query: `repo:github/{repo_name} is:issue`
    - Collect: state, created date, closed date, author, labels, assignees, comments count
    - Add **5 second delay** between repository queries
-   - Save to individual JSON files: `/tmp/gh-aw/org-health/issues/{repo_name}.json`
+   - Save to individual JSON files: `/tmp/gh-aw/agent/org-health/issues/{repo_name}.json`
 
 2. **Alternative approach for large orgs**: Use organization-wide search:
    - Query: `org:github is:issue created:>=YYYY-MM-DD` for last 30 days
@@ -125,7 +125,7 @@ mkdir -p /tmp/gh-aw/cache-memory/org-health
 
 3. **Aggregate data**:
    ```bash
-   jq -s 'add' /tmp/gh-aw/org-health/issues/*.json > /tmp/gh-aw/org-health/all_issues.json
+   jq -s 'add' /tmp/gh-aw/agent/org-health/issues/*.json > /tmp/gh-aw/agent/org-health/all_issues.json
    ```
 
 ### Phase 3: Collect Pull Requests Data
@@ -138,7 +138,7 @@ mkdir -p /tmp/gh-aw/cache-memory/org-health
    - Use the `search_pull_requests` tool with query: `repo:github/{repo_name} is:pr`
    - Collect: state, created date, closed date, merged status, author, comments count
    - Add **5 second delay** between repository queries
-   - Save to individual JSON files: `/tmp/gh-aw/org-health/prs/{repo_name}.json`
+   - Save to individual JSON files: `/tmp/gh-aw/agent/org-health/prs/{repo_name}.json`
 
 2. **Alternative approach for large orgs**: Use organization-wide search:
    - Query: `org:github is:pr created:>=YYYY-MM-DD` for last 30 days
@@ -147,7 +147,7 @@ mkdir -p /tmp/gh-aw/cache-memory/org-health
 
 3. **Aggregate data**:
    ```bash
-   jq -s 'add' /tmp/gh-aw/org-health/prs/*.json > /tmp/gh-aw/org-health/all_prs.json
+   jq -s 'add' /tmp/gh-aw/agent/org-health/prs/*.json > /tmp/gh-aw/agent/org-health/all_prs.json
    ```
 
 ### Phase 4: Process and Analyze Data with Python
@@ -168,10 +168,10 @@ from datetime import datetime, timedelta
 from collections import Counter
 
 # Load data
-with open('/tmp/gh-aw/org-health/all_issues.json') as f:
+with open('/tmp/gh-aw/agent/org-health/all_issues.json') as f:
     issues_data = json.load(f)
 
-with open('/tmp/gh-aw/org-health/all_prs.json') as f:
+with open('/tmp/gh-aw/agent/org-health/all_prs.json') as f:
     prs_data = json.load(f)
 
 # Convert to DataFrames

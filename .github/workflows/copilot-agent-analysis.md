@@ -59,20 +59,20 @@ Daily analysis of pull requests created by copilot-swe-agent in the last 24 hour
 ### Phase 1: Collect PR Data
 
 **Pre-fetched Data Available**: This workflow includes a preparation step that has already fetched Copilot PR data for the last 30 days using gh CLI. The data is available at:
-- `/tmp/gh-aw/pr-data/copilot-prs.json` - Full PR data in JSON format
-- `/tmp/gh-aw/pr-data/copilot-prs-schema.json` - Schema showing the structure
+- `/tmp/gh-aw/agent/pr-data/copilot-prs.json` - Full PR data in JSON format
+- `/tmp/gh-aw/agent/pr-data/copilot-prs-schema.json` - Schema showing the structure
 
 You can use `jq` to process this data directly. For example:
 ```bash
 # Get PRs from the last 24 hours
 TODAY="$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')"
-jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today)]' /tmp/gh-aw/pr-data/copilot-prs.json
+jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today)]' /tmp/gh-aw/agent/pr-data/copilot-prs.json
 
 # Count total PRs
-jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json
+jq 'length' /tmp/gh-aw/agent/pr-data/copilot-prs.json
 
 # Get PR numbers for the last 24 hours
-jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today) | .number]' /tmp/gh-aw/pr-data/copilot-prs.json
+jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today) | .number]' /tmp/gh-aw/agent/pr-data/copilot-prs.json
 ```
 
 **Alternative Approaches** (if you need additional data not in the pre-fetched file):

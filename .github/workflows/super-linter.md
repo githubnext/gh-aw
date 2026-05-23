@@ -85,7 +85,7 @@ steps:
     uses: actions/download-artifact@v8.0.1
     with:
       name: super-linter-log
-      path: /tmp/gh-aw/
+      path: /tmp/gh-aw/agent/
 tools:
   cli-proxy: true
   cache-memory: true
@@ -108,7 +108,7 @@ You are an expert code quality analyst for a Go-based GitHub CLI extension proje
 
 ## Your Task
 
-1. **Read the linter output** from `/tmp/gh-aw/super-linter.log` using the bash tool
+1. **Read the linter output** from `/tmp/gh-aw/agent/super-linter.log` using the bash tool
 2. **Analyze the findings**:
    - Categorize errors by severity (critical, high, medium, low)
    - Identify patterns in the errors

@@ -140,7 +140,7 @@ Note the engine type, total tokens, and any errors in the audit output.
 Create a test harness that mocks GitHub Actions globals and runs the engine-specific parser:
 
 ```bash
-cat > /tmp/gh-aw-parser-harness.cjs << 'EOF'
+cat > /tmp/gh-aw/agent-parser-harness.cjs << 'EOF'
 // @ts-check
 "use strict";
 
@@ -223,7 +223,7 @@ AGENT_OUTPUT_FILE="$(find /tmp/gh-aw/aw-mcp/logs/run-* -name 'agent-stdio.log' -
 echo "Engine: $ENGINE"
 echo "Agent output file: $AGENT_OUTPUT_FILE"
 
-node /tmp/gh-aw-parser-harness.cjs "$AGENT_OUTPUT_FILE" "$ENGINE"
+node /tmp/gh-aw/agent-parser-harness.cjs "$AGENT_OUTPUT_FILE" "$ENGINE"
 echo "Exit code: $?"
 ```
 
@@ -234,7 +234,7 @@ Capture the full output and exit code. A non-zero exit code or `[ERROR]`/`[FAILU
 Test the `render_template.cjs` rendering logic with known cases:
 
 ```bash
-cat > /tmp/gh-aw-render-test.cjs << 'EOF'
+cat > /tmp/gh-aw/agent-render-test.cjs << 'EOF'
 // @ts-check
 "use strict";
 
@@ -295,7 +295,7 @@ console.log("\nResults:", passed, "passed,", failed, "failed");
 EOF
 
 cd ${{ github.workspace }}/actions/setup/js
-node /tmp/gh-aw-render-test.cjs
+node /tmp/gh-aw/agent-render-test.cjs
 echo "Render test exit code: $?"
 ```
 
@@ -346,8 +346,8 @@ If you found parser or rendering issues:
 3. **Verify the fix resolves the issue**:
    ```bash
    cd ${{ github.workspace }}/actions/setup/js
-   node /tmp/gh-aw-parser-harness.cjs "$AGENT_OUTPUT_FILE" "$ENGINE"
-   node /tmp/gh-aw-render-test.cjs
+   node /tmp/gh-aw/agent-parser-harness.cjs "$AGENT_OUTPUT_FILE" "$ENGINE"
+   node /tmp/gh-aw/agent-render-test.cjs
    ```
 
 4. **Run the existing test suite** to ensure no regressions:

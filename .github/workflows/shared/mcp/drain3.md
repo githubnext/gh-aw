@@ -24,14 +24,14 @@ steps:
       pip install fastmcp drain3
   - name: Copy Drain3 MCP server script
     run: |
-      mkdir -p /tmp/gh-aw/mcp-servers/drain3/
-      cp .github/workflows/shared/mcp/drain3_server.py /tmp/gh-aw/mcp-servers/drain3/
-      chmod +x /tmp/gh-aw/mcp-servers/drain3/drain3_server.py
+      mkdir -p /tmp/gh-aw/agent/mcp-servers/drain3/
+      cp .github/workflows/shared/mcp/drain3_server.py /tmp/gh-aw/agent/mcp-servers/drain3/
+      chmod +x /tmp/gh-aw/agent/mcp-servers/drain3/drain3_server.py
   - name: Start Drain3 MCP server
     run: |
       set -e
       mkdir -p /tmp/gh-aw/mcp-logs/drain3/
-      python /tmp/gh-aw/mcp-servers/drain3/drain3_server.py > /tmp/gh-aw/mcp-logs/drain3/server.log 2>&1 &
+      python /tmp/gh-aw/agent/mcp-servers/drain3/drain3_server.py > /tmp/gh-aw/mcp-logs/drain3/server.log 2>&1 &
       MCP_PID=$!
       
       # Wait for server to start
@@ -163,7 +163,7 @@ Example Usage:
   to find which cluster they belong to.
 
   ```
-  Use the drain3 tool to index the workflow log file at /tmp/workflow.log
+  Use the drain3 tool to index the workflow log file at /tmp/gh-aw/agent/workflow.log
   and extract error patterns. Then query a specific error message to find
   its template cluster.
   ```

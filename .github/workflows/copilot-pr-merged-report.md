@@ -66,9 +66,9 @@ Analyze merged Copilot pull requests from the last 24 hours and generate a basic
 
 **Step 1.1: Filter Merged PRs from Pre-Fetched Data**
 
-Use the pre-fetched PR dataset at `/tmp/gh-aw/pr-data/copilot-prs.json` and filter by `mergedAt` in the last 24 hours:
+Use the pre-fetched PR dataset at `/tmp/gh-aw/agent/pr-data/copilot-prs.json` and filter by `mergedAt` in the last 24 hours:
 ```bash
-jq '[.[] | select(.mergedAt != null and (.mergedAt | fromdateiso8601) >= (now - 86400))]' /tmp/gh-aw/pr-data/copilot-prs.json
+jq '[.[] | select(.mergedAt != null and (.mergedAt | fromdateiso8601) >= (now - 86400))]' /tmp/gh-aw/agent/pr-data/copilot-prs.json
 ```
 
 This filter:
@@ -92,7 +92,7 @@ Save this data for further analysis.
 For each merged PR found in Phase 1:
 
 - **Important**: Build the filtered merged PR list first, then iterate only that filtered list.
-- **Do not** call `pr view` for every PR in `/tmp/gh-aw/pr-data/copilot-prs.json`.
+- **Do not** call `pr view` for every PR in `/tmp/gh-aw/agent/pr-data/copilot-prs.json`.
 
 **Step 2.1: Get PR Files**
 

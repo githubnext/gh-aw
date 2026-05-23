@@ -92,7 +92,7 @@ Launch five parallel `task` agents using mode: "background" to execute each smok
 2. **Web Fetch Test Agent**: Fetch https://github.com and verify "GitHub" in response using web-fetch MCP
 3. **File I/O Test Agent**: Create `/tmp/gh-aw/agent/smoke-test-pi-${{ github.run_id }}.txt` with timestamp
 4. **Bash Test Agent**: Verify file creation with `cat` command
-5. **Build Test Agent**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build`
+5. **Build Test Agent**: Run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build`
 
 Wait for all five agents to complete (you'll receive notifications). Read each agent's result using `read_agent`. Aggregate the results into a unified report with ✅/❌ status for each test.
 
@@ -103,7 +103,7 @@ Execute the following tests sequentially in a single turn:
 2. **Web Fetch Testing**: Use the web-fetch MCP tool to fetch https://github.com and verify the response contains "GitHub" (do NOT use bash or playwright for this test - use the web-fetch MCP tool directly)
 3. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-pi-${{ github.run_id }}.txt` with content "Smoke test passed for Pi at $(date)" (create the directory if it doesn't exist)
 4. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-5. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project. If the command fails, mark this test as ❌ and report the failure.
+5. **Build gh-aw**: Run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build` to verify the agent can successfully build the gh-aw project. If the command fails, mark this test as ❌ and report the failure.
 {{/if}}
 
 ## Output

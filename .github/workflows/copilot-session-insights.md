@@ -30,8 +30,8 @@ tools:
     toolsets: [default]
   bash:
     - "jq *"
-    - "find /tmp -type f"
-    - "cat /tmp/*"
+    - "find /tmp/gh-aw/agent -type f"
+    - "cat /tmp/gh-aw/agent/*"
     - "mkdir -p *"
     - "find * -maxdepth 1"
     - "date *"
@@ -77,7 +77,7 @@ Create a comprehensive report and publish it as a GitHub Discussion for team rev
 - **Repository**: ${{ github.repository }}
 - **Analysis Period**: Most recent ~50 agent sessions
 - **Cache Memory**: `/tmp/gh-aw/cache-memory/`
-- **Pre-fetched Data**: Available at `/tmp/gh-aw/session-data/`
+- **Pre-fetched Data**: Available at `/tmp/gh-aw/agent/session-data/`
 - **Conversation Logs**: Now available with agent's internal monologue and reasoning
 
 ## Task Overview
@@ -85,8 +85,8 @@ Create a comprehensive report and publish it as a GitHub Discussion for team rev
 ### Phase 0: Setup and Prerequisites
 
 **Pre-fetched Data Available**: Session data has been fetched by the `copilot-session-data-fetch` shared module:
-- `/tmp/gh-aw/session-data/sessions-list.json` - List of sessions with metadata
-- `/tmp/gh-aw/session-data/logs/` - **Conversation transcript files** (new!)
+- `/tmp/gh-aw/agent/session-data/sessions-list.json` - List of sessions with metadata
+- `/tmp/gh-aw/agent/session-data/logs/` - **Conversation transcript files** (new!)
   - `{session_number}-conversation.txt` - Agent's internal monologue, reasoning, and tool usage
   - `{session_number}/` - GitHub Actions logs (fallback only)
 
@@ -105,7 +105,7 @@ Create a comprehensive report and publish it as a GitHub Discussion for team rev
 
 ### Phase 1: Session Analysis
 
-For each downloaded session in `/tmp/gh-aw/session-data/`:
+For each downloaded session in `/tmp/gh-aw/agent/session-data/`:
 
 1. **Load Conversation Logs**: Read the agent's conversation transcript from `{session_number}-conversation.txt` files. These contain:
    - Agent's internal reasoning and planning
@@ -150,7 +150,7 @@ gh api "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" \
   --paginate \
   --jq '.[] | {number, title, head_branch: .head.ref, created_at, updated_at, assignees: [.assignees[].login], requested_reviewers: [.requested_reviewers[].login]}' \
   | jq -s '.' \
-  > /tmp/gh-aw/session-data/open-prs.json
+  > /tmp/gh-aw/agent/session-data/open-prs.json
 
 # Fetch in-progress workflow runs from the last 6 hours (paginated)
 SIX_HOURS_AGO=$(date -d '6 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-6H '+%Y-%m-%dT%H:%M:%SZ')
@@ -158,10 +158,10 @@ gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=in_progress&per_page=100" \
   --paginate \
   --jq ".workflow_runs[] | select(.created_at >= \"${SIX_HOURS_AGO}\") | {run_id: .id, branch: .head_branch, workflow_name: .name, created_at, status}" \
   | jq -s '.' \
-  > /tmp/gh-aw/session-data/active-runs.json
+  > /tmp/gh-aw/agent/session-data/active-runs.json
 
-echo "Fetched $(jq 'length' /tmp/gh-aw/session-data/open-prs.json) open PRs"
-echo "Fetched $(jq 'length' /tmp/gh-aw/session-data/active-runs.json) in-progress runs"
+echo "Fetched $(jq 'length' /tmp/gh-aw/agent/session-data/open-prs.json) open PRs"
+echo "Fetched $(jq 'length' /tmp/gh-aw/agent/session-data/active-runs.json) in-progress runs"
 ```
 
 **Orphan Detection Logic**:
@@ -178,8 +178,8 @@ ONE_HOUR_AGO=$(date -d '1 hour ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v
 # 3. Filter: gate_count >= 5, no copilot agent assigned, created_at < two_hours_ago
 # 4. Classify severity and emit escalation records
 jq -n \
-  --slurpfile prs /tmp/gh-aw/session-data/open-prs.json \
-  --slurpfile runs /tmp/gh-aw/session-data/active-runs.json \
+  --slurpfile prs /tmp/gh-aw/agent/session-data/open-prs.json \
+  --slurpfile runs /tmp/gh-aw/agent/session-data/active-runs.json \
   --arg two_hours_ago "$TWO_HOURS_AGO" \
   --arg one_hour_ago "$ONE_HOUR_AGO" '
   # Build a map of branch -> gate_count from in-progress runs
@@ -221,10 +221,10 @@ jq -n \
                            else "priority agent assignment" end)
     }
   ) | sort_by(-.gate_count)
-' > /tmp/gh-aw/session-data/orphan-escalations.json
+' > /tmp/gh-aw/agent/session-data/orphan-escalations.json
 
-echo "Escalation candidates found: $(jq 'length' /tmp/gh-aw/session-data/orphan-escalations.json)"
-jq '.' /tmp/gh-aw/session-data/orphan-escalations.json
+echo "Escalation candidates found: $(jq 'length' /tmp/gh-aw/agent/session-data/orphan-escalations.json)"
+jq '.' /tmp/gh-aw/agent/session-data/orphan-escalations.json
 ```
 
 Use this data to populate the **Orphaned Branch Escalation Alerts** section in the report.
@@ -482,13 +482,13 @@ _Workflow: ${{ github.workflow }}_
 **Accessing Logs**:
 ```bash
 # List available conversation logs
-find /tmp/gh-aw/session-data/logs -type f -name "*-conversation.txt"
+find /tmp/gh-aw/agent/session-data/logs -type f -name "*-conversation.txt"
 
 # Read a specific conversation log
-cat /tmp/gh-aw/session-data/logs/123-conversation.txt
+cat /tmp/gh-aw/agent/session-data/logs/123-conversation.txt
 
 # Count conversation logs
-find /tmp/gh-aw/session-data/logs -type f -name "*-conversation.txt" | wc -l
+find /tmp/gh-aw/agent/session-data/logs -type f -name "*-conversation.txt" | wc -l
 ```
 
 **What to Look For in Conversation Logs**:

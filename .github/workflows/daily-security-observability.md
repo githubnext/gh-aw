@@ -33,17 +33,17 @@ steps:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      mkdir -p /tmp/gh-aw/integrity
+      mkdir -p /tmp/gh-aw/agent/integrity
       # Download logs filtered to only runs with DIFC integrity-filtered events
       gh aw logs --filtered-integrity --start-date -7d --json -c 200 \
-        > /tmp/gh-aw/integrity/filtered-logs.json
+        > /tmp/gh-aw/agent/integrity/filtered-logs.json
 
-      if [ -f /tmp/gh-aw/integrity/filtered-logs.json ]; then
-        count=$(jq '. | length' /tmp/gh-aw/integrity/filtered-logs.json 2>/dev/null || echo 0)
+      if [ -f /tmp/gh-aw/agent/integrity/filtered-logs.json ]; then
+        count=$(jq '. | length' /tmp/gh-aw/agent/integrity/filtered-logs.json 2>/dev/null || echo 0)
         echo "✅ Downloaded $count runs with integrity-filtered events"
       else
         echo "⚠️ No logs file produced; continuing with empty dataset"
-        echo "[]" > /tmp/gh-aw/integrity/filtered-logs.json
+        echo "[]" > /tmp/gh-aw/agent/integrity/filtered-logs.json
       fi
 
 tools:
@@ -166,11 +166,11 @@ Upload both charts using `upload_asset` and record the returned URLs.
 
 ### Step 3.1: Check for DIFC Data
 
-Read `/tmp/gh-aw/integrity/filtered-logs.json`. If the array is empty (no runs found in the last 7 days), note "No DIFC integrity-filtered events found in the last 7 days." and proceed directly to Phase 5 (combined report).
+Read `/tmp/gh-aw/agent/integrity/filtered-logs.json`. If the array is empty (no runs found in the last 7 days), note "No DIFC integrity-filtered events found in the last 7 days." and proceed directly to Phase 5 (combined report).
 
 ### Step 3.2: Fetch Detailed DIFC Gateway Data
 
-1. Read `/tmp/gh-aw/integrity/filtered-logs.json` and extract all run IDs from each entry's `databaseId` field.
+1. Read `/tmp/gh-aw/agent/integrity/filtered-logs.json` and extract all run IDs from each entry's `databaseId` field.
 2. For each run ID, call the `audit` tool to get its detailed DIFC filtered events:
 
 ```json
@@ -190,11 +190,11 @@ The audit result contains `gateway_analysis.filtered_events[]` with fields:
 - `author_login` — login of the triggering actor
 
 3. Annotate each event with `workflow_name` (from `workflowName`) and `run_id` (from `databaseId`).
-4. Save all annotated events to `/tmp/gh-aw/integrity/all-events.json`.
+4. Save all annotated events to `/tmp/gh-aw/agent/integrity/all-events.json`.
 
 ### Step 3.3: Bucketize DIFC Events
 
-Create and run `/tmp/gh-aw/integrity/bucketize.py`:
+Create and run `/tmp/gh-aw/agent/integrity/bucketize.py`:
 
 ```python
 #!/usr/bin/env python3
@@ -204,7 +204,7 @@ import os
 from collections import defaultdict, Counter
 from datetime import datetime, timedelta
 
-DATA_DIR = "/tmp/gh-aw/integrity"
+DATA_DIR = "/tmp/gh-aw/agent/integrity"
 os.makedirs(DATA_DIR, exist_ok=True)
 
 with open(f"{DATA_DIR}/all-events.json") as f:
@@ -264,21 +264,21 @@ print(f"Bucketized {len(events)} events.")
 print(json.dumps(summary, indent=2))
 ```
 
-Run the script: `python3 /tmp/gh-aw/integrity/bucketize.py`
+Run the script: `python3 /tmp/gh-aw/agent/integrity/bucketize.py`
 
 ---
 
 ## Phase 4: Generate DIFC Statistical Charts
 
-Create and run chart scripts using matplotlib/seaborn. Save all charts to `/tmp/gh-aw/integrity/charts/`.
+Create and run chart scripts using matplotlib/seaborn. Save all charts to `/tmp/gh-aw/agent/integrity/charts/`.
 
 ```bash
-mkdir -p /tmp/gh-aw/integrity/charts
+mkdir -p /tmp/gh-aw/agent/integrity/charts
 ```
 
 ### Chart 3: DIFC Events Over Time (Daily)
 
-Create `/tmp/gh-aw/integrity/chart_timeline.py`:
+Create `/tmp/gh-aw/agent/integrity/chart_timeline.py`:
 
 ```python
 #!/usr/bin/env python3
@@ -289,7 +289,7 @@ import matplotlib.dates as mdates
 import seaborn as sns
 from datetime import datetime
 
-DATA_DIR   = "/tmp/gh-aw/integrity"
+DATA_DIR   = "/tmp/gh-aw/agent/integrity"
 CHARTS_DIR = f"{DATA_DIR}/charts"
 os.makedirs(CHARTS_DIR, exist_ok=True)
 
@@ -319,11 +319,11 @@ plt.savefig(f"{CHARTS_DIR}/events_timeline.png", dpi=300, bbox_inches="tight", f
 print("Chart 3 saved.")
 ```
 
-Run: `python3 /tmp/gh-aw/integrity/chart_timeline.py`
+Run: `python3 /tmp/gh-aw/agent/integrity/chart_timeline.py`
 
 ### Chart 4: Top Filtered Tools (Horizontal Bar)
 
-Create `/tmp/gh-aw/integrity/chart_tools.py`:
+Create `/tmp/gh-aw/agent/integrity/chart_tools.py`:
 
 ```python
 #!/usr/bin/env python3
@@ -332,7 +332,7 @@ import json, os
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-DATA_DIR   = "/tmp/gh-aw/integrity"
+DATA_DIR   = "/tmp/gh-aw/agent/integrity"
 CHARTS_DIR = f"{DATA_DIR}/charts"
 os.makedirs(CHARTS_DIR, exist_ok=True)
 
@@ -363,11 +363,11 @@ plt.savefig(f"{CHARTS_DIR}/top_tools.png", dpi=300, bbox_inches="tight", facecol
 print("Chart 4 saved.")
 ```
 
-Run: `python3 /tmp/gh-aw/integrity/chart_tools.py`
+Run: `python3 /tmp/gh-aw/agent/integrity/chart_tools.py`
 
 ### Chart 5: Filter Reason Breakdown (Pie / Donut)
 
-Create `/tmp/gh-aw/integrity/chart_reasons.py`:
+Create `/tmp/gh-aw/agent/integrity/chart_reasons.py`:
 
 ```python
 #!/usr/bin/env python3
@@ -376,7 +376,7 @@ import json, os
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-DATA_DIR   = "/tmp/gh-aw/integrity"
+DATA_DIR   = "/tmp/gh-aw/agent/integrity"
 CHARTS_DIR = f"{DATA_DIR}/charts"
 os.makedirs(CHARTS_DIR, exist_ok=True)
 
@@ -423,14 +423,14 @@ plt.savefig(f"{CHARTS_DIR}/reasons_tags.png", dpi=300, bbox_inches="tight", face
 print("Chart 5 saved.")
 ```
 
-Run: `python3 /tmp/gh-aw/integrity/chart_reasons.py`
+Run: `python3 /tmp/gh-aw/agent/integrity/chart_reasons.py`
 
 ### Upload DIFC Charts
 
 Upload each generated DIFC chart using the `upload asset` tool and collect the returned URLs:
-1. Upload `/tmp/gh-aw/integrity/charts/events_timeline.png`
-2. Upload `/tmp/gh-aw/integrity/charts/top_tools.png`
-3. Upload `/tmp/gh-aw/integrity/charts/reasons_tags.png`
+1. Upload `/tmp/gh-aw/agent/integrity/charts/events_timeline.png`
+2. Upload `/tmp/gh-aw/agent/integrity/charts/top_tools.png`
+3. Upload `/tmp/gh-aw/agent/integrity/charts/reasons_tags.png`
 
 ---
 

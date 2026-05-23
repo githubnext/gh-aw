@@ -62,13 +62,13 @@ jobs:
         id: check
         working-directory: ./docs
         run: |
-          npx --yes npm-check-updates --jsonUpgraded 2>/dev/null > /tmp/ncu-output.json || true
+          npx --yes npm-check-updates --jsonUpgraded 2>/dev/null > /tmp/gh-aw/agent/ncu-output.json || true
 
-          if [ -s /tmp/ncu-output.json ] && [ "$(cat /tmp/ncu-output.json | tr -d '[:space:]')" != "{}" ]; then
+          if [ -s /tmp/gh-aw/agent/ncu-output.json ] && [ "$(cat /tmp/gh-aw/agent/ncu-output.json | tr -d '[:space:]')" != "{}" ]; then
             echo "has_updates=true" >> "$GITHUB_OUTPUT"
             echo "Updates available:"
-            cat /tmp/ncu-output.json
-            SUMMARY=$(jq -r 'to_entries | map(.key + ": " + .value) | join(", ")' /tmp/ncu-output.json)
+            cat /tmp/gh-aw/agent/ncu-output.json
+            SUMMARY=$(jq -r 'to_entries | map(.key + ": " + .value) | join(", ")' /tmp/gh-aw/agent/ncu-output.json)
             echo "updates_summary=$SUMMARY" >> "$GITHUB_OUTPUT"
           else
             echo "has_updates=false" >> "$GITHUB_OUTPUT"

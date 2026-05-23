@@ -81,8 +81,8 @@ pre-agent-steps:
       EXPR_GITHUB_RUN_ID: ${{ github.run_id }}
       EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
     run: |
-      LOG_FILE="/tmp/gh-aw/docs-server-$EXPR_GITHUB_RUN_ID.log"
-      PID_FILE="/tmp/gh-aw/docs-server-$EXPR_GITHUB_RUN_ID.pid"
+      LOG_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.log"
+      PID_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.pid"
       cd "$EXPR_GITHUB_WORKSPACE/docs"
       nohup npm run dev -- --host 0.0.0.0 --port 4321 > "$LOG_FILE" 2>&1 &
       PID=$!
@@ -93,8 +93,8 @@ pre-agent-steps:
     env:
       EXPR_GITHUB_RUN_ID: ${{ github.run_id }}
     run: |
-      PID_FILE="/tmp/gh-aw/docs-server-$EXPR_GITHUB_RUN_ID.pid"
-      LOG_FILE="/tmp/gh-aw/docs-server-$EXPR_GITHUB_RUN_ID.log"
+      PID_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.pid"
+      LOG_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.log"
       MAX_WAIT=135  # Maximum 135 seconds wait time
       WAITED=0
       until curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; do

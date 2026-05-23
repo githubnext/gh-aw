@@ -45,7 +45,7 @@ gh-aw emits **traces only** (no metrics or logs). It sends OTLP spans **directly
 
 ```text
 gh-aw workflow runtime (actions/setup/js/send_otlp_span.cjs)
-  → local JSONL mirror (/tmp/gh-aw/otel.jsonl)
+  → local JSONL mirror (/tmp/gh-aw/agent/otel.jsonl)
   → OTLP/HTTP POST to vendor endpoints (concurrent fan-out)
   → vendor backends (Sentry, Grafana Tempo, Datadog, etc.)
 ```
@@ -53,7 +53,7 @@ gh-aw workflow runtime (actions/setup/js/send_otlp_span.cjs)
 Normative specification: `specs/otel-observability-spec.md`
 
 Use the cheapest trustworthy source first:
-1. local JSONL mirror (`/tmp/gh-aw/otel.jsonl`) and export error logs (`/tmp/gh-aw/otlp-export-errors.jsonl`)
+1. local JSONL mirror (`/tmp/gh-aw/agent/otel.jsonl`) and export error logs (`/tmp/gh-aw/agent/otlp-export-errors.jsonl`)
 2. backend queries via MCP tools (when available)
 
 Always distinguish:
@@ -75,11 +75,11 @@ Define and report:
 Infer expectations from:
 - local JSONL mirror span count
 - `github.run_id` from resource attributes
-- export error count from `/tmp/gh-aw/otlp-export-errors.count`
+- export error count from `/tmp/gh-aw/agent/otlp-export-errors.count`
 
 ### Step 2: Validate trace completeness and integrity
 
-From the local JSONL mirror (`/tmp/gh-aw/otel.jsonl`), compute and report:
+From the local JSONL mirror (`/tmp/gh-aw/agent/otel.jsonl`), compute and report:
 - unique `traceId` count (expect 1 per workflow run)
 - unique span identity count using `traceId + spanId`
 - duplicate spans with same `traceId + spanId`
@@ -105,7 +105,7 @@ Flag timestamp issues:
 
 ```bash
 # Example: Extract span summary from JSONL mirror
-jq -c '.resourceSpans[].scopeSpans[].spans[] | {name, traceId, spanId, parentSpanId, kind, status}' /tmp/gh-aw/otel.jsonl
+jq -c '.resourceSpans[].scopeSpans[].spans[] | {name, traceId, spanId, parentSpanId, kind, status}' /tmp/gh-aw/agent/otel.jsonl
 ```
 
 ### Step 3: Validate span attribute contract
@@ -136,7 +136,7 @@ Check agent spans for GenAI semantic conventions (spec §10.3):
 
 ```bash
 # Example: Check required attributes on setup spans
-jq -c '.resourceSpans[].scopeSpans[].spans[] | select(.name | endswith(".setup")) | {name, attrs: [.attributes[]? | {(.key): .value}] | add}' /tmp/gh-aw/otel.jsonl
+jq -c '.resourceSpans[].scopeSpans[].spans[] | select(.name | endswith(".setup")) | {name, attrs: [.attributes[]? | {(.key): .value}] | add}' /tmp/gh-aw/agent/otel.jsonl
 ```
 
 ### Step 4: Validate resource attributes
@@ -155,7 +155,7 @@ Check instrumentation scope:
 
 ```bash
 # Example: Extract resource attributes
-jq -c '.resourceSpans[].resource.attributes[] | {(.key): .value}' /tmp/gh-aw/otel.jsonl | sort -u
+jq -c '.resourceSpans[].resource.attributes[] | {(.key): .value}' /tmp/gh-aw/agent/otel.jsonl | sort -u
 ```
 
 ### Step 5: Validate trace ID propagation
@@ -165,19 +165,19 @@ Verify trace ID consistency across jobs (spec §12):
 - setup spans across different jobs share the same global `parent_span_id`
 - the JSONL mirror `trace_id` matches the value in `GITHUB_AW_OTEL_TRACE_ID`
 
-If export errors exist, check `/tmp/gh-aw/otlp-export-errors.jsonl`:
+If export errors exist, check `/tmp/gh-aw/agent/otlp-export-errors.jsonl`:
 - which endpoints failed
 - HTTP status codes
 - whether failures are transient (retryable) or permanent
 
 ```bash
 # Example: Check trace ID consistency
-jq -r '.resourceSpans[].scopeSpans[].spans[].traceId' /tmp/gh-aw/otel.jsonl | sort -u | wc -l
+jq -r '.resourceSpans[].scopeSpans[].spans[].traceId' /tmp/gh-aw/agent/otel.jsonl | sort -u | wc -l
 # Expected: 1 (single trace ID per run)
 
 # Example: Check export errors
-cat /tmp/gh-aw/otlp-export-errors.jsonl 2>/dev/null || echo "No export errors"
-cat /tmp/gh-aw/otlp-export-errors.count 2>/dev/null || echo "0"
+cat /tmp/gh-aw/agent/otlp-export-errors.jsonl 2>/dev/null || echo "No export errors"
+cat /tmp/gh-aw/agent/otlp-export-errors.count 2>/dev/null || echo "0"
 ```
 
 ### Step 6: Reconcile local mirror vs backend visibility

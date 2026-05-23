@@ -190,9 +190,9 @@ Example parsing approach (for each discussion in your data):
 # For each discussion body extracted from the query results, parse metrics
 
 # Extract numeric patterns from discussion body content
-grep -oE '[0-9,]+\s+(issues|PRs|tokens|runs)' /tmp/report.md
-grep -oE '\$[0-9]+\.[0-9]+' /tmp/report.md  # Cost values
-grep -oE '[0-9]+%' /tmp/report.md  # Percentages
+grep -oE '[0-9,]+\s+(issues|PRs|tokens|runs)' /tmp/gh-aw/agent/report.md
+grep -oE '\$[0-9]+\.[0-9]+' /tmp/gh-aw/agent/report.md  # Cost values
+grep -oE '[0-9]+%' /tmp/gh-aw/agent/report.md  # Percentages
 ```
 
 ## Phase 3: Cross-Check Data Consistency

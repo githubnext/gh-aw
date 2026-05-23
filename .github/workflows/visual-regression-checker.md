@@ -59,9 +59,9 @@ steps:
 
   - name: Start docs server
     run: |
-      nohup make dev-docs > /tmp/preview.log 2>&1 &
+      nohup make dev-docs > /tmp/gh-aw/agent/preview.log 2>&1 &
       PID=$!
-      echo "$PID" > /tmp/server.pid
+      echo "$PID" > /tmp/gh-aw/agent/server.pid
       echo "Server PID: $PID"
 
   - name: Wait for dev server
@@ -69,15 +69,15 @@ steps:
       MAX_WAIT=90
       WAITED=0
       until (echo > /dev/tcp/127.0.0.1/4321) > /dev/null 2>&1; do
-        if [ -f /tmp/server.pid ] && ! kill -0 "$(cat /tmp/server.pid)" 2>/dev/null; then
+        if [ -f /tmp/gh-aw/agent/server.pid ] && ! kill -0 "$(cat /tmp/gh-aw/agent/server.pid)" 2>/dev/null; then
           echo "Docs server process exited before opening port 4321" >&2
-          cat /tmp/preview.log >&2
+          cat /tmp/gh-aw/agent/preview.log >&2
           exit 1
         fi
         WAITED=$((WAITED + 3))
         if [ $WAITED -ge $MAX_WAIT ]; then
           echo "Docs server port 4321 did not open in ${MAX_WAIT}s" >&2
-          cat /tmp/preview.log >&2
+          cat /tmp/gh-aw/agent/preview.log >&2
           exit 1
         fi
         echo "Waiting for docs port... ($WAITED/${MAX_WAIT}s)"
@@ -88,7 +88,7 @@ steps:
         WAITED=$((WAITED + 3))
         if [ $WAITED -ge $MAX_WAIT ]; then
           echo "Dev server did not become ready in ${MAX_WAIT}s" >&2
-          cat /tmp/preview.log >&2
+          cat /tmp/gh-aw/agent/preview.log >&2
           exit 1
         fi
         echo "Waiting for dev server response... ($WAITED/${MAX_WAIT}s)"
@@ -105,7 +105,7 @@ You are a visual quality agent. The workflow started the docs server and verifie
 ## Steps
 
 1. **Capture screenshots** — Use `playwright-cli` to resize the viewport and take full-page screenshots of the key pages:
-   - **Mobile**: `playwright-cli browser_resize --width 375 --height 812 && playwright-cli browser_navigate --url "http://localhost:4321/gh-aw/" && playwright-cli browser_take_screenshot --filename /tmp/screenshot-mobile.png --full-page true`
+   - **Mobile**: `playwright-cli browser_resize --width 375 --height 812 && playwright-cli browser_navigate --url "http://localhost:4321/gh-aw/" && playwright-cli browser_take_screenshot --filename /tmp/gh-aw/agent/screenshot-mobile.png --full-page true`
    - **Tablet**: resize to 768 × 1024, navigate, screenshot
    - **Desktop**: resize to 1440 × 900, navigate, screenshot
 2. **Accessibility snapshot** — For each page, run `playwright-cli browser_snapshot` and note any violations.

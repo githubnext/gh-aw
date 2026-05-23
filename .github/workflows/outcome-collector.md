@@ -53,7 +53,7 @@ pre-agent-steps:
       node "${RUNNER_TEMP}/gh-aw/actions/evaluate_outcomes.cjs"
   - name: Export outcome telemetry
     run: |
-      if [ -f /tmp/gh-aw/outcome-evaluations.jsonl ] && [ -s /tmp/gh-aw/outcome-evaluations.jsonl ]; then
+      if [ -f /tmp/gh-aw/agent/outcome-evaluations.jsonl ] && [ -s /tmp/gh-aw/agent/outcome-evaluations.jsonl ]; then
         node "${RUNNER_TEMP}/gh-aw/actions/emit_outcome_spans.cjs"
       else
         echo "No outcome evaluations to export"
@@ -68,12 +68,12 @@ You are the Outcome Collector. Your job is to create a concise report of safe ou
 
 The pre-agent step has already evaluated outcomes for recent workflow runs. Results are in:
 
-- `/tmp/gh-aw/outcome-summary.json` — fleet-wide summary
-- `/tmp/gh-aw/outcomes/run-*.json` — per-run outcome details
+- `/tmp/gh-aw/agent/outcome-summary.json` — fleet-wide summary
+- `/tmp/gh-aw/agent/outcomes/run-*.json` — per-run outcome details
 
 ## Task
 
-1. Read `/tmp/gh-aw/outcome-summary.json`
+1. Read `/tmp/gh-aw/agent/outcome-summary.json`
 2. If `total_outcomes` is 0, call `noop` with "No new safe output outcomes to report"
 3. Otherwise, create a report issue with the summary
 

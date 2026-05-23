@@ -412,10 +412,10 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -e
-      mkdir -p /tmp/gh-aw/release-data
-      mkdir -p /tmp/gh-aw/community-data
+      mkdir -p /tmp/gh-aw/agent/release-data
+      mkdir -p /tmp/gh-aw/agent/community-data
       # Copy community issues from the agent/community-data path (written by community-attribution import step)
-      cp /tmp/gh-aw/agent/community-data/community_issues.json /tmp/gh-aw/community-data/community_issues.json 2>/dev/null || echo "[]" > /tmp/gh-aw/community-data/community_issues.json
+      cp /tmp/gh-aw/agent/community-data/community_issues.json /tmp/gh-aw/agent/community-data/community_issues.json 2>/dev/null || echo "[]" > /tmp/gh-aw/agent/community-data/community_issues.json
       
       # Use the release ID and tag from the release job
       echo "Release ID from release job: $RELEASE_ID"
@@ -426,7 +426,7 @@ steps:
       
       # Get the current release information
       # Use release ID to fetch release data
-      gh api "/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" > /tmp/gh-aw/release-data/current_release.json
+      gh api "/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" > /tmp/gh-aw/agent/release-data/current_release.json
       echo "✓ Fetched current release information"
       
       # Get the previous release to determine the range
@@ -435,8 +435,8 @@ steps:
       if [ -z "$PREV_RELEASE_TAG" ]; then
         echo "No previous release found. This appears to be the first release."
         echo "PREV_RELEASE_TAG=" >> "$GITHUB_ENV"
-        touch /tmp/gh-aw/release-data/pull_requests.json
-        echo "[]" > /tmp/gh-aw/release-data/pull_requests.json
+        touch /tmp/gh-aw/agent/release-data/pull_requests.json
+        echo "[]" > /tmp/gh-aw/agent/release-data/pull_requests.json
       else
         echo "Previous release: $PREV_RELEASE_TAG"
         echo "PREV_RELEASE_TAG=$PREV_RELEASE_TAG" >> "$GITHUB_ENV"
@@ -454,9 +454,9 @@ steps:
           --limit 1000 \
           --json number,title,author,labels,mergedAt,url,body,closingIssuesReferences \
           --jq "[.[] | select(.mergedAt >= \"$PREV_PUBLISHED_AT\" and .mergedAt <= \"$CURR_PUBLISHED_AT\")]" \
-          > /tmp/gh-aw/release-data/pull_requests.json
+          > /tmp/gh-aw/agent/release-data/pull_requests.json
         
-        PR_COUNT=$(jq length "/tmp/gh-aw/release-data/pull_requests.json")
+        PR_COUNT=$(jq length "/tmp/gh-aw/agent/release-data/pull_requests.json")
         echo "✓ Fetched $PR_COUNT pull requests"
       fi
       
@@ -474,44 +474,44 @@ steps:
             .[$key] = (.[$key] // []) + [$pr.number]
           )
         )
-      ' /tmp/gh-aw/release-data/pull_requests.json \
-        > /tmp/gh-aw/release-data/closing_refs_by_issue.json 2>/dev/null \
-        || echo "{}" > /tmp/gh-aw/release-data/closing_refs_by_issue.json
+      ' /tmp/gh-aw/agent/release-data/pull_requests.json \
+        > /tmp/gh-aw/agent/release-data/closing_refs_by_issue.json 2>/dev/null \
+        || echo "{}" > /tmp/gh-aw/agent/release-data/closing_refs_by_issue.json
       # Also expose to community-data dir so shared attribution strategy can reference it
-      cp /tmp/gh-aw/release-data/closing_refs_by_issue.json /tmp/gh-aw/community-data/closing_refs_by_issue.json
-      cp /tmp/gh-aw/release-data/pull_requests.json /tmp/gh-aw/community-data/pull_requests.json
+      cp /tmp/gh-aw/agent/release-data/closing_refs_by_issue.json /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json
+      cp /tmp/gh-aw/agent/release-data/pull_requests.json /tmp/gh-aw/agent/community-data/pull_requests.json
       
-      DIRECT_CLOSE_COUNT=$(jq 'keys | length' /tmp/gh-aw/release-data/closing_refs_by_issue.json)
+      DIRECT_CLOSE_COUNT=$(jq 'keys | length' /tmp/gh-aw/agent/release-data/closing_refs_by_issue.json)
       echo "✓ Found $DIRECT_CLOSE_COUNT issues with GitHub-native closing PR references"
       
       # Find community issues closed during this release window (candidates for attribution review)
       if [ -n "$PREV_PUBLISHED_AT" ]; then
         jq --arg prev "$PREV_PUBLISHED_AT" --arg curr "$CURR_PUBLISHED_AT" \
           '[.[] | select(.closedAt != null and .closedAt >= $prev and .closedAt <= $curr)]' \
-          /tmp/gh-aw/community-data/community_issues.json \
-          > /tmp/gh-aw/release-data/community_issues_closed_in_window.json 2>/dev/null \
-          || echo "[]" > /tmp/gh-aw/release-data/community_issues_closed_in_window.json
+          /tmp/gh-aw/agent/community-data/community_issues.json \
+          > /tmp/gh-aw/agent/release-data/community_issues_closed_in_window.json 2>/dev/null \
+          || echo "[]" > /tmp/gh-aw/agent/release-data/community_issues_closed_in_window.json
         
-        CLOSED_IN_WINDOW=$(jq length /tmp/gh-aw/release-data/community_issues_closed_in_window.json)
+        CLOSED_IN_WINDOW=$(jq length /tmp/gh-aw/agent/release-data/community_issues_closed_in_window.json)
         echo "✓ Found $CLOSED_IN_WINDOW community issues closed in this release window"
       else
-        echo "[]" > /tmp/gh-aw/release-data/community_issues_closed_in_window.json
+        echo "[]" > /tmp/gh-aw/agent/release-data/community_issues_closed_in_window.json
       fi
       
       # Get the CHANGELOG.md content around this version
       if [ -f "CHANGELOG.md" ]; then
-        cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md
+        cp CHANGELOG.md /tmp/gh-aw/agent/release-data/CHANGELOG.md
         echo "✓ Copied CHANGELOG.md for reference"
       fi
       
       # List documentation files for linking
-      find docs -type f -name "*.md" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo "No docs directory found"
+      find docs -type f -name "*.md" 2>/dev/null > /tmp/gh-aw/agent/release-data/docs_files.txt || echo "No docs directory found"
       
       echo "✓ Setup complete."
-      echo "  Release data: /tmp/gh-aw/release-data/ (current_release.json, pull_requests.json,"
+      echo "  Release data: /tmp/gh-aw/agent/release-data/ (current_release.json, pull_requests.json,"
       echo "    closing_refs_by_issue.json, community_issues_closed_in_window.json,"
       echo "    CHANGELOG.md (if exists), docs_files.txt)"
-      echo "  Community data: /tmp/gh-aw/community-data/ (community_issues.json,"
+      echo "  Community data: /tmp/gh-aw/agent/community-data/ (community_issues.json,"
       echo "    closing_refs_by_issue.json, pull_requests.json)"
 
 tools:
@@ -532,7 +532,7 @@ Generate an engaging release highlights summary for **$GITHUB_REPOSITORY** relea
 
 ## Data Available
 
-Release-specific data is pre-fetched in `/tmp/gh-aw/release-data/`:
+Release-specific data is pre-fetched in `/tmp/gh-aw/agent/release-data/`:
 - `current_release.json` - Release metadata (tag, name, dates, existing body)
 - `pull_requests.json` - PRs merged between `${PREV_RELEASE_TAG}` and `${RELEASE_TAG}` (includes `closingIssuesReferences` for each PR; empty array if first release)
 - `closing_refs_by_issue.json` - Map of `{issue_number: [pr_numbers]}` built from GitHub-native closing references in merged PRs
@@ -540,7 +540,7 @@ Release-specific data is pre-fetched in `/tmp/gh-aw/release-data/`:
 - `CHANGELOG.md` - Full changelog for context (if exists)
 - `docs_files.txt` - Available documentation files for linking
 
-Community data is pre-fetched in `/tmp/gh-aw/community-data/` (by the shared community-attribution step):
+Community data is pre-fetched in `/tmp/gh-aw/agent/community-data/` (by the shared community-attribution step):
 - `community_issues.json` - All issues labeled `community` (issue number, title, author, closedAt, createdAt, url)
 - `closing_refs_by_issue.json` - Same closing references index, mirrored for the shared attribution strategy
 - `pull_requests.json` - Same PR list, mirrored for the shared attribution strategy
@@ -560,25 +560,25 @@ Create a **"🌟 Release Highlights"** section that:
 
 ```bash
 # View release metadata
-cat /tmp/gh-aw/release-data/current_release.json | jq
+cat /tmp/gh-aw/agent/release-data/current_release.json | jq
 
 # List PRs (empty if first release)
-cat /tmp/gh-aw/release-data/pull_requests.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
+cat /tmp/gh-aw/agent/release-data/pull_requests.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
 
 # List community issues (fetched by shared community-attribution step)
-cat /tmp/gh-aw/community-data/community_issues.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
+cat /tmp/gh-aw/agent/community-data/community_issues.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login)"'
 
 # View GitHub-native closing references (issue -> [PRs])
-cat /tmp/gh-aw/release-data/closing_refs_by_issue.json | jq
+cat /tmp/gh-aw/agent/release-data/closing_refs_by_issue.json | jq
 
 # List community issues closed in this release window (attribution candidates)
-cat /tmp/gh-aw/release-data/community_issues_closed_in_window.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login) (closed: \(.closedAt))"'
+cat /tmp/gh-aw/agent/release-data/community_issues_closed_in_window.json | jq -r '.[] | "- #\(.number): \(.title) by @\(.author.login) (closed: \(.closedAt))"'
 
 # Check CHANGELOG context
-head -100 /tmp/gh-aw/release-data/CHANGELOG.md 2>/dev/null || echo "No CHANGELOG"
+head -100 /tmp/gh-aw/agent/release-data/CHANGELOG.md 2>/dev/null || echo "No CHANGELOG"
 
 # View available docs
-cat /tmp/gh-aw/release-data/docs_files.txt
+cat /tmp/gh-aw/agent/release-data/docs_files.txt
 ```
 
 ### 2. Identify Community Contributions
@@ -586,8 +586,8 @@ cat /tmp/gh-aw/release-data/docs_files.txt
 The `community` label is the **primary attribution signal** — apply the
 four-tier Community Attribution Strategy from the imported shared component
 (`shared/community-attribution.md`) to attribute all community-labeled issues
-that were closed in this release window.  Use `/tmp/gh-aw/release-data/community_issues_closed_in_window.json`
-as the set of candidates and `/tmp/gh-aw/release-data/closing_refs_by_issue.json`
+that were closed in this release window.  Use `/tmp/gh-aw/agent/release-data/community_issues_closed_in_window.json`
+as the set of candidates and `/tmp/gh-aw/agent/release-data/closing_refs_by_issue.json`
 as the attribution index.
 
 ### 3. Categorize & Prioritize
@@ -681,7 +681,7 @@ safeoutputs/update_release(
 ```
 
 **❌ INCORRECT - DO NOT:**
-- Write JSON files manually (e.g., `/tmp/gh-aw/safeoutputs/update_release_001.json`)
+- Write JSON files manually (e.g., `/tmp/gh-aw/agent/safeoutputs/update_release_001.json`)
 - Use bash to simulate tool calls
 - Create scripts that write to outputs.jsonl
 - Use any file operations - the MCP tool handles everything

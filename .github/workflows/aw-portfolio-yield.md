@@ -37,7 +37,7 @@ pre-agent-steps:
   - name: Collect workflow telemetry snapshot
     uses: actions/github-script@v9
     env:
-      AW_YIELD_TELEMETRY_OUT: /tmp/aw-yield-telemetry-summary.json
+      AW_YIELD_TELEMETRY_OUT: /tmp/gh-aw/agent/aw-yield-telemetry-summary.json
     with:
       script: |
         const fs = require("fs");
@@ -139,8 +139,8 @@ pre-agent-steps:
     env:
       AW_YIELD_WORKSPACE: ${{ github.workspace }}
       AW_YIELD_WORKFLOWS: .github/workflows
-      AW_YIELD_OUT: /tmp/aw-yield-precompute.json
-      AWY_OTEL_SUMMARY_JSON: /tmp/aw-yield-telemetry-summary.json
+      AW_YIELD_OUT: /tmp/gh-aw/agent/aw-yield-precompute.json
+      AWY_OTEL_SUMMARY_JSON: /tmp/gh-aw/agent/aw-yield-telemetry-summary.json
     with:
       script: |
         const path = require("path");
@@ -155,9 +155,9 @@ post-steps:
     uses: actions/github-script@v9
     env:
       AW_YIELD_WORKSPACE: ${{ github.workspace }}
-      AW_YIELD_PRECOMPUTE: /tmp/aw-yield-precompute.json
-      AW_YIELD_AGENT_OUTPUT: /tmp/gh-aw
-      AW_YIELD_OUT: /tmp/aw-yield-final.json
+      AW_YIELD_PRECOMPUTE: /tmp/gh-aw/agent/aw-yield-precompute.json
+      AW_YIELD_AGENT_OUTPUT: /tmp/gh-aw/agent
+      AW_YIELD_OUT: /tmp/gh-aw/agent/aw-yield-final.json
     with:
       script: |
         const path = require("path");
@@ -175,7 +175,7 @@ You are the semantic interpreter for the repository's agentic workflow portfolio
 
 ## Hard Rules
 
-- Treat `/tmp/aw-yield-precompute.json` as the factual source of truth.
+- Treat `/tmp/gh-aw/agent/aw-yield-precompute.json` as the factual source of truth.
 - Telemetry = facts. Deterministic precompute/postcompute = math. Agent = interpretation.
 - Do **not** recompute raw scores, ranking, overlap values, fractions, or portfolio math from scratch.
 - Do **not** invent telemetry, economics, confidence, or success evidence.
@@ -195,7 +195,7 @@ Explicitly evaluate these three levels:
 
 Read and rely on:
 
-- `/tmp/aw-yield-precompute.json`
+- `/tmp/gh-aw/agent/aw-yield-precompute.json`
 - workflow recommendation seeds already computed there
 - overlap clusters already computed there
 - organizational health signals already computed there
@@ -203,7 +203,7 @@ Read and rely on:
 
 ## Deliverables
 
-1. Write `/tmp/gh-aw/portfolio-yield-agent.json` with this shape:
+1. Write `/tmp/gh-aw/agent/portfolio-yield-agent.json` with this shape:
 
 ```json
 {

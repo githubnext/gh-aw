@@ -17,7 +17,7 @@ tools:
 cache:
   - key: aw-failure-investigator-prefetch-${{ github.run_id }}
     name: Failure investigator prefetch
-    path: /tmp/gh-aw/failure-investigator
+    path: /tmp/gh-aw/agent/failure-investigator
 safe-outputs:
   create-issue:
     expires: 7d
@@ -46,7 +46,7 @@ steps:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -euo pipefail
-      mkdir -p /tmp/gh-aw/failure-investigator
+      mkdir -p /tmp/gh-aw/agent/failure-investigator
       python3 - <<'PY'
       import json
       import os
@@ -54,7 +54,7 @@ steps:
       from datetime import datetime, timezone
       
       REPO = os.environ["GITHUB_REPOSITORY"]
-      OUT = "/tmp/gh-aw/failure-investigator/prefetch.json"
+      OUT = "/tmp/gh-aw/agent/failure-investigator/prefetch.json"
       TRACKER_ID = "aw-failure-investigator"
       LOOKBACK = "-6h"
       MAX_FAILED_RUNS = 20
@@ -229,7 +229,7 @@ Investigate agentic workflow failures from the last 6 hours and produce actionab
 - **Repository**: `${{ github.repository }}`
 - **Lookback window**: last 6 hours
 - **Issue query to inspect first**: <https://github.com/github/gh-aw/issues?q=is%3Aissue%20state%3Aopen%20label%3Aagentic-workflows>
-- **Deterministic pre-fetch payload**: `/tmp/gh-aw/failure-investigator/prefetch.json`
+- **Deterministic pre-fetch payload**: `/tmp/gh-aw/agent/failure-investigator/prefetch.json`
 
 ## Mission
 
@@ -242,7 +242,7 @@ Investigate agentic workflow failures from the last 6 hours and produce actionab
 
 ### 0) Use deterministic pre-fetch payload first (required)
 
-Read `/tmp/gh-aw/failure-investigator/prefetch.json` first. It already includes:
+Read `/tmp/gh-aw/agent/failure-investigator/prefetch.json` first. It already includes:
 - recent failed run IDs for the 6-hour window
 - failed step names
 - truncated error logs (up to last 200 lines per failed job)

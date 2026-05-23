@@ -268,7 +268,7 @@ Show the concrete before/after diff.
 - [ ] Add `experiments:` section to frontmatter
 - [ ] Add conditional blocks to workflow prompt body using `{{#if experiments.<name> == "<variant>" }}` (value-comparison form — never use the internal `__GH_AW_EXPERIMENTS__` env-var syntax)
 - [ ] Run `gh aw compile <workflow-name>` to regenerate lock file
-- [ ] Monitor experiment artifact uploaded per run to `/tmp/gh-aw/experiments/state.json`
+- [ ] Monitor experiment artifact uploaded per run to `/tmp/gh-aw/agent/experiments/state.json`
 - [ ] After sufficient runs, analyze variant distribution via workflow run artifacts
 - [ ] Document findings and promote winning variant
 
@@ -307,7 +307,7 @@ After completing the primary quest, include a **second issue** (sub-issue of the
 
 Use the `field-presence-checker` agent with file paths `pkg/workflow/compiler_experiments.go` and `actions/setup/js/pick_experiment.cjs`, and field names `analysis_type`, `tags`, `notify`. Use the returned `present`/`evidence` results when deciding which fields are genuinely absent.
 
-Then review what data is currently captured per experiment run (the artifact uploaded to `/tmp/gh-aw/experiments/state.json`) and consider what would be needed for a complete experiment analytics pipeline.
+Then review what data is currently captured per experiment run (the artifact uploaded to `/tmp/gh-aw/agent/experiments/state.json`) and consider what would be needed for a complete experiment analytics pipeline.
 
 Propose concrete improvements in the following areas:
 

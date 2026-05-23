@@ -156,16 +156,16 @@ rm $HOME/.firewall-test-marker
 
 **Expected:** SUCCESS - File write and cleanup in home directory should work.
 
-## Test 7: File Write (/tmp)
+## Test 7: File Write (`/tmp/gh-aw/agent`)
 
 Run:
 ```bash
-echo "tmp-test-$(date +%s)" > /tmp/firewall-test-marker
-cat /tmp/firewall-test-marker
-rm /tmp/firewall-test-marker
+echo "tmp-test-$(date +%s)" > /tmp/gh-aw/agent/firewall-test-marker
+cat /tmp/gh-aw/agent/firewall-test-marker
+rm /tmp/gh-aw/agent/firewall-test-marker
 ```
 
-**Expected:** SUCCESS - File write and cleanup in /tmp should work.
+**Expected:** SUCCESS - File write and cleanup in `/tmp/gh-aw/agent` should work.
 
 ## Test 8: Localhost Connectivity
 

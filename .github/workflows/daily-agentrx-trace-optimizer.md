@@ -55,10 +55,10 @@ Focus on:
    - Use `logs` to download parsed logs for recent runs.
    - Use `audit` for selected failing or high-latency runs.
 2. Use only MCP-downloaded run data and logs as the telemetry source, prioritizing `runs[]` session fields over OTEL spans.
-3. Use Python in `/tmp/agentrx` to avoid polluting the repository.
+3. Use Python in `/tmp/gh-aw/agent/agentrx` to avoid polluting the repository.
 4. Install AgentRx from GitHub:
-   - `python -m venv /tmp/agentrx/.venv`
-   - `source /tmp/agentrx/.venv/bin/activate`
+   - `python -m venv /tmp/gh-aw/agent/agentrx/.venv`
+   - `source /tmp/gh-aw/agent/agentrx/.venv/bin/activate`
    - `pip install --upgrade pip`
    - `pip install git+https://github.com/microsoft/AgentRx.git`
 
@@ -68,13 +68,13 @@ Focus on:
 
 Invoke `trajectory-builder` by passing this exact input block:
 ```text
-run_data_path: /tmp/agentrx/mcp-runs.json
+run_data_path: /tmp/gh-aw/agent/agentrx/mcp-runs.json
 ```
-It must produce `/tmp/agentrx/trajectory.json`.
+It must produce `/tmp/gh-aw/agent/agentrx/trajectory.json`.
 
 ### 2) Run AgentRx pipeline
 
-Run the pipeline in stages and preserve outputs under `/tmp/agentrx/runs/<run_name>/`:
+Run the pipeline in stages and preserve outputs under `/tmp/gh-aw/agent/agentrx/runs/<run_name>/`:
 
 - `ir`: normalize raw session run records into trajectory IR
 - `static` / `dynamic`: generate invariants used for diagnosis
@@ -83,12 +83,12 @@ Run the pipeline in stages and preserve outputs under `/tmp/agentrx/runs/<run_na
 - `report`: generate aggregate diagnostic artifacts
 
 ```bash
-python run.py /tmp/agentrx/trajectory.json --run-name gh-aw-daily --stage ir
-python run.py /tmp/agentrx/trajectory.json --run-dir /tmp/agentrx/runs/gh-aw-daily --stage static
-python run.py /tmp/agentrx/trajectory.json --run-dir /tmp/agentrx/runs/gh-aw-daily --stage dynamic
-python run.py /tmp/agentrx/trajectory.json --run-dir /tmp/agentrx/runs/gh-aw-daily --stage check
-python run.py /tmp/agentrx/trajectory.json --run-dir /tmp/agentrx/runs/gh-aw-daily --stage judge
-python run.py /tmp/agentrx/trajectory.json --run-dir /tmp/agentrx/runs/gh-aw-daily --stage report
+python run.py /tmp/gh-aw/agent/agentrx/trajectory.json --run-name gh-aw-daily --stage ir
+python run.py /tmp/gh-aw/agent/agentrx/trajectory.json --run-dir /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily --stage static
+python run.py /tmp/gh-aw/agent/agentrx/trajectory.json --run-dir /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily --stage dynamic
+python run.py /tmp/gh-aw/agent/agentrx/trajectory.json --run-dir /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily --stage check
+python run.py /tmp/gh-aw/agent/agentrx/trajectory.json --run-dir /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily --stage judge
+python run.py /tmp/gh-aw/agent/agentrx/trajectory.json --run-dir /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily --stage report
 ```
 
 If a later stage fails (for example due to endpoint/auth constraints), continue with completed artifacts and still produce a grounded recommendation.
@@ -97,8 +97,8 @@ If a later stage fails (for example due to endpoint/auth constraints), continue 
 
 First, invoke `failure-pattern-classifier` by passing this exact input block:
 ```text
-check_path: /tmp/agentrx/runs/gh-aw-daily/check.json
-judge_path: /tmp/agentrx/runs/gh-aw-daily/judge.json
+check_path: /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily/check.json
+judge_path: /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily/judge.json
 ```
 Capture its markdown table output as the labeled violations list for this section. Then read that labeled table and pick the single highest-impact fix.
 
@@ -136,7 +136,7 @@ Body structure:
 
 Invoke `artifacts-summarizer` by passing this exact input block:
 ```text
-run_dir: /tmp/agentrx/runs/gh-aw-daily
+run_dir: /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily
 ```
 Paste its markdown output as the body of this details block.
 
@@ -171,11 +171,11 @@ model: small
 You are a structured-data extraction agent.
 Expected input format:
 `run_data_path: <absolute-path-to-mcp-run-data-json>`
-Read the file at `run_data_path` and create `/tmp/agentrx/trajectory.json`.
+Read the file at `run_data_path` and create `/tmp/gh-aw/agent/agentrx/trajectory.json`.
 Use the last 24h of data and prioritize failed or high-latency runs.
 Map `runs[]` session records to ordered workflow steps.
 Include when present: step index, `github.workflow_ref`, `github.run_id`, status/error signal, `duration`, `effective_tokens`, `estimated_cost`, `turns`, `agentic_assessments`, `behavior_fingerprint`, `missing_tool_count`.
-Output valid JSON only and write it to `/tmp/agentrx/trajectory.json`.
+Output valid JSON only and write it to `/tmp/gh-aw/agent/agentrx/trajectory.json`.
 
 ## agent: `artifacts-summarizer`
 ---

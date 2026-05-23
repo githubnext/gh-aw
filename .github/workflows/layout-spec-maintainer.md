@@ -24,7 +24,7 @@ safe-outputs:
 cache:
 - key: layout-spec-cache-${{ github.run_id }}
   name: Cache layout spec data
-  path: /tmp/gh-aw/layout-cache
+  path: /tmp/gh-aw/agent/layout-cache
   restore-keys: |
     layout-spec-cache-
 description: Maintains scratchpad/layout.md with patterns of file paths, folder names, and artifact names used in lock.yml files

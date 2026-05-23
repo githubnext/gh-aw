@@ -90,7 +90,7 @@ Use GitHub tools to fetch the issue or PR, then incorporate any extra context fr
 After gathering the description, save it for reference:
 
 ```bash
-mkdir -p /tmp/gh-aw/approach-validator
+mkdir -p /tmp/gh-aw/agent/approach-validator
 ```
 
 Store the approach title and description for use across all agents.
@@ -113,7 +113,7 @@ For each failure mode, provide:
 Save the output:
 
 ```bash
-cat > /tmp/gh-aw/approach-validator/agent1-devils-advocate.md << 'AGENT1_EOF'
+cat > /tmp/gh-aw/agent/approach-validator/agent1-devils-advocate.md << 'AGENT1_EOF'
 [Agent 1 output goes here - write the actual analysis]
 AGENT1_EOF
 ```
@@ -127,7 +127,7 @@ AGENT1_EOF
 **Task**: Read the proposed approach AND the Devil's Advocate output from Agent 1. Research and present **2–3 alternative approaches**:
 
 ```bash
-cat /tmp/gh-aw/approach-validator/agent1-devils-advocate.md
+cat /tmp/gh-aw/agent/approach-validator/agent1-devils-advocate.md
 ```
 
 For each alternative:
@@ -142,7 +142,7 @@ Also provide a brief **comparative verdict**: Given the Devil's Advocate risks, 
 Save the output:
 
 ```bash
-cat > /tmp/gh-aw/approach-validator/agent2-alternatives-scout.md << 'AGENT2_EOF'
+cat > /tmp/gh-aw/agent/approach-validator/agent2-alternatives-scout.md << 'AGENT2_EOF'
 [Agent 2 output goes here - write the actual analysis]
 AGENT2_EOF
 ```
@@ -156,8 +156,8 @@ AGENT2_EOF
 **Task**: Read all prior agent outputs, then assess the implementation complexity:
 
 ```bash
-cat /tmp/gh-aw/approach-validator/agent1-devils-advocate.md
-cat /tmp/gh-aw/approach-validator/agent2-alternatives-scout.md
+cat /tmp/gh-aw/agent/approach-validator/agent1-devils-advocate.md
+cat /tmp/gh-aw/agent/approach-validator/agent2-alternatives-scout.md
 ```
 
 Provide:
@@ -170,7 +170,7 @@ Provide:
 Save the output:
 
 ```bash
-cat > /tmp/gh-aw/approach-validator/agent3-implementation-estimator.md << 'AGENT3_EOF'
+cat > /tmp/gh-aw/agent/approach-validator/agent3-implementation-estimator.md << 'AGENT3_EOF'
 [Agent 3 output goes here - write the actual analysis]
 AGENT3_EOF
 ```
@@ -184,9 +184,9 @@ AGENT3_EOF
 **Task**: Read all prior outputs, then answer one question with maximum specificity:
 
 ```bash
-cat /tmp/gh-aw/approach-validator/agent1-devils-advocate.md
-cat /tmp/gh-aw/approach-validator/agent2-alternatives-scout.md
-cat /tmp/gh-aw/approach-validator/agent3-implementation-estimator.md
+cat /tmp/gh-aw/agent/approach-validator/agent1-devils-advocate.md
+cat /tmp/gh-aw/agent/approach-validator/agent2-alternatives-scout.md
+cat /tmp/gh-aw/agent/approach-validator/agent3-implementation-estimator.md
 ```
 
 **The Dead End Question**: *Under what conditions would this approach require a full rewrite within 3 months of deployment?*
@@ -202,7 +202,7 @@ Provide:
 Save the output:
 
 ```bash
-cat > /tmp/gh-aw/approach-validator/agent4-dead-end-detector.md << 'AGENT4_EOF'
+cat > /tmp/gh-aw/agent/approach-validator/agent4-dead-end-detector.md << 'AGENT4_EOF'
 [Agent 4 output goes here - write the actual analysis]
 AGENT4_EOF
 ```
@@ -216,10 +216,10 @@ Now synthesize all four agent outputs into a final report.
 Read all agent outputs:
 
 ```bash
-cat /tmp/gh-aw/approach-validator/agent1-devils-advocate.md
-cat /tmp/gh-aw/approach-validator/agent2-alternatives-scout.md
-cat /tmp/gh-aw/approach-validator/agent3-implementation-estimator.md
-cat /tmp/gh-aw/approach-validator/agent4-dead-end-detector.md
+cat /tmp/gh-aw/agent/approach-validator/agent1-devils-advocate.md
+cat /tmp/gh-aw/agent/approach-validator/agent2-alternatives-scout.md
+cat /tmp/gh-aw/agent/approach-validator/agent3-implementation-estimator.md
+cat /tmp/gh-aw/agent/approach-validator/agent4-dead-end-detector.md
 ```
 
 Write the full compiled report to a file for artifact upload (using the run ID for uniqueness):

@@ -42,7 +42,7 @@ sandbox:
     config:
       filesystem:
         allowWrite:
-          - /tmp
+          - /tmp/gh-aw/agent
 tools:
   agentic-workflows:
   cache-memory: true
