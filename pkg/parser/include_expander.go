@@ -275,43 +275,13 @@ func processIncludesForField(content, baseDir string, extractFunc func(string) (
 		// Parse import directive
 		directive := ParseImportDirective(line)
 		if directive != nil {
-			isOptional := directive.IsOptional
-			includePath := directive.Path
-
-			// Handle section references (file.md#Section) - for frontmatter fields, we ignore sections
-			var filePath string
-			if strings.Contains(includePath, "#") {
-				parts := strings.SplitN(includePath, "#", 2)
-				filePath = parts[0]
-				// Note: section references are ignored for frontmatter field extraction
-			} else {
-				filePath = includePath
-			}
-
-			// Resolve file path
-			fullPath, err := ResolveIncludePath(filePath, baseDir, nil)
+			fieldJSON, shouldSkip, err := extractFieldFromDirectiveForField(directive, baseDir, extractFunc)
 			if err != nil {
-				if isOptional {
-					// For optional includes, skip extraction
-					continue
-				}
-				// For required includes, fail compilation with an error
-				return nil, "", fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
+				return nil, "", err
 			}
-
-			// Read the included file
-			fileContent, err := readFileFunc(fullPath)
-			if err != nil {
-				// For any processing errors, fail compilation
-				return nil, "", fmt.Errorf("failed to read included file '%s': %w", fullPath, err)
+			if shouldSkip {
+				continue
 			}
-
-			// Extract the field using the provided extraction function
-			fieldJSON, err := extractFunc(string(fileContent))
-			if err != nil {
-				return nil, "", fmt.Errorf("failed to extract field from '%s': %w", fullPath, err)
-			}
-
 			if fieldJSON != "" && fieldJSON != emptyValue {
 				results = append(results, fieldJSON)
 			}
@@ -322,4 +292,40 @@ func processIncludesForField(content, baseDir string, extractFunc func(string) (
 	}
 
 	return results, result.String(), nil
+}
+
+func extractFieldFromDirectiveForField(
+	directive *ImportDirectiveMatch,
+	baseDir string,
+	extractFunc func(string) (string, error),
+) (string, bool, error) {
+	filePath := includeDirectiveFilePath(directive.Path)
+	fullPath, err := ResolveIncludePath(filePath, baseDir, nil)
+	if err != nil {
+		if directive.IsOptional {
+			return "", true, nil
+		}
+		return "", false, fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
+	}
+
+	fileContent, err := readFileFunc(fullPath)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to read included file '%s': %w", fullPath, err)
+	}
+
+	fieldJSON, err := extractFunc(string(fileContent))
+	if err != nil {
+		return "", false, fmt.Errorf("failed to extract field from '%s': %w", fullPath, err)
+	}
+
+	return fieldJSON, false, nil
+}
+
+func includeDirectiveFilePath(includePath string) string {
+	// Note: section references are ignored for frontmatter field extraction.
+	if strings.Contains(includePath, "#") {
+		parts := strings.SplitN(includePath, "#", 2)
+		return parts[0]
+	}
+	return includePath
 }

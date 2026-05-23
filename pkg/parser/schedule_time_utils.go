@@ -78,69 +78,10 @@ func parseTimeToMinutes(hourStr, minuteStr string) int {
 // Supports formats: HH:MM, midnight, noon, 3pm, 1am, HH:MM utc+N, HH:MM utc+HH:MM, HH:MM utc-N, 3pm utc+9
 func parseTime(timeStr string) (minute string, hour string) {
 	scheduleTimeUtilsLog.Printf("Parsing time string: %q", timeStr)
-	// Check for UTC offset
-	parts := strings.Split(timeStr, " ")
-	var utcOffset int
-	var baseTime string
-
-	if len(parts) == 2 && strings.HasPrefix(strings.ToLower(parts[1]), "utc") {
-		baseTime = parts[0]
-		offsetStr := strings.ToLower(parts[1])
-		utcOffset = parseUTCOffset(offsetStr)
-	} else if len(parts) == 3 && isAMPMToken(parts[1]) && strings.HasPrefix(strings.ToLower(parts[2]), "utc") {
-		baseTime = parts[0] + " " + parts[1]
-		offsetStr := strings.ToLower(parts[2])
-		utcOffset = parseUTCOffset(offsetStr)
-	} else {
-		baseTime = timeStr
-	}
-
-	var baseMinute, baseHour int
-
-	switch baseTime {
-	case "midnight":
-		baseMinute, baseHour = 0, 0
-	case "noon":
-		baseMinute, baseHour = 0, 12
-	default:
-		// Check for am/pm format (e.g., "3pm", "11am")
-		lowerTime := strings.ToLower(baseTime)
-		if strings.HasSuffix(lowerTime, "am") || strings.HasSuffix(lowerTime, "pm") {
-			isPM := strings.HasSuffix(lowerTime, "pm")
-			// Remove am/pm suffix
-			timePart := strings.TrimSpace(strings.TrimSuffix(strings.TrimSuffix(lowerTime, "am"), "pm"))
-			hourNum, minNum, ok := parseHourMinute(timePart)
-			if !ok || hourNum < 1 || hourNum > 12 {
-				return "0", "0"
-			}
-			if minNum < 0 || minNum > 59 {
-				return "0", "0"
-			}
-			// Convert 12-hour to 24-hour format
-			if isPM {
-				if hourNum != 12 {
-					hourNum += 12
-				}
-			} else { // AM
-				if hourNum == 12 {
-					hourNum = 0
-				}
-			}
-			baseMinute, baseHour = minNum, hourNum
-		} else {
-			// Parse HH:MM format
-			if !strings.Contains(baseTime, ":") {
-				return "0", "0"
-			}
-			hourNum, minNum, ok := parseHourMinute(baseTime)
-			if !ok || hourNum < 0 || hourNum > 23 {
-				return "0", "0"
-			}
-			if minNum < 0 || minNum > 59 {
-				return "0", "0"
-			}
-			baseMinute, baseHour = minNum, hourNum
-		}
+	baseTime, utcOffset := splitBaseTimeAndUTCOffset(timeStr)
+	baseMinute, baseHour, ok := parseBaseTime(baseTime)
+	if !ok {
+		return "0", "0"
 	}
 
 	// Apply UTC offset (convert from local time to UTC)
@@ -159,6 +100,60 @@ func parseTime(timeStr string) (minute string, hour string) {
 	finalMinute := totalMinutes % 60
 
 	return strconv.Itoa(finalMinute), strconv.Itoa(finalHour)
+}
+
+func splitBaseTimeAndUTCOffset(timeStr string) (string, int) {
+	parts := strings.Split(timeStr, " ")
+	if len(parts) == 2 && strings.HasPrefix(strings.ToLower(parts[1]), "utc") {
+		return parts[0], parseUTCOffset(strings.ToLower(parts[1]))
+	}
+	if len(parts) == 3 && isAMPMToken(parts[1]) && strings.HasPrefix(strings.ToLower(parts[2]), "utc") {
+		return parts[0] + " " + parts[1], parseUTCOffset(strings.ToLower(parts[2]))
+	}
+	return timeStr, 0
+}
+
+func parseBaseTime(baseTime string) (int, int, bool) {
+	switch baseTime {
+	case "midnight":
+		return 0, 0, true
+	case "noon":
+		return 0, 12, true
+	default:
+		lowerTime := strings.ToLower(baseTime)
+		if strings.HasSuffix(lowerTime, "am") || strings.HasSuffix(lowerTime, "pm") {
+			return parseAMPMTime(lowerTime)
+		}
+		return parse24HourTime(baseTime)
+	}
+}
+
+func parseAMPMTime(lowerTime string) (int, int, bool) {
+	isPM := strings.HasSuffix(lowerTime, "pm")
+	timePart := strings.TrimSpace(strings.TrimSuffix(strings.TrimSuffix(lowerTime, "am"), "pm"))
+	hourNum, minNum, ok := parseHourMinute(timePart)
+	if !ok || hourNum < 1 || hourNum > 12 || minNum < 0 || minNum > 59 {
+		return 0, 0, false
+	}
+	if isPM {
+		if hourNum != 12 {
+			hourNum += 12
+		}
+	} else if hourNum == 12 {
+		hourNum = 0
+	}
+	return minNum, hourNum, true
+}
+
+func parse24HourTime(baseTime string) (int, int, bool) {
+	if !strings.Contains(baseTime, ":") {
+		return 0, 0, false
+	}
+	hourNum, minNum, ok := parseHourMinute(baseTime)
+	if !ok || hourNum < 0 || hourNum > 23 || minNum < 0 || minNum > 59 {
+		return 0, 0, false
+	}
+	return minNum, hourNum, true
 }
 
 // parseUTCOffset parses UTC offset strings (e.g., utc+9, utc-5, utc+09:00, utc-05:30)
