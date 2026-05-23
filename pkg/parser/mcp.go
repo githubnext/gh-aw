@@ -173,7 +173,7 @@ func addMCPScriptsConfig(frontmatter map[string]any, serverFilter string, config
 }
 
 func serverFilterMatches(serverName, serverFilter string) bool {
-	return serverFilter == "" || strings.Contains(serverName, strings.ToLower(serverFilter))
+	return serverFilter == "" || strings.Contains(strings.ToLower(serverName), strings.ToLower(serverFilter))
 }
 
 func safeOutputToolName(toolType string) (string, bool) {
@@ -642,7 +642,7 @@ func parseMCPHTTPTypeConfig(mcpConfig map[string]any, toolName string, config *R
 				"    type: http\n"+
 				"    url: \"https://api.example.com/mcp\"\n"+
 				"    headers:\n"+
-				"      Authorization: \"****** secrets.API_KEY }}\"",
+				"      Authorization: \"${{ secrets.API_KEY }}\"",
 			toolName, toolName,
 		)
 	}
@@ -655,7 +655,7 @@ func parseMCPHTTPTypeConfig(mcpConfig map[string]any, toolName string, config *R
 				"    type: http\n"+
 				"    url: \"https://api.example.com/mcp\"\n"+
 				"    headers:\n"+
-				"      Authorization: \"****** secrets.API_KEY }}\"",
+				"      Authorization: \"${{ secrets.API_KEY }}\"",
 			url, toolName)
 	}
 	mcpLog.Printf("Tool %s uses HTTP transport with URL: %s", toolName, urlStr)

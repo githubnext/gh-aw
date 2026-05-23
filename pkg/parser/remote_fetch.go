@@ -182,8 +182,7 @@ func computeIncludeResolveAndSecurityBases(filePath, baseDir string) (string, st
 }
 
 func resolveAndValidateLocalIncludePath(filePath, resolveBase, securityBase string) (string, error) {
-	if strings.HasPrefix(filepath.ToSlash(filePath), "/") {
-		stripped := strings.TrimPrefix(filepath.ToSlash(filePath), "/")
+	if stripped, ok := strings.CutPrefix(filepath.ToSlash(filePath), "/"); ok {
 		if !strings.HasPrefix(stripped, ".github/") && !strings.HasPrefix(stripped, ".agents/") {
 			remoteLog.Printf("Security: Path not within .github or .agents: %s", filePath)
 			return "", fmt.Errorf("security: path %s must be within .github or .agents folder", filePath)
