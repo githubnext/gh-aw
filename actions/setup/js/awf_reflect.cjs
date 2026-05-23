@@ -105,10 +105,9 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
     shouldRetry: error => {
       const original = error?.originalError || error;
       const status = original?.status ?? original?.response?.status ?? null;
-      const attempt = original?.attempt ?? 1;
-      const shouldRetry = status === 503 && attempt < AWF_MODELS_URL_MAX_ATTEMPTS;
-      if (shouldRetry) {
-        logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}; retrying (attempt ${attempt + 1}/${AWF_MODELS_URL_MAX_ATTEMPTS})`);
+      const shouldRetry = status === 503;
+      if (shouldRetry && attemptCounter < AWF_MODELS_URL_MAX_ATTEMPTS) {
+        logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}; retrying (attempt ${attemptCounter + 1}/${AWF_MODELS_URL_MAX_ATTEMPTS})`);
       }
       return shouldRetry;
     },
@@ -127,7 +126,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
           const res = await fetch(modelsUrl, { signal: ac.signal });
           if (!res.ok) {
             if (res.status === 503) {
-              const err = Object.assign(new Error(`models fetch returned 503 for ${modelsUrl}`), { status: 503, attempt: attemptCounter });
+              const err = Object.assign(new Error(`models fetch returned 503 for ${modelsUrl}`), { status: 503 });
               throw err;
             }
             logger(`awf-reflect: models fetch returned ${res.status} for ${modelsUrl}`);
