@@ -467,7 +467,6 @@ func TestSpec_VersionConstants_DefaultPiVersion(t *testing.T) {
 
 // TestSpec_CopilotBYOK validates the documented Copilot BYOK constants.
 // Spec section: "### Copilot BYOK"
-//
 func TestSpec_CopilotBYOK(t *testing.T) {
 	// From spec: CopilotBYOKDummyAPIKey // "dummy-byok-key-for-offline-mode"
 	assert.Equal(t, "dummy-byok-key-for-offline-mode", constants.CopilotBYOKDummyAPIKey,
