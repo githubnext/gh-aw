@@ -29,6 +29,10 @@ const AWF_REFLECT_OUTPUT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
 const AWF_REFLECT_TIMEOUT_MS = 60000;
 // Milliseconds to wait for each models_url fallback fetch (shorter than the main reflect timeout).
 const AWF_MODELS_URL_TIMEOUT_MS = 3000;
+// Maximum attempts for models_url fallback fetches when the proxy is not yet ready.
+const AWF_MODELS_URL_MAX_ATTEMPTS = 5;
+// Base delay between models_url fallback retries. Uses exponential backoff.
+const AWF_MODELS_URL_RETRY_BASE_MS = 250;
 // Gemini model name prefix stripped from model IDs in the Gemini models API response.
 // Example: { name: "models/gemini-1.5-pro" } → "gemini-1.5-pro"
 const GEMINI_MODEL_NAME_PREFIX = "models/";
@@ -84,33 +88,42 @@ function extractModelIds(json) {
  * @returns {Promise<string[]|null>}
  */
 async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
-  const ac = new AbortController();
-  const timer = setTimeout(() => {
-    logger(`awf-reflect: models fetch timed out for ${modelsUrl}`);
-    ac.abort();
-  }, timeoutMs);
-  try {
-    const res = await fetch(modelsUrl, { signal: ac.signal });
-    if (!res.ok) {
-      logger(`awf-reflect: models fetch returned ${res.status} for ${modelsUrl}`);
+  for (let attempt = 1; attempt <= AWF_MODELS_URL_MAX_ATTEMPTS; attempt += 1) {
+    const ac = new AbortController();
+    const timer = setTimeout(() => {
+      logger(`awf-reflect: models fetch timed out for ${modelsUrl}`);
+      ac.abort();
+    }, timeoutMs);
+    try {
+      const res = await fetch(modelsUrl, { signal: ac.signal });
+      if (!res.ok) {
+        if (res.status === 503 && attempt < AWF_MODELS_URL_MAX_ATTEMPTS) {
+          const backoffMs = AWF_MODELS_URL_RETRY_BASE_MS * 2 ** (attempt - 1);
+          logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}; retrying in ${backoffMs}ms (attempt ${attempt + 1}/${AWF_MODELS_URL_MAX_ATTEMPTS})`);
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+          continue;
+        }
+        logger(`awf-reflect: models fetch returned ${res.status} for ${modelsUrl}`);
+        return null;
+      }
+      const json = await res.json();
+      const models = extractModelIds(json);
+      if (models) {
+        logger(`awf-reflect: fetched ${models.length} model(s) from ${modelsUrl}`);
+      }
+      return models;
+    } catch (err) {
+      const e = /** @type {Error} */ err;
+      if (e.name === "AbortError") {
+        return null; // already logged above
+      }
+      logger(`awf-reflect: models fetch error for ${modelsUrl}: ${e.message}`);
       return null;
+    } finally {
+      clearTimeout(timer);
     }
-    const json = await res.json();
-    const models = extractModelIds(json);
-    if (models) {
-      logger(`awf-reflect: fetched ${models.length} model(s) from ${modelsUrl}`);
-    }
-    return models;
-  } catch (err) {
-    const e = /** @type {Error} */ err;
-    if (e.name === "AbortError") {
-      return null; // already logged above
-    }
-    logger(`awf-reflect: models fetch error for ${modelsUrl}: ${e.message}`);
-    return null;
-  } finally {
-    clearTimeout(timer);
   }
+  return null;
 }
 
 /**
@@ -250,6 +263,8 @@ if (typeof module !== "undefined" && module.exports) {
     AWF_REFLECT_OUTPUT_PATH,
     AWF_REFLECT_TIMEOUT_MS,
     AWF_MODELS_URL_TIMEOUT_MS,
+    AWF_MODELS_URL_MAX_ATTEMPTS,
+    AWF_MODELS_URL_RETRY_BASE_MS,
     GEMINI_MODEL_NAME_PREFIX,
     enrichReflectModels,
     extractModelIds,
