@@ -123,6 +123,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Multi-Device Docs Tester"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-multi-device-docs-tester.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
@@ -387,6 +388,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Multi-Device Docs Tester"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-multi-device-docs-tester.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Set runtime paths
         id: set-runtime-paths
@@ -1195,6 +1197,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Multi-Device Docs Tester"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-multi-device-docs-tester.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1349,6 +1352,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Multi-Device Docs Tester"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-multi-device-docs-tester.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1593,6 +1597,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Multi-Device Docs Tester"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-multi-device-docs-tester.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"

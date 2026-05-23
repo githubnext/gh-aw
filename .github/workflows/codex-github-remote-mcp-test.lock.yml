@@ -113,6 +113,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Codex GitHub Remote MCP Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/codex-github-remote-mcp-test.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.130.0"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
@@ -369,6 +370,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Codex GitHub Remote MCP Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/codex-github-remote-mcp-test.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.130.0"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Set runtime paths
         id: set-runtime-paths
@@ -952,6 +954,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Codex GitHub Remote MCP Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/codex-github-remote-mcp-test.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.130.0"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1049,6 +1052,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Codex GitHub Remote MCP Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/codex-github-remote-mcp-test.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "0.130.0"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
