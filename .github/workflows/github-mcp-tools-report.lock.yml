@@ -120,7 +120,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/github-mcp-tools-report.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_VERSION: "2.1.150"
           GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
@@ -131,8 +131,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "claude"
           GH_AW_INFO_ENGINE_NAME: "Claude Code"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || 'agent' }}
-          GH_AW_INFO_VERSION: "2.1.142"
-          GH_AW_INFO_AGENT_VERSION: "2.1.142"
+          GH_AW_INFO_VERSION: "2.1.150"
+          GH_AW_INFO_AGENT_VERSION: "2.1.150"
           GH_AW_INFO_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -391,7 +391,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/github-mcp-tools-report.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_VERSION: "2.1.150"
           GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Set runtime paths
@@ -464,7 +464,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.52
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.1.142
+        run: npm install -g @anthropic-ai/claude-code@2.1.150
         env:
           NPM_CONFIG_MIN_RELEASE_AGE: '3'
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -1147,7 +1147,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/github-mcp-tools-report.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_VERSION: "2.1.150"
           GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
@@ -1300,7 +1300,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/github-mcp-tools-report.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_VERSION: "2.1.150"
           GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
@@ -1389,7 +1389,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.52
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.1.142
+        run: npm install -g @anthropic-ai/claude-code@2.1.150
         env:
           NPM_CONFIG_MIN_RELEASE_AGE: '3'
       - name: Execute Claude Code CLI
@@ -1540,7 +1540,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/github-mcp-tools-report.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_VERSION: "2.1.150"
           GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
@@ -1694,7 +1694,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/github-mcp-tools-report.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.142"
+          GH_AW_INFO_VERSION: "2.1.150"
           GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download cache-memory artifact (default)
