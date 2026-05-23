@@ -145,21 +145,13 @@ Use the inline skill guidance below by default. Only read a skill file when the 
 
 ### Step 3: Identify Change Type and Select Skills
 
-Based on the PR diff, classify the changes:
-
-| Change Type | Recommended Skill(s) |
-|-------------|---------------------|
-| **Bug fix** | `/diagnose` + `/tdd` |
-| **New feature** | `/tdd` + `/grill-with-docs` |
-| **Refactor / cleanup** | `/zoom-out` + `/improve-codebase-architecture` |
-| **Architecture change** | `/improve-codebase-architecture` + `/zoom-out` |
-| **Tests only** | `/tdd` |
-| **Documentation** | `/grill-with-docs` |
-| **Mixed / unclear** | `/zoom-out` + `/tdd` |
-
-Select **1–2 skills** most relevant to this PR and apply their guidance to your review.
+Invoke the `pr-triage` agent and capture its JSON response.
+Use the returned `change_type`, `recommended_skills`, `high_impact_files`, and `key_signals`.
+Apply the recommended skills in Step 4, prioritising the listed `high_impact_files`.
 
 ### Step 4: Review Using Selected Skills
+
+Focus your skill application on files listed in `pr-triage`'s `high_impact_files`.
 
 Apply the skill(s) to review the changed lines. For each issue you find:
 
@@ -271,3 +263,60 @@ If the review is complex or the overall findings are significant, post a single 
 Now begin your review! 🧠
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `pr-triage`
+---
+model: claude-haiku-4.5
+description: Classifies PR change type, recommends Matt Pocock skills, and ranks high-impact files.
+---
+You are a deterministic PR triage assistant for the Matt Pocock skills reviewer workflow.
+
+Inputs are already pre-fetched on disk:
+- `/tmp/gh-aw/agent/pr-meta.json`
+- `/tmp/gh-aw/agent/pr-diff.patch`
+
+Tasks:
+1. Read the PR metadata and patch.
+2. Classify the PR into exactly one `change_type` from:
+   - `bug_fix`
+   - `new_feature`
+   - `refactor_cleanup`
+   - `architecture_change`
+   - `tests_only`
+   - `documentation`
+   - `mixed_unclear`
+3. Choose 1–2 `recommended_skills` from:
+   - `/diagnose`
+   - `/tdd`
+   - `/zoom-out`
+   - `/improve-codebase-architecture`
+   - `/grill-with-docs`
+4. Rank changed files as `high_impact_files` (most important first), including enough files to cover the key risk areas.
+5. Provide concise `key_signals` that justify classification and ranking.
+
+Skill mapping:
+- `bug_fix` → `/diagnose`, `/tdd`
+- `new_feature` → `/tdd`, `/grill-with-docs`
+- `refactor_cleanup` → `/zoom-out`, `/improve-codebase-architecture`
+- `architecture_change` → `/improve-codebase-architecture`, `/zoom-out`
+- `tests_only` → `/tdd`
+- `documentation` → `/grill-with-docs`
+- `mixed_unclear` → `/zoom-out`, `/tdd`
+
+Return JSON only (no markdown) in this exact shape:
+```json
+{
+  "change_type": "bug_fix",
+  "recommended_skills": ["/diagnose", "/tdd"],
+  "high_impact_files": [
+    {
+      "path": "pkg/example/file.go",
+      "reason": "Touches core behavior used by multiple call sites."
+    }
+  ],
+  "key_signals": [
+    "Adds regression tests for previous nil-pointer crash.",
+    "Modifies error handling path in request processing."
+  ]
+}
+```
