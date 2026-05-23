@@ -7,6 +7,8 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getWorkflowMetadata } = require("./workflow_metadata_helpers.cjs");
 const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 
+const DISCUSSION_CLOSE_REASON = "OUTDATED";
+
 /**
  * Add comment to a GitHub Discussion using GraphQL
  * @param {any} github - GitHub GraphQL instance
@@ -40,15 +42,15 @@ async function addDiscussionComment(github, discussionId, message) {
 async function closeDiscussionAsOutdated(github, discussionId) {
   const result = await github.graphql(
     `
-    mutation($dId: ID!) {
-      closeDiscussion(input: { discussionId: $dId, reason: OUTDATED }) {
+    mutation($dId: ID!, $reason: DiscussionCloseReason!) {
+      closeDiscussion(input: { discussionId: $dId, reason: $reason }) {
         discussion { 
           id
           url
         }
       }
     }`,
-    { dId: discussionId }
+    { dId: discussionId, reason: DISCUSSION_CLOSE_REASON }
   );
 
   return result.closeDiscussion.discussion;

@@ -122,6 +122,7 @@ describe("close_expired_discussions", () => {
 
       // Verify that we still tried to close the discussion
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Attempting to close discussion"));
+      expect(mockGithub.graphql.mock.calls[2][1].reason).toBe("OUTDATED");
     });
 
     it("should skip already closed discussions entirely", async () => {
@@ -237,6 +238,7 @@ describe("close_expired_discussions", () => {
 
       // Verify that we closed the discussion
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Discussion closed successfully"));
+      expect(mockGithub.graphql.mock.calls[3][1].reason).toBe("OUTDATED");
     });
 
     it("should handle empty comments gracefully", async () => {
