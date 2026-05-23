@@ -693,7 +693,8 @@ describe("generateGitPatch – Strategy 3 picks closest remote merge-base", () =
       try {
         execSync("git update-ref -d refs/remotes/origin/HEAD", { cwd: repoDir });
       } catch {
-        // ignore
+        // origin/HEAD may not exist in repos created via git init + remote add;
+        // absence is expected and safe to ignore for this ordering-focused test.
       }
 
       // Force Strategy 1 to produce no patch (base_branch == branch), and Strategy 2 to fail.
