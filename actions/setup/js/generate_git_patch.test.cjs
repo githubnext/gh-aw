@@ -788,4 +788,48 @@ describe("generateGitPatch – incremental mode diffSize excludes merged base-br
     const diffSizeKb = (result.diffSize ?? 0) / 1024;
     expect(diffSizeKb).toBeLessThan(1);
   });
+
+  it("should skip merge-base adjustment and use original base when history was rewritten (rebase)", async () => {
+    // Regression guard: when the agent rebases the PR branch (rewriting history),
+    // baseCommitSha (origin/pr-branch) is NOT an ancestor of the local branch tip.
+    // The merge-base adjustment must be skipped so we don't undercount the diff.
+
+    // Step 1: Create PR branch with an initial change
+    execSync("git checkout -b pr-rebase", { cwd: repoDir });
+    fs.writeFileSync(path.join(repoDir, "pr-file.txt"), "PR change\n");
+    execSync("git add pr-file.txt", { cwd: repoDir });
+    execSync('git commit -m "PR: initial change"', { cwd: repoDir });
+    execSync("git push origin pr-rebase", { cwd: repoDir });
+    execSync("git fetch origin pr-rebase:refs/remotes/origin/pr-rebase", { cwd: repoDir });
+    const prHeadSha = execSync("git rev-parse HEAD", { cwd: repoDir }).toString().trim();
+
+    // Step 2: main advances
+    execSync("git checkout main", { cwd: repoDir });
+    fs.writeFileSync(path.join(repoDir, "upstream.txt"), "upstream content\n");
+    execSync("git add upstream.txt", { cwd: repoDir });
+    execSync('git commit -m "upstream: advance"', { cwd: repoDir });
+    execSync("git push origin main", { cwd: repoDir });
+
+    // Step 3: Agent rebases the PR branch on top of the new main (rewrites history)
+    execSync("git checkout pr-rebase", { cwd: repoDir });
+    execSync("git fetch origin main", { cwd: repoDir });
+    execSync("git rebase origin/main", { cwd: repoDir });
+
+    // Verify: origin/pr-rebase is NOT an ancestor of the rebased local tip
+    const localHead = execSync("git rev-parse HEAD", { cwd: repoDir }).toString().trim();
+    expect(localHead).not.toBe(prHeadSha);
+    expect(() =>
+      execSync(`git merge-base --is-ancestor ${prHeadSha} HEAD`, { cwd: repoDir, stdio: "pipe" }),
+    ).toThrow();
+
+    const { generateGitPatch } = require("./generate_git_patch.cjs");
+    const result = await generateGitPatch("pr-rebase", "main", { cwd: repoDir, mode: "incremental" });
+
+    // The patch succeeds (the transport patch covers the range)
+    expect(result.success).toBe(true);
+    // diffSize is present (computed without the merge-base adjustment)
+    expect(typeof result.diffSize).toBe("number");
+    // The rebase preserved pr-file.txt — diffSize should include it (agent's change > 0)
+    expect((result.diffSize ?? 0)).toBeGreaterThan(0);
+  });
 });

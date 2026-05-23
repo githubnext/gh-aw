@@ -463,23 +463,39 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           // origin/<defaultBranch> not available locally; skip the adjustment
         }
         if (baseBranchRemoteRef) {
-          const mb = execGitSync(["merge-base", "--", baseBranchRemoteRef, branchName], { cwd }).trim();
-          // Check if mb is already an ancestor of baseCommitSha.
-          // If it is, baseCommitSha is "later" and the agent did NOT merge the default
-          // branch ahead of the PR head — keep baseCommitSha as the diff base.
-          // If mb is NOT an ancestor of baseCommitSha, the agent merged default-branch
-          // commits that are beyond the PR head. Use mb to exclude those commits from
-          // the incremental diff size measurement.
-          let mbIsAncestorOfBase = false;
+          // Only adjust the diff base when baseCommitSha is an ancestor of the local
+          // branch tip.  If it is NOT an ancestor the branch was rewritten (rebase /
+          // force-push); in that case the merge-base adjustment could undercount by
+          // ignoring commits that changed relative to the remote, so keep the original
+          // baseCommitSha as the diff base.
+          let baseIsAncestorOfBranch = false;
           try {
-            execGitSync(["merge-base", "--is-ancestor", "--", mb, baseCommitSha], { cwd });
-            mbIsAncestorOfBase = true;
+            execGitSync(["merge-base", "--is-ancestor", "--", baseCommitSha, branchName], { cwd });
+            baseIsAncestorOfBranch = true;
           } catch {
-            // mb is not an ancestor of baseCommitSha
+            // baseCommitSha is not an ancestor of branchName (rebase / force-push)
+            debugLog(`Strategy 1 (incremental): baseCommitSha ${baseCommitSha} is not an ancestor of ${branchName} (rebase/force-push?); skipping merge-base adjustment`);
           }
-          if (!mbIsAncestorOfBase) {
-            debugLog(`Strategy 1 (incremental): agent merged ${defaultBranch} ahead of PR head; using merge-base ${mb} as diff base instead of PR head ${baseCommitSha}`);
-            diffBaseForSize = mb;
+
+          if (baseIsAncestorOfBranch) {
+            const mb = execGitSync(["merge-base", "--", baseBranchRemoteRef, branchName], { cwd }).trim();
+            // Check if mb is already an ancestor of baseCommitSha.
+            // If it is, baseCommitSha is "later" and the agent did NOT merge the default
+            // branch ahead of the PR head — keep baseCommitSha as the diff base.
+            // If mb is NOT an ancestor of baseCommitSha, the agent merged default-branch
+            // commits that are beyond the PR head. Use mb to exclude those commits from
+            // the incremental diff size measurement.
+            let mbIsAncestorOfBase = false;
+            try {
+              execGitSync(["merge-base", "--is-ancestor", "--", mb, baseCommitSha], { cwd });
+              mbIsAncestorOfBase = true;
+            } catch {
+              // mb is not an ancestor of baseCommitSha
+            }
+            if (!mbIsAncestorOfBase) {
+              debugLog(`Strategy 1 (incremental): agent merged ${defaultBranch} ahead of PR head; using merge-base ${mb} as diff base instead of PR head ${baseCommitSha}`);
+              diffBaseForSize = mb;
+            }
           }
         }
       } catch (adjustErr) {
