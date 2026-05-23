@@ -1,6 +1,10 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+
 const {
   defaultTokenClassWeights,
   getTokenClassWeights,
@@ -9,7 +13,9 @@ const {
   computeEffectiveTokens,
   formatET,
   reduceModelNameToIdentifier,
+  resolveActualModelName,
   getEffectiveTokensSuffix,
+  AGENT_USAGE_PATH,
   _resetCache,
 } = require("./effective_tokens.cjs");
 
@@ -383,15 +389,92 @@ describe("effective_tokens", () => {
       });
     });
 
+    describe("resolveActualModelName", () => {
+      let originalAgentUsagePath;
+
+      beforeEach(() => {
+        if (fs.existsSync(AGENT_USAGE_PATH)) {
+          originalAgentUsagePath = fs.readFileSync(AGENT_USAGE_PATH, "utf8");
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
+      });
+
+      afterEach(() => {
+        delete process.env.GH_AW_ENGINE_MODEL;
+        if (originalAgentUsagePath !== undefined) {
+          fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+          fs.writeFileSync(AGENT_USAGE_PATH, originalAgentUsagePath);
+          originalAgentUsagePath = undefined;
+        } else if (fs.existsSync(AGENT_USAGE_PATH)) {
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
+      });
+
+      test("returns primary_model from agent_usage.json when present", () => {
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify({ primary_model: "claude-sonnet-4.6", effective_tokens: 1000 }) + "\n");
+        process.env.GH_AW_ENGINE_MODEL = "agent";
+        expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
+      });
+
+      test("falls back to GH_AW_ENGINE_MODEL when agent_usage.json has no primary_model", () => {
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify({ effective_tokens: 1000 }) + "\n");
+        process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
+      });
+
+      test("falls back to GH_AW_ENGINE_MODEL when agent_usage.json is absent", () => {
+        process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
+      });
+
+      test("falls back to GH_AW_ENGINE_MODEL when agent_usage.json contains invalid JSON", () => {
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, "not valid json");
+        process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
+      });
+
+      test("returns empty string when neither agent_usage.json nor GH_AW_ENGINE_MODEL is available", () => {
+        delete process.env.GH_AW_ENGINE_MODEL;
+        expect(resolveActualModelName()).toBe("");
+      });
+    });
+
     describe("getEffectiveTokensSuffix", () => {
+      let originalAgentUsagePath;
+
+      beforeEach(() => {
+        if (fs.existsSync(AGENT_USAGE_PATH)) {
+          originalAgentUsagePath = fs.readFileSync(AGENT_USAGE_PATH, "utf8");
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
+      });
+
       afterEach(() => {
         delete process.env.GH_AW_EFFECTIVE_TOKENS;
         delete process.env.GH_AW_ENGINE_MODEL;
+        if (originalAgentUsagePath !== undefined) {
+          fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+          fs.writeFileSync(AGENT_USAGE_PATH, originalAgentUsagePath);
+          originalAgentUsagePath = undefined;
+        } else if (fs.existsSync(AGENT_USAGE_PATH)) {
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
       });
 
-      test("prepends reduced model identifier when model is available", () => {
+      test("prepends reduced model identifier when model is available via GH_AW_ENGINE_MODEL", () => {
         process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
         process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(getEffectiveTokensSuffix()).toBe(" · ● son46 12.5K");
+      });
+
+      test("uses actual model from agent_usage.json primary_model, ignoring alias in GH_AW_ENGINE_MODEL", () => {
+        process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
+        process.env.GH_AW_ENGINE_MODEL = "agent";
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify({ primary_model: "claude-sonnet-4.6", effective_tokens: 12500 }) + "\n");
         expect(getEffectiveTokensSuffix()).toBe(" · ● son46 12.5K");
       });
 

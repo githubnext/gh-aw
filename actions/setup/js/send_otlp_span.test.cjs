@@ -3608,7 +3608,7 @@ describe("sendJobConclusionSpan", () => {
 
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
       if (filePath === "/tmp/gh-aw/aw_info.json") {
-        return JSON.stringify({ agent_version: "2.1.142" });
+        return JSON.stringify({ agent_version: "2.1.150" });
       }
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
@@ -3618,7 +3618,7 @@ describe("sendJobConclusionSpan", () => {
     readFileSpy.mockRestore();
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("2.1.142");
+    expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("2.1.150");
   });
 
   it("uses GITHUB_AW_OTEL_TRACE_ID from env as trace ID (1 trace per run)", async () => {

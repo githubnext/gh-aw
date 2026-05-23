@@ -199,6 +199,11 @@ func TestIsCompatible(t *testing.T) {
 		{"v4.6.2", "v4", true},
 		{"v4.6.2", "v5", false},
 		{"v10.2.3", "v10", true},
+		{"not-a-version", "not-a-version", false},
+		{"", "", false},
+		{"vfoo", "vbar", false},
+		{"v5.0.0", "not-a-version", false},
+		{"not-a-version", "v5.0.0", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.pin+"_"+tt.requested, func(t *testing.T) {

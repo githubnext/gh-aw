@@ -253,6 +253,30 @@ func TestSpec_PublicAPI_IsCompatible(t *testing.T) {
 			requestedVersion: "v5",
 			expected:         false,
 		},
+		{
+			name:             "both invalid versions are not compatible",
+			pinVersion:       "not-a-version",
+			requestedVersion: "also-not-a-version",
+			expected:         false,
+		},
+		{
+			name:             "empty strings are not compatible",
+			pinVersion:       "",
+			requestedVersion: "",
+			expected:         false,
+		},
+		{
+			name:             "invalid pin with valid requested is not compatible",
+			pinVersion:       "not-a-version",
+			requestedVersion: "v5.0.0",
+			expected:         false,
+		},
+		{
+			name:             "valid pin with invalid requested is not compatible",
+			pinVersion:       "v5.0.0",
+			requestedVersion: "not-a-version",
+			expected:         false,
+		},
 	}
 
 	for _, tt := range tests {
