@@ -230,13 +230,18 @@ function reduceModelNameToIdentifier(modelName) {
     .toLowerCase();
   if (!normalized) return "";
 
+  const VERSION_SUFFIX_PATTERN = "[-_\\s]*([0-9]+)(?:[._-]+([0-9]+))?";
+  const FALLBACK_LETTER_LENGTH = 3;
+  const FALLBACK_DIGIT_LENGTH = 2;
+  const FALLBACK_PADDING_CHAR = "x";
+
   /** @type {Array<{ familyPattern: RegExp, versionPattern: RegExp, prefix: string }>} */
   const shortcuts = [
-    { familyPattern: /sonnet/, versionPattern: /sonnet[-_\s]*([0-9]+)(?:[._-]+([0-9]+))?/, prefix: "son" },
-    { familyPattern: /opus/, versionPattern: /opus[-_\s]*([0-9]+)(?:[._-]+([0-9]+))?/, prefix: "opu" },
-    { familyPattern: /haiku/, versionPattern: /haiku[-_\s]*([0-9]+)(?:[._-]+([0-9]+))?/, prefix: "hai" },
-    { familyPattern: /gpt/, versionPattern: /gpt[-_\s]*([0-9]+)(?:[._-]+([0-9]+))?/, prefix: "gpt" },
-    { familyPattern: /gemini/, versionPattern: /gemini[-_\s]*([0-9]+)(?:[._-]+([0-9]+))?/, prefix: "gem" },
+    { familyPattern: /sonnet/, versionPattern: new RegExp(`sonnet${VERSION_SUFFIX_PATTERN}`), prefix: "son" },
+    { familyPattern: /opus/, versionPattern: new RegExp(`opus${VERSION_SUFFIX_PATTERN}`), prefix: "opu" },
+    { familyPattern: /haiku/, versionPattern: new RegExp(`haiku${VERSION_SUFFIX_PATTERN}`), prefix: "hai" },
+    { familyPattern: /gpt/, versionPattern: new RegExp(`gpt${VERSION_SUFFIX_PATTERN}`), prefix: "gpt" },
+    { familyPattern: /gemini/, versionPattern: new RegExp(`gemini${VERSION_SUFFIX_PATTERN}`), prefix: "gem" },
   ];
 
   for (const { familyPattern, versionPattern, prefix } of shortcuts) {
@@ -245,7 +250,7 @@ function reduceModelNameToIdentifier(modelName) {
     return `${prefix}${version}`;
   }
 
-  return buildFallbackModelIdentifier(normalized);
+  return buildFallbackModelIdentifier(normalized, FALLBACK_LETTER_LENGTH, FALLBACK_DIGIT_LENGTH, FALLBACK_PADDING_CHAR);
 }
 
 /**
@@ -274,6 +279,8 @@ function extractModelVersionDigits(normalizedModelName, familyVersionPattern) {
  */
 function normalizeVersionDigits(major, minor) {
   const majorDigit = getFirstDigit(major);
+  // Date-like suffixes (e.g. 20250514) are build/release stamps, not semantic minor versions.
+  // Treat them as missing so identifiers stay stable (gpt-5-2025-08-07 -> gpt50).
   const minorIsDateLike = minor && /^\d{3,}$/.test(minor);
   const minorDigit = getFirstDigit(minor, Boolean(minorIsDateLike));
   return `${majorDigit}${minorDigit}`;
@@ -292,18 +299,21 @@ function getFirstDigit(value, treatAsMissing = false) {
 
 /**
  * @param {string} normalizedModelName
+ * @param {number} fallbackLetterLength
+ * @param {number} fallbackDigitLength
+ * @param {string} fallbackPaddingChar
  * @returns {string}
  */
-function buildFallbackModelIdentifier(normalizedModelName) {
+function buildFallbackModelIdentifier(normalizedModelName, fallbackLetterLength, fallbackDigitLength, fallbackPaddingChar) {
   const compact = normalizedModelName.replace(/[^a-z0-9]+/g, "");
   if (!compact) return "";
 
-  // Pad with "x" to keep a fixed 3-letter family slot for short/unknown model names.
-  const letterPart = compact.replace(/[0-9]/g, "").slice(0, 3).padEnd(3, "x");
+  // Pad with "x" to keep a fixed family slot for short/unknown model names.
+  const letterPart = compact.replace(/[0-9]/g, "").slice(0, fallbackLetterLength).padEnd(fallbackLetterLength, fallbackPaddingChar);
   const digitPart = compact
     .replace(/[^0-9]/g, "")
-    .slice(0, 2)
-    .padEnd(2, "0");
+    .slice(0, fallbackDigitLength)
+    .padEnd(fallbackDigitLength, "0");
   return `${letterPart}${digitPart}`.slice(0, 5);
 }
 
