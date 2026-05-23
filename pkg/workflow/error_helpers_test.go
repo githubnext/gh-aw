@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/console"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
