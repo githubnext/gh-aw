@@ -391,6 +391,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
                     continue;
                   }
                   if (candidateCommitCount <= 0) {
+                    debugLog(`Strategy 3: Skipping ref ${ref} — merge-base not behind branch (count=${candidateCommitCount})`);
                     continue;
                   }
 

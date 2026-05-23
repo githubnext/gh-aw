@@ -697,7 +697,9 @@ describe("generateGitPatch – Strategy 3 picks closest remote merge-base", () =
         // absence is expected and safe to ignore for this ordering-focused test.
       }
 
-      // Force Strategy 1 to produce no patch (base_branch == branch), and Strategy 2 to fail.
+      // Force Strategy 1 to produce no patch (base_branch == branch => no new commits).
+      // Force Strategy 2 to fail (GITHUB_SHA does not exist in this repo).
+      // Strategy 3 is therefore the only path that can produce a non-empty patch.
       process.env.GITHUB_SHA = "side-repo-sha-not-in-target-repo";
       const { generateGitPatch } = require("./generate_git_patch.cjs");
       const result = await generateGitPatch("agent-branch", "agent-branch", { cwd: repoDir, mode: "full" });
