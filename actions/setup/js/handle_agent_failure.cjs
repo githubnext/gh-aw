@@ -1081,54 +1081,6 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
     return "";
   }
 
-  /**
-   * Detect HTTP 429/rate-limit engine failures in text payloads.
-   * @param {string} content
-   * @returns {boolean}
-   */
-  function hasEngineRateLimit429Signal(content) {
-    if (!content) {
-      return false;
-    }
-    return ENGINE_RATE_LIMIT_429_RE.test(content);
-  }
-
-  /**
-   * Detect HTTP 429/rate-limit engine failures from OTLP JSONL mirror payloads.
-   * @param {string} [otelJsonlPathOverride]
-   * @returns {boolean}
-   */
-  function hasEngineRateLimit429InOTELMirror(otelJsonlPathOverride) {
-    const otelJsonlPath = otelJsonlPathOverride || process.env.GH_AW_OTEL_JSONL_PATH || "/tmp/gh-aw/otel.jsonl";
-    try {
-      if (!fs.existsSync(otelJsonlPath)) {
-        return false;
-      }
-      const content = fs.readFileSync(otelJsonlPath, "utf8");
-      return hasEngineRateLimit429Signal(content);
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Build dedicated context for engine 429/rate-limit failures.
-   * @param {string} engineLabel
-   * @returns {string}
-   */
-  function buildEngineRateLimit429Context(engineLabel) {
-    const templatePath = getPromptPath("engine_rate_limit_429.md");
-    try {
-      return "\n" + renderTemplateFromFile(templatePath, { engine_label: engineLabel.trim() || "AI" });
-    } catch {
-      return (
-        `\n**🚦 Engine Rate Limited (HTTP 429)**: The ${engineLabel} engine hit provider rate limits and could not complete this run.\n\n` +
-        "This signal was detected from engine runtime logs/OTLP telemetry.\n\n" +
-        "Retry after a short delay. If this recurs, reduce concurrent runs or review provider quota/rate-limit policies.\n"
-      );
-    }
-  }
-
   const templatePath = getPromptPath("model_not_supported_error.md");
   try {
     const template = fs.readFileSync(templatePath, "utf8");
@@ -1139,6 +1091,54 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
       "\n**🚫 Model Not Supported**: The requested model is not available for your Copilot subscription tier (e.g., Copilot Pro or Education).\n\n" +
       "Specify a supported model in the workflow frontmatter, for example `model: gpt-5-mini`. " +
       "See: [Supported models](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line#supported-models)\n"
+    );
+  }
+}
+
+/**
+ * Detect HTTP 429/rate-limit engine failures in text payloads.
+ * @param {string} content
+ * @returns {boolean}
+ */
+function hasEngineRateLimit429Signal(content) {
+  if (!content) {
+    return false;
+  }
+  return ENGINE_RATE_LIMIT_429_RE.test(content);
+}
+
+/**
+ * Detect HTTP 429/rate-limit engine failures from OTLP JSONL mirror payloads.
+ * @param {string} [otelJsonlPathOverride]
+ * @returns {boolean}
+ */
+function hasEngineRateLimit429InOTELMirror(otelJsonlPathOverride) {
+  const otelJsonlPath = otelJsonlPathOverride || process.env.GH_AW_OTEL_JSONL_PATH || "/tmp/gh-aw/otel.jsonl";
+  try {
+    if (!fs.existsSync(otelJsonlPath)) {
+      return false;
+    }
+    const content = fs.readFileSync(otelJsonlPath, "utf8");
+    return hasEngineRateLimit429Signal(content);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Build dedicated context for engine 429/rate-limit failures.
+ * @param {string} engineLabel
+ * @returns {string}
+ */
+function buildEngineRateLimit429Context(engineLabel) {
+  const templatePath = getPromptPath("engine_rate_limit_429.md");
+  try {
+    return "\n" + renderTemplateFromFile(templatePath, { engine_label: engineLabel.trim() || "AI" });
+  } catch {
+    return (
+      `\n**🚦 Engine Rate Limited (HTTP 429)**: The ${engineLabel} engine hit provider rate limits and could not complete this run.\n\n` +
+      "This signal was detected from engine runtime logs/OTLP telemetry.\n\n" +
+      "Retry after a short delay. If this recurs, reduce concurrent runs or review provider quota/rate-limit policies.\n"
     );
   }
 }

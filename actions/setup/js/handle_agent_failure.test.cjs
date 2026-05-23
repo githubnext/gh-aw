@@ -1167,10 +1167,7 @@ describe("handle_agent_failure", () => {
     });
 
     it("returns dedicated context for engine 429/rate-limit failures in stdio logs", () => {
-      fs.writeFileSync(
-        stdioLogPath,
-        "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 429 Sorry, you've exceeded your rate limit for utility models.\n"
-      );
+      fs.writeFileSync(stdioLogPath, "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 429 Sorry, you've exceeded your rate limit for utility models.\n");
       const result = buildEngineFailureContext();
       expect(result).toContain("Engine Rate Limited (HTTP 429)");
       expect(result).toContain("OTLP telemetry");
