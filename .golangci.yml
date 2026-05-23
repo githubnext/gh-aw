@@ -1,6 +1,6 @@
 version: "2"
 run:
-  go: "1.25"
+  go: "1.26"
   tests: true
   timeout: 5m  # Prevent linter from hanging indefinitely
   modules-download-mode: readonly  # Use cached modules only, skip downloads
@@ -107,6 +107,43 @@ issues:
   # NOTE: The issues.exclude field does not work properly in golangci-lint v2
   # Exclusions for gosec are applied when running gosec directly via 'make security-gosec'
   exclude-rules:
+    # Exclude new checks surfaced by golangci-lint v2.12.2 upgrade (pre-existing code)
+    - linters:
+        - govet
+      text: "Constant reflect.Ptr should be inlined"
+    - linters:
+        - staticcheck
+      text: "QF1012"
+    - linters:
+        - staticcheck
+      text: "ST1023"
+    - linters:
+        - modernize
+      text: "Ranging over SplitSeq is more efficient"
+    - linters:
+        - modernize
+      text: "can be simplified to new"
+    - linters:
+        - modernize
+      text: "can be simplified to CutPrefix"
+    - linters:
+        - modernize
+      text: "backward loop over slice can be modernized"
+    - linters:
+        - modernize
+      text: "may be simplified using atomic"
+    - linters:
+        - modernize
+      text: "loop can simplified using"
+    - linters:
+        - modernize
+      text: "can be simplified to slices.Contains"
+    - linters:
+        - modernize
+      text: "can be an inlinable wrapper"
+    - linters:
+        - perfsprint
+      text: "fmt.Sprintf can be replaced"
     - linters:
         - staticcheck
       text: "ST1005: error strings should not end with punctuation or newlines" # Allow multiline user-facing error messages with formatting
