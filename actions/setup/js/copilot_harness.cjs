@@ -201,7 +201,18 @@ function writeCopilotOutputs(results) {
     `agentic_engine_timeout=${results.agenticEngineTimeout}`,
     `model_not_supported_error=${results.modelNotSupportedError}`,
   ];
-  fs.appendFileSync(outputFile, lines.join("\n") + "\n");
+  try {
+    fs.appendFileSync(outputFile, lines.join("\n") + "\n");
+  } catch (err) {
+    if (/** @type {NodeJS.ErrnoException} */ (err).code === "ENOENT") {
+      // GITHUB_OUTPUT points to a host-runner path that is not accessible inside
+      // the AWF sandbox container. This is expected when the harness runs inside
+      // Docker — outputs will be set by the outer step wrapper instead.
+      log(`GITHUB_OUTPUT file not accessible (${outputFile}) — skipping copilot error outputs`);
+      return;
+    }
+    throw err;
+  }
 }
 
 /**
