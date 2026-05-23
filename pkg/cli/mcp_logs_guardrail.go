@@ -89,16 +89,12 @@ func buildLogsFileResponse(outputStr string) string {
 			mcpLogsGuardrailLog.Printf("Failed to create logs cache file: %v", err)
 			return buildLogsFileErrorResponse(fmt.Sprintf("failed to create logs cache file: %v", err))
 		}
+		defer f.Close()
 		_, writeErr := f.WriteString(outputStr)
-		closeErr := f.Close()
-		if writeErr != nil || closeErr != nil {
+		if writeErr != nil {
 			_ = os.Remove(filePath)
-			errMsg := writeErr
-			if errMsg == nil {
-				errMsg = closeErr
-			}
-			mcpLogsGuardrailLog.Printf("Failed to write logs data to file: %v", errMsg)
-			return buildLogsFileErrorResponse(fmt.Sprintf("failed to write logs data to file: %v", errMsg))
+			mcpLogsGuardrailLog.Printf("Failed to write logs data to file: %v", writeErr)
+			return buildLogsFileErrorResponse(fmt.Sprintf("failed to write logs data to file: %v", writeErr))
 		}
 		if chmodErr := os.Chmod(filePath, constants.FilePermPublic); chmodErr != nil {
 			_ = os.Remove(filePath)

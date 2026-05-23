@@ -113,8 +113,8 @@ func (c *Coordinator) LoadSnapshots(snapshots map[string][]byte) error {
 // minerFor retrieves the miner for the given stage, returning an error if missing.
 func (c *Coordinator) minerFor(stage string) (*Miner, error) {
 	c.mu.RLock()
+	defer c.mu.RUnlock()
 	m, ok := c.miners[stage]
-	c.mu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("agentdrain: no miner registered for stage %q", stage)
 	}

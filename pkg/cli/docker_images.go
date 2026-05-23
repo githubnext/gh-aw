@@ -101,14 +101,15 @@ func IsDockerImageDownloading(image string) bool {
 func IsDockerAvailable(ctx context.Context) bool {
 	ctx = normalizeDockerContext(ctx)
 
-	pullState.mu.RLock()
-	if pullState.mockAvailableInUse {
-		available := pullState.mockDockerAvailable
-		pullState.mu.RUnlock()
-		dockerImagesLog.Printf("Mock: Docker available: %v", available)
-		return available
+	mockAvailable, isMock := func() (bool, bool) {
+		pullState.mu.RLock()
+		defer pullState.mu.RUnlock()
+		return pullState.mockDockerAvailable, pullState.mockAvailableInUse
+	}()
+	if isMock {
+		dockerImagesLog.Printf("Mock: Docker available: %v", mockAvailable)
+		return mockAvailable
 	}
-	pullState.mu.RUnlock()
 
 	cmd := exec.CommandContext(ctx, "docker", "info")
 	cmd.Stdout = nil

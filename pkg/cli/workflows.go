@@ -304,35 +304,46 @@ func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
 func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 	workflowFiles := make([]string, 0, len(mdFiles))
 	for _, file := range mdFiles {
-		fd, err := os.Open(file)
+		hasFrontmatter, err := workflowFileHasFrontmatter(file)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read workflow file %s: %w", file, err)
+			return nil, err
 		}
-
-		reader := bufio.NewReader(fd)
-		firstLine, readErr := reader.ReadString('\n')
-		closeErr := fd.Close()
-		if closeErr != nil {
-			return nil, fmt.Errorf("failed to close workflow file %s: %w", file, closeErr)
+		if hasFrontmatter {
+			workflowFiles = append(workflowFiles, file)
 		}
-		if readErr != nil && !errors.Is(readErr, io.EOF) {
-			return nil, fmt.Errorf("failed to read workflow file %s: %w", file, readErr)
-		}
-
-		if firstLine == "" {
-			workflowsLog.Printf("Skipping empty markdown file: %s", file)
-			continue
-		}
-
-		if strings.TrimSpace(firstLine) != "---" {
-			workflowsLog.Printf("Skipping markdown file without frontmatter: %s", file)
-			continue
-		}
-
-		workflowFiles = append(workflowFiles, file)
 	}
 
 	return workflowFiles, nil
+}
+
+// workflowFileHasFrontmatter reports whether the first line of the file is a
+// YAML frontmatter delimiter ("---"). The file is opened, read, and closed
+// within this function so that the caller's loop does not accumulate open
+// file descriptors.
+func workflowFileHasFrontmatter(file string) (bool, error) {
+	fd, err := os.Open(file)
+	if err != nil {
+		return false, fmt.Errorf("failed to read workflow file %s: %w", file, err)
+	}
+	defer fd.Close()
+
+	reader := bufio.NewReader(fd)
+	firstLine, readErr := reader.ReadString('\n')
+	if readErr != nil && !errors.Is(readErr, io.EOF) {
+		return false, fmt.Errorf("failed to read workflow file %s: %w", file, readErr)
+	}
+
+	if firstLine == "" {
+		workflowsLog.Printf("Skipping empty markdown file: %s", file)
+		return false, nil
+	}
+
+	if strings.TrimSpace(firstLine) != "---" {
+		workflowsLog.Printf("Skipping markdown file without frontmatter: %s", file)
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // fastParseTitleFromReader scans lines from r for the first H1 header, skipping
@@ -397,14 +408,11 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer fd.Close()
 
 	title, err := fastParseTitleFromReader(fd)
-	closeErr := fd.Close()
 	if err != nil {
 		return "", err
-	}
-	if closeErr != nil {
-		return "", fmt.Errorf("failed to close workflow file %s: %w", filePath, closeErr)
 	}
 	if title != "" {
 		return title, nil
