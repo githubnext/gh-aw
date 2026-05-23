@@ -68,8 +68,15 @@ func (c *Compiler) buildUnlockJob(data *WorkflowData, threatDetectionEnabled boo
 
 	// Build the condition for this job:
 	// 1. always() - run even if agent or other jobs fail
-	// 2. issue was locked (checked at step level for clarity in workflow YAML)
+	// 2. activation was not skipped - skip unlock when activation was never triggered
+	//    (e.g. the event did not match any trigger condition, so no locking occurred)
+	// 3. issue was locked (checked at step level for clarity in workflow YAML)
 	alwaysFunc := BuildFunctionCall("always")
+	activationNotSkipped := BuildNotEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.ActivationJobName)),
+		BuildStringLiteral("skipped"),
+	)
+	jobCondition := BuildAnd(alwaysFunc, activationNotSkipped)
 
 	// Create the unlock job
 	// This job depends on activation (for issue_locked output) and agent (to run after workflow)
@@ -105,7 +112,7 @@ func (c *Compiler) buildUnlockJob(data *WorkflowData, threatDetectionEnabled boo
 	job := &Job{
 		Name:           "unlock",
 		Needs:          needs,
-		If:             RenderCondition(alwaysFunc),
+		If:             RenderCondition(jobCondition),
 		RunsOn:         c.formatFrameworkJobRunsOn(data),
 		Permissions:    permissions,
 		Steps:          steps,

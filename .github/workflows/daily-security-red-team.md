@@ -242,8 +242,8 @@ if [ "$IS_FULL_SCAN" = "true" ]; then
   echo "📁 Full scan: analyzing all files in $JS_DIR and $SH_DIR"
   
   # Get all files
-  find "$JS_DIR" -name "*.cjs" > /tmp/files-to-scan.txt
-  find "$SH_DIR" -name "*.sh" >> /tmp/files-to-scan.txt
+  find "$JS_DIR" -name "*.cjs" > /tmp/gh-aw/agent/files-to-scan.txt
+  find "$SH_DIR" -name "*.sh" >> /tmp/gh-aw/agent/files-to-scan.txt
   
 else
   echo "📁 Incremental scan: analyzing files changed in last 24 hours"
@@ -253,19 +253,19 @@ else
   
   # Get files changed in last 24 hours
   git log --since="24 hours ago" --name-only --pretty=format: -- "$JS_DIR" "$SH_DIR" | \
-    grep -E '\.(cjs|sh)$' | sort | uniq > /tmp/files-to-scan.txt
+    grep -E '\.(cjs|sh)$' | sort | uniq > /tmp/gh-aw/agent/files-to-scan.txt
   
   # If no changes, scan a random subset for proactive monitoring
-  if [ ! -s /tmp/files-to-scan.txt ]; then
+  if [ ! -s /tmp/gh-aw/agent/files-to-scan.txt ]; then
     echo "⚠️  No changes in last 24h, scanning random sample"
-    find "$JS_DIR" -name "*.cjs" | shuf -n 5 > /tmp/files-to-scan.txt
-    find "$SH_DIR" -name "*.sh" | shuf -n 3 >> /tmp/files-to-scan.txt
+    find "$JS_DIR" -name "*.cjs" | shuf -n 5 > /tmp/gh-aw/agent/files-to-scan.txt
+    find "$SH_DIR" -name "*.sh" | shuf -n 3 >> /tmp/gh-aw/agent/files-to-scan.txt
   fi
 fi
 
-FILE_COUNT=$(wc -l < /tmp/files-to-scan.txt)
+FILE_COUNT=$(wc -l < /tmp/gh-aw/agent/files-to-scan.txt)
 echo "📊 Files to scan: $FILE_COUNT"
-cat /tmp/files-to-scan.txt
+cat /tmp/gh-aw/agent/files-to-scan.txt
 
 # Update current scan with file count
 jq ".files_analyzed = $FILE_COUNT" "$CURRENT_SCAN" > "${CURRENT_SCAN}.tmp"
@@ -293,42 +293,42 @@ while IFS= read -r file; do
   echo "Analyzing: $file"
   
   # Pattern 1: Secret exfiltration
-  if grep -nE '(process\.env\.|os\.getenv|ENV\[)[^;]*\.(post|fetch|axios|request|curl|wget)' "$file" > /tmp/pattern.txt; then
+  if grep -nE '(process\.env\.|os\.getenv|ENV\[)[^;]*\.(post|fetch|axios|request|curl|wget)' "$file" > /tmp/gh-aw/agent/pattern.txt; then
     echo "⚠️  Potential secret exfiltration in $file"
-    FINDINGS+=("SECRET_EXFIL:$file:$(head -1 /tmp/pattern.txt | cut -d: -f1)")
+    FINDINGS+=("SECRET_EXFIL:$file:$(head -1 /tmp/gh-aw/agent/pattern.txt | cut -d: -f1)")
   fi
   
   # Pattern 2: Eval/exec with user input
-  if grep -nE '(eval|exec|Function)\s*\([^)]*(\$\{|process\.env|user|input|github\.)' "$file" > /tmp/pattern.txt; then
+  if grep -nE '(eval|exec|Function)\s*\([^)]*(\$\{|process\.env|user|input|github\.)' "$file" > /tmp/gh-aw/agent/pattern.txt; then
     echo "⚠️  Dynamic code execution with external input in $file"
-    FINDINGS+=("DYNAMIC_EXEC:$file:$(head -1 /tmp/pattern.txt | cut -d: -f1)")
+    FINDINGS+=("DYNAMIC_EXEC:$file:$(head -1 /tmp/gh-aw/agent/pattern.txt | cut -d: -f1)")
   fi
   
   # Pattern 3: Obfuscated strings
-  if grep -nE '(atob|btoa|Buffer\.from.*base64|String\.fromCharCode|\\x[0-9a-f]{2}.*\\x[0-9a-f]{2}.*\\x[0-9a-f]{2})' "$file" > /tmp/pattern.txt; then
+  if grep -nE '(atob|btoa|Buffer\.from.*base64|String\.fromCharCode|\\x[0-9a-f]{2}.*\\x[0-9a-f]{2}.*\\x[0-9a-f]{2})' "$file" > /tmp/gh-aw/agent/pattern.txt; then
     echo "⚠️  Obfuscated content in $file"
-    FINDINGS+=("OBFUSCATION:$file:$(head -1 /tmp/pattern.txt | cut -d: -f1)")
+    FINDINGS+=("OBFUSCATION:$file:$(head -1 /tmp/gh-aw/agent/pattern.txt | cut -d: -f1)")
   fi
   
   # Pattern 4: Suspicious file operations
-  if grep -nE '(rm\s+-rf|unlink.*\$|fs\.rmdir|fs\.unlink).*(\$\{|process\.env|user|input)' "$file" > /tmp/pattern.txt; then
+  if grep -nE '(rm\s+-rf|unlink.*\$|fs\.rmdir|fs\.unlink).*(\$\{|process\.env|user|input)' "$file" > /tmp/gh-aw/agent/pattern.txt; then
     echo "⚠️  Dangerous file operations in $file"
-    FINDINGS+=("DANGEROUS_OPS:$file:$(head -1 /tmp/pattern.txt | cut -d: -f1)")
+    FINDINGS+=("DANGEROUS_OPS:$file:$(head -1 /tmp/gh-aw/agent/pattern.txt | cut -d: -f1)")
   fi
   
   # Pattern 5: Network calls to suspicious domains
-  if grep -nE '(http://|https://)[^/]*(\.ru|\.cn|\.tk|pastebin|hastebin|ngrok|localtunnel)' "$file" > /tmp/pattern.txt; then
+  if grep -nE '(http://|https://)[^/]*(\.ru|\.cn|\.tk|pastebin|hastebin|ngrok|localtunnel)' "$file" > /tmp/gh-aw/agent/pattern.txt; then
     echo "⚠️  Suspicious network domain in $file"
-    FINDINGS+=("SUSPICIOUS_DOMAIN:$file:$(head -1 /tmp/pattern.txt | cut -d: -f1)")
+    FINDINGS+=("SUSPICIOUS_DOMAIN:$file:$(head -1 /tmp/gh-aw/agent/pattern.txt | cut -d: -f1)")
   fi
   
   # Pattern 6: Backdoor keywords
-  if grep -niE '(backdoor|malware|rootkit|keylog|ransomware|trojan|c2|command.?and.?control)' "$file" > /tmp/pattern.txt; then
+  if grep -niE '(backdoor|malware|rootkit|keylog|ransomware|trojan|c2|command.?and.?control)' "$file" > /tmp/gh-aw/agent/pattern.txt; then
     echo "⚠️  Suspicious keywords in $file"
-    FINDINGS+=("SUSPICIOUS_KEYWORDS:$file:$(head -1 /tmp/pattern.txt | cut -d: -f1)")
+    FINDINGS+=("SUSPICIOUS_KEYWORDS:$file:$(head -1 /tmp/gh-aw/agent/pattern.txt | cut -d: -f1)")
   fi
   
-done < /tmp/files-to-scan.txt
+done < /tmp/gh-aw/agent/files-to-scan.txt
 
 echo "✅ Pattern analysis complete: ${#FINDINGS[@]} findings"
 ```
@@ -358,18 +358,18 @@ while IFS= read -r file; do
     fi
     
     # Pattern: Suspicious function names
-    if grep -nE 'function\s+(hack|pwn|exploit|backdoor|inject|payload)' "$file" > /tmp/ast.txt; then
+    if grep -nE 'function\s+(hack|pwn|exploit|backdoor|inject|payload)' "$file" > /tmp/gh-aw/agent/ast.txt; then
       echo "⚠️  Suspicious function names in $file"
-      FINDINGS+=("SUSPICIOUS_NAMES:$file:$(head -1 /tmp/ast.txt | cut -d: -f1)")
+      FINDINGS+=("SUSPICIOUS_NAMES:$file:$(head -1 /tmp/gh-aw/agent/ast.txt | cut -d: -f1)")
     fi
     
     # Pattern: Unusual module.exports or global assignments
-    if grep -nE '(global\.|window\.|process\.)[a-zA-Z_$].*=.*require|module\.exports\s*=\s*require' "$file" > /tmp/ast.txt; then
+    if grep -nE '(global\.|window\.|process\.)[a-zA-Z_$].*=.*require|module\.exports\s*=\s*require' "$file" > /tmp/gh-aw/agent/ast.txt; then
       echo "⚠️  Suspicious global/export patterns in $file"
-      FINDINGS+=("SUSPICIOUS_EXPORTS:$file:$(head -1 /tmp/ast.txt | cut -d: -f1)")
+      FINDINGS+=("SUSPICIOUS_EXPORTS:$file:$(head -1 /tmp/gh-aw/agent/ast.txt | cut -d: -f1)")
     fi
   fi
-done < /tmp/files-to-scan.txt
+done < /tmp/gh-aw/agent/files-to-scan.txt
 
 echo "✅ AST inspection complete"
 ```
@@ -419,7 +419,7 @@ while IFS= read -r file; do
     FINDINGS+=("LONG_ENCODED:$file:0")
   fi
   
-done < /tmp/files-to-scan.txt
+done < /tmp/gh-aw/agent/files-to-scan.txt
 
 echo "✅ Entropy analysis complete"
 ```
@@ -439,25 +439,25 @@ while IFS= read -r file; do
   echo "Analyzing network patterns: $file"
   
   # Extract all URLs/domains
-  grep -oE '(http|https|ftp)://[a-zA-Z0-9./?=_-]*' "$file" > /tmp/urls.txt || true
+  grep -oE '(http|https|ftp)://[a-zA-Z0-9./?=_-]*' "$file" > /tmp/gh-aw/agent/urls.txt || true
   
-  if [ -s /tmp/urls.txt ]; then
+  if [ -s /tmp/gh-aw/agent/urls.txt ]; then
     while IFS= read -r url; do
       # Check if URL is to unexpected domains
       if ! echo "$url" | grep -qE '(github\.com|githubusercontent\.com|microsoft\.com|npmjs\.org|api\.github\.com)'; then
         echo "⚠️  External network call to $url in $file"
         FINDINGS+=("EXTERNAL_NETWORK:$file:0:url=$url")
       fi
-    done < /tmp/urls.txt
+    done < /tmp/gh-aw/agent/urls.txt
   fi
   
   # Check for IP addresses (often suspicious)
-  if grep -nE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' "$file" > /tmp/ips.txt; then
+  if grep -nE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' "$file" > /tmp/gh-aw/agent/ips.txt; then
     echo "⚠️  Hardcoded IP addresses in $file"
-    FINDINGS+=("HARDCODED_IP:$file:$(head -1 /tmp/ips.txt | cut -d: -f1)")
+    FINDINGS+=("HARDCODED_IP:$file:$(head -1 /tmp/gh-aw/agent/ips.txt | cut -d: -f1)")
   fi
   
-done < /tmp/files-to-scan.txt
+done < /tmp/gh-aw/agent/files-to-scan.txt
 
 echo "✅ Network analysis complete"
 ```
@@ -477,26 +477,26 @@ while IFS= read -r file; do
   echo "Analyzing behavior: $file"
   
   # Check for time-based logic (time bombs)
-  if grep -nE '(new Date\(\)|Date\.now\(\)|getTime\(\)).*[<>]=?\s*[0-9]' "$file" > /tmp/time.txt; then
+  if grep -nE '(new Date\(\)|Date\.now\(\)|getTime\(\)).*[<>]=?\s*[0-9]' "$file" > /tmp/gh-aw/agent/time.txt; then
     if grep -E '(if|while).*Date' "$file" | grep -qE '(exit|throw|delete|destroy)'; then
       echo "⚠️  Time-based conditional with destructive action in $file"
-      FINDINGS+=("TIME_BOMB:$file:$(head -1 /tmp/time.txt | cut -d: -f1)")
+      FINDINGS+=("TIME_BOMB:$file:$(head -1 /tmp/gh-aw/agent/time.txt | cut -d: -f1)")
     fi
   fi
   
   # Check for persistence mechanisms
-  if grep -nE '(cron|setInterval|setTimeout.*[0-9]{6,}|while.*true)' "$file" > /tmp/persist.txt; then
+  if grep -nE '(cron|setInterval|setTimeout.*[0-9]{6,}|while.*true)' "$file" > /tmp/gh-aw/agent/persist.txt; then
     echo "⚠️  Persistence mechanism in $file"
-    FINDINGS+=("PERSISTENCE:$file:$(head -1 /tmp/persist.txt | cut -d: -f1)")
+    FINDINGS+=("PERSISTENCE:$file:$(head -1 /tmp/gh-aw/agent/persist.txt | cut -d: -f1)")
   fi
   
   # Check for anti-debugging
-  if grep -nE '(debugger|isDebugger|chrome|devtools)' "$file" > /tmp/debug.txt; then
+  if grep -nE '(debugger|isDebugger|chrome|devtools)' "$file" > /tmp/gh-aw/agent/debug.txt; then
     echo "⚠️  Anti-debugging code in $file"
-    FINDINGS+=("ANTI_DEBUG:$file:$(head -1 /tmp/debug.txt | cut -d: -f1)")
+    FINDINGS+=("ANTI_DEBUG:$file:$(head -1 /tmp/gh-aw/agent/debug.txt | cut -d: -f1)")
   fi
   
-done < /tmp/files-to-scan.txt
+done < /tmp/gh-aw/agent/files-to-scan.txt
 
 echo "✅ Behavioral analysis complete"
 ```
@@ -525,12 +525,12 @@ fi
 while IFS= read -r file; do
   if [[ "$file" == *.cjs ]]; then
     # Check for requires to unusual paths
-    if grep -nE 'require\(["\x27]\.\.\/\.\.\/\.\.\/' "$file" > /tmp/require.txt; then
+    if grep -nE 'require\(["\x27]\.\.\/\.\.\/\.\.\/' "$file" > /tmp/gh-aw/agent/require.txt; then
       echo "⚠️  Suspicious require path traversal in $file"
-      FINDINGS+=("PATH_TRAVERSAL:$file:$(head -1 /tmp/require.txt | cut -d: -f1)")
+      FINDINGS+=("PATH_TRAVERSAL:$file:$(head -1 /tmp/gh-aw/agent/require.txt | cut -d: -f1)")
     fi
   fi
-done < /tmp/files-to-scan.txt
+done < /tmp/gh-aw/agent/files-to-scan.txt
 
 echo "✅ Dependency audit complete"
 ```
@@ -627,7 +627,7 @@ if [ ${#FINDINGS[@]} -gt 0 ]; then
   echo "Creating security issue with actionable tasks..."
   
   # Create issue using safe-outputs
-  cat > /tmp/security-issue.md <<EOF
+  cat > /tmp/gh-aw/agent/security-issue.md <<EOF
 # 🚨 Security Red Team Findings - $(date +%Y-%m-%d)
 
 **Scan Mode**: $SCAN_MODE  

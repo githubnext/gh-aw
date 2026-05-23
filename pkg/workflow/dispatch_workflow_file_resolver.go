@@ -119,41 +119,10 @@ func mdHasWorkflowDispatch(mdPath string) (bool, error) {
 // the workflow_dispatch inputs schema, mirroring extractWorkflowDispatchInputs for .md sources.
 func extractMDWorkflowDispatchInputs(mdPath string) (map[string]any, error) {
 	dispatchWorkflowValidationLog.Printf("Extracting workflow_dispatch inputs from: %s", mdPath)
-	content, err := os.ReadFile(mdPath) // #nosec G304 -- mdPath is validated via isPathWithinDir in findWorkflowFile
+	inputs, err := extractInputsFromMarkdown(mdPath, "workflow_dispatch")
 	if err != nil {
 		return nil, err
 	}
-	result, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil || result == nil {
-		return make(map[string]any), nil
-	}
-	onSection, hasOn := result.Frontmatter["on"]
-	if !hasOn {
-		dispatchWorkflowValidationLog.Printf("No 'on' section found in: %s", mdPath)
-		return make(map[string]any), nil
-	}
-	onMap, ok := onSection.(map[string]any)
-	if !ok {
-		return make(map[string]any), nil
-	}
-	workflowDispatch, hasWorkflowDispatch := onMap["workflow_dispatch"]
-	if !hasWorkflowDispatch {
-		dispatchWorkflowValidationLog.Printf("No workflow_dispatch trigger in: %s", mdPath)
-		return make(map[string]any), nil
-	}
-	workflowDispatchMap, ok := workflowDispatch.(map[string]any)
-	if !ok {
-		return make(map[string]any), nil
-	}
-	inputs, hasInputs := workflowDispatchMap["inputs"]
-	if !hasInputs {
-		dispatchWorkflowValidationLog.Printf("No inputs defined in workflow_dispatch for: %s", mdPath)
-		return make(map[string]any), nil
-	}
-	inputsMap, ok := inputs.(map[string]any)
-	if !ok {
-		return make(map[string]any), nil
-	}
-	dispatchWorkflowValidationLog.Printf("Extracted %d workflow_dispatch input(s) from: %s", len(inputsMap), mdPath)
-	return inputsMap, nil
+	dispatchWorkflowValidationLog.Printf("Extracted %d workflow_dispatch input(s) from: %s", len(inputs), mdPath)
+	return inputs, nil
 }

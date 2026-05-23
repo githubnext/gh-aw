@@ -58,6 +58,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.ResolvePullRequestReviewThread != nil ||
 		safeOutputs.CreateCodeScanningAlerts != nil ||
 		safeOutputs.AutofixCodeScanningAlert != nil ||
+		safeOutputs.CreateCheckRun != nil ||
 		safeOutputs.AddLabels != nil ||
 		safeOutputs.RemoveLabels != nil ||
 		safeOutputs.AddReviewer != nil ||
@@ -84,10 +85,9 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.MissingData != nil ||
 		safeOutputs.SetIssueType != nil ||
 		safeOutputs.SetIssueField != nil ||
-		safeOutputs.NoOp != nil // 43rd field
+		safeOutputs.NoOp != nil // 44th field
 }
 
-// hasNonBuiltinSafeOutputsEnabled reports whether any non-builtin safe output is configured.
 // The builtin types (noop, missing-data, missing-tool) are excluded from this check
 // because they are always auto-enabled and do not represent a meaningful output action.
 //
@@ -123,6 +123,7 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.ResolvePullRequestReviewThread != nil ||
 		safeOutputs.CreateCodeScanningAlerts != nil ||
 		safeOutputs.AutofixCodeScanningAlert != nil ||
+		safeOutputs.CreateCheckRun != nil ||
 		safeOutputs.AddLabels != nil ||
 		safeOutputs.RemoveLabels != nil ||
 		safeOutputs.AddReviewer != nil ||

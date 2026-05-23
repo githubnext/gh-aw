@@ -748,9 +748,14 @@ jobs:
       - name: Build gh-aw
         run: make build
 
+      - name: Pre-compile validation
+        run: |
+          ./gh-aw compile --validate --no-emit --verbose
+          echo "✓ Pre-compile validation passed"
+
       - name: Compile workflows
         run: |
-          ./gh-aw compile --validate --validate-images --verbose
+          ./gh-aw compile --validate --verbose
           echo "✓ All workflows compiled successfully"
 
       - name: Setup Scripts
@@ -758,7 +763,7 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
-      - name: Check for out-of-sync workflows and create issue if needed
+      - name: Check for out-of-sync workflows and create issue or pull request if needed
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |

@@ -76,15 +76,15 @@ Test workflow with lock-for-agent enabled.
 		t.Error("Activation job should contain the lock step")
 	}
 
-	// Verify dedicated unlock job exists and has always() condition
+	// Verify dedicated unlock job exists and has always() && not-skipped condition
 	unlockJobSection := extractJobSection(yamlContent, "unlock")
 	if !strings.Contains(unlockJobSection, "Unlock issue after agentic workflow") {
 		t.Error("Unlock job should contain the unlock step")
 	}
 
-	// Verify unlock job has always() condition at job level
-	if !strings.Contains(unlockJobSection, "if: always()") {
-		t.Error("Unlock job should have always() condition")
+	// Verify unlock job has always() && activation-not-skipped condition at job level
+	if !strings.Contains(unlockJobSection, "always() && needs.activation.result != 'skipped'") {
+		t.Error("Unlock job should have always() && activation not-skipped condition")
 	}
 }
 
@@ -410,9 +410,9 @@ Test workflow with lock-for-agent enabled for issue_comment events.
 		t.Error("Unlock step condition should check for issue_comment event")
 	}
 
-	// Verify unlock job has always() condition at job level
-	if !strings.Contains(unlockJobSection, "if: always()") {
-		t.Error("Unlock job should have always() condition")
+	// Verify unlock job has always() && activation-not-skipped condition at job level
+	if !strings.Contains(unlockJobSection, "always() && needs.activation.result != 'skipped'") {
+		t.Error("Unlock job should have always() && activation not-skipped condition")
 	}
 
 	// Verify activation job has issues: write permission
@@ -562,15 +562,15 @@ Test that safe_outputs job depends on unlock job.
 		t.Error("Activation job should contain the lock step")
 	}
 
-	// Verify dedicated unlock job exists with always() condition
+	// Verify dedicated unlock job exists with always() && not-skipped condition
 	unlockJobSection := extractJobSection(yamlContent, "unlock")
 	if !strings.Contains(unlockJobSection, "Unlock issue after agentic workflow") {
 		t.Error("Unlock job should contain the unlock step")
 	}
 
-	// Verify unlock job has always() condition at job level
-	if !strings.Contains(unlockJobSection, "if: always()") {
-		t.Error("Unlock job should have always() condition")
+	// Verify unlock job has always() && activation-not-skipped condition at job level
+	if !strings.Contains(unlockJobSection, "always() && needs.activation.result != 'skipped'") {
+		t.Error("Unlock job should have always() && activation not-skipped condition")
 	}
 
 	// Verify safe_outputs job depends on unlock job

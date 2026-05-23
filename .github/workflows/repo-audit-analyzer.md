@@ -108,7 +108,7 @@ Analyze the repository structure to understand the project:
 
 ```bash
 # Clone repository for deep analysis
-REPO_DIR="/tmp/repo-analysis"
+REPO_DIR="/tmp/gh-aw/agent/repo-analysis"
 git clone "https://github.com/${{ inputs.repository }}.git" "$REPO_DIR" --depth 1
 
 cd "$REPO_DIR"
@@ -231,10 +231,10 @@ gh api "repos/${{ inputs.repository }}/actions/runs?per_page=100&created=>=$(dat
   conclusion: .conclusion,
   created_at: .created_at,
   run_number: .run_number
-}' > /tmp/workflow_runs.json
+}' > /tmp/gh-aw/agent/workflow_runs.json
 
 # Success rate
-cat /tmp/workflow_runs.json | jq -s 'group_by(.name) | map({
+cat /tmp/gh-aw/agent/workflow_runs.json | jq -s 'group_by(.name) | map({
   workflow: .[0].name,
   total: length,
   success: map(select(.conclusion == "success")) | length,
@@ -243,7 +243,7 @@ cat /tmp/workflow_runs.json | jq -s 'group_by(.name) | map({
 })'
 
 # Failed runs analysis
-cat /tmp/workflow_runs.json | jq -s 'map(select(.conclusion == "failure")) | group_by(.name) | map({
+cat /tmp/gh-aw/agent/workflow_runs.json | jq -s 'map(select(.conclusion == "failure")) | group_by(.name) | map({
   workflow: .[0].name,
   failures: length
 }) | sort_by(.failures) | reverse'
@@ -292,19 +292,19 @@ gh api "repos/${{ inputs.repository }}/issues?state=all&per_page=100&since=$(dat
   created_at: .created_at,
   closed_at: .closed_at,
   comments: .comments
-}' > /tmp/issues.json
+}' > /tmp/gh-aw/agent/issues.json
 
 # Issue categories (by labels)
-cat /tmp/issues.json | jq -s 'map(.labels[]) | group_by(.) | map({label: .[0], count: length}) | sort_by(.count) | reverse'
+cat /tmp/gh-aw/agent/issues.json | jq -s 'map(.labels[]) | group_by(.) | map({label: .[0], count: length}) | sort_by(.count) | reverse'
 
 # Open vs closed ratio
-cat /tmp/issues.json | jq -s 'group_by(.state) | map({state: .[0].state, count: length})'
+cat /tmp/gh-aw/agent/issues.json | jq -s 'group_by(.state) | map({state: .[0].state, count: length})'
 
 # Issues with most comments (high engagement)
-cat /tmp/issues.json | jq -s 'sort_by(.comments) | reverse | .[0:10] | .[] | {number: .number, title: .title, comments: .comments}'
+cat /tmp/gh-aw/agent/issues.json | jq -s 'sort_by(.comments) | reverse | .[0:10] | .[] | {number: .number, title: .title, comments: .comments}'
 
 # Common words in issue titles (identify patterns)
-cat /tmp/issues.json | jq -r '.[].title' | tr '[:upper:]' '[:lower:]' | tr ' ' '\n' | sort | uniq -c | sort -rn | head -30
+cat /tmp/gh-aw/agent/issues.json | jq -r '.[].title' | tr '[:upper:]' '[:lower:]' | tr ' ' '\n' | sort | uniq -c | sort -rn | head -30
 ```
 
 ### 3.2 Identify Automation Opportunities in Issues
@@ -313,16 +313,16 @@ Look for issues that could be automated:
 
 ```bash
 # Issues about CI/CD
-cat /tmp/issues.json | jq -s 'map(select(.title | test("ci|cd|build|test|deploy"; "i"))) | length'
+cat /tmp/gh-aw/agent/issues.json | jq -s 'map(select(.title | test("ci|cd|build|test|deploy"; "i"))) | length'
 
 # Issues about documentation
-cat /tmp/issues.json | jq -s 'map(select(.title | test("doc|documentation|readme"; "i"))) | length'
+cat /tmp/gh-aw/agent/issues.json | jq -s 'map(select(.title | test("doc|documentation|readme"; "i"))) | length'
 
 # Issues about dependencies/updates
-cat /tmp/issues.json | jq -s 'map(select(.title | test("update|upgrade|dependency|dependabot"; "i"))) | length'
+cat /tmp/gh-aw/agent/issues.json | jq -s 'map(select(.title | test("update|upgrade|dependency|dependabot"; "i"))) | length'
 
 # Repetitive issues (same labels appearing frequently)
-cat /tmp/issues.json | jq -s 'map(select(.labels | length > 0)) | group_by(.labels | sort) | map({labels: .[0].labels, count: length}) | sort_by(.count) | reverse | .[0:10]'
+cat /tmp/gh-aw/agent/issues.json | jq -s 'map(select(.labels | length > 0)) | group_by(.labels | sort) | map({labels: .[0].labels, count: length}) | sort_by(.count) | reverse | .[0:10]'
 ```
 
 ## Phase 4: Identify Agentic Workflow Opportunities

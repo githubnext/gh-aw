@@ -111,22 +111,15 @@ func buildReactionLikeCondition(includeIssues bool, includePullRequests bool, in
 		terms = append(terms, BuildEventTypeEquals("discussion_comment"))
 	}
 
-	// For pull_request and pull_request_review events, we need to ensure it's not from a forked
-	// repository since forked repositories have read-only permissions and cannot add reactions.
-	// pull_request_review events also populate github.event.pull_request.head.repo.id, so the
-	// same fork-guard expression works for both event types.
+	// For pull_request events, we need to ensure it's not from a forked repository since
+	// forked pull requests have read-only permissions and cannot perform write operations
+	// like adding reactions or workflow run status-comments.
 	if includePullRequests {
 		pullRequestCondition := &AndNode{
 			Left:  BuildEventTypeEquals("pull_request"),
 			Right: BuildNotFromFork(),
 		}
 		terms = append(terms, pullRequestCondition)
-
-		pullRequestReviewCondition := &AndNode{
-			Left:  BuildEventTypeEquals("pull_request_review"),
-			Right: BuildNotFromFork(),
-		}
-		terms = append(terms, pullRequestReviewCondition)
 	}
 
 	expressionBuilderLog.Printf("Created native disjunction with %d event type terms", len(terms))
@@ -155,7 +148,6 @@ func buildDispatchSourceEventCondition(includeIssues bool, includePullRequests b
 	if includePullRequests {
 		terms = append(terms, BuildEquals(eventExpr, BuildStringLiteral("pull_request_review_comment")))
 		terms = append(terms, BuildEquals(eventExpr, BuildStringLiteral("pull_request")))
-		terms = append(terms, BuildEquals(eventExpr, BuildStringLiteral("pull_request_review")))
 	}
 	if includeDiscussions {
 		terms = append(terms, BuildEquals(eventExpr, BuildStringLiteral("discussion")))
@@ -287,8 +279,7 @@ func buildDetectionSuccessCondition() ConditionNode {
 
 // buildDetectionPassedCondition builds the condition to check if the detection job either
 // succeeded (no threats found) or was skipped (agent produced no outputs or patch — nothing
-// to detect against). Use this for downstream jobs that must run in both cases, such as
-// update_cache_memory and push_repo_memory.
+// to detect against). Use this for downstream jobs that must run in both cases.
 func buildDetectionPassedCondition() ConditionNode {
 	return BuildOr(
 		buildDetectionSuccessCondition(),

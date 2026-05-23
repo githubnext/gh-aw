@@ -33,7 +33,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var log = logger.New("typeutil:convert")
+var typeutilLog = logger.New("typeutil:convert")
 
 // ParseIntValue strictly parses numeric types (int, int64, uint64, float64) to int,
 // returning (value, true) on success and (0, false) for any unrecognized or
@@ -55,7 +55,7 @@ func ParseIntValue(value any) (int, bool) {
 		// Check for overflow before converting uint64 to int
 		const maxInt = int(^uint(0) >> 1)
 		if v > uint64(maxInt) {
-			log.Printf("uint64 value %d exceeds max int value, returning 0", v)
+			typeutilLog.Printf("uint64 value %d exceeds max int value, returning 0", v)
 			return 0, false
 		}
 		return int(v), true
@@ -63,7 +63,7 @@ func ParseIntValue(value any) (int, bool) {
 		intVal := int(v)
 		// Warn if truncation occurs (value has fractional part)
 		if v != float64(intVal) {
-			log.Printf("Float value %.2f truncated to integer %d", v, intVal)
+			typeutilLog.Printf("Float value %.2f truncated to integer %d", v, intVal)
 		}
 		return intVal, true
 	default:
@@ -102,7 +102,7 @@ func ConvertToInt(val any) int {
 		intVal := int(v)
 		// Warn if truncation occurs (value has fractional part)
 		if v != float64(intVal) {
-			log.Printf("Float value %.2f truncated to integer %d", v, intVal)
+			typeutilLog.Printf("Float value %.2f truncated to integer %d", v, intVal)
 		}
 		return intVal
 	case string:

@@ -8,7 +8,7 @@
 const { processItems } = require("./safe_output_processor.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { resolveIssueNumber, extractAssignees } = require("./safe_output_helpers.cjs");
+const { resolveIssueNumber, extractAssignees, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
@@ -31,6 +31,10 @@ const main = createCountGatedHandler({
     const unassignFirst = parseBoolTemplatable(config.unassign_first, false);
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
     const githubClient = await createAuthenticatedGitHubClient(config);
+    const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+    const requiredTitlePrefix = config.required_title_prefix || "";
+    if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
+    if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
 
     core.info(`Assign to user configuration: max=${maxCount}, unassign_first=${unassignFirst}`);
     if (allowedAssignees.length > 0) {
@@ -75,6 +79,9 @@ const main = createCountGatedHandler({
         };
       }
       const issueNumber = issueResult.issueNumber;
+
+      const filterResult = await checkRequiredFilter(githubClient, repoParts, issueNumber, requiredLabels, requiredTitlePrefix, HANDLER_TYPE);
+      if (filterResult) return filterResult;
 
       // Extract assignees using shared helper
       const requestedAssignees = extractAssignees(assignItem);

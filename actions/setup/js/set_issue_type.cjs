@@ -8,9 +8,9 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
+const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "set_issue_type";
@@ -103,6 +103,10 @@ async function main(config = {}) {
   const isStaged = isStagedMode(config);
 
   core.info(`Set issue type configuration: max=${maxCount}`);
+  const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
+  if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
+  if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
   if (allowedTypes.length > 0) {
     core.info(`Allowed issue types: ${allowedTypes.join(", ")}`);
   }
@@ -134,9 +138,6 @@ async function main(config = {}) {
 
     const item = message;
 
-    // Build temporary ID map from resolved IDs
-    const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
-
     // Resolve and validate target repository
     const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "issue");
     if (!repoResult.success) {
@@ -150,28 +151,11 @@ async function main(config = {}) {
     core.info(`Target repository: ${itemRepo}`);
 
     // Determine target issue number, with temporary ID support
+    const targetResult = resolveSafeOutputIssueTarget({ message: item, resolvedTemporaryIds, repoParts, handlerType: HANDLER_TYPE, aliases: ["issue_number"] });
+    if (!targetResult.success) return targetResult;
     let issueNumber;
-    if (item.issue_number !== undefined && item.issue_number !== null) {
-      const resolvedTarget = resolveRepoIssueTarget(item.issue_number, temporaryIdMap, repoParts.owner, repoParts.repo);
-
-      if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
-        core.info(`Deferring set_issue_type: unresolved temporary ID (${item.issue_number})`);
-        return {
-          success: false,
-          deferred: true,
-          error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${item.issue_number}`,
-        };
-      }
-
-      if (resolvedTarget.errorMessage || !resolvedTarget.resolved) {
-        core.warning(`Invalid issue_number: ${item.issue_number}`);
-        return {
-          success: false,
-          error: `Invalid issue_number: ${item.issue_number}`,
-        };
-      }
-
-      issueNumber = resolvedTarget.resolved.number;
+    if (targetResult.number !== null) {
+      issueNumber = targetResult.number;
       core.info(`Resolved issue number: #${issueNumber}`);
     } else {
       const contextIssueNumber = context.payload?.issue?.number;
@@ -184,6 +168,9 @@ async function main(config = {}) {
       }
       issueNumber = contextIssueNumber;
     }
+
+    const filterResult = await checkRequiredFilter(githubClient, repoParts, issueNumber, requiredLabels, requiredTitlePrefix, HANDLER_TYPE);
+    if (filterResult) return filterResult;
 
     const issueTypeName = item.issue_type ?? "";
     const isClear = issueTypeName === "";

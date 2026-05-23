@@ -12,7 +12,7 @@ var validPermissionScopes = func() map[string]struct{} {
 	scopes := GetAllPermissionScopes()
 	appOnlyScopes := GetAllGitHubAppOnlyScopes()
 
-	m := make(map[string]struct{}, len(scopes)+len(appOnlyScopes))
+	m := make(map[string]struct{}, safeAllocationCapacity(len(scopes), len(appOnlyScopes), 1))
 	for _, scope := range scopes {
 		m[string(scope)] = struct{}{}
 	}

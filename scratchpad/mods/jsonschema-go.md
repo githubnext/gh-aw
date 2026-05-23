@@ -50,7 +50,7 @@ func GenerateOutputSchema[T any]() (*jsonschema.Schema, error) {
 }
 ```
 
-**Purpose:** Provides a generic wrapper for schema generation, leveraging Go 1.18+ generics for compile-time type safety.
+**Purpose:** Provides a generic wrapper for schema generation, using Go 1.18+ generics for compile-time type safety.
 
 ### Usage Patterns Observed
 
@@ -116,7 +116,7 @@ tool := &mcp.Tool{
 
 Based on upstream activity and community discussions:
 
-- **Enhanced Type Mapping:** Improved handling of pointer types for nullable fields
+- **Type Mapping:** Improved handling of pointer types for nullable fields
 - **Better Error Messages:** More descriptive validation errors, especially for `additionalProperties` violations
 - **Performance Improvements:** Optimizations in validation logic
 - **TypeSchemas Key Update:** Changed from `any` to `reflect.Type` for better type safety
@@ -126,7 +126,7 @@ Based on upstream activity and community discussions:
 
 While not officially released, upstream development suggests:
 - Deeper customization for schema inference
-- Enhanced default value support
+- Expanded default value support
 - More informative validation error messages
 - Better meta-schema integration
 - Improved handling of complex Go types
@@ -144,7 +144,7 @@ While not officially released, upstream development suggests:
    - Could add schema validation for MCP tool inputs/outputs
    - Would provide runtime type safety for AI agent interactions
 
-3. **Leverage Schema Descriptions**
+3. **Use Schema Descriptions**
    - Expand `jsonschema:` tag usage for more detailed tool documentation
    - More detailed descriptions help AI agents understand tool outputs
 

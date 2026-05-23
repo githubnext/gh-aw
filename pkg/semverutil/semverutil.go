@@ -16,7 +16,7 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-var log = logger.New("semverutil:semverutil")
+var semverLog = logger.New("semverutil:semverutil")
 
 // actionVersionTagRegex matches version tags: vmajor, vmajor.minor, or vmajor.minor.patch.
 // It intentionally excludes prerelease and build-metadata suffixes because GitHub Actions
@@ -60,11 +60,11 @@ func IsValid(ref string) bool {
 // ParseVersion parses v into a SemanticVersion.
 // It returns nil if v is not a valid semantic version string.
 func ParseVersion(v string) *SemanticVersion {
-	log.Printf("Parsing semantic version: %s", v)
+	semverLog.Printf("Parsing semantic version: %s", v)
 	v = EnsureVPrefix(v)
 
 	if !semver.IsValid(v) {
-		log.Printf("Invalid semantic version: %s", v)
+		semverLog.Printf("Invalid semantic version: %s", v)
 		return nil
 	}
 
@@ -107,11 +107,11 @@ func Compare(v1, v2 string) int {
 	result := semver.Compare(v1, v2)
 
 	if result > 0 {
-		log.Printf("Version comparison result: %s > %s", v1, v2)
+		semverLog.Printf("Version comparison result: %s > %s", v1, v2)
 	} else if result < 0 {
-		log.Printf("Version comparison result: %s < %s", v1, v2)
+		semverLog.Printf("Version comparison result: %s < %s", v1, v2)
 	} else {
-		log.Printf("Version comparison result: %s == %s", v1, v2)
+		semverLog.Printf("Version comparison result: %s == %s", v1, v2)
 	}
 
 	return result
@@ -146,7 +146,7 @@ func IsCompatible(pinVersion, requestedVersion string) bool {
 	requestedMajor := semver.Major(requestedVersion)
 
 	compatible := pinMajor == requestedMajor
-	log.Printf("Checking semver compatibility: pin=%s (major=%s), requested=%s (major=%s) -> %v",
+	semverLog.Printf("Checking semver compatibility: pin=%s (major=%s), requested=%s (major=%s) -> %v",
 		pinVersion, pinMajor, requestedVersion, requestedMajor, compatible)
 
 	return compatible

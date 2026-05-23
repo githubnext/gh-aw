@@ -9,7 +9,7 @@
 const HANDLER_TYPE = "update_pull_request";
 
 const { updateBody } = require("./update_pr_description_helpers.cjs");
-const { resolveTarget } = require("./safe_output_helpers.cjs");
+const { resolveTarget, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createUpdateHandlerFactory, createStandardResolveNumber, createStandardFormatResult } = require("./update_handler_factory.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
@@ -263,6 +263,11 @@ const main = createUpdateHandlerFactory({
     allow_title: true,
     allow_body: true,
     update_branch: false,
+  },
+  itemFilter: async (githubClient, repoParts, prNumber, config) => {
+    const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+    const requiredTitlePrefix = config.required_title_prefix || "";
+    return checkRequiredFilter(githubClient, repoParts, prNumber, requiredLabels, requiredTitlePrefix, "update_pull_request");
   },
 });
 

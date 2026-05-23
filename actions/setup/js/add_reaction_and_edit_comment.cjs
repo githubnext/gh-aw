@@ -139,7 +139,8 @@ async function resolveEventEndpoints(eventName, owner, repo, payload) {
 
 async function main() {
   const reaction = process.env.GH_AW_REACTION || "eyes";
-  const command = process.env.GH_AW_COMMAND; // Only present for command workflows
+  const commandsJSON = process.env.GH_AW_COMMANDS;
+  const command = commandsJSON ? (JSON.parse(commandsJSON)[0] ?? null) : null; // Only present for command workflows
   const invocationContext = resolveInvocationContext(context);
   const runUrl = buildWorkflowRunUrl(context, invocationContext.workflowRepo);
 

@@ -11,6 +11,9 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+
+	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the err-string-match analysis pass.
@@ -24,6 +27,7 @@ var Analyzer = &analysis.Analyzer{
 
 func run(pass *analysis.Pass) (any, error) {
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "errstringmatch")
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
@@ -32,6 +36,10 @@ func run(pass *analysis.Pass) (any, error) {
 	insp.Preorder(nodeFilter, func(n ast.Node) {
 		outer, ok := n.(*ast.CallExpr)
 		if !ok {
+			return
+		}
+		position := pass.Fset.PositionFor(outer.Pos(), false)
+		if filecheck.IsTestFile(position.Filename) {
 			return
 		}
 
@@ -52,8 +60,11 @@ func run(pass *analysis.Pass) (any, error) {
 		if !isStringLiteral(pass, outer.Args[1]) {
 			return
 		}
+		if nolint.HasDirective(position, noLintLinesByFile) {
+			return
+		}
 
-		pass.Reportf(outer.Pos(), "avoid strings.Contains(err.Error(), ...) — use errors.Is, errors.As, or a sentinel error instead")
+		pass.ReportRangef(outer, "avoid strings.Contains(err.Error(), ...) — use errors.Is, errors.As, or a sentinel error instead")
 	})
 
 	return nil, nil
@@ -94,29 +105,7 @@ func isErrDotError(pass *analysis.Pass, expr ast.Expr) bool {
 	if t == nil {
 		return false
 	}
-	return implementsError(pass, t)
-}
-
-// implementsError reports whether t implements the built-in error interface.
-func implementsError(pass *analysis.Pass, t types.Type) bool {
-	errIface := pass.Pkg.Scope().Lookup("error")
-	if errIface == nil {
-		// Look up the universe scope.
-		obj := types.Universe.Lookup("error")
-		if obj == nil {
-			return false
-		}
-		iface, ok := obj.Type().Underlying().(*types.Interface)
-		if !ok {
-			return false
-		}
-		return types.Implements(t, iface) || types.Implements(types.NewPointer(t), iface)
-	}
-	iface, ok := errIface.Type().Underlying().(*types.Interface)
-	if !ok {
-		return false
-	}
-	return types.Implements(t, iface) || types.Implements(types.NewPointer(t), iface)
+	return nolint.ImplementsError(t)
 }
 
 // isStringLiteral returns true when expr is a string literal or untyped string constant.

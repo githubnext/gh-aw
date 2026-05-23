@@ -204,7 +204,7 @@ describe("mcp_server_core.cjs", () => {
       expect(results[0].error.message).toContain("Tool not found");
     });
 
-    it("should return error for missing required fields", async () => {
+    it("should reject @filepath local file references in tool arguments", async () => {
       const { handleMessage } = await import("./mcp_server_core.cjs");
 
       await handleMessage(server, {
@@ -213,7 +213,79 @@ describe("mcp_server_core.cjs", () => {
         method: "tools/call",
         params: {
           name: "test_tool",
-          arguments: {}, // missing required 'input'
+          arguments: { input: "@/tmp/gh-aw/agent/issue_body.md" },
+        },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].error.code).toBe(-32602);
+      expect(results[0].error.message).toContain("@filepath");
+      expect(results[0].error.message).toContain("not supported");
+      expect(results[0].error.message).toContain("Do not attempt to inline files");
+    });
+
+    it("should reject relative @filepath local file references in tool arguments", async () => {
+      const { handleMessage } = await import("./mcp_server_core.cjs");
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "test_tool",
+          arguments: { input: "@./notes.md" },
+        },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].error.code).toBe(-32602);
+
+      results.length = 0;
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "test_tool",
+          arguments: { input: "@../notes.md" },
+        },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].error.code).toBe(-32602);
+    });
+
+    it("should return error for empty arguments object (probe detection)", async () => {
+      const { handleMessage } = await import("./mcp_server_core.cjs");
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "test_tool",
+          arguments: {}, // completely empty — probe attempt
+        },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].error.code).toBe(-32602);
+      expect(results[0].error.message).toContain("write-once, not a discovery probe");
+      expect(results[0].error.message).toContain("tools/list");
+      expect(results[0].error.message).toContain("noop");
+    });
+
+    it("should return enhanced error for partially-supplied but invalid required fields", async () => {
+      const { handleMessage } = await import("./mcp_server_core.cjs");
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "test_tool",
+          arguments: { input: "" }, // present but empty string — not a probe
         },
       });
 

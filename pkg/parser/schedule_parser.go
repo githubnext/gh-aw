@@ -96,204 +96,17 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 	}
 	scheduleLog.Printf("Parsing interval schedule: tokens=%v", p.tokens)
 
-	// Check if "on weekdays" suffix is present at the end
 	hasWeekdaysSuffix := p.hasWeekdaysSuffix()
 
-	// Check if the second token is a duration format like "2h", "30m", "1d"
-	if len(p.tokens) == 2 || (len(p.tokens) == 4 && hasWeekdaysSuffix) || (len(p.tokens) > 2 && !hasWeekdaysSuffix && p.tokens[2] != "minutes" && p.tokens[2] != "hours" && p.tokens[2] != "minute" && p.tokens[2] != "hour") {
-		// Try to parse as short duration format: "every 2h", "every 30m", "every 1d"
-		durationStr := p.tokens[1]
-
-		// Check if it matches the pattern: number followed by unit letter (h, m, d, w, mo)
-		matches := durationPattern.FindStringSubmatch(durationStr)
-
-		if matches != nil {
-			interval, _ := strconv.Atoi(matches[1])
-			unit := matches[2]
-
-			// Check for conflicting "at time" clause (but allow "on weekdays")
-			endPos := len(p.tokens)
-			if hasWeekdaysSuffix {
-				endPos -= 2
-			}
-			if len(p.tokens) > 2 {
-				for i := 2; i < endPos; i++ {
-					if p.tokens[i] == "at" {
-						return "", errors.New("interval schedules cannot have 'at time' clause")
-					}
-				}
-			}
-
-			// Validate minimum duration of 5 minutes
-			totalMinutes := 0
-			switch unit {
-			case "m":
-				totalMinutes = interval
-			case "h":
-				totalMinutes = interval * 60
-			case "d":
-				totalMinutes = interval * 24 * 60
-			case "w":
-				totalMinutes = interval * 7 * 24 * 60
-			case "mo":
-				totalMinutes = interval * 30 * 24 * 60 // Approximate month as 30 days
-			}
-
-			if totalMinutes < 5 {
-				return "", fmt.Errorf("minimum schedule interval is 5 minutes, got %d minute(s)", totalMinutes)
-			}
-
-			switch unit {
-			case "m":
-				// every Nm -> */N * * * * (minute intervals don't need scattering)
-				// Minute intervals with weekdays not supported (would run every N minutes only on weekdays)
-				if hasWeekdaysSuffix {
-					return "", errors.New("minute intervals with 'on weekdays' are not supported")
-				}
-				return fmt.Sprintf("*/%d * * * *", interval), nil
-			case "h":
-				// every Nh -> FUZZY:HOURLY/N or FUZZY:HOURLY_WEEKDAYS/N (fuzzy hourly interval with scattering)
-				if hasWeekdaysSuffix {
-					return fmt.Sprintf("FUZZY:HOURLY_WEEKDAYS/%d * * *", interval), nil
-				}
-				return fmt.Sprintf("FUZZY:HOURLY/%d * * *", interval), nil
-			case "d":
-				// every Nd -> daily at midnight, repeated N times
-				// For single day, use daily. For multiple days, use interval in hours
-				if interval == 1 {
-					return "0 0 * * *", nil // daily
-				}
-				// Convert days to hours for cron expression
-				return fmt.Sprintf("0 0 */%d * *", interval), nil
-			case "w":
-				// every Nw -> weekly interval
-				// For single week, use weekly on sunday. For multiple weeks, convert to days
-				if interval == 1 {
-					return "0 0 * * 0", nil // weekly on sunday
-				}
-				// Convert weeks to days for cron expression
-				days := interval * 7
-				return fmt.Sprintf("0 0 */%d * *", days), nil
-			case "mo":
-				// every Nmo -> monthly interval
-				// Cron doesn't support every N months directly, use day of month pattern
-				if interval == 1 {
-					return "0 0 1 * *", nil // first day of every month
-				}
-				// For multiple months, use month interval
-				return fmt.Sprintf("0 0 1 */%d *", interval), nil
-			default:
-				return "", fmt.Errorf("unsupported duration unit '%s'", unit)
-			}
-		}
+	if cronExpr, handled, err := p.parseShortDurationInterval(hasWeekdaysSuffix); handled || err != nil {
+		return cronExpr, err
 	}
 
-	// Handle "every day [at HH:MM]" as an alias for a daily schedule.
-	// Examples: "every day" (2 tokens), "every day on weekdays" (4 tokens),
-	// or "every day at 9am" (4+ tokens with "at" at index 2).
-	if p.tokens[1] == "day" || p.tokens[1] == "days" {
-		// len == 2: "every day"; len == 4 with weekdays suffix: "every day on weekdays"
-		if len(p.tokens) == 2 || (len(p.tokens) == 4 && hasWeekdaysSuffix) {
-			// "every day" or "every day on weekdays" — fuzzy daily schedule
-			if hasWeekdaysSuffix {
-				return "FUZZY:DAILY_WEEKDAYS * * *", nil
-			}
-			return "FUZZY:DAILY * * *", nil
-		}
-		// tokens[2] == "at": "every day at HH:MM" — token layout is [every, day, at, time...]
-		if len(p.tokens) > 2 && p.tokens[2] == "at" {
-			// extractTime handles the "at" keyword at index 2 and reads the time token(s) after it
-			timeStr, err := p.extractTime(2)
-			if err != nil {
-				return "", err
-			}
-			min, hr := parseTime(timeStr)
-			return fmt.Sprintf("%s %s * * *", min, hr), nil
-		}
-		return "", errors.New("invalid 'every day' format, use 'every day' or 'every day at HH:MM'")
+	if cronExpr, handled, err := p.parseEveryDayIntervalAlias(hasWeekdaysSuffix); handled || err != nil {
+		return cronExpr, err
 	}
 
-	// Fall back to original parsing for "every N minutes" format
-	minTokens := 3
-	if hasWeekdaysSuffix {
-		minTokens = 5
-	}
-	if len(p.tokens) < minTokens {
-		return "", errors.New("invalid interval format, expected 'every N unit' or 'every Nunit' (e.g., 'every 2h')")
-	}
-
-	// Parse the interval number
-	intervalStr := p.tokens[1]
-	interval, err := strconv.Atoi(intervalStr)
-	if err != nil || interval < 1 {
-		return "", fmt.Errorf("invalid interval '%s', must be a positive integer", intervalStr)
-	}
-
-	// Parse the unit
-	unit := p.tokens[2]
-	if !strings.HasSuffix(unit, "s") {
-		unit += "s" // Normalize to plural (minute -> minutes)
-	}
-
-	// Check for conflicting "at time" clause (but allow "on weekdays")
-	endPos := len(p.tokens)
-	if hasWeekdaysSuffix {
-		endPos -= 2
-	}
-	if len(p.tokens) > 3 {
-		// Look for "at" keyword
-		for i := 3; i < endPos; i++ {
-			if p.tokens[i] == "at" {
-				return "", errors.New("interval schedules cannot have 'at time' clause")
-			}
-		}
-	}
-
-	// Validate unit before checking minimum duration
-	if unit != "minutes" && unit != "hours" && unit != "days" {
-		return "", fmt.Errorf("unsupported interval unit '%s', use 'minutes', 'hours', or 'days'", unit)
-	}
-
-	// Validate minimum duration of 5 minutes
-	totalMinutes := 0
-	switch unit {
-	case "minutes":
-		totalMinutes = interval
-	case "hours":
-		totalMinutes = interval * 60
-	case "days":
-		totalMinutes = interval * 24 * 60
-	}
-
-	if totalMinutes < 5 {
-		return "", fmt.Errorf("minimum schedule interval is 5 minutes, got %d minute(s)", totalMinutes)
-	}
-
-	switch unit {
-	case "minutes":
-		// every N minutes -> */N * * * * (minute intervals don't need scattering)
-		// Minute intervals with weekdays not supported
-		if hasWeekdaysSuffix {
-			return "", errors.New("minute intervals with 'on weekdays' are not supported")
-		}
-		return fmt.Sprintf("*/%d * * * *", interval), nil
-	case "hours":
-		// every N hours -> FUZZY:HOURLY/N or FUZZY:HOURLY_WEEKDAYS/N (fuzzy hourly interval with scattering)
-		if hasWeekdaysSuffix {
-			return fmt.Sprintf("FUZZY:HOURLY_WEEKDAYS/%d * * *", interval), nil
-		}
-		return fmt.Sprintf("FUZZY:HOURLY/%d * * *", interval), nil
-	case "days":
-		// every N days -> daily at midnight, repeated N times
-		// For single day, use daily. For multiple days, use interval in days
-		if interval == 1 {
-			return "0 0 * * *", nil // daily
-		}
-		// Convert days to day-of-month interval for cron expression
-		return fmt.Sprintf("0 0 */%d * *", interval), nil
-	default:
-		return "", fmt.Errorf("unsupported interval unit '%s', use 'minutes', 'hours', or 'days'", unit)
-	}
+	return p.parseLongInterval(hasWeekdaysSuffix)
 }
 
 // parseBase parses base schedules like "daily", "weekly on monday", etc.
@@ -304,207 +117,358 @@ func (p *ScheduleParser) parseBase() (string, error) {
 
 	baseType := p.tokens[0]
 	scheduleLog.Printf("Parsing base schedule: type=%s, tokens=%v", baseType, p.tokens)
-	var minute, hour, day, month, weekday string
-
-	// Default time is 00:00
-	minute = "0"
-	hour = "0"
-	day = "*"
-	month = "*"
-	weekday = "*"
-
-	// Check if "on weekdays" suffix is present at the end
 	hasWeekdaysSuffix := p.hasWeekdaysSuffix()
 
 	switch baseType {
 	case "daily":
-		// daily -> FUZZY:DAILY (fuzzy schedule, time will be scattered)
-		// daily on weekdays -> FUZZY:DAILY_WEEKDAYS (fuzzy schedule, Mon-Fri only)
-		// daily at HH:MM -> MM HH * * *
-		// daily around HH:MM -> FUZZY:DAILY_AROUND:HH:MM (fuzzy schedule with target time)
-		// daily around HH:MM on weekdays -> FUZZY:DAILY_AROUND_WEEKDAYS:HH:MM
-		// daily between HH:MM and HH:MM -> FUZZY:DAILY_BETWEEN:START_H:START_M:END_H:END_M (fuzzy schedule within time range)
-		// daily between HH:MM and HH:MM on weekdays -> FUZZY:DAILY_BETWEEN_WEEKDAYS:START_H:START_M:END_H:END_M
-		if len(p.tokens) == 1 || (len(p.tokens) == 3 && hasWeekdaysSuffix) {
-			// Just "daily" or "daily on weekdays" with no time - this is a fuzzy schedule
-			if hasWeekdaysSuffix {
-				return "FUZZY:DAILY_WEEKDAYS * * *", nil
-			}
-			return "FUZZY:DAILY * * *", nil
-		}
-		if len(p.tokens) > 1 {
-			// Check if "between" keyword is used
-			if p.tokens[1] == "between" {
-				// Parse: "daily between START and END"
-				// We need at least: daily between TIME and TIME (5 tokens minimum)
-				if len(p.tokens) < 5 {
-					return "", errors.New("invalid 'between' format, expected 'daily between START and END'")
-				}
-
-				// Find the "and" keyword to split start and end times
-				andIndex := -1
-				endPos := len(p.tokens)
-				// If "on weekdays" suffix, exclude the last 2 tokens from search
-				if hasWeekdaysSuffix {
-					endPos -= 2
-				}
-				for i := 2; i < endPos; i++ {
-					if p.tokens[i] == "and" {
-						andIndex = i
-						break
-					}
-				}
-				if andIndex == -1 {
-					return "", errors.New("missing 'and' keyword in 'between' clause")
-				}
-
-				// Extract start time (tokens between "between" and "and")
-				startTimeStr, err := p.extractTimeBetween(2, andIndex)
-				if err != nil {
-					return "", fmt.Errorf("invalid start time in 'between' clause: %w", err)
-				}
-				startMinute, startHour := parseTime(startTimeStr)
-
-				// Extract end time (tokens after "and", possibly excluding "on weekdays")
-				endTimeStr, err := p.extractTimeAfter(andIndex+1, hasWeekdaysSuffix)
-				if err != nil {
-					return "", fmt.Errorf("invalid end time in 'between' clause: %w", err)
-				}
-				endMinute, endHour := parseTime(endTimeStr)
-
-				// Validate that start is before end (in minutes since midnight)
-				startMinutes := parseTimeToMinutes(startHour, startMinute)
-				endMinutes := parseTimeToMinutes(endHour, endMinute)
-
-				// Allow ranges that cross midnight (e.g., 22:00 to 02:00)
-				// We'll handle this in the scattering logic
-				if startMinutes == endMinutes {
-					return "", errors.New("start and end times cannot be the same in 'between' clause")
-				}
-
-				// Return fuzzy between format with optional weekdays suffix
-				if hasWeekdaysSuffix {
-					return fmt.Sprintf("FUZZY:DAILY_BETWEEN_WEEKDAYS:%s:%s:%s:%s * * *", startHour, startMinute, endHour, endMinute), nil
-				}
-				return fmt.Sprintf("FUZZY:DAILY_BETWEEN:%s:%s:%s:%s * * *", startHour, startMinute, endHour, endMinute), nil
-			}
-			// Check if "around" keyword is used
-			if p.tokens[1] == "around" {
-				// Extract time after "around", possibly excluding "on weekdays"
-				timeStr, err := p.extractTimeWithWeekdays(2, hasWeekdaysSuffix)
-				if err != nil {
-					return "", err
-				}
-				// Parse the time to validate it
-				minute, hour = parseTime(timeStr)
-				// Return fuzzy around format with optional weekdays suffix
-				if hasWeekdaysSuffix {
-					return fmt.Sprintf("FUZZY:DAILY_AROUND_WEEKDAYS:%s:%s * * *", hour, minute), nil
-				}
-				return fmt.Sprintf("FUZZY:DAILY_AROUND:%s:%s * * *", hour, minute), nil
-			}
-			// Reject "daily at TIME" pattern - use cron directly for fixed times
-			return "", errors.New("'daily at <time>' syntax is not supported. Use fuzzy schedules like 'daily' (scattered), 'daily around <time>', or 'daily between <start> and <end>' for load distribution. For fixed times, use standard cron syntax (e.g., '0 14 * * *')")
-		}
-
+		return p.parseDailyBase(hasWeekdaysSuffix)
 	case "hourly":
-		// hourly -> FUZZY:HOURLY/1 (fuzzy hourly schedule, equivalent to "every 1h")
-		// hourly on weekdays -> FUZZY:HOURLY_WEEKDAYS/1 (fuzzy hourly schedule, Mon-Fri only)
-		scheduleLog.Printf("Parsing hourly schedule: weekdays=%v", hasWeekdaysSuffix)
-		if len(p.tokens) == 1 || (len(p.tokens) == 3 && hasWeekdaysSuffix) {
-			if hasWeekdaysSuffix {
-				return "FUZZY:HOURLY_WEEKDAYS/1 * * *", nil
-			}
-			return "FUZZY:HOURLY/1 * * *", nil
-		}
-		// hourly doesn't support time specifications
-		return "", errors.New("hourly schedule does not support 'at time' clause, use 'hourly' without additional parameters")
-
+		return p.parseHourlyBase(hasWeekdaysSuffix)
 	case "weekly":
-		// weekly -> FUZZY:WEEKLY (fuzzy schedule, day and time will be scattered)
-		// weekly on <weekday> -> FUZZY:WEEKLY:DOW (fuzzy schedule on specific weekday)
-		// weekly on <weekday> at HH:MM -> MM HH * * DOW
-		// weekly on <weekday> around HH:MM -> FUZZY:WEEKLY_AROUND:DOW:HH:MM
-		scheduleLog.Printf("Parsing weekly schedule: token_count=%d", len(p.tokens))
-		if len(p.tokens) == 1 {
-			// Just "weekly" with no day specified - this is a fuzzy schedule
-			return "FUZZY:WEEKLY * * *", nil
-		}
-
-		if len(p.tokens) < 3 || p.tokens[1] != "on" {
-			return "", errors.New("weekly schedule requires 'on <weekday>' or use 'weekly' alone for fuzzy schedule")
-		}
-
-		weekdayStr := p.tokens[2]
-		weekday = mapWeekday(weekdayStr)
-		if weekday == "" {
-			return "", fmt.Errorf("invalid weekday '%s'", weekdayStr)
-		}
-
-		if len(p.tokens) > 3 {
-			// Check if "around" keyword is used
-			if p.tokens[3] == "around" {
-				// Extract time after "around"
-				timeStr, err := p.extractTime(4)
-				if err != nil {
-					return "", err
-				}
-				// Parse the time to validate it
-				minute, hour = parseTime(timeStr)
-				// Return fuzzy around format: FUZZY:WEEKLY_AROUND:DOW:HH:MM
-				return fmt.Sprintf("FUZZY:WEEKLY_AROUND:%s:%s:%s * * *", weekday, hour, minute), nil
-			}
-			// Reject "weekly on <weekday> at TIME" pattern - use cron directly for fixed times
-			return "", fmt.Errorf("'weekly on <weekday> at <time>' syntax is not supported. Use fuzzy schedules like 'weekly on %s' (scattered), 'weekly on %s around <time>', or standard cron syntax (e.g., '30 6 * * %s')", weekdayStr, weekdayStr, weekday)
-		} else {
-			// weekly on <weekday> with no time - this is a fuzzy schedule
-			return fmt.Sprintf("FUZZY:WEEKLY:%s * * *", weekday), nil
-		}
-
+		return p.parseWeeklyBase()
 	case "bi-weekly":
-		// bi-weekly -> FUZZY:BI_WEEKLY (fuzzy schedule, scattered across 2 weeks)
-		if len(p.tokens) == 1 {
-			// Just "bi-weekly" with no additional parameters - scatter across 2 weeks
-			return "FUZZY:BI_WEEKLY * * *", nil
-		}
-		return "", errors.New("bi-weekly schedule does not support additional parameters, use 'bi-weekly' alone for fuzzy schedule")
-
+		return p.parseNamedFuzzyBase("bi-weekly", "FUZZY:BI_WEEKLY * * *")
 	case "tri-weekly":
-		// tri-weekly -> FUZZY:TRI_WEEKLY (fuzzy schedule, scattered across 3 weeks)
-		if len(p.tokens) == 1 {
-			// Just "tri-weekly" with no additional parameters - scatter across 3 weeks
-			return "FUZZY:TRI_WEEKLY * * *", nil
-		}
-		return "", errors.New("tri-weekly schedule does not support additional parameters, use 'tri-weekly' alone for fuzzy schedule")
-
+		return p.parseNamedFuzzyBase("tri-weekly", "FUZZY:TRI_WEEKLY * * *")
 	case "monthly":
-		// monthly on <day> -> rejected (use cron directly)
-		// monthly on <day> at HH:MM -> rejected (use cron directly)
-		scheduleLog.Printf("Parsing monthly schedule: token_count=%d", len(p.tokens))
-		if len(p.tokens) < 3 || p.tokens[1] != "on" {
-			return "", errors.New("monthly schedule requires 'on <day>'")
-		}
-
-		dayNum, err := strconv.Atoi(p.tokens[2])
-		if err != nil || dayNum < 1 || dayNum > 31 {
-			return "", fmt.Errorf("invalid day of month '%s', must be 1-31", p.tokens[2])
-		}
-		day = p.tokens[2]
-
-		// Reject monthly schedules - they always generate fixed times
-		// monthly on 15 -> 0 0 15 * * (midnight on 15th)
-		// monthly on 15 at 09:00 -> 0 9 15 * * (9am on 15th)
-		if len(p.tokens) > 3 {
-			return "", fmt.Errorf("'monthly on <day> at <time>' syntax is not supported. Use standard cron syntax for monthly schedules (e.g., '0 9 %s * *' for the %sth at 9am)", day, day)
-		}
-		return "", fmt.Errorf("'monthly on <day>' syntax is not supported. Use standard cron syntax for monthly schedules (e.g., '0 0 %s * *' for the %sth at midnight)", day, day)
+		return p.parseMonthlyBase()
 
 	default:
-		return "", fmt.Errorf("unsupported schedule type '%s', use 'daily', 'weekly', 'bi-weekly', 'tri-weekly', or 'monthly'", baseType)
+		return "", fmt.Errorf("unsupported schedule type '%s', use 'daily', 'hourly', 'weekly', 'bi-weekly', 'tri-weekly', or 'monthly'", baseType)
+	}
+}
+
+func (p *ScheduleParser) parseShortDurationInterval(hasWeekdaysSuffix bool) (string, bool, error) {
+	if !p.usesShortDurationSyntax(hasWeekdaysSuffix) {
+		return "", false, nil
 	}
 
-	// Build cron expression: MIN HOUR DOM MONTH DOW
-	return fmt.Sprintf("%s %s %s %s %s", minute, hour, day, month, weekday), nil
+	matches := durationPattern.FindStringSubmatch(p.tokens[1])
+	if matches == nil {
+		return "", false, nil
+	}
+
+	interval, _ := strconv.Atoi(matches[1])
+	unit := matches[2]
+	if err := p.validateIntervalTimeClause(2, hasWeekdaysSuffix); err != nil {
+		return "", true, err
+	}
+	if err := validateMinimumInterval(interval, unit); err != nil {
+		return "", true, err
+	}
+
+	cronExpr, err := formatShortDurationCron(interval, unit, hasWeekdaysSuffix)
+	return cronExpr, true, err
+}
+
+func (p *ScheduleParser) usesShortDurationSyntax(hasWeekdaysSuffix bool) bool {
+	return len(p.tokens) == 2 ||
+		(len(p.tokens) == 4 && hasWeekdaysSuffix) ||
+		(len(p.tokens) > 2 && !hasWeekdaysSuffix && p.tokens[2] != "minutes" && p.tokens[2] != "hours" && p.tokens[2] != "minute" && p.tokens[2] != "hour")
+}
+
+func (p *ScheduleParser) parseEveryDayIntervalAlias(hasWeekdaysSuffix bool) (string, bool, error) {
+	if p.tokens[1] != "day" && p.tokens[1] != "days" {
+		return "", false, nil
+	}
+	if len(p.tokens) == 2 || (len(p.tokens) == 4 && hasWeekdaysSuffix) {
+		if hasWeekdaysSuffix {
+			return "FUZZY:DAILY_WEEKDAYS * * *", true, nil
+		}
+		return "FUZZY:DAILY * * *", true, nil
+	}
+	if len(p.tokens) > 2 && p.tokens[2] == "at" {
+		timeStr, err := p.extractTime(2)
+		if err != nil {
+			return "", true, err
+		}
+		minute, hour := parseTime(timeStr)
+		if hasWeekdaysSuffix {
+			return fmt.Sprintf("%s %s * * 1-5", minute, hour), true, nil
+		}
+		return fmt.Sprintf("%s %s * * *", minute, hour), true, nil
+	}
+	return "", true, errors.New("invalid 'every day' format, use 'every day' or 'every day at HH:MM'")
+}
+
+func (p *ScheduleParser) parseLongInterval(hasWeekdaysSuffix bool) (string, error) {
+	if len(p.tokens) < p.minimumIntervalTokenCount(hasWeekdaysSuffix) {
+		return "", errors.New("invalid interval format, expected 'every N unit' or 'every Nunit' (e.g., 'every 2h')")
+	}
+
+	interval, unit, err := p.parseLongIntervalParts()
+	if err != nil {
+		return "", err
+	}
+	if err := p.validateIntervalTimeClause(3, hasWeekdaysSuffix); err != nil {
+		return "", err
+	}
+	if err := validateMinimumInterval(interval, unit); err != nil {
+		return "", err
+	}
+	return formatLongIntervalCron(interval, unit, hasWeekdaysSuffix)
+}
+
+func (p *ScheduleParser) minimumIntervalTokenCount(hasWeekdaysSuffix bool) int {
+	if hasWeekdaysSuffix {
+		return 5
+	}
+	return 3
+}
+
+func (p *ScheduleParser) parseLongIntervalParts() (int, string, error) {
+	intervalStr := p.tokens[1]
+	interval, err := strconv.Atoi(intervalStr)
+	if err != nil || interval < 1 {
+		return 0, "", fmt.Errorf("invalid interval '%s', must be a positive integer", intervalStr)
+	}
+
+	unit := p.tokens[2]
+	if !strings.HasSuffix(unit, "s") {
+		unit += "s"
+	}
+	if unit != "minutes" && unit != "hours" && unit != "days" {
+		return 0, "", fmt.Errorf("unsupported interval unit '%s', use 'minutes', 'hours', or 'days'", unit)
+	}
+	return interval, unit, nil
+}
+
+func (p *ScheduleParser) validateIntervalTimeClause(startPos int, hasWeekdaysSuffix bool) error {
+	endPos := len(p.tokens)
+	if hasWeekdaysSuffix {
+		endPos -= 2
+	}
+	for i := startPos; i < endPos; i++ {
+		if p.tokens[i] == "at" {
+			return errors.New("interval schedules cannot have 'at time' clause")
+		}
+	}
+	return nil
+}
+
+func validateMinimumInterval(interval int, unit string) error {
+	totalMinutes, err := intervalToMinutes(interval, unit)
+	if err != nil {
+		return err
+	}
+	if totalMinutes < 5 {
+		return fmt.Errorf("minimum schedule interval is 5 minutes, got %d minute(s)", totalMinutes)
+	}
+	return nil
+}
+
+func intervalToMinutes(interval int, unit string) (int, error) {
+	switch unit {
+	case "m", "minutes":
+		return interval, nil
+	case "h", "hours":
+		return interval * 60, nil
+	case "d", "days":
+		return interval * 24 * 60, nil
+	case "w":
+		return interval * 7 * 24 * 60, nil
+	case "mo":
+		return interval * 30 * 24 * 60, nil
+	default:
+		return 0, fmt.Errorf("unsupported duration unit '%s'", unit)
+	}
+}
+
+func formatShortDurationCron(interval int, unit string, hasWeekdaysSuffix bool) (string, error) {
+	switch unit {
+	case "m":
+		if hasWeekdaysSuffix {
+			return "", errors.New("minute intervals with 'on weekdays' are not supported")
+		}
+		return fmt.Sprintf("*/%d * * * *", interval), nil
+	case "h":
+		return formatHourlyIntervalCron(interval, hasWeekdaysSuffix), nil
+	case "d":
+		return formatDailyIntervalCron(interval), nil
+	case "w":
+		return formatWeeklyIntervalCron(interval), nil
+	case "mo":
+		return formatMonthlyIntervalCron(interval), nil
+	default:
+		return "", fmt.Errorf("unsupported duration unit '%s'", unit)
+	}
+}
+
+func formatLongIntervalCron(interval int, unit string, hasWeekdaysSuffix bool) (string, error) {
+	switch unit {
+	case "minutes":
+		if hasWeekdaysSuffix {
+			return "", errors.New("minute intervals with 'on weekdays' are not supported")
+		}
+		return fmt.Sprintf("*/%d * * * *", interval), nil
+	case "hours":
+		return formatHourlyIntervalCron(interval, hasWeekdaysSuffix), nil
+	case "days":
+		return formatDailyIntervalCron(interval), nil
+	default:
+		return "", fmt.Errorf("unsupported interval unit '%s', use 'minutes', 'hours', or 'days'", unit)
+	}
+}
+
+func formatHourlyIntervalCron(interval int, hasWeekdaysSuffix bool) string {
+	if hasWeekdaysSuffix {
+		return fmt.Sprintf("FUZZY:HOURLY_WEEKDAYS/%d * * *", interval)
+	}
+	return fmt.Sprintf("FUZZY:HOURLY/%d * * *", interval)
+}
+
+func formatDailyIntervalCron(interval int) string {
+	if interval == 1 {
+		return "0 0 * * *"
+	}
+	return fmt.Sprintf("0 0 */%d * *", interval)
+}
+
+func formatWeeklyIntervalCron(interval int) string {
+	if interval == 1 {
+		return "0 0 * * 0"
+	}
+	return fmt.Sprintf("0 0 */%d * *", interval*7)
+}
+
+func formatMonthlyIntervalCron(interval int) string {
+	if interval == 1 {
+		return "0 0 1 * *"
+	}
+	return fmt.Sprintf("0 0 1 */%d *", interval)
+}
+
+func (p *ScheduleParser) parseDailyBase(hasWeekdaysSuffix bool) (string, error) {
+	if len(p.tokens) == 1 || (len(p.tokens) == 3 && hasWeekdaysSuffix) {
+		if hasWeekdaysSuffix {
+			return "FUZZY:DAILY_WEEKDAYS * * *", nil
+		}
+		return "FUZZY:DAILY * * *", nil
+	}
+	switch p.tokens[1] {
+	case "between":
+		return p.parseDailyBetween(hasWeekdaysSuffix)
+	case "around":
+		return p.parseDailyAround(hasWeekdaysSuffix)
+	default:
+		return "", errors.New("'daily at <time>' syntax is not supported. Use fuzzy schedules like 'daily' (scattered), 'daily around <time>', or 'daily between <start> and <end>' for load distribution. For fixed times, use standard cron syntax (e.g., '0 14 * * *')")
+	}
+}
+
+func (p *ScheduleParser) parseDailyBetween(hasWeekdaysSuffix bool) (string, error) {
+	andIndex, err := p.findDailyBetweenSeparator(hasWeekdaysSuffix)
+	if err != nil {
+		return "", err
+	}
+
+	startTimeStr, err := p.extractTimeBetween(2, andIndex)
+	if err != nil {
+		return "", fmt.Errorf("invalid start time in 'between' clause: %w", err)
+	}
+	endTimeStr, err := p.extractTimeAfter(andIndex+1, hasWeekdaysSuffix)
+	if err != nil {
+		return "", fmt.Errorf("invalid end time in 'between' clause: %w", err)
+	}
+
+	startMinute, startHour := parseTime(startTimeStr)
+	endMinute, endHour := parseTime(endTimeStr)
+	if parseTimeToMinutes(startHour, startMinute) == parseTimeToMinutes(endHour, endMinute) {
+		return "", errors.New("start and end times cannot be the same in 'between' clause")
+	}
+	if hasWeekdaysSuffix {
+		return fmt.Sprintf("FUZZY:DAILY_BETWEEN_WEEKDAYS:%s:%s:%s:%s * * *", startHour, startMinute, endHour, endMinute), nil
+	}
+	return fmt.Sprintf("FUZZY:DAILY_BETWEEN:%s:%s:%s:%s * * *", startHour, startMinute, endHour, endMinute), nil
+}
+
+func (p *ScheduleParser) findDailyBetweenSeparator(hasWeekdaysSuffix bool) (int, error) {
+	if len(p.tokens) < 5 {
+		return -1, errors.New("invalid 'between' format, expected 'daily between START and END'")
+	}
+	endPos := len(p.tokens)
+	if hasWeekdaysSuffix {
+		endPos -= 2
+	}
+	for i := 2; i < endPos; i++ {
+		if p.tokens[i] == "and" {
+			return i, nil
+		}
+	}
+	return -1, errors.New("missing 'and' keyword in 'between' clause")
+}
+
+func (p *ScheduleParser) parseDailyAround(hasWeekdaysSuffix bool) (string, error) {
+	timeStr, err := p.extractTimeWithWeekdays(2, hasWeekdaysSuffix)
+	if err != nil {
+		return "", err
+	}
+
+	minute, hour := parseTime(timeStr)
+	if hasWeekdaysSuffix {
+		return fmt.Sprintf("FUZZY:DAILY_AROUND_WEEKDAYS:%s:%s * * *", hour, minute), nil
+	}
+	return fmt.Sprintf("FUZZY:DAILY_AROUND:%s:%s * * *", hour, minute), nil
+}
+
+func (p *ScheduleParser) parseHourlyBase(hasWeekdaysSuffix bool) (string, error) {
+	scheduleLog.Printf("Parsing hourly schedule: weekdays=%v", hasWeekdaysSuffix)
+	if len(p.tokens) == 1 || (len(p.tokens) == 3 && hasWeekdaysSuffix) {
+		return formatHourlyIntervalCron(1, hasWeekdaysSuffix), nil
+	}
+	return "", errors.New("hourly schedule does not support 'at time' clause, use 'hourly' without additional parameters")
+}
+
+func (p *ScheduleParser) parseWeeklyBase() (string, error) {
+	scheduleLog.Printf("Parsing weekly schedule: token_count=%d", len(p.tokens))
+	if len(p.tokens) == 1 {
+		return "FUZZY:WEEKLY * * *", nil
+	}
+	if len(p.tokens) < 3 || p.tokens[1] != "on" {
+		return "", errors.New("weekly schedule requires 'on <weekday>' or use 'weekly' alone for fuzzy schedule")
+	}
+
+	weekdayStr := p.tokens[2]
+	weekday := mapWeekday(weekdayStr)
+	if weekday == "" {
+		return "", fmt.Errorf("invalid weekday '%s'", weekdayStr)
+	}
+	if len(p.tokens) == 3 {
+		return fmt.Sprintf("FUZZY:WEEKLY:%s * * *", weekday), nil
+	}
+	if p.tokens[3] != "around" {
+		return "", fmt.Errorf("'weekly on <weekday> at <time>' syntax is not supported. Use fuzzy schedules like 'weekly on %s' (scattered), 'weekly on %s around <time>', or standard cron syntax (e.g., '30 6 * * %s')", weekdayStr, weekdayStr, weekday)
+	}
+
+	timeStr, err := p.extractTime(4)
+	if err != nil {
+		return "", err
+	}
+	minute, hour := parseTime(timeStr)
+	return fmt.Sprintf("FUZZY:WEEKLY_AROUND:%s:%s:%s * * *", weekday, hour, minute), nil
+}
+
+func (p *ScheduleParser) parseNamedFuzzyBase(name, cronExpr string) (string, error) {
+	if len(p.tokens) == 1 {
+		return cronExpr, nil
+	}
+	return "", fmt.Errorf("%s schedule does not support additional parameters, use '%s' alone for fuzzy schedule", name, name)
+}
+
+func (p *ScheduleParser) parseMonthlyBase() (string, error) {
+	scheduleLog.Printf("Parsing monthly schedule: token_count=%d", len(p.tokens))
+	if len(p.tokens) < 3 || p.tokens[1] != "on" {
+		return "", errors.New("monthly schedule requires 'on <day>'")
+	}
+
+	day := p.tokens[2]
+	dayNum, err := strconv.Atoi(day)
+	if err != nil || dayNum < 1 || dayNum > 31 {
+		return "", fmt.Errorf("invalid day of month '%s', must be 1-31", day)
+	}
+	if len(p.tokens) > 3 {
+		return "", fmt.Errorf("'monthly on <day> at <time>' syntax is not supported. Use standard cron syntax for monthly schedules (e.g., '0 9 %s * *' for the %sth at 9am)", day, day)
+	}
+	return "", fmt.Errorf("'monthly on <day>' syntax is not supported. Use standard cron syntax for monthly schedules (e.g., '0 0 %s * *' for the %sth at midnight)", day, day)
 }
 
 // extractTime extracts the time specification from tokens starting at startPos

@@ -81,6 +81,52 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 	}
 }
 
+func TestBuildStandardNpmEngineInstallSteps_RuntimeCooldownOverride(t *testing.T) {
+	t.Run("default cooldown enabled", func(t *testing.T) {
+		steps := BuildStandardNpmEngineInstallSteps(
+			"@github/copilot",
+			string(constants.DefaultCopilotVersion),
+			"Install GitHub Copilot CLI",
+			"copilot",
+			&WorkflowData{},
+		)
+
+		var content strings.Builder
+		for _, step := range steps {
+			content.WriteString(strings.Join(step, "\n"))
+			content.WriteString("\n")
+		}
+		if !strings.Contains(content.String(), "NPM_CONFIG_MIN_RELEASE_AGE: '3'") {
+			t.Fatalf("expected default npm cooldown env to be set")
+		}
+	})
+
+	t.Run("runtimes.node.cooldown false disables cooldown", func(t *testing.T) {
+		steps := BuildStandardNpmEngineInstallSteps(
+			"@github/copilot",
+			string(constants.DefaultCopilotVersion),
+			"Install GitHub Copilot CLI",
+			"copilot",
+			&WorkflowData{
+				Runtimes: map[string]any{
+					"node": map[string]any{
+						"cooldown": false,
+					},
+				},
+			},
+		)
+
+		var content strings.Builder
+		for _, step := range steps {
+			content.WriteString(strings.Join(step, "\n"))
+			content.WriteString("\n")
+		}
+		if strings.Contains(content.String(), "NPM_CONFIG_MIN_RELEASE_AGE") {
+			t.Fatalf("expected npm cooldown env to be omitted when runtimes.node.cooldown is false")
+		}
+	})
+}
+
 func TestBuildStandardNpmEngineInstallSteps_AllEngines(t *testing.T) {
 	tests := []struct {
 		name           string

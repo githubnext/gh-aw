@@ -122,6 +122,7 @@ on:
             
             // Labels that indicate an issue is a GOOD candidate for auto-assignment
             const priorityLabels = [
+              'community',
               'good first issue',
               'good-first-issue',
               'bug',
@@ -299,6 +300,11 @@ on:
                 let score = 0;
                 
                 // Score based on priority labels (higher score = higher priority)
+                // Community issues always get the highest priority — these are
+                // requests from external contributors and should be addressed first.
+                if (issueLabels.includes('community')) {
+                  score += 60;
+                }
                 if (issueLabels.includes('good first issue') || issueLabels.includes('good-first-issue')) {
                   score += 50;
                 }
@@ -473,6 +479,7 @@ The issue search has already been performed in the pre-activation job with smart
 
 **Scoring System:**
 Issues are scored and sorted by priority:
+- **Community**: +60 points *(always highest — issues from external contributors)*
 - Good first issue: +50 points
 - Security: +45 points
 - Bug: +40 points
@@ -630,6 +637,19 @@ Issue Monster runs frequently (every 30 minutes), so keeping each run lean is cr
 - ✅ **Always report outcome**: If no issues are assigned, use the `noop` tool to explain why
 - ✅ **Skip integrity-blocked issues**: If `issue_read` is blocked by integrity policy, skip that issue and continue — never call `missing_data` for integrity errors
 - ❌ **Don't force batching**: If only 1-2 clearly separate issues exist, assign only those
+
+## Formatting Requirements
+
+- **Header Levels**: Use h3 (`###`) or lower for all headers in your report to maintain proper document hierarchy. Never use h1 (`#`) or h2 (`##`) headers.
+- **Progressive Disclosure**: Wrap long sections or verbose details in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Keep critical information visible (summary, key outcomes, and recommendations) and use collapsible sections for secondary details.
+
+### Recommended Report Structure
+
+1. **Overview**: 1-2 paragraphs summarizing key findings (always visible)
+2. **Critical Information**: Key metrics, status, critical issues (always visible)
+3. **Details**: Use `<details><summary>Section Name</summary>` for expanded content
+4. **Recommendations**: Actionable next steps (always visible)
 
 ## Success Criteria
 

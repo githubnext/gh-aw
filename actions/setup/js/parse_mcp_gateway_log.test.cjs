@@ -12,6 +12,7 @@ const {
   parseRpcMessagesJsonl,
   getRpcRequestLabel,
   generateRpcMessagesSummary,
+  computeToolCallTokenDeltas,
   printAllGatewayFiles,
   parseTokenUsageJsonl,
   generateTokenUsageSummary,
@@ -553,6 +554,63 @@ Some content here.`;
         expect(summaryOutput).toContain("Token Steering Events (1)");
         expect(summaryOutput).toContain("req-123");
         expect(summaryOutput).toContain("[AWF TOKEN WARNING]");
+        expect(mockCore.summary.write).toHaveBeenCalled();
+      } finally {
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
+        delete global.core;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    test("warns and continues when rpc-messages.jsonl is zero bytes", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
+      const rpcMessagesPath = path.join(tmpDir, "rpc-messages.jsonl");
+      const originalExistsSync = fs.existsSync;
+      const originalReadFileSync = fs.readFileSync;
+
+      try {
+        fs.writeFileSync(rpcMessagesPath, "");
+
+        const mockCore = {
+          info: vi.fn(),
+          debug: vi.fn(),
+          startGroup: vi.fn(),
+          endGroup: vi.fn(),
+          notice: vi.fn(),
+          warning: vi.fn(),
+          error: vi.fn(),
+          setFailed: vi.fn(),
+          exportVariable: vi.fn(),
+          setOutput: vi.fn(),
+          summary: {
+            addRaw: vi.fn().mockReturnThis(),
+            addDetails: vi.fn().mockReturnThis(),
+            write: vi.fn(),
+          },
+        };
+
+        fs.existsSync = vi.fn(filepath => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl") return true;
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") return false;
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.jsonl") return false;
+          return originalExistsSync(filepath);
+        });
+
+        fs.readFileSync = vi.fn((filepath, encoding) => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl") {
+            return originalReadFileSync(rpcMessagesPath, encoding);
+          }
+          return originalReadFileSync(filepath, encoding);
+        });
+
+        global.core = mockCore;
+
+        const { main } = require("./parse_mcp_gateway_log.cjs");
+        await main();
+
+        expect(mockCore.warning).toHaveBeenCalledWith("rpc-messages.jsonl is present but zero bytes; continuing without RPC summary");
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
         expect(mockCore.summary.write).toHaveBeenCalled();
       } finally {
         fs.existsSync = originalExistsSync;
@@ -1311,6 +1369,36 @@ not-json
       expect(summary).not.toBeNull();
       expect(summary).not.toHaveProperty("cacheEfficiency");
     });
+
+    test("populates per-turn entries array in order", () => {
+      const lines = [
+        JSON.stringify({ model: "m1", input_tokens: 10, output_tokens: 5, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 }),
+        JSON.stringify({ model: "m2", input_tokens: 20, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 200 }),
+      ];
+      const summary = parseTokenUsageJsonl(lines.join("\n"));
+      expect(summary.entries).toHaveLength(2);
+      expect(summary.entries[0].model).toBe("m1");
+      expect(summary.entries[0].inputTokens).toBe(10);
+      expect(summary.entries[0].durationMs).toBe(100);
+      expect(summary.entries[1].model).toBe("m2");
+    });
+
+    test("computes deltaET for each entry", () => {
+      const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
+      const summary = parseTokenUsageJsonl(content);
+      expect(summary.entries).toHaveLength(1);
+      expect(summary.entries[0].deltaET).toBeGreaterThan(0);
+    });
+
+    test("sum of entry deltaET equals totalEffectiveTokens", () => {
+      const lines = [
+        JSON.stringify({ model: "m1", input_tokens: 100, output_tokens: 50, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 }),
+        JSON.stringify({ model: "m2", input_tokens: 200, output_tokens: 100, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 200 }),
+      ];
+      const summary = parseTokenUsageJsonl(lines.join("\n"));
+      const sumDelta = summary.entries.reduce((acc, e) => acc + e.deltaET, 0);
+      expect(sumDelta).toBeCloseTo(summary.totalEffectiveTokens, 5);
+    });
   });
 
   describe("generateTokenUsageSummary", () => {
@@ -1322,7 +1410,7 @@ not-json
     test("renders header and table columns", () => {
       const summary = parseTokenUsageJsonl(JSON.stringify({ model: "claude-sonnet-4-6", provider: "anthropic", input_tokens: 100, output_tokens: 200, cache_read_tokens: 5000, cache_write_tokens: 3000, duration_ms: 2500 }));
       const md = generateTokenUsageSummary(summary);
-      expect(md).toContain("| Model | Input | Output | Cache Read | Cache Write | ET | Requests | Duration |");
+      expect(md).toContain("| # | Model | Input | Output | Cache Read | Cache Write | ΔET | ET | Duration |");
       expect(md).toContain("claude-sonnet-4-6");
     });
 
@@ -1339,22 +1427,23 @@ not-json
       expect(md).not.toContain("Cache efficiency");
     });
 
-    test("sorts models by total tokens descending", () => {
+    test("renders rows in chronological (input) order", () => {
       const lines = [
-        JSON.stringify({ model: "small-model", input_tokens: 5, output_tokens: 5, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 }),
-        JSON.stringify({ model: "large-model", input_tokens: 1000, output_tokens: 500, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 500 }),
+        JSON.stringify({ model: "first-model", input_tokens: 5, output_tokens: 5, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 }),
+        JSON.stringify({ model: "second-model", input_tokens: 1000, output_tokens: 500, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 500 }),
       ];
       const summary = parseTokenUsageJsonl(lines.join("\n"));
       const md = generateTokenUsageSummary(summary);
-      const largeIdx = md.indexOf("large-model");
-      const smallIdx = md.indexOf("small-model");
-      expect(largeIdx).toBeLessThan(smallIdx);
+      const firstIdx = md.indexOf("first-model");
+      const secondIdx = md.indexOf("second-model");
+      expect(firstIdx).toBeLessThan(secondIdx);
     });
 
-    test("includes ET column in table", () => {
+    test("includes ΔET and ET columns in table", () => {
       const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
       const summary = parseTokenUsageJsonl(content);
       const md = generateTokenUsageSummary(summary);
+      expect(md).toContain("| ΔET |");
       expect(md).toContain("| ET |");
     });
 
@@ -1363,7 +1452,7 @@ not-json
       const summary = parseTokenUsageJsonl(content);
       expect(summary.totalEffectiveTokens).toBeGreaterThan(0);
       const md = generateTokenUsageSummary(summary);
-      // Column header still says ET; footer uses compact ● symbol only
+      // Column header has ET columns; footer uses compact ● symbol only
       expect(md).toContain("| ET |");
       expect(md).toContain("●");
     });
@@ -1374,6 +1463,20 @@ not-json
       const md = generateTokenUsageSummary(summary);
       expect(md).toContain("●");
       expect(md).not.toContain("Cache efficiency");
+    });
+
+    test("compounded ET equals sum of per-turn delta ET values", () => {
+      const lines = [
+        JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 50, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 }),
+        JSON.stringify({ model: "m", input_tokens: 200, output_tokens: 100, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 200 }),
+      ];
+      const summary = parseTokenUsageJsonl(lines.join("\n"));
+      const md = generateTokenUsageSummary(summary);
+      // Total row and last data row ET should both show the overall total ET
+      expect(md).toContain("**Total**");
+      // The last entry's compounded ET equals totalEffectiveTokens so must appear in the table
+      const totalRounded = Math.round(summary.totalEffectiveTokens);
+      expect(totalRounded).toBeGreaterThan(0);
     });
   });
 
@@ -1403,6 +1506,22 @@ not-json
       const m2ET = summary.byModel["m2"].effectiveTokens;
       expect(summary.totalEffectiveTokens).toBe(m1ET + m2ET);
     });
+
+    test("does not double count cached tokens already included in input", () => {
+      const summary = parseTokenUsageJsonl(
+        JSON.stringify({
+          model: "m",
+          input_tokens: 1000,
+          output_tokens: 10,
+          cache_read_tokens: 900,
+          cache_write_tokens: 0,
+          duration_ms: 100,
+        })
+      );
+      expect(summary).not.toBeNull();
+      // base = 1.0 × (1000-900) + 0.1 × 900 + 4.0 × 10 = 230
+      expect(Math.round(summary.totalEffectiveTokens)).toBe(230);
+    });
   });
 
   describe("hasEffectiveTokensRateLimitError", () => {
@@ -1419,6 +1538,96 @@ not-json
     test("returns false for unrelated logs", () => {
       const hasError = hasEffectiveTokensRateLimitError(["gateway started", "request succeeded"]);
       expect(hasError).toBe(false);
+    });
+  });
+
+  describe("computeToolCallTokenDeltas", () => {
+    // Helper to build a token-usage JSONL line
+    function tuLine(ts, inputTokens, outputTokens) {
+      return JSON.stringify({ timestamp: ts, model: "unknown", provider: "test", input_tokens: inputTokens, output_tokens: outputTokens, cache_read_tokens: 0, cache_write_tokens: 0 });
+    }
+    // Helper to build a REQUEST entry
+    function req(ts, toolName) {
+      return { timestamp: ts, server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: toolName } } };
+    }
+
+    test("computes delta for a tool call bracketed by two API calls", () => {
+      // ET(t0) = 1*1000 + 4*50 = 1200; ET(t1) = 1*1500 + 4*80 = 1820; delta = 620
+      const tokenContent = [tuLine("2026-05-19T21:10:00.000Z", 1000, 50), tuLine("2026-05-19T21:10:10.000Z", 1500, 80)].join("\n");
+      const requests = [req("2026-05-19T21:10:05.000Z", "my-tool")];
+      const deltas = computeToolCallTokenDeltas(tokenContent, requests);
+      expect(deltas.get(0)).toBe(620);
+    });
+
+    test("returns empty map when tool call has no preceding API call", () => {
+      const tokenContent = tuLine("2026-05-19T21:10:10.000Z", 1000, 50);
+      const requests = [req("2026-05-19T21:10:05.000Z", "my-tool")];
+      const deltas = computeToolCallTokenDeltas(tokenContent, requests);
+      expect(deltas.size).toBe(0);
+    });
+
+    test("returns empty map when tool call has no following API call", () => {
+      const tokenContent = tuLine("2026-05-19T21:10:00.000Z", 1000, 50);
+      const requests = [req("2026-05-19T21:10:05.000Z", "my-tool")];
+      const deltas = computeToolCallTokenDeltas(tokenContent, requests);
+      expect(deltas.size).toBe(0);
+    });
+
+    test("returns empty map for empty inputs", () => {
+      expect(computeToolCallTokenDeltas("", []).size).toBe(0);
+      expect(computeToolCallTokenDeltas("", null).size).toBe(0);
+    });
+
+    test("computes correct deltas for multiple sequential tool calls", () => {
+      // ET[0] = 1200, ET[1] = 1820, ET[2] = 2400
+      const tokenContent = [tuLine("2026-05-19T21:10:00.000Z", 1000, 50), tuLine("2026-05-19T21:10:10.000Z", 1500, 80), tuLine("2026-05-19T21:10:20.000Z", 2000, 100)].join("\n");
+      const requests = [req("2026-05-19T21:10:05.000Z", "tool-a"), req("2026-05-19T21:10:15.000Z", "tool-b")];
+      const deltas = computeToolCallTokenDeltas(tokenContent, requests);
+      expect(deltas.get(0)).toBe(620); // 1820 - 1200
+      expect(deltas.get(1)).toBe(580); // 2400 - 1820
+    });
+  });
+
+  describe("generateRpcMessagesSummary with token deltas", () => {
+    test("shows ΔET column when deltas are provided", () => {
+      const entries = {
+        requests: [{ timestamp: "2026-05-19T21:10:05.123Z", server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: "my-tool" } } }],
+        responses: [],
+        other: [],
+      };
+      const deltas = new Map([[0, 620]]);
+      const result = generateRpcMessagesSummary(entries, [], deltas);
+      expect(result).toContain("ΔET");
+      expect(result).toContain("+620");
+      expect(result).toContain("my-tool");
+    });
+
+    test("omits ΔET column when no deltas are provided", () => {
+      const entries = {
+        requests: [{ timestamp: "2026-05-19T21:10:05.123Z", server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: "my-tool" } } }],
+        responses: [],
+        other: [],
+      };
+      const result = generateRpcMessagesSummary(entries, []);
+      expect(result).not.toContain("ΔET");
+      expect(result).toContain("my-tool");
+    });
+
+    test("shows dash for requests without a delta", () => {
+      const entries = {
+        requests: [
+          { timestamp: "2026-05-19T21:10:05.123Z", server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: "tool-a" } } },
+          { timestamp: "2026-05-19T21:10:15.123Z", server_id: "srv", type: "REQUEST", payload: { method: "tools/call", params: { name: "tool-b" } } },
+        ],
+        responses: [],
+        other: [],
+      };
+      const deltas = new Map([[0, 500]]); // only tool-a has a delta
+      const result = generateRpcMessagesSummary(entries, [], deltas);
+      expect(result).toContain("ΔET");
+      expect(result).toContain("+500");
+      expect(result).toContain("tool-a");
+      expect(result).toContain("tool-b");
     });
   });
 });

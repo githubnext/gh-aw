@@ -8,10 +8,7 @@
       "extensions": [
         "golang.go",
         "GitHub.copilot-chat",
-        "GitHub.copilot",
-        "github.vscode-github-actions",
-        "astro-build.astro-vscode",
-        "DavidAnson.vscode-markdownlint"
+        "GitHub.copilot"
       ]
     },
     "codespaces": {
@@ -19,6 +16,7 @@
         "github/gh-aw": {
           "permissions": {
             "actions": "write",
+            "checks": "write",
             "contents": "write",
             "discussions": "read",
             "issues": "read",

@@ -1,5 +1,7 @@
 package workflow
 
+import "reflect"
+
 // countRuntimes counts the number of non-nil runtimes in RuntimesConfig
 func countRuntimes(config *RuntimesConfig) int {
 	if config == nil {
@@ -140,12 +142,15 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Network != nil {
 		// Convert NetworkPermissions to map format
 		// If allowed list is just ["defaults"], convert to string format "defaults"
-		if len(fc.Network.Allowed) == 1 && fc.Network.Allowed[0] == "defaults" && fc.Network.Firewall == nil && len(fc.Network.Blocked) == 0 {
+		if len(fc.Network.Allowed) == 1 && fc.Network.Allowed[0] == "defaults" && !fc.Network.AllowedInput && fc.Network.Firewall == nil && len(fc.Network.Blocked) == 0 {
 			result["network"] = "defaults"
 		} else {
 			networkMap := make(map[string]any)
 			if len(fc.Network.Allowed) > 0 {
 				networkMap["allowed"] = fc.Network.Allowed
+			}
+			if fc.Network.AllowedInput {
+				networkMap["allowed-input"] = true
 			}
 			if len(fc.Network.Blocked) > 0 {
 				networkMap["blocked"] = fc.Network.Blocked
@@ -177,7 +182,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	}
 
 	// Execution settings
-	if fc.RunsOn != "" {
+	if !isNilValue(fc.RunsOn) {
 		result["runs-on"] = fc.RunsOn
 	}
 	if fc.RunsOnSlim != "" {
@@ -230,6 +235,20 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	return result
 }
 
+func isNilValue(v any) bool {
+	if v == nil {
+		return true
+	}
+
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return rv.IsNil()
+	default:
+		return false
+	}
+}
+
 // runtimeConfigToMap converts a single RuntimeConfig to map[string]any
 func runtimeConfigToMap(rc *RuntimeConfig) map[string]any {
 	m := map[string]any{}
@@ -244,6 +263,9 @@ func runtimeConfigToMap(rc *RuntimeConfig) map[string]any {
 	}
 	if rc.ActionVersion != "" {
 		m["action-version"] = rc.ActionVersion
+	}
+	if rc.Cooldown != nil {
+		m["cooldown"] = *rc.Cooldown
 	}
 	if rc.RunInstallScripts != nil {
 		m["run-install-scripts"] = *rc.RunInstallScripts

@@ -340,7 +340,7 @@
       ],
       "examples": [
         ["shared/jqschema.md", "shared/reporting.md"],
-        ["shared/mcp/gh-aw.md", "shared/jqschema.md", "shared/reporting.md"],
+        ["shared/mcp/tavily.md", "shared/jqschema.md", "shared/reporting.md"],
         ["../instructions/documentation.instructions.md"],
         [".github/agents/my-agent.md"],
         [
@@ -2293,24 +2293,7 @@
             "description": "Name of the job"
           },
           "runs-on": {
-            "oneOf": [
-              {
-                "type": "string",
-                "description": "Runner type as string"
-              },
-              {
-                "type": "array",
-                "description": "Runner type as array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              {
-                "type": "object",
-                "description": "Runner type as object",
-                "additionalProperties": false
-              }
-            ],
+            "$ref": "#/$defs/github_actions_runs_on",
             "description": "Runner label or environment where the job executes. Can be a string (single runner) or array (multiple runner requirements)."
           },
           "steps": {
@@ -2623,38 +2606,7 @@
       }
     },
     "runs-on": {
-      "description": "Runner type for workflow execution (GitHub Actions standard field). Supports multiple forms: simple string for single runner label (e.g., 'ubuntu-latest'), array for runner selection with fallbacks, or object for GitHub-hosted runner groups with specific labels. For agentic workflows, runner selection matters when AI workloads require specific compute resources or when using self-hosted runners with specialized capabilities. Typically configured at the job level instead. See https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job",
-      "oneOf": [
-        {
-          "type": "string",
-          "description": "Simple runner label string. Use for standard GitHub-hosted runners (e.g., 'ubuntu-latest', 'windows-latest', 'macos-latest') or self-hosted runner labels. Most common form for agentic workflows."
-        },
-        {
-          "type": "array",
-          "description": "Array of runner labels for selection with fallbacks. GitHub Actions will use the first available runner that matches any label in the array. Useful for high-availability setups or when multiple runner types are acceptable.",
-          "items": {
-            "type": "string"
-          }
-        },
-        {
-          "type": "object",
-          "description": "Runner group configuration for GitHub-hosted runners. Use this form to target specific runner groups (e.g., larger runners with more CPU/memory) or self-hosted runner pools with specific label requirements. Agentic workflows may benefit from larger runners for complex AI processing tasks.",
-          "additionalProperties": false,
-          "properties": {
-            "group": {
-              "type": "string",
-              "description": "Runner group name for self-hosted runners or GitHub-hosted runner groups"
-            },
-            "labels": {
-              "type": "array",
-              "description": "List of runner labels for self-hosted runners or GitHub-hosted runner selection",
-              "items": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      ],
+      "$ref": "#/$defs/github_actions_runs_on",
       "examples": [
         "ubuntu-latest",
         ["ubuntu-latest", "self-hosted"],
@@ -2983,14 +2935,9 @@
         }
       }
     },
-    "infer": {
-      "type": "boolean",
-      "description": "DEPRECATED: Use 'disable-model-invocation' instead. Controls whether the custom agent should infer additional context from the conversation. This field is maintained for backward compatibility with existing custom agent files.",
-      "examples": [false]
-    },
     "disable-model-invocation": {
       "type": "boolean",
-      "description": "Controls whether the custom agent should disable model invocation. When set to true, the agent will not make additional model calls. This is the preferred field name for custom agent files (replaces the deprecated 'infer' field).",
+      "description": "Controls whether the custom agent should disable model invocation. When set to true, the agent will not make additional model calls.",
       "examples": [true]
     },
     "secrets": {
@@ -3231,6 +3178,10 @@
                 "description": "Domain name or ecosystem identifier. Supports wildcards like '*.example.com' (matches sub.example.com, deep.nested.example.com, and example.com itself). Ecosystem identifiers by runtime: 'dotnet' (.NET/NuGet), 'python' (pip/PyPI), 'node' (npm/yarn), 'go' (go modules), 'java' (Maven/Gradle), 'ruby' (RubyGems), 'rust' (Cargo), 'swift' (Swift PM), 'php' (Composer), 'dart' (pub.dev), 'haskell' (Hackage), 'perl' (CPAN), 'containers' (Docker/GHCR), 'github' (GitHub domains), 'terraform' (HashiCorp), 'linux-distros' (apt/yum), 'playwright' (browser testing), 'defaults' (basic infrastructure)."
               },
               "$comment": "Empty array is valid and means deny all network access. Omit the field entirely or use network: defaults to use default network permissions. Wildcard patterns like '*.example.com' are allowed; only standalone '*' is blocked in strict mode."
+            },
+            "allowed-input": {
+              "type": "boolean",
+              "description": "When true and the workflow uses workflow_call, expose a network_allowed string input on the compiled lock file. The caller-supplied value is unioned with network.allowed at runtime, supporting ecosystem identifiers (for example 'rust') or comma-separated domains."
             },
             "blocked": {
               "type": "array",
@@ -3912,25 +3863,6 @@
                     }
                   ]
                 },
-                "toolset": {
-                  "description": "Deprecated. Use 'toolsets' instead.",
-                  "deprecated": true,
-                  "oneOf": [
-                    {
-                      "$ref": "#/$defs/github_toolset_name",
-                      "description": "A single GitHub MCP server toolset name (shorthand for a one-element array)"
-                    },
-                    {
-                      "type": "array",
-                      "description": "Array of GitHub MCP server toolset names",
-                      "items": {
-                        "$ref": "#/$defs/github_toolset_name"
-                      },
-                      "minItems": 1,
-                      "maxItems": 20
-                    }
-                  ]
-                },
                 "mounts": {
                   "type": "array",
                   "description": "Volume mounts for the containerized GitHub MCP server (format: 'host:container:mode' where mode is 'ro' for read-only or 'rw' for read-write). Applies to local mode only. Example: '/data:/data:ro'",
@@ -3963,6 +3895,7 @@
                 "repos": {
                   "description": "Deprecated. Use 'allowed-repos' instead.",
                   "deprecated": true,
+                  "x-deprecation-message": "'tools.github.repos' is deprecated. Use 'tools.github.allowed-repos' instead. Run 'gh aw fix' to automatically migrate.",
                   "oneOf": [
                     {
                       "type": "string",
@@ -4491,6 +4424,7 @@
         "serena": {
           "description": "REMOVED: Built-in support for Serena has been removed. Use the shared/mcp/serena.md workflow instead.",
           "deprecated": true,
+          "x-deprecation-message": "Built-in support for Serena has been removed. Import shared/mcp/serena.md instead:\n  imports:\n    - uses: shared/mcp/serena.md\n      with:\n        languages: [\"go\", \"typescript\"]",
           "x-removed": true,
           "x-removal-message": "tools.serena built-in support has been removed. Import shared/mcp/serena.md instead:\n  imports:\n    - uses: shared/mcp/serena.md\n      with:\n        languages: [\"go\", \"typescript\"]"
         },
@@ -4852,7 +4786,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, assign-to-user, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-code-scanning-alert, create-discussion, create-issue, create-project, create-project-status-update, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, merge-pull-request, missing-data, missing-tool, noop, push-to-pull-request-branch, remove-labels, reply-to-pull-request-review-comment, resolve-pull-request-review-thread, set-issue-field, set-issue-type, submit-pull-request-review, threat-detection, unassign-from-user, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-artifact, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, assign-to-user, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-check-run, create-code-scanning-alert, create-discussion, create-issue, create-project, create-project-status-update, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, merge-pull-request, missing-data, missing-tool, noop, push-to-pull-request-branch, remove-labels, reply-to-pull-request-review-comment, resolve-pull-request-review-thread, set-issue-field, set-issue-type, submit-pull-request-review, threat-detection, unassign-from-user, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-artifact, upload-asset. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -5066,6 +5000,7 @@
               "type": "object",
               "description": "DEPRECATED: Use 'create-agent-session' instead. Configuration for creating GitHub Copilot coding agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
               "deprecated": true,
+              "x-deprecation-message": "'create-agent-task' is deprecated. Use 'create-agent-session' instead.",
               "properties": {
                 "base": {
                   "type": "string",
@@ -5656,6 +5591,12 @@
                   "type": "string",
                   "description": "Only close discussions with this title prefix"
                 },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Deprecated alias for required-title-prefix",
+                  "deprecated": true,
+                  "x-deprecation-message": "'title-prefix' is deprecated in safe-outputs.close-discussion. Use 'required-title-prefix' instead."
+                },
                 "required-category": {
                   "type": "string",
                   "description": "Only close discussions in this category"
@@ -5796,6 +5737,12 @@
                   "type": "string",
                   "description": "Only close issues with this title prefix"
                 },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Deprecated alias for required-title-prefix",
+                  "deprecated": true,
+                  "x-deprecation-message": "'title-prefix' is deprecated in safe-outputs.close-issue. Use 'required-title-prefix' instead."
+                },
                 "target": {
                   "type": "string",
                   "description": "Target for closing: 'triggering' (default, current issue), or '*' (any issue with issue_number field)"
@@ -5873,6 +5820,12 @@
                   "type": "string",
                   "description": "Only close pull requests with this title prefix"
                 },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Deprecated alias for required-title-prefix",
+                  "deprecated": true,
+                  "x-deprecation-message": "'title-prefix' is deprecated in safe-outputs.close-pull-request. Use 'required-title-prefix' instead."
+                },
                 "target": {
                   "type": "string",
                   "description": "Target for closing: 'triggering' (default, current PR), or '*' (any PR with pull_request_number field)"
@@ -5940,6 +5893,12 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "Only mark pull requests with this title prefix"
+                },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Deprecated alias for required-title-prefix",
+                  "deprecated": true,
+                  "x-deprecation-message": "'title-prefix' is deprecated in safe-outputs.mark-pull-request-as-ready-for-review. Use 'required-title-prefix' instead."
                 },
                 "target": {
                   "type": "string",
@@ -6070,6 +6029,19 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "description": "Conjunctive label constraint: ALL of these labels must be present on the issue/PR for the operation to proceed."
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "Title prefix constraint: the issue/PR title must start with this prefix for the operation to proceed."
                 },
                 "staged": {
                   "type": "boolean",
@@ -6271,6 +6243,23 @@
                   "type": "string",
                   "description": "Base branch for the pull request. Defaults to the workflow's branch (github.ref_name) if not specified. Useful for cross-repository PRs targeting non-default branches (e.g., 'vnext', 'release/v1.0')."
                 },
+                "allowed-branches": {
+                  "description": "Optional list of allowed source branch patterns (glob syntax, e.g. 'feature/*', 'release/*'). When configured, the effective create_pull_request branch must match one of these patterns. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-branches\\'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of source branch patterns (glob syntax supported)",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of source branch patterns (e.g. '${{ inputs[\\'allowed-branches\\'] }}')"
+                    }
+                  ]
+                },
                 "allowed-base-branches": {
                   "description": "Optional list of allowed base branch patterns (glob syntax, e.g. 'main', 'release/*'). When configured, the agent may provide a `base` field in create_pull_request output to override base-branch for a single run, but only if it matches one of these patterns. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-base-branches\\'] }}').",
                   "oneOf": [
@@ -6287,6 +6276,17 @@
                       "description": "GitHub Actions expression resolving to a comma-separated list of base branch patterns (e.g. '${{ inputs[\\'allowed-base-branches\\'] }}')"
                     }
                   ]
+                },
+                "max-patch-size": {
+                  "type": "integer",
+                  "description": "Maximum allowed size for git patches in kilobytes (KB) for create-pull-request only. Overrides safe-outputs max-patch-size for this output type. Defaults to 1024 KB (1 MB) when unset.",
+                  "minimum": 1,
+                  "maximum": 10240
+                },
+                "max-patch-files": {
+                  "type": "integer",
+                  "description": "Maximum allowed number of unique files in a create-pull-request patch. Overrides safe-outputs max-patch-files for this output type. Defaults to 100 when unset.",
+                  "minimum": 1
                 },
                 "footer": {
                   "type": "boolean",
@@ -6315,14 +6315,14 @@
                   "oneOf": [
                     {
                       "type": "string",
-                      "enum": ["blocked", "allowed", "fallback-to-issue"],
-                      "description": "Controls protected-file protection. blocked (default): hard-block any patch that modifies package manifests (e.g. package.json, go.mod), engine instruction files (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow all changes. fallback-to-issue: push the branch but create a review issue instead of a PR, so a human can review the manifest changes before merging.",
-                      "default": "blocked"
+                      "enum": ["blocked", "allowed", "fallback-to-issue", "request_review"],
+                      "description": "Controls protected-file protection. request_review (default): create the PR but prepend a caution block and submit a REQUEST_CHANGES review for manual scrutiny. blocked: hard-block any patch that modifies package manifests (e.g. package.json, go.mod), engine instruction files (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow all changes. fallback-to-issue: push the branch but create a review issue instead of a PR, so a human can review the manifest changes before merging.",
+                      "default": "request_review"
                     },
                     {
                       "type": "string",
                       "pattern": "^\\$\\{\\{.*\\}\\}$",
-                      "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to parameterise the policy per caller."
+                      "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', 'fallback-to-issue', or 'request_review' at runtime. Use in reusable workflow_call workflows to parameterise the policy per caller."
                     },
                     {
                       "type": "object",
@@ -6331,14 +6331,14 @@
                           "oneOf": [
                             {
                               "type": "string",
-                              "enum": ["blocked", "allowed", "fallback-to-issue"],
-                              "description": "Protection policy. blocked (default): hard-block any patch that modifies protected files. allowed: allow all changes. fallback-to-issue: push the branch but create a review issue instead of a PR.",
-                              "default": "blocked"
+                              "enum": ["blocked", "allowed", "fallback-to-issue", "request_review"],
+                              "description": "Protection policy. request_review (default): create the PR but prepend a caution block and submit a REQUEST_CHANGES review. blocked: hard-block any patch that modifies protected files. allowed: allow all changes. fallback-to-issue: push the branch but create a review issue instead of a PR.",
+                              "default": "request_review"
                             },
                             {
                               "type": "string",
                               "pattern": "^\\$\\{\\{.*\\}\\}$",
-                              "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime."
+                              "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', 'fallback-to-issue', or 'request_review' at runtime."
                             }
                           ]
                         },
@@ -6355,7 +6355,7 @@
                       "description": "Object form for granular control over the protected-file set. Use the exclude list to remove specific files from the default protection while keeping the rest."
                     }
                   ],
-                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue \u2014 or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
+                  "description": "Controls protected-file protection. String form: request_review (default), blocked, allowed, or fallback-to-issue \u2014 or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
                 },
                 "allowed-files": {
                   "type": "array",
@@ -6485,6 +6485,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -6567,6 +6578,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -6627,6 +6649,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -6667,6 +6700,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -6771,6 +6815,70 @@
           ],
           "description": "Enable AI agents to create autofixes for code scanning alerts using the GitHub REST API."
         },
+        "create-check-run": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub Check Runs to surface agent analysis results on commits and pull requests",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Check run name shown in the GitHub Checks UI (e.g., 'Security Analysis'). If omitted, defaults to the workflow name."
+                },
+                "max": {
+                  "description": "Maximum number of check runs to create per workflow run (default: 1). Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App credentials for minting an installation access token scoped to checks:write for this handler. When set, a short-lived token is minted before the handler runs and revoked afterwards."
+                },
+                "output": {
+                  "type": "object",
+                  "description": "Optional static fallback values for the check run output fields. Used when the agent does not provide the corresponding field.",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "maxLength": 256,
+                      "description": "Fallback title for the check run output (max 256 characters). Used when the agent does not supply a title."
+                    },
+                    "summary": {
+                      "type": "string",
+                      "maxLength": 65535,
+                      "description": "Fallback summary for the check run output (max 65535 characters, GitHub API limit). Used when the agent does not supply a summary."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable check run creation with default configuration (max: 1)"
+            }
+          ],
+          "description": "Enable AI agents to create GitHub Check Runs that surface analysis results in the PR checks UI. Requires checks: write permission."
+        },
         "add-labels": {
           "oneOf": [
             {
@@ -6831,6 +6939,19 @@
                     "type": "string"
                   },
                   "description": "List of additional repositories in format 'owner/repo' that labels can be added to. When specified, the agent can use a 'repo' field in the output to specify which repository to add labels to. The target repository (current or target-repo) is always implicitly allowed."
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "description": "Conjunctive label constraint: ALL of these labels must be present on the issue/PR for the operation to proceed."
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "Title prefix constraint: the issue/PR title must start with this prefix for the operation to proceed."
                 },
                 "staged": {
                   "type": "boolean",
@@ -6904,6 +7025,19 @@
                   },
                   "description": "List of additional repositories in format 'owner/repo' that labels can be removed from. When specified, the agent can use a 'repo' field in the output to specify which repository to remove labels from. The target repository (current or target-repo) is always implicitly allowed."
                 },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "description": "Conjunctive label constraint: ALL of these labels must be present on the issue/PR for the operation to proceed."
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "Title prefix constraint: the issue/PR title must start with this prefix for the operation to proceed."
+                },
                 "staged": {
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
@@ -6925,17 +7059,46 @@
               "type": "object",
               "description": "Configuration for adding reviewers to pull requests from agentic workflow output",
               "properties": {
-                "reviewers": {
+                "allowed-reviewers": {
                   "type": "array",
-                  "description": "Optional list of allowed reviewers. If omitted, any reviewers are allowed.",
+                  "description": "Optional list of allowed reviewer usernames. If omitted, any reviewers are allowed.",
                   "items": {
                     "type": "string"
                   },
                   "minItems": 1,
                   "maxItems": 50
                 },
-                "team-reviewers": {
+                "reviewers": {
+                  "type": "array",
+                  "description": "Deprecated alias for allowed-reviewers",
+                  "deprecated": true,
+                  "x-deprecation-message": "'reviewers' is deprecated in safe-outputs.add-reviewer. Use 'allowed-reviewers' instead.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                },
+                "allowed-team-reviewers": {
                   "description": "Optional allowed team reviewer or list of allowed team reviewers. If omitted, any team reviewers are allowed.",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "maxItems": 50
+                    }
+                  ]
+                },
+                "team-reviewers": {
+                  "description": "Deprecated alias for allowed-team-reviewers",
+                  "deprecated": true,
+                  "x-deprecation-message": "'team-reviewers' is deprecated in safe-outputs.add-reviewer. Use 'allowed-team-reviewers' instead.",
                   "oneOf": [
                     {
                       "type": "string"
@@ -6980,6 +7143,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7032,6 +7206,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7195,6 +7380,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7263,6 +7459,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7406,6 +7613,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7476,6 +7694,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7518,21 +7747,23 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "List of labels that must all be present on the pull request before merge is allowed."
+                  "description": "List of labels that must ALL be present on the pull request before merge is allowed."
                 },
                 "allowed-labels": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Exact pull request label names. At least one existing PR label must exactly match one of these values when configured."
+                  "description": "Deprecated alias for required-labels",
+                  "deprecated": true,
+                  "x-deprecation-message": "'allowed-labels' is deprecated in safe-outputs.merge-pull-request. Use 'required-labels' instead."
                 },
                 "allowed-branches": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Glob patterns for allowed source branch names (pull request head ref)."
+                  "description": "Glob patterns for allowed source branch names (pull request head ref). The PR's branch must match at least one pattern."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -7542,6 +7773,10 @@
                   "type": "boolean",
                   "description": "If true, evaluate merge gates and emit preview results without executing the merge API call.",
                   "examples": [true, false]
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7583,12 +7818,37 @@
                   "type": "string",
                   "description": "Target for push operations: 'triggering' (default), '*' (any pull request), or explicit pull request number"
                 },
-                "title-prefix": {
+                "required-title-prefix": {
                   "type": "string",
                   "description": "Required prefix for pull request title. Only pull requests with this prefix will be accepted."
                 },
-                "labels": {
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Deprecated alias for required-title-prefix",
+                  "deprecated": true,
+                  "x-deprecation-message": "'title-prefix' is deprecated in safe-outputs.push-to-pull-request-branch. Use 'required-title-prefix' instead."
+                },
+                "required-labels": {
                   "description": "Required labels for pull request validation. Only pull requests with all these labels will be accepted. Accepts an array of label names or a GitHub Actions expression resolving to a comma-separated list of labels (e.g. '${{ inputs[\\'required-labels\\'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "Array of label names",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of label names (e.g. '${{ inputs[\\'required-labels\\'] }}')"
+                    }
+                  ]
+                },
+                "labels": {
+                  "description": "Deprecated alias for required-labels",
+                  "deprecated": true,
+                  "x-deprecation-message": "'labels' is deprecated in safe-outputs.push-to-pull-request-branch. Use 'required-labels' instead.",
                   "oneOf": [
                     {
                       "type": "array",
@@ -7617,6 +7877,12 @@
                 "commit-title-suffix": {
                   "type": "string",
                   "description": "Optional suffix to append to generated commit titles (e.g., ' [skip ci]' to prevent triggering CI on the commit)"
+                },
+                "max-patch-size": {
+                  "type": "integer",
+                  "description": "Maximum allowed size for git patches in kilobytes (KB) for push-to-pull-request-branch only. Overrides safe-outputs max-patch-size for this output type. Defaults to 1024 KB (1 MB) when unset.",
+                  "minimum": 1,
+                  "maximum": 10240
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -7800,6 +8066,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7863,6 +8140,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -7924,6 +8212,17 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "required-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "All of these labels must be present on the target item for this operation to proceed"
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "The target item's title must start with this prefix for this operation to proceed"
                 }
               },
               "additionalProperties": false
@@ -9729,6 +10028,12 @@
               "description": "Optional GitHub Actions if condition to control when the runtime setup step runs. Supports standard GitHub Actions expression syntax. Useful for conditionally installing runtimes based on file presence (e.g., \"hashFiles('go.mod') != ''\" to install Go only when go.mod exists).",
               "examples": ["hashFiles('go.mod') != ''", "hashFiles('package.json') != ''", "hashFiles('requirements.txt') != '' || hashFiles('pyproject.toml') != ''", "hashFiles('uv.lock') != ''", "github.event_name == 'workflow_dispatch'"]
             },
+            "cooldown": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable a default 3-day dependency cooldown for installs associated with this runtime. Set to false to disable.",
+              "examples": [true, false]
+            },
             "run-install-scripts": {
               "type": "boolean",
               "default": false,
@@ -9994,6 +10299,40 @@
     }
   ],
   "$defs": {
+    "github_actions_runs_on": {
+      "description": "Runner type for workflow execution (GitHub Actions standard field). Supports multiple forms: simple string for single runner label (e.g., 'ubuntu-latest'), array for runner selection with fallbacks, or object for GitHub-hosted runner groups with specific labels. For agentic workflows, runner selection matters when AI workloads require specific compute resources or when using self-hosted runners with specialized capabilities. Typically configured at the job level instead. See https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Simple runner label string. Use for standard GitHub-hosted runners (e.g., 'ubuntu-latest', 'windows-latest', 'macos-latest') or self-hosted runner labels. Most common form for agentic workflows."
+        },
+        {
+          "type": "array",
+          "description": "Array of runner labels for selection with fallbacks. GitHub Actions will use the first available runner that matches any label in the array. Useful for high-availability setups or when multiple runner types are acceptable.",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "object",
+          "description": "Runner group configuration for GitHub-hosted runners. Use this form to target specific runner groups (e.g., larger runners with more CPU/memory) or self-hosted runner pools with specific label requirements. Agentic workflows may benefit from larger runners for complex AI processing tasks.",
+          "additionalProperties": false,
+          "properties": {
+            "group": {
+              "type": "string",
+              "description": "Runner group name for self-hosted runners or GitHub-hosted runner groups"
+            },
+            "labels": {
+              "type": "array",
+              "description": "List of runner labels for self-hosted runners or GitHub-hosted runner selection",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
     "github_toolset_name": {
       "type": "string",
       "description": "A GitHub MCP server toolset name that enables a specific group of GitHub API functionalities.",
@@ -10741,6 +11080,7 @@
         "network": {
           "type": "object",
           "deprecated": true,
+          "x-deprecation-message": "Per-MCP-server 'network' configuration is deprecated. Use the top-level workflow 'network:' field instead.",
           "$comment": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead.",
           "properties": {
             "allowed": {

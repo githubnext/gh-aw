@@ -82,6 +82,50 @@ describe("messages_core.cjs", () => {
       const result = renderTemplate("", { key: "value" });
       expect(result).toBe("");
     });
+
+    it("should keep files placeholder as plain text without helper formatting", async () => {
+      const { renderTemplate } = await import("./messages_core.cjs?" + Date.now());
+      const result = renderTemplate("Changed files: {files}", { files: "a.txt,b/c.md, docs/readme.md " });
+      expect(result).toBe("Changed files: a.txt,b/c.md, docs/readme.md ");
+    });
+
+    it("should render empty files placeholder value as empty string", async () => {
+      const { renderTemplate } = await import("./messages_core.cjs?" + Date.now());
+      const result = renderTemplate("Changed files: {files}", { files: "" });
+      expect(result).toBe("Changed files: ");
+    });
+  });
+
+  describe("renderFilesList", () => {
+    it("should format comma-separated filenames as backticked entries", async () => {
+      const { renderFilesList } = await import("./messages_core.cjs?" + Date.now());
+      const result = renderFilesList("a.txt,b/c.md, docs/readme.md ");
+      expect(result).toBe("`a.txt`, `b/c.md`, `docs/readme.md`");
+    });
+
+    it("should format filename arrays as backticked entries", async () => {
+      const { renderFilesList } = await import("./messages_core.cjs?" + Date.now());
+      const result = renderFilesList(["a.txt", "b/c.md", " docs/readme.md "]);
+      expect(result).toBe("`a.txt`, `b/c.md`, `docs/readme.md`");
+    });
+
+    it("should redact filenames containing backticks", async () => {
+      const { renderFilesList } = await import("./messages_core.cjs?" + Date.now());
+      const result = renderFilesList("safe.txt,`bad`.md");
+      expect(result).toBe("`safe.txt`, `redacted`");
+    });
+
+    it("should handle pre-wrapped filenames", async () => {
+      const { renderFilesList } = await import("./messages_core.cjs?" + Date.now());
+      const result = renderFilesList("`a.txt`, `b/c.md`");
+      expect(result).toBe("`a.txt`, `b/c.md`");
+    });
+
+    it("should render empty input as empty output", async () => {
+      const { renderFilesList } = await import("./messages_core.cjs?" + Date.now());
+      const result = renderFilesList("");
+      expect(result).toBe("");
+    });
   });
 
   describe("renderTemplateFromFile", () => {
@@ -132,6 +176,18 @@ describe("messages_core.cjs", () => {
       try {
         const result = renderTemplateFromFile(tmpFile, {});
         expect(result).toBe("No placeholders here.");
+      } finally {
+        fs.unlinkSync(tmpFile);
+      }
+    });
+
+    it("should format files placeholder with helper when rendering from file", async () => {
+      const { renderTemplateFromFile, renderFilesList } = await import("./messages_core.cjs?" + Date.now());
+      const tmpFile = path.join(os.tmpdir(), `msg-core-test-${Date.now()}.md`);
+      fs.writeFileSync(tmpFile, "Changed files: {files}", "utf8");
+      try {
+        const result = renderTemplateFromFile(tmpFile, { files: renderFilesList("one.js, two.ts") });
+        expect(result).toBe("Changed files: `one.js`, `two.ts`");
       } finally {
         fs.unlinkSync(tmpFile);
       }

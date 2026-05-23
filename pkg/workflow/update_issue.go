@@ -11,12 +11,14 @@ var updateIssueLog = logger.New("workflow:update_issue")
 
 // UpdateIssuesConfig holds configuration for updating GitHub issues from agent output
 type UpdateIssuesConfig struct {
-	UpdateEntityConfig `yaml:",inline"`
-	Status             *bool   `yaml:"status,omitempty"`       // Allow updating issue status (open/closed) - presence indicates field can be updated
-	Title              *bool   `yaml:"title,omitempty"`        // Allow updating issue title - presence indicates field can be updated
-	Body               *bool   `yaml:"body,omitempty"`         // Allow updating issue body - boolean value controls permission (defaults to true)
-	Footer             *string `yaml:"footer,omitempty"`       // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
-	TitlePrefix        string  `yaml:"title-prefix,omitempty"` // Required title prefix for issue validation - only issues with this prefix can be updated
+	UpdateEntityConfig  `yaml:",inline"`
+	Status              *bool    `yaml:"status,omitempty"`                // Allow updating issue status (open/closed) - presence indicates field can be updated
+	Title               *bool    `yaml:"title,omitempty"`                 // Allow updating issue title - presence indicates field can be updated
+	Body                *bool    `yaml:"body,omitempty"`                  // Allow updating issue body - boolean value controls permission (defaults to true)
+	Footer              *string  `yaml:"footer,omitempty"`                // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
+	TitlePrefix         string   `yaml:"title-prefix,omitempty"`          // Required title prefix for issue validation - only issues with this prefix can be updated (deprecated: use required-title-prefix)
+	RequiredTitlePrefix string   `yaml:"required-title-prefix,omitempty"` // Title prefix the issue must have (preferred over title-prefix)
+	RequiredLabels      []string `yaml:"required-labels,omitempty"`       // Labels that must ALL be present on the issue
 }
 
 // parseUpdateIssuesConfig handles update-issue configuration

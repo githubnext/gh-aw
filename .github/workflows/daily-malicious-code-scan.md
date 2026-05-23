@@ -65,10 +65,10 @@ Since this is a fresh clone, fetch the complete git history:
 git fetch --unshallow || echo "Repository already has full history"
 
 # Get list of files changed in last 3 days
-git log --since="3 days ago" --name-only --pretty=format: | sort | uniq > /tmp/changed_files.txt
+git log --since="3 days ago" --name-only --pretty=format: | sort | uniq > /tmp/gh-aw/agent/changed_files.txt
 
 # Get commit details for context
-git log --since="3 days ago" --pretty=format:"%h - %an, %ar : %s" > /tmp/recent_commits.txt
+git log --since="3 days ago" --pretty=format:"%h - %an, %ar : %s" > /tmp/gh-aw/agent/recent_commits.txt
 ```
 
 ### 2. Suspicious Pattern Detection
@@ -86,7 +86,7 @@ Look for these red flags in the changed code:
 **Example patterns to detect:**
 ```bash
 # Search for suspicious network patterns
-grep -E "(curl|wget|fetch|http\.get|requests\.)" /tmp/changed_files.txt | while read -r file; do
+grep -E "(curl|wget|fetch|http\.get|requests\.)" /tmp/gh-aw/agent/changed_files.txt | while read -r file; do
   if [ -f "$file" ]; then
     echo "Checking: $file"
     # Check for secrets + network combination

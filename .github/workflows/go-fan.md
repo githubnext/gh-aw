@@ -1,56 +1,51 @@
 ---
-emoji: "🐹"
-name: Go Fan
-description: Daily Go module usage reviewer - analyzes direct dependencies prioritizing recently updated ones
 on:
   schedule:
-    - cron: "daily around 7:00 on weekdays"  # ~7 AM UTC weekdays
-  workflow_dispatch:
-
+  - cron: daily around 7:00 on weekdays
+  workflow_dispatch: null
 permissions:
   contents: read
+  discussions: read
   issues: read
   pull-requests: read
-  discussions: read
-
-tracker-id: go-fan-daily
-
-engine: claude
-
 network:
   allowed:
-    - defaults
-    - github
-    - go
-
+  - defaults
+  - github
+  - go
 imports:
-  - uses: shared/daily-issue-base.md
-    with:
-      title-prefix: "[go-fan] "
-      expires: 1d
-      labels: [automation, cookie]
-  - shared/go-source-analysis.md
-
-  - shared/otlp.md
+- uses: shared/daily-issue-base.md
+  with:
+    expires: 1d
+    labels:
+    - automation
+    - cookie
+    title-prefix: "[go-fan] "
+- shared/go-source-analysis.md
+- shared/otlp.md
+description: "Daily Go module usage reviewer - analyzes direct dependencies prioritizing recently updated ones"
+emoji: 🐹
+engine: claude
+name: Go Fan
+strict: true
+timeout-minutes: 30
 tools:
-  cli-proxy: true
+  bash:
+  - cat go.mod
+  - cat go.sum
+  - go list -m all
+  - grep -r "import" --include="*.go"
+  - find pkg -name "*.go"
+  - find scratchpad/mods/ -maxdepth 1 -ls
+  - cat scratchpad/mods/*
   cache-memory: true
+  cli-proxy: true
+  edit: null
   github:
     mode: gh-proxy
-    toolsets: [default]
-  edit:
-  bash:
-    - "cat go.mod"
-    - "cat go.sum"
-    - "go list -m all"
-    - "grep -r 'import' --include='*.go'"
-    - "find pkg -name '*.go'"
-    - "find scratchpad/mods/ -maxdepth 1 -ls"
-    - "cat scratchpad/mods/*"
-
-timeout-minutes: 30
-strict: true
-
+    toolsets:
+    - default
+tracker-id: go-fan-daily
 ---
 # Go Fan 🐹 - Daily Go Module Reviewer
 

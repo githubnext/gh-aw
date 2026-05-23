@@ -169,5 +169,29 @@ const mockCore = {
         await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`);
         expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true");
         expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("does not require command position check"));
+      }),
+      it("should pass pull_request ready_for_review for pull_request_reviewer workflows", async () => {
+        process.env.GH_AW_COMMANDS = JSON.stringify(["review"]);
+        mockContext.eventName = "pull_request";
+        mockContext.payload = { action: "ready_for_review", pull_request: { body: "PR body without slash command" } };
+        await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`);
+        expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("matched_command", "");
+      }),
+      it("should pass pull_request review_requested for pull_request_reviewer workflows", async () => {
+        process.env.GH_AW_COMMANDS = JSON.stringify(["review"]);
+        mockContext.eventName = "pull_request";
+        mockContext.payload = { action: "review_requested", pull_request: { body: "PR body without slash command" } };
+        await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`);
+        expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("matched_command", "");
+      }),
+      it("should pass pull_request_review submitted for pull_request_reviewer workflows", async () => {
+        process.env.GH_AW_COMMANDS = JSON.stringify(["review"]);
+        mockContext.eventName = "pull_request_review";
+        mockContext.payload = { action: "submitted", review: { body: "Looks good to me" } };
+        await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`);
+        expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("matched_command", "");
       }));
   }));

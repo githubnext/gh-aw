@@ -119,8 +119,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	hasAgenticWorkflows := slices.Contains(mcpTools, "agentic-workflows")
-	hasGhAwImport := hasGhAwSharedImport(workflowData)
-	generateAgenticWorkflowsInstallStep(yaml, hasAgenticWorkflows, hasGhAwImport)
+	generateAgenticWorkflowsInstallStep(c, yaml, hasAgenticWorkflows, workflowData)
 
 	generateSafeOutputsSetup(c, yaml, safeOutputConfig, workflowData)
 	if err := generateMCPScriptsSetup(yaml, workflowData); err != nil {
@@ -174,36 +173,32 @@ func generateSafeOutputsConfigIfEnabled(workflowData *WorkflowData) (string, err
 	return safeOutputConfig, nil
 }
 
-func hasGhAwSharedImport(workflowData *WorkflowData) bool {
-	for _, importPath := range workflowData.ImportedFiles {
-		if strings.Contains(importPath, "shared/mcp/gh-aw.md") {
-			return true
-		}
-	}
-	return false
-}
-
-func generateAgenticWorkflowsInstallStep(yaml *strings.Builder, hasAgenticWorkflows bool, hasGhAwImport bool) {
+func generateAgenticWorkflowsInstallStep(c *Compiler, yaml *strings.Builder, hasAgenticWorkflows bool, workflowData *WorkflowData) {
 	if !hasAgenticWorkflows {
 		return
 	}
-	if hasGhAwImport {
-		mcpSetupGeneratorLog.Print("Skipping gh-aw extension installation step (provided by shared/mcp/gh-aw.md import)")
-		return
-	}
+
+	cliVersion := resolveAgenticWorkflowsCLIVersion(c, workflowData)
 	effectiveToken := getEffectiveGitHubToken("")
-	yaml.WriteString("      - name: Install gh-aw extension\n")
-	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GH_TOKEN: %s\n", effectiveToken)
+	actionRepo := GitHubOrgRepo + "/actions/setup-cli"
+	installStep, err := generateGhAwSetupStep(ghAwSetupStepConfig{
+		actionMode:           c.actionMode,
+		cliVersion:           cliVersion,
+		actionRepo:           actionRepo,
+		fallbackActionRefTag: cliVersion,
+		workflowData:         workflowData,
+		withFields: map[string]string{
+			"github-token": effectiveToken,
+		},
+	})
+	if err != nil {
+		mcpSetupGeneratorLog.Printf("Failed to resolve pinned setup-cli action reference for %s@%s: %v", actionRepo, cliVersion, err)
+	}
+	for _, line := range installStep {
+		yaml.WriteString(line + "\n")
+	}
+	yaml.WriteString("      - name: Copy gh-aw binary for MCP server\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          # Check if gh-aw extension is already installed\n")
-	yaml.WriteString("          if gh extension list | grep -qE '(^|[[:space:]]|/)gh-aw($|[[:space:]]|$)'; then\n")
-	yaml.WriteString("            echo \"gh-aw extension already installed, upgrading...\"\n")
-	yaml.WriteString("            gh extension upgrade gh-aw || true\n")
-	yaml.WriteString("          else\n")
-	yaml.WriteString("            echo \"Installing gh-aw extension...\"\n")
-	yaml.WriteString("            gh extension install github/gh-aw\n")
-	yaml.WriteString("          fi\n")
 	yaml.WriteString("          gh aw --version\n")
 	yaml.WriteString("          # Copy the gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP server containerization\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw\"\n")
@@ -211,6 +206,12 @@ func generateAgenticWorkflowsInstallStep(yaml *strings.Builder, hasAgenticWorkfl
 	yaml.WriteString("          GH_AW_BIN=$(command -v gh-aw 2>/dev/null) || true\n")
 	yaml.WriteString("          if [ -z \"$GH_AW_BIN\" ]; then\n")
 	yaml.WriteString("            GH_AW_BIN=$(find \"${HOME}/.local/share/gh/extensions/gh-aw\" -name 'gh-aw' -type f 2>/dev/null | head -1) || true\n")
+	yaml.WriteString("          fi\n")
+	yaml.WriteString("          if [ -z \"$GH_AW_BIN\" ] && [ -n \"${GH_CONFIG_DIR:-}\" ]; then\n")
+	yaml.WriteString("            GH_AW_BIN=$(find \"${GH_CONFIG_DIR}/extensions/gh-aw\" -name 'gh-aw' -type f 2>/dev/null | head -1) || true\n")
+	yaml.WriteString("          fi\n")
+	yaml.WriteString("          if [ -z \"$GH_AW_BIN\" ] && [ -f \"${GITHUB_WORKSPACE}/gh-aw\" ]; then\n")
+	yaml.WriteString("            GH_AW_BIN=\"${GITHUB_WORKSPACE}/gh-aw\"\n")
 	yaml.WriteString("          fi\n")
 	yaml.WriteString("          if [ -n \"$GH_AW_BIN\" ] && [ -f \"$GH_AW_BIN\" ]; then\n")
 	yaml.WriteString("            cp \"$GH_AW_BIN\" \"${RUNNER_TEMP}/gh-aw/gh-aw\"\n")
@@ -220,6 +221,38 @@ func generateAgenticWorkflowsInstallStep(yaml *strings.Builder, hasAgenticWorkfl
 	yaml.WriteString("            echo \"::error::Failed to find gh-aw binary for MCP server\"\n")
 	yaml.WriteString("            exit 1\n")
 	yaml.WriteString("          fi\n")
+}
+
+func resolveAgenticWorkflowsCLIVersion(c *Compiler, workflowData *WorkflowData) string {
+	cliVersion := c.actionTag
+	if cliVersion == "" {
+		cliVersion = getActionTagFromFeatures(workflowData)
+	}
+	if cliVersion == "" {
+		cliVersion = c.version
+	}
+	// "dev" and empty versions are not valid release pins; fall back to the
+	// current compiler runtime version so setup-cli always receives a concrete
+	// pinned release tag in non-dev modes.
+	if cliVersion == "" || cliVersion == "dev" {
+		cliVersion = getDefaultGhAWRuntimeVersion()
+	}
+	return cliVersion
+}
+
+func getActionTagFromFeatures(workflowData *WorkflowData) string {
+	if workflowData == nil || workflowData.Features == nil {
+		return ""
+	}
+	actionTagVal, exists := workflowData.Features["action-tag"]
+	if !exists {
+		return ""
+	}
+	actionTagStr, ok := actionTagVal.(string)
+	if !ok || actionTagStr == "" {
+		return ""
+	}
+	return actionTagStr
 }
 
 func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConfig string, workflowData *WorkflowData) {
@@ -233,8 +266,8 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	hasEnvVars := len(configSecrets) > 0 || len(configContextVars) > 0 || len(configWorkflowInputs) > 0
 	if hasEnvVars {
 		yaml.WriteString("        env:\n")
-		envKeys := make([]string, 0, len(configSecrets)+len(configContextVars)+len(configWorkflowInputs))
-		envValues := make(map[string]string, len(configSecrets)+len(configContextVars)+len(configWorkflowInputs))
+		envKeys := make([]string, 0, safeAllocationCapacity(len(configSecrets), len(configContextVars), len(configWorkflowInputs)))
+		envValues := make(map[string]string, safeAllocationCapacity(len(configSecrets), len(configContextVars), len(configWorkflowInputs)))
 		// addEnvValue deduplicates envKeys while allowing later sources to override
 		// the value in envValues for duplicate keys.
 		addEnvValue := func(key, value string) {
@@ -527,8 +560,29 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	gatewayConfig := workflowData.SandboxConfig.MCP
 	port, domain, payloadDir, payloadPathPrefix, payloadSizeThreshold := resolveMCPGatewayValues(workflowData, gatewayConfig)
 	githubTool, hasGitHub := tools["github"]
-	writeMCPGatewayExports(yaml, tools, engine, workflowData, gatewayConfig, hasGitHub, githubTool, port, domain, payloadDir, payloadPathPrefix, payloadSizeThreshold)
-	containerCmd := buildMCPGatewayContainerCommand(engine, workflowData, gatewayConfig, mcpEnvVars, payloadDir, payloadPathPrefix, hasGitHub, githubTool, tools)
+	writeMCPGatewayExports(yaml, writeMCPGatewayExportsOptions{
+		engine:               engine,
+		workflowData:         workflowData,
+		gatewayConfig:        gatewayConfig,
+		hasGitHub:            hasGitHub,
+		githubTool:           githubTool,
+		port:                 port,
+		domain:               domain,
+		payloadDir:           payloadDir,
+		payloadPathPrefix:    payloadPathPrefix,
+		payloadSizeThreshold: payloadSizeThreshold,
+	})
+	containerCmd := buildMCPGatewayContainerCommand(buildMCPGatewayContainerCommandOptions{
+		engine:            engine,
+		workflowData:      workflowData,
+		gatewayConfig:     gatewayConfig,
+		mcpEnvVars:        mcpEnvVars,
+		payloadDir:        payloadDir,
+		payloadPathPrefix: payloadPathPrefix,
+		hasGitHub:         hasGitHub,
+		githubTool:        githubTool,
+		tools:             tools,
+	})
 	yaml.WriteString("          MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')\n")
 	yaml.WriteString("          MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')\n")
 	// Resolve the Docker socket path from DOCKER_HOST (supports ARC/dind custom socket paths).
@@ -582,7 +636,31 @@ func resolveMCPGatewayValues(workflowData *WorkflowData, gatewayConfig *MCPGatew
 	return port, domain, payloadDir, gatewayConfig.PayloadPathPrefix, payloadSizeThreshold
 }
 
-func writeMCPGatewayExports(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, hasGitHub bool, githubTool any, port int, domain string, payloadDir string, payloadPathPrefix string, payloadSizeThreshold int) {
+// writeMCPGatewayExportsOptions holds configuration for writeMCPGatewayExports.
+type writeMCPGatewayExportsOptions struct {
+	engine               CodingAgentEngine
+	workflowData         *WorkflowData
+	gatewayConfig        *MCPGatewayRuntimeConfig
+	hasGitHub            bool
+	githubTool           any
+	port                 int
+	domain               string
+	payloadDir           string
+	payloadPathPrefix    string
+	payloadSizeThreshold int
+}
+
+func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOptions) {
+	engine := opts.engine
+	workflowData := opts.workflowData
+	gatewayConfig := opts.gatewayConfig
+	hasGitHub := opts.hasGitHub
+	githubTool := opts.githubTool
+	port := opts.port
+	domain := opts.domain
+	payloadDir := opts.payloadDir
+	payloadPathPrefix := opts.payloadPathPrefix
+	payloadSizeThreshold := opts.payloadSizeThreshold
 	yaml.WriteString("          \n")
 	yaml.WriteString("          # Export gateway environment variables for MCP config and gateway script\n")
 	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + strconv.Itoa(port) + "\"\n")
@@ -632,7 +710,29 @@ func writeMCPGatewayExports(yaml *strings.Builder, tools map[string]any, engine 
 	}
 }
 
-func buildMCPGatewayContainerCommand(engine CodingAgentEngine, workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, mcpEnvVars map[string]string, payloadDir string, payloadPathPrefix string, hasGitHub bool, githubTool any, tools map[string]any) string {
+// buildMCPGatewayContainerCommandOptions holds configuration for buildMCPGatewayContainerCommand.
+type buildMCPGatewayContainerCommandOptions struct {
+	engine            CodingAgentEngine
+	workflowData      *WorkflowData
+	gatewayConfig     *MCPGatewayRuntimeConfig
+	mcpEnvVars        map[string]string
+	payloadDir        string
+	payloadPathPrefix string
+	hasGitHub         bool
+	githubTool        any
+	tools             map[string]any
+}
+
+func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions) string {
+	engine := opts.engine
+	workflowData := opts.workflowData
+	gatewayConfig := opts.gatewayConfig
+	mcpEnvVars := opts.mcpEnvVars
+	payloadDir := opts.payloadDir
+	payloadPathPrefix := opts.payloadPathPrefix
+	hasGitHub := opts.hasGitHub
+	githubTool := opts.githubTool
+	tools := opts.tools
 	containerImage := gatewayConfig.Container
 	if gatewayConfig.Version != "" {
 		containerImage += ":" + gatewayConfig.Version

@@ -905,7 +905,7 @@ func renderForecastJSON(output ForecastResult) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal forecast JSON: %w", err)
 	}
-	fmt.Println(string(b))
+	fmt.Fprintln(os.Stdout, string(b))
 	return nil
 }
 

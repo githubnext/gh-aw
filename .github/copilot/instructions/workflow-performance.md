@@ -6,13 +6,13 @@ This guide helps you optimize agentic workflow execution efficiency, focusing on
 
 ```bash
 # Analyze recent workflow runs
-gh aw logs workflow-name -c 10
+gh aw logs workflow-name -c 10 -o /tmp/gh-aw/agent/logs/
 
 # Audit specific run for performance insights
 gh aw audit <run-id>
 
 # Download logs for analysis
-gh aw logs --start-date -1w -o /tmp/gh-aw/perf/
+gh aw logs --start-date -1w -o /tmp/gh-aw/agent/perf/
 ```
 
 ## Performance Targets
@@ -33,8 +33,8 @@ gh aw logs --start-date -1w -o /tmp/gh-aw/perf/
 **Measurement**:
 ```bash
 # Analyze token distribution in logs
-gh aw logs workflow-name -c 1
-grep -i "token" /tmp/gh-aw/logs/workflow-name/*.log
+gh aw logs workflow-name -c 1 -o /tmp/gh-aw/agent/logs/
+grep -R -i "token" /tmp/gh-aw/agent/logs/
 ```
 
 **Optimization Strategy**:
@@ -72,10 +72,10 @@ Use the github tool to get full issue details with all fields.
 **Measurement**:
 ```bash
 # Count tool calls in logs
-grep "tool_use" /tmp/gh-aw/logs/workflow/*.log | wc -l
+grep -R "tool_use" /tmp/gh-aw/agent/logs/ | wc -l
 
 # Identify repeated calls
-grep "tool_use" /tmp/gh-aw/logs/workflow/*.log | sort | uniq -c | sort -rn
+grep -R "tool_use" /tmp/gh-aw/agent/logs/ | sort | uniq -c | sort -rn
 ```
 
 **Optimization Strategy**:
@@ -118,7 +118,7 @@ steps:
   setup-env:
     name: Setup Environment
     run: |
-      mkdir -p /tmp/gh-aw/work
+      mkdir -p /tmp/gh-aw/agent/work
       git config --global user.name "github-actions[bot]"
       git config --global user.email "github-actions[bot]@users.noreply.github.com"
 ```
@@ -243,8 +243,8 @@ steps:
 steps:
   setup-dirs:
     run: |
-      mkdir -p /tmp/gh-aw/work
-      mkdir -p /tmp/gh-aw/output
+      mkdir -p /tmp/gh-aw/agent/work
+      mkdir -p /tmp/gh-aw/agent/output
 ```
 
 **Pre-install Tools** (if needed):

@@ -91,6 +91,9 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	if len(installationSources) == 0 {
 		return nil, fmt.Errorf("repository %q does not declare any installable workflow markdown files", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
 	}
+	if err := validateUniqueManifestWorkflowFilenames(installationSources, manifestPath); err != nil {
+		return nil, err
+	}
 
 	docsPath, err := resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host)
 	if err != nil {
@@ -222,7 +225,7 @@ func extractManifestFiles(value any, manifestPath string) ([]string, []string) {
 	seen := make(map[string]struct{})
 	for _, file := range rawFiles {
 		if !isSupportedPackageInstallablePath(file) {
-			warnings = append(warnings, fmt.Sprintf("Ignoring files entry %q in %s: workflow files must be markdown (.md) files under workflows/ or .github/workflows/", file, manifestPath))
+			warnings = append(warnings, fmt.Sprintf("Ignoring files entry %q in %s: supported files are markdown (.md) files under workflows/ or .github/workflows/, or action workflow (.yml) files under .github/workflows/", file, manifestPath))
 			continue
 		}
 		if _, exists := seen[file]; exists {
@@ -301,9 +304,28 @@ func normalizePackageInstallablePaths(paths []string, packagePath string) []stri
 	return normalized
 }
 
-func isSupportedPackageInstallablePath(path string) bool {
-	return strings.HasSuffix(strings.ToLower(path), ".md") &&
-		(strings.HasPrefix(path, "workflows/") || strings.HasPrefix(path, ".github/workflows/"))
+func isSupportedPackageInstallablePath(p string) bool {
+	// Normalize separators to forward slashes (consistent with joinRepositoryPackagePath) then
+	// clean to reject path traversal (e.g. "workflows/../README.md" → "README.md").
+	cleaned := path.Clean(filepath.ToSlash(p))
+	lowerCleaned := strings.ToLower(cleaned)
+	if strings.HasSuffix(lowerCleaned, ".md") {
+		return strings.HasPrefix(cleaned, "workflows/") || strings.HasPrefix(cleaned, ".github/workflows/")
+	}
+	if isActionWorkflowPath(cleaned) {
+		if !strings.HasPrefix(cleaned, ".github/workflows/") {
+			return false
+		}
+		// Reject nested subdirectories: only direct children of .github/workflows/ are allowed.
+		remaining := strings.TrimPrefix(cleaned, ".github/workflows/")
+		return !strings.Contains(remaining, "/")
+	}
+	return false
+}
+
+func isActionWorkflowPath(p string) bool {
+	lowerPath := strings.ToLower(p)
+	return strings.HasSuffix(lowerPath, ".yml") && !strings.HasSuffix(lowerPath, ".lock.yml")
 }
 
 func parseRepositoryPackageSpec(spec string) (*RepoSpec, bool, error) {
@@ -371,6 +393,25 @@ func isRepositoryPackageManifestNotFound(err error) bool {
 func isSupportedManifestMinVersion(version string) bool {
 	const expectedManifestMinVersionDotCount = 2
 	return semverutil.IsActionVersionTag(version) && strings.Count(strings.TrimPrefix(version, "v"), ".") == expectedManifestMinVersionDotCount
+}
+
+func validateUniqueManifestWorkflowFilenames(paths []string, manifestPath string) error {
+	seen := make(map[string]string, len(paths))
+	for _, installPath := range paths {
+		if !strings.HasSuffix(strings.ToLower(installPath), ".md") {
+			continue
+		}
+		filenameWithoutExt := strings.TrimSuffix(filepath.Base(installPath), filepath.Ext(installPath))
+		key := strings.ToLower(strings.TrimSpace(filenameWithoutExt))
+		if key == "" {
+			continue
+		}
+		if previous, exists := seen[key]; exists {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: duplicate workflow filename %q in files entries %q and %q (filenames must be unique across a package)", manifestPath, filenameWithoutExt, previous, installPath)
+		}
+		seen[key] = installPath
+	}
+	return nil
 }
 
 func downloadRepositoryPackageFileFromGitHubForHost(owner, repo, path, ref, host string) ([]byte, error) {

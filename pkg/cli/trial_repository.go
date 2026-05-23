@@ -19,6 +19,9 @@ import (
 
 var trialRepoLog = logger.New("cli:trial_repository")
 
+// checkoutActionPattern matches actions/checkout step lines with leading indentation
+var checkoutActionPattern = regexp.MustCompile(`^(\s*)(uses: actions/checkout@[^\s]*)(.*)$`)
+
 // ensureTrialRepository creates a host repository if it doesn't exist, or reuses existing one
 // For clone-repo mode, reusing an existing host repository is not allowed
 // If forceDeleteHostRepo is true, deletes the repository if it exists before creating it
@@ -433,11 +436,10 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, logicalRepoSlug string, v
 		// Also replace any hardcoded checkout actions to use the simulated host repo
 		// Split content into lines to preserve indentation
 		lines := strings.Split(modifiedContent, "\n")
-		checkoutPattern := regexp.MustCompile(`^(\s*)(uses: actions/checkout@[^\s]*)(.*)$`)
 
 		var newLines []string
 		for _, line := range lines {
-			if matches := checkoutPattern.FindStringSubmatch(line); len(matches) >= 3 {
+			if matches := checkoutActionPattern.FindStringSubmatch(line); len(matches) >= 3 {
 				indentation := matches[1]
 				usesLine := matches[2]
 				remainder := matches[3]

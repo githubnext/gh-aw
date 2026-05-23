@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 "use strict";
+// @safe-outputs-exempt SEC-004 — schema generator; does not process user body content. The substring "body:" appears only in the comment referencing the "allow-body" config option.
 
 /**
  * generate_safe_outputs_tools.cjs
@@ -64,7 +65,7 @@ async function main() {
   const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
   // Load tools meta (description suffixes, repo params, dynamic tools)
-  /** @type {{description_suffixes?: Record<string, string>, repo_params?: Record<string, {type: string, description: string}>, dynamic_tools?: Array<unknown>}} */
+  /** @type {{description_suffixes?: Record<string, string>, repo_params?: Record<string, {type: string, description: string}>, dynamic_tools?: Array<unknown>, required_field_removals?: Record<string, string[]>}} */
   let toolsMeta = { description_suffixes: {}, repo_params: {}, dynamic_tools: [] };
   if (fs.existsSync(toolsMetaPath)) {
     toolsMeta = JSON.parse(fs.readFileSync(toolsMetaPath, "utf8"));
@@ -101,6 +102,15 @@ async function main() {
           enhancedTool.inputSchema.properties = {};
         }
         enhancedTool.inputSchema.properties.repo = repoParam;
+      }
+
+      // Remove fields from inputSchema.required when configured (e.g. allow-body: false)
+      const requiredRemovals = toolsMeta.required_field_removals?.[tool.name];
+      if (requiredRemovals && Array.isArray(enhancedTool.inputSchema?.required)) {
+        enhancedTool.inputSchema.required = enhancedTool.inputSchema.required.filter(/** @param {string} f */ f => !requiredRemovals.includes(f));
+        if (enhancedTool.inputSchema.required.length === 0) {
+          delete enhancedTool.inputSchema.required;
+        }
       }
 
       return enhancedTool;

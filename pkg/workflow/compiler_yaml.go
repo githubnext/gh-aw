@@ -268,6 +268,7 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	// can receive caller metadata (repo, run_id, actor, etc.) from dispatch_workflow.
 	// String-based injection preserves existing YAML comments and formatting.
 	onSection = injectAwContextIntoOnYAML(onSection)
+	onSection = injectNetworkAllowedIntoOnYAML(onSection, data.NetworkPermissions)
 	onSection = UnquoteYAMLTopLevelKey(onSection, "on")
 	yaml.WriteString(onSection)
 	yaml.WriteString("\n\n")
@@ -804,7 +805,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: \"%s\"\n", data.EngineConfig.Model)
 	} else {
 		// Use the engine's default model as fallback when neither explicit model nor
-		// model variable is configured, so the run details show "auto" rather than "(none)".
+		// model variable is configured, so the run details show "agent" rather than "(none)".
 		defaultModel := getDefaultAgentModel(engineID)
 		if defaultModel != "" {
 			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '%s' }}\n", modelEnvVar, defaultModel)
@@ -928,10 +929,11 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 	yaml.WriteString("          GITHUB_API_URL: ${{ github.api_url }}\n")
 
-	// Add command name for command trigger prevention in safe outputs
+	// Add command names for command trigger prevention in safe outputs
 	if len(data.Command) > 0 {
-		// Pass first command for backward compatibility
-		fmt.Fprintf(yaml, "          GH_AW_COMMAND: %s\n", data.Command[0])
+		if commandsJSON, err := json.Marshal(data.Command); err == nil {
+			fmt.Fprintf(yaml, "          GH_AW_COMMANDS: %q\n", string(commandsJSON))
+		}
 	}
 
 	yaml.WriteString("        with:\n")

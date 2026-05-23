@@ -494,13 +494,15 @@ golint:
 # Run custom Go analysis linters (pkg/linters)
 # Builds and runs linters defined in cmd/linters against the full repository.
 # Override the large-function line limit with: make golint-custom MAX_LINES=80
+# Limit the analyzer set with: make golint-custom LINTER_FLAGS="-errstringmatch -test=false"
 MAX_LINES ?= 60
+LINTER_FLAGS ?=
 .PHONY: golint-custom
 golint-custom:
 	@echo "Building custom linters..."
 	@go build -o /tmp/gh-aw-linters ./cmd/linters
 	@echo "Running custom linters (largefunc max-lines=$(MAX_LINES))..."
-	@/tmp/gh-aw-linters -largefunc.max-lines=$(MAX_LINES) ./cmd/... ./pkg/...
+	@/tmp/gh-aw-linters $(LINTER_FLAGS) -largefunc.max-lines=$(MAX_LINES) ./cmd/... ./pkg/...
 
 # Run incremental linter (only changed files since BASE_REF)
 # This provides 50-75% faster linting on PRs by only checking changed files
@@ -608,6 +610,11 @@ lint-errors:
 	@echo "Running error message quality linter..."
 	@go run scripts/lint_error_messages.go
 
+.PHONY: validate-model-alias-chains
+validate-model-alias-chains:
+	@echo "Validating built-in model alias resolution chains..."
+	@node scripts/validate-model-alias-chains.js
+
 # Check file sizes and function counts
 .PHONY: check-file-sizes
 check-file-sizes:
@@ -621,7 +628,7 @@ check-validator-sizes:
 
 # Validate all project files
 .PHONY: lint
-lint: fmt-check fmt-check-json lint-cjs golint
+lint: fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains
 	@echo "✓ All validations passed"
 
 # Install the binary locally
@@ -701,7 +708,7 @@ sync-action-scripts:
 .PHONY: recompile
 recompile: build
 	./$(BINARY_NAME) init --codespaces ""
-	./$(BINARY_NAME) compile --validate --verbose --purge --stats
+	./$(BINARY_NAME) compile --validate --verbose --purge
 #	./$(BINARY_NAME) compile --dir pkg/cli/workflows --validate --verbose --purge
 
 # Compile workflows under pkg/cli/workflows

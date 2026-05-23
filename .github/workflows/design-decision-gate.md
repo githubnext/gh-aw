@@ -5,11 +5,15 @@ on:
   pull_request:
     types: [labeled, ready_for_review]
     names: ["implementation"]
+  slash_command:
+    strategy: centralized
+    name: review
+    events: [pull_request_comment, pull_request_review_comment]
   workflow_dispatch:
     inputs:
       pr_number:
         description: "Pull request number to check"
-        required: true
+        required: false
 permissions:
   contents: read
   pull-requests: read
@@ -63,25 +67,33 @@ steps:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+      EXPR_GITHUB_EVENT_NAME: ${{ github.event_name }}
+      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
+      EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
     run: |
       set -euo pipefail
+
+      if [ "$EXPR_GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ -z "${PR_NUMBER:-}" ]; then
+        echo "::error::workflow_dispatch requires inputs.pr_number"
+        exit 1
+      fi
 
       mkdir -p /tmp/gh-aw/agent
 
       gh pr view "$PR_NUMBER" \
-        --repo "${{ github.repository }}" \
+        --repo "$EXPR_GITHUB_REPOSITORY" \
         --json number,title,body,labels,baseRefName,headRefName,author,url \
         > /tmp/gh-aw/agent/pr.json
 
       gh pr diff "$PR_NUMBER" \
-        --repo "${{ github.repository }}" \
+        --repo "$EXPR_GITHUB_REPOSITORY" \
         > /tmp/gh-aw/agent/pr.diff
 
-      gh api --paginate "repos/${{ github.repository }}/pulls/$PR_NUMBER/files?per_page=100" \
+      gh api --paginate "repos/$EXPR_GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" \
         --jq '.[]' | jq -s '.' > /tmp/gh-aw/agent/pr-files.json
 
-      if [ -f "${{ github.workspace }}/.design-gate.yml" ]; then
-        cp "${{ github.workspace }}/.design-gate.yml" /tmp/gh-aw/agent/design-gate-config.yml
+      if [ -f "$EXPR_GITHUB_WORKSPACE/.design-gate.yml" ]; then
+        cp "$EXPR_GITHUB_WORKSPACE/.design-gate.yml" /tmp/gh-aw/agent/design-gate-config.yml
         HAS_CUSTOM_CONFIG=true
       else
         echo "No .design-gate.yml found — using defaults" > /tmp/gh-aw/agent/design-gate-config.yml
@@ -329,11 +341,12 @@ Post a comment using `add-comment` explaining the requirement:
 
 This PR {has been labeled `implementation` / makes significant changes to core business logic (>100 new lines)} but does not have a linked Architecture Decision Record (ADR).
 
-**AI has analyzed the PR diff and generated a draft ADR** to help you get started:
+📄 **Draft ADR committed**: `docs/adr/{NNNN}-{title}.md` — review and complete it before merging.
 
-📄 **Draft ADR**: `docs/adr/{NNNN}-{title}.md`
+> 🔒 *This PR cannot merge until an ADR is linked in the PR body.*
 
-### What to do next
+<details>
+<summary>📋 What to do next</summary>
 
 1. **Review the draft ADR** committed to your branch — it was generated from the PR diff
 2. **Complete the missing sections** — add context the AI couldn't infer, refine the decision rationale, and list real alternatives you considered
@@ -343,13 +356,16 @@ This PR {has been labeled `implementation` / makes significant changes to core b
 
 Once an ADR is linked in the PR body, this gate will re-run and verify the implementation matches the decision.
 
-### Why ADRs Matter
+</details>
+
+<details>
+<summary>❓ Why ADRs Matter</summary>
 
 > *"AI made me procrastinate on key design decisions. Because refactoring was cheap, I could always say 'I'll deal with this later.' Deferring decisions corroded my ability to think clearly."*
 
 ADRs create a searchable, permanent record of **why** the codebase looks the way it does. Future contributors (and your future self) will thank you.
 
----
+</details>
 
 <details>
 <summary>📋 Michael Nygard ADR Format Reference</summary>
@@ -364,13 +380,13 @@ An ADR must contain these four sections to be considered complete:
 All ADRs are stored in `docs/adr/` as Markdown files numbered by PR number (e.g., `0042-use-postgresql.md` for PR #42).
 
 </details>
-
-> 🔒 *This PR cannot merge until an ADR is linked in the PR body.*
 ```
 
 ### Report Formatting
 
-- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.
+- Apply **progressive disclosure**: keep the immediately visible text as brief as possible; wrap all verbose sections (next steps, background, reference material) in `<details><summary>…</summary>` tags.
+- Required structure for blocking comments: headline + one-line status (always visible) → "What to do next" (in `<details>`) → "Why ADRs Matter" (in `<details>`) → ADR format reference (in `<details>`) → blocking notice (always visible)
 
 ## Step 4b: If ADR Found — Verify Implementation Matches
 
@@ -400,14 +416,14 @@ Post an approving comment:
 ```markdown
 ### ✅ Design Decision Gate — ADR Verified
 
-The implementation in this PR aligns with the stated Architecture Decision Record.
+**ADR reviewed**: {ADR title and link} — implementation aligns with the stated decision. Great work! 🏗️
 
-**ADR reviewed**: {ADR title and link}
+<details>
+<summary>📋 Verification Summary</summary>
 
-### Verification Summary
 {Brief summary of how the code matches the ADR decision}
 
-The design decision has been recorded and the implementation follows it. Great work! 🏗️
+</details>
 ```
 
 **If there are DIVERGENCES**:
@@ -416,21 +432,27 @@ Post a comment describing the discrepancies:
 ```markdown
 ### ⚠️ Design Decision Gate — Implementation Diverges from ADR
 
-The implementation in this PR has divergences from the linked Architecture Decision Record.
+**ADR reviewed**: {ADR title and link} — {N} divergence(s) found.
 
-**ADR reviewed**: {ADR title and link}
+> Either update the code to align with the ADR, or update the ADR to reflect the revised decision.
 
-### Divergences Found
+<details>
+<summary>🔍 Divergences Found ({N} items)</summary>
 
 {List each divergence with specific file paths and explanation}
 
-### What to do next
+</details>
+
+<details>
+<summary>📋 What to do next</summary>
 
 Either:
 1. **Update the code** to align with the ADR decision, OR
 2. **Update the ADR** to reflect the revised decision (and document why the approach changed)
 
 The ADR and implementation must be in sync before this PR can merge.
+
+</details>
 ```
 
 ## Important: Always Call a Safe Output

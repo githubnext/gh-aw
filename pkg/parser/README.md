@@ -121,6 +121,8 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `GetSafeOutputTypeKeys` | `func() ([]string, error)` | Returns valid safe-output type keys from the schema |
 | `GetMainWorkflowDeprecatedFields` | `func() ([]DeprecatedField, error)` | Returns deprecated frontmatter fields with migration notes |
 | `FindDeprecatedFieldsInFrontmatter` | `func(map[string]any, []DeprecatedField) []DeprecatedField` | Finds deprecated fields present in a parsed frontmatter map |
+| `GetMainWorkflowDeprecatedFieldsDeep` | `func() ([]DeprecatedField, error)` | Returns deprecated fields at any schema nesting level (e.g. `tools.grep`) with dot-separated paths |
+| `FindDeprecatedFieldsInFrontmatterDeep` | `func(map[string]any, []DeprecatedField) []DeprecatedField` | Finds deprecated fields at any nesting depth in frontmatter using dot-separated paths |
 | `FindClosestMatches` | `func(target string, candidates []string, maxResults int) []string` | Finds the closest string matches (for typo suggestions) |
 | `LevenshteinDistance` | `func(a, b string) int` | Computes edit distance between two strings |
 
@@ -265,12 +267,14 @@ Import caching is crucial for performance and cycle detection. The `ImportCache`
 - `github.com/github/gh-aw/pkg/fileutil` — file existence and path helper utilities
 - `github.com/github/gh-aw/pkg/gitutil` — Git remote and host detection helpers
 - `github.com/github/gh-aw/pkg/jsonutil` — compact JSON marshaling for frontmatter hash computation
-- `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by parser package tests
 - `github.com/github/gh-aw/pkg/types` — `BaseMCPServerConfig`
 - `github.com/github/gh-aw/pkg/typeutil` — safe type conversion helpers for dynamic frontmatter
 - `github.com/github/gh-aw/pkg/logger` — debug logging
 - `github.com/github/gh-aw/pkg/sliceutil` — slice helper utilities for validation and merging
 - `github.com/github/gh-aw/pkg/stringutil` — string normalization and ANSI/format helpers
+
+**Test-only**:
+- `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by parser package tests
 
 **External**:
 - `github.com/santhosh-tekuri/jsonschema/v6` — JSON schema validation

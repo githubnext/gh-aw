@@ -255,6 +255,77 @@ func TestParsePullRequestsConfigWithHelpers(t *testing.T) {
 	}
 }
 
+func TestParseIssuesConfigWithSingleStringAssignee(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"create-issue": map[string]any{
+			"assignees": "single-assignee",
+		},
+	}
+
+	result := compiler.parseCreateIssuesConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if len(result.Assignees) != 1 {
+		t.Fatalf("expected 1 assignee, got %d", len(result.Assignees))
+	}
+	if result.Assignees[0] != "single-assignee" {
+		t.Errorf("expected assignee 'single-assignee', got %q", result.Assignees[0])
+	}
+}
+
+func TestParsePullRequestsConfigWithSingleStringReviewerAndTeamReviewer(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"create-pull-request": map[string]any{
+			"reviewers":      "single-reviewer",
+			"team-reviewers": "single-team",
+		},
+	}
+
+	result := compiler.parseCreatePullRequestsConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if len(result.Reviewers) != 1 {
+		t.Fatalf("expected 1 reviewer, got %d", len(result.Reviewers))
+	}
+	if result.Reviewers[0] != "single-reviewer" {
+		t.Errorf("expected reviewer 'single-reviewer', got %q", result.Reviewers[0])
+	}
+
+	if len(result.TeamReviewers) != 1 {
+		t.Fatalf("expected 1 team reviewer, got %d", len(result.TeamReviewers))
+	}
+	if result.TeamReviewers[0] != "single-team" {
+		t.Errorf("expected team reviewer 'single-team', got %q", result.TeamReviewers[0])
+	}
+}
+
+func TestParsePullRequestsConfigWithSingleStringAssignee(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"create-pull-request": map[string]any{
+			"assignees": "single-assignee",
+		},
+	}
+
+	result := compiler.parseCreatePullRequestsConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if len(result.Assignees) != 1 {
+		t.Fatalf("expected 1 assignee, got %d", len(result.Assignees))
+	}
+	if result.Assignees[0] != "single-assignee" {
+		t.Errorf("expected assignee 'single-assignee', got %q", result.Assignees[0])
+	}
+}
+
 func TestParsePullRequestsConfigExpires(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -1127,8 +1198,8 @@ func TestAddTemplatableStringSliceBuilder(t *testing.T) {
 }
 
 // TestParsePullRequestsConfigExpressionFields verifies that create-pull-request
-// accepts GitHub Actions expression strings for labels, allowed-repos, and
-// allowed-base-branches.
+// accepts GitHub Actions expression strings for labels, allowed-repos,
+// allowed-base-branches, and allowed-branches.
 func TestParsePullRequestsConfigExpressionFields(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1153,6 +1224,12 @@ func TestParsePullRequestsConfigExpressionFields(t *testing.T) {
 			field:    "allowed-base-branches",
 			expr:     "${{ inputs['allowed-base-branches'] }}",
 			getField: func(c *CreatePullRequestsConfig) []string { return c.AllowedBaseBranches },
+		},
+		{
+			name:     "allowed-branches as expression",
+			field:    "allowed-branches",
+			expr:     "${{ inputs['allowed-branches'] }}",
+			getField: func(c *CreatePullRequestsConfig) []string { return c.AllowedBranches },
 		},
 	}
 
@@ -1207,7 +1284,7 @@ func TestParseAddCommentConfigExpressionFields(t *testing.T) {
 
 // TestParsePushToPullRequestBranchExpressionFields verifies that
 // push-to-pull-request-branch accepts GitHub Actions expression strings for
-// labels and allowed-repos.
+// required-labels and allowed-repos.
 func TestParsePushToPullRequestBranchExpressionFields(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1216,10 +1293,10 @@ func TestParsePushToPullRequestBranchExpressionFields(t *testing.T) {
 		getField func(*PushToPullRequestBranchConfig) []string
 	}{
 		{
-			name:     "labels as expression",
-			field:    "labels",
+			name:     "required-labels as expression",
+			field:    "required-labels",
 			expr:     "${{ inputs['required-labels'] }}",
-			getField: func(c *PushToPullRequestBranchConfig) []string { return c.Labels },
+			getField: func(c *PushToPullRequestBranchConfig) []string { return c.RequiredLabels },
 		},
 		{
 			name:     "allowed-repos as expression",
@@ -1251,6 +1328,24 @@ func TestParsePushToPullRequestBranchExpressionFields(t *testing.T) {
 				t.Errorf("expected expression %q, got %q", tt.expr, got[0])
 			}
 		})
+	}
+}
+
+func TestParsePushToPullRequestBranchMaxPatchSize(t *testing.T) {
+	compiler := &Compiler{}
+	outputMap := map[string]any{
+		"push-to-pull-request-branch": map[string]any{
+			"max-patch-size": 2048,
+		},
+	}
+
+	result := compiler.parsePushToPullRequestBranchConfig(outputMap)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if result.MaxPatchSize != 2048 {
+		t.Fatalf("expected MaxPatchSize=2048, got %d", result.MaxPatchSize)
 	}
 }
 
@@ -1311,6 +1406,17 @@ func TestHandlerConfigExpressionFields(t *testing.T) {
 			wantValue: "${{ inputs['allowed-base-branches'] }}",
 		},
 		{
+			name: "create_pull_request allowed_branches expression stored as string",
+			safeOuts: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					AllowedBranches: []string{"${{ inputs['allowed-branches'] }}"},
+				},
+			},
+			handler:   "create_pull_request",
+			configKey: "allowed_branches",
+			wantValue: "${{ inputs['allowed-branches'] }}",
+		},
+		{
 			name: "add_comment allowed_repos expression stored as string",
 			safeOuts: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
@@ -1322,14 +1428,14 @@ func TestHandlerConfigExpressionFields(t *testing.T) {
 			wantValue: "${{ inputs['allowed-repos'] }}",
 		},
 		{
-			name: "push_to_pull_request_branch labels expression stored as string",
+			name: "push_to_pull_request_branch required_labels expression stored as string",
 			safeOuts: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
-					Labels: []string{"${{ inputs['required-labels'] }}"},
+					RequiredLabels: []string{"${{ inputs['required-labels'] }}"},
 				},
 			},
 			handler:   "push_to_pull_request_branch",
-			configKey: "labels",
+			configKey: "required_labels",
 			wantValue: "${{ inputs['required-labels'] }}",
 		},
 		{
@@ -1387,7 +1493,7 @@ func TestExpressionFieldsRejectedForInvalidStrings(t *testing.T) {
 	// create-pull-request: non-expression bare string returns nil config
 	compiler := &Compiler{}
 
-	for _, field := range []string{"labels", "allowed-repos", "allowed-base-branches"} {
+	for _, field := range []string{"labels", "allowed-repos", "allowed-base-branches", "allowed-branches"} {
 		t.Run("create-pull-request/"+field+"/non-expression", func(t *testing.T) {
 			outputMap := map[string]any{
 				"create-pull-request": map[string]any{

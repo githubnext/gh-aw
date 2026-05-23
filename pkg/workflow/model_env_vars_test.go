@@ -27,7 +27,7 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 			name:            "Codex agent uses GH_AW_MODEL_AGENT_CODEX",
 			engine:          "codex",
 			expectedEnvVar:  constants.EnvVarModelAgentCodex,
-			expectedCommand: "${" + constants.EnvVarModelAgentCodex + `:+--model "`,
+			expectedCommand: "${" + constants.EnvVarModelAgentCodex + `:+ --model "`,
 		},
 	}
 
@@ -455,5 +455,52 @@ func TestGetModelEnvVarName(t *testing.T) {
 				t.Errorf("Engine %s: GetModelEnvVarName() = %q, want %q", tt.engine, got, tt.expected)
 			}
 		})
+	}
+}
+
+// TestCodexModelFlagPositionAfterExec verifies that the --model flag appears after the exec
+// subcommand in the generated Codex command, not before it.
+// Regression test for: Codex lock compiler places --model flag before exec subcommand.
+func TestCodexModelFlagPositionAfterExec(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-codex-model-position",
+		AI:   "codex",
+		Tools: map[string]any{
+			"bash": []any{"echo"},
+		},
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+
+	engine, err := GetGlobalEngineRegistry().GetEngine("codex")
+	if err != nil {
+		t.Fatalf("Failed to get engine: %v", err)
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	var stepsStr strings.Builder
+	for _, step := range steps {
+		for _, line := range step {
+			stepsStr.WriteString(line)
+			stepsStr.WriteString("\n")
+		}
+	}
+	stepsContent := stepsStr.String()
+
+	// Find the model shell expansion pattern in the generated command
+	modelPattern := "${" + constants.EnvVarModelAgentCodex + ":+"
+	beforeModel, _, found := strings.Cut(stepsContent, modelPattern)
+	if !found {
+		t.Fatalf("Model expansion pattern '%s' not found in steps:\n%s", modelPattern, stepsContent)
+	}
+
+	// Find "codex exec" before the model pattern. Using "codex exec" (not just "exec") avoids
+	// false positives from unrelated occurrences like "GH_AW_NODE_EXEC" in the step content.
+	execMarker := "codex exec"
+	execIdx := strings.LastIndex(beforeModel, execMarker)
+	if execIdx == -1 {
+		t.Errorf("'codex exec' must appear before the model flag '%s' in the generated command.\n"+
+			"This indicates the model flag is placed before 'exec', causing Codex to ignore it.\n"+
+			"Got:\n%s", modelPattern, stepsContent)
 	}
 }

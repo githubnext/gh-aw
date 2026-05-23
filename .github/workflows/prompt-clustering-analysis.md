@@ -36,7 +36,7 @@ imports:
 cache:
   - key: prompt-clustering-cache-${{ github.run_id }}
     name: Cache prompt clustering data
-    path: /tmp/gh-aw/prompt-cache
+    path: /tmp/gh-aw/agent/prompt-cache
     restore-keys: |
       prompt-clustering-cache-
 
@@ -51,16 +51,16 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       # Create output directory for full PR data
-      mkdir -p /tmp/gh-aw/prompt-cache/pr-full-data
+      mkdir -p /tmp/gh-aw/agent/prompt-cache/pr-full-data
       
       # Download full data for each PR including comments, reviews, commits, and files
       echo "Downloading full PR data for each PR..."
       
-      PR_COUNT=$(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)
+      PR_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-data/copilot-prs.json)
       echo "Processing $PR_COUNT PRs..."
       
       # Extract PR numbers and download full data for each
-      jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read -r pr_number; do
+      jq -r '.[].number' /tmp/gh-aw/agent/pr-data/copilot-prs.json | while read -r pr_number; do
         echo "Downloading full data for PR #$pr_number..."
         
         # Download full PR data with essential fields only
@@ -68,20 +68,20 @@ steps:
         if gh pr view "$pr_number" \
           --repo "$GITHUB_REPOSITORY" \
           --json number,title,body,state,createdAt,closedAt,mergedAt,url,comments,reviews,commits,changedFiles,additions,deletions,reviewDecision \
-          > "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json" 2>"/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.err"; then
+          > "/tmp/gh-aw/agent/prompt-cache/pr-full-data/pr-${pr_number}.json" 2>"/tmp/gh-aw/agent/prompt-cache/pr-full-data/pr-${pr_number}.err"; then
           echo "Downloaded PR #$pr_number"
         else
           echo "Warning: Failed to download PR #$pr_number (skipping)"
-          rm -f "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json" "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.err"
+          rm -f "/tmp/gh-aw/agent/prompt-cache/pr-full-data/pr-${pr_number}.json" "/tmp/gh-aw/agent/prompt-cache/pr-full-data/pr-${pr_number}.err"
         fi
       done
       
       # Create an index file listing all downloaded PRs
-      find /tmp/gh-aw/prompt-cache/pr-full-data/ -maxdepth 1 -name 'pr-[0-9]*.json' -type f -printf '%f\n' | \
-        sed 's/pr-\([0-9]*\)\.json/\1/' | sort -n > /tmp/gh-aw/prompt-cache/pr-full-data/index.txt
+      find /tmp/gh-aw/agent/prompt-cache/pr-full-data/ -maxdepth 1 -name 'pr-[0-9]*.json' -type f -printf '%f\n' | \
+        sed 's/pr-\([0-9]*\)\.json/\1/' | sort -n > /tmp/gh-aw/agent/prompt-cache/pr-full-data/index.txt
       
-      echo "Full PR data cached in /tmp/gh-aw/prompt-cache/pr-full-data/"
-      echo "Total PRs with full data: $(wc -l < /tmp/gh-aw/prompt-cache/pr-full-data/index.txt)"
+      echo "Full PR data cached in /tmp/gh-aw/agent/prompt-cache/pr-full-data/"
+      echo "Total PRs with full data: $(wc -l < /tmp/gh-aw/agent/prompt-cache/pr-full-data/index.txt)"
 
   - name: Download workflow logs for PR analysis
     env:
@@ -89,17 +89,17 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       # Create logs directory
-      mkdir -p /tmp/gh-aw/workflow-logs
+      mkdir -p /tmp/gh-aw/agent/workflow-logs
       
       echo "Downloading workflow logs to extract turn counts..."
       
       # Download logs for the last 30 days of copilot workflows
       # This will give us the aw_info.json which contains turn counts
-      ./gh-aw logs --engine copilot --start-date -30d -o /tmp/gh-aw/workflow-logs
+      ./gh-aw logs --engine copilot --start-date -30d -o /tmp/gh-aw/agent/workflow-logs
       
       # Verify logs were downloaded
       echo "Downloaded workflow logs:"
-      find /tmp/gh-aw/workflow-logs -maxdepth 1 -ls
+      find /tmp/gh-aw/agent/workflow-logs -maxdepth 1 -ls
 
 timeout-minutes: 20
 
@@ -117,18 +117,18 @@ Daily analysis of copilot agent task prompts using clustering techniques to iden
 - **Repository**: $GITHUB_REPOSITORY
 - **Analysis Period**: Last 30 days
 - **Available Data**:
-  - `/tmp/gh-aw/pr-data/copilot-prs.json` - Summary PR data for copilot-created PRs
-  - `/tmp/gh-aw/prompt-cache/pr-full-data/` - Full PR data with comments, reviews, commits, and files for each PR
-  - `/tmp/gh-aw/prompt-cache/pr-full-data/index.txt` - List of all PR numbers with full data
-  - `/tmp/gh-aw/prompt-cache/` - Cache directory for avoiding repeated work
+  - `/tmp/gh-aw/agent/pr-data/copilot-prs.json` - Summary PR data for copilot-created PRs
+  - `/tmp/gh-aw/agent/prompt-cache/pr-full-data/` - Full PR data with comments, reviews, commits, and files for each PR
+  - `/tmp/gh-aw/agent/prompt-cache/pr-full-data/index.txt` - List of all PR numbers with full data
+  - `/tmp/gh-aw/agent/prompt-cache/` - Cache directory for avoiding repeated work
 
 ## Task Overview
 
 ### Phase 1: Extract Task Prompts from PRs
 
 The pre-fetched PR data is available at:
-- `/tmp/gh-aw/pr-data/copilot-prs.json` - Summary data from search
-- `/tmp/gh-aw/prompt-cache/pr-full-data/` - Full PR data for each PR with comments, reviews, commits, and files
+- `/tmp/gh-aw/agent/pr-data/copilot-prs.json` - Summary data from search
+- `/tmp/gh-aw/agent/prompt-cache/pr-full-data/` - Full PR data for each PR with comments, reviews, commits, and files
 
 Each PR's full data includes:
 
@@ -145,13 +145,13 @@ Each PR's full data includes:
 
 ```bash
 # List all PRs with full data
-cat /tmp/gh-aw/prompt-cache/pr-full-data/index.txt
+cat /tmp/gh-aw/agent/prompt-cache/pr-full-data/index.txt
 
 # Read a specific PR's full data
-cat /tmp/gh-aw/prompt-cache/pr-full-data/pr-123.json
+cat /tmp/gh-aw/agent/prompt-cache/pr-full-data/pr-123.json
 
 # Extract relevant fields from all PRs
-for pr_file in /tmp/gh-aw/prompt-cache/pr-full-data/pr-*.json; do
+for pr_file in /tmp/gh-aw/agent/prompt-cache/pr-full-data/pr-*.json; do
   jq -r '{
     number: .number,
     title: .title,
@@ -168,7 +168,7 @@ for pr_file in /tmp/gh-aw/prompt-cache/pr-full-data/pr-*.json; do
     additions: .additions,
     deletions: .deletions
   }' "$pr_file"
-done > /tmp/gh-aw/pr-data/pr-prompts.jsonl
+done > /tmp/gh-aw/agent/pr-data/pr-prompts.jsonl
 ```
 
 The PR body typically contains:
@@ -194,14 +194,14 @@ Use the `gh-aw` MCP server to:
 ```bash
 # Download logs for recent copilot workflows
 # This creates directories with aw_info.json containing turn counts
-gh-aw logs --engine copilot --start-date -30d -o /tmp/gh-aw/workflow-logs
+gh-aw logs --engine copilot --start-date -30d -o /tmp/gh-aw/agent/workflow-logs
 ```
 
 Then extract turn counts from `aw_info.json` files:
 
 ```bash
 # Find all aw_info.json files and extract turn information
-find /tmp/gh-aw/workflow-logs -name "aw_info.json" -exec jq '{
+find /tmp/gh-aw/agent/workflow-logs -name "aw_info.json" -exec jq '{
   run_id: .run_id,
   workflow: .workflow_name,
   engine: .engine,
@@ -209,7 +209,7 @@ find /tmp/gh-aw/workflow-logs -name "aw_info.json" -exec jq '{
   actual_turns: .turns,
   duration: .duration,
   cost: .cost
-}' {} \; > /tmp/gh-aw/pr-data/workflow-metrics.jsonl
+}' {} \; > /tmp/gh-aw/agent/pr-data/workflow-metrics.jsonl
 ```
 
 **Match PRs to workflow runs** by:
@@ -229,7 +229,7 @@ Create a structured dataset combining:
 
 ```bash
 # Merge full PR data with workflow metrics
-for pr_file in /tmp/gh-aw/prompt-cache/pr-full-data/pr-*.json; do
+for pr_file in /tmp/gh-aw/agent/prompt-cache/pr-full-data/pr-*.json; do
   jq -r '{
     number: .number,
     title: .title,
@@ -247,17 +247,17 @@ for pr_file in /tmp/gh-aw/prompt-cache/pr-full-data/pr-*.json; do
     deletions: .deletions,
     review_decision: .reviewDecision
   }' "$pr_file"
-done > /tmp/gh-aw/pr-data/pr-prompts-full.jsonl
+done > /tmp/gh-aw/agent/pr-data/pr-prompts-full.jsonl
 
 # Combine into a single JSON array
-jq -s '.' /tmp/gh-aw/pr-data/pr-prompts-full.jsonl > /tmp/gh-aw/pr-data/combined-data.json
+jq -s '.' /tmp/gh-aw/agent/pr-data/pr-prompts-full.jsonl > /tmp/gh-aw/agent/pr-data/combined-data.json
 ```
 
 ### Phase 4: Python NLP Clustering Analysis
 
 Create a Python script to perform clustering analysis on the prompts:
 
-**Script**: `/tmp/gh-aw/analyze-prompts.py`
+**Script**: `/tmp/gh-aw/agent/analyze-prompts.py`
 
 ```python
 #!/usr/bin/env python3
@@ -273,7 +273,7 @@ from collections import Counter
 import re
 
 # Load data
-with open('/tmp/gh-aw/pr-data/combined-data.json') as f:
+with open('/tmp/gh-aw/agent/pr-data/combined-data.json') as f:
     data = json.load(f)
 
 # Extract prompts and metadata
@@ -439,7 +439,7 @@ def generate_report(cluster_analysis, vectorizer, model):
         report.append(f"- **Example PRs**: {', '.join(f'#{pr}' for pr in info['example_prs'])}\n")
     
     # Save report
-    with open('/tmp/gh-aw/pr-data/clustering-report.md', 'w') as f:
+    with open('/tmp/gh-aw/agent/pr-data/clustering-report.md', 'w') as f:
         f.write('\n'.join(report))
     
     print('\n'.join(report))
@@ -450,8 +450,8 @@ def generate_report(cluster_analysis, vectorizer, model):
 **Run the analysis**:
 
 ```bash
-cd /tmp/gh-aw
-python3 analyze-prompts.py > /tmp/gh-aw/pr-data/analysis-output.txt
+cd /tmp/gh-aw/agent
+python3 analyze-prompts.py > /tmp/gh-aw/agent/pr-data/analysis-output.txt
 ```
 
 ### Phase 5: Generate Daily Discussion Report
@@ -559,17 +559,17 @@ _Generated by Prompt Clustering Analysis (Run: [run_id])_
 Use the cache to avoid re-analyzing the same PRs:
 
 **Cache Strategy**:
-1. Store processed prompts in `/tmp/gh-aw/prompt-cache/processed-prs.json`
+1. Store processed prompts in `/tmp/gh-aw/agent/prompt-cache/processed-prs.json`
 2. Include PR number and last analyzed date
 3. On next run, skip PRs that haven't changed
 4. Update cache after each analysis
 
 ```bash
 # Save processed PR list to cache
-jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | sort > /tmp/gh-aw/prompt-cache/analyzed-prs.txt
+jq -r '.[].number' /tmp/gh-aw/agent/pr-data/copilot-prs.json | sort > /tmp/gh-aw/agent/prompt-cache/analyzed-prs.txt
 
 # On next run, compare and only process new PRs
-comm -13 /tmp/gh-aw/prompt-cache/analyzed-prs.txt <(new-prs) > /tmp/gh-aw/pr-data/new-prs.txt
+comm -13 /tmp/gh-aw/agent/prompt-cache/analyzed-prs.txt <(new-prs) > /tmp/gh-aw/agent/pr-data/new-prs.txt
 ```
 
 ## Important Guidelines

@@ -5,7 +5,7 @@
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
  */
 
-const { resolveTarget, isStagedMode, logStagedPreviewInfo } = require("./safe_output_helpers.cjs");
+const { resolveTarget, isStagedMode, logStagedPreviewInfo, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -34,6 +34,11 @@ async function main(config = {}) {
   const supersedeOlderReviews = parseBoolTemplatable(config.supersede_older_reviews, false);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
+
+  const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
+  if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
+  if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
 
   // Build the allowed events set from config (empty set means all events are allowed)
   const allowedEvents = new Set(Array.isArray(config.allowed_events) && config.allowed_events.length > 0 ? config.allowed_events.map(e => String(e).toUpperCase()) : []);
@@ -120,6 +125,13 @@ async function main(config = {}) {
     processedCount++;
 
     core.info(`Setting review metadata: event=${event}, bodyLength=${body.length}`);
+
+    // Apply required-labels/required-title-prefix filter if review context is already available
+    const existingReviewCtx = buffer.getReviewContext();
+    if (existingReviewCtx) {
+      const filterResult = await checkRequiredFilter(githubClient, existingReviewCtx.repoParts, existingReviewCtx.pullRequestNumber, requiredLabels, requiredTitlePrefix, "submit_pr_review");
+      if (filterResult) return filterResult;
+    }
 
     // Store the review metadata in the shared buffer
     buffer.setReviewMetadata(body, event);

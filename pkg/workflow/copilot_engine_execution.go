@@ -343,6 +343,7 @@ touch %s
 		"GITHUB_SERVER_URL": "${{ github.server_url }}",
 		"GITHUB_API_URL":    "${{ github.api_url }}",
 	}
+	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 
 	// When copilot-requests feature is enabled, set S2STOKENS=true to allow the Copilot CLI
 	// to accept GitHub App installation tokens (ghs_*) such as ${{ github.token }}.
@@ -529,24 +530,6 @@ touch %s
 	steps = append(steps, GitHubActionStep(stepLines))
 
 	return steps
-}
-
-// generateCopilotErrorDetectionStep generates a single step that detects known Copilot CLI
-// errors by scanning the agent stdio log. It sets four outputs:
-//   - inference_access_error: token lacks inference access (policy access denied)
-//   - mcp_policy_error: MCP servers blocked by enterprise/organization policy
-//   - agentic_engine_timeout: process killed by signal (SIGTERM/SIGKILL/SIGINT), typically step timeout
-//   - model_not_supported_error: requested model unavailable for the subscription tier
-func generateCopilotErrorDetectionStep() GitHubActionStep {
-	var step []string
-
-	step = append(step, "      - name: Detect Copilot errors")
-	step = append(step, "        id: detect-copilot-errors")
-	step = append(step, "        if: always()")
-	step = append(step, "        continue-on-error: true")
-	step = append(step, "        run: node \"${RUNNER_TEMP}/gh-aw/actions/detect_copilot_errors.cjs\"")
-
-	return GitHubActionStep(step)
 }
 
 // copilotSupportsNoAskUser returns true when the effective Copilot CLI version supports the

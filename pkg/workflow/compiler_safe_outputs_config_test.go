@@ -451,6 +451,27 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			expectedKeys: []string{"dispatch_workflow"},
 		},
 		{
+			name: "dispatch_repository config",
+			safeOutputs: &SafeOutputsConfig{
+				DispatchRepository: &DispatchRepositoryConfig{
+					Tools: map[string]*DispatchRepositoryToolConfig{
+						"example_tool": {
+							Description: "Test dispatch",
+							Workflow:    "test-workflow",
+							EventType:   "test_event",
+							Repository:  "github/example",
+							Max:         strPtr("1"),
+						},
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"dispatch_repository"},
+		},
+		{
 			name: "update_discussion config",
 			safeOutputs: &SafeOutputsConfig{
 				UpdateDiscussions: &UpdateDiscussionsConfig{
@@ -1004,8 +1025,8 @@ func TestHandlerConfigAddReviewerTeamReviewers(t *testing.T) {
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			AddReviewer: &AddReviewerConfig{
-				Reviewers:     []string{"user1"},
-				TeamReviewers: []string{"team-a"},
+				AllowedReviewers:     []string{"user1"},
+				AllowedTeamReviewers: []string{"team-a"},
 			},
 		},
 	}
@@ -1548,6 +1569,102 @@ func TestParseSafeOutputsMaxPatchFiles(t *testing.T) {
 	}
 }
 
+func TestHandlerConfigCreatePullRequestPatchLimitsOverrideGlobals(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			MaximumPatchSize:  4096,
+			MaximumPatchFiles: 800,
+			CreatePullRequests: &CreatePullRequestsConfig{
+				MaxPatchSize:  2048,
+				MaxPatchFiles: 300,
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	found := false
+	for _, step := range steps {
+		if !strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			continue
+		}
+		parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+		if len(parts) != 2 {
+			continue
+		}
+		jsonStr := strings.TrimSpace(parts[1])
+		jsonStr = strings.Trim(jsonStr, "\"")
+		jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+		var config map[string]map[string]any
+		err := json.Unmarshal([]byte(jsonStr), &config)
+		require.NoError(t, err)
+
+		prConfig, ok := config["create_pull_request"]
+		require.True(t, ok, "create_pull_request handler config should exist")
+
+		maxSize, ok := prConfig["max_patch_size"]
+		require.True(t, ok, "max_patch_size should be present in handler config")
+		assert.InDelta(t, float64(2048), maxSize, 0.0001, "create-pull-request max_patch_size should use per-handler override")
+
+		maxFiles, ok := prConfig["max_patch_files"]
+		require.True(t, ok, "max_patch_files should be present in handler config")
+		assert.InDelta(t, float64(300), maxFiles, 0.0001, "create-pull-request max_patch_files should use per-handler override")
+		found = true
+	}
+
+	assert.True(t, found, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG step should be present")
+}
+
+func TestHandlerConfigPushToPullRequestBranchPatchSizeOverridesGlobal(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			MaximumPatchSize: 4096,
+			PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+				MaxPatchSize: 2048,
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	found := false
+	for _, step := range steps {
+		if !strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			continue
+		}
+		parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+		if len(parts) != 2 {
+			continue
+		}
+		jsonStr := strings.TrimSpace(parts[1])
+		jsonStr = strings.Trim(jsonStr, "\"")
+		jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+		var config map[string]map[string]any
+		err := json.Unmarshal([]byte(jsonStr), &config)
+		require.NoError(t, err)
+
+		pushConfig, ok := config["push_to_pull_request_branch"]
+		require.True(t, ok, "push_to_pull_request_branch handler config should exist")
+
+		maxSize, ok := pushConfig["max_patch_size"]
+		require.True(t, ok, "max_patch_size should be present in handler config")
+		assert.InDelta(t, float64(2048), maxSize, 0.0001, "push-to-pull-request-branch max_patch_size should use per-handler override")
+		found = true
+	}
+
+	assert.True(t, found, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG step should be present")
+}
+
 // testBoolPtr is a helper function for bool pointers in config tests
 func testBoolPtr(b bool) *bool {
 	return &b
@@ -1667,10 +1784,13 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 		name                             string
 		baseBranch                       string
 		allowedBaseBranches              []string
+		allowedBranches                  []string
 		expectedBaseBranch               string
 		shouldHaveBaseBranchKey          bool
 		expectedAllowedBaseBranches      []string
 		shouldHaveAllowedBaseBranchesKey bool
+		expectedAllowedBranches          []string
+		shouldHaveAllowedBranchesKey     bool
 	}{
 		{
 			name:                    "custom base branch",
@@ -1694,10 +1814,13 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 			name:                             "allowed base branches list",
 			baseBranch:                       "main",
 			allowedBaseBranches:              []string{"release/*", "main"},
+			allowedBranches:                  []string{"feature/*", "fix/*"},
 			expectedBaseBranch:               "main",
 			shouldHaveBaseBranchKey:          true,
 			expectedAllowedBaseBranches:      []string{"release/*", "main"},
 			shouldHaveAllowedBaseBranchesKey: true,
+			expectedAllowedBranches:          []string{"feature/*", "fix/*"},
+			shouldHaveAllowedBranchesKey:     true,
 		},
 	}
 
@@ -1714,6 +1837,7 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 						},
 						BaseBranch:          tt.baseBranch,
 						AllowedBaseBranches: tt.allowedBaseBranches,
+						AllowedBranches:     tt.allowedBranches,
 					},
 				},
 			}
@@ -1758,6 +1882,19 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 							}
 						} else {
 							require.False(t, ok, "allowed_base_branches should NOT be in config when no values set")
+						}
+
+						allowedBranches, ok := prConfig["allowed_branches"]
+						if tt.shouldHaveAllowedBranchesKey {
+							require.True(t, ok, "allowed_branches should be in config")
+							allowedSlice, ok := allowedBranches.([]any)
+							require.True(t, ok, "allowed_branches should be an array")
+							require.Len(t, allowedSlice, len(tt.expectedAllowedBranches), "allowed_branches length should match")
+							for i, expected := range tt.expectedAllowedBranches {
+								assert.Equal(t, expected, allowedSlice[i], "allowed_branches element should match")
+							}
+						} else {
+							require.False(t, ok, "allowed_branches should NOT be in config when no values set")
 						}
 					}
 				}
@@ -2914,6 +3051,42 @@ func TestPRPolicyFieldsExpressionsPassThrough(t *testing.T) {
 			assert.Equal(t, tt.wantFormat, patchFmt, "patch_format should contain the expression")
 		})
 	}
+}
+
+func TestCreatePullRequestProtectedFilesPolicyDefault(t *testing.T) {
+	t.Parallel()
+
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			},
+		},
+	}
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "should produce config steps")
+
+	var configJSON string
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			require.Len(t, parts, 2, "should split env var line")
+			configJSON = strings.TrimSpace(parts[1])
+			configJSON = strings.Trim(configJSON, "\"")
+			configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+		}
+	}
+	require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+	var config map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+	handlerCfg, ok := config["create_pull_request"]
+	require.True(t, ok, "create_pull_request handler config should be present")
+	assert.Equal(t, "request_review", handlerCfg["protected_files_policy"], "default protected-files mode should be request_review")
 }
 
 // TestDispatchWorkflowRelayInjectsDispatchCompatibleRef verifies that when a workflow_call

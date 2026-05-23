@@ -67,6 +67,7 @@ const HANDLER_MAP = {
   create_agent_session: "./create_agent_session.cjs",
   create_code_scanning_alert: "./create_code_scanning_alert.cjs",
   autofix_code_scanning_alert: "./autofix_code_scanning_alert.cjs",
+  create_check_run: "./create_check_run.cjs",
   dispatch_workflow: "./dispatch_workflow.cjs",
   dispatch_repository: "./dispatch_repository.cjs",
   call_workflow: "./call_workflow.cjs",
@@ -129,6 +130,7 @@ const THREAT_WARNING_REVIEWABLE_TYPES = new Set([
   "create_project_status_update",
   "update_release",
   "create_code_scanning_alert",
+  "create_check_run",
   "create_missing_tool_issue",
   "missing_tool",
   "create_missing_data_issue",
@@ -605,22 +607,6 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       }
     }
 
-    // Fail-fast: if a previous code-push operation failed, cancel non-code-push messages.
-    // Exception: add_comment messages are allowed through so the status comment still reaches
-    // the user — they will be annotated with a failure note (see effectiveMessage logic below).
-    if (codePushFailures.length > 0 && !CODE_PUSH_TYPES.has(messageType) && messageType !== "add_comment") {
-      const cancelReason = `Cancelled: code push operation failed (${codePushFailures[0].type}: ${codePushFailures[0].error})`;
-      core.info(`⏭ Message ${i + 1} (${messageType}) cancelled — ${cancelReason}`);
-      results.push({
-        type: messageType,
-        messageIndex: i,
-        success: false,
-        cancelled: true,
-        reason: cancelReason,
-      });
-      continue;
-    }
-
     const messageHandler = messageHandlers.get(messageType);
 
     if (!messageHandler) {
@@ -761,7 +747,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         // Track code-push failures for fail-fast behaviour
         if (CODE_PUSH_TYPES.has(messageType)) {
           codePushFailures.push({ type: messageType, error: errorMsg });
-          core.warning(`⚠️ Code push operation '${messageType}' failed — remaining safe outputs will be cancelled`);
+          core.warning(`⚠️ Code push operation '${messageType}' failed — continuing with remaining safe outputs (add_comment messages will include a failure note)`);
         }
         continue;
       }
@@ -907,7 +893,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Track code-push failures for fail-fast behaviour
       if (CODE_PUSH_TYPES.has(messageType)) {
         codePushFailures.push({ type: messageType, error: getErrorMessage(error) });
-        core.warning(`⚠️ Code push operation '${messageType}' failed — remaining safe outputs will be cancelled`);
+        core.warning(`⚠️ Code push operation '${messageType}' failed — continuing with remaining safe outputs (add_comment messages will include a failure note)`);
       }
     }
   }
@@ -1048,6 +1034,8 @@ function getContentToCheck(messageType, message, result) {
       return message.body || "";
     case "comment_memory":
       return result?.managedBody || message.body || "";
+    case "create_pull_request":
+      return result?.managedBody || message.body || "";
     default:
       return null;
   }
@@ -1075,6 +1063,30 @@ async function updateIssueBody(github, context, repo, issueNumber, updatedBody, 
   });
 
   core.info(`✓ Updated issue ${repo}#${issueNumber}`);
+}
+
+/**
+ * Update the body of a pull request with resolved temporary IDs
+ * @param {any} github - GitHub API client
+ * @param {any} context - GitHub Actions context
+ * @param {string} repo - Repository in "owner/repo" format
+ * @param {number} prNumber - Pull request number to update
+ * @param {string} updatedBody - Updated body content with resolved temp IDs
+ * @returns {Promise<void>}
+ */
+async function updatePullRequestBody(github, context, repo, prNumber, updatedBody, allowedMentionAliases = []) {
+  const [owner, repoName] = repo.split("/");
+
+  core.info(`Updating pull request ${repo}#${prNumber} body with resolved temporary IDs`);
+
+  await github.rest.pulls.update({
+    owner,
+    repo: repoName,
+    pull_number: prNumber,
+    body: sanitizeContent(updatedBody, { allowedAliases: allowedMentionAliases }),
+  });
+
+  core.info(`✓ Updated pull request ${repo}#${prNumber}`);
 }
 
 /**
@@ -1243,6 +1255,10 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
                 } else {
                   core.debug(`Skipping synthetic update for comment_memory - comment ID not tracked`);
                 }
+                break;
+              case "create_pull_request":
+                await updatePullRequestBody(github, context, tracked.result.repo, tracked.result.number, updatedContent, allowedMentionAliases);
+                updateCount++;
                 break;
               default:
                 core.debug(`Unknown output type: ${tracked.type}`);

@@ -5,6 +5,10 @@ description: Analyzes test quality beyond code coverage percentages on every PR,
 on:
   pull_request:
     types: [ready_for_review]
+  slash_command:
+    strategy: centralized
+    name: review
+    events: [pull_request_comment, pull_request_review_comment]
 permissions:
   contents: read
   pull-requests: read
@@ -30,6 +34,7 @@ steps:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
+      EXPR_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
@@ -54,7 +59,7 @@ steps:
         touch /tmp/gh-aw/agent/test-diff.txt
       fi
 
-      git diff "${{ github.event.pull_request.base.sha }}...HEAD" --numstat \
+      git diff "$EXPR_GITHUB_EVENT_PULL_REQUEST_BASE_SHA...HEAD" --numstat \
         > /tmp/gh-aw/agent/diff-numstat.txt 2>/dev/null || true
 
       echo "Pre-fetched $(grep -c . /tmp/gh-aw/agent/test-files.txt || echo 0) test files"
@@ -306,9 +311,12 @@ Post a comment to the pull request with the full analysis using `add-comment`.
 ```markdown
 ### 🧪 Test Quality Sentinel Report
 
-### Test Quality Score: {SCORE}/100
+{SCORE_EMOJI} **Test Quality Score: {SCORE}/100 — {SCORE_LABEL}**
 
-{SCORE_EMOJI} **{SCORE_LABEL}**
+> {One-sentence summary: e.g. "Analyzed {TOTAL} test(s): {DESIGN_COUNT} design, {IMPL_COUNT} implementation, {VIOLATIONS} guideline violation(s)."}
+
+<details>
+<summary>📊 Metrics & Test Classification ({TOTAL} tests analyzed)</summary>
 
 | Metric | Value |
 |--------|-------|
@@ -320,8 +328,6 @@ Post a comment to the pull request with the full analysis using `add-comment`.
 | Test inflation detected | {YES/NO} |
 | 🚨 Coding-guideline violations | {VIOLATIONS} (Go mock libraries / missing build tags / no assertion messages) |
 
----
-
 ### Test Classification Details
 
 {For each test, one row:}
@@ -331,9 +337,20 @@ Post a comment to the pull request with the full analysis using `add-comment`.
 | `TestProcessData_MockCalls` | `pkg/processor/processor_test.go:42` | ⚠️ Implementation | No error case; only asserts mock was called |
 | `TestBarHappyPath` | `pkg/bar/bar_test.go:18` | ✅ Design | Verifies observable output |
 
----
+### Language Support
 
-### Flagged Tests — Requires Review
+Tests analyzed:
+- 🐹 Go (`*_test.go`): {GO_COUNT} tests — unit (`//go:build !integration`) and integration (`//go:build integration`)
+- 🟨 JavaScript (`*.test.cjs`, `*.test.js`): {JS_COUNT} tests (vitest)
+
+{If other languages detected:}
+> ℹ️ Tests in other languages were found but are outside the current analysis scope (Go and JavaScript supported).
+
+</details>
+
+{If flagged tests exist:}
+<details>
+<summary>⚠️ Flagged Tests — Requires Review ({FLAGGED_COUNT} issue(s))</summary>
 
 {List each flagged test with AI-generated improvement suggestion:}
 
@@ -348,28 +365,15 @@ Post a comment to the pull request with the full analysis using `add-comment`.
 
 {Repeat for each flagged test}
 
----
-
-### Language Support
-
-Tests analyzed:
-- 🐹 Go (`*_test.go`): {GO_COUNT} tests — unit (`//go:build !integration`) and integration (`//go:build integration`)
-- 🟨 JavaScript (`*.test.cjs`, `*.test.js`): {JS_COUNT} tests (vitest)
-
-{If other languages detected:}
-> ℹ️ Tests in other languages were found but are outside the current analysis scope (Go and JavaScript supported).
-
----
+</details>
 
 ### Verdict
 
 {If PASS:}
-> ✅ **Check passed.** {IMPL_PCT}% of new tests are implementation tests (threshold: 30%). 
+> ✅ **Check passed.** {IMPL_PCT}% of new tests are implementation tests (threshold: 30%).
 
 {If FAIL:}
-> ❌ **Check failed.** {IMPL_PCT}% of new tests are classified as low-value implementation tests (threshold: 30%). Please review the flagged tests above and improve their behavioral coverage before merging.
-
----
+> ❌ **Check failed.** {IMPL_PCT}% of new tests are classified as low-value implementation tests (threshold: 30%). Expand the sections above to review flagged tests and improve behavioral coverage before merging.
 
 <details>
 <summary>📖 Understanding Test Classifications</summary>
@@ -433,7 +437,14 @@ After posting the comment, submit a pull request review based on the verdict:
 ## Guidelines
 
 ### Report Formatting
-- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.
+- Apply **progressive disclosure**: keep the immediately visible text as brief as possible; wrap all verbose sections in `<details><summary>…</summary>` tags so readers can expand only what they need.
+- Required structure:
+  - **Visible**: Score headline + one-sentence summary
+  - **`<details>`**: Metrics table + full test classification table + language support
+  - **`<details>`** (omit if empty): Flagged tests with per-test improvement suggestions
+  - **Visible**: Verdict (pass/fail, one sentence)
+  - **`<details>`**: "Understanding Test Classifications" reference
 
 ### Analysis Scope
 - **Focus only on new and changed tests** — do not analyze unchanged test files
@@ -455,7 +466,7 @@ After posting the comment, submit a pull request review based on the verdict:
   1. In **Step 2**, collect the first 50 newly added test functions (not modified), then stop collecting.
   2. In the PR comment (Step 7), add a note such as: "⚠️ Sampling applied — analyzed the first 50 of N test functions. Prioritized newly added tests."
 - Keep individual test analysis concise — 2–3 sentences per test in the flagged section.
-- Use `<details>` tags for per-test tables with more than 10 rows.
+- Always wrap the per-test classification table and flagged-test details in `<details>` tags regardless of row count — keep every visible report section brief.
 
 ## agent: `go-test-analyzer`
 ---

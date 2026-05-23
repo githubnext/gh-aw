@@ -2,13 +2,13 @@
 
 **Date**: 2026-01-04  
 **Repository**: https://github.com/johnlindquist/mdflow  
-**Status**: Deep Technical Analysis
+**Status**: Technical Analysis
 
 ---
 
 ## Executive Summary
 
-This document provides a deep technical analysis of mdflow and GitHub Agentic Workflows (gh-aw), focusing on custom engine opportunities, architectural patterns, and strategic insights for gh-aw development. While the existing `mdflow-comparison.md` provides a detailed syntax comparison, this document focuses on **what gh-aw can learn from mdflow** and **opportunities for custom engine development**.
+This document provides a technical analysis of mdflow and GitHub Agentic Workflows (gh-aw), focusing on custom engine opportunities, architectural patterns, and strategic insights for gh-aw development. While the existing `mdflow-comparison.md` provides a detailed syntax comparison, this document focuses on **what gh-aw can learn from mdflow** and **opportunities for custom engine development**.
 
 ### Key Findings
 
@@ -1352,7 +1352,7 @@ gh aw compile --engine mdflow-compat review.claude.md
 
 **Benefits**:
 - Provide migration path for mdflow users
-- Leverage mdflow's simplicity in gh-aw context
+- Adopt mdflow's minimal-configuration approach in the gh-aw context
 - Enable gradual adoption (start with minimal features, add security later)
 
 ### Final Thoughts

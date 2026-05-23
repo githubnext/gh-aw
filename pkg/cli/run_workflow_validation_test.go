@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -421,6 +422,11 @@ jobs:
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Missing required input(s)")
 	assert.Contains(t, err.Error(), "issue_url")
+	var validationErr *workflow.WorkflowValidationError
+	require.ErrorAs(t, err, &validationErr, "expected WorkflowValidationError for invalid inputs")
+	assert.Contains(t, validationErr.Suggestion, "on:")
+	assert.Contains(t, validationErr.Suggestion, "workflow_dispatch:")
+	assert.Contains(t, validationErr.Suggestion, "inputs:")
 
 	// Test with provided required input
 	err = validateWorkflowInputs(markdownPath, []string{"issue_url=https://example.com"})

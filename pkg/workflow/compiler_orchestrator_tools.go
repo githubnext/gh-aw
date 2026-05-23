@@ -50,7 +50,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	agenticEngine CodingAgentEngine, engineSetting string, importsResult *parser.ImportsResult) (*toolsProcessingResult, error) {
 
 	orchestratorToolsLog.Printf("Processing tools and markdown")
-	log.Print("Processing tools and includes...")
+	workflowLog.Print("Processing tools and includes...")
 
 	// Extract inline sub-agents from the markdown body before any other processing.
 	// This strips sub-agent sections from the effective markdown so they do not affect
@@ -68,6 +68,9 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
 		c.IncrementWarningCount()
 	}
+
+	// Emit schema-driven deprecation warnings for any deprecated frontmatter fields.
+	c.warnDeprecatedFrontmatterFields(result.Frontmatter)
 
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
@@ -278,7 +281,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		orchestratorToolsLog.Print("No imported markdown with inputs")
 	}
 
-	log.Print("Expanded includes in markdown content")
+	workflowLog.Print("Expanded includes in markdown content")
 
 	// Combine all included files (from tools and markdown)
 	// Use a map to deduplicate files
@@ -317,7 +320,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	// Extract emoji from frontmatter for use in footers and UI
 	frontmatterEmoji := extractStringFromMap(result.Frontmatter, "emoji", nil)
 
-	log.Printf("Extracted workflow name: '%s'", workflowName)
+	workflowLog.Printf("Extracted workflow name: '%s'", workflowName)
 
 	// Check if the markdown content uses the text output OR if the workflow is triggered by
 	// events that have content (issues, discussions, PRs, comments). The sanitized step should
@@ -428,4 +431,29 @@ func (c *Compiler) hasContentContext(frontmatter map[string]any) bool {
 
 	orchestratorToolsLog.Printf("No content context detected in trigger events")
 	return false
+}
+
+// warnDeprecatedFrontmatterFields emits a console warning for every deprecated
+// field found in the frontmatter by walking the JSON schema hierarchy.
+// The schema's x-deprecation-message (falling back to description) is used as
+// the warning text so deprecations self-document without per-field plumbing.
+func (c *Compiler) warnDeprecatedFrontmatterFields(frontmatter map[string]any) {
+	deprecatedFields, err := parser.GetMainWorkflowDeprecatedFieldsDeep()
+	if err != nil {
+		orchestratorToolsLog.Printf("Failed to load deprecated fields from schema: %v", err)
+		return
+	}
+
+	found := parser.FindDeprecatedFieldsInFrontmatterDeep(frontmatter, deprecatedFields)
+	for _, f := range found {
+		msg := f.DeprecationMessage
+		if msg == "" {
+			msg = f.Description
+		}
+		if msg == "" {
+			msg = fmt.Sprintf("'%s' is deprecated", f.Path)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+		c.IncrementWarningCount()
+	}
 }

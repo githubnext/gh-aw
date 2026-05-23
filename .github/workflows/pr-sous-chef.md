@@ -58,6 +58,7 @@ steps:
   - name: Fetch open non-draft PR queue
     env:
       GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
     run: |
       mkdir -p /tmp/gh-aw/agent
       candidate_file=/tmp/gh-aw/agent/pr-sous-chef-candidates.json
@@ -66,7 +67,7 @@ steps:
       filtered_checks_pending=0
       filtered_last_comment_from_sous_chef=0
 
-      gh pr list --repo "${{ github.repository }}" \
+      gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
         --state open \
         --search "is:pr is:open -is:draft sort:updated-desc" \
         --limit 30 \
@@ -83,7 +84,7 @@ steps:
 
         checks_state="$(
           {
-            gh aw checks "$pr_number" --repo "${{ github.repository }}" --json \
+            gh aw checks "$pr_number" --repo "$EXPR_GITHUB_REPOSITORY" --json \
               | jq -r '.required_state // .state // "unknown"'
           } 2>/dev/null || echo "unknown"
         )"
@@ -93,7 +94,7 @@ steps:
         fi
 
         last_comment_is_sous_chef="$(
-          gh api "repos/${{ github.repository }}/issues/$pr_number/comments?per_page=1&sort=created&direction=desc" \
+          gh api "repos/$EXPR_GITHUB_REPOSITORY/issues/$pr_number/comments?per_page=1&sort=created&direction=desc" \
             --jq '
               if length == 0 then false
               else (
@@ -233,6 +234,19 @@ At the end, call **exactly one** `noop` with a compact summary including counts 
 - nudged_other
 - branch_update_attempts
 - formatter_pushes (number of PRs that had formatting fixes committed and pushed)
+
+## Formatting Requirements
+
+- **Header Levels**: Use h3 (`###`) or lower for all headers in your report to maintain proper document hierarchy. Never use h1 (`#`) or h2 (`##`) headers.
+- **Progressive Disclosure**: Wrap long sections or verbose details in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Keep critical information visible (summary, key outcomes, and recommendations) and use collapsible sections for secondary details.
+
+### Recommended Report Structure
+
+1. **Overview**: 1-2 paragraphs summarizing key findings (always visible)
+2. **Critical Information**: Key metrics, status, critical issues (always visible)
+3. **Details**: Use `<details><summary>Section Name</summary>` for expanded content
+4. **Recommendations**: Actionable next steps (always visible)
 
 ## agent: `pr-processor`
 ---

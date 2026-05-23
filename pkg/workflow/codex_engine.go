@@ -162,7 +162,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	} else {
 		modelEnvVar = constants.EnvVarModelAgentCodex
 	}
-	modelParam := fmt.Sprintf(`${%s:+--model "$%s" }`, modelEnvVar, modelEnvVar)
+	modelParam := fmt.Sprintf(`${%s:+ --model "$%s"}`, modelEnvVar, modelEnvVar)
 
 	// Build search parameter: disable web search by default, enable only if web-search tool is present.
 	// Codex enables web search by default, so we must explicitly set web_search="disabled" to disable it.
@@ -230,11 +230,11 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Harness-wrapped execution: the harness reads --prompt-file and passes its content
 		// as the last positional arg.  The harness also provides retry logic.
 		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
-		codexCommand = fmt.Sprintf("%s %sexec%s%s%s%s--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
 			execPrefix, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
 	} else {
 		// Without harness: use shell expansion for the prompt (no retry logic).
-		codexCommand = fmt.Sprintf("%s %sexec%s%s%s%s\"$INSTRUCTION\"",
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s\"$INSTRUCTION\"",
 			commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
 	}
 
@@ -288,9 +288,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			// The agent writes its step summary content to AgentStepSummaryPath, which is
 			// appended to $GITHUB_STEP_SUMMARY after secret redaction.
 			PathSetup: "mkdir -p \"$CODEX_HOME/logs\" && touch " + AgentStepSummaryPath,
-			// Exclude every env var whose step-env value is a secret so the agent
-			// cannot read raw token values via bash tools (env / printenv).
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"CODEX_API_KEY", "OPENAI_API_KEY"}),
+			// Keep Codex runtime API key variables available in the AWF container.
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, nil),
 		})
 	} else {
 		// Build the command without AWF wrapping.
@@ -338,6 +337,7 @@ mkdir -p "$CODEX_HOME/logs"
 		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,                                     // Used by GitHub MCP server via env_vars
 		"OPENAI_API_KEY":               "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}", // Fallback for CODEX_API_KEY
 	}
+	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection
 	// Include the compiler version so agents can identify which gh-aw version generated the workflow
 	if workflowData.IsDetectionRun {

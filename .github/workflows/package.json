@@ -4,6 +4,7 @@
   "license": "MIT",
   "dependencies": {
     "@sentry/mcp-server": "0.33.0",
-    "@your-org/otel-query-mcp": "latest"
+    "@your-org/otel-query-mcp": "latest",
+    "agentdb": "alpha"
   }
 }

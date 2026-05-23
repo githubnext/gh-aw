@@ -27,16 +27,32 @@ const { getBaseBranch } = require("./get_base_branch.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
-const { renderTemplateFromFile, buildProtectedFileList, encodePathSegments, getPromptPath } = require("./messages_core.cjs");
-const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL, MAX_ASSIGNEES } = require("./constants.cjs");
+const { renderTemplateFromFile, renderFilesList, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
+const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
-const { withRetry, isTransientError, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
-const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
+const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
-const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits } = require("./git_helpers.cjs");
 const { parseDiffGitHeader: parseDiffGitHeaderPaths, extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
+const {
+  MANAGED_FALLBACK_ISSUE_LABEL,
+  LABEL_MAX_RETRIES,
+  LABEL_INITIAL_DELAY_MS,
+  LABEL_MAX_DELAY_MS,
+  summarizeListForLog,
+  createBundleTempRef,
+  isLabelTransientError,
+  parseAllowedBaseBranches,
+  isBaseBranchAllowed,
+  parseStringListConfig,
+  mergeFallbackIssueLabels,
+  sanitizeFallbackAssignees,
+  neutralizeClosingKeywordsForIssueBody,
+  generatePatchPreview,
+  buildManifestProtectionCreatePrUrl,
+  renderManifestProtectionFallbackBody,
+} = require("./create_pull_request_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -68,34 +84,91 @@ async function createCopilotAssignmentClient(config) {
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request";
 
-/** @type {string} Label always added to fallback issues so the triage system can find them */
-const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
+// NOTE: MANAGED_FALLBACK_ISSUE_LABEL, createBundleTempRef, and summarizeListForLog
+// are imported from create_pull_request_helpers.cjs above.
 
 /**
- * Creates a temporary refs/bundles ref for applying create_pull_request bundles.
- * Branch names are sanitized for ref compatibility, and a short crypto-random
- * suffix avoids collisions between branches that sanitize to the same value.
+ * Attempt automatic recovery for git am add/add conflicts by preferring the patch version.
  *
- * @param {string} branchName - Target branch name
- * @returns {string} Temporary bundle ref name
+ * @param {{ exec: Function, getExecOutput: Function }} execApi - Exec API with git command helpers
+ * @returns {Promise<{ recovered: boolean, attempted: boolean, errorMessage?: string }>}
  */
-function createBundleTempRef(branchName) {
-  const suffix = crypto.randomBytes(4).toString("hex");
-  return `refs/bundles/create-pr-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}-${suffix}`;
-}
+async function tryRecoverGitAmAddAddConflict(execApi) {
+  try {
+    const unresolvedFilesResult = await execApi.getExecOutput("git", ["diff", "--name-only", "--diff-filter=U", "-z"]);
+    const unresolvedFiles = unresolvedFilesResult.stdout.split("\0").filter(line => line.length > 0);
+    core.debug(`Add/add recovery probe unresolved files (${unresolvedFiles.length}): ${summarizeListForLog(unresolvedFiles)}`);
 
-/**
- * Summarize a list for log output to avoid excessively long lines.
- * @param {string[]} values
- * @param {number} limit
- * @returns {string}
- */
-function summarizeListForLog(values, limit = 10) {
-  if (!Array.isArray(values) || values.length === 0) {
-    return "(none)";
+    if (unresolvedFiles.length === 0) {
+      return { recovered: false, attempted: false };
+    }
+
+    const statusPorcelainResult = await execApi.getExecOutput("git", ["status", "--porcelain", "-z"]);
+    const addAddFiles = new Set(
+      statusPorcelainResult.stdout
+        .split("\0")
+        .filter(line => line.length > 0)
+        .filter(line => line.startsWith("AA "))
+        .map(line => line.substring(3))
+    );
+    core.debug(`Add/add recovery probe AA files (${addAddFiles.size}): ${summarizeListForLog(Array.from(addAddFiles))}`);
+    const allConflictsAreAddAdd = unresolvedFiles.every(file => addAddFiles.has(file));
+    if (!allConflictsAreAddAdd) {
+      core.debug("Add/add recovery skipped because unresolved conflicts include non-AA entries");
+      return { recovered: false, attempted: false };
+    }
+
+    core.warning(`Detected add/add conflict(s) for ${unresolvedFiles.join(", ")}; preferring patch version and continuing`);
+    for (const file of unresolvedFiles) {
+      try {
+        const { stdout: unresolvedIndexOutput } = await execApi.getExecOutput("git", ["ls-files", "-u", "--", file]);
+        let oursBlobSha = "";
+        let theirsBlobSha = "";
+        for (const line of unresolvedIndexOutput.split("\n")) {
+          if (!line.trim()) {
+            continue;
+          }
+          const fields = line.trim().split(/\s+/);
+          if (fields.length < 3) {
+            continue;
+          }
+          if (fields[2] === "2") {
+            oursBlobSha = fields[1];
+          } else if (fields[2] === "3") {
+            theirsBlobSha = fields[1];
+          }
+        }
+
+        const getBlobSize = async blobSha => {
+          if (!blobSha) {
+            return "unknown";
+          }
+          try {
+            const { stdout } = await execApi.getExecOutput("git", ["cat-file", "-s", blobSha]);
+            return stdout.trim() || "unknown";
+          } catch {
+            return "unknown";
+          }
+        };
+
+        const oursSize = await getBlobSize(oursBlobSha);
+        const theirsSize = await getBlobSize(theirsBlobSha);
+        core.warning(`Resolving add/add conflict for ${file}: ours ${oursBlobSha || "unknown"} (${oursSize} bytes), theirs ${theirsBlobSha || "unknown"} (${theirsSize} bytes); preferring patch version (--theirs)`);
+      } catch (metadataError) {
+        core.warning(`Resolving add/add conflict for ${file}; failed to read conflict blob metadata: ${getErrorMessage(metadataError)}. Preferring patch version (--theirs)`);
+      }
+
+      core.debug(`Checking out patch version for add/add conflict file: ${file}`);
+      await execApi.exec("git", ["checkout", "--theirs", "--", file]);
+      await execApi.exec("git", ["add", "--", file]);
+    }
+    await execApi.exec("git", ["am", "--continue"]);
+    core.info("Patch applied successfully after resolving add/add conflict(s)");
+    return { recovered: true, attempted: true };
+  } catch (recoveryError) {
+    core.debug(`Add/add recovery threw: ${getErrorMessage(recoveryError)}`);
+    return { recovered: false, attempted: true, errorMessage: getErrorMessage(recoveryError) };
   }
-  const preview = values.slice(0, limit).join(", ");
-  return values.length > limit ? `${preview} ... and ${values.length - limit} more` : preview;
 }
 
 /**
@@ -235,131 +308,11 @@ async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi) {
   }
 }
 
-/**
- * Determines if a label API error is transient and worth retrying.
- * Returns true for:
- *  - The GitHub race condition where a newly-created PR's node ID is not immediately
- *    resolvable via the REST/GraphQL bridge (unprocessable validation error).
- *  - Any standard transient error matched by {@link isTransientError} (network issues,
- *    rate limits, 5xx gateway errors, etc.).
- * @param {any} error - The error to check
- * @returns {boolean} True if the error is transient and should be retried
- */
-function isLabelTransientError(error) {
-  const msg = getErrorMessage(error);
-  if (msg.includes("Could not resolve to a node with the global id")) {
-    return true;
-  }
-  return isTransientError(error);
-}
-
-/** @type {number} Number of retry attempts for label operations */
-const LABEL_MAX_RETRIES = 5;
-/** @type {number} Base delay in ms used to calculate label retry backoff (3 seconds) */
-const LABEL_INITIAL_DELAY_MS = 3000;
-/** @type {number} Maximum delay in ms between label retries (30 seconds) */
-const LABEL_MAX_DELAY_MS = 30000;
-
-/**
- * Parse allowed base branch patterns from config value (array or comma-separated string)
- * @param {string[]|string|undefined} allowedBaseBranchesValue
- * @returns {Set<string>}
- */
-function parseAllowedBaseBranches(allowedBaseBranchesValue) {
-  const set = new Set();
-  if (Array.isArray(allowedBaseBranchesValue)) {
-    allowedBaseBranchesValue
-      .map(branch => String(branch).trim())
-      .filter(Boolean)
-      .forEach(branch => set.add(branch));
-  } else if (typeof allowedBaseBranchesValue === "string") {
-    allowedBaseBranchesValue
-      .split(",")
-      .map(branch => branch.trim())
-      .filter(Boolean)
-      .forEach(branch => set.add(branch));
-  }
-  return set;
-}
-
-/**
- * Check if a base branch matches an allowed pattern.
- * Supports exact matches and "*" glob patterns (e.g. "release/*").
- * @param {string} baseBranch
- * @param {Set<string>} allowedBaseBranches
- * @returns {boolean}
- */
-function isBaseBranchAllowed(baseBranch, allowedBaseBranches) {
-  if (allowedBaseBranches.has(baseBranch)) {
-    return true;
-  }
-  for (const pattern of allowedBaseBranches) {
-    if (pattern === "*") {
-      return true;
-    }
-    if (pattern.includes("*") && globPatternToRegex(pattern, { pathMode: true, caseSensitive: true }).test(baseBranch)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Parse config values that may be arrays or comma-separated strings.
- * @param {string[]|string|undefined} value
- * @returns {string[]}
- */
-function parseStringListConfig(value) {
-  if (!value) {
-    return [];
-  }
-  const raw = Array.isArray(value) ? value : String(value).split(",");
-  return raw.map(item => String(item).trim()).filter(Boolean);
-}
-
-/**
- * Merges the required fallback label with any workflow-configured labels,
- * deduplicating and filtering empty values.
- * @param {string[]} [labels]
- * @returns {string[]}
- */
-function mergeFallbackIssueLabels(labels = []) {
-  const normalizedLabels = labels
-    .filter(label => !!label)
-    .map(label => String(label).trim())
-    .filter(label => label);
-  return [...new Set([MANAGED_FALLBACK_ISSUE_LABEL, ...normalizedLabels])];
-}
-
-/**
- * Sanitizes configured assignees for fallback issue creation.
- * Filters invalid values, removes the special "copilot" username (not a valid GitHub user
- * for issue assignment), and enforces the MAX_ASSIGNEES limit.
- * Returns null (no assignees field) if the sanitized list is empty.
- * @param {string[]} assignees - Raw assignees from config
- * @returns {string[] | null} Sanitized assignees or null if none remain
- */
-function sanitizeFallbackAssignees(assignees) {
-  if (!assignees || assignees.length === 0) {
-    return null;
-  }
-  const sanitized = assignees
-    .filter(a => typeof a === "string")
-    .map(a => a.trim())
-    .filter(a => a.length > 0 && a.toLowerCase() !== "copilot");
-
-  if (sanitized.length === 0) {
-    return null;
-  }
-
-  const limitResult = tryEnforceArrayLimit(sanitized, MAX_ASSIGNEES, "assignees");
-  if (!limitResult.success) {
-    core.warning(`Assignees limit exceeded for fallback issue: ${limitResult.error}. Using first ${MAX_ASSIGNEES}.`);
-    return sanitized.slice(0, MAX_ASSIGNEES);
-  }
-
-  return sanitized;
-}
+// NOTE: isLabelTransientError, LABEL_MAX_RETRIES, LABEL_INITIAL_DELAY_MS, LABEL_MAX_DELAY_MS,
+// parseAllowedBaseBranches, isBaseBranchAllowed, parseStringListConfig, mergeFallbackIssueLabels,
+// sanitizeFallbackAssignees, neutralizeClosingKeywordsForIssueBody, generatePatchPreview,
+// buildManifestProtectionCreatePrUrl, and renderManifestProtectionFallbackBody
+// are imported from create_pull_request_helpers.cjs above.
 
 /**
  * Creates a fallback GitHub issue, retrying on rate-limit and other transient errors
@@ -408,61 +361,6 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
     RATE_LIMIT_RETRY_CONFIG,
     `create fallback issue in ${repoParts.owner}/${repoParts.repo}`
   );
-}
-
-/**
- * Builds a compare URL used in protected-files fallback issue bodies.
- * Optionally appends a prefilled PR body that closes the fallback issue.
- * @param {string} githubServer
- * @param {{owner: string, repo: string}} repoParts
- * @param {string} baseBranch
- * @param {string} branchName
- * @param {string} title
- * @param {number} [fallbackIssueNumber]
- * @returns {string}
- */
-function buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch, branchName, title, fallbackIssueNumber) {
-  const encodedBase = encodePathSegments(baseBranch);
-  const encodedHead = encodePathSegments(branchName);
-  let createPrUrl = `${githubServer}/${repoParts.owner}/${repoParts.repo}/compare/${encodedBase}...${encodedHead}?expand=1&title=${encodeURIComponent(title)}`;
-  if (typeof fallbackIssueNumber === "number") {
-    createPrUrl += `&body=${encodeURIComponent(`Closes #${fallbackIssueNumber}`)}`;
-  }
-  return createPrUrl;
-}
-
-/**
- * Renders protected-files fallback issue body with a prefilled compare URL.
- * @param {string} mainBodyContent
- * @param {string} footerContent
- * @param {string} fileList
- * @param {string} createPrUrl
- * @returns {string}
- */
-function renderManifestProtectionFallbackBody(mainBodyContent, footerContent, fileList, createPrUrl) {
-  const templatePath = getPromptPath("manifest_protection_create_pr_fallback.md");
-  return renderTemplateFromFile(templatePath, {
-    main_body: mainBodyContent,
-    footer: footerContent,
-    files: fileList,
-    create_pr_url: createPrUrl,
-  });
-}
-
-/**
- * Neutralizes issue-closing keywords in body text to avoid unintended cross-issue closure
- * when PR content is reused in fallback issue bodies.
- *
- * Example: "Closes #123" -> "Closes \\#123"
- *
- * @param {string} content
- * @returns {string}
- */
-function neutralizeClosingKeywordsForIssueBody(content) {
-  if (!content) {
-    return content;
-  }
-  return String(content).replace(/\b(fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s+((?:[a-z0-9_.-]+\/[a-z0-9_.-]+)?#\d+)\b/gi, (_match, keyword, issueRef) => `${keyword} ${String(issueRef).replace("#", "\\#")}`);
 }
 
 /**
@@ -548,35 +446,7 @@ function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
   }
 }
 
-/**
- * Generate a patch preview with max 500 lines and 2000 chars for issue body
- * @param {string} patchContent - The full patch content
- * @returns {string} Formatted patch preview
- */
-function generatePatchPreview(patchContent) {
-  if (!patchContent || !patchContent.trim()) {
-    return "";
-  }
-
-  const lines = patchContent.split("\n");
-  const maxLines = 500;
-  const maxChars = 2000;
-
-  // Apply line limit first
-  let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
-  const lineTruncated = lines.length > maxLines;
-
-  // Apply character limit
-  const charTruncated = preview.length > maxChars;
-  if (charTruncated) {
-    preview = preview.slice(0, maxChars);
-  }
-
-  const truncated = lineTruncated || charTruncated;
-  const summary = truncated ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
-
-  return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
-}
+// NOTE: generatePatchPreview is imported from create_pull_request_helpers.cjs above.
 
 /**
  * Check whether the remote branch already exists and, if so, either reuse it
@@ -1191,10 +1061,15 @@ async function main(config = {}) {
     // Check file protection: allowlist (strict) or protected-files policy.
     /** @type {string[] | null} Protected files that trigger fallback-to-issue handling */
     let manifestProtectionFallback = null;
+    /** @type {string[] | null} Protected files that trigger request-review handling */
+    let manifestProtectionRequestReview = null;
     /** @type {unknown} */
     let manifestProtectionPushFailedError = null;
     if (!isEmpty) {
-      const protection = checkFileProtection(patchContent, config);
+      const protection = checkFileProtection(patchContent, {
+        ...config,
+        protected_files_policy: config.protected_files_policy ?? "request_review",
+      });
       if (protection.action === "deny") {
         const filesStr = protection.files.join(", ");
         const message =
@@ -1207,6 +1082,10 @@ async function main(config = {}) {
       if (protection.action === "fallback") {
         manifestProtectionFallback = protection.files;
         core.warning(`Protected file protection triggered (fallback-to-issue): ${protection.files.join(", ")}. Will create review issue instead of pull request.`);
+      }
+      if (protection.action === "request_review") {
+        manifestProtectionRequestReview = protection.files;
+        core.warning(`Protected file protection triggered (request_review): ${protection.files.join(", ")}. Will create pull request with caution and request-changes review.`);
       }
     }
 
@@ -1359,6 +1238,15 @@ async function main(config = {}) {
       bodyLines.unshift(...bodyHeader.split("\n"), "");
     }
 
+    // Keep the protected-files notice directly under detection caution:
+    // this block runs first, then detectionCaution below unshifts to index 0.
+    if (manifestProtectionRequestReview && manifestProtectionRequestReview.length > 0) {
+      const protectedFilesNoticeTemplatePath = getPromptPath("manifest_protection_request_review.md");
+      const protectedFilesNotice = renderTemplateFromFile(protectedFilesNoticeTemplatePath, {
+        files: renderFilesList(manifestProtectionRequestReview.join(", ")),
+      });
+      bodyLines.unshift(protectedFilesNotice, "", "");
+    }
     // Inject CAUTION at top of body (unshifted after header so it appears first in the final output)
     const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
     if (detectionCaution) {
@@ -1674,78 +1562,104 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
         } catch (patchError) {
           core.error(`Failed to apply patch with --3way: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
 
-          // Investigate why the patch failed by logging git status and the failed patch
-          try {
-            core.info("Investigating patch failure...");
-
-            // Log git status to see the current state
-            const statusResult = await exec.getExecOutput("git", ["status"]);
-            core.info("Git status output:");
-            core.info(statusResult.stdout);
-
-            // Log the failed patch diff
-            const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-            core.info("Failed patch content:");
-            core.info(patchResult.stdout);
-          } catch (investigateError) {
-            core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
-          }
-
-          // Abort the failed git am before attempting any fallback
-          try {
-            await exec.exec("git am --abort");
-            core.info("Aborted failed git am");
-          } catch (abortError) {
-            core.warning(`Failed to abort git am: ${abortError instanceof Error ? abortError.message : String(abortError)}`);
-          }
-
-          // Fallback (Option 1): create the PR branch at the original base commit so the PR
-          // can still be created. GitHub will show the merge conflicts, allowing manual resolution.
-          // This handles the case where the target branch received intervening commits after
-          // the patch was generated, making --3way unable to resolve the conflicts automatically.
-          core.info("Attempting fallback: create PR branch at original base commit...");
-          try {
-            // Use the base commit recorded at patch generation time.
-            // The From <sha> header in format-patch output contains the agent's new commit SHA
-            // which does not exist in this checkout, so we cannot derive the base from it.
-            const originalBaseCommit = pullRequestItem.base_commit;
-            if (!originalBaseCommit) {
-              core.warning("No base_commit recorded in safe output entry - fallback not possible");
-            } else {
-              core.info(`Original base commit from patch generation: ${originalBaseCommit}`);
-
-              // In shallow clones (fetch-depth: 1) the base commit may not be locally available.
-              // Attempt to fetch it explicitly before checking whether it exists.
-              try {
-                await exec.exec("git", ["fetch", "origin", originalBaseCommit, "--depth=1"]);
-              } catch (fetchError) {
-                // Non-fatal: the commit may already be available, or the server may not support
-                // fetching individual SHAs (e.g. some GHE configurations). Log for troubleshooting.
-                core.info(`Note: could not fetch base commit ${originalBaseCommit} explicitly (${fetchError instanceof Error ? fetchError.message : String(fetchError)}); will verify local availability next`);
-              }
-
-              // Verify the base commit is available in this repo (may not exist cross-repo)
-              await exec.exec("git", ["cat-file", "-e", originalBaseCommit]);
-              core.info("Original base commit exists locally - proceeding with fallback");
-
-              // Re-create the PR branch at the original base commit
-              await exec.exec(`git checkout ${baseBranch}`);
-              try {
-                await exec.exec(`git branch -D ${branchName}`);
-              } catch {
-                // Branch may not exist yet, ignore
-              }
-              await exec.exec(`git checkout -b ${branchName} ${originalBaseCommit}`);
-              core.info(`Created branch ${branchName} at original base commit ${originalBaseCommit}`);
-
-              // Apply the patch without --3way; we are on the correct base so it should apply cleanly
-              await exec.exec(`git am ${patchFilePath}`);
-              core.info("Patch applied successfully at original base commit");
-              core.warning(`PR branch ${branchName} is based on an earlier commit than the current ${baseBranch} HEAD. The pull request will show merge conflicts that require manual resolution.`);
-              patchApplied = true;
+          const recoveredFromAddAddConflict = await tryRecoverGitAmAddAddConflict(exec);
+          if (recoveredFromAddAddConflict.recovered) {
+            patchApplied = true;
+          } else {
+            if (recoveredFromAddAddConflict.errorMessage) {
+              core.warning(`Automatic add/add conflict recovery attempt failed: ${recoveredFromAddAddConflict.errorMessage}`);
             }
-          } catch (fallbackError) {
-            core.warning(`Fallback to original base commit failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
+            // Investigate why the patch failed by logging git status and the failed patch
+            try {
+              core.info("Investigating patch failure...");
+
+              // Log git status to see the current state
+              const statusResult = await exec.getExecOutput("git", ["status"]);
+              core.info("Git status output:");
+              core.info(statusResult.stdout);
+
+              // Log the failed patch diff
+              const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+              core.info("Failed patch content:");
+              core.info(patchResult.stdout);
+            } catch (investigateError) {
+              core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
+            }
+
+            // Abort the failed git am before attempting any fallback
+            try {
+              await exec.exec("git am --abort");
+              core.info("Aborted failed git am");
+            } catch (abortError) {
+              core.warning(`Failed to abort git am: ${abortError instanceof Error ? abortError.message : String(abortError)}`);
+            }
+
+            // Fallback (Option 1): create the PR branch at the original base commit so the PR
+            // can still be created. GitHub will show the merge conflicts, allowing manual resolution.
+            // This handles the case where the target branch received intervening commits after
+            // the patch was generated, making --3way unable to resolve the conflicts automatically.
+            core.info("Attempting fallback: create PR branch at original base commit...");
+            try {
+              // Use the base commit recorded at patch generation time.
+              // The From <sha> header in format-patch output contains the agent's new commit SHA
+              // which does not exist in this checkout, so we cannot derive the base from it.
+              const originalBaseCommit = pullRequestItem.base_commit;
+              if (!originalBaseCommit) {
+                core.warning("No base_commit recorded in safe output entry - fallback not possible");
+              } else {
+                core.info(`Original base commit from patch generation: ${originalBaseCommit}`);
+
+                // In shallow clones (fetch-depth: 1) the base commit may not be locally available.
+                // Attempt to fetch it explicitly before checking whether it exists.
+                try {
+                  await exec.exec("git", ["fetch", "origin", originalBaseCommit, "--depth=1"]);
+                } catch (fetchError) {
+                  // Non-fatal: the commit may already be available, or the server may not support
+                  // fetching individual SHAs (e.g. some GHE configurations). Log for troubleshooting.
+                  core.info(`Note: could not fetch base commit ${originalBaseCommit} explicitly (${fetchError instanceof Error ? fetchError.message : String(fetchError)}); will verify local availability next`);
+                }
+
+                // Verify the base commit is available in this repo (may not exist cross-repo)
+                await exec.exec("git", ["cat-file", "-e", originalBaseCommit]);
+                core.info("Original base commit exists locally - proceeding with fallback");
+
+                // Re-create the PR branch at the original base commit
+                await exec.exec(`git checkout ${baseBranch}`);
+                try {
+                  await exec.exec(`git branch -D ${branchName}`);
+                } catch {
+                  // Branch may not exist yet, ignore
+                }
+                await exec.exec(`git checkout -b ${branchName} ${originalBaseCommit}`);
+                core.info(`Created branch ${branchName} at original base commit ${originalBaseCommit}`);
+
+                // Try --3way first to maximize repair opportunities even on fallback branches.
+                // If that still fails with add/add conflicts, recover and continue git am.
+                try {
+                  await exec.exec("git", ["am", "--3way", patchFilePath]);
+                } catch (fallbackPatchError) {
+                  core.warning(`Fallback git am --3way failed: ${getErrorMessage(fallbackPatchError)}`);
+                  const recoveredFallback = await tryRecoverGitAmAddAddConflict(exec);
+                  if (!recoveredFallback.recovered) {
+                    if (recoveredFallback.errorMessage) {
+                      core.warning(`Automatic add/add conflict recovery attempt failed during fallback: ${recoveredFallback.errorMessage}`);
+                    }
+                    try {
+                      await exec.exec("git am --abort");
+                    } catch (abortFallbackError) {
+                      core.warning(`Failed to abort fallback git am: ${getErrorMessage(abortFallbackError)}`);
+                    }
+                    throw fallbackPatchError;
+                  }
+                }
+
+                core.info("Patch applied successfully at original base commit");
+                core.warning(`PR branch ${branchName} is based on an earlier commit than the current ${baseBranch} HEAD. The pull request will show merge conflicts that require manual resolution.`);
+                patchApplied = true;
+              }
+            } catch (fallbackError) {
+              core.warning(`Fallback to original base commit failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
+            }
           }
 
           if (!patchApplied) {
@@ -2136,6 +2050,60 @@ ${patchPreview}`;
         }
       }
 
+      const requestChangesSections = [];
+      if (manifestProtectionRequestReview && manifestProtectionRequestReview.length > 0) {
+        const protectedFilesReviewTemplatePath = getPromptPath("manifest_protection_request_changes_review.md");
+        requestChangesSections.push(
+          renderTemplateFromFile(protectedFilesReviewTemplatePath, {
+            files: renderFilesList(manifestProtectionRequestReview),
+          })
+        );
+      }
+      if (detectionCaution) {
+        const detectionReason = process.env.GH_AW_DETECTION_REASON || "unknown";
+        const detectionWarningReviewTemplatePath = getPromptPath("threat_warning_request_changes_review.md");
+        requestChangesSections.push(
+          renderTemplateFromFile(detectionWarningReviewTemplatePath, {
+            detectionReason,
+            runUrl,
+          })
+        );
+      }
+      if (requestChangesSections.length > 0) {
+        const requestChangesBody = requestChangesSections.join("\n\n---\n\n");
+        /** @type {{ owner: string, repo: string, pull_number: number, event: "REQUEST_CHANGES" | "COMMENT", body: string, commit_id?: string }} */
+        const requestChangesParams = {
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          pull_number: pullRequest.number,
+          event: "REQUEST_CHANGES",
+          body: requestChangesBody,
+        };
+        if (pullRequest.head && pullRequest.head.sha) {
+          requestChangesParams.commit_id = pullRequest.head.sha;
+        }
+        core.info(`Creating REQUEST_CHANGES review for PR #${pullRequest.number} due to protected files`);
+        try {
+          await withRetry(() => githubClient.rest.pulls.createReview(requestChangesParams), RATE_LIMIT_RETRY_CONFIG, `create REQUEST_CHANGES review for PR #${pullRequest.number}`);
+          core.info(`Created REQUEST_CHANGES review for PR #${pullRequest.number}`);
+        } catch (requestChangesError) {
+          const requestChangesErrorMessage = getErrorMessage(requestChangesError);
+          const ownPrMessages = ["Can not request changes on your own pull request"];
+          if (ownPrMessages.some(msg => requestChangesErrorMessage.includes(msg))) {
+            core.warning(`Cannot submit REQUEST_CHANGES on own PR #${pullRequest.number}. Retrying with COMMENT.`);
+            try {
+              const commentReviewParams = { ...requestChangesParams, event: "COMMENT" };
+              await withRetry(() => githubClient.rest.pulls.createReview(commentReviewParams), RATE_LIMIT_RETRY_CONFIG, `create COMMENT review fallback for PR #${pullRequest.number}`);
+              core.info(`Created COMMENT review fallback for PR #${pullRequest.number}`);
+            } catch (commentReviewError) {
+              core.warning(`Failed to create COMMENT review fallback for PR #${pullRequest.number}: ${commentReviewError instanceof Error ? commentReviewError.message : String(commentReviewError)}`);
+            }
+          } else {
+            core.warning(`Failed to create REQUEST_CHANGES review for PR #${pullRequest.number}: ${requestChangesErrorMessage}`);
+          }
+        }
+      }
+
       // Enable auto-merge if configured
       if (autoMerge) {
         try {
@@ -2193,10 +2161,11 @@ ${patchPreview}`;
       // Return success with PR details
       return {
         success: true,
-        pull_request_number: pullRequest.number,
-        pull_request_url: pullRequest.html_url,
+        number: pullRequest.number,
+        url: pullRequest.html_url,
+        managedBody: body,
         branch_name: branchName,
-        temporary_id: temporaryId,
+        temporaryId: temporaryId,
         repo: itemRepo,
       };
     } catch (prError) {

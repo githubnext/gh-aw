@@ -266,6 +266,12 @@ mcp-scripts:
 - Dependency installation failures MUST result in tool execution errors
 - Package names MUST be valid for the target package manager
 - Implementations MAY enforce security policies on allowed packages
+- Deterministic dependency failures (for example, package not found, unsupported platform, invalid
+  version specifier, or permission denied) MUST fail fast without retries
+- Transient dependency failures (for example, network timeout or temporary registry unavailability)
+  MAY be retried with bounded backoff (maximum 2 retries after the initial attempt)
+- If transient retries are exhausted, execution MUST fail with a terminal tool error and MUST NOT
+  continue to user code
 
 ### 4.4 Input Parameter Schema
 
@@ -358,6 +364,27 @@ Implementations SHOULD validate:
 5. Handler executes tool implementation
 6. Handler captures output and errors
 7. Server returns JSON-RPC response to agent
+
+### 5.1.1 Operations Ordering
+
+A conforming implementation MUST preserve the following operation order for each tool invocation
+attempt:
+
+1. Authenticate the request and resolve the target tool name before executing any user-defined code.
+2. Apply input validation and default-value expansion before runtime startup or dependency
+   installation.
+3. Complete any required dependency installation or runtime bootstrap before invoking the tool body.
+4. Execute the tool body exactly once for the current attempt.
+5. Sanitize stdout-derived results before classifying success, generating previews, or writing
+   oversized payloads to disk.
+6. Apply the large-output transformation in §8 only after the sanitized success payload has been
+   fully materialized for the current attempt.
+7. Classify failures and set `data.recoverable` before cleanup, then clean up ephemeral resources
+   before the server returns the final JSON-RPC response.
+
+Implementations MUST NOT reorder these steps in a way that allows unsanitized output to bypass
+§7.4 (Output Sanitization) or allows retry classification to observe partially cleaned-up state from
+a different attempt.
 
 ### 5.2 Input Validation
 
@@ -459,6 +486,14 @@ plus retries) permitted for a single invocation.
 5. Because tool invocations may be non-idempotent, callers **MUST** treat retry safety as a
    caller responsibility and **MUST** apply idempotency safeguards (e.g., idempotency keys or
    side-effect checks) before retrying state-changing tools.
+6. Each retry **MUST** begin from a fresh invocation attempt: callers and servers **MUST NOT** reuse
+   partially emitted stdout, partially written large-output files, or partially initialized runtime
+   state from a previous failed attempt as the result for the retry.
+7. When a recoverable attempt fails after producing side effects outside the tool process (for
+   example, creating a remote resource before timing out), callers **SHOULD** perform explicit
+   side-effect checks or compensating cleanup before retrying.
+8. Once the retry budget is exhausted, the caller **MUST** surface the final failure as terminal and
+   **SHOULD** include the total attempts made when reporting the error to operators.
 
 ---
 
@@ -518,6 +553,10 @@ mcp-scripts:
 - Tools MAY use these globals alongside user code
 - Implementations MUST provide same version of libraries as GitHub Actions runtime
 - No restrictions on where tools execute (in-process or containerized)
+- Tool code MUST NOT invoke workflow-control side effects via global objects (`core.setFailed()`,
+  `core.setOutput()`, workflow summary writes, or equivalent run-level mutators)
+- Tool failures MUST be expressed by returning structured error payloads or by throwing exceptions
+  handled as tool-level failures, not by mutating workflow/job status directly
 
 #### 6.1.3 Code Wrapping
 
@@ -821,6 +860,19 @@ When tool output exceeds 500 characters, implementations MUST:
 - `preview.first_item`: First item in array/list
 - `preview.item_count`: Number of items in collection
 
+### 8.2.1 Response Structure Norms
+
+- The large-output response **MUST** preserve the original tool result envelope and replace only the
+  oversized content payload with the `content` metadata object shown above.
+- The `content` object **MUST NOT** embed the full original payload inline once the file indirection
+  path is chosen.
+- `preview` is OPTIONAL, but when present it **MUST** summarize sanitized content from the same
+  attempt that produced `content.path`; implementations **MUST NOT** mix preview data from a prior
+  failed or retried attempt.
+- For collection-shaped outputs, `preview.first_item` and `preview.item_count` SHOULD describe the
+  collection shape without requiring the client to open the file immediately. For non-collection
+  outputs, implementations MAY omit these fields and return only `preview.schema`.
+
 ### 8.3 File Access
 
 Implementations MUST:
@@ -933,6 +985,8 @@ A conforming implementation MUST pass the following test categories:
 - **T-SEC-006**: Secret masking in logs
 - **T-SEC-007**: Dependency installation security
 - **T-SEC-008**: GitHub Actions global objects access control
+- **T-MCP-050**: Go sandbox network isolation (no unrestricted outbound access without explicit
+  `network.allowed` entries)
 
 #### 10.1.5 Large Output Tests
 
@@ -975,6 +1029,7 @@ A conforming implementation MUST pass the following test categories:
 | Input validation | T-VAL-* | 1 | Required |
 | Secret isolation | T-SEC-001, T-SEC-002 | 1 | Required |
 | Process isolation | T-SEC-003 | 2 | Standard |
+| Go sandbox network isolation | T-MCP-050 | 3 | Complete |
 | Timeout handling | T-EXE-006 | 2 | Standard |
 | Large output handling | T-OUT-* | 3 | Complete |
 | Dependencies support | T-DEP-* | 2 | Standard |
@@ -1374,6 +1429,40 @@ mcp-scripts:
 
 ---
 
+### Appendix D: Safeguards
+
+#### D.1 Threat Model
+
+Primary threat classes for MCP Scripts deployments:
+
+1. **Secret leakage vectors**: tool stdout/stderr, JSON responses, dependency installer logs, and
+   exception stack traces may expose secret values.
+2. **Container escape scenarios**: shell/python/go tools may attempt privilege escalation through
+   host mounts, kernel interfaces, or unrestricted network egress.
+3. **Cross-tool contamination**: one tool invocation attempting to read another tool's environment
+   or temporary output artifacts.
+
+#### D.2 Required Mitigations
+
+- **Secret isolation**: only explicitly declared `env` keys are injected; undeclared secrets MUST be
+  inaccessible.
+- **Output sanitization**: all tool output MUST pass through redaction before client return (see
+  §7.4 SM-01..SM-03).
+- **Execution isolation**: shell/python/go tools MUST execute in isolated containers/processes with
+  bounded resources and no host workspace mount by default.
+- **Network isolation**: outbound access from containerized tools MUST be denied by default and MUST
+  be granted only for explicitly allowed domains.
+- **Dependency controls**: dependency installation MUST fail closed when package integrity cannot be
+  established.
+
+#### D.3 Residual Risk
+
+Residual risk remains for logic-level exfiltration via intentionally returned non-secret metadata
+and for zero-day container runtime vulnerabilities. Operators SHOULD pair this specification with
+repository-level least privilege and continuous runtime patching.
+
+---
+
 ## Sync Notes
 
 This section maps each normative section of the MCP Scripts Specification to the Go source
@@ -1505,8 +1594,12 @@ and §5.7 defines how callers MUST/SHOULD interpret that signal for retries.
 - **Added**: GitHub Actions global objects for JavaScript tools (Section 6.1.2)
   - Global `github`, `context`, `core`, `io`, `exec`, `glob`, `artifact` objects
   - Available without explicit `require()` statements
+  - Added side-effect constraint: tools MUST NOT call workflow control mutators (for example, `core.setFailed()`)
   - No restrictions on execution location (in-process or containerized)
   - Example demonstrating GitHub API usage via global objects
+- **Clarified**: `dependencies` installation failure semantics in Section 4.3 (fail-fast for deterministic failures, bounded retry for transient failures)
+- **Added**: Appendix D safeguards threat model covering secret leakage vectors, container escape scenarios, and residual risk
+- **Added**: Compliance test ID `T-MCP-050` for Go sandbox network isolation
 - **Updated**: Section numbering to accommodate new sections
 
 ### Version 1.0.0 (Draft)

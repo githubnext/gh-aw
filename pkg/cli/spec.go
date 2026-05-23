@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -34,6 +35,9 @@ type WorkflowSpec struct {
 	WorkflowName string // e.g., "workflow-name"
 	IsWildcard   bool   // true if this is a wildcard spec (e.g., "owner/repo/*")
 	Host         string // explicit hostname from URL (e.g., "github.com", "myorg.ghe.com"); empty = use configured GH_HOST
+	// FromRepositoryManifest is true when this workflow was selected from an aw.yml
+	// repository package manifest (root or nested package path).
+	FromRepositoryManifest bool
 	// RawURL is set only for generic HTTP(S) URL specs whose host is not a recognized
 	// GitHub host.  When non-empty, WorkflowPath, RepoSlug, Version, and Host are all
 	// empty; the spec is resolved by fetching the URL and dispatching on Content-Type.
@@ -227,6 +231,26 @@ func isGitHubHost(host string) bool {
 		strings.HasSuffix(host, ".github.com")
 }
 
+// Returns the rewritten URL and true on a match, or ("", false) otherwise.
+func rewriteAutomationsURL(u *url.URL) (string, bool) {
+	// Only rewrite github.com (not GHE) automations UI URLs.
+	if u.Host != "github.com" {
+		return "", false
+	}
+	// Path must be: /{owner}/{repo}/agents/automations/{id}
+	segments := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(segments) != 5 || segments[2] != "agents" || segments[3] != "automations" {
+		return "", false
+	}
+	owner, repo, id := segments[0], segments[1], segments[4]
+	if owner == "" || repo == "" || id == "" {
+		return "", false
+	}
+	capiURL := fmt.Sprintf("https://%s/agents/repos/%s/%s/automations/%s",
+		constants.GitHubCopilotMCPDomain, owner, repo, id)
+	return capiURL, true
+}
+
 func explicitHostForRepo(repoSlug string) string {
 	if repoHost := getGitHubHostForRepo(repoSlug); repoHost != getGitHubHost() {
 		if u, parseErr := url.Parse(repoHost); parseErr == nil && u.Host != "" {
@@ -246,6 +270,14 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 		parsedURL, urlErr := url.Parse(spec)
 		if urlErr == nil && isGitHubHost(parsedURL.Host) {
 			specLog.Print("Detected GitHub URL format")
+			// Rewrite dotcom automations UI URLs to the CAPI endpoint before further parsing.
+			if capiURL, ok := rewriteAutomationsURL(parsedURL); ok {
+				specLog.Printf("Rewrote automations UI URL to CAPI URL")
+				return &WorkflowSpec{
+					RawURL:       capiURL,
+					WorkflowName: genericURLWorkflowName(capiURL),
+				}, nil
+			}
 			return parseGitHubURL(spec)
 		}
 		// Non-GitHub HTTP(S) URL: return a generic URL spec whose content will be
@@ -432,6 +464,17 @@ func parseSourceSpec(source string) (*SourceSpec, error) {
 func buildSourceStringWithCommitSHA(workflow *WorkflowSpec, commitSHA string) string {
 	if workflow.RepoSlug == "" || workflow.WorkflowPath == "" {
 		return ""
+	}
+
+	if workflow.FromRepositoryManifest {
+		ref := workflow.Version
+		if commitSHA != "" {
+			ref = commitSHA
+		}
+		if ref == "" {
+			return repositoryPackageIdentifier(workflow.RepoSlug, workflow.PackagePath)
+		}
+		return repositoryPackageIdentifier(workflow.RepoSlug, workflow.PackagePath) + "@" + ref
 	}
 
 	// For local workflows, remove the "./" prefix from the WorkflowPath

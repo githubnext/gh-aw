@@ -36,6 +36,7 @@ Displays a simplified table with workflow name, AI engine, and compilation statu
 Unlike 'status', this command does not check GitHub workflow state or time remaining.
 
 The optional pattern argument filters workflows by name (case-insensitive substring match).
+It accepts workflow IDs (basename without .md) or full filenames.
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` list                              # List all workflows in current repo
@@ -119,7 +120,7 @@ func RunListWorkflows(repo, path, pattern string, verbose bool, jsonOutput bool,
 			// Output empty array for JSON
 			output := []WorkflowListItem{}
 			jsonBytes, _ := json.MarshalIndent(output, "", "  ")
-			fmt.Println(string(jsonBytes))
+			fmt.Fprintln(os.Stdout, string(jsonBytes))
 			return nil
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflow files found."))
@@ -219,7 +220,7 @@ func RunListWorkflows(repo, path, pattern string, verbose bool, jsonOutput bool,
 		if err != nil {
 			return fmt.Errorf("failed to marshal JSON: %w", err)
 		}
-		fmt.Println(string(jsonBytes))
+		fmt.Fprintln(os.Stdout, string(jsonBytes))
 		return nil
 	}
 

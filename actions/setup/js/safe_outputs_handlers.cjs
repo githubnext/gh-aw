@@ -23,6 +23,7 @@ const { parseAllowedExtensionsEnv } = require("./allowed_extensions_helpers.cjs"
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const { validateCreatePullRequestIntent, validatePushToPullRequestBranchIntent, validateCreateIssueIntent, validateAddCommentIntent } = require("./intent_probe.cjs");
+const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 
 /**
  * @param {string} error
@@ -54,6 +55,45 @@ function buildIntentErrorResponse(error) {
 function hasUpdatePullRequestFields(args) {
   const safeArgs = args || {};
   return typeof safeArgs.title === "string" || typeof safeArgs.body === "string" || safeArgs.update_branch === true;
+}
+
+/**
+ * Parse branch pattern configuration from array or comma-separated string.
+ * @param {string[]|string|undefined} value
+ * @returns {string[]}
+ */
+function parseAllowedBranchPatterns(value) {
+  if (Array.isArray(value)) {
+    return value.map(item => String(item).trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map(item => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+/**
+ * @param {string} branch
+ * @param {string[]} allowedPatterns
+ * @returns {boolean}
+ */
+function isAllowedBranch(branch, allowedPatterns) {
+  for (const pattern of allowedPatterns) {
+    if (branch === pattern) {
+      return true;
+    }
+    if (pattern === "*") {
+      // Add this fast-path
+      return true;
+    }
+    if (pattern.includes("*") && globPatternToRegex(pattern, { pathMode: true, caseSensitive: true }).test(branch)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -336,12 +376,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Get base branch for the resolved target repository.
     // Prefer explicit safe-output config value when provided, otherwise fall back
     // to dynamic resolution from trigger context/default branch. For side-repo
-    // checkouts, prefer the actual checked-out branch before the repository default
-    // branch so release-branch workflows generate patches against the right base.
+    // checkouts, prefer repository default-branch resolution from local
+    // origin/HEAD metadata before payload/API fallback.
     const baseBranch =
       prConfig.base_branch ||
       (await getBaseBranch(repoParts, {
-        preferCheckedOutBranch: Boolean(repoCwd),
+        preferLocalDefaultBranchMetadata: Boolean(repoCwd),
         cwd: repoCwd || undefined,
       }));
 
@@ -363,6 +403,42 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       }
 
       entry.branch = detectedBranch;
+    }
+
+    // Reject if branch still equals base_branch after detection.
+    // This means the base branch was incorrectly resolved (e.g., resolved to the
+    // feature branch itself due to a confused event context). Writing a safe output
+    // in this state would cause a cryptic git exit-1 in the safe_outputs job when
+    // it tries to fetch a non-existent remote ref.
+    if (entry.branch === entry.base_branch) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: `Branch '${entry.branch}' equals base_branch '${entry.base_branch}'. Cannot create a pull request from a branch into itself. Ensure 'branch' is your feature branch and that the base branch resolves to the target (e.g., 'main' or 'master').`,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const allowedBranches = parseAllowedBranchPatterns(prConfig.allowed_branches);
+    if (allowedBranches.length > 0 && !isAllowedBranch(entry.branch, allowedBranches)) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: `Branch '${entry.branch}' does not match allowed-branches. Allowed patterns: ${allowedBranches.join(", ")}`,
+            }),
+          },
+        ],
+        isError: true,
+      };
     }
 
     const intentValidationError = validateCreatePullRequestIntent(entry);
@@ -615,10 +691,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
 
     // Get base branch for the resolved target repository.
-    // For side-repo checkouts, prefer the actual checked-out branch before falling
-    // back to the repository default branch.
+    // For side-repo checkouts, prefer repository default-branch resolution from
+    // local origin/HEAD metadata before payload/API fallback.
     const baseBranch = await getBaseBranch(repoParts, {
-      preferCheckedOutBranch: Boolean(repoCwd),
+      preferLocalDefaultBranchMetadata: Boolean(repoCwd),
       cwd: repoCwd || undefined,
     });
 
@@ -640,6 +716,26 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       }
 
       entry.branch = detectedBranch;
+    }
+
+    // Reject if branch still equals base_branch after detection.
+    // This means the base branch was incorrectly resolved (e.g., resolved to the
+    // feature branch itself due to a confused event context). Writing a safe output
+    // in this state would cause a cryptic git exit-1 in the safe_outputs job when
+    // it tries to fetch a non-existent remote ref.
+    if (entry.branch === entry.base_branch) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: `Branch '${entry.branch}' equals base_branch '${entry.base_branch}'. Cannot push to a pull request branch that targets itself. Ensure 'branch' is your feature branch and that the base branch resolves to the target (e.g., 'main' or 'master').`,
+            }),
+          },
+        ],
+        isError: true,
+      };
     }
 
     const intentValidationError = validatePushToPullRequestBranchIntent(entry);

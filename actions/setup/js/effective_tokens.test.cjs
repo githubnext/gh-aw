@@ -125,10 +125,11 @@ describe("effective_tokens", () => {
     // T-ET-001: Single invocation with all four token classes produces correct base_weighted_tokens
     test("T-ET-001: computes base weighted tokens with all token classes", () => {
       // From spec Appendix A.2:
-      // root: base = (1.0 × 500) + (0.1 × 200) + (4.0 × 150) + (0 reasoning) = 500 + 20 + 600 = 1120
+      // root: base = (1.0 × max(500-200,0)) + (0.1 × 200) + (4.0 × 150) + (0 reasoning)
+      //            = 300 + 20 + 600 = 920
       // Note: cache_write is 0 in this example
       const base = computeBaseWeightedTokens(500, 150, 200, 0, 0);
-      expect(base).toBe(1120);
+      expect(base).toBe(920);
     });
 
     test("computes base weighted tokens for retrieval invocation", () => {
@@ -138,9 +139,9 @@ describe("effective_tokens", () => {
     });
 
     test("computes base weighted tokens for synthesis invocation", () => {
-      // synthesis: base = (1.0 × 200) + (0.1 × 100) + (4.0 × 250) = 200 + 10 + 1000 = 1210
+      // synthesis: base = (1.0 × max(200-100,0)) + (0.1 × 100) + (4.0 × 250) = 100 + 10 + 1000 = 1110
       const base = computeBaseWeightedTokens(200, 250, 100, 0, 0);
-      expect(base).toBe(1210);
+      expect(base).toBe(1110);
     });
 
     // T-ET-003: Zero-value token classes do not affect the result
@@ -179,14 +180,33 @@ describe("effective_tokens", () => {
       const base = computeBaseWeightedTokens(100, 50, 0, 0, 0);
       expect(base).toBe(600);
     });
+
+    // T-ET-005: Cached/input overlap must not be double-counted
+    test("T-ET-005: uses input minus cached input to avoid double counting", () => {
+      const effectiveInput = Math.max(100 - 80, 0);
+      expect(effectiveInput).toBe(20);
+      const base = computeBaseWeightedTokens(100, 0, 80, 0, 0);
+      expect(base).toBe(28); // 1.0 × max(100-80,0) + 0.1 × 80
+    });
+
+    // T-ET-007: Clamp overlap subtraction when cached exceeds input
+    test("T-ET-007: clamps effective input at zero when cached exceeds input", () => {
+      const base = computeBaseWeightedTokens(50, 0, 80, 0, 0);
+      expect(base).toBe(8); // 1.0 × max(50-80,0) + 0.1 × 80
+    });
+
+    test("clamps effective input to zero when cached equals input", () => {
+      const base = computeBaseWeightedTokens(80, 0, 80, 0, 0);
+      expect(base).toBe(8); // 1.0 × max(80-80,0) + 0.1 × 80
+    });
   });
 
   describe("computeEffectiveTokens", () => {
     // T-ET-002: Single invocation ET equals m × base_weighted_tokens
     test("T-ET-002: ET equals m × base_weighted_tokens", () => {
-      // root: base=1120, m=2.0, ET=2240
+      // root: base=920, m=2.0, ET=1840
       const et = computeEffectiveTokens("model-a", 500, 150, 200, 0, 0);
-      expect(et).toBe(2240);
+      expect(et).toBe(1840);
     });
 
     test("computes ET for retrieval invocation (m=1.0)", () => {
@@ -196,9 +216,9 @@ describe("effective_tokens", () => {
     });
 
     test("computes ET for synthesis invocation (m=2.0)", () => {
-      // synthesis: base=1210, m=2.0, ET=2420
+      // synthesis: base=1110, m=2.0, ET=2220
       const et = computeEffectiveTokens("model-a", 200, 250, 100, 0, 0);
-      expect(et).toBe(2420);
+      expect(et).toBe(2220);
     });
 
     test("returns 0 for zero token inputs", () => {
@@ -236,16 +256,16 @@ describe("effective_tokens", () => {
   describe("Spec Appendix A: Worked Example (T-ET-010, T-ET-011, T-ET-012)", () => {
     // Complete worked example from spec Appendix A.2-A.4
     test("T-ET-010: multi-invocation ET_total equals sum of per-invocation ETs", () => {
-      const rootET = computeEffectiveTokens("model-a", 500, 150, 200, 0, 0); // 2240
+      const rootET = computeEffectiveTokens("model-a", 500, 150, 200, 0, 0); // 1840
       const retrievalET = computeEffectiveTokens("model-b", 300, 100, 0, 0, 0); // 700
-      const synthesisET = computeEffectiveTokens("model-a", 200, 250, 100, 0, 0); // 2420
+      const synthesisET = computeEffectiveTokens("model-a", 200, 250, 100, 0, 0); // 2220
 
-      expect(rootET).toBe(2240);
+      expect(rootET).toBe(1840);
       expect(retrievalET).toBe(700);
-      expect(synthesisET).toBe(2420);
+      expect(synthesisET).toBe(2220);
 
       const totalET = rootET + retrievalET + synthesisET;
-      expect(totalET).toBe(5360);
+      expect(totalET).toBe(4760);
     });
 
     test("T-ET-011: raw_total_tokens equals sum of all raw tokens", () => {
@@ -364,11 +384,12 @@ describe("effective_tokens", () => {
     it("shows aggregated weighted table when agent_usage.json is present and no tokenUsageMarkdown", () => {
       const { buildETComputationTable, AGENT_USAGE_PATH } = require("./effective_tokens.cjs");
       const origContent = fs.existsSync(AGENT_USAGE_PATH) ? fs.readFileSync(AGENT_USAGE_PATH, "utf8") : null;
-      const usage = { input_tokens: 100000, output_tokens: 10000, cache_read_tokens: 500000, cache_write_tokens: 5000, effective_tokens: 200000 };
+      const usage = { input_tokens: 600000, output_tokens: 10000, cache_read_tokens: 500000, cache_write_tokens: 5000, effective_tokens: 200000 };
       fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
       fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify(usage));
       try {
         const result = buildETComputationTable("200000");
+        expect(result).toContain("Input (minus cached)");
         expect(result).toContain("100,000");
         expect(result).toContain("10,000");
         expect(result).toContain("500,000");

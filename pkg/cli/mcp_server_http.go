@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -12,6 +11,8 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+var mcpHTTPLog = logger.New("cli:mcp_server_http")
 
 // sanitizeForLog removes newline and carriage return characters from user input
 // to prevent log injection attacks where malicious users could forge log entries.
@@ -39,7 +40,7 @@ func loggingHandler(handler http.Handler) http.Handler {
 		sanitizedPath := sanitizeForLog(r.URL.Path)
 
 		// Log request details.
-		log.Printf("[REQUEST] %s | %s | %s %s",
+		mcpHTTPLog.Printf("[REQUEST] %s | %s | %s %s",
 			start.Format(time.RFC3339),
 			r.RemoteAddr,
 			r.Method,
@@ -50,7 +51,7 @@ func loggingHandler(handler http.Handler) http.Handler {
 
 		// Log response details.
 		duration := time.Since(start)
-		log.Printf("[RESPONSE] %s | %s | %s %s | Status: %d | Duration: %v",
+		mcpHTTPLog.Printf("[RESPONSE] %s | %s | %s %s | Status: %d | Duration: %v",
 			time.Now().Format(time.RFC3339),
 			r.RemoteAddr,
 			r.Method,

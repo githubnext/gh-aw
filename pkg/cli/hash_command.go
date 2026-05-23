@@ -59,7 +59,7 @@ func RunHashFrontmatter(workflowPath string) error {
 	}
 
 	// Print hash to stdout (for easy parsing by scripts)
-	fmt.Println(hash)
+	fmt.Fprintln(os.Stdout, hash)
 
 	return nil
 }

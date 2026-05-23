@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.20.0  
+**Version**: 1.21.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-05-15  
+**Publication Date**: 2026-05-19  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -2104,6 +2104,15 @@ This section provides complete normative definitions for all safe output types. 
 4. **Footer Injection**: Appends footer according to configuration (typically 200-500 characters).
 5. **Cross-Repository**: Supports `target-repo` configuration.
 
+**Status Comment Reuse Extension (`target: "status"`)**:
+
+This extension applies to safe-output processor messages for `add_comment` (including system-generated status updates). It is distinct from the MCP input schema in this section.
+
+1. When `target: "status"` is set and a reusable status comment ID is available, implementations MUST update the existing issue/PR comment instead of creating a new comment.
+2. When `target: "status"` is set but no reusable status comment ID is available, implementations MUST create a new comment.
+3. `target: "status"` and `comment_id` MUST be rejected for discussion comments; they are valid only for issue and pull request comments.
+4. When updating an existing comment through status-comment reuse, implementations SHOULD skip hide-older-comments behavior for that operation.
+
 **Enforced Constraints**:
 
 | Constraint | Limit | Error Code | Example Error Message |
@@ -2117,7 +2126,7 @@ This section provides complete normative definitions for all safe output types. 
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 1)
-- `target`: Filter by type ("issue", "pull_request", "discussion", "*")
+- `target`: Filter by type ("issue", "pull_request", "discussion", "*"). This configuration field applies to static workflow configuration (`safe-outputs.add-comment.target`) and is distinct from the runtime per-message `target: "status"` extension above.
 - `hide-older-comments`: Hide previous workflow comments
 - `discussions`: Control `discussions:write` permission (default: true)
 - `target-repo`: Cross-repository target
@@ -2221,6 +2230,7 @@ safe-outputs:
 
 - `max`: Operation limit (default: 1)
 - `base-branch`: Target branch
+- `allowed-branches`: Allowed source branch patterns for `branch` tool input
 - `allowed-base-branches`: Allowed base-branch override patterns for per-run `base` tool input
 - `draft`: Draft status
 - `commit-changes`: Auto-commit workspace
@@ -2510,6 +2520,8 @@ This section provides complete definitions for all remaining safe output types. 
 }
 ```
 
+> **Note**: The schema above reflects the default configuration (`allow-body: true`). When `allow-body: false` is configured, the `body` field MUST be removed from the `required` array at compile time and the tool description MUST be amended with the additional constraint: "Closing comments are disabled: do not include a body field."
+
 **Operational Semantics**:
 
 1. **Comment First**: A closing comment is posted before the issue state is changed to `closed`.
@@ -2517,6 +2529,7 @@ This section provides complete definitions for all remaining safe output types. 
 3. **Idempotent Comment**: If the issue is already closed, the closing comment is still posted.
 4. **Cross-Repository**: When `target-repo` is configured, operates on that repository (must be in `allowed-repos`).
 5. **Footer Injection**: Appends attribution footer to the closing comment when configured.
+6. **Body Suppression**: When `allow-body` is `false`, the handler MUST NOT post a closing comment. Any `body` value provided by the agent SHALL be discarded before the close operation is executed. The implementation MUST log a warning if a non-empty `body` value was discarded.
 
 **Configuration Parameters**:
 
@@ -2525,6 +2538,7 @@ This section provides complete definitions for all remaining safe output types. 
 - `allowed-repos`: Cross-repo allowlist
 - `footer`: Footer override
 - `staged`: Staged mode override
+- `allow-body`: Controls whether the agent MAY include a closing comment body. When set to `false`, the handler MUST NOT post a closing comment; any `body` field emitted by the agent SHALL be discarded and the implementation MUST log a warning if a non-empty value was discarded. The `body` field MUST be removed from the MCP tool's `required` array at compile time and the tool description MUST be amended with the constraint "Closing comments are disabled: do not include a body field." Defaults to `true`.
 
 **Security Requirements**:
 
@@ -2793,6 +2807,8 @@ This section provides complete definitions for all remaining safe output types. 
 }
 ```
 
+> **Note**: The schema above reflects the default configuration (`allow-body: true`). When `allow-body: false` is configured, the `body` field MUST be removed from the `required` array at compile time and the tool description MUST be amended with the additional constraint: "Closing comments are disabled: do not include a body field."
+
 **Operational Semantics**:
 
 1. **Comment First**: A closing comment is posted before the discussion state is changed to `closed`.
@@ -2800,6 +2816,7 @@ This section provides complete definitions for all remaining safe output types. 
 3. **Context Resolution**: When `discussion_number` is omitted, resolves from the workflow trigger context.
 4. **Idempotent Comment**: If the discussion is already closed, the closing comment is still posted.
 5. **Cross-Repository**: When `target-repo` is configured, operates on that repository (must be in `allowed-repos`).
+6. **Body Suppression**: When `allow-body` is `false`, the handler MUST NOT post a closing comment. Any `body` value provided by the agent SHALL be discarded before the close operation is executed. The implementation MUST log a warning if a non-empty `body` value was discarded.
 
 **Configuration Parameters**:
 
@@ -2808,6 +2825,7 @@ This section provides complete definitions for all remaining safe output types. 
 - `allowed-repos`: Cross-repo allowlist
 - `footer`: Footer override
 - `staged`: Staged mode override
+- `allow-body`: Controls whether the agent MAY include a closing comment body. When set to `false`, the handler MUST NOT post a closing comment; any `body` field emitted by the agent SHALL be discarded and the implementation MUST log a warning if a non-empty value was discarded. The `body` field MUST be removed from the MCP tool's `required` array at compile time and the tool description MUST be amended with the constraint "Closing comments are disabled: do not include a body field." Defaults to `true`.
 
 **Security Requirements**:
 
@@ -2932,9 +2950,9 @@ This section provides complete definitions for all remaining safe output types. 
 **Configuration Parameters**:
 
 - `max`: Operation limit (default: 1)
-- `required-labels`: Labels that must exist on the pull request
-- `allowed-labels`: Exact label names; at least one pull request label must exactly match when configured
-- `allowed-branches`: Source branch glob patterns
+- `required-labels`: Labels that must ALL be present on the pull request
+- `required-title-prefix`: Title prefix the pull request must start with
+- `allowed-branches`: Source branch glob patterns; the PR's branch must match at least one
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repository allowlist
 - `staged`: Staged mode override
@@ -4988,6 +5006,21 @@ safe-outputs:
 ---
 
 ## Appendix F: Document History
+
+### Changelog Alignment (Reviewer and Status-Comment Updates)
+
+This specification revision aligns with directly relevant `CHANGELOG.md` entries and with the current reviewer/status-comment PR updates:
+
+- **v0.40.1**: `add_comment` discussion handling was updated to auto-detect discussion context without requiring a `discussion` flag.
+- **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
+- **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
+- **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.21.0** (2026-05-19):
+
+- **Added**: `add_comment` status-comment reuse extension semantics in Section 7.1 for `target: "status"` behavior and issue/PR-only restrictions.
+- **Added**: Changelog alignment subsection mapping safe-output/reviewer changelog items to this specification revision.
+- **Updated**: Publication metadata to 1.21.0.
 
 **Version 1.20.0** (2026-05-15):
 

@@ -98,15 +98,40 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `local` | Loopback addresses (`localhost`, `127.0.0.1`, `::1`) |
 | `dev-tools` | Popular CI/CD and developer tool services (Codecov, Shields.io, Snyk, Renovate, CircleCI, etc.) |
 | `default-safe-outputs` | Compound: `defaults` + `dev-tools` + `github` + `local` — recommended baseline for `safe-outputs.allowed-domains` |
-| `containers` | Docker Hub, GitHub Container Registry, Quay |
-| `linux-distros` | Debian, Alpine, and other Linux package repositories |
-| `dotnet`, `dart`, `go`, `haskell`, `java`, `julia`, `latex`, `lean`, `node`, `perl`, `php`, `python`, `ruby`, `rust`, `swift` | Language-specific package managers and registries |
-| `deno` | Deno runtime (`deno.land`, `jsr.io`, `*.jsr.io`, `googleapis.deno.dev`, `fresh.deno.dev`) |
-| `terraform` | HashiCorp and Terraform domains |
-| `playwright` | Playwright testing framework domains (see [Playwright Reference](/gh-aw/reference/playwright/)) |
-| `chrome` | Headless Chrome/Puppeteer browser testing (`*.google.com`, `*.googleapis.com`, `*.gvt1.com`) |
-
-Common identifiers: `python` (PyPI/pip), `node` (npm/yarn/pnpm), `containers` (Docker Hub/GHCR), `go` (proxy.golang.org). See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete domain lists.
+| `containers` | Docker Hub, GitHub Container Registry, Quay, GCR, MCR |
+| `linux-distros` | Debian, Ubuntu, Alpine, Fedora, and other Linux package repositories |
+| `playwright` | Playwright browser testing (see [Playwright Reference](/gh-aw/reference/playwright/)) |
+| `chrome` | Headless Chrome/Puppeteer (`*.google.com`, `*.googleapis.com`, `*.gvt1.com`) |
+| `fonts` | Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) |
+| `terraform` | HashiCorp registry, apt/yum releases |
+| `bazel` | Bazel build system (`releases.bazel.build`, `bcr.bazel.build`) |
+| `clojure` | Clojure packages (`clojars.org`) |
+| `dart` | Dart/Flutter packages (`pub.dev`, `storage.googleapis.com`) |
+| `deno` | Deno runtime (`deno.land`, `jsr.io`, `googleapis.deno.dev`) |
+| `dotnet` | NuGet packages and .NET SDK |
+| `elixir` | Elixir packages (`hex.pm`) |
+| `go` | Go modules (`proxy.golang.org`, `sum.golang.org`) |
+| `haskell` | Haskell packages (`hackage.haskell.org`, GHCup) |
+| `java` | Maven Central, Gradle, Adoptium |
+| `julia` | Julia packages (`pkg.julialang.org`, `storage.julialang.net`) |
+| `kotlin` | Kotlin/JetBrains packages (`download.jetbrains.com`) |
+| `latex` | CTAN, TUG, MiKTeX packages — **note**: TeX Live's `tlmgr` uses redirected CTAN mirrors not reachable through the firewall; prefer `apt-get install texlive-full` (covered by `defaults`) or MiKTeX (`packages.miktex.org`) |
+| `lean` | Lean packages (`lean-lang.org`, `reservoir.lean-lang.org`) |
+| `lua` | Lua packages (`luarocks.org`) |
+| `node` | npm, yarn, pnpm, Node.js, Bun |
+| `node-cdns` | Node.js CDN assets (jsDelivr, jQuery CDN) |
+| `ocaml` | OCaml packages (`opam.ocaml.org`) |
+| `perl` | Perl/CPAN packages (`cpan.org`, `metacpan.org`) |
+| `php` | PHP Composer packages (`packagist.org`, `getcomposer.org`) |
+| `powershell` | PowerShell Gallery (`powershellgallery.com`) |
+| `python` | PyPI, conda, pythonhosted.org |
+| `python-native` | PyPI + crates.io — for Python packages with native extensions (pyo3/maturin) |
+| `r` | R/CRAN packages (`cran.r-project.org`) |
+| `ruby` | RubyGems, Bundler |
+| `rust` | Rust crates (`crates.io`, `static.rust-lang.org`, `sh.rustup.rs`) |
+| `scala` | Scala packages (`repo.scala-sbt.org`, `jitpack.io`) |
+| `swift` | Swift packages (`swift.org`, `cocoapods.org`) |
+| `zig` | Zig packages (`ziglang.org`) |
 
 ### Ecosystem Identifier Validation
 
@@ -166,12 +191,12 @@ network:
     - "api.example.com"  # Custom domain (not part of known ecosystem)
 ````
 
-### Warning Messages
+### Informational Messages
 
-When strict mode encounters an individual ecosystem domain, it emits a warning suggesting the appropriate ecosystem identifier:
+When strict mode encounters an individual ecosystem domain, it emits an informational message suggesting the appropriate ecosystem identifier:
 
 ````text
-warning: strict mode: recommend using ecosystem identifiers instead of individual domain names for better maintainability: 'pypi.org' → 'python', 'npmjs.org' → 'node'
+recommend using ecosystem identifiers instead of individual domain names for better maintainability: 'pypi.org' → 'python', 'npmjs.org' → 'node'
 ````
 
 ## Implementation
@@ -291,6 +316,33 @@ network:
 ```
 
 When the firewall is disabled, network permissions still apply for content sanitization but the agent can make unrestricted network requests. Only disable during development or when AWF is incompatible with your workflow; keep it enabled in production.
+
+## Caller-Extensible Allowlist (`network.allowed-input`)
+
+Reusable workflows compiled to `.lock.yml` bake their `network.allowed` list into the lock file. By default a consumer repository cannot extend the allowlist without forking and recompiling the source. Set `network.allowed-input: true` to opt into a `workflow_call` input named `network_allowed` that callers can use to add domains or ecosystems at runtime.
+
+The source workflow's compiled `network.allowed` is preserved as the baseline, and the caller's value is unioned in before AWF starts. Ecosystem shorthands (for example `rust`) are expanded to their concrete domain sets before merging, and the result is deduplicated.
+
+```yaml wrap
+# source workflow (compiled to a reusable .lock.yml)
+on:
+  workflow_call:
+network:
+  allowed:
+    - defaults
+  allowed-input: true
+```
+
+```yaml wrap
+# consumer workflow
+jobs:
+  run:
+    uses: owner/repo/.github/workflows/worker.lock.yml@v1
+    with:
+      network_allowed: rust,github.com
+```
+
+The `network_allowed` input is a string accepting comma-separated ecosystem identifiers and/or domains. The behavior of the source workflow is unchanged when `allowed-input` is omitted or `false`.
 
 ## Wildcard Domain Patterns
 

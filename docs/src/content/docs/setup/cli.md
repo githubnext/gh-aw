@@ -151,6 +151,7 @@ Add a workflow with interactive guided setup. Checks requirements, adds the mark
 ```bash wrap
 gh aw add-wizard githubnext/agentics/ci-doctor           # Interactive setup
 gh aw add-wizard https://github.com/org/repo/blob/main/workflows/my-workflow.md
+gh aw add-wizard https://example.com/workflows/my-workflow.json   # Arbitrary URL (JSON workflow)
 gh aw add-wizard githubnext/agentics/ci-doctor --skip-secret  # Skip secret prompt
 ```
 
@@ -165,11 +166,30 @@ gh aw add githubnext/agentics/ci-doctor           # Add single workflow
 gh aw add githubnext/agentics/ci-doctor@v1.0.0   # Add specific version
 gh aw add githubnext/agentics/ci-doctor --dir shared                  # Organize in subdirectory
 gh aw add githubnext/agentics/ci-doctor --create-pull-request        # Create PR instead of commit
+gh aw add https://example.com/workflows/my-workflow.md               # Arbitrary HTTPS URL (markdown)
+gh aw add https://example.com/workflows/my-workflow.json             # Arbitrary HTTPS URL (JSON workflow definition)
 ```
 
 **Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--disable-security-scanner`, `--engine/-e`, `--force/-f`, `--name/-n`, `--no-stop-after`, `--stop-after`
 
 Repository-level packages can declare an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/) at the repository root or in a nested package folder to define installable files, package `README.md`, schema compatibility, and minimum supported CLI versions.
+
+`add` and `add-wizard` also accept arbitrary `http(s)://` URLs. The fetched response is dispatched by `Content-Type`: `text/markdown` (and `text/x-markdown`) is installed as a raw gh-aw workflow, and `application/json` (or any `*+json` suffix) is converted to a workflow markdown file before installation. Unknown content types produce an actionable error listing the detected type. For non-GitHub hosts, no include/dispatch-workflow dependency resolution is performed, and no GitHub authentication token is sent to the remote server.
+
+##### JSON Workflow Field Mapping
+
+When importing a JSON workflow definition (for example, a payload from the Copilot automation API), the importer translates JSON fields into gh-aw frontmatter and workflow body:
+
+| JSON field | Mapped to | Notes |
+|------------|-----------|-------|
+| `triggers.interval` | `on:` (fuzzy schedule) | `hourly` → `every 1h`, `daily` → `daily`, `weekly` → `weekly`. A single interval trigger emits the inline shorthand (`on: daily`); the compiler randomizes cron at compile time. |
+| `triggers.issues` | `on.issues.types` | A `query` filter has no gh-aw equivalent and emits a per-field warning. |
+| `triggers.workflow_run` | `on.workflow_run` (`workflows`, `types`) | A `conclusions` filter emits a per-field warning. |
+| `tools` | `tools:` | A 40-entry lookup maps GitHub tool IDs to gh-aw toolsets (`issues`, `pull-requests`, `repos`, etc.). `execute` maps to `bash: "*"` (with a review warning); `web_search` maps to `web-search:`. Built-in read/edit/search tools are silently skipped. Unrecognized tools emit a per-tool warning. |
+| `permissions` | `permissions:` | Passed through unchanged. |
+| `prompt` | Workflow body | Used when an `instructions` field is absent. |
+
+Unrecognized fields are preserved as commented hints in the generated workflow.
 
 #### `new`
 
@@ -836,7 +856,7 @@ See [Common Issues](/gh-aw/troubleshooting/common-issues/) and [Error Reference]
 
 - [Quick Start](/gh-aw/setup/quick-start/) - Get your first workflow running
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options
-- [Reusing Workflows](/gh-aw/guides/packaging-imports/) - Adding and updating workflows
+- [Reusing Workflows](/gh-aw/guides/reusing-workflows/) - Adding and updating workflows
 - [Security Guide](/gh-aw/introduction/architecture/) - Security best practices
 - [MCP Server Guide](/gh-aw/reference/gh-aw-as-mcp-server/) - MCP server configuration
 - [Agent Factory](/gh-aw/agent-factory-status/) - Agent factory status

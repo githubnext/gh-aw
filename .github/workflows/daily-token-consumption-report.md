@@ -138,6 +138,8 @@ Create exactly one issue titled:
 
 `[token-consumption] Daily Token Consumption Report - YYYY-MM-DD`
 
+**Report Formatting**: Use h3 (###) or lower for all headers to maintain proper document hierarchy. Use progressive disclosure — keep Executive Summary, Key Metrics, and Recommendations always visible, and wrap verbose details in `<details><summary>Section Name</summary>` blocks.
+
 Use this body structure:
 
 ### Executive Summary

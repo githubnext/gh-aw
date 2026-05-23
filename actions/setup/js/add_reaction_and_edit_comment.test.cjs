@@ -46,7 +46,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     delete process.env.GH_AW_REACTION;
-    delete process.env.GH_AW_COMMAND;
+    delete process.env.GH_AW_COMMANDS;
     delete process.env.GH_AW_WORKFLOW_NAME;
     delete process.env.GH_AW_LOCK_FOR_AGENT;
     delete process.env.GITHUB_WORKFLOW;

@@ -19,6 +19,9 @@ import (
 
 var actionsBuildLog = logger.New("cli:actions_build")
 
+// filesConstPattern matches "const FILES = { ... };" blocks in JavaScript source
+var filesConstPattern = regexp.MustCompile(`(?s)const FILES = \{[^}]*\};`)
+
 // ActionsBuildCommand builds all custom GitHub Actions by bundling JavaScript dependencies
 func ActionsBuildCommand() error {
 	actionsDir := "actions"
@@ -268,8 +271,7 @@ func buildAction(actionsDir, actionName string) error {
 
 	// Replace the FILES placeholder in source
 	// Match: const FILES = { ... };
-	filesRegex := regexp.MustCompile(`(?s)const FILES = \{[^}]*\};`)
-	outputContent := filesRegex.ReplaceAllString(string(sourceContent), fmt.Sprintf("const FILES = %s;", strings.TrimSpace(indentedJSON)))
+	outputContent := filesConstPattern.ReplaceAllString(string(sourceContent), fmt.Sprintf("const FILES = %s;", strings.TrimSpace(indentedJSON)))
 
 	// Write output file with restrictive permissions (0600 for security)
 	if err := os.WriteFile(outputPath, []byte(outputContent), constants.FilePermSensitive); err != nil {

@@ -44,6 +44,9 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 		// Extract if condition from config
 		ifCondition, _ := configMap["if"].(string)
 
+		// Extract cooldown flag from config (optional)
+		cooldown, hasCooldown := configMap["cooldown"].(bool)
+
 		// Find or create runtime requirement
 		if existing, exists := requirements[runtimeID]; exists {
 			// Override version for existing requirement
@@ -56,6 +59,12 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 			if ifCondition != "" {
 				runtimeSetupLog.Printf("Setting if condition for runtime %s: %s", runtimeID, ifCondition)
 				existing.IfCondition = ifCondition
+			}
+
+			// Override cooldown setting if specified
+			if hasCooldown {
+				runtimeSetupLog.Printf("Setting cooldown for runtime %s: %v", runtimeID, cooldown)
+				existing.Cooldown = cooldown
 			}
 
 			// If action-repo or action-version is specified, create a custom Runtime
@@ -125,6 +134,10 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 					Runtime:     runtime,
 					Version:     version,
 					IfCondition: ifCondition,
+					Cooldown:    true,
+				}
+				if hasCooldown {
+					requirements[runtimeID].Cooldown = cooldown
 				}
 			} else {
 				// If runtime is unknown and no action-repo specified, skip it (user might have typo)

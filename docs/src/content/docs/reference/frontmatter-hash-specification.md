@@ -65,7 +65,12 @@ BFS queue order: `[root.md, a.md, b.md, shared.md]`
 `shared.md` appears twice but is processed only once (after `a.md` in queue order).  
 Canonical hash input order: root → a → b → shared.
 
-This rule ensures that the hash is deterministic regardless of which traversal path first discovers a shared dependency.
+If the root import list were reversed to `[b.md, a.md]`, the canonical order would be
+`root → b → a → shared`.
+
+The first sibling encountered in BFS order always claims the shared dependency. Later duplicates are
+skipped. This rule ensures that the hash is deterministic regardless of which traversal path first
+discovers a shared dependency.
 
 ### 2. Field Selection
 
@@ -148,7 +153,7 @@ The canonical JSON includes all frontmatter fields plus version information:
   "cache": {},
   "description": "Daily audit of workflow runs",
   "engine": "claude",
-  "imports": ["shared/mcp/gh-aw.md", "shared/jqschema.md"],
+  "imports": ["shared/mcp/tavily.md", "shared/jqschema.md"],
   "jobs": {},
   "labels": ["audit", "automation"],
   "mcp-servers": {},
@@ -209,6 +214,29 @@ Both Go and JavaScript implementations MUST:
 - All field types (strings, numbers, booleans, arrays, objects)
 - Special characters and escaping
 - All workflows in the repository
+
+### 5.1 Cross-Language Validation Protocol
+
+The project maintains Go and JavaScript implementations of the frontmatter hash algorithm. A
+conforming change to either implementation MUST follow this validation protocol:
+
+1. Update both implementations in the same change whenever the authoritative runtime algorithm or
+   normalization behavior changes.
+2. Execute the shared cross-language test vectors so each implementation validates the other
+   implementation's output, not just its own fixtures.
+3. Treat any byte-level mismatch in canonical JSON or final SHA-256 output as a release-blocking
+   failure until both implementations are aligned.
+4. Recompile workflow lock files only after the cross-language checks pass, so newly generated hashes
+   reflect a synchronized algorithm.
+
+**R-XLANG-001**: The shared validation corpus **MUST** include at least one empty-frontmatter case,
+one single-file case, one multi-level import case, and one diamond-import case.
+
+**R-XLANG-002**: A change that alters canonical JSON generation in either language **MUST** update
+the shared validation corpus in the same change.
+
+**R-XLANG-003**: CI or pre-release validation **MUST** fail if Go and JavaScript produce different
+hashes for any corpus member.
 
 ## Implementation Notes
 
@@ -312,12 +340,18 @@ This section maps the frontmatter hash specification to the source files that im
 3. Run the cross-language test: `go test ./pkg/parser/ -run TestFrontmatterHash`
 4. Run `make recompile` to regenerate all lock files with fresh hashes
 5. Verify cross-language consistency for the test cases listed in Section 5
+6. Verify BFS diamond-import tie-breaking remains deterministic: when the same imported file is
+   reachable through multiple import paths at the same depth, the canonical traversal MUST prefer
+   first-seen path order and MUST NOT duplicate imported content in hash input.
 
 **Runtime behavior**: text-based approach is authoritative (see Implementation Notes § Resolution).
 
-**Resolution log (2026-05-12)**: Sync status re-verified after SPDD review. Approach retained:
-text-based canonicalization remains authoritative at runtime, and Section 2 field-selection stays
-documented as future-state design intent only.
+**Resolution log (2026-05-08, authoritative)**: Text-based canonicalization is the resolved,
+runtime-authoritative algorithm. Section 2 field-selection remains future-state design intent only
+until an explicit migration milestone is approved.
+
+**Sync verification (2026-05-12)**: SPDD review reconfirmed that the 2026-05-08 text-based
+resolution remains in force.
 
 ---
 
@@ -422,4 +456,23 @@ bots:
 ---
 
 # Complex Workflow
+```
+
+### FH-TV-004
+
+Expected hash: `701dc12776a417c6ce4c82b16d1fcc9de343130efb554fda27a701386b17d134`
+
+This vector validates deterministic hash input when frontmatter includes agent file imports.
+It also exercises BFS diamond-import tie-breaking where multiple import branches reference the same
+transitive file.
+
+```yaml
+---
+engine: copilot
+imports:
+  - ./agents/router.agent.md
+  - ./agents/summarizer.agent.md
+---
+
+# Import-based Workflow
 ```

@@ -13,7 +13,7 @@ const { execGitSync } = require("./git_helpers.cjs");
  * 2. github.base_ref env var (set for pull_request/pull_request_target events)
  * 3. Pull request payload base ref (pull_request_review, pull_request_review_comment events)
  * 4. API lookup for issue_comment events on PRs (the PR's base ref is not in the payload)
- * 5. Checked-out branch from git (opt-in; used by safeoutputs for side-repo operations)
+ * 5. Repository default branch from local git remote HEAD (opt-in for side-repo operations)
  * 6. context.payload.repository.default_branch (included in most event payloads, no API call)
  * 6b. API lookup via repos.get() when payload doesn't have it (e.g. cross-repo scenarios)
  * 7. Fallback to DEFAULT_BRANCH env var or "main"
@@ -22,9 +22,11 @@ const { execGitSync } = require("./git_helpers.cjs");
  *   If provided, the issue_comment PR lookup (step 4) and repository default-branch
  *   lookup (step 6b) use this instead of context.repo, which is needed for
  *   cross-repo scenarios where the target repo differs from the workflow repository.
- * @param {{preferCheckedOutBranch?: boolean, cwd?: string}|null} [options] - Optional resolution hints.
- *   When preferCheckedOutBranch is true and cwd is set, git is queried directly for the
- *   checked-out branch in that repository before falling back to the repository default branch.
+ * @param {{preferLocalDefaultBranchMetadata?: boolean, preferCheckedOutBranch?: boolean, cwd?: string}|null} [options] - Optional resolution hints.
+ *   When preferLocalDefaultBranchMetadata is true and cwd is set, git is queried for
+ *   refs/remotes/origin/HEAD in that repository to derive the repository default branch
+ *   before falling back to payload/API-based default branch resolution.
+ *   preferCheckedOutBranch is a deprecated alias kept for backward compatibility.
  * @returns {Promise<string>} The base branch name
  */
 async function getBaseBranch(targetRepo = null, options = null) {
@@ -80,21 +82,25 @@ async function getBaseBranch(targetRepo = null, options = null) {
     }
   }
 
-  // 5. Use the actual checked-out branch when explicitly requested by the caller.
-  // This is primarily used by safeoutputs in side-repo workflows where the agent
-  // re-anchors the checkout to a non-default release branch before generating the patch.
-  if (options?.preferCheckedOutBranch && options.cwd) {
+  // 5. Resolve repository default branch from local git metadata when explicitly
+  // requested by the caller (side-repo workflows). This avoids using the current
+  // checked-out branch (which may be a newly-created feature branch).
+  const preferLocalDefaultBranchMetadata = options?.preferLocalDefaultBranchMetadata ?? options?.preferCheckedOutBranch;
+  const gitCwd = options?.cwd;
+  if (preferLocalDefaultBranchMetadata && gitCwd) {
     try {
-      const checkedOutBranch = execGitSync(["rev-parse", "--abbrev-ref", "HEAD"], {
-        cwd: options.cwd,
+      const symbolicRef = execGitSync(["symbolic-ref", "refs/remotes/origin/HEAD"], {
+        cwd: gitCwd,
         stdio: ["pipe", "pipe", "pipe"],
+        // Missing origin/HEAD is expected in some side-repo checkouts; avoid noisy annotations.
+        suppressLogs: true,
       }).trim();
-      if (checkedOutBranch && checkedOutBranch !== "HEAD") {
-        return checkedOutBranch;
+      if (symbolicRef.startsWith("refs/remotes/origin/")) {
+        return symbolicRef.slice("refs/remotes/origin/".length);
       }
     } catch (/** @type {any} */ error) {
       if (typeof core !== "undefined" && typeof core.debug === "function") {
-        core.debug(`Failed to detect checked-out branch from git, falling back to repository default branch: ${getErrorMessage(error)}`);
+        core.debug(`Failed to resolve repository default branch from refs/remotes/origin/HEAD, falling back to payload/API lookup: ${getErrorMessage(error)}`);
       }
       // Ignore and continue with default branch resolution
     }

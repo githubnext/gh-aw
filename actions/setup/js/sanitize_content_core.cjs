@@ -330,22 +330,42 @@ function sanitizeUrlDomains(s, allowed) {
 }
 
 /**
- * Neutralizes commands at the start of text by wrapping them in backticks
+ * Neutralizes commands at the start of text by wrapping them in backticks.
+ * Reads all command names from GH_AW_COMMANDS (JSON array).
  * @param {string} s - The string to process
  * @returns {string} The string with neutralized commands
  */
 function neutralizeCommands(s) {
-  const commandName = process.env.GH_AW_COMMAND;
-  if (!commandName) {
+  /** @type {string[]} */
+  let commandNames = [];
+
+  const commandsJSON = process.env.GH_AW_COMMANDS;
+  if (commandsJSON) {
+    try {
+      const parsed = JSON.parse(commandsJSON);
+      if (Array.isArray(parsed)) {
+        commandNames = parsed.filter(c => typeof c === "string" && c.length > 0);
+      }
+    } catch {
+      // invalid JSON, no commands to neutralize
+    }
+  }
+
+  if (commandNames.length === 0) {
     return s;
   }
 
-  // Escape special regex characters in command name
-  const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-  // Neutralize /command at the start of text (with optional leading whitespace)
-  // Only match at the start of the string or after leading whitespace
-  return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+  // Neutralize each command name at the start of text (with optional leading whitespace)
+  let result = s;
+  for (const name of commandNames) {
+    const escapedCommand = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    result = result.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+    // Stop after first substitution (only one command can be at position 0)
+    if (result !== s) {
+      break;
+    }
+  }
+  return result;
 }
 
 /**

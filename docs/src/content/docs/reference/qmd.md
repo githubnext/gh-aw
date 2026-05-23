@@ -162,10 +162,13 @@ Import the shared file in any workflow that uses qmd:
 ```aw wrap
 ---
 on: push
+
 engine: copilot
+
 imports:
   - shared/otlp.md   # sets OTEL_EXPORTER_OTLP_ENDPOINT
   - shared/qmd-otlp.md             # records index size and search hits
+
 tools:
   qmd:
     checkouts:

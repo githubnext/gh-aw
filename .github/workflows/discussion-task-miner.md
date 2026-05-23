@@ -1,69 +1,64 @@
 ---
-emoji: "⛏️"
-description: Scans AI-generated discussions to extract actionable code quality improvement tasks
 on:
   schedule:
-    # Every 6 hours (fuzzy time distribution)
-    - cron: every 6h
-  workflow_dispatch:
-
+  - cron: every 6h
+  workflow_dispatch: null
 permissions:
   contents: read
   discussions: read
   issues: read
   pull-requests: read
-
-tracker-id: discussion-task-miner
-timeout-minutes: 20
-engine: copilot
-strict: true
-
 network:
   allowed:
-    - defaults
-
+  - defaults
+imports:
+- shared/github-guard-policy.md
+- uses: shared/repo-memory-standard.md
+  with:
+    branch-name: memory/discussion-task-miner
+    description: Track processed discussions and extracted tasks
+- ../skills/jqschema/SKILL.md
+- shared/reporting.md
+- shared/otlp.md
 safe-outputs:
-  create-issue:
-    title-prefix: "[Code Quality] "
-    labels: [code-quality, automation, task-mining]
-    max: 5
-    group: true
-    expires: 1d
   add-comment:
     max: 3
+  create-issue:
+    expires: 1d
+    group: true
+    labels:
+    - code-quality
+    - automation
+    - task-mining
+    max: 5
+    title-prefix: "[Code Quality] "
   messages:
     footer: "> 🔍 *Task mining by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
-    run-started: "🔍 Discussion Task Miner starting! [{workflow_name}]({run_url}) is scanning discussions for code quality improvements..."
-    run-success: "✅ Task mining complete! [{workflow_name}]({run_url}) has identified actionable code quality tasks. 📊"
-    run-failure: "⚠️ Task mining interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs..."
-
-tools:
-  cli-proxy: true
-  github:
-    mode: gh-proxy
-    min-integrity: approved
-    toolsets: [default, discussions]
-  bash:
-    - "find .github -name '*.md'"
-    - "jq *"
-    - "cat *"
-    - "date *"
-
-imports:
-  - shared/github-guard-policy.md
-  - uses: shared/repo-memory-standard.md
-    with:
-      branch-name: "memory/discussion-task-miner"
-      description: "Track processed discussions and extracted tasks"
-  - ../skills/jqschema/SKILL.md
-  - shared/reporting.md
-
-  - shared/otlp.md
+    run-failure: ⚠️ Task mining interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...
+    run-started: 🔍 Discussion Task Miner starting! [{workflow_name}]({run_url}) is scanning discussions for code quality improvements...
+    run-success: ✅ Task mining complete! [{workflow_name}]({run_url}) has identified actionable code quality tasks. 📊
+description: Scans AI-generated discussions to extract actionable code quality improvement tasks
+emoji: ⛏️
+engine: copilot
 features:
   copilot-requests: true
-
+strict: true
+timeout-minutes: 20
+tools:
+  bash:
+  - find .github -name "*.md"
+  - jq *
+  - cat *
+  - date *
+  cli-proxy: true
+  github:
+    min-integrity: approved
+    mode: gh-proxy
+    toolsets:
+    - default
+    - discussions
+tracker-id: discussion-task-miner
 ---
-
 # Discussion Task Miner - Code Quality Improvement Agent
 
 You are a task mining agent that analyzes AI-generated discussions to discover actionable code quality improvement opportunities.

@@ -27,6 +27,7 @@ safe-outputs:
     allowed-files:
       - "tmp/chaos/**"
       - "scratchpad/chaos/**"
+      - "tests/chaos/**"
     excluded-files:
       - ".github/workflows/**"
     protected-files: blocked
@@ -72,7 +73,7 @@ For each run:
 For each selected persona:
 
 1. Create a scenario-specific branch that starts with `chaos/`.
-2. Apply only small file edits under `tmp/chaos/**` or `scratchpad/chaos/**`.
+2. Apply only small file edits under `tmp/chaos/**`, `scratchpad/chaos/**`, or `tests/chaos/**`.
 3. Execute git operations to exercise bundling behavior (for example: branch create, add, commit, optional amend or second commit).
 4. Verify changed files are still within allowed scope.
 5. Create the pull request via safe-output `create_pull_request`.
@@ -83,5 +84,13 @@ For each selected persona:
 - If at least one PR is created, finish after recording summary stats in cache-memory.
 - If no safe PR can be produced, call `noop` with a concise reason.
 - Keep logs concise and action-oriented.
+
+## Report Formatting
+
+When writing PR bodies and run summaries:
+
+- Use h3 (###) or lower for all headers to maintain proper document hierarchy.
+- Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Structure: Brief summary (always visible) → Key metrics (always visible) → Detailed results (in `<details>`) → Recommendations (always visible)
 
 {{#runtime-import shared/noop-reminder.md}}

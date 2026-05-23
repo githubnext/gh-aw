@@ -29,9 +29,6 @@ func NewActionResolver(cache *ActionCache) *ActionResolver {
 // ResolveSHA resolves the SHA for a given action@version using GitHub CLI
 // Returns the SHA and an error if resolution fails
 func (r *ActionResolver) ResolveSHA(ctx context.Context, repo, version string) (string, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	resolverLog.Printf("Resolving SHA for action: %s@%s", repo, version)
 
 	// Create a cache key for tracking failed resolutions and cache lookups.

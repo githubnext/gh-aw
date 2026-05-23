@@ -207,11 +207,12 @@ async function resolveLocalHeadSha(cwd) {
  * @param {string} opts.cwd - Working directory of the local git checkout
  * @param {object} [opts.gitAuthEnv] - Environment variables for git push fallback auth
  * @param {boolean} [opts.signedCommits=true] - When false, skip GraphQL signed commits and use git push directly
+ * @param {boolean} [opts.allowGitPushFallback=true] - When false, refuse any fallback path that would use direct git push
  * @param {Record<string, any>} [opts.resolvedTemporaryIds] - Resolved temporary IDs map
  * @param {string} [opts.currentRepo] - Repository slug used for same-repo temporary ID resolution
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
-async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, signedCommits = true, resolvedTemporaryIds, currentRepo }) {
+async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, signedCommits = true, allowGitPushFallback = true, resolvedTemporaryIds, currentRepo }) {
   const effectiveCurrentRepo = currentRepo || `${owner}/${repo}`;
   const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds, {
     defaultRepo: effectiveCurrentRepo,
@@ -234,6 +235,9 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   // The GraphQL createCommitOnBranch path cannot handle root commits (no parent to resolve),
   // so skip it entirely and fall directly through to git push.
   if (!baseRef) {
+    if (allowGitPushFallback === false) {
+      throw new Error(`pushSignedCommits: cannot push branch '${branch}' without a baseRef when git push fallback is disabled. ` + `Seed the branch with a signed commit first, then retry.`);
+    }
     core.info(`pushSignedCommits: empty baseRef detected (orphan branch first push), using git push directly for branch ${branch}`);
     try {
       const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });
@@ -499,6 +503,9 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           `or set signed-commits: false if the repository does not require signed commits.`,
         { cause: err }
       );
+    }
+    if (allowGitPushFallback === false) {
+      throw new Error(`pushSignedCommits: signed commit push failed for branch '${branch}' and git push fallback is disabled: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
     }
     core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${err instanceof Error ? err.message : String(err)}`);
     const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv });

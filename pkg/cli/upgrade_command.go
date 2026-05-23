@@ -197,8 +197,8 @@ func runUpgradeCommand(opts upgradeOptions) error {
 				return err
 			}
 			// The child process completed all upgrade steps (including any PR creation).
-			// Exit the parent so we do not repeat those steps.
-			os.Exit(0)
+			// Signal the entry-point to exit cleanly without repeating those steps.
+			return &ExitCodeError{Code: 0}
 		}
 	}
 
@@ -248,8 +248,21 @@ func runUpgradeCommand(opts upgradeOptions) error {
 			upgradeLog.Printf("Failed to update actions: %v", err)
 			// Don't fail the upgrade if action updates fail - this is non-critical
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions: %v", err)))
-		} else if opts.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated GitHub Actions versions"))
+		} else {
+			if opts.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated GitHub Actions versions"))
+			}
+
+			// Only update "uses:" references in source .md files when actions-lock.json
+			// was successfully updated, so both files stay in sync. Compilation is
+			// deferred to Step 4.
+			upgradeLog.Print("Updating action references in workflow .md files")
+			if err := UpdateActionsInWorkflowFiles(opts.ctx, opts.workflowDir, "", opts.verbose, false, true, 0); err != nil {
+				msg := fmt.Sprintf("Failed to update action references in workflow files: %v", err)
+				upgradeLog.Print(msg)
+				// Non-critical: warn but don't fail the upgrade
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Warning: "+msg))
+			}
 		}
 	} else {
 		if opts.noFix {
@@ -395,8 +408,8 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
-			// Preserve the child's exit code so the caller sees the real failure.
-			os.Exit(exitErr.ExitCode())
+			// Preserve the child's exit code so the entry-point can propagate it.
+			return &ExitCodeError{Code: exitErr.ExitCode()}
 		}
 		return err
 	}

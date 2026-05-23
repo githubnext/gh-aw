@@ -56,7 +56,7 @@ describe("emitSafeOutputActionOutputs", () => {
 
   it("emits created_pr_number and created_pr_url for create_pull_request result", () => {
     emitSafeOutputActionOutputs({
-      results: [{ success: true, type: "create_pull_request", result: { pull_request_number: 7, pull_request_url: "https://github.com/owner/repo/pull/7" } }],
+      results: [{ success: true, type: "create_pull_request", result: { number: 7, url: "https://github.com/owner/repo/pull/7" } }],
     });
 
     expect(outputs["created_pr_number"]).toBe("7");

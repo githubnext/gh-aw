@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -110,11 +108,6 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 		fmt.Fprintln(os.Stderr, "Press Ctrl+C to stop watching.")
 	}
 
-	// Set up signal handling for graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(sigChan)
-
 	// Debouncing setup
 	const debounceDelay = 300 * time.Millisecond
 	var debounceTimer *time.Timer
@@ -133,7 +126,7 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Initial compilation failed: %v", err)))
 		}
 		// Print summary instead of just "Recompiled"
-		printCompilationSummary(stats)
+		printCompilationSummary(stats, false)
 	} else {
 		// Reset warning count before compilation
 		compiler.ResetWarningCount()
@@ -153,7 +146,7 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 		stats.Warnings = compiler.GetWarningCount()
 
 		// Print summary instead of just "Recompiled"
-		printCompilationSummary(stats)
+		printCompilationSummary(stats, false)
 	}
 
 	// Main watch loop
@@ -225,7 +218,7 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Watcher error: %v", err)))
 			}
 
-		case <-sigChan:
+		case <-ctx.Done():
 			if verbose {
 				fmt.Fprintln(os.Stderr, "\n🛑 Stopping watch mode...")
 			}

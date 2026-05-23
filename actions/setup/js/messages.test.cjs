@@ -10,6 +10,8 @@
  * - Run status messages (started, success, failure)
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // Mock core for GitHub Actions environment
 const mockCore = {
@@ -36,6 +38,10 @@ describe("messages.cjs", () => {
     delete process.env.GH_AW_EFFECTIVE_TOKENS;
     delete process.env.GH_AW_DETECTION_CONCLUSION;
     delete process.env.GH_AW_DETECTION_REASON;
+    // Point GH_AW_PROMPTS_DIR to the source md/ directory so getPromptPath()
+    // resolves template files from the source tree in test environments where
+    // RUNNER_TEMP is set but the runtime prompts directory is not populated.
+    process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
     // Clear cache by reimporting
     vi.resetModules();
   });
@@ -443,9 +449,11 @@ describe("messages.cjs", () => {
         workflowSourceUrl: "https://github.com/owner/repo",
       });
 
+      expect(result).toContain("<details>");
+      expect(result).toContain("<summary>Add this agentic workflows to your repo</summary>");
+      expect(result).toContain("To install this agentic workflow, run");
       expect(result).toContain("gh aw add owner/repo/workflow.md@main");
-      expect(result).toContain("[agentic workflow](https://github.com/owner/repo)");
-      expect(result).not.toContain("View source at");
+      expect(result).toContain("</details>");
     });
 
     it("should use custom install template", async () => {

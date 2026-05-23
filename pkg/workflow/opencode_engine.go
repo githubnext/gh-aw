@@ -163,6 +163,7 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
 		"NO_PROXY":         "localhost,127.0.0.1",
 	}
+	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	e.ApplyUniversalProviderEnv(env, workflowData, firewallEnabled)
 
 	if HasMCPServers(workflowData) {

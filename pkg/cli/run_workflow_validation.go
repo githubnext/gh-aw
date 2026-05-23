@@ -272,7 +272,12 @@ func validateWorkflowInputs(markdownPath string, providedInputs []string) error 
 			errorParts = append(errorParts, validInputsMsg)
 		}
 
-		return errors.New(strings.Join(errorParts, "\n\n"))
+		return workflow.NewValidationError(
+			"on.workflow_dispatch.inputs",
+			strings.Join(providedInputs, ", "),
+			strings.Join(errorParts, "\n\n"),
+			fmt.Sprintf("Define and provide valid workflow_dispatch inputs.\n\nExample workflow frontmatter:\n\non:\n  workflow_dispatch:\n    inputs:\n      issue_url:\n        description: \"Issue URL\"\n        required: true\n        type: string\n\nExample command:\n  gh aw run %s -F issue_url=https://github.com/org/repo/issues/123", strings.TrimSuffix(filepath.Base(markdownPath), ".md")),
+		)
 	}
 
 	return nil

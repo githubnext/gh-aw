@@ -84,7 +84,7 @@ describe("route_slash_command", () => {
     await main();
     expect(dispatchCalls).toHaveLength(1);
     expect(dispatchCalls[0].workflow_id).toBe("archie.lock.yml");
-    expect(dispatchCalls[0].request?.headers?.["X-GitHub-Api-Version"]).toBe(GITHUB_API_VERSION);
+    expect(dispatchCalls[0].headers?.["X-GitHub-Api-Version"]).toBe(GITHUB_API_VERSION);
     expect(reactionCalls).toHaveLength(1);
     const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
     expect(awContext.command_name).toBe("archie");
@@ -221,5 +221,15 @@ describe("route_slash_command", () => {
     expect(dispatchCalls).toHaveLength(2);
     expect(dispatchCalls[0].workflow_id).toBe("smoke-copilot.lock.yml");
     expect(dispatchCalls[1].workflow_id).toBe("ci-doctor.lock.yml");
+  });
+
+  it("skips centralized routing when PR is closed at workflow start", async () => {
+    globals.context.eventName = "pull_request";
+    globals.context.payload = { action: "ready_for_review", pull_request: { number: 12, state: "closed" } };
+
+    await main();
+
+    expect(dispatchCalls).toHaveLength(0);
+    expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Pull request is closed at workflow start"));
   });
 });

@@ -12,18 +12,60 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// levelPattern matches heading markers (H1-H3) at the start of a line with flexible spacing
+var levelPattern = regexp.MustCompile(`^(#{1,3})[\s\t]+`)
+
 // FrontmatterResult holds parsed frontmatter and markdown content
 type FrontmatterResult struct {
 	Frontmatter map[string]any
 	Markdown    string
 	// Additional fields for error context
-	FrontmatterLines []string // Original frontmatter lines for error context
-	FrontmatterStart int      // Line number where frontmatter starts (1-based)
+	FrontmatterLines []string       // Original frontmatter lines for error context
+	FrontmatterStart int            // Line number where frontmatter starts (1-based)
+	FieldLines       map[string]int // Absolute line numbers (1-based) of top-level frontmatter keys in the file
+}
+
+// extractTopLevelFieldLines scans YAML text and returns a map of top-level key names to
+// their absolute line numbers in the source file. frontmatterStart is the 1-based line
+// number of the first frontmatter content line (i.e. the line immediately after the
+// opening "---" delimiter). The returned line numbers are absolute: they can be used
+// directly as file:line positions for IDE-navigable error messages.
+func extractTopLevelFieldLines(yamlContent string, frontmatterStart int) map[string]int {
+	fieldLines := make(map[string]int)
+	relLine := 0
+	for line := range strings.SplitSeq(yamlContent, "\n") {
+		relLine++
+		// Skip empty lines and YAML comments
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		// Top-level keys have no leading indentation
+		if len(line) > 0 && line[0] != ' ' && line[0] != '\t' {
+			colonIdx := strings.Index(trimmed, ":")
+			if colonIdx > 0 {
+				key := strings.TrimSpace(trimmed[:colonIdx])
+				// Accept simple unquoted keys only. Bracket characters in the key position
+				// ({, }, [, ]) indicate inline YAML maps/sequences rather than plain string keys
+				// (e.g. `[anchor]: value` or `{implicit_key}: value`). These forms are not used
+				// in workflow frontmatter, so we skip them to avoid false positives.
+				// Quoted YAML keys such as `"key[0]"` are also not used in workflow frontmatter
+				// and are excluded by this check (the extracted substring will contain the quote).
+				if key != "" && !strings.ContainsAny(key, " \t{}[]\"'") {
+					if _, alreadySeen := fieldLines[key]; !alreadySeen {
+						// absoluteLine = relLine + frontmatterStart - 1
+						fieldLines[key] = relLine + frontmatterStart - 1
+					}
+				}
+			}
+		}
+	}
+	return fieldLines
 }
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
 func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
-	log.Printf("Extracting frontmatter from content: size=%d bytes", len(content))
+	parserLog.Printf("Extracting frontmatter from content: size=%d bytes", len(content))
 	// Fast-path: inspect only the first line to determine whether frontmatter exists.
 	firstNewline := strings.IndexByte(content, '\n')
 	firstLine := content
@@ -33,7 +75,7 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 
 	// Check if file starts with frontmatter delimiter.
 	if !isFrontmatterDelimiterLine(firstLine) {
-		log.Print("No frontmatter delimiter found, returning content as markdown")
+		parserLog.Print("No frontmatter delimiter found, returning content as markdown")
 		// No frontmatter, return entire content as markdown
 		return &FrontmatterResult{
 			Frontmatter:      make(map[string]any),
@@ -113,12 +155,14 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 		markdown = content[markdownStart:]
 	}
 
-	log.Printf("Successfully extracted frontmatter: fields=%d, markdown_size=%d bytes", len(frontmatter), len(markdown))
+	parserLog.Printf("Successfully extracted frontmatter: fields=%d, markdown_size=%d bytes", len(frontmatter), len(markdown))
+	const frontmatterStartLine = 2 // Line 2 is where frontmatter content starts (after opening ---)
 	return &FrontmatterResult{
 		Frontmatter:      frontmatter,
 		Markdown:         strings.TrimSpace(markdown),
 		FrontmatterLines: frontmatterLines,
-		FrontmatterStart: 2, // Line 2 is where frontmatter content starts (after opening ---)
+		FrontmatterStart: frontmatterStartLine,
+		FieldLines:       extractTopLevelFieldLines(frontmatterYAML, frontmatterStartLine),
 	}, nil
 }
 
@@ -190,7 +234,7 @@ func ExtractFrontmatterFromBuiltinFile(path string, content []byte) (*Frontmatte
 // ExtractMarkdownSection extracts a specific section from markdown content
 // Supports H1-H3 headers and proper nesting (matches bash implementation)
 func ExtractMarkdownSection(content, sectionName string) (string, error) {
-	log.Printf("Extracting markdown section: section=%s, content_size=%d bytes", sectionName, len(content))
+	parserLog.Printf("Extracting markdown section: section=%s, content_size=%d bytes", sectionName, len(content))
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var sectionContent bytes.Buffer
 	inSection := false
@@ -198,7 +242,6 @@ func ExtractMarkdownSection(content, sectionName string) (string, error) {
 
 	// Create regex pattern to match headers at any level (H1-H3) with flexible spacing
 	headerPattern := regexp.MustCompile(`^(#{1,3})[\s\t]+` + regexp.QuoteMeta(sectionName) + `[\s\t]*$`)
-	levelPattern := regexp.MustCompile(`^(#{1,3})[\s\t]+`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -225,12 +268,12 @@ func ExtractMarkdownSection(content, sectionName string) (string, error) {
 	}
 
 	if !inSection {
-		log.Printf("Section not found: %s", sectionName)
+		parserLog.Printf("Section not found: %s", sectionName)
 		return "", fmt.Errorf("section '%s' not found", sectionName)
 	}
 
 	extractedContent := strings.TrimSpace(sectionContent.String())
-	log.Printf("Successfully extracted section: size=%d bytes", len(extractedContent))
+	parserLog.Printf("Successfully extracted section: size=%d bytes", len(extractedContent))
 	return extractedContent, nil
 }
 
@@ -269,15 +312,15 @@ func findH1WorkflowName(markdownBody string) string {
 // avoids the redundant file-read and YAML-parse that those functions perform when the caller
 // already holds the parsed FrontmatterResult.
 func ExtractWorkflowNameFromMarkdownBody(markdownBody string, virtualPath string) (string, error) {
-	log.Printf("Extracting workflow name from markdown body: virtualPath=%s, size=%d bytes", virtualPath, len(markdownBody))
+	parserLog.Printf("Extracting workflow name from markdown body: virtualPath=%s, size=%d bytes", virtualPath, len(markdownBody))
 
 	if name := findH1WorkflowName(markdownBody); name != "" {
-		log.Printf("Found workflow name from H1 header: %s", name)
+		parserLog.Printf("Found workflow name from H1 header: %s", name)
 		return name, nil
 	}
 
 	defaultName := generateDefaultWorkflowName(virtualPath)
-	log.Printf("No H1 header found, using default name: %s", defaultName)
+	parserLog.Printf("No H1 header found, using default name: %s", defaultName)
 	return defaultName, nil
 }
 
@@ -285,7 +328,7 @@ func ExtractWorkflowNameFromMarkdownBody(markdownBody string, virtualPath string
 // This is the in-memory equivalent of ExtractWorkflowNameFromMarkdown, used by Wasm builds
 // where filesystem access is unavailable.
 func ExtractWorkflowNameFromContent(content string, virtualPath string) (string, error) {
-	log.Printf("Extracting workflow name from content: virtualPath=%s, size=%d bytes", virtualPath, len(content))
+	parserLog.Printf("Extracting workflow name from content: virtualPath=%s, size=%d bytes", virtualPath, len(content))
 
 	markdownContent, err := ExtractMarkdownContent(content)
 	if err != nil {
@@ -293,12 +336,12 @@ func ExtractWorkflowNameFromContent(content string, virtualPath string) (string,
 	}
 
 	if name := findH1WorkflowName(markdownContent); name != "" {
-		log.Printf("Found workflow name from H1 header: %s", name)
+		parserLog.Printf("Found workflow name from H1 header: %s", name)
 		return name, nil
 	}
 
 	defaultName := generateDefaultWorkflowName(virtualPath)
-	log.Printf("No H1 header found, using default name: %s", defaultName)
+	parserLog.Printf("No H1 header found, using default name: %s", defaultName)
 	return defaultName, nil
 }
 

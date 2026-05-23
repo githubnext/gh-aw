@@ -21,6 +21,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/typeutil"
@@ -224,7 +225,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		// structure since they're tracked separately and displayed in their own table
 		logsMetricsLog.Printf("Parsed gateway.jsonl: %d servers, %d requests",
 			len(gatewayMetrics.Servers), gatewayMetrics.TotalRequests)
-	} else if gatewayErr != nil && !strings.Contains(gatewayErr.Error(), "not found") {
+	} else if gatewayErr != nil && !errorutil.IsNotFoundError(gatewayErr) {
 		// Only log if it's an error other than "not found"
 		logsMetricsLog.Printf("Failed to parse gateway.jsonl: %v", gatewayErr)
 		if verbose {

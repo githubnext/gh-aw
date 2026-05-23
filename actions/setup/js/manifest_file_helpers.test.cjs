@@ -508,6 +508,15 @@ index abc..def 100644
       expect(result.files).toContain("package.json");
     });
 
+    it("should return request_review when protected file found and policy is request_review", () => {
+      const result = checkFileProtection(makePatch("package.json"), {
+        protected_files: ["package.json"],
+        protected_files_policy: "request_review",
+      });
+      expect(result.action).toBe("request_review");
+      expect(result.files).toContain("package.json");
+    });
+
     it("should deny on protected path prefix when no allowlist", () => {
       const result = checkFileProtection(makePatch(".github/workflows/ci.yml"), {
         protected_path_prefixes: [".github/"],

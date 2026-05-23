@@ -142,7 +142,7 @@ func TestPrintCompilationSummary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// printCompilationSummary writes to stderr, we just verify it doesn't panic
-			printCompilationSummary(tt.stats)
+			printCompilationSummary(tt.stats, false)
 		})
 	}
 }

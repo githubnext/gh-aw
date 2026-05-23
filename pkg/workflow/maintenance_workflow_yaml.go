@@ -10,22 +10,44 @@ import (
 
 var maintenanceWorkflowYAMLLog = logger.New("workflow:maintenance_workflow_yaml")
 
+// buildMaintenanceWorkflowYAMLOptions configures the maintenance workflow YAML builder.
+type buildMaintenanceWorkflowYAMLOptions struct {
+	cronSchedule        string
+	scheduleDesc        string
+	minExpiresDays      int
+	runsOnValue         string
+	actionMode          ActionMode
+	version             string
+	actionTag           string
+	resolver            SHAResolver
+	configuredRunsOn    RunsOnValue
+	defaultBranch       string
+	disableLabelTrigger bool
+	compileGitHubToken  string
+	createCompilePR     bool
+}
+
 // buildMaintenanceWorkflowYAML generates the complete YAML content for the
 // agentics-maintenance.yml workflow. It is called by GenerateMaintenanceWorkflow
 // after the cron schedule and setup parameters have been resolved.
 func buildMaintenanceWorkflowYAML(
 	ctx context.Context,
-	cronSchedule, scheduleDesc string,
-	minExpiresDays int,
-	runsOnValue string,
-	actionMode ActionMode,
-	version, actionTag string,
-	resolver SHAResolver,
-	configuredRunsOn RunsOnValue,
-	defaultBranch string,
-	disableLabelTrigger bool,
+	opts buildMaintenanceWorkflowYAMLOptions,
 ) string {
-	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger)
+	cronSchedule := opts.cronSchedule
+	scheduleDesc := opts.scheduleDesc
+	minExpiresDays := opts.minExpiresDays
+	runsOnValue := opts.runsOnValue
+	actionMode := opts.actionMode
+	version := opts.version
+	actionTag := opts.actionTag
+	resolver := opts.resolver
+	configuredRunsOn := opts.configuredRunsOn
+	defaultBranch := opts.defaultBranch
+	disableLabelTrigger := opts.disableLabelTrigger
+	compileGitHubToken := opts.compileGitHubToken
+	createCompilePR := opts.createCompilePR
+	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v createCompilePR=%v", actionMode, minExpiresDays, cronSchedule, defaultBranch, disableLabelTrigger, createCompilePR)
 
 	var yaml strings.Builder
 
@@ -657,11 +679,11 @@ jobs:
 
 	// Add validate_workflows job for workflow_dispatch with operation == 'validate'
 	// This job uses ubuntu-latest by default (needs full runner for CLI installation).
-	validateRunsOnValue := FormatRunsOn(configuredRunsOn, "ubuntu-latest")
+	formattedRunsOn := FormatRunsOn(configuredRunsOn, "ubuntu-latest")
 	yaml.WriteString(`
   validate_workflows:
     if: ${{ ` + RenderCondition(buildDispatchOperationCondition("validate")) + ` }}
-    runs-on: ` + validateRunsOnValue + `
+    runs-on: ` + formattedRunsOn + `
     permissions:
       contents: read
       issues: write
@@ -835,9 +857,14 @@ jobs:
 `)
 
 		yaml.WriteString(generateInstallCLISteps(ctx, actionMode, version, actionTag, resolver))
-		yaml.WriteString(`      - name: Compile workflows
+		yaml.WriteString(`      - name: Pre-compile validation
         run: |
-          ` + getCLICmdPrefix(actionMode) + ` compile --validate --validate-images --verbose
+          ` + getCLICmdPrefix(actionMode) + ` compile --validate --no-emit --verbose
+          echo "✓ Pre-compile validation passed"
+
+      - name: Compile workflows
+        run: |
+          ` + getCLICmdPrefix(actionMode) + ` compile --validate --verbose
           echo "✓ All workflows compiled successfully"
 
       - name: Setup Scripts
@@ -845,10 +872,21 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
-      - name: Check for out-of-sync workflows and create issue if needed
+      - name: Check for out-of-sync workflows and create issue or pull request if needed
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
-        with:
-          script: |
+`)
+		if compileGitHubToken != "" {
+			yaml.WriteString(`        env:
+          GH_AW_MAINTENANCE_GITHUB_TOKEN: ` + compileGitHubToken + `
+`)
+		}
+		yaml.WriteString(`        with:
+`)
+		if compileGitHubToken != "" {
+			yaml.WriteString(`          github-token: ${{ env.GH_AW_MAINTENANCE_GITHUB_TOKEN }}
+`)
+		}
+		yaml.WriteString(`          script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_workflow_recompile_needed.cjs');

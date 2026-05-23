@@ -12,6 +12,7 @@ type RuntimeConfig struct {
 	If                string `json:"if,omitempty"`                  // Optional GitHub Actions if condition (e.g., "hashFiles('go.mod') != ''")
 	ActionRepo        string `json:"action-repo,omitempty"`         // Override the GitHub Actions repository (e.g., "actions/setup-node")
 	ActionVersion     string `json:"action-version,omitempty"`      // Override the action version (e.g., "v4")
+	Cooldown          *bool  `json:"cooldown,omitempty"`            // If false, disable the default dependency cooldown for installs associated with this runtime
 	RunInstallScripts *bool  `json:"run-install-scripts,omitempty"` // If true, allow pre/post install scripts for this runtime (supply chain risk; emits warning or error in strict mode)
 }
 
@@ -234,6 +235,20 @@ type OTLPConfig struct {
 	// This setting affects MCP gateway setup only. Other OTLP-aware steps still
 	// receive workflow-level OTEL_* environment variables.
 	IfMissing string `json:"if-missing,omitempty"`
+
+	// Attributes defines additional custom key-value string attributes to attach
+	// to every OTLP span emitted by this workflow (setup, agent, and conclusion).
+	// Values support template variables using {{ variable }} syntax, where the
+	// variable name is any OTLP attribute key already computed for the span
+	// (e.g. {{ gh-aw.episode.id }}, {{ github.actor }}).
+	//
+	// Example – emit Langfuse session/user attributes alongside the standard ones:
+	//   attributes:
+	//     langfuse.session.id: "{{ gh-aw.episode.id }}"
+	//     session.id:          "{{ gh-aw.episode.id }}"
+	//     langfuse.user.id:    "{{ github.actor }}"
+	//     user.id:             "{{ github.actor }}"
+	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
 // ObservabilityConfig represents workflow observability options.
@@ -293,7 +308,7 @@ type FrontmatterConfig struct {
 	Secrets         map[string]any    `json:"secrets,omitempty"`
 
 	// Workflow execution settings
-	RunsOn        string         `json:"runs-on,omitempty"`
+	RunsOn        any            `json:"runs-on,omitempty"`      // Supports string, array, or object GitHub Actions runner forms
 	RunsOnSlim    string         `json:"runs-on-slim,omitempty"` // Runner for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
 	RunName       string         `json:"run-name,omitempty"`
 	PreSteps      []any          `json:"pre-steps,omitempty"`       // Pre-workflow steps (run before checkout)

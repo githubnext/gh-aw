@@ -109,7 +109,8 @@ async function main(config = {}) {
   // Extract configuration from config parameter
   const target = config.target || "triggering";
   const titlePrefix = config.title_prefix || "";
-  const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
+  const rawRequiredLabels = config.required_labels ?? config.labels;
+  const envLabels = rawRequiredLabels ? (Array.isArray(rawRequiredLabels) ? rawRequiredLabels : rawRequiredLabels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const ifNoChanges = config.if_no_changes || "warn";
   const ignoreMissingBranchFailure = config.ignore_missing_branch_failure === true;
   const fallbackAsPullRequest = config.fallback_as_pull_request !== false;

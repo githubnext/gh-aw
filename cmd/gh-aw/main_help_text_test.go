@@ -31,3 +31,9 @@ func TestCompileStagedFlagHelpText(t *testing.T) {
 	require.NotNil(t, stagedFlag, "compile command should define --staged")
 	assert.Equal(t, "Force all safe-outputs into staged mode", stagedFlag.Usage)
 }
+
+func TestCompileShowAllFlagHelpText(t *testing.T) {
+	showAllFlag := compileCmd.Flags().Lookup("show-all")
+	require.NotNil(t, showAllFlag, "compile command should define --show-all")
+	assert.Equal(t, "Display all prioritized compilation errors instead of the default top five", showAllFlag.Usage)
+}

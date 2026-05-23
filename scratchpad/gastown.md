@@ -941,7 +941,7 @@ Based on patterns from Gastown, here are recommended enhancements for gh-aw:
 - Use Gastown (with beads) for local multi-agent development
 - Bridge with gh-aw workflows that sync with beads state
 - Share formula patterns between systems
-- Leverage GitHub as communication layer for gastown agents
+- Use GitHub as the communication layer for gastown agents
 
 ---
 

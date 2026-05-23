@@ -1047,6 +1047,98 @@ describe("Safe Output Handler Manager", () => {
       expect(parentTracked.type).toBe("create_issue");
     });
 
+    it("should register temporary ID from create_pull_request result", async () => {
+      const messages = [{ type: "create_pull_request", temporary_id: "aw_pr1", title: "My PR", body: "PR body" }];
+
+      const prHandler = vi.fn().mockResolvedValue({
+        success: true,
+        number: 42,
+        url: "https://github.com/owner/repo/pull/42",
+        temporaryId: "aw_pr1",
+        repo: "owner/repo",
+      });
+
+      const handlers = new Map([["create_pull_request", prHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.temporaryIdMap["aw_pr1"]).toBeDefined();
+      expect(result.temporaryIdMap["aw_pr1"].number).toBe(42);
+      expect(result.temporaryIdMap["aw_pr1"].repo).toBe("owner/repo");
+    });
+
+    it("should resolve #aw_prN in later messages after create_pull_request registers its temp ID", async () => {
+      const messages = [
+        { type: "create_pull_request", temporary_id: "aw_pr1", title: "My PR", body: "PR body" },
+        { type: "create_issue", title: "Summary", body: "See #aw_pr1 for the changes" },
+      ];
+
+      const prHandler = vi.fn().mockResolvedValue({
+        success: true,
+        number: 42,
+        url: "https://github.com/owner/repo/pull/42",
+        temporaryId: "aw_pr1",
+        repo: "owner/repo",
+      });
+
+      let capturedResolvedIds;
+      const issueHandler = vi.fn().mockImplementation((message, resolvedTemporaryIds) => {
+        capturedResolvedIds = resolvedTemporaryIds;
+        return Promise.resolve({ success: true, number: 100, repo: "owner/repo", temporaryId: undefined });
+      });
+
+      const handlers = new Map([
+        ["create_pull_request", prHandler],
+        ["create_issue", issueHandler],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      // aw_pr1 should be in the resolvedTemporaryIds snapshot passed to the second handler
+      expect(capturedResolvedIds).toBeDefined();
+      expect(capturedResolvedIds["aw_pr1"]).toBeDefined();
+      expect(capturedResolvedIds["aw_pr1"].number).toBe(42);
+    });
+
+    it("should track create_pull_request with forward temp ID refs for synthetic update", async () => {
+      const messages = [
+        { type: "create_pull_request", temporary_id: "aw_pr1", title: "My PR", body: "Closes #aw_issue1" },
+        { type: "create_issue", temporary_id: "aw_issue1", title: "Issue", body: "Issue body" },
+      ];
+
+      const prHandler = vi.fn().mockResolvedValue({
+        success: true,
+        number: 10,
+        url: "https://github.com/owner/repo/pull/10",
+        managedBody: "Managed: Closes #aw_issue1\n\n<!-- footer -->",
+        temporaryId: "aw_pr1",
+        repo: "owner/repo",
+      });
+
+      const issueHandler = vi.fn().mockResolvedValue({
+        success: true,
+        number: 99,
+        repo: "owner/repo",
+        temporaryId: "aw_issue1",
+      });
+
+      const handlers = new Map([
+        ["create_pull_request", prHandler],
+        ["create_issue", issueHandler],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      // PR was created with an unresolved forward ref (#aw_issue1 not yet registered)
+      expect(result.outputsWithUnresolvedIds.length).toBeGreaterThan(0);
+      const trackedPR = result.outputsWithUnresolvedIds.find(o => o.type === "create_pull_request");
+      expect(trackedPR).toBeDefined();
+      expect(trackedPR.result.number).toBe(10);
+    });
+
     it("should collect missing_tool and missing_data messages and include in result", async () => {
       const messages = [
         {
@@ -1230,8 +1322,8 @@ describe("Safe Output Handler Manager", () => {
     });
   });
 
-  describe("code-push fail-fast behaviour", () => {
-    it("should cancel subsequent non-add_comment messages when push_to_pull_request_branch fails", async () => {
+  describe("code-push failure behaviour", () => {
+    it("should continue processing non-code-push messages when push_to_pull_request_branch fails", async () => {
       const messages = [{ type: "push_to_pull_request_branch" }, { type: "add_comment", body: "Success!" }, { type: "create_issue", title: "Issue" }];
 
       const codePushHandler = vi.fn().mockResolvedValue({ success: false, error: "Branch not found" });
@@ -1260,11 +1352,10 @@ describe("Safe Output Handler Manager", () => {
       const calledMessage = commentHandler.mock.calls[0][0];
       expect(calledMessage.body).toContain("push_to_pull_request_branch");
       expect(calledMessage.body).toContain("Branch not found");
-      // create_issue IS still cancelled (non-add_comment non-code-push type)
-      expect(result.results[2].success).toBe(false);
-      expect(result.results[2].cancelled).toBe(true);
-      // create_issue handler was NOT called
-      expect(issueHandler).not.toHaveBeenCalled();
+      // non-code-push message should continue to execute
+      expect(result.results[2].success).toBe(true);
+      expect(result.results[2].cancelled).toBeUndefined();
+      expect(issueHandler).toHaveBeenCalledTimes(1);
     });
 
     it("should allow add_comment through when create_pull_request fails via exception", async () => {
@@ -1498,8 +1589,8 @@ describe("Safe Output Handler Manager", () => {
 
       const prHandler = vi.fn().mockResolvedValue({
         success: true,
-        pull_request_number: 5,
-        pull_request_url: "https://github.com/owner/repo/pull/5",
+        number: 5,
+        url: "https://github.com/owner/repo/pull/5",
         repo: "owner/repo",
       });
       const commentHandler = vi.fn().mockResolvedValue([{ _tracking: null }]);

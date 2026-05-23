@@ -38,7 +38,7 @@ Yes! Agentic workflows can analyze repositories, generate reports, triage issues
 
 ### Can agentic workflows mix regular GitHub Actions steps with AI agentic steps?
 
-Yes! Agentic workflows can include both AI agentic steps and traditional GitHub Actions steps. You can add custom steps before the agentic job using the [`steps:` configuration](/gh-aw/reference/frontmatter/#custom-steps-steps). Additionally, [custom safe output jobs](/gh-aw/reference/safe-outputs/#custom-safe-output-jobs-jobs) can be used as consumers of agentic outputs. [MCP Scripts](/gh-aw/reference/mcp-scripts/) allow you to pass data between traditional steps and the AI agent with added checking.
+Yes! Agentic workflows can include both AI agentic steps and traditional GitHub Actions steps. You can add custom steps before the agentic job using the [`steps:` configuration](/gh-aw/reference/steps-jobs/#custom-steps-steps). Additionally, [custom safe output jobs](/gh-aw/reference/safe-outputs/#custom-safe-output-jobs-jobs) can be used as consumers of agentic outputs. [MCP Scripts](/gh-aw/reference/mcp-scripts/) allow you to pass data between traditional steps and the AI agent with added checking.
 
 ### Can agentic workflows read other repositories?
 
@@ -47,11 +47,11 @@ Not by default, but yes with proper configuration. Cross-repository access requi
 1. A **Personal Access Token (PAT)** with access to target repositories
 2. Configuring the token in your workflow
 
-See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for coordinating across repositories, or [SideRepoOps](/gh-aw/patterns/side-repo-ops/) for running workflows from a separate repository.
+See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for coordinating across repositories, including running workflows from a separate side repository.
 
 ### Can I use agentic workflows in private repositories?
 
-Yes, and in many cases we recommend it. Private repositories are ideal for proprietary code, creating a "sidecar" repository with limited access, testing workflows, and organization-internal automation. See [SideRepoOps](/gh-aw/patterns/side-repo-ops/) for patterns using private repositories.
+Yes, and in many cases we recommend it. Private repositories are ideal for proprietary code, creating a "sidecar" repository with limited access, testing workflows, and organization-internal automation. See [MultiRepoOps — Side Repository](/gh-aw/patterns/multi-repo-ops/#using-a-side-repository) for patterns using private repositories.
 
 ### Can I edit workflows directly on GitHub.com without recompiling?
 
@@ -160,7 +160,7 @@ imports:
   - githubnext/agentics/shared/common-tools.md
 ```
 
-This enables reusable tool configurations, network settings, and permissions across workflows. See [Imports](/gh-aw/reference/imports/) and [Packaging Imports](/gh-aw/guides/packaging-imports/) for details.
+This enables reusable tool configurations, network settings, and permissions across workflows. See [Imports](/gh-aw/reference/imports/) and [Packaging Imports](/gh-aw/guides/reusing-workflows/) for details.
 
 ### Can I run workflows on a schedule?
 
@@ -222,7 +222,7 @@ safe-outputs:
   create-issue:
 ```
 
-With an empty list, every `#N` and `owner/repo#N` reference in the output is wrapped in backticks, which prevents GitHub from resolving them as cross-references and avoids cluttering other repositories' timelines. This is especially useful for [SideRepoOps](/gh-aw/patterns/side-repo-ops/) workflows that write content about issues in a main repository from a separate sidecar repository.
+With an empty list, every `#N` and `owner/repo#N` reference in the output is wrapped in backticks, which prevents GitHub from resolving them as cross-references and avoids cluttering other repositories' timelines. This is especially useful for workflows that write content about issues in a main repository from a separate sidecar repository.
 
 To allow references only from the current repository while still escaping all others:
 

@@ -19,10 +19,23 @@ function resolveBodyText() {
     pull_request: context.payload?.pull_request?.body ?? "",
     issue_comment: context.payload?.comment?.body ?? "",
     pull_request_review_comment: context.payload?.comment?.body ?? "",
+    pull_request_review: context.payload?.review?.body ?? "",
     discussion: context.payload?.discussion?.body ?? "",
     discussion_comment: context.payload?.comment?.body ?? "",
   };
   return bodyByEvent[context.eventName] ?? "";
+}
+
+function isPRClosedAtStart() {
+  const pullRequestState = context.payload?.pull_request?.state;
+  if (pullRequestState === "closed") {
+    return true;
+  }
+  const issueState = context.payload?.issue?.state;
+  if (context.payload?.issue?.pull_request && issueState === "closed") {
+    return true;
+  }
+  return false;
 }
 
 function resolveDispatchRef() {
@@ -194,10 +207,8 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
       workflow_id: workflowId,
       ref,
       inputs,
-      request: {
-        headers: {
-          "X-GitHub-Api-Version": GITHUB_API_VERSION,
-        },
+      headers: {
+        "X-GitHub-Api-Version": GITHUB_API_VERSION,
       },
     });
   } catch (error) {
@@ -217,6 +228,10 @@ async function main() {
   const identifier = eventIdentifier();
   const { buildAwContext } = require("./aw_context.cjs");
   const ref = resolveDispatchRef();
+  if (isPRClosedAtStart()) {
+    core.info("Pull request is closed at workflow start; skipping centralized routing.");
+    return;
+  }
 
   if (context.payload?.action === "labeled") {
     const labelName = context.payload?.label?.name ?? "";

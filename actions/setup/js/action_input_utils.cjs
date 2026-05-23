@@ -9,6 +9,10 @@
  * some runner versions preserve the original hyphen from the input name. Checking
  * both forms ensures the value is resolved regardless of the runner version.
  *
+ * The underscore form has precedence: if `INPUT_<NAME>` exists (even as whitespace),
+ * it is used. The hyphen form is only checked if the underscore form is absent or
+ * empty string.
+ *
  * @param {string} name - Input name in UPPER_UNDERSCORE form (e.g. "JOB_NAME")
  * @returns {string} Trimmed input value, or "" if not set.
  */

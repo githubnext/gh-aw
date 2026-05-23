@@ -81,6 +81,9 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"grep-tool-removal",
 		"mcp-network-to-top-level-migration",
 		"discussion-trigger-categories-lowercase",
+		"safe-output-title-prefix-to-required-title-prefix",
+		"safe-output-merge-pr-constraints",
+		"safe-output-add-reviewer-allowlists",
 		"safe-inputs-to-mcp-scripts",
 		"rate-limit-to-user-rate-limit",
 		"engine-max-runs-to-top-level",
@@ -95,6 +98,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"features-inline-agents-removal",
 		"mount-as-clis-to-cli-proxy",
 		"bash-single-quoted-args-rewrite",
+		"infer-to-disable-model-invocation",
 	}
 
 	for _, expectedID := range expectedIDs {
@@ -159,6 +163,9 @@ func expectedCodemodOrder() []string {
 		"expires-integer-to-string",
 		"app-to-github-app",
 		"github-app-app-id-to-client-id",
+		"safe-output-title-prefix-to-required-title-prefix",
+		"safe-output-merge-pr-constraints",
+		"safe-output-add-reviewer-allowlists",
 		"safe-inputs-to-mcp-scripts",
 		"rate-limit-to-user-rate-limit",
 		"serena-tools-to-shared-import",
@@ -175,5 +182,6 @@ func expectedCodemodOrder() []string {
 		"sandbox-mcp-container-removal",
 		"sandbox-mcp-version-removal",
 		"sandbox-agent-false-removal",
+		"infer-to-disable-model-invocation",
 	}
 }

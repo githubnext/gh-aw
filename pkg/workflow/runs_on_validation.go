@@ -11,6 +11,7 @@
 // # Validation Functions
 //
 //   - validateRunsOn() - Validates the runs-on field for unsupported runner types
+//   - validateRunsOnValue() - Validates the supported runs-on YAML value shapes
 //   - extractRunnerLabels() - Extracts individual runner labels from runs-on value
 //
 // # When to Add Validation Here
@@ -62,6 +63,48 @@ func validateRunsOn(frontmatter map[string]any, markdownPath string) error {
 
 	runsOnValidationLog.Printf("runs-on validation passed")
 	return nil
+}
+
+func validateRunsOnValue(value any) error {
+	if value == nil {
+		return nil
+	}
+
+	switch v := value.(type) {
+	case string:
+		return nil
+	case []any:
+		for _, label := range v {
+			if _, ok := label.(string); !ok {
+				return fmt.Errorf("invalid runs-on array entry type %T: expected string", label)
+			}
+		}
+		return nil
+	case map[string]any:
+		for key, value := range v {
+			switch key {
+			case "group":
+				if _, ok := value.(string); !ok {
+					return fmt.Errorf("invalid runs-on.group type %T: expected string", value)
+				}
+			case "labels":
+				labels, ok := value.([]any)
+				if !ok {
+					return fmt.Errorf("invalid runs-on.labels type %T: expected array of strings", value)
+				}
+				for _, label := range labels {
+					if _, ok := label.(string); !ok {
+						return fmt.Errorf("invalid runs-on.labels entry type %T: expected string", label)
+					}
+				}
+			default:
+				return fmt.Errorf("invalid runs-on object key %q: expected only group or labels", key)
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("invalid runs-on type %T: expected string, array of strings, or object", value)
+	}
 }
 
 // extractRunnerLabels extracts individual runner label strings from a runs-on value.

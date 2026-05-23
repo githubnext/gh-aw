@@ -56,7 +56,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          RESULT_DIR="/tmp/gh-aw/skill-optimizer-results"
+          RESULT_DIR="/tmp/gh-aw/agent/skill-optimizer-results"
           TOOL_DIR="$RESULT_DIR/skill-optimizer-src"
           mkdir -p "$RESULT_DIR"
 
@@ -121,7 +121,7 @@ jobs:
         uses: actions/upload-artifact@v7.0.1
         with:
           name: skill-optimizer-results
-          path: /tmp/gh-aw/skill-optimizer-results
+          path: /tmp/gh-aw/agent/skill-optimizer-results
           if-no-files-found: error
           retention-days: 7
 
@@ -137,7 +137,7 @@ steps:
     uses: actions/download-artifact@v8.0.1
     with:
       name: skill-optimizer-results
-      path: /tmp/gh-aw/skill-optimizer-results
+      path: /tmp/gh-aw/agent/skill-optimizer-results
 
 tools:
   cli-proxy: true
@@ -155,8 +155,8 @@ You are a workflow quality analyst for `${{ github.repository }}`.
 
 ## Inputs
 
-- Downloaded artifact directory: `/tmp/gh-aw/skill-optimizer-results`
-- Required file: `/tmp/gh-aw/skill-optimizer-results/summary.json`
+- Downloaded artifact directory: `/tmp/gh-aw/agent/skill-optimizer-results`
+- Required file: `/tmp/gh-aw/agent/skill-optimizer-results/summary.json`
 - Optional logs:
   - `clone.log`
   - `npm-ci.log`

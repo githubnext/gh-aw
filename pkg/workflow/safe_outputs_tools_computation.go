@@ -62,6 +62,9 @@ func computeEnabledToolNames(data *WorkflowData) map[string]bool {
 	if data.SafeOutputs.AutofixCodeScanningAlert != nil {
 		enabledTools["autofix_code_scanning_alert"] = true
 	}
+	if data.SafeOutputs.CreateCheckRun != nil {
+		enabledTools["create_check_run"] = true
+	}
 	if data.SafeOutputs.AddLabels != nil {
 		enabledTools["add_labels"] = true
 	}

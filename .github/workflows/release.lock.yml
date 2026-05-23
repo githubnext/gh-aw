@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"6a6bd39e2339b2b176862a0fceb3dc70c2440fe79b8689f4e476134a57bed33a","strict":true,"agent_id":"copilot"}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"anchore/sbom-action","sha":"e22c389904149dbc22b58101806040fa8d37a610","version":"v0.24.0"},{"repo":"docker/build-push-action","sha":"bcafcacb16a39f128d818304e6c9c0c18556b85f","version":"v7.1.0"},{"repo":"docker/login-action","sha":"4907a6ddec9925e35a0a9e82d7399ccc52663121","version":"v4.1.0"},{"repo":"docker/metadata-action","sha":"030e881283bb7a6894de51c315a6bfe6a94e05cf","version":"v6.0.0 (source v6)"},{"repo":"docker/setup-buildx-action","sha":"4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd","version":"v4.0.0 (source v4)"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.49"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.49"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.49"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.9","digest":"sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.3.9@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"6ab58b9981438afb144f321bf132b27895fefd5617a039356d949091470bafe9","strict":true,"agent_id":"copilot"}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"anchore/sbom-action","sha":"e22c389904149dbc22b58101806040fa8d37a610","version":"v0.24.0"},{"repo":"docker/build-push-action","sha":"bcafcacb16a39f128d818304e6c9c0c18556b85f","version":"v7.1.0"},{"repo":"docker/login-action","sha":"4907a6ddec9925e35a0a9e82d7399ccc52663121","version":"v4.1.0"},{"repo":"docker/metadata-action","sha":"80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9","version":"v6"},{"repo":"docker/setup-buildx-action","sha":"d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5","version":"v4"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.52"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.52"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.52"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.18"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -49,14 +49,14 @@
 #   - anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
 #   - docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
 #   - docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
-#   - docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0 (source v6)
-#   - docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0 (source v4)
+#   - docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6
+#   - docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
 #
 # Container images used:
-#   - ghcr.io/github/gh-aw-firewall/agent:0.25.49
-#   - ghcr.io/github/gh-aw-firewall/api-proxy:0.25.49
-#   - ghcr.io/github/gh-aw-firewall/squid:0.25.49
-#   - ghcr.io/github/gh-aw-mcpg:v0.3.9@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388
+#   - ghcr.io/github/gh-aw-firewall/agent:0.25.52
+#   - ghcr.io/github/gh-aw-firewall/api-proxy:0.25.52
+#   - ghcr.io/github/gh-aw-firewall/squid:0.25.52
+#   - ghcr.io/github/gh-aw-mcpg:v0.3.18
 #   - ghcr.io/github/github-mcp-server:v1.0.4
 #   - node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
 
@@ -69,7 +69,7 @@ on:
     inputs:
       aw_context:
         default: ""
-        description: Agent caller context (used internally by Agentic Workflows).
+        description: "Agent caller context (used internally by Agentic Workflows)."
         required: false
         type: string
       release_type:
@@ -135,6 +135,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Release"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/release.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.48"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
@@ -152,7 +153,7 @@ jobs:
           GH_AW_INFO_STAGED: "false"
           GH_AW_INFO_ALLOWED_DOMAINS: '["*.grafana.net","*.sentry.io","defaults","github.github.com","node"]'
           GH_AW_INFO_FIREWALL_ENABLED: "true"
-          GH_AW_INFO_AWF_VERSION: "v0.25.49"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_FRONTMATTER_EMOJI: "🚀"
@@ -219,20 +220,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_3d1e7fc813ad77ae_EOF'
+          cat << 'GH_AW_PROMPT_aa4712b86646f911_EOF'
           <system>
-          GH_AW_PROMPT_3d1e7fc813ad77ae_EOF
+          GH_AW_PROMPT_aa4712b86646f911_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_3d1e7fc813ad77ae_EOF'
+          cat << 'GH_AW_PROMPT_aa4712b86646f911_EOF'
           <safe-output-tools>
           Tools: update_release, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_3d1e7fc813ad77ae_EOF
+          GH_AW_PROMPT_aa4712b86646f911_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_3d1e7fc813ad77ae_EOF'
+          cat << 'GH_AW_PROMPT_aa4712b86646f911_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -261,15 +262,15 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_3d1e7fc813ad77ae_EOF
+          GH_AW_PROMPT_aa4712b86646f911_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_3d1e7fc813ad77ae_EOF'
+          cat << 'GH_AW_PROMPT_aa4712b86646f911_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/community-attribution.md}}
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/release.md}}
-          GH_AW_PROMPT_3d1e7fc813ad77ae_EOF
+          GH_AW_PROMPT_aa4712b86646f911_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -365,15 +366,15 @@ jobs:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_WORKFLOW_ID_SANITIZED: release
     outputs:
-      agentic_engine_timeout: ${{ steps.detect-copilot-errors.outputs.agentic_engine_timeout || 'false' }}
+      agentic_engine_timeout: ${{ steps.agentic_execution.outputs.agentic_engine_timeout || 'false' }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       effective_tokens_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.effective_tokens_rate_limit_error || 'false' }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
-      inference_access_error: ${{ steps.detect-copilot-errors.outputs.inference_access_error || 'false' }}
-      mcp_policy_error: ${{ steps.detect-copilot-errors.outputs.mcp_policy_error || 'false' }}
+      inference_access_error: ${{ steps.agentic_execution.outputs.inference_access_error || 'false' }}
+      mcp_policy_error: ${{ steps.agentic_execution.outputs.mcp_policy_error || 'false' }}
       model: ${{ needs.activation.outputs.model }}
-      model_not_supported_error: ${{ steps.detect-copilot-errors.outputs.model_not_supported_error || 'false' }}
+      model_not_supported_error: ${{ steps.agentic_execution.outputs.model_not_supported_error || 'false' }}
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
       setup-parent-span-id: ${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}
@@ -399,6 +400,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Release"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/release.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.48"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Set runtime paths
         id: set-runtime-paths
@@ -430,7 +432,7 @@ jobs:
           RELEASE_ID: ${{ needs.release.outputs.release_id }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
         name: Setup release environment
-        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\nmkdir -p /tmp/gh-aw/community-data\n# Copy community issues from the agent/community-data path (written by community-attribution import step)\ncp /tmp/gh-aw/agent/community-data/community_issues.json /tmp/gh-aw/community-data/community_issues.json 2>/dev/null || echo \"[]\" > /tmp/gh-aw/community-data/community_issues.json\n\n# Use the release ID and tag from the release job\necho \"Release ID from release job: $RELEASE_ID\"\necho \"Release tag from release job: $RELEASE_TAG\"\n\necho \"Processing release: $RELEASE_TAG\"\necho \"RELEASE_TAG=$RELEASE_TAG\" >> \"$GITHUB_ENV\"\n\n# Get the current release information\n# Use release ID to fetch release data\ngh api \"/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID\" > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> \"$GITHUB_ENV\"\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> \"$GITHUB_ENV\"\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases (include closingIssuesReferences for attribution)\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body,closingIssuesReferences \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length \"/tmp/gh-aw/release-data/pull_requests.json\")\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Build closing references index from GitHub-native closingIssuesReferences\n# Maps each closed issue number -> list of PR numbers that directly close it\necho \"Building closing references index from GitHub-native PR links...\"\n# Use a nested reduce so the outer body always returns the accumulator,\n# even when closingIssuesReferences is empty (avoids jq setting acc to null).\njq '\n  reduce .[] as $pr (\n    {};\n    reduce ($pr.closingIssuesReferences // [])[] as $issue (\n      .;\n      ($issue.number | tostring) as $key |\n      .[$key] = (.[$key] // []) + [$pr.number]\n    )\n  )\n' /tmp/gh-aw/release-data/pull_requests.json \\\n  > /tmp/gh-aw/release-data/closing_refs_by_issue.json 2>/dev/null \\\n  || echo \"{}\" > /tmp/gh-aw/release-data/closing_refs_by_issue.json\n# Also expose to community-data dir so shared attribution strategy can reference it\ncp /tmp/gh-aw/release-data/closing_refs_by_issue.json /tmp/gh-aw/community-data/closing_refs_by_issue.json\ncp /tmp/gh-aw/release-data/pull_requests.json /tmp/gh-aw/community-data/pull_requests.json\n\nDIRECT_CLOSE_COUNT=$(jq 'keys | length' /tmp/gh-aw/release-data/closing_refs_by_issue.json)\necho \"✓ Found $DIRECT_CLOSE_COUNT issues with GitHub-native closing PR references\"\n\n# Find community issues closed during this release window (candidates for attribution review)\nif [ -n \"$PREV_PUBLISHED_AT\" ]; then\n  jq --arg prev \"$PREV_PUBLISHED_AT\" --arg curr \"$CURR_PUBLISHED_AT\" \\\n    '[.[] | select(.closedAt != null and .closedAt >= $prev and .closedAt <= $curr)]' \\\n    /tmp/gh-aw/community-data/community_issues.json \\\n    > /tmp/gh-aw/release-data/community_issues_closed_in_window.json 2>/dev/null \\\n    || echo \"[]\" > /tmp/gh-aw/release-data/community_issues_closed_in_window.json\n  \n  CLOSED_IN_WINDOW=$(jq length /tmp/gh-aw/release-data/community_issues_closed_in_window.json)\n  echo \"✓ Found $CLOSED_IN_WINDOW community issues closed in this release window\"\nelse\n  echo \"[]\" > /tmp/gh-aw/release-data/community_issues_closed_in_window.json\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete.\"\necho \"  Release data: /tmp/gh-aw/release-data/ (current_release.json, pull_requests.json,\"\necho \"    closing_refs_by_issue.json, community_issues_closed_in_window.json,\"\necho \"    CHANGELOG.md (if exists), docs_files.txt)\"\necho \"  Community data: /tmp/gh-aw/community-data/ (community_issues.json,\"\necho \"    closing_refs_by_issue.json, pull_requests.json)\"\n"
+        run: "set -e\nmkdir -p /tmp/gh-aw/agent/release-data\nmkdir -p /tmp/gh-aw/agent/community-data\n# Copy community issues from the agent/community-data path (written by community-attribution import step)\ncp /tmp/gh-aw/agent/community-data/community_issues.json /tmp/gh-aw/agent/community-data/community_issues.json 2>/dev/null || echo \"[]\" > /tmp/gh-aw/agent/community-data/community_issues.json\n\n# Use the release ID and tag from the release job\necho \"Release ID from release job: $RELEASE_ID\"\necho \"Release tag from release job: $RELEASE_TAG\"\n\necho \"Processing release: $RELEASE_TAG\"\necho \"RELEASE_TAG=$RELEASE_TAG\" >> \"$GITHUB_ENV\"\n\n# Get the current release information\n# Use release ID to fetch release data\ngh api \"/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID\" > /tmp/gh-aw/agent/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> \"$GITHUB_ENV\"\n  touch /tmp/gh-aw/agent/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/agent/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> \"$GITHUB_ENV\"\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases (include closingIssuesReferences for attribution)\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body,closingIssuesReferences \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/agent/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length \"/tmp/gh-aw/agent/release-data/pull_requests.json\")\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Build closing references index from GitHub-native closingIssuesReferences\n# Maps each closed issue number -> list of PR numbers that directly close it\necho \"Building closing references index from GitHub-native PR links...\"\n# Use a nested reduce so the outer body always returns the accumulator,\n# even when closingIssuesReferences is empty (avoids jq setting acc to null).\njq '\n  reduce .[] as $pr (\n    {};\n    reduce ($pr.closingIssuesReferences // [])[] as $issue (\n      .;\n      ($issue.number | tostring) as $key |\n      .[$key] = (.[$key] // []) + [$pr.number]\n    )\n  )\n' /tmp/gh-aw/agent/release-data/pull_requests.json \\\n  > /tmp/gh-aw/agent/release-data/closing_refs_by_issue.json 2>/dev/null \\\n  || echo \"{}\" > /tmp/gh-aw/agent/release-data/closing_refs_by_issue.json\n# Also expose to community-data dir so shared attribution strategy can reference it\ncp /tmp/gh-aw/agent/release-data/closing_refs_by_issue.json /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json\ncp /tmp/gh-aw/agent/release-data/pull_requests.json /tmp/gh-aw/agent/community-data/pull_requests.json\n\nDIRECT_CLOSE_COUNT=$(jq 'keys | length' /tmp/gh-aw/agent/release-data/closing_refs_by_issue.json)\necho \"✓ Found $DIRECT_CLOSE_COUNT issues with GitHub-native closing PR references\"\n\n# Find community issues closed during this release window (candidates for attribution review)\nif [ -n \"$PREV_PUBLISHED_AT\" ]; then\n  jq --arg prev \"$PREV_PUBLISHED_AT\" --arg curr \"$CURR_PUBLISHED_AT\" \\\n    '[.[] | select(.closedAt != null and .closedAt >= $prev and .closedAt <= $curr)]' \\\n    /tmp/gh-aw/agent/community-data/community_issues.json \\\n    > /tmp/gh-aw/agent/release-data/community_issues_closed_in_window.json 2>/dev/null \\\n    || echo \"[]\" > /tmp/gh-aw/agent/release-data/community_issues_closed_in_window.json\n  \n  CLOSED_IN_WINDOW=$(jq length /tmp/gh-aw/agent/release-data/community_issues_closed_in_window.json)\n  echo \"✓ Found $CLOSED_IN_WINDOW community issues closed in this release window\"\nelse\n  echo \"[]\" > /tmp/gh-aw/agent/release-data/community_issues_closed_in_window.json\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/agent/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/agent/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete.\"\necho \"  Release data: /tmp/gh-aw/agent/release-data/ (current_release.json, pull_requests.json,\"\necho \"    closing_refs_by_issue.json, community_issues_closed_in_window.json,\"\necho \"    CHANGELOG.md (if exists), docs_files.txt)\"\necho \"  Community data: /tmp/gh-aw/agent/community-data/ (community_issues.json,\"\necho \"    closing_refs_by_issue.json, pull_requests.json)\"\n"
 
       - name: Configure Git credentials
         env:
@@ -464,7 +466,7 @@ jobs:
         env:
           GH_HOST: github.com
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.49
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.52
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
@@ -492,15 +494,15 @@ jobs:
           GH_AW_SUB_AGENT_EXT: ".agent.md"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.49 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.49 ghcr.io/github/gh-aw-firewall/squid:0.25.49 ghcr.io/github/gh-aw-mcpg:v0.3.9@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388 ghcr.io/github/github-mcp-server:v1.0.4 node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.52 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.52 ghcr.io/github/gh-aw-firewall/squid:0.25.52 ghcr.io/github/gh-aw-mcpg:v0.3.18 ghcr.io/github/github-mcp-server:v1.0.4 node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
       - name: Generate Safe Outputs Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_9890c71889ced9a9_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_d1271e1a0cad0699_EOF'
           {"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"update_release":{"max":1}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_9890c71889ced9a9_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_d1271e1a0cad0699_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -695,11 +697,11 @@ jobs:
             * ) DOCKER_SOCK_PATH=/var/run/docker.sock ;;
           esac
           DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.9'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.18'
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_9b7aa0b37241c540_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_2e038844e72d36a1_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -745,7 +747,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_9b7aa0b37241c540_EOF
+          GH_AW_MCP_CONFIG_2e038844e72d36a1_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -801,14 +803,22 @@ jobs:
           export GH_AW_NODE_BIN
           export COPILOT_API_KEY="$COPILOT_DUMMY_BYOK"
           (umask 177 && touch /tmp/gh-aw/agent-stdio.log)
-          printf '%s\n' '{"$schema":"https://github.com/github/gh-aw-firewall/releases/download/v0.25.49/awf-config.schema.json","network":{"allowDomains":["*.grafana.net","*.sentry.io","api.business.githubcopilot.com","api.enterprise.githubcopilot.com","api.github.com","api.githubcopilot.com","api.individual.githubcopilot.com","api.npms.io","api.snapcraft.io","archive.ubuntu.com","azure.archive.ubuntu.com","bun.sh","cdn.jsdelivr.net","crl.geotrust.com","crl.globalsign.com","crl.identrust.com","crl.sectigo.com","crl.thawte.com","crl.usertrust.com","crl.verisign.com","crl3.digicert.com","crl4.digicert.com","crls.ssl.com","deb.nodesource.com","deno.land","esm.sh","get.pnpm.io","github.com","github.github.com","googleapis.deno.dev","googlechromelabs.github.io","host.docker.internal","json-schema.org","json.schemastore.org","jsr.io","keyserver.ubuntu.com","nodejs.org","npm.pkg.github.com","npmjs.com","npmjs.org","ocsp.digicert.com","ocsp.geotrust.com","ocsp.globalsign.com","ocsp.identrust.com","ocsp.sectigo.com","ocsp.ssl.com","ocsp.thawte.com","ocsp.usertrust.com","ocsp.verisign.com","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","ppa.launchpad.net","raw.githubusercontent.com","registry.bower.io","registry.npmjs.com","registry.npmjs.org","registry.yarnpkg.com","repo.yarnpkg.com","s.symcb.com","s.symcd.com","security.ubuntu.com","skimdb.npmjs.com","storage.googleapis.com","telemetry.enterprise.githubcopilot.com","telemetry.vercel.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","www.googleapis.com","www.npmjs.com","www.npmjs.org","yarnpkg.com"]},"apiProxy":{"enabled":true,"enableTokenSteering":true,"maxRuns":500,"maxEffectiveTokens":25000000,"models":{"agent":["sonnet-6x","gpt-5.4","gpt-5","gemini-pro","haiku","any"],"any":["copilot/*","anthropic/*","openai/*","google/*","gemini/*"],"auto":["large"],"claude":["agent","sonnet-6x","haiku","any"],"codex":["agent","gpt-5-codex","gpt-5","any"],"coding":["copilot/gpt-5*codex*","openai/gpt-5*codex*","gpt-5-codex"],"copilot":["agent","gpt-5.4","sonnet","gpt-5","any"],"deep-research":["copilot/deep-research*","copilot/o3-deep-research*","copilot/o4-mini-deep-research*","google/deep-research*","gemini/deep-research*","openai/o3-deep-research*","openai/o4-mini-deep-research*"],"gemini":["agent","gemini-pro","gemini-flash","any"],"gemini-flash":["copilot/gemini-*flash*","google/gemini-*flash*","gemini/gemini-*flash*"],"gemini-flash-lite":["copilot/gemini-*flash*lite*","google/gemini-*flash*lite*","gemini/gemini-*flash*lite*"],"gemini-pro":["copilot/gemini-*pro*","google/gemini-*pro*","gemini/gemini-*pro*"],"gemma":["copilot/gemma*","google/gemma*","gemini/gemma*"],"gpt-4.1":["copilot/gpt-4.1*","openai/gpt-4.1*"],"gpt-5":["copilot/gpt-5*","openai/gpt-5*"],"gpt-5-codex":["copilot/gpt-5*codex*","openai/gpt-5*codex*"],"gpt-5-mini":["copilot/gpt-5*mini*","openai/gpt-5*mini*"],"gpt-5-nano":["copilot/gpt-5*nano*","openai/gpt-5*nano*"],"gpt-5-pro":["copilot/gpt-5*pro*","openai/gpt-5*pro*"],"haiku":["copilot/*haiku*","anthropic/*haiku*"],"large":["sonnet","gpt-5-pro","gpt-5","gemini-pro"],"mini":["haiku","gpt-5-mini","gpt-5-nano","gemini-flash-lite","copilot/raptor*mini*"],"opus":["copilot/*opus*","anthropic/*opus*"],"reasoning":["copilot/o1*","copilot/o3*","copilot/o4*","openai/o1*","openai/o3*","openai/o4*"],"small":["mini"],"sonnet":["copilot/*sonnet*","anthropic/*sonnet*"],"sonnet-6x":["copilot/*sonnet-4.5*","copilot/*sonnet-4-5*","anthropic/*sonnet-4.5*","anthropic/*sonnet-4-5*","copilot/*sonnet-3.7*","copilot/*sonnet-3-7*","anthropic/*sonnet-3.7*","anthropic/*sonnet-3-7*","copilot/*sonnet-3.5*","copilot/*sonnet-3-5*","anthropic/*sonnet-3.5*","anthropic/*sonnet-3-5*"],"vision":["copilot/gemini-*image*","gemini/gemini-*image*","copilot/gemini-*flash*","gemini/gemini-*flash*"]}},"container":{"imageTag":"0.25.49"}}' > "${RUNNER_TEMP}/gh-aw/awf-config.json" && cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
+          printf '%s\n' '{"$schema":"https://github.com/github/gh-aw-firewall/releases/download/v0.25.52/awf-config.schema.json","network":{"allowDomains":["*.grafana.net","*.sentry.io","api.business.githubcopilot.com","api.enterprise.githubcopilot.com","api.github.com","api.githubcopilot.com","api.individual.githubcopilot.com","api.npms.io","api.snapcraft.io","archive.ubuntu.com","azure.archive.ubuntu.com","bun.sh","cdn.jsdelivr.net","crl.geotrust.com","crl.globalsign.com","crl.identrust.com","crl.sectigo.com","crl.thawte.com","crl.usertrust.com","crl.verisign.com","crl3.digicert.com","crl4.digicert.com","crls.ssl.com","deb.nodesource.com","deno.land","esm.sh","get.pnpm.io","github.com","github.github.com","googleapis.deno.dev","googlechromelabs.github.io","host.docker.internal","json-schema.org","json.schemastore.org","jsr.io","keyserver.ubuntu.com","nodejs.org","npm.pkg.github.com","npmjs.com","npmjs.org","ocsp.digicert.com","ocsp.geotrust.com","ocsp.globalsign.com","ocsp.identrust.com","ocsp.sectigo.com","ocsp.ssl.com","ocsp.thawte.com","ocsp.usertrust.com","ocsp.verisign.com","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","ppa.launchpad.net","raw.githubusercontent.com","registry.bower.io","registry.npmjs.com","registry.npmjs.org","registry.yarnpkg.com","repo.yarnpkg.com","s.symcb.com","s.symcd.com","security.ubuntu.com","skimdb.npmjs.com","storage.googleapis.com","telemetry.enterprise.githubcopilot.com","telemetry.vercel.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","www.googleapis.com","www.npmjs.com","www.npmjs.org","yarnpkg.com"]},"apiProxy":{"enabled":true,"enableTokenSteering":true,"maxRuns":500,"maxEffectiveTokens":25000000,"models":{"agent":["sonnet-6x","gpt-5.4","gpt-5.3","gemini-pro","any"],"antigravity":["copilot/antigravity*","google/antigravity*","gemini/antigravity*"],"any":["copilot/*","anthropic/*","openai/*","google/*","gemini/*"],"claude":["agent"],"codex":["agent"],"coding":["copilot/gpt-5*codex*","openai/gpt-5*codex*","gpt-5-codex"],"computer-use":["copilot/*computer-use*","google/*computer-use*","gemini/*computer-use*","openai/*computer-use*"],"copilot":["agent"],"deep-research":["copilot/deep-research*","copilot/o3-deep-research*","copilot/o4-mini-deep-research*","google/deep-research*","gemini/deep-research*","openai/o3-deep-research*","openai/o4-mini-deep-research*"],"gemini":["agent"],"gemini-3-flash":["copilot/gemini-3*flash*","google/gemini-3*flash*","gemini/gemini-3*flash*"],"gemini-3-pro":["copilot/gemini-3*pro*","google/gemini-3*pro*","gemini/gemini-3*pro*"],"gemini-3.1-flash":["copilot/gemini-3.1*flash*","google/gemini-3.1*flash*","gemini/gemini-3.1*flash*"],"gemini-3.1-pro":["copilot/gemini-3.1*pro*","google/gemini-3.1*pro*","gemini/gemini-3.1*pro*"],"gemini-flash":["copilot/gemini-*flash*","google/gemini-*flash*","gemini/gemini-*flash*"],"gemini-flash-lite":["copilot/gemini-*flash*lite*","google/gemini-*flash*lite*","gemini/gemini-*flash*lite*"],"gemini-pro":["copilot/gemini-*pro*","google/gemini-*pro*","gemini/gemini-*pro*"],"gemma":["copilot/gemma*","google/gemma*","gemini/gemma*"],"gpt-4.1":["copilot/gpt-4.1*","openai/gpt-4.1*"],"gpt-5":["copilot/gpt-5*","openai/gpt-5*"],"gpt-5-codex":["copilot/gpt-5*codex*","openai/gpt-5*codex*"],"gpt-5-mini":["copilot/gpt-5*mini*","openai/gpt-5*mini*"],"gpt-5-nano":["copilot/gpt-5*nano*","openai/gpt-5*nano*"],"gpt-5-pro":["copilot/gpt-5*pro*","openai/gpt-5*pro*"],"gpt-5.3":["copilot/gpt-5.3*","openai/gpt-5.3*"],"gpt-5.4":["copilot/gpt-5.4*","openai/gpt-5.4*"],"haiku":["copilot/*haiku*","anthropic/*haiku*"],"large":["sonnet","gpt-5-pro","gpt-5","gemini-pro"],"mini":["haiku","gpt-5-mini","gpt-5-nano","gemini-flash-lite"],"opus":["copilot/*opus*","anthropic/*opus*"],"reasoning":["copilot/o1*","copilot/o3*","copilot/o4*","openai/o1*","openai/o3*","openai/o4*"],"robotics":["copilot/*robotics*","google/*robotics*","gemini/*robotics*"],"small":["mini"],"sonnet":["copilot/*sonnet*","anthropic/*sonnet*"],"sonnet-6x":["copilot/*sonnet-4-5-*","anthropic/*sonnet-4-5-*","copilot/*sonnet-4-6*","anthropic/*sonnet-4-6*"],"summarization":["haiku","gpt-5-mini","gemini-flash-lite","mini"],"vision":["copilot/gemini-*image*","gemini/gemini-*image*","copilot/gemini-*flash*","gemini/gemini-*flash*"]}},"container":{"imageTag":"0.25.52"}}' > "${RUNNER_TEMP}/gh-aw/awf-config.json"
+          cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
           GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS=""
           if [[ "${DOCKER_HOST:-}" =~ ^tcp:// ]]; then
             GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS="--docker-host-path-prefix /tmp/gh-aw"
           fi
+          GH_AW_NODE_MOUNT_ARGS=""
+          if [ -d /opt/hostedtoolcache/node ]; then
+            GH_AW_NODE_MOUNT_ARGS="${GH_AW_NODE_MOUNT_ARGS} --mount /opt/hostedtoolcache/node:/host/opt/hostedtoolcache/node:ro"
+          fi
+          if [ -d /home/runner/work/_tool/node ]; then
+            GH_AW_NODE_MOUNT_ARGS="${GH_AW_NODE_MOUNT_ARGS} --mount /home/runner/work/_tool/node:/host/home/runner/work/_tool/node:ro"
+          fi
           # shellcheck disable=SC1003
-          sudo -E awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" ${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS} --env-all --exclude-env COPILOT_GITHUB_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --allow-host-ports 80,443,8080 --skip-pull \
-            -- /bin/bash -c 'export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH" && export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; "$GH_AW_NODE_EXEC" ${RUNNER_TEMP}/gh-aw/actions/copilot_harness.cjs /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --no-ask-user --allow-tool github --allow-tool safeoutputs --allow-tool '\''shell(awk)'\'' --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(gh issue list)'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(jq)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(mkdir)'\'' --allow-tool '\''shell(printf)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(safeoutputs:*)'\'' --allow-tool '\''shell(sed)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(yq)'\'' --allow-tool write --allow-all-paths --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+          sudo -E awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" ${GH_AW_NODE_MOUNT_ARGS} ${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS} --env-all --exclude-env COPILOT_GITHUB_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --allow-host-ports 80,443,8080 --skip-pull \
+            -- /bin/bash -c 'export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH" && export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool /host/opt/hostedtoolcache /host/home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; "$GH_AW_NODE_EXEC" ${RUNNER_TEMP}/gh-aw/actions/copilot_harness.cjs /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --no-ask-user --allow-tool github --allow-tool safeoutputs --allow-tool '\''shell(awk)'\'' --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(gh issue list)'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(jq)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(mkdir)'\'' --allow-tool '\''shell(printf)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(safeoutputs:*)'\'' --allow-tool '\''shell(sed)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(yq)'\'' --allow-tool write --allow-all-paths --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -834,11 +844,6 @@ jobs:
           GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
           XDG_CONFIG_HOME: /home/runner
-      - name: Detect Copilot errors
-        id: detect-copilot-errors
-        if: always()
-        continue-on-error: true
-        run: node "${RUNNER_TEMP}/gh-aw/actions/detect_copilot_errors.cjs"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -1046,6 +1051,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Release"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/release.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.48"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
         id: download-agent-output
@@ -1068,6 +1074,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "1"
           GH_AW_WORKFLOW_NAME: "Release"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/release.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_NOOP_REPORT_AS_ISSUE: "true"
@@ -1085,6 +1092,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
           GH_AW_WORKFLOW_NAME: "Release"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/release.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1099,6 +1107,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"
           GH_AW_WORKFLOW_NAME: "Release"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/release.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1113,6 +1122,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Release"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/release.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_WORKFLOW_ID: "release"
@@ -1310,6 +1320,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Release"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/release.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.48"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Check team membership for workflow
         id: check_membership
@@ -1371,7 +1382,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Setup Docker Buildx (pre-validation)
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0 (source v4)
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
       - name: Build Docker image (validation only)
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
@@ -1531,7 +1542,7 @@ jobs:
             sbom.cdx.json
           retention-days: 90
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0 (source v4)
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
@@ -1540,7 +1551,7 @@ jobs:
           username: ${{ github.actor }}
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0 (source v6)
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -1583,6 +1594,7 @@ jobs:
       GH_AW_WORKFLOW_EMOJI: "🚀"
       GH_AW_WORKFLOW_ID: "release"
       GH_AW_WORKFLOW_NAME: "Release"
+      GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/release.md"
     outputs:
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
@@ -1610,6 +1622,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Release"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/release.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.48"
+          GH_AW_INFO_AWF_VERSION: "v0.25.52"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Mask OTLP telemetry headers
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
@@ -1641,6 +1654,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_ALLOWED_DOMAINS: "*.grafana.net,*.sentry.io,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,cdn.jsdelivr.net,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,esm.sh,get.pnpm.io,github.com,github.github.com,googleapis.deno.dev,googlechromelabs.github.io,host.docker.internal,json-schema.org,json.schemastore.org,jsr.io,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,storage.googleapis.com,telemetry.enterprise.githubcopilot.com,telemetry.vercel.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}

@@ -236,3 +236,53 @@ func TestFormatCompilerError_NilCause(t *testing.T) {
 	dummyErr := errors.New("some other error")
 	assert.NotErrorIs(t, err, dummyErr, "Should not wrap any error when cause is nil")
 }
+
+// TestFormatCompilerError_UsesLocationFromValidationError verifies that formatCompilerError
+// promotes line/column from a WorkflowValidationError with location instead of defaulting
+// to 1:1.
+func TestFormatCompilerError_UsesLocationFromValidationError(t *testing.T) {
+	t.Run("uses line and column from validation error", func(t *testing.T) {
+		loc := FieldLocation{File: "workflow.md", Line: 15, Column: 3}
+		vErr := NewValidationErrorWithLocation("engine", "copiliot", "not a valid engine", "Did you mean 'copilot'?", loc)
+
+		wrapped := formatCompilerError("workflow.md", "error", vErr.Error(), vErr)
+		require.Error(t, wrapped)
+
+		errStr := wrapped.Error()
+		assert.Contains(t, errStr, "workflow.md", "Should contain file path")
+		assert.Contains(t, errStr, "15", "Should use the line number from WorkflowValidationError")
+		assert.Contains(t, errStr, "3", "Should use the column number from WorkflowValidationError")
+		// Should NOT default to 1:1 when location is known
+		assert.NotContains(t, errStr, "1:1", "Should not fall back to 1:1 when location is set")
+	})
+
+	t.Run("uses file from validation error when different from filePath", func(t *testing.T) {
+		loc := FieldLocation{File: "actual-source.md", Line: 7, Column: 1}
+		vErr := NewValidationErrorWithLocation("concurrency", "invalid", "reason", "", loc)
+
+		wrapped := formatCompilerError("other.md", "error", vErr.Error(), vErr)
+		require.Error(t, wrapped)
+
+		errStr := wrapped.Error()
+		assert.Contains(t, errStr, "actual-source.md", "Should prefer file from WorkflowValidationError")
+	})
+
+	t.Run("falls back to 1:1 when validation error has no location", func(t *testing.T) {
+		vErr := NewValidationError("engine", "copiliot", "not a valid engine", "")
+
+		wrapped := formatCompilerError("workflow.md", "error", vErr.Error(), vErr)
+		require.Error(t, wrapped)
+
+		errStr := wrapped.Error()
+		assert.Contains(t, errStr, "1:1", "Should default to 1:1 when no location is set")
+	})
+
+	t.Run("non-validation-error cause still defaults to 1:1", func(t *testing.T) {
+		cause := errors.New("some other error")
+		wrapped := formatCompilerError("workflow.md", "error", "message", cause)
+		require.Error(t, wrapped)
+
+		errStr := wrapped.Error()
+		assert.Contains(t, errStr, "1:1", "Should default to 1:1 for non-validation errors")
+	})
+}

@@ -12,7 +12,9 @@ Use `imports:` in frontmatter or `{{#import ...}}` in markdown to share workflow
 ```aw wrap
 ---
 on: issues
+
 engine: copilot
+
 imports:
   - shared/common-tools.md
   - shared/mcp/tavily.md
@@ -30,7 +32,9 @@ Shared workflows that declare an `import-schema` accept runtime parameters. Use 
 ```aw wrap
 ---
 on: issues
+
 engine: copilot
+
 imports:
   - uses: shared/mcp/serena.md
     with:
@@ -56,6 +60,7 @@ In markdown, use `{{#runtime-import filepath}}` to inject the content of another
 ```aw wrap
 ---
 on: schedule
+
 engine: copilot
 ---
 
@@ -87,7 +92,9 @@ Use bundled shared components when you regularly import the same pair together:
 ---
 on:
   schedule: daily
+
 engine: copilot
+
 imports:
   - shared/reporting-otlp.md
 ---
@@ -162,7 +169,9 @@ Use `${{ github.aw.import-inputs.<key> }}` to substitute a top-level value; use 
 ```aw wrap
 ---
 on: issues
+
 engine: copilot
+
 imports:
   - uses: shared/deploy.md
     with:
@@ -189,7 +198,9 @@ Paths that do not start with `.github/`, `/`, or an `owner/repo/` prefix are res
 ```aw wrap
 ---
 on: issues
+
 engine: copilot
+
 imports:
   - shared/common-tools.md        # → .github/workflows/shared/common-tools.md
   - ../agents/helper.md           # → .github/agents/helper.md (.. goes up from .github/workflows/)
@@ -203,7 +214,9 @@ Paths starting with `.github/` or `/` are resolved from the repository root. Abs
 ```aw wrap
 ---
 on: pull_request
+
 engine: copilot
+
 imports:
   - .github/agents/code-reviewer.md   # resolved from repo root
   - .github/workflows/shared/app.md   # resolved from repo root
@@ -214,12 +227,14 @@ This form is required when workflows in different directories need to import the
 
 ### Cross-repo imports
 
-Paths matching `owner/repo/path@ref` are fetched from GitHub at compile time. The `@ref` suffix pins to a semantic tag (`@v1.0.0`), branch (`@main`), or commit SHA. Remote imports are cached in `.github/aw/imports/` by commit SHA, enabling offline compilation; local imports are never cached. See [Reusing Workflows](/gh-aw/guides/packaging-imports/) for installation and update flows.
+Paths matching `owner/repo/path@ref` are fetched from GitHub at compile time. The `@ref` suffix pins to a semantic tag (`@v1.0.0`), branch (`@main`), or commit SHA. Remote imports are cached in `.github/aw/imports/` by commit SHA, enabling offline compilation; local imports are never cached. See [Reusing Workflows](/gh-aw/guides/reusing-workflows/) for installation and update flows.
 
 ```aw wrap
 ---
 on: issues
+
 engine: copilot
+
 imports:
   - acme-org/shared-workflows/shared/reporting.md@v2.1.0   # pinned to a tag
   - acme-org/shared-workflows/shared/tools.md@main         # track a branch
@@ -495,8 +510,11 @@ Both cases are solved by bundling imports into the lock file at compile time:
 ---
 on:
   workflow_call:
+
 engine: copilot
+
 inlined-imports: true
+
 imports:
   - shared/common-tools.md
   - shared/security-setup.md
@@ -522,7 +540,7 @@ gh aw compile my-workflow
 
 ## Related Documentation
 
-- [Packaging and Updating](/gh-aw/guides/packaging-imports/) - Complete guide to managing workflow imports
+- [Reusing Workflows](/gh-aw/guides/reusing-workflows/) - Adding and updating installed workflows with `gh aw add` and `gh aw update`
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options reference
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output configuration details

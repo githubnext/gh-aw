@@ -15,11 +15,11 @@ tools:
   cli-proxy: true
   bash:
     - "gh aw compile *"
-    - "gh aw compile /tmp/gh-aw/syntax-error-tests/*.md"
+    - "gh aw compile /tmp/gh-aw/agent/syntax-error-tests/*.md"
     - "head -n 30 /tmp/gh-aw/agent/candidates/"
     - "cp /tmp/gh-aw/agent/candidates/"
-    - "cat /tmp/gh-aw/syntax-error-tests/*.md"
-    - "mkdir -p /tmp/gh-aw/syntax-error-tests"
+    - "cat /tmp/gh-aw/agent/syntax-error-tests/*.md"
+    - "mkdir -p /tmp/gh-aw/agent/syntax-error-tests"
 safe-outputs:
   create-issue:
     expires: 3d
@@ -27,6 +27,7 @@ safe-outputs:
     labels: [dx, error-messages, automated-analysis]
     max: 1
     close-older-issues: true
+  noop:
 timeout-minutes: 20
 strict: true
 steps:
@@ -52,10 +53,7 @@ steps:
       fi
       gh aw --version
 imports:
-  - uses: shared/daily-audit-base.md
-    with:
-      title-prefix: "[syntax-error-quality] "
-      expires: 3d
+  - shared/reporting.md
   - shared/otlp.md
 features:
   copilot-requests: true
@@ -163,10 +161,10 @@ Examples:
 
 For each workflow:
 
-1. **Copy workflow to /tmp** for testing:
+1. **Copy workflow to `/tmp/gh-aw/agent`** for testing:
    ```bash
-   mkdir -p /tmp/gh-aw/syntax-error-tests
-   cp /tmp/gh-aw/agent/candidates/selected-workflow.md /tmp/gh-aw/syntax-error-tests/test-1.md
+   mkdir -p /tmp/gh-aw/agent/syntax-error-tests
+   cp /tmp/gh-aw/agent/candidates/selected-workflow.md /tmp/gh-aw/agent/syntax-error-tests/test-1.md
    ```
 
 2. **Introduce ONE error** from a different category:
@@ -190,7 +188,7 @@ For each test case:
 
 1. **Attempt to compile** the modified workflow:
    ```bash
-   cd /tmp/gh-aw/syntax-error-tests
+   cd /tmp/gh-aw/agent/syntax-error-tests
    gh aw compile test-1.md 2>&1 | tee test-1-output.txt
    ```
 
@@ -278,7 +276,7 @@ Suggested structure:
 1. **Realistic Errors**: Introduce errors that developers actually make
 2. **Diverse Coverage**: Test different error categories and workflows
 3. **No False Positives**: Ensure the error we introduce is actually invalid
-4. **Clean Workspace**: Use /tmp for test files, don't modify actual workflows
+4. **Clean Workspace**: Use `/tmp/gh-aw/agent` for test files, don't modify actual workflows
 
 ### Evaluation Guidelines
 

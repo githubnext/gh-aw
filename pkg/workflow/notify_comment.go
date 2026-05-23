@@ -77,7 +77,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		noopEnvVars = append(noopEnvVars, buildTemplatableIntEnvVar("GH_AW_NOOP_MAX", data.SafeOutputs.NoOp.Max)...)
 
 		// Add workflow metadata for consistency
-		noopEnvVars = append(noopEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+		noopEnvVars = append(noopEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID, buildLocalWorkflowSourceURL(c.markdownPath))...)
 
 		// Agent conclusion and run URL are used to decide whether to post to the runs issue
 		noopEnvVars = append(noopEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
@@ -104,7 +104,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// the detection job produces a warning or failure conclusion.
 	if IsDetectionJobEnabled(data.SafeOutputs) {
 		var detectionRunsEnvVars []string
-		detectionRunsEnvVars = append(detectionRunsEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+		detectionRunsEnvVars = append(detectionRunsEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID, buildLocalWorkflowSourceURL(c.markdownPath))...)
 		detectionRunsEnvVars = append(detectionRunsEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 		detectionRunsEnvVars = append(detectionRunsEnvVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", constants.DetectionJobName))
 		detectionRunsEnvVars = append(detectionRunsEnvVars, fmt.Sprintf("          GH_AW_DETECTION_REASON: ${{ needs.%s.outputs.detection_reason }}\n", constants.DetectionJobName))
@@ -143,7 +143,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		}
 
 		// Add workflow metadata for consistency
-		missingToolEnvVars = append(missingToolEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+		missingToolEnvVars = append(missingToolEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID, buildLocalWorkflowSourceURL(c.markdownPath))...)
 
 		// Build the missing_tool processing step (without artifact downloads - already added above)
 		missingToolSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
@@ -181,7 +181,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		}
 
 		// Add workflow metadata for consistency
-		reportIncompleteEnvVars = append(reportIncompleteEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+		reportIncompleteEnvVars = append(reportIncompleteEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID, buildLocalWorkflowSourceURL(c.markdownPath))...)
 
 		// Build the report_incomplete processing step (without artifact downloads - already added above)
 		reportIncompleteSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
@@ -211,7 +211,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	var agentFailureEnvVars []string
-	agentFailureEnvVars = append(agentFailureEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+	agentFailureEnvVars = append(agentFailureEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID, buildLocalWorkflowSourceURL(c.markdownPath))...)
 	agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))
@@ -256,7 +256,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR: ${{ needs.%s.outputs.effective_tokens_rate_limit_error || 'false' }}\n", mainJobName))
 
 	// Pass Copilot-engine-specific error detection outputs to the conclusion job.
-	// These are set by the detect-copilot-errors step in the agent job and cover:
+	// These are set by the copilot_harness.cjs logic in the agentic_execution step and cover:
 	//   - inference_access_error: token lacks inference access
 	//   - mcp_policy_error: MCP servers blocked by enterprise/organization policy
 	//   - agentic_engine_timeout: engine process killed by signal (step timeout)

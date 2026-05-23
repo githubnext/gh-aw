@@ -53,6 +53,9 @@ func GetAllCodemods() []Codemod {
 		getExpiresIntegerToDayStringCodemod(),         // Convert expires integer (days) to string with 'd' suffix
 		getGitHubAppCodemod(),                         // Rename deprecated 'app' to 'github-app'
 		getGitHubAppClientIDCodemod(),                 // Rename deprecated github-app.app-id to github-app.client-id
+		getSafeOutputRequireTitlePrefixCodemod(),      // Rename deprecated safe-outputs title-prefix constraint fields
+		getSafeOutputMergePRConstraintsCodemod(),      // Rename deprecated merge-pull-request allowed-labels/allowed-branches
+		getSafeOutputAddReviewerAllowlistsCodemod(),   // Rename deprecated add-reviewer reviewers/team-reviewers
 		getSafeInputsToMCPScriptsCodemod(),            // Rename safe-inputs to mcp-scripts
 		getRateLimitToUserRateLimitCodemod(),          // Rename rate-limit to user-rate-limit with max key migration
 		getSerenaToSharedImportCodemod(),              // Migrate removed tools.serena to shared/mcp/serena.md import
@@ -69,6 +72,7 @@ func GetAllCodemods() []Codemod {
 		getSandboxMCPContainerRemovalCodemod(),        // Remove deprecated sandbox.mcp.container (now managed internally)
 		getSandboxMCPVersionRemovalCodemod(),          // Remove deprecated sandbox.mcp.version (now managed internally)
 		getSandboxAgentFalseRemovalCodemod(),          // Remove deprecated sandbox.agent: false (rejected in strict mode)
+		getInferToDisableModelInvocationCodemod(),     // Migrate deprecated 'infer' to 'disable-model-invocation'
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
 	return codemods

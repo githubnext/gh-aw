@@ -118,6 +118,15 @@
           "type": "string",
           "description": "Comment body content",
           "minLength": 1
+        },
+        "comment_id": {
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
+          "description": "Optional existing issue/PR comment ID to update in place."
+        },
+        "target": {
+          "type": "string",
+          "enum": ["status"],
+          "description": "When set to 'status', update the activation status comment for this run (if available) instead of creating a new comment."
         }
       },
       "required": ["type", "body"],

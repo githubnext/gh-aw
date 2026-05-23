@@ -121,10 +121,10 @@ Use the published blog posts in `docs/src/content/docs/blog/` as the source of t
 ```bash
 grep -RhoE 'blob/main/\.github/workflows/[^[:space:]]+\.md' docs/src/content/docs/blog \
   | sed -E 's#^blob/main/\.github/workflows/##; s#\.md$##' \
-  | sort -u > /tmp/gh-aw/featured-from-blog.txt
+  | sort -u > /tmp/gh-aw/agent/featured-from-blog.txt
 
-if [ -s /tmp/gh-aw/featured-from-blog.txt ]; then
-  cat /tmp/gh-aw/featured-from-blog.txt
+if [ -s /tmp/gh-aw/agent/featured-from-blog.txt ]; then
+  cat /tmp/gh-aw/agent/featured-from-blog.txt
 else
   echo "(no featured workflows found in blog posts yet)"
 fi
@@ -148,7 +148,7 @@ Use the `agentic-workflows` MCP `list` tool to get all workflows in the reposito
 **Parameters**: `{}`
 
 From the list, exclude:
-- Workflows already featured in published blog posts (from `/tmp/gh-aw/featured-from-blog.txt`)
+- Workflows already featured in published blog posts (from `/tmp/gh-aw/agent/featured-from-blog.txt`)
 - Workflows already featured in the wiki history (as fallback memory)
 - Test workflows (names starting with `test-`)
 - The `weekly-blog-post-writer` itself

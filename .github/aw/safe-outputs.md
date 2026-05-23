@@ -64,7 +64,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   safe-outputs:
     close-issue:
       target: "triggering"              # Optional: "triggering" (default), "*", or number
-      required-labels: [automated]      # Optional: only close with any of these labels
+      required-labels: [automated]      # Optional: only close if ALL these labels are present
       required-title-prefix: "[bot]"    # Optional: only close matching prefix
       max: 20                           # Optional: max closures (default: 1)
       state-reason: "not_planned"       # Optional: "completed" (default), "not_planned", "duplicate"
@@ -102,7 +102,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
     close-discussion:
       target: "triggering"              # Optional: "triggering" (default), "*", or number
       required-category: "Ideas"        # Optional: only close in category
-      required-labels: [resolved]       # Optional: only close with labels
+      required-labels: [resolved]       # Optional: only close if ALL these labels are present
       required-title-prefix: "[ai]"     # Optional: only close matching prefix
       max: 1                            # Optional: max closures (default: 1)
       target-repo: "owner/repo"         # Optional: cross-repository
@@ -116,6 +116,8 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
     add-comment:
       max: 3                          # Optional: maximum number of comments (default: 1)
       target: "*"                     # Optional: target for comments (default: "triggering")
+      required-labels: [approved]     # Optional: ALL of these labels must be present on the issue/PR for the comment to be posted
+      required-title-prefix: "[bot]" # Optional: issue/PR title must start with this prefix
       hide-older-comments: true       # Optional: minimize previous comments from same workflow
       allowed-reasons: [outdated]     # Optional: restrict hiding reasons (default: outdated)
       discussions: true               # Optional: set false to exclude discussions:write permission (default: true)
@@ -134,13 +136,30 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   {"type": "add_comment", "body": "Thread reply text", "reply_to_id": 12345}
   ```
 
+- `comment-memory:` - Persist and update a managed memory comment on the triggering issue/PR
+
+  ```yaml
+  safe-outputs:
+    comment-memory:
+      max: 1                          # Optional: max comment_memory updates (default: 1, range: 1-100)
+      target: "triggering"            # Optional: "triggering" (default), "*", or explicit issue/PR number
+      memory-id: "default"            # Optional: default memory identifier when items omit memory_id (default: "default")
+      footer: true                    # Optional: include AI footer in the managed comment (default: true)
+      target-repo: "owner/repo"       # Optional: cross-repository
+      allowed-repos: [owner/other]    # Optional: additional repos agent can target
+  ```
+
+  Boolean shorthand: `comment-memory: true` enables defaults; `false` or `null` disables. The handler materializes memory content to files before agent execution and synchronizes edits back to a single managed comment on the issue/PR after execution, providing durable cross-run state without external storage.
+
 - `create-pull-request:` - Safe pull request creation with git patches
 
   ```yaml
   safe-outputs:
     create-pull-request:
       title-prefix: "[ai] "           # Optional: prefix for PR titles
+      branch-prefix: "signed/"        # Optional: prefix prepended to the PR branch name (e.g. for branch-protection conventions)
       labels: [automation, ai-agent]  # Optional: labels to attach to PRs
+      allowed-labels: [bug, fix]      # Optional: restrict which labels the agent can set (any label allowed if omitted)
       reviewers: [user1, copilot]     # Optional: reviewers (use 'copilot' for bot)
       team-reviewers: [platform-team] # Optional: team slugs to assign as reviewers
       draft: true                     # Optional: create as draft PR (defaults to true)
@@ -152,6 +171,8 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       preserve-branch-name: true      # Optional: skip random salt suffix on agent-specified branch names (default: false)
       recreate-ref: false             # Optional: force-recreate existing remote branch when preserve-branch-name is true (default: false)
       allow-workflows: false          # Optional: add workflows:write permission when allowed-files targets .github/workflows/ paths (default: false; requires github-app)
+      patch-format: "bundle"          # Optional: "bundle" (default, preserves merge commits & per-commit metadata) or "am" (git format-patch/am)
+      signed-commits: true            # Optional: when true (default), push via createCommitOnBranch GraphQL so GitHub signs commits; set false to use plain git push (required for merge commits)
       assignees: [user1]              # Optional: assignees for fallback issues on PR creation failure
       fallback-labels: [needs-review] # Optional: labels for fallback issues (defaults to PR labels)
       fallback-as-issue: false        # Optional: when true (default), creates a fallback issue on PR creation failure; on permission errors, the issue includes a one-click link to create the PR via GitHub's compare URL
@@ -164,12 +185,18 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       excluded-files:                 # Optional: glob patterns to strip from the patch entirely
         - "**/*.lock"
       protected-files: blocked        # Optional: "blocked" (default), "fallback-to-issue", or "allowed"
+      allowed-branches:               # Optional: glob patterns for allowed source branch names per run
+        - "feature/*"
       allowed-base-branches:          # Optional: glob patterns for allowed base branch overrides per run
         - "release/*"
         - "main"
+      max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 1024 KB, max: 10240)
+      max-patch-files: 50             # Optional: per-output cap on unique files in the patch (overrides global; default: 100)
   ```
 
   **Dynamic Base Branch**: When `allowed-base-branches` is set, the agent can provide a `base` field in its output to override the default base branch for a single run — but only if the value matches one of the configured glob patterns. Without `allowed-base-branches`, only the static `base-branch:` is used. Accepts a literal array or a GitHub Actions expression resolving to a comma-separated list (e.g. `${{ inputs.allowed-base-branches }}`).
+
+  **Allowed Source Branches**: When `allowed-branches` is set, the branch used for PR creation (agent-provided `branch` or the current checkout branch when omitted) must match one of the configured glob patterns.
 
   **File Restrictions**: **Always specify `allowed-files`** — this is the primary guardrail for `create-pull-request`. Scope it to specific file extensions (e.g., `"**/*.md"`, `"**/*.ts"`) or directory paths (e.g., `"src/**"`, `"docs/**"`) matching the workflow's purpose. Omitting `allowed-files` allows the agent to touch any file in the repository, which significantly expands blast radius. Use `excluded-files` to additionally strip specific files (e.g. lock files) from the patch before any checks. The `protected-files` field controls handling of sensitive files (package manifests, CI configs, agent instruction files): `blocked` (default, hard-block), `fallback-to-issue` (push branch and create a review issue), or `allowed` (no restriction — use only when the workflow is explicitly designed to manage these files). Object form is also supported: `protected-files: { policy: fallback-to-issue, exclude: [AGENTS.md] }`.
 
@@ -261,9 +288,8 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   ```yaml
   safe-outputs:
     merge-pull-request:
-      required-labels: [approved]         # Optional: all listed labels must be present
-      allowed-labels: [ready-to-merge]    # Optional: at least one PR label must match
-      allowed-branches: ["feature/*"]     # Optional: glob patterns for source branch names
+      required-labels: [ready-to-merge]   # Optional: ALL listed labels must be present on the PR
+      allowed-branches: ["feature/*"]    # Optional: glob patterns for allowed source branch names
       max: 1                              # Optional: max merges (default: 1)
   ```
 
@@ -301,6 +327,8 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
     add-labels:
       allowed: [bug, enhancement, documentation]  # Optional: restrict to specific labels
       blocked: ["~*", "*[bot]"]                   # Optional: blocked label patterns (glob; takes precedence over allowed)
+      required-labels: [approved]                 # Optional: ALL of these labels must be present on the issue/PR for the operation to run
+      required-title-prefix: "[bot]"              # Optional: issue/PR title must start with this prefix
       max: 3                                      # Optional: maximum number of labels (default: 3)
       target: "*"                                 # Optional: "triggering" (default), "*" (any issue/PR), or number
       target-repo: "owner/repo"                   # Optional: cross-repository
@@ -313,6 +341,8 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
     remove-labels:
       allowed: [automated, stale]  # Optional: restrict to specific labels
       blocked: ["~*", "*[bot]"]    # Optional: blocked label patterns (glob; takes precedence over allowed)
+      required-labels: [approved]  # Optional: ALL of these labels must be present on the issue/PR for the operation to run
+      required-title-prefix: "[bot]"  # Optional: issue/PR title must start with this prefix
       max: 3                       # Optional: maximum number of operations (default: 3)
       target: "*"                  # Optional: "triggering" (default), "*" (any issue/PR), or number
       target-repo: "owner/repo"    # Optional: cross-repository
@@ -324,14 +354,14 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   ```yaml
   safe-outputs:
     add-reviewer:
-      reviewers: [user1, copilot]     # Optional: restrict to specific reviewers
-      team-reviewers: [platform-team] # Optional: allowed team slugs
-      max: 3                          # Optional: max reviewers (default: 3)
-      target: "*"                     # Optional: "triggering" (default), "*", or number
-      target-repo: "owner/repo"       # Optional: cross-repository
+      allowed-reviewers: [user1, copilot]     # Optional: restrict to specific reviewer usernames (any allowed if omitted)
+      allowed-team-reviewers: [platform-team] # Optional: restrict to specific team slugs (any allowed if omitted)
+      max: 3                                  # Optional: max reviewers (default: 3)
+      target: "*"                             # Optional: "triggering" (default), "*", or number
+      target-repo: "owner/repo"               # Optional: cross-repository
   ```
 
-  At least one of `reviewers` or `team-reviewers` must be present in agent output. Use `reviewers: copilot` to assign Copilot PR reviewer bot. Requires PAT as `COPILOT_GITHUB_TOKEN`.
+  At least one reviewer or team reviewer must be present in agent output. Use `allowed-reviewers: [copilot]` to assign Copilot PR reviewer bot. Requires PAT as `COPILOT_GITHUB_TOKEN`. The legacy `reviewers` / `team-reviewers` field names are deprecated aliases.
 - `assign-milestone:` - Assign issues to milestones
 
   ```yaml
@@ -465,17 +495,25 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   safe-outputs:
     push-to-pull-request-branch:
       target: "*"                     # Optional: "triggering" (default), "*", or number
+      branch: "triggering"            # Optional: branch to push to (default: "triggering")
       title-prefix: "[bot] "          # Optional: require title prefix
       labels: [automated]             # Optional: require all labels
       if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
+      ignore-missing-branch-failure: false  # Optional: treat deleted PR branches as skipped pushes (default: false)
       commit-title-suffix: "[auto]"   # Optional: suffix appended to commit title
       staged: true                    # Optional: preview mode (default: follows global staged)
       github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on pushed commits
+      fallback-as-pull-request: true  # Optional: when push fails (e.g. diverged branch), open a fallback PR targeting the original branch (default: true)
+      patch-format: "bundle"          # Optional: "bundle" (default, supports merge commits) or "am"; auto-falls back to "bundle" when the incremental range contains a merge commit
+      signed-commits: true            # Optional: when true (default), push via createCommitOnBranch GraphQL so GitHub signs commits; set false to push merge commits via plain git push
+      allow-workflows: false          # Optional: add workflows:write permission for .github/workflows/ paths (requires github-app)
+      check-branch-protection: true   # Optional: when true (default), pre-flight check branch protection; set false to skip and avoid administration:read permission
       allowed-files:                  # Recommended: always restrict to specific paths or extensions to limit agent scope
         - "src/**"
       excluded-files:                 # Optional: glob patterns to strip from the patch entirely
         - "**/*.lock"
       protected-files: blocked        # Optional: "blocked" (default), "fallback-to-issue", or "allowed"
+      max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 1024 KB, max: 10240)
   ```
 
   Not supported for cross-repository operations. To trigger CI on pushed commits, use `github-token-for-extra-empty-commit` or set the magic secret `GH_AW_CI_TRIGGER_TOKEN`.
@@ -624,6 +662,20 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   ```
 
   Provides automated fixes for code scanning alerts.
+- `create-check-run:` - Create GitHub Check Runs to surface agent analysis results in the PR Checks UI
+
+  ```yaml
+  safe-outputs:
+    create-check-run:
+      name: "Security Analysis"       # Optional: check run name (defaults to workflow name)
+      max: 1                          # Optional: max check runs per workflow run (default: 1)
+      output:                         # Optional: static fallback values used when the agent omits the field
+        title: "Pending analysis"     # Fallback title (max 256 chars)
+        summary: "Awaiting agent output"  # Fallback summary (max 65535 chars)
+  ```
+
+  Requires `checks: write` permission, which is added automatically. Agents call `create_check_run` with `conclusion` (e.g., `success`, `failure`, `neutral`), `title`, `summary`, and optional `annotations`. Useful for reporting structured analysis results (security findings, code quality, test outcomes) directly on commits and pull requests.
+
 - `create-agent-session:` - Create GitHub Copilot coding agent sessions
 
   ```yaml

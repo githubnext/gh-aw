@@ -7,7 +7,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 
@@ -48,6 +48,11 @@ async function main(config = {}) {
 
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
+
+  const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
+  if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
+  if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
 
   core.info(`Assign milestone configuration: max=${maxCount}, auto_create=${autoCreate}`);
   if (allowedMilestones.length > 0) {
@@ -143,6 +148,11 @@ async function main(config = {}) {
     }
 
     const issueNumber = resolvedIssueTarget.resolved.number;
+
+    const repoParts = { owner: context.repo.owner, repo: context.repo.repo };
+    const filterResult = await checkRequiredFilter(githubClient, repoParts, issueNumber, requiredLabels, requiredTitlePrefix, "assign_milestone");
+    if (filterResult) return filterResult;
+
     if (resolvedIssueTarget.wasTemporaryId) {
       core.info(`Resolved temporary ID '${item.issue_number}' to issue #${issueNumber}`);
     }

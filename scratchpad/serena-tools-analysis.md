@@ -1,4 +1,4 @@
-# Serena Tools Usage - Deep Statistical Analysis
+# Serena Tools Usage - Statistical Analysis
 
 **Workflow Run:** [21560089409](https://github.com/github/gh-aw/actions/runs/21560089409/job/62122702303#step:33:1)  
 **Workflow:** Sergo - Serena Go Expert  
@@ -44,7 +44,7 @@ This report provides a statistical analysis of Serena MCP (Model Context Protoco
 | 9 | `mcp__serena__check_onboarding_performed` | 1 | 2.27% |
 | 10 | `mcp__serena__list_memories` | 1 | 2.27% |
 
-## Serena Tool Usage Deep Dive
+## Serena Tool Usage Analysis
 
 ### Serena Tools Used (6 tools)
 
@@ -178,7 +178,7 @@ Only **26.09%** of registered Serena tools were actually used during execution. 
 
 1. **Over-provisioning:** Many specialized tools are available but not needed for typical workflows
 2. **Selective Usage:** Agent prefers general-purpose builtin tools (Bash, Read, Write) over specialized Serena tools
-3. **Workflow Patterns:** Current workflow primarily uses file operations rather than deep language service features
+3. **Workflow Patterns:** Current workflow primarily uses file operations rather than language service features
 
 ### Builtin vs Serena Tool Ratio
 
@@ -215,7 +215,7 @@ This pattern suggests:
 - Provide examples of when to use `get_symbols_overview` vs `Read`
 - Highlight benefits of symbol-based navigation over grep/search
 
-### 3. Leverage Unused Capabilities
+### 3. Use Unused Capabilities
 
 **High-Value Unused Tools:**
 - `get_symbols_overview` - Provides structured codebase understanding through symbol hierarchy
@@ -365,7 +365,7 @@ graph LR
 
 The Serena MCP server successfully provided 23 specialized Go language service tools with 100% response rate reliability. However, actual adoption was modest at 20.45% of total tool calls, with only 6 of 23 tools being used. The agent showed a strong preference for general-purpose builtin tools (77.27% usage), particularly Bash and Read operations.
 
-**Key Takeaway:** While Serena tools are reliable and available, the current workflow design doesn't fully leverage their language-aware capabilities. Future optimizations should focus on:
+**Key Takeaway:** While Serena tools are reliable and available, the current workflow design doesn't fully use their language-aware capabilities. Future optimizations should focus on:
 1. Encouraging Serena tool usage through better prompts
 2. Right-sizing tool registration to reduce overhead
 3. Demonstrating value of language-aware operations over text-based alternatives

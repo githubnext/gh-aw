@@ -405,6 +405,7 @@ func isWindowsLockError(output string, err error) bool {
 		if strings.Contains(output, msg) {
 			return true
 		}
+		//nolint:errstringmatch // gh extension upgrade reports Windows locked-binary failures only via stderr text fragments.
 		if err != nil && strings.Contains(err.Error(), msg) {
 			return true
 		}

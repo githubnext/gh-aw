@@ -8,7 +8,7 @@
 const { generateFooterWithMessages, getDetectionCautionAlert, generateXMLMarker } = require("./messages_footer.cjs");
 const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
-const { replaceTemporaryIdReferences, loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
+const { replaceTemporaryIdReferences, resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
@@ -377,6 +377,8 @@ async function main(config = {}) {
   const maxCount = config.max || 20;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const includeFooter = parseBoolTemplatable(config.footer, true);
+  const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
   const mentionsDisabled = config.mentions === false || config.mentions?.enabled === false;
   const configuredMentionAliases =
     !mentionsDisabled && Array.isArray(config.mentions?.allowed) ? config.mentions.allowed.map(alias => (typeof alias === "string" ? alias.trim().replace(/^@+/, "") : "")).filter(alias => alias.length > 0) : [];
@@ -397,6 +399,8 @@ async function main(config = {}) {
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
   }
+  if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
+  if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
   if (hideOlderCommentsEnabled) {
     core.info("Hide-older-comments is enabled");
   }
@@ -463,33 +467,11 @@ async function main(config = {}) {
     // Check if item_number or issue_number was explicitly provided in the message.
     // item_number takes precedence over issue_number when both are present.
     // pr-number is accepted as an alias for item_number for robustness.
-    const explicitItemNumber = message.item_number ?? message.issue_number ?? message["pr-number"] ?? undefined;
+    const itemTargetResult = resolveSafeOutputIssueTarget({ message, tempIdMap: temporaryIdMap, repoParts, handlerType: HANDLER_TYPE, aliases: ["item_number", "issue_number", "pr-number"] });
+    if (!itemTargetResult.success) return itemTargetResult;
 
-    if (explicitItemNumber !== undefined) {
-      // Resolve temporary IDs if present
-      const resolvedTarget = resolveRepoIssueTarget(explicitItemNumber, temporaryIdMap, repoParts.owner, repoParts.repo);
-
-      // Check if this is an unresolved temporary ID
-      if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
-        core.info(`Deferring add_comment: unresolved temporary ID (${explicitItemNumber})`);
-        return {
-          success: false,
-          deferred: true,
-          error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${explicitItemNumber}`,
-        };
-      }
-
-      // Check for other resolution errors (including null resolved)
-      if (resolvedTarget.errorMessage || !resolvedTarget.resolved) {
-        core.warning(`Invalid explicit target number specified: ${explicitItemNumber}`);
-        return {
-          success: false,
-          error: `Invalid explicit target number specified: ${explicitItemNumber}`,
-        };
-      }
-
-      // Use the resolved issue number (safe to access because we checked above)
-      itemNumber = resolvedTarget.resolved.number;
+    if (itemTargetResult.number !== null) {
+      itemNumber = itemTargetResult.number;
       core.info(`Using explicitly provided target number (item_number/issue_number/pr-number): #${itemNumber}`);
     } else {
       // Check if this is a discussion context
@@ -543,6 +525,31 @@ async function main(config = {}) {
       }
     }
 
+    // Apply required-labels and required-title-prefix filters (issues/PRs only, not discussions)
+    if (!isDiscussion && (requiredLabels.length > 0 || requiredTitlePrefix)) {
+      try {
+        const { data: filterItem } = await githubClient.rest.issues.get({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          issue_number: itemNumber,
+        });
+        if (requiredLabels.length > 0) {
+          const itemLabels = (filterItem.labels || []).map(/** @param {any} l */ l => (typeof l === "string" ? l : l.name || ""));
+          if (!requiredLabels.every(r => itemLabels.includes(r))) {
+            core.info(`Skipping add_comment for #${itemNumber}: does not match required-labels filter (${requiredLabels.join(", ")})`);
+            return { success: false, skipped: true, error: `Item does not match required-labels filter` };
+          }
+        }
+        if (requiredTitlePrefix && !filterItem.title?.startsWith(requiredTitlePrefix)) {
+          core.info(`Skipping add_comment for #${itemNumber}: title does not start with required prefix "${requiredTitlePrefix}"`);
+          return { success: false, skipped: true, error: `Item title does not start with required prefix` };
+        }
+      } catch (err) {
+        core.warning(`Could not fetch item #${itemNumber} to check filters: ${getErrorMessage(err)}`);
+        return { success: false, error: `Failed to check required-labels/required-title-prefix filter: ${getErrorMessage(err)}` };
+      }
+    }
+
     // Collect parent issue/PR/discussion authors to allow in @mentions.
     // The body was already sanitized in collect_ndjson_output with allowed mentions from the
     // event payload (which includes the issue author). Re-sanitizing here without the same
@@ -551,7 +558,7 @@ async function main(config = {}) {
     const parentAuthors = [];
     if (!mentionsDisabled) {
       if (!isDiscussion) {
-        if (explicitItemNumber !== undefined) {
+        if (itemTargetResult.number !== null) {
           // Explicit item_number/issue_number: fetch the issue/PR to get its author
           try {
             const { data: issueData } = await githubClient.rest.issues.get({
@@ -704,23 +711,64 @@ async function main(config = {}) {
       core.warning("Ignoring empty discussion reply_to_id after normalization");
     }
 
+    // add_comment uses snake_case fields. camelCase and kebab-case aliases are
+    // accepted for compatibility with forwarded/legacy payload variants.
+    const explicitCommentIdRaw = message.comment_id ?? message.commentId ?? message["comment-id"];
+    const rawTarget = message.target;
+    const allowedTargets = ["status"];
+    if (rawTarget !== undefined && !allowedTargets.includes(rawTarget)) {
+      return {
+        success: false,
+        error: `target must be one of: [${allowedTargets.join(", ")}]`,
+      };
+    }
+    const isStatusCommentTarget = rawTarget === "status";
+    const statusCommentIdRaw = process.env.GH_AW_COMMENT_ID || "";
+    let commentIdToReuse = null;
+    if (explicitCommentIdRaw !== undefined && explicitCommentIdRaw !== null && String(explicitCommentIdRaw).trim() !== "") {
+      commentIdToReuse = Number(explicitCommentIdRaw);
+      if (!Number.isInteger(commentIdToReuse) || commentIdToReuse <= 0) {
+        return {
+          success: false,
+          error: "comment_id must be a positive integer",
+        };
+      }
+    } else if (isStatusCommentTarget) {
+      const parsedStatusCommentId = Number(statusCommentIdRaw);
+      if (Number.isInteger(parsedStatusCommentId) && parsedStatusCommentId > 0) {
+        commentIdToReuse = parsedStatusCommentId;
+      } else {
+        core.info("target=status was requested but no reusable status comment id was available; creating a new comment");
+      }
+    }
+
     try {
       // Hide older comments if enabled AND append-only-comments is not enabled
       // When append-only-comments is true, we want to keep all comments visible
-      if (hideOlderCommentsEnabled && !appendOnlyComments && workflowId) {
-        await hideOlderComments(githubClient, repoParts.owner, repoParts.repo, itemNumber, workflowId, isDiscussion);
-      } else if (hideOlderCommentsEnabled && appendOnlyComments) {
-        core.info("Skipping hide-older-comments because append-only-comments is enabled");
+      if (hideOlderCommentsEnabled) {
+        if (commentIdToReuse !== null) {
+          core.info("Skipping hide-older-comments because an existing comment is being updated");
+        } else if (appendOnlyComments) {
+          core.info("Skipping hide-older-comments because append-only-comments is enabled");
+        } else if (workflowId) {
+          await hideOlderComments(githubClient, repoParts.owner, repoParts.repo, itemNumber, workflowId, isDiscussion);
+        }
       }
 
       /** @type {{ id: string | number, html_url: string }} */
       let comment;
       if (isDiscussion) {
+        if (commentIdToReuse !== null) {
+          return {
+            success: false,
+            error: "comment_id and target=status are only supported for issue and pull request comments",
+          };
+        }
         // When triggered by a discussion_comment event (without explicit item_number),
         // reply as a threaded comment to the triggering comment instead of posting top-level.
         // GitHub Discussions only supports two nesting levels, so if the triggering comment is
         // itself a reply, we resolve the top-level parent's node ID to use as replyToId.
-        const hasExplicitItemNumber = explicitItemNumber !== undefined;
+        const hasExplicitItemNumber = itemTargetResult.number !== null;
         let replyToId;
         if (context.eventName === "discussion_comment" && !hasExplicitItemNumber) {
           // When triggered by a discussion_comment event, thread the reply under the triggering comment.
@@ -738,7 +786,7 @@ async function main(config = {}) {
         }
         comment = await commentOnDiscussion(githubClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, replyToId);
       } else {
-        const shouldReplyToTriggeringPRReviewComment = effectiveContext.eventName === "pull_request_review_comment" && explicitItemNumber === undefined;
+        const shouldReplyToTriggeringPRReviewComment = effectiveContext.eventName === "pull_request_review_comment" && itemTargetResult.number === null;
         const triggeringReviewCommentId = Number(effectiveContext.payload?.comment?.id);
 
         if (shouldReplyToTriggeringPRReviewComment && Number.isInteger(triggeringReviewCommentId) && triggeringReviewCommentId > 0) {
@@ -748,6 +796,15 @@ async function main(config = {}) {
             repo: repoParts.repo,
             pull_number: itemNumber,
             comment_id: triggeringReviewCommentId,
+            body: processedBody,
+          });
+          comment = data;
+        } else if (commentIdToReuse !== null) {
+          core.info(`Updating existing comment ID: ${commentIdToReuse}`);
+          const { data } = await githubClient.rest.issues.updateComment({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            comment_id: commentIdToReuse,
             body: processedBody,
           });
           comment = data;
@@ -776,7 +833,7 @@ async function main(config = {}) {
 
       // If 404 and item_number was explicitly provided and we tried as issue/PR,
       // retry as a discussion (the user may have provided a discussion number)
-      if (is404 && !isDiscussion && explicitItemNumber !== undefined) {
+      if (is404 && !isDiscussion && itemTargetResult.number !== null) {
         core.info(`Item #${itemNumber} not found as issue/PR, retrying as discussion...`);
 
         try {

@@ -90,6 +90,7 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		"claude",
 		true, // Include Node.js setup
 		true, // Claude Code requires post-install scripts for native binaries
+		resolveRuntimeCooldown(workflowData, "node"),
 	)
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
@@ -342,6 +343,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
 		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
 	}
+	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection
 	// Include the compiler version so agents can identify which gh-aw version generated the workflow
 	if workflowData.IsDetectionRun {

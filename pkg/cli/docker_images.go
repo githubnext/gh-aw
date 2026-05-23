@@ -52,9 +52,8 @@ var pullState = &dockerPullState{
 
 func normalizeDockerContext(ctx context.Context) context.Context {
 	if ctx == nil {
-		return context.Background()
+		return context.TODO()
 	}
-
 	return ctx
 }
 

@@ -12,6 +12,8 @@ const mockCore = {
 global.core = mockCore;
 
 const REFLECT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
+const CONFIG_PATH = "/tmp/gh-aw/awf-config.json";
+const MODELS_PATH = "/tmp/gh-aw/sandbox/firewall/models.json";
 
 /** Full sample /reflect response from the AWF api-proxy server */
 const SAMPLE_REFLECT = {
@@ -60,6 +62,34 @@ const SAMPLE_REFLECT = {
   models_fetch_complete: true,
 };
 
+const SAMPLE_RUNTIME_MODELS = {
+  endpoints: [
+    {
+      provider: "copilot",
+      endpoint: "http://api-proxy:10002/models",
+      models: [
+        { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6" },
+        { id: "gpt-4o", name: "GPT-4o" },
+      ],
+    },
+    {
+      provider: "openai",
+      endpoint: "http://api-proxy:10000/v1/models",
+      models: [{ id: "gpt-4o" }, { id: "gpt-4o-mini" }],
+    },
+  ],
+};
+
+const SAMPLE_AWF_CONFIG = {
+  apiProxy: {
+    models: {
+      "": ["sonnet", "gpt-5"],
+      mini: ["haiku", "gpt-5-mini", "gpt-5-nano"],
+      sonnet: ["copilot/*sonnet*", "anthropic/*sonnet*"],
+    },
+  },
+};
+
 describe("awf_reflect_summary.cjs", () => {
   let module;
 
@@ -70,8 +100,14 @@ describe("awf_reflect_summary.cjs", () => {
   });
 
   afterEach(() => {
+    if (fs.existsSync(CONFIG_PATH)) {
+      fs.unlinkSync(CONFIG_PATH);
+    }
     if (fs.existsSync(REFLECT_PATH)) {
       fs.unlinkSync(REFLECT_PATH);
+    }
+    if (fs.existsSync(MODELS_PATH)) {
+      fs.unlinkSync(MODELS_PATH);
     }
   });
 
@@ -91,6 +127,22 @@ describe("awf_reflect_summary.cjs", () => {
       expect(result).not.toBeNull();
       expect(result.endpoints).toHaveLength(5);
       expect(result.models_fetch_complete).toBe(true);
+    });
+  });
+
+  describe("readAWFConfigData", () => {
+    it("returns null when file does not exist", () => {
+      expect(module.readAWFConfigData()).toBeNull();
+    });
+
+    it("returns null when file contains invalid JSON", () => {
+      fs.writeFileSync(CONFIG_PATH, "not-json", "utf8");
+      expect(module.readAWFConfigData()).toBeNull();
+    });
+
+    it("parses and returns valid JSON", () => {
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(SAMPLE_AWF_CONFIG), "utf8");
+      expect(module.readAWFConfigData()).toEqual(SAMPLE_AWF_CONFIG);
     });
   });
 
@@ -117,6 +169,105 @@ describe("awf_reflect_summary.cjs", () => {
     it("returns all models when count equals maxModels", () => {
       const result = module.formatModelList(["x", "y"], 2);
       expect(result).toBe("x, y");
+    });
+  });
+
+  describe("readRuntimeModelsData", () => {
+    it("returns null when file does not exist", () => {
+      expect(module.readRuntimeModelsData()).toBeNull();
+    });
+
+    it("returns null when file contains invalid JSON", () => {
+      fs.writeFileSync(MODELS_PATH, "not-json", "utf8");
+      expect(module.readRuntimeModelsData()).toBeNull();
+    });
+
+    it("parses and returns valid JSON", () => {
+      fs.writeFileSync(MODELS_PATH, JSON.stringify(SAMPLE_RUNTIME_MODELS), "utf8");
+      expect(module.readRuntimeModelsData()).toEqual(SAMPLE_RUNTIME_MODELS);
+    });
+  });
+
+  describe("normalizeRuntimeModelRows", () => {
+    it("normalizes endpoint payloads into sorted rows", () => {
+      expect(module.normalizeRuntimeModelRows(SAMPLE_RUNTIME_MODELS)).toEqual([
+        {
+          endpoint: "http://api-proxy:10002/models",
+          models: ["claude-sonnet-4.6", "gpt-4o"],
+          provider: "copilot",
+        },
+        {
+          endpoint: "http://api-proxy:10000/v1/models",
+          models: ["gpt-4o", "gpt-4o-mini"],
+          provider: "openai",
+        },
+      ]);
+    });
+
+    it("normalizes provider-map models.json payloads", () => {
+      const providerMap = {
+        providers: {
+          openai: {
+            models_url: "http://api-proxy:10000/v1/models",
+            available_models: [{ id: "gpt-4o" }, { id: "gpt-4o-mini" }],
+          },
+          copilot: {
+            endpoint: "http://api-proxy:10002/models",
+            detected_models: ["claude-sonnet-4.6", "gpt-4o"],
+          },
+        },
+      };
+
+      expect(module.normalizeRuntimeModelRows(providerMap)).toEqual([
+        {
+          endpoint: "http://api-proxy:10002/models",
+          models: ["claude-sonnet-4.6", "gpt-4o"],
+          provider: "copilot",
+        },
+        {
+          endpoint: "http://api-proxy:10000/v1/models",
+          models: ["gpt-4o", "gpt-4o-mini"],
+          provider: "openai",
+        },
+      ]);
+    });
+
+    it("normalizes single-provider models.json payloads", () => {
+      const singleProvider = {
+        provider: "anthropic",
+        base_url: "http://api-proxy:10001/v1/models",
+        models: [{ id: "claude-opus-4-1" }, { id: "claude-sonnet-4-5" }],
+      };
+
+      expect(module.normalizeRuntimeModelRows(singleProvider)).toEqual([
+        {
+          endpoint: "http://api-proxy:10001/v1/models",
+          models: ["claude-opus-4-1", "claude-sonnet-4-5"],
+          provider: "anthropic",
+        },
+      ]);
+    });
+  });
+
+  describe("normalizeModelAliasRows", () => {
+    it("normalizes alias mappings and sorts the default alias first", () => {
+      expect(module.normalizeModelAliasRows(SAMPLE_AWF_CONFIG)).toEqual([
+        {
+          alias: "",
+          label: "(default)",
+          targets: ["sonnet", "gpt-5"],
+        },
+        {
+          alias: "mini",
+          label: "mini",
+          targets: ["haiku", "gpt-5-mini", "gpt-5-nano"],
+        },
+        {
+          alias: "sonnet",
+          label: "sonnet",
+          targets: ["copilot/*sonnet*", "anthropic/*sonnet*"],
+        },
+      ]);
     });
   });
 
@@ -184,6 +335,25 @@ describe("awf_reflect_summary.cjs", () => {
       const markdown = module.buildReflectSummary(data, { maxModels: 3 });
       expect(markdown).toContain("a, b, c … +3 more");
     });
+
+    it("renders runtime models.json table alongside configured endpoint summary", () => {
+      const markdown = module.buildReflectSummary(SAMPLE_REFLECT, { runtimeModelsData: SAMPLE_RUNTIME_MODELS });
+
+      expect(markdown).toContain("Configured endpoints");
+      expect(markdown).toContain("Runtime models.json");
+      expect(markdown).toContain("| Provider | Endpoint | Available models |");
+      expect(markdown).toContain("| copilot | http://api-proxy:10002/models | claude-sonnet-4.6, gpt-4o |");
+      expect(markdown).toContain("| openai | http://api-proxy:10000/v1/models | gpt-4o, gpt-4o-mini |");
+    });
+
+    it("renders model aliases from awf-config.json", () => {
+      const markdown = module.buildReflectSummary(SAMPLE_REFLECT, { awfConfigData: SAMPLE_AWF_CONFIG });
+
+      expect(markdown).toContain("Model aliases");
+      expect(markdown).toContain("| Alias | Resolution order |");
+      expect(markdown).toContain("| (default) | sonnet, gpt-5 |");
+      expect(markdown).toContain("| sonnet | copilot/*sonnet*, anthropic/*sonnet* |");
+    });
   });
 
   describe("main", () => {
@@ -195,14 +365,18 @@ describe("awf_reflect_summary.cjs", () => {
     });
 
     it("writes step summary when reflect data file is present", async () => {
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(SAMPLE_AWF_CONFIG), "utf8");
       fs.writeFileSync(REFLECT_PATH, JSON.stringify(SAMPLE_REFLECT), "utf8");
+      fs.writeFileSync(MODELS_PATH, JSON.stringify(SAMPLE_RUNTIME_MODELS), "utf8");
 
       await module.main();
 
       expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
       const summary = mockCore.summary.addRaw.mock.calls[0][0];
       expect(summary).toContain("AWF API proxy");
+      expect(summary).toContain("Model aliases");
       expect(summary).toContain("openai");
+      expect(summary).toContain("Runtime models.json");
       expect(mockCore.summary.write).toHaveBeenCalledTimes(1);
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("AWF reflect summary written"));
     });

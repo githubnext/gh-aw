@@ -257,7 +257,7 @@ describe("frontmatter_hash with GitHub API", () => {
 
       expect(hash).toMatch(/^[a-f0-9]{64}$/);
 
-      // The workflow has imports like "shared/mcp/gh-aw.md"
+      // The workflow has imports like "shared/mcp/tavily.md"
       // This tests that relative path resolution works correctly with GitHub API
     });
 

@@ -1,55 +1,56 @@
 ---
-emoji: "🧪"
-name: Daily Testify Uber Super Expert
-description: Daily expert that analyzes one test file and creates an issue with testify-based improvements
 on:
   schedule: daily
-  workflow_dispatch:
-
+  workflow_dispatch: null
 permissions:
   contents: read
   issues: read
   pull-requests: read
-
-tracker-id: daily-testify-uber-super-expert
-engine: copilot
-
 imports:
-  - uses: shared/skip-if-issue-open.md
-    with:
-      title-prefix: "[testify-expert]"
-  - uses: shared/daily-issue-base.md
-    with:
-      title-prefix: "[testify-expert] "
-      expires: "2d"
-      labels: [testing, code-quality, automated-analysis, cookie]
-  - shared/go-source-analysis.md
-  - shared/safe-output-app.md
-  - shared/otlp.md
-
-tools:
-  cli-proxy: true
-  repo-memory:
-    branch-name: memory/testify-expert
-    description: "Tracks processed test files to avoid duplicates"
-    file-glob: ["*.json", "*.txt"]
-    max-file-size: 51200  # 50KB
-  github:
-    mode: gh-proxy
-    toolsets: [default]
-  bash:
-    - "find . -name '*_test.go' -type f"
-    - "cat **/*_test.go"
-    - "grep -r 'func Test' . --include='*_test.go'"
-    - "go test -v ./..."
-    - "wc -l **/*_test.go"
-
-timeout-minutes: 20
-strict: true
+- uses: shared/skip-if-issue-open.md
+  with:
+    title-prefix: "[testify-expert]"
+- uses: shared/daily-issue-base.md
+  with:
+    expires: 2d
+    labels:
+    - testing
+    - code-quality
+    - automated-analysis
+    - cookie
+    title-prefix: "[testify-expert] "
+- shared/go-source-analysis.md
+- shared/safe-output-app.md
+- shared/otlp.md
+description: Daily expert that analyzes one test file and creates an issue with testify-based improvements
+emoji: 🧪
+engine: copilot
 features:
   copilot-requests: true
+name: Daily Testify Uber Super Expert
+strict: true
+timeout-minutes: 20
+tools:
+  bash:
+  - find . -name "*_test.go" -type f
+  - cat **/*_test.go
+  - grep -r "func Test" . --include="*_test.go"
+  - go test -v ./...
+  - wc -l **/*_test.go
+  cli-proxy: true
+  github:
+    mode: gh-proxy
+    toolsets:
+    - default
+  repo-memory:
+    branch-name: memory/testify-expert
+    description: Tracks processed test files to avoid duplicates
+    file-glob:
+    - "*.json"
+    - "*.txt"
+    max-file-size: 51200
+tracker-id: daily-testify-uber-super-expert
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Testify Uber Super Expert 🧪✨
@@ -96,7 +97,7 @@ Find all Go test files and select one that hasn't been processed in the last 30 
 
 ```bash
 # Get all test files
-find . -name '*_test.go' -type f > /tmp/all_test_files.txt
+find . -name '*_test.go' -type f > /tmp/gh-aw/agent/all_test_files.txt
 
 # Filter out recently processed files (last 30 days)
 CUTOFF_DATE=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
@@ -104,17 +105,17 @@ CUTOFF_DATE=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-
 # Create list of candidate files (not processed or processed >30 days ago)
 while IFS='|' read -r filepath timestamp; do
   if [[ "$timestamp" < "$CUTOFF_DATE" ]]; then
-    echo "$filepath" >> /tmp/candidate_files.txt
+    echo "$filepath" >> /tmp/gh-aw/agent/candidate_files.txt
   fi
 done < "$CACHE_FILE" 2>/dev/null || true
 
 # If no cache or all files old, use all test files
-if [ ! -f /tmp/candidate_files.txt ]; then
-  cp /tmp/all_test_files.txt /tmp/candidate_files.txt
+if [ ! -f /tmp/gh-aw/agent/candidate_files.txt ]; then
+  cp /tmp/gh-aw/agent/all_test_files.txt /tmp/gh-aw/agent/candidate_files.txt
 fi
 
 # Select a random file from candidates
-TARGET_FILE=$(shuf -n 1 /tmp/candidate_files.txt)
+TARGET_FILE=$(shuf -n 1 /tmp/gh-aw/agent/candidate_files.txt)
 echo "Selected file: $TARGET_FILE"
 ```
 

@@ -33,6 +33,10 @@ type ResolvedWorkflow struct {
 	HasWorkflowDispatch bool
 	// IsPrivate indicates if the workflow has private: true in its frontmatter
 	IsPrivate bool
+	// IsActionWorkflow indicates that the source is a raw GitHub Actions YAML file (.yml)
+	// rather than an agentic workflow markdown file (.md). When true, the file is installed
+	// directly to .github/workflows/ without frontmatter processing or compilation.
+	IsActionWorkflow bool
 }
 
 // ResolvedWorkflows contains all resolved workflows ready to be added
@@ -154,6 +158,20 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 			return nil, fmt.Errorf("workflow '%s' not found: %w", spec.String(), err)
 		}
 
+		// Action workflow files (.yml) are raw GitHub Actions YAML — skip all markdown
+		// frontmatter processing and install them as-is.
+		if isActionWorkflowPath(resolvedSpec.WorkflowPath) {
+			resolutionLog.Printf("Resolved action workflow: spec=%s, content_size=%d bytes",
+				spec.String(), len(fetched.Content))
+			resolvedWorkflows = append(resolvedWorkflows, &ResolvedWorkflow{
+				Spec:             resolvedSpec,
+				Content:          fetched.Content,
+				SourceInfo:       fetched,
+				IsActionWorkflow: true,
+			})
+			continue
+		}
+
 		// Extract description from content
 		description := ExtractWorkflowDescription(string(fetched.Content))
 
@@ -170,6 +188,11 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 		workflowHasDispatch := checkWorkflowHasDispatchFromContent(string(fetched.Content))
 		if workflowHasDispatch {
 			hasWorkflowDispatch = true
+		}
+
+		if fetched.ConvertedFromJSON {
+			resolutionWarnings = append(resolutionWarnings,
+				fmt.Sprintf("JSON workflow import for %q was best-effort; run an agentic prompt to refine .github/workflows/%s.md", resolvedSpec.WorkflowName, resolvedSpec.WorkflowName))
 		}
 
 		resolutionLog.Printf("Resolved workflow: spec=%s, engine=%s, has_dispatch=%t, content_size=%d bytes",
@@ -200,14 +223,22 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec *RepoSpec, pkg *resolvedRepositoryPackage) []*WorkflowSpec {
 	host := explicitHostForRepo(repoSpec.RepoSlug)
 	for _, installationSource := range pkg.InstallationSource {
+		// installationSource is guaranteed by isSupportedPackageInstallablePath to be
+		// either a .md agentic workflow or a .yml action workflow file; no other
+		// extensions can reach this point.
+		base := filepath.Base(installationSource)
+		// Use filepath.Ext for case-insensitive extension removal (e.g. ".YML" or ".MD").
+		workflowName := strings.TrimSuffix(base, filepath.Ext(base))
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
 			RepoSpec: RepoSpec{
-				RepoSlug: repoSpec.RepoSlug,
-				Version:  repoSpec.Version,
+				RepoSlug:    repoSpec.RepoSlug,
+				Version:     repoSpec.Version,
+				PackagePath: repoSpec.PackagePath,
 			},
-			WorkflowPath: installationSource,
-			WorkflowName: strings.TrimSuffix(filepath.Base(installationSource), ".md"),
-			Host:         host,
+			WorkflowPath:           installationSource,
+			WorkflowName:           workflowName,
+			Host:                   host,
+			FromRepositoryManifest: true,
 		})
 	}
 
@@ -217,6 +248,7 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 func resolveAddWorkflowSpecAndContent(ctx context.Context, initialSpec *WorkflowSpec, verbose bool) (*WorkflowSpec, *FetchedWorkflow, error) {
 	currentSpec := *initialSpec
 	visited := make(map[string]struct{})
+	followedRedirect := false
 
 	for range maxRedirectDepth {
 		// Fetch workflow content - handles both local and remote.
@@ -245,12 +277,14 @@ func resolveAddWorkflowSpecAndContent(ctx context.Context, initialSpec *Workflow
 			return nil, nil, err
 		}
 		if redirect == "" {
-			// Preserve the original WorkflowName from the user's request so that
-			// the local file is always named after what was requested, even when
-			// one or more redirects were followed to reach the final content.
-			// (WorkflowPath reflects the redirect target and is used for fetching
-			// imports and writing the source frontmatter field.)
-			currentSpec.WorkflowName = initialSpec.WorkflowName
+			// Preserve the original WorkflowName from the user's request only when
+			// one or more redirects were followed, so the final local file keeps
+			// the requested name.
+			// Without redirects, keep any name derived during fetch, such as JSON
+			// imports where conversion picks a better filename from `name`.
+			if followedRedirect {
+				currentSpec.WorkflowName = initialSpec.WorkflowName
+			}
 			return &currentSpec, fetched, nil
 		}
 
@@ -272,6 +306,7 @@ func resolveAddWorkflowSpecAndContent(ctx context.Context, initialSpec *Workflow
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow redirect: %s -> %s", locationKey, nextSpec.String())))
 		}
+		followedRedirect = true
 		currentSpec = *nextSpec
 	}
 

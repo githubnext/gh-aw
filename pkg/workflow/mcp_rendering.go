@@ -77,31 +77,54 @@ func shouldRewriteLocalhostToDocker(workflowData *WorkflowData) bool {
 // accessible at /tmp/gh-aw/cache-memory/ and requires no MCP configuration.
 func noOpCacheMemoryRenderer(_ *strings.Builder, _ bool, _ *WorkflowData) {}
 
-// renderStandardJSONMCPConfig is a shared helper for JSON MCP config rendering used by
-// Claude, Gemini, Copilot, and Codex engines. It consolidates the repeated sequence of:
-// buildMCPRendererFactory → buildMCPGatewayConfig → buildStandardJSONMCPRenderers → RenderJSONMCPConfig.
-//
-// Parameters:
-//   - yaml: output builder
-//   - tools: tool configurations from frontmatter
-//   - mcpTools: list of enabled MCP tool names
-//   - workflowData: compiled workflow context
-//   - configPath: engine-specific MCP config file path
-//   - includeCopilotFields: whether to include "type" and "tools" fields (true for Copilot)
-//   - inlineArgs: whether to render args inline (true for Copilot) vs multi-line
-//   - renderCustom: engine-specific handler for custom MCP tool entries
-//   - filterTool: optional tool filter function; nil to include all tools
-func renderStandardJSONMCPConfig(
-	yaml *strings.Builder,
+// renderStandardJSONMCPConfigOptions holds configuration for renderStandardJSONMCPConfig.
+type renderStandardJSONMCPConfigOptions struct {
+	tools                map[string]any
+	mcpTools             []string
+	workflowData         *WorkflowData
+	configPath           string
+	includeCopilotFields bool
+	inlineArgs           bool
+	renderCustom         RenderCustomMCPToolConfigHandler
+	filterTool           func(string) bool
+}
+
+// renderDefaultJSONMCPConfig is a convenience wrapper for renderStandardJSONMCPConfig used by
+// simple JSON engines (Claude, Gemini, Crush, OpenCode) that share the standard
+// renderCustomMCPConfigWrapperWithContext callback and differ only in their config path.
+func renderDefaultJSONMCPConfig(
+	sb *strings.Builder,
 	tools map[string]any,
 	mcpTools []string,
 	workflowData *WorkflowData,
 	configPath string,
-	includeCopilotFields bool,
-	inlineArgs bool,
-	renderCustom RenderCustomMCPToolConfigHandler,
-	filterTool func(string) bool,
 ) error {
+	return renderStandardJSONMCPConfig(sb, renderStandardJSONMCPConfigOptions{
+		tools:        tools,
+		mcpTools:     mcpTools,
+		workflowData: workflowData,
+		configPath:   configPath,
+		renderCustom: func(builder *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+			return renderCustomMCPConfigWrapperWithContext(builder, toolName, toolConfig, isLast, workflowData)
+		},
+	})
+}
+
+// renderStandardJSONMCPConfig is a shared helper for JSON MCP config rendering used by
+// Claude, Gemini, Copilot, and Codex engines. It consolidates the repeated sequence of:
+// buildMCPRendererFactory → buildMCPGatewayConfig → buildStandardJSONMCPRenderers → RenderJSONMCPConfig.
+func renderStandardJSONMCPConfig(
+	yaml *strings.Builder,
+	opts renderStandardJSONMCPConfigOptions,
+) error {
+	tools := opts.tools
+	mcpTools := opts.mcpTools
+	workflowData := opts.workflowData
+	configPath := opts.configPath
+	includeCopilotFields := opts.includeCopilotFields
+	inlineArgs := opts.inlineArgs
+	renderCustom := opts.renderCustom
+	filterTool := opts.filterTool
 	mcpRenderingLog.Printf("Rendering standard JSON MCP config: config_path=%s tools=%d mcp_tools=%d", configPath, len(tools), len(mcpTools))
 	createRenderer := buildMCPRendererFactory(workflowData, "json", includeCopilotFields, inlineArgs)
 

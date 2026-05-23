@@ -265,7 +265,8 @@ const (
 	// BYOK providers require a non-empty model, so this value is used when the
 	// corresponding GH_AW_MODEL_*_COPILOT variable is unset.
 	//
-	// Keep this pinned to a Sonnet tier at or below 6x effective-token multiplier.
+	// Use Claude Sonnet 4.5 as the explicit default model for Copilot BYOK mode.
+	// This matches the current Copilot default model.
 	CopilotBYOKDefaultModel = "claude-sonnet-4.5"
 
 	// ClaudeCLIModelEnvVar is the native environment variable name supported by the Claude Code CLI

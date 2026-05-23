@@ -76,6 +76,7 @@ func (e *CrushEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		"crush",
 		true, // Include Node.js setup
 		true, // Crush requires post-install scripts for native binaries
+		resolveRuntimeCooldown(workflowData, "node"),
 	)
 
 	// Run crush --version to verify the installation and force any deferred binary downloads
@@ -205,6 +206,7 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
 		"NO_PROXY":         "localhost,127.0.0.1",
 	}
+	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	e.ApplyUniversalProviderEnv(env, workflowData, firewallEnabled)
 
 	// MCP config path

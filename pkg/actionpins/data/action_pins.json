@@ -138,10 +138,20 @@
       "version": "v4.1.0",
       "sha": "4907a6ddec9925e35a0a9e82d7399ccc52663121"
     },
+    "docker/metadata-action@v6": {
+      "repo": "docker/metadata-action",
+      "version": "v6",
+      "sha": "80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9"
+    },
     "docker/metadata-action@v6.0.0": {
       "repo": "docker/metadata-action",
       "version": "v6.0.0",
       "sha": "030e881283bb7a6894de51c315a6bfe6a94e05cf"
+    },
+    "docker/setup-buildx-action@v4": {
+      "repo": "docker/setup-buildx-action",
+      "version": "v4",
+      "sha": "d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5"
     },
     "docker/setup-buildx-action@v4.0.0": {
       "repo": "docker/setup-buildx-action",
@@ -153,10 +163,10 @@
       "version": "v1.24.0",
       "sha": "fc68ffb90438ef2936bbb3251622353b3dcb2f93"
     },
-    "github/codeql-action/upload-sarif@v4.35.4": {
+    "github/codeql-action/upload-sarif@v4.35.5": {
       "repo": "github/codeql-action/upload-sarif",
-      "version": "v4.35.4",
-      "sha": "68bde559dea0fdcac2102bfdf6230c5f70eb485e"
+      "version": "v4.35.5",
+      "sha": "9e0d7b8d25671d64c341c19c0152d693099fb5ba"
     },
     "github/stale-repos@v9.0.11": {
       "repo": "github/stale-repos",
@@ -173,20 +183,20 @@
       "version": "v2.11.0",
       "sha": "cd0d9bdd65b20557f41bea4dbe43d0b5fbbfe553"
     },
-    "microsoft/apm-action@v1.7.3": {
+    "microsoft/apm-action@v1.9.1": {
       "repo": "microsoft/apm-action",
-      "version": "v1.7.3",
-      "sha": "a7806d88ce4e4fd0e86b907570fcd94ad25d0c82"
+      "version": "v1.9.1",
+      "sha": "e5650fb81c4b5965090a17bd1ed1956071e95d17"
     },
     "oven-sh/setup-bun@v2.2.0": {
       "repo": "oven-sh/setup-bun",
       "version": "v2.2.0",
       "sha": "0c5077e51419868618aeaa5fe8019c62421857d6"
     },
-    "ruby/setup-ruby@v1.307.0": {
+    "ruby/setup-ruby@v1.308.0": {
       "repo": "ruby/setup-ruby",
-      "version": "v1.307.0",
-      "sha": "6aaa311d81eba98ae12eaffbcb63296ace0efcde"
+      "version": "v1.308.0",
+      "sha": "97ecb7b512899eb71ab1bf2310a624c6f1589ac6"
     },
     "super-linter/super-linter@v8.6.0": {
       "repo": "super-linter/super-linter",
@@ -339,6 +349,11 @@
       "image": "ghcr.io/github/gh-aw-mcpg:v0.3.1",
       "digest": "sha256:287fad0236959f3b3d9936ea1ef8d5b4f135ef2a5f5789713495cbbef191e60c",
       "pinned_image": "ghcr.io/github/gh-aw-mcpg:v0.3.1@sha256:287fad0236959f3b3d9936ea1ef8d5b4f135ef2a5f5789713495cbbef191e60c"
+    },
+    "ghcr.io/github/gh-aw-mcpg:v0.3.16": {
+      "image": "ghcr.io/github/gh-aw-mcpg:v0.3.16",
+      "digest": "sha256:8001e4bfa52d45abd05c45a8f855ce62bc893eb66e4807bb487bf2ff07fc1473",
+      "pinned_image": "ghcr.io/github/gh-aw-mcpg:v0.3.16@sha256:8001e4bfa52d45abd05c45a8f855ce62bc893eb66e4807bb487bf2ff07fc1473"
     },
     "ghcr.io/github/gh-aw-mcpg:v0.3.6": {
       "image": "ghcr.io/github/gh-aw-mcpg:v0.3.6",

@@ -36,7 +36,8 @@ describe("create_pull_request - draft policy enforcement", () => {
     global.github = {
       rest: {
         pulls: {
-          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test" } }),
+          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test", head: { sha: "abc123" } } }),
+          createReview: vi.fn().mockResolvedValue({ data: { id: 77, html_url: "https://github.com/test/review/77" } }),
         },
         repos: {
           get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
@@ -809,7 +810,8 @@ describe("create_pull_request - auto-close-issue configuration", () => {
     global.github = {
       rest: {
         pulls: {
-          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test" } }),
+          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test", head: { sha: "abc123" } } }),
+          createReview: vi.fn().mockResolvedValue({ data: { id: 77, html_url: "https://github.com/test/review/77" } }),
         },
         repos: {
           get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
@@ -1315,7 +1317,8 @@ describe("create_pull_request - allowed-files strict allowlist", () => {
     global.github = {
       rest: {
         pulls: {
-          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test" } }),
+          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "https://github.com/test", head: { sha: "abc123" } } }),
+          createReview: vi.fn().mockResolvedValue({ data: { id: 77, html_url: "https://github.com/test/review/77" } }),
         },
         repos: {
           get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
@@ -1334,6 +1337,15 @@ describe("create_pull_request - allowed-files strict allowlist", () => {
     };
     const pushSignedCommitsModule = require("./push_signed_commits.cjs");
     pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
+    const promptsDir = path.join(tempDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    const requestReviewTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_request_review.md");
+    fs.copyFileSync(requestReviewTemplateSrc, path.join(promptsDir, "manifest_protection_request_review.md"));
+    const requestChangesTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_request_changes_review.md");
+    fs.copyFileSync(requestChangesTemplateSrc, path.join(promptsDir, "manifest_protection_request_changes_review.md"));
+    const threatWarningTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/threat_warning_request_changes_review.md");
+    fs.copyFileSync(threatWarningTemplateSrc, path.join(promptsDir, "threat_warning_request_changes_review.md"));
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
 
     // Clear module cache so globals are picked up fresh
     delete require.cache[require.resolve("./create_pull_request.cjs")];
@@ -1470,6 +1482,65 @@ ${diffs}
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("protected files");
+  });
+
+  it("should create PR with caution and request-changes review when protected-files is request_review", async () => {
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "request_review",
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Body text" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.create).toHaveBeenCalledTimes(1);
+    const createPrCall = global.github.rest.pulls.create.mock.calls[0][0];
+    expect(createPrCall.body).toContain("Protected files were modified in this change.");
+    expect(createPrCall.body).toContain(".github/aw/instructions.md");
+
+    expect(global.github.rest.pulls.createReview).toHaveBeenCalledTimes(1);
+    const createReviewCall = global.github.rest.pulls.createReview.mock.calls[0][0];
+    expect(createReviewCall.event).toBe("REQUEST_CHANGES");
+    expect(createReviewCall.body).toContain("Protected files were modified");
+    expect(createReviewCall.body).toContain(".github/aw/instructions.md");
+  });
+
+  it("should default to request_review when protected-files policy is unset", async () => {
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Body text" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.create).toHaveBeenCalledTimes(1);
+    expect(global.github.rest.pulls.createReview).toHaveBeenCalledTimes(1);
+    const createReviewCall = global.github.rest.pulls.createReview.mock.calls[0][0];
+    expect(createReviewCall.event).toBe("REQUEST_CHANGES");
+  });
+
+  it("should retry with COMMENT when REQUEST_CHANGES review is rejected on own pull request", async () => {
+    const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
+    global.github.rest.pulls.createReview = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Can not request changes on your own pull request"))
+      .mockResolvedValueOnce({ data: { id: 78, html_url: "https://github.com/test/review/78" } });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({
+      protected_path_prefixes: [".github/"],
+      protected_files_policy: "request_review",
+    });
+    const result = await handler({ patch_path: patchPath, title: "Test PR", body: "Body text" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+    expect(global.github.rest.pulls.createReview.mock.calls[0][0].event).toBe("REQUEST_CHANGES");
+    expect(global.github.rest.pulls.createReview.mock.calls[1][0].event).toBe("COMMENT");
   });
 
   it("should use patch-artifact fallback instructions when protected-files fallback skips push", async () => {
@@ -1741,6 +1812,7 @@ describe("create_pull_request - configured reviewers", () => {
       rest: {
         pulls: {
           create: vi.fn().mockResolvedValue({ data: { number: 42, html_url: "https://github.com/test/pull/42", node_id: "PR_42" } }),
+          createReview: vi.fn().mockResolvedValue({ data: { id: 77, html_url: "https://github.com/test/review/77" } }),
           requestReviewers: vi.fn().mockResolvedValue({}),
         },
         repos: {
@@ -2227,6 +2299,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
       rest: {
         pulls: {
           create: vi.fn().mockResolvedValue({ data: { number: 42, html_url: "https://github.com/test/pull/42", node_id: "PR_42" } }),
+          createReview: vi.fn().mockResolvedValue({ data: { id: 77, html_url: "https://github.com/test/review/77" } }),
           requestReviewers: vi.fn().mockResolvedValue({}),
         },
         repos: {
@@ -2339,6 +2412,76 @@ describe("create_pull_request - patch apply fallback to original base commit", (
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply patch");
+  });
+
+  it("should recover add/add conflicts during fallback git am --3way and continue", async () => {
+    let am3WayAttempts = 0;
+    let unresolvedChecks = 0;
+    const conflictedPath = " docs/file.md ";
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        if (isGitAm3Way(cmd, args)) {
+          am3WayAttempts += 1;
+          throw new Error("CONFLICT (add/add): Merge conflict in docs/file.md");
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args.includes("--diff-filter=U")) {
+          unresolvedChecks += 1;
+          // First recovery attempt (after initial apply failure): no add/add conflicts.
+          // Second recovery attempt (during fallback): add/add conflict present.
+          if (unresolvedChecks === 1) {
+            return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          }
+          return Promise.resolve({ exitCode: 0, stdout: `${conflictedPath}\0`, stderr: "" });
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "status" && args[1] === "--porcelain") {
+          return Promise.resolve({ exitCode: 0, stdout: `AA ${conflictedPath}\0`, stderr: "" });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["checkout", "--theirs", "--", conflictedPath]);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["am", "--continue"]);
+    expect(global.core.debug).toHaveBeenCalledWith(expect.stringContaining("Add/add recovery probe unresolved files"));
+  });
+
+  it("should log recovery failure details when add/add recovery throws", async () => {
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        if (isGitAm3Way(cmd, args)) {
+          throw new Error("CONFLICT (add/add): Merge conflict in docs/file.md");
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "checkout" && args[1] === "--theirs") {
+          throw new Error("failed to checkout theirs");
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args.includes("--diff-filter=U")) {
+          return Promise.resolve({ exitCode: 0, stdout: "docs/file.md\0", stderr: "" });
+        }
+        if (cmd === "git" && Array.isArray(args) && args[0] === "status" && args[1] === "--porcelain") {
+          return Promise.resolve({ exitCode: 0, stdout: "AA docs/file.md\0", stderr: "" });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(false);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Automatic add/add conflict recovery attempt failed"));
   });
 
   it("should return error when original base commit is not available (cross-repo scenario)", async () => {
@@ -2742,6 +2885,15 @@ describe("create_pull_request - threat detection caution", () => {
     process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
     process.env.GITHUB_BASE_REF = "main";
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-threat-test-"));
+    const promptsDir = path.join(tempDir, "prompts");
+    fs.mkdirSync(promptsDir, { recursive: true });
+    const requestReviewTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_request_review.md");
+    fs.copyFileSync(requestReviewTemplateSrc, path.join(promptsDir, "manifest_protection_request_review.md"));
+    const requestChangesTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/manifest_protection_request_changes_review.md");
+    fs.copyFileSync(requestChangesTemplateSrc, path.join(promptsDir, "manifest_protection_request_changes_review.md"));
+    const threatWarningTemplateSrc = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md/threat_warning_request_changes_review.md");
+    fs.copyFileSync(threatWarningTemplateSrc, path.join(promptsDir, "threat_warning_request_changes_review.md"));
+    process.env.GH_AW_PROMPTS_DIR = promptsDir;
 
     global.core = {
       info: vi.fn(),
@@ -2761,6 +2913,7 @@ describe("create_pull_request - threat detection caution", () => {
       rest: {
         pulls: {
           create: vi.fn().mockResolvedValue({ data: { number: 42, html_url: "https://github.com/test/pull/42", node_id: "PR_42" } }),
+          createReview: vi.fn().mockResolvedValue({ data: { id: 77, html_url: "https://github.com/test/review/77" } }),
           requestReviewers: vi.fn().mockResolvedValue({}),
         },
         repos: {
@@ -2817,6 +2970,39 @@ describe("create_pull_request - threat detection caution", () => {
     const bodyIndex = prBody.indexOf("Agent body content");
     expect(cautionIndex).toBeGreaterThanOrEqual(0);
     expect(bodyIndex).toBeGreaterThan(cautionIndex);
+    expect(global.github.rest.pulls.createReview).toHaveBeenCalledTimes(1);
+    const createReviewCall = global.github.rest.pulls.createReview.mock.calls[0][0];
+    expect(createReviewCall.event).toBe("REQUEST_CHANGES");
+    expect(createReviewCall.body).toContain("Threat detection produced a warning");
+    expect(createReviewCall.body).toContain("need to be scrutinized");
+  });
+
+  it("should compose one REQUEST_CHANGES review when protected-files and threat warning are both active", async () => {
+    process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+    process.env.GH_AW_DETECTION_REASON = "pattern-match";
+    const patchPath = path.join(tempDir, "protected.patch");
+    fs.writeFileSync(
+      patchPath,
+      `diff --git a/.github/aw/instructions.md b/.github/aw/instructions.md
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/.github/aw/instructions.md
+@@ -0,0 +1 @@
++content
+`
+    );
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, protected_path_prefixes: [".github/"], protected_files_policy: "request_review" });
+    await handler({ title: "Test PR", body: "Agent body content", patch_path: patchPath }, {});
+
+    expect(global.github.rest.pulls.createReview).toHaveBeenCalledTimes(1);
+    const createReviewCall = global.github.rest.pulls.createReview.mock.calls[0][0];
+    expect(createReviewCall.event).toBe("REQUEST_CHANGES");
+    expect(createReviewCall.body).toContain("Protected files were modified");
+    expect(createReviewCall.body).toContain("Threat detection produced a warning");
+    expect(createReviewCall.body).toContain("\n\n---\n\n");
   });
 
   it("should not include caution alert in PR body when GH_AW_DETECTION_CONCLUSION is not warning", async () => {
@@ -2828,6 +3014,7 @@ describe("create_pull_request - threat detection caution", () => {
 
     const prBody = global.github.rest.pulls.create.mock.calls[0][0].body;
     expect(prBody).not.toContain("[!CAUTION]");
+    expect(global.github.rest.pulls.createReview).not.toHaveBeenCalled();
   });
 
   it("should add agentic-threat-detected label when GH_AW_DETECTION_CONCLUSION is warning", async () => {
@@ -2978,7 +3165,7 @@ describe("create_pull_request - rate-limit retry", () => {
       const result = await resultPromise;
 
       expect(result.success).toBe(true);
-      expect(result.pull_request_number).toBe(42);
+      expect(result.number).toBe(42);
       // 1 initial (rate-limited) + 1 retry (succeeds) = 2 calls total
       expect(global.github.rest.pulls.create).toHaveBeenCalledTimes(2);
       expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("create pull request"));

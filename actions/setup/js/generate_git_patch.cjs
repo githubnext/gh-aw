@@ -204,8 +204,23 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
             }
           }
 
+          // If origin/<defaultBranch> is unavailable (e.g. credentials were cleaned),
+          // fall back to the local base branch ref when it exists.
+          let defaultBranchRef = null;
           if (hasLocalDefaultBranch) {
-            baseRef = execGitSync(["merge-base", "--", `origin/${defaultBranch}`, branchName], { cwd }).trim();
+            defaultBranchRef = `origin/${defaultBranch}`;
+          } else {
+            try {
+              execGitSync(["show-ref", "--verify", "--quiet", `refs/heads/${defaultBranch}`], { cwd });
+              defaultBranchRef = defaultBranch;
+              debugLog(`Strategy 1 (full): Using local branch ${defaultBranch} as fallback base ref`);
+            } catch {
+              // No local branch fallback either
+            }
+          }
+
+          if (defaultBranchRef) {
+            baseRef = execGitSync(["merge-base", "--", defaultBranchRef, branchName], { cwd }).trim();
             debugLog(`Strategy 1 (full): Computed merge-base: ${baseRef}`);
           } else {
             // No remote refs available - fall through to Strategy 2
@@ -427,16 +442,77 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     // The measurement itself (stream to temp file via `git diff --output`, stat,
     // cleanup) is extracted into git_patch_utils.computeIncrementalDiffSize so
     // it is O(1) memory and independently unit-testable against a real repo.
+    //
+    // When the agent has merged the default branch into the PR branch (to resolve
+    // conflicts or sync a stale branch), the naive diff base of `origin/<branch>`
+    // (the PR's old head) inflates diffSize to include all of the default branch's
+    // new commits — even though those commits are already on origin/<defaultBranch>
+    // and represent no new content in the PR. Fix: when the merge-base between
+    // origin/<defaultBranch> and the local branch is NOT an ancestor of the PR's
+    // current head (baseCommitSha), the agent merged default-branch commits ahead
+    // of the PR head. Use the merge-base as the effective diff base to exclude those
+    // merged upstream commits from the size measurement.
+    let diffBaseForSize = baseCommitSha;
+    if (mode === "incremental" && baseCommitSha && branchName && defaultBranch) {
+      try {
+        let baseBranchRemoteRef = null;
+        try {
+          execGitSync(["show-ref", "--verify", "--quiet", `refs/remotes/origin/${defaultBranch}`], { cwd });
+          baseBranchRemoteRef = `refs/remotes/origin/${defaultBranch}`;
+        } catch {
+          // origin/<defaultBranch> not available locally; skip the adjustment
+        }
+        if (baseBranchRemoteRef) {
+          // Only adjust the diff base when baseCommitSha is an ancestor of the local
+          // branch tip.  If it is NOT an ancestor the branch was rewritten (rebase /
+          // force-push); in that case the merge-base adjustment could undercount by
+          // ignoring commits that changed relative to the remote, so keep the original
+          // baseCommitSha as the diff base.
+          let baseIsAncestorOfBranch = false;
+          try {
+            execGitSync(["merge-base", "--is-ancestor", "--", baseCommitSha, branchName], { cwd });
+            baseIsAncestorOfBranch = true;
+          } catch {
+            // baseCommitSha is not an ancestor of branchName (rebase / force-push)
+            debugLog(`Strategy 1 (incremental): baseCommitSha ${baseCommitSha} is not an ancestor of ${branchName} (rebase/force-push?); skipping merge-base adjustment`);
+          }
+
+          if (baseIsAncestorOfBranch) {
+            const mb = execGitSync(["merge-base", "--", baseBranchRemoteRef, branchName], { cwd }).trim();
+            // Check if mb is already an ancestor of baseCommitSha.
+            // If it is, baseCommitSha is "later" and the agent did NOT merge the default
+            // branch ahead of the PR head — keep baseCommitSha as the diff base.
+            // If mb is NOT an ancestor of baseCommitSha, the agent merged default-branch
+            // commits that are beyond the PR head. Use mb to exclude those commits from
+            // the incremental diff size measurement.
+            let mbIsAncestorOfBase = false;
+            try {
+              execGitSync(["merge-base", "--is-ancestor", "--", mb, baseCommitSha], { cwd });
+              mbIsAncestorOfBase = true;
+            } catch {
+              // mb is not an ancestor of baseCommitSha
+            }
+            if (!mbIsAncestorOfBase) {
+              debugLog(`Strategy 1 (incremental): agent merged ${defaultBranch} ahead of PR head; using merge-base ${mb} as diff base instead of PR head ${baseCommitSha}`);
+              diffBaseForSize = mb;
+            }
+          }
+        }
+      } catch (adjustErr) {
+        debugLog(`Strategy 1 (incremental): diff-base adjustment failed (${getErrorMessage(adjustErr)}); using original base`);
+      }
+    }
+
     let diffSize = null;
-    if (mode === "incremental" && baseCommitSha && branchName) {
+    if (mode === "incremental" && diffBaseForSize && branchName) {
       diffSize = computeIncrementalDiffSize({
-        baseRef: baseCommitSha,
+        baseRef: diffBaseForSize,
         headRef: branchName,
         cwd,
         tmpPath: `${patchPath}.diff.tmp`,
         excludedFiles: options.excludedFiles,
       });
-      debugLog(`Final: diffSize=${diffSize ?? "(n/a)"} bytes (baseRef=${baseCommitSha}..${branchName})`);
+      debugLog(`Final: diffSize=${diffSize ?? "(n/a)"} bytes (baseRef=${diffBaseForSize}..${branchName})`);
     }
 
     debugLog(`Final: SUCCESS - patchSize=${patchSize} bytes, patchLines=${patchLines}, diffSize=${diffSize ?? "(n/a)"} bytes, baseCommit=${baseCommitSha || "(unknown)"}`);

@@ -70,6 +70,7 @@ Mounts at `/tmp/gh-aw/cache-memory/` (default) or `/tmp/gh-aw/cache-memory-{id}/
 ---
 imports:
   - shared/mcp/server-memory.md
+
 tools:
   cache-memory: true
 ---

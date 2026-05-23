@@ -1,53 +1,50 @@
 ---
-emoji: "🐧"
-name: Ubuntu Actions Image Analyzer
-description: Weekly analysis of the default Ubuntu Actions runner image and guidance for creating Docker mimics
 on:
   schedule: weekly
-  workflow_dispatch:
-
+  workflow_dispatch: null
 permissions:
-  contents: read
   actions: read
+  contents: read
   issues: read
   pull-requests: read
-
-tracker-id: ubuntu-image-analyzer
-engine: copilot
-imports:
-  - uses: shared/skip-if-issue-open.md
-    with:
-      title-prefix: "[ubuntu-image]"
-      kind: "pr"
-  - uses: shared/daily-pr-base.md
-    with:
-      title-prefix: "[ubuntu-image] "
-      expires: "2d"
-      labels: [documentation, automation, infrastructure]
-  - shared/otlp.md
-strict: true
-
 network:
   allowed:
-    - defaults
-    - github
-
+  - defaults
+  - github
+imports:
+- uses: shared/skip-if-issue-open.md
+  with:
+    kind: pr
+    title-prefix: "[ubuntu-image]"
+- uses: shared/daily-pr-base.md
+  with:
+    expires: 2d
+    labels:
+    - documentation
+    - automation
+    - infrastructure
+    title-prefix: "[ubuntu-image] "
+- shared/otlp.md
+description: Weekly analysis of the default Ubuntu Actions runner image and guidance for creating Docker mimics
+emoji: 🐧
+engine: copilot
+name: Ubuntu Actions Image Analyzer
+strict: true
+timeout-minutes: 30
 tools:
+  bash:
+  - find .github/workflows -name "*.lock.yml" -type f
+  - cat research/ubuntulatest.md
+  - git
   cli-proxy: true
+  edit: null
   github:
     mode: gh-proxy
-    toolsets: [default, actions]
-  edit:
-  bash:
-    - "find .github/workflows -name '*.lock.yml' -type f"
-    - "cat research/ubuntulatest.md"
-    - "git"
-
-timeout-minutes: 30
-
-
+    toolsets:
+    - default
+    - actions
+tracker-id: ubuntu-image-analyzer
 ---
-
 # Ubuntu Actions Image Analyzer
 
 You are an AI agent that analyzes the default Ubuntu Actions runner image and maintains documentation about its contents and how to create Docker images that mimic it.

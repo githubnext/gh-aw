@@ -52,11 +52,9 @@ package workflow
 import (
 	"fmt"
 	"maps"
-	"os"
 	"strconv"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -292,8 +290,9 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		if allowedRepos, ok := configMap["allowed-repos"]; ok {
 			config.AllowedRepos = allowedRepos // Store as-is, validation will happen later
 		} else if repos, ok := configMap["repos"]; ok {
-			// Deprecated: use 'allowed-repos' instead of 'repos'
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("'tools.github.repos' is deprecated. Use 'tools.github.allowed-repos' instead. Run 'gh aw fix' to automatically migrate."))
+			// Deprecated: use 'allowed-repos' instead of 'repos'.
+			// The deprecation warning is emitted by the generic schema-driven walker in
+			// warnDeprecatedFrontmatterFields; no extra hard-coded warning is needed here.
 			config.AllowedRepos = repos // Populate canonical field for validation
 		}
 		if integrity, ok := configMap["min-integrity"].(string); ok {

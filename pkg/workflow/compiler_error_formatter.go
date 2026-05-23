@@ -24,13 +24,29 @@ func (e *wrappedCompilerError) Unwrap() error { return e.cause }
 // formatCompilerError creates a formatted compiler error at line 1, column 1.
 // Use this when the exact source position is unknown; IDE tooling can still navigate to the file.
 // Use formatCompilerErrorWithPosition when a specific line/column is available.
+// When cause is a *WorkflowValidationError with Line > 0, the error's own position is used
+// instead of the default 1:1, giving precise IDE-navigable locations.
 //
 // filePath: the file path to include in the error (typically markdownPath or lockFile)
 // errType: the error type ("error" or "warning")
 // message: the error message text
 // cause: optional underlying error to wrap (use nil for validation errors)
 func formatCompilerError(filePath string, errType string, message string, cause error) error {
-	return formatCompilerErrorWithPosition(filePath, 1, 1, errType, message, cause)
+	line, column := 1, 1
+	// Promote precise source location from WorkflowValidationError when available so that
+	// the emitted "file:line:col: error:" prefix points directly at the problematic field
+	// rather than always defaulting to line 1, column 1.
+	var vErr *WorkflowValidationError
+	if errors.As(cause, &vErr) && vErr.Line > 0 {
+		line = vErr.Line
+		if vErr.Column > 0 {
+			column = vErr.Column
+		}
+		if vErr.File != "" {
+			filePath = vErr.File
+		}
+	}
+	return formatCompilerErrorWithPosition(filePath, line, column, errType, message, cause)
 }
 
 // isFormattedCompilerError reports whether err is already a console-formatted compiler error

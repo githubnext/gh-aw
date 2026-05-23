@@ -81,10 +81,10 @@ steps:
       
       # Run compile with all security scanner flags to download Docker images
       # Store the output in a file for inspection
-      "$GITHUB_WORKSPACE/gh-aw" compile --zizmor --poutine --actionlint --runner-guard 2>&1 | tee /tmp/gh-aw/compile-output.txt
+      "$GITHUB_WORKSPACE/gh-aw" compile --zizmor --poutine --actionlint --runner-guard 2>&1 | tee /tmp/gh-aw/agent/compile-output.txt
       
       echo "Compile with security tools completed"
-      echo "Output saved to /tmp/gh-aw/compile-output.txt"
+      echo "Output saved to /tmp/gh-aw/agent/compile-output.txt"
 
 ---
 
@@ -105,15 +105,15 @@ Daily scan all agentic workflow files with static analysis tools to identify sec
 ### Phase 0: Setup
 
 - All workflows have already been compiled with static analysis tools in previous steps
-- The compilation output is available at `/tmp/gh-aw/compile-output.txt`
+- The compilation output is available at `/tmp/gh-aw/agent/compile-output.txt`
 - You should read and analyze this file directly instead of running additional compilations
 
 ### Phase 1: Analyze Static Analysis Output
 
-The workflow has already compiled all workflows with static analysis tools (zizmor, poutine, actionlint) and saved the output to `/tmp/gh-aw/compile-output.txt`.
+The workflow has already compiled all workflows with static analysis tools (zizmor, poutine, actionlint) and saved the output to `/tmp/gh-aw/agent/compile-output.txt`.
 
 1. **Read Compilation Output**:
-   Read and parse the file `/tmp/gh-aw/compile-output.txt` which contains the JSON output from the compilation with all three static analysis tools.
+   Read and parse the file `/tmp/gh-aw/agent/compile-output.txt` which contains the JSON output from the compilation with all three static analysis tools.
    
    The output is JSON format with validation results for each workflow:
    - workflow: Name of the workflow file
@@ -396,10 +396,10 @@ Use the title `[static-analysis] Report - [DATE]` for the issue.
 
 ### Phase 6: Analyze Runner-Guard Findings
 
-Runner-guard has performed source-to-sink vulnerability scanning as part of the compile step. The results are included in the compilation output at `/tmp/gh-aw/compile-output.txt`.
+Runner-guard has performed source-to-sink vulnerability scanning as part of the compile step. The results are included in the compilation output at `/tmp/gh-aw/agent/compile-output.txt`.
 
 1. **Read Runner-Guard Output**:
-   Parse the runner-guard findings from `/tmp/gh-aw/compile-output.txt` — runner-guard findings are included alongside zizmor, poutine, and actionlint results (detection rules covering fork checkout exploits, expression injection, secret exfiltration, unpinned actions, AI config injection, and supply chain steganography).
+   Parse the runner-guard findings from `/tmp/gh-aw/agent/compile-output.txt` — runner-guard findings are included alongside zizmor, poutine, and actionlint results (detection rules covering fork checkout exploits, expression injection, secret exfiltration, unpinned actions, AI config injection, and supply chain steganography).
 
 2. **Analyze Findings**:
    - Parse the JSON to extract findings
@@ -527,6 +527,6 @@ A successful static analysis scan:
 - ✅ Reads and analyzes runner-guard source-to-sink findings
 - ✅ Creates up to 3 GitHub issues for Critical/High runner-guard findings (avoiding duplicates)
 
-Begin your static analysis scan now. Read and parse the compilation output from `/tmp/gh-aw/compile-output.txt`, analyze the findings from all four tools (zizmor, poutine, actionlint, runner-guard), cluster them, generate fix suggestions, create up to 3 issues for critical runner-guard findings, and create an issue with your complete analysis.
+Begin your static analysis scan now. Read and parse the compilation output from `/tmp/gh-aw/agent/compile-output.txt`, analyze the findings from all four tools (zizmor, poutine, actionlint, runner-guard), cluster them, generate fix suggestions, create up to 3 issues for critical runner-guard findings, and create an issue with your complete analysis.
 
 {{#runtime-import shared/noop-reminder.md}}

@@ -113,34 +113,34 @@ else
 fi
 
 echo "=== OTEL local mirror ==="
-if [ -f /tmp/gh-aw/otel.jsonl ]; then
-  wc -l /tmp/gh-aw/otel.jsonl
-  jq -c '.resourceSpans[]?.scopeSpans[]?.spans[]? | {name, traceId}' /tmp/gh-aw/otel.jsonl | head -10
+if [ -f /tmp/gh-aw/agent/otel.jsonl ]; then
+  wc -l /tmp/gh-aw/agent/otel.jsonl
+  jq -c '.resourceSpans[]?.scopeSpans[]?.spans[]? | {name, traceId}' /tmp/gh-aw/agent/otel.jsonl | head -10
   echo "=== Current run markers in local mirror ==="
-  jq -c '.resourceSpans[]? as $rs | ([($rs.resource.attributes[]? | select(.key == "github.run_id") | .value.stringValue)] | first // "") as $run_id | $rs.scopeSpans[]?.spans[]? | {name, run_id: $run_id}' /tmp/gh-aw/otel.jsonl | grep '"run_id":"${{ github.run_id }}"' | head -5 || true
+  jq -c '.resourceSpans[]? as $rs | ([($rs.resource.attributes[]? | select(.key == "github.run_id") | .value.stringValue)] | first // "") as $run_id | $rs.scopeSpans[]?.spans[]? | {name, run_id: $run_id}' /tmp/gh-aw/agent/otel.jsonl | grep '"run_id":"${{ github.run_id }}"' | head -5 || true
 else
   echo "otel.jsonl missing"
 fi
 
 echo "=== OTEL export errors ==="
-if [ -f /tmp/gh-aw/otlp-export-errors.count ]; then
-  cat /tmp/gh-aw/otlp-export-errors.count
+if [ -f /tmp/gh-aw/agent/otlp-export-errors.count ]; then
+  cat /tmp/gh-aw/agent/otlp-export-errors.count
 else
   echo 0
 fi
-if [ -f /tmp/gh-aw/otlp-export-errors.jsonl ]; then
+if [ -f /tmp/gh-aw/agent/otlp-export-errors.jsonl ]; then
   echo "=== OTEL export error details (host/status/reason) ==="
-  cat /tmp/gh-aw/otlp-export-errors.jsonl
+  cat /tmp/gh-aw/agent/otlp-export-errors.jsonl
 fi
 ```
 
 Decide:
 
-- `send_status = pass` only if OTEL env vars are present and `/tmp/gh-aw/otel.jsonl` exists with at least one span for `${{ github.run_id }}`.
+- `send_status = pass` only if OTEL env vars are present and `/tmp/gh-aw/agent/otel.jsonl` exists with at least one span for `${{ github.run_id }}`.
 - `send_status = inconclusive` if spans exist locally but none for `${{ github.run_id }}` can be confirmed.
 - Otherwise set `send_status = fail` and record the exact missing artifact or error.
 
-Do not downgrade `send_status` because `/tmp/gh-aw/otlp-export-errors.count` is non-zero. Record OTLP export errors as evidence for the remote backend rows and in `## Failure Analysis`, using `/tmp/gh-aw/otlp-export-errors.jsonl` details (`host`, `status`, `reason`) for attribution.
+Do not downgrade `send_status` because `/tmp/gh-aw/agent/otlp-export-errors.count` is non-zero. Record OTLP export errors as evidence for the remote backend rows and in `## Failure Analysis`, using `/tmp/gh-aw/agent/otlp-export-errors.jsonl` details (`host`, `status`, `reason`) for attribution.
 
 ### Step 2: Query Sentry
 
@@ -197,7 +197,7 @@ Use the Datadog MCP server configured in this workflow, plus the bash evidence a
 1. Confirm the MCP connection works.
 2. First try to find spans for the current run using Datadog span or trace tools with `service:gh-aw` and `${{ github.run_id }}`.
 3. If current-run spans are not visible, run a fallback query for recent `gh-aw` spans from the last 24 hours to distinguish ingestion delay from a broken Datadog query path.
-4. Inspect `/tmp/gh-aw/otlp-export-errors.jsonl` for entries attributable to Datadog.
+4. Inspect `/tmp/gh-aw/agent/otlp-export-errors.jsonl` for entries attributable to Datadog.
 
 Record all of the following:
 

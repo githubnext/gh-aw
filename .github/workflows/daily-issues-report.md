@@ -76,11 +76,11 @@ Generate a daily report analyzing up to 1000 issues from the repository (see `is
 
 ## Phase 1: Load and Prepare Data
 
-The issues data has been pre-fetched and is available at `/tmp/gh-aw/issues-data/issues.json`.
+The issues data has been pre-fetched and is available at `/tmp/gh-aw/agent/issues-data/issues.json`.
 
 1. **Load the issues data**:
    ```bash
-   jq 'length' /tmp/gh-aw/issues-data/issues.json
+   jq 'length' /tmp/gh-aw/agent/issues-data/issues.json
    ```
 
 2. **Prepare data for Python analysis**:

@@ -13,7 +13,7 @@ imports:
 
 ## Copilot PR Analysis Base
 
-Pre-fetched Copilot PR data is available at `/tmp/gh-aw/pr-data/copilot-prs.json` (last 30 days, up to 1000 PRs from `copilot/*` branches).
+Pre-fetched Copilot PR data is available at `/tmp/gh-aw/agent/pr-data/copilot-prs.json` (last 30 days, up to 1000 PRs from `copilot/*` branches).
 
 ### Historical Data with repo-memory
 
@@ -35,11 +35,11 @@ tools:
 
 ```bash
 # Count total PRs
-jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json
+jq 'length' /tmp/gh-aw/agent/pr-data/copilot-prs.json
 
 # PRs from last 7 days
-jq '[.[] | select(.createdAt >= "'"$(date -d '7 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-7d '+%Y-%m-%dT%H:%M:%SZ')"'")]' /tmp/gh-aw/pr-data/copilot-prs.json
+jq '[.[] | select(.createdAt >= "'"$(date -d '7 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-7d '+%Y-%m-%dT%H:%M:%SZ')"'")]' /tmp/gh-aw/agent/pr-data/copilot-prs.json
 
 # Merged vs closed stats
-jq 'group_by(.state) | map({state: .[0].state, count: length})' /tmp/gh-aw/pr-data/copilot-prs.json
+jq 'group_by(.state) | map({state: .[0].state, count: length})' /tmp/gh-aw/agent/pr-data/copilot-prs.json
 ```

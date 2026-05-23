@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -250,12 +251,37 @@ from where the previous request stopped due to timeout.`,
 
 // auditArgs holds the input parameters for the audit tool.
 type auditArgs struct {
-	RunIDOrURL   string   `json:"run_id_or_url,omitempty"   jsonschema:"Deprecated: use run_ids_or_urls instead. Single GitHub Actions workflow run ID or URL."`
+	RunID        any      `json:"run_id,omitempty"          jsonschema:"Alias for run_id_or_url. Accepts run ID or run/job URL (including step anchors). String or number."`
+	RunIDOrURL   any      `json:"run_id_or_url,omitempty"   jsonschema:"Deprecated: use run_ids_or_urls instead. Accepts run ID or run/job URL (including step anchors). String or number."`
 	RunIDsOrURLs []string `json:"run_ids_or_urls,omitempty" jsonschema:"One or more workflow run IDs or URLs. Single item: detailed audit report. Multiple items: diff mode with first as base (see tool description for accepted formats)."`
 	Artifacts    []string `json:"artifacts,omitempty"        jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
 	MaxTokens    int      `json:"max_tokens,omitempty"       jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
 	Experiment   string   `json:"experiment,omitempty"       jsonschema:"Filter to runs that include this experiment name. When set, runs whose experiment artifact does not contain an assignment for this experiment name are skipped."`
 	Variant      string   `json:"variant,omitempty"          jsonschema:"Filter to runs assigned this specific variant value. Requires experiment to be set."`
+}
+
+// normalizeAuditRunInput converts a single-run audit input (run_id or
+// run_id_or_url) from supported MCP argument types into the CLI positional
+// argument format. The bool return indicates whether a non-empty value was
+// provided.
+func normalizeAuditRunInput(input any, fieldName string) (string, bool, error) {
+	switch v := input.(type) {
+	case nil:
+		return "", false, nil
+	case string:
+		if strings.TrimSpace(v) == "" {
+			return "", false, nil
+		}
+		return v, true, nil
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), true, nil
+	case int:
+		return strconv.Itoa(v), true, nil
+	case int64:
+		return strconv.FormatInt(v, 10), true, nil
+	default:
+		return "", false, fmt.Errorf("%s must be a string or number", fieldName)
+	}
 }
 
 // registerAuditTool registers the audit tool with the MCP server.
@@ -329,13 +355,28 @@ Multi-run diff returns JSON describing changes between the base and each compari
 		}
 
 		// Resolve the list of run IDs/URLs to pass to the audit command.
-		// run_ids_or_urls takes precedence; fall back to the deprecated run_id_or_url field.
+		// run_ids_or_urls takes precedence; fall back to run_id, then deprecated run_id_or_url.
 		runItems := args.RunIDsOrURLs
-		if len(runItems) == 0 && args.RunIDOrURL != "" {
-			runItems = []string{args.RunIDOrURL}
+		if len(runItems) == 0 {
+			runID, hasRunID, err := normalizeAuditRunInput(args.RunID, "run_id")
+			if err != nil {
+				return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)
+			}
+			if hasRunID {
+				runItems = []string{runID}
+			}
 		}
 		if len(runItems) == 0 {
-			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "at least one run ID or URL must be provided via run_ids_or_urls or run_id_or_url", nil)
+			runIDOrURL, hasRunIDOrURL, err := normalizeAuditRunInput(args.RunIDOrURL, "run_id_or_url")
+			if err != nil {
+				return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)
+			}
+			if hasRunIDOrURL {
+				runItems = []string{runIDOrURL}
+			}
+		}
+		if len(runItems) == 0 {
+			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "at least one run ID or URL must be provided via run_ids_or_urls, run_id, or run_id_or_url", nil)
 		}
 
 		// Build command arguments.

@@ -281,6 +281,17 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		assert.Equal(t, 0, *configs[0].FetchDepth, "fetch-depth should be 0")
 	})
 
+	t.Run("negative fetch-depth returns error", func(t *testing.T) {
+		for _, depth := range []float64{-1, -999999} {
+			raw := map[string]any{
+				"fetch-depth": depth,
+			}
+			_, err := ParseCheckoutConfigs(raw)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "checkout.fetch-depth must be >= 0")
+		}
+	})
+
 	t.Run("backward compat: token key still works", func(t *testing.T) {
 		raw := map[string]any{
 			"token": "${{ secrets.MY_TOKEN }}",

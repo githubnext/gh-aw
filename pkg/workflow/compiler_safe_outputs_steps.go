@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -53,6 +54,12 @@ func buildExtractBaseBranchStep() []string {
 func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	consolidatedSafeOutputsStepsLog.Print("Building shared PR checkout steps")
 	var steps []string
+	fetchDepth := 1
+
+	if defaultCheckout := NewCheckoutManager(data.CheckoutConfigs).GetDefaultCheckoutOverride(); defaultCheckout != nil && defaultCheckout.fetchDepth != nil {
+		fetchDepth = *defaultCheckout.fetchDepth
+		consolidatedSafeOutputsStepsLog.Printf("Using custom checkout fetch-depth for safe_outputs: %d", fetchDepth)
+	}
 
 	// Determine which token to use for checkout
 	// Uses resolvePRCheckoutToken for consistent token resolution (GitHub App or PAT chain)
@@ -149,7 +156,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		steps = append(steps, "          ref: ${{ github.event.repository.default_branch }}\n")
 		steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
 		steps = append(steps, "          persist-credentials: false\n")
-		steps = append(steps, "          fetch-depth: 1\n")
+		steps = append(steps, fmt.Sprintf("          fetch-depth: %d\n", fetchDepth))
 	}
 
 	// Step 1b: Checkout repository with conditional execution
@@ -172,7 +179,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	steps = append(steps, fmt.Sprintf("          ref: %s\n", checkoutRef))
 	steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
 	steps = append(steps, "          persist-credentials: false\n")
-	steps = append(steps, "          fetch-depth: 1\n")
+	steps = append(steps, fmt.Sprintf("          fetch-depth: %d\n", fetchDepth))
 
 	// Step 2: Configure Git credentials with conditional execution
 	// Security: Pass GitHub token through environment variable to prevent template injection
@@ -214,6 +221,17 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 
 	var steps []string
 
+	// Add per-handler GitHub App token minting steps before the handler manager step.
+	// These run before the main handler step so the minted token expressions (e.g.
+	// ${{ steps.create-check-run-app-token.outputs.token }}) are resolved at runtime.
+	if data.SafeOutputs != nil && data.SafeOutputs.CreateCheckRun != nil && data.SafeOutputs.CreateCheckRun.GitHubApp != nil {
+		consolidatedSafeOutputsStepsLog.Print("Adding per-handler GitHub App token minting step for create-check-run")
+		permissions := NewPermissionsContentsReadChecksWrite()
+		for _, step := range c.buildGitHubAppTokenMintStep(data.SafeOutputs.CreateCheckRun.GitHubApp, permissions, "") {
+			steps = append(steps, replaceStepID(step, "safe-outputs-app-token", "create-check-run-app-token"))
+		}
+	}
+
 	// Step name and metadata
 	steps = append(steps, "      - name: Process Safe Outputs\n")
 	steps = append(steps, "        id: process_safe_outputs\n")
@@ -222,6 +240,7 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	// Environment variables
 	steps = append(steps, "        env:\n")
 	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, "          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}\n")
 
 	// Add allowed domains configuration for URL sanitization in safe output handlers.
 	// Without this, sanitizeContent() in safe_output_handler_manager.cjs only allows
@@ -407,5 +426,20 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/safe_output_handler_manager.cjs');\n")
 	steps = append(steps, "            await main();\n")
 
+	// Add per-handler GitHub App token invalidation steps after the handler manager step.
+	// These always run (even on failure) to revoke the short-lived installation access tokens.
+	if data.SafeOutputs != nil && data.SafeOutputs.CreateCheckRun != nil && data.SafeOutputs.CreateCheckRun.GitHubApp != nil {
+		consolidatedSafeOutputsStepsLog.Print("Adding per-handler GitHub App token invalidation step for create-check-run")
+		for _, step := range c.buildGitHubAppTokenInvalidationStep() {
+			steps = append(steps, replaceStepID(step, "safe-outputs-app-token", "create-check-run-app-token"))
+		}
+	}
+
 	return steps, nil
+}
+
+// replaceStepID replaces all occurrences of oldID with newID in a YAML step string.
+// Used to generate per-handler token steps from the generic safe-outputs-app-token template.
+func replaceStepID(step, oldID, newID string) string {
+	return strings.ReplaceAll(step, oldID, newID)
 }

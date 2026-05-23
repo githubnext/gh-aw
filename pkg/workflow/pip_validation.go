@@ -198,7 +198,7 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 			"uv.packages",
 			fmt.Sprintf("%d packages require validation", len(errors)),
 			"uv package validation requires network access or local cache",
-			fmt.Sprintf("Ensure network access or cache uv packages locally:\n\n%s\n\nCache packages:\n$ uv pip install <package-name> --no-cache\n\nOr connect to network for validation", strings.Join(errors, "\n")),
+			"Ensure uv package validation can access package metadata.\n\nExample workflow configuration:\n\nnetwork:\n  allowed:\n    - pypi.org\n    - files.pythonhosted.org\n\ncustom-steps: |\n  uv pip install ruff\n\nValidation details:\n"+strings.Join(errors, "\n"),
 		)
 	}
 

@@ -6,7 +6,7 @@ tools:
     - "gh issue list *"
     - "gh api *"
     - "jq *"
-    - "/tmp/gh-aw/jqschema.sh"
+    - "./.github/skills/jqschema/jqschema.sh"
     - "mkdir *"
     - "date *"
     - "cp *"
@@ -23,7 +23,7 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       # Create output directories
-      mkdir -p /tmp/gh-aw/issues-data
+      mkdir -p /tmp/gh-aw/agent/issues-data
       mkdir -p /tmp/gh-aw/cache-memory
       
       # Get today's date for cache identification
@@ -33,16 +33,16 @@ steps:
       # Check if cached data exists from today
       if [ -f "$CACHE_DIR/issues-${TODAY}.json" ] && [ -s "$CACHE_DIR/issues-${TODAY}.json" ]; then
         echo "✓ Found cached issues data from ${TODAY}"
-        cp "$CACHE_DIR/issues-${TODAY}.json" /tmp/gh-aw/issues-data/issues.json
+        cp "$CACHE_DIR/issues-${TODAY}.json" /tmp/gh-aw/agent/issues-data/issues.json
         
         # Regenerate schema if missing
         if [ ! -f "$CACHE_DIR/issues-${TODAY}-schema.json" ]; then
-          /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/issues-data/issues.json > "$CACHE_DIR/issues-${TODAY}-schema.json"
+          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/issues-data/issues.json > "$CACHE_DIR/issues-${TODAY}-schema.json"
         fi
-        cp "$CACHE_DIR/issues-${TODAY}-schema.json" /tmp/gh-aw/issues-data/issues-schema.json
+        cp "$CACHE_DIR/issues-${TODAY}-schema.json" /tmp/gh-aw/agent/issues-data/issues-schema.json
         
         echo "Using cached data from ${TODAY}"
-        echo "Total issues in cache: $(jq 'length' /tmp/gh-aw/issues-data/issues.json)"
+        echo "Total issues in cache: $(jq 'length' /tmp/gh-aw/agent/issues-data/issues.json)"
       else
         echo "⬇ Downloading fresh issues data..."
         
@@ -53,25 +53,25 @@ steps:
           --state all \
           --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees,comments \
           --limit 1000 \
-          > /tmp/gh-aw/issues-data/issues.json; then
+          > /tmp/gh-aw/agent/issues-data/issues.json; then
           echo "::warning::Failed to fetch issues data (issues may be disabled or temporarily unavailable). Using empty dataset. Downstream analysis will report zero issues — check repository Issues settings or retry the workflow if this is unexpected."
-          echo "[]" > /tmp/gh-aw/issues-data/issues.json
+          echo "[]" > /tmp/gh-aw/agent/issues-data/issues.json
         fi
 
         # Generate schema for reference
-        /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/issues-data/issues.json > /tmp/gh-aw/issues-data/issues-schema.json
+        ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/issues-data/issues.json > /tmp/gh-aw/agent/issues-data/issues-schema.json
 
         # Store in cache with today's date
-        cp /tmp/gh-aw/issues-data/issues.json "$CACHE_DIR/issues-${TODAY}.json"
-        cp /tmp/gh-aw/issues-data/issues-schema.json "$CACHE_DIR/issues-${TODAY}-schema.json"
+        cp /tmp/gh-aw/agent/issues-data/issues.json "$CACHE_DIR/issues-${TODAY}.json"
+        cp /tmp/gh-aw/agent/issues-data/issues-schema.json "$CACHE_DIR/issues-${TODAY}-schema.json"
 
         echo "✓ Issues data saved to cache: issues-${TODAY}.json"
-        echo "Total issues found: $(jq 'length' /tmp/gh-aw/issues-data/issues.json)"
+        echo "Total issues found: $(jq 'length' /tmp/gh-aw/agent/issues-data/issues.json)"
       fi
       
       # Always ensure data is available at expected locations for backward compatibility
-      echo "Issues data available at: /tmp/gh-aw/issues-data/issues.json"
-      echo "Schema available at: /tmp/gh-aw/issues-data/issues-schema.json"
+      echo "Issues data available at: /tmp/gh-aw/agent/issues-data/issues.json"
+      echo "Schema available at: /tmp/gh-aw/agent/issues-data/issues-schema.json"
 ---
 
 <!--
@@ -81,7 +81,7 @@ This shared component fetches up to 1000 issues from the repository, with intell
 
 ### What It Does
 
-1. Creates output directories at `/tmp/gh-aw/issues-data/` and `/tmp/gh-aw/cache-memory/`
+1. Creates output directories at `/tmp/gh-aw/agent/issues-data/` and `/tmp/gh-aw/cache-memory/`
 2. Checks for cached issues data from today's date in cache-memory
 3. If cache exists (from earlier workflow runs today):
    - Uses cached data instead of making API calls
@@ -104,8 +104,8 @@ This shared component fetches up to 1000 issues from the repository, with intell
 
 ### Output Files
 
-- **`/tmp/gh-aw/issues-data/issues.json`**: Full issues data including number, title, author, timestamps, state, URL, body, labels, milestone, assignees, comments, etc.
-- **`/tmp/gh-aw/issues-data/issues-schema.json`**: JSON schema showing the structure of the issues data
+- **`/tmp/gh-aw/agent/issues-data/issues.json`**: Full issues data including number, title, author, timestamps, state, URL, body, labels, milestone, assignees, comments, etc.
+- **`/tmp/gh-aw/agent/issues-data/issues-schema.json`**: JSON schema showing the structure of the issues data
 
 ### Requirements
 
@@ -116,7 +116,7 @@ This shared component fetches up to 1000 issues from the repository, with intell
 
 ## Issues Data
 
-Pre-fetched issues data is available at `/tmp/gh-aw/issues-data/issues.json` containing up to 1000 issues (open and closed).
+Pre-fetched issues data is available at `/tmp/gh-aw/agent/issues-data/issues.json` containing up to 1000 issues (open and closed).
 
 ### Schema
 
@@ -181,18 +181,18 @@ The issues data structure is:
 
 ```bash
 # Get total number of issues
-jq 'length' /tmp/gh-aw/issues-data/issues.json
+jq 'length' /tmp/gh-aw/agent/issues-data/issues.json
 
 # Get only open issues
-jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/issues-data/issues.json
+jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/agent/issues-data/issues.json
 
 # Get issues from the last 7 days (cross-platform: GNU date first, BSD fallback)
 DATE_7_DAYS_AGO=$(date -d '7 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-7d '+%Y-%m-%dT%H:%M:%SZ')
-jq --arg date "$DATE_7_DAYS_AGO" '[.[] | select(.createdAt >= $date)]' /tmp/gh-aw/issues-data/issues.json
+jq --arg date "$DATE_7_DAYS_AGO" '[.[] | select(.createdAt >= $date)]' /tmp/gh-aw/agent/issues-data/issues.json
 
 # Get issue numbers
-jq '[.[].number]' /tmp/gh-aw/issues-data/issues.json
+jq '[.[].number]' /tmp/gh-aw/agent/issues-data/issues.json
 
 # Get issues with specific label
-jq '[.[] | select(.labels | any(.name == "bug"))]' /tmp/gh-aw/issues-data/issues.json
+jq '[.[] | select(.labels | any(.name == "bug"))]' /tmp/gh-aw/agent/issues-data/issues.json
 ```

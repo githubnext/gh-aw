@@ -24,6 +24,7 @@ const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./te
  * @property {Function} executeUpdate - Function to execute the update API call
  * @property {Function} formatSuccessResult - Function to format success result
  * @property {Object} [additionalConfig] - Additional configuration options specific to the handler
+ * @property {Function} [itemFilter] - Optional async filter function called before update; returns null to proceed or a result object to skip
  */
 
 /**
@@ -113,7 +114,7 @@ function createStandardFormatResult(fieldMapping) {
  * @returns {HandlerFactoryFunction} Handler factory function
  */
 function createUpdateHandlerFactory(handlerConfig) {
-  const { itemType, itemTypeName, supportsPR, resolveItemNumber, buildUpdateData, executeUpdate, formatSuccessResult, additionalConfig = {} } = handlerConfig;
+  const { itemType, itemTypeName, supportsPR, resolveItemNumber, buildUpdateData, executeUpdate, formatSuccessResult, additionalConfig = {}, itemFilter = null } = handlerConfig;
 
   /**
    * Main handler factory
@@ -204,6 +205,14 @@ function createUpdateHandlerFactory(handlerConfig) {
 
       const itemNumber = itemNumberResult.number;
       core.info(`Resolved target ${itemTypeName} #${itemNumber} (target config: ${updateTarget})`);
+
+      // Apply required-labels/required-title-prefix filter if configured
+      if (itemFilter) {
+        const filterResult = await itemFilter(githubClient, repoResult.repoParts, itemNumber, config);
+        if (filterResult) {
+          return filterResult;
+        }
+      }
 
       // Build update data (handler-specific logic)
       const updateDataResult = buildUpdateData(item, config);

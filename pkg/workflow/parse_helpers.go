@@ -8,54 +8,41 @@
 //   - parseStringSliceAny() - Canonical coercion of []string/[]any to []string; skips non-string items.
 //     For GitHub Actions fields where a bare string is valid shorthand for a single-element list
 //     (e.g. `needs: job-name`, `state: failure`), handle the string case explicitly at the call site.
-//   - preprocessProtectedFilesField() - Normalises the "protected-files" field from its object or
-//     string form before downstream enum validation.
+//   - coerceStringOrArrayField() - Converts a single string scalar field into a one-element []string
+//     for fields that accept either a single value or an array in workflow YAML.
+//
+// Config normalization helpers such as preprocessProtectedFilesField now live in
+// config_preprocessing.go.
 
 package workflow
 
 import "github.com/github/gh-aw/pkg/logger"
 
-// preprocessProtectedFilesField preprocesses the "protected-files" field in configData,
-// handling both the legacy string-enum form and the new object form.
+// coerceStringOrArrayField converts configData[key] from a string to []string{value}
+// so YAML unmarshaling into []string fields succeeds for single-value shorthand.
 //
-// String form (unchanged): "blocked", "allowed", or "fallback-to-issue".
-// Object form: { policy: "blocked", exclude: ["AGENTS.md"] }
-//   - policy is optional; when missing or empty, this preprocessing step treats it as absent
-//     and leaves downstream default handling to apply (the "protected-files" key is deleted)
-//   - exclude is a list of filenames/path-prefixes to remove from the default protected set
-//
-// When the object form is encountered the field is normalised in-place:
-//   - "protected-files" is replaced with the extracted policy string, or deleted when policy is absent/empty
-//   - The extracted exclude slice is returned so callers can store it in the config struct
-//
-// When the string form is encountered the field is left unchanged and nil is returned.
-// The log parameter is optional; pass nil to suppress debug output.
-func preprocessProtectedFilesField(configData map[string]any, log *logger.Logger) []string {
+// When key is missing, nil, or already a non-string type, this function is a no-op.
+// The debugLog parameter is optional; pass nil to suppress debug output.
+func coerceStringOrArrayField(configData map[string]any, key string, debugLog *logger.Logger) {
 	if configData == nil {
-		return nil
+		return
 	}
-	raw, exists := configData["protected-files"]
-	if !exists || raw == nil {
-		return nil
-	}
-	pfMap, ok := raw.(map[string]any)
-	if !ok {
-		// String form — left for validateStringEnumField to handle
-		return nil
-	}
-	// Object form: extract policy and exclude
-	if policy, ok := pfMap["policy"].(string); ok && policy != "" {
-		configData["protected-files"] = policy
-		if log != nil {
-			log.Printf("protected-files object form: policy=%s", policy)
-		}
-	} else {
-		delete(configData, "protected-files")
-		if log != nil {
-			log.Print("protected-files object form: no policy, using default")
+
+	if value, exists := configData[key]; exists {
+		if stringValue, ok := value.(string); ok {
+			configData[key] = []string{stringValue}
+			if debugLog != nil {
+				debugLog.Printf("Converted single %s string to array before unmarshaling", key)
+			}
 		}
 	}
-	return parseStringSliceAny(pfMap["exclude"], log)
+}
+
+// coerceStringOrArrayFields applies coerceStringOrArrayField to multiple keys.
+func coerceStringOrArrayFields(configData map[string]any, keys []string, debugLog *logger.Logger) {
+	for _, key := range keys {
+		coerceStringOrArrayField(configData, key, debugLog)
+	}
 }
 
 // parseStringSliceAny coerces a raw any value into a []string.
@@ -72,8 +59,8 @@ func preprocessProtectedFilesField(configData map[string]any, log *logger.Logger
 // before calling this function:
 //
 //	if s, ok := raw.(string); ok { return []string{s} }
-//	return parseStringSliceAny(raw, log)
-func parseStringSliceAny(raw any, log *logger.Logger) []string {
+//	return parseStringSliceAny(raw, debugLog)
+func parseStringSliceAny(raw any, debugLog *logger.Logger) []string {
 	if raw == nil {
 		return nil
 	}
@@ -86,14 +73,14 @@ func parseStringSliceAny(raw any, log *logger.Logger) []string {
 		for _, item := range v {
 			if s, ok := item.(string); ok {
 				result = append(result, s)
-			} else if log != nil {
-				log.Printf("parseStringSliceAny: skipping non-string item: %T", item)
+			} else if debugLog != nil {
+				debugLog.Printf("parseStringSliceAny: skipping non-string item: %T", item)
 			}
 		}
 		return result
 	default:
-		if log != nil {
-			log.Printf("parseStringSliceAny: unexpected type %T, ignoring", raw)
+		if debugLog != nil {
+			debugLog.Printf("parseStringSliceAny: unexpected type %T, ignoring", raw)
 		}
 		return nil
 	}

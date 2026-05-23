@@ -127,6 +127,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.RequiredTitlePrefix != "" {
 				constraints = append(constraints, fmt.Sprintf("Only discussions with title prefix %q can be closed.", config.RequiredTitlePrefix))
 			}
+			if config.AllowBody != nil && !*config.AllowBody {
+				constraints = append(constraints, "Closing comments are disabled: do not include a body field.")
+			}
 		}
 
 	case "update_discussion":
@@ -162,6 +165,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 			if config.RequiredTitlePrefix != "" {
 				constraints = append(constraints, fmt.Sprintf("Only issues with title prefix %q can be closed.", config.RequiredTitlePrefix))
+			}
+			if config.AllowBody != nil && !*config.AllowBody {
+				constraints = append(constraints, "Closing comments are disabled: do not include a body field.")
 			}
 		}
 
@@ -256,6 +262,16 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 		if config := safeOutputs.CreateCodeScanningAlerts; config != nil {
 			if templatableIntValue(config.Max) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum %d alert(s) can be created.", templatableIntValue(config.Max)))
+			}
+		}
+
+	case "create_check_run":
+		if config := safeOutputs.CreateCheckRun; config != nil {
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d check run(s) can be created.", templatableIntValue(config.Max)))
+			}
+			if config.Name != "" {
+				constraints = append(constraints, fmt.Sprintf("Check run name: %q.", config.Name))
 			}
 		}
 

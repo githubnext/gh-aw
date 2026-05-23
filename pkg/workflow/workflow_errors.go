@@ -23,10 +23,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var errorHelpersLog = logger.New("workflow:error_helpers")
+
+// FieldLocation represents a source file location for a validation error.
+// File and Line are optional; zero values mean "location unknown".
+type FieldLocation = console.ErrorPosition
 
 // WorkflowValidationError represents an error that occurred during input validation
 type WorkflowValidationError struct {
@@ -34,15 +39,27 @@ type WorkflowValidationError struct {
 	Value      string
 	Reason     string
 	Suggestion string
+	Severity   ErrorSeverity
+	Category   string
 	Timestamp  time.Time
+	// Location context (optional — zero values mean location unknown)
+	File   string
+	Line   int
+	Column int
 }
 
 // Error implements the error interface
 func (e *WorkflowValidationError) Error() string {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "[%s] Validation failed for field '%s'",
-		e.Timestamp.Format(time.RFC3339), e.Field)
+	if e.Line > 0 {
+		// When a source location is known, omit the timestamp so the compiler's
+		// file:line:col: prefix is not cluttered with a redundant timestamp.
+		fmt.Fprintf(&b, "Validation failed for field '%s'", e.Field)
+	} else {
+		fmt.Fprintf(&b, "[%s] Validation failed for field '%s'",
+			e.Timestamp.Format(time.RFC3339), e.Field)
+	}
 
 	if e.Value != "" {
 		// Truncate long values
@@ -67,12 +84,39 @@ func NewValidationError(field, value, reason, suggestion string) *WorkflowValida
 	if errorHelpersLog.Enabled() {
 		errorHelpersLog.Printf("Creating validation error: field=%s, reason=%s", field, reason)
 	}
+	severity, category := classifyValidationSeverity(field, reason)
 	return &WorkflowValidationError{
 		Field:      field,
 		Value:      value,
 		Reason:     reason,
 		Suggestion: suggestion,
+		Severity:   severity,
+		Category:   category,
 		Timestamp:  time.Now(),
+	}
+}
+
+// NewValidationErrorWithLocation creates a new validation error with file and line context.
+// The location is used by the compiler's error formatter to emit an IDE-compatible
+// "file:line:col: error:" prefix, enabling users to jump directly to the problematic field.
+// Use this constructor when the source location of the invalid field is known.
+func NewValidationErrorWithLocation(field, value, reason, suggestion string, loc FieldLocation) *WorkflowValidationError {
+	if errorHelpersLog.Enabled() {
+		errorHelpersLog.Printf("Creating validation error with location: field=%s, file=%s, line=%d, reason=%s",
+			field, loc.File, loc.Line, reason)
+	}
+	severity, category := classifyValidationSeverity(field, reason)
+	return &WorkflowValidationError{
+		Field:      field,
+		Value:      value,
+		Reason:     reason,
+		Suggestion: suggestion,
+		Severity:   severity,
+		Category:   category,
+		Timestamp:  time.Now(),
+		File:       loc.File,
+		Line:       loc.Line,
+		Column:     loc.Column,
 	}
 }
 

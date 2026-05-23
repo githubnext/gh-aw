@@ -57,7 +57,17 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	steps := append(setupSteps, handlerSteps...)
 
 	// Phase 3: App-token insertion, finalization, job condition/deps, and job construction
-	return c.buildSafeOutputsJobFromParts(data, mainJobName, markdownPath, agentArtifactPrefix, steps, outputs, safeOutputStepNames, permissions, threatDetectionEnabled)
+	return c.buildSafeOutputsJobFromParts(buildSafeOutputsJobFromPartsOptions{
+		data:                   data,
+		mainJobName:            mainJobName,
+		markdownPath:           markdownPath,
+		agentArtifactPrefix:    agentArtifactPrefix,
+		steps:                  steps,
+		outputs:                outputs,
+		safeOutputStepNames:    safeOutputStepNames,
+		permissions:            permissions,
+		threatDetectionEnabled: threatDetectionEnabled,
+	})
 }
 
 // buildSafeOutputsSetupAndDownloadSteps builds the initial steps for the consolidated safe
@@ -86,6 +96,10 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 	// leak into runner debug logs for any subsequent step in the safe outputs job.
 	if isOTLPHeadersPresent(data) {
 		steps = append(steps, generateOTLPHeadersMaskStep())
+	}
+	// Mask custom OTLP attribute values so user-supplied values cannot leak into runner logs.
+	if isOTLPAttributesPresent(data) {
+		steps = append(steps, generateOTLPAttributesMaskStep())
 	}
 
 	// Add artifact download steps after setup.
@@ -202,6 +216,7 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 		data.SafeOutputs.CallWorkflow != nil ||
 		data.SafeOutputs.CreateCodeScanningAlerts != nil ||
 		data.SafeOutputs.AutofixCodeScanningAlert != nil ||
+		data.SafeOutputs.CreateCheckRun != nil ||
 		data.SafeOutputs.MissingTool != nil ||
 		data.SafeOutputs.MissingData != nil ||
 		data.SafeOutputs.AssignToAgent != nil || // assign_to_agent is now handled by the handler manager
@@ -379,15 +394,30 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 // buildSafeOutputsJobFromParts finalizes the step list (app-token insertion, token invalidation,
 // items-manifest upload, dev-mode restore, script-mode cleanup), builds the job condition and
 // dependency list, and assembles the Job struct for the safe_outputs job.
+type buildSafeOutputsJobFromPartsOptions struct {
+	data                   *WorkflowData
+	mainJobName            string
+	markdownPath           string
+	agentArtifactPrefix    string
+	steps                  []string
+	outputs                map[string]string
+	safeOutputStepNames    []string
+	permissions            *Permissions
+	threatDetectionEnabled bool
+}
+
 func (c *Compiler) buildSafeOutputsJobFromParts(
-	data *WorkflowData,
-	mainJobName, markdownPath, agentArtifactPrefix string,
-	steps []string,
-	outputs map[string]string,
-	safeOutputStepNames []string,
-	permissions *Permissions,
-	threatDetectionEnabled bool,
+	opts buildSafeOutputsJobFromPartsOptions,
 ) (*Job, []string, error) {
+	data := opts.data
+	mainJobName := opts.mainJobName
+	markdownPath := opts.markdownPath
+	agentArtifactPrefix := opts.agentArtifactPrefix
+	steps := opts.steps
+	outputs := opts.outputs
+	safeOutputStepNames := opts.safeOutputStepNames
+	permissions := opts.permissions
+	threatDetectionEnabled := opts.threatDetectionEnabled
 	// Add GitHub App token minting step at the beginning if app is configured
 	if data.SafeOutputs.GitHubApp != nil {
 		// Track whether the app token minting succeeded so the conclusion job can surface
@@ -608,6 +638,10 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 		if sourceURL != "" {
 			envVars["GH_AW_WORKFLOW_SOURCE_URL"] = fmt.Sprintf("%q", sourceURL)
 		}
+	} else if localURL := buildLocalWorkflowSourceURL(c.markdownPath); localURL != "" {
+		// For local workflows (no external source), point to the markdown file in the repo
+		// so that failure issue links resolve to the workflow source rather than "#".
+		envVars["GH_AW_WORKFLOW_SOURCE_URL"] = fmt.Sprintf("%q", localURL)
 	}
 
 	if data.TrackerID != "" {

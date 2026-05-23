@@ -1,5 +1,5 @@
 ---
-title: Feature Synchronization
+title: 'Example: Feature Synchronization'
 description: Synchronize features from a main repository to sub-repositories or downstream services with automated pull requests.
 sidebar:
   badge: { text: 'Multi-Repo', variant: 'note' }
@@ -12,6 +12,16 @@ Feature synchronization workflows propagate changes from a main repository to re
 Use feature sync when maintaining related projects in separate repositories (monorepo alternative), propagating library updates to dependent projects, updating platform-specific repos after core changes, or keeping downstream forks synchronized with upstream.
 
 ## How It Works
+
+```mermaid
+flowchart LR
+    subgraph upstream["Upstream repo"]
+        push([Push to main]) --> agent[Sync agent]
+    end
+    agent -->|create-pull-request| ds1[downstream-service]
+    agent -->|create-pull-request| ds2[api-service]
+    agent -->|create-pull-request| ds3[mobile-backend]
+```
 
 The workflow monitors specific paths in the main repository and creates pull requests in target repositories when changes occur, adapting the changes for each target's structure while maintaining full audit trails.
 
@@ -26,15 +36,18 @@ on:
     branches: [main]
     paths:
       - 'shared/**'
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [repos]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
@@ -61,15 +74,18 @@ on:
     branches: [main]
     paths:
       - 'core/**'
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [repos]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
@@ -93,15 +109,18 @@ Synchronize when new releases are published:
 on:
   release:
     types: [published]
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [repos]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
@@ -129,15 +148,18 @@ on:
     paths:
       - 'types/**/*.ts'
       - 'interfaces/**/*.ts'
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [repos]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
@@ -163,15 +185,18 @@ on:
     branches: [main]
     paths:
       - 'shared-config/**'
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [repos, pull_requests]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
@@ -197,16 +222,19 @@ on:
     types: [opened, synchronize]
     branches:
       - 'feature/**'
+
 permissions:
   contents: read
   pull-requests: read
   actions: read
+
 tools:
   github:
     toolsets: [repos, pull_requests]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:
@@ -228,15 +256,18 @@ Regularly check for sync drift and create catch-up PRs:
 ```aw wrap
 ---
 on: weekly on monday
+
 permissions:
   contents: read
   actions: read
+
 tools:
   github:
     toolsets: [repos, pull_requests]
   edit:
   bash:
     - "git:*"
+
 safe-outputs:
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-pull-request:

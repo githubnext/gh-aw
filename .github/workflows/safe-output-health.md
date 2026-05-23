@@ -302,6 +302,13 @@ For each significant issue cluster, provide a structured work item plan:
 
 ## Important Guidelines
 
+### Analysis Integrity
+
+- **Never submit placeholder content**: The discussion body must contain actual analysis from your investigation. Never submit the literal word "PLACEHOLDER" or any unfilled template text as the body.
+- **No empty or trivial reports**: If no workflow runs were found, state that explicitly (e.g., "No workflow runs were found in the last 24 hours."). If logs could not be retrieved, explain why. Either way, produce a real body with substantive content — not a single word or a stub.
+- **Replace all template tokens**: The discussion template uses tokens like `[DATE]`, `[NUMBER]`, `[NUM]`, `[PCT]%` as examples. You must replace every such token with actual data from your analysis before submitting.
+- **Minimum content requirement**: The discussion body must be at least 64 characters and contain your real findings. A body shorter than this will be rejected by the safe-output validation system.
+
 ### Focus on Safe Output Jobs Only
 
 - **IN SCOPE**: Errors in create_discussion, create_issue, add_comment, create_pull_request, and other safe output jobs

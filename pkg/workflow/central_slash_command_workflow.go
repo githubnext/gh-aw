@@ -73,6 +73,16 @@ func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList [
 	return nil
 }
 
+func centralRoutingCommandNames(wd *WorkflowData) []string {
+	if wd == nil {
+		return nil
+	}
+	if len(wd.Command) > 0 {
+		return wd.Command
+	}
+	return nil
+}
+
 func collectCentralCommandRoutes(workflowDataList []*WorkflowData) (map[string][]slashCommandRoute, map[string][]slashCommandRoute, map[string]map[string]bool) {
 	slashRoutesByCommand, mergedEvents := collectCentralSlashCommandRoutes(workflowDataList)
 	labelRoutesByCommand := collectCentralLabelCommandRoutes(workflowDataList, mergedEvents)
@@ -100,7 +110,8 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 	mergedEvents := make(map[string]map[string]bool)
 
 	for _, wd := range workflowDataList {
-		if wd == nil || !wd.CommandCentralized || len(wd.Command) == 0 {
+		commandNames := centralRoutingCommandNames(wd)
+		if wd == nil || !wd.CommandCentralized || len(commandNames) == 0 {
 			continue
 		}
 
@@ -125,7 +136,7 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 			}
 		}
 
-		for _, commandName := range wd.Command {
+		for _, commandName := range commandNames {
 			routesByCommand[commandName] = append(routesByCommand[commandName], buildCentralizedRoutes(wd, routeEvents)...)
 		}
 	}
@@ -370,7 +381,7 @@ func writeCentralSlashRoutePermissions(b *strings.Builder, mergedEvents map[stri
 	if mergedEvents["issues"] != nil || mergedEvents["issue_comment"] != nil || mergedEvents["pull_request"] != nil {
 		b.WriteString("      issues: write\n")
 	}
-	if mergedEvents["pull_request"] != nil || mergedEvents["pull_request_comment"] != nil || mergedEvents["pull_request_review_comment"] != nil {
+	if mergedEvents["pull_request"] != nil || mergedEvents["pull_request_comment"] != nil || mergedEvents["pull_request_review_comment"] != nil || mergedEvents["pull_request_review"] != nil {
 		b.WriteString("      pull-requests: write\n")
 	}
 	if mergedEvents["discussion"] != nil || mergedEvents["discussion_comment"] != nil {
@@ -451,6 +462,7 @@ func writeCentralSlashEventsYAML(b *strings.Builder, mergedEvents map[string]map
 		"issues",
 		"issue_comment",
 		"pull_request",
+		"pull_request_review",
 		"pull_request_review_comment",
 		"discussion",
 		"discussion_comment",

@@ -60,15 +60,18 @@ func TestValidateSandboxConfig(t *testing.T) {
 
 func TestApplySandboxDefaults(t *testing.T) {
 	tests := []struct {
-		name     string
-		config   *SandboxConfig
-		engine   *EngineConfig
-		expected *SandboxConfig
+		name                   string
+		config                 *SandboxConfig
+		engine                 *EngineConfig
+		expected               *SandboxConfig
+		expectDefaultWritePath bool
+		expectedAllowWrite     []string
 	}{
 		{
-			name:   "nil config creates default with AWF",
-			config: nil,
-			engine: &EngineConfig{ID: "copilot"},
+			name:                   "nil config creates default with AWF",
+			config:                 nil,
+			engine:                 &EngineConfig{ID: "copilot"},
+			expectDefaultWritePath: true,
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,
@@ -82,7 +85,8 @@ func TestApplySandboxDefaults(t *testing.T) {
 					Type: SandboxTypeAWF,
 				},
 			},
-			engine: &EngineConfig{ID: "copilot"},
+			engine:                 &EngineConfig{ID: "copilot"},
+			expectDefaultWritePath: true,
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,
@@ -98,7 +102,8 @@ func TestApplySandboxDefaults(t *testing.T) {
 					Version: "v0.25.29",
 				},
 			},
-			engine: &EngineConfig{ID: "gemini"},
+			engine:                 &EngineConfig{ID: "gemini"},
+			expectDefaultWritePath: true,
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type:    SandboxTypeAWF,
@@ -112,7 +117,8 @@ func TestApplySandboxDefaults(t *testing.T) {
 			config: &SandboxConfig{
 				Agent: &AgentSandboxConfig{},
 			},
-			engine: &EngineConfig{ID: "copilot"},
+			engine:                 &EngineConfig{ID: "copilot"},
+			expectDefaultWritePath: true,
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,
@@ -127,10 +133,32 @@ func TestApplySandboxDefaults(t *testing.T) {
 					Disabled: true,
 				},
 			},
-			engine: nil,
+			engine:                 nil,
+			expectDefaultWritePath: false,
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Disabled: true,
+				},
+			},
+		},
+		{
+			name: "existing allowWrite entries are preserved",
+			config: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
+					Config: &SandboxRuntimeConfig{
+						Filesystem: &SRTFilesystemConfig{
+							AllowWrite: []string{"/tmp/custom"},
+						},
+					},
+				},
+			},
+			engine:                 &EngineConfig{ID: "claude"},
+			expectDefaultWritePath: true,
+			expectedAllowWrite:     []string{"/tmp/custom", defaultAgentWorkspaceWritePath},
+			expected: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
 				},
 			},
 		},
@@ -146,8 +174,24 @@ func TestApplySandboxDefaults(t *testing.T) {
 				assert.Equal(t, tt.expected.Agent.Version, result.Agent.Version, "agent version")
 			}
 			assert.Equal(t, tt.expected.Agent.Disabled, result.Agent.Disabled, "agent disabled flag")
+			if tt.expectDefaultWritePath {
+				require.NotNil(t, result.Agent.Config)
+				require.NotNil(t, result.Agent.Config.Filesystem)
+				assert.Contains(t, result.Agent.Config.Filesystem.AllowWrite, defaultAgentWorkspaceWritePath)
+			} else if result.Agent.Config != nil && result.Agent.Config.Filesystem != nil {
+				assert.NotContains(t, result.Agent.Config.Filesystem.AllowWrite, defaultAgentWorkspaceWritePath)
+			}
+			for _, expectedPath := range tt.expectedAllowWrite {
+				require.NotNil(t, result.Agent.Config)
+				require.NotNil(t, result.Agent.Config.Filesystem)
+				assert.Contains(t, result.Agent.Config.Filesystem.AllowWrite, expectedPath)
+			}
 		})
 	}
+}
+
+func TestDefaultAgentWorkspaceWritePath(t *testing.T) {
+	assert.Equal(t, "/tmp/gh-aw/agent", defaultAgentWorkspaceWritePath)
 }
 
 func TestWorkflowHashWithSandbox(t *testing.T) {

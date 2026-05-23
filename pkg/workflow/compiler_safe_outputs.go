@@ -16,6 +16,75 @@ import (
 
 var compilerSafeOutputsLog = logger.New("workflow:compiler_safe_outputs")
 
+func mergeCommandOtherEvents(existing map[string]any, incoming map[string]any) map[string]any {
+	if len(existing) == 0 {
+		return incoming
+	}
+	if len(incoming) == 0 {
+		return existing
+	}
+	merged := maps.Clone(existing)
+	for eventName, incomingValue := range incoming {
+		if existingValue, hasExisting := merged[eventName]; hasExisting {
+			merged[eventName] = mergeEventConfig(existingValue, incomingValue)
+			continue
+		}
+		merged[eventName] = incomingValue
+	}
+	return merged
+}
+
+func mergeEventConfig(existing any, incoming any) any {
+	existingMap, existingOK := existing.(map[string]any)
+	incomingMap, incomingOK := incoming.(map[string]any)
+	if !existingOK || !incomingOK {
+		return incoming
+	}
+	merged := maps.Clone(existingMap)
+	maps.Copy(merged, incomingMap)
+
+	existingTypes, existingTypesOK := parseEventTypes(existingMap["types"])
+	incomingTypes, incomingTypesOK := parseEventTypes(incomingMap["types"])
+	if existingTypesOK && incomingTypesOK {
+		seen := make(map[string]bool, safeAllocationCapacity(len(existingTypes), len(incomingTypes)))
+		combined := make([]string, 0, safeAllocationCapacity(len(existingTypes), len(incomingTypes)))
+		for _, eventType := range existingTypes {
+			if !seen[eventType] {
+				seen[eventType] = true
+				combined = append(combined, eventType)
+			}
+		}
+		for _, eventType := range incomingTypes {
+			if !seen[eventType] {
+				seen[eventType] = true
+				combined = append(combined, eventType)
+			}
+		}
+		merged["types"] = combined
+	}
+
+	return merged
+}
+
+func parseEventTypes(value any) ([]string, bool) {
+	switch typed := value.(type) {
+	case []string:
+		return typed, true
+	case []any:
+		out := make([]string, 0, len(typed))
+		for _, entry := range typed {
+			entryStr, ok := entry.(string)
+			if !ok {
+				return nil, false
+			}
+			out = append(out, entryStr)
+		}
+		return out, true
+	default:
+		return nil, false
+	}
+}
+
 // parseOnSection handles parsing of the "on" section from frontmatter, extracting command triggers,
 // reactions, and stop-after configurations while detecting conflicts with other event types.
 func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *WorkflowData, markdownPath string) error {
@@ -142,7 +211,6 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				}
 			}
 
-			// Check for slash_command (preferred) or command (deprecated)
 			if _, hasSlashCommandKey := onMap["slash_command"]; hasSlashCommandKey {
 				hasCommand = true
 				// Set default command to filename if not specified in the command section
@@ -238,7 +306,6 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		workflowData.LabelCommandEvents = nil
 		workflowData.LabelCommandDecentralized = false
 	}
-
 	// Auto-enable "eyes" reaction for slash_command/label_command (and deprecated command) triggers if no explicit reaction was specified
 	if (hasCommand || hasLabelCommand) && !hasReaction && workflowData.AIReaction == "" {
 		workflowData.AIReaction = "eyes"
@@ -254,7 +321,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	if hasCommand && len(otherEvents) > 0 {
 		// We'll store this and handle it in applyDefaults
 		workflowData.On = "" // This will trigger command handling in applyDefaults
-		workflowData.CommandOtherEvents = otherEvents
+		workflowData.CommandOtherEvents = mergeCommandOtherEvents(workflowData.CommandOtherEvents, otherEvents)
 	} else if hasLabelCommand && len(otherEvents) > 0 {
 		// Store other events for label-command merging in applyDefaults
 		workflowData.On = "" // This will trigger label-command handling in applyDefaults

@@ -540,6 +540,24 @@ function normalizeTool(name) {
 }
 
 /**
+ * Detect local file reference notation in tool arguments (e.g. "@/tmp/file.md", "@./file.txt").
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function containsAtFilepathReference(value) {
+  if (typeof value === "string") {
+    return /(?:^|\s)@(?:\/|\.{1,2}\/)[^\s]+/.test(value);
+  }
+  if (Array.isArray(value)) {
+    return value.some(item => containsAtFilepathReference(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value).some(item => containsAtFilepathReference(item));
+  }
+  return false;
+}
+
+/**
  * Handle an incoming JSON-RPC request and return a response (for HTTP transport)
  * This function is compatible with the MCPServer class's handleRequest method.
  * @param {MCPServer} server - The MCP server instance
@@ -592,6 +610,12 @@ async function handleRequest(server, request, defaultHandler) {
           message: "Invalid params: 'name' must be a string",
         };
       }
+      if (containsAtFilepathReference(args)) {
+        throw {
+          code: -32602,
+          message: "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead.",
+        };
+      }
       const tool = server.tools[normalizeTool(name)];
       if (!tool) {
         // Find similar tools to suggest
@@ -623,6 +647,13 @@ async function handleRequest(server, request, defaultHandler) {
 
       const missing = validateRequiredFields(args, tool.inputSchema);
       if (missing.length) {
+        const hasRequiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) && tool.inputSchema.required.length > 0;
+        if (hasRequiredFields && Object.keys(args).length === 0) {
+          throw {
+            code: -32602,
+            message: `Empty arguments are not allowed — this tool is write-once, not a discovery probe. To inspect the schema, use the tools/list MCP method. To signal that no action is needed, call \`noop\` with a \`message\`.`,
+          };
+        }
         throw {
           code: -32602,
           message: generateEnhancedErrorMessage(missing, name, tool.inputSchema),
@@ -724,6 +755,10 @@ async function handleMessage(server, req, defaultHandler) {
         server.replyError(id, -32602, "Invalid params: 'name' must be a string");
         return;
       }
+      if (containsAtFilepathReference(args)) {
+        server.replyError(id, -32602, "Invalid params: local file references using @filepath notation are not supported by this MCP server. Do not attempt to inline files. Provide the needed content directly in arguments instead.");
+        return;
+      }
       const tool = server.tools[normalizeTool(name)];
       if (!tool) {
         // Find similar tools to suggest
@@ -751,6 +786,15 @@ async function handleMessage(server, req, defaultHandler) {
 
       const missing = validateRequiredFields(args, tool.inputSchema);
       if (missing.length) {
+        const hasRequiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) && tool.inputSchema.required.length > 0;
+        if (hasRequiredFields && Object.keys(args).length === 0) {
+          server.replyError(
+            id,
+            -32602,
+            `Empty arguments are not allowed — this tool is write-once, not a discovery probe. To inspect the schema, use the tools/list MCP method. To signal that no action is needed, call \`noop\` with a \`message\`.`
+          );
+          return;
+        }
         server.replyError(id, -32602, generateEnhancedErrorMessage(missing, name, tool.inputSchema));
         return;
       }

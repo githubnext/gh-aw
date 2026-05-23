@@ -178,18 +178,7 @@ Gather all returned JSON objects. If a subagent call fails, record the PR with v
 
 ### Posting comments
 
-For each PR where the subagent returned a non-empty `comment` field and the quality is NOT `lgtm`, call the `add_comment` safe output tool to post the comment to the PR.
-
-- Use `issue_number` (not `pr-number`) for the PR number field — GitHub treats PRs and issues interchangeably by number.
-- You do NOT need to specify the repo — the `add_comment` tool is pre-configured with `target-repo` pointing to the target repository.
-
-Example:
-
-```json
-{"type":"add_comment","issue_number":18744,"body":"Thanks for the PR! ..."}
-```
-
-Do NOT post comments to PRs with `lgtm` quality — those are ready for maintainer review and don't need additional feedback.
+Use the `comment-dispatcher` agent on the verdict array (the JSON objects returned by the contribution-checker subagent in Step 1) to get the list of comments to post. For each returned entry, emit one `add_comment` safe output using `issue_number` and `body` (do not specify the repo — `target-repo` is pre-configured).
 
 ## Completion Gate
 
@@ -199,74 +188,7 @@ Keep a running count of actions taken (each tool call or subagent dispatch count
 
 ## Step 2: Compile Report
 
-Create a single issue in THIS repository. Use the `skipped_count` from `pr-filter-results.json`. Build the report tables from the JSON objects returned by the subagent (use `number`, `title`, `author`, `lines`, and `quality` fields).
-
-Follow the **report layout rules** below — they apply to every report this workflow produces.
-
-### Report Layout Rules
-
-Apply these principles to make the report scannable, warm, and actionable:
-
-**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary>Section Name</summary>` tags to improve readability.
-
-1. **Lead with the takeaway.** Open with a single-sentence human-readable summary that tells the maintainer what happened and what needs attention. No jargon, no counts-only headers. Example: *"We looked at 10 new PRs — 6 look great, 3 need a closer look, and 1 doesn't fit the project guidelines."*
-
-2. **Group by action, not by data.** Organize results into clear groups that answer "what should I do?" rather than listing raw rows. Use these groups (omit any group with zero items):
-   - **Ready to review** 🟢 — PRs that passed all checks
-   - **Needs a closer look** 🟡⚠️ — PRs that need discussion or focus work
-   - **Off-guidelines** 🔴 — PRs that don't align with CONTRIBUTING.md
-
-3. **One table per group.** Keep tables short and focused. Columns:
-   - PR (linked), Title (truncated to ~50 chars), Author, Lines changed, Quality signal
-   - Do NOT include boolean checklist columns (on-topic, focused, deps, tests) — those are for the subagent, not the reader. The verdict emoji and quality signal are enough.
-
-4. **Use whitespace generously.** Separate groups with blank lines and horizontal rules (`---`). Let each section breathe.
-
-5. **End with context, not noise.** Close with a small stats line: `Evaluated: {n} · Skipped: {n} · Run: {run_link}`. Keep it quiet — one line, not a table.
-
-6. **Tone: warm and constructive.** These reports help maintainers prioritize, not gatekeep. Use encouraging language for aligned PRs ("looking good", "ready for eyes"). Be matter-of-fact for off-guidelines PRs — no shaming.
-
-### Example Report
-
-```markdown
-### Contribution Check — {date}
-
-We looked at 4 new PRs — 1 looks great, 2 need a closer look, and 1 doesn't fit the contribution guidelines.
-
----
-
-### Ready to review 🟢
-
-| PR | Title | Author | Lines | Quality |
-|----|-------|--------|------:|---------|
-| #4521 | Fix CLI flag parsing for unicode args | @alice | 125 | lgtm ✨ |
-
----
-
-### Needs a closer look 🟡
-
-| PR | Title | Author | Lines | Quality |
-|----|-------|--------|------:|---------|
-| #4515 | Refactor auth + add rate limiting | @bob | 310 | needs-work |
-| #4510 | Add Redis caching layer | @carol | 88 | needs-work |
-
----
-
-### Off-guidelines 🔴
-
-<details>
-<summary>Per-PR Details</summary>
-
-| PR | Title | Author | Lines | Quality |
-|----|-------|--------|------:|---------|
-| #4519 | Add unrelated marketing page | @dave | 42 | spam |
-
-</details>
-
----
-
-Evaluated: 4 · Skipped: 10
-```
+Use the `report-formatter` agent, passing the array of returned subagent JSON objects, the `skipped_count` from `pr-filter-results.json`, and the run URL (constructed as `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`), to produce the report body. Then emit a single `create_issue` safe output with that body as `body` and `temporary_id: "aw_summary"`.
 
 ## Step 3: Label the Report Issue
 
@@ -299,3 +221,48 @@ If any subagent call failed (❓), also apply `outdated`.
 - If you emitted any actionable safe outputs (`create_issue`, `add_comment`, `add_labels`), do **not** emit `noop`.
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `report-formatter`
+---
+description: Groups PR verdict JSONs into Ready/Needs-look/Off-guidelines tables and returns the markdown body for the contribution check report issue
+model: small
+---
+You receive a JSON array of PR verdict objects (each with fields: `number`, `title`, `author`, `lines`, `quality`, `comment`) plus a `skipped_count` integer and a `run_url` string.
+
+Produce the markdown body for a contribution check report issue. Follow these rules exactly:
+
+1. **Lead with the takeaway.** Open with a single-sentence human-readable summary: *"We looked at {evaluated} new PRs — {n} look great, {n} need a closer look, and {n} don't fit the project guidelines."*
+
+2. **Group by action.** Organize results into these groups (omit any with zero items):
+   - **Ready to review** 🟢 — PRs where `quality == "lgtm"`
+   - **Needs a closer look** 🟡 — PRs where `quality == "needs-work"`
+   - **Off-guidelines** 🔴 — PRs where `quality == "spam"` or `quality == "outdated"`
+   - **Triage needed** ❓ — PRs where `quality` starts with `"triage"` or is unknown
+
+3. **One table per group.** Columns: PR (linked as `#number`), Title (truncated to ~50 chars), Author (with `@`), Lines changed, Quality signal. Do NOT include boolean checklist columns.
+
+4. **Wrap Off-guidelines in `<details>`** if it has more than 2 items.
+
+5. **End with**: `Evaluated: {n} · Skipped: {skipped_count} · Run: {run_url}`
+
+6. Use h3 (###) or lower for all headers. Use `---` between groups. Tone: warm and constructive.
+
+Return ONLY the markdown body string — no JSON wrapper, no explanation.
+
+## agent: `comment-dispatcher`
+---
+description: Filters PR verdict array to entries needing maintainer comments and returns the comment payloads
+model: small
+---
+You receive a JSON array of PR verdict objects. Each object has at minimum these fields: `number` (integer PR number) and `comment` (string, may be empty) and `quality` (string).
+
+Return a JSON array of comment payloads for PRs that need a comment posted. Include an entry only when ALL of these conditions are true:
+- `comment` is non-empty (not null, not `""`)
+- `quality` is NOT `"lgtm"`
+
+Each entry in the output array must have exactly these fields:
+```json
+{"issue_number": <number>, "body": "<comment>"}
+```
+
+Return an empty array `[]` if no entries qualify. Return ONLY the JSON array — no explanation, no markdown.
