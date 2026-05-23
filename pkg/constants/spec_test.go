@@ -472,9 +472,9 @@ func TestSpec_CopilotBYOK(t *testing.T) {
 	assert.Equal(t, "dummy-byok-key-for-offline-mode", constants.CopilotBYOKDummyAPIKey,
 		"CopilotBYOKDummyAPIKey should match the documented value")
 
-	// From spec: CopilotBYOKDefaultModel // "default"
-	assert.Equal(t, "default", constants.CopilotBYOKDefaultModel,
-		"CopilotBYOKDefaultModel should match the documented platform-neutral sentinel")
+	// From spec: CopilotBYOKDefaultModel // "claude-sonnet-4.5"
+	assert.Equal(t, "claude-sonnet-4.5", constants.CopilotBYOKDefaultModel,
+		"CopilotBYOKDefaultModel should match the documented fallback model")
 }
 
 // TestSpec_RuntimeConfiguration_GhAwRootDir validates the documented runtime root directory

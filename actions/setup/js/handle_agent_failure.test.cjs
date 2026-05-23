@@ -1124,6 +1124,7 @@ describe("handle_agent_failure", () => {
       vi.resetModules();
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-"));
       stdioLogPath = path.join(tmpDir, "agent-stdio.log");
+      process.env.GH_AW_OTEL_JSONL_PATH = path.join(tmpDir, "otel.jsonl");
       promptsDir = path.join(tmpDir, "gh-aw", "prompts");
       fs.mkdirSync(promptsDir, { recursive: true });
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
@@ -1134,6 +1135,7 @@ describe("handle_agent_failure", () => {
     afterEach(() => {
       delete process.env.GH_AW_AGENT_OUTPUT;
       delete process.env.GH_AW_ENGINE_ID;
+      delete process.env.GH_AW_OTEL_JSONL_PATH;
       delete process.env.RUNNER_TEMP;
       // Clean up temp dir
       if (fs.existsSync(tmpDir)) {
@@ -1162,6 +1164,41 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("Engine Failure");
       expect(result).toContain("quota exceeded");
       expect(result).toContain("Error details:");
+    });
+
+    it("returns dedicated context for engine 429/rate-limit failures in stdio logs", () => {
+      fs.writeFileSync(stdioLogPath, "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 429 Sorry, you've exceeded your rate limit for utility models.\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Rate Limited (HTTP 429)");
+      expect(result).toContain("OTLP telemetry");
+      expect(result).not.toContain("Last agent output");
+    });
+
+    it("returns dedicated context when 429/rate-limit is only present in OTLP mirror", () => {
+      fs.writeFileSync(stdioLogPath, "Agent terminated unexpectedly without clear error details\n");
+      fs.writeFileSync(
+        process.env.GH_AW_OTEL_JSONL_PATH,
+        JSON.stringify({
+          resourceSpans: [
+            {
+              scopeSpans: [
+                {
+                  spans: [
+                    {
+                      name: "gh-aw.agent.conclusion",
+                      status: { code: 2, message: "agent failure: CAPIError: 429 Too Many Requests" },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }) + "\n"
+      );
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Rate Limited (HTTP 429)");
+      expect(result).toContain("OTLP telemetry");
+      expect(result).not.toContain("Last agent output");
     });
 
     it("detects Error: prefix pattern (Node.js style)", () => {

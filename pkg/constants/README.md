@@ -134,7 +134,7 @@ constants.EnvVarGitHubTrustedUsers   // "GH_AW_GITHUB_TRUSTED_USERS"   (tools.gi
 
 ```go
 constants.CopilotBYOKDummyAPIKey // "dummy-byok-key-for-offline-mode" — placeholder key used for AWF runtime BYOK detection
-constants.CopilotBYOKDefaultModel // "default" — platform-neutral sentinel used when GH_AW_MODEL_*_COPILOT is unset; lets the Copilot service pick the default model
+constants.CopilotBYOKDefaultModel // "claude-sonnet-4.5" — explicit fallback used when GH_AW_MODEL_*_COPILOT is unset
 ```
 
 ### Copilot Stem Commands
