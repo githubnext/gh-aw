@@ -19,6 +19,8 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = 24 * 7;
+const ENGINE_RATE_LIMIT_429_RE =
+  /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|rate_limit_(?:error|exceeded)|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
 
 /**
  * Parse action failure issue expiration from environment.
@@ -1079,6 +1081,54 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
     return "";
   }
 
+  /**
+   * Detect HTTP 429/rate-limit engine failures in text payloads.
+   * @param {string} content
+   * @returns {boolean}
+   */
+  function hasEngineRateLimit429Signal(content) {
+    if (!content) {
+      return false;
+    }
+    return ENGINE_RATE_LIMIT_429_RE.test(content);
+  }
+
+  /**
+   * Detect HTTP 429/rate-limit engine failures from OTLP JSONL mirror payloads.
+   * @param {string} [otelJsonlPathOverride]
+   * @returns {boolean}
+   */
+  function hasEngineRateLimit429InOTELMirror(otelJsonlPathOverride) {
+    const otelJsonlPath = otelJsonlPathOverride || process.env.GH_AW_OTEL_JSONL_PATH || "/tmp/gh-aw/otel.jsonl";
+    try {
+      if (!fs.existsSync(otelJsonlPath)) {
+        return false;
+      }
+      const content = fs.readFileSync(otelJsonlPath, "utf8");
+      return hasEngineRateLimit429Signal(content);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Build dedicated context for engine 429/rate-limit failures.
+   * @param {string} engineLabel
+   * @returns {string}
+   */
+  function buildEngineRateLimit429Context(engineLabel) {
+    const templatePath = getPromptPath("engine_rate_limit_429.md");
+    try {
+      return "\n" + renderTemplateFromFile(templatePath, { engine_label: engineLabel.trim() || "AI" });
+    } catch {
+      return (
+        `\n**🚦 Engine Rate Limited (HTTP 429)**: The ${engineLabel} engine hit provider rate limits and could not complete this run.\n\n` +
+        "This signal was detected from engine runtime logs/OTLP telemetry.\n\n" +
+        "Retry after a short delay. If this recurs, reduce concurrent runs or review provider quota/rate-limit policies.\n"
+      );
+    }
+  }
+
   const templatePath = getPromptPath("model_not_supported_error.md");
   try {
     const template = fs.readFileSync(templatePath, "utf8");
@@ -1488,6 +1538,13 @@ function buildEngineFailureContext() {
     if (/"terminal_reason"[ ]?:[ ]?"completed"/.test(logContent)) {
       core.info("Agent completed successfully (terminal_reason: completed) — suppressing engine failure context");
       return "";
+    }
+
+    // Special handling for provider-side 429/rate-limit failures. These can appear
+    // in agent stdio output or only in mirrored OTLP telemetry payloads.
+    if (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror()) {
+      core.info("Detected engine HTTP 429/rate-limit signal — using dedicated context message");
+      return buildEngineRateLimit429Context(engineLabel);
     }
 
     const errorMessages = new Set();
@@ -2581,6 +2638,9 @@ module.exports = {
   buildPermissionDeniedContext,
   buildCredentialAuthErrorContext,
   buildEffectiveTokensRateLimitErrorContext,
+  hasEngineRateLimit429Signal,
+  hasEngineRateLimit429InOTELMirror,
+  buildEngineRateLimit429Context,
   readTokenUsageMarkdown,
   parseFirewallAuthErrors,
   parseMaxEffectiveTokensFromAuditLog,
