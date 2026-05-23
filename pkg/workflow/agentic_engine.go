@@ -189,6 +189,12 @@ type LogParser interface {
 	// GetLogFileForParsing returns the log file path to use for JavaScript parsing in the workflow
 	// This may be different from the stdout/stderr log file if the engine produces separate detailed logs
 	GetLogFileForParsing() string
+
+	// GetErrorDetectionScriptId returns the name of the JavaScript script used to detect engine
+	// errors from the agent stdio log after execution. The script runs on the host runner (outside
+	// the AWF sandbox container) so it can write to GITHUB_OUTPUT. Returns empty string if the
+	// engine does not provide a post-execution error detection step.
+	GetErrorDetectionScriptId() string
 }
 
 // SecurityProvider handles security-related configuration
@@ -384,6 +390,13 @@ func (e *BaseEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics
 // GetLogParserScriptId returns empty string by default (no JavaScript parser)
 // Engines can override this to provide a JavaScript parser for log analysis
 func (e *BaseEngine) GetLogParserScriptId() string {
+	return ""
+}
+
+// GetErrorDetectionScriptId returns empty string by default (no post-execution error detection)
+// Engines can override this to provide a host-runner script that detects errors in the agent
+// stdio log and writes them as GITHUB_OUTPUT values after the AWF container exits.
+func (e *BaseEngine) GetErrorDetectionScriptId() string {
 	return ""
 }
 

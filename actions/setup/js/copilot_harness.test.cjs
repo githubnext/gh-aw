@@ -411,22 +411,6 @@ describe("copilot_harness.cjs", () => {
         expect(content).toContain("agentic_engine_timeout=true");
         expect(content).toContain("model_not_supported_error=false");
       });
-
-      it("does not throw when GITHUB_OUTPUT file does not exist (sandbox container)", () => {
-        // Simulate running inside AWF sandbox container where GITHUB_OUTPUT points
-        // to a host-runner path that is not mounted into the container.
-        process.env.GITHUB_OUTPUT = "/nonexistent/path/set_output_12345";
-
-        // Should not throw even though the file path does not exist
-        expect(() =>
-          writeCopilotOutputs({
-            inferenceAccessError: false,
-            mcpPolicyError: false,
-            agenticEngineTimeout: false,
-            modelNotSupportedError: false,
-          })
-        ).not.toThrow();
-      });
     });
 
     it("matches when embedded in larger log output", () => {
