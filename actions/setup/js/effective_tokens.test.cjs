@@ -340,6 +340,18 @@ describe("effective_tokens", () => {
     });
 
     describe("reduceModelNameToIdentifier", () => {
+      test("returns empty string for null input", () => {
+        expect(reduceModelNameToIdentifier(null)).toBe("");
+      });
+
+      test("returns empty string for undefined input", () => {
+        expect(reduceModelNameToIdentifier(undefined)).toBe("");
+      });
+
+      test("returns empty string for empty string input", () => {
+        expect(reduceModelNameToIdentifier("")).toBe("");
+      });
+
       test("uses well-known sonnet shortcut", () => {
         expect(reduceModelNameToIdentifier("claude-sonnet-4.6")).toBe("son46");
       });
@@ -352,9 +364,18 @@ describe("effective_tokens", () => {
         expect(reduceModelNameToIdentifier("claude-opus-4-7")).toBe("opu47");
       });
 
+      test("uses well-known haiku shortcut", () => {
+        expect(reduceModelNameToIdentifier("claude-haiku-4.5")).toBe("hai45");
+      });
+
+      test("uses well-known gemini shortcut", () => {
+        expect(reduceModelNameToIdentifier("gemini-2.5-pro")).toBe("gem25");
+      });
+
       test("handles date-like suffixes deterministically", () => {
         expect(reduceModelNameToIdentifier("gpt-5-2025-08-07")).toBe("gpt50");
         expect(reduceModelNameToIdentifier("claude-sonnet-4-20250514")).toBe("son40");
+        expect(reduceModelNameToIdentifier("gpt-4-100")).toBe("gpt40");
       });
 
       test("returns deterministic 5-character fallback for unknown models", () => {

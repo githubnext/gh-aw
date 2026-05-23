@@ -87,7 +87,7 @@ function getFooterMessage(ctx) {
   // This ensures callers that don't pass effectiveTokens (e.g. update_activation_comment.cjs)
   // still get the effective token count in the footer when GH_AW_EFFECTIVE_TOKENS is set.
   const resolvedModelName = ctx.model || process.env.GH_AW_ENGINE_MODEL || "";
-  const { effectiveTokens: envEffectiveTokens } = getEffectiveTokensFromEnv(resolvedModelName);
+  const { effectiveTokens: envEffectiveTokens, effectiveTokensFormatted: envEffectiveTokensFormatted, effectiveTokensSuffix: envEffectiveTokensSuffix } = getEffectiveTokensFromEnv(resolvedModelName);
   const effectiveTokens = ctx.effectiveTokens ?? envEffectiveTokens;
 
   // Pre-compute history_link as a ready-to-use markdown suffix (empty string when unavailable)
@@ -97,10 +97,11 @@ function getFooterMessage(ctx) {
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
   // Pre-compute effective_tokens_formatted and effective_tokens_suffix for use in custom templates
-  const effectiveTokensFormatted = effectiveTokens ? formatET(effectiveTokens) : undefined;
+  const hasContextEffectiveTokens = ctx.effectiveTokens !== undefined && ctx.effectiveTokens !== null;
+  const effectiveTokensFormatted = hasContextEffectiveTokens ? (effectiveTokens ? formatET(effectiveTokens) : undefined) : envEffectiveTokensFormatted;
   const modelPrefix = buildModelPrefix(resolvedModelName);
   // effective_tokens_suffix is always a string: either " · ● 1.2K" or "" (for safe use in templates)
-  const effectiveTokensSuffix = effectiveTokensFormatted ? ` · ● ${modelPrefix}${effectiveTokensFormatted}` : "";
+  const effectiveTokensSuffix = hasContextEffectiveTokens ? (effectiveTokensFormatted ? ` · ● ${modelPrefix}${effectiveTokensFormatted}` : "") : envEffectiveTokensSuffix;
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
   const templateContext = toSnakeCase({ ...ctx, effectiveTokens, historyLink, agenticWorkflowUrl, effectiveTokensFormatted, effectiveTokensSuffix });

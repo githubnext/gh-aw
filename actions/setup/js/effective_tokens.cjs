@@ -279,8 +279,8 @@ function extractModelVersionDigits(normalizedModelName, familyVersionPattern) {
  */
 function normalizeVersionDigits(major, minor) {
   const majorDigit = getFirstDigit(major);
-  // Date-like suffixes (e.g. 20250514) are build/release stamps, not semantic minor versions.
-  // Treat them as missing so identifiers stay stable (gpt-5-2025-08-07 -> gpt50).
+  // Treat any 3+ digit minor segment as a build/date-like stamp (e.g. 100, 20250514),
+  // not a semantic minor version, so identifiers stay stable (gpt-5-2025-08-07 -> gpt50).
   const minorIsDateLike = minor && /^\d{3,}$/.test(minor);
   const minorDigit = getFirstDigit(minor, Boolean(minorIsDateLike));
   return `${majorDigit}${minorDigit}`;
