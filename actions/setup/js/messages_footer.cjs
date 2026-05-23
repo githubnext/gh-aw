@@ -52,6 +52,17 @@ function getEffectiveTokensFromEnv(modelName) {
 }
 
 /**
+ * Resolves the model name to use for effective-token suffix rendering.
+ * Prefers GH_AW_EFFECTIVE_TOKENS_MODEL (the actual model name reported by the API in
+ * token-usage.jsonl) over GH_AW_ENGINE_MODEL (the user-supplied alias, e.g. "agent").
+ * Falls back to an empty string when neither variable is set.
+ * @returns {string}
+ */
+function resolveEffectiveTokensModelName() {
+  return process.env.GH_AW_EFFECTIVE_TOKENS_MODEL || process.env.GH_AW_ENGINE_MODEL || "";
+}
+
+/**
  * @param {string} modelName
  * @returns {string}
  */
@@ -86,7 +97,7 @@ function getFooterMessage(ctx) {
   // Use effectiveTokens from context if provided, otherwise fall back to env var.
   // This ensures callers that don't pass effectiveTokens (e.g. update_activation_comment.cjs)
   // still get the effective token count in the footer when GH_AW_EFFECTIVE_TOKENS is set.
-  const resolvedModelName = ctx.model || process.env.GH_AW_ENGINE_MODEL || "";
+  const resolvedModelName = ctx.model || resolveEffectiveTokensModelName();
   const { effectiveTokens: envEffectiveTokens, effectiveTokensFormatted: envEffectiveTokensFormatted, effectiveTokensSuffix: envEffectiveTokensSuffix } = getEffectiveTokensFromEnv(resolvedModelName);
   const effectiveTokens = ctx.effectiveTokens ?? envEffectiveTokens;
 
@@ -180,7 +191,7 @@ function getFooterWorkflowRecompileMessage(ctx) {
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
   // Read effective tokens from environment variable if available
-  const modelName = process.env.GH_AW_ENGINE_MODEL || "";
+  const modelName = resolveEffectiveTokensModelName();
   const { effectiveTokens, effectiveTokensFormatted, effectiveTokensSuffix } = getEffectiveTokensFromEnv(modelName);
 
   // Create context with both camelCase and snake_case keys
@@ -207,7 +218,7 @@ function getFooterWorkflowRecompileCommentMessage(ctx) {
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
   // Read effective tokens from environment variable if available
-  const modelName = process.env.GH_AW_ENGINE_MODEL || "";
+  const modelName = resolveEffectiveTokensModelName();
   const { effectiveTokens, effectiveTokensFormatted, effectiveTokensSuffix } = getEffectiveTokensFromEnv(modelName);
 
   // Create context with both camelCase and snake_case keys
@@ -247,7 +258,7 @@ function getFooterAgentFailureIssueMessage(ctx) {
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
   // Read effective tokens from environment variable if available
-  const modelName = process.env.GH_AW_ENGINE_MODEL || "";
+  const modelName = resolveEffectiveTokensModelName();
   const { effectiveTokens, effectiveTokensFormatted, effectiveTokensSuffix } = getEffectiveTokensFromEnv(modelName);
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
@@ -289,7 +300,7 @@ function getFooterAgentFailureCommentMessage(ctx) {
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
   // Read effective tokens from environment variable if available
-  const modelName = process.env.GH_AW_ENGINE_MODEL || "";
+  const modelName = resolveEffectiveTokensModelName();
   const { effectiveTokens, effectiveTokensFormatted, effectiveTokensSuffix } = getEffectiveTokensFromEnv(modelName);
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
@@ -413,7 +424,7 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
   // Read effective tokens from environment variable if available.
   // GH_AW_EFFECTIVE_TOKENS is set by parse_mcp_gateway_log.cjs after computing ET
   // from the token-usage.jsonl produced by the firewall proxy.
-  const modelName = process.env.GH_AW_ENGINE_MODEL || "";
+  const modelName = resolveEffectiveTokensModelName();
   const { effectiveTokens } = getEffectiveTokensFromEnv(modelName);
 
   // Read workflow emoji from environment variable if available.

@@ -180,6 +180,25 @@ function generateTokenUsageSummary(summary) {
 }
 
 /**
+ * Returns the model name with the highest effective tokens from a byModel summary map.
+ * When multiple models share the same maximum, the first encountered is returned.
+ * Returns an empty string when byModel is empty or contains no positive ET values.
+ * @param {Object.<string, {effectiveTokens: number}>} byModel
+ * @returns {string}
+ */
+function getPrimaryModel(byModel) {
+  let bestModel = "";
+  let bestET = 0;
+  for (const [model, usage] of Object.entries(byModel || {})) {
+    if (usage.effectiveTokens > bestET) {
+      bestET = usage.effectiveTokens;
+      bestModel = model;
+    }
+  }
+  return bestModel;
+}
+
+/**
  * Writes the step summary and exports GH_AW_EFFECTIVE_TOKENS when token usage data exists.
  * Token Usage rendering is handled by parse_token_usage.cjs to avoid duplicate sections.
  * This is the final call in each main() exit path — it consolidates the summary write
@@ -204,6 +223,16 @@ function writeStepSummaryWithTokenUsage(coreObj) {
         // inherited by downstream jobs — only job outputs are).
         coreObj.setOutput("effective_tokens", String(roundedET));
         coreObj.info(`Effective tokens: ${roundedET}`);
+
+        // Export the actual model name (from the token-usage data, not the user-supplied
+        // alias) so footer rendering can show the real model identifier rather than an alias
+        // like "agent". GH_AW_EFFECTIVE_TOKENS_MODEL is preferred over GH_AW_ENGINE_MODEL
+        // when building the compact model prefix in the effective-tokens footer suffix.
+        const primaryModel = getPrimaryModel(parsedSummary.byModel);
+        if (primaryModel) {
+          coreObj.setOutput("effective_tokens_model", primaryModel);
+          coreObj.info(`Primary model: ${primaryModel}`);
+        }
       }
     }
   }
@@ -1055,6 +1084,7 @@ if (typeof module !== "undefined" && module.exports) {
     generateTokenUsageSummary,
     formatDurationMs,
     hasEffectiveTokensRateLimitError,
+    getPrimaryModel,
   };
 }
 

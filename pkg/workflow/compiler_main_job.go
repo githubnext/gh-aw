@@ -204,6 +204,10 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// It is exposed here so that the safe_outputs job can set GH_AW_EFFECTIVE_TOKENS and render
 		// the {effective_tokens_suffix} template expression in footer templates.
 		"effective_tokens": fmt.Sprintf("${{ steps.%s.outputs.effective_tokens }}", constants.ParseMCPGatewayStepID),
+		// effective_tokens_model is the actual model name from token-usage.jsonl (not the user alias).
+		// It is exported by parse_mcp_gateway_log.cjs and used by footer renderers to show the real
+		// model identifier (e.g. "son46") instead of a user-supplied alias (e.g. "age00" from "agent").
+		"effective_tokens_model": fmt.Sprintf("${{ steps.%s.outputs.effective_tokens_model }}", constants.ParseMCPGatewayStepID),
 		// effective_tokens_rate_limit_error is true when MCP gateway logs indicate ET budget
 		// exhaustion or API rate limiting attributable to ET constraints.
 		"effective_tokens_rate_limit_error": fmt.Sprintf("${{ steps.%s.outputs.effective_tokens_rate_limit_error || 'false' }}", constants.ParseMCPGatewayStepID),

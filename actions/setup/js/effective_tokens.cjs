@@ -336,7 +336,7 @@ function getEffectiveTokensSuffix() {
   const parsed = parseInt(raw, 10);
 
   if (!isNaN(parsed) && parsed > 0) {
-    const reducedModel = reduceModelNameToIdentifier(process.env.GH_AW_ENGINE_MODEL);
+    const reducedModel = reduceModelNameToIdentifier(process.env.GH_AW_EFFECTIVE_TOKENS_MODEL || process.env.GH_AW_ENGINE_MODEL);
     const modelPrefix = reducedModel ? `${reducedModel} ` : "";
     return ` · ● ${modelPrefix}${formatET(parsed)}`;
   }

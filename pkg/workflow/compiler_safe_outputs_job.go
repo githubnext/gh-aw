@@ -669,6 +669,9 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	// The value is set by parse_mcp_gateway_log.cjs in the agent job and exposed as a job output.
 	// An empty/missing value is handled gracefully by getEffectiveTokensFromEnv() in messages_footer.cjs.
 	envVars["GH_AW_EFFECTIVE_TOKENS"] = fmt.Sprintf("${{ needs.%s.outputs.effective_tokens }}", constants.AgentJobName)
+	// Pass the actual model name from token-usage.jsonl (not the user-supplied alias) so footer
+	// renderers use the real model identifier. Falls back to GH_AW_ENGINE_MODEL when absent.
+	envVars["GH_AW_EFFECTIVE_TOKENS_MODEL"] = fmt.Sprintf("${{ needs.%s.outputs.effective_tokens_model }}", constants.AgentJobName)
 
 	// Add safe output job environment variables (staged/target repo)
 	if data.SafeOutputs != nil && (c.trialMode || data.SafeOutputs.Staged) {

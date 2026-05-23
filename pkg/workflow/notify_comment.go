@@ -254,6 +254,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Pass ET usage and ET rate-limit detection outputs from the agent job.
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_EFFECTIVE_TOKENS: ${{ needs.%s.outputs.effective_tokens || '' }}\n", mainJobName))
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR: ${{ needs.%s.outputs.effective_tokens_rate_limit_error || 'false' }}\n", mainJobName))
+	// Pass the actual model name from token-usage.jsonl (not the user-supplied alias) so footer
+	// renderers use the real model identifier in effective-token suffixes.
+	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_EFFECTIVE_TOKENS_MODEL: ${{ needs.%s.outputs.effective_tokens_model || '' }}\n", mainJobName))
 
 	// Pass Copilot-engine-specific error detection outputs to the conclusion job.
 	// These are set by the copilot_harness.cjs logic in the agentic_execution step and cover:

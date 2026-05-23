@@ -18,6 +18,7 @@ const {
   generateTokenUsageSummary,
   formatDurationMs,
   hasEffectiveTokensRateLimitError,
+  getPrimaryModel,
 } = require("./parse_mcp_gateway_log.cjs");
 
 describe("parse_mcp_gateway_log", () => {
@@ -403,6 +404,8 @@ Some content here.`;
         expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Gateway Summary"));
         expect(mockCore.summary.addDetails).not.toHaveBeenCalledWith("Token Usage", expect.any(String));
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_EFFECTIVE_TOKENS", expect.any(String));
+        // Verify that effective_tokens_model output is set to the actual model from token-usage.jsonl
+        expect(mockCore.setOutput).toHaveBeenCalledWith("effective_tokens_model", "claude-haiku-4-5-20251001");
         expect(mockCore.summary.write).toHaveBeenCalled();
       } finally {
         fs.existsSync = originalExistsSync;
@@ -1538,6 +1541,36 @@ not-json
     test("returns false for unrelated logs", () => {
       const hasError = hasEffectiveTokensRateLimitError(["gateway started", "request succeeded"]);
       expect(hasError).toBe(false);
+    });
+  });
+
+  describe("getPrimaryModel", () => {
+    test("returns the model with the highest effective tokens", () => {
+      const byModel = {
+        "claude-sonnet-4-6": { effectiveTokens: 1500 },
+        "gpt-5": { effectiveTokens: 500 },
+        "claude-opus-4-7": { effectiveTokens: 3000 },
+      };
+      expect(getPrimaryModel(byModel)).toBe("claude-opus-4-7");
+    });
+
+    test("returns the single model when only one is present", () => {
+      const byModel = { "claude-sonnet-4-6": { effectiveTokens: 1000 } };
+      expect(getPrimaryModel(byModel)).toBe("claude-sonnet-4-6");
+    });
+
+    test("returns empty string for empty byModel", () => {
+      expect(getPrimaryModel({})).toBe("");
+    });
+
+    test("returns empty string when byModel is null/undefined", () => {
+      expect(getPrimaryModel(null)).toBe("");
+      expect(getPrimaryModel(undefined)).toBe("");
+    });
+
+    test("returns empty string when all effective tokens are zero", () => {
+      const byModel = { "model-a": { effectiveTokens: 0 }, "model-b": { effectiveTokens: 0 } };
+      expect(getPrimaryModel(byModel)).toBe("");
     });
   });
 
