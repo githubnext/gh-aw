@@ -22,7 +22,7 @@ permissions:
   pull-requests: read
   actions: read
   issues: read
-engine: copilot
+engine: claude
 timeout-minutes: 20
 network:
   allowed:
