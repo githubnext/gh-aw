@@ -98,7 +98,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
     maxRetries: AWF_MODELS_URL_MAX_ATTEMPTS - 1,
     // withRetry multiplies delay before the next attempt, so divide by 2 here
     // to preserve the intended first backoff of AWF_MODELS_URL_RETRY_BASE_MS.
-    initialDelayMs: Math.max(1, Math.floor(AWF_MODELS_URL_RETRY_BASE_MS / 2)),
+    initialDelayMs: Math.ceil(AWF_MODELS_URL_RETRY_BASE_MS / 2),
     maxDelayMs: AWF_MODELS_URL_RETRY_MAX_MS,
     backoffMultiplier: 2,
     jitterMs: 0,
@@ -127,11 +127,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
           const res = await fetch(modelsUrl, { signal: ac.signal });
           if (!res.ok) {
             if (res.status === 503) {
-              const err = new Error(`models fetch returned 503 for ${modelsUrl}`);
-              // @ts-ignore attach status for withRetry shouldRetry inspection
-              err.status = 503;
-              // @ts-ignore attach attempt for retry logging
-              err.attempt = attemptCounter;
+              const err = Object.assign(new Error(`models fetch returned 503 for ${modelsUrl}`), { status: 503, attempt: attemptCounter });
               throw err;
             }
             logger(`awf-reflect: models fetch returned ${res.status} for ${modelsUrl}`);
