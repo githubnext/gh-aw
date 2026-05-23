@@ -208,14 +208,20 @@ func (c *Compiler) addResolvedSafeOutputGitHubTokenForConfig(steps *[]string, da
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 }
 
-// addSafeOutputGitHubTokenForConfig adds github-token to the with section, preferring per-config token over global
-// Uses precedence: config token > safe-outputs global github-token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+// addSafeOutputGitHubTokenForConfig adds github-token to the with section for standard safe-output operations.
+// Uses precedence:
+//   - when safe-outputs.github-app is configured, the app installation token is used
+//   - when safe-outputs.github-app ignores missing keys, the app token is primary and the resolved custom token is fallback
+//   - otherwise: config token > safe-outputs global github-token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
 func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
 	c.addResolvedSafeOutputGitHubTokenForConfig(steps, data, configToken, getEffectiveSafeOutputGitHubToken, true)
 }
 
 // addSafeOutputCopilotGitHubTokenForConfig adds github-token to the with section for Copilot-related operations
-// Uses precedence: config token > safe-outputs global github-token > COPILOT_GITHUB_TOKEN
+// Uses precedence:
+//   - when safe-outputs.github-app is configured, the app installation token is used
+//   - when safe-outputs.github-app ignores missing keys, the app token is primary and the resolved custom token is fallback
+//   - otherwise: config token > safe-outputs global github-token > COPILOT_GITHUB_TOKEN
 func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
 	c.addResolvedSafeOutputGitHubTokenForConfig(steps, data, configToken, getEffectiveCopilotRequestsToken, true)
 }
