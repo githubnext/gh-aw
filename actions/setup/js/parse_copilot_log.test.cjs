@@ -271,11 +271,13 @@ describe("parse_copilot_log.cjs", () => {
       const resultEntry = result.logEntries.find(e => e.type === "result");
 
       expect(resultEntry).toBeDefined();
-      expect(resultEntry.usage).toEqual(expect.objectContaining({
-        input_tokens: 163900,
-        output_tokens: 567,
-        cache_read_input_tokens: 149200,
-      }));
+      expect(resultEntry.usage).toEqual(
+        expect.objectContaining({
+          input_tokens: 163900,
+          output_tokens: 567,
+          cache_read_input_tokens: 149200,
+        })
+      );
       // Information section should render the parsed tokens
       expect(result.markdown).toContain("Token Usage");
       expect(result.markdown).toContain("163,900");
