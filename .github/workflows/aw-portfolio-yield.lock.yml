@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c4ace1ac375dd7f3297e6dfb63f9d6f14743feb20b424ca1f058a784846442dd","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"cc50e3a59cc944b6434bbbdc4a8178b152efc7dd6cefa991a333fe3b8f0c8aaa","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN","GRAFANA_SERVICE_ACCOUNT_TOKEN","GRAFANA_URL","SENTRY_ACCESS_TOKEN","SENTRY_OPENAI_API_KEY"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.52"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.52"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.52"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.52"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.18"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4"},{"image":"grafana/mcp-grafana","digest":"sha256:60a4e3a417a69eeb864a72052c53b4aa4466ff3577d6ef9bacc671f4b77d7090","pinned_image":"grafana/mcp-grafana@sha256:60a4e3a417a69eeb864a72052c53b4aa4466ff3577d6ef9bacc671f4b77d7090"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -209,20 +209,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_3953f0d4a55adeac_EOF'
+          cat << 'GH_AW_PROMPT_9bc664e5e100d52f_EOF'
           <system>
-          GH_AW_PROMPT_3953f0d4a55adeac_EOF
+          GH_AW_PROMPT_9bc664e5e100d52f_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_3953f0d4a55adeac_EOF'
+          cat << 'GH_AW_PROMPT_9bc664e5e100d52f_EOF'
           <safe-output-tools>
           Tools: create_issue, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_3953f0d4a55adeac_EOF
+          GH_AW_PROMPT_9bc664e5e100d52f_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_3953f0d4a55adeac_EOF'
+          cat << 'GH_AW_PROMPT_9bc664e5e100d52f_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -251,16 +251,16 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_3953f0d4a55adeac_EOF
+          GH_AW_PROMPT_9bc664e5e100d52f_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_3953f0d4a55adeac_EOF'
+          cat << 'GH_AW_PROMPT_9bc664e5e100d52f_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/mcp/grafana.md}}
           {{#runtime-import .github/workflows/shared/mcp/sentry.md}}
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/otel-queries.md}}
           {{#runtime-import .github/workflows/aw-portfolio-yield.md}}
-          GH_AW_PROMPT_3953f0d4a55adeac_EOF
+          GH_AW_PROMPT_9bc664e5e100d52f_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -473,14 +473,14 @@ jobs:
           GH_AW_SUB_AGENT_EXT: ".agent.md"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh"
       - env:
-          AW_YIELD_TELEMETRY_OUT: /tmp/aw-yield-telemetry-summary.json
+          AW_YIELD_TELEMETRY_OUT: /tmp/gh-aw/agent/aw-yield-telemetry-summary.json
         name: Collect workflow telemetry snapshot
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
         with:
           script: "const fs = require(\"fs\");\nconst owner = context.repo.owner;\nconst repo = context.repo.repo;\nconst now = Date.now();\nconst windowMs = 90 * 24 * 60 * 60 * 1000;\nconst workflowIdToSourcePath = new Map();\nconst workflows = await github.paginate(github.rest.actions.listRepoWorkflows, {\n  owner,\n  repo,\n  per_page: 100,\n});\nfor (const workflow of workflows) {\n  const workflowPath = workflow.path || \"\";\n  if (!workflowPath.startsWith(\".github/workflows/\") || !workflowPath.endsWith(\".lock.yml\")) {\n    continue;\n  }\n  workflowIdToSourcePath.set(workflow.id, workflowPath.replace(/\\.lock\\.yml$/, \".md\"));\n}\n\nconst aggregates = new Map();\nlet pageCount = 0;\nlet reachedWindowLimit = false;\nfor await (const page of github.paginate.iterator(github.rest.actions.listWorkflowRunsForRepo, {\n  owner,\n  repo,\n  status: \"completed\",\n  per_page: 100,\n})) {\n  pageCount += 1;\n  for (const run of page.data.workflow_runs || []) {\n    const sourcePath = workflowIdToSourcePath.get(run.workflow_id);\n    if (!sourcePath) {\n      continue;\n    }\n    const createdAt = run.created_at ? Date.parse(run.created_at) : Number.NaN;\n    if (!Number.isNaN(createdAt) && createdAt < now - windowMs) {\n      reachedWindowLimit = true;\n      break;\n    }\n    const startedAt = run.run_started_at ? Date.parse(run.run_started_at) : Number.NaN;\n    const updatedAt = run.updated_at ? Date.parse(run.updated_at) : Number.NaN;\n    const durationSeconds =\n      !Number.isNaN(startedAt) && !Number.isNaN(updatedAt) && updatedAt >= startedAt\n        ? (updatedAt - startedAt) / 1000\n        : 0;\n    const aggregate = aggregates.get(sourcePath) || {\n      runs: 0,\n      successfulRuns: 0,\n      runtimeSeconds: 0,\n      runtimeSamples: 0,\n    };\n    aggregate.runs += 1;\n    if (run.conclusion === \"success\") {\n      aggregate.successfulRuns += 1;\n    }\n    if (durationSeconds > 0) {\n      aggregate.runtimeSeconds += durationSeconds;\n      aggregate.runtimeSamples += 1;\n    }\n    aggregates.set(sourcePath, aggregate);\n  }\n  if (reachedWindowLimit || pageCount >= 10) {\n    break;\n  }\n}\n\nconst workflow_metrics = {};\nfor (const [path, aggregate] of aggregates.entries()) {\n  workflow_metrics[path] = {\n    workflow_path: path,\n    workflow_invocation_count: aggregate.runs,\n    success_rate: aggregate.runs ? Number((aggregate.successfulRuns / aggregate.runs).toFixed(4)) : 0,\n    runtime_duration: aggregate.runtimeSamples\n      ? Number((aggregate.runtimeSeconds / aggregate.runtimeSamples).toFixed(2))\n      : 0,\n    observed: aggregate.runs > 0,\n    validated: aggregate.runs > 0,\n    source: \"github-actions-runs\",\n  };\n}\n\nfs.writeFileSync(\n  process.env.AW_YIELD_TELEMETRY_OUT,\n  JSON.stringify(\n    {\n      generated_at: new Date().toISOString(),\n      source: \"github-actions-runs\",\n      window_days: 90,\n      workflow_metrics,\n    },\n    null,\n    2,\n  ) + \"\\n\",\n);\n"
       - env:
-          AWY_OTEL_SUMMARY_JSON: /tmp/aw-yield-telemetry-summary.json
-          AW_YIELD_OUT: /tmp/aw-yield-precompute.json
+          AWY_OTEL_SUMMARY_JSON: /tmp/gh-aw/agent/aw-yield-telemetry-summary.json
+          AW_YIELD_OUT: /tmp/gh-aw/agent/aw-yield-precompute.json
           AW_YIELD_WORKFLOWS: .github/workflows
           AW_YIELD_WORKSPACE: ${{ github.workspace }}
         name: Precompute workflow portfolio data
@@ -495,9 +495,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_08bbabf279c96b75_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_5de0ee427e183f4f_EOF'
           {"create_issue":{"close_older_issues":true,"expires":720,"labels":["automation","report","observability"],"max":1},"create_report_incomplete_issue":{},"mentions":{"enabled":false},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_08bbabf279c96b75_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_5de0ee427e183f4f_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -707,7 +707,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_2a722fd327d313ce_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_60b077332f2ad7fa_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "grafana": {
@@ -804,7 +804,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_2a722fd327d313ce_EOF
+          GH_AW_MCP_CONFIG_60b077332f2ad7fa_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1033,9 +1033,9 @@ jobs:
             echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
           fi
       - env:
-          AW_YIELD_AGENT_OUTPUT: /tmp/gh-aw
-          AW_YIELD_OUT: /tmp/aw-yield-final.json
-          AW_YIELD_PRECOMPUTE: /tmp/aw-yield-precompute.json
+          AW_YIELD_AGENT_OUTPUT: /tmp/gh-aw/agent
+          AW_YIELD_OUT: /tmp/gh-aw/agent/aw-yield-final.json
+          AW_YIELD_PRECOMPUTE: /tmp/gh-aw/agent/aw-yield-precompute.json
           AW_YIELD_WORKSPACE: ${{ github.workspace }}
         name: Finalize workflow portfolio report
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)

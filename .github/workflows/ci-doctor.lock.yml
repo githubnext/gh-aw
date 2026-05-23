@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"678970b21a381583cd2bfef61b946c63509399d270b57c4195a5f13a510b2cd3","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"57f0fc5cf68497a64210686f8565525b96caa3ebef687c970e00aed7c2286cd4","strict":true,"agent_id":"claude"}
 # gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.52"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.52"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.52"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.52"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.18"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -266,21 +266,21 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_0439fc22fccd4181_EOF'
+          cat << 'GH_AW_PROMPT_daaa797b5ff1c4ac_EOF'
           <system>
-          GH_AW_PROMPT_0439fc22fccd4181_EOF
+          GH_AW_PROMPT_daaa797b5ff1c4ac_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_0439fc22fccd4181_EOF'
+          cat << 'GH_AW_PROMPT_daaa797b5ff1c4ac_EOF'
           <safe-output-tools>
           Tools: add_comment, create_issue, update_issue, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_0439fc22fccd4181_EOF
+          GH_AW_PROMPT_daaa797b5ff1c4ac_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_0439fc22fccd4181_EOF'
+          cat << 'GH_AW_PROMPT_daaa797b5ff1c4ac_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -309,13 +309,13 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_0439fc22fccd4181_EOF
+          GH_AW_PROMPT_daaa797b5ff1c4ac_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_0439fc22fccd4181_EOF'
+          cat << 'GH_AW_PROMPT_daaa797b5ff1c4ac_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/ci-doctor.md}}
-          GH_AW_PROMPT_0439fc22fccd4181_EOF
+          GH_AW_PROMPT_daaa797b5ff1c4ac_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -502,7 +502,7 @@ jobs:
           RUN_ID: ${{ github.event.workflow_run.id }}
         if: github.event_name == 'workflow_run'
         name: Download CI failure logs and artifacts
-        run: "set -e\nLOG_DIR=\"/tmp/ci-doctor/logs\"\nARTIFACT_DIR=\"/tmp/ci-doctor/artifacts\"\nFILTERED_DIR=\"/tmp/ci-doctor/filtered\"\nmkdir -p \"$LOG_DIR\" \"$ARTIFACT_DIR\" \"$FILTERED_DIR\"\n\necho \"=== CI Doctor: Pre-downloading logs and artifacts for run $RUN_ID ===\"\n\n# Get failed jobs and their failed steps\ngh api \"repos/$REPO/actions/runs/$RUN_ID/jobs\" \\\n  --jq '[.jobs[] | select(.conclusion == \"failed\" or .conclusion == \"cancelled\") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion==\"failed\") | .name]}]' \\\n  > \"$LOG_DIR/failed-jobs.json\"\n\nFAILED_COUNT=$(jq 'length' \"$LOG_DIR/failed-jobs.json\")\necho \"Found $FAILED_COUNT failed job(s)\"\n\nif [ \"$FAILED_COUNT\" -eq 0 ]; then\n  echo \"No failed jobs found, skipping log download\"\n  exit 0\nfi\n\necho \"Failed jobs:\"\ncat \"$LOG_DIR/failed-jobs.json\"\n\n# Download logs for each failed job and apply generic error heuristics\njq -r '.[].id' \"$LOG_DIR/failed-jobs.json\" | while read -r JOB_ID; do\n  LOG_FILE=\"$LOG_DIR/job-${JOB_ID}.log\"\n  echo \"Downloading log for job $JOB_ID...\"\n  gh api \"repos/$REPO/actions/jobs/$JOB_ID/logs\" > \"$LOG_FILE\" 2>/dev/null \\\n    || echo \"(log download failed)\" > \"$LOG_FILE\"\n  echo \"  -> Saved $(wc -l < \"$LOG_FILE\") lines to $LOG_FILE\"\n\n  # Apply generic heuristics: find lines with common error indicators\n  HINTS_FILE=\"$FILTERED_DIR/job-${JOB_ID}-hints.txt\"\n  grep -n -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$LOG_FILE\" | head -30 > \"$HINTS_FILE\" 2>/dev/null || true\n\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Pre-located $(wc -l < \"$HINTS_FILE\") hint line(s) in $HINTS_FILE\"\n  else\n    echo \"  -> No error hints found in $LOG_FILE\"\n  fi\ndone\n\n# Download and unpack all artifacts from the failed run\necho \"\"\necho \"=== Downloading artifacts for run $RUN_ID ===\"\ngh run download \"$RUN_ID\" --repo \"$REPO\" --dir \"$ARTIFACT_DIR\" 2>/dev/null \\\n  || echo \"No artifacts available or download failed\"\n\n# Apply heuristics to artifact text files\nfind \"$ARTIFACT_DIR\" -type f \\( \\\n  -name \"*.txt\" -o -name \"*.log\" -o -name \"*.json\" \\\n  -o -name \"*.xml\" -o -name \"*.out\" -o -name \"*.err\" \\\n\\) | while read -r ARTIFACT_FILE; do\n  REL_PATH=\"${ARTIFACT_FILE#\"$ARTIFACT_DIR\"/}\"\n  SAFE_NAME=$(echo \"$REL_PATH\" | tr '/' '_')\n  HINTS_FILE=\"$FILTERED_DIR/artifact-${SAFE_NAME}-hints.txt\"\n  grep -n -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$ARTIFACT_FILE\" | head -30 > \"$HINTS_FILE\" 2>/dev/null || true\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Artifact hints: $HINTS_FILE ($(wc -l < \"$HINTS_FILE\") lines from $ARTIFACT_FILE)\"\n  fi\ndone\n\n# Write summary for the agent\nSUMMARY_FILE=\"/tmp/ci-doctor/summary.txt\"\n{\n  echo \"=== CI Doctor Pre-Analysis ===\"\n  echo \"Run ID: $RUN_ID\"\n  echo \"\"\n  echo \"Failed jobs (details in $LOG_DIR/failed-jobs.json):\"\n  jq -r '.[] | \"  Job \\(.id): \\(.name)\\n    Failed steps: \\(.failed_steps | join(\", \"))\"' \\\n    \"$LOG_DIR/failed-jobs.json\"\n  echo \"\"\n  echo \"Downloaded log files ($LOG_DIR):\"\n  for LOG_FILE in \"$LOG_DIR\"/job-*.log; do\n    [ -f \"$LOG_FILE\" ] || continue\n    echo \"  $LOG_FILE ($(wc -l < \"$LOG_FILE\") lines)\"\n  done\n  echo \"\"\n  echo \"Downloaded artifact files ($ARTIFACT_DIR):\"\n  find \"$ARTIFACT_DIR\" -type f | while read -r f; do\n    echo \"  $f\"\n  done\n  echo \"\"\n  echo \"Filtered hint files ($FILTERED_DIR):\"\n  for HINTS_FILE in \"$FILTERED_DIR\"/*-hints.txt; do\n    [ -s \"$HINTS_FILE\" ] || continue\n    echo \"  $HINTS_FILE ($(wc -l < \"$HINTS_FILE\") matches)\"\n    head -3 \"$HINTS_FILE\" | sed 's/^/    /'\n  done\n} | tee \"$SUMMARY_FILE\"\n\necho \"\"\necho \"✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE\"\n"
+        run: "set -e\nLOG_DIR=\"/tmp/gh-aw/agent/ci-doctor/logs\"\nARTIFACT_DIR=\"/tmp/gh-aw/agent/ci-doctor/artifacts\"\nFILTERED_DIR=\"/tmp/gh-aw/agent/ci-doctor/filtered\"\nmkdir -p \"$LOG_DIR\" \"$ARTIFACT_DIR\" \"$FILTERED_DIR\"\n\necho \"=== CI Doctor: Pre-downloading logs and artifacts for run $RUN_ID ===\"\n\n# Get failed jobs and their failed steps\ngh api \"repos/$REPO/actions/runs/$RUN_ID/jobs\" \\\n  --jq '[.jobs[] | select(.conclusion == \"failed\" or .conclusion == \"cancelled\") | {id:.id, name:.name, failed_steps:[.steps[]? | select(.conclusion==\"failed\") | .name]}]' \\\n  > \"$LOG_DIR/failed-jobs.json\"\n\nFAILED_COUNT=$(jq 'length' \"$LOG_DIR/failed-jobs.json\")\necho \"Found $FAILED_COUNT failed job(s)\"\n\nif [ \"$FAILED_COUNT\" -eq 0 ]; then\n  echo \"No failed jobs found, skipping log download\"\n  exit 0\nfi\n\necho \"Failed jobs:\"\ncat \"$LOG_DIR/failed-jobs.json\"\n\n# Download logs for each failed job and apply generic error heuristics\njq -r '.[].id' \"$LOG_DIR/failed-jobs.json\" | while read -r JOB_ID; do\n  LOG_FILE=\"$LOG_DIR/job-${JOB_ID}.log\"\n  echo \"Downloading log for job $JOB_ID...\"\n  gh api \"repos/$REPO/actions/jobs/$JOB_ID/logs\" > \"$LOG_FILE\" 2>/dev/null \\\n    || echo \"(log download failed)\" > \"$LOG_FILE\"\n  echo \"  -> Saved $(wc -l < \"$LOG_FILE\") lines to $LOG_FILE\"\n\n  # Apply generic heuristics: find lines with common error indicators\n  HINTS_FILE=\"$FILTERED_DIR/job-${JOB_ID}-hints.txt\"\n  grep -n -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$LOG_FILE\" | head -30 > \"$HINTS_FILE\" 2>/dev/null || true\n\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Pre-located $(wc -l < \"$HINTS_FILE\") hint line(s) in $HINTS_FILE\"\n  else\n    echo \"  -> No error hints found in $LOG_FILE\"\n  fi\ndone\n\n# Download and unpack all artifacts from the failed run\necho \"\"\necho \"=== Downloading artifacts for run $RUN_ID ===\"\ngh run download \"$RUN_ID\" --repo \"$REPO\" --dir \"$ARTIFACT_DIR\" 2>/dev/null \\\n  || echo \"No artifacts available or download failed\"\n\n# Apply heuristics to artifact text files\nfind \"$ARTIFACT_DIR\" -type f \\( \\\n  -name \"*.txt\" -o -name \"*.log\" -o -name \"*.json\" \\\n  -o -name \"*.xml\" -o -name \"*.out\" -o -name \"*.err\" \\\n\\) | while read -r ARTIFACT_FILE; do\n  REL_PATH=\"${ARTIFACT_FILE#\"$ARTIFACT_DIR\"/}\"\n  SAFE_NAME=$(echo \"$REL_PATH\" | tr '/' '_')\n  HINTS_FILE=\"$FILTERED_DIR/artifact-${SAFE_NAME}-hints.txt\"\n  grep -n -iE \"(error[: ]|ERROR|FAIL|panic:|fatal[: ]|undefined[: ]|exception|exit status [^0])\" \\\n    \"$ARTIFACT_FILE\" | head -30 > \"$HINTS_FILE\" 2>/dev/null || true\n  if [ -s \"$HINTS_FILE\" ]; then\n    echo \"  -> Artifact hints: $HINTS_FILE ($(wc -l < \"$HINTS_FILE\") lines from $ARTIFACT_FILE)\"\n  fi\ndone\n\n# Write summary for the agent\nSUMMARY_FILE=\"/tmp/gh-aw/agent/ci-doctor/summary.txt\"\n{\n  echo \"=== CI Doctor Pre-Analysis ===\"\n  echo \"Run ID: $RUN_ID\"\n  echo \"\"\n  echo \"Failed jobs (details in $LOG_DIR/failed-jobs.json):\"\n  jq -r '.[] | \"  Job \\(.id): \\(.name)\\n    Failed steps: \\(.failed_steps | join(\", \"))\"' \\\n    \"$LOG_DIR/failed-jobs.json\"\n  echo \"\"\n  echo \"Downloaded log files ($LOG_DIR):\"\n  for LOG_FILE in \"$LOG_DIR\"/job-*.log; do\n    [ -f \"$LOG_FILE\" ] || continue\n    echo \"  $LOG_FILE ($(wc -l < \"$LOG_FILE\") lines)\"\n  done\n  echo \"\"\n  echo \"Downloaded artifact files ($ARTIFACT_DIR):\"\n  find \"$ARTIFACT_DIR\" -type f | while read -r f; do\n    echo \"  $f\"\n  done\n  echo \"\"\n  echo \"Filtered hint files ($FILTERED_DIR):\"\n  for HINTS_FILE in \"$FILTERED_DIR\"/*-hints.txt; do\n    [ -s \"$HINTS_FILE\" ] || continue\n    echo \"  $HINTS_FILE ($(wc -l < \"$HINTS_FILE\") matches)\"\n    head -3 \"$HINTS_FILE\" | sed 's/^/    /'\n  done\n} | tee \"$SUMMARY_FILE\"\n\necho \"\"\necho \"✅ Pre-analysis complete. Agent should start with $SUMMARY_FILE\"\n"
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -510,7 +510,7 @@ jobs:
           REPO: ${{ github.repository }}
         if: github.event_name == 'pull_request'
         name: Fetch PR check run status
-        run: "set -e\nPR_DIR=\"/tmp/ci-doctor/pr\"\nmkdir -p \"$PR_DIR\"\n\necho \"=== CI Doctor: Fetching check runs for PR #$PR_NUMBER (SHA: $HEAD_SHA) ===\"\n\n# Fetch all check runs for the PR head commit (paginated to handle >30 jobs)\ngh api --paginate \"repos/$REPO/commits/$HEAD_SHA/check-runs\" \\\n  --jq '.check_runs[] | {id:.id, name:.name, status:.status, conclusion:.conclusion, html_url:.html_url}' \\\n  | jq -s '.' \\\n  > \"$PR_DIR/check-runs.json\"\n\nTOTAL=$(jq 'length' \"$PR_DIR/check-runs.json\")\nFAILED=$(jq '[.[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\" or .conclusion == \"timed_out\")] | length' \"$PR_DIR/check-runs.json\")\necho \"Found $TOTAL check run(s), $FAILED failing\"\n\n# Isolate the failing check runs\njq '[.[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\" or .conclusion == \"timed_out\")]' \\\n  \"$PR_DIR/check-runs.json\" > \"$PR_DIR/failed-checks.json\"\n\n# Write a human-readable summary\nSUMMARY_FILE=\"$PR_DIR/summary.txt\"\n{\n  echo \"=== CI Doctor PR Pre-Analysis ===\"\n  echo \"PR: #$PR_NUMBER\"\n  echo \"HEAD SHA: $HEAD_SHA\"\n  echo \"Total check runs: $TOTAL\"\n  echo \"Failing check runs: $FAILED\"\n  echo \"\"\n  echo \"All checks ($PR_DIR/check-runs.json):\"\n  jq -r '.[] | \"  \\(.conclusion // .status): \\(.name)\"' \"$PR_DIR/check-runs.json\"\n  echo \"\"\n  if [ \"$FAILED\" -gt 0 ]; then\n    echo \"Failing checks ($PR_DIR/failed-checks.json):\"\n    jq -r '.[] | \"  - \\(.name) [\\(.conclusion)]: \\(.html_url)\"' \"$PR_DIR/failed-checks.json\"\n  fi\n} | tee \"$SUMMARY_FILE\"\n\necho \"\"\necho \"✅ PR pre-analysis complete. Agent should start with $SUMMARY_FILE\"\n"
+        run: "set -e\nPR_DIR=\"/tmp/gh-aw/agent/ci-doctor/pr\"\nmkdir -p \"$PR_DIR\"\n\necho \"=== CI Doctor: Fetching check runs for PR #$PR_NUMBER (SHA: $HEAD_SHA) ===\"\n\n# Fetch all check runs for the PR head commit (paginated to handle >30 jobs)\ngh api --paginate \"repos/$REPO/commits/$HEAD_SHA/check-runs\" \\\n  --jq '.check_runs[] | {id:.id, name:.name, status:.status, conclusion:.conclusion, html_url:.html_url}' \\\n  | jq -s '.' \\\n  > \"$PR_DIR/check-runs.json\"\n\nTOTAL=$(jq 'length' \"$PR_DIR/check-runs.json\")\nFAILED=$(jq '[.[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\" or .conclusion == \"timed_out\")] | length' \"$PR_DIR/check-runs.json\")\necho \"Found $TOTAL check run(s), $FAILED failing\"\n\n# Isolate the failing check runs\njq '[.[] | select(.conclusion == \"failure\" or .conclusion == \"cancelled\" or .conclusion == \"timed_out\")]' \\\n  \"$PR_DIR/check-runs.json\" > \"$PR_DIR/failed-checks.json\"\n\n# Write a human-readable summary\nSUMMARY_FILE=\"$PR_DIR/summary.txt\"\n{\n  echo \"=== CI Doctor PR Pre-Analysis ===\"\n  echo \"PR: #$PR_NUMBER\"\n  echo \"HEAD SHA: $HEAD_SHA\"\n  echo \"Total check runs: $TOTAL\"\n  echo \"Failing check runs: $FAILED\"\n  echo \"\"\n  echo \"All checks ($PR_DIR/check-runs.json):\"\n  jq -r '.[] | \"  \\(.conclusion // .status): \\(.name)\"' \"$PR_DIR/check-runs.json\"\n  echo \"\"\n  if [ \"$FAILED\" -gt 0 ]; then\n    echo \"Failing checks ($PR_DIR/failed-checks.json):\"\n    jq -r '.[] | \"  - \\(.name) [\\(.conclusion)]: \\(.html_url)\"' \"$PR_DIR/failed-checks.json\"\n  fi\n} | tee \"$SUMMARY_FILE\"\n\necho \"\"\necho \"✅ PR pre-analysis complete. Agent should start with $SUMMARY_FILE\"\n"
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -598,9 +598,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_e272ba6d163ec9b2_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_69b94b2a50c8b854_EOF'
           {"add_comment":{"hide_older_comments":true,"max":1},"create_issue":{"close_older_issues":true,"expires":24,"labels":["cookie"],"max":1,"title_prefix":"[CI Failure Doctor] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"update_issue":{"allow_body":true,"max":1}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_e272ba6d163ec9b2_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_69b94b2a50c8b854_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -884,7 +884,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.18'
           
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_84b1c7f6d50d8012_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_9955f336369665c0_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "safeoutputs": {
@@ -914,7 +914,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_84b1c7f6d50d8012_EOF
+          GH_AW_MCP_CONFIG_9955f336369665c0_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

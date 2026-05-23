@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"d84fa4cbf5f5c69065248cf70e1f4d2cfad40a537994d9a463421b259f88c863","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"54457d66b74b0db06adb31535d6ec19b4698a575b88d637ac4ba281d989dbd63","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/setup-python","sha":"a309ff8b426b58ec0e2a45f0f869d46889d02405","version":"v6.2.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"bcafcacb16a39f128d818304e6c9c0c18556b85f","version":"v7.1.0"},{"repo":"docker/setup-buildx-action","sha":"4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd","version":"v4.0.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.52"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.52"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.52"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.18"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4"},{"image":"node:lts-alpine","digest":"sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f","pinned_image":"node:lts-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -192,24 +192,24 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_632f9f10ba2c645e_EOF'
+          cat << 'GH_AW_PROMPT_701a55778e9415c7_EOF'
           <system>
-          GH_AW_PROMPT_632f9f10ba2c645e_EOF
+          GH_AW_PROMPT_701a55778e9415c7_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/agentic_workflows_guide.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_632f9f10ba2c645e_EOF'
+          cat << 'GH_AW_PROMPT_701a55778e9415c7_EOF'
           <safe-output-tools>
           Tools: create_issue, upload_asset(max:5), missing_tool, missing_data, noop
           
           upload_asset: provide a file path; returns a URL; assets are published after the workflow completes (safeoutputs).
           </safe-output-tools>
-          GH_AW_PROMPT_632f9f10ba2c645e_EOF
+          GH_AW_PROMPT_701a55778e9415c7_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_632f9f10ba2c645e_EOF'
+          cat << 'GH_AW_PROMPT_701a55778e9415c7_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -238,12 +238,12 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_632f9f10ba2c645e_EOF
+          GH_AW_PROMPT_701a55778e9415c7_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_632f9f10ba2c645e_EOF'
+          cat << 'GH_AW_PROMPT_701a55778e9415c7_EOF'
           </system>
           {{#runtime-import .github/workflows/agentic-token-audit.md}}
-          GH_AW_PROMPT_632f9f10ba2c645e_EOF
+          GH_AW_PROMPT_701a55778e9415c7_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -447,14 +447,14 @@ jobs:
           python-version: "3.12"
       - name: Setup local chart workspace
         run: |
-          mkdir -p /tmp/gh-aw/token-audit/charts /tmp/gh-aw/token-audit/site-packages
+          mkdir -p /tmp/gh-aw/agent/token-audit/charts /tmp/gh-aw/agent/token-audit/site-packages
       - name: Install Python chart dependencies
         run: |
-          python3 -m pip install --quiet --target /tmp/gh-aw/token-audit/site-packages pandas matplotlib seaborn
+          python3 -m pip install --quiet --target /tmp/gh-aw/agent/token-audit/site-packages pandas matplotlib seaborn
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download agentic workflow logs
-        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/token-audit\n\n# Download last 24 hours of agentic workflow logs as JSON\n# Allow partial results — gh aw logs streams incrementally, so even if\n# it hits an API rate limit partway through, the JSON written so far is\n# still valid and should be processed by the agent.\nLOGS_EXIT=0\ngh aw logs \\\n  --start-date -1d \\\n  --json \\\n  -c 100 \\\n  > /tmp/gh-aw/token-audit/workflow-logs.json || LOGS_EXIT=$?\n\nif [ -s /tmp/gh-aw/token-audit/workflow-logs.json ]; then\n  TOTAL=$(jq '.runs | length' /tmp/gh-aw/token-audit/workflow-logs.json)\n  echo \"✅ Downloaded $TOTAL agentic workflow runs (last 24 hours)\"\n  if [ \"$LOGS_EXIT\" -ne 0 ]; then\n    echo \"⚠️ gh aw logs exited with code $LOGS_EXIT (partial results — likely API rate limit)\"\n  fi\nelse\n  echo \"❌ No log data downloaded (exit code $LOGS_EXIT)\"\n  echo '{\"runs\":[],\"summary\":{}}' > /tmp/gh-aw/token-audit/workflow-logs.json\nfi\n"
+        run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent/token-audit\n\n# Download last 24 hours of agentic workflow logs as JSON\n# Allow partial results — gh aw logs streams incrementally, so even if\n# it hits an API rate limit partway through, the JSON written so far is\n# still valid and should be processed by the agent.\nLOGS_EXIT=0\ngh aw logs \\\n  --start-date -1d \\\n  --json \\\n  -c 100 \\\n  > /tmp/gh-aw/agent/token-audit/workflow-logs.json || LOGS_EXIT=$?\n\nif [ -s /tmp/gh-aw/agent/token-audit/workflow-logs.json ]; then\n  TOTAL=$(jq '.runs | length' /tmp/gh-aw/agent/token-audit/workflow-logs.json)\n  echo \"✅ Downloaded $TOTAL agentic workflow runs (last 24 hours)\"\n  if [ \"$LOGS_EXIT\" -ne 0 ]; then\n    echo \"⚠️ gh aw logs exited with code $LOGS_EXIT (partial results — likely API rate limit)\"\n  fi\nelse\n  echo \"❌ No log data downloaded (exit code $LOGS_EXIT)\"\n  echo '{\"runs\":[],\"summary\":{}}' > /tmp/gh-aw/agent/token-audit/workflow-logs.json\nfi\n"
 
       # Repo memory git-based storage configuration from frontmatter processed below
       - name: Clone repo-memory branch (default)
@@ -566,9 +566,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << GH_AW_SAFE_OUTPUTS_CONFIG_20237c7c145db87f_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << GH_AW_SAFE_OUTPUTS_CONFIG_0d9a89b9753d6d37_EOF
           {"create_issue":{"close_older_issues":true,"expires":72,"max":1,"title_prefix":"[agentic-token-audit] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":51200}]},"report_incomplete":{},"upload_asset":{"allowed-exts":[".png",".jpg",".jpeg",".svg"],"branch":"assets/${GITHUB_WORKFLOW}","max":5,"max-size":10240}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_20237c7c145db87f_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_0d9a89b9753d6d37_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -790,7 +790,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_b6f40697f9e4539e_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_75512bb0406199f0_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -850,7 +850,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_b6f40697f9e4539e_EOF
+          GH_AW_MCP_CONFIG_75512bb0406199f0_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
