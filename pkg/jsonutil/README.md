@@ -31,11 +31,16 @@ if err != nil {
 // Note: '&&' and '||' are preserved — not escaped to \u0026\u0026 or \u007c\u007c
 ```
 
+## Dependencies
+
+**Internal**:
+- `github.com/github/gh-aw/pkg/logger` — package-scoped logger used for marshal error diagnostics
+
 ## Design Notes
 
 - Uses `json.Encoder` with `SetEscapeHTML(false)` rather than `json.Marshal` to suppress HTML escaping.
 - The trailing newline that `json.Encoder.Encode` appends is trimmed with `strings.TrimSuffix` so the result is consistent with `json.Marshal` output.
-- This package has no internal or external dependencies beyond the Go standard library.
+- The package has no external dependencies beyond the Go standard library.
 
 ---
 

@@ -27,6 +27,7 @@ safe-outputs:
     labels: [dx, error-messages, automated-analysis]
     max: 1
     close-older-issues: true
+  noop:
 timeout-minutes: 20
 strict: true
 steps:
@@ -52,10 +53,7 @@ steps:
       fi
       gh aw --version
 imports:
-  - uses: shared/daily-audit-base.md
-    with:
-      title-prefix: "[syntax-error-quality] "
-      expires: 3d
+  - shared/reporting.md
   - shared/otlp.md
 features:
   copilot-requests: true
