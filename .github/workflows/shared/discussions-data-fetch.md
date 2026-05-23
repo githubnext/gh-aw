@@ -5,7 +5,7 @@ tools:
   bash:
     - "gh api *"
     - "jq *"
-    - "/tmp/gh-aw/agent/jqschema.sh"
+    - "./.github/skills/jqschema/jqschema.sh"
     - "mkdir *"
     - "date *"
     - "cp *"
@@ -38,7 +38,7 @@ steps:
         
         # Regenerate schema if missing
         if [ ! -f "$CACHE_DIR/discussions-${TODAY}-schema.json" ]; then
-          /tmp/gh-aw/agent/jqschema.sh < /tmp/gh-aw/agent/discussions-data/discussions.json > "$CACHE_DIR/discussions-${TODAY}-schema.json"
+          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/discussions-data/discussions.json > "$CACHE_DIR/discussions-${TODAY}-schema.json"
         fi
         cp "$CACHE_DIR/discussions-${TODAY}-schema.json" /tmp/gh-aw/agent/discussions-data/discussions-schema.json
         
@@ -142,7 +142,7 @@ steps:
         done
         
         # Generate schema for reference
-        /tmp/gh-aw/agent/jqschema.sh < /tmp/gh-aw/agent/discussions-data/discussions.json > /tmp/gh-aw/agent/discussions-data/discussions-schema.json
+        ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/discussions-data/discussions.json > /tmp/gh-aw/agent/discussions-data/discussions-schema.json
 
         # Store in cache with today's date
         cp /tmp/gh-aw/agent/discussions-data/discussions.json "$CACHE_DIR/discussions-${TODAY}.json"

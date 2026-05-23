@@ -13,7 +13,7 @@ imports:
 tools:
   github:
     toolsets: [repos]
-  bash: ["cat", "echo", "/tmp/gh-aw/jqschema.sh"]
+  bash: ["cat", "echo", "./.github/skills/jqschema/jqschema.sh"]
 ---
 
 # Test jqschema

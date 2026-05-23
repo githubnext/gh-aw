@@ -497,11 +497,6 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... | tee /tmp/gh-aw/agent/test-results.json
-      - name: Setup jq utilities directory
-        run: |
-          mkdir -p /tmp/gh-aw
-          cp "$GITHUB_WORKSPACE/.github/skills/jqschema/jqschema.sh" /tmp/gh-aw/jqschema.sh
-          chmod +x /tmp/gh-aw/jqschema.sh
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory

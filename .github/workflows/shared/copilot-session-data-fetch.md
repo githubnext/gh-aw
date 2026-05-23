@@ -17,7 +17,7 @@ tools:
     key: copilot-session-data
   bash:
     - "jq *"
-    - "/tmp/gh-aw/agent/jqschema.sh"
+    - "./.github/skills/jqschema/jqschema.sh"
     - "mkdir *"
     - "date *"
     - "cp *"
@@ -52,7 +52,7 @@ steps:
         
         # Regenerate schema if missing
         if [ ! -f "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json" ]; then
-          /tmp/gh-aw/agent/jqschema.sh < /tmp/gh-aw/agent/session-data/sessions-list.json > "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json"
+          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/session-data/sessions-list.json > "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json"
         fi
         cp "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json" /tmp/gh-aw/agent/session-data/sessions-schema.json
         
@@ -83,7 +83,7 @@ steps:
           > /tmp/gh-aw/agent/session-data/sessions-list.json
 
         # Generate schema for reference
-        /tmp/gh-aw/agent/jqschema.sh < /tmp/gh-aw/agent/session-data/sessions-list.json > /tmp/gh-aw/agent/session-data/sessions-schema.json
+        ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/session-data/sessions-list.json > /tmp/gh-aw/agent/session-data/sessions-schema.json
 
         # Download conversation logs using gh agent-task command (limit to first 50)
         SESSION_COUNT=$(jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json)

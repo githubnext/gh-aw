@@ -4,7 +4,7 @@ tools:
     key: copilot-pr-data
   bash:
     - "jq *"
-    - "/tmp/gh-aw/agent/jqschema.sh"
+    - "./.github/skills/jqschema/jqschema.sh"
     - "mkdir *"
     - "date *"
     - "cp *"
@@ -35,7 +35,7 @@ steps:
         
         # Regenerate schema if missing
         if [ ! -f "$CACHE_DIR/copilot-prs-${TODAY}-schema.json" ]; then
-          /tmp/gh-aw/agent/jqschema.sh < /tmp/gh-aw/agent/pr-data/copilot-prs.json > "$CACHE_DIR/copilot-prs-${TODAY}-schema.json"
+          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/pr-data/copilot-prs.json > "$CACHE_DIR/copilot-prs-${TODAY}-schema.json"
         fi
         cp "$CACHE_DIR/copilot-prs-${TODAY}-schema.json" /tmp/gh-aw/agent/pr-data/copilot-prs-schema.json
         
@@ -58,7 +58,7 @@ steps:
           > /tmp/gh-aw/agent/pr-data/copilot-prs.json
 
         # Generate schema for reference
-        /tmp/gh-aw/agent/jqschema.sh < /tmp/gh-aw/agent/pr-data/copilot-prs.json > /tmp/gh-aw/agent/pr-data/copilot-prs-schema.json
+        ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/pr-data/copilot-prs.json > /tmp/gh-aw/agent/pr-data/copilot-prs-schema.json
 
         # Store in cache with today's date
         cp /tmp/gh-aw/agent/pr-data/copilot-prs.json "$CACHE_DIR/copilot-prs-${TODAY}.json"

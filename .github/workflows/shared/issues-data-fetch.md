@@ -6,7 +6,7 @@ tools:
     - "gh issue list *"
     - "gh api *"
     - "jq *"
-    - "/tmp/gh-aw/agent/jqschema.sh"
+    - "./.github/skills/jqschema/jqschema.sh"
     - "mkdir *"
     - "date *"
     - "cp *"
@@ -37,7 +37,7 @@ steps:
         
         # Regenerate schema if missing
         if [ ! -f "$CACHE_DIR/issues-${TODAY}-schema.json" ]; then
-          /tmp/gh-aw/agent/jqschema.sh < /tmp/gh-aw/agent/issues-data/issues.json > "$CACHE_DIR/issues-${TODAY}-schema.json"
+          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/issues-data/issues.json > "$CACHE_DIR/issues-${TODAY}-schema.json"
         fi
         cp "$CACHE_DIR/issues-${TODAY}-schema.json" /tmp/gh-aw/agent/issues-data/issues-schema.json
         
@@ -59,7 +59,7 @@ steps:
         fi
 
         # Generate schema for reference
-        /tmp/gh-aw/agent/jqschema.sh < /tmp/gh-aw/agent/issues-data/issues.json > /tmp/gh-aw/agent/issues-data/issues-schema.json
+        ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/issues-data/issues.json > /tmp/gh-aw/agent/issues-data/issues-schema.json
 
         # Store in cache with today's date
         cp /tmp/gh-aw/agent/issues-data/issues.json "$CACHE_DIR/issues-${TODAY}.json"
