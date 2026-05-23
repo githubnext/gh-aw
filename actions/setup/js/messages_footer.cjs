@@ -97,11 +97,19 @@ function getFooterMessage(ctx) {
   const agenticWorkflowUrl = ctx.agenticWorkflowUrl || (ctx.runUrl ? `${ctx.runUrl}/agentic_workflow` : "");
 
   // Pre-compute effective_tokens_formatted and effective_tokens_suffix for use in custom templates
-  const hasContextEffectiveTokens = ctx.effectiveTokens !== undefined && ctx.effectiveTokens !== null;
-  const effectiveTokensFormatted = hasContextEffectiveTokens ? (effectiveTokens ? formatET(effectiveTokens) : undefined) : envEffectiveTokensFormatted;
-  const modelPrefix = buildModelPrefix(resolvedModelName);
+  const hasExplicitContextEffectiveTokens = ctx.effectiveTokens !== undefined && ctx.effectiveTokens !== null;
+  let effectiveTokensFormatted = envEffectiveTokensFormatted;
   // effective_tokens_suffix is always a string: either " · ● 1.2K" or "" (for safe use in templates)
-  const effectiveTokensSuffix = hasContextEffectiveTokens ? (effectiveTokensFormatted ? ` · ● ${modelPrefix}${effectiveTokensFormatted}` : "") : envEffectiveTokensSuffix;
+  let effectiveTokensSuffix = envEffectiveTokensSuffix;
+  if (hasExplicitContextEffectiveTokens) {
+    effectiveTokensFormatted = effectiveTokens ? formatET(effectiveTokens) : undefined;
+    if (effectiveTokensFormatted) {
+      const modelPrefix = buildModelPrefix(resolvedModelName);
+      effectiveTokensSuffix = ` · ● ${modelPrefix}${effectiveTokensFormatted}`;
+    } else {
+      effectiveTokensSuffix = "";
+    }
+  }
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
   const templateContext = toSnakeCase({ ...ctx, effectiveTokens, historyLink, agenticWorkflowUrl, effectiveTokensFormatted, effectiveTokensSuffix });
