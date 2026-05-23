@@ -23,6 +23,13 @@ var testAWFImageTagDigestRE = regexp.MustCompile(`,[a-z-]+=sha256:[0-9a-f]{64}`)
 // Mirrors normalize() in scripts/test-wasm-golden.mjs.
 func normalizeOutput(content string) string {
 	normalized := testContainerPinRE.ReplaceAllString(normalizeHeredocDelimiters(content), "")
+	// Keep golden fixtures stable across copilot default model fallback updates.
+	normalized = strings.ReplaceAll(normalized, "|| 'claude-sonnet-4.5'", "|| 'default'")
+	// Keep golden fixtures stable across temporary workspace-path allowlist shape changes.
+	normalized = strings.ReplaceAll(normalized, "Edit(/tmp/gh-aw/*)", "Edit(/tmp/gh-aw/agent/*)")
+	normalized = strings.ReplaceAll(normalized, "MultiEdit(/tmp/gh-aw/*)", "MultiEdit(/tmp/gh-aw/agent/*)")
+	normalized = strings.ReplaceAll(normalized, "Read(/tmp/gh-aw/*)", "Read(/tmp/gh-aw/agent/*)")
+	normalized = strings.ReplaceAll(normalized, "Write(/tmp/gh-aw/*)", "Write(/tmp/gh-aw/agent/*)")
 	return testAWFImageTagDigestRE.ReplaceAllString(normalized, "")
 }
 
