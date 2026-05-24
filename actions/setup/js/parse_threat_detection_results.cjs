@@ -161,11 +161,45 @@ function parseDetectionLog(content) {
     }
   }
 
-  // Phase 2: If no stream-json results, try raw line matching.
+  // Phase 2: If no stream-json result field matches, try assistant stream chunk matching.
+  // Gemini stream-json output may emit assistant text in multiple "type":"message"
+  // entries (with role=assistant) where the verdict is split across chunks:
+  //   "THREAT_DETECTION_"
+  //   "RESULT:{...}"
+  // Reassemble assistant chunks and parse the first complete verdict object.
+  const assistantMatches = [];
+  if (streamMatches.length === 0) {
+    const assistantChunks = [];
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("{")) continue;
+      try {
+        const obj = JSON.parse(trimmed);
+        if (obj.type === "message" && obj.role === "assistant" && typeof obj.content === "string") {
+          assistantChunks.push(obj.content);
+        }
+      } catch {
+        // Not valid JSON — ignore
+      }
+    }
+
+    if (assistantChunks.length > 0) {
+      const combinedAssistantText = assistantChunks.join("");
+      const prefixIdx = combinedAssistantText.indexOf(RESULT_PREFIX);
+      if (prefixIdx !== -1) {
+        const extracted = extractResultFromText(combinedAssistantText.slice(prefixIdx));
+        if (extracted !== null) {
+          assistantMatches.push(extracted);
+        }
+      }
+    }
+  }
+
+  // Phase 3: If no stream-json or assistant chunk results, try raw line matching.
   // Apply the same join-and-brace-count approach to handle cases where the
   // reasons values contain actual newlines that split the JSON across lines.
   const rawMatches = [];
-  if (streamMatches.length === 0) {
+  if (streamMatches.length === 0 && assistantMatches.length === 0) {
     let i = 0;
     while (i < lines.length) {
       if (lines[i].trim().startsWith(RESULT_PREFIX)) {
@@ -191,7 +225,7 @@ function parseDetectionLog(content) {
     }
   }
 
-  const matches = streamMatches.length > 0 ? streamMatches : rawMatches;
+  const matches = streamMatches.length > 0 ? streamMatches : assistantMatches.length > 0 ? assistantMatches : rawMatches;
 
   if (matches.length === 0) {
     return { error: "No THREAT_DETECTION_RESULT found in detection log. The detection model may have failed to follow the output format." };

@@ -234,6 +234,36 @@ describe("parseDetectionLog", () => {
       expect(verdict).toBeUndefined();
       expect(error).toContain('Invalid type for "prompt_injection"');
     });
+
+    it("should parse Gemini stream-json assistant chunks when verdict is split across messages", () => {
+      const content = [
+        // User prompt can contain the expected output format example and must be ignored.
+        JSON.stringify({
+          type: "message",
+          role: "user",
+          content: 'Output format example: THREAT_DETECTION_RESULT:{"prompt_injection":false}',
+        }),
+        JSON.stringify({ type: "message", role: "assistant", content: "THREAT_DETECTION_", delta: true }),
+        JSON.stringify({
+          type: "message",
+          role: "assistant",
+          content: 'RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons',
+          delta: true,
+        }),
+        JSON.stringify({ type: "message", role: "assistant", content: '":[]}', delta: true }),
+        JSON.stringify({ type: "result", status: "success", stats: { total_tokens: 123 } }),
+      ].join("\n");
+
+      const { verdict, error } = parseDetectionLog(content);
+
+      expect(error).toBeUndefined();
+      expect(verdict).toEqual({
+        prompt_injection: false,
+        secret_leak: false,
+        malicious_patch: false,
+        reasons: [],
+      });
+    });
   });
 
   describe("no result line", () => {
