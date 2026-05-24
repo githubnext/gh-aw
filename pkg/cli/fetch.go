@@ -220,10 +220,12 @@ func hostResolutionHintForNotFound(owner, repo, ref, workflowPath, explicitHost 
 		return "", false
 	}
 
-	resolvedHost := strings.TrimSpace(explicitHost)
-	if resolvedHost == "" {
-		resolvedHost = strings.TrimPrefix(strings.TrimPrefix(getGitHubHost(), "https://"), "http://")
+	normalizedExplicitHost := normalizeHostForHint(explicitHost)
+	if normalizedExplicitHost != "" {
+		return "", false
 	}
+
+	resolvedHost := normalizeHostForHint(getGitHubHost())
 	if resolvedHost == "" || resolvedHost == "github.com" {
 		return "", false
 	}
@@ -234,6 +236,15 @@ func hostResolutionHintForNotFound(owner, repo, ref, workflowPath, explicitHost 
 		"Shorthand specs resolved on %s. Try using the full github.com URL instead: gh aw add-wizard %s",
 		resolvedHost, fullURL,
 	), true
+}
+
+func normalizeHostForHint(host string) string {
+	host = strings.TrimSpace(strings.ToLower(host))
+	host = strings.TrimPrefix(strings.TrimPrefix(host, "https://"), "http://")
+	if idx := strings.Index(host, "/"); idx >= 0 {
+		host = host[:idx]
+	}
+	return strings.TrimSuffix(host, "/")
 }
 
 // sleepForSHAResolutionRetry waits for the retry delay or context cancellation.

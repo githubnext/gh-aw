@@ -32,10 +32,19 @@ func TestHostResolutionHintForNotFound(t *testing.T) {
 
 	t.Run("does not suggest for github.com host", func(t *testing.T) {
 		hint, ok := hostResolutionHintForNotFound(
-			"githubnext", "agentics", "main", "workflows/daily-repo-status.md", "github.com", errors.New("gh: Not Found (HTTP 404)"),
+			"githubnext", "agentics", "main", "workflows/daily-repo-status.md", "https://github.com", errors.New("gh: Not Found (HTTP 404)"),
 		)
 		if ok || hint != "" {
 			t.Fatalf("expected no hint for github.com host, got ok=%v hint=%q", ok, hint)
+		}
+	})
+
+	t.Run("does not suggest for explicit non-github host URL", func(t *testing.T) {
+		hint, ok := hostResolutionHintForNotFound(
+			"githubnext", "agentics", "main", "workflows/daily-repo-status.md", "https://ghe.example.com/org/repo", errors.New("gh: Not Found (HTTP 404)"),
+		)
+		if ok || hint != "" {
+			t.Fatalf("expected no hint for explicit host, got ok=%v hint=%q", ok, hint)
 		}
 	})
 
