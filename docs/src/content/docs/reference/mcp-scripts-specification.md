@@ -759,11 +759,13 @@ Implementations MUST provide:
 3. **Resource Limits**: Containers enforce CPU, memory, and filesystem limits
 4. **Network Restrictions**: Network access controlled by workflow configuration
 
-JavaScript tools SHOULD provide:
+JavaScript tools MUST provide:
 
 1. **Module Isolation**: Tools execute in isolated module scope
 2. **Limited Execution**: Use V8 isolates or similar for CPU/memory limits
 3. **No Server Access**: Tools cannot access server internals or other tools
+
+**SM-JS-01**: JavaScript tools MUST execute in a sandboxed V8 context with restricted global scope. Implementations MUST NOT expose Node.js global objects (e.g., `process`, `require`, `__dirname`) to tool scripts unless explicitly permitted by the tool configuration.
 
 ### 7.3 Input Sanitization
 
@@ -772,7 +774,9 @@ Implementations MUST:
 1. Validate input types against schema before execution
 2. Reject inputs that do not conform to schema
 3. Prevent code injection via input validation
-4. Apply length limits to string inputs (SHOULD be at least 10KB)
+4. Apply length limits to string inputs (MUST enforce a maximum input string length of at least 10KB)
+
+**SM-IS-01**: Implementations MUST enforce a maximum input string length of at least 10KB for each string-typed input parameter. Inputs exceeding the configured maximum MUST be rejected with a validation error before the tool script is invoked. Implementations MUST NOT silently truncate oversized inputs.
 
 ### 7.4 Output Sanitization
 
