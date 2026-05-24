@@ -18,149 +18,17 @@ import (
 // Returns an error if a circular import is detected.
 func topologicalSortImports(imports []string, baseDir string, cache *ImportCache, workflowFile string) ([]string, error) {
 	importLog.Printf("Starting topological sort of %d imports", len(imports))
-
-	// Build dependency graph: map each import to its list of nested imports
-	dependencies := make(map[string][]string)
-	allImportsSet := make(map[string]bool)
-
-	// Track all imports (including the ones we're sorting)
-	for _, imp := range imports {
-		allImportsSet[imp] = true
-	}
-
-	// Extract dependencies for each import by reading and parsing each file.
-	// Builtin virtual files use the process-level frontmatter cache to avoid repeated YAML parsing.
-	for _, importPath := range imports {
-		// Resolve the import path to get the full path
-		var filePath string
-		if strings.Contains(importPath, "#") {
-			parts := strings.SplitN(importPath, "#", 2)
-			filePath = parts[0]
-		} else {
-			filePath = importPath
-		}
-
-		fullPath, err := ResolveIncludePath(filePath, baseDir, cache)
-		if err != nil {
-			importLog.Printf("Failed to resolve import path %s during topological sort: %v", importPath, err)
-			dependencies[importPath] = []string{}
-			continue
-		}
-
-		// Read and parse the file to extract its imports.
-		// Use the builtin cache for builtin virtual files to avoid redundant YAML parsing.
-		content, err := readFileFunc(fullPath)
-		if err != nil {
-			importLog.Printf("Failed to read file %s during topological sort: %v", fullPath, err)
-			dependencies[importPath] = []string{}
-			continue
-		}
-
-		var result *FrontmatterResult
-		if strings.HasPrefix(fullPath, BuiltinPathPrefix) {
-			result, err = ExtractFrontmatterFromBuiltinFile(fullPath, content)
-		} else {
-			result, err = ExtractFrontmatterFromContent(string(content))
-		}
-		if err != nil {
-			importLog.Printf("Failed to extract frontmatter from %s during topological sort: %v", fullPath, err)
-			dependencies[importPath] = []string{}
-			continue
-		}
-
-		// Extract nested imports
-		nestedImports := extractImportPaths(result.Frontmatter)
-		dependencies[importPath] = nestedImports
-		importLog.Printf("Import %s has %d dependencies: %v", importPath, len(nestedImports), nestedImports)
-	}
-
-	// Kahn's algorithm: Calculate in-degrees (number of dependencies for each import)
-	inDegree := make(map[string]int)
-	for _, imp := range imports {
-		inDegree[imp] = 0
-	}
-
-	// Count dependencies: how many imports does each file depend on (within our import set)
-	// Iterate over imports in sorted order for stable results
-	sortedImportsForDegree := make([]string, 0, len(dependencies))
-	for imp := range dependencies {
-		sortedImportsForDegree = append(sortedImportsForDegree, imp)
-	}
-	sort.Strings(sortedImportsForDegree)
-
-	for _, imp := range sortedImportsForDegree {
-		deps := dependencies[imp]
-		for _, dep := range deps {
-			// Only count dependencies that are in our import set
-			if allImportsSet[dep] {
-				inDegree[imp]++
-			}
-		}
-	}
-
+	allImportsSet := toImportSet(imports)
+	dependencies := buildImportDependencies(imports, baseDir, cache)
+	inDegree := calculateInDegree(imports, dependencies, allImportsSet)
 	importLog.Printf("Calculated in-degrees: %v", inDegree)
-
-	// Start with imports that have no dependencies (in-degree = 0) - these are the roots
-	var queue []string
-	for _, imp := range imports {
-		if inDegree[imp] == 0 {
-			queue = append(queue, imp)
-			importLog.Printf("Root import (no dependencies): %s", imp)
-		}
-	}
-
-	// Process imports in topological order
-	result := make([]string, 0, len(imports))
-	for len(queue) > 0 {
-		// Sort queue for deterministic output when multiple imports have same in-degree
-		sort.Strings(queue)
-
-		// Take the first import from queue
-		current := queue[0]
-		queue = queue[1:]
-		result = append(result, current)
-
-		importLog.Printf("Processing import %s (in-degree was 0)", current)
-
-		// For each import that depends on the current import, reduce its in-degree
-		// Iterate over dependencies in sorted order for stable results
-		sortedImports := make([]string, 0, len(dependencies))
-		for imp := range dependencies {
-			sortedImports = append(sortedImports, imp)
-		}
-		sort.Strings(sortedImports)
-
-		for _, imp := range sortedImports {
-			deps := dependencies[imp]
-			for _, dep := range deps {
-				if dep == current && allImportsSet[imp] {
-					inDegree[imp]--
-					importLog.Printf("Reduced in-degree of %s to %d (resolved dependency on %s)", imp, inDegree[imp], current)
-					if inDegree[imp] == 0 {
-						queue = append(queue, imp)
-						importLog.Printf("Added %s to queue (in-degree reached 0)", imp)
-					}
-				}
-			}
-		}
-	}
+	queue := collectRootImports(imports, inDegree)
+	result := runKahnTopologicalSort(imports, dependencies, allImportsSet, inDegree, queue)
 
 	importLog.Printf("Topological sort complete: %v", result)
-
-	// If we didn't process all imports, there's a cycle
 	if len(result) < len(imports) {
 		importLog.Printf("Cycle detected: processed %d/%d imports", len(result), len(imports))
-
-		// Find which imports are part of the cycle (those not in result)
-		cycleNodes := make(map[string]bool)
-		for _, imp := range imports {
-			found := slices.Contains(result, imp)
-			if !found {
-				cycleNodes[imp] = true
-			}
-		}
-
-		// Use DFS to find a cycle path in the subgraph of cycle nodes
+		cycleNodes := findCycleNodes(imports, result)
 		cyclePath := findCyclePath(cycleNodes, dependencies)
 		if len(cyclePath) > 0 {
 			return nil, &ImportCycleError{
@@ -174,6 +42,159 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 	}
 
 	return result, nil
+}
+
+func toImportSet(imports []string) map[string]bool {
+	allImportsSet := make(map[string]bool, len(imports))
+	for _, imp := range imports {
+		allImportsSet[imp] = true
+	}
+	return allImportsSet
+}
+
+func buildImportDependencies(imports []string, baseDir string, cache *ImportCache) map[string][]string {
+	dependencies := make(map[string][]string, len(imports))
+	for _, importPath := range imports {
+		nestedImports, err := resolveNestedImportPaths(importPath, baseDir, cache)
+		if err != nil {
+			importLog.Printf("Failed to resolve dependencies for %s during topological sort: %v", importPath, err)
+			dependencies[importPath] = []string{}
+			continue
+		}
+		dependencies[importPath] = nestedImports
+		importLog.Printf("Import %s has %d dependencies: %v", importPath, len(nestedImports), nestedImports)
+	}
+	return dependencies
+}
+
+func resolveNestedImportPaths(importPath, baseDir string, cache *ImportCache) ([]string, error) {
+	filePath := stripImportSection(importPath)
+	fullPath, err := ResolveIncludePath(filePath, baseDir, cache)
+	if err != nil {
+		return nil, err
+	}
+	content, err := readFileFunc(fullPath)
+	if err != nil {
+		return nil, err
+	}
+	frontmatter, err := extractFrontmatterForTopologicalSort(fullPath, content)
+	if err != nil {
+		return nil, err
+	}
+	return extractImportPaths(frontmatter), nil
+}
+
+func stripImportSection(importPath string) string {
+	if strings.Contains(importPath, "#") {
+		parts := strings.SplitN(importPath, "#", 2)
+		return parts[0]
+	}
+	return importPath
+}
+
+func extractFrontmatterForTopologicalSort(fullPath string, content []byte) (map[string]any, error) {
+	var (
+		result *FrontmatterResult
+		err    error
+	)
+	if strings.HasPrefix(fullPath, BuiltinPathPrefix) {
+		result, err = ExtractFrontmatterFromBuiltinFile(fullPath, content)
+	} else {
+		result, err = ExtractFrontmatterFromContent(string(content))
+	}
+	if err != nil {
+		return nil, err
+	}
+	return result.Frontmatter, nil
+}
+
+func calculateInDegree(imports []string, dependencies map[string][]string, allImportsSet map[string]bool) map[string]int {
+	inDegree := make(map[string]int, len(imports))
+	for _, imp := range imports {
+		inDegree[imp] = 0
+	}
+	sortedImports := sortedDependencyKeys(dependencies)
+	for _, imp := range sortedImports {
+		for _, dep := range dependencies[imp] {
+			if allImportsSet[dep] {
+				inDegree[imp]++
+			}
+		}
+	}
+	return inDegree
+}
+
+func sortedDependencyKeys(dependencies map[string][]string) []string {
+	sortedImports := make([]string, 0, len(dependencies))
+	for imp := range dependencies {
+		sortedImports = append(sortedImports, imp)
+	}
+	sort.Strings(sortedImports)
+	return sortedImports
+}
+
+func collectRootImports(imports []string, inDegree map[string]int) []string {
+	var queue []string
+	for _, imp := range imports {
+		if inDegree[imp] == 0 {
+			queue = append(queue, imp)
+			importLog.Printf("Root import (no dependencies): %s", imp)
+		}
+	}
+	return queue
+}
+
+func runKahnTopologicalSort(
+	imports []string,
+	dependencies map[string][]string,
+	allImportsSet map[string]bool,
+	inDegree map[string]int,
+	queue []string,
+) []string {
+	result := make([]string, 0, len(imports))
+	sortedImports := sortedDependencyKeys(dependencies)
+	for len(queue) > 0 {
+		sort.Strings(queue)
+		current := queue[0]
+		queue = queue[1:]
+		result = append(result, current)
+		importLog.Printf("Processing import %s (in-degree was 0)", current)
+		queue = reduceDependentInDegrees(current, sortedImports, dependencies, allImportsSet, inDegree, queue)
+	}
+	return result
+}
+
+func reduceDependentInDegrees(
+	current string,
+	sortedImports []string,
+	dependencies map[string][]string,
+	allImportsSet map[string]bool,
+	inDegree map[string]int,
+	queue []string,
+) []string {
+	for _, imp := range sortedImports {
+		for _, dep := range dependencies[imp] {
+			if dep == current && allImportsSet[imp] {
+				inDegree[imp]--
+				importLog.Printf("Reduced in-degree of %s to %d (resolved dependency on %s)", imp, inDegree[imp], current)
+				if inDegree[imp] == 0 {
+					queue = append(queue, imp)
+					importLog.Printf("Added %s to queue (in-degree reached 0)", imp)
+				}
+			}
+		}
+	}
+	return queue
+}
+
+func findCycleNodes(imports, result []string) map[string]bool {
+	cycleNodes := make(map[string]bool)
+	for _, imp := range imports {
+		if !slices.Contains(result, imp) {
+			cycleNodes[imp] = true
+		}
+	}
+	return cycleNodes
 }
 
 // extractImportPaths extracts just the import paths from frontmatter.

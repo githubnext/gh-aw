@@ -73,99 +73,124 @@ func isCopilotSetupStepsFile(filePath string) bool {
 func processYAMLWorkflowImport(filePath string) (jobs string, services string, err error) {
 	yamlImportLog.Printf("Processing YAML workflow import: %s", filePath)
 
-	// Read the YAML file
-	content, err := readFileFunc(filePath)
+	content, err := readYAMLWorkflowImportFile(filePath)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to read YAML file: %w", err)
+		return "", "", err
 	}
 
-	// Check if this is an action definition file (not a workflow)
-	isAction, err := isActionDefinitionFile(filePath, content)
+	workflow, err := parseAndValidateYAMLWorkflowImport(filePath, content)
 	if err != nil {
-		yamlImportLog.Printf("Error checking if file is action definition: %v", err)
-		return "", "", fmt.Errorf("failed to check if file is action definition: %w", err)
-	}
-	if isAction {
-		yamlImportLog.Printf("Rejecting action definition file: %s", filePath)
-		return "", "", errors.New("cannot import action definition file (action.yml). Only workflow files (.yml) can be imported")
+		return "", "", err
 	}
 
-	// Parse the YAML workflow
-	var workflow map[string]any
-	if err := yaml.Unmarshal(content, &workflow); err != nil {
-		return "", "", fmt.Errorf("failed to parse YAML workflow: %w", err)
-	}
-
-	// Validate this is a GitHub Actions workflow (has 'on' or 'jobs' field)
-	_, hasOn := workflow["on"]
-	_, hasJobs := workflow["jobs"]
-	if !hasOn && !hasJobs {
-		yamlImportLog.Printf("Invalid workflow file %s: missing 'on' or 'jobs' field", filePath)
-		return "", "", errors.New("not a valid GitHub Actions workflow: missing 'on' or 'jobs' field")
-	}
-	yamlImportLog.Printf("Validated workflow file %s: hasOn=%v, hasJobs=%v", filePath, hasOn, hasJobs)
-
-	// Special handling for copilot-setup-steps.yml: extract only steps from the setup job
 	if isCopilotSetupStepsFile(filePath) {
 		yamlImportLog.Printf("Detected copilot-setup-steps.yml - extracting steps from setup job")
 		stepsYAML, err := extractStepsFromCopilotSetup(workflow)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to extract steps from copilot-setup-steps.yml: %w", err)
 		}
-		// Return steps as "jobs" string for compatibility with the import processor.
-		// The import processor will route this to ImportsResult.CopilotSetupSteps.
 		return stepsYAML, "", nil
 	}
 
-	// Extract jobs section
-	var jobsJSON string
-	if jobsValue, ok := workflow["jobs"]; ok {
-		if jobsMap, ok := jobsValue.(map[string]any); ok {
-			jobsBytes, err := json.Marshal(jobsMap)
-			if err != nil {
-				return "", "", fmt.Errorf("failed to marshal jobs to JSON: %w", err)
-			}
-			jobsJSON = string(jobsBytes)
-			yamlImportLog.Printf("Extracted %d jobs from YAML workflow", len(jobsMap))
-		}
+	jobsJSON, jobsMap, err := extractJobsJSON(workflow)
+	if err != nil {
+		return "", "", err
 	}
-
-	// Extract services from job definitions
-	var servicesJSON string
-	if jobsValue, ok := workflow["jobs"]; ok {
-		if jobsMap, ok := jobsValue.(map[string]any); ok {
-			// Collect all services from all jobs
-			allServices := make(map[string]any)
-			for jobName, jobValue := range jobsMap {
-				if jobMap, ok := jobValue.(map[string]any); ok {
-					if servicesValue, ok := jobMap["services"]; ok {
-						if servicesMap, ok := servicesValue.(map[string]any); ok {
-							// Merge services from this job
-							for serviceName, serviceConfig := range servicesMap {
-								// Use job name as prefix to avoid conflicts
-								prefixedName := fmt.Sprintf("%s_%s", jobName, serviceName)
-								allServices[prefixedName] = serviceConfig
-								yamlImportLog.Printf("Found service: %s in job %s (stored as %s)", serviceName, jobName, prefixedName)
-							}
-						}
-					}
-				}
-			}
-
-			if len(allServices) > 0 {
-				// Marshal to JSON for merging
-				servicesBytes, err := json.Marshal(allServices)
-				if err != nil {
-					yamlImportLog.Printf("Failed to marshal services to JSON: %v", err)
-				} else {
-					servicesJSON = string(servicesBytes)
-					yamlImportLog.Printf("Extracted %d services from YAML workflow", len(allServices))
-				}
-			}
-		}
-	}
-
+	servicesJSON := extractServicesJSONFromJobs(jobsMap)
 	return jobsJSON, servicesJSON, nil
+}
+
+func readYAMLWorkflowImportFile(filePath string) ([]byte, error) {
+	content, err := readFileFunc(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read YAML file: %w", err)
+	}
+	return content, nil
+}
+
+func parseAndValidateYAMLWorkflowImport(filePath string, content []byte) (map[string]any, error) {
+	isAction, err := isActionDefinitionFile(filePath, content)
+	if err != nil {
+		yamlImportLog.Printf("Error checking if file is action definition: %v", err)
+		return nil, fmt.Errorf("failed to check if file is action definition: %w", err)
+	}
+	if isAction {
+		yamlImportLog.Printf("Rejecting action definition file: %s", filePath)
+		return nil, errors.New("cannot import action definition file (action.yml). Only workflow files (.yml) can be imported")
+	}
+
+	var workflow map[string]any
+	if err := yaml.Unmarshal(content, &workflow); err != nil {
+		return nil, fmt.Errorf("failed to parse YAML workflow: %w", err)
+	}
+	if err := validateWorkflowShape(filePath, workflow); err != nil {
+		return nil, err
+	}
+	return workflow, nil
+}
+
+func validateWorkflowShape(filePath string, workflow map[string]any) error {
+	_, hasOn := workflow["on"]
+	_, hasJobs := workflow["jobs"]
+	if !hasOn && !hasJobs {
+		yamlImportLog.Printf("Invalid workflow file %s: missing 'on' or 'jobs' field", filePath)
+		return errors.New("not a valid GitHub Actions workflow: missing 'on' or 'jobs' field")
+	}
+	yamlImportLog.Printf("Validated workflow file %s: hasOn=%v, hasJobs=%v", filePath, hasOn, hasJobs)
+	return nil
+}
+
+func extractJobsJSON(workflow map[string]any) (string, map[string]any, error) {
+	jobsValue, ok := workflow["jobs"]
+	if !ok {
+		return "", nil, nil
+	}
+	jobsMap, ok := jobsValue.(map[string]any)
+	if !ok {
+		return "", nil, nil
+	}
+	jobsBytes, err := json.Marshal(jobsMap)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to marshal jobs to JSON: %w", err)
+	}
+	yamlImportLog.Printf("Extracted %d jobs from YAML workflow", len(jobsMap))
+	return string(jobsBytes), jobsMap, nil
+}
+
+func extractServicesJSONFromJobs(jobsMap map[string]any) string {
+	if len(jobsMap) == 0 {
+		return ""
+	}
+	allServices := make(map[string]any)
+	for jobName, jobValue := range jobsMap {
+		jobMap, ok := jobValue.(map[string]any)
+		if !ok {
+			continue
+		}
+		servicesValue, ok := jobMap["services"]
+		if !ok {
+			continue
+		}
+		servicesMap, ok := servicesValue.(map[string]any)
+		if !ok {
+			continue
+		}
+		for serviceName, serviceConfig := range servicesMap {
+			prefixedName := fmt.Sprintf("%s_%s", jobName, serviceName)
+			allServices[prefixedName] = serviceConfig
+			yamlImportLog.Printf("Found service: %s in job %s (stored as %s)", serviceName, jobName, prefixedName)
+		}
+	}
+	if len(allServices) == 0 {
+		return ""
+	}
+	servicesBytes, err := json.Marshal(allServices)
+	if err != nil {
+		yamlImportLog.Printf("Failed to marshal services to JSON: %v", err)
+		return ""
+	}
+	yamlImportLog.Printf("Extracted %d services from YAML workflow", len(allServices))
+	return string(servicesBytes)
 }
 
 // extractStepsFromCopilotSetup extracts steps from the copilot-setup-steps job
