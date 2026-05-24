@@ -424,7 +424,7 @@ func prettyPerRunOptionalFields(run PerRunFirewallBreakdown) string {
 		parts.WriteString(timeutil.FormatDurationNs(int64(run.Duration)))
 	}
 	if run.Cost > 0 {
-		parts.WriteString(fmt.Sprintf("  cost=$%.4f", run.Cost))
+		fmt.Fprintf(&parts, "  cost=$%.4f", run.Cost)
 		if run.CostSpike {
 			parts.WriteString("⚠")
 		}
