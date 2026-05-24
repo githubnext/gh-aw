@@ -77,7 +77,7 @@ var EngineOptions = []EngineOption{
 		Label:              "Codex",
 		Description:        "OpenAI Codex/GPT engine",
 		SecretName:         "OPENAI_API_KEY",
-		AlternativeSecrets: []string{"CODEX_API_KEY"},
+		AlternativeSecrets: []string{},
 		KeyURL:             "https://platform.openai.com/api-keys",
 		WhenNeeded:         "Codex/OpenAI engine workflows",
 	},

@@ -402,7 +402,7 @@ func TestBuiltInEngineAuthUnchanged(t *testing.T) {
 		wantAuthSecret string // expected legacy AuthBinding secret
 	}{
 		{"claude", "ANTHROPIC_API_KEY"},
-		{"codex", "CODEX_API_KEY"},
+		{"codex", "OPENAI_API_KEY"},
 		{"copilot", "COPILOT_GITHUB_TOKEN"},
 		{"gemini", "GEMINI_API_KEY"},
 		{"opencode", "COPILOT_GITHUB_TOKEN"},

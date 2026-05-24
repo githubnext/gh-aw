@@ -103,14 +103,11 @@ func TestCodexEngine(t *testing.T) {
 	}
 
 	// Check environment variables
-	if !strings.Contains(stepContent, "CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}") {
-		t.Errorf("Expected CODEX_API_KEY environment variable in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}") {
+		t.Errorf("Expected OPENAI_API_KEY environment variable in step content:\n%s", stepContent)
 	}
 	if strings.Contains(stepContent, "--exclude-env OPENAI_API_KEY") {
 		t.Errorf("OPENAI_API_KEY must remain available to Codex runtime, got:\n%s", stepContent)
-	}
-	if strings.Contains(stepContent, "--exclude-env CODEX_API_KEY") {
-		t.Errorf("CODEX_API_KEY must remain available to Codex runtime, got:\n%s", stepContent)
 	}
 }
 
@@ -229,7 +226,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"",
 				"[shell_environment_policy]",
 				"inherit = \"core\"",
-				"include_only = [\"CODEX_API_KEY\", \"GITHUB_PERSONAL_ACCESS_TOKEN\", \"HOME\", \"OPENAI_API_KEY\", \"PATH\"]",
+				"include_only = [\"GITHUB_PERSONAL_ACCESS_TOKEN\", \"HOME\", \"OPENAI_API_KEY\", \"PATH\"]",
 				"",
 				"[mcp_servers.github]",
 				"user_agent = \"test-workflow\"",
@@ -275,7 +272,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"cat > \"/tmp/gh-aw/mcp-config/config.toml\" << GH_AW_CODEX_SHELL_POLICY_NORM_EOF",
 				"[shell_environment_policy]",
 				"inherit = \"core\"",
-				"include_only = [\"CODEX_API_KEY\", \"GITHUB_PERSONAL_ACCESS_TOKEN\", \"HOME\", \"OPENAI_API_KEY\", \"PATH\"]",
+				"include_only = [\"GITHUB_PERSONAL_ACCESS_TOKEN\", \"HOME\", \"OPENAI_API_KEY\", \"PATH\"]",
 				"GH_AW_CODEX_SHELL_POLICY_NORM_EOF",
 				"cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"",
 				"chmod 600 \"/tmp/gh-aw/mcp-config/config.toml\"",
@@ -855,7 +852,7 @@ func TestCodexEngineEnvOverridesTokenExpression(t *testing.T) {
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
 				Env: map[string]string{
-					"CODEX_API_KEY": "${{ secrets.MY_ORG_CODEX_KEY }}",
+					"OPENAI_API_KEY": "${{ secrets.MY_ORG_OPENAI_KEY }}",
 				},
 			},
 		}
@@ -868,11 +865,11 @@ func TestCodexEngineEnvOverridesTokenExpression(t *testing.T) {
 		stepContent := strings.Join([]string(steps[0]), "\n")
 
 		// engine.env override should replace the default token expression
-		if !strings.Contains(stepContent, "CODEX_API_KEY: ${{ secrets.MY_ORG_CODEX_KEY }}") {
-			t.Errorf("Expected engine.env to override CODEX_API_KEY, got:\n%s", stepContent)
+		if !strings.Contains(stepContent, "OPENAI_API_KEY: ${{ secrets.MY_ORG_OPENAI_KEY }}") {
+			t.Errorf("Expected engine.env to override OPENAI_API_KEY, got:\n%s", stepContent)
 		}
-		if strings.Contains(stepContent, "CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}") {
-			t.Errorf("Default CODEX_API_KEY expression should be replaced by engine.env override, got:\n%s", stepContent)
+		if strings.Contains(stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}") {
+			t.Errorf("Default OPENAI_API_KEY expression should be replaced by engine.env override, got:\n%s", stepContent)
 		}
 	})
 

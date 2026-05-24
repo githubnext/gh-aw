@@ -56,9 +56,9 @@ func (e *CodexEngine) GetModelEnvVarName() string {
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Codex engine
-// This includes CODEX_API_KEY, OPENAI_API_KEY, and optionally MCP_GATEWAY_API_KEY and mcp-scripts secrets
+// This includes OPENAI_API_KEY and optionally MCP_GATEWAY_API_KEY and mcp-scripts secrets
 func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
-	return append([]string{"CODEX_API_KEY", "OPENAI_API_KEY"}, collectCommonMCPSecrets(workflowData)...)
+	return append([]string{"OPENAI_API_KEY"}, collectCommonMCPSecrets(workflowData)...)
 }
 
 // GetSecretValidationStep returns the secret validation step for the Codex engine.
@@ -66,7 +66,7 @@ func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []strin
 func (e *CodexEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
 	return BuildDefaultSecretValidationStep(
 		workflowData,
-		[]string{"CODEX_API_KEY", "OPENAI_API_KEY"},
+		[]string{"OPENAI_API_KEY"},
 		"Codex",
 		"https://github.github.com/gh-aw/reference/engines/#openai-codex",
 	)
@@ -316,7 +316,6 @@ mkdir -p "$CODEX_HOME/logs"
 	effectiveGitHubToken := getEffectiveGitHubToken("")
 
 	env := map[string]string{
-		"CODEX_API_KEY": "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
 		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
 		// The runner's original path is unreachable within the AWF isolated filesystem;
 		// we create this file before the agent starts and append it to the real
@@ -332,7 +331,7 @@ mkdir -p "$CODEX_HOME/logs"
 		"RUST_LOG":                     "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
 		"GH_AW_GITHUB_TOKEN":           effectiveGitHubToken,
 		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,                                     // Used by GitHub MCP server via env_vars
-		"OPENAI_API_KEY":               "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}", // Fallback for CODEX_API_KEY
+		"OPENAI_API_KEY":               "${{ secrets.OPENAI_API_KEY }}",
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection
@@ -519,9 +518,8 @@ func (e *CodexEngine) getShellEnvironmentPolicyVars(tools map[string]any, mcpToo
 	envVars["PATH"] = true
 	envVars["HOME"] = true
 
-	// Add CODEX_API_KEY for authentication
-	envVars["CODEX_API_KEY"] = true
-	envVars["OPENAI_API_KEY"] = true // Fallback for CODEX_API_KEY
+	// Add OPENAI_API_KEY for authentication
+	envVars["OPENAI_API_KEY"] = true
 
 	// Check each MCP tool for required environment variables
 	for _, toolName := range mcpTools {

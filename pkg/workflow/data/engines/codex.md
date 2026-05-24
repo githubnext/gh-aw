@@ -8,7 +8,7 @@ engine:
     name: openai
   auth:
     - role: api-key
-      secret: CODEX_API_KEY
+      secret: OPENAI_API_KEY
 ---
 
 <!-- # Codex

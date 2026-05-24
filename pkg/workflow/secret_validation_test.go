@@ -20,14 +20,13 @@ func TestGenerateMultiSecretValidationStep(t *testing.T) {
 		wantStrings []string
 	}{
 		{
-			name:        "Codex dual secret validation",
-			secretNames: []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
+			name:        "Codex single secret validation",
+			secretNames: []string{"OPENAI_API_KEY"},
 			engineName:  "Codex",
 			docsURL:     "https://github.github.com/gh-aw/reference/engines/#openai-codex",
 			wantStrings: []string{
-				"Validate CODEX_API_KEY or OPENAI_API_KEY secret",
-				"run: bash \"${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh\" CODEX_API_KEY OPENAI_API_KEY Codex https://github.github.com/gh-aw/reference/engines/#openai-codex",
-				"CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}",
+				"Validate OPENAI_API_KEY secret",
+				"run: bash \"${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh\" OPENAI_API_KEY Codex https://github.github.com/gh-aw/reference/engines/#openai-codex",
 				"OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}",
 			},
 		},
@@ -175,14 +174,11 @@ func TestCodexEngineHasSecretValidation(t *testing.T) {
 	}
 
 	stepContent := strings.Join(step, "\n")
-	if !strings.Contains(stepContent, "Validate CODEX_API_KEY or OPENAI_API_KEY secret") {
-		t.Error("Secret validation step should validate CODEX_API_KEY or OPENAI_API_KEY secret")
+	if !strings.Contains(stepContent, "Validate OPENAI_API_KEY secret") {
+		t.Error("Secret validation step should validate OPENAI_API_KEY secret")
 	}
 
-	// Should check for both secrets
-	if !strings.Contains(stepContent, "CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}") {
-		t.Error("Secret validation step should reference secrets.CODEX_API_KEY")
-	}
+	// Should check OPENAI secret
 	if !strings.Contains(stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}") {
 		t.Error("Secret validation step should reference secrets.OPENAI_API_KEY")
 	}
@@ -191,8 +187,8 @@ func TestCodexEngineHasSecretValidation(t *testing.T) {
 	if !strings.Contains(stepContent, "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh") {
 		t.Error("Should call validate_multi_secret.sh script")
 	}
-	if !strings.Contains(stepContent, "CODEX_API_KEY OPENAI_API_KEY") {
-		t.Error("Should pass both CODEX_API_KEY and OPENAI_API_KEY to the script")
+	if !strings.Contains(stepContent, "OPENAI_API_KEY Codex") {
+		t.Error("Should pass OPENAI_API_KEY to the script")
 	}
 }
 
@@ -306,8 +302,8 @@ func TestValidationStepUsesEngineEnvOverride(t *testing.T) {
 		{
 			name:           "Codex engine validation uses engine.env override",
 			engine:         NewCodexEngine(),
-			tokenKey:       "CODEX_API_KEY",
-			overrideSecret: "MY_ORG_CODEX_KEY",
+			tokenKey:       "OPENAI_API_KEY",
+			overrideSecret: "MY_ORG_OPENAI_KEY",
 		},
 		{
 			name:           "Gemini engine validation uses engine.env override",
