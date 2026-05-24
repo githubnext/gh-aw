@@ -373,7 +373,7 @@ const AGENT_USAGE_PATH = "/tmp/gh-aw/agent_usage.json";
 /**
  * Read the aggregated token usage written by parse_token_usage.cjs.
  * Returns null when the file is absent or unparseable.
- * @returns {{input_tokens: number, output_tokens: number, cache_read_tokens: number, cache_write_tokens: number, effective_tokens: number} | null}
+ * @returns {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, effective_tokens?: number, primary_model?: string} | null}
  */
 function readAgentUsage() {
   try {
