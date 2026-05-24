@@ -59,6 +59,7 @@ When suspicious patterns are detected, generate code-scanning alerts (not standa
 ### 1. Fetch Git History (Setup)
 
 Since this is a fresh clone, fetch the complete git history:
+Generate reusable artifacts once for sections 2-4.
 
 ```bash
 # Fetch all history for analysis
@@ -92,7 +93,7 @@ Use setup artifacts instead of re-running git:
 
 For each file in `/tmp/gh-aw/agent/changed_files.txt`, call the `suspicious-pattern-classifier` agent with:
 - file path
-- file diff/content evidence from `/tmp/gh-aw/agent/diff.txt`
+- file-specific diff/content evidence extracted from `/tmp/gh-aw/agent/diff.txt`
 - whether the file is newly added (from `/tmp/gh-aw/agent/added_files.txt`)
 
 Collect all non-empty JSON findings returned by the agent across files. These findings must use one of:
@@ -108,6 +109,11 @@ Example file loop:
 # Iterate over changed files from setup artifacts
 cat /tmp/gh-aw/agent/changed_files.txt | while read -r file; do
   if [ -f "$file" ]; then
+    file_diff=$(awk -v f="$file" '
+      /^diff --git / {show = ($0 ~ (" b/" f "$"))}
+      show {print}
+    ' /tmp/gh-aw/agent/diff.txt)
+
     # Call suspicious-pattern-classifier with file + related diff context
     # and collect returned JSON findings for later scoring
     echo "Analyze with suspicious-pattern-classifier: $file"
@@ -166,6 +172,7 @@ Use the GitHub API tools to gather context:
 
 For each suspicious finding, call the `threat-scorer` agent with:
 - `{category, evidence, file, confidence}`
+- Pass as JSON object input (for example: `{"category":"secret-exfiltration","evidence":"...","file":"path/to/file","confidence":"high"}`)
 
 Attach the returned JSON fields to the finding:
 - `score` (0-10)
@@ -317,7 +324,11 @@ Match rules:
 - obfuscation: long hex/base64 strings, deliberately obscure identifiers, encoded code blobs.
 - privilege-escalation: setuid, sudo invocations, capability changes.
 
-Return JSON only: `[{"category":"...","evidence":"<short quote or line>","line":<int|null>,"confidence":"high|medium|low"}, ...]`. Empty array if nothing matches. Do not invent findings.
+Return JSON only: `[{"category":"...","evidence":"<short quote or line>","line":<int|null>,"confidence":"high|medium|low"}, ...]`.
+- Use an integer `line` when a concrete line in the file diff/content is identifiable.
+- Use `null` when evidence is file-level or spans multiple lines without a single anchor.
+- Return an empty array if nothing matches.
+- Do not invent findings.
 
 ## agent: `threat-scorer`
 ---
