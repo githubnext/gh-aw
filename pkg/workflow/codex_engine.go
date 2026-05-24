@@ -285,8 +285,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			// The agent writes its step summary content to AgentStepSummaryPath, which is
 			// appended to $GITHUB_STEP_SUMMARY after secret redaction.
 			PathSetup: "mkdir -p \"$CODEX_HOME/logs\" && touch " + AgentStepSummaryPath,
-			// Keep Codex runtime API key variables available in the AWF container.
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, nil),
+			// Exclude Codex/OpenAI API key env vars from the AWF container.
+			// AWF's API proxy handles auth, so raw token values should not be
+			// visible to in-container tools (e.g., env/printenv).
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"CODEX_API_KEY", "OPENAI_API_KEY"}),
 		})
 	} else {
 		// Build the command without AWF wrapping.

@@ -454,6 +454,12 @@ func TestCodexEngineExecutionAddsMountedMCPCLIPathSetup(t *testing.T) {
 	if !strings.Contains(stepContent, "export PATH=\"${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH\"") {
 		t.Errorf("Expected mounted MCP CLI bin directory in AWF command, got:\n%s", stepContent)
 	}
+	if !strings.Contains(stepContent, "--exclude-env CODEX_API_KEY") {
+		t.Errorf("Expected CODEX_API_KEY to be excluded from AWF container env, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "--exclude-env OPENAI_API_KEY") {
+		t.Errorf("Expected OPENAI_API_KEY to be excluded from AWF container env, got:\n%s", stepContent)
+	}
 }
 
 func TestCodexEngineUserAgentIdentifierConversion(t *testing.T) {
