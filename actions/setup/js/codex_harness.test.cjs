@@ -16,6 +16,7 @@ const {
   hasNumerousPermissionDeniedIssues,
   extractDeniedCommands,
   buildMissingToolPermissionIssuePayload,
+  buildCodexChildEnv,
 } = require("./codex_harness.cjs");
 
 describe("codex_harness.cjs", () => {
@@ -132,6 +133,21 @@ describe("codex_harness.cjs", () => {
   describe("injectJsonFlag", () => {
     it("injects --json after exec when not already present", () => {
       expect(injectJsonFlag(["exec", "--dangerously-bypass-approvals-and-sandbox", "do the thing"])).toEqual(["exec", "--json", "--dangerously-bypass-approvals-and-sandbox", "do the thing"]);
+    });
+
+    describe("buildCodexChildEnv", () => {
+      it("preserves captured keys even when base environment is missing them", () => {
+        const result = buildCodexChildEnv({ PATH: "/usr/bin" }, "codex-key", "openai-key");
+        expect(result.CODEX_API_KEY).toBe("codex-key");
+        expect(result.OPENAI_API_KEY).toBe("openai-key");
+        expect(result.PATH).toBe("/usr/bin");
+      });
+
+      it("does not add unset keys", () => {
+        const result = buildCodexChildEnv({ PATH: "/usr/bin" }, undefined, undefined);
+        expect(result.CODEX_API_KEY).toBeUndefined();
+        expect(result.OPENAI_API_KEY).toBeUndefined();
+      });
     });
 
     it("does not inject --json when already present", () => {

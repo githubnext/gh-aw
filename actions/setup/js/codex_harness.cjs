@@ -277,6 +277,27 @@ function injectJsonFlag(args) {
 }
 
 /**
+ * Build child process environment for Codex execution.
+ * Preserve API keys captured at harness startup, even if the parent environment
+ * is sanitized later in the run.
+ *
+ * @param {NodeJS.ProcessEnv} baseEnv
+ * @param {string|undefined} codexApiKey
+ * @param {string|undefined} openaiApiKey
+ * @returns {NodeJS.ProcessEnv}
+ */
+function buildCodexChildEnv(baseEnv, codexApiKey, openaiApiKey) {
+  const childEnv = { ...baseEnv };
+  if (codexApiKey) {
+    childEnv.CODEX_API_KEY = codexApiKey;
+  }
+  if (openaiApiKey) {
+    childEnv.OPENAI_API_KEY = openaiApiKey;
+  }
+  return childEnv;
+}
+
+/**
  * Main entry point: run codex with retry logic for transient API failures.
  * Codex does not support --continue session resumption, so all retries are fresh runs.
  */
@@ -293,6 +314,7 @@ async function main() {
   // Diagnose API key presence so CI failures can be triaged without exposing secret values.
   const codexApiKey = process.env.CODEX_API_KEY;
   const openaiApiKey = process.env.OPENAI_API_KEY;
+  const codexChildEnv = buildCodexChildEnv(process.env, codexApiKey, openaiApiKey);
   log(`secrets: CODEX_API_KEY=${codexApiKey ? `set (length=${codexApiKey.length})` : "not set"}` + ` OPENAI_API_KEY=${openaiApiKey ? `set (length=${openaiApiKey.length})` : "not set"}`);
 
   // Pre-flight: require at least one API key before spawning codex.
@@ -345,7 +367,7 @@ async function main() {
       log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
     }
 
-    const result = await runProcess({ command, args: resolvedArgs, attempt, log, logArgs: safeArgs });
+    const result = await runProcess({ command, args: resolvedArgs, attempt, log, logArgs: safeArgs, env: codexChildEnv });
     lastExitCode = result.exitCode;
 
     // Success — stop retrying
@@ -429,6 +451,7 @@ if (typeof module !== "undefined" && module.exports) {
     extractDeniedCommands,
     buildMissingToolPermissionIssuePayload,
     emitMissingToolPermissionIssue,
+    buildCodexChildEnv,
   };
 }
 
