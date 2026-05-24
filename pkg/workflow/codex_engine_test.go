@@ -106,8 +106,8 @@ func TestCodexEngine(t *testing.T) {
 	if !strings.Contains(stepContent, "CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}") {
 		t.Errorf("Expected CODEX_API_KEY environment variable in step content:\n%s", stepContent)
 	}
-	if strings.Contains(stepContent, "--exclude-env OPENAI_API_KEY") {
-		t.Errorf("OPENAI_API_KEY must remain available to Codex runtime, got:\n%s", stepContent)
+	if strings.Contains(stepContent, "OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}") {
+		t.Errorf("OPENAI_API_KEY should not be used for Codex session auth, got:\n%s", stepContent)
 	}
 	if strings.Contains(stepContent, "--exclude-env CODEX_API_KEY") {
 		t.Errorf("CODEX_API_KEY must remain available to Codex runtime, got:\n%s", stepContent)
@@ -229,7 +229,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"",
 				"[shell_environment_policy]",
 				"inherit = \"core\"",
-				"include_only = [\"CODEX_API_KEY\", \"GITHUB_PERSONAL_ACCESS_TOKEN\", \"HOME\", \"OPENAI_API_KEY\", \"PATH\"]",
+				"include_only = [\"CODEX_API_KEY\", \"GITHUB_PERSONAL_ACCESS_TOKEN\", \"HOME\", \"PATH\"]",
 				"",
 				"[mcp_servers.github]",
 				"user_agent = \"test-workflow\"",
@@ -275,7 +275,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"cat > \"/tmp/gh-aw/mcp-config/config.toml\" << GH_AW_CODEX_SHELL_POLICY_NORM_EOF",
 				"[shell_environment_policy]",
 				"inherit = \"core\"",
-				"include_only = [\"CODEX_API_KEY\", \"GITHUB_PERSONAL_ACCESS_TOKEN\", \"HOME\", \"OPENAI_API_KEY\", \"PATH\"]",
+				"include_only = [\"CODEX_API_KEY\", \"GITHUB_PERSONAL_ACCESS_TOKEN\", \"HOME\", \"PATH\"]",
 				"GH_AW_CODEX_SHELL_POLICY_NORM_EOF",
 				"cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"",
 				"chmod 600 \"/tmp/gh-aw/mcp-config/config.toml\"",
@@ -353,7 +353,7 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 			"[model_providers.openai-proxy]",
 			"name = \"OpenAI AWF proxy\"",
 			fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.ClaudeLLMGatewayPort),
-			"env_key = \"OPENAI_API_KEY\"",
+			"env_key = \"CODEX_API_KEY\"",
 			"supports_websockets = false",
 		}
 

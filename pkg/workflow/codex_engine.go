@@ -333,8 +333,7 @@ mkdir -p "$CODEX_HOME/logs"
 		"CODEX_HOME":                   "/tmp/gh-aw/mcp-config",
 		"RUST_LOG":                     "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
 		"GH_AW_GITHUB_TOKEN":           effectiveGitHubToken,
-		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,                                     // Used by GitHub MCP server via env_vars
-		"OPENAI_API_KEY":               "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}", // Fallback for CODEX_API_KEY
+		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken, // Used by GitHub MCP server via env_vars
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection
@@ -523,7 +522,6 @@ func (e *CodexEngine) getShellEnvironmentPolicyVars(tools map[string]any, mcpToo
 
 	// Add CODEX_API_KEY for authentication
 	envVars["CODEX_API_KEY"] = true
-	envVars["OPENAI_API_KEY"] = true // Fallback for CODEX_API_KEY
 
 	// Check each MCP tool for required environment variables
 	for _, toolName := range mcpTools {
