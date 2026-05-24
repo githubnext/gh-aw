@@ -18,6 +18,7 @@ permissions:
 name: Smoke Copilot
 engine:
   id: copilot
+  model: gpt-5.3-codex
   max-continuations: 2
   bare: true
 imports:
