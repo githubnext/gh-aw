@@ -14,9 +14,14 @@ import (
 )
 
 var otlpLog = logger.New("workflow:observability_otlp")
+
 // OTEL_RESOURCE_ATTRIBUTES values must escape backslash (`\`), comma (`,`), and
 // equals (`=`) per the OpenTelemetry env-var resource attribute grammar.
 var otelResourceValueEscaper = strings.NewReplacer(`\`, `\\`, ",", `\,`, "=", `\=`)
+
+func escapeYAMLSingleQuotedScalar(value string) string {
+	return strings.ReplaceAll(value, "'", "''")
+}
 
 var sentryEndpointExpressionPattern = regexp.MustCompile(`(?i)^\$\{\{\s*secrets\.` + regexp.QuoteMeta(constants.OTELSentryEndpointSecretName) + `\s*\}\}$`)
 
@@ -581,7 +586,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	//    compatibility (MCP gateway, legacy scripts). OTEL_SERVICE_NAME is
 	//    workflow-specific when WorkflowID is available.
 	otlpEnvLines := fmt.Sprintf("  OTEL_EXPORTER_OTLP_ENDPOINT: %s\n  OTEL_SERVICE_NAME: %s", firstEndpoint, serviceName)
-	otlpEnvLines += "\n  OTEL_RESOURCE_ATTRIBUTES: " + otelResourceAttributes(workflowData)
+	otlpEnvLines += "\n  OTEL_RESOURCE_ATTRIBUTES: '" + escapeYAMLSingleQuotedScalar(otelResourceAttributes(workflowData)) + "'"
 
 	// 3. Inject per-endpoint headers env vars.
 	//    OTEL_EXPORTER_OTLP_HEADERS = first endpoint headers (backward compat).
@@ -599,7 +604,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	// The value is single-quoted to prevent YAML parsers from interpreting the
 	// leading '[' as a YAML sequence node rather than a plain string.
 	if encoded := encodeOTLPEndpoints(entries); encoded != "" {
-		escapedEncoded := strings.ReplaceAll(encoded, "'", "''")
+		escapedEncoded := escapeYAMLSingleQuotedScalar(encoded)
 		otlpEnvLines += "\n  GH_AW_OTLP_ENDPOINTS: '" + escapedEncoded + "'"
 		otlpLog.Printf("Injected GH_AW_OTLP_ENDPOINTS env var")
 	}
@@ -622,7 +627,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 		customAttrs = workflowData.ParsedFrontmatter.Observability.OTLP.Attributes
 	}
 	if encoded := encodeOTLPCustomAttributes(customAttrs); encoded != "" {
-		escapedEncoded := strings.ReplaceAll(encoded, "'", "''")
+		escapedEncoded := escapeYAMLSingleQuotedScalar(encoded)
 		otlpEnvLines += "\n  GH_AW_OTLP_ATTRIBUTES: '" + escapedEncoded + "'"
 		otlpLog.Printf("Injected GH_AW_OTLP_ATTRIBUTES env var (%d custom attributes)", len(customAttrs))
 	}
