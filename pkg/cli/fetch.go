@@ -208,7 +208,9 @@ func resolveCommitSHAWithRetries(ctx context.Context, owner, repo, ref, workflow
 	)
 }
 
-func hostResolutionHintForNotFound(owner, repo, ref, workflowPath, explicitHost string, err error) (string, bool) {
+// hostResolutionHintForNotFound returns a user-facing hint and whether it is applicable.
+// hasHint is true only for 404-style resolution failures on non-github.com hosts.
+func hostResolutionHintForNotFound(owner, repo, ref, workflowPath, explicitHost string, err error) (hint string, hasHint bool) {
 	if err == nil {
 		return "", false
 	}
@@ -226,10 +228,10 @@ func hostResolutionHintForNotFound(owner, repo, ref, workflowPath, explicitHost 
 		return "", false
 	}
 
-	path := strings.TrimPrefix(workflowPath, "/")
-	fullURL := fmt.Sprintf("https://github.com/%s/%s/blob/%s/%s", owner, repo, ref, path)
+	trimmedPath := strings.TrimPrefix(workflowPath, "/")
+	fullURL := fmt.Sprintf("https://github.com/%s/%s/blob/%s/%s", owner, repo, ref, trimmedPath)
 	return fmt.Sprintf(
-		"Shorthand workflow specs resolve on %s. In GitHub Enterprise contexts, use a full github.com URL for public workflows (for example: gh aw add-wizard %s)",
+		"Shorthand specs resolved on %s. Try using the full github.com URL instead: gh aw add-wizard %s",
 		resolvedHost, fullURL,
 	), true
 }

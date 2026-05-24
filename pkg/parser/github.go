@@ -45,10 +45,9 @@ func GetGitHubHost() string {
 // fetched from public GitHub (https://github.com) in cross-host contexts.
 // For all other repositories, it uses GetGitHubHost().
 func GetGitHubHostForRepo(owner, repo string) string {
-	_ = repo // keep signature stable for callers that pass owner/repo separately
 	switch owner {
 	case "github", "githubnext", "microsoft":
-		githubLog.Printf("Using public GitHub host for %s organization repository", owner)
+		githubLog.Printf("Using public GitHub host for %s/%s repository in %s organization", owner, repo, owner)
 		return string(constants.PublicGitHubHost)
 	}
 
