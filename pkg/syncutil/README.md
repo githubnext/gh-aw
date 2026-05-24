@@ -59,7 +59,11 @@ func getCurrentRepoSlug() (string, error) {
 
 ## Dependencies
 
-This package has no internal or external dependencies beyond the Go standard library (`sync`).
+**Internal**:
+- `pkg/logger` — package-scoped logging used by `OnceLoader[T]`.
+
+**External**:
+- None beyond the Go standard library (`sync`).
 
 ---
 

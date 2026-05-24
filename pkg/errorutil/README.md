@@ -36,7 +36,11 @@ if errorutil.IsGoneError(err) {
 
 ## Dependencies
 
-None.
+**Internal**:
+- `pkg/logger` — package-scoped logging used for error-classification diagnostics.
+
+**External**:
+- None beyond the Go standard library (`strings`).
 
 ## Design Notes
 
