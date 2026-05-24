@@ -1208,6 +1208,24 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("connect ECONNREFUSED 127.0.0.1:8080");
     });
 
+    it("extracts AWF startup errors from dependency lines and container startup failures", () => {
+      const lines = [
+        " Container awf-squid  Error",
+        "dependency failed to start: container awf-squid is unhealthy",
+        "[ERROR] Failed to start containers: Error: Command failed with exit code 1: docker compose up -d --pull never",
+        "  stdout: undefined,",
+        "  stderr: undefined,",
+      ];
+      fs.writeFileSync(stdioLogPath, lines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("dependency failed to start: container awf-squid is unhealthy");
+      expect(result).toContain("Failed to start containers: Error: Command failed with exit code 1: docker compose up -d --pull never");
+      expect(result).not.toContain("Last agent output");
+      expect(result).not.toContain("stdout: undefined");
+      expect(result).not.toContain("stderr: undefined");
+    });
+
     it("detects Fatal: prefix pattern", () => {
       fs.writeFileSync(stdioLogPath, "Fatal: out of memory\n");
       const result = buildEngineFailureContext();
@@ -1288,6 +1306,7 @@ describe("handle_agent_failure", () => {
         "[SUCCESS] Containers stopped successfully",
         "[INFO] Agent session state preserved at: /tmp/awf-agent-session-state-abc123",
         "[INFO] API proxy logs available at: /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs",
+        "[ERROR] Command completed with exit code: 1",
         "[WARN] Command completed with exit code: 1",
         "Process exiting with code: 1",
       ];
@@ -1300,6 +1319,7 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Last agent output");
       expect(result).not.toContain("awf-squid");
       expect(result).not.toContain("Command completed with exit code");
+      expect(result).not.toContain("[ERROR]");
       expect(result).not.toContain("Process exiting with code");
     });
 
