@@ -55,139 +55,121 @@ type GitHubURLComponents struct {
 //   - Enterprise URLs: https://github.example.com/owner/repo/...
 func ParseGitHubURL(urlStr string) (*GitHubURLComponents, error) {
 	urlLog.Printf("Parsing GitHub URL: %s", urlStr)
-	// Parse the URL
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
 		urlLog.Printf("Failed to parse URL: %v", err)
 		return nil, fmt.Errorf("invalid URL: %w", err)
 	}
 
-	// Check if it's a GitHub-like host
 	host := parsedURL.Host
 	if host == "" {
 		return nil, errors.New("URL must include a host")
 	}
-
 	urlLog.Printf("Detected host: %s", host)
-
-	// Handle raw.githubusercontent.com specially
 	if host == "raw.githubusercontent.com" {
 		urlLog.Print("Detected raw.githubusercontent.com URL")
 		return parseRawGitHubContentURL(parsedURL)
 	}
+	return parseStandardGitHubURL(parsedURL, host)
+}
 
-	// Parse the path
+func parseStandardGitHubURL(parsedURL *url.URL, host string) (*GitHubURLComponents, error) {
 	pathParts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
-
-	// Need at least owner and repo
 	if len(pathParts) < 2 {
 		return nil, errors.New("invalid GitHub URL format: path too short")
 	}
 
 	owner := pathParts[0]
 	repo := pathParts[1]
-
-	// Validate owner and repo are not empty
 	if owner == "" || repo == "" {
 		return nil, errors.New("invalid GitHub URL: owner and repo cannot be empty")
 	}
+	if len(pathParts) < 4 {
+		return nil, errors.New("unrecognized GitHub URL format")
+	}
+	urlType := pathParts[2]
+	urlLog.Printf("Detected URL type segment: %s for %s/%s", urlType, owner, repo)
+	return parseGitHubURLByType(parsedURL, host, owner, repo, pathParts, urlType)
+}
 
-	// Determine the type based on path structure
-	if len(pathParts) >= 4 {
-		urlType := pathParts[2]
-		urlLog.Printf("Detected URL type segment: %s for %s/%s", urlType, owner, repo)
-
-		switch urlType {
-		case "actions":
-			// Pattern: /owner/repo/actions/runs/12345678
-			if len(pathParts) >= 5 && pathParts[3] == "runs" {
-				urlLog.Print("Parsing GitHub Actions run URL")
-				components, err := parseRunURL(host, owner, repo, pathParts[4:])
-				if err != nil {
-					return nil, err
-				}
-				// Parse fragment for step information
-				parseStepFragment(parsedURL.Fragment, components)
-				return components, nil
-			}
-
-		case "runs":
-			// Pattern: /owner/repo/runs/12345678 (short form)
-			if len(pathParts) >= 4 {
-				urlLog.Print("Parsing GitHub Actions run URL (short form)")
-				components, err := parseRunURL(host, owner, repo, pathParts[3:])
-				if err != nil {
-					return nil, err
-				}
-				// Parse fragment for step information
-				parseStepFragment(parsedURL.Fragment, components)
-				return components, nil
-			}
-
-		case "pull":
-			// Pattern: /owner/repo/pull/123
-			if len(pathParts) >= 4 {
-				urlLog.Print("Parsing pull request URL")
-				prNumber, err := strconv.ParseInt(pathParts[3], 10, 32)
-				if err != nil {
-					return nil, fmt.Errorf("invalid PR number: %s", pathParts[3])
-				}
-				return &GitHubURLComponents{
-					Host:   host,
-					Owner:  owner,
-					Repo:   repo,
-					Type:   URLTypePullRequest,
-					Number: prNumber,
-				}, nil
-			}
-
-		case "issues":
-			// Pattern: /owner/repo/issues/123
-			if len(pathParts) >= 4 {
-				issueNumber, err := strconv.ParseInt(pathParts[3], 10, 32)
-				if err != nil {
-					return nil, fmt.Errorf("invalid issue number: %s", pathParts[3])
-				}
-				return &GitHubURLComponents{
-					Host:   host,
-					Owner:  owner,
-					Repo:   repo,
-					Type:   URLTypeIssue,
-					Number: issueNumber,
-				}, nil
-			}
-
-		case "blob", "tree", "raw":
-			// Pattern: /owner/repo/{blob|tree|raw}/ref/path/to/file
-			if len(pathParts) >= 5 {
-				urlLog.Printf("Parsing file URL (type=%s)", urlType)
-				ref := pathParts[3]
-				filePath := strings.Join(pathParts[4:], "/")
-
-				var urlTypeEnum GitHubURLType
-				switch urlType {
-				case "blob":
-					urlTypeEnum = URLTypeBlob
-				case "tree":
-					urlTypeEnum = URLTypeTree
-				case "raw":
-					urlTypeEnum = URLTypeRaw
-				}
-
-				urlLog.Printf("Parsed file URL: ref=%s, path=%s", ref, filePath)
-				return &GitHubURLComponents{
-					Host:  host,
-					Owner: owner,
-					Repo:  repo,
-					Type:  urlTypeEnum,
-					Path:  filePath,
-					Ref:   ref,
-				}, nil
-			}
+func parseGitHubURLByType(parsedURL *url.URL, host, owner, repo string, pathParts []string, urlType string) (*GitHubURLComponents, error) {
+	switch urlType {
+	case "actions":
+		if len(pathParts) >= 5 && pathParts[3] == "runs" {
+			return parseActionsRunURL(parsedURL, host, owner, repo, pathParts[4:], "Parsing GitHub Actions run URL")
+		}
+	case "runs":
+		if len(pathParts) >= 4 {
+			return parseActionsRunURL(parsedURL, host, owner, repo, pathParts[3:], "Parsing GitHub Actions run URL (short form)")
+		}
+	case "pull":
+		if len(pathParts) >= 4 {
+			urlLog.Print("Parsing pull request URL")
+			return parseNumberedURL(host, owner, repo, URLTypePullRequest, "PR", pathParts[3])
+		}
+	case "issues":
+		if len(pathParts) >= 4 {
+			return parseNumberedURL(host, owner, repo, URLTypeIssue, "issue", pathParts[3])
+		}
+	case "blob", "tree", "raw":
+		if len(pathParts) >= 5 {
+			return parseFileURL(host, owner, repo, pathParts, urlType)
 		}
 	}
-
 	return nil, errors.New("unrecognized GitHub URL format")
+}
+
+func parseActionsRunURL(parsedURL *url.URL, host, owner, repo string, parts []string, logMessage string) (*GitHubURLComponents, error) {
+	urlLog.Print(logMessage)
+	components, err := parseRunURL(host, owner, repo, parts)
+	if err != nil {
+		return nil, err
+	}
+	parseStepFragment(parsedURL.Fragment, components)
+	return components, nil
+}
+
+func parseNumberedURL(host, owner, repo string, urlType GitHubURLType, label, numberText string) (*GitHubURLComponents, error) {
+	number, err := strconv.ParseInt(numberText, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s number: %s", label, numberText)
+	}
+	return &GitHubURLComponents{
+		Host:   host,
+		Owner:  owner,
+		Repo:   repo,
+		Type:   urlType,
+		Number: number,
+	}, nil
+}
+
+func parseFileURL(host, owner, repo string, pathParts []string, urlType string) (*GitHubURLComponents, error) {
+	urlLog.Printf("Parsing file URL (type=%s)", urlType)
+	ref := pathParts[3]
+	filePath := strings.Join(pathParts[4:], "/")
+	urlTypeEnum := parseFileURLType(urlType)
+	urlLog.Printf("Parsed file URL: ref=%s, path=%s", ref, filePath)
+	return &GitHubURLComponents{
+		Host:  host,
+		Owner: owner,
+		Repo:  repo,
+		Type:  urlTypeEnum,
+		Path:  filePath,
+		Ref:   ref,
+	}, nil
+}
+
+func parseFileURLType(urlType string) GitHubURLType {
+	switch urlType {
+	case "blob":
+		return URLTypeBlob
+	case "tree":
+		return URLTypeTree
+	case "raw":
+		return URLTypeRaw
+	default:
+		return URLTypeUnknown
+	}
 }
 
 // parseRunURL parses the run ID portion of a GitHub Actions URL

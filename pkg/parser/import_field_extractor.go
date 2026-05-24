@@ -150,129 +150,126 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 // fm (parsed from possibly-substituted content, used for all field extraction), and
 // any error that should abort processing for this import.
 func (acc *importAccumulator) prepareFrontmatter(content []byte, item importQueueItem, visited map[string]bool) (origFm, fm map[string]any, err error) {
-	// Parse frontmatter once from the original content. This parse is reused for
-	// import-schema default extraction and schema validation, avoiding redundant YAML parsing.
-	// For builtin files we use the process-level cache.
 	origContent := string(content)
-	var origParsed *FrontmatterResult
-	var origParseErr error
-	if strings.HasPrefix(item.fullPath, BuiltinPathPrefix) {
-		origParsed, origParseErr = ExtractFrontmatterFromBuiltinFile(item.fullPath, content)
-	} else {
-		origParsed, origParseErr = ExtractFrontmatterFromContent(origContent)
+	origParsed, origParseErr := parseOriginalFrontmatter(content, item.fullPath, origContent)
+	origFm = frontmatterMapOrEmpty(origParsed, origParseErr)
+	rawContent, wasSubstituted := acc.applyImportDefaultsToContent(origContent, origFm, item.inputs)
+	acc.collectInlineSubAgentWarnings(item.importPath, rawContent, wasSubstituted, origParsed, origParseErr)
+	toolsContent, err := acc.extractToolsContent(rawContent, item, visited, wasSubstituted)
+	if err != nil {
+		return nil, nil, err
 	}
-	if origParseErr == nil {
-		origFm = origParsed.Frontmatter
-	} else {
-		origFm = make(map[string]any)
+	acc.toolsBuilder.WriteString(toolsContent + "\n")
+	importRelPath := computeImportRelPath(item.fullPath, item.importPath)
+	if err := acc.trackRuntimeOrInlineImport(item.fullPath, importRelPath, rawContent, wasSubstituted); err != nil {
+		return nil, nil, err
 	}
 
-	// Apply import-schema defaults before any YAML or markdown processing, even when no
-	// explicit 'with:' inputs were provided by the importing workflow. This enables
-	// ${{ github.aw.import-inputs.* }} expressions in the imported workflow's frontmatter
-	// fields (engine, safe-outputs, tools, runtimes, etc.) and markdown body to resolve
-	// to their declared default values rather than remaining as literal strings.
-	// Array and map values are serialized as JSON so they produce valid YAML inline syntax.
-	// We reuse the already-parsed frontmatter to avoid a second YAML parse.
-	inputsWithDefaults := applyImportSchemaDefaultsFromFrontmatter(origFm, item.inputs)
-	rawContent := origContent
-	if len(inputsWithDefaults) > 0 {
-		rawContent = substituteImportInputsInContent(origContent, inputsWithDefaults)
-		// Add resolved defaults to acc.importInputs so the compile-time markdown
-		// substitution pass (generatePrompt) also has access to them.
-		maps.Copy(acc.importInputs, inputsWithDefaults)
-	}
-	wasSubstituted := rawContent != origContent
+	fm = parseFrontmatterForExtraction(rawContent, wasSubstituted, origFm)
+	return origFm, fm, nil
+}
 
-	// Best-effort: detect and validate inline sub-agent frontmatter in the imported file.
-	// Unknown fields in sub-agent frontmatter blocks are surfaced as advisory warnings.
-	// Validation failures never abort the import — they are accumulated for later display.
-	//
-	// When content was NOT substituted we reuse origParsed.Markdown (already parsed above)
-	// to avoid a redundant YAML parse. When content was substituted we pass the full
-	// substituted content so ValidateInlineSubAgentsFrontmatter can extract the body itself.
+func parseOriginalFrontmatter(content []byte, fullPath, origContent string) (*FrontmatterResult, error) {
+	if strings.HasPrefix(fullPath, BuiltinPathPrefix) {
+		return ExtractFrontmatterFromBuiltinFile(fullPath, content)
+	}
+	return ExtractFrontmatterFromContent(origContent)
+}
+
+func frontmatterMapOrEmpty(result *FrontmatterResult, parseErr error) map[string]any {
+	if parseErr != nil {
+		return make(map[string]any)
+	}
+	return result.Frontmatter
+}
+
+func (acc *importAccumulator) applyImportDefaultsToContent(origContent string, origFm, inputs map[string]any) (string, bool) {
+	inputsWithDefaults := applyImportSchemaDefaultsFromFrontmatter(origFm, inputs)
+	if len(inputsWithDefaults) == 0 {
+		return origContent, false
+	}
+	maps.Copy(acc.importInputs, inputsWithDefaults)
+	rawContent := substituteImportInputsInContent(origContent, inputsWithDefaults)
+	return rawContent, rawContent != origContent
+}
+
+func (acc *importAccumulator) collectInlineSubAgentWarnings(importPath, rawContent string, wasSubstituted bool, origParsed *FrontmatterResult, origParseErr error) {
 	var bodyForValidation string
 	if !wasSubstituted && origParseErr == nil {
 		bodyForValidation = origParsed.Markdown
 	}
-	var agentWarnings []string
-	if bodyForValidation != "" {
-		agentWarnings = ValidateInlineSubAgentsInBody(bodyForValidation)
-	} else {
-		agentWarnings = ValidateInlineSubAgentsFrontmatter(rawContent)
-	}
+	agentWarnings := validateSubAgentFrontmatterWarnings(bodyForValidation, rawContent)
 	for _, w := range agentWarnings {
-		msg := fmt.Sprintf("import '%s': %s", item.importPath, w)
+		msg := fmt.Sprintf("import '%s': %s", importPath, w)
 		acc.warnings = append(acc.warnings, msg)
 		parserLog.Printf("%s", msg)
 	}
+}
 
-	// Extract tools from imported file.
-	// When content was modified by substitution (either explicit inputs or schema defaults),
-	// we use the already-substituted content (to pick up any ${{ github.aw.import-inputs.* }}
-	// expressions in the tools/mcp-servers frontmatter) rather than re-reading the original file.
-	var toolsContent string
-	if wasSubstituted {
-		toolsContent, err = extractToolsFromContent(rawContent)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to extract tools from '%s': %w", item.fullPath, err)
-		}
-	} else {
-		toolsContent, err = processIncludedFileWithVisited(item.fullPath, item.sectionName, true, visited)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to process imported file '%s': %w", item.fullPath, err)
-		}
+func validateSubAgentFrontmatterWarnings(bodyForValidation, rawContent string) []string {
+	if bodyForValidation != "" {
+		return ValidateInlineSubAgentsInBody(bodyForValidation)
 	}
-	acc.toolsBuilder.WriteString(toolsContent + "\n")
+	return ValidateInlineSubAgentsFrontmatter(rawContent)
+}
 
-	// Track import path for runtime-import macro generation (only if no substitution happened).
-	// Imports with substituted inputs (explicit or via schema defaults) must be inlined for
-	// compile-time substitution so that ${{ github.aw.import-inputs.* }} expressions are resolved.
-	// Builtin paths (@builtin:…) are pure configuration — they carry no user-visible
-	// prompt content and must not generate runtime-import macros.
-	importRelPath := computeImportRelPath(item.fullPath, item.importPath)
+func (acc *importAccumulator) extractToolsContent(rawContent string, item importQueueItem, visited map[string]bool, wasSubstituted bool) (string, error) {
+	if wasSubstituted {
+		toolsContent, err := extractToolsFromContent(rawContent)
+		if err != nil {
+			return "", fmt.Errorf("failed to extract tools from '%s': %w", item.fullPath, err)
+		}
+		return toolsContent, nil
+	}
+	toolsContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, true, visited)
+	if err != nil {
+		return "", fmt.Errorf("failed to process imported file '%s': %w", item.fullPath, err)
+	}
+	return toolsContent, nil
+}
+
+func (acc *importAccumulator) trackRuntimeOrInlineImport(fullPath, importRelPath, rawContent string, wasSubstituted bool) error {
 	if !wasSubstituted && !strings.HasPrefix(importRelPath, BuiltinPathPrefix) {
-		// No substitution happened and not a builtin - use runtime-import macro
 		acc.importPaths = append(acc.importPaths, importRelPath)
 		parserLog.Printf("Added import path for runtime-import: %s", importRelPath)
-	} else if wasSubstituted {
-		// Content was modified by substitution - inline for compile-time substitution.
-		// Extract markdown from the already-substituted content so that import-inputs
-		// expressions embedded in the markdown body are resolved here.
-		parserLog.Printf("Import %s has substituted inputs - will be inlined for compile-time substitution", importRelPath)
-		markdownContent, merr := ExtractMarkdownContent(rawContent)
-		if merr != nil {
-			return nil, nil, fmt.Errorf("failed to extract markdown from imported file '%s': %w", item.fullPath, merr)
-		}
-		if markdownContent != "" {
-			acc.markdownBuilder.WriteString(markdownContent)
-			// Add blank line separator between imported files
-			if !strings.HasSuffix(markdownContent, "\n\n") {
-				if strings.HasSuffix(markdownContent, "\n") {
-					acc.markdownBuilder.WriteString("\n")
-				} else {
-					acc.markdownBuilder.WriteString("\n\n")
-				}
-			}
-		}
+		return nil
 	}
+	if !wasSubstituted {
+		return nil
+	}
+	parserLog.Printf("Import %s has substituted inputs - will be inlined for compile-time substitution", importRelPath)
+	markdownContent, err := ExtractMarkdownContent(rawContent)
+	if err != nil {
+		return fmt.Errorf("failed to extract markdown from imported file '%s': %w", fullPath, err)
+	}
+	appendMarkdownWithSeparator(&acc.markdownBuilder, markdownContent)
+	return nil
+}
 
-	// Parse frontmatter from the (possibly substituted) content for field extraction.
-	// All subsequent field extractions use this pre-parsed result.
-	// When substitution changed the content, reparse from rawContent so that all
-	// frontmatter fields (runtimes, mcp-servers, engine, safe-outputs, etc.) reflect
-	// the resolved values. When content is unchanged we reuse origFm, which was already
-	// parsed above — for builtin files the cache also applies.
-	if wasSubstituted {
-		if reparsed, rerr := ExtractFrontmatterFromContent(rawContent); rerr == nil {
-			fm = reparsed.Frontmatter
-		} else {
-			fm = make(map[string]any)
-		}
-	} else {
-		fm = origFm
+func appendMarkdownWithSeparator(builder *strings.Builder, markdownContent string) {
+	if markdownContent == "" {
+		return
 	}
-	return origFm, fm, nil
+	builder.WriteString(markdownContent)
+	if strings.HasSuffix(markdownContent, "\n\n") {
+		return
+	}
+	if strings.HasSuffix(markdownContent, "\n") {
+		builder.WriteString("\n")
+		return
+	}
+	builder.WriteString("\n\n")
+}
+
+func parseFrontmatterForExtraction(rawContent string, wasSubstituted bool, origFm map[string]any) map[string]any {
+	if !wasSubstituted {
+		return origFm
+	}
+	reparsed, err := ExtractFrontmatterFromContent(rawContent)
+	if err != nil {
+		return make(map[string]any)
+	}
+	return reparsed.Frontmatter
 }
 
 // extractEngineConfig extracts engine-related settings from the imported frontmatter map
@@ -415,99 +412,108 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 // acc.skipBotsSet, acc.skipIfMatch, acc.skipIfNoMatch, acc.activationGitHubToken,
 // acc.activationGitHubApp, acc.topLevelGitHubApp, acc.checkouts.
 func (acc *importAccumulator) extractActivationFields(fm map[string]any, item importQueueItem) {
-	// Extract and merge bots (merge into set to avoid duplicates).
-	if botsContent, err := extractFieldJSONFromMap(fm, "bots", "[]"); err == nil && botsContent != "" && botsContent != "[]" {
-		var importedBots []string
-		if jsonErr := json.Unmarshal([]byte(botsContent), &importedBots); jsonErr == nil {
-			for _, bot := range importedBots {
-				if !acc.botsSet[bot] {
-					acc.botsSet[bot] = true
-					acc.bots = append(acc.bots, bot)
-				}
-			}
+	acc.mergeBots(fm)
+	acc.mergeSkipRoles(fm)
+	acc.mergeSkipBots(fm)
+	acc.extractActivationSkipMatchFields(fm, item.fullPath)
+	acc.extractActivationGitHubToken(fm, item.fullPath)
+	acc.extractActivationGitHubAppFields(fm, item.fullPath)
+	acc.extractCheckoutField(fm, item.fullPath)
+}
+
+func (acc *importAccumulator) mergeBots(fm map[string]any) {
+	mergeJSONStringListField(fm, "bots", "[]", acc.botsSet, &acc.bots, func(m map[string]any, field string) (string, error) {
+		return extractFieldJSONFromMap(m, field, "[]")
+	})
+}
+
+func (acc *importAccumulator) mergeSkipRoles(fm map[string]any) {
+	mergeJSONStringListField(fm, "skip-roles", "[]", acc.skipRolesSet, &acc.skipRoles, extractOnSectionFieldFromMap)
+}
+
+func (acc *importAccumulator) mergeSkipBots(fm map[string]any) {
+	mergeJSONStringListField(fm, "skip-bots", "[]", acc.skipBotsSet, &acc.skipBots, extractOnSectionFieldFromMap)
+}
+
+func mergeJSONStringListField(
+	fm map[string]any,
+	field, emptyValue string,
+	seen map[string]bool,
+	merged *[]string,
+	extractor func(map[string]any, string) (string, error),
+) {
+	content, err := extractor(fm, field)
+	if err != nil || content == "" || content == emptyValue {
+		return
+	}
+	var imported []string
+	if jsonErr := json.Unmarshal([]byte(content), &imported); jsonErr != nil {
+		return
+	}
+	for _, value := range imported {
+		if !seen[value] {
+			seen[value] = true
+			*merged = append(*merged, value)
 		}
 	}
+}
 
-	// Extract and merge skip-roles (merge into set to avoid duplicates).
-	if skipRolesContent, err := extractOnSectionFieldFromMap(fm, "skip-roles"); err == nil && skipRolesContent != "" && skipRolesContent != "[]" {
-		var importedSkipRoles []string
-		if jsonErr := json.Unmarshal([]byte(skipRolesContent), &importedSkipRoles); jsonErr == nil {
-			for _, role := range importedSkipRoles {
-				if !acc.skipRolesSet[role] {
-					acc.skipRolesSet[role] = true
-					acc.skipRoles = append(acc.skipRoles, role)
-				}
-			}
-		}
-	}
-
-	// Extract and merge skip-bots (merge into set to avoid duplicates).
-	if skipBotsContent, err := extractOnSectionFieldFromMap(fm, "skip-bots"); err == nil && skipBotsContent != "" && skipBotsContent != "[]" {
-		var importedSkipBots []string
-		if jsonErr := json.Unmarshal([]byte(skipBotsContent), &importedSkipBots); jsonErr == nil {
-			for _, user := range importedSkipBots {
-				if !acc.skipBotsSet[user] {
-					acc.skipBotsSet[user] = true
-					acc.skipBots = append(acc.skipBots, user)
-				}
-			}
-		}
-	}
-
-	// Extract on.skip-if-match (first-wins).
+func (acc *importAccumulator) extractActivationSkipMatchFields(fm map[string]any, fullPath string) {
 	if acc.skipIfMatch == "" {
 		if skipJSON, skipErr := extractOnSectionAnyFieldFromMap(fm, "skip-if-match"); skipErr == nil && skipJSON != "" && skipJSON != "null" {
 			acc.skipIfMatch = skipJSON
-			parserLog.Printf("Extracted on.skip-if-match from import: %s", item.fullPath)
+			parserLog.Printf("Extracted on.skip-if-match from import: %s", fullPath)
 		}
 	}
-
-	// Extract on.skip-if-no-match (first-wins).
 	if acc.skipIfNoMatch == "" {
 		if skipJSON, skipErr := extractOnSectionAnyFieldFromMap(fm, "skip-if-no-match"); skipErr == nil && skipJSON != "" && skipJSON != "null" {
 			acc.skipIfNoMatch = skipJSON
-			parserLog.Printf("Extracted on.skip-if-no-match from import: %s", item.fullPath)
+			parserLog.Printf("Extracted on.skip-if-no-match from import: %s", fullPath)
 		}
 	}
+}
 
-	// Extract on.github-token (first-wins).
-	if acc.activationGitHubToken == "" {
-		if tokenJSON, tokenErr := extractOnSectionAnyFieldFromMap(fm, "github-token"); tokenErr == nil && tokenJSON != "" && tokenJSON != "null" {
-			var token string
-			if jsonErr := json.Unmarshal([]byte(tokenJSON), &token); jsonErr == nil && token != "" {
-				acc.activationGitHubToken = token
-				parserLog.Printf("Extracted on.github-token from import: %s", item.fullPath)
-			}
-		}
+func (acc *importAccumulator) extractActivationGitHubToken(fm map[string]any, fullPath string) {
+	if acc.activationGitHubToken != "" {
+		return
 	}
+	tokenJSON, tokenErr := extractOnSectionAnyFieldFromMap(fm, "github-token")
+	if tokenErr != nil || tokenJSON == "" || tokenJSON == "null" {
+		return
+	}
+	var token string
+	if jsonErr := json.Unmarshal([]byte(tokenJSON), &token); jsonErr == nil && token != "" {
+		acc.activationGitHubToken = token
+		parserLog.Printf("Extracted on.github-token from import: %s", fullPath)
+	}
+}
 
-	// Extract on.github-app (first-wins).
+func (acc *importAccumulator) extractActivationGitHubAppFields(fm map[string]any, fullPath string) {
 	if acc.activationGitHubApp == "" {
 		if appJSON, appErr := extractOnSectionAnyFieldFromMap(fm, "github-app"); appErr == nil {
 			if validated := validateGitHubAppJSON(appJSON); validated != "" {
 				acc.activationGitHubApp = validated
-				parserLog.Printf("Extracted on.github-app from import: %s", item.fullPath)
+				parserLog.Printf("Extracted on.github-app from import: %s", fullPath)
 			}
 		}
 	}
-
-	// Extract top-level github-app (first-wins).
 	if acc.topLevelGitHubApp == "" {
 		if appJSON, appErr := extractFieldJSONFromMap(fm, "github-app", ""); appErr == nil {
 			if validated := validateGitHubAppJSON(appJSON); validated != "" {
 				acc.topLevelGitHubApp = validated
-				parserLog.Printf("Extracted top-level github-app from import: %s", item.fullPath)
+				parserLog.Printf("Extracted top-level github-app from import: %s", fullPath)
 			}
 		}
 	}
+}
 
-	// Extract checkout (append in order; main workflow's checkouts take precedence).
-	// The checkout field may be a single object or an array of objects; store the raw JSON
-	// for later parsing by the compiler.
-	if checkoutJSON, checkoutErr := extractFieldJSONFromMap(fm, "checkout", ""); checkoutErr == nil && checkoutJSON != "" && checkoutJSON != "null" && checkoutJSON != "false" {
-		acc.checkouts = append(acc.checkouts, checkoutJSON)
-		parserLog.Printf("Extracted checkout from import: %s", item.fullPath)
+func (acc *importAccumulator) extractCheckoutField(fm map[string]any, fullPath string) {
+	checkoutJSON, checkoutErr := extractFieldJSONFromMap(fm, "checkout", "")
+	if checkoutErr != nil || checkoutJSON == "" || checkoutJSON == "null" || checkoutJSON == "false" {
+		return
 	}
+	acc.checkouts = append(acc.checkouts, checkoutJSON)
+	parserLog.Printf("Extracted checkout from import: %s", fullPath)
 }
 
 // extractStepAndJobFields extracts step and job configuration fields from the frontmatter
@@ -563,90 +569,128 @@ func (acc *importAccumulator) extractStepAndJobFields(fm map[string]any, importP
 // Side effects: acc.labels, acc.labelsSet, acc.caches, acc.features, acc.models,
 // acc.runInstallScripts, acc.observabilityConfigs.
 func (acc *importAccumulator) extractFeatureAndObservabilityFields(fm map[string]any, fullPath string) {
-	// Extract labels (merge into set to avoid duplicates).
-	if labelsContent, err := extractFieldJSONFromMap(fm, "labels", "[]"); err == nil && labelsContent != "" && labelsContent != "[]" {
-		var importedLabels []string
-		if jsonErr := json.Unmarshal([]byte(labelsContent), &importedLabels); jsonErr == nil {
-			for _, label := range importedLabels {
-				if !acc.labelsSet[label] {
-					acc.labelsSet[label] = true
-					acc.labels = append(acc.labels, label)
-				}
-			}
-		}
-	}
+	acc.mergeLabels(fm)
+	acc.appendCacheField(fm)
+	acc.appendFeaturesField(fm)
+	acc.appendModelsField(fm)
+	acc.extractRunInstallScripts(fm, fullPath)
+	acc.appendObservabilityField(fm, fullPath)
+}
 
-	// Extract cache (append to list of caches).
+func (acc *importAccumulator) mergeLabels(fm map[string]any) {
+	mergeJSONStringListField(fm, "labels", "[]", acc.labelsSet, &acc.labels, func(m map[string]any, field string) (string, error) {
+		return extractFieldJSONFromMap(m, field, "[]")
+	})
+}
+
+func (acc *importAccumulator) appendCacheField(fm map[string]any) {
 	if cacheContent, err := extractFieldJSONFromMap(fm, "cache", "{}"); err == nil && cacheContent != "" && cacheContent != "{}" {
 		acc.caches = append(acc.caches, cacheContent)
 	}
+}
 
-	// Extract features (parse as map structure).
-	if featuresContent, err := extractFieldJSONFromMap(fm, "features", "{}"); err == nil && featuresContent != "" && featuresContent != "{}" {
-		var featuresMap map[string]any
-		if jsonErr := json.Unmarshal([]byte(featuresContent), &featuresMap); jsonErr == nil {
-			acc.features = append(acc.features, featuresMap)
-			parserLog.Printf("Extracted features from import: %d entries", len(featuresMap))
-		}
+func (acc *importAccumulator) appendFeaturesField(fm map[string]any) {
+	featuresContent, err := extractFieldJSONFromMap(fm, "features", "{}")
+	if err != nil || featuresContent == "" || featuresContent == "{}" {
+		return
 	}
-
-	// Extract model aliases (parse as map[string][]string structure).
-	if modelsContent, err := extractFieldJSONFromMap(fm, "models", "{}"); err == nil && modelsContent != "" && modelsContent != "{}" {
-		var rawModels map[string]any
-		if jsonErr := json.Unmarshal([]byte(modelsContent), &rawModels); jsonErr == nil {
-			modelsMap := make(map[string][]string, len(rawModels))
-			for k, v := range rawModels {
-				if patterns, ok := v.([]any); ok {
-					strs := make([]string, 0, len(patterns))
-					for _, p := range patterns {
-						if s, ok := p.(string); ok {
-							strs = append(strs, s)
-						}
-					}
-					modelsMap[k] = strs
-				}
-			}
-			if len(modelsMap) > 0 {
-				acc.models = append(acc.models, modelsMap)
-				parserLog.Printf("Extracted model aliases from import: %d entries", len(modelsMap))
-			}
-		}
+	var featuresMap map[string]any
+	if jsonErr := json.Unmarshal([]byte(featuresContent), &featuresMap); jsonErr == nil {
+		acc.features = append(acc.features, featuresMap)
+		parserLog.Printf("Extracted features from import: %d entries", len(featuresMap))
 	}
+}
 
-	// Extract run-install-scripts flag.
-	// If global run-install-scripts: true is set OR if runtimes.node.run-install-scripts: true
-	// is set, propagate to the accumulator (OR semantics: any import enabling it enables it overall).
-	if !acc.runInstallScripts {
-		if rsAny, hasRS := fm["run-install-scripts"]; hasRS {
-			if rsBool, ok := rsAny.(bool); ok && rsBool {
-				acc.runInstallScripts = true
-				parserLog.Printf("Extracted run-install-scripts: true from import: %s", fullPath)
-			}
+func (acc *importAccumulator) appendModelsField(fm map[string]any) {
+	modelsContent, err := extractFieldJSONFromMap(fm, "models", "{}")
+	if err != nil || modelsContent == "" || modelsContent == "{}" {
+		return
+	}
+	var rawModels map[string]any
+	if jsonErr := json.Unmarshal([]byte(modelsContent), &rawModels); jsonErr != nil {
+		return
+	}
+	modelsMap := normalizeModelAliases(rawModels)
+	if len(modelsMap) > 0 {
+		acc.models = append(acc.models, modelsMap)
+		parserLog.Printf("Extracted model aliases from import: %d entries", len(modelsMap))
+	}
+}
+
+func normalizeModelAliases(rawModels map[string]any) map[string][]string {
+	modelsMap := make(map[string][]string, len(rawModels))
+	for k, v := range rawModels {
+		patterns, ok := v.([]any)
+		if !ok {
+			continue
 		}
-		// Also check runtimes.node.run-install-scripts
-		if runtimesAny, hasRuntimes := fm["runtimes"]; hasRuntimes {
-			if runtimesMap, ok := runtimesAny.(map[string]any); ok {
-				if nodeAny, hasNode := runtimesMap["node"]; hasNode {
-					if nodeMap, ok := nodeAny.(map[string]any); ok {
-						if rsAny, hasRS := nodeMap["run-install-scripts"]; hasRS {
-							if rsBool, ok := rsAny.(bool); ok && rsBool {
-								acc.runInstallScripts = true
-								parserLog.Printf("Extracted runtimes.node.run-install-scripts: true from import: %s", fullPath)
-							}
-						}
-					}
-				}
+		strs := make([]string, 0, len(patterns))
+		for _, p := range patterns {
+			if s, ok := p.(string); ok {
+				strs = append(strs, s)
 			}
 		}
+		modelsMap[k] = strs
 	}
+	return modelsMap
+}
 
-	// Extract observability. All imports' OTLP endpoints are collected so that each import
-	// can contribute endpoints for fan-out observability. Deduplication and merging into a
-	// single array happens in toImportsResult.
-	if obsContent, obsErr := extractFieldJSONFromMap(fm, "observability", "{}"); obsErr == nil && obsContent != "" && obsContent != "{}" {
-		acc.observabilityConfigs = append(acc.observabilityConfigs, obsContent)
-		parserLog.Printf("Extracted observability from import: %s", fullPath)
+func (acc *importAccumulator) extractRunInstallScripts(fm map[string]any, fullPath string) {
+	if acc.runInstallScripts {
+		return
 	}
+	if hasTopLevelRunInstallScripts(fm) {
+		acc.runInstallScripts = true
+		parserLog.Printf("Extracted run-install-scripts: true from import: %s", fullPath)
+		return
+	}
+	if hasNodeRuntimeRunInstallScripts(fm) {
+		acc.runInstallScripts = true
+		parserLog.Printf("Extracted runtimes.node.run-install-scripts: true from import: %s", fullPath)
+	}
+}
+
+func hasTopLevelRunInstallScripts(fm map[string]any) bool {
+	rsAny, hasRS := fm["run-install-scripts"]
+	if !hasRS {
+		return false
+	}
+	rsBool, ok := rsAny.(bool)
+	return ok && rsBool
+}
+
+func hasNodeRuntimeRunInstallScripts(fm map[string]any) bool {
+	runtimesAny, hasRuntimes := fm["runtimes"]
+	if !hasRuntimes {
+		return false
+	}
+	runtimesMap, ok := runtimesAny.(map[string]any)
+	if !ok {
+		return false
+	}
+	nodeAny, hasNode := runtimesMap["node"]
+	if !hasNode {
+		return false
+	}
+	nodeMap, ok := nodeAny.(map[string]any)
+	if !ok {
+		return false
+	}
+	rsAny, hasRS := nodeMap["run-install-scripts"]
+	if !hasRS {
+		return false
+	}
+	rsBool, ok := rsAny.(bool)
+	return ok && rsBool
+}
+
+func (acc *importAccumulator) appendObservabilityField(fm map[string]any, fullPath string) {
+	obsContent, obsErr := extractFieldJSONFromMap(fm, "observability", "{}")
+	if obsErr != nil || obsContent == "" || obsContent == "{}" {
+		return
+	}
+	acc.observabilityConfigs = append(acc.observabilityConfigs, obsContent)
+	parserLog.Printf("Extracted observability from import: %s", fullPath)
 }
 
 // toImportsResult converts the accumulated state to a final ImportsResult.
@@ -1138,84 +1182,101 @@ func substituteImportInputsInContent(content string, inputs map[string]any) stri
 		return content
 	}
 
-	resolve := func(path string) (string, bool) {
-		top, sub, hasDot := strings.Cut(path, ".")
-		var value any
-		var ok bool
-		if !hasDot {
-			value, ok = inputs[top]
-		} else {
-			// one-level deep: "obj.sub"
-			topVal, topOK := inputs[top]
-			if !topOK {
-				return "", false
-			}
-			if obj, isMap := topVal.(map[string]any); isMap {
-				value, ok = obj[sub]
-			}
-		}
-		if !ok {
-			return "", false
-		}
-		// Serialize the value: arrays and maps as JSON (valid YAML inline syntax),
-		// scalars with fmt.Sprintf.
-		// goccy/go-yaml may produce typed slices (e.g. []string) instead of []any,
-		// so a reflection fallback handles those cases.
-		switch v := value.(type) {
-		case []any:
-			if b, err := json.Marshal(v); err == nil {
-				return string(b), true
-			}
-		case map[string]any:
-			if b, err := json.Marshal(v); err == nil {
-				return string(b), true
-			}
-		case nil:
-			// Null import input — skip substitution to avoid panicking on reflect.ValueOf(nil).
-			return "", false
-		default:
-			rv := reflect.ValueOf(v)
-			switch rv.Kind() {
-			case reflect.Slice:
-				normalized := make([]any, rv.Len())
-				for i := range rv.Len() {
-					normalized[i] = rv.Index(i).Interface()
-				}
-				if b, err := json.Marshal(normalized); err == nil {
-					return string(b), true
-				}
-			case reflect.Map:
-				keys := make([]string, 0, rv.Len())
-				for _, key := range rv.MapKeys() {
-					keys = append(keys, key.String())
-				}
-				sort.Strings(keys)
-				normalized := make(map[string]any, rv.Len())
-				for _, k := range keys {
-					normalized[k] = rv.MapIndex(reflect.ValueOf(k)).Interface()
-				}
-				if b, err := json.Marshal(normalized); err == nil {
-					return string(b), true
-				}
-			}
-		}
-		return fmt.Sprintf("%v", value), true
-	}
+	result := legacyInputsExprRegex.ReplaceAllStringFunc(content, buildImportInputReplaceFunc(legacyInputsExprRegex, inputs))
+	result = importInputsExprRegex.ReplaceAllStringFunc(result, buildImportInputReplaceFunc(importInputsExprRegex, inputs))
+	return result
+}
 
-	replaceFunc := func(regex *regexp.Regexp) func(string) string {
-		return func(match string) string {
-			m := regex.FindStringSubmatch(match)
-			if len(m) < 2 {
-				return match
-			}
-			if strVal, found := resolve(m[1]); found {
-				return strVal
-			}
+func buildImportInputReplaceFunc(regex *regexp.Regexp, inputs map[string]any) func(string) string {
+	return func(match string) string {
+		m := regex.FindStringSubmatch(match)
+		if len(m) < 2 {
 			return match
 		}
+		strVal, found := resolveImportInputPath(inputs, m[1])
+		if found {
+			return strVal
+		}
+		return match
 	}
+}
 
-	result := legacyInputsExprRegex.ReplaceAllStringFunc(content, replaceFunc(legacyInputsExprRegex))
-	result = importInputsExprRegex.ReplaceAllStringFunc(result, replaceFunc(importInputsExprRegex))
-	return result
+func resolveImportInputPath(inputs map[string]any, inputPath string) (string, bool) {
+	value, ok := resolveImportInputValue(inputs, inputPath)
+	if !ok {
+		return "", false
+	}
+	return formatResolvedImportInputValue(value)
+}
+
+func resolveImportInputValue(inputs map[string]any, inputPath string) (any, bool) {
+	top, sub, hasDot := strings.Cut(inputPath, ".")
+	if !hasDot {
+		value, ok := inputs[top]
+		return value, ok
+	}
+	topVal, topOK := inputs[top]
+	if !topOK {
+		return nil, false
+	}
+	obj, isMap := topVal.(map[string]any)
+	if !isMap {
+		return nil, false
+	}
+	value, ok := obj[sub]
+	return value, ok
+}
+
+func formatResolvedImportInputValue(value any) (string, bool) {
+	switch v := value.(type) {
+	case []any:
+		return marshalImportInputValue(v)
+	case map[string]any:
+		return marshalImportInputValue(v)
+	case nil:
+		return "", false
+	default:
+		return formatReflectiveImportInputValue(v)
+	}
+}
+
+func formatReflectiveImportInputValue(value any) (string, bool) {
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	case reflect.Slice:
+		return marshalImportInputValue(normalizeSliceForImportInput(rv))
+	case reflect.Map:
+		return marshalImportInputValue(normalizeMapForImportInput(rv))
+	default:
+		return fmt.Sprintf("%v", value), true
+	}
+}
+
+func marshalImportInputValue(value any) (string, bool) {
+	b, err := json.Marshal(value)
+	if err != nil {
+		return "", false
+	}
+	return string(b), true
+}
+
+func normalizeSliceForImportInput(rv reflect.Value) []any {
+	normalized := make([]any, rv.Len())
+	for i := range rv.Len() {
+		normalized[i] = rv.Index(i).Interface()
+	}
+	return normalized
+}
+
+func normalizeMapForImportInput(rv reflect.Value) map[string]any {
+	keys := make([]string, 0, rv.Len())
+	for _, key := range rv.MapKeys() {
+		keys = append(keys, key.String())
+	}
+	sort.Strings(keys)
+	normalized := make(map[string]any, rv.Len())
+	for _, k := range keys {
+		normalized[k] = rv.MapIndex(reflect.ValueOf(k)).Interface()
+	}
+	return normalized
 }
