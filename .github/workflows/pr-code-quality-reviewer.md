@@ -58,6 +58,12 @@ Fetch **in parallel** (one turn):
 
 Run the `grumpy-coder` sub-agent first to generate an aggressively critical issue list from the changed lines.
 
+Sub-agent invocation contract:
+- Pass the PR diff + changed-file list as input context.
+- Require `grumpy-coder` to return strict JSONL (one finding per line).
+- Parse that JSONL into candidate findings before starting your second pass.
+- If sub-agent output is invalid/unparseable, continue with your own review and note that the sub-agent output was discarded.
+
 Then run your own second pass on the same changed lines. Look for:
 - Logic errors, edge cases, missing error handling
 - Performance issues (unnecessary allocations, N+1 patterns, inefficient algorithms)
@@ -75,7 +81,7 @@ Adjudicate each candidate issue from `grumpy-coder` plus your own second pass us
 - `HARDEN` — valid but underexplained; strengthen impact/rationale before commenting
 - `DROP` — not actionable, incorrect, or outside changed lines
 
-You may use compact pseudo-language/encoding for your internal A2A notes, but final PR comments must remain plain, actionable human language.
+You may use compact pseudo-language/encoding for your internal A2A notes (examples: `[KEEP:racy-map-write]`, `[HARDEN:nil-deref]`, `[DROP:out-of-diff]`), but final PR comments must remain plain, actionable human language.
 
 ### Step 4: Write Review Comments
 
@@ -121,7 +127,12 @@ Call `submit-pull-request-review` with:
 - `REQUEST_CHANGES` if there are issues that must be fixed before merging
 - `COMMENT` for non-blocking observations only
 
-Default to `REQUEST_CHANGES` when in doubt. Keep the overall review body concise and focused on blocking themes.
+Use `REQUEST_CHANGES` when any of the following are true:
+- At least one `critical` or `high` issue is valid.
+- Three or more `medium` issues are valid.
+- Any issue can cause data loss, auth bypass, panic/crash, or broken CI behavior.
+
+Use `COMMENT` only when all findings are non-blocking; use `APPROVE` only when no actionable issues remain. Keep the overall review body concise and focused on blocking themes.
 
 ## Guidelines
 
@@ -158,5 +169,7 @@ Rules:
 Output format (strict):
 - Return JSONL only, one finding per line.
 - Fields: `path`, `line`, `severity`, `headline`, `impact`, `fix`.
+- `path` must be a repository-relative file path from the diff.
+- `line` must be an integer line number in the changed hunk.
 - `severity` must be one of: `critical`, `high`, `medium`, `low`.
-- Keep `headline` to one sentence; keep `impact` and `fix` concise and concrete.
+- Keep `headline` to one sentence (max 140 chars); keep `impact` and `fix` concise and concrete (max 240 chars each).
