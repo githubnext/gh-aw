@@ -19,6 +19,8 @@ var otlpLog = logger.New("workflow:observability_otlp")
 // equals (`=`) per the OpenTelemetry env-var resource attribute grammar.
 var otelResourceValueEscaper = strings.NewReplacer(`\`, `\\`, ",", `\,`, "=", `\=`)
 
+// escapeYAMLSingleQuotedScalar escapes single quotes for YAML single-quoted
+// scalars by doubling each `'` per YAML 1.2.
 func escapeYAMLSingleQuotedScalar(value string) string {
 	return strings.ReplaceAll(value, "'", "''")
 }
