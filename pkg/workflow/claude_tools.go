@@ -176,7 +176,7 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 	// Enforce that only neutral tools are provided - fail if claude section is present
 	if _, hasClaudeSection := tools["claude"]; hasClaudeSection {
 		claudeToolsLog.Print("ERROR: Claude section found in input tools, should only contain neutral tools")
-		panic("computeAllowedClaudeToolsString should only receive neutral tools, not claude section tools")
+		panic("BUG: computeAllowedClaudeToolsString should only receive neutral tools, not claude section tools")
 	}
 
 	// Convert neutral tools to Claude-specific tools

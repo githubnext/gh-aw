@@ -173,7 +173,7 @@ func GenerateHeredocDelimiterFromSeed(name string, seed string) string {
 	} else {
 		b := make([]byte, 8)
 		if _, err := rand.Read(b); err != nil {
-			panic("crypto/rand failed: " + err.Error())
+			panic("BUG: crypto/rand failed: " + err.Error())
 		}
 		tag = hex.EncodeToString(b)
 	}

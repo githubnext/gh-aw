@@ -460,7 +460,7 @@ func NewEngineRegistry() *EngineRegistry {
 	}
 	for _, engine := range builtins {
 		if err := registry.Register(engine); err != nil {
-			panic(fmt.Sprintf("failed to register built-in engine: %v", err))
+			panic(fmt.Sprintf("BUG: failed to register built-in engine: %v", err))
 		}
 	}
 
