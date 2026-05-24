@@ -101,7 +101,7 @@ func buildLogsFileResponse(outputStr string) string {
 			return nil
 		}()
 		if writeErr != nil {
-			mcpLogsGuardrailLog.Printf("%v", writeErr)
+			mcpLogsGuardrailLog.Printf("Failed to populate logs cache file %s: %v", filePath, writeErr)
 			_ = os.Remove(filePath)
 			return buildLogsFileErrorResponse(writeErr.Error())
 		}

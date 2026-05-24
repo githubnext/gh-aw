@@ -310,7 +310,7 @@ func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 				return "", fmt.Errorf("failed to read workflow file %s: %w", file, err)
 			}
 			defer func() {
-				if closeErr := fd.Close(); closeErr != nil && err == nil {
+				if closeErr := fd.Close(); closeErr != nil {
 					err = fmt.Errorf("failed to close workflow file %s: %w", file, closeErr)
 				}
 			}()
