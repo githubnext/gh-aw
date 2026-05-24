@@ -63,6 +63,7 @@ Sub-agent invocation contract:
 - Require `grumpy-coder` to return strict JSONL (one finding per line).
 - Parse that JSONL into candidate findings before starting your second pass.
 - If sub-agent output is invalid/unparseable, continue with your own review and note that the sub-agent output was discarded.
+- Invoke `grumpy-coder` once, wait for completion, and treat its output as advisory (not authoritative).
 
 Then run your own second pass on the same changed lines. Look for:
 - Logic errors, edge cases, missing error handling
@@ -81,7 +82,7 @@ Adjudicate each candidate issue from `grumpy-coder` plus your own second pass us
 - `HARDEN` — valid but underexplained; strengthen impact/rationale before commenting
 - `DROP` — not actionable, incorrect, or outside changed lines
 
-You may use compact pseudo-language/encoding for your internal A2A notes (examples: `[KEEP:racy-map-write]`, `[HARDEN:nil-deref]`, `[DROP:out-of-diff]`), but final PR comments must remain plain, actionable human language.
+You may use compact pseudo-language/encoding during private reasoning (examples: `[KEEP:racy-map-write]`, `[HARDEN:nil-deref]`, `[DROP:out-of-diff]`), but never publish those tags in PR comments or review bodies.
 
 ### Step 4: Write Review Comments
 
@@ -131,6 +132,7 @@ Use `REQUEST_CHANGES` when any of the following are true:
 - At least one `critical` or `high` issue is valid.
 - Three or more `medium` issues are valid.
 - Any issue can cause data loss, auth bypass, panic/crash, or broken CI behavior.
+- Sub-agent output is invalid and your second pass still finds at least one clearly actionable correctness/security/performance issue.
 
 Use `COMMENT` only when all findings are non-blocking; use `APPROVE` only when no actionable issues remain. Keep the overall review body concise and focused on blocking themes.
 
@@ -148,7 +150,7 @@ Use `COMMENT` only when all findings are non-blocking; use `APPROVE` only when n
 - **Quality over quantity** — fewer precise, high-signal blocking comments beat many vague comments
 - **Be constructive but uncompromising** — critique the code, not the author; explain the rationale
 - **Respect time** — complete within the 15-minute timeout
-- **Avoid friendliness padding** — no empty compliments, no generic "looks good"
+- **Avoid friendliness padding** — no empty compliments, no generic "looks good"; brief praise is allowed only for clearly exceptional implementation choices
 
 {{#runtime-import shared/noop-reminder.md}}
 
@@ -172,4 +174,9 @@ Output format (strict):
 - `path` must be a repository-relative file path from the diff.
 - `line` must be an integer line number in the changed hunk.
 - `severity` must be one of: `critical`, `high`, `medium`, `low`.
-- Keep `headline` to one sentence (max 140 chars); keep `impact` and `fix` concise and concrete (max 240 chars each).
+- Keep `headline` to one sentence; keep `impact` and `fix` concise and concrete.
+
+If any field is malformed, fix it before returning:
+- Coerce `line` to an integer.
+- Drop findings with invalid `path` or invalid `severity`.
+- Truncate overly long text fields to concise summaries.
