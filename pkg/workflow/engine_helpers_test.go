@@ -96,6 +96,25 @@ func TestBuildStandardNpmEngineInstallSteps_RuntimeCooldownOverride(t *testing.T
 			content.WriteString(strings.Join(step, "\n"))
 			content.WriteString("\n")
 		}
+
+		func TestBuildStandardNpmEngineInstallStepsNoCooldown(t *testing.T) {
+			steps := BuildStandardNpmEngineInstallStepsNoCooldown(
+				"@github/copilot",
+				string(constants.DefaultCopilotVersion),
+				"Install GitHub Copilot CLI",
+				"copilot",
+				&WorkflowData{},
+			)
+
+			var content strings.Builder
+			for _, step := range steps {
+				content.WriteString(strings.Join(step, "\n"))
+				content.WriteString("\n")
+			}
+			if strings.Contains(content.String(), "NPM_CONFIG_MIN_RELEASE_AGE") {
+				t.Fatalf("expected npm cooldown env to be omitted when no-cooldown helper is used")
+			}
+		}
 		if !strings.Contains(content.String(), "NPM_CONFIG_MIN_RELEASE_AGE: '3'") {
 			t.Fatalf("expected default npm cooldown env to be set")
 		}
