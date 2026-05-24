@@ -273,6 +273,14 @@ func TestClaudeEnginePermissionMode(t *testing.T) {
 			notExpectedMode: "acceptEdits",
 		},
 		{
+			name: "legacy engine.args permission-mode=value override still works with one emitted flag",
+			engineConfig: &EngineConfig{
+				Args: []string{"--permission-mode=auto"},
+			},
+			expectedMode:    "auto",
+			notExpectedMode: "acceptEdits",
+		},
+		{
 			name: "engine.permission-mode overrides legacy engine.args permission-mode",
 			engineConfig: &EngineConfig{
 				PermissionMode: "plan",

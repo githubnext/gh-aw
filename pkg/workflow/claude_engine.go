@@ -203,6 +203,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add custom args from engine configuration before the prompt.
 	// Strip any user-supplied --permission-mode flags so exactly one flag is emitted.
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
+		// stripClaudePermissionModeArgs returns an empty permission-mode string when no
+		// override flag is present.
 		engineArgs, permissionModeFromArgs := stripClaudePermissionModeArgs(workflowData.EngineConfig.Args)
 		if permissionModeFromArgs != "" && workflowData.EngineConfig.PermissionMode == "" {
 			claudeLog.Printf("Using legacy engine.args permission mode override: %s", permissionModeFromArgs)

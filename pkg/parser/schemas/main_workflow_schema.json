@@ -4128,7 +4128,7 @@
             },
             {
               "type": "boolean",
-              "description": "Boolean to explicitly enable (true) or disable (false) the edit tool. For Claude, false also defaults permission mode to auto unless engine.permission-mode is set."
+              "description": "Boolean to explicitly enable (true) or disable (false) the edit tool. In Claude workflows, when engine.permission-mode is omitted, false defaults permission mode to auto."
             },
             {
               "type": "object",
