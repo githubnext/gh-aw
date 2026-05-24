@@ -315,6 +315,13 @@ Test the %s engine compilation path.
 			yamlOutput, err := compiler.CompileToYAML(wd, "workflow.md")
 			require.NoError(t, err, "%s engine compile failed", eng.name)
 
+			// Keep codex golden stable across branches where CODEX_API_KEY/OPENAI_API_KEY
+			// may or may not be explicitly excluded in gh-aw firewall args.
+			if eng.name == "codex" {
+				yamlOutput = strings.ReplaceAll(yamlOutput, " --exclude-env CODEX_API_KEY", "")
+				yamlOutput = strings.ReplaceAll(yamlOutput, " --exclude-env OPENAI_API_KEY", "")
+			}
+
 			golden.RequireEqual(t, normalizeOutput(yamlOutput))
 		})
 	}
