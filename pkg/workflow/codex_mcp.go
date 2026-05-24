@@ -170,7 +170,7 @@ func (e *CodexEngine) renderOpenAIProxyProviderToml(yaml *strings.Builder, inden
 }
 
 func (e *CodexEngine) getOpenAIProxyProviderBaseURL() string {
-	return "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.CodexLLMGatewayPort))
+	return "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.ClaudeLLMGatewayPort))
 }
 
 func (e *CodexEngine) renderAppendConvertedConfigWithoutOpenAIProxy(yaml *strings.Builder) {

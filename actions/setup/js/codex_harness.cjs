@@ -298,6 +298,94 @@ function buildCodexChildEnv(baseEnv, codexApiKey, openaiApiKey) {
 }
 
 /**
+ * Extract numeric port from a URL string.
+ * @param {string} urlString
+ * @returns {number|null}
+ */
+function extractPortFromURL(urlString) {
+  if (!urlString || typeof urlString !== "string") return null;
+  try {
+    const parsed = new URL(urlString);
+    if (parsed.port) return Number(parsed.port);
+    return parsed.protocol === "https:" ? 443 : 80;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read Codex openai-proxy base_url from config.toml content.
+ * @param {string} tomlContent
+ * @returns {string|null}
+ */
+function extractOpenAIProxyBaseURLFromToml(tomlContent) {
+  if (!tomlContent || typeof tomlContent !== "string") return null;
+  const providerSection = tomlContent.match(/\[model_providers\.openai-proxy\]([\s\S]*?)(?:\n\[|$)/);
+  if (!providerSection) return null;
+  const baseURLMatch = providerSection[1].match(/(?:^|\n)\s*base_url\s*=\s*"([^"]+)"/);
+  return baseURLMatch && baseURLMatch[1] ? baseURLMatch[1].trim() : null;
+}
+
+/**
+ * Determine configured OpenAI endpoint port from AWF /reflect payload.
+ * @param {any} reflectData
+ * @returns {number|null}
+ */
+function getConfiguredOpenAIPortFromReflect(reflectData) {
+  const endpoints = reflectData && Array.isArray(reflectData.endpoints) ? reflectData.endpoints : [];
+  const openAIEndpoint = endpoints.find(ep => ep && ep.configured === true && typeof ep.provider === "string" && ep.provider.toLowerCase() === "openai");
+  if (!openAIEndpoint || openAIEndpoint.port == null) return null;
+  const parsedPort = Number(openAIEndpoint.port);
+  return Number.isNaN(parsedPort) ? null : parsedPort;
+}
+
+/**
+ * Validate that Codex openai-proxy base_url matches the configured OpenAI endpoint from /reflect.
+ * @param {{
+ *   codexConfigPath: string,
+ *   reflectPath: string,
+ *   readFileSync?: (path: import("node:fs").PathOrFileDescriptor, options?: import("node:fs").ObjectEncodingOptions & { flag?: string } | BufferEncoding | null) => string
+ * }} options
+ * @returns {{ ok: boolean, reason?: string }}
+ */
+function validateCodexOpenAIBaseURLFromReflect(options) {
+  const readFileSync = (options && options.readFileSync) || fs.readFileSync;
+  const codexConfigPath = options && options.codexConfigPath;
+  const reflectPath = options && options.reflectPath;
+  if (!codexConfigPath || !reflectPath) return { ok: true };
+
+  let tomlContent;
+  let reflectContent;
+  try {
+    tomlContent = readFileSync(codexConfigPath, "utf8");
+    reflectContent = readFileSync(reflectPath, "utf8");
+  } catch {
+    return { ok: true };
+  }
+
+  const baseURL = extractOpenAIProxyBaseURLFromToml(tomlContent);
+  if (!baseURL) return { ok: true };
+  const baseURLPort = extractPortFromURL(baseURL);
+  if (baseURLPort == null) return { ok: true };
+
+  let reflectData;
+  try {
+    reflectData = JSON.parse(reflectContent);
+  } catch {
+    return { ok: true };
+  }
+  const openAIPort = getConfiguredOpenAIPortFromReflect(reflectData);
+  if (openAIPort == null) return { ok: true };
+  if (openAIPort !== baseURLPort) {
+    return {
+      ok: false,
+      reason: `Codex openai-proxy base_url port mismatch: config.toml uses ${baseURLPort}, but /reflect reports OpenAI on port ${openAIPort}`,
+    };
+  }
+  return { ok: true };
+}
+
+/**
  * Main entry point: run codex with retry logic for transient API failures.
  * Codex does not support --continue session resumption, so all retries are fresh runs.
  */
@@ -350,6 +438,17 @@ async function main() {
   // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
   // This is best-effort: failures are logged but do not affect the agent run.
   await fetchAWFReflect({ logger: log });
+  const codexHome = process.env.CODEX_HOME || "";
+  if (codexHome) {
+    const validation = validateCodexOpenAIBaseURLFromReflect({
+      codexConfigPath: `${codexHome}/config.toml`,
+      reflectPath: AWF_REFLECT_OUTPUT_PATH,
+    });
+    if (!validation.ok) {
+      log(`fatal: ${validation.reason}`);
+      process.exit(1);
+    }
+  }
 
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;
@@ -452,6 +551,10 @@ if (typeof module !== "undefined" && module.exports) {
     buildMissingToolPermissionIssuePayload,
     emitMissingToolPermissionIssue,
     buildCodexChildEnv,
+    extractPortFromURL,
+    extractOpenAIProxyBaseURLFromToml,
+    getConfiguredOpenAIPortFromReflect,
+    validateCodexOpenAIBaseURLFromReflect,
   };
 }
 
