@@ -235,9 +235,8 @@ func TestGetRequiredSecretNames_Codex(t *testing.T) {
 
 		secrets := engine.GetRequiredSecretNames(workflowData)
 
-		// Should include CODEX_API_KEY and OPENAI_API_KEY
-		require.Len(t, secrets, 2)
-		assert.Contains(t, secrets, "CODEX_API_KEY")
+		// Should include OPENAI_API_KEY
+		require.Len(t, secrets, 1)
 		assert.Contains(t, secrets, "OPENAI_API_KEY")
 	})
 
@@ -253,8 +252,7 @@ func TestGetRequiredSecretNames_Codex(t *testing.T) {
 
 		secrets := engine.GetRequiredSecretNames(workflowData)
 
-		// Should include Codex secrets and MCP_GATEWAY_API_KEY
-		assert.Contains(t, secrets, "CODEX_API_KEY")
+		// Should include OPENAI_API_KEY and MCP_GATEWAY_API_KEY
 		assert.Contains(t, secrets, "OPENAI_API_KEY")
 		assert.Contains(t, secrets, "MCP_GATEWAY_API_KEY")
 	})
