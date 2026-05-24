@@ -298,6 +298,15 @@ async function main() {
       ` OPENAI_API_KEY=${openaiApiKey ? `set (length=${openaiApiKey.length})` : "not set"}`
   );
 
+  // Pre-flight: require at least one API key before spawning codex.
+  // Without a key, codex exits immediately with "Missing environment variable" and every
+  // retry attempt fails the same way. Failing here avoids burning the retry budget and
+  // surfaces a clear, actionable message in CI logs.
+  if (!codexApiKey && !openaiApiKey) {
+    log("fatal: no API key available — set CODEX_API_KEY or OPENAI_API_KEY and retry");
+    process.exit(1);
+  }
+
   // Resolve the prompt for the initial run (reads --prompt-file content).
   // A missing or unreadable prompt file is treated as a fatal startup error.
   let resolvedArgs;
