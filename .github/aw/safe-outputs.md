@@ -68,9 +68,12 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       required-title-prefix: "[bot]"    # Optional: only close matching prefix
       max: 20                           # Optional: max closures (default: 1)
       state-reason: "not_planned"       # Optional: "completed" (default), "not_planned", "duplicate"
+      allow-body: false                 # Optional: when false, any body the agent emits is dropped (warning logged) and the issue closes without a comment; defaults to true
       target-repo: "owner/repo"         # Optional: cross-repository
       allowed-repos: [owner/other]      # Optional: additional repos agent can close issues in
   ```
+
+  Set `allow-body: false` to guarantee a clean close with no comment — useful when an earlier `add-comment` step already posted the summary and you want to prevent the agent from duplicating it.
 
 - `create-discussion:` - Safe GitHub discussion creation (status, audits, reports, logs)
 
@@ -105,10 +108,11 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       required-labels: [resolved]       # Optional: only close if ALL these labels are present
       required-title-prefix: "[ai]"     # Optional: only close matching prefix
       max: 1                            # Optional: max closures (default: 1)
+      allow-body: false                 # Optional: when false, any body the agent emits is dropped (warning logged) and the discussion closes without a comment; defaults to true
       target-repo: "owner/repo"         # Optional: cross-repository
   ```
 
-  Resolution reasons: `RESOLVED`, `DUPLICATE`, `OUTDATED`, `ANSWERED`.
+  Resolution reasons: `RESOLVED`, `DUPLICATE`, `OUTDATED`, `ANSWERED`. Set `allow-body: false` to close without a comment when a prior `add-comment` step already posted the summary.
 - `add-comment:` - Safe comment creation on issues/PRs/discussions
 
   ```yaml

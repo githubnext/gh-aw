@@ -1,6 +1,10 @@
 package panicinlibrarycode
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"sync"
+)
 
 // bad: panic in a pkg/ package.
 func riskyFunction() {
@@ -27,4 +31,27 @@ func (m myType) panic(msg string) {
 func callCustomPanic() {
 	m := myType{}
 	m.panic("this is ok") // Should not be flagged
+}
+
+var once sync.Once
+
+func allowedSyncOncePanic() {
+	once.Do(func() {
+		panic("lazy init failure")
+	})
+}
+
+func allowedBUGPanic() {
+	panic(fmt.Sprintf("BUG: unreachable: %v", errors.New("boom")))
+}
+
+func init() {
+	panic("startup registration failure")
+}
+
+// documentedPreconditionPanics panics if the caller passes an invalid mode.
+func documentedPreconditionPanics(mode string) {
+	if mode == "" {
+		panic("invalid mode")
+	}
 }

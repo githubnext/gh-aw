@@ -359,7 +359,7 @@ describe("effective_tokens", () => {
       });
 
       test("uses well-known sonnet shortcut", () => {
-        expect(reduceModelNameToIdentifier("claude-sonnet-4.6")).toBe("son46");
+        expect(reduceModelNameToIdentifier("claude-sonnet-4.6")).toBe("sonnet46");
       });
 
       test("uses well-known gpt shortcut", () => {
@@ -367,11 +367,17 @@ describe("effective_tokens", () => {
       });
 
       test("uses well-known opus shortcut", () => {
-        expect(reduceModelNameToIdentifier("claude-opus-4-7")).toBe("opu47");
+        expect(reduceModelNameToIdentifier("claude-opus-4-7")).toBe("opus47");
       });
 
       test("uses well-known haiku shortcut", () => {
-        expect(reduceModelNameToIdentifier("claude-haiku-4.5")).toBe("hai45");
+        expect(reduceModelNameToIdentifier("claude-haiku-4.5")).toBe("haiku45");
+      });
+
+      test("allows short alias model names", () => {
+        expect(reduceModelNameToIdentifier("opus")).toBe("opus");
+        expect(reduceModelNameToIdentifier("sonnet")).toBe("sonnet");
+        expect(reduceModelNameToIdentifier("haiku")).toBe("haiku");
       });
 
       test("uses well-known gemini shortcut", () => {
@@ -380,7 +386,7 @@ describe("effective_tokens", () => {
 
       test("handles date-like suffixes deterministically", () => {
         expect(reduceModelNameToIdentifier("gpt-5-2025-08-07")).toBe("gpt50");
-        expect(reduceModelNameToIdentifier("claude-sonnet-4-20250514")).toBe("son40");
+        expect(reduceModelNameToIdentifier("claude-sonnet-4-20250514")).toBe("sonnet40");
         expect(reduceModelNameToIdentifier("gpt-4-100")).toBe("gpt40");
       });
 
@@ -467,7 +473,7 @@ describe("effective_tokens", () => {
       test("prepends reduced model identifier when model is available via GH_AW_ENGINE_MODEL", () => {
         process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
         process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
-        expect(getEffectiveTokensSuffix()).toBe(" · ● son46 12.5K");
+        expect(getEffectiveTokensSuffix()).toBe(" · sonnet46 12.5K");
       });
 
       test("uses actual model from agent_usage.json primary_model, ignoring alias in GH_AW_ENGINE_MODEL", () => {
@@ -475,13 +481,13 @@ describe("effective_tokens", () => {
         process.env.GH_AW_ENGINE_MODEL = "agent";
         fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
         fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify({ primary_model: "claude-sonnet-4.6", effective_tokens: 12500 }) + "\n");
-        expect(getEffectiveTokensSuffix()).toBe(" · ● son46 12.5K");
+        expect(getEffectiveTokensSuffix()).toBe(" · sonnet46 12.5K");
       });
 
       test("falls back to token-only suffix when model is unavailable", () => {
         process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
         delete process.env.GH_AW_ENGINE_MODEL;
-        expect(getEffectiveTokensSuffix()).toBe(" · ● 12.5K");
+        expect(getEffectiveTokensSuffix()).toBe(" · 12.5K");
       });
     });
 

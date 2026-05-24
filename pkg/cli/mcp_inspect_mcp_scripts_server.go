@@ -20,6 +20,8 @@ const (
 	// Port range for mcp-scripts HTTP server
 	mcpScriptsStartPort = 3000
 	mcpScriptsPortRange = 10
+	// mcpScriptsServerStartupDelay paces readiness checks while the mcp-scripts server boots.
+	mcpScriptsServerStartupDelay = 200 * time.Millisecond
 )
 
 // findAvailablePort finds an available port starting from the given port
@@ -59,7 +61,7 @@ func waitForServerReady(port int, timeout time.Duration, verbose bool) bool {
 			}
 			return true
 		}
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(mcpScriptsServerStartupDelay)
 	}
 
 	mcpInspectLog.Printf("Server did not become ready within timeout")

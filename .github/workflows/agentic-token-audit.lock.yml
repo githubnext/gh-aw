@@ -106,7 +106,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_BODY_MODIFIED: "false"
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -115,9 +115,9 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.5' }}
-          GH_AW_INFO_VERSION: "1.0.51"
-          GH_AW_INFO_AGENT_VERSION: "1.0.51"
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}
+          GH_AW_INFO_VERSION: "1.0.52"
+          GH_AW_INFO_AGENT_VERSION: "1.0.52"
           GH_AW_INFO_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -383,7 +383,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_BODY_MODIFIED: "false"
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -496,7 +496,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.51
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.52
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -900,7 +900,7 @@ jobs:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.5' }}
+          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg,.svg"
           GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
@@ -1149,7 +1149,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_BODY_MODIFIED: "false"
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -1316,7 +1316,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_BODY_MODIFIED: "false"
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -1404,7 +1404,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.51
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.52
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -1437,7 +1437,7 @@ jobs:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || 'claude-sonnet-4.5' }}
+          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || 'claude-sonnet-4.6' }}
           GH_AW_PHASE: detection
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_VERSION: dev
@@ -1531,7 +1531,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_BODY_MODIFIED: "false"
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -1610,7 +1610,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
-      GH_AW_ENGINE_VERSION: "1.0.51"
+      GH_AW_ENGINE_VERSION: "1.0.52"
       GH_AW_TRACKER_ID: "agentic-token-audit"
       GH_AW_WORKFLOW_ID: "agentic-token-audit"
       GH_AW_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
@@ -1644,7 +1644,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_BODY_MODIFIED: "false"
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -1729,7 +1729,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agentic Workflow Token Usage Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-audit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_BODY_MODIFIED: "false"
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -1789,7 +1789,7 @@ jobs:
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentic-ops/blob/e10687ae8f19a5b37b061db524be27948568c411/workflows/agentic-token-audit.md"
           GH_AW_TRACKER_ID: "agentic-token-audit"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_ENGINE_VERSION: "1.0.51"
+          GH_AW_ENGINE_VERSION: "1.0.52"
           GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

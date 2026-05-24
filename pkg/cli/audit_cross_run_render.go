@@ -29,7 +29,16 @@ func renderCrossRunReportMarkdown(report *CrossRunAuditReport) {
 	fmt.Fprintln(os.Stdout, "# Audit Report — Cross-Run Analysis")
 	fmt.Fprintln(os.Stdout)
 
-	// Executive summary
+	renderMarkdownExecutiveSummary(report)
+	renderMarkdownMetricsTrend(report.MetricsTrend)
+	renderMarkdownMCPHealth(report)
+	renderMarkdownErrorTrend(report)
+	renderMarkdownDomainInventory(report)
+	renderMarkdownDrain3Insights(report.Drain3Insights)
+	renderMarkdownPerRunBreakdown(report.PerRunBreakdown)
+}
+
+func renderMarkdownExecutiveSummary(report *CrossRunAuditReport) {
 	fmt.Fprintln(os.Stdout, "## Executive Summary")
 	fmt.Fprintln(os.Stdout)
 	fmt.Fprintf(os.Stdout, "| Metric | Value |\n")
@@ -43,166 +52,193 @@ func renderCrossRunReportMarkdown(report *CrossRunAuditReport) {
 	fmt.Fprintf(os.Stdout, "| Overall denial rate | %.1f%% |\n", report.Summary.OverallDenyRate*100)
 	fmt.Fprintf(os.Stdout, "| Unique domains | %d |\n", report.Summary.UniqueDomains)
 	fmt.Fprintln(os.Stdout)
+}
 
-	// Metrics trends
-	mt := report.MetricsTrend
-	if mt.RunsWithCost > 0 || mt.TotalTokens > 0 {
-		fmt.Fprintln(os.Stdout, "## Metrics Trends")
-		fmt.Fprintln(os.Stdout)
-		if mt.RunsWithCost > 0 {
-			fmt.Fprintf(os.Stdout, "**Cost Trend** (%d runs with cost data)\n\n", mt.RunsWithCost)
-			fmt.Fprintf(os.Stdout, "| Total | Avg/run | Min | Max |\n")
-			fmt.Fprintf(os.Stdout, "|-------|---------|-----|-----|\n")
-			fmt.Fprintf(os.Stdout, "| $%.4f | $%.4f | $%.4f | $%.4f |\n", mt.TotalCost, mt.AvgCost, mt.MinCost, mt.MaxCost)
-			if len(mt.CostSpikes) > 0 {
-				fmt.Fprintf(os.Stdout, "\n⚠ Cost spikes (>2x avg) in runs: %s\n", formatRunIDs(mt.CostSpikes))
-			}
-			fmt.Fprintln(os.Stdout)
-		}
-		if mt.TotalTokens > 0 {
-			fmt.Fprintf(os.Stdout, "**Token Trend**\n\n")
-			fmt.Fprintf(os.Stdout, "| Total | Avg/run | Min | Max |\n")
-			fmt.Fprintf(os.Stdout, "|-------|---------|-----|-----|\n")
-			fmt.Fprintf(os.Stdout, "| %d | %d | %d | %d |\n", mt.TotalTokens, mt.AvgTokens, mt.MinTokens, mt.MaxTokens)
-			if len(mt.TokenSpikes) > 0 {
-				fmt.Fprintf(os.Stdout, "\n⚠ Token spikes (>2x avg) in runs: %s\n", formatRunIDs(mt.TokenSpikes))
-			}
-			fmt.Fprintln(os.Stdout)
-		}
-		if mt.TotalTurns > 0 {
-			fmt.Fprintf(os.Stdout, "**Turn Trend**\n\n")
-			fmt.Fprintf(os.Stdout, "| Total | Avg/run | Max |\n")
-			fmt.Fprintf(os.Stdout, "|-------|---------|-----|\n")
-			fmt.Fprintf(os.Stdout, "| %d | %.1f | %d |\n", mt.TotalTurns, mt.AvgTurns, mt.MaxTurns)
-			fmt.Fprintln(os.Stdout)
-		}
-		if mt.AvgDurationNs > 0 {
-			fmt.Fprintf(os.Stdout, "**Duration Trend**\n\n")
-			fmt.Fprintf(os.Stdout, "| Avg | Min | Max |\n")
-			fmt.Fprintf(os.Stdout, "|-----|-----|-----|\n")
-			fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-				timeutil.FormatDurationNs(mt.AvgDurationNs),
-				timeutil.FormatDurationNs(mt.MinDurationNs),
-				timeutil.FormatDurationNs(mt.MaxDurationNs))
-			fmt.Fprintln(os.Stdout)
-		}
+func renderMarkdownMetricsTrend(mt MetricsTrendData) {
+	if mt.RunsWithCost == 0 && mt.TotalTokens == 0 {
+		return
 	}
 
-	// MCP health
-	if len(report.MCPHealth) > 0 {
-		fmt.Fprintf(os.Stdout, "## MCP Server Health (%d runs)\n\n", report.RunsAnalyzed)
-		fmt.Fprintf(os.Stdout, "| Server | Connected | Error Rate | Total Calls | Errors | Status |\n")
-		fmt.Fprintf(os.Stdout, "|--------|-----------|------------|-------------|--------|--------|\n")
-		for _, h := range report.MCPHealth {
-			status := "✅ ok"
-			if h.Unreliable {
-				status = "⚠ unreliable"
-			}
-			fmt.Fprintf(os.Stdout, "| `%s` | %d/%d | %.1f%% | %d | %d | %s |\n",
-				h.ServerName, h.RunsConnected, h.TotalRuns,
-				h.ErrorRate*100, h.TotalCalls, h.TotalErrors, status)
-		}
-		fmt.Fprintln(os.Stdout)
-	}
+	fmt.Fprintln(os.Stdout, "## Metrics Trends")
+	fmt.Fprintln(os.Stdout)
+	renderMarkdownCostTrend(mt)
+	renderMarkdownTokenTrend(mt)
+	renderMarkdownTurnTrend(mt)
+	renderMarkdownDurationTrend(mt)
+}
 
-	// Error trend
+func renderMarkdownCostTrend(mt MetricsTrendData) {
+	if mt.RunsWithCost == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stdout, "**Cost Trend** (%d runs with cost data)\n\n", mt.RunsWithCost)
+	fmt.Fprintf(os.Stdout, "| Total | Avg/run | Min | Max |\n")
+	fmt.Fprintf(os.Stdout, "|-------|---------|-----|-----|\n")
+	fmt.Fprintf(os.Stdout, "| $%.4f | $%.4f | $%.4f | $%.4f |\n", mt.TotalCost, mt.AvgCost, mt.MinCost, mt.MaxCost)
+	if len(mt.CostSpikes) > 0 {
+		fmt.Fprintf(os.Stdout, "\n⚠ Cost spikes (>2x avg) in runs: %s\n", formatRunIDs(mt.CostSpikes))
+	}
+	fmt.Fprintln(os.Stdout)
+}
+
+func renderMarkdownTokenTrend(mt MetricsTrendData) {
+	if mt.TotalTokens == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stdout, "**Token Trend**\n\n")
+	fmt.Fprintf(os.Stdout, "| Total | Avg/run | Min | Max |\n")
+	fmt.Fprintf(os.Stdout, "|-------|---------|-----|-----|\n")
+	fmt.Fprintf(os.Stdout, "| %d | %d | %d | %d |\n", mt.TotalTokens, mt.AvgTokens, mt.MinTokens, mt.MaxTokens)
+	if len(mt.TokenSpikes) > 0 {
+		fmt.Fprintf(os.Stdout, "\n⚠ Token spikes (>2x avg) in runs: %s\n", formatRunIDs(mt.TokenSpikes))
+	}
+	fmt.Fprintln(os.Stdout)
+}
+
+func renderMarkdownTurnTrend(mt MetricsTrendData) {
+	if mt.TotalTurns == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stdout, "**Turn Trend**\n\n")
+	fmt.Fprintf(os.Stdout, "| Total | Avg/run | Max |\n")
+	fmt.Fprintf(os.Stdout, "|-------|---------|-----|\n")
+	fmt.Fprintf(os.Stdout, "| %d | %.1f | %d |\n", mt.TotalTurns, mt.AvgTurns, mt.MaxTurns)
+	fmt.Fprintln(os.Stdout)
+}
+
+func renderMarkdownDurationTrend(mt MetricsTrendData) {
+	if mt.AvgDurationNs == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stdout, "**Duration Trend**\n\n")
+	fmt.Fprintf(os.Stdout, "| Avg | Min | Max |\n")
+	fmt.Fprintf(os.Stdout, "|-----|-----|-----|\n")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
+		timeutil.FormatDurationNs(mt.AvgDurationNs),
+		timeutil.FormatDurationNs(mt.MinDurationNs),
+		timeutil.FormatDurationNs(mt.MaxDurationNs))
+	fmt.Fprintln(os.Stdout)
+}
+
+func renderMarkdownMCPHealth(report *CrossRunAuditReport) {
+	if len(report.MCPHealth) == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stdout, "## MCP Server Health (%d runs)\n\n", report.RunsAnalyzed)
+	fmt.Fprintf(os.Stdout, "| Server | Connected | Error Rate | Total Calls | Errors | Status |\n")
+	fmt.Fprintf(os.Stdout, "|--------|-----------|------------|-------------|--------|--------|\n")
+	for _, h := range report.MCPHealth {
+		status := "✅ ok"
+		if h.Unreliable {
+			status = "⚠ unreliable"
+		}
+		fmt.Fprintf(os.Stdout, "| `%s` | %d/%d | %.1f%% | %d | %d | %s |\n",
+			h.ServerName, h.RunsConnected, h.TotalRuns,
+			h.ErrorRate*100, h.TotalCalls, h.TotalErrors, status)
+	}
+	fmt.Fprintln(os.Stdout)
+}
+
+func renderMarkdownErrorTrend(report *CrossRunAuditReport) {
 	et := report.ErrorTrend
-	if et.TotalErrors > 0 || et.TotalWarnings > 0 {
-		fmt.Fprintln(os.Stdout, "## Error Trend")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintf(os.Stdout, "| Metric | Value |\n")
-		fmt.Fprintf(os.Stdout, "|--------|-------|\n")
-		fmt.Fprintf(os.Stdout, "| Runs with errors | %d/%d (%.0f%%) |\n",
-			et.RunsWithErrors, report.RunsAnalyzed,
-			safePercent(et.RunsWithErrors, report.RunsAnalyzed))
-		fmt.Fprintf(os.Stdout, "| Total errors | %d |\n", et.TotalErrors)
-		fmt.Fprintf(os.Stdout, "| Avg errors/run | %.2f |\n", et.AvgErrorsPerRun)
-		if et.TotalWarnings > 0 {
-			fmt.Fprintf(os.Stdout, "| Runs with warnings | %d/%d |\n", et.RunsWithWarnings, report.RunsAnalyzed)
-			fmt.Fprintf(os.Stdout, "| Total warnings | %d |\n", et.TotalWarnings)
-		}
-		fmt.Fprintln(os.Stdout)
+	if et.TotalErrors == 0 && et.TotalWarnings == 0 {
+		return
 	}
+	fmt.Fprintln(os.Stdout, "## Error Trend")
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintf(os.Stdout, "| Metric | Value |\n")
+	fmt.Fprintf(os.Stdout, "|--------|-------|\n")
+	fmt.Fprintf(os.Stdout, "| Runs with errors | %d/%d (%.0f%%) |\n",
+		et.RunsWithErrors, report.RunsAnalyzed,
+		safePercent(et.RunsWithErrors, report.RunsAnalyzed))
+	fmt.Fprintf(os.Stdout, "| Total errors | %d |\n", et.TotalErrors)
+	fmt.Fprintf(os.Stdout, "| Avg errors/run | %.2f |\n", et.AvgErrorsPerRun)
+	if et.TotalWarnings > 0 {
+		fmt.Fprintf(os.Stdout, "| Runs with warnings | %d/%d |\n", et.RunsWithWarnings, report.RunsAnalyzed)
+		fmt.Fprintf(os.Stdout, "| Total warnings | %d |\n", et.TotalWarnings)
+	}
+	fmt.Fprintln(os.Stdout)
+}
 
-	// Domain inventory
-	if len(report.DomainInventory) > 0 {
-		fmt.Fprintln(os.Stdout, "## Domain Inventory")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintf(os.Stdout, "| Domain | Status | Seen In | Allowed | Blocked |\n")
-		fmt.Fprintf(os.Stdout, "|--------|--------|---------|---------|--------|\n")
-		for _, entry := range report.DomainInventory {
-			icon := firewallStatusEmoji(entry.OverallStatus)
-			fmt.Fprintf(os.Stdout, "| `%s` | %s %s | %d/%d runs | %d | %d |\n",
-				entry.Domain, icon, entry.OverallStatus, entry.SeenInRuns, report.RunsAnalyzed,
-				entry.TotalAllowed, entry.TotalBlocked)
-		}
-		fmt.Fprintln(os.Stdout)
+func renderMarkdownDomainInventory(report *CrossRunAuditReport) {
+	if len(report.DomainInventory) == 0 {
+		return
 	}
+	fmt.Fprintln(os.Stdout, "## Domain Inventory")
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintf(os.Stdout, "| Domain | Status | Seen In | Allowed | Blocked |\n")
+	fmt.Fprintf(os.Stdout, "|--------|--------|---------|---------|--------|\n")
+	for _, entry := range report.DomainInventory {
+		fmt.Fprintf(os.Stdout, "| `%s` | %s %s | %d/%d runs | %d | %d |\n",
+			entry.Domain, firewallStatusEmoji(entry.OverallStatus), entry.OverallStatus,
+			entry.SeenInRuns, report.RunsAnalyzed, entry.TotalAllowed, entry.TotalBlocked)
+	}
+	fmt.Fprintln(os.Stdout)
+}
 
-	// Drain3 insights
-	if len(report.Drain3Insights) > 0 {
-		crossRunRenderLog.Printf("Rendering markdown drain3 insights: count=%d", len(report.Drain3Insights))
-		fmt.Fprintln(os.Stdout, "## Agent Event Pattern Analysis")
-		fmt.Fprintln(os.Stdout)
-		for _, insight := range report.Drain3Insights {
-			severityIcon := "ℹ"
-			switch insight.Severity {
-			case "high":
-				severityIcon = "🔴"
-			case "medium":
-				severityIcon = "🟠"
-			case "low":
-				severityIcon = "🟡"
-			}
-			fmt.Fprintf(os.Stdout, "### %s %s\n\n", severityIcon, insight.Title)
-			fmt.Fprintf(os.Stdout, "**Category:** %s | **Severity:** %s\n\n", insight.Category, insight.Severity)
-			fmt.Fprintf(os.Stdout, "%s\n\n", insight.Summary)
-			if insight.Evidence != "" {
-				fmt.Fprintf(os.Stdout, "_Evidence:_ `%s`\n\n", insight.Evidence)
-			}
+func renderMarkdownDrain3Insights(insights []ObservabilityInsight) {
+	if len(insights) == 0 {
+		return
+	}
+	crossRunRenderLog.Printf("Rendering markdown drain3 insights: count=%d", len(insights))
+	fmt.Fprintln(os.Stdout, "## Agent Event Pattern Analysis")
+	fmt.Fprintln(os.Stdout)
+	for _, insight := range insights {
+		fmt.Fprintf(os.Stdout, "### %s %s\n\n", renderSeverityIcon(insight.Severity), insight.Title)
+		fmt.Fprintf(os.Stdout, "**Category:** %s | **Severity:** %s\n\n", insight.Category, insight.Severity)
+		fmt.Fprintf(os.Stdout, "%s\n\n", insight.Summary)
+		if insight.Evidence != "" {
+			fmt.Fprintf(os.Stdout, "_Evidence:_ `%s`\n\n", insight.Evidence)
 		}
 	}
+}
 
-	// Per-run breakdown
-	if len(report.PerRunBreakdown) > 0 {
-		fmt.Fprintln(os.Stdout, "## Per-Run Breakdown")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintf(os.Stdout, "| Run ID | Workflow | Conclusion | Duration | Firewall | Cost | Tokens | Turns | MCP Err | Errors |\n")
-		fmt.Fprintf(os.Stdout, "|--------|----------|------------|----------|----------|------|--------|-------|---------|--------|\n")
-		for _, run := range report.PerRunBreakdown {
-			firewallCol := "—"
-			if run.HasData {
-				firewallCol = fmt.Sprintf("%d/%d", run.Allowed, run.Blocked)
-			}
-			costStr := "—"
-			if run.Cost > 0 {
-				costStr = fmt.Sprintf("$%.4f", run.Cost)
-				if run.CostSpike {
-					costStr += " ⚠"
-				}
-			}
-			tokenStr := "—"
-			if run.Tokens > 0 {
-				tokenStr = formatTokens(run.Tokens)
-				if run.TokenSpike {
-					tokenStr += " ⚠"
-				}
-			}
-			turnsStr := "—"
-			if run.Turns > 0 {
-				turnsStr = strconv.Itoa(run.Turns)
-			}
-			durStr := "—"
-			if run.Duration > 0 {
-				durStr = timeutil.FormatDurationNs(int64(run.Duration))
-			}
-			fmt.Fprintf(os.Stdout, "| %d | %s | %s | %s | %s | %s | %s | %s | %d | %d |\n",
-				run.RunID, run.WorkflowName, run.Conclusion, durStr,
-				firewallCol, costStr, tokenStr, turnsStr,
-				run.MCPErrors, run.ErrorCount)
-		}
-		fmt.Fprintln(os.Stdout)
+func renderMarkdownPerRunBreakdown(runs []PerRunFirewallBreakdown) {
+	if len(runs) == 0 {
+		return
 	}
+	fmt.Fprintln(os.Stdout, "## Per-Run Breakdown")
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintf(os.Stdout, "| Run ID | Workflow | Conclusion | Duration | Firewall | Cost | Tokens | Turns | MCP Err | Errors |\n")
+	fmt.Fprintf(os.Stdout, "|--------|----------|------------|----------|----------|------|--------|-------|---------|--------|\n")
+	for _, run := range runs {
+		firewallCol, costStr, tokenStr, turnsStr, durStr := markdownPerRunFields(run)
+		fmt.Fprintf(os.Stdout, "| %d | %s | %s | %s | %s | %s | %s | %s | %d | %d |\n",
+			run.RunID, run.WorkflowName, run.Conclusion, durStr,
+			firewallCol, costStr, tokenStr, turnsStr,
+			run.MCPErrors, run.ErrorCount)
+	}
+	fmt.Fprintln(os.Stdout)
+}
+
+func markdownPerRunFields(run PerRunFirewallBreakdown) (string, string, string, string, string) {
+	firewallCol := "—"
+	if run.HasData {
+		firewallCol = fmt.Sprintf("%d/%d", run.Allowed, run.Blocked)
+	}
+	costStr := "—"
+	if run.Cost > 0 {
+		costStr = fmt.Sprintf("$%.4f", run.Cost)
+		if run.CostSpike {
+			costStr += " ⚠"
+		}
+	}
+	tokenStr := "—"
+	if run.Tokens > 0 {
+		tokenStr = formatTokens(run.Tokens)
+		if run.TokenSpike {
+			tokenStr += " ⚠"
+		}
+	}
+	turnsStr := "—"
+	if run.Turns > 0 {
+		turnsStr = strconv.Itoa(run.Turns)
+	}
+	durStr := "—"
+	if run.Duration > 0 {
+		durStr = timeutil.FormatDurationNs(int64(run.Duration))
+	}
+	return firewallCol, costStr, tokenStr, turnsStr, durStr
 }
 
 // renderCrossRunReportPretty outputs the cross-run report as formatted console output to stderr.
@@ -212,7 +248,17 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Audit Report — Cross-Run Analysis"))
 	fmt.Fprintln(os.Stderr)
 
-	// Executive summary
+	renderPrettyExecutiveSummary(report)
+	renderPrettyMetricsTrend(report.MetricsTrend)
+	renderPrettyMCPHealth(report)
+	renderPrettyErrorTrend(report)
+	renderPrettyDomainInventory(report)
+	renderPrettyDrain3Insights(report.Drain3Insights)
+	renderPrettyPerRunBreakdown(report.PerRunBreakdown)
+	renderPrettyFinalStatus(report)
+}
+
+func renderPrettyExecutiveSummary(report *CrossRunAuditReport) {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executive Summary"))
 	fmt.Fprintf(os.Stderr, "  Runs analyzed:              %d\n", report.RunsAnalyzed)
 	fmt.Fprintf(os.Stderr, "  Runs with firewall data:    %d\n", report.RunsWithData)
@@ -222,162 +268,196 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 	fmt.Fprintf(os.Stderr, "  Overall denial rate:        %.1f%%\n", report.Summary.OverallDenyRate*100)
 	fmt.Fprintf(os.Stderr, "  Unique domains:             %d\n", report.Summary.UniqueDomains)
 	fmt.Fprintln(os.Stderr)
+}
 
-	// Metrics trends
-	mt := report.MetricsTrend
-	if mt.RunsWithCost > 0 || mt.TotalTokens > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Metrics Trends"))
-		if mt.RunsWithCost > 0 {
-			spikeNote := ""
-			if len(mt.CostSpikes) > 0 {
-				spikeNote = fmt.Sprintf("  ⚠ Cost spikes in runs: %s\n", formatRunIDs(mt.CostSpikes))
-			}
-			fmt.Fprintf(os.Stderr, "  Cost:     total=$%.4f  avg=$%.4f/run  min=$%.4f  max=$%.4f\n%s",
-				mt.TotalCost, mt.AvgCost, mt.MinCost, mt.MaxCost, spikeNote)
-		}
-		if mt.TotalTokens > 0 {
-			spikeNote := ""
-			if len(mt.TokenSpikes) > 0 {
-				spikeNote = fmt.Sprintf("  ⚠ Token spikes in runs: %s\n", formatRunIDs(mt.TokenSpikes))
-			}
-			fmt.Fprintf(os.Stderr, "  Tokens:   total=%s  avg=%s/run  min=%s  max=%s\n%s",
-				formatTokens(mt.TotalTokens), formatTokens(mt.AvgTokens),
-				formatTokens(mt.MinTokens), formatTokens(mt.MaxTokens), spikeNote)
-		}
-		if mt.TotalTurns > 0 {
-			fmt.Fprintf(os.Stderr, "  Turns:    total=%d  avg=%.1f/run  max=%d\n",
-				mt.TotalTurns, mt.AvgTurns, mt.MaxTurns)
-		}
-		if mt.AvgDurationNs > 0 {
-			fmt.Fprintf(os.Stderr, "  Duration: avg=%s  min=%s  max=%s\n",
-				timeutil.FormatDurationNs(mt.AvgDurationNs),
-				timeutil.FormatDurationNs(mt.MinDurationNs),
-				timeutil.FormatDurationNs(mt.MaxDurationNs))
-		}
-		fmt.Fprintln(os.Stderr)
+func renderPrettyMetricsTrend(mt MetricsTrendData) {
+	if mt.RunsWithCost == 0 && mt.TotalTokens == 0 {
+		return
 	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Metrics Trends"))
+	renderPrettyCostTrend(mt)
+	renderPrettyTokenTrend(mt)
+	renderPrettyTurnTrend(mt)
+	renderPrettyDurationTrend(mt)
+	fmt.Fprintln(os.Stderr)
+}
 
-	// MCP health
-	if len(report.MCPHealth) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("MCP Server Health (%d runs)", report.RunsAnalyzed)))
-		for _, h := range report.MCPHealth {
-			statusIcon := "✅"
-			if h.Unreliable {
-				statusIcon = "⚠"
-			}
-			fmt.Fprintf(os.Stderr, "  %s %-30s  connected=%d/%d  calls=%d  errors=%d  error_rate=%.1f%%\n",
-				statusIcon, h.ServerName, h.RunsConnected, h.TotalRuns,
-				h.TotalCalls, h.TotalErrors, h.ErrorRate*100)
-		}
-		fmt.Fprintln(os.Stderr)
+func renderPrettyCostTrend(mt MetricsTrendData) {
+	if mt.RunsWithCost == 0 {
+		return
 	}
+	fmt.Fprintf(os.Stderr, "  Cost:     total=$%.4f  avg=$%.4f/run  min=$%.4f  max=$%.4f\n%s",
+		mt.TotalCost, mt.AvgCost, mt.MinCost, mt.MaxCost, prettySpikeNote("Cost", mt.CostSpikes))
+}
 
-	// Error trend
+func renderPrettyTokenTrend(mt MetricsTrendData) {
+	if mt.TotalTokens == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "  Tokens:   total=%s  avg=%s/run  min=%s  max=%s\n%s",
+		formatTokens(mt.TotalTokens), formatTokens(mt.AvgTokens),
+		formatTokens(mt.MinTokens), formatTokens(mt.MaxTokens), prettySpikeNote("Token", mt.TokenSpikes))
+}
+
+func renderPrettyTurnTrend(mt MetricsTrendData) {
+	if mt.TotalTurns > 0 {
+		fmt.Fprintf(os.Stderr, "  Turns:    total=%d  avg=%.1f/run  max=%d\n", mt.TotalTurns, mt.AvgTurns, mt.MaxTurns)
+	}
+}
+
+func renderPrettyDurationTrend(mt MetricsTrendData) {
+	if mt.AvgDurationNs > 0 {
+		fmt.Fprintf(os.Stderr, "  Duration: avg=%s  min=%s  max=%s\n",
+			timeutil.FormatDurationNs(mt.AvgDurationNs),
+			timeutil.FormatDurationNs(mt.MinDurationNs),
+			timeutil.FormatDurationNs(mt.MaxDurationNs))
+	}
+}
+
+func prettySpikeNote(label string, runIDs []int64) string {
+	if len(runIDs) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("  ⚠ %s spikes in runs: %s\n", label, formatRunIDs(runIDs))
+}
+
+func renderPrettyMCPHealth(report *CrossRunAuditReport) {
+	if len(report.MCPHealth) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("MCP Server Health (%d runs)", report.RunsAnalyzed)))
+	for _, h := range report.MCPHealth {
+		statusIcon := "✅"
+		if h.Unreliable {
+			statusIcon = "⚠"
+		}
+		fmt.Fprintf(os.Stderr, "  %s %-30s  connected=%d/%d  calls=%d  errors=%d  error_rate=%.1f%%\n",
+			statusIcon, h.ServerName, h.RunsConnected, h.TotalRuns,
+			h.TotalCalls, h.TotalErrors, h.ErrorRate*100)
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
+func renderPrettyErrorTrend(report *CrossRunAuditReport) {
 	et := report.ErrorTrend
-	if et.TotalErrors > 0 || et.TotalWarnings > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Error Trend"))
-		fmt.Fprintf(os.Stderr, "  Runs with errors:  %d/%d (%.0f%%)\n",
-			et.RunsWithErrors, report.RunsAnalyzed,
-			safePercent(et.RunsWithErrors, report.RunsAnalyzed))
-		fmt.Fprintf(os.Stderr, "  Total errors:      %d (avg=%.2f/run)\n", et.TotalErrors, et.AvgErrorsPerRun)
-		if et.TotalWarnings > 0 {
-			fmt.Fprintf(os.Stderr, "  Total warnings:    %d (%d runs)\n", et.TotalWarnings, et.RunsWithWarnings)
-		}
-		fmt.Fprintln(os.Stderr)
+	if et.TotalErrors == 0 && et.TotalWarnings == 0 {
+		return
 	}
-
-	// Domain inventory
-	if len(report.DomainInventory) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Domain Inventory (%d domains)", len(report.DomainInventory))))
-		for _, entry := range report.DomainInventory {
-			icon := firewallStatusEmoji(entry.OverallStatus)
-			fmt.Fprintf(os.Stderr, "  %s %-45s  %s  seen=%d/%d  allowed=%d  blocked=%d\n",
-				icon, entry.Domain, entry.OverallStatus, entry.SeenInRuns, report.RunsAnalyzed,
-				entry.TotalAllowed, entry.TotalBlocked)
-		}
-		fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Error Trend"))
+	fmt.Fprintf(os.Stderr, "  Runs with errors:  %d/%d (%.0f%%)\n",
+		et.RunsWithErrors, report.RunsAnalyzed,
+		safePercent(et.RunsWithErrors, report.RunsAnalyzed))
+	fmt.Fprintf(os.Stderr, "  Total errors:      %d (avg=%.2f/run)\n", et.TotalErrors, et.AvgErrorsPerRun)
+	if et.TotalWarnings > 0 {
+		fmt.Fprintf(os.Stderr, "  Total warnings:    %d (%d runs)\n", et.TotalWarnings, et.RunsWithWarnings)
 	}
+	fmt.Fprintln(os.Stderr)
+}
 
-	// Drain3 insights
-	if len(report.Drain3Insights) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Agent Event Pattern Analysis (%d insights)", len(report.Drain3Insights))))
-		for _, insight := range report.Drain3Insights {
-			severityIcon := "ℹ"
-			switch insight.Severity {
-			case "high":
-				severityIcon = "🔴"
-			case "medium":
-				severityIcon = "🟠"
-			case "low":
-				severityIcon = "🟡"
-			}
-			fmt.Fprintf(os.Stderr, "  %s [%s/%s] %s\n", severityIcon, insight.Category, insight.Severity, insight.Title)
-			fmt.Fprintf(os.Stderr, "     %s\n", insight.Summary)
-			if insight.Evidence != "" {
-				fmt.Fprintf(os.Stderr, "     evidence: %s\n", insight.Evidence)
-			}
-		}
-		fmt.Fprintln(os.Stderr)
+func renderPrettyDomainInventory(report *CrossRunAuditReport) {
+	if len(report.DomainInventory) == 0 {
+		return
 	}
-
-	// Per-run breakdown
-	if len(report.PerRunBreakdown) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Per-Run Breakdown"))
-		for _, run := range report.PerRunBreakdown {
-			costStr := ""
-			if run.Cost > 0 {
-				costStr = fmt.Sprintf("  cost=$%.4f", run.Cost)
-				if run.CostSpike {
-					costStr += "⚠"
-				}
-			}
-			tokenStr := ""
-			if run.Tokens > 0 {
-				tokenStr = "  tokens=" + formatTokens(run.Tokens)
-				if run.TokenSpike {
-					tokenStr += "⚠"
-				}
-			}
-			durStr := ""
-			if run.Duration > 0 {
-				durStr = "  dur=" + timeutil.FormatDurationNs(int64(run.Duration))
-			}
-			if !run.HasData {
-				fmt.Fprintf(os.Stderr, "  Run #%-12d  %-30s  %-10s  (no firewall data)%s%s%s  mcp_errors=%d  errors=%d\n",
-					run.RunID, stringutil.Truncate(run.WorkflowName, 30), run.Conclusion,
-					durStr, costStr, tokenStr, run.MCPErrors, run.ErrorCount)
-				continue
-			}
-			fmt.Fprintf(os.Stderr, "  Run #%-12d  %-30s  %-10s  requests=%d  allowed=%d  blocked=%d  deny=%.1f%%  domains=%d%s%s%s  turns=%d  mcp_errors=%d  errors=%d\n",
-				run.RunID, stringutil.Truncate(run.WorkflowName, 30), run.Conclusion,
-				run.TotalRequests, run.Allowed, run.Blocked,
-				run.DenyRate*100, run.UniqueDomains,
-				durStr, costStr, tokenStr,
-				run.Turns, run.MCPErrors, run.ErrorCount)
-		}
-		fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Domain Inventory (%d domains)", len(report.DomainInventory))))
+	for _, entry := range report.DomainInventory {
+		fmt.Fprintf(os.Stderr, "  %s %-45s  %s  seen=%d/%d  allowed=%d  blocked=%d\n",
+			firewallStatusEmoji(entry.OverallStatus), entry.Domain, entry.OverallStatus,
+			entry.SeenInRuns, report.RunsAnalyzed, entry.TotalAllowed, entry.TotalBlocked)
 	}
+	fmt.Fprintln(os.Stderr)
+}
 
-	// Final status
+func renderPrettyDrain3Insights(insights []ObservabilityInsight) {
+	if len(insights) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Agent Event Pattern Analysis (%d insights)", len(insights))))
+	for _, insight := range insights {
+		fmt.Fprintf(os.Stderr, "  %s [%s/%s] %s\n", renderSeverityIcon(insight.Severity), insight.Category, insight.Severity, insight.Title)
+		fmt.Fprintf(os.Stderr, "     %s\n", insight.Summary)
+		if insight.Evidence != "" {
+			fmt.Fprintf(os.Stderr, "     evidence: %s\n", insight.Evidence)
+		}
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
+func renderSeverityIcon(severity string) string {
+	switch severity {
+	case "high":
+		return "🔴"
+	case "medium":
+		return "🟠"
+	case "low":
+		return "🟡"
+	default:
+		return "ℹ"
+	}
+}
+
+func renderPrettyPerRunBreakdown(runs []PerRunFirewallBreakdown) {
+	if len(runs) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Per-Run Breakdown"))
+	for _, run := range runs {
+		fmt.Fprintln(os.Stderr, prettyPerRunLine(run))
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
+func prettyPerRunLine(run PerRunFirewallBreakdown) string {
+	prefix := fmt.Sprintf("  Run #%-12d  %-30s  %-10s", run.RunID, stringutil.Truncate(run.WorkflowName, 30), run.Conclusion)
+	optional := prettyPerRunOptionalFields(run)
+	if !run.HasData {
+		return fmt.Sprintf("%s  (no firewall data)%s  mcp_errors=%d  errors=%d", prefix, optional, run.MCPErrors, run.ErrorCount)
+	}
+	return fmt.Sprintf("%s  requests=%d  allowed=%d  blocked=%d  deny=%.1f%%  domains=%d%s  turns=%d  mcp_errors=%d  errors=%d",
+		prefix, run.TotalRequests, run.Allowed, run.Blocked, run.DenyRate*100,
+		run.UniqueDomains, optional, run.Turns, run.MCPErrors, run.ErrorCount)
+}
+
+func prettyPerRunOptionalFields(run PerRunFirewallBreakdown) string {
+	parts := strings.Builder{}
+	if run.Duration > 0 {
+		parts.WriteString("  dur=")
+		parts.WriteString(timeutil.FormatDurationNs(int64(run.Duration)))
+	}
+	if run.Cost > 0 {
+		fmt.Fprintf(&parts, "  cost=$%.4f", run.Cost)
+		if run.CostSpike {
+			parts.WriteString("⚠")
+		}
+	}
+	if run.Tokens > 0 {
+		parts.WriteString("  tokens=")
+		parts.WriteString(formatTokens(run.Tokens))
+		if run.TokenSpike {
+			parts.WriteString("⚠")
+		}
+	}
+	return parts.String()
+}
+
+func renderPrettyFinalStatus(report *CrossRunAuditReport) {
 	if report.RunsWithData == 0 && len(report.MCPHealth) == 0 && report.MetricsTrend.TotalTokens == 0 {
 		crossRunRenderLog.Printf("No data found in any analyzed runs: runs_analyzed=%d", report.RunsAnalyzed)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No data found in any of the analyzed runs."))
-	} else {
-		parts := []string{
-			fmt.Sprintf("%d runs analyzed", report.RunsAnalyzed),
-		}
-		if report.Summary.UniqueDomains > 0 {
-			parts = append(parts, fmt.Sprintf("%d unique domains", report.Summary.UniqueDomains))
-			parts = append(parts, fmt.Sprintf("%.1f%% overall denial rate", report.Summary.OverallDenyRate*100))
-		}
-		if report.MetricsTrend.RunsWithCost > 0 {
-			parts = append(parts, fmt.Sprintf("total cost $%.4f", report.MetricsTrend.TotalCost))
-		}
-		if len(report.MetricsTrend.CostSpikes) > 0 {
-			parts = append(parts, fmt.Sprintf("%d cost spike(s)", len(report.MetricsTrend.CostSpikes)))
-		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Report complete: "+strings.Join(parts, ", ")))
+		return
 	}
+
+	parts := []string{fmt.Sprintf("%d runs analyzed", report.RunsAnalyzed)}
+	if report.Summary.UniqueDomains > 0 {
+		parts = append(parts, fmt.Sprintf("%d unique domains", report.Summary.UniqueDomains))
+		parts = append(parts, fmt.Sprintf("%.1f%% overall denial rate", report.Summary.OverallDenyRate*100))
+	}
+	if report.MetricsTrend.RunsWithCost > 0 {
+		parts = append(parts, fmt.Sprintf("total cost $%.4f", report.MetricsTrend.TotalCost))
+	}
+	if len(report.MetricsTrend.CostSpikes) > 0 {
+		parts = append(parts, fmt.Sprintf("%d cost spike(s)", len(report.MetricsTrend.CostSpikes)))
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Report complete: "+strings.Join(parts, ", ")))
 }
 
 // formatRunIDs formats a slice of run IDs as a comma-separated string.

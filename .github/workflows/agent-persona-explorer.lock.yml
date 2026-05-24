@@ -122,7 +122,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Agent Persona Explorer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agent-persona-explorer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Mask OTLP telemetry headers
@@ -133,8 +133,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: "gpt-5.4-mini"
-          GH_AW_INFO_VERSION: "1.0.51"
-          GH_AW_INFO_AGENT_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
+          GH_AW_INFO_AGENT_VERSION: "1.0.52"
           GH_AW_INFO_WORKFLOW_NAME: "Agent Persona Explorer"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -430,7 +430,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Agent Persona Explorer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agent-persona-explorer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Set runtime paths
@@ -526,7 +526,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.51
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.52
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -1159,7 +1159,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Agent Persona Explorer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agent-persona-explorer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
@@ -1314,7 +1314,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Agent Persona Explorer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agent-persona-explorer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
@@ -1407,7 +1407,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.51
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.52
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -1522,7 +1522,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Agent Persona Explorer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agent-persona-explorer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Checkout repository
@@ -1594,7 +1594,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: "gpt-5.4-mini"
-      GH_AW_ENGINE_VERSION: "1.0.51"
+      GH_AW_ENGINE_VERSION: "1.0.52"
       GH_AW_WORKFLOW_EMOJI: "🎭"
       GH_AW_WORKFLOW_ID: "agent-persona-explorer"
       GH_AW_WORKFLOW_NAME: "Agent Persona Explorer"
@@ -1625,7 +1625,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Agent Persona Explorer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agent-persona-explorer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Mask OTLP telemetry headers
@@ -1710,7 +1710,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Agent Persona Explorer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agent-persona-explorer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download cache-memory artifact (default)

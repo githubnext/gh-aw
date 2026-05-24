@@ -46,7 +46,7 @@ function getEffectiveTokensFromEnv(modelName) {
   if (!isNaN(parsed) && parsed > 0) {
     const modelPrefix = buildModelPrefix(modelName);
     const effectiveTokensFormatted = formatET(parsed);
-    return { effectiveTokens: parsed, effectiveTokensFormatted, effectiveTokensSuffix: ` · ● ${modelPrefix}${effectiveTokensFormatted}` };
+    return { effectiveTokens: parsed, effectiveTokensFormatted, effectiveTokensSuffix: ` · ${modelPrefix}${effectiveTokensFormatted}` };
   }
   return { effectiveTokens: undefined, effectiveTokensFormatted: undefined, effectiveTokensSuffix: "" };
 }
@@ -70,7 +70,7 @@ function buildModelPrefix(modelName) {
  * @property {number|string} [triggeringNumber] - Issue, PR, or discussion number that triggered this workflow
  * @property {string} [historyUrl] - GitHub search URL for items created by this workflow (for the history link)
  * @property {string} [historyLink] - Pre-formatted markdown history link (e.g. " · [◷](url)"), or "" if unavailable
- * @property {number} [effectiveTokens] - Total effective token count for the run (shown as ● N when > 0, in compact format)
+ * @property {number} [effectiveTokens] - Total effective token count for the run (shown as N when > 0, in compact format)
  * @property {string} [model] - Model name used for the run, used to build a compact model identifier in ET suffixes
  * @property {string} [emoji] - Optional emoji representing the workflow (from frontmatter)
  */
@@ -101,13 +101,13 @@ function getFooterMessage(ctx) {
   // Pre-compute effective_tokens_formatted and effective_tokens_suffix for use in custom templates
   const hasExplicitContextEffectiveTokens = ctx.effectiveTokens !== undefined && ctx.effectiveTokens !== null;
   let effectiveTokensFormatted = envEffectiveTokensFormatted;
-  // effective_tokens_suffix is always a string: either " · ● 1.2K" or "" (for safe use in templates)
+  // effective_tokens_suffix is always a string: either " · 1.2K" or "" (for safe use in templates)
   let effectiveTokensSuffix = envEffectiveTokensSuffix;
   if (hasExplicitContextEffectiveTokens) {
     effectiveTokensFormatted = effectiveTokens ? formatET(effectiveTokens) : undefined;
     if (effectiveTokensFormatted) {
       const modelPrefix = buildModelPrefix(resolvedModelName);
-      effectiveTokensSuffix = ` · ● ${modelPrefix}${effectiveTokensFormatted}`;
+      effectiveTokensSuffix = ` · ${modelPrefix}${effectiveTokensFormatted}`;
     } else {
       effectiveTokensSuffix = "";
     }
@@ -127,7 +127,7 @@ function getFooterMessage(ctx) {
   if (ctx.triggeringNumber) {
     defaultFooter += " for issue #{triggering_number}";
   }
-  // Append effective tokens with ● symbol when available (compact format, no "ET" label)
+  // Append effective tokens when available (compact format, no "ET" label)
   if (effectiveTokens) {
     defaultFooter += effectiveTokensSuffix;
   }
@@ -262,7 +262,7 @@ function getFooterAgentFailureIssueMessage(ctx) {
   } else {
     // Default footer template with link to workflow run
     let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
-    // Append effective tokens with ● symbol when available (compact format, no "ET" label)
+    // Append effective tokens when available (compact format, no "ET" label)
     if (effectiveTokens) {
       defaultFooter += `{effective_tokens_suffix}`;
     }
@@ -304,7 +304,7 @@ function getFooterAgentFailureCommentMessage(ctx) {
   } else {
     // Default footer template with link to workflow run
     let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
-    // Append effective tokens with ● symbol when available (compact format, no "ET" label)
+    // Append effective tokens when available (compact format, no "ET" label)
     if (effectiveTokens) {
       defaultFooter += `{effective_tokens_suffix}`;
     }

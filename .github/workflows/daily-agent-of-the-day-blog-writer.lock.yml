@@ -126,7 +126,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Mask OTLP telemetry headers
@@ -136,9 +136,9 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.5' }}
-          GH_AW_INFO_VERSION: "1.0.51"
-          GH_AW_INFO_AGENT_VERSION: "1.0.51"
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}
+          GH_AW_INFO_VERSION: "1.0.52"
+          GH_AW_INFO_AGENT_VERSION: "1.0.52"
           GH_AW_INFO_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -410,7 +410,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Set runtime paths
@@ -501,7 +501,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.51
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.52
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -936,7 +936,7 @@ jobs:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.5' }}
+          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg,.svg"
           GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GH_AW_ASSETS_MAX_SIZE_KB: 10240
@@ -1204,7 +1204,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
@@ -1367,7 +1367,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
@@ -1454,7 +1454,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.51
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.52
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -1487,7 +1487,7 @@ jobs:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || 'claude-sonnet-4.5' }}
+          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || 'claude-sonnet-4.6' }}
           GH_AW_PHASE: detection
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_VERSION: dev
@@ -1571,7 +1571,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Check team membership for workflow
@@ -1637,7 +1637,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Checkout repository
@@ -1716,7 +1716,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
-      GH_AW_ENGINE_VERSION: "1.0.51"
+      GH_AW_ENGINE_VERSION: "1.0.52"
       GH_AW_TRACKER_ID: "daily-agent-of-the-day-blog-writer"
       GH_AW_WORKFLOW_EMOJI: "✍️"
       GH_AW_WORKFLOW_ID: "daily-agent-of-the-day-blog-writer"
@@ -1750,7 +1750,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Mask OTLP telemetry headers
@@ -1905,7 +1905,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Agent of the Day Blog Writer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-agent-of-the-day-blog-writer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Checkout repository
@@ -1963,7 +1963,7 @@ jobs:
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/daily-agent-of-the-day-blog-writer.md"
           GH_AW_TRACKER_ID: "daily-agent-of-the-day-blog-writer"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_ENGINE_VERSION: "1.0.51"
+          GH_AW_ENGINE_VERSION: "1.0.52"
           GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
