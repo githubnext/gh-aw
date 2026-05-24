@@ -320,6 +320,7 @@ Test the %s engine compilation path.
 			if eng.name == "codex" {
 				yamlOutput = strings.ReplaceAll(yamlOutput, " --exclude-env CODEX_API_KEY", "")
 				yamlOutput = strings.ReplaceAll(yamlOutput, " --exclude-env OPENAI_API_KEY", "")
+				yamlOutput = strings.TrimRight(yamlOutput, "\n") + "\n"
 			}
 
 			golden.RequireEqual(t, normalizeOutput(yamlOutput))

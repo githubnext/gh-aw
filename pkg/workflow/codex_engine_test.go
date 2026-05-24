@@ -348,14 +348,14 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 		}
 
 		result := yaml.String()
-		expectedLines := []string{
-			"model_provider = \"openai-proxy\"",
-			"[model_providers.openai-proxy]",
-			"name = \"OpenAI AWF proxy\"",
-			fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.ClaudeLLMGatewayPort),
-			"env_key = \"OPENAI_API_KEY\"",
-			"supports_websockets = false",
-		}
+			expectedLines := []string{
+				"model_provider = \"openai-proxy\"",
+				"[model_providers.openai-proxy]",
+				"name = \"OpenAI AWF proxy\"",
+				fmt.Sprintf("base_url = \"http://%s:%d\"", constants.AWFAPIProxyContainerIP, constants.CodexLLMGatewayPort),
+				"env_key = \"OPENAI_API_KEY\"",
+				"supports_websockets = false",
+			}
 
 		for _, expected := range expectedLines {
 			if !strings.Contains(result, expected) {
@@ -416,7 +416,7 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 
 func TestCodexEngineOpenAIProxyProviderBaseURL(t *testing.T) {
 	engine := NewCodexEngine()
-	expected := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.ClaudeLLMGatewayPort))
+	expected := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.CodexLLMGatewayPort))
 
 	if actual := engine.getOpenAIProxyProviderBaseURL(); actual != expected {
 		t.Errorf("Expected OpenAI proxy provider base URL %q, got %q", expected, actual)

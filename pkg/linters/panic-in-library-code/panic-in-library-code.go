@@ -7,6 +7,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"slices"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -85,7 +86,7 @@ func shouldSkipPanic(pass *analysis.Pass, call *ast.CallExpr, stack []ast.Node) 
 }
 
 func isInSyncOnceDoFuncLit(pass *analysis.Pass, stack []ast.Node) bool {
-	for i := len(stack) - 1; i >= 0; i-- {
+	for i := range slices.Backward(stack) {
 		funcLit, ok := stack[i].(*ast.FuncLit)
 		if !ok || i == 0 {
 			continue
@@ -110,12 +111,7 @@ func isInSyncOnceDoFuncLit(pass *analysis.Pass, stack []ast.Node) bool {
 }
 
 func containsExpr(args []ast.Expr, target ast.Expr) bool {
-	for _, arg := range args {
-		if arg == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(args, target)
 }
 
 func isSyncOnceType(t types.Type) bool {
@@ -204,7 +200,7 @@ func hasDocumentedPanicContract(stack []ast.Node) bool {
 }
 
 func enclosingFuncDecl(stack []ast.Node) *ast.FuncDecl {
-	for i := len(stack) - 1; i >= 0; i-- {
+	for i := range slices.Backward(stack) {
 		if decl, ok := stack[i].(*ast.FuncDecl); ok {
 			return decl
 		}

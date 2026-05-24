@@ -306,6 +306,7 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 	oldCopilotToken := os.Getenv("COPILOT_GITHUB_TOKEN")
 	oldAnthropicKey := os.Getenv("ANTHROPIC_API_KEY")
 	oldOpenAIKey := os.Getenv("OPENAI_API_KEY")
+	oldCodexKey := os.Getenv("CODEX_API_KEY")
 	defer func() {
 		if oldCopilotToken != "" {
 			os.Setenv("COPILOT_GITHUB_TOKEN", oldCopilotToken)
@@ -321,6 +322,11 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 			os.Setenv("OPENAI_API_KEY", oldOpenAIKey)
 		} else {
 			os.Unsetenv("OPENAI_API_KEY")
+		}
+		if oldCodexKey != "" {
+			os.Setenv("CODEX_API_KEY", oldCodexKey)
+		} else {
+			os.Unsetenv("CODEX_API_KEY")
 		}
 	}()
 
@@ -353,6 +359,7 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 
 	t.Run("secret not in repo or environment", func(t *testing.T) {
 		os.Unsetenv("OPENAI_API_KEY")
+		os.Unsetenv("CODEX_API_KEY")
 
 		existingSecrets := map[string]bool{}
 
