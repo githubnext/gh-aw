@@ -685,7 +685,7 @@ jobs:
 
           [model_providers.openai-proxy]
           name = "OpenAI AWF proxy"
-          base_url = "http://172.30.0.30:10001"
+          base_url = "http://172.30.0.30:10000"
           env_key = "OPENAI_API_KEY"
           supports_websockets = false
           [shell_environment_policy]
