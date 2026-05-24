@@ -305,7 +305,7 @@ func TestClaudeEnginePermissionMode(t *testing.T) {
 				"Expected --permission-mode %s", tt.expectedMode)
 			assert.NotContains(t, stepContent, "--permission-mode "+tt.notExpectedMode,
 				"Did not expect --permission-mode %s", tt.notExpectedMode)
-			assert.Equal(t, 1, strings.Count(stepContent, "--permission-mode "),
+			assert.Equal(t, 1, strings.Count(stepContent, "--permission-mode"),
 				"Expected exactly one --permission-mode flag in CLI args")
 		})
 	}

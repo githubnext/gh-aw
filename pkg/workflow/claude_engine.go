@@ -186,6 +186,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		permissionMode = workflowData.EngineConfig.PermissionMode
 		claudeLog.Printf("Using engine.permission-mode override: %s", permissionMode)
 	}
+	permissionModeValueIndex := len(claudeArgs) + 1
 	claudeArgs = append(claudeArgs, "--permission-mode", permissionMode)
 
 	// Add output format for structured output
@@ -208,12 +209,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		engineArgs, permissionModeFromArgs := stripClaudePermissionModeArgs(workflowData.EngineConfig.Args)
 		if permissionModeFromArgs != "" && workflowData.EngineConfig.PermissionMode == "" {
 			claudeLog.Printf("Using legacy engine.args permission mode override: %s", permissionModeFromArgs)
-			for i := 0; i+1 < len(claudeArgs); i++ {
-				if claudeArgs[i] == "--permission-mode" {
-					claudeArgs[i+1] = permissionModeFromArgs
-					break
-				}
-			}
+			claudeArgs[permissionModeValueIndex] = permissionModeFromArgs
 		}
 		claudeArgs = append(claudeArgs, engineArgs...)
 	}
