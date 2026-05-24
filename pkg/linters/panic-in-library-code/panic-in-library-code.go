@@ -86,13 +86,13 @@ func shouldSkipPanic(pass *analysis.Pass, call *ast.CallExpr, stack []ast.Node) 
 }
 
 func isInSyncOnceDoFuncLit(pass *analysis.Pass, stack []ast.Node) bool {
-	for i := range slices.Backward(stack) {
-		funcLit, ok := stack[i].(*ast.FuncLit)
-		if !ok || i == 0 {
+	for forwardIdx, node := range slices.Backward(stack) {
+		funcLit, ok := node.(*ast.FuncLit)
+		if !ok || forwardIdx == 0 {
 			continue
 		}
 
-		call, ok := stack[i-1].(*ast.CallExpr)
+		call, ok := stack[forwardIdx-1].(*ast.CallExpr)
 		if !ok || !containsExpr(call.Args, funcLit) {
 			continue
 		}
@@ -200,8 +200,8 @@ func hasDocumentedPanicContract(stack []ast.Node) bool {
 }
 
 func enclosingFuncDecl(stack []ast.Node) *ast.FuncDecl {
-	for i := range slices.Backward(stack) {
-		if decl, ok := stack[i].(*ast.FuncDecl); ok {
+	for _, node := range slices.Backward(stack) {
+		if decl, ok := node.(*ast.FuncDecl); ok {
 			return decl
 		}
 	}
