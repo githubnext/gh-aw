@@ -231,102 +231,76 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 //   - yaml: The string builder for YAML output
 //   - options: GitHub MCP Docker rendering options
 func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerOptions) {
-	mcpRendererLog.Printf("Rendering GitHub MCP Docker config: image=%s, read_only=%t, lockdown=%t", options.DockerImageVersion, options.ReadOnly, options.Lockdown)
+mcpRendererLog.Printf("Rendering GitHub MCP Docker config: image=%s, read_only=%t, lockdown=%t", options.DockerImageVersion, options.ReadOnly, options.Lockdown)
+if options.IncludeTypeField {
+yaml.WriteString("                \"type\": \"stdio\",\n")
+}
+writeGitHubDockerContainer(yaml, options)
+writeGitHubDockerEnvSection(yaml, options)
+writeGitHubDockerGuardPolicies(yaml, options)
+}
 
-	// Add type field if needed (Copilot requires this, Claude doesn't)
-	// Per MCP Gateway Specification v1.0.0 section 4.1.2, use "stdio" for containerized servers
-	if options.IncludeTypeField {
-		yaml.WriteString("                \"type\": \"stdio\",\n")
-	}
+func writeGitHubDockerContainer(yaml *strings.Builder, options GitHubMCPDockerOptions) {
+yaml.WriteString("                \"container\": \"ghcr.io/github/github-mcp-server:" + options.DockerImageVersion + "\",\n")
+if len(options.CustomArgs) == 0 {
+return
+}
+yaml.WriteString("                \"args\": [\n")
+for _, arg := range options.CustomArgs {
+quotedArg, _ := json.Marshal(arg)
+yaml.WriteString("                  " + string(quotedArg) + ",\n")
+}
+yaml.WriteString("                ],\n")
+}
 
-	// MCP Gateway spec fields for containerized stdio servers
-	yaml.WriteString("                \"container\": \"ghcr.io/github/github-mcp-server:" + options.DockerImageVersion + "\",\n")
+func writeGitHubDockerEnvSection(yaml *strings.Builder, options GitHubMCPDockerOptions) {
+yaml.WriteString("                \"env\": {\n")
+envVars := buildGitHubDockerEnvVars(options)
+envKeys := sortedMapKeys(envVars)
+for i, key := range envKeys {
+comma := ""
+if i < len(envKeys)-1 {
+comma = ","
+}
+fmt.Fprintf(yaml, "                  \"%s\": \"%s\"%s\n", key, envVars[key], comma)
+}
+}
 
-	// Append custom args if present (these are Docker runtime args, go before container image)
-	if len(options.CustomArgs) > 0 {
-		yaml.WriteString("                \"args\": [\n")
-		for _, arg := range options.CustomArgs {
-			quotedArg, _ := json.Marshal(arg)
-			yaml.WriteString("                  " + string(quotedArg) + ",\n")
-		}
-		yaml.WriteString("                ],\n")
-	}
+func buildGitHubDockerEnvVars(options GitHubMCPDockerOptions) map[string]string {
+envVars := map[string]string{"GITHUB_TOOLSETS": options.Toolsets}
+if options.IncludeTypeField {
+envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "\\${GITHUB_MCP_SERVER_TOKEN}"
+envVars["GITHUB_HOST"] = "\\${GITHUB_SERVER_URL}"
+} else {
+envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "$GITHUB_MCP_SERVER_TOKEN"
+envVars["GITHUB_HOST"] = "$GITHUB_SERVER_URL"
+}
+if options.ReadOnly {
+envVars["GITHUB_READ_ONLY"] = "1"
+}
+if options.Lockdown {
+envVars["GITHUB_LOCKDOWN_MODE"] = "1"
+}
+return envVars
+}
 
-	// Note: tools field is NOT included here - the converter script adds it back
-	// for Copilot (see convert_gateway_config_copilot.cjs). This keeps the gateway
-	// config compatible with the schema which doesn't have the tools field.
-
-	// Add env section for GitHub MCP server environment variables
-	yaml.WriteString("                \"env\": {\n")
-
-	// Build environment variables map
-	envVars := make(map[string]string)
-
-	// GitHub token (always required)
-	if options.IncludeTypeField {
-		// Copilot engine: use escaped variable for Copilot CLI to interpolate
-		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "\\${GITHUB_MCP_SERVER_TOKEN}"
-		// GitHub host for enterprise deployments (format: https://hostname, e.g. https://myorg.ghe.com).
-		// GITHUB_SERVER_URL is set by GitHub Actions as a full URL (https://hostname, no trailing slash),
-		// which matches the format expected by github-mcp-server for GITHUB_HOST.
-		// Copilot CLI interpolation syntax used here.
-		envVars["GITHUB_HOST"] = "\\${GITHUB_SERVER_URL}"
-	} else {
-		// Non-Copilot engines (Claude/Custom): use plain shell variable
-		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "$GITHUB_MCP_SERVER_TOKEN"
-		// GitHub host for enterprise deployments (format: https://hostname, e.g. https://myorg.ghe.com).
-		// GITHUB_SERVER_URL is set by GitHub Actions as a full URL (https://hostname, no trailing slash),
-		// which matches the format expected by github-mcp-server for GITHUB_HOST.
-		envVars["GITHUB_HOST"] = "$GITHUB_SERVER_URL"
-	}
-
-	// Read-only mode
-	if options.ReadOnly {
-		envVars["GITHUB_READ_ONLY"] = "1"
-	}
-
-	// GitHub lockdown mode (only when explicitly configured)
-	if options.Lockdown {
-		// Use explicit lockdown value from configuration
-		envVars["GITHUB_LOCKDOWN_MODE"] = "1"
-	}
-
-	// Toolsets (always configured, defaults to "default")
-	envVars["GITHUB_TOOLSETS"] = options.Toolsets
-
-	// Write environment variables in sorted order for deterministic output
-	envKeys := sortedMapKeys(envVars)
-
-	for i, key := range envKeys {
-		isLast := i == len(envKeys)-1
-		comma := ""
-		if !isLast {
-			comma = ","
-		}
-		fmt.Fprintf(yaml, "                  \"%s\": \"%s\"%s\n", key, envVars[key], comma)
-	}
-
-	// Close env section, with trailing comma if guard-policies follows
-	hasGuardPolicies := len(options.GuardPolicies) > 0 || options.GuardPoliciesFromStep
-	if hasGuardPolicies {
-		yaml.WriteString("                },\n")
-		if options.GuardPoliciesFromStep {
-			// Render guard-policies with env var refs resolved at runtime from step outputs
-			// GITHUB_MCP_GUARD_MIN_INTEGRITY and GITHUB_MCP_GUARD_REPOS are set in Start MCP
-			// Gateway step from the determine-automatic-lockdown step outputs. They are
-			// non-empty only for public repositories.
-			renderGuardPoliciesJSON(yaml, map[string]any{
-				"allow-only": map[string]any{
-					"min-integrity": "$GITHUB_MCP_GUARD_MIN_INTEGRITY",
-					"repos":         "$GITHUB_MCP_GUARD_REPOS",
-				},
-			}, "                ")
-		} else {
-			renderGuardPoliciesJSON(yaml, options.GuardPolicies, "                ")
-		}
-	} else {
-		yaml.WriteString("                }\n")
-	}
+func writeGitHubDockerGuardPolicies(yaml *strings.Builder, options GitHubMCPDockerOptions) {
+hasGuardPolicies := len(options.GuardPolicies) > 0 || options.GuardPoliciesFromStep
+if !hasGuardPolicies {
+yaml.WriteString("                }\n")
+return
+}
+yaml.WriteString("                },\n")
+if options.GuardPoliciesFromStep {
+renderGuardPoliciesJSON(yaml, map[string]any{
+"allow-only": map[string]any{
+"min-integrity": "$GITHUB_MCP_GUARD_MIN_INTEGRITY",
+"repos":         "$GITHUB_MCP_GUARD_REPOS",
+},
+}, "                ")
+return
+}
+renderGuardPoliciesJSON(yaml, options.GuardPolicies, "                ")
 }
 
 // RenderGitHubMCPRemoteConfig renders the GitHub MCP server configuration for remote (hosted) mode.
