@@ -37,6 +37,22 @@ tools:
   web-fetch:
   bash: [":*"]
 
+experiments:
+  tool_verbosity:
+    variants: [full_bash, minimal_toolset]
+    description: "Test whether restricting bash tools reduces cost without compromising GPL detection quality"
+    hypothesis: "H0: no change in token consumption. H1: minimal toolset reduces tokens by 10-15% while maintaining issue quality (detection accuracy + alternative research depth)"
+    metric: effective_token_count
+    secondary_metrics: [run_duration_seconds, tools_invoked_count, issue_completeness_score]
+    guardrail_metrics:
+      - name: gpl_detection_rate
+        threshold: "==100"
+      - name: issue_created_rate
+        threshold: ">=90"
+    min_samples: 30
+    weight: [50, 50]
+    start_date: "2026-05-24"
+
 strict: false
 
 imports:
@@ -69,6 +85,12 @@ steps:
       fi
 
 ---
+
+{{#if experiments.tool_verbosity == 'minimal_toolset' }}
+## Tool Usage Constraint (minimal_toolset variant)
+
+For this run you are in the **minimal_toolset** experiment variant. Restrict your bash command usage exclusively to the following essential commands: `go`, `grep`, `jq`, `cat`, `mkdir`, `echo`, `wc`, `head`, `tail`. Do not invoke any other bash commands. Use these tools only when strictly necessary for SBOM parsing, dependency analysis, license detection, and cache-memory state management.
+{{/if}}
 
 # GPL Dependency Cleaner (gpclean)
 
