@@ -4,7 +4,6 @@ package actionpins
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -195,5 +194,5 @@ func TestResolveExactHardcodedPin_BySHA(t *testing.T) {
 	result, ok := resolveExactHardcodedPin("actions/checkout", "sha-v5", true, pins)
 
 	require.True(t, ok, "Expected exact SHA match to resolve")
-	assert.True(t, strings.Contains(result, "sha-v5"), "Expected result to include matched SHA")
+	assert.Contains(t, result, "sha-v5", "Expected result to include matched SHA")
 }
