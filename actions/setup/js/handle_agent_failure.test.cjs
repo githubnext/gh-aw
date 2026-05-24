@@ -1208,6 +1208,23 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("connect ECONNREFUSED 127.0.0.1:8080");
     });
 
+    it("extracts AWF startup errors from bracketed logs", () => {
+      const lines = [
+        " Container awf-squid  Error",
+        "dependency failed to start: container awf-squid is unhealthy",
+        "[ERROR] Failed to start containers: Error: Command failed with exit code 1: docker compose up -d --pull never",
+        "  stdout: undefined,",
+        "  stderr: undefined,",
+      ];
+      fs.writeFileSync(stdioLogPath, lines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("dependency failed to start: container awf-squid is unhealthy");
+      expect(result).toContain("Failed to start containers: Error: Command failed with exit code 1: docker compose up -d --pull never");
+      expect(result).not.toContain("Last agent output");
+      expect(result).not.toContain("stdout: undefined");
+    });
+
     it("detects Fatal: prefix pattern", () => {
       fs.writeFileSync(stdioLogPath, "Fatal: out of memory\n");
       const result = buildEngineFailureContext();

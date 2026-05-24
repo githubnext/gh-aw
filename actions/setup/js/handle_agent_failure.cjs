@@ -1571,10 +1571,25 @@ function buildEngineFailureContext() {
         continue;
       }
 
+      // AWF runtime logs: "[ERROR] <message>"
+      const bracketErrorMatch = line.match(/^\[ERROR\]\s*(.+)$/);
+      if (bracketErrorMatch) {
+        errorMessages.add(bracketErrorMatch[1].trim());
+        continue;
+      }
+
       // Fatal errors: "Fatal: <message>" or "FATAL: <message>"
       const fatalMatch = line.match(/^(?:FATAL|Fatal):\s*(.+)$/);
       if (fatalMatch) {
         errorMessages.add(fatalMatch[1].trim());
+        continue;
+      }
+
+      // AWF docker-compose dependency failures surface this root-cause line without
+      // an explicit log-level prefix.
+      const awfDependencyFailureMatch = line.match(/^dependency failed to start:\s*(.+)$/);
+      if (awfDependencyFailureMatch) {
+        errorMessages.add(`dependency failed to start: ${awfDependencyFailureMatch[1].trim()}`);
         continue;
       }
 
