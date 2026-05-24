@@ -88,8 +88,8 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		version,
 		"Install Claude Code CLI",
 		"claude",
-		true, // Include Node.js setup
-		true, // Claude Code requires post-install scripts for native binaries
+		true,  // Include Node.js setup
+		true,  // Claude Code requires post-install scripts for native binaries
 		false, // Agentic engine installs should not apply npm release-age cooldown
 	)
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
