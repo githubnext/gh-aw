@@ -293,10 +293,7 @@ async function main() {
   // Diagnose API key presence so CI failures can be triaged without exposing secret values.
   const codexApiKey = process.env.CODEX_API_KEY;
   const openaiApiKey = process.env.OPENAI_API_KEY;
-  log(
-    `secrets: CODEX_API_KEY=${codexApiKey ? `set (length=${codexApiKey.length})` : "not set"}` +
-      ` OPENAI_API_KEY=${openaiApiKey ? `set (length=${openaiApiKey.length})` : "not set"}`
-  );
+  log(`secrets: CODEX_API_KEY=${codexApiKey ? `set (length=${codexApiKey.length})` : "not set"}` + ` OPENAI_API_KEY=${openaiApiKey ? `set (length=${openaiApiKey.length})` : "not set"}`);
 
   // Pre-flight: require at least one API key before spawning codex.
   // Without a key, codex exits immediately with "Missing environment variable" and every
