@@ -660,17 +660,6 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, wo
 	return nil
 }
 
-// updateActionRefsInContent replaces outdated "uses: org/repo@version" references
-// in content with the latest major version and SHA. Returns (changed, newContent, error).
-// cache is keyed by "repo@currentVersion" and avoids redundant API calls across lines/files.
-// coolDownCache is keyed by "repo@tag" and avoids redundant cooldown date API calls.
-// When allowMajor is true (the default), all matched actions are updated to the latest
-// major version. When allowMajor is false (--disable-release-bump), non-core (non
-// actions/*) action refs are skipped; core actions are always updated.
-func updateActionRefsInContent(ctx context.Context, content string, cache map[string]latestReleaseResult, coolDownCache map[string]coolDownCheckResult, allowMajor, verbose bool, coolDown time.Duration) (bool, string, error) {
-	return updateActionRefsInContentWithDeps(ctx, defaultActionUpdateDeps(), content, cache, coolDownCache, allowMajor, verbose, coolDown)
-}
-
 func updateActionRefsInContentWithDeps(ctx context.Context, deps actionUpdateDeps, content string, cache map[string]latestReleaseResult, coolDownCache map[string]coolDownCheckResult, allowMajor, verbose bool, coolDown time.Duration) (bool, string, error) {
 	changed := false
 	lines := strings.Split(content, "\n")

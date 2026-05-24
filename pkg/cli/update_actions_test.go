@@ -353,43 +353,6 @@ func TestIsCoreAction(t *testing.T) {
 	}
 }
 
-func TestUpdateActionRefsInContent_NonCoreActionsUnchanged(t *testing.T) {
-	// When allowMajor=false (--disable-release-bump), non-actions/* org references
-	// should not be modified because they are not core actions.
-	input := `steps:
-  - uses: docker/login-action@v3
-  - uses: github/codeql-action/upload-sarif@v3
-  - run: echo hello`
-
-	cache := make(map[string]latestReleaseResult)
-	changed, newContent, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), false, false, 0)
-	if err != nil {
-		t.Fatalf("updateActionRefsInContent() error = %v", err)
-	}
-	if changed {
-		t.Errorf("updateActionRefsInContent() changed = true, want false for non-actions/* refs with allowMajor=false")
-	}
-	if newContent != input {
-		t.Errorf("updateActionRefsInContent() modified content for non-actions/* refs\nGot: %s\nWant: %s", newContent, input)
-	}
-}
-
-func TestUpdateActionRefsInContent_NoActionRefs(t *testing.T) {
-	input := `description: Test workflow
-steps:
-  - run: echo hello
-  - run: echo world`
-
-	cache := make(map[string]latestReleaseResult)
-	changed, _, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), true, false, 0)
-	if err != nil {
-		t.Fatalf("updateActionRefsInContent() error = %v", err)
-	}
-	if changed {
-		t.Errorf("updateActionRefsInContent() changed = true, want false for content with no action refs")
-	}
-}
-
 func TestUpdateActionRefsInContent_VersionTagReplacement(t *testing.T) {
 	// Stub latest release lookup so the test doesn't hit the network.
 	deps := newActionUpdateDepsWithLatestRelease(func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {

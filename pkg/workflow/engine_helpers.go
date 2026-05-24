@@ -16,9 +16,6 @@
 //
 // # Key Functions
 //
-// Base Installation:
-//   - GetBaseInstallationSteps() - Generate base installation steps for an engine
-//
 // Secret Validation:
 //   - GenerateMultiSecretValidationStep() - Validate at least one of multiple secrets
 //   - BuildDefaultSecretValidationStep() - Build secret validation step for an engine
@@ -87,42 +84,6 @@ func engineEnvHasKey(workflowData *WorkflowData, key string) bool {
 	}
 	_, ok := workflowData.EngineConfig.Env[key]
 	return ok
-}
-
-// GetBaseInstallationSteps returns the common installation steps for an engine.
-// This includes npm package installation steps shared across all engines.
-// Secret validation is now handled in the activation job via GetSecretValidationStep.
-//
-// Parameters:
-//   - config: Engine-specific configuration for installation
-//   - workflowData: The workflow data containing engine configuration
-//
-// Returns:
-//   - []GitHubActionStep: The base installation steps (npm install)
-func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *WorkflowData) []GitHubActionStep {
-	engineHelpersLog.Printf("Generating base installation steps for %s engine: workflow=%s", config.Name, workflowData.Name)
-
-	var steps []GitHubActionStep
-
-	// Secret validation step is now generated in the activation job (GetSecretValidationStep).
-
-	// Determine step name - use InstallStepName if provided, otherwise default to "Install <Name>"
-	stepName := config.InstallStepName
-	if stepName == "" {
-		stepName = "Install " + config.Name
-	}
-
-	// Add npm package installation steps
-	npmSteps := BuildStandardNpmEngineInstallSteps(
-		config.NpmPackage,
-		config.Version,
-		stepName,
-		config.CliName,
-		workflowData,
-	)
-	steps = append(steps, npmSteps...)
-
-	return steps
 }
 
 // GenerateMultiSecretValidationStep creates a GitHub Actions step that validates at least one
