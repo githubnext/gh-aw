@@ -533,6 +533,10 @@ func isEditToolExplicitlyDisabled(tools map[string]any) bool {
 	return isBool && !enabled
 }
 
+// stripClaudePermissionModeArgs removes all --permission-mode flags from args
+// (both "--permission-mode <value>" and "--permission-mode=<value>" forms).
+// It returns the filtered argument list and the last permission-mode value found.
+// The returned permission-mode value is an empty string when no such flag exists.
 func stripClaudePermissionModeArgs(args []string) ([]string, string) {
 	filtered := make([]string, 0, len(args))
 	permissionMode := ""
