@@ -543,7 +543,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: '1.25'
+          go-version: '1.26'
           cache: false
       - name: Capture GOROOT for AWF chroot mode
         run: echo "GOROOT=$(go env GOROOT)" >> "$GITHUB_ENV"
@@ -2553,4 +2553,3 @@ jobs:
         with:
           key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
-
