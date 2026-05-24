@@ -186,8 +186,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		permissionMode = workflowData.EngineConfig.PermissionMode
 		claudeLog.Printf("Using engine.permission-mode override: %s", permissionMode)
 	}
-	permissionModeValueIndex := len(claudeArgs) + 1
 	claudeArgs = append(claudeArgs, "--permission-mode", permissionMode)
+	permissionModeValueIndex := len(claudeArgs) - 1
 
 	// Add output format for structured output
 	// Use "stream-json" to output JSONL format (newline-delimited JSON objects)
