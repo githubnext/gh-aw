@@ -527,7 +527,10 @@ func allOTLPHeaders(entries []otlpEndpointEntry) string {
 //     injected for the first endpoint (backward compat) and GH_AW_OTLP_ALL_HEADERS
 //     is injected with all headers across every endpoint (for secret masking).
 //
-//  5. When observability.otlp.attributes is configured, GH_AW_OTLP_ATTRIBUTES is
+//  5. OTEL_RESOURCE_ATTRIBUTES is injected with gh-aw/GitHub run context so child
+//     OTel SDKs (Copilot CLI, MCP gateway) inherit correlation attributes.
+//
+//  6. When observability.otlp.attributes is configured, GH_AW_OTLP_ATTRIBUTES is
 //     injected as a JSON-encoded map so that span-emitting scripts can append custom
 //     attributes (including Langfuse session/user IDs) to every span.
 //
@@ -575,6 +578,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	//    compatibility (MCP gateway, legacy scripts). OTEL_SERVICE_NAME is
 	//    workflow-specific when WorkflowID is available.
 	otlpEnvLines := fmt.Sprintf("  OTEL_EXPORTER_OTLP_ENDPOINT: %s\n  OTEL_SERVICE_NAME: %s", firstEndpoint, serviceName)
+	otlpEnvLines += "\n  OTEL_RESOURCE_ATTRIBUTES: " + otelResourceAttributes(workflowData)
 
 	// 3. Inject per-endpoint headers env vars.
 	//    OTEL_EXPORTER_OTLP_HEADERS = first endpoint headers (backward compat).
@@ -601,7 +605,10 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 		otlpLog.Printf("Injected GH_AW_OTLP_IF_MISSING env var (%s)", ifMissingMode)
 	}
 
-	// 5. Inject GH_AW_OTLP_ATTRIBUTES (JSON object) for custom per-span attributes.
+	// 5. Inject OTEL_RESOURCE_ATTRIBUTES so child OTel SDKs (Copilot CLI, MCP
+	//    gateway) inherit gh-aw/GitHub workflow context in their resource block.
+	//
+	// 6. Inject GH_AW_OTLP_ATTRIBUTES (JSON object) for custom per-span attributes.
 	//    Attributes from RawFrontmatter take precedence; ParsedFrontmatter is the
 	//    fallback for workflows that were parsed but whose RawFrontmatter was later
 	//    modified (e.g. during observability merge in the orchestrator).
@@ -654,4 +661,31 @@ func otelServiceName(workflowData *WorkflowData) string {
 	}
 
 	return defaultServiceName + "." + sanitizedWorkflowName
+}
+
+func resolveWorkflowEngineID(workflowData *WorkflowData) string {
+	if workflowData == nil {
+		return ""
+	}
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
+		return workflowData.EngineConfig.ID
+	}
+	return workflowData.AI
+}
+
+func escapeOTELResourceAttributeValue(value string) string {
+	return strings.NewReplacer(`\`, `\\`, ",", `\,`, "=", `\=`).Replace(value)
+}
+
+func otelResourceAttributes(workflowData *WorkflowData) string {
+	attrs := []string{
+		"gh-aw.workflow.name=${{ github.workflow }}",
+		"gh-aw.repository=${{ github.repository }}",
+		"gh-aw.run.id=${{ github.run_id }}",
+		"github.run_id=${{ github.run_id }}",
+	}
+	if engineID := resolveWorkflowEngineID(workflowData); engineID != "" {
+		attrs = append(attrs, "gh-aw.engine.id="+escapeOTELResourceAttributeValue(engineID))
+	}
+	return strings.Join(attrs, ",")
 }
