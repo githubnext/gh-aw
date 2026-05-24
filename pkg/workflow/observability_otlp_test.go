@@ -335,7 +335,7 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.Contains(
 			t,
 			wd.Env,
-			"OTEL_RESOURCE_ATTRIBUTES: gh-aw.workflow.name=${{ github.workflow }},gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=copilot",
+			"OTEL_RESOURCE_ATTRIBUTES: gh-aw.workflow.name=unknown,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=copilot",
 		)
 	})
 
@@ -353,9 +353,43 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.Contains(
 			t,
 			wd.Env,
-			"OTEL_RESOURCE_ATTRIBUTES: gh-aw.workflow.name=${{ github.workflow }},gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }}",
+			"OTEL_RESOURCE_ATTRIBUTES: gh-aw.workflow.name=unknown,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }}",
 		)
 		assert.NotContains(t, wd.Env, "gh-aw.engine.id=")
+	})
+
+	t.Run("escapes OTEL_RESOURCE_ATTRIBUTES engine id value", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			AI: `copilot,eq=uals\slash`,
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com:4317"},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		assert.Contains(
+			t,
+			wd.Env,
+			`gh-aw.engine.id=copilot\,eq\=uals\\slash`,
+		)
+	})
+
+	t.Run("escapes OTEL_RESOURCE_ATTRIBUTES workflow name value", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			Name: "triage,weekly=run\\v2",
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com:4317"},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		assert.Contains(t, wd.Env, `gh-aw.workflow.name=triage\,weekly\=run\\v2`)
 	})
 
 	t.Run("appends domain to existing NetworkPermissions.Allowed", func(t *testing.T) {

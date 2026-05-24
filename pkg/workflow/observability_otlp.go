@@ -14,6 +14,9 @@ import (
 )
 
 var otlpLog = logger.New("workflow:observability_otlp")
+// OTEL_RESOURCE_ATTRIBUTES values must escape backslash (`\`), comma (`,`), and
+// equals (`=`) per the OpenTelemetry env-var resource attribute grammar.
+var otelResourceValueEscaper = strings.NewReplacer(`\`, `\\`, ",", `\,`, "=", `\=`)
 
 var sentryEndpointExpressionPattern = regexp.MustCompile(`(?i)^\$\{\{\s*secrets\.` + regexp.QuoteMeta(constants.OTELSentryEndpointSecretName) + `\s*\}\}$`)
 
@@ -674,12 +677,19 @@ func resolveWorkflowEngineID(workflowData *WorkflowData) string {
 }
 
 func escapeOTELResourceAttributeValue(value string) string {
-	return strings.NewReplacer(`\`, `\\`, ",", `\,`, "=", `\=`).Replace(value)
+	return otelResourceValueEscaper.Replace(value)
 }
 
 func otelResourceAttributes(workflowData *WorkflowData) string {
+	workflowNameAttrValue := "unknown"
+	if workflowData != nil {
+		if workflowName := strings.TrimSpace(workflowData.Name); workflowName != "" {
+			workflowNameAttrValue = escapeOTELResourceAttributeValue(workflowName)
+		}
+	}
+
 	attrs := []string{
-		"gh-aw.workflow.name=${{ github.workflow }}",
+		"gh-aw.workflow.name=" + workflowNameAttrValue,
 		"gh-aw.repository=${{ github.repository }}",
 		"gh-aw.run.id=${{ github.run_id }}",
 		"github.run_id=${{ github.run_id }}",
