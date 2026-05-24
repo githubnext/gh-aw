@@ -735,77 +735,100 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 // It is called both when serving from a cached run summary and after a fresh processing pass,
 // ensuring that the two paths produce identical output.
 func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData, opts AuditOptions) error {
-	runID := processedRun.Run.DatabaseID
-	runOutputDir := opts.OutputDir
+runID := processedRun.Run.DatabaseID
+runOutputDir := opts.OutputDir
+processedRun.Run.SafeItemsCount = len(extractCreatedItemsFromManifest(runOutputDir))
+auditData := buildRenderedAuditData(ctx, processedRun, metrics, mcpToolUsage, runOutputDir, opts)
+if err := renderAuditOutput(auditData, runOutputDir, opts.JSONOutput, opts.Verbose); err != nil {
+return err
+}
+renderAuditGatewayMetrics(runOutputDir, opts.Verbose)
+parseAuditLogsIfRequested(runID, runOutputDir, opts)
+renderAuditCompletion(runOutputDir, opts.JSONOutput)
+return nil
+}
 
-	currentCreatedItems := extractCreatedItemsFromManifest(runOutputDir)
-	processedRun.Run.SafeItemsCount = len(currentCreatedItems)
+func buildRenderedAuditData(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData, runOutputDir string, opts AuditOptions) AuditData {
+currentCreatedItems := extractCreatedItemsFromManifest(runOutputDir)
+currentSnapshot := buildAuditComparisonSnapshot(processedRun, currentCreatedItems)
+comparison := buildAuditComparisonForRun(ctx, processedRun, currentSnapshot, runOutputDir, opts.Owner, opts.Repo, opts.Hostname, opts.Verbose)
+auditData := buildAuditData(processedRun, metrics, mcpToolUsage)
+auditData.Comparison = comparison
+return auditData
+}
 
-	currentSnapshot := buildAuditComparisonSnapshot(processedRun, currentCreatedItems)
-	comparison := buildAuditComparisonForRun(ctx, processedRun, currentSnapshot, runOutputDir, opts.Owner, opts.Repo, opts.Hostname, opts.Verbose)
+func renderAuditOutput(auditData AuditData, runOutputDir string, jsonOutput, verbose bool) error {
+if jsonOutput {
+if err := renderJSON(auditData); err != nil {
+return fmt.Errorf("failed to render JSON output: %w", err)
+}
+return nil
+}
+renderConsole(auditData, runOutputDir)
+if verbose {
+auditLog.Printf("Rendered console audit report for %s", runOutputDir)
+}
+return nil
+}
 
-	// Build structured audit data
-	auditData := buildAuditData(processedRun, metrics, mcpToolUsage)
-	auditData.Comparison = comparison
+func renderAuditGatewayMetrics(runOutputDir string, verbose bool) {
+gatewayMetrics, err := parseGatewayLogs(runOutputDir, verbose)
+if err != nil {
+return
+}
+if metricsOutput := renderGatewayMetricsTable(gatewayMetrics, verbose); metricsOutput != "" {
+fmt.Fprint(os.Stderr, metricsOutput)
+}
+}
 
-	// Render output based on format preference
-	if opts.JSONOutput {
-		if err := renderJSON(auditData); err != nil {
-			return fmt.Errorf("failed to render JSON output: %w", err)
-		}
-	} else {
-		renderConsole(auditData, runOutputDir)
-	}
+func parseAuditLogsIfRequested(runID int64, runOutputDir string, opts AuditOptions) {
+if !opts.Parse {
+return
+}
+parseAgentLogIfRequested(runID, runOutputDir, opts.Verbose)
+parseFirewallLogsIfRequested(runID, runOutputDir, opts.Verbose)
+}
 
-	// Display gateway metrics if available
-	if gatewayMetrics, err := parseGatewayLogs(runOutputDir, opts.Verbose); err == nil {
-		if metricsOutput := renderGatewayMetricsTable(gatewayMetrics, opts.Verbose); metricsOutput != "" {
-			fmt.Fprint(os.Stderr, metricsOutput)
-		}
-	}
+func parseAgentLogIfRequested(runID int64, runOutputDir string, verbose bool) {
+awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
+engine := extractEngineFromAwInfo(awInfoPath, verbose)
+if engine == nil {
+if verbose {
+fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No engine detected (aw_info.json missing or invalid); skipping agent log rendering"))
+}
+return
+}
+if err := parseAgentLog(runOutputDir, engine, verbose); err != nil {
+if verbose {
+fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse agent log for run %d: %v", runID, err)))
+}
+return
+}
+logMdPath := filepath.Join(runOutputDir, "log.md")
+if _, err := os.Stat(logMdPath); err == nil {
+fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", runID, logMdPath)))
+}
+}
 
-	// Conditionally attempt to render agentic log (similar to `logs --parse`) if --parse flag is set
-	// This creates a log.md file in the run directory for a rich, human-readable agent session summary.
-	// We intentionally do not fail the audit on parse errors; they are reported as warnings.
-	if opts.Parse {
-		awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
-		if engine := extractEngineFromAwInfo(awInfoPath, opts.Verbose); engine != nil { // reuse existing helper in same package
-			if err := parseAgentLog(runOutputDir, engine, opts.Verbose); err != nil {
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse agent log for run %d: %v", runID, err)))
-				}
-			} else {
-				// Always show success message for parsing, not just in verbose mode
-				logMdPath := filepath.Join(runOutputDir, "log.md")
-				if _, err := os.Stat(logMdPath); err == nil {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", runID, logMdPath)))
-				}
-			}
-		} else if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No engine detected (aw_info.json missing or invalid); skipping agent log rendering"))
-		}
+func parseFirewallLogsIfRequested(runID int64, runOutputDir string, verbose bool) {
+if err := parseFirewallLogs(runOutputDir, verbose); err != nil {
+if verbose {
+fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", runID, err)))
+}
+return
+}
+firewallMdPath := filepath.Join(runOutputDir, "firewall.md")
+if _, err := os.Stat(firewallMdPath); err == nil {
+fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", runID, firewallMdPath)))
+}
+}
 
-		// Also parse firewall logs if they exist
-		if err := parseFirewallLogs(runOutputDir, opts.Verbose); err != nil {
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", runID, err)))
-			}
-		} else {
-			// Show success message if firewall.md was created
-			firewallMdPath := filepath.Join(runOutputDir, "firewall.md")
-			if _, err := os.Stat(firewallMdPath); err == nil {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", runID, firewallMdPath)))
-			}
-		}
-	}
-
-	// Display logs location (only for console output)
-	if !opts.JSONOutput {
-		absOutputDir, _ := filepath.Abs(runOutputDir)
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Audit complete. Logs saved to "+absOutputDir))
-	}
-
-	return nil
+func renderAuditCompletion(runOutputDir string, jsonOutput bool) {
+if jsonOutput {
+return
+}
+absOutputDir, _ := filepath.Abs(runOutputDir)
+fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Audit complete. Logs saved to "+absOutputDir))
 }
 
 // auditJobRunOptions holds parameters for auditJobRun.
