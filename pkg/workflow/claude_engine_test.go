@@ -211,6 +211,7 @@ func TestClaudeEnginePermissionMode(t *testing.T) {
 	tests := []struct {
 		name            string
 		tools           map[string]any
+		engineConfig    *EngineConfig
 		expectedMode    string
 		notExpectedMode string
 	}{
@@ -229,36 +230,65 @@ func TestClaudeEnginePermissionMode(t *testing.T) {
 			notExpectedMode: "bypassPermissions",
 		},
 		{
-			name: "bash wildcard * — bypassPermissions",
+			name: "bash wildcard * no longer forces bypassPermissions",
 			tools: map[string]any{
 				"bash": []any{"*"},
 			},
-			expectedMode:    "bypassPermissions",
-			notExpectedMode: "acceptEdits",
+			expectedMode:    "acceptEdits",
+			notExpectedMode: "bypassPermissions",
 		},
 		{
-			name: "bash colon-wildcard :* — bypassPermissions",
+			name: "bash colon-wildcard :* no longer forces bypassPermissions",
 			tools: map[string]any{
 				"bash": []any{":*"},
 			},
-			expectedMode:    "bypassPermissions",
+			expectedMode:    "acceptEdits",
+			notExpectedMode: "bypassPermissions",
+		},
+		{
+			name: "edit false defaults to auto permission mode",
+			tools: map[string]any{
+				"edit": false,
+			},
+			expectedMode:    "auto",
 			notExpectedMode: "acceptEdits",
 		},
 		{
-			name: "bash nil value (unrestricted) — bypassPermissions",
+			name: "engine.permission-mode overrides tools.edit=false default",
 			tools: map[string]any{
-				"bash": nil,
+				"edit": false,
 			},
-			expectedMode:    "bypassPermissions",
+			engineConfig: &EngineConfig{
+				PermissionMode: "acceptEdits",
+			},
+			expectedMode:    "acceptEdits",
+			notExpectedMode: "auto",
+		},
+		{
+			name: "legacy engine.args permission-mode override still works with one emitted flag",
+			engineConfig: &EngineConfig{
+				Args: []string{"--permission-mode", "auto"},
+			},
+			expectedMode:    "auto",
 			notExpectedMode: "acceptEdits",
+		},
+		{
+			name: "engine.permission-mode overrides legacy engine.args permission-mode",
+			engineConfig: &EngineConfig{
+				PermissionMode: "plan",
+				Args:           []string{"--permission-mode", "auto"},
+			},
+			expectedMode:    "plan",
+			notExpectedMode: "auto",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
-				Name:  "test-workflow",
-				Tools: tt.tools,
+				Name:         "test-workflow",
+				Tools:        tt.tools,
+				EngineConfig: tt.engineConfig,
 			}
 			steps := engine.GetExecutionSteps(workflowData, "test-log")
 			require.Len(t, steps, 1, "Expected one execution step")
@@ -267,6 +297,8 @@ func TestClaudeEnginePermissionMode(t *testing.T) {
 				"Expected --permission-mode %s", tt.expectedMode)
 			assert.NotContains(t, stepContent, "--permission-mode "+tt.notExpectedMode,
 				"Did not expect --permission-mode %s", tt.notExpectedMode)
+			assert.Equal(t, 1, strings.Count(stepContent, "--permission-mode "),
+				"Expected exactly one --permission-mode flag in CLI args")
 		})
 	}
 }
