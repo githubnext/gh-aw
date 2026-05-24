@@ -16,7 +16,7 @@
  * - {triggering_number} - Issue/PR/Discussion number that triggered this workflow
  * - {effective_tokens} - Raw total effective token count for the run (e.g. 1200), only present when > 0
  * - {effective_tokens_formatted} - Compact formatted effective tokens (e.g. "1.2K", "3M"), only present when > 0
- * - {effective_tokens_suffix} - Pre-formatted suffix including the ● symbol (e.g. " · ● 1.2K"), or "" when not available
+ * - {effective_tokens_suffix} - Pre-formatted suffix (e.g. " · 1.2K"), or "" when not available
  * - {operation} - Operation name (for staged mode titles/descriptions)
  * - {event_type} - Event type description (for run-started messages)
  * - {status} - Workflow status text (for run-failure messages)

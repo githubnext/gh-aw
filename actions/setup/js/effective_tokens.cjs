@@ -213,7 +213,7 @@ function formatET(n) {
 }
 
 /**
- * Build a deterministic 5-character model identifier for footer rendering.
+ * Build a deterministic compact model identifier for footer rendering.
  * Uses well-known shortcuts for popular model families and a deterministic fallback.
  *
  * Examples:
@@ -229,6 +229,10 @@ function reduceModelNameToIdentifier(modelName) {
     .trim()
     .toLowerCase();
   if (!normalized) return "";
+
+  if (normalized === "opus" || normalized === "sonnet" || normalized === "haiku") {
+    return normalized;
+  }
 
   const VERSION_SUFFIX_PATTERN = "[-_\\s]*([0-9]+)(?:[._-]+([0-9]+))?";
   const FALLBACK_LETTER_LENGTH = 3;
@@ -350,7 +354,7 @@ function resolveActualModelName() {
  * Read effective tokens from the GH_AW_EFFECTIVE_TOKENS environment variable and return
  * a pre-formatted suffix string suitable for appending to footer text.
  * Returns "" when the variable is absent or the parsed value is not a positive integer.
- * @returns {string} Suffix string, e.g. " · ● 12.5K" or ""
+ * @returns {string} Suffix string, e.g. " · 12.5K" or ""
  */
 function getEffectiveTokensSuffix() {
   const raw = process.env.GH_AW_EFFECTIVE_TOKENS ?? "";
@@ -359,7 +363,7 @@ function getEffectiveTokensSuffix() {
   if (!isNaN(parsed) && parsed > 0) {
     const reducedModel = reduceModelNameToIdentifier(resolveActualModelName());
     const modelPrefix = reducedModel ? `${reducedModel} ` : "";
-    return ` · ● ${modelPrefix}${formatET(parsed)}`;
+    return ` · ${modelPrefix}${formatET(parsed)}`;
   }
   return "";
 }

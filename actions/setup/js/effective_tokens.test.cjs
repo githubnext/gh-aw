@@ -374,6 +374,12 @@ describe("effective_tokens", () => {
         expect(reduceModelNameToIdentifier("claude-haiku-4.5")).toBe("hai45");
       });
 
+      test("allows short alias model names", () => {
+        expect(reduceModelNameToIdentifier("opus")).toBe("opus");
+        expect(reduceModelNameToIdentifier("sonnet")).toBe("sonnet");
+        expect(reduceModelNameToIdentifier("haiku")).toBe("haiku");
+      });
+
       test("uses well-known gemini shortcut", () => {
         expect(reduceModelNameToIdentifier("gemini-2.5-pro")).toBe("gem25");
       });
@@ -467,7 +473,7 @@ describe("effective_tokens", () => {
       test("prepends reduced model identifier when model is available via GH_AW_ENGINE_MODEL", () => {
         process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
         process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
-        expect(getEffectiveTokensSuffix()).toBe(" · ● son46 12.5K");
+        expect(getEffectiveTokensSuffix()).toBe(" · son46 12.5K");
       });
 
       test("uses actual model from agent_usage.json primary_model, ignoring alias in GH_AW_ENGINE_MODEL", () => {
@@ -475,13 +481,13 @@ describe("effective_tokens", () => {
         process.env.GH_AW_ENGINE_MODEL = "agent";
         fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
         fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify({ primary_model: "claude-sonnet-4.6", effective_tokens: 12500 }) + "\n");
-        expect(getEffectiveTokensSuffix()).toBe(" · ● son46 12.5K");
+        expect(getEffectiveTokensSuffix()).toBe(" · son46 12.5K");
       });
 
       test("falls back to token-only suffix when model is unavailable", () => {
         process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
         delete process.env.GH_AW_ENGINE_MODEL;
-        expect(getEffectiveTokensSuffix()).toBe(" · ● 12.5K");
+        expect(getEffectiveTokensSuffix()).toBe(" · 12.5K");
       });
     });
 
