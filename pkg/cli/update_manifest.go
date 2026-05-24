@@ -9,8 +9,11 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var updateManifestLog = logger.New("cli:update_manifest")
 
 func parseManifestSourceSpec(source string) (*RepoSpec, bool, error) {
 	repoSpec, ok, err := parseRepositoryPackageSpec(strings.TrimSpace(source))
@@ -47,6 +50,7 @@ func manifestWorkflowPathByName(paths []string) map[string]string {
 }
 
 func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*workflowWithSource, opts UpdateWorkflowsOptions) ([]string, []updateFailure) {
+	updateManifestLog.Printf("updateManifestWorkflowGroup: source=%s, workflows=%d, force=%v, no_merge=%v", source, len(grouped), opts.Force, opts.NoMerge)
 	var successes []string
 	var failures []updateFailure
 
@@ -71,11 +75,13 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 	}
 	latestRef, err := resolveLatestRefFn(ctx, repoSpec.RepoSlug, currentRef, opts.AllowMajor, opts.Verbose, opts.CoolDown)
 	if err != nil {
+		updateManifestLog.Printf("Failed to resolve latest manifest ref for %s: %v", repoSpec.RepoSlug, err)
 		for _, wf := range grouped {
 			failures = append(failures, updateFailure{Name: wf.Name, Error: fmt.Sprintf("failed to resolve latest manifest ref: %v", err)})
 		}
 		return successes, failures
 	}
+	updateManifestLog.Printf("Resolved manifest refs: current=%s, latest=%s", currentRef, latestRef)
 	sourceFieldRef := latestRef
 	// Preserve branch-tracking behavior: when source points to a branch, keep the
 	// branch name in source so future updates continue following that branch.
@@ -153,6 +159,7 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 }
 
 func removeManifestManagedWorkflow(workflowPath string) error {
+	updateManifestLog.Printf("Removing manifest-managed workflow no longer in manifest: %s", filepath.Base(workflowPath))
 	if err := os.Remove(workflowPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove workflow %s: %w", filepath.Base(workflowPath), err)
 	}
@@ -165,6 +172,7 @@ func removeManifestManagedWorkflow(workflowPath string) error {
 }
 
 func updateManifestManagedWorkflow(ctx context.Context, wf *workflowWithSource, repo, currentPath, latestPath, currentRef, latestRef, manifestSource string, opts UpdateWorkflowsOptions) error {
+	updateManifestLog.Printf("Updating manifest-managed workflow %s: %s@%s -> %s@%s", wf.Name, currentPath, currentRef, latestPath, latestRef)
 	sourceSpecCurrent := sourceSpecWithRef(&SourceSpec{Repo: repo, Path: currentPath}, currentRef)
 	newContent, err := downloadWorkflowContentFn(ctx, repo, latestPath, latestRef, opts.Verbose)
 	if err != nil {
@@ -188,6 +196,7 @@ func updateManifestManagedWorkflow(ctx context.Context, wf *workflowWithSource, 
 	if merge {
 		baseContent, err := downloadWorkflowContentFn(ctx, repo, currentPath, currentRef, opts.Verbose)
 		if err != nil {
+			updateManifestLog.Printf("Cannot fetch base for 3-way merge of %s, falling back to overwrite: %v", wf.Name, err)
 			merge = false
 		} else {
 			currentContent, err := os.ReadFile(wf.Path)
@@ -257,6 +266,7 @@ func updateManifestManagedWorkflow(ctx context.Context, wf *workflowWithSource, 
 }
 
 func addManifestManagedWorkflow(ctx context.Context, targetDir, name, repo, latestPath, latestRef, manifestSource string, opts UpdateWorkflowsOptions) error {
+	updateManifestLog.Printf("Adding new manifest-managed workflow %s from %s/%s@%s", name, repo, latestPath, latestRef)
 	newContent, err := downloadWorkflowContentFn(ctx, repo, latestPath, latestRef, opts.Verbose)
 	if err != nil {
 		return fmt.Errorf("failed to download new manifest workflow %s/%s@%s: %w", repo, latestPath, latestRef, err)
