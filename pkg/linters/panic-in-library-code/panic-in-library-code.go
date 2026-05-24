@@ -86,13 +86,13 @@ func shouldSkipPanic(pass *analysis.Pass, call *ast.CallExpr, stack []ast.Node) 
 }
 
 func isInSyncOnceDoFuncLit(pass *analysis.Pass, stack []ast.Node) bool {
-	for i, node := range slices.Backward(stack) {
+	for forwardIdx, node := range slices.Backward(stack) {
 		funcLit, ok := node.(*ast.FuncLit)
-		if !ok || i == 0 {
+		if !ok || forwardIdx == 0 {
 			continue
 		}
 
-		call, ok := stack[i-1].(*ast.CallExpr)
+		call, ok := stack[forwardIdx-1].(*ast.CallExpr)
 		if !ok || !containsExpr(call.Args, funcLit) {
 			continue
 		}
