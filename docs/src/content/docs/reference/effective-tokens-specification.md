@@ -423,6 +423,14 @@ Implementations MAY:
 
 Extensions MUST NOT alter the core ET definition or the default weight values without disclosure.
 
+**ET-EXT-01**: Extensions MUST NOT redefine the default weight values (`w_in`, `w_cache`, `w_out`, `w_reason`) without incrementing the specification version. Any implementation that ships with non-default weight values MUST declare a version bump and MUST update the Compliance Checklist in §10.2 to reflect the changed defaults.
+
+**ET-EXT-02**: Extensions MUST NOT introduce new mandatory fields into the invocation node schema (§6.1) without a corresponding revision to the conformance requirements in §2.3. New fields MAY be added as optional extensions, but implementations MUST NOT reject conforming payloads that omit optional extension fields.
+
+**ET-EXT-03**: Extensions that add new token classes MUST assign unique, non-conflicting class names and MUST NOT reuse the reserved names `input`, `cached_input`, `output`, or `reasoning`. Extension token classes MUST NOT be included in the default `base_weighted_tokens` formula unless a new specification version explicitly incorporates them.
+
+For implementation files that exercise extensibility paths, see the Sync Notes section.
+
 ---
 
 ## 10. Compliance Testing
@@ -693,6 +701,34 @@ The `version` field in `model_multipliers.json` corresponds to the registry sche
 ---
 
 ## Sync Notes
+
+### §4–§8 Implementation File Mapping
+
+The table below maps the normative sections of this specification to the implementation files that realize each requirement. Use this mapping to identify which files must be updated when specification sections change.
+
+| Spec Section | Description | Implementation File(s) |
+|---|---|---|
+| §4 Token Accounting Model | Per-invocation ET computation (`base_weighted_tokens`, ET formula) | `pkg/cli/effective_tokens.go` (`populateEffectiveTokens`, `computeBaseWeightedTokens`) |
+| §5 Multi-Invocation Aggregation | `ET_total`, `raw_total_tokens`, `total_invocations` | `pkg/cli/effective_tokens.go` (`AggregateEffectiveTokens`) |
+| §6 Execution Graph Requirements | Node schema, root/sub-agent linkage, graph traversal | `pkg/cli/logs_models.go`, `pkg/cli/logs_episode.go`, `pkg/cli/logs_orchestrator.go` |
+| §7 Reporting | Console and JSON output of ET summaries and per-model breakdowns | `pkg/cli/audit_report.go`, `pkg/cli/audit_report_render_tools.go`, `pkg/cli/audit_diff.go`, `pkg/cli/logs_report.go` |
+| §7.1 OTel Attribute Requirements | OpenTelemetry span attribute emission for ET metrics | `pkg/cli/token_usage.go`, `pkg/cli/logs_run_processor.go` |
+| §8 Implementation Requirements | Completeness, determinism, versioning, partial visibility safeguards | `pkg/cli/effective_tokens.go`, `pkg/cli/forecast_montecarlo.go` |
+
+### §4–§8 Sync Procedure
+
+To keep the specification and implementation synchronized:
+
+1. When changing the ET formula or token class weights (§4), update `pkg/cli/effective_tokens.go` and update the Compliance Checklist in §10.2.
+2. When changing aggregation semantics (§5), update `pkg/cli/effective_tokens.go` and rerun tests `T-ET-010–T-ET-012` and `T-ET-006`.
+3. When changing the execution graph node schema (§6), update `pkg/cli/logs_models.go` and `pkg/cli/logs_episode.go` in the same change.
+4. When changing reporting format or field names (§7), update the affected render files in `pkg/cli/` and run `go test ./pkg/cli/ -run TestAudit`.
+5. When changing OTel attribute names (§7.1), update `pkg/cli/token_usage.go` and verify attribute names with `grep -r "effective_tokens" pkg/`.
+6. After any §8 change affecting determinism or partial visibility, re-run `go test ./pkg/cli/ -run TestEffectiveTokens` and `go test ./pkg/cli/ -run TestRunMonteCarlo`.
+
+Run `grep -r "effective_tokens" pkg/` to confirm all implementation files are captured in the table above.
+
+### Model Multiplier Registry Sync
 
 The Effective Tokens registry is maintained in `pkg/cli/data/model_multipliers.json` and loaded by `pkg/cli/effective_tokens.go`.
 
