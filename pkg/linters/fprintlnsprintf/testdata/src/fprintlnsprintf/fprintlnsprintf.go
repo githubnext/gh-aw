@@ -11,5 +11,8 @@ func flagged(name string) {
 
 func notFlagged(name string) {
 	fmt.Fprintln(os.Stderr, "plain string")
+	fmt.Fprintln(os.Stderr, "prefix", fmt.Sprintf("hello %s", name))
+	fmt.Fprintln(os.Stderr, fmt.Sprintf("hello %s", name), "suffix")
+	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "hello %s\n", name)
 }

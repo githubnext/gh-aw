@@ -34,11 +34,11 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		// Check if this is fmt.Fprintln with at least 2 args.
+		// Check if this is exactly fmt.Fprintln(w, fmt.Sprintf(...)).
 		if !isFmtFunc(call, "Fprintln") {
 			return
 		}
-		if len(call.Args) < 2 {
+		if len(call.Args) != 2 {
 			return
 		}
 
@@ -48,12 +48,12 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		// Check if the last argument is fmt.Sprintf(...).
-		lastArg, ok := call.Args[len(call.Args)-1].(*ast.CallExpr)
+		// Check if the printed argument is fmt.Sprintf(...).
+		printedArg, ok := call.Args[1].(*ast.CallExpr)
 		if !ok {
 			return
 		}
-		if !isFmtFunc(lastArg, "Sprintf") {
+		if !isFmtFunc(printedArg, "Sprintf") {
 			return
 		}
 
