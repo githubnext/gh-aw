@@ -167,7 +167,6 @@ type ExperimentConfig struct {
 
 	// Tags are free-form labels for filtering experiments in dashboards.
 	Tags []string `json:"tags,omitempty"`
-
 }
 
 // RateLimitConfig represents rate limiting configuration for workflow triggers
