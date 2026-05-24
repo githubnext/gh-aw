@@ -20,4 +20,5 @@ func TestAddWizardCommand_UsesStandardThreePartWorkflowSpecWording(t *testing.T)
 	require.NotNil(t, cmd)
 
 	assert.Contains(t, cmd.Long, `Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)`)
+	assert.Contains(t, cmd.Long, "Use full https://github.com/... URLs when sourcing public github.com workflows.")
 }

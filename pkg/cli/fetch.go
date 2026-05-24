@@ -172,6 +172,12 @@ func resolveCommitSHAWithRetries(ctx context.Context, owner, repo, ref, workflow
 
 		if !isTransientSHAResolutionError(err) {
 			retryCommand := fmt.Sprintf("gh aw add %s/%s/%s@<40-char-sha>", owner, repo, workflowPath)
+			if hostHint, ok := hostResolutionHintForNotFound(owner, repo, ref, workflowPath, host, err); ok {
+				return "", fmt.Errorf(
+					"failed to resolve '%s' to commit SHA for '%s/%s'. Expected the GitHub API to return a commit SHA for the ref. Try: %s. %s: %w",
+					ref, owner, repo, retryCommand, hostHint, err,
+				)
+			}
 			return "", fmt.Errorf(
 				"failed to resolve '%s' to commit SHA for '%s/%s'. Expected the GitHub API to return a commit SHA for the ref. Try: %s: %w",
 				ref, owner, repo, retryCommand, err,
@@ -200,6 +206,32 @@ func resolveCommitSHAWithRetries(ctx context.Context, owner, repo, ref, workflow
 		"failed to resolve '%s' to commit SHA after %d retries for '%s/%s'. Expected the GitHub API to return a commit SHA for the ref. Check rate limits or try: %s: %w",
 		ref, len(shaResolutionRetryDelays), owner, repo, retryCommand, lastErr,
 	)
+}
+
+func hostResolutionHintForNotFound(owner, repo, ref, workflowPath, explicitHost string, err error) (string, bool) {
+	if err == nil {
+		return "", false
+	}
+
+	errorText := strings.ToLower(err.Error())
+	if !strings.Contains(errorText, "not found") && !strings.Contains(errorText, "http 404") {
+		return "", false
+	}
+
+	resolvedHost := strings.TrimSpace(explicitHost)
+	if resolvedHost == "" {
+		resolvedHost = strings.TrimPrefix(strings.TrimPrefix(getGitHubHost(), "https://"), "http://")
+	}
+	if resolvedHost == "" || resolvedHost == "github.com" {
+		return "", false
+	}
+
+	path := strings.TrimPrefix(workflowPath, "/")
+	fullURL := fmt.Sprintf("https://github.com/%s/%s/blob/%s/%s", owner, repo, ref, path)
+	return fmt.Sprintf(
+		"Shorthand workflow specs resolve on %s. In GitHub Enterprise contexts, use a full github.com URL for public workflows (for example: gh aw add-wizard %s)",
+		resolvedHost, fullURL,
+	), true
 }
 
 // sleepForSHAResolutionRetry waits for the retry delay or context cancellation.

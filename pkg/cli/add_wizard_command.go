@@ -51,6 +51,8 @@ Workflow specifications:
   - Version can be tag, branch, or SHA (for remote workflows)
 
 Note: Requires an interactive terminal. Use 'add' for CI/automation environments.
+Note: In GitHub Enterprise repos, shorthand specs resolve on your enterprise host.
+      Use full https://github.com/... URLs when sourcing public github.com workflows.
 Note: To create a new workflow from scratch, use the 'new' command instead.`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
