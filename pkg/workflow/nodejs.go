@@ -75,6 +75,30 @@ func BuildStandardNpmEngineInstallSteps(
 	cacheKeyPrefix string,
 	workflowData *WorkflowData,
 ) []GitHubActionStep {
+	cooldownEnabled := resolveRuntimeCooldown(workflowData, "node")
+	return buildStandardNpmEngineInstallSteps(packageName, defaultVersion, stepName, cacheKeyPrefix, workflowData, cooldownEnabled)
+}
+
+// BuildStandardNpmEngineInstallStepsNoCooldown creates standard npm installation
+// steps for engines while forcing the default npm release-age cooldown off.
+func BuildStandardNpmEngineInstallStepsNoCooldown(
+	packageName string,
+	defaultVersion string,
+	stepName string,
+	cacheKeyPrefix string,
+	workflowData *WorkflowData,
+) []GitHubActionStep {
+	return buildStandardNpmEngineInstallSteps(packageName, defaultVersion, stepName, cacheKeyPrefix, workflowData, false)
+}
+
+func buildStandardNpmEngineInstallSteps(
+	packageName string,
+	defaultVersion string,
+	stepName string,
+	cacheKeyPrefix string,
+	workflowData *WorkflowData,
+	cooldownEnabled bool,
+) []GitHubActionStep {
 	nodejsLog.Printf("Building npm engine install steps: package=%s, version=%s", packageName, defaultVersion)
 
 	// Use version from engine config if provided, otherwise default to pinned version
@@ -88,7 +112,6 @@ func BuildStandardNpmEngineInstallSteps(
 	// Always pass false for runInstallScripts: engine CLI installs must never run
 	// pre/post install scripts regardless of the workflow's run-install-scripts setting.
 	// This is a supply chain security requirement for the engine binary itself.
-	cooldownEnabled := resolveRuntimeCooldown(workflowData, "node")
 	return GenerateNpmInstallSteps(
 		packageName,
 		version,

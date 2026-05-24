@@ -52,6 +52,9 @@ func TestCodexEngine(t *testing.T) {
 		if !strings.Contains(steps[1][0], "Install Codex CLI") {
 			t.Errorf("Expected second step to contain 'Install Codex CLI', got '%s'", steps[1][0])
 		}
+		if strings.Contains(strings.Join([]string(steps[1]), "\n"), "NPM_CONFIG_MIN_RELEASE_AGE") {
+			t.Errorf("Expected no npm release-age cooldown env for Codex install, got '%s'", strings.Join([]string(steps[1]), "\n"))
+		}
 	}
 
 	// Test execution steps

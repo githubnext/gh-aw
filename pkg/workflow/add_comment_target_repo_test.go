@@ -112,7 +112,7 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 					"hide-older-comments": true,
 				},
 			},
-			expectedHideOlderComments: testStringPtr("true"),
+			expectedHideOlderComments: new("true"),
 		},
 		{
 			name: "hide-older-comments disabled",
@@ -122,7 +122,7 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 					"hide-older-comments": false,
 				},
 			},
-			expectedHideOlderComments: testStringPtr("false"),
+			expectedHideOlderComments: new("false"),
 		},
 		{
 			name: "hide-older-comments not specified (default nil)",
@@ -143,7 +143,7 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 					"hide-older-comments": true,
 				},
 			},
-			expectedHideOlderComments: testStringPtr("true"),
+			expectedHideOlderComments: new("true"),
 		},
 	}
 

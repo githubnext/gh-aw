@@ -113,9 +113,9 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 							Max: strPtr("5"),
 						},
 					},
-					Status: testBoolPtr(true),
-					Title:  testBoolPtr(true),
-					Body:   testBoolPtr(true),
+					Status: new(true),
+					Title:  new(true),
+					Body:   new(true),
 				},
 			},
 			checkContains: []string{
@@ -1666,14 +1666,10 @@ func TestHandlerConfigPushToPullRequestBranchPatchSizeOverridesGlobal(t *testing
 }
 
 // testBoolPtr is a helper function for bool pointers in config tests
-func testBoolPtr(b bool) *bool {
-	return &b
-}
+func testBoolPtr(b bool) *bool { return new(b) }
 
 // testStringPtr is a helper function for string pointers in config tests
-func testStringPtr(s string) *string {
-	return &s
-}
+func testStringPtr(s string) *string { return new(s) }
 
 // TestAutoEnabledHandlers tests that missing_tool and missing_data
 // are automatically enabled even when not explicitly configured.

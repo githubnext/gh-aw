@@ -234,8 +234,8 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 // "***"; all other schemes are replaced with "***".
 func buildRequestLogString(req *http.Request) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("%s %s HTTP/1.1\r\n", req.Method, req.URL.RequestURI()))
-	sb.WriteString(fmt.Sprintf("Host: %s\r\n", req.URL.Host))
+	fmt.Fprintf(&sb, "%s %s HTTP/1.1\r\n", req.Method, req.URL.RequestURI())
+	fmt.Fprintf(&sb, "Host: %s\r\n", req.URL.Host)
 	for key, vals := range req.Header {
 		val := strings.Join(vals, ", ")
 		if strings.EqualFold(key, "Authorization") {
@@ -250,7 +250,7 @@ func buildRequestLogString(req *http.Request) string {
 				val = "***"
 			}
 		}
-		sb.WriteString(fmt.Sprintf("%s: %s\r\n", key, val))
+		fmt.Fprintf(&sb, "%s: %s\r\n", key, val)
 	}
 	return sb.String()
 }

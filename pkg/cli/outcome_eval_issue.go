@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -104,7 +105,7 @@ func isClosedByBot(issueNumber int, repo string) bool {
 		return false
 	}
 	// Walk backward to find the most recent close event
-	for i := len(events) - 1; i >= 0; i-- {
+	for i := range slices.Backward(events) {
 		event, _ := events[i]["event"].(string)
 		if event == "closed" {
 			actor, _ := events[i]["actor"].(map[string]any)

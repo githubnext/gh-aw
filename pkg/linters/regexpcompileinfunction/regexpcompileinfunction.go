@@ -7,6 +7,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"slices"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -79,7 +80,7 @@ func isRegexpCompileCall(call *ast.CallExpr) bool {
 
 // isInsideFunction checks if the current node is inside a function body.
 func isInsideFunction(stack []ast.Node) bool {
-	for i := len(stack) - 1; i >= 0; i-- {
+	for i := range slices.Backward(stack) {
 		switch stack[i].(type) {
 		case *ast.FuncDecl, *ast.FuncLit:
 			return true

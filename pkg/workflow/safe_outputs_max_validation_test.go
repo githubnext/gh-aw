@@ -187,7 +187,7 @@ func TestValidateSafeOutputsMaxFieldCoverage(t *testing.T) {
 			field := val.FieldByName(fieldName)
 			require.Truef(t, field.IsValid(),
 				"safeOutputFieldMapping references unknown struct field %q", fieldName)
-			require.Equalf(t, reflect.Ptr, field.Kind(),
+			require.Equalf(t, reflect.Pointer, field.Kind(),
 				"safeOutputFieldMapping field %q is expected to be a pointer type", fieldName)
 
 			// Create a zero-value instance of the field's element type and set Max to an invalid value.

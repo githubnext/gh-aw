@@ -88,7 +88,7 @@ func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		return []GitHubActionStep{}
 	}
 
-	npmSteps := BuildStandardNpmEngineInstallSteps(
+	npmSteps := BuildStandardNpmEngineInstallStepsNoCooldown(
 		"@google/gemini-cli",
 		string(constants.DefaultGeminiVersion),
 		"Install Gemini CLI",

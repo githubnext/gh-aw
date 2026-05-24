@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -397,7 +398,7 @@ func addAllowedToNetwork(lines []string, domains []string) []string {
 	} else {
 		// Append at the end of network block
 		networkIndentStr := ""
-		for i := len(result) - 1; i >= 0; i-- {
+		for i := range slices.Backward(result) {
 			trimmed := strings.TrimSpace(result[i])
 			if strings.HasPrefix(trimmed, "network:") {
 				networkIndentStr = getIndentation(result[i])

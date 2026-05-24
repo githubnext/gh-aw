@@ -358,8 +358,8 @@ Test workflow that uses Go without go.mod file.
 	if !strings.Contains(lockStr, "actions/setup-go@") {
 		t.Error("Expected actions/setup-go action in lock file")
 	}
-	if !strings.Contains(lockStr, "go-version: '1.25'") {
-		t.Error("Expected go-version: '1.25' in lock file (default version)")
+	if !strings.Contains(lockStr, "go-version: '1.26'") {
+		t.Error("Expected go-version: '1.26' in lock file (default version)")
 	}
 	// Ensure it does NOT use go-version-file
 	if strings.Contains(lockStr, "go-version-file") {
