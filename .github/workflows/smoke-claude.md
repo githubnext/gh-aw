@@ -54,7 +54,7 @@ tools:
     - "*"
 runtimes:
   go:
-    version: "1.25"
+    version: "1.26"
 checkout:
   fetch: ["*"]
   fetch-depth: 0
