@@ -405,7 +405,12 @@ func TestInjectOTLPConfig(t *testing.T) {
 		c.injectOTLPConfig(wd)
 
 		assert.Contains(t, wd.Env, "OTEL_RESOURCE_ATTRIBUTES:", "resource attributes should be injected")
-		assert.Contains(t, wd.Env, "OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=owner''s workflow", "single quotes must be escaped in YAML single-quoted scalar")
+		assert.Contains(
+			t,
+			wd.Env,
+			"OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=owner''s workflow,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }}'",
+			"resource attributes should remain fully single-quoted with embedded single quotes escaped",
+		)
 	})
 
 	t.Run("appends domain to existing NetworkPermissions.Allowed", func(t *testing.T) {
