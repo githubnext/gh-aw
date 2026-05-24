@@ -117,16 +117,6 @@ type GuardrailMetric struct {
 	Threshold string `json:"threshold"`
 }
 
-// ExperimentNotify specifies where to post significance alerts when an experiment reaches
-// statistical significance.
-type ExperimentNotify struct {
-	// Discussion is a GitHub discussion number to post a significance comment to.
-	Discussion int `json:"discussion,omitempty"`
-
-	// Issue is a GitHub issue number to post a significance comment to.
-	Issue int `json:"issue,omitempty"`
-}
-
 // ExperimentConfig represents the rich metadata for a single A/B experiment.
 // The bare-array form (e.g. prompt_style: [concise, verbose]) is normalized to this
 // struct with only the Variants field populated.
@@ -178,8 +168,6 @@ type ExperimentConfig struct {
 	// Tags are free-form labels for filtering experiments in dashboards.
 	Tags []string `json:"tags,omitempty"`
 
-	// Notify specifies where to post significance alerts when the experiment concludes.
-	Notify *ExperimentNotify `json:"notify,omitempty"`
 }
 
 // RateLimitConfig represents rate limiting configuration for workflow triggers

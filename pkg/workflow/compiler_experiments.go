@@ -197,23 +197,6 @@ func extractOneExperimentConfig(name string, val any) *ExperimentConfig {
 		if tagsRaw, ok := v["tags"]; ok {
 			cfg.Tags = parseStringSliceAny(tagsRaw, nil)
 		}
-		if notifyRaw, ok := v["notify"]; ok {
-			if notifyMap, ok := notifyRaw.(map[string]any); ok {
-				notify := &ExperimentNotify{}
-				hasNotify := false
-				if n, ok := extractIntField(notifyMap["discussion"]); ok {
-					notify.Discussion = n
-					hasNotify = true
-				}
-				if n, ok := extractIntField(notifyMap["issue"]); ok {
-					notify.Issue = n
-					hasNotify = true
-				}
-				if hasNotify {
-					cfg.Notify = notify
-				}
-			}
-		}
 		return cfg
 	}
 	return nil

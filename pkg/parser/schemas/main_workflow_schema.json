@@ -2867,23 +2867,6 @@
                   "type": "string"
                 },
                 "description": "Free-form labels for filtering experiments in dashboards and reports (e.g. ['cost', 'prompting', 'claude'])."
-              },
-              "notify": {
-                "type": "object",
-                "description": "Where to post significance alerts when the experiment reaches statistical significance.",
-                "properties": {
-                  "discussion": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "GitHub discussion number to post a significance comment to."
-                  },
-                  "issue": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "GitHub issue number to post a significance comment to."
-                  }
-                },
-                "additionalProperties": false
               }
             },
             "additionalProperties": false,
@@ -2918,10 +2901,7 @@
             "start_date": "2026-05-01",
             "end_date": "2026-06-15",
             "analysis_type": "t_test",
-            "tags": ["cost", "prompting"],
-            "notify": {
-              "issue": 1234
-            }
+            "tags": ["cost", "prompting"]
           },
           "model_temp": ["low", "high"]
         }

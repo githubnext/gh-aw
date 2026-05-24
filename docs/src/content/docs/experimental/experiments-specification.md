@@ -237,10 +237,9 @@ The same minimum-two-variants constraint from R-SCHEMA-005 applies.
 | `end_date` | string (YYYY-MM-DD) | Experiment is inactive after this date (see §6). |
 | `analysis_type` | string enum | Statistical test for automated reporting (see §11.2). |
 | `tags` | string[] | Free-form labels for dashboard filtering. |
-| `notify` | object | Significance-alert destination (see §4.5). |
 
 **R-SCHEMA-009**: The `weight`, `issue`, `min_samples`, `start_date`, `end_date`, `analysis_type`,
-`tags`, and `notify` fields carry no effect on variant assignment outside their documented
+and `tags` fields carry no effect on variant assignment outside their documented
 subsections. `description`, `hypothesis`, `metric`, `secondary_metrics`, and `tags` are
 purely informative at runtime.
 
@@ -257,23 +256,6 @@ string fields: `name` and `threshold`. The `threshold` **MUST** match the patter
 **R-SCHEMA-012**: Guardrail evaluation is **INFORMATIVE** at the schema level — the compiler
 does not enforce guardrails at compile time. Reporting tooling (§11) **MUST** evaluate each
 guardrail and include pass/fail status in its output.
-
-### 4.5 Notify Object
-
-**R-SCHEMA-013**: The `notify` object **MUST** contain only the keys `discussion` and/or
-`issue`, each of which **MUST** be a positive integer (minimum 1). Unknown keys in `notify`
-**MUST** be rejected by schema validation.
-
-**R-SCHEMA-014**: When `notify.issue` is set and the reporting workflow posts a comment to
-that issue, the compiled workflow **MUST** declare `permissions: issues: write`. Implementations
-that generate reporting workflows **MUST** automatically add this permission when `notify.issue`
-is present in any experiment configuration within the scope of that workflow.
-
-> **Note (informative)**: Failure to include `issues: write` causes comment posting to
-> silently fail with a 403 response. This was identified as a defect in the
-> `daily-experiment-report` workflow (May 2026 review).
-
----
 
 ## 5. Variant Selection Algorithms
 
@@ -686,8 +668,8 @@ not aggregated across the experiment.
 
 ### 11.6 Reporting Workflow Permissions
 
-**R-STAT-011**: Any automated workflow that posts comments to issues (e.g., via `notify.issue`
-or step-based issue comment creation) **MUST** declare `permissions: issues: write` in its
+**R-STAT-011**: Any automated workflow that posts comments to issues (e.g., via step-based
+issue comment creation) **MUST** declare `permissions: issues: write` in its
 frontmatter.
 
 **R-STAT-012**: Any automated workflow that posts discussions **MUST** declare
@@ -834,7 +816,6 @@ Conformance at each level is verified by the following test categories.
 | T-SCHEMA-002 | R-SCHEMA-003 | Skip and warn on invalid experiment name |
 | T-SCHEMA-003 | R-SCHEMA-007 | Reject object form with `variants` containing < 2 entries |
 | T-SCHEMA-004 | R-SCHEMA-011 | Reject guardrail with invalid threshold pattern |
-| T-SCHEMA-005 | R-SCHEMA-013 | Reject `notify` object with unknown keys |
 | T-SCHEMA-006 | R-SCHEMA-001 | Compile workflow without `experiments:` field — output unchanged |
 
 #### 14.1.2 Variant Selection Tests (Level 1)
@@ -966,8 +947,6 @@ experiments:
     issue: 1234
     analysis_type: t_test
     tags: [cost, prompting, verbosity]
-    notify:
-      issue: 1234
 ---
 
 Summarize the pull requests merged today.
