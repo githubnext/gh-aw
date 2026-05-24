@@ -1571,10 +1571,12 @@ function buildEngineFailureContext() {
         continue;
       }
 
-      // AWF runtime logs: "[ERROR] <message>"
-      const bracketErrorMatch = line.match(/^\[ERROR\]\s*(.+)$/);
-      if (bracketErrorMatch) {
-        errorMessages.add(bracketErrorMatch[1].trim());
+      // AWF startup failures can appear as "[ERROR] Failed to start ...".
+      // Exclude generic wrapper [ERROR] lines (e.g., command completion/exit noise)
+      // because they are infrastructure output and don't provide actionable startup context.
+      const awfStartupBracketErrorMatch = line.match(/^\[ERROR\]\s*((?:Failed to start|dependency failed to start:).+)$/);
+      if (awfStartupBracketErrorMatch) {
+        errorMessages.add(awfStartupBracketErrorMatch[1].trim());
         continue;
       }
 
