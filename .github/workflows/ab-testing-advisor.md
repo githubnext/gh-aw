@@ -365,6 +365,7 @@ Propose how experiments should integrate with `gh aw audit` and OTEL observabili
 - Create **exactly 2 issues** total when the sub-issue is warranted (see Area 1 gate above): one for the experiment campaign, one sub-issue for infrastructure improvements
 - If the Area 1 gate determines all three fields (`analysis_type`, `tags`, `notify`) are fully implemented, create **only 1 issue** (the campaign) and note infrastructure is complete
 - Use `###` headers (never `##` or `#`) inside issue bodies
+- Wrap long analysis sections in `<details><summary>View Details</summary>` tags to keep the issue body scannable.
 - Be specific and actionable — include concrete YAML snippets and diff-style changes
 - The experiment campaign issue title must clearly identify the workflow and dimension
 - Do not create issues for workflows that already have `experiments:` defined
