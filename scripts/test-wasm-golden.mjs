@@ -162,7 +162,7 @@ function normalizeAWFImageTagDigests(content) {
 // Mirrors normalizeOutput() in pkg/workflow/wasm_golden_test.go.
 function normalizeCopilotDefaultModel(content) {
   return content.replace(
-    /\|\| 'claude-sonnet-4\.5'/g,
+    /\|\| 'claude-sonnet-\d+\.\d+'/g,
     "|| 'default'"
   );
 }
