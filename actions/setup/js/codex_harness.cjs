@@ -63,7 +63,7 @@ const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[
 // Pattern to detect a missing API key at startup — Codex emits this before making any API
 // calls when neither CODEX_API_KEY nor OPENAI_API_KEY is available in the environment.
 // Example: "ERROR: Missing environment variable: `OPENAI_API_KEY`"
-const MISSING_API_KEY_PATTERN = /Missing environment variable:\s*`?(?:CODEX_API_KEY|OPENAI_API_KEY)`?/i;
+const MISSING_API_KEY_PATTERN = /Missing environment variable:\s*`?(?:CODEX_API_KEY|OPENAI_API_KEY)\b`?/i;
 
 // Pattern to detect OpenAI server-side errors (HTTP 500, 503).
 // These are transient infrastructure failures that may resolve on retry.
@@ -303,7 +303,7 @@ async function main() {
   // retry attempt fails the same way. Failing here avoids burning the retry budget and
   // surfaces a clear, actionable message in CI logs.
   if (!codexApiKey && !openaiApiKey) {
-    log("fatal: no API key available — set CODEX_API_KEY or OPENAI_API_KEY and retry");
+    log("fatal: no API key available - set CODEX_API_KEY or OPENAI_API_KEY and retry");
     process.exit(1);
   }
 
