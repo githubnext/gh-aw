@@ -170,7 +170,7 @@ describe("codex_harness.cjs", () => {
   describe("OpenAI base URL validation", () => {
     it("extracts port from URL", () => {
       expect(extractPortFromURL("http://172.30.0.30:10000")).toBe(10000);
-      expect(extractPortFromURL("https://example.com")).toBe(443);
+      expect(extractPortFromURL("https://example.com")).toBeNull();
       expect(extractPortFromURL("not-a-url")).toBeNull();
     });
 
@@ -194,6 +194,13 @@ env_key = "OPENAI_API_KEY"
         ],
       };
       expect(getConfiguredOpenAIPortFromReflect(reflect)).toBe(10000);
+    });
+
+    it("returns null for malformed reflect endpoint ports", () => {
+      const reflect = {
+        endpoints: [{ provider: "openai", port: "not-a-number", configured: true }],
+      };
+      expect(getConfiguredOpenAIPortFromReflect(reflect)).toBeNull();
     });
 
     it("fails validation when config and reflect OpenAI ports mismatch", () => {
@@ -226,6 +233,20 @@ env_key = "OPENAI_API_KEY"
       const files = {
         "/tmp/codex-config.toml": toml,
         "/tmp/awf-reflect.json": reflect,
+      };
+      const readFileSync = filePath => files[filePath];
+      const result = validateCodexOpenAIBaseURLFromReflect({
+        codexConfigPath: "/tmp/codex-config.toml",
+        reflectPath: "/tmp/awf-reflect.json",
+        readFileSync,
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it("passes through when TOML lacks openai-proxy section", () => {
+      const files = {
+        "/tmp/codex-config.toml": `[history]\npersistence = "none"\n`,
+        "/tmp/awf-reflect.json": JSON.stringify({ endpoints: [{ provider: "openai", port: 10000, configured: true }] }),
       };
       const readFileSync = filePath => files[filePath];
       const result = validateCodexOpenAIBaseURLFromReflect({

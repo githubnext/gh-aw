@@ -306,8 +306,8 @@ function extractPortFromURL(urlString) {
   if (!urlString || typeof urlString !== "string") return null;
   try {
     const parsed = new URL(urlString);
-    if (parsed.port) return Number(parsed.port);
-    return parsed.protocol === "https:" ? 443 : 80;
+    if (!parsed.port) return null;
+    return Number(parsed.port);
   } catch {
     return null;
   }
@@ -333,7 +333,10 @@ function extractOpenAIProxyBaseURLFromToml(tomlContent) {
  */
 function getConfiguredOpenAIPortFromReflect(reflectData) {
   const endpoints = reflectData && Array.isArray(reflectData.endpoints) ? reflectData.endpoints : [];
-  const openAIEndpoint = endpoints.find(ep => ep && ep.configured === true && typeof ep.provider === "string" && ep.provider.toLowerCase() === "openai");
+  const openAIEndpoint = endpoints.find(ep => {
+    if (!ep || ep.configured !== true || typeof ep.provider !== "string") return false;
+    return ep.provider.toLowerCase() === "openai";
+  });
   if (!openAIEndpoint || openAIEndpoint.port == null) return null;
   const parsedPort = Number(openAIEndpoint.port);
   return Number.isNaN(parsedPort) ? null : parsedPort;
