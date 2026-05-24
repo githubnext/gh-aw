@@ -117,75 +117,80 @@ func isRepositoryImport(importPath string) bool {
 func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, error) {
 	remoteLog.Printf("Resolving include path: file_path=%s, base_dir=%s", filePath, baseDir)
 
-	// Handle builtin paths - these are embedded files that bypass filesystem resolution.
-	// No security check is needed since the content is compiled into the binary.
-	if strings.HasPrefix(filePath, BuiltinPathPrefix) {
-		if !BuiltinVirtualFileExists(filePath) {
-			return "", fmt.Errorf("builtin file not found: %s", filePath)
-		}
-		remoteLog.Printf("Resolved builtin path: %s", filePath)
-		return filePath, nil
+	if builtinPath, handled, err := resolveBuiltinIncludePath(filePath); handled {
+		return builtinPath, err
 	}
 
-	// Check if this is a workflowspec (contains owner/repo/path format)
-	// Format: owner/repo/path@ref or owner/repo/path@ref#section
 	if isWorkflowSpec(filePath) {
 		remoteLog.Printf("Detected workflowspec format: %s", filePath)
-		// Download from GitHub using workflowspec (with cache support)
 		return downloadIncludeFromWorkflowSpec(filePath, cache)
 	}
 
 	remoteLog.Printf("Using local file resolution for: %s", filePath)
+	resolveBase, securityBase, normalizedFilePath := computeIncludeResolveAndSecurityBases(filePath, baseDir)
+	return resolveAndValidateLocalIncludePath(normalizedFilePath, resolveBase, securityBase)
+}
 
-	// Find the .github folder by traversing up from baseDir
+func resolveBuiltinIncludePath(filePath string) (string, bool, error) {
+	if !strings.HasPrefix(filePath, BuiltinPathPrefix) {
+		return "", false, nil
+	}
+	if !BuiltinVirtualFileExists(filePath) {
+		return "", true, fmt.Errorf("builtin file not found: %s", filePath)
+	}
+	remoteLog.Printf("Resolved builtin path: %s", filePath)
+	return filePath, true, nil
+}
+
+func findGitHubFolder(baseDir string) string {
 	githubFolder := baseDir
 	for !strings.HasSuffix(githubFolder, ".github") {
 		parent := filepath.Dir(githubFolder)
 		if parent == githubFolder || parent == "." || parent == "/" {
-			// Reached filesystem root without finding .github; fall back to baseDir
 			githubFolder = baseDir
 			break
 		}
 		githubFolder = parent
 	}
+	return githubFolder
+}
 
-	// Determine resolution base and security scope for the file path.
-	// Paths starting with ".github/" or "/" are repo-root-relative and are resolved
-	// from the repository root rather than from baseDir.
-	// Normalize path separators for reliable prefix matching across platforms.
+func computeIncludeResolveAndSecurityBases(filePath, baseDir string) (string, string, string) {
+	githubFolder := findGitHubFolder(baseDir)
 	resolveBase := baseDir
 	securityBase := githubFolder
+	normalizedFilePath := filePath
 	if strings.HasSuffix(githubFolder, ".github") {
 		repoRoot := filepath.Dir(githubFolder)
 		filePathSlash := filepath.ToSlash(filePath)
 		if strings.HasPrefix(filePathSlash, ".github/") {
-			// .github/-prefixed path: resolve from repo root, security scope stays .github/
 			resolveBase = repoRoot
 		} else if stripped, ok := strings.CutPrefix(filePathSlash, "/"); ok {
-			// Repo-root-absolute path: only .github/ and .agents/ subdirectories are accessible.
 			if !strings.HasPrefix(stripped, ".github/") && !strings.HasPrefix(stripped, ".agents/") {
-				remoteLog.Printf("Security: Path not within .github or .agents: %s", filePath)
-				return "", fmt.Errorf("security: path %s must be within .github or .agents folder", filePath)
+				return "", "", filePath
 			}
-			filePath = filepath.FromSlash(stripped)
+			normalizedFilePath = filepath.FromSlash(stripped)
 			resolveBase = repoRoot
 			if strings.HasPrefix(stripped, ".agents/") {
 				securityBase = filepath.Join(repoRoot, ".agents")
 			} else {
-				// .github/-prefixed: security scope is the .github folder.
 				securityBase = githubFolder
 			}
 		}
 	}
+	return resolveBase, securityBase, normalizedFilePath
+}
 
-	// Resolve path relative to resolveBase
+func resolveAndValidateLocalIncludePath(filePath, resolveBase, securityBase string) (string, error) {
+	if stripped, ok := strings.CutPrefix(filepath.ToSlash(filePath), "/"); ok {
+		if !strings.HasPrefix(stripped, ".github/") && !strings.HasPrefix(stripped, ".agents/") {
+			remoteLog.Printf("Security: Path not within .github or .agents: %s", filePath)
+			return "", fmt.Errorf("security: path %s must be within .github or .agents folder", filePath)
+		}
+	}
 	fullPath := filepath.Join(resolveBase, filePath)
-
-	// Normalize paths for comparison
 	normalizedSecurityBase := filepath.Clean(securityBase)
 	normalizedFullPath := filepath.Clean(fullPath)
-
-	// Check if fullPath is within the security scope
 	relativePath, err := filepath.Rel(normalizedSecurityBase, normalizedFullPath)
 	if err != nil || relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) || filepath.IsAbs(relativePath) {
 		allowedFolder := filepath.Base(normalizedSecurityBase)
@@ -261,61 +266,20 @@ func isWorkflowSpec(path string) bool {
 // It first checks the cache, and only downloads if not cached
 func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, error) {
 	remoteLog.Printf("Downloading from workflowspec: %s", spec)
-
-	// Parse the workflowspec
-	// Format: owner/repo/path@ref or owner/repo/path@ref#section
-
-	// Remove section reference if present
-	cleanSpec := spec
-	if before, _, ok := strings.Cut(spec, "#"); ok {
-		cleanSpec = before
+	owner, repo, filePath, ref, err := parseWorkflowSpecParts(spec)
+	if err != nil {
+		return "", err
 	}
-
-	// Split on @ to get path and ref
-	parts := strings.SplitN(cleanSpec, "@", 2)
-	pathPart := parts[0]
-	var ref string
-	if len(parts) == 2 {
-		ref = parts[1]
-	} else {
-		ref = "main" // default to main branch
-		remoteLog.Print("No ref specified, defaulting to 'main'")
-	}
-
-	// Parse path: owner/repo/path/to/file.md
-	slashParts := strings.Split(pathPart, "/")
-	if len(slashParts) < 3 {
-		remoteLog.Printf("Invalid workflowspec format: %s", spec)
-		return "", errors.New("invalid workflowspec: must be owner/repo/path[@ref]")
-	}
-
-	owner := slashParts[0]
-	repo := slashParts[1]
-	filePath := strings.Join(slashParts[2:], "/")
 	remoteLog.Printf("Parsed workflowspec: owner=%s, repo=%s, file=%s, ref=%s", owner, repo, filePath, ref)
 
-	// Resolve ref to SHA for cache lookup
-	var sha string
-	if cache != nil {
-		// Only resolve SHA if we're using the cache
-		resolvedSHA, err := resolveRefToSHA(owner, repo, ref, "")
-		if err != nil {
-			// SHA resolution failure (including auth errors) only means we cannot cache; the
-			// actual file download will be attempted below and may succeed via git fallback for
-			// public repositories. Do not propagate this error - just skip caching.
-			remoteLog.Printf("Failed to resolve ref to SHA, will skip cache: %v", err)
-			// Continue without caching if SHA resolution fails
-		} else {
-			sha = resolvedSHA
-			// Check cache using SHA
-			if cachedPath, found := cache.Get(owner, repo, filePath, sha); found {
-				remoteLog.Printf("Using cached import: %s/%s/%s@%s (SHA: %s)", owner, repo, filePath, ref, sha)
-				return cachedPath, nil
-			}
+	sha := resolveWorkflowSpecSHAForCache(owner, repo, ref, cache)
+	if cache != nil && sha != "" {
+		if cachedPath, found := cache.Get(owner, repo, filePath, sha); found {
+			remoteLog.Printf("Using cached import: %s/%s/%s@%s (SHA: %s)", owner, repo, filePath, ref, sha)
+			return cachedPath, nil
 		}
 	}
 
-	// Download the file content from GitHub
 	remoteLog.Printf("Fetching file from GitHub: %s/%s/%s@%s", owner, repo, filePath, ref)
 	content, err := downloadFileFromGitHub(owner, repo, filePath, ref)
 	if err != nil {
@@ -323,43 +287,83 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 	}
 	remoteLog.Printf("Successfully downloaded file: size=%d bytes", len(content))
 
-	// If cache is available and we have a SHA, store in cache
 	if cache != nil && sha != "" {
 		cachedPath, err := cache.Set(owner, repo, filePath, sha, content)
 		if err != nil {
 			remoteLog.Printf("Failed to cache import: %v", err)
-			// Don't fail the compilation, fall back to temp file
 		} else {
 			remoteLog.Printf("Successfully cached download at: %s", cachedPath)
 			return cachedPath, nil
 		}
 	}
+	return writeDownloadedIncludeToTempFile(content)
+}
 
-	// Fallback: Create a temporary file to store the downloaded content
+func parseWorkflowSpecParts(spec string) (string, string, string, string, error) {
+	cleanSpec := spec
+	if before, _, ok := strings.Cut(spec, "#"); ok {
+		cleanSpec = before
+	}
+	parts := strings.SplitN(cleanSpec, "@", 2)
+	pathPart := parts[0]
+	ref := "main"
+	if len(parts) == 2 {
+		ref = parts[1]
+	} else {
+		remoteLog.Print("No ref specified, defaulting to 'main'")
+	}
+	slashParts := strings.Split(pathPart, "/")
+	if len(slashParts) < 3 {
+		remoteLog.Printf("Invalid workflowspec format: %s", spec)
+		return "", "", "", "", errors.New("invalid workflowspec: must be owner/repo/path[@ref]")
+	}
+	return slashParts[0], slashParts[1], strings.Join(slashParts[2:], "/"), ref, nil
+}
+
+func resolveWorkflowSpecSHAForCache(owner, repo, ref string, cache *ImportCache) string {
+	if cache == nil {
+		return ""
+	}
+	resolvedSHA, err := resolveRefToSHA(owner, repo, ref, "")
+	if err != nil {
+		remoteLog.Printf("Failed to resolve ref to SHA, will skip cache: %v", err)
+		return ""
+	}
+	return resolvedSHA
+}
+
+func writeDownloadedIncludeToTempFile(content []byte) (string, error) {
 	tempFile, err := os.CreateTemp("", "gh-aw-include-*.md")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
-
+	cleanupOnError := true
+	fileClosed := false
+	defer func() {
+		if cleanupOnError {
+			if !fileClosed {
+				if closeErr := tempFile.Close(); closeErr != nil {
+					remoteLog.Printf("Warning: failed to close temp file during deferred cleanup: %v", closeErr)
+				}
+			}
+			if rmErr := os.Remove(tempFile.Name()); rmErr != nil && !os.IsNotExist(rmErr) {
+				remoteLog.Printf("Warning: failed to remove temp file %s: %v", tempFile.Name(), rmErr)
+			}
+		}
+	}()
 	if _, err := tempFile.Write(content); err != nil {
-		// Close the temp file and clean up, logging any errors
 		if closeErr := tempFile.Close(); closeErr != nil {
 			remoteLog.Printf("Warning: failed to close temp file during cleanup: %v", closeErr)
 		}
-		if rmErr := os.Remove(tempFile.Name()); rmErr != nil {
-			remoteLog.Printf("Warning: failed to remove temp file %s: %v", tempFile.Name(), rmErr)
-		}
+		fileClosed = true
 		return "", fmt.Errorf("failed to write temp file: %w", err)
 	}
-
 	if err := tempFile.Close(); err != nil {
-		// Clean up temp file if close fails
-		if rmErr := os.Remove(tempFile.Name()); rmErr != nil {
-			remoteLog.Printf("Warning: failed to remove temp file %s: %v", tempFile.Name(), rmErr)
-		}
+		fileClosed = true
 		return "", fmt.Errorf("failed to close temp file: %w", err)
 	}
-
+	cleanupOnError = false
+	fileClosed = true
 	return tempFile.Name(), nil
 }
 
@@ -665,60 +669,65 @@ func resolveRemoteSymlinks(client *api.RESTClient, owner, repo, filePath, ref st
 
 	remoteLog.Printf("Attempting symlink resolution for %s/%s/%s@%s (%d path components)", owner, repo, filePath, ref, len(parts))
 
-	// Check each directory prefix (not including the final filename) to find symlinks
 	for i := 1; i < len(parts); i++ {
 		dirPath := strings.Join(parts[:i], "/")
-
-		target, isSymlink, err := checkRemoteSymlink(client, owner, repo, dirPath, ref)
+		resolvedPath, found, err := resolveRemoteSymlinkComponent(client, owner, repo, filePath, ref, parts, i, dirPath)
 		if err != nil {
-			// Only ignore 404s (path component doesn't exist yet at this prefix level).
-			// Propagate real API failures (auth, rate limit, network) immediately.
-			if errorutil.IsNotFoundError(err) {
-				remoteLog.Printf("Path component %s returned 404, skipping", dirPath)
-				continue
-			}
-			return "", fmt.Errorf("failed to check path component %s for symlinks: %w", dirPath, err)
+			return "", err
 		}
-
-		if isSymlink {
-			// Resolve the symlink target relative to the symlink's parent directory.
-			// For example, if .github/workflows/shared is a symlink to ../../gh-agent-workflows/shared,
-			// the parent is .github/workflows and the resolved base is gh-agent-workflows/shared.
-			parentDir := ""
-			if i > 1 {
-				parentDir = strings.Join(parts[:i-1], "/")
-			}
-
-			remoteLog.Printf("Resolving symlink: component=%s target=%s parentDir=%s", dirPath, target, parentDir)
-
-			var resolvedBase string
-			if parentDir != "" {
-				resolvedBase = pathpkg.Clean(pathpkg.Join(parentDir, target))
-			} else {
-				resolvedBase = pathpkg.Clean(target)
-			}
-
-			remoteLog.Printf("Resolved base after path.Clean: %s", resolvedBase)
-
-			// Validate the resolved base doesn't escape the repository root
-			if resolvedBase == "" || resolvedBase == "." || pathpkg.IsAbs(resolvedBase) || strings.HasPrefix(resolvedBase, "..") {
-				remoteLog.Printf("Rejecting resolved base %q (escapes repository root)", resolvedBase)
-				return "", fmt.Errorf("symlink target %q at %s resolves outside repository root: %s", target, dirPath, resolvedBase)
-			}
-
-			// Reconstruct the full path with the resolved symlink
-			remaining := strings.Join(parts[i:], "/")
-			resolvedPath := resolvedBase + "/" + remaining
-
-			remoteLog.Printf("Resolved symlink in remote path: %s -> %s (full: %s -> %s)",
-				dirPath, target, filePath, resolvedPath)
-
+		if found {
 			return resolvedPath, nil
 		}
 	}
 
 	remoteLog.Printf("No symlinks found after checking all %d directory components of %s", len(parts)-1, filePath)
 	return "", fmt.Errorf("no symlinks found in path: %s", filePath)
+}
+
+func resolveRemoteSymlinkComponent(
+	client *api.RESTClient,
+	owner, repo, filePath, ref string,
+	parts []string,
+	index int,
+	dirPath string,
+) (string, bool, error) {
+	target, isSymlink, err := checkRemoteSymlink(client, owner, repo, dirPath, ref)
+	if err != nil {
+		if errorutil.IsNotFoundError(err) {
+			remoteLog.Printf("Path component %s returned 404, skipping", dirPath)
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("failed to check path component %s for symlinks: %w", dirPath, err)
+	}
+	if !isSymlink {
+		return "", false, nil
+	}
+	parentDir := ""
+	if index > 1 {
+		parentDir = strings.Join(parts[:index-1], "/")
+	}
+	resolvedBase, err := resolveAndValidateRemoteSymlinkBase(parentDir, target, dirPath)
+	if err != nil {
+		return "", false, err
+	}
+	remaining := strings.Join(parts[index:], "/")
+	resolvedPath := resolvedBase + "/" + remaining
+	remoteLog.Printf("Resolved symlink in remote path: %s -> %s (full: %s -> %s)", dirPath, target, filePath, resolvedPath)
+	return resolvedPath, true, nil
+}
+
+func resolveAndValidateRemoteSymlinkBase(parentDir, target, dirPath string) (string, error) {
+	remoteLog.Printf("Resolving symlink: component=%s target=%s parentDir=%s", dirPath, target, parentDir)
+	resolvedBase := pathpkg.Clean(target)
+	if parentDir != "" {
+		resolvedBase = pathpkg.Clean(pathpkg.Join(parentDir, target))
+	}
+	remoteLog.Printf("Resolved base after path.Clean: %s", resolvedBase)
+	if resolvedBase == "" || resolvedBase == "." || pathpkg.IsAbs(resolvedBase) || strings.HasPrefix(resolvedBase, "..") {
+		remoteLog.Printf("Rejecting resolved base %q (escapes repository root)", resolvedBase)
+		return "", fmt.Errorf("symlink target %q at %s resolves outside repository root: %s", target, dirPath, resolvedBase)
+	}
+	return resolvedBase, nil
 }
 
 // DownloadFileFromGitHub downloads a file from a GitHub repository using the GitHub API.
@@ -755,27 +764,12 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 }
 
 func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth int, host string) ([]byte, error) {
-	// Create a REST client targeting the correct host.
-	// When host is explicitly specified (e.g., "github.com"), use it directly so that
-	// cross-host fetches work correctly even when GH_HOST is set to a different instance.
-	var client *api.RESTClient
-	var err error
-	if host != "" {
-		client, err = api.NewRESTClient(api.ClientOptions{Host: host})
-	} else {
-		client, err = api.DefaultRESTClient()
-	}
+	client, err := createRESTClientForHost(host)
 	if err != nil {
-		// When the REST client cannot be created due to missing auth (e.g., running inside an
-		// agentic workflow without gh CLI credentials), fall back to git-based download so that
-		// public repositories are still accessible without authentication.
 		if gitutil.IsAuthError(err.Error()) {
 			remoteLog.Printf("REST client creation failed due to auth error, attempting git fallback for %s/%s/%s@%s: %v", owner, repo, path, ref, err)
 			content, gitErr := downloadFileViaGit(owner, repo, path, ref, host)
 			if gitErr != nil {
-				// Both REST (auth error) and git fallback failed. Return the original auth error
-				// so callers and tests can detect the auth-unavailable condition and skip/handle
-				// it gracefully (git fails too in unauthenticated environments for private/invalid repos).
 				remoteLog.Printf("Git fallback also failed for %s/%s/%s@%s: %v", owner, repo, path, ref, gitErr)
 				return nil, fmt.Errorf("failed to fetch file content: %w", err)
 			}
@@ -784,55 +778,69 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 		return nil, fmt.Errorf("failed to create REST client: %w", err)
 	}
 
-	// Define response struct for GitHub file content API
 	var fileContent struct {
 		Content  string `json:"content"`
 		Encoding string `json:"encoding"`
 		Name     string `json:"name"`
 	}
 
-	// Fetch file content from GitHub API
-	err = client.Get(fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), &fileContent)
+	err = fetchRemoteFileContent(client, owner, repo, path, ref, &fileContent)
 	if err != nil {
-		errStr := err.Error()
-
-		// Check if this is an authentication error
-		if gitutil.IsAuthError(errStr) {
+		if gitutil.IsAuthError(err.Error()) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
-			// Try fallback using git commands for public repositories
 			content, gitErr := downloadFileViaGit(owner, repo, path, ref, host)
 			if gitErr != nil {
-				// If git fallback also fails, return both errors
 				return nil, fmt.Errorf("failed to fetch file content via GitHub API (auth error) and git fallback: API error: %w, Git error: %w", err, gitErr)
 			}
 			return content, nil
 		}
 
-		// Check if this is a 404 — the path may traverse a symlink that the API doesn't follow
 		if errorutil.IsNotFoundError(err) && symlinkDepth < constants.MaxSymlinkDepth {
-			remoteLog.Printf("File not found at %s/%s/%s@%s, checking for symlinks in path (depth: %d)", owner, repo, path, ref, symlinkDepth)
-			resolvedPath, resolveErr := resolveRemoteSymlinks(client, owner, repo, path, ref)
-			if resolveErr == nil && resolvedPath != path {
-				remoteLog.Printf("Retrying download with symlink-resolved path: %s -> %s", path, resolvedPath)
-				return downloadFileFromGitHubWithDepth(owner, repo, resolvedPath, ref, symlinkDepth+1, host)
+			if content, handled, resolveErr := retryDownloadViaResolvedSymlink(client, owner, repo, path, ref, symlinkDepth, host); handled {
+				return content, resolveErr
 			}
 		}
 
 		return nil, fmt.Errorf("failed to fetch file content from %s/%s/%s@%s: %w", owner, repo, path, ref, err)
 	}
 
-	// Verify we have content
 	if fileContent.Content == "" {
 		return nil, fmt.Errorf("empty content returned from GitHub API for %s/%s/%s@%s", owner, repo, path, ref)
 	}
 
-	// Decode base64 content using native Go base64 package
 	content, err := base64.StdEncoding.DecodeString(fileContent.Content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
 	}
 
 	return content, nil
+}
+
+func createRESTClientForHost(host string) (*api.RESTClient, error) {
+	if host != "" {
+		return api.NewRESTClient(api.ClientOptions{Host: host})
+	}
+	return api.DefaultRESTClient()
+}
+
+func fetchRemoteFileContent(client *api.RESTClient, owner, repo, path, ref string, fileContent any) error {
+	return client.Get(fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), fileContent)
+}
+
+func retryDownloadViaResolvedSymlink(
+	client *api.RESTClient,
+	owner, repo, path, ref string,
+	symlinkDepth int,
+	host string,
+) ([]byte, bool, error) {
+	remoteLog.Printf("File not found at %s/%s/%s@%s, checking for symlinks in path (depth: %d)", owner, repo, path, ref, symlinkDepth)
+	resolvedPath, resolveErr := resolveRemoteSymlinks(client, owner, repo, path, ref)
+	if resolveErr == nil && resolvedPath != path {
+		remoteLog.Printf("Retrying download with symlink-resolved path: %s -> %s", path, resolvedPath)
+		content, err := downloadFileFromGitHubWithDepth(owner, repo, resolvedPath, ref, symlinkDepth+1, host)
+		return content, true, err
+	}
+	return nil, false, nil
 }
 
 // ListWorkflowFiles lists workflow files from a remote GitHub repository

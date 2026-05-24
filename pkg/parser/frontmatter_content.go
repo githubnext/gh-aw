@@ -66,94 +66,25 @@ func extractTopLevelFieldLines(yamlContent string, frontmatterStart int) map[str
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
 func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	parserLog.Printf("Extracting frontmatter from content: size=%d bytes", len(content))
-	// Fast-path: inspect only the first line to determine whether frontmatter exists.
-	firstNewline := strings.IndexByte(content, '\n')
-	firstLine := content
-	if firstNewline >= 0 {
-		firstLine = content[:firstNewline]
-	}
-
-	// Check if file starts with frontmatter delimiter.
+	firstNewline, firstLine := splitFirstLine(content)
 	if !isFrontmatterDelimiterLine(firstLine) {
 		parserLog.Print("No frontmatter delimiter found, returning content as markdown")
-		// No frontmatter, return entire content as markdown
-		return &FrontmatterResult{
-			Frontmatter:      make(map[string]any),
-			Markdown:         content,
-			FrontmatterLines: []string{},
-			FrontmatterStart: 0,
-		}, nil
+		return noFrontmatterResult(content), nil
 	}
 
-	// Find end of frontmatter by scanning line-by-line without splitting the entire document.
-	searchStart := len(content)
-	if firstNewline >= 0 {
-		searchStart = firstNewline + 1
-	}
-	frontmatterEndStart := -1
-	markdownStart := len(content)
-	for cursor := searchStart; cursor <= len(content); {
-		lineStart := cursor
-		lineEnd := len(content)
-		nextCursor := len(content) + 1
-
-		if cursor < len(content) {
-			if relNewline := strings.IndexByte(content[cursor:], '\n'); relNewline >= 0 {
-				lineEnd = cursor + relNewline
-				nextCursor = lineEnd + 1
-			}
-		}
-
-		if isFrontmatterDelimiterLine(content[lineStart:lineEnd]) {
-			frontmatterEndStart = lineStart
-			markdownStart = nextCursor
-			break
-		}
-
-		if nextCursor > len(content) {
-			break
-		}
-		cursor = nextCursor
+	searchStart := computeFrontmatterSearchStart(content, firstNewline)
+	frontmatterEndStart, markdownStart, err := findFrontmatterDelimiters(content, searchStart)
+	if err != nil {
+		return nil, err
 	}
 
-	if frontmatterEndStart == -1 {
-		return nil, errors.New("frontmatter not properly closed")
-	}
-
-	// Extract frontmatter YAML
 	frontmatterYAML := content[searchStart:frontmatterEndStart]
-	frontmatterLines := []string{}
-	if frontmatterYAML != "" {
-		frontmatterLines = strings.Split(frontmatterYAML, "\n")
-		// Preserve previous behavior from lines[1:endIndex]: a trailing newline before
-		// the closing delimiter does not create an additional empty frontmatter line.
-		if strings.HasSuffix(frontmatterYAML, "\n") {
-			frontmatterLines = frontmatterLines[:len(frontmatterLines)-1]
-		}
+	frontmatterLines := splitFrontmatterLines(frontmatterYAML)
+	frontmatter, err := parseFrontmatterYAML(frontmatterYAML)
+	if err != nil {
+		return nil, err
 	}
-
-	// Sanitize no-break whitespace characters (U+00A0) which break the YAML parser
-	frontmatterYAML = strings.ReplaceAll(frontmatterYAML, "\u00A0", " ")
-
-	// Parse YAML
-	var frontmatter map[string]any
-	if err := yaml.Unmarshal([]byte(frontmatterYAML), &frontmatter); err != nil {
-		// Use FormatYAMLError to provide source-positioned error output with adjusted line numbers
-		// FrontmatterStart is 2 (line 2 is where frontmatter content starts after opening ---)
-		formattedErr := FormatYAMLError(err, 2, frontmatterYAML)
-		return nil, &FormattedParserError{formatted: "failed to parse frontmatter:\n" + formattedErr, cause: err}
-	}
-
-	// Ensure frontmatter is never nil (yaml.Unmarshal sets it to nil for empty YAML)
-	if frontmatter == nil {
-		frontmatter = make(map[string]any)
-	}
-
-	// Extract markdown content (everything after the closing ---)
-	markdown := ""
-	if markdownStart <= len(content) {
-		markdown = content[markdownStart:]
-	}
+	markdown := extractMarkdownAfterFrontmatter(content, markdownStart)
 
 	parserLog.Printf("Successfully extracted frontmatter: fields=%d, markdown_size=%d bytes", len(frontmatter), len(markdown))
 	const frontmatterStartLine = 2 // Line 2 is where frontmatter content starts (after opening ---)
@@ -164,6 +95,97 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 		FrontmatterStart: frontmatterStartLine,
 		FieldLines:       extractTopLevelFieldLines(frontmatterYAML, frontmatterStartLine),
 	}, nil
+}
+
+func splitFirstLine(content string) (int, string) {
+	firstNewline := strings.IndexByte(content, '\n')
+	if firstNewline < 0 {
+		return firstNewline, content
+	}
+	return firstNewline, content[:firstNewline]
+}
+
+func noFrontmatterResult(content string) *FrontmatterResult {
+	return &FrontmatterResult{
+		Frontmatter:      make(map[string]any),
+		Markdown:         content,
+		FrontmatterLines: []string{},
+		FrontmatterStart: 0,
+	}
+}
+
+func computeFrontmatterSearchStart(content string, firstNewline int) int {
+	if firstNewline >= 0 {
+		return firstNewline + 1
+	}
+	return len(content)
+}
+
+func findFrontmatterDelimiters(content string, searchStart int) (int, int, error) {
+	frontmatterEndStart := -1
+	markdownStart := len(content)
+	for cursor := searchStart; cursor <= len(content); {
+		lineStart, lineEnd, nextCursor := frontmatterLineBounds(content, cursor)
+		if isFrontmatterDelimiterLine(content[lineStart:lineEnd]) {
+			frontmatterEndStart = lineStart
+			markdownStart = nextCursor
+			break
+		}
+		if nextCursor > len(content) {
+			break
+		}
+		cursor = nextCursor
+	}
+	if frontmatterEndStart == -1 {
+		return 0, 0, errors.New("frontmatter not properly closed")
+	}
+	return frontmatterEndStart, markdownStart, nil
+}
+
+func frontmatterLineBounds(content string, cursor int) (int, int, int) {
+	lineStart := cursor
+	lineEnd := len(content)
+	nextCursor := len(content) + 1
+	if cursor < len(content) {
+		if relNewline := strings.IndexByte(content[cursor:], '\n'); relNewline >= 0 {
+			lineEnd = cursor + relNewline
+			nextCursor = lineEnd + 1
+		}
+	}
+	return lineStart, lineEnd, nextCursor
+}
+
+func splitFrontmatterLines(frontmatterYAML string) []string {
+	if frontmatterYAML == "" {
+		return []string{}
+	}
+	lines := strings.Split(frontmatterYAML, "\n")
+	// Preserve previous behavior from lines[1:endIndex]: a trailing newline before
+	// the closing delimiter does not create an additional empty frontmatter line.
+	if strings.HasSuffix(frontmatterYAML, "\n") {
+		lines = lines[:len(lines)-1]
+	}
+	return lines
+}
+
+func parseFrontmatterYAML(frontmatterYAML string) (map[string]any, error) {
+	frontmatterYAML = strings.ReplaceAll(frontmatterYAML, "\u00A0", " ")
+	var frontmatter map[string]any
+	if err := yaml.Unmarshal([]byte(frontmatterYAML), &frontmatter); err != nil {
+		formattedErr := FormatYAMLError(err, 2, frontmatterYAML)
+		return nil, &FormattedParserError{formatted: "failed to parse frontmatter:\n" + formattedErr, cause: err}
+	}
+	if frontmatter == nil {
+		frontmatter = make(map[string]any)
+	}
+	return frontmatter, nil
+}
+
+func extractMarkdownAfterFrontmatter(content string, markdownStart int) string {
+	if markdownStart <= len(content) {
+		return content[markdownStart:]
+	}
+	return ""
 }
 
 // isFrontmatterDelimiterLine returns true when a line consists of "---" with optional surrounding whitespace.
