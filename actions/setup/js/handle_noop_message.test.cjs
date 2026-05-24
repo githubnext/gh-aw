@@ -696,7 +696,7 @@ This issue helps you:
     await main();
 
     const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
-    expect(commentCall.body).toContain("· ● 12.5K");
+    expect(commentCall.body).toContain("· 12.5K");
   });
 
   it("should not include effective token count in footer when GH_AW_EFFECTIVE_TOKENS is not set", async () => {

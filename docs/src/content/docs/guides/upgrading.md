@@ -35,9 +35,10 @@ Upgrade the `gh aw` extension to get the latest features and codemods:
 
 ```bash wrap
 gh extension upgrade gh-aw
+gh aw upgrade --pre-releases    # Also consider newer pre-releases
 ```
 
-Check your version with `gh aw version` and compare against the [latest release](https://github.com/github/gh-aw/releases). If you encounter issues, try a clean reinstall with `gh extension remove gh-aw` followed by `gh extension install github/gh-aw`.
+Check your version with `gh aw version` and compare against the [latest release](https://github.com/github/gh-aw/releases). By default, `gh aw upgrade` follows stable releases; use `--pre-releases` to opt into pre-release builds, which are installed by exact tag. If you encounter issues, try a clean reinstall with `gh extension remove gh-aw` followed by `gh extension install github/gh-aw`.
 
 ## Step 2: Run the Upgrade Command
 

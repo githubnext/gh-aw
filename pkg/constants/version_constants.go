@@ -32,17 +32,17 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.142"
+const DefaultClaudeCodeVersion Version = "2.1.150"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.48"
+const DefaultCopilotVersion Version = "1.0.52"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.130.0"
+const DefaultCodexVersion Version = "0.133.0"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.39.1"
@@ -67,7 +67,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.0.4"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.25.52"
+const DefaultFirewallVersion Version = "v0.25.53"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -149,7 +149,7 @@ const DefaultJavaVersion Version = "21"
 const DefaultElixirVersion Version = "1.17"
 
 // DefaultGoVersion is the default version of Go for runtime setup
-const DefaultGoVersion Version = "1.25"
+const DefaultGoVersion Version = "1.26"
 
 // DefaultHaskellVersion is the default version of GHC for runtime setup
 const DefaultHaskellVersion Version = "9.10"

@@ -322,7 +322,7 @@ Spellcheck summary:
 This workflow is intentionally gated so the agent path only runs when `needs.spellcheck.outputs.has_findings == 'true'`.
 When no findings exist, the workflow stops after spellcheck and skips agent execution.
 
-{{#if experiments.prompt_style == "concise"}}
+{{#if experiments.prompt_style == 'concise'}}
 Fix spelling errors in `docs/src/content/` markdown files.
 
 Inputs: `/tmp/gh-aw/agent/spellcheck/findings.ndjson` and `summary.json`.

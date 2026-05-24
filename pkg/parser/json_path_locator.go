@@ -294,44 +294,42 @@ func findFirstAdditionalProperty(yamlContent string, propertyNames []string) JSO
 func findAdditionalPropertyInNestedContext(yamlContent string, jsonPath string, propertyNames []string) JSONPathLocation {
 	jsonPathLog.Printf("Finding additional property in nested context: path=%s, properties=%v", jsonPath, propertyNames)
 
-	// Parse the path segments to understand the nesting structure
 	pathSegments := parseJSONPath(jsonPath)
 	if len(pathSegments) == 0 {
-		// If no path segments, search globally
 		return findFirstAdditionalProperty(yamlContent, propertyNames)
 	}
 
-	// Find the nested section that corresponds to the JSON path
 	nestedSection := findNestedSection(yamlContent, pathSegments)
 	if nestedSection.startLine == -1 {
 		jsonPathLog.Print("Nested section not found, falling back to global search")
-		// If we can't find the nested section, fall back to global search
 		return findFirstAdditionalProperty(yamlContent, propertyNames)
 	}
 
 	jsonPathLog.Printf("Found nested section: startLine=%d, endLine=%d", nestedSection.startLine, nestedSection.endLine)
+	subYAMLContent, baseIndent := extractNestedSubYAML(yamlContent, nestedSection)
+	subLocation := findFirstAdditionalProperty(subYAMLContent, propertyNames)
+	if !subLocation.Found {
+		return findFirstAdditionalProperty(yamlContent, propertyNames)
+	}
+	return mapNestedLocationToOriginal(subLocation, nestedSection, baseIndent)
+}
 
-	// Extract the sub-YAML content for the identified nested section
+func extractNestedSubYAML(yamlContent string, nestedSection NestedSection) (string, int) {
 	lines := strings.Split(yamlContent, "\n")
 	subYAMLLines := make([]string, 0, nestedSection.endLine-nestedSection.startLine+1)
-
-	// Extract lines from the nested section, maintaining relative indentation
 	var baseIndent = -1
 	for lineNum := nestedSection.startLine; lineNum <= nestedSection.endLine && lineNum < len(lines); lineNum++ {
 		line := lines[lineNum]
 
-		// Skip the section header line (e.g., "on:")
 		if lineNum == nestedSection.startLine {
 			continue
 		}
 
-		// Calculate the indentation and normalize it
 		lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
 		if baseIndent == -1 && strings.TrimSpace(line) != "" {
 			baseIndent = lineIndent
 		}
 
-		// Create normalized line by removing the base indentation
 		var normalizedLine string
 		if lineIndent >= baseIndent && baseIndent > 0 {
 			normalizedLine = line[baseIndent:]
@@ -341,25 +339,13 @@ func findAdditionalPropertyInNestedContext(yamlContent string, jsonPath string, 
 
 		subYAMLLines = append(subYAMLLines, normalizedLine)
 	}
+	return strings.Join(subYAMLLines, "\n"), baseIndent
+}
 
-	// Create the sub-YAML content
-	subYAMLContent := strings.Join(subYAMLLines, "\n")
-
-	// Search for additional properties within the extracted sub-YAML content
-	subLocation := findFirstAdditionalProperty(subYAMLContent, propertyNames)
-
-	if !subLocation.Found {
-		// If we can't find the additional properties in the sub-YAML,
-		// fall back to a global search
-		return findFirstAdditionalProperty(yamlContent, propertyNames)
-	}
-
-	// Map the location back to the original YAML coordinates
-	// subLocation.Line is 1-based, so we need to adjust it
+func mapNestedLocationToOriginal(subLocation JSONPathLocation, nestedSection NestedSection, baseIndent int) JSONPathLocation {
 	originalLine := nestedSection.startLine + subLocation.Line // +1 to skip section header, -1 for 0-based indexing
 	originalColumn := subLocation.Column
 
-	// If we had base indentation, we need to adjust the column position
 	if baseIndent > 0 {
 		originalColumn += baseIndent
 	}
@@ -382,49 +368,43 @@ type NestedSection struct {
 func findNestedSection(yamlContent string, pathSegments []PathSegment) NestedSection {
 	lines := strings.Split(yamlContent, "\n")
 
-	// Start from the beginning and traverse the path
-	currentLevel := 0
-	var foundLine = -1
-	var baseIndentLevel = 0
-
-	for lineNum, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-
-		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
-			continue
-		}
-
-		// Calculate indentation level
-		lineLevel := (len(line) - len(strings.TrimLeft(line, " \t"))) / 2
-
-		// Check if we're looking for a key at the current path level
-		if currentLevel < len(pathSegments) {
-			segment := pathSegments[currentLevel]
-
-			if segment.Type == "key" {
-				// Look for "key:" pattern
-				keyPattern := regexp.MustCompile(`^` + regexp.QuoteMeta(segment.Value) + `\s*:`)
-				if keyPattern.MatchString(trimmedLine) && lineLevel == currentLevel {
-					// Found a matching key at the correct indentation level
-					if currentLevel == len(pathSegments)-1 {
-						// This is the final segment - we found our target
-						foundLine = lineNum
-						baseIndentLevel = lineLevel + 1 // Properties inside this object should be indented one level further
-						break
-					} else {
-						// Move to the next level
-						currentLevel++
-					}
-				}
-			}
-		}
-	}
-
+	foundLine, baseIndentLevel := findNestedSectionStart(lines, pathSegments)
 	if foundLine == -1 {
 		return NestedSection{startLine: -1, endLine: -1, baseIndentLevel: 0}
 	}
+	endLine := findNestedSectionEnd(lines, foundLine, baseIndentLevel)
+	return NestedSection{startLine: foundLine, endLine: endLine, baseIndentLevel: baseIndentLevel}
+}
 
-	// Find the end of this nested section by looking for the next line at the same or lower indentation
+func findNestedSectionStart(lines []string, pathSegments []PathSegment) (int, int) {
+	currentLevel := 0
+	for lineNum, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
+			continue
+		}
+		lineLevel := (len(line) - len(strings.TrimLeft(line, " \t"))) / 2
+		if currentLevel >= len(pathSegments) {
+			continue
+		}
+		segment := pathSegments[currentLevel]
+		if segment.Type != "key" || !matchesPathSegmentKey(trimmedLine, segment.Value) || lineLevel != currentLevel {
+			continue
+		}
+		if currentLevel == len(pathSegments)-1 {
+			return lineNum, lineLevel + 1
+		}
+		currentLevel++
+	}
+	return -1, 0
+}
+
+func matchesPathSegmentKey(trimmedLine, key string) bool {
+	keyPattern := regexp.MustCompile(`^` + regexp.QuoteMeta(key) + `\s*:`)
+	return keyPattern.MatchString(trimmedLine)
+}
+
+func findNestedSectionEnd(lines []string, foundLine, baseIndentLevel int) int {
 	endLine := len(lines) - 1          // Default to end of file
 	targetLevel := baseIndentLevel - 1 // The level of the key we found
 
@@ -445,10 +425,5 @@ func findNestedSection(yamlContent string, pathSegments []PathSegment) NestedSec
 			break
 		}
 	}
-
-	return NestedSection{
-		startLine:       foundLine,
-		endLine:         endLine,
-		baseIndentLevel: baseIndentLevel,
-	}
+	return endLine
 }

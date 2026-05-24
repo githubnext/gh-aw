@@ -75,7 +75,7 @@ timeout-minutes: 10
 - NO verbose explanations or unnecessary context.
 - Minimize file reading - only read what is absolutely necessary for the task.
 
-{{#if experiments.sub_agent_strategy == "single_agent"}}
+{{#if experiments.sub_agent_strategy == 'single_agent'}}
 ## Test Requirements (Single Agent — Baseline)
 
 Execute all 5 tests sequentially in this agent:
@@ -89,7 +89,7 @@ Execute all 5 tests sequentially in this agent:
 After completing all tests, proceed to the Output section below.
 {{/if}}
 
-{{#if experiments.sub_agent_strategy == "sub_agents"}}
+{{#if experiments.sub_agent_strategy == 'sub_agents'}}
 ## Test Requirements (Sub-Agent Strategy)
 
 Launch 5 parallel `task` sub-agents (agent_type: `task`) to execute tests independently. Each sub-agent should run one test requirement and return a simple ✅ or ❌ result.

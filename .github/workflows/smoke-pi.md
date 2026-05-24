@@ -85,7 +85,7 @@ timeout-minutes: 10
 
 ## Test Requirements
 
-{{#if experiments.sub_agent_decomposition == "parallel_sub_agents"}}
+{{#if experiments.sub_agent_decomposition == 'parallel_sub_agents'}}
 Launch five parallel `task` agents using mode: "background" to execute each smoke test independently. Use the `task` agent type with `description` field for each:
 
 1. **GitHub MCP Test Agent**: Fetch 2 merged PR titles from ${{ github.repository }}

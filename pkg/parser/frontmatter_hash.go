@@ -46,73 +46,73 @@ func marshalJSONWithoutHTMLEscape(v any) (string, error) {
 func marshalSorted(data any) string {
 	switch v := data.(type) {
 	case map[string]any:
-		if len(v) == 0 {
-			return "{}"
-		}
-
-		// Sort keys
-		keys := make([]string, 0, len(v))
-		for key := range v {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-
-		// Build JSON string with sorted keys
-		var result strings.Builder
-		result.WriteString("{")
-		for i, key := range keys {
-			if i > 0 {
-				result.WriteString(",")
-			}
-			// Marshal the key without HTML escaping
-			keyJSON, err := marshalJSONWithoutHTMLEscape(key)
-			if err != nil {
-				frontmatterHashLog.Printf("Warning: failed to marshal key %s: %v", key, err)
-				continue
-			}
-			result.WriteString(keyJSON)
-			result.WriteString(":")
-			// Marshal the value recursively
-			result.WriteString(marshalSorted(v[key]))
-		}
-		result.WriteString("}")
-		return result.String()
+		return marshalSortedMap(v)
 
 	case []any:
-		if len(v) == 0 {
-			return "[]"
-		}
-
-		var result strings.Builder
-		result.WriteString("[")
-		for i, elem := range v {
-			if i > 0 {
-				result.WriteString(",")
-			}
-			result.WriteString(marshalSorted(elem))
-		}
-		result.WriteString("]")
-		return result.String()
+		return marshalSortedSlice(v)
 
 	case string, int, int64, float64, bool, nil:
-		// Use JSON marshaling without HTML escaping to match JavaScript behavior
-		jsonStr, err := marshalJSONWithoutHTMLEscape(v)
-		if err != nil {
-			// This should rarely happen for primitives, but log it for debugging
-			frontmatterHashLog.Printf("Warning: failed to marshal primitive value: %v", err)
-			return "null"
-		}
-		return jsonStr
+		return marshalSortedValue(v, "primitive value")
 
 	default:
-		// Fallback to JSON marshaling without HTML escaping
-		jsonStr, err := marshalJSONWithoutHTMLEscape(v)
-		if err != nil {
-			frontmatterHashLog.Printf("Warning: failed to marshal value of type %T: %v", v, err)
-			return "null"
-		}
-		return jsonStr
+		return marshalSortedValue(v, fmt.Sprintf("value of type %T", v))
 	}
+}
+
+func marshalSortedMap(v map[string]any) string {
+	if len(v) == 0 {
+		return "{}"
+	}
+
+	keys := make([]string, 0, len(v))
+	for key := range v {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var result strings.Builder
+	result.WriteString("{")
+	for i, key := range keys {
+		if i > 0 {
+			result.WriteString(",")
+		}
+		keyJSON, err := marshalJSONWithoutHTMLEscape(key)
+		if err != nil {
+			frontmatterHashLog.Printf("Warning: failed to marshal key %s: %v", key, err)
+			continue
+		}
+		result.WriteString(keyJSON)
+		result.WriteString(":")
+		result.WriteString(marshalSorted(v[key]))
+	}
+	result.WriteString("}")
+	return result.String()
+}
+
+func marshalSortedSlice(v []any) string {
+	if len(v) == 0 {
+		return "[]"
+	}
+
+	var result strings.Builder
+	result.WriteString("[")
+	for i, elem := range v {
+		if i > 0 {
+			result.WriteString(",")
+		}
+		result.WriteString(marshalSorted(elem))
+	}
+	result.WriteString("]")
+	return result.String()
+}
+
+func marshalSortedValue(v any, valueDescription string) string {
+	jsonStr, err := marshalJSONWithoutHTMLEscape(v)
+	if err != nil {
+		frontmatterHashLog.Printf("Warning: failed to marshal %s: %v", valueDescription, err)
+		return "null"
+	}
+	return jsonStr
 }
 
 // ComputeFrontmatterHashFromParsedContent computes the frontmatter hash from already-parsed
@@ -318,77 +318,95 @@ func extractImportsFromText(frontmatterText string) []string {
 	var imports []string
 	lines := strings.Split(frontmatterText, "\n")
 
-	inImports := false
-	baseIndent := 0
-	inAwSubfield := false // true when inside the "aw:" subfield of the object form
-	awIndent := 0
-	isObjectForm := false // true when imports is in object form (map)
+	state := importExtractionState{}
 
 	for i := range lines {
 		line := lines[i]
 		trimmed := strings.TrimSpace(line)
 
-		// Skip empty lines and comments
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 
-		// Check if this is the imports: key
-		if strings.HasPrefix(trimmed, "imports:") {
-			inImports = true
-			inAwSubfield = false
-			isObjectForm = false
-			// Find the base indentation (position of first non-whitespace character)
-			baseIndent = len(line) - len(strings.TrimLeft(line, " \t"))
+		if state.beginImportsBlock(line, trimmed) {
 			continue
 		}
 
-		if inImports {
-			// Calculate current line's indentation
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+		if !state.inImports {
+			continue
+		}
 
-			// If indentation decreased or same level, we're out of the imports block
-			if lineIndent <= baseIndent && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-				break
-			}
+		lineIndent := indentationOf(line)
+		if state.exitsImportsBlock(trimmed, lineIndent) {
+			break
+		}
+		if state.handleSubfield(trimmed, lineIndent) {
+			continue
+		}
 
-			// Detect the 'aw:' subfield (object form)
-			if lineIndent == baseIndent+2 && strings.HasPrefix(trimmed, "aw:") {
-				isObjectForm = true
-				inAwSubfield = true
-				awIndent = lineIndent
-				continue
-			}
-
-			// Detect other object-form subfields (e.g. 'apm-packages:') — skip their contents
-			if isObjectForm && lineIndent == baseIndent+2 && strings.Contains(trimmed, ":") && !strings.HasPrefix(trimmed, "-") {
-				inAwSubfield = false
-				continue
-			}
-
-			// In array form: collect top-level array items directly under imports:
-			// In object form: collect array items only under the 'aw:' subfield
-			if strings.HasPrefix(trimmed, "-") {
-				if !isObjectForm {
-					// Array form — all items belong to imports
-					item := strings.TrimSpace(trimmed[1:])
-					item = strings.Trim(item, `"'`)
-					if item != "" {
-						imports = append(imports, item)
-					}
-				} else if inAwSubfield && lineIndent > awIndent {
-					// Object form — only items under 'aw:' are import paths
-					item := strings.TrimSpace(trimmed[1:])
-					item = strings.Trim(item, `"'`)
-					if item != "" {
-						imports = append(imports, item)
-					}
-				}
-			}
+		if item, ok := state.extractImportItem(trimmed, lineIndent); ok {
+			imports = append(imports, item)
 		}
 	}
 
 	return imports
+}
+
+type importExtractionState struct {
+	inImports    bool
+	baseIndent   int
+	inAwSubfield bool
+	awIndent     int
+	isObjectForm bool
+}
+
+func (s *importExtractionState) beginImportsBlock(line, trimmed string) bool {
+	if !strings.HasPrefix(trimmed, "imports:") {
+		return false
+	}
+	s.inImports = true
+	s.inAwSubfield = false
+	s.isObjectForm = false
+	s.baseIndent = indentationOf(line)
+	return true
+}
+
+func (s *importExtractionState) exitsImportsBlock(trimmed string, lineIndent int) bool {
+	return lineIndent <= s.baseIndent && trimmed != "" && !strings.HasPrefix(trimmed, "#")
+}
+
+func (s *importExtractionState) handleSubfield(trimmed string, lineIndent int) bool {
+	if lineIndent == s.baseIndent+2 && strings.HasPrefix(trimmed, "aw:") {
+		s.isObjectForm = true
+		s.inAwSubfield = true
+		s.awIndent = lineIndent
+		return true
+	}
+	if s.isObjectForm && lineIndent == s.baseIndent+2 && strings.Contains(trimmed, ":") && !strings.HasPrefix(trimmed, "-") {
+		s.inAwSubfield = false
+		return true
+	}
+	return false
+}
+
+func (s *importExtractionState) extractImportItem(trimmed string, lineIndent int) (string, bool) {
+	if !strings.HasPrefix(trimmed, "-") {
+		return "", false
+	}
+	if s.isObjectForm && (!s.inAwSubfield || lineIndent <= s.awIndent) {
+		return "", false
+	}
+
+	item := strings.TrimSpace(trimmed[1:])
+	item = strings.Trim(item, `"'`)
+	if item == "" {
+		return "", false
+	}
+	return item, true
+}
+
+func indentationOf(line string) int {
+	return len(line) - len(strings.TrimLeft(line, " \t"))
 }
 
 // processImportsTextBased processes imports from frontmatter using text-based parsing

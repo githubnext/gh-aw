@@ -640,7 +640,6 @@ async function main() {
     await fetchAWFReflect({ logger: log });
   }
 
-  writeCopilotOutputs(detectedCopilotErrors);
   log(`done: exitCode=${lastExitCode} totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
   process.exit(lastExitCode);
 }

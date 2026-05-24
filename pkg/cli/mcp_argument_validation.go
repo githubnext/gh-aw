@@ -141,14 +141,14 @@ func buildHelpfulParamError(toolName string, unknownParams []string, validParams
 		if i > 0 {
 			sb.WriteString("\n")
 		}
-		sb.WriteString(fmt.Sprintf("Unknown parameter '%s'.", param))
+		fmt.Fprintf(&sb, "Unknown parameter '%s'.", param)
 		if suggestion := findSimilarParam(param, validParams); suggestion != "" {
-			sb.WriteString(fmt.Sprintf(" Did you mean '%s'?", suggestion))
+			fmt.Fprintf(&sb, " Did you mean '%s'?", suggestion)
 		}
 	}
 
 	if toolName != "" {
-		sb.WriteString(fmt.Sprintf("\nRun 'agenticworkflows %s --help' for usage.", toolName))
+		fmt.Fprintf(&sb, "\nRun 'agenticworkflows %s --help' for usage.", toolName)
 	}
 
 	return sb.String()
@@ -238,8 +238,7 @@ func jsonFieldNames(v any) []string {
 		return nil
 	}
 	var names []string
-	for i := range t.NumField() {
-		field := t.Field(i)
+	for field := range t.Fields() {
 		if !field.IsExported() {
 			continue
 		}

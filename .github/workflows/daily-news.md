@@ -359,7 +359,7 @@ Write an upbeat, friendly, motivating summary of recent activity in the repo.
 - Cache processed trend data for faster chart generation
 - Store analysis results that can inform future reports
 
-{{#if experiments.prompt_style == "concise"}}
+{{#if experiments.prompt_style == 'concise'}}
 ## 📊 Trend Charts Requirement
 
 Generate exactly **2 trend charts** (issues/PRs activity and commit activity) using data from
@@ -501,7 +501,7 @@ If insufficient data is available (less than 7 days):
 
 ---
 
-{{#if experiments.prompt_style == "concise"}}
+{{#if experiments.prompt_style == 'concise'}}
 Read from the pre-downloaded files in `/tmp/gh-aw/agent/daily-news-data/` (`issues.json`,
 `pull_requests.json`, `commits.json`, `discussions.json`, `releases.json`, `changesets.txt`).
 Write an upbeat, emoji-accented digest covering: top issues and PRs, notable commits,

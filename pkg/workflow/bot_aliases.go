@@ -2,8 +2,11 @@ package workflow
 
 import (
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
+
+var botAliasesLog = logger.New("workflow:bot_aliases")
 
 // copilotBotSet is a fast-lookup set built from constants.CopilotBotNames.
 // Any entry in this set triggers expansion to the full CopilotBotNames list.
@@ -48,5 +51,7 @@ func expandBotNames(bots []string) []string {
 			expanded = append(expanded, b)
 		}
 	}
-	return sliceutil.Deduplicate(expanded)
+	result := sliceutil.Deduplicate(expanded)
+	botAliasesLog.Printf("Expanded bot names: input=%d, output=%d", len(bots), len(result))
+	return result
 }

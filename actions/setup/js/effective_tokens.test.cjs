@@ -1,7 +1,23 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { defaultTokenClassWeights, getTokenClassWeights, getModelMultiplier, computeBaseWeightedTokens, computeEffectiveTokens, formatET, _resetCache } = require("./effective_tokens.cjs");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+
+const {
+  defaultTokenClassWeights,
+  getTokenClassWeights,
+  getModelMultiplier,
+  computeBaseWeightedTokens,
+  computeEffectiveTokens,
+  formatET,
+  reduceModelNameToIdentifier,
+  resolveActualModelName,
+  getEffectiveTokensSuffix,
+  AGENT_USAGE_PATH,
+  _resetCache,
+} = require("./effective_tokens.cjs");
 
 // Model multipliers JSON used in tests (matches pkg/cli/data/model_multipliers.json)
 const TEST_MULTIPLIERS_JSON = JSON.stringify({
@@ -327,6 +343,152 @@ describe("effective_tokens", () => {
       expect(formatET(1)).toBe("1");
       expect(formatET(900)).toBe("900");
       expect(formatET(999)).toBe("999");
+    });
+
+    describe("reduceModelNameToIdentifier", () => {
+      test("returns empty string for null input", () => {
+        expect(reduceModelNameToIdentifier(null)).toBe("");
+      });
+
+      test("returns empty string for undefined input", () => {
+        expect(reduceModelNameToIdentifier(undefined)).toBe("");
+      });
+
+      test("returns empty string for empty string input", () => {
+        expect(reduceModelNameToIdentifier("")).toBe("");
+      });
+
+      test("uses well-known sonnet shortcut", () => {
+        expect(reduceModelNameToIdentifier("claude-sonnet-4.6")).toBe("sonnet46");
+      });
+
+      test("uses well-known gpt shortcut", () => {
+        expect(reduceModelNameToIdentifier("gpt-5.5")).toBe("gpt55");
+      });
+
+      test("uses well-known opus shortcut", () => {
+        expect(reduceModelNameToIdentifier("claude-opus-4-7")).toBe("opus47");
+      });
+
+      test("uses well-known haiku shortcut", () => {
+        expect(reduceModelNameToIdentifier("claude-haiku-4.5")).toBe("haiku45");
+      });
+
+      test("allows short alias model names", () => {
+        expect(reduceModelNameToIdentifier("opus")).toBe("opus");
+        expect(reduceModelNameToIdentifier("sonnet")).toBe("sonnet");
+        expect(reduceModelNameToIdentifier("haiku")).toBe("haiku");
+      });
+
+      test("uses well-known gemini shortcut", () => {
+        expect(reduceModelNameToIdentifier("gemini-2.5-pro")).toBe("gem25");
+      });
+
+      test("handles date-like suffixes deterministically", () => {
+        expect(reduceModelNameToIdentifier("gpt-5-2025-08-07")).toBe("gpt50");
+        expect(reduceModelNameToIdentifier("claude-sonnet-4-20250514")).toBe("sonnet40");
+        expect(reduceModelNameToIdentifier("gpt-4-100")).toBe("gpt40");
+      });
+
+      test("returns deterministic 5-character fallback for unknown models", () => {
+        expect(reduceModelNameToIdentifier("my-custom-engine-v2")).toBe("myc20");
+      });
+    });
+
+    describe("resolveActualModelName", () => {
+      let originalAgentUsagePath;
+
+      beforeEach(() => {
+        if (fs.existsSync(AGENT_USAGE_PATH)) {
+          originalAgentUsagePath = fs.readFileSync(AGENT_USAGE_PATH, "utf8");
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
+      });
+
+      afterEach(() => {
+        delete process.env.GH_AW_ENGINE_MODEL;
+        if (originalAgentUsagePath !== undefined) {
+          fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+          fs.writeFileSync(AGENT_USAGE_PATH, originalAgentUsagePath);
+          originalAgentUsagePath = undefined;
+        } else if (fs.existsSync(AGENT_USAGE_PATH)) {
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
+      });
+
+      test("returns primary_model from agent_usage.json when present", () => {
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify({ primary_model: "claude-sonnet-4.6", effective_tokens: 1000 }) + "\n");
+        process.env.GH_AW_ENGINE_MODEL = "agent";
+        expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
+      });
+
+      test("falls back to GH_AW_ENGINE_MODEL when agent_usage.json has no primary_model", () => {
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify({ effective_tokens: 1000 }) + "\n");
+        process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
+      });
+
+      test("falls back to GH_AW_ENGINE_MODEL when agent_usage.json is absent", () => {
+        process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
+      });
+
+      test("falls back to GH_AW_ENGINE_MODEL when agent_usage.json contains invalid JSON", () => {
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, "not valid json");
+        process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
+      });
+
+      test("returns empty string when neither agent_usage.json nor GH_AW_ENGINE_MODEL is available", () => {
+        delete process.env.GH_AW_ENGINE_MODEL;
+        expect(resolveActualModelName()).toBe("");
+      });
+    });
+
+    describe("getEffectiveTokensSuffix", () => {
+      let originalAgentUsagePath;
+
+      beforeEach(() => {
+        if (fs.existsSync(AGENT_USAGE_PATH)) {
+          originalAgentUsagePath = fs.readFileSync(AGENT_USAGE_PATH, "utf8");
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
+      });
+
+      afterEach(() => {
+        delete process.env.GH_AW_EFFECTIVE_TOKENS;
+        delete process.env.GH_AW_ENGINE_MODEL;
+        if (originalAgentUsagePath !== undefined) {
+          fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+          fs.writeFileSync(AGENT_USAGE_PATH, originalAgentUsagePath);
+          originalAgentUsagePath = undefined;
+        } else if (fs.existsSync(AGENT_USAGE_PATH)) {
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
+      });
+
+      test("prepends reduced model identifier when model is available via GH_AW_ENGINE_MODEL", () => {
+        process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
+        process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(getEffectiveTokensSuffix()).toBe(" · sonnet46 12.5K");
+      });
+
+      test("uses actual model from agent_usage.json primary_model, ignoring alias in GH_AW_ENGINE_MODEL", () => {
+        process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
+        process.env.GH_AW_ENGINE_MODEL = "agent";
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify({ primary_model: "claude-sonnet-4.6", effective_tokens: 12500 }) + "\n");
+        expect(getEffectiveTokensSuffix()).toBe(" · sonnet46 12.5K");
+      });
+
+      test("falls back to token-only suffix when model is unavailable", () => {
+        process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
+        delete process.env.GH_AW_ENGINE_MODEL;
+        expect(getEffectiveTokensSuffix()).toBe(" · 12.5K");
+      });
     });
 
     test("formats values in the thousands as K", () => {

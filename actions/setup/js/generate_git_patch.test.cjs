@@ -625,6 +625,99 @@ describe("generateGitPatch – full mode base ref (merge-base, not stale origin)
   });
 });
 
+describe("generateGitPatch – Strategy 3 picks closest remote merge-base", () => {
+  let repoDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE, GITHUB_SHA: process.env.GITHUB_SHA };
+
+    global.core = { debug: () => {}, info: () => {}, warning: () => {}, error: () => {} };
+
+    repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-strategy3-"));
+    execSync("git init -b master", { cwd: repoDir });
+    execSync('git config user.email "test@example.com"', { cwd: repoDir });
+    execSync('git config user.name "Test"', { cwd: repoDir });
+
+    fs.writeFileSync(path.join(repoDir, "README.md"), "# Repo\n");
+    execSync("git add .", { cwd: repoDir });
+    execSync('git commit -m "init"', { cwd: repoDir });
+
+    delete process.env.GITHUB_WORKSPACE;
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+  });
+
+  afterEach(() => {
+    Object.entries(originalEnv).forEach(([k, v]) => {
+      if (v !== undefined) process.env[k] = v;
+      else delete process.env[k];
+    });
+    if (repoDir && fs.existsSync(repoDir)) {
+      fs.rmSync(repoDir, { recursive: true, force: true });
+    }
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+    delete global.core;
+  });
+
+  it("should avoid stale lexicographically-first remote refs when choosing Strategy 3 base", async () => {
+    const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-strategy3-remote-"));
+    try {
+      execSync("git init --bare -b master", { cwd: remoteDir });
+      execSync(`git remote add origin ${remoteDir}`, { cwd: repoDir });
+      execSync("git push origin master", { cwd: repoDir });
+
+      // Create a stale remote branch that will sort before origin/master.
+      execSync("git checkout -b aaa-stale", { cwd: repoDir });
+      execSync("git push origin aaa-stale", { cwd: repoDir });
+      execSync("git fetch origin aaa-stale:refs/remotes/origin/aaa-stale", { cwd: repoDir });
+
+      // Advance master with phantom commits.
+      execSync("git checkout master", { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, "phantom1.md"), "# phantom 1\n");
+      execSync("git add phantom1.md", { cwd: repoDir });
+      execSync('git commit -m "phantom commit 1"', { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, "phantom2.md"), "# phantom 2\n");
+      execSync("git add phantom2.md", { cwd: repoDir });
+      execSync('git commit -m "phantom commit 2"', { cwd: repoDir });
+      execSync("git push origin master", { cwd: repoDir });
+      execSync("git fetch origin master:refs/remotes/origin/master", { cwd: repoDir });
+      const masterTip = execSync("git rev-parse master", { cwd: repoDir }).toString().trim();
+
+      // Agent branch has one new commit on top of master.
+      execSync("git checkout -b agent-branch", { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, "agent-change.txt"), "the only real change\n");
+      execSync("git add agent-change.txt", { cwd: repoDir });
+      execSync('git commit -m "agent change"', { cwd: repoDir });
+
+      // Ensure origin/HEAD doesn't influence lexical ordering in this regression test.
+      try {
+        execSync("git update-ref -d refs/remotes/origin/HEAD", { cwd: repoDir });
+      } catch {
+        // origin/HEAD may not exist in repos created via git init + remote add;
+        // absence is expected and safe to ignore for this ordering-focused test.
+      }
+
+      // Force Strategy 1 to produce no patch (base_branch == branch => no new commits).
+      // Force Strategy 2 to fail (GITHUB_SHA does not exist in this repo).
+      // Strategy 3 is therefore the only path that can produce a non-empty patch.
+      process.env.GITHUB_SHA = "side-repo-sha-not-in-target-repo";
+      const { generateGitPatch } = require("./generate_git_patch.cjs");
+      const result = await generateGitPatch("agent-branch", "agent-branch", { cwd: repoDir, mode: "full" });
+
+      expect(result.success).toBe(true);
+      expect(result.baseCommit).toBe(masterTip);
+      const patch = fs.readFileSync(result.patchPath, "utf8");
+      expect(patch).toContain("agent-change.txt");
+      expect(patch).not.toContain("phantom1.md");
+      expect(patch).not.toContain("phantom2.md");
+    } finally {
+      if (fs.existsSync(remoteDir)) {
+        fs.rmSync(remoteDir, { recursive: true, force: true });
+      }
+    }
+  });
+});
+
 // ──────────────────────────────────────────────────────────────────────────
 // Incremental mode diffSize — must not inflate when agent merges base branch
 //

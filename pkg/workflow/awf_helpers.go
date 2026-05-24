@@ -197,12 +197,12 @@ fi
 if [ -d /home/runner/work/_tool/Node ]; then
   %s="%s --mount /home/runner/work/_tool/Node:/host/home/runner/work/_tool/Node:ro"
 fi`,
-			awfNodeMountArgsVarName,
-			awfNodeMountArgsVarName, fmt.Sprintf("${%s}", awfNodeMountArgsVarName),
-			awfNodeMountArgsVarName, fmt.Sprintf("${%s}", awfNodeMountArgsVarName),
-			awfNodeMountArgsVarName, fmt.Sprintf("${%s}", awfNodeMountArgsVarName),
-			awfNodeMountArgsVarName, fmt.Sprintf("${%s}", awfNodeMountArgsVarName),
-		)
+		awfNodeMountArgsVarName,
+		awfNodeMountArgsVarName, fmt.Sprintf("${%s}", awfNodeMountArgsVarName),
+		awfNodeMountArgsVarName, fmt.Sprintf("${%s}", awfNodeMountArgsVarName),
+		awfNodeMountArgsVarName, fmt.Sprintf("${%s}", awfNodeMountArgsVarName),
+		awfNodeMountArgsVarName, fmt.Sprintf("${%s}", awfNodeMountArgsVarName),
+	)
 	nodeMountArgsRef := fmt.Sprintf("${%s}", awfNodeMountArgsVarName)
 
 	// Build the expandable args string for args that need shell variable expansion.

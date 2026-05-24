@@ -13,7 +13,7 @@ import (
 )
 
 // TestModelNotSupportedErrorDetectionStep tests that a Copilot engine workflow exposes
-// model_not_supported_error from the agentic_execution step.
+// model_not_supported_error from the detect-agent-errors step.
 func TestModelNotSupportedErrorDetectionStep(t *testing.T) {
 	testDir := testutil.TempDir(t, "test-model-not-supported-*")
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
@@ -48,14 +48,14 @@ Test workflow`
 		t.Error("Expected agent job to have agentic_execution step")
 	}
 
-	// Check that no separate detection step is generated
-	if strings.Contains(lockStr, "id: detect-copilot-errors") {
-		t.Error("Expected no separate detect-copilot-errors step")
+	// Check that a separate detection step is generated on the host runner
+	if !strings.Contains(lockStr, "id: detect-agent-errors") {
+		t.Error("Expected agent job to have a separate detect-agent-errors step")
 	}
 
-	// Check that the agent job exposes model_not_supported_error output
-	if !strings.Contains(lockStr, "model_not_supported_error: ${{ steps.agentic_execution.outputs.model_not_supported_error || 'false' }}") {
-		t.Error("Expected agent job to have model_not_supported_error output")
+	// Check that the agent job exposes model_not_supported_error output from the detection step
+	if !strings.Contains(lockStr, "model_not_supported_error: ${{ steps.detect-agent-errors.outputs.model_not_supported_error || 'false' }}") {
+		t.Error("Expected agent job to have model_not_supported_error output from detect-agent-errors step")
 	}
 }
 

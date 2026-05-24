@@ -51,12 +51,12 @@ func FormatImportCycleError(err *ImportCycleError) error {
 	for i, file := range err.Chain {
 		indent := strings.Repeat("  ", i)
 		if i == 0 {
-			messageBuilder.WriteString(fmt.Sprintf("%s%s (starting point)\n", indent, file))
+			fmt.Fprintf(&messageBuilder, "%s%s (starting point)\n", indent, file)
 		} else if i == len(err.Chain)-1 {
 			// Last item is the back-edge - highlight it
-			messageBuilder.WriteString(fmt.Sprintf("%s↳ %s ⚠️  cycles back to %s\n", indent, file, err.Chain[0]))
+			fmt.Fprintf(&messageBuilder, "%s↳ %s ⚠️  cycles back to %s\n", indent, file, err.Chain[0])
 		} else {
-			messageBuilder.WriteString(fmt.Sprintf("%s↳ imports %s\n", indent, file))
+			fmt.Fprintf(&messageBuilder, "%s↳ imports %s\n", indent, file)
 		}
 	}
 

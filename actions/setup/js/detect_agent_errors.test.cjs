@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 
-const { detectErrors, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN, MODEL_NOT_SUPPORTED_PATTERN } = require("./detect_copilot_errors.cjs");
+const { detectErrors, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN, MODEL_NOT_SUPPORTED_PATTERN } = require("./detect_agent_errors.cjs");
 
-describe("detect_copilot_errors.cjs", () => {
+describe("detect_agent_errors.cjs", () => {
   describe("INFERENCE_ACCESS_ERROR_PATTERN", () => {
     it("matches 'Access denied by policy settings'", () => {
       expect(INFERENCE_ACCESS_ERROR_PATTERN.test("Access denied by policy settings")).toBe(true);

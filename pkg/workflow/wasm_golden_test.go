@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/exp/golden"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,6 +24,12 @@ var testAWFImageTagDigestRE = regexp.MustCompile(`,[a-z-]+=sha256:[0-9a-f]{64}`)
 // Mirrors normalize() in scripts/test-wasm-golden.mjs.
 func normalizeOutput(content string) string {
 	normalized := testContainerPinRE.ReplaceAllString(normalizeHeredocDelimiters(content), "")
+	// Keep golden fixtures stable across copilot default model fallback updates.
+	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.CopilotBYOKDefaultModel), "|| 'default'")
+	// Keep golden fixtures stable across temporary workspace-path allowlist shape changes.
+	for _, op := range []string{"Edit", "MultiEdit", "Read", "Write"} {
+		normalized = strings.ReplaceAll(normalized, op+"(/tmp/gh-aw/*)", op+"(/tmp/gh-aw/agent/*)")
+	}
 	return testAWFImageTagDigestRE.ReplaceAllString(normalized, "")
 }
 

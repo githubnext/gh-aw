@@ -19,6 +19,9 @@ import (
 
 var trialRepoLog = logger.New("cli:trial_repository")
 
+// trialRepoInitDelay gives GitHub time to finish initializing a newly created repository.
+const trialRepoInitDelay = 2 * time.Second
+
 // checkoutActionPattern matches actions/checkout step lines with leading indentation
 var checkoutActionPattern = regexp.MustCompile(`^(\s*)(uses: actions/checkout@[^\s]*)(.*)$`)
 
@@ -150,7 +153,7 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 	}
 
 	// Give GitHub a moment to fully initialize the repository
-	time.Sleep(2 * time.Second)
+	time.Sleep(trialRepoInitDelay)
 
 	return nil
 }

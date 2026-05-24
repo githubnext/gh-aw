@@ -3,6 +3,7 @@
 package actionpins
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -151,4 +152,47 @@ func TestGetContainerPin_MCPGatewayV039IsPinned(t *testing.T) {
 	assert.Equal(t, image, pin.Image, "Expected image name to match key")
 	assert.Equal(t, "sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388", pin.Digest, "Expected v0.3.9 digest to match")
 	assert.Equal(t, image+"@sha256:64828b42a4482f58fab16509d7f8f495a6d97c972a98a68aff20543531ac0388", pin.PinnedImage, "Expected pinned image to include v0.3.9 digest")
+}
+
+type countingResolver struct {
+	called int
+}
+
+func (r *countingResolver) ResolveSHA(_ context.Context, _, _ string) (string, error) {
+	r.called++
+	return "", nil
+}
+
+func TestResolveActionPinDynamically_SkipsForSHAInput(t *testing.T) {
+	resolver := &countingResolver{}
+	ctx := &PinContext{Resolver: resolver}
+
+	result, ok := resolveActionPinDynamically(
+		"actions/checkout",
+		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		true,
+		ctx,
+	)
+
+	assert.False(t, ok, "Expected no dynamic resolution for SHA input")
+	assert.Empty(t, result, "Expected empty result when dynamic resolution is skipped")
+	assert.Equal(t, 0, resolver.called, "Expected resolver not to be called for SHA input")
+}
+
+func TestResolveActionPinFromHardcodedPins_StrictModeNoFallback(t *testing.T) {
+	ctx := &PinContext{StrictMode: true, Warnings: make(map[string]bool)}
+
+	result, ok := resolveActionPinFromHardcodedPins("actions/checkout", "v999", false, ctx)
+
+	assert.False(t, ok, "Expected strict mode not to fall back to any other hardcoded version")
+	assert.Empty(t, result, "Expected no pinned result in strict mode without exact match")
+}
+
+func TestResolveExactHardcodedPin_BySHA(t *testing.T) {
+	pins := []ActionPin{{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5"}}
+
+	result, ok := resolveExactHardcodedPin("actions/checkout", "sha-v5", true, pins)
+
+	require.True(t, ok, "Expected exact SHA match to resolve")
+	assert.Contains(t, result, "sha-v5", "Expected result to include matched SHA")
 }

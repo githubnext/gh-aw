@@ -15,8 +15,11 @@
 
 "use strict";
 
+require("./shim.cjs");
+
 const fs = require("fs");
 const path = require("path");
+const { withRetry } = require("./error_recovery.cjs");
 
 // AWF API proxy management endpoint for discovering configured LLM providers and available models.
 // The api-proxy sidecar exposes /reflect on its management port (port 10000) inside the AWF
@@ -29,6 +32,12 @@ const AWF_REFLECT_OUTPUT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
 const AWF_REFLECT_TIMEOUT_MS = 60000;
 // Milliseconds to wait for each models_url fallback fetch (shorter than the main reflect timeout).
 const AWF_MODELS_URL_TIMEOUT_MS = 3000;
+// Maximum attempts for models_url fallback fetches when the proxy is not yet ready.
+const AWF_MODELS_URL_MAX_ATTEMPTS = 5;
+// Base delay between models_url fallback retries. Uses exponential backoff.
+const AWF_MODELS_URL_RETRY_BASE_MS = 250;
+// Cap for exponential backoff delay between retries.
+const AWF_MODELS_URL_RETRY_MAX_MS = 2000;
 // Gemini model name prefix stripped from model IDs in the Gemini models API response.
 // Example: { name: "models/gemini-1.5-pro" } → "gemini-1.5-pro"
 const GEMINI_MODEL_NAME_PREFIX = "models/";
@@ -84,32 +93,79 @@ function extractModelIds(json) {
  * @returns {Promise<string[]|null>}
  */
 async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
-  const ac = new AbortController();
-  const timer = setTimeout(() => {
-    logger(`awf-reflect: models fetch timed out for ${modelsUrl}`);
-    ac.abort();
-  }, timeoutMs);
+  let attemptCounter = 0;
+  const retryConfig = {
+    maxRetries: AWF_MODELS_URL_MAX_ATTEMPTS - 1,
+    // withRetry multiplies delay before the next attempt, so divide by 2 here
+    // to preserve the intended first backoff of AWF_MODELS_URL_RETRY_BASE_MS.
+    initialDelayMs: Math.ceil(AWF_MODELS_URL_RETRY_BASE_MS / 2),
+    maxDelayMs: AWF_MODELS_URL_RETRY_MAX_MS,
+    backoffMultiplier: 2,
+    jitterMs: 0,
+    shouldRetry: error => {
+      const original = error?.originalError || error;
+      const status = original?.status ?? original?.response?.status ?? null;
+      const shouldRetry = status === 503;
+      if (shouldRetry && attemptCounter < AWF_MODELS_URL_MAX_ATTEMPTS) {
+        logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}; retrying (attempt ${attemptCounter + 1}/${AWF_MODELS_URL_MAX_ATTEMPTS})`);
+      }
+      return shouldRetry;
+    },
+  };
+
   try {
-    const res = await fetch(modelsUrl, { signal: ac.signal });
-    if (!res.ok) {
-      logger(`awf-reflect: models fetch returned ${res.status} for ${modelsUrl}`);
-      return null;
-    }
-    const json = await res.json();
-    const models = extractModelIds(json);
-    if (models) {
-      logger(`awf-reflect: fetched ${models.length} model(s) from ${modelsUrl}`);
-    }
-    return models;
+    return await withRetry(
+      async () => {
+        attemptCounter += 1;
+        const ac = new AbortController();
+        const timer = setTimeout(() => {
+          logger(`awf-reflect: models fetch timed out for ${modelsUrl}`);
+          ac.abort();
+        }, timeoutMs);
+        try {
+          const res = await fetch(modelsUrl, { signal: ac.signal });
+          if (!res.ok) {
+            if (res.status === 503) {
+              const err = Object.assign(new Error(`models fetch returned 503 for ${modelsUrl}`), { status: 503 });
+              throw err;
+            }
+            logger(`awf-reflect: models fetch returned ${res.status} for ${modelsUrl}`);
+            return null;
+          }
+          const json = await res.json();
+          const models = extractModelIds(json);
+          if (models) {
+            logger(`awf-reflect: fetched ${models.length} model(s) from ${modelsUrl}`);
+          }
+          return models;
+        } catch (err) {
+          const e = /** @type {Error} */ err;
+          if (e.name === "AbortError") {
+            return null; // already logged above
+          }
+          const status = e?.status ?? e?.response?.status ?? null;
+          if (status === 503) {
+            throw e;
+          }
+          logger(`awf-reflect: models fetch error for ${modelsUrl}: ${e.message}`);
+          return null;
+        } finally {
+          clearTimeout(timer);
+        }
+      },
+      retryConfig,
+      `awf-reflect models fetch for ${modelsUrl}`
+    );
   } catch (err) {
     const e = /** @type {Error} */ err;
-    if (e.name === "AbortError") {
-      return null; // already logged above
+    const original = e?.originalError || e;
+    const status = original?.status ?? original?.response?.status ?? null;
+    if (status === 503) {
+      logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}`);
+      return null;
     }
     logger(`awf-reflect: models fetch error for ${modelsUrl}: ${e.message}`);
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -250,6 +306,9 @@ if (typeof module !== "undefined" && module.exports) {
     AWF_REFLECT_OUTPUT_PATH,
     AWF_REFLECT_TIMEOUT_MS,
     AWF_MODELS_URL_TIMEOUT_MS,
+    AWF_MODELS_URL_MAX_ATTEMPTS,
+    AWF_MODELS_URL_RETRY_BASE_MS,
+    AWF_MODELS_URL_RETRY_MAX_MS,
     GEMINI_MODEL_NAME_PREFIX,
     enrichReflectModels,
     extractModelIds,

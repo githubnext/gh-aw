@@ -272,7 +272,7 @@ Create a new discussion with the comprehensive report.
 ```markdown
 Brief 2-3 paragraph summary of key findings: total issues analyzed, main clusters identified, notable trends, and any concerns that need attention.
 
-{{#if experiments.output_format == "collapsible"}}<details>
+{{#if experiments.output_format == 'collapsible'}}<details>
 <summary>📊 Full Report Details</summary>{{/if}}
 
 ### 📈 Issue Activity Trends
@@ -342,7 +342,7 @@ Brief 2-3 paragraph summary of key findings: total issues analyzed, main cluster
 2. [Another recommendation]
 3. [...]
 
-{{#if experiments.output_format == "collapsible"}}</details>{{/if}}
+{{#if experiments.output_format == 'collapsible'}}</details>{{/if}}
 
 ---
 *Report generated automatically by the Daily Issues Report workflow*

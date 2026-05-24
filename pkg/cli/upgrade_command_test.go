@@ -22,4 +22,6 @@ func TestUpgradeCommandHelpTextConsistency(t *testing.T) {
 	preReleasesFlag := cmd.Flags().Lookup("pre-releases")
 	require.NotNil(t, preReleasesFlag, "--pre-releases flag should exist")
 	assert.Contains(t, preReleasesFlag.Usage, "Include pre-release versions", "--pre-releases description should mention pre-release upgrades")
+	assert.Contains(t, preReleasesFlag.Usage, "installed by exact tag", "--pre-releases description should explain prerelease pinning")
+	assert.Contains(t, cmd.Long, "stable releases are the default", "help text should distinguish stable releases from prereleases")
 }

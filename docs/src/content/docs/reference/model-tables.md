@@ -53,11 +53,13 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 ### Meta-Aliases
 
 Meta-aliases reference other aliases by name. They are resolved recursively until a concrete pattern is reached.
+Some meta-aliases also bake in model parameters (for example, `opusplan` sets `effort=high`).
 
 | Meta-alias | Expands to |
 |------------|------------|
 | `small` | `mini` |
 | `mini` | `haiku` → `gpt-5-mini` → `gpt-5-nano` → `gemini-flash-lite` |
+| `opusplan` | `opus?effort=high` |
 | `large` | `sonnet` → `gpt-5-pro` → `gpt-5` → `gemini-pro` |
 | `auto` | `large` |
 | `agent` | `sonnet-6x` → `gpt-5.4` → `gpt-5` → `gemini-pro` → `haiku` → `any` |

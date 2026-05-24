@@ -319,15 +319,24 @@ func getLatestBranchCommitSHA(ctx context.Context, repo, branch string) (string,
 	return sha, nil
 }
 
-// runWorkflowReleasesAPIFn calls the GitHub Releases API for the given repository and
-// returns the newline-delimited tag names. It is a package-level variable so that
-// tests can replace it without spawning real gh CLI processes.
-var runWorkflowReleasesAPIFn = func(ctx context.Context, repo string) ([]byte, error) {
-	return workflow.RunGHContext(ctx, "Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
+type workflowUpdateDeps struct {
+	runReleasesAPI func(ctx context.Context, repo string) ([]byte, error)
+}
+
+func defaultWorkflowUpdateDeps() workflowUpdateDeps {
+	return workflowUpdateDeps{
+		runReleasesAPI: func(ctx context.Context, repo string) ([]byte, error) {
+			return workflow.RunGHContext(ctx, "Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
+		},
+	}
 }
 
 // resolveLatestRelease resolves the latest compatible release for a workflow source
 func resolveLatestRelease(ctx context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error) {
+	return resolveLatestReleaseWithDeps(ctx, defaultWorkflowUpdateDeps(), repo, currentRef, allowMajor, verbose, coolDown)
+}
+
+func resolveLatestReleaseWithDeps(ctx context.Context, deps workflowUpdateDeps, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error) {
 	updateLog.Printf("Resolving latest release for repo %s (current: %s, allowMajor=%v)", repo, currentRef, allowMajor)
 
 	if verbose {
@@ -335,7 +344,7 @@ func resolveLatestRelease(ctx context.Context, repo, currentRef string, allowMaj
 	}
 
 	// Get all releases using gh CLI
-	output, err := runWorkflowReleasesAPIFn(ctx, repo)
+	output, err := deps.runReleasesAPI(ctx, repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch releases: %w", err)
 	}

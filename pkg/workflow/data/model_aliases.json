@@ -6,6 +6,7 @@
     "sonnet-6x": ["copilot/*sonnet-4-5-*", "anthropic/*sonnet-4-5-*", "copilot/*sonnet-4-6*", "anthropic/*sonnet-4-6*"],
     "haiku": ["copilot/*haiku*", "anthropic/*haiku*"],
     "opus": ["copilot/*opus*", "anthropic/*opus*"],
+    "opusplan": ["opus?effort=high"],
     "gpt-4.1": ["copilot/gpt-4.1*", "openai/gpt-4.1*"],
     "gpt-5": ["copilot/gpt-5*", "openai/gpt-5*"],
     "gpt-5.4": ["copilot/gpt-5.4*", "openai/gpt-5.4*"],

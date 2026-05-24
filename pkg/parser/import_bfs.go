@@ -19,498 +19,504 @@ import (
 
 // processImportsFromFrontmatterWithManifestAndSource is the internal implementation that includes source tracking.
 func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]any, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (*ImportsResult, error) {
-	// Check if imports field exists
 	importsField, exists := frontmatter["imports"]
 	if !exists {
 		return &ImportsResult{}, nil
 	}
-
 	parserLog.Print("Processing imports from frontmatter with recursive BFS")
-
-	// Parse imports field - can be array of strings or objects with path and inputs,
-	// or an object with an 'aw' (agentic workflow paths) subfield.
-	var importSpecs []ImportSpec
-	switch v := importsField.(type) {
-	case []any:
-		specs, err := parseImportSpecsFromArray(v)
-		if err != nil {
-			return nil, err
-		}
-		importSpecs = specs
-	case []string:
-		for _, s := range v {
-			importSpecs = append(importSpecs, ImportSpec{Path: s})
-		}
-	case map[string]any:
-		// Object form: {aw: [...]}
-		// Extract 'aw' subfield for agentic workflow imports.
-		if awAny, hasAW := v["aw"]; hasAW {
-			switch awVal := awAny.(type) {
-			case []any:
-				specs, err := parseImportSpecsFromArray(awVal)
-				if err != nil {
-					return nil, fmt.Errorf("imports.aw: %w", err)
-				}
-				importSpecs = specs
-			case []string:
-				for _, s := range awVal {
-					importSpecs = append(importSpecs, ImportSpec{Path: s})
-				}
-			default:
-				return nil, errors.New("imports.aw must be an array of strings or objects")
-			}
-		}
-	default:
-		return nil, errors.New("imports field must be an array or an object with an 'aw' subfield")
+	importSpecs, err := parseImportSpecsFromField(importsField)
+	if err != nil {
+		return nil, err
 	}
-
 	if len(importSpecs) == 0 {
 		return &ImportsResult{}, nil
 	}
-
 	parserLog.Printf("Found %d direct imports to process", len(importSpecs))
-
-	// Initialize BFS queue and visited set for cycle detection
-	var queue []importQueueItem
-	visited := make(map[string]bool)
-	// visitedInputs tracks the 'with' values for each visited path so that
-	// conflicting re-imports (same file, different inputs) can be detected.
-	visitedInputs := make(map[string]map[string]any)
-	processedOrder := []string{} // Track processing order for manifest
-
-	// Initialize result accumulator
-	acc := newImportAccumulator()
-
-	// Seed the queue with initial imports
-	for _, importSpec := range importSpecs {
-		importPath := importSpec.Path
-
-		// Check if this is a repository-only import (owner/repo@ref without file path)
-		if isRepositoryImport(importPath) {
-			parserLog.Printf("Detected repository import: %s", importPath)
-			acc.repositoryImports = append(acc.repositoryImports, importPath)
-			// Repository imports don't need further processing - they're handled at runtime
-			continue
-		}
-
-		// Handle section references (file.md#Section)
-		var filePath, sectionName string
-		if strings.Contains(importPath, "#") {
-			parts := strings.SplitN(importPath, "#", 2)
-			filePath = parts[0]
-			sectionName = parts[1]
-		} else {
-			filePath = importPath
-		}
-
-		// Resolve import path (supports workflowspec format)
-		fullPath, err := ResolveIncludePath(filePath, baseDir, cache)
-		if err != nil {
-			// If we have source information, create a structured import error
-			if workflowFilePath != "" && yamlContent != "" {
-				line, column := findImportItemLocation(yamlContent, importPath)
-				importErr := &ImportError{
-					ImportPath: importPath,
-					FilePath:   workflowFilePath,
-					Line:       line,
-					Column:     column,
-					Cause:      err,
-				}
-				return nil, FormatImportError(importErr, yamlContent)
-			}
-			// Fallback to generic error if no source information
-			return nil, fmt.Errorf("failed to resolve import '%s': %w", filePath, err)
-		}
-
-		// Validate that .lock.yml files are not imported
-		if strings.HasSuffix(strings.ToLower(fullPath), ".lock.yml") {
-			if workflowFilePath != "" && yamlContent != "" {
-				line, column := findImportItemLocation(yamlContent, importPath)
-				importErr := &ImportError{
-					ImportPath: importPath,
-					FilePath:   workflowFilePath,
-					Line:       line,
-					Column:     column,
-					Cause:      errors.New("cannot import .lock.yml files. Lock files are compiled outputs from gh-aw. Import the source .md file instead"),
-				}
-				return nil, FormatImportError(importErr, yamlContent)
-			}
-			return nil, fmt.Errorf("cannot import .lock.yml files: '%s'. Lock files are compiled outputs from gh-aw. Import the source .md file instead", importPath)
-		}
-
-		// Track remote origin for workflowspec imports so nested relative imports
-		// can be resolved against the same remote repository
-		var origin *remoteImportOrigin
-		if isWorkflowSpec(filePath) {
-			origin = parseRemoteOrigin(filePath)
-			if origin != nil {
-				importLog.Printf("Tracking remote origin for workflowspec: %s/%s@%s", origin.Owner, origin.Repo, origin.Ref)
-			}
-		}
-
-		// Check for duplicates before adding to queue
-		if !visited[fullPath] {
-			visited[fullPath] = true
-			visitedInputs[fullPath] = importSpec.Inputs
-			queue = append(queue, importQueueItem{
-				importPath:   importPath,
-				fullPath:     fullPath,
-				sectionName:  sectionName,
-				baseDir:      baseDir,
-				inputs:       importSpec.Inputs,
-				remoteOrigin: origin,
-			})
-			parserLog.Printf("Queued import: %s (resolved to %s)", importPath, fullPath)
-		} else {
-			// Same file imported again - verify the 'with' values are identical
-			if err := checkImportInputsConsistency(importPath, visitedInputs[fullPath], importSpec.Inputs); err != nil {
-				return nil, err
-			}
-			parserLog.Printf("Skipping duplicate import: %s (already visited)", importPath)
-		}
+	state := newImportBFSState()
+	if err := seedInitialImportQueue(importSpecs, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
+		return nil, err
 	}
-
-	// BFS traversal: process queue until empty
-	for len(queue) > 0 {
-		// Dequeue first item (FIFO for BFS)
-		item := queue[0]
-		queue = queue[1:]
-
-		parserLog.Printf("Processing import from queue: %s", item.fullPath)
-
-		// Merge inputs from this import into the aggregated inputs map
-		maps.Copy(acc.importInputs, item.inputs)
-
-		// Add to processing order
-		processedOrder = append(processedOrder, item.importPath)
-
-		// Check if this is a custom agent file (any markdown file under .github/agents)
-		// Normalize to forward slashes for cross-platform compatibility (Windows uses backslashes)
-		fullPathSlash := filepath.ToSlash(item.fullPath)
-		isAgentFile := strings.Contains(fullPathSlash, "/.github/agents/") && strings.HasSuffix(strings.ToLower(fullPathSlash), ".md")
-		if isAgentFile {
-			if acc.agentFile != "" {
-				// Multiple agent files found - error
-				parserLog.Printf("Multiple agent files found: %s and %s", acc.agentFile, item.importPath)
-				return nil, fmt.Errorf("multiple agent files found in imports: '%s' and '%s'. Only one agent file is allowed per workflow", acc.agentFile, item.importPath)
-			}
-			// Extract relative path from repository root (from .github/ onwards)
-			// This ensures the path works at runtime with $GITHUB_WORKSPACE
-			var importRelPath string
-			if idx := strings.Index(fullPathSlash, "/.github/"); idx >= 0 {
-				acc.agentFile = fullPathSlash[idx+1:] // +1 to skip the leading slash
-				importRelPath = acc.agentFile
-			} else {
-				acc.agentFile = fullPathSlash
-				importRelPath = fullPathSlash
-			}
-			parserLog.Printf("Found agent file: %s (resolved to: %s)", item.fullPath, acc.agentFile)
-
-			// Store the original import specification for remote agents
-			// This allows runtime detection and .github folder merging
-			acc.agentImportSpec = item.importPath
-			parserLog.Printf("Agent import specification: %s", acc.agentImportSpec)
-
-			// Track import path for runtime-import macro generation (only if no inputs)
-			// Imports with inputs must be inlined for compile-time substitution
-			if len(item.inputs) == 0 {
-				// No inputs - use runtime-import macro
-				acc.importPaths = append(acc.importPaths, importRelPath)
-				parserLog.Printf("Added agent import path for runtime-import: %s", importRelPath)
-			} else {
-				// Has inputs - must inline for compile-time substitution
-				parserLog.Printf("Agent file has inputs - will be inlined instead of runtime-imported")
-
-				// For agent files, extract markdown content (only when inputs are present)
-				markdownContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, false, visited)
-				if err != nil {
-					return nil, fmt.Errorf("failed to process markdown from agent file '%s': %w", item.fullPath, err)
-				}
-				if markdownContent != "" {
-					acc.markdownBuilder.WriteString(markdownContent)
-					// Add blank line separator between imported files
-					if !strings.HasSuffix(markdownContent, "\n\n") {
-						if strings.HasSuffix(markdownContent, "\n") {
-							acc.markdownBuilder.WriteString("\n")
-						} else {
-							acc.markdownBuilder.WriteString("\n\n")
-						}
-					}
-				}
-			}
-
-			// Agent files don't have nested imports, skip to next item
-			continue
-		}
-
-		// Check if this is a YAML workflow file (not .lock.yml)
-		if isYAMLWorkflowFile(item.fullPath) {
-			parserLog.Printf("Detected YAML workflow file: %s", item.fullPath)
-
-			// Process YAML workflow import to extract jobs/steps and services
-			// Special case: copilot-setup-steps.yml returns steps YAML instead of jobs JSON
-			jobsOrStepsData, servicesJSON, err := processYAMLWorkflowImport(item.fullPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to process YAML workflow '%s': %w", item.importPath, err)
-			}
-
-			// Check if this is copilot-setup-steps.yml (returns steps YAML instead of jobs JSON)
-			if isCopilotSetupStepsFile(item.fullPath) {
-				// For copilot-setup-steps.yml, jobsOrStepsData contains steps in YAML format
-				// Add to CopilotSetupSteps instead of MergedSteps (inserted at start of workflow)
-				if jobsOrStepsData != "" {
-					acc.copilotSetupStepsBuilder.WriteString(jobsOrStepsData + "\n")
-					parserLog.Printf("Added copilot-setup steps (will be inserted at start): %s", item.importPath)
-				}
-			} else {
-				// For regular YAML workflows, jobsOrStepsData contains jobs in JSON format
-				if jobsOrStepsData != "" && jobsOrStepsData != "{}" {
-					acc.jobsBuilder.WriteString(jobsOrStepsData + "\n")
-					parserLog.Printf("Added jobs from YAML workflow: %s", item.importPath)
-				}
-			}
-
-			// Append services to merged services (services from YAML are already in JSON format)
-			// Need to convert to YAML format for consistency with other services
-			if servicesJSON != "" && servicesJSON != "{}" {
-				// Convert JSON services to YAML format
-				var services map[string]any
-				if err := json.Unmarshal([]byte(servicesJSON), &services); err == nil {
-					servicesWrapper := map[string]any{"services": services}
-					servicesYAML, err := yaml.Marshal(servicesWrapper)
-					if err == nil {
-						acc.servicesBuilder.WriteString(string(servicesYAML) + "\n")
-						parserLog.Printf("Added services from YAML workflow: %s", item.importPath)
-					}
-				}
-			}
-
-			// YAML workflows don't have nested imports or markdown content, skip to next item
-			continue
-		}
-
-		// Read the imported file to extract nested imports
-		content, err := readFileFunc(item.fullPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read imported file '%s': %w", item.fullPath, err)
-		}
-
-		// Extract frontmatter from the imported file's original content.
-		// Use the process-level cache for builtin virtual files to avoid repeated YAML parsing.
-		var result *FrontmatterResult
-		if strings.HasPrefix(item.fullPath, BuiltinPathPrefix) {
-			result, err = ExtractFrontmatterFromBuiltinFile(item.fullPath, content)
-		} else {
-			result, err = ExtractFrontmatterFromContent(string(content))
-		}
-
-		// Apply import-schema defaults before discovering nested imports, even when no
-		// explicit 'with:' inputs were provided. This resolves ${{ github.aw.import-inputs.* }}
-		// expressions that appear in the 'with' values of nested imports, enabling
-		// multi-level workflow composition.
-		// We reuse the already-parsed frontmatter to extract import-schema defaults,
-		// avoiding a second YAML parse inside applyImportSchemaDefaults.
-		if err == nil && result != nil {
-			inputsWithDefaults := applyImportSchemaDefaultsFromFrontmatter(result.Frontmatter, item.inputs)
-			if len(inputsWithDefaults) > 0 {
-				origContent := string(content)
-				substituted := substituteImportInputsInContent(origContent, inputsWithDefaults)
-				// Only re-parse when substitution actually changed the content.
-				// If no ${{ github.aw.import-inputs.* }} expressions were present,
-				// the content is unchanged and a YAML reparse would be wasteful.
-				if substituted != origContent {
-					if reparse, rerr := ExtractFrontmatterFromContent(substituted); rerr == nil {
-						result = reparse
-					}
-				}
-			}
-		}
-		if err != nil {
-			// If frontmatter extraction fails, continue with other processing
-			parserLog.Printf("Failed to extract frontmatter from %s: %v", item.fullPath, err)
-		} else if result.Frontmatter != nil {
-			// Check for nested imports field
-			type nestedImportEntry struct {
-				path   string
-				inputs map[string]any
-			}
-			var nestedImports []nestedImportEntry
-			if nestedImportsField, hasImports := result.Frontmatter["imports"]; hasImports {
-				switch v := nestedImportsField.(type) {
-				case []any:
-					for _, nestedItem := range v {
-						if str, ok := nestedItem.(string); ok {
-							nestedImports = append(nestedImports, nestedImportEntry{path: str})
-						} else if nestedMap, ok := nestedItem.(map[string]any); ok {
-							// Handle uses/with or path/inputs syntax
-							var nestedPath string
-							if usesPath, ok := nestedMap["uses"].(string); ok {
-								nestedPath = usesPath
-							} else if pathVal, ok := nestedMap["path"].(string); ok {
-								nestedPath = pathVal
-							}
-							if nestedPath != "" {
-								var nestedInputs map[string]any
-								if withVal, ok := nestedMap["with"].(map[string]any); ok {
-									nestedInputs = withVal
-								} else if inputsVal, ok := nestedMap["inputs"].(map[string]any); ok {
-									nestedInputs = inputsVal
-								}
-								nestedImports = append(nestedImports, nestedImportEntry{path: nestedPath, inputs: nestedInputs})
-							}
-						}
-					}
-				case []string:
-					for _, str := range v {
-						nestedImports = append(nestedImports, nestedImportEntry{path: str})
-					}
-				}
-			}
-
-			// Add nested imports to queue (BFS: append to end)
-			// For local imports: resolve relative to the workflows directory (baseDir)
-			// For remote imports: resolve relative to .github/workflows/ in the remote repo
-			for _, nestedEntry := range nestedImports {
-				nestedImportPath := nestedEntry.path
-				// Handle section references
-				var nestedFilePath, nestedSectionName string
-				if strings.Contains(nestedImportPath, "#") {
-					parts := strings.SplitN(nestedImportPath, "#", 2)
-					nestedFilePath = parts[0]
-					nestedSectionName = parts[1]
-				} else {
-					nestedFilePath = nestedImportPath
-				}
-
-				// Determine the resolution path and propagate remote origin context
-				resolvedPath := nestedFilePath
-				var nestedRemoteOrigin *remoteImportOrigin
-
-				if item.remoteOrigin != nil && !isWorkflowSpec(nestedFilePath) {
-					// Parent was fetched from a remote repo and nested path is relative.
-					// Convert to a workflowspec that resolves against the parent workflowspec's
-					// base directory (e.g., gh-agent-workflows for gh-agent-workflows/gh-aw-workflows/file.md).
-					cleanPath := path.Clean(strings.TrimPrefix(nestedFilePath, "./"))
-
-					// Reject paths that escape the base directory (e.g., ../../../etc/passwd)
-					if cleanPath == ".." || strings.HasPrefix(cleanPath, "../") || path.IsAbs(cleanPath) {
-						return nil, fmt.Errorf("nested import '%s' from remote file '%s' escapes base directory", nestedFilePath, item.importPath)
-					}
-
-					// Use the parent's BasePath if available, otherwise default to .github/workflows
-					basePath := item.remoteOrigin.BasePath
-					if basePath == "" {
-						basePath = constants.GetWorkflowDir()
-					}
-					// Clean the basePath to ensure it's normalized
-					basePath = path.Clean(basePath)
-
-					resolvedPath = fmt.Sprintf("%s/%s/%s/%s@%s",
-						item.remoteOrigin.Owner, item.remoteOrigin.Repo, basePath, cleanPath, item.remoteOrigin.Ref)
-					// Parse a new remoteOrigin from resolvedPath to get the correct BasePath
-					// for THIS file's nested imports, not the parent's BasePath
-					nestedRemoteOrigin = parseRemoteOrigin(resolvedPath)
-					importLog.Printf("Resolving nested import as remote workflowspec: %s -> %s (basePath=%s)", nestedFilePath, resolvedPath, basePath)
-				} else if isWorkflowSpec(nestedFilePath) {
-					// Nested import is itself a workflowspec - parse its remote origin
-					nestedRemoteOrigin = parseRemoteOrigin(nestedFilePath)
-					if nestedRemoteOrigin != nil {
-						importLog.Printf("Nested workflowspec import detected: %s (origin: %s/%s@%s)", nestedFilePath, nestedRemoteOrigin.Owner, nestedRemoteOrigin.Repo, nestedRemoteOrigin.Ref)
-					}
-				}
-
-				// Determine the base directory for resolving this nested import.
-				// Paths that are explicitly local-to-parent are resolved relative to the
-				// parent file's directory:
-				//   - bare filenames with no directory separator ("serena.md")
-				//   - explicit same-directory prefix ("./serena.md")
-				// Paths with a multi-component directory prefix (e.g. "shared/foo.md") use
-				// the original baseDir so that the absolute-from-workflows-root convention
-				// is preserved.
-				//
-				// Note: workflow import paths always use forward slashes ("/") regardless of
-				// OS because they originate from YAML frontmatter, not OS filesystem paths.
-				isLocalRelative := !strings.Contains(resolvedPath, "/") || strings.HasPrefix(resolvedPath, "./")
-				nestedBaseDir := baseDir
-				if item.remoteOrigin == nil && !isWorkflowSpec(resolvedPath) && isLocalRelative {
-					nestedBaseDir = filepath.Dir(item.fullPath)
-				}
-
-				nestedFullPath, err := ResolveIncludePath(resolvedPath, nestedBaseDir, cache)
-				if err != nil {
-					// If we have source information for the parent workflow, create a structured error
-					if workflowFilePath != "" && yamlContent != "" {
-						// For nested imports, we should report the error at the location where the parent import is defined
-						// since the nested import file itself might not have source location
-						line, column := findImportItemLocation(yamlContent, item.importPath)
-						importErr := &ImportError{
-							ImportPath: nestedImportPath,
-							FilePath:   workflowFilePath,
-							Line:       line,
-							Column:     column,
-							Cause:      err,
-						}
-						return nil, FormatImportError(importErr, yamlContent)
-					}
-					// Fallback to generic error
-					return nil, fmt.Errorf("failed to resolve nested import '%s' from '%s': %w", nestedFilePath, item.fullPath, err)
-				}
-
-				// Check for cycles/duplicates - skip if already visited
-				if !visited[nestedFullPath] {
-					visited[nestedFullPath] = true
-					visitedInputs[nestedFullPath] = nestedEntry.inputs
-
-					// Use a canonical importPath for the manifest and topological sort.
-					// When the import was resolved from a non-standard base directory
-					// (e.g. a sibling "./" or bare-filename import resolved relative to
-					// the parent file's directory), the raw nestedImportPath ("./serena.md")
-					// is ambiguous — it's not meaningful without knowing the parent's
-					// directory.  Store a root-relative path instead so that the manifest
-					// header and topological sort always reference unambiguous locations.
-					canonicalImportPath := nestedImportPath
-					if nestedRemoteOrigin == nil && nestedBaseDir != baseDir {
-						if rel, err := filepath.Rel(baseDir, nestedFullPath); err == nil {
-							canonicalImportPath = filepath.ToSlash(rel)
-						}
-					}
-
-					queue = append(queue, importQueueItem{
-						importPath:   canonicalImportPath,
-						fullPath:     nestedFullPath,
-						sectionName:  nestedSectionName,
-						baseDir:      baseDir, // Use original baseDir, not nestedBaseDir
-						inputs:       nestedEntry.inputs,
-						remoteOrigin: nestedRemoteOrigin,
-					})
-					parserLog.Printf("Discovered nested import: %s -> %s (queued)", item.fullPath, nestedFullPath)
-				} else {
-					// Same file re-imported from a different path - verify inputs match
-					if err := checkImportInputsConsistency(nestedImportPath, visitedInputs[nestedFullPath], nestedEntry.inputs); err != nil {
-						return nil, err
-					}
-					parserLog.Printf("Skipping already visited nested import: %s (cycle detected)", nestedFullPath)
-				}
-			}
-		}
-
-		// Extract all frontmatter fields from the imported file
-		if err := acc.extractAllImportFields(content, item, visited); err != nil {
-			return nil, err
-		}
+	if err := processImportQueue(baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
+		return nil, err
 	}
-
-	parserLog.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
-
-	// Sort imports in topological order (roots first, dependencies before dependents)
-	// Returns an error if a circular import is detected
-	topologicalOrder, err := topologicalSortImports(processedOrder, baseDir, cache, workflowFilePath)
+	parserLog.Printf("Completed BFS traversal. Processed %d imports in total", len(state.processedOrder))
+	topologicalOrder, err := topologicalSortImports(state.processedOrder, baseDir, cache, workflowFilePath)
 	if err != nil {
 		return nil, err
 	}
 	parserLog.Printf("Sorted imports in topological order: %v", topologicalOrder)
+	return state.acc.toImportsResult(topologicalOrder), nil
+}
 
-	return acc.toImportsResult(topologicalOrder), nil
+type nestedImportEntry struct {
+	path   string
+	inputs map[string]any
+}
+
+type importBFSState struct {
+	queue          []importQueueItem
+	visited        map[string]bool
+	visitedInputs  map[string]map[string]any
+	processedOrder []string
+	acc            *importAccumulator
+}
+
+func newImportBFSState() *importBFSState {
+	return &importBFSState{
+		visited:       make(map[string]bool),
+		visitedInputs: make(map[string]map[string]any),
+		acc:           newImportAccumulator(),
+	}
+}
+
+func parseImportSpecsFromField(importsField any) ([]ImportSpec, error) {
+	switch v := importsField.(type) {
+	case []any:
+		return parseImportSpecsFromArray(v)
+	case []string:
+		return importSpecsFromStringSlice(v), nil
+	case map[string]any:
+		return parseImportSpecsFromObject(v)
+	default:
+		return nil, errors.New("imports field must be an array or an object with an 'aw' subfield")
+	}
+}
+
+func parseImportSpecsFromObject(importsObject map[string]any) ([]ImportSpec, error) {
+	awAny, hasAW := importsObject["aw"]
+	if !hasAW {
+		return nil, nil
+	}
+	switch awVal := awAny.(type) {
+	case []any:
+		specs, err := parseImportSpecsFromArray(awVal)
+		if err != nil {
+			return nil, fmt.Errorf("imports.aw: %w", err)
+		}
+		return specs, nil
+	case []string:
+		return importSpecsFromStringSlice(awVal), nil
+	default:
+		return nil, errors.New("imports.aw must be an array of strings or objects")
+	}
+}
+
+func importSpecsFromStringSlice(paths []string) []ImportSpec {
+	specs := make([]ImportSpec, 0, len(paths))
+	for _, s := range paths {
+		specs = append(specs, ImportSpec{Path: s})
+	}
+	return specs
+}
+
+func seedInitialImportQueue(importSpecs []ImportSpec, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+	for _, importSpec := range importSpecs {
+		if err := seedSingleImportSpec(importSpec, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func seedSingleImportSpec(importSpec ImportSpec, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+	importPath := importSpec.Path
+	if isRepositoryImport(importPath) {
+		parserLog.Printf("Detected repository import: %s", importPath)
+		state.acc.repositoryImports = append(state.acc.repositoryImports, importPath)
+		return nil
+	}
+	filePath, sectionName := splitImportPathAndSection(importPath)
+	fullPath, err := resolveSeedImportPath(filePath, importPath, baseDir, cache, workflowFilePath, yamlContent)
+	if err != nil {
+		return err
+	}
+	origin := detectRemoteImportOrigin(filePath)
+	return enqueueImportPath(state, importPath, fullPath, sectionName, baseDir, importSpec.Inputs, origin)
+}
+
+func splitImportPathAndSection(importPath string) (string, string) {
+	if strings.Contains(importPath, "#") {
+		parts := strings.SplitN(importPath, "#", 2)
+		return parts[0], parts[1]
+	}
+	return importPath, ""
+}
+
+func resolveSeedImportPath(filePath, importPath, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (string, error) {
+	fullPath, err := ResolveIncludePath(filePath, baseDir, cache)
+	if err != nil {
+		return "", formatInitialImportResolveError(filePath, importPath, workflowFilePath, yamlContent, err)
+	}
+	if err := validateNoLockYMLImport(fullPath, importPath, workflowFilePath, yamlContent); err != nil {
+		return "", err
+	}
+	return fullPath, nil
+}
+
+func formatInitialImportResolveError(filePath, importPath, workflowFilePath, yamlContent string, resolveErr error) error {
+	if workflowFilePath != "" && yamlContent != "" {
+		line, column := findImportItemLocation(yamlContent, importPath)
+		importErr := &ImportError{
+			ImportPath: importPath,
+			FilePath:   workflowFilePath,
+			Line:       line,
+			Column:     column,
+			Cause:      resolveErr,
+		}
+		return FormatImportError(importErr, yamlContent)
+	}
+	return fmt.Errorf("failed to resolve import '%s': %w", filePath, resolveErr)
+}
+
+func validateNoLockYMLImport(fullPath, importPath, workflowFilePath, yamlContent string) error {
+	if !strings.HasSuffix(strings.ToLower(fullPath), ".lock.yml") {
+		return nil
+	}
+	lockErr := errors.New("cannot import .lock.yml files. Lock files are compiled outputs from gh-aw. Import the source .md file instead")
+	if workflowFilePath != "" && yamlContent != "" {
+		line, column := findImportItemLocation(yamlContent, importPath)
+		importErr := &ImportError{ImportPath: importPath, FilePath: workflowFilePath, Line: line, Column: column, Cause: lockErr}
+		return FormatImportError(importErr, yamlContent)
+	}
+	return fmt.Errorf("cannot import .lock.yml files: '%s'. Lock files are compiled outputs from gh-aw. Import the source .md file instead", importPath)
+}
+
+func detectRemoteImportOrigin(filePath string) *remoteImportOrigin {
+	if !isWorkflowSpec(filePath) {
+		return nil
+	}
+	origin := parseRemoteOrigin(filePath)
+	if origin != nil {
+		importLog.Printf("Tracking remote origin for workflowspec: %s/%s@%s", origin.Owner, origin.Repo, origin.Ref)
+	}
+	return origin
+}
+
+func enqueueImportPath(state *importBFSState, importPath, fullPath, sectionName, baseDir string, inputs map[string]any, origin *remoteImportOrigin) error {
+	if !state.visited[fullPath] {
+		state.visited[fullPath] = true
+		state.visitedInputs[fullPath] = inputs
+		state.queue = append(state.queue, importQueueItem{
+			importPath: importPath, fullPath: fullPath, sectionName: sectionName, baseDir: baseDir, inputs: inputs, remoteOrigin: origin,
+		})
+		parserLog.Printf("Queued import: %s (resolved to %s)", importPath, fullPath)
+		return nil
+	}
+	if err := checkImportInputsConsistency(importPath, state.visitedInputs[fullPath], inputs); err != nil {
+		return err
+	}
+	parserLog.Printf("Skipping duplicate import: %s (already visited)", importPath)
+	return nil
+}
+
+func processImportQueue(baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+	for len(state.queue) > 0 {
+		item := state.queue[0]
+		state.queue = state.queue[1:]
+		if err := processQueueItem(item, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func processQueueItem(item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+	parserLog.Printf("Processing import from queue: %s", item.fullPath)
+	maps.Copy(state.acc.importInputs, item.inputs)
+	state.processedOrder = append(state.processedOrder, item.importPath)
+	handled, err := handleAgentImportItem(item, state)
+	if handled || err != nil {
+		return err
+	}
+	handled, err = handleYAMLWorkflowImportItem(item, state)
+	if handled || err != nil {
+		return err
+	}
+	return handleStandardImportItem(item, baseDir, cache, workflowFilePath, yamlContent, state)
+}
+
+func handleAgentImportItem(item importQueueItem, state *importBFSState) (bool, error) {
+	fullPathSlash := filepath.ToSlash(item.fullPath)
+	isAgentFile := strings.Contains(fullPathSlash, "/.github/agents/") && strings.HasSuffix(strings.ToLower(fullPathSlash), ".md")
+	if !isAgentFile {
+		return false, nil
+	}
+	if state.acc.agentFile != "" {
+		parserLog.Printf("Multiple agent files found: %s and %s", state.acc.agentFile, item.importPath)
+		return true, fmt.Errorf("multiple agent files found in imports: '%s' and '%s'. Only one agent file is allowed per workflow", state.acc.agentFile, item.importPath)
+	}
+	importRelPath := assignAgentFilePath(state.acc, fullPathSlash, item.importPath, item.fullPath)
+	if len(item.inputs) == 0 {
+		state.acc.importPaths = append(state.acc.importPaths, importRelPath)
+		parserLog.Printf("Added agent import path for runtime-import: %s", importRelPath)
+		return true, nil
+	}
+	parserLog.Printf("Agent file has inputs - will be inlined instead of runtime-imported")
+	markdownContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, false, state.visited)
+	if err != nil {
+		return true, fmt.Errorf("failed to process markdown from agent file '%s': %w", item.fullPath, err)
+	}
+	appendMarkdownWithSeparator(&state.acc.markdownBuilder, markdownContent)
+	return true, nil
+}
+
+func assignAgentFilePath(acc *importAccumulator, fullPathSlash, importPath, fullPath string) string {
+	if idx := strings.Index(fullPathSlash, "/.github/"); idx >= 0 {
+		acc.agentFile = fullPathSlash[idx+1:]
+	} else {
+		acc.agentFile = fullPathSlash
+	}
+	parserLog.Printf("Found agent file: %s (resolved to: %s)", fullPath, acc.agentFile)
+	acc.agentImportSpec = importPath
+	parserLog.Printf("Agent import specification: %s", acc.agentImportSpec)
+	return acc.agentFile
+}
+
+func handleYAMLWorkflowImportItem(item importQueueItem, state *importBFSState) (bool, error) {
+	if !isYAMLWorkflowFile(item.fullPath) {
+		return false, nil
+	}
+	parserLog.Printf("Detected YAML workflow file: %s", item.fullPath)
+	jobsOrStepsData, servicesJSON, err := processYAMLWorkflowImport(item.fullPath)
+	if err != nil {
+		return true, fmt.Errorf("failed to process YAML workflow '%s': %w", item.importPath, err)
+	}
+	appendYAMLImportJobsOrSteps(state.acc, item.importPath, item.fullPath, jobsOrStepsData)
+	appendYAMLImportServices(state.acc, item.importPath, servicesJSON)
+	return true, nil
+}
+
+func appendYAMLImportJobsOrSteps(acc *importAccumulator, importPath, fullPath, jobsOrStepsData string) {
+	if isCopilotSetupStepsFile(fullPath) {
+		if jobsOrStepsData != "" {
+			acc.copilotSetupStepsBuilder.WriteString(jobsOrStepsData + "\n")
+			parserLog.Printf("Added copilot-setup steps (will be inserted at start): %s", importPath)
+		}
+		return
+	}
+	if jobsOrStepsData != "" && jobsOrStepsData != "{}" {
+		acc.jobsBuilder.WriteString(jobsOrStepsData + "\n")
+		parserLog.Printf("Added jobs from YAML workflow: %s", importPath)
+	}
+}
+
+func appendYAMLImportServices(acc *importAccumulator, importPath, servicesJSON string) {
+	if servicesJSON == "" || servicesJSON == "{}" {
+		return
+	}
+	var services map[string]any
+	if err := json.Unmarshal([]byte(servicesJSON), &services); err != nil {
+		return
+	}
+	servicesWrapper := map[string]any{"services": services}
+	servicesYAML, err := yaml.Marshal(servicesWrapper)
+	if err != nil {
+		return
+	}
+	acc.servicesBuilder.WriteString(string(servicesYAML) + "\n")
+	parserLog.Printf("Added services from YAML workflow: %s", importPath)
+}
+
+func handleStandardImportItem(item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+	content, err := readFileFunc(item.fullPath)
+	if err != nil {
+		return fmt.Errorf("failed to read imported file '%s': %w", item.fullPath, err)
+	}
+	result, parseErr := extractImportFrontmatterForNested(content, item)
+	if parseErr != nil {
+		parserLog.Printf("Failed to extract frontmatter from %s: %v", item.fullPath, parseErr)
+	} else if result.Frontmatter != nil {
+		if err := enqueueNestedImports(result.Frontmatter, item, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
+			return err
+		}
+	}
+	return state.acc.extractAllImportFields(content, item, state.visited)
+}
+
+func extractImportFrontmatterForNested(content []byte, item importQueueItem) (*FrontmatterResult, error) {
+	result, err := extractFrontmatterForImport(item.fullPath, content)
+	if err != nil || result == nil {
+		return result, err
+	}
+	inputsWithDefaults := applyImportSchemaDefaultsFromFrontmatter(result.Frontmatter, item.inputs)
+	if len(inputsWithDefaults) == 0 {
+		return result, nil
+	}
+	origContent := string(content)
+	substituted := substituteImportInputsInContent(origContent, inputsWithDefaults)
+	if substituted == origContent {
+		return result, nil
+	}
+	if reparse, rerr := ExtractFrontmatterFromContent(substituted); rerr == nil {
+		result = reparse
+	}
+	return result, nil
+}
+
+func extractFrontmatterForImport(fullPath string, content []byte) (*FrontmatterResult, error) {
+	if strings.HasPrefix(fullPath, BuiltinPathPrefix) {
+		return ExtractFrontmatterFromBuiltinFile(fullPath, content)
+	}
+	return ExtractFrontmatterFromContent(string(content))
+}
+
+func enqueueNestedImports(frontmatter map[string]any, item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+	nestedImports := parseNestedImportEntries(frontmatter)
+	for _, nestedEntry := range nestedImports {
+		if err := enqueueNestedImportEntry(nestedEntry, item, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func parseNestedImportEntries(frontmatter map[string]any) []nestedImportEntry {
+	importsField, hasImports := frontmatter["imports"]
+	if !hasImports {
+		return nil
+	}
+	switch v := importsField.(type) {
+	case []any:
+		nestedImports := make([]nestedImportEntry, 0, len(v))
+		for _, item := range v {
+			entry, ok := parseNestedImportEntry(item)
+			if !ok {
+				continue
+			}
+			nestedImports = append(nestedImports, entry)
+		}
+		return nestedImports
+	case []string:
+		return nestedEntriesFromSpecs(importSpecsFromStringSlice(v))
+	default:
+		return nil
+	}
+}
+
+func parseNestedImportEntry(item any) (nestedImportEntry, bool) {
+	switch nestedItem := item.(type) {
+	case string:
+		return nestedImportEntry{path: nestedItem}, true
+	case map[string]any:
+		var nestedPath string
+		if usesPath, ok := nestedItem["uses"].(string); ok {
+			nestedPath = usesPath
+		} else if pathVal, ok := nestedItem["path"].(string); ok {
+			nestedPath = pathVal
+		}
+		if nestedPath == "" {
+			return nestedImportEntry{}, false
+		}
+		var nestedInputs map[string]any
+		if withVal, ok := nestedItem["with"].(map[string]any); ok {
+			nestedInputs = withVal
+		} else if inputsVal, ok := nestedItem["inputs"].(map[string]any); ok {
+			nestedInputs = inputsVal
+		}
+		return nestedImportEntry{path: nestedPath, inputs: nestedInputs}, true
+	default:
+		return nestedImportEntry{}, false
+	}
+}
+
+func nestedEntriesFromSpecs(specs []ImportSpec) []nestedImportEntry {
+	nestedImports := make([]nestedImportEntry, 0, len(specs))
+	for _, spec := range specs {
+		nestedImports = append(nestedImports, nestedImportEntry{path: spec.Path, inputs: spec.Inputs})
+	}
+	return nestedImports
+}
+
+func enqueueNestedImportEntry(entry nestedImportEntry, item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+	nestedImportPath := entry.path
+	nestedFilePath, nestedSectionName := splitImportPathAndSection(nestedImportPath)
+	resolvedPath, nestedRemoteOrigin, err := resolveNestedImportPathAndOrigin(item, nestedFilePath)
+	if err != nil {
+		return err
+	}
+	nestedBaseDir := determineNestedBaseDir(item, resolvedPath, baseDir)
+	nestedFullPath, err := ResolveIncludePath(resolvedPath, nestedBaseDir, cache)
+	if err != nil {
+		return formatNestedResolveError(nestedImportPath, nestedFilePath, item, workflowFilePath, yamlContent, err)
+	}
+	canonicalImportPath := canonicalizeNestedImportPath(nestedImportPath, nestedBaseDir, baseDir, nestedRemoteOrigin, nestedFullPath)
+	return enqueueNestedVisitedPath(state, canonicalImportPath, nestedFullPath, nestedSectionName, baseDir, entry.inputs, nestedRemoteOrigin)
+}
+
+func resolveNestedImportPathAndOrigin(item importQueueItem, nestedFilePath string) (string, *remoteImportOrigin, error) {
+	if item.remoteOrigin != nil && !isWorkflowSpec(nestedFilePath) {
+		return resolveRemoteNestedPath(item, nestedFilePath)
+	}
+	if isWorkflowSpec(nestedFilePath) {
+		nestedRemoteOrigin := parseRemoteOrigin(nestedFilePath)
+		if nestedRemoteOrigin != nil {
+			importLog.Printf("Nested workflowspec import detected: %s (origin: %s/%s@%s)", nestedFilePath, nestedRemoteOrigin.Owner, nestedRemoteOrigin.Repo, nestedRemoteOrigin.Ref)
+		}
+		return nestedFilePath, nestedRemoteOrigin, nil
+	}
+	return nestedFilePath, nil, nil
+}
+
+func resolveRemoteNestedPath(item importQueueItem, nestedFilePath string) (string, *remoteImportOrigin, error) {
+	cleanPath := path.Clean(strings.TrimPrefix(nestedFilePath, "./"))
+	if cleanPath == ".." || strings.HasPrefix(cleanPath, "../") || path.IsAbs(cleanPath) {
+		return "", nil, fmt.Errorf("nested import '%s' from remote file '%s' escapes base directory", nestedFilePath, item.importPath)
+	}
+	basePath := item.remoteOrigin.BasePath
+	if basePath == "" {
+		basePath = constants.GetWorkflowDir()
+	}
+	basePath = path.Clean(basePath)
+	resolvedPath := fmt.Sprintf("%s/%s/%s/%s@%s",
+		item.remoteOrigin.Owner, item.remoteOrigin.Repo, basePath, cleanPath, item.remoteOrigin.Ref)
+	nestedRemoteOrigin := parseRemoteOrigin(resolvedPath)
+	importLog.Printf("Resolving nested import as remote workflowspec: %s -> %s (basePath=%s)", nestedFilePath, resolvedPath, basePath)
+	return resolvedPath, nestedRemoteOrigin, nil
+}
+
+func determineNestedBaseDir(item importQueueItem, resolvedPath, baseDir string) string {
+	isLocalRelative := !strings.Contains(resolvedPath, "/") || strings.HasPrefix(resolvedPath, "./")
+	if item.remoteOrigin == nil && !isWorkflowSpec(resolvedPath) && isLocalRelative {
+		return filepath.Dir(item.fullPath)
+	}
+	return baseDir
+}
+
+func formatNestedResolveError(nestedImportPath, nestedFilePath string, item importQueueItem, workflowFilePath string, yamlContent string, resolveErr error) error {
+	if workflowFilePath != "" && yamlContent != "" {
+		line, column := findImportItemLocation(yamlContent, item.importPath)
+		importErr := &ImportError{ImportPath: nestedImportPath, FilePath: workflowFilePath, Line: line, Column: column, Cause: resolveErr}
+		return FormatImportError(importErr, yamlContent)
+	}
+	return fmt.Errorf("failed to resolve nested import '%s' from '%s': %w", nestedFilePath, item.fullPath, resolveErr)
+}
+
+func canonicalizeNestedImportPath(nestedImportPath, nestedBaseDir, baseDir string, nestedRemoteOrigin *remoteImportOrigin, nestedFullPath string) string {
+	if nestedRemoteOrigin != nil || nestedBaseDir == baseDir {
+		return nestedImportPath
+	}
+	rel, err := filepath.Rel(baseDir, nestedFullPath)
+	if err != nil {
+		return nestedImportPath
+	}
+	return filepath.ToSlash(rel)
+}
+
+func enqueueNestedVisitedPath(state *importBFSState, nestedImportPath, nestedFullPath, nestedSectionName, baseDir string, inputs map[string]any, nestedRemoteOrigin *remoteImportOrigin) error {
+	if !state.visited[nestedFullPath] {
+		state.visited[nestedFullPath] = true
+		state.visitedInputs[nestedFullPath] = inputs
+		state.queue = append(state.queue, importQueueItem{
+			importPath: nestedImportPath, fullPath: nestedFullPath, sectionName: nestedSectionName, baseDir: baseDir, inputs: inputs, remoteOrigin: nestedRemoteOrigin,
+		})
+		parserLog.Printf("Discovered nested import: %s (queued)", nestedFullPath)
+		return nil
+	}
+	if err := checkImportInputsConsistency(nestedImportPath, state.visitedInputs[nestedFullPath], inputs); err != nil {
+		return err
+	}
+	parserLog.Printf("Skipping already visited nested import: %s (cycle detected)", nestedFullPath)
+	return nil
 }
 
 // parseImportSpecsFromArray parses an []any slice into a list of ImportSpec values.

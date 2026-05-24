@@ -343,76 +343,87 @@ func appendKnownFieldValidValuesHint(message string, jsonPath string) (string, b
 	}
 	parserLog.Printf("Appending known field hint for path: %s", jsonPath)
 
-	// Find the best matching known path: exact match first, then the longest matching parent.
-	hint, hintOK := knownFieldValidValues[jsonPath]
-	scopes := knownFieldScopes[jsonPath]
-	docsURL := knownFieldDocs[jsonPath]
-	if !hintOK {
-		// Select the longest matching parent path deterministically to avoid
-		// random map iteration order when multiple known paths share a common prefix.
-		bestPath := ""
-		bestLen := 0
-		for path := range knownFieldValidValues {
-			if strings.HasPrefix(jsonPath, path+"/") {
-				if l := len(path); l > bestLen {
-					bestLen = l
-					bestPath = path
-				}
-			}
-		}
-		if bestPath != "" {
-			hint = knownFieldValidValues[bestPath]
-			scopes = knownFieldScopes[bestPath]
-			docsURL = knownFieldDocs[bestPath]
-			hintOK = true
-		}
-	}
+	hint, scopes, docsURL, hintOK := knownFieldHintForPath(jsonPath)
 	if !hintOK {
 		return message, false
 	}
 
 	result := message + " (" + hint + ")"
+	result = appendKnownFieldSuggestions(result, message, scopes)
+	result = appendKnownFieldDocsURL(result, docsURL)
+	return result, true
+}
 
-	// Add "Did you mean?" suggestions when the unknown property name is close to a valid scope.
-	if len(scopes) > 0 {
-		// unknownPropertyPattern has exactly one capture group, so a successful match
-		// returns [fullMatch, captureGroup1], giving len(m) == 2.
-		if m := unknownPropertyPattern.FindStringSubmatch(message); len(m) == 2 {
-			unknownProps := strings.Split(m[1], ", ")
-			var allSuggestions []string
-			for _, prop := range unknownProps {
-				prop = strings.TrimSpace(prop)
-				if prop == "" {
-					continue
-				}
-				// maxClosestMatches is defined in schema_suggestions.go in the same package.
-				closest := FindClosestMatches(prop, scopes, maxClosestMatches)
-				allSuggestions = append(allSuggestions, closest...)
-			}
-			// Deduplicate suggestions
-			seen := make(map[string]bool)
-			var unique []string
-			for _, s := range allSuggestions {
-				if !seen[s] {
-					seen[s] = true
-					unique = append(unique, s)
-				}
-			}
-			if len(unique) == 1 {
-				result = fmt.Sprintf("%s. Did you mean '%s'?", result, unique[0])
-			} else if len(unique) > 1 {
-				result = fmt.Sprintf("%s. Did you mean: %s?", result, strings.Join(unique, ", "))
+func knownFieldHintForPath(jsonPath string) (string, []string, string, bool) {
+	if hint, ok := knownFieldValidValues[jsonPath]; ok {
+		return hint, knownFieldScopes[jsonPath], knownFieldDocs[jsonPath], true
+	}
+	bestPath := findBestKnownFieldParentPath(jsonPath)
+	if bestPath == "" {
+		return "", nil, "", false
+	}
+	return knownFieldValidValues[bestPath], knownFieldScopes[bestPath], knownFieldDocs[bestPath], true
+}
+
+func findBestKnownFieldParentPath(jsonPath string) string {
+	bestPath := ""
+	bestLen := 0
+	for path := range knownFieldValidValues {
+		if strings.HasPrefix(jsonPath, path+"/") {
+			if l := len(path); l > bestLen {
+				bestLen = l
+				bestPath = path
 			}
 		}
 	}
+	return bestPath
+}
 
-	// Append documentation link on the same line to avoid breaking bullet-list formatting
-	// when this message is embedded in "Multiple schema validation failures:" output.
-	if docsURL != "" {
-		result = fmt.Sprintf("%s See: %s", result, docsURL)
+func appendKnownFieldSuggestions(result, message string, scopes []string) string {
+	if len(scopes) == 0 {
+		return result
+	}
+	m := unknownPropertyPattern.FindStringSubmatch(message)
+	if len(m) != 2 {
+		return result
 	}
 
-	return result, true
+	unknownProps := strings.Split(m[1], ", ")
+	unique := uniqueClosestScopeSuggestions(unknownProps, scopes)
+	if len(unique) == 1 {
+		return fmt.Sprintf("%s. Did you mean '%s'?", result, unique[0])
+	}
+	if len(unique) > 1 {
+		return fmt.Sprintf("%s. Did you mean: %s?", result, strings.Join(unique, ", "))
+	}
+	return result
+}
+
+func uniqueClosestScopeSuggestions(unknownProps []string, scopes []string) []string {
+	var allSuggestions []string
+	for _, prop := range unknownProps {
+		prop = strings.TrimSpace(prop)
+		if prop == "" {
+			continue
+		}
+		allSuggestions = append(allSuggestions, FindClosestMatches(prop, scopes, maxClosestMatches)...)
+	}
+	seen := make(map[string]bool)
+	var unique []string
+	for _, s := range allSuggestions {
+		if !seen[s] {
+			seen[s] = true
+			unique = append(unique, s)
+		}
+	}
+	return unique
+}
+
+func appendKnownFieldDocsURL(result, docsURL string) string {
+	if docsURL == "" {
+		return result
+	}
+	return fmt.Sprintf("%s See: %s", result, docsURL)
 }
 
 // rewriteAdditionalPropertiesError rewrites "additional properties not allowed" errors to be more user-friendly

@@ -342,7 +342,7 @@ func (c *Compiler) generateResolveHostRepoStep(data *WorkflowData) string {
 	var step strings.Builder
 	step.WriteString("      - name: Resolve host repo for activation checkout\n")
 	step.WriteString("        id: resolve-host-repo\n")
-	step.WriteString(fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
+	fmt.Fprintf(&step, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	step.WriteString("        env:\n")
 	step.WriteString("          JOB_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}\n")
 	step.WriteString("          JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}\n")

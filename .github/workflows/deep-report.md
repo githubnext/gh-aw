@@ -277,12 +277,12 @@ Save your findings to `/tmp/gh-aw/repo-memory/default/memory/deep-report/` as ma
 
 ## Report Structure
 
-{{#if experiments.output_format == "executive_brief"}}
+{{#if experiments.output_format == 'executive_brief'}}
 Generate a **condensed intelligence brief** with these sections only:
 1. **🔍 Executive Summary** — 3 sentences: overall health, top finding, urgent action.
 2. **🚨 Top 5 Findings** — Flat bullet list, one line each, most impactful first.
 3. **✅ Actionable Agentic Tasks** — Exactly 7 items as before.
-{{#elseif experiments.output_format == "annotated_brief"}}
+{{#elseif experiments.output_format == 'annotated_brief'}}
 Generate a **condensed intelligence brief with inline citations** with these sections only:
 1. **🔍 Executive Summary** — 3 sentences with at least one cited source link per sentence.
 2. **🚨 Top 5 Findings** — Flat bullet list, one line each, each ending with `([source](url))`.

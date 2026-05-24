@@ -372,24 +372,46 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
             debugLog(`Strategy 3: Found ${commitCount} commits not reachable from any remote ref`);
 
             if (commitCount > 0) {
-              // Get the merge-base with the first remote ref (typically origin/HEAD or origin/main)
-              // to determine the starting point for the patch
-              let baseCommit;
+              // Choose the closest merge-base across all remote refs.
+              // for-each-ref output is lexicographic, so "first ref" is arbitrary and can
+              // point to stale branches that produce oversized patches.
+              let bestBaseCommit = null;
+              let bestBaseRef = null;
+              let bestCommitCount = Number.POSITIVE_INFINITY;
               for (const ref of remoteRefs) {
                 try {
-                  baseCommit = execGitSync(["merge-base", ref, branchName], { cwd }).trim();
-                  if (baseCommit) {
-                    debugLog(`Strategy 3: Found merge-base ${baseCommit} with ref ${ref}`);
-                    break;
+                  const candidateBase = execGitSync(["merge-base", ref, "--", branchName], { cwd }).trim();
+                  if (!candidateBase) {
+                    continue;
+                  }
+
+                  const candidateCommitCount = parseInt(execGitSync(["rev-list", "--count", `${candidateBase}..${branchName}`], { cwd }).trim(), 10);
+                  if (Number.isNaN(candidateCommitCount)) {
+                    debugLog(`Strategy 3: Ignoring merge-base ${candidateBase} from ref ${ref} due to invalid commit count`);
+                    continue;
+                  }
+                  if (candidateCommitCount <= 0) {
+                    debugLog(`Strategy 3: Skipping ref ${ref} — merge-base not behind branch (count=${candidateCommitCount})`);
+                    continue;
+                  }
+
+                  if (candidateCommitCount < bestCommitCount) {
+                    bestBaseCommit = candidateBase;
+                    bestBaseRef = ref;
+                    bestCommitCount = candidateCommitCount;
+                    if (bestCommitCount === 1) {
+                      break;
+                    }
                   }
                 } catch {
                   // Try next ref
                 }
               }
 
-              if (baseCommit) {
-                baseCommitSha = baseCommit;
-                const patchContent = execGitSync(["format-patch", `${baseCommit}..${branchName}`, "--stdout", ...excludeArgs()], { cwd });
+              if (bestBaseCommit) {
+                baseCommitSha = bestBaseCommit;
+                debugLog(`Strategy 3: Selected merge-base ${bestBaseCommit} with ref ${bestBaseRef} (commitCount=${bestCommitCount})`);
+                const patchContent = execGitSync(["format-patch", `${bestBaseCommit}..${branchName}`, "--stdout", ...excludeArgs()], { cwd });
 
                 if (patchContent && patchContent.trim()) {
                   fs.writeFileSync(patchPath, patchContent, "utf8");

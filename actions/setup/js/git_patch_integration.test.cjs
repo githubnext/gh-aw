@@ -916,5 +916,59 @@ describe("git patch integration tests", () => {
         process.env.DEFAULT_BRANCH = origDefaultBranch;
       }
     });
+
+    it("should choose origin/main as the closest Strategy 3 base in full mode", async () => {
+      // Create a stale remote ref that sorts before origin/main.
+      execGit(["checkout", "-b", "aaa-stale"], { cwd: workingRepo });
+      execGit(["push", "-u", "origin", "aaa-stale"], { cwd: workingRepo });
+
+      // Advance main with commits that should not appear in the generated patch.
+      execGit(["checkout", "main"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "phantom1.txt"), "phantom 1\n");
+      execGit(["add", "phantom1.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Phantom commit 1"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "phantom2.txt"), "phantom 2\n");
+      execGit(["add", "phantom2.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Phantom commit 2"], { cwd: workingRepo });
+      execGit(["push", "origin", "main"], { cwd: workingRepo });
+
+      // Agent branch with one actual change on top of current main.
+      execGit(["checkout", "-b", "strategy3-branch"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "agent-change.txt"), "real change\n");
+      execGit(["add", "agent-change.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Agent commit for strategy 3"], { cwd: workingRepo });
+
+      // Keep origin/main and stale refs available for Strategy 3 candidate scoring.
+      execGit(["fetch", "origin", "main"], { cwd: workingRepo });
+      execGit(["fetch", "origin", "aaa-stale"], { cwd: workingRepo });
+      // Ensure the lexicographically first remote ref is stale in this regression setup.
+      execGit(["update-ref", "-d", "refs/remotes/origin/HEAD"], { cwd: workingRepo, allowFailure: true });
+
+      // Force full-mode fallthrough into Strategy 3.
+      const origSha = process.env.GITHUB_SHA;
+      process.env.GITHUB_SHA = "side-repo-sha-not-in-target-repo";
+
+      const restore = setTestEnv(workingRepo);
+      try {
+        const mainTip = execGit(["rev-parse", "main"], { cwd: workingRepo }).stdout.trim();
+        const result = await generateGitPatch("strategy3-branch", "strategy3-branch", { mode: "full" });
+
+        expect(result.success).toBe(true);
+        expect(result.baseCommit).toBe(mainTip);
+
+        const patchContent = fs.readFileSync(result.patchPath, "utf8");
+        expect(patchContent).toContain("Agent commit for strategy 3");
+        expect(patchContent).toContain("agent-change.txt");
+        expect(patchContent).not.toContain("Phantom commit 1");
+        expect(patchContent).not.toContain("Phantom commit 2");
+      } finally {
+        if (origSha === undefined) {
+          delete process.env.GITHUB_SHA;
+        } else {
+          process.env.GITHUB_SHA = origSha;
+        }
+        restore();
+      }
+    });
   });
 });

@@ -24,6 +24,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
+	panicinlibrarycode "github.com/github/gh-aw/pkg/linters/panic-in-library-code"
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
@@ -39,6 +40,7 @@ func main() {
 		largefunc.Analyzer,
 		manualmutexunlock.Analyzer,
 		osexitinlibrary.Analyzer,
+		panicinlibrarycode.Analyzer,
 		rawloginlib.Analyzer,
 		regexpcompileinfunction.Analyzer,
 		ssljson.Analyzer,

@@ -85,7 +85,7 @@ The `ci-data-analysis` shared module has pre-downloaded CI run data and built th
 The project has been **built, linted, and tested** so you can validate changes immediately.
 Start from `/tmp/gh-aw/agent/ci-summary.json` first and only read raw files if a summary metric needs verification.
 
-{{#if experiments.prompt_style == "concise" }}
+{{#if experiments.prompt_style == 'concise' }}
 ## Task
 
 Analyze CI workflows (`.github/workflows/ci.yml`, `cgo.yml`, `cjs.yml`) using pre-downloaded data in `/tmp/gh-aw/agent` (plus cache-memory where noted). Identify the top 3 highest-impact optimizations for cost and speed. If you find actionable improvements, make focused changes, validate with `make lint && make build && make test-unit && make recompile`, and create a PR. If CI is healthy, call `noop`. Never modify test code to hide failures.

@@ -30,7 +30,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var templatablesLog = logger.New("workflow:templatables")
 
 // TemplatableInt32 represents an integer frontmatter field that also accepts
 // GitHub Actions expression strings (e.g. "${{ inputs.timeout }}").  The
@@ -63,9 +67,11 @@ func (t *TemplatableInt32) UnmarshalJSON(data []byte) error {
 	// Try a JSON string (e.g. "${{ inputs.timeout }}")
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
+		templatablesLog.Printf("TemplatableInt32 rejected: not number or string: %s", data)
 		return fmt.Errorf("timeout-minutes must be an integer or a GitHub Actions expression (e.g. '${{ inputs.timeout }}'), got %s", data)
 	}
 	if !isExpression(s) {
+		templatablesLog.Printf("TemplatableInt32 rejected non-expression string: %q", s)
 		return fmt.Errorf("timeout-minutes must be an integer or a GitHub Actions expression (e.g. '${{ inputs.timeout }}'), got string %q", s)
 	}
 	*t = TemplatableInt32(s)

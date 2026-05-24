@@ -36,7 +36,7 @@ func RenderStruct(v any) string {
 // renderValue recursively renders a reflect.Value to the output builder
 func renderValue(val reflect.Value, title string, output *strings.Builder, depth int) {
 	// Dereference pointers
-	for val.Kind() == reflect.Ptr {
+	for val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			return
 		}
@@ -125,7 +125,7 @@ func computeMaxFieldLen(val reflect.Value, typ reflect.Type) int {
 func renderStructField(field reflect.Value, fieldName string, tag consoleTag, maxFieldLen int, output *strings.Builder, depth int) {
 	// Dereference pointer to check underlying type
 	fieldToCheck := field
-	if field.Kind() == reflect.Ptr && !field.IsNil() {
+	if field.Kind() == reflect.Pointer && !field.IsNil() {
 		fieldToCheck = field.Elem()
 	}
 
@@ -170,7 +170,7 @@ func renderSlice(val reflect.Value, title string, output *strings.Builder, depth
 
 	// Check if slice elements are structs (for table rendering)
 	elemType := val.Type().Elem()
-	for elemType.Kind() == reflect.Ptr {
+	for elemType.Kind() == reflect.Pointer {
 		elemType = elemType.Elem()
 	}
 
@@ -225,7 +225,7 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 
 	// Get the element type
 	elemType := val.Type().Elem()
-	for elemType.Kind() == reflect.Ptr {
+	for elemType.Kind() == reflect.Pointer {
 		elemType = elemType.Elem()
 	}
 
@@ -269,7 +269,7 @@ func buildTableRows(val reflect.Value, fieldIndices []int, fieldTags []consoleTa
 	for i := range val.Len() {
 		elem := val.Index(i)
 		// Dereference pointer if needed
-		for elem.Kind() == reflect.Ptr {
+		for elem.Kind() == reflect.Pointer {
 			if elem.IsNil() {
 				break
 			}
@@ -362,7 +362,7 @@ func isZeroValue(val reflect.Value) bool {
 		return val.Uint() == 0
 	case reflect.Float32, reflect.Float64:
 		return val.Float() == 0
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Interface, reflect.Pointer:
 		return val.IsNil()
 	}
 
@@ -372,7 +372,7 @@ func isZeroValue(val reflect.Value) bool {
 // formatFieldValue formats a reflect.Value as a string for display
 func formatFieldValue(val reflect.Value) string {
 	// Dereference pointers
-	for val.Kind() == reflect.Ptr {
+	for val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			return "-"
 		}

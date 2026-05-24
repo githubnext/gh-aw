@@ -30,7 +30,7 @@ func TestSafeOutputStateFieldCoverage(t *testing.T) {
 			field := val.FieldByName(handler.StructField)
 			require.True(t, field.IsValid(),
 				"safeOutputHandlers references unknown struct field %q; update descriptors or struct", handler.StructField)
-			require.Equal(t, reflect.Ptr, field.Kind(),
+			require.Equal(t, reflect.Pointer, field.Kind(),
 				"safeOutputHandlers field %q is expected to be a pointer type", handler.StructField)
 
 			field.Set(reflect.New(field.Type().Elem()))

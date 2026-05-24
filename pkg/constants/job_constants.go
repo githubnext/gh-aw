@@ -203,6 +203,12 @@ const PreActivationAppTokenStepID StepID = "pre-activation-app-token"
 // can pass the value as GH_AW_EFFECTIVE_TOKENS to the footer template renderer.
 const ParseMCPGatewayStepID StepID = "parse-mcp-gateway"
 
+// DetectAgentErrorsStepID is the step ID for the post-execution error detection step in the
+// agent job. It runs on the host runner (outside the AWF sandbox container) so that it can
+// write to GITHUB_OUTPUT, which is not accessible from inside the container. Any engine that
+// provides a detection script (via GetErrorDetectionScriptId) will emit this step.
+const DetectAgentErrorsStepID StepID = "detect-agent-errors"
+
 // Output names for pre-activation job steps
 const IsTeamMemberOutput = "is_team_member"
 const StopTimeOkOutput = "stop_time_ok"

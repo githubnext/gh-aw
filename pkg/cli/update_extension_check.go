@@ -84,7 +84,11 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 	if semver.IsValid(currentSV) && semver.IsValid(latestSV) {
 		if semver.Compare(currentSV, latestSV) >= 0 {
 			updateExtensionCheckLog.Print("Extension is already up to date")
-			if verbose {
+			if notice := prereleaseChannelNotice(currentVersion, latestVersion, includePrereleases); len(notice) > 0 {
+				for _, line := range notice {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(line))
+				}
+			} else if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension is up to date"))
 			}
 			return false, "", nil
@@ -98,7 +102,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 
 	// A newer version is available – upgrade automatically
 	updateExtensionCheckLog.Printf("Upgrading extension from %s to %s", currentVersion, latestVersion)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Upgrading gh-aw extension from %s to %s...", currentVersion, latestVersion)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Upgrading gh-aw extension from %s to %s...", renderReleaseVersion(currentVersion), renderReleaseVersion(latestVersion))))
 
 	// When targeting a prerelease version on platforms that do not lock running
 	// binaries (i.e., not Linux or Windows), gh extension upgrade --force resolves
@@ -123,9 +127,9 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		pinCmd.Stdout = os.Stderr
 		pinCmd.Stderr = os.Stderr
 		if pinErr := pinCmd.Run(); pinErr != nil {
-			return false, "", fmt.Errorf("failed to install gh-aw extension at version %s: %w", latestVersion, pinErr)
+			return false, "", fmt.Errorf("failed to install gh-aw extension at version %s: %w", renderReleaseVersion(latestVersion), pinErr)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+latestVersion))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+renderReleaseVersion(latestVersion)))
 		return true, "", nil
 	}
 
@@ -150,7 +154,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 			// Replay the buffered output that was not shown during the attempt.
 			_, _ = io.Copy(os.Stderr, &firstAttemptBuf)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+latestVersion))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+renderReleaseVersion(latestVersion)))
 		return true, "", nil
 	}
 
@@ -268,10 +272,10 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 			// running. Guide the user to upgrade manually from a separate shell.
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("On Windows, gh-aw cannot self-upgrade while it is running."))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please upgrade manually by running one of the following:"))
-			fmt.Fprintln(os.Stderr, "  gh extension upgrade gh-aw")
+			fmt.Fprintln(os.Stderr, "  "+extensionUpgradeHelpCommand(latestVersion))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("If that does not work, try reinstalling:"))
 			fmt.Fprintln(os.Stderr, "  gh extension remove gh-aw")
-			fmt.Fprintln(os.Stderr, "  gh extension install "+extensionRepo)
+			fmt.Fprintln(os.Stderr, "  "+extensionInstallHelpCommand(latestVersion))
 		}
 		return false, "", fmt.Errorf("failed to upgrade gh-aw extension: %w", retryErr)
 	}
@@ -282,7 +286,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		cleanupExecutableBackup(backupPath)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+latestVersion))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension upgraded to "+renderReleaseVersion(latestVersion)))
 	return true, installPath, nil
 }
 
@@ -420,6 +424,42 @@ func isWindowsLockError(output string, err error) bool {
 // can be upgraded in-place.
 func extensionUpgradeArgs() []string {
 	return []string{"extension", "upgrade", extensionRepo, "--force"}
+}
+
+func prereleaseChannelNotice(currentVersion, latestStable string, includePrereleases bool) []string {
+	if includePrereleases || latestStable == "" || !isPrereleaseVersion(currentVersion) {
+		return nil
+	}
+	return []string{
+		fmt.Sprintf("Current gh-aw version %s is newer than the latest stable release %s.", renderReleaseVersion(currentVersion), renderReleaseVersion(latestStable)),
+		"Run `gh aw upgrade --pre-releases` to check for newer pre-releases.",
+	}
+}
+
+func renderReleaseVersion(version string) string {
+	if isPrereleaseVersion(version) {
+		return version + " (pre-release)"
+	}
+	return version
+}
+
+func extensionUpgradeHelpCommand(targetVersion string) string {
+	if isPrereleaseVersion(targetVersion) {
+		return "gh extension install " + extensionRepo + " --force --pin " + targetVersion
+	}
+	return "gh " + strings.Join(extensionUpgradeArgs(), " ")
+}
+
+func extensionInstallHelpCommand(targetVersion string) string {
+	if isPrereleaseVersion(targetVersion) {
+		return "gh extension install " + extensionRepo + " --force --pin " + targetVersion
+	}
+	return "gh extension install " + extensionRepo
+}
+
+func isPrereleaseVersion(version string) bool {
+	version = "v" + strings.TrimPrefix(version, "v")
+	return semver.IsValid(version) && semver.Prerelease(version) != ""
 }
 
 // extensionRepo is the GitHub repo slug used in all gh-extension CLI invocations.

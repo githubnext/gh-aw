@@ -309,3 +309,135 @@ func TestValidateToolConfiguration(t *testing.T) {
 		})
 	}
 }
+
+// TestWarnPromptTmpPaths tests the /tmp path heuristic used by the compiler.
+func TestWarnPromptTmpPaths(t *testing.T) {
+	tests := []struct {
+		name          string
+		content       string
+		expectWarning bool
+	}{
+		{
+			name:          "no tmp reference",
+			content:       "# Workflow\n\nDo some work.",
+			expectWarning: false,
+		},
+		{
+			name:          "correct path /tmp/gh-aw/agent/ only",
+			content:       "Store output in /tmp/gh-aw/agent/result.txt",
+			expectWarning: false,
+		},
+		{
+			name:          "correct path /tmp/gh-aw/agent/ subdirectory",
+			content:       "Write to /tmp/gh-aw/agent/logs/output.log for later inspection.",
+			expectWarning: false,
+		},
+		{
+			name:          "bare /tmp/ reference",
+			content:       "Save the file to /tmp/myfile.txt",
+			expectWarning: true,
+		},
+		{
+			name:          "/tmp/gh-aw/ subpath is safe",
+			content:       "Write your output to /tmp/gh-aw/result.json",
+			expectWarning: false,
+		},
+		{
+			name:          "/tmp/ root only",
+			content:       "Use /tmp/ for temporary storage.",
+			expectWarning: true,
+		},
+		{
+			name:          "mix of correct and raw /tmp/ reference",
+			content:       "Prefer /tmp/gh-aw/agent/ but avoid plain /tmp/foo paths.",
+			expectWarning: true,
+		},
+		{
+			name:          "cache-memory path is safe",
+			content:       "Read state from /tmp/gh-aw/cache-memory/my-workflow/state.json",
+			expectWarning: false,
+		},
+		{
+			name:          "named cache-memory path is safe",
+			content:       "Use /tmp/gh-aw/cache-memory-focus-areas/ for storage.",
+			expectWarning: false,
+		},
+		{
+			name:          "repo-memory path is safe",
+			content:       "Access shared memory at /tmp/gh-aw/repo-memory/default/metrics.json",
+			expectWarning: false,
+		},
+		{
+			name:          "comment-memory path is safe",
+			content:       "Append haiku to /tmp/gh-aw/comment-memory/notes.md",
+			expectWarning: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := warnPromptTmpPaths(tt.content)
+			if tt.expectWarning {
+				assert.NotEmpty(t, msg, "expected a warning message")
+				assert.Contains(t, msg, "/tmp/gh-aw/agent/", "warning should suggest /tmp/gh-aw/agent/")
+			} else {
+				assert.Empty(t, msg, "expected no warning message")
+			}
+		})
+	}
+}
+
+// TestValidatePromptTmpPaths tests that validatePromptTmpPaths increments the
+// warning counter and emits a message when the markdown body has problematic /tmp paths.
+func TestValidatePromptTmpPaths(t *testing.T) {
+	tests := []struct {
+		name       string
+		markdown   string
+		expectWarn bool
+	}{
+		{
+			name:       "no tmp reference — no warning",
+			markdown:   "# Hello\n\nDo some work.",
+			expectWarn: false,
+		},
+		{
+			name:       "correct /tmp/gh-aw/agent/ — no warning",
+			markdown:   "Store results in /tmp/gh-aw/agent/output.txt",
+			expectWarn: false,
+		},
+		{
+			name:       "bare /tmp/ reference — warning",
+			markdown:   "Save artifacts to /tmp/data.json",
+			expectWarn: true,
+		},
+		{
+			name:       "/tmp/gh-aw/ subpath — no warning",
+			markdown:   "Write summary to /tmp/gh-aw/summary.txt",
+			expectWarn: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "tmp-path-test")
+			markdownPath := filepath.Join(tmpDir, "workflow.md")
+
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: tt.markdown,
+				AI:              "copilot",
+			}
+
+			before := compiler.GetWarningCount()
+			compiler.validatePromptTmpPaths(workflowData, markdownPath)
+			after := compiler.GetWarningCount()
+
+			if tt.expectWarn {
+				assert.Greater(t, after, before, "warning count should have increased")
+			} else {
+				assert.Equal(t, before, after, "warning count should not have changed")
+			}
+		})
+	}
+}

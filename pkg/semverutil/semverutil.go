@@ -142,6 +142,15 @@ func IsCompatible(pinVersion, requestedVersion string) bool {
 	pinVersion = EnsureVPrefix(pinVersion)
 	requestedVersion = EnsureVPrefix(requestedVersion)
 
+	// Guard: both versions must be valid semver before comparing majors.
+	// semver.Major returns "" for invalid input, causing "" == "" to
+	// incorrectly report two invalid versions as compatible.
+	if !IsValid(pinVersion) || !IsValid(requestedVersion) {
+		semverLog.Printf("IsCompatible: one or both versions are invalid: pin=%s, requested=%s",
+			pinVersion, requestedVersion)
+		return false
+	}
+
 	pinMajor := semver.Major(pinVersion)
 	requestedMajor := semver.Major(requestedVersion)
 

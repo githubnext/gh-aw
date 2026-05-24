@@ -913,6 +913,16 @@ Compilation-time security checks validate workflow definitions before generating
 - Replacement field or pattern
 - Migration instructions
 
+### 10.8 Compile-Time vs Runtime Validation Tradeoffs
+
+The security model uses both compile-time and runtime validation because each layer covers different failure modes:
+
+1. Compile-time checks provide deterministic early rejection for static misconfiguration (schema, expressions, permissions, network declarations, and action pinning) before execution cost is incurred.
+2. Runtime checks provide enforcement against context-dependent threats that cannot be fully proven statically (actor identity, repository origin, token materialization, network path activation, and runtime output integrity).
+3. Controls that can be reliably expressed statically SHOULD be enforced at compile time first to reduce runtime attack surface and operational variance.
+4. Controls that depend on event payloads, credentials, or mutable platform state MUST be enforced at runtime even when a compile-time approximation exists.
+5. Security-critical controls MAY be enforced in both phases when defense-in-depth materially reduces bypass risk.
+
 ---
 
 ## 11. Runtime Security Enforcement
@@ -1021,6 +1031,19 @@ concurrency:
 - All runs must complete (e.g., audit workflows)
 - Cancellation could leave inconsistent state
 - Sequential queueing is preferred over cancellation
+
+### 11.9 Runtime Enforcement Operations Sequence
+
+A conforming implementation MUST execute runtime controls in this order:
+
+1. **Concurrency gate setup**: Apply `concurrency` grouping and cancellation policy before executing job logic (RS-16 through RS-22).
+2. **Freshness gate**: Validate source-vs-compiled timestamps and fail fast on stale lock files (RS-01 through RS-03).
+3. **Repository trust gate**: Validate repository identity and fork constraints for the active trigger (RS-04 and RS-05).
+4. **Actor authorization gate**: Validate role membership and required privileges before any mutation-capable step (RS-06 through RS-08).
+5. **Credential gate**: Validate token shape and expression-only sourcing before token use (RS-09 through RS-11).
+6. **Network boundary gate**: Activate sandbox/proxy/iptables controls before running agent or MCP execution paths (RS-12 and RS-13).
+7. **Output integrity gate**: Validate agent output schema and required fields before dispatching safe outputs (RS-14 and RS-15).
+8. **Termination and audit**: Fail closed on any gate violation and emit a deterministic security failure reason for auditability.
 
 ---
 

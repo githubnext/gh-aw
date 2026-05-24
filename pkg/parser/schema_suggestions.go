@@ -36,82 +36,26 @@ type schemaFieldLocation struct {
 // frontmatterContent is the raw YAML frontmatter text, used to extract the user's typed value for enum suggestions.
 func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath, frontmatterContent string) string {
 	schemaSuggestionsLog.Printf("Generating schema suggestions: path=%s, schema_size=%d bytes", jsonPath, len(schemaJSON))
-	// Use the cached parsed schema document to avoid re-parsing on every error call.
 	schemaDoc, err := getParsedSchemaDoc(schemaJSON)
 	if err != nil {
 		schemaSuggestionsLog.Printf("Failed to parse schema JSON: %v", err)
-		return "" // Can't parse schema, no suggestions
-	}
-
-	// Check if this is an enum constraint violation ("value must be one of")
-	if strings.Contains(strings.ToLower(errorMessage), "value must be one of") {
-		schemaSuggestionsLog.Print("Detected enum constraint violation")
-		enumValues := extractEnumValuesFromError(errorMessage)
-		// For oneOf errors, the path points to the container (e.g., "/permissions") but
-		// the enum constraint is on a nested field (e.g., "/permissions/contents").
-		// Try to extract the actual sub-path from the message.
-		actualPath := extractEnumConstraintPath(errorMessage, jsonPath)
-		userValue := extractYAMLValueAtPath(frontmatterContent, actualPath)
-		if userValue != "" && len(enumValues) > 0 {
-			closest := sliceutil.Deduplicate(FindClosestMatches(userValue, enumValues, maxClosestMatches))
-			if len(closest) == 1 {
-				return fmt.Sprintf("Did you mean '%s'?", closest[0])
-			} else if len(closest) > 1 {
-				return fmt.Sprintf("Did you mean: %s?", strings.Join(closest, ", "))
-			}
-		}
-		// No close matches or no user value — no additional suggestion needed since
-		// the valid values are already listed in the error message itself
 		return ""
 	}
 
-	// Check if this is an additional properties error
-	if strings.Contains(strings.ToLower(errorMessage), "additional propert") && strings.Contains(strings.ToLower(errorMessage), "not allowed") {
-		schemaSuggestionsLog.Print("Detected additional properties error")
-		invalidProps := extractAdditionalPropertyNames(errorMessage)
-		acceptedFields := extractAcceptedFieldsFromSchema(schemaDoc, jsonPath)
-
-		var suggestions []string
-
-		if len(acceptedFields) > 0 {
-			schemaSuggestionsLog.Printf("Found %d accepted fields for invalid properties %v", len(acceptedFields), invalidProps)
-			if s := generateFieldSuggestions(invalidProps, acceptedFields); s != "" {
-				suggestions = append(suggestions, s)
-			}
-		}
-
-		// Search the whole schema for where these fields belong (path heuristic)
-		if s := generatePathLocationSuggestion(invalidProps, schemaDoc, jsonPath); s != "" {
-			schemaSuggestionsLog.Printf("Found path location suggestion: %s", s)
-			suggestions = append(suggestions, s)
-		}
-
-		if len(suggestions) > 0 {
-			return strings.Join(suggestions, ". ")
-		}
+	if suggestion, handled := enumSuggestion(errorMessage, jsonPath, frontmatterContent); handled {
+		return suggestion
 	}
 
-	// Check if this is a minimum/maximum constraint violation and surface schema examples.
-	// pathInfo.Message has the form "at '/timeout-minutes': minimum: got X, want Y",
-	// so use Contains rather than HasPrefix to detect the constraint keyword.
-	lowerMsg := strings.ToLower(errorMessage)
-	if (strings.Contains(lowerMsg, "minimum:") || strings.Contains(lowerMsg, "maximum:")) &&
-		strings.Contains(lowerMsg, "got ") && strings.Contains(lowerMsg, "want ") {
-		schemaSuggestionsLog.Print("Detected range constraint violation, looking for schema examples")
-		if examples := extractSchemaExamples(schemaDoc, jsonPath); len(examples) > 0 {
-			schemaSuggestionsLog.Printf("Found %d schema examples for %s", len(examples), jsonPath)
-			return "Example values: " + strings.Join(examples, ", ")
-		}
+	if suggestion := additionalPropertiesSuggestion(schemaDoc, errorMessage, jsonPath); suggestion != "" {
+		return suggestion
 	}
 
-	// Check if this is a type error
-	if strings.Contains(strings.ToLower(errorMessage), "got ") && strings.Contains(strings.ToLower(errorMessage), "want ") {
-		schemaSuggestionsLog.Print("Detected type mismatch error")
-		example := generateExampleJSONForPath(schemaDoc, jsonPath)
-		if example != "" {
-			schemaSuggestionsLog.Printf("Generated example JSON: length=%d bytes", len(example))
-			return "Expected format: " + example
-		}
+	if suggestion := rangeConstraintSuggestion(schemaDoc, errorMessage, jsonPath); suggestion != "" {
+		return suggestion
+	}
+
+	if suggestion := typeMismatchSuggestion(schemaDoc, errorMessage, jsonPath); suggestion != "" {
+		return suggestion
 	}
 
 	schemaSuggestionsLog.Print("No suggestions generated for error")
@@ -333,83 +277,188 @@ func generateExampleJSONForPath(schemaDoc any, jsonPath string) string {
 func generateExampleFromSchema(schema map[string]any) any {
 	schemaType, ok := schema["type"].(string)
 	if !ok {
-		// Try to infer from other properties
-		if _, hasProperties := schema["properties"]; hasProperties {
-			schemaType = "object"
-		} else if _, hasItems := schema["items"]; hasItems {
-			schemaType = "array"
-		} else {
+		schemaType = inferSchemaType(schema)
+		if schemaType == "" {
 			return nil
 		}
 	}
 
 	switch schemaType {
 	case "string":
-		if enum, ok := schema["enum"].([]any); ok && len(enum) > 0 {
-			if str, ok := enum[0].(string); ok {
-				return str
-			}
-		}
-		return "string"
+		return generateStringExample(schema)
 	case "number", "integer":
-		// Prefer schema-provided examples over the generic fallback value
-		if examples, ok := schema["examples"].([]any); ok && len(examples) > 0 {
-			return examples[0]
-		}
-		if defaultVal, ok := schema["default"]; ok {
-			return defaultVal
-		}
-		return 42
+		return generateNumberExample(schema)
 	case "boolean":
 		return true
 	case "array":
-		if items, ok := schema["items"].(map[string]any); ok {
-			itemExample := generateExampleFromSchema(items)
-			if itemExample != nil {
-				return []any{itemExample}
-			}
-		}
-		return []any{}
+		return generateArrayExample(schema)
 	case "object":
-		result := make(map[string]any)
-		if properties, ok := schema["properties"].(map[string]any); ok {
-			// Add required properties first
-			requiredFields := make(map[string]bool)
-			if required, ok := schema["required"].([]any); ok {
-				for _, field := range required {
-					if fieldName, ok := field.(string); ok {
-						requiredFields[fieldName] = true
-					}
-				}
-			}
-
-			// Add a few example properties (prioritize required ones)
-			count := 0
-
-			// First, add required fields
-			for propName, propSchema := range properties {
-				if requiredFields[propName] && count < maxExampleFields {
-					if propSchemaMap, ok := propSchema.(map[string]any); ok {
-						result[propName] = generateExampleFromSchema(propSchemaMap)
-						count++
-					}
-				}
-			}
-
-			// Then add some optional fields if we have room
-			for propName, propSchema := range properties {
-				if !requiredFields[propName] && count < maxExampleFields {
-					if propSchemaMap, ok := propSchema.(map[string]any); ok {
-						result[propName] = generateExampleFromSchema(propSchemaMap)
-						count++
-					}
-				}
-			}
-		}
-		return result
+		return generateObjectExample(schema)
 	}
 
 	return nil
+}
+
+func enumSuggestion(errorMessage, jsonPath, frontmatterContent string) (string, bool) {
+	if !strings.Contains(strings.ToLower(errorMessage), "value must be one of") {
+		return "", false
+	}
+
+	schemaSuggestionsLog.Print("Detected enum constraint violation")
+	enumValues := extractEnumValuesFromError(errorMessage)
+	actualPath := extractEnumConstraintPath(errorMessage, jsonPath)
+	userValue := extractYAMLValueAtPath(frontmatterContent, actualPath)
+	if userValue == "" || len(enumValues) == 0 {
+		return "", true
+	}
+
+	closest := sliceutil.Deduplicate(FindClosestMatches(userValue, enumValues, maxClosestMatches))
+	if len(closest) == 1 {
+		return fmt.Sprintf("Did you mean '%s'?", closest[0]), true
+	}
+	if len(closest) > 1 {
+		return fmt.Sprintf("Did you mean: %s?", strings.Join(closest, ", ")), true
+	}
+	return "", true
+}
+
+func additionalPropertiesSuggestion(schemaDoc any, errorMessage, jsonPath string) string {
+	lowerError := strings.ToLower(errorMessage)
+	if !strings.Contains(lowerError, "additional propert") || !strings.Contains(lowerError, "not allowed") {
+		return ""
+	}
+
+	schemaSuggestionsLog.Print("Detected additional properties error")
+	invalidProps := extractAdditionalPropertyNames(errorMessage)
+	acceptedFields := extractAcceptedFieldsFromSchema(schemaDoc, jsonPath)
+	var suggestions []string
+	if len(acceptedFields) > 0 {
+		schemaSuggestionsLog.Printf("Found %d accepted fields for invalid properties %v", len(acceptedFields), invalidProps)
+		if s := generateFieldSuggestions(invalidProps, acceptedFields); s != "" {
+			suggestions = append(suggestions, s)
+		}
+	}
+	if s := generatePathLocationSuggestion(invalidProps, schemaDoc, jsonPath); s != "" {
+		schemaSuggestionsLog.Printf("Found path location suggestion: %s", s)
+		suggestions = append(suggestions, s)
+	}
+	return strings.Join(suggestions, ". ")
+}
+
+func rangeConstraintSuggestion(schemaDoc any, errorMessage, jsonPath string) string {
+	lowerMsg := strings.ToLower(errorMessage)
+	isRangeError := (strings.Contains(lowerMsg, "minimum:") || strings.Contains(lowerMsg, "maximum:")) &&
+		strings.Contains(lowerMsg, "got ") && strings.Contains(lowerMsg, "want ")
+	if !isRangeError {
+		return ""
+	}
+
+	schemaSuggestionsLog.Print("Detected range constraint violation, looking for schema examples")
+	if examples := extractSchemaExamples(schemaDoc, jsonPath); len(examples) > 0 {
+		schemaSuggestionsLog.Printf("Found %d schema examples for %s", len(examples), jsonPath)
+		return "Example values: " + strings.Join(examples, ", ")
+	}
+	return ""
+}
+
+func typeMismatchSuggestion(schemaDoc any, errorMessage, jsonPath string) string {
+	lowerMsg := strings.ToLower(errorMessage)
+	if !strings.Contains(lowerMsg, "got ") || !strings.Contains(lowerMsg, "want ") {
+		return ""
+	}
+
+	schemaSuggestionsLog.Print("Detected type mismatch error")
+	example := generateExampleJSONForPath(schemaDoc, jsonPath)
+	if example == "" {
+		return ""
+	}
+
+	schemaSuggestionsLog.Printf("Generated example JSON: length=%d bytes", len(example))
+	return "Expected format: " + example
+}
+
+func inferSchemaType(schema map[string]any) string {
+	if _, hasProperties := schema["properties"]; hasProperties {
+		return "object"
+	}
+	if _, hasItems := schema["items"]; hasItems {
+		return "array"
+	}
+	return ""
+}
+
+func generateStringExample(schema map[string]any) any {
+	if enum, ok := schema["enum"].([]any); ok && len(enum) > 0 {
+		if str, ok := enum[0].(string); ok {
+			return str
+		}
+	}
+	return "string"
+}
+
+func generateNumberExample(schema map[string]any) any {
+	if examples, ok := schema["examples"].([]any); ok && len(examples) > 0 {
+		return examples[0]
+	}
+	if defaultVal, ok := schema["default"]; ok {
+		return defaultVal
+	}
+	return 42
+}
+
+func generateArrayExample(schema map[string]any) any {
+	items, ok := schema["items"].(map[string]any)
+	if !ok {
+		return []any{}
+	}
+	itemExample := generateExampleFromSchema(items)
+	if itemExample == nil {
+		return []any{}
+	}
+	return []any{itemExample}
+}
+
+func generateObjectExample(schema map[string]any) any {
+	result := make(map[string]any)
+	properties, ok := schema["properties"].(map[string]any)
+	if !ok {
+		return result
+	}
+
+	requiredFields := collectRequiredFields(schema)
+	count := 0
+	count = addObjectExamples(result, properties, requiredFields, true, count)
+	addObjectExamples(result, properties, requiredFields, false, count)
+	return result
+}
+
+func collectRequiredFields(schema map[string]any) map[string]bool {
+	requiredFields := make(map[string]bool)
+	required, ok := schema["required"].([]any)
+	if !ok {
+		return requiredFields
+	}
+	for _, field := range required {
+		if fieldName, ok := field.(string); ok {
+			requiredFields[fieldName] = true
+		}
+	}
+	return requiredFields
+}
+
+func addObjectExamples(result map[string]any, properties map[string]any, requiredFields map[string]bool, includeRequired bool, count int) int {
+	for propName, propSchema := range properties {
+		if requiredFields[propName] != includeRequired || count >= maxExampleFields {
+			continue
+		}
+		propSchemaMap, ok := propSchema.(map[string]any)
+		if !ok {
+			continue
+		}
+		result[propName] = generateExampleFromSchema(propSchemaMap)
+		count++
+	}
+	return count
 }
 
 // enumValuePattern matches single-quoted values in enum error messages like "value must be one of 'a', 'b', 'c'"

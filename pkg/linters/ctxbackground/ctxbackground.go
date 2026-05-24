@@ -6,6 +6,7 @@ package ctxbackground
 import (
 	"go/ast"
 	"go/types"
+	"slices"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -45,7 +46,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return true
 		}
 
-		for i := len(stack) - 1; i >= 0; i-- {
+		for i := range slices.Backward(stack) {
 			fn, ok := stack[i].(*ast.FuncDecl)
 			if !ok {
 				continue
