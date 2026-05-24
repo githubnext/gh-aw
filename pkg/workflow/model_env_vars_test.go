@@ -16,18 +16,21 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 		engine          string
 		expectedEnvVar  string
 		expectedCommand string
+		expectedDefault string
 	}{
 		{
 			name:            "Claude agent uses GH_AW_MODEL_AGENT_CLAUDE",
 			engine:          "claude",
 			expectedEnvVar:  constants.EnvVarModelAgentClaude,
 			expectedCommand: "${" + constants.EnvVarModelAgentClaude + ":+ --model",
+			expectedDefault: "", // Claude has no default model
 		},
 		{
 			name:            "Codex agent uses GH_AW_MODEL_AGENT_CODEX",
 			engine:          "codex",
 			expectedEnvVar:  constants.EnvVarModelAgentCodex,
 			expectedCommand: "${" + constants.EnvVarModelAgentCodex + `:+ --model "`,
+			expectedDefault: constants.CodexDefaultModel,
 		},
 	}
 
@@ -75,8 +78,13 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 				t.Errorf("Expected command pattern '%s' not found in steps:\n%s", tt.expectedCommand, stepsContent)
 			}
 
-			// Verify env var has fallback to empty string for agent jobs
-			expectedEnvLine := tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || '' }}"
+			// Verify env var has the correct fallback value
+			var expectedEnvLine string
+			if tt.expectedDefault != "" {
+				expectedEnvLine = tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || '" + tt.expectedDefault + "' }}"
+			} else {
+				expectedEnvLine = tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || '' }}"
+			}
 			if !strings.Contains(stepsContent, expectedEnvLine) {
 				t.Errorf("Expected env var line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
 			}
@@ -102,7 +110,7 @@ func TestModelEnvVarInjectionForDetectionJob(t *testing.T) {
 			name:            "Codex detection uses GH_AW_MODEL_DETECTION_CODEX",
 			engine:          "codex",
 			expectedEnvVar:  constants.EnvVarModelDetectionCodex,
-			expectedDefault: "", // Codex has no default detection model
+			expectedDefault: constants.CodexDefaultModel,
 		},
 	}
 

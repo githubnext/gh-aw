@@ -374,7 +374,7 @@ mkdir -p "$CODEX_HOME/logs"
 		codexEngineLog.Printf("Setting %s env var for model: %s", modelEnvVar, workflowData.EngineConfig.Model)
 		env[modelEnvVar] = workflowData.EngineConfig.Model
 	} else {
-		env[modelEnvVar] = fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVar)
+		env[modelEnvVar] = fmt.Sprintf("${{ vars.%s || '%s' }}", modelEnvVar, constants.CodexDefaultModel)
 	}
 
 	// Add custom environment variables from engine config
