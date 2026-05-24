@@ -217,9 +217,9 @@ function formatET(n) {
  * Uses well-known shortcuts for popular model families and a deterministic fallback.
  *
  * Examples:
- * - claude-sonnet-4.6 -> son46
+ * - claude-sonnet-4.6 -> sonnet46
  * - gpt-5.5 -> gpt55
- * - claude-opus-4-7 -> opu47
+ * - claude-opus-4-7 -> opus47
  *
  * @param {string|undefined|null} modelName
  * @returns {string}
@@ -241,9 +241,9 @@ function reduceModelNameToIdentifier(modelName) {
 
   /** @type {Array<{ familyPattern: RegExp, versionPattern: RegExp, prefix: string }>} */
   const shortcuts = [
-    { familyPattern: /sonnet/, versionPattern: new RegExp(`sonnet${VERSION_SUFFIX_PATTERN}`), prefix: "son" },
-    { familyPattern: /opus/, versionPattern: new RegExp(`opus${VERSION_SUFFIX_PATTERN}`), prefix: "opu" },
-    { familyPattern: /haiku/, versionPattern: new RegExp(`haiku${VERSION_SUFFIX_PATTERN}`), prefix: "hai" },
+    { familyPattern: /sonnet/, versionPattern: new RegExp(`sonnet${VERSION_SUFFIX_PATTERN}`), prefix: "sonnet" },
+    { familyPattern: /opus/, versionPattern: new RegExp(`opus${VERSION_SUFFIX_PATTERN}`), prefix: "opus" },
+    { familyPattern: /haiku/, versionPattern: new RegExp(`haiku${VERSION_SUFFIX_PATTERN}`), prefix: "haiku" },
     { familyPattern: /gpt/, versionPattern: new RegExp(`gpt${VERSION_SUFFIX_PATTERN}`), prefix: "gpt" },
     { familyPattern: /gemini/, versionPattern: new RegExp(`gemini${VERSION_SUFFIX_PATTERN}`), prefix: "gem" },
   ];
