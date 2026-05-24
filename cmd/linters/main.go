@@ -21,6 +21,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/errstringmatch"
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
 	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
+	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
@@ -34,6 +35,7 @@ func main() {
 	multichecker.Main(
 		ctxbackground.Analyzer,
 		errormessage.Analyzer,
+		fprintlnsprintf.Analyzer,
 		errstringmatch.Analyzer,
 		excessivefuncparams.Analyzer,
 		fileclosenotdeferred.Analyzer,
