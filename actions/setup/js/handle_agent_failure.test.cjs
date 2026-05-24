@@ -1223,6 +1223,7 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("Failed to start containers: Error: Command failed with exit code 1: docker compose up -d --pull never");
       expect(result).not.toContain("Last agent output");
       expect(result).not.toContain("stdout: undefined");
+      expect(result).not.toContain("stderr: undefined");
     });
 
     it("detects Fatal: prefix pattern", () => {
