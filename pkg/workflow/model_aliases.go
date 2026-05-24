@@ -78,6 +78,8 @@ type builtinModelAliasesFile struct {
 //   - "claude"  → agent, sonnet-6x, haiku, any
 //   - "codex"   → agent, gpt-5-codex, gpt-5, any
 //   - "gemini"  → agent, gemini-pro, gemini-flash, any
+//
+// Panics on invalid embedded model_aliases.json data.
 func BuiltinModelAliases() map[string][]string {
 	var data builtinModelAliasesFile
 	if err := json.Unmarshal(builtinModelAliasesJSON, &data); err != nil {

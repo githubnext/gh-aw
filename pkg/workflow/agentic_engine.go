@@ -440,7 +440,8 @@ var (
 	registryInitOnce sync.Once
 )
 
-// NewEngineRegistry creates a new engine registry with built-in engines
+// NewEngineRegistry creates a new engine registry with built-in engines.
+// Panics on invalid built-in engine registration.
 func NewEngineRegistry() *EngineRegistry {
 	agenticEngineLog.Print("Creating new engine registry")
 

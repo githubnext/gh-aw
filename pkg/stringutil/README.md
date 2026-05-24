@@ -16,12 +16,14 @@ The `stringutil` package is organized into focused sub-files:
 | `sanitize.go` | Security-sensitive string sanitization |
 | `urls.go` | URL normalization and domain extraction |
 | `pat_validation.go` | GitHub PAT classification and validation |
+| `fuzzy_match.go` | Fuzzy string matching for "Did you mean?" suggestions |
 
 ### Exported Types
 
 | Type | Description |
 |------|-------------|
 | `SanitizeOptions` | Options for `SanitizeName` (preserved characters, hyphen trimming, and default value) |
+| `PATType` | Type of GitHub Personal Access Token (fine-grained, classic, oauth, unknown) with methods: `String()`, `IsFineGrained()`, `IsValid()` |
 
 ## General Utilities (`stringutil.go`)
 
@@ -203,6 +205,24 @@ if err := stringutil.ValidateCopilotPAT(token); err != nil {
 
 Returns a human-readable description of the token type (e.g. `"fine-grained personal access token"`).
 
+## Fuzzy Matching (`fuzzy_match.go`)
+
+### `FindClosestMatches(target string, candidates []string, maxResults int) []string`
+
+Finds the closest matching strings using Levenshtein distance. Returns up to `maxResults` matches that have a distance of 3 or less. Results are sorted by distance (closest first), then alphabetically for ties. Case-insensitive matching. Exact matches are excluded.
+
+This function is useful for "Did you mean?" suggestions when a user provides an unrecognized value (e.g., a typo in an engine name or event type).
+
+```go
+engines := []string{"copilot", "claude", "codex", "custom"}
+matches := stringutil.FindClosestMatches("copiliot", engines, 3)
+// → ["copilot"]
+```
+
+### `LevenshteinDistance(a, b string) int`
+
+Computes the Levenshtein distance between two strings — the minimum number of single-character edits (insertions, deletions, or substitutions) required to change one string into the other. Uses dynamic programming with space optimization (only the previous row is stored).
+
 ## Usage Examples
 
 ```go
@@ -233,6 +253,15 @@ stringutil.NormalizeGitHubHostURL("github.example.com") // "https://github.examp
 if err := stringutil.ValidateCopilotPAT(token); err != nil {
     fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 }
+
+// Find closest matches for "Did you mean?" suggestions
+engines := []string{"copilot", "claude", "codex", "custom"}
+matches := stringutil.FindClosestMatches("copiliot", engines, 3)
+// → ["copilot"]
+
+// Compute Levenshtein distance
+distance := stringutil.LevenshteinDistance("copiliot", "copilot")
+// → 1
 ```
 
 ## Dependencies

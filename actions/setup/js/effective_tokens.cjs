@@ -213,13 +213,13 @@ function formatET(n) {
 }
 
 /**
- * Build a deterministic 5-character model identifier for footer rendering.
+ * Build a deterministic compact model identifier for footer rendering.
  * Uses well-known shortcuts for popular model families and a deterministic fallback.
  *
  * Examples:
- * - claude-sonnet-4.6 -> son46
+ * - claude-sonnet-4.6 -> sonnet46
  * - gpt-5.5 -> gpt55
- * - claude-opus-4-7 -> opu47
+ * - claude-opus-4-7 -> opus47
  *
  * @param {string|undefined|null} modelName
  * @returns {string}
@@ -230,6 +230,10 @@ function reduceModelNameToIdentifier(modelName) {
     .toLowerCase();
   if (!normalized) return "";
 
+  if (normalized === "opus" || normalized === "sonnet" || normalized === "haiku") {
+    return normalized;
+  }
+
   const VERSION_SUFFIX_PATTERN = "[-_\\s]*([0-9]+)(?:[._-]+([0-9]+))?";
   const FALLBACK_LETTER_LENGTH = 3;
   const FALLBACK_DIGIT_LENGTH = 2;
@@ -237,9 +241,9 @@ function reduceModelNameToIdentifier(modelName) {
 
   /** @type {Array<{ familyPattern: RegExp, versionPattern: RegExp, prefix: string }>} */
   const shortcuts = [
-    { familyPattern: /sonnet/, versionPattern: new RegExp(`sonnet${VERSION_SUFFIX_PATTERN}`), prefix: "son" },
-    { familyPattern: /opus/, versionPattern: new RegExp(`opus${VERSION_SUFFIX_PATTERN}`), prefix: "opu" },
-    { familyPattern: /haiku/, versionPattern: new RegExp(`haiku${VERSION_SUFFIX_PATTERN}`), prefix: "hai" },
+    { familyPattern: /sonnet/, versionPattern: new RegExp(`sonnet${VERSION_SUFFIX_PATTERN}`), prefix: "sonnet" },
+    { familyPattern: /opus/, versionPattern: new RegExp(`opus${VERSION_SUFFIX_PATTERN}`), prefix: "opus" },
+    { familyPattern: /haiku/, versionPattern: new RegExp(`haiku${VERSION_SUFFIX_PATTERN}`), prefix: "haiku" },
     { familyPattern: /gpt/, versionPattern: new RegExp(`gpt${VERSION_SUFFIX_PATTERN}`), prefix: "gpt" },
     { familyPattern: /gemini/, versionPattern: new RegExp(`gemini${VERSION_SUFFIX_PATTERN}`), prefix: "gem" },
   ];
@@ -350,7 +354,7 @@ function resolveActualModelName() {
  * Read effective tokens from the GH_AW_EFFECTIVE_TOKENS environment variable and return
  * a pre-formatted suffix string suitable for appending to footer text.
  * Returns "" when the variable is absent or the parsed value is not a positive integer.
- * @returns {string} Suffix string, e.g. " · ● 12.5K" or ""
+ * @returns {string} Suffix string, e.g. " · 12.5K" or ""
  */
 function getEffectiveTokensSuffix() {
   const raw = process.env.GH_AW_EFFECTIVE_TOKENS ?? "";
@@ -359,7 +363,7 @@ function getEffectiveTokensSuffix() {
   if (!isNaN(parsed) && parsed > 0) {
     const reducedModel = reduceModelNameToIdentifier(resolveActualModelName());
     const modelPrefix = reducedModel ? `${reducedModel} ` : "";
-    return ` · ● ${modelPrefix}${formatET(parsed)}`;
+    return ` · ${modelPrefix}${formatET(parsed)}`;
   }
   return "";
 }
@@ -369,7 +373,7 @@ const AGENT_USAGE_PATH = "/tmp/gh-aw/agent_usage.json";
 /**
  * Read the aggregated token usage written by parse_token_usage.cjs.
  * Returns null when the file is absent or unparseable.
- * @returns {{input_tokens: number, output_tokens: number, cache_read_tokens: number, cache_write_tokens: number, effective_tokens: number} | null}
+ * @returns {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number, effective_tokens?: number, primary_model?: string} | null}
  */
 function readAgentUsage() {
   try {

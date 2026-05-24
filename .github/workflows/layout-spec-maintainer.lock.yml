@@ -120,7 +120,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Layout Specification Maintainer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/layout-spec-maintainer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Mask OTLP telemetry headers
@@ -130,9 +130,9 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.5' }}
-          GH_AW_INFO_VERSION: "1.0.51"
-          GH_AW_INFO_AGENT_VERSION: "1.0.51"
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}
+          GH_AW_INFO_VERSION: "1.0.52"
+          GH_AW_INFO_AGENT_VERSION: "1.0.52"
           GH_AW_INFO_WORKFLOW_NAME: "Layout Specification Maintainer"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -383,7 +383,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Layout Specification Maintainer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/layout-spec-maintainer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Set runtime paths
@@ -441,7 +441,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.51
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.52
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -811,7 +811,7 @@ jobs:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.5' }}
+          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1048,7 +1048,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Layout Specification Maintainer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/layout-spec-maintainer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
@@ -1207,7 +1207,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Layout Specification Maintainer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/layout-spec-maintainer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
@@ -1294,7 +1294,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.51
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.52
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -1327,7 +1327,7 @@ jobs:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || 'claude-sonnet-4.5' }}
+          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || 'claude-sonnet-4.6' }}
           GH_AW_PHASE: detection
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_VERSION: dev
@@ -1403,7 +1403,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
-      GH_AW_ENGINE_VERSION: "1.0.51"
+      GH_AW_ENGINE_VERSION: "1.0.52"
       GH_AW_TRACKER_ID: "layout-spec-maintainer"
       GH_AW_WORKFLOW_EMOJI: "📐"
       GH_AW_WORKFLOW_ID: "layout-spec-maintainer"
@@ -1437,7 +1437,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Layout Specification Maintainer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/layout-spec-maintainer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.51"
+          GH_AW_INFO_VERSION: "1.0.52"
           GH_AW_INFO_AWF_VERSION: "v0.25.53"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Mask OTLP telemetry headers

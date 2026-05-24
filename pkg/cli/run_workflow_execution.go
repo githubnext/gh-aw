@@ -25,6 +25,9 @@ var executionLog = logger.New("cli:run_workflow_execution")
 // workflowCompletionWaitTimeoutMinutes matches the GitHub Actions maximum job runtime.
 const workflowCompletionWaitTimeoutMinutes = 6 * 60
 
+// betweenWorkflowsDelay paces sequential workflow triggers to avoid overwhelming the GitHub API.
+const betweenWorkflowsDelay = 1 * time.Second
+
 // RunOptions contains all configuration options for running workflows
 type RunOptions struct {
 	Enable            bool     // Enable the workflow if it's disabled
@@ -568,7 +571,7 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, opts RunO
 
 			// Add a small delay between workflows to avoid overwhelming GitHub API
 			if i < len(workflowNames)-1 {
-				time.Sleep(1 * time.Second)
+				time.Sleep(betweenWorkflowsDelay)
 			}
 		}
 
