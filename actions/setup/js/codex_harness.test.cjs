@@ -7,8 +7,10 @@ import path from "path";
 const require = createRequire(import.meta.url);
 const {
   resolveCodexPromptFileArgs,
+  injectJsonFlag,
   isRateLimitError,
   isAuthenticationFailedError,
+  isMissingApiKeyError,
   isServerError,
   countPermissionDeniedIssues,
   hasNumerousPermissionDeniedIssues,
@@ -98,6 +100,50 @@ describe("codex_harness.cjs", () => {
     it("returns false for non-authentication-failed output", () => {
       expect(isAuthenticationFailedError("No authentication information found")).toBe(false);
       expect(isAuthenticationFailedError("rate_limit_exceeded")).toBe(false);
+    });
+  });
+
+  describe("isMissingApiKeyError", () => {
+    it("returns true for missing OPENAI_API_KEY with backtick delimiters", () => {
+      expect(isMissingApiKeyError("ERROR: Missing environment variable: `OPENAI_API_KEY`")).toBe(true);
+    });
+
+    it("returns true for missing CODEX_API_KEY with backtick delimiters", () => {
+      expect(isMissingApiKeyError("ERROR: Missing environment variable: `CODEX_API_KEY`")).toBe(true);
+    });
+
+    it("returns true for missing OPENAI_API_KEY without backtick delimiters", () => {
+      expect(isMissingApiKeyError("Missing environment variable: OPENAI_API_KEY")).toBe(true);
+    });
+
+    it("returns true when the error appears within a larger output block", () => {
+      const output = "Starting codex...\nERROR: Missing environment variable: `OPENAI_API_KEY`\nExiting.";
+      expect(isMissingApiKeyError(output)).toBe(true);
+    });
+
+    it("returns false for unrelated errors", () => {
+      expect(isMissingApiKeyError("Authentication failed")).toBe(false);
+      expect(isMissingApiKeyError("rate_limit_exceeded")).toBe(false);
+      expect(isMissingApiKeyError("Missing environment variable: HOME")).toBe(false);
+      expect(isMissingApiKeyError("")).toBe(false);
+    });
+  });
+
+  describe("injectJsonFlag", () => {
+    it("injects --json after exec when not already present", () => {
+      expect(injectJsonFlag(["exec", "--dangerously-bypass-approvals-and-sandbox", "do the thing"])).toEqual(["exec", "--json", "--dangerously-bypass-approvals-and-sandbox", "do the thing"]);
+    });
+
+    it("does not inject --json when already present", () => {
+      expect(injectJsonFlag(["exec", "--json", "--skip-git-repo-check", "do the thing"])).toEqual(["exec", "--json", "--skip-git-repo-check", "do the thing"]);
+    });
+
+    it("does not inject --json for non-exec subcommands", () => {
+      expect(injectJsonFlag(["resume", "--last", "fix it"])).toEqual(["resume", "--last", "fix it"]);
+    });
+
+    it("returns empty array unchanged", () => {
+      expect(injectJsonFlag([])).toEqual([]);
     });
   });
 
@@ -223,6 +269,7 @@ describe("codex_harness.cjs", () => {
       const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError/i;
       const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
       if (attempt === 0 && isAuthenticationFailedError(result.output)) return false;
+      if (isMissingApiKeyError(result.output)) return false;
       if (hasNumerousPermissionDeniedIssues(result.output)) return false;
       const isTransient = RATE_LIMIT_ERROR_PATTERN.test(result.output) || SERVER_ERROR_PATTERN.test(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);
@@ -246,6 +293,12 @@ describe("codex_harness.cjs", () => {
     it("does not retry when first attempt fails authentication", () => {
       const result = { exitCode: 1, hasOutput: true, output: "Authentication failed (Request ID: ABC123)" };
       expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("does not retry when missing API key is detected (any attempt)", () => {
+      const result = { exitCode: 1, hasOutput: false, output: "ERROR: Missing environment variable: `OPENAI_API_KEY`" };
+      expect(shouldRetry(result, 0)).toBe(false);
+      expect(shouldRetry(result, 1)).toBe(false);
     });
 
     it("does not retry when no output was produced and no transient error", () => {

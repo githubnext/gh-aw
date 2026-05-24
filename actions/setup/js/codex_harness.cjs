@@ -60,6 +60,11 @@ const MAX_DELAY_MS = 60000;
 const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError/i;
 const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?/i;
 
+// Pattern to detect a missing API key at startup — Codex emits this before making any API
+// calls when neither CODEX_API_KEY nor OPENAI_API_KEY is available in the environment.
+// Example: "ERROR: Missing environment variable: `OPENAI_API_KEY`"
+const MISSING_API_KEY_PATTERN = /Missing environment variable:\s*`?(?:CODEX_API_KEY|OPENAI_API_KEY)`?/i;
+
 // Pattern to detect OpenAI server-side errors (HTTP 500, 503).
 // These are transient infrastructure failures that may resolve on retry.
 const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
@@ -93,6 +98,16 @@ function isRateLimitError(output) {
  */
 function isAuthenticationFailedError(output) {
   return AUTHENTICATION_FAILED_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output indicates a missing API key at startup.
+ * Codex exits before producing any agent output in this case, so retrying is futile.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isMissingApiKeyError(output) {
+  return MISSING_API_KEY_PATTERN.test(output);
 }
 
 /**
@@ -246,6 +261,22 @@ function resolveCodexPromptFileArgs(args) {
 }
 
 /**
+ * Inject `--json` after `exec` in the args list so that Codex streams structured
+ * JSON Lines (JSONL) to stdout.  This enables machine-readable output for CI
+ * pipelines without changing how stderr progress output works.
+ *
+ * No-op when the subcommand is not `exec` or when `--json` is already present.
+ *
+ * @param {string[]} args
+ * @returns {string[]}
+ */
+function injectJsonFlag(args) {
+  if (args.length === 0 || args[0] !== "exec") return args;
+  if (args.includes("--json")) return args;
+  return ["exec", "--json", ...args.slice(1)];
+}
+
+/**
  * Main entry point: run codex with retry logic for transient API failures.
  * Codex does not support --continue session resumption, so all retries are fresh runs.
  */
@@ -258,6 +289,14 @@ async function main() {
   }
 
   log(`starting: command=${command} maxRetries=${MAX_RETRIES} initialDelayMs=${INITIAL_DELAY_MS}` + ` backoffMultiplier=${BACKOFF_MULTIPLIER} maxDelayMs=${MAX_DELAY_MS}` + ` nodeVersion=${process.version} platform=${process.platform}`);
+
+  // Diagnose API key presence so CI failures can be triaged without exposing secret values.
+  const codexApiKey = process.env.CODEX_API_KEY;
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+  log(
+    `secrets: CODEX_API_KEY=${codexApiKey ? `set (length=${codexApiKey.length})` : "not set"}` +
+      ` OPENAI_API_KEY=${openaiApiKey ? `set (length=${openaiApiKey.length})` : "not set"}`
+  );
 
   // Resolve the prompt for the initial run (reads --prompt-file content).
   // A missing or unreadable prompt file is treated as a fatal startup error.
@@ -275,6 +314,10 @@ async function main() {
   // task instructions are never written to stderr or captured in agent logs.
   const hadPromptFile = args.includes("--prompt-file");
   const safeArgs = hadPromptFile && resolvedArgs.length > 0 ? [...resolvedArgs.slice(0, -1), "<prompt omitted>"] : resolvedArgs;
+
+  // Inject --json after `exec` to stream structured JSONL events to stdout, making
+  // Codex output machine-readable in CI without affecting the stderr progress stream.
+  resolvedArgs = injectJsonFlag(resolvedArgs);
 
   // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
   // This is best-effort: failures are logged but do not affect the agent run.
@@ -308,6 +351,7 @@ async function main() {
 
     const isRateLimit = isRateLimitError(result.output);
     const isAuthenticationFailed = isAuthenticationFailedError(result.output);
+    const isMissingApiKey = isMissingApiKeyError(result.output);
     const isServer = isServerError(result.output);
     const permissionDeniedCount = countPermissionDeniedIssues(result.output);
     const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
@@ -316,6 +360,7 @@ async function main() {
         ` exitCode=${result.exitCode}` +
         ` isRateLimitError=${isRateLimit}` +
         ` isAuthenticationFailedError=${isAuthenticationFailed}` +
+        ` isMissingApiKeyError=${isMissingApiKey}` +
         ` isServerError=${isServer}` +
         ` permissionDeniedCount=${permissionDeniedCount}` +
         ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
@@ -325,6 +370,11 @@ async function main() {
 
     if (attempt === 0 && isAuthenticationFailed) {
       log(`attempt ${attempt + 1}: authentication failed — not retrying (first-attempt auth failure is non-retryable)`);
+      break;
+    }
+
+    if (isMissingApiKey) {
+      log(`attempt ${attempt + 1}: missing API key — not retrying (configure CODEX_API_KEY or OPENAI_API_KEY)`);
       break;
     }
 
@@ -363,8 +413,10 @@ async function main() {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     resolveCodexPromptFileArgs,
+    injectJsonFlag,
     isRateLimitError,
     isAuthenticationFailedError,
+    isMissingApiKeyError,
     isServerError,
     countPermissionDeniedIssues,
     hasNumerousPermissionDeniedIssues,
