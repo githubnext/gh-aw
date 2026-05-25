@@ -21,7 +21,7 @@ permissions:
 name: Smoke Codex
 engine:
   id: codex
-  model: gpt-5.3-codex
+  model: got-5.3-codex
 strict: false
 imports:
   - shared/gh.md
