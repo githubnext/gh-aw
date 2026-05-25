@@ -5,7 +5,7 @@ sidebar:
   order: 297
 ---
 
-Outcomes describe what happened after a [safe output](../concepts/safe-outputs) landed in a repository. Safe outputs record what a workflow did. Outcomes record the repository state that can be observed afterward.
+Outcomes describe what happened after a [safe output](/gh-aw/reference/safe-outputs/) landed in a repository. Safe outputs record what a workflow did. Outcomes record the repository state that can be observed afterward.
 
 For example, a pull request can be merged or closed, an issue can remain relevant or be dismissed, and a comment can lead to follow-up activity or be ignored. Outcome data is based on repository state, not on the workflow's self-assessment.
 
