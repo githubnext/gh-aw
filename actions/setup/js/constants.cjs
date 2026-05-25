@@ -112,6 +112,14 @@ const GITHUB_RATE_LIMITS_JSONL_PATH = `${TMP_GH_AW_PATH}/github_rate_limits.json
  */
 const DETECTION_LOG_FILENAME = "detection.log";
 
+/**
+ * Path to the computed model alias map written by the compute_models step.
+ * Contains the merged model aliases (builtin + user-defined overrides) used
+ * by subsequent activation and agent steps.
+ * @type {string}
+ */
+const MODELS_JSON_PATH = `${TMP_GH_AW_PATH}/models.json`;
+
 module.exports = {
   AGENT_OUTPUT_FILENAME,
   TMP_GH_AW_PATH,
@@ -126,4 +134,5 @@ module.exports = {
   OTEL_JSONL_PATH,
   GITHUB_RATE_LIMITS_JSONL_PATH,
   DETECTION_LOG_FILENAME,
+  MODELS_JSON_PATH,
 };

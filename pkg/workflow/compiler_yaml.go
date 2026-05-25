@@ -865,6 +865,17 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			fmt.Fprintf(yaml, "          GH_AW_INFO_TOKEN_WEIGHTS: '%s'\n", escapedTokenWeightsJSON)
 		}
 	}
+	// Embed user-defined model alias overrides (imports + frontmatter, without builtins).
+	// The compute_models step reads this at runtime and merges it with the pre-computed
+	// builtin aliases from actions/setup/js/models.json to produce /tmp/gh-aw/models.json.
+	// Emitting only the user delta avoids inlining the full builtin alias map in every
+	// compiled workflow YAML.
+	if len(data.UserModelAliases) > 0 {
+		if userAliasesJSON, err := json.Marshal(data.UserModelAliases); err == nil {
+			escapedUserAliasesJSON := strings.ReplaceAll(string(userAliasesJSON), "'", "''")
+			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL_ALIASES: '%s'\n", escapedUserAliasesJSON)
+		}
+	}
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")

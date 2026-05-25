@@ -128,3 +128,39 @@ func MergeImportedModelAliases(importedModels []map[string][]string, frontmatter
 	modelAliasesLog.Printf("Final alias map has %d entries", len(merged))
 	return merged
 }
+
+// MergeUserModelAliases builds the user-defined model alias overrides from two layers,
+// with later layers overriding earlier ones (highest priority last):
+//
+//  1. Imported workflow aliases — merged in import order; first import to define a
+//     key wins among imports (same "first-wins among peers" semantics as features).
+//  2. Main workflow frontmatter aliases (highest priority — main workflow file wins)
+//
+// Builtin aliases are intentionally excluded so the result can be passed as a compact
+// delta (GH_AW_INFO_MODEL_ALIASES) in the compiled workflow, while the pre-computed
+// builtin aliases are read from actions/setup/js/models.json at runtime.
+//
+// Returns nil when both importedModels and frontmatterModels are empty.
+func MergeUserModelAliases(importedModels []map[string][]string, frontmatterModels map[string][]string) map[string][]string {
+	if len(importedModels) == 0 && len(frontmatterModels) == 0 {
+		return nil
+	}
+
+	merged := make(map[string][]string)
+
+	// Layer 1 — imported models (first import to define a key wins among imports).
+	for _, importedMap := range importedModels {
+		for k, v := range importedMap {
+			if _, exists := merged[k]; !exists {
+				merged[k] = v
+			}
+		}
+	}
+
+	// Layer 2 — main workflow frontmatter always wins.
+	maps.Copy(merged, frontmatterModels)
+
+	modelAliasesLog.Printf("User model aliases: %d entries (%d from imports, %d from frontmatter)",
+		len(merged), len(merged)-len(frontmatterModels), len(frontmatterModels))
+	return merged
+}

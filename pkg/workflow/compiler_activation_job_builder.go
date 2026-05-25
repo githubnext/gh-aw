@@ -136,6 +136,9 @@ func (c *Compiler) newActivationJobBuildContext(
 	ctx.outputs["engine_id"] = "${{ steps.generate_aw_info.outputs.engine_id }}"
 	ctx.outputs["model"] = "${{ steps.generate_aw_info.outputs.model }}"
 	ctx.outputs["lockdown_check_failed"] = "${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}"
+
+	compilerActivationJobLog.Print("Generating compute_models step in activation job")
+	ctx.steps = append(ctx.steps, c.generateComputeModelsStep(data))
 	if !data.StaleCheckDisabled {
 		ctx.outputs["stale_lock_file_failed"] = "${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}"
 	}
@@ -496,6 +499,25 @@ func (c *Compiler) configureActivationNeedsAndCondition(ctx *activationJobBuildC
 	}
 }
 
+// generateComputeModelsStep returns the YAML for the "Compute models" activation step.
+// This step merges the pre-computed builtin model aliases (from actions/setup/js/models.json,
+// copied to RUNNER_TEMP by setup.sh) with the user-defined overrides (from the workflow
+// frontmatter + imports, passed as GH_AW_INFO_MODEL_ALIASES) and writes the result to
+// /tmp/gh-aw/models.json.  The output is also logged to the step summary.
+func (c *Compiler) generateComputeModelsStep(data *WorkflowData) string {
+	var step strings.Builder
+	step.WriteString("      - name: Compute models\n")
+	step.WriteString("        id: compute_models\n")
+	step.WriteString(fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
+	step.WriteString("        with:\n")
+	step.WriteString("          script: |\n")
+	step.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+	step.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+	step.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/compute_models.cjs');\n")
+	step.WriteString("            await main();\n")
+	return step.String()
+}
+
 // addActivationArtifactUploadStep appends the activation artifact upload step for downstream jobs.
 func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContext) {
 	compilerActivationJobLog.Print("Adding activation artifact upload step")
@@ -508,6 +530,7 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	ctx.steps = append(ctx.steps, "          include-hidden-files: true\n")
 	ctx.steps = append(ctx.steps, "          path: |\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw_info.json\n")
+	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/models.json\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt-template.txt\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt-import-tree.json\n")
