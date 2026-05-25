@@ -29,6 +29,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gpt-4.1` | `copilot/gpt-4.1*`, `openai/gpt-4.1*` |
 | `gpt-5` | `copilot/gpt-5*`, `openai/gpt-5*` |
 | `gpt-5.4` | `copilot/gpt-5.4*`, `openai/gpt-5.4*` |
+| `gpt-5.3` | `copilot/gpt-5.3*`, `openai/gpt-5.3*` |
 | `gpt-5-mini` | `copilot/gpt-5*mini*`, `openai/gpt-5*mini*` |
 | `gpt-5-nano` | `copilot/gpt-5*nano*`, `openai/gpt-5*nano*` |
 | `gpt-5-codex` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*` |
@@ -53,20 +54,18 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 ### Meta-Aliases
 
 Meta-aliases reference other aliases by name. They are resolved recursively until a concrete pattern is reached.
-Some meta-aliases also bake in model parameters (for example, `opusplan` sets `effort=high`).
 
 | Meta-alias | Expands to |
 |------------|------------|
+| `opusplan` | `opus?effort=high` |
 | `small` | `mini` |
 | `mini` | `haiku` → `gpt-5-mini` → `gpt-5-nano` → `gemini-flash-lite` |
-| `opusplan` | `opus?effort=high` |
 | `large` | `sonnet` → `gpt-5-pro` → `gpt-5` → `gemini-pro` |
-| `auto` | `large` |
-| `agent` | `sonnet-6x` → `gpt-5.4` → `gpt-5` → `gemini-pro` → `haiku` → `any` |
-| `copilot` | `agent` → `gpt-5.4` → `sonnet` → `gpt-5` → `any` |
-| `claude` | `agent` → `sonnet-6x` → `haiku` → `any` |
-| `codex` | `agent` → `gpt-5-codex` → `gpt-5` → `any` |
-| `gemini` | `agent` → `gemini-pro` → `gemini-flash` → `any` |
+| `agent` | `sonnet-6x` → `gpt-5.4` → `gpt-5.3` → `gemini-pro` → `any` |
+| `copilot` | `agent` |
+| `claude` | `agent` |
+| `codex` | `agent` |
+| `gemini` | `agent` |
 | `summarization` | `haiku` → `gpt-5-mini` → `gemini-flash-lite` → `mini` |
 
 ## Model Multipliers

@@ -222,6 +222,7 @@ function recordVariant(name, variant, state) {
 async function writeSummary(assignments, configs, state, core) {
   const names = Object.keys(assignments).sort();
   const lines = ["<details>", "<summary>🧪 Experiment Assignments</summary>", "", "| Experiment | Variant | Counts (current/total) |", "| --- | --- | --- |"];
+  const detailLines = [];
   for (const name of names) {
     const selected = assignments[name];
     const counts = state.counts[name] || {};
@@ -231,8 +232,48 @@ async function writeSummary(assignments, configs, state, core) {
     const runsForExp = state.runs ? state.runs.filter(r => r.assignments && name in r.assignments) : null;
     const totalCount = runsForExp !== null && runsForExp.length > 0 ? runsForExp.length : Object.values(/** @type {number[]} */ counts).reduce((a, b) => a + b, 0);
     lines.push(`| \`${name}\` | **${selected}** | ${thisCount} / ${totalCount} |`);
+
+    const cfg = configs[name] || {};
+    const minSamples = Number.isInteger(cfg.min_samples) && cfg.min_samples > 0 ? cfg.min_samples : null;
+    const analysisType = cfg.analysis_type || "n/a";
+    const tags = Array.isArray(cfg.tags) ? cfg.tags.filter(t => typeof t === "string" && t.length > 0) : [];
+    const notifyTargets = [];
+    if (cfg.notify?.discussion) {
+      notifyTargets.push(`discussion #${cfg.notify.discussion}`);
+    }
+    if (cfg.notify?.issue) {
+      notifyTargets.push(`issue #${cfg.notify.issue}`);
+    }
+
+    detailLines.push("<details>");
+    detailLines.push(`<summary>🔎 ${name} assignment metadata</summary>`);
+    detailLines.push("");
+    detailLines.push(`### ${name}`);
+    detailLines.push("");
+    detailLines.push("");
+    detailLines.push("| Field | Value |");
+    detailLines.push("| --- | --- |");
+    detailLines.push(`| Experiment | \`${name}\` |`);
+    detailLines.push(`| Assigned variant | \`${selected}\` |`);
+    detailLines.push(`| Analysis type | \`${analysisType}\` |`);
+    detailLines.push(`| Run count (this variant) | ${minSamples !== null ? `${thisCount} / ${minSamples} min_samples` : `${thisCount}`} |`);
+    if (tags.length > 0) {
+      detailLines.push(`| Tags | ${tags.map(tag => `\`${tag}\``).join(", ")} |`);
+    }
+    if (notifyTargets.length > 0) {
+      detailLines.push(`| Notify | ${notifyTargets.join("; ")} |`);
+    }
+    detailLines.push("");
+    detailLines.push("</details>");
+    detailLines.push("");
   }
   lines.push("");
+
+  if (detailLines.length > 0) {
+    lines.push("### 📋 Assignment Details");
+    lines.push("");
+    lines.push(...detailLines);
+  }
 
   // Progress bars and ready-for-analysis flags when min_samples is a positive integer.
   const progressNames = names.filter(name => {

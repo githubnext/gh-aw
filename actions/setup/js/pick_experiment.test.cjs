@@ -569,6 +569,37 @@ describe("pick_experiment", () => {
       const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
       expect(rawCall).not.toContain("📊 Sampling Progress");
     });
+
+    it("renders assignment details with analysis_type, tags, and notify metadata", async () => {
+      const stateFile = path.join(tmpDir, "state.json");
+      fs.writeFileSync(stateFile, JSON.stringify({ counts: { style: { A: 1, B: 0 } }, runs: [] }), "utf8");
+      process.env.GH_AW_EXPERIMENT_SPEC = JSON.stringify({
+        style: {
+          variants: ["A", "B"],
+          analysis_type: "proportion_test",
+          tags: ["cost", "prompting"],
+          notify: { discussion: 1234, issue: 5678 },
+          min_samples: 30,
+        },
+      });
+      process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+      delete process.env.GITHUB_REPOSITORY;
+
+      await main();
+
+      const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
+      expect(rawCall).toContain("### 📋 Assignment Details");
+      expect(rawCall).toContain("<summary>🔎 style assignment metadata</summary>");
+      expect(rawCall).toContain("### style");
+      expect(rawCall).toContain("| Field | Value |");
+      expect(rawCall).toContain("| Experiment | `style` |");
+      expect(rawCall).toContain("| Assigned variant | `B` |");
+      expect(rawCall).toContain("| Analysis type | `proportion_test` |");
+      expect(rawCall).toContain("| Run count (this variant) | 1 / 30 min_samples |");
+      expect(rawCall).toContain("| Tags | `cost`, `prompting` |");
+      expect(rawCall).toContain("| Notify | discussion #1234; issue #5678 |");
+    });
   });
 
   // ── pickVariantWeighted ────────────────────────────────────────────────────
