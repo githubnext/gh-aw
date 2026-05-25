@@ -251,7 +251,6 @@ async function writeSummary(assignments, configs, state, core) {
     detailLines.push("");
     detailLines.push(`### ${name}`);
     detailLines.push("");
-    detailLines.push("");
     detailLines.push("| Field | Value |");
     detailLines.push("| --- | --- |");
     detailLines.push(`| Experiment | \`${name}\` |`);
