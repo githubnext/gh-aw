@@ -306,11 +306,11 @@ function parseGatewayJsonlForModelAliasResolution(jsonlContent) {
   const lines = jsonlContent.split("\n");
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed || !trimmed.includes("model_alias_resolution")) continue;
+    if (!trimmed || !/model_alias|model_rewrite/i.test(trimmed)) continue;
     try {
       const entry = JSON.parse(trimmed);
       const eventName = getGatewayEventName(entry);
-      if (eventName === "model_alias_resolution") {
+      if (eventName === "model_alias_resolution" || eventName === "model_rewrite" || eventName === "MODEL_ALIAS_REWRITE") {
         aliasResolutionEvents.push(entry);
       }
     } catch {
@@ -365,11 +365,12 @@ function generateModelAliasResolutionSummary(aliasResolutionEvents) {
   lines.push("|------|----------|------------|-------|----------------|");
   for (const event of aliasResolutionEvents) {
     // AWF has evolved the model alias event schema over time; support the known
-    // snake_case/camelCase field variants emitted by gateway/rpc JSONL streams.
-    const provider = event.provider || event.resolved_provider || event.target_provider || "-";
-    const requestId = event.request_id || event.requestId || "-";
-    const alias = event.alias || event.model_alias || event.requested_alias || event.requested_model || event.requestedModel || "-";
-    const resolvedModel = event.resolved_model || event.resolvedModel || event.model || event.selected_model || event.selectedModel || "-";
+    // snake_case/camelCase and token-diag data payload variants emitted by gateway/rpc JSONL streams.
+    const data = event.data && typeof event.data === "object" ? event.data : null;
+    const provider = event.provider || data?.provider || event.resolved_provider || event.target_provider || "-";
+    const requestId = event.request_id || data?.request_id || event.requestId || data?.requestId || "-";
+    const alias = event.alias || event.model_alias || event.requested_alias || event.requested_model || event.requestedModel || data?.original_model || "-";
+    const resolvedModel = event.resolved_model || event.resolvedModel || event.model || event.selected_model || event.selectedModel || data?.resolved_model || data?.resolvedModel || "-";
     lines.push(buildRpcSummaryRow([formatRpcMessageTime(event.timestamp), provider, requestId, alias, resolvedModel]));
   }
   lines.push("");
@@ -869,7 +870,7 @@ async function main() {
         core.info(`Found ${tokenSteeringEvents.length} token_steering event(s) in gateway.jsonl`);
       }
       if (modelAliasResolutionEvents.length > 0) {
-        core.info(`Found ${modelAliasResolutionEvents.length} model_alias_resolution event(s) in gateway.jsonl`);
+        core.info(`Found ${modelAliasResolutionEvents.length} model alias event(s) in gateway.jsonl`);
       }
     } else if (fs.existsSync(rpcMessagesPath)) {
       rpcMessagesContent = fs.readFileSync(rpcMessagesPath, "utf8");
@@ -888,7 +889,7 @@ async function main() {
         core.info(`Found ${tokenSteeringEvents.length} token_steering event(s) in rpc-messages.jsonl`);
       }
       if (modelAliasResolutionEvents.length > 0) {
-        core.info(`Found ${modelAliasResolutionEvents.length} model_alias_resolution event(s) in rpc-messages.jsonl`);
+        core.info(`Found ${modelAliasResolutionEvents.length} model alias event(s) in rpc-messages.jsonl`);
       }
     } else {
       core.info(`No gateway.jsonl or rpc-messages.jsonl found for steering or DIFC_FILTERED scanning`);
@@ -991,7 +992,13 @@ async function main() {
     }
 
     // If no legacy log content and no DIFC events, check if token usage is available
-    if ((!gatewayLogContent || gatewayLogContent.trim().length === 0) && (!stderrLogContent || stderrLogContent.trim().length === 0) && difcFilteredEvents.length === 0 && tokenSteeringEvents.length === 0 && modelAliasResolutionEvents.length === 0) {
+    if (
+      (!gatewayLogContent || gatewayLogContent.trim().length === 0) &&
+      (!stderrLogContent || stderrLogContent.trim().length === 0) &&
+      difcFilteredEvents.length === 0 &&
+      tokenSteeringEvents.length === 0 &&
+      modelAliasResolutionEvents.length === 0
+    ) {
       core.info("MCP gateway log files are empty or missing");
       setEffectiveTokensRateLimitOutput(core, effectiveTokensRateLimitError);
       writeStepSummaryWithTokenUsage(core);
