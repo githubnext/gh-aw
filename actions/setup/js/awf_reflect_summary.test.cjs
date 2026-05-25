@@ -405,6 +405,9 @@ describe("awf_reflect_summary.cjs", () => {
         expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("AWF reflect summary written"));
       } finally {
         global.core.summary = originalSummary;
+        const shimPath = require.resolve("./shim.cjs");
+        delete require.cache[shimPath];
+        require("./shim.cjs");
       }
     });
   });

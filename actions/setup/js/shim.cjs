@@ -33,16 +33,14 @@ if (!global.core) {
   };
 }
 
-if (!global.core.summary || typeof global.core.summary !== "object") {
-  global.core.summary = {};
+const coreSummary = global.core.summary && typeof global.core.summary === "object" ? global.core.summary : (global.core.summary = {});
+
+if (typeof coreSummary.addRaw !== "function") {
+  coreSummary.addRaw = () => coreSummary;
 }
 
-if (typeof global.core.summary.addRaw !== "function") {
-  global.core.summary.addRaw = () => global.core.summary;
-}
-
-if (typeof global.core.summary.write !== "function") {
-  global.core.summary.write = async () => {};
+if (typeof coreSummary.write !== "function") {
+  coreSummary.write = async () => {};
 }
 
 if (!global.context) {

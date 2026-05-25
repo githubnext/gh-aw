@@ -262,7 +262,8 @@ async function main() {
   }
 
   const markdown = buildReflectSummary(reflectData, { awfConfigData, runtimeModelsData });
-  // shim.cjs ensures core.summary.addRaw()/write() are available outside github-script.
+  // shim.cjs ensures core.summary.addRaw()/write() are available in environments
+  // without native GitHub Actions step-summary support.
   await core.summary.addRaw(markdown).write();
   core.info("AWF reflect summary written to step summary");
 }
