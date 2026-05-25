@@ -9,11 +9,14 @@ package cli
 // workflow is actually expected to fire and how many concurrent runs it supports.
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -44,7 +47,17 @@ const (
 var (
 	forecastFetchGitHubWorkflows      = fetchGitHubWorkflows
 	forecastListWorkflowRunsPaginated = listWorkflowRunsWithPagination
-	forecastRateLimitSleep            = time.Sleep
+	forecastRateLimitSleep            = func(ctx context.Context, delay time.Duration) error {
+		timer := time.NewTimer(delay)
+		defer timer.Stop()
+
+		select {
+		case <-timer.C:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 )
 
 // ForecastEpisodeSummary contains episode-level aggregate metrics derived from
@@ -165,6 +178,8 @@ type ForecastResult struct {
 // RunForecast is the entry point for the forecast command.
 func RunForecast(config ForecastConfig) error {
 	forecastRunLog.Printf("Running forecast: workflows=%v, days=%d, period=%s, eval=%v", config.WorkflowIDs, config.Days, config.Period, config.EvalMode)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 
 	// Emit experimental warning so users know this command is not yet stable.
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("forecast is an experimental command and may change without notice"))
@@ -182,7 +197,7 @@ func RunForecast(config ForecastConfig) error {
 	}
 
 	// Resolve the list of workflow IDs to forecast.
-	workflowIDs, err := resolveForecastWorkflows(config)
+	workflowIDs, err := resolveForecastWorkflows(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -232,14 +247,26 @@ func RunForecast(config ForecastConfig) error {
 
 	results := make([]ForecastWorkflowResult, 0, len(workflowIDs))
 	for _, wfID := range workflowIDs {
+		if err := ctx.Err(); err != nil {
+			if !config.Verbose {
+				spinner.Stop()
+			}
+			return err
+		}
 		if !config.Verbose {
 			spinner.UpdateMessage(fmt.Sprintf("Sampling %s…", wfID))
 		}
 
 		// forecastWorkflow uses the shifted startDate; in eval mode we also pass the
 		// anchor so the function knows where the training window ends.
-		result, err := forecastWorkflow(wfID, startDate, config, periodDays)
+		result, err := forecastWorkflow(ctx, wfID, startDate, config, periodDays)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				if !config.Verbose {
+					spinner.Stop()
+				}
+				return err
+			}
 			if !config.Verbose {
 				spinner.Stop()
 			}
@@ -253,7 +280,7 @@ func RunForecast(config ForecastConfig) error {
 
 		// In eval mode, fetch the validation-window runs and attach evaluation metrics.
 		if config.EvalMode {
-			result.Evaluation = evaluateForecast(wfID, result, validationStartDate, validationEndDate, config)
+			result.Evaluation = evaluateForecast(ctx, wfID, result, validationStartDate, validationEndDate, config)
 		}
 
 		results = append(results, result)
@@ -292,9 +319,9 @@ func RunForecast(config ForecastConfig) error {
 // resolveForecastWorkflows returns the ordered list of workflow IDs to forecast.
 // When WorkflowIDs is empty, all agentic workflow IDs in the repository are returned.
 // When RepoOverride is set, workflows are discovered via the GitHub API instead of local files.
-func resolveForecastWorkflows(config ForecastConfig) ([]string, error) {
+func resolveForecastWorkflows(ctx context.Context, config ForecastConfig) ([]string, error) {
 	if config.RepoOverride != "" {
-		return resolveForecastWorkflowsFromRemote(config.WorkflowIDs, config.RepoOverride, config.Verbose)
+		return resolveForecastWorkflowsFromRemote(ctx, config.WorkflowIDs, config.RepoOverride, config.Verbose)
 	}
 
 	if len(config.WorkflowIDs) > 0 {
@@ -322,8 +349,8 @@ func resolveForecastWorkflows(config ForecastConfig) ([]string, error) {
 // the GitHub API. When ids is empty, all workflows in the remote repository are returned.
 // When ids are provided, each is matched (case-insensitively) against remote workflow names
 // and file-path basenames.
-func resolveForecastWorkflowsFromRemote(ids []string, repoOverride string, verbose bool) ([]string, error) {
-	githubWorkflows, err := fetchWorkflowsWithBackoff(ids, repoOverride, verbose)
+func resolveForecastWorkflowsFromRemote(ctx context.Context, ids []string, repoOverride string, verbose bool) ([]string, error) {
+	githubWorkflows, err := fetchWorkflowsWithBackoff(ctx, ids, repoOverride, verbose)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list workflows in %s: %w", repoOverride, err)
 	}
@@ -357,7 +384,7 @@ func forecastRateLimitBackoffDuration(attempt int) time.Duration {
 	return time.Duration(attempt) * forecastRateLimitBaseBackoff
 }
 
-func fetchWorkflowsWithBackoff(ids []string, repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
+func fetchWorkflowsWithBackoff(ctx context.Context, ids []string, repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
 	var lastErr error
 
 	for attempt := 1; attempt <= forecastRateLimitMaxAttempts; attempt++ {
@@ -378,7 +405,9 @@ func fetchWorkflowsWithBackoff(ids []string, repoOverride string, verbose bool) 
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
 			fmt.Sprintf("GitHub API rate limit hit while discovering workflows in %s; backing off for %s before retry %d/%d",
 				repoOverride, backoff, attempt+1, forecastRateLimitMaxAttempts)))
-		forecastRateLimitSleep(backoff)
+		if err := forecastRateLimitSleep(ctx, backoff); err != nil {
+			return nil, err
+		}
 	}
 
 	if len(ids) > 0 {
@@ -396,8 +425,9 @@ func fetchWorkflowsWithBackoff(ids []string, repoOverride string, verbose bool) 
 	return nil, fmt.Errorf("GitHub API rate limit exhausted after %d attempts: %w", forecastRateLimitMaxAttempts, lastErr)
 }
 
-func listRunsWithBackoff(opts ListWorkflowRunsOptions, workflowID string) ([]WorkflowRun, int, error) {
+func listRunsWithBackoff(ctx context.Context, opts ListWorkflowRunsOptions, workflowID string) ([]WorkflowRun, int, error) {
 	var lastErr error
+	opts.Context = ctx
 
 	for attempt := 1; attempt <= forecastRateLimitMaxAttempts; attempt++ {
 		runs, total, err := forecastListWorkflowRunsPaginated(opts)
@@ -417,7 +447,9 @@ func listRunsWithBackoff(opts ListWorkflowRunsOptions, workflowID string) ([]Wor
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
 			fmt.Sprintf("GitHub API rate limit hit while sampling %s; backing off for %s before retry %d/%d",
 				workflowID, backoff, attempt+1, forecastRateLimitMaxAttempts)))
-		forecastRateLimitSleep(backoff)
+		if err := forecastRateLimitSleep(ctx, backoff); err != nil {
+			return nil, 0, err
+		}
 	}
 
 	return nil, 0, lastErr
@@ -437,7 +469,7 @@ func matchRemoteWorkflowName(id string, workflows map[string]*GitHubWorkflow) st
 }
 
 // forecastWorkflow computes a ForecastWorkflowResult for a single workflow.
-func forecastWorkflow(workflowName, startDate string, config ForecastConfig, periodDays int) (ForecastWorkflowResult, error) {
+func forecastWorkflow(ctx context.Context, workflowName, startDate string, config ForecastConfig, periodDays int) (ForecastWorkflowResult, error) {
 	result := ForecastWorkflowResult{
 		WorkflowID:  extractWorkflowIDFromName(workflowName),
 		Period:      config.Period,
@@ -465,7 +497,7 @@ func forecastWorkflow(workflowName, startDate string, config ForecastConfig, per
 		Verbose:      config.Verbose,
 	}
 
-	runs, _, err := listRunsWithBackoff(opts, result.WorkflowID)
+	runs, _, err := listRunsWithBackoff(ctx, opts, result.WorkflowID)
 	if err != nil {
 		if gitutil.IsRateLimitError(err.Error()) {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
@@ -479,6 +511,9 @@ func forecastWorkflow(workflowName, startDate string, config ForecastConfig, per
 	completed := make([]WorkflowRun, 0, len(runs))
 	for _, r := range runs {
 		if r.Status == "completed" {
+			if r.Conclusion == "skipped" {
+				continue
+			}
 			// Compute Duration from StartedAt/UpdatedAt when not already set (gh run list
 			// does not populate the Duration field; health_command uses the same approach).
 			if r.Duration == 0 && !r.StartedAt.IsZero() && !r.UpdatedAt.IsZero() {
@@ -821,7 +856,7 @@ func loadCachedEffectiveTokens(runID int64, verbose bool) int {
 // period that was forecast (= one projection period immediately before now).
 // Actual runs are fetched with the same pagination helper used for training,
 // but with the validation date range.
-func evaluateForecast(workflowName string, forecast ForecastWorkflowResult, validationStartDate, validationEndDate string, config ForecastConfig) *ForecastEvaluation {
+func evaluateForecast(ctx context.Context, workflowName string, forecast ForecastWorkflowResult, validationStartDate, validationEndDate string, config ForecastConfig) *ForecastEvaluation {
 	// Compute the actual ISO-8601 training start date by subtracting HistoryDays
 	// from the validation start (= anchor).
 	var trainingStartDate string
@@ -850,6 +885,7 @@ func evaluateForecast(workflowName string, forecast ForecastWorkflowResult, vali
 		RepoOverride: config.RepoOverride,
 		Verbose:      config.Verbose,
 	}
+	opts.Context = ctx
 	runs, _, err := listWorkflowRunsWithPagination(opts)
 	if err != nil {
 		forecastRunLog.Printf("Eval: failed to fetch validation runs for %s: %v", workflowName, err)
@@ -861,6 +897,9 @@ func evaluateForecast(workflowName string, forecast ForecastWorkflowResult, vali
 	validationStart, _ := time.Parse("2006-01-02", validationStartDate)
 	for _, r := range runs {
 		if r.Status != "completed" {
+			continue
+		}
+		if r.Conclusion == "skipped" {
 			continue
 		}
 		// Skip runs with no timestamp — we cannot verify they belong to the
@@ -940,6 +979,9 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 			etRangeStr = fmt.Sprintf("%s–%s",
 				formatForecastTokens(mc.P10ProjectedEffectiveTokens),
 				formatForecastTokens(mc.P90ProjectedEffectiveTokens))
+			if etRangeStr == "-–-" {
+				etRangeStr = "-"
+			}
 			if !mc.IsReliable {
 				anyUnreliable = true
 				unreliableMark = "*"

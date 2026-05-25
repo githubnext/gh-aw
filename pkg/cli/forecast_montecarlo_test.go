@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"io"
 	"math"
@@ -415,10 +416,6 @@ func TestResolveForecastWorkflowsFromRemote_RateLimitFallsBackToPartialResults(t
 		attempts++
 		return nil, errors.New("API rate limit exceeded")
 	}
-	forecastRateLimitSleep = func(delay time.Duration) {
-		backoffs = append(backoffs, delay)
-	}
-
 	stderrReader, stderrWriter, err := os.Pipe()
 	require.NoError(t, err, "Should create stderr pipe")
 	originalStderr := os.Stderr
@@ -427,7 +424,12 @@ func TestResolveForecastWorkflowsFromRemote_RateLimitFallsBackToPartialResults(t
 		os.Stderr = originalStderr
 	})
 
-	names, err := resolveForecastWorkflowsFromRemote([]string{"ci-doctor", "daily-planner"}, "owner/repo", true)
+	forecastRateLimitSleep = func(_ context.Context, delay time.Duration) error {
+		backoffs = append(backoffs, delay)
+		return nil
+	}
+
+	names, err := resolveForecastWorkflowsFromRemote(context.Background(), []string{"ci-doctor", "daily-planner"}, "owner/repo", true)
 	require.NoError(t, err, "T-FC-030 should return caller-supplied partial results after rate-limit retries")
 	assert.Equal(t, []string{"ci-doctor", "daily-planner"}, names, "Should preserve caller-supplied workflow order")
 	assert.Equal(t, forecastRateLimitMaxAttempts, attempts, "Should retry discovery until the retry budget is exhausted")

@@ -10,6 +10,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -166,6 +167,7 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 
 // ListWorkflowRunsOptions holds the options for listWorkflowRunsWithPagination
 type ListWorkflowRunsOptions struct {
+	Context        context.Context
 	WorkflowName   string // filter by specific workflow (if empty, fetches all agentic workflows)
 	Limit          int    // maximum number of runs to fetch in this API call (batch size)
 	StartDate      string // filter by creation date (>=); combined with EndDate/BeforeDate into a single --created range
@@ -236,7 +238,11 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		spinner.Start()
 	}
 
-	cmd := workflow.ExecGH(args...)
+	cmdCtx := opts.Context
+	if cmdCtx == nil {
+		cmdCtx = context.Background()
+	}
+	cmd := workflow.ExecGHContext(cmdCtx, args...)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {

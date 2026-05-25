@@ -3,7 +3,10 @@
 package cli
 
 import (
+	"context"
+	"io"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 
@@ -168,4 +171,72 @@ func TestObservedRunsPerPeriodConsistency(t *testing.T) {
 		"P10 ≤ P50")
 	assert.LessOrEqual(t, mc.P50ProjectedEffectiveTokens, mc.P90ProjectedEffectiveTokens,
 		"P50 ≤ P90")
+}
+
+func TestForecastRateLimitSleep_ContextCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := forecastRateLimitSleep(ctx, time.Second)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestForecastWorkflow_IgnoresSkippedRuns(t *testing.T) {
+	originalList := forecastListWorkflowRunsPaginated
+	t.Cleanup(func() {
+		forecastListWorkflowRunsPaginated = originalList
+	})
+
+	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	forecastListWorkflowRunsPaginated = func(_ ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
+		runs := []WorkflowRun{
+			{Status: "completed", Conclusion: "skipped", EffectiveTokens: 999, Duration: 10 * time.Minute},
+			{Status: "completed", Conclusion: "success", EffectiveTokens: 100, Duration: 5 * time.Minute, StartedAt: start, UpdatedAt: start.Add(5 * time.Minute)},
+			{Status: "completed", Conclusion: "failure", EffectiveTokens: 200, Duration: 6 * time.Minute, StartedAt: start.Add(10 * time.Minute), UpdatedAt: start.Add(16 * time.Minute)},
+		}
+		return runs, len(runs), nil
+	}
+
+	result, err := forecastWorkflow(context.Background(), "smoke-copilot", "2026-01-01", ForecastConfig{
+		Days:       30,
+		Period:     "month",
+		SampleSize: 100,
+	}, 30)
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.SampledRuns, "skipped runs should not be sampled")
+	assert.Equal(t, 150, result.AvgEffectiveTokens, "metrics should ignore skipped runs")
+	assert.InEpsilon(t, 0.5, result.SuccessRate, 1e-9)
+}
+
+func TestRenderForecastTable_ZeroMonteCarloRangeRendersDash(t *testing.T) {
+	reader, writer, err := os.Pipe()
+	require.NoError(t, err)
+	originalStderr := os.Stderr
+	os.Stderr = writer
+	t.Cleanup(func() {
+		os.Stderr = originalStderr
+	})
+
+	err = renderForecastTable(ForecastResult{
+		Period: "month",
+		Workflows: []ForecastWorkflowResult{
+			{
+				WorkflowID:  "smoke-copilot",
+				SampledRuns: 1,
+				SuccessRate: 1,
+				Yield:       1,
+				MonteCarlo: &ForecastMonteCarloSummary{
+					P10ProjectedEffectiveTokens: 0,
+					P50ProjectedEffectiveTokens: 0,
+					P90ProjectedEffectiveTokens: 0,
+				},
+			},
+		},
+	}, ForecastConfig{Days: 30, Period: "month"})
+	require.NoError(t, err)
+
+	require.NoError(t, writer.Close())
+	out, readErr := io.ReadAll(reader)
+	require.NoError(t, readErr)
+	assert.NotContains(t, string(out), "-–-")
 }
