@@ -88,16 +88,17 @@ describe("generateGitBundle (incremental)", () => {
     execGit(["bundle", "create", naiveBundlePath, "origin/pr-branch..pr-branch"], { cwd: workDir });
     execGit(["bundle", "create", optimizedBundlePath, "origin/pr-branch..pr-branch", "^origin/main"], { cwd: workDir });
 
-    const prHeadSha = execGit(["rev-parse", "pr-branch"], { cwd: workDir }).stdout.trim();
-    const generatedHeads = execGit(["bundle", "list-heads", result.bundlePath], { cwd: workDir }).stdout.trim();
-    const optimizedHeads = execGit(["bundle", "list-heads", optimizedBundlePath], { cwd: workDir }).stdout.trim();
+    const prBranchHeadSha = execGit(["rev-parse", "pr-branch"], { cwd: workDir }).stdout.trim();
+    const generatedBundleHeads = execGit(["bundle", "list-heads", result.bundlePath], { cwd: workDir }).stdout.trim();
+    const optimizedBundleHeads = execGit(["bundle", "list-heads", optimizedBundlePath], { cwd: workDir }).stdout.trim();
     const generatedSize = fs.statSync(result.bundlePath).size;
     const naiveSize = fs.statSync(naiveBundlePath).size;
 
-    expect(prHeadSha).toMatch(/^[a-f0-9]{40}$/);
-    expect(optimizedHeads).toContain(prHeadSha);
-    expect(generatedHeads).toBe(optimizedHeads);
-    expect(generatedHeads).toContain(prHeadSha);
+    expect(prBranchHeadSha).toBeTruthy();
+    expect(prBranchHeadSha).toMatch(/^[a-f0-9]{40}$/);
+    expect(optimizedBundleHeads).toContain(prBranchHeadSha);
+    expect(generatedBundleHeads).toBe(optimizedBundleHeads);
+    expect(generatedBundleHeads).toContain(prBranchHeadSha);
     expect(generatedSize).toBeLessThan(naiveSize);
   });
 });
