@@ -235,11 +235,12 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
               try {
                 const fullFetchEnv = { ...process.env, ...getGitAuthEnv(options.token) };
                 execGitSync(["fetch", "origin", "--", defaultBranch], { cwd, env: fullFetchEnv, suppressLogs: true });
-                execGitSync(["show-ref", "--verify", "--quiet", defaultBranchRef], { cwd, suppressLogs: true });
                 hasDefaultBranchRef = true;
                 debugLog(`Strategy 1 (incremental): fetched origin/${defaultBranch} for bundle exclusions`);
               } catch (fetchErr) {
-                debugLog(`Strategy 1 (incremental): could not fetch origin/${defaultBranch} for exclusions - ${getErrorMessage(fetchErr)}`);
+                const warningMessage = `Strategy 1 (incremental): could not fetch origin/${defaultBranch} for exclusions - ${getErrorMessage(fetchErr)}. Bundle will include base-branch history.`;
+                debugLog(warningMessage);
+                core.warning(warningMessage);
               }
             }
             if (hasDefaultBranchRef) {
