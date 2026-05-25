@@ -1364,8 +1364,17 @@ jobs:
       run: |
         echo "Testing gh CLI through DIFC proxy (GH_HOST=${GH_HOST})..."
         # Use a repository endpoint to verify proxied gh API calls.
-        repo_name=$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.full_name')
-        echo "✅ gh CLI works through DIFC proxy (repo: ${repo_name})"
+        gh_api_output="$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.full_name' 2>&1)" || gh_api_status=$?
+        gh_api_status="${gh_api_status:-0}"
+        if [ "${gh_api_status}" -eq 0 ]; then
+          echo "✅ gh CLI works through DIFC proxy (repo: ${gh_api_output})"
+        elif printf '%s' "${gh_api_output}" | grep -qiE 'api rate limit exceeded|rate limit'; then
+          echo "⚠️ Skipping gh CLI proxy assertion due to GitHub API rate limiting"
+          echo "${gh_api_output}"
+        else
+          echo "${gh_api_output}"
+          exit "${gh_api_status}"
+        fi
 
     - name: Test actions/github-script with proxy env
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9
