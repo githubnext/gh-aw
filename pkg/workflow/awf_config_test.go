@@ -609,6 +609,29 @@ func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 	assert.Contains(t, command, `"enabled":true`, "config JSON should have apiProxy enabled")
 }
 
+func TestBuildAWFCommand_IncludesSquidStartupRetryAndLogs(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:     "copilot",
+		EngineCommand:  "copilot --prompt-file /tmp/prompt.txt",
+		LogFile:        "/tmp/gh-aw/agent-stdio.log",
+		AllowedDomains: "github.com",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+
+	assert.Contains(t, command, "awf_bootstrap_retry_max=3", "expected retry max for AWF startup")
+	assert.Contains(t, command, "awf_bootstrap_retry_delay=5", "expected retry backoff for AWF startup")
+	assert.Contains(t, command, "dependency failed to start: container awf-squid is unhealthy", "expected squid healthcheck retry match")
+	assert.Contains(t, command, "docker compose up -d --pull never", "expected compose failure retry match")
+	assert.Contains(t, command, "docker logs awf-squid", "expected squid logs capture on final failure")
+}
+
 func TestBuildAWFCommand_PreservesGitHubExpressionOperatorsInConfigJSON(t *testing.T) {
 	config := AWFCommandConfig{
 		EngineName:     "copilot",

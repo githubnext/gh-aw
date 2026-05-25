@@ -265,6 +265,44 @@ fi`,
 	// Build the complete command with proper formatting.
 	// configFileSetup (if non-empty) writes the AWF config JSON immediately before the
 	// AWF invocation so the file is present when AWF parses --config.
+	awfRunWithRetry := fmt.Sprintf(`awf_bootstrap_retry_max=3
+awf_bootstrap_retry_delay=5
+awf_bootstrap_attempt=1
+while true; do
+  awf_attempt_log=$(mktemp)
+  # shellcheck disable=SC1003
+  %s %s %s %s \
+    -- %s 2>&1 | tee "$awf_attempt_log" | tee -a %s
+  awf_exit=${PIPESTATUS[0]}
+  if [[ $awf_exit -eq 0 ]]; then
+    rm -f "$awf_attempt_log"
+    break
+  fi
+  if grep -Fq "dependency failed to start: container awf-squid is unhealthy" "$awf_attempt_log" || \
+     (grep -Fq "Failed to start containers:" "$awf_attempt_log" && grep -Fq "docker compose up -d --pull never" "$awf_attempt_log"); then
+    if [[ $awf_bootstrap_attempt -lt $awf_bootstrap_retry_max ]]; then
+      echo "[WARN] AWF startup failed due to awf-squid healthcheck (attempt $awf_bootstrap_attempt/$awf_bootstrap_retry_max); retrying in ${awf_bootstrap_retry_delay}s..." | tee -a %s
+      rm -f "$awf_attempt_log"
+      sleep "$awf_bootstrap_retry_delay"
+      awf_bootstrap_attempt=$((awf_bootstrap_attempt + 1))
+      continue
+    fi
+    echo "[ERROR] AWF startup failed after $awf_bootstrap_retry_max attempts; capturing awf-squid logs" | tee -a %s
+    docker logs awf-squid 2>&1 | tail -200 | sed 's/^/[awf-squid] /' | tee -a %s || true
+  fi
+  rm -f "$awf_attempt_log"
+  exit "$awf_exit"
+done`,
+		awfCommand,
+		expandableArgs,
+		arcDindPrefixArgsRef,
+		shellJoinArgs(awfArgs),
+		shellWrappedCommand,
+		shellEscapeArg(config.LogFile),
+		shellEscapeArg(config.LogFile),
+		shellEscapeArg(config.LogFile),
+		shellEscapeArg(config.LogFile))
+
 	var command string
 	if config.PathSetup != "" && configFileSetup != "" {
 		command = fmt.Sprintf(`set -o pipefail
@@ -273,20 +311,13 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003
-%s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
+%s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
 			configFileSetup,
 			arcDindPrefixProbe,
-			awfCommand,
-			expandableArgs,
-			arcDindPrefixArgsRef,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
+			awfRunWithRetry)
 	} else if config.PathSetup != "" {
 		// Include path setup before AWF command (runs on host before AWF)
 		command = fmt.Sprintf(`set -o pipefail
@@ -294,55 +325,34 @@ fi`,
 %s
 %s
 %s
-# shellcheck disable=SC1003
-%s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
+%s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
 			arcDindPrefixProbe,
-			awfCommand,
-			expandableArgs,
-			arcDindPrefixArgsRef,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
+			awfRunWithRetry)
 	} else if configFileSetup != "" {
 		command = fmt.Sprintf(`set -o pipefail
 %s
 %s
 %s
 %s
-# shellcheck disable=SC1003
-%s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
+%s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
 			configFileSetup,
 			arcDindPrefixProbe,
-			awfCommand,
-			expandableArgs,
-			arcDindPrefixArgsRef,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
+			awfRunWithRetry)
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
 %s
 %s
 %s
-# shellcheck disable=SC1003
-%s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
+%s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
 			arcDindPrefixProbe,
-			awfCommand,
-			expandableArgs,
-			arcDindPrefixArgsRef,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
+			awfRunWithRetry)
 	}
 
 	awfHelpersLog.Print("Successfully built AWF command")
