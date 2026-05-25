@@ -20,4 +20,7 @@ func TestAddWizardCommand_UsesStandardThreePartWorkflowSpecWording(t *testing.T)
 	require.NotNil(t, cmd)
 
 	assert.Contains(t, cmd.Long, `Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)`)
+	assert.Contains(t, cmd.Long, "shorthand specs resolve on your enterprise host by default.")
+	assert.Contains(t, cmd.Long, "For github/*, githubnext/*, and microsoft/*, shorthand resolves on github.com.")
+	assert.Contains(t, cmd.Long, "Use full https://github.com/... URLs when sourcing other public github.com workflows.")
 }

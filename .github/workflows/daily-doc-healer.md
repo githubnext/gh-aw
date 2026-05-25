@@ -89,9 +89,9 @@ repo:${{ github.repository }} is:issue is:closed label:documentation closed:>=YY
 For each issue found:
 - Record the issue number, title, body, and closing date.
 - Check whether a DDUw-created PR (label `documentation automation`, title prefix `[docs]`) was merged that references or addresses the issue in the same time window. If such a PR exists, DDUw likely already handled it — skip this issue.
-- After the merged-PR check, use the GitHub MCP search tool to find DDUw `[docs]` PR candidates (label `documentation`, label `automation`, author `github-actions[bot]`) that were closed in the last 30 days and reference the same issue or drift keyword/file path. Query pattern:
+- After the merged-PR check, use the GitHub MCP search tool to find DDUw `[docs]` PR candidates (label `documentation`, label `automation`, and known bot authors such as `github-actions[bot]` or `copilot-swe-agent`) that were closed in the last 30 days and reference the same issue or drift keyword/file path. Query pattern:
 
-  `repo:<OWNER/REPO> is:pr is:closed author:github-actions[bot] label:documentation label:automation <DRIFT_KEYWORD>`
+  `repo:<OWNER/REPO> is:pr is:closed (author:github-actions[bot] OR author:copilot-swe-agent) label:documentation label:automation <DRIFT_KEYWORD>`
 
   Replace `<OWNER/REPO>` with the repository from the Context section (`${{ github.repository }}` at runtime), and replace `<DRIFT_KEYWORD>` with a stable term tied to the drift (for example: `#NNN`, `"reference/engines.md"`, or a unique feature term from the issue body).
 - For each candidate PR returned by search, use `pull_request_read` (`method: get`) and keep only PRs where `merged` is false.

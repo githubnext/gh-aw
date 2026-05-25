@@ -363,7 +363,7 @@ func TestFuzzyScheduleEndToEnd(t *testing.T) {
 					totalSlots += count
 				}
 			}
-			assert.Greater(t, totalSlots, 0,
+			assert.Positive(t, totalSlots,
 				"grid should contain at least one scheduled slot for %s", scatteredCron)
 
 			// Step 4: displayScheduleCalendar should produce output referencing the hour.

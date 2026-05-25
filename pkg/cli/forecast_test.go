@@ -158,11 +158,11 @@ func TestObservedRunsPerPeriodConsistency(t *testing.T) {
 	require.NotNil(t, mc, "runMonteCarlo must return non-nil for positive ObservedRunsPerPeriod")
 
 	// The field exposed in JSON output must equal what was used for MC.
-	assert.Equal(t, observedRunsPerPeriod, result.ObservedRunsPerPeriod,
+	assert.InEpsilon(t, observedRunsPerPeriod, result.ObservedRunsPerPeriod, 1e-12,
 		"ObservedRunsPerPeriod JSON field must equal the λ passed to runMonteCarlo")
 
 	// Sanity-check simulation output is plausible for the given λ.
-	assert.Greater(t, mc.P50ProjectedEffectiveTokens, 0,
+	assert.Positive(t, mc.P50ProjectedEffectiveTokens,
 		"P50 should be positive when success rate is 100%%")
 	assert.LessOrEqual(t, mc.P10ProjectedEffectiveTokens, mc.P50ProjectedEffectiveTokens,
 		"P10 ≤ P50")

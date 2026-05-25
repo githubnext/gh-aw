@@ -1571,10 +1571,27 @@ function buildEngineFailureContext() {
         continue;
       }
 
+      // AWF startup failures can appear as "[ERROR] Failed to start ...".
+      // Exclude generic wrapper [ERROR] lines (e.g., command completion/exit noise)
+      // because they are infrastructure output and don't provide actionable startup context.
+      const awfStartupBracketErrorMatch = line.match(/^\[ERROR\]\s*((?:Failed to start|dependency failed to start:).+)$/);
+      if (awfStartupBracketErrorMatch) {
+        errorMessages.add(awfStartupBracketErrorMatch[1].trim());
+        continue;
+      }
+
       // Fatal errors: "Fatal: <message>" or "FATAL: <message>"
       const fatalMatch = line.match(/^(?:FATAL|Fatal):\s*(.+)$/);
       if (fatalMatch) {
         errorMessages.add(fatalMatch[1].trim());
+        continue;
+      }
+
+      // AWF docker-compose dependency failures surface this root-cause line without
+      // an explicit log-level prefix.
+      const awfDependencyFailureMatch = line.match(/^dependency failed to start:\s*(.+)$/);
+      if (awfDependencyFailureMatch) {
+        errorMessages.add(`dependency failed to start: ${awfDependencyFailureMatch[1].trim()}`);
         continue;
       }
 

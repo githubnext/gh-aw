@@ -195,6 +195,18 @@ func TestGetGitHubHostForRepo(t *testing.T) {
 			gheHost:      "",
 			expectedHost: "https://github.com",
 		},
+		{
+			name:         "github org repository always uses public GitHub",
+			repo:         "github/copilot",
+			gheHost:      "myorg.ghe.com",
+			expectedHost: "https://github.com",
+		},
+		{
+			name:         "microsoft org repository always uses public GitHub",
+			repo:         "microsoft/vscode",
+			gheHost:      "myorg.ghe.com",
+			expectedHost: "https://github.com",
+		},
 	}
 
 	for _, tt := range tests {
