@@ -127,6 +127,10 @@ const (
 
 	// GeminiLLMGatewayPort is the port for the Gemini LLM gateway
 	GeminiLLMGatewayPort = 10003
+
+	// AntigravityLLMGatewayPort is the port for the Antigravity LLM gateway.
+	// Aliased to GeminiLLMGatewayPort because the two share the same port value.
+	AntigravityLLMGatewayPort = GeminiLLMGatewayPort
 )
 
 // DefaultGitHubLockdown is the default value for the GitHub MCP server lockdown setting.

@@ -76,6 +76,30 @@ func (c *Compiler) validateEngineVersion(workflowData *WorkflowData) error {
 	return nil
 }
 
+// validateGeminiDeprecation warns when the workflow uses the deprecated Gemini engine.
+// The Gemini engine is superseded by the Antigravity engine; users should migrate
+// to engine: antigravity with ANTIGRAVITY_API_KEY.
+func (c *Compiler) validateGeminiDeprecation(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.EngineConfig == nil {
+		return nil
+	}
+	if string(constants.GeminiEngine) != workflowData.EngineConfig.ID {
+		return nil
+	}
+
+	engineValidationLog.Print("Gemini engine deprecation warning triggered")
+
+	warningMsg := "engine: gemini is deprecated. " +
+		"Migrate to engine: antigravity and configure ANTIGRAVITY_API_KEY. " +
+		"Replace GEMINI_API_KEY with ANTIGRAVITY_API_KEY in your workflow secrets.\n\n" +
+		"Example:\n  engine: antigravity\n  env:\n    ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}\n\n" +
+		"See: " + constants.DocsEnginesURL.String()
+
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+	c.IncrementWarningCount()
+	return nil
+}
+
 // validateEngineHarnessScript validates optional engine.harness configuration.
 // engine.harness must point to a Node.js script.
 func (c *Compiler) validateEngineHarnessScript(workflowData *WorkflowData) error {
@@ -414,7 +438,8 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 //   - Copilot engine: Adds step unless copilot-requests feature is enabled or custom command is set
 //   - Claude engine: Adds step unless custom command is set
 //   - Codex engine: Adds step unless custom command is set
-//   - Gemini engine: Adds step unless custom command is set
+//   - Antigravity engine: Adds step unless custom command is set
+//   - Gemini engine (deprecated): Adds step unless custom command is set
 //   - Custom engine: Never adds this step (uses BaseEngine default which returns empty)
 //
 // Parameters:

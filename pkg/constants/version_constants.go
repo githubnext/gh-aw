@@ -47,6 +47,9 @@ const DefaultCodexVersion Version = "0.133.0"
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.39.1"
 
+// DefaultAntigravityVersion is the default version of the Antigravity CLI
+const DefaultAntigravityVersion Version = "0.39.1"
+
 // DefaultCrushVersion is the default version of the Crush CLI
 const DefaultCrushVersion Version = "0.59.0"
 

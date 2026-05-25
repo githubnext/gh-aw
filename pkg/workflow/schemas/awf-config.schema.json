@@ -122,7 +122,11 @@
             },
             "gemini": {
               "$ref": "#/$defs/providerTarget",
-              "description": "Google Gemini API target override."
+              "description": "Google Gemini API target override. Deprecated: use 'antigravity' instead."
+            },
+            "antigravity": {
+              "$ref": "#/$defs/providerTarget",
+              "description": "Antigravity API target override."
             }
           }
         },

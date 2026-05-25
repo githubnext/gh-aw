@@ -25,7 +25,7 @@
 //	      "openai":    { "host": "api.openai.com" },
 //	      "anthropic": { "host": "api.anthropic.com" },
 //	      "copilot":   { "host": "api.githubcopilot.com" },
-//	      "gemini":    { "host": "generativelanguage.googleapis.com" }
+//	      "antigravity":    { "host": "generativelanguage.googleapis.com" }
 //	    },
 //	    "models": {
 //	      "sonnet": ["mygateway/*sonnet*"],
@@ -166,7 +166,7 @@ type AWFAPIProxyConfig struct {
 	ModelMultipliers map[string]float64 `json:"modelMultipliers,omitempty"`
 
 	// Targets holds per-provider API target overrides.
-	// Supported keys: "openai", "anthropic", "copilot", "gemini"
+	// Supported keys: "openai", "anthropic", "copilot", "antigravity", "gemini" (deprecated, use "antigravity")
 	Targets map[string]*AWFAPITargetConfig `json:"targets,omitempty"`
 
 	// Models contains model alias and fallback policy definitions.
@@ -299,6 +299,10 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	if copilotTarget := GetCopilotAPITarget(config.WorkflowData); copilotTarget != "" {
 		targets["copilot"] = &AWFAPITargetConfig{Host: copilotTarget}
 		awfConfigLog.Printf("API proxy: custom copilot target=%s", copilotTarget)
+	}
+	if antigravityTarget := GetAntigravityAPITarget(config.WorkflowData, config.EngineName); antigravityTarget != "" {
+		targets["antigravity"] = &AWFAPITargetConfig{Host: antigravityTarget}
+		awfConfigLog.Printf("API proxy: custom antigravity target=%s", antigravityTarget)
 	}
 	if geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName); geminiTarget != "" {
 		targets["gemini"] = &AWFAPITargetConfig{Host: geminiTarget}
