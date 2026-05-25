@@ -1010,7 +1010,7 @@ func TestCodexEngineWebSearch(t *testing.T) {
 func TestCodexEngineWebFetch(t *testing.T) {
 	engine := NewCodexEngine()
 
-	t.Run("fetch disabled by default when tool not specified", func(t *testing.T) {
+	t.Run("disables fetch by default when web-fetch tool not specified", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 		}

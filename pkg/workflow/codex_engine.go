@@ -166,7 +166,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	// Codex enables web search by default, so we must explicitly set web_search="disabled" to disable it.
 	// The --no-search flag does not exist; use the -c web_search="disabled" config option instead.
 	// See https://developers.openai.com/codex/cli/features#web-search
-	// Leading space is intentional: the format string concatenates this directly after "exec" with no space separator.
+	// Leading space is intentional: these params are concatenated directly and need their own separator.
 	webSearchParam := ` -c web_search="disabled"`
 	if workflowData.ParsedTools != nil && workflowData.ParsedTools.WebSearch != nil {
 		// Web search is enabled by default in Codex; no extra flag needed.
@@ -175,7 +175,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 	// Build fetch parameter: disable fetch by default, enable only if web-fetch tool is present.
 	// Codex enables fetch by default, so we must explicitly set fetch="disabled" unless web-fetch is configured.
-	// Leading space is intentional: the format string concatenates this directly after "exec" with no space separator.
+	// Leading space is intentional: these params are concatenated directly and need their own separator.
 	webFetchParam := ` -c fetch="disabled"`
 	if workflowData.ParsedTools != nil && workflowData.ParsedTools.WebFetch != nil {
 		// Fetch is enabled by default in Codex; no extra flag needed when web-fetch is configured.
