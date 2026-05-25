@@ -42,7 +42,7 @@ Accepted outcomes are intentionally simpler than a full value model. They do not
 
 The table below is the quick lookup for what `accepted` currently means for each safe output type and whether that meaning comes from a dedicated rule, a fallback rule, a limited check, or no implemented rule yet.
 
-Rows marked `fallback rule` use a generic existence check, not a type-specific rule. For exact rules, edge cases, and conformance details, see [Safe Output Outcome Evaluation Specification](/gh-aw/specs/safe-output-outcome-evaluation/).
+Rows marked `fallback rule` use a generic existence check, not a type-specific rule. For exact rules, edge cases, and conformance details, see [Safe Output Outcome Evaluation Specification](https://github.com/github/gh-aw/blob/main/specs/safe-output-outcome-evaluation.md).
 
 Outcome evaluation is based on visible repository state and visible actor identity. A non-bot actor may still be AI-assisted; the lookup reflects what the system can observe, not hidden authoring provenance.
 
@@ -107,4 +107,4 @@ Those questions may matter later, but they are separate from the base outcomes m
 - [Cost Management](/gh-aw/reference/cost-management/) explains how workflow cost is measured and reduced.
 - [OpenTelemetry](/gh-aw/reference/open-telemetry/) describes the span attributes and artifacts that carry workflow telemetry.
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) explains how workflows produce constrained actions.
-- [Safe Output Outcome Evaluation Specification](/gh-aw/specs/safe-output-outcome-evaluation/) defines the detailed evaluation logic for each safe output type.
+- [Safe Output Outcome Evaluation Specification](https://github.com/github/gh-aw/blob/main/specs/safe-output-outcome-evaluation.md) defines the detailed evaluation logic for each safe output type.
