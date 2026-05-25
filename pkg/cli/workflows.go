@@ -406,31 +406,32 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 	}
 
 	title, err := fastParseTitleFromReader(fd)
-	closeErr := fd.Close()
 	if err != nil {
+		_ = fd.Close()
 		return "", err
 	}
-	if closeErr != nil {
-		return "", fmt.Errorf("failed to close workflow file %s: %w", filePath, closeErr)
-	}
-	if title != "" {
-		return title, nil
-	}
 
-	// No H1 header found, generate default name from filename
-	baseName := filepath.Base(filePath)
-	baseName = strings.TrimSuffix(baseName, filepath.Ext(baseName))
-	baseName = strings.ReplaceAll(baseName, "-", " ")
+	if title == "" {
+		// No H1 header found, generate default name from filename
+		baseName := filepath.Base(filePath)
+		baseName = strings.TrimSuffix(baseName, filepath.Ext(baseName))
+		baseName = strings.ReplaceAll(baseName, "-", " ")
 
-	// Capitalize first letter of each word
-	words := strings.Fields(baseName)
-	for i, word := range words {
-		if len(word) > 0 {
-			words[i] = strings.ToUpper(word[:1]) + word[1:]
+		// Capitalize first letter of each word
+		words := strings.Fields(baseName)
+		for i, word := range words {
+			if len(word) > 0 {
+				words[i] = strings.ToUpper(word[:1]) + word[1:]
+			}
 		}
+		title = strings.Join(words, " ")
 	}
 
-	return strings.Join(words, " "), nil
+	if closeErr := fd.Close(); closeErr != nil {
+		return title, fmt.Errorf("failed to close workflow file %s: %w", filePath, closeErr)
+	}
+
+	return title, nil
 }
 
 // extractEngineIDFromFrontmatter extracts the engine ID from a parsed frontmatter map.
