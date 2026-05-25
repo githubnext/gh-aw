@@ -29,6 +29,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
+	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
 )
 
 func main() {
@@ -46,5 +47,6 @@ func main() {
 		rawloginlib.Analyzer,
 		regexpcompileinfunction.Analyzer,
 		ssljson.Analyzer,
+		uncheckedtypeassertion.Analyzer,
 	)
 }
