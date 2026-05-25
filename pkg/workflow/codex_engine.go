@@ -174,7 +174,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	}
 
 	// Build fetch parameter: enforce AWF default-deny for fetch unless web-fetch tool is present.
-	// Codex enables fetch by default, so AWF explicitly sets fetch="disabled" unless web-fetch is configured.
+	// Codex enables fetch by default, so this code explicitly sets fetch="disabled" unless web-fetch is configured.
 	// Leading space is intentional: these params are concatenated directly and need their own separator.
 	webFetchParam := ` -c fetch="disabled"`
 	if workflowData.ParsedTools != nil && workflowData.ParsedTools.WebFetch != nil {
