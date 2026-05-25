@@ -284,7 +284,8 @@ function collectFirewallEvents(opts = {}) {
     if (!time) continue;
 
     // Skip benign Squid operational entries (mirrors Go auditEntryToTimelineEvent filter).
-    const url = entry.url ?? entry.URL ?? "";
+    // The audit.jsonl field name is "url" (lowercase), matching Go's json:"url" tag.
+    const url = entry.url ?? "";
     if (url === "error:transaction-end-before-headers") continue;
 
     const host = entry.host ?? entry.domain ?? "";
