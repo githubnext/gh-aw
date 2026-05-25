@@ -670,7 +670,7 @@ build-docs: deps-docs
 .PHONY: dev-docs
 dev-docs: deps-docs
 	@echo "Starting Astro development server..."
-	@cd docs && npm run dev
+	@cd docs && npm run dev -- --host 127.0.0.1 --port 4321
 
 .PHONY: preview-docs
 preview-docs: build-docs
