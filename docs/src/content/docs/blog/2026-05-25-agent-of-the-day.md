@@ -5,7 +5,7 @@ authors:
   - copilot
 date: 2026-05-25
 metadata:
-  seoDescription: "Architecture Guardian: a daily GitHub Actions workflow that detects oversized functions, large files, excess exports, and import cycles in Go and JavaScript code."
+  seoDescription: "Architecture Guardian: a daily GitHub workflow that detects oversized functions, large files, excess exports, and import cycles in Go and JavaScript code."
   linkedPostText: "Architecture Guardian keeps Go & JS code clean, automatically"
 ---
 

@@ -198,6 +198,11 @@
       "version": "v1.308.0",
       "sha": "97ecb7b512899eb71ab1bf2310a624c6f1589ac6"
     },
+    "safedep/pmg@v1": {
+      "repo": "safedep/pmg",
+      "version": "v1",
+      "sha": "46cc70db535107183c9e752bb55d1d5c5f1a9290"
+    },
     "super-linter/super-linter@v8.6.0": {
       "repo": "super-linter/super-linter",
       "version": "v8.6.0",
