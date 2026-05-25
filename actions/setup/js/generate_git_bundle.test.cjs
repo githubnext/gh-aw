@@ -129,6 +129,7 @@ describe("generateGitBundle (incremental)", () => {
 
     const naiveBundlePath = path.join(workDir, "naive.bundle");
     execGit(["bundle", "create", naiveBundlePath, "origin/pr-branch..pr-branch"], { cwd: workDir });
+    expect(fs.existsSync(naiveBundlePath)).toBe(true);
 
     const generatedBundleHeads = execGit(["bundle", "list-heads", result.bundlePath], { cwd: workDir }).stdout.trim();
     const naiveBundleHeads = execGit(["bundle", "list-heads", naiveBundlePath], { cwd: workDir }).stdout.trim();
