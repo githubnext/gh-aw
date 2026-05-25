@@ -94,6 +94,8 @@ describe("generateGitBundle (incremental)", () => {
     const generatedSize = fs.statSync(result.bundlePath).size;
     const naiveSize = fs.statSync(naiveBundlePath).size;
 
+    expect(prHeadSha).toMatch(/^[a-f0-9]{40}$/);
+    expect(optimizedHeads).toContain(prHeadSha);
     expect(generatedHeads).toBe(optimizedHeads);
     expect(generatedHeads).toContain(prHeadSha);
     expect(generatedSize).toBeLessThan(naiveSize);
