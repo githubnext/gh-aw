@@ -295,7 +295,6 @@ function getGatewayEventName(entry) {
   return typeof entry?.event === "string" ? entry.event : typeof entry?.type === "string" ? entry.type : "";
 }
 
-const MODEL_ALIAS_EVENT_PATTERN = /model_alias|model_rewrite/i;
 const MODEL_ALIAS_EVENT_NAMES = new Set(["model_alias_resolution", "model_rewrite", "MODEL_ALIAS_REWRITE"]);
 
 /**
@@ -309,7 +308,9 @@ function parseGatewayJsonlForModelAliasResolution(jsonlContent) {
   const lines = jsonlContent.split("\n");
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed || !MODEL_ALIAS_EVENT_PATTERN.test(trimmed)) continue;
+    if (!trimmed) continue;
+    const lower = trimmed.toLowerCase();
+    if (!lower.includes("model_alias") && !lower.includes("model_rewrite")) continue;
     try {
       const entry = JSON.parse(trimmed);
       const eventName = getGatewayEventName(entry);
@@ -369,7 +370,7 @@ function generateModelAliasResolutionSummary(aliasResolutionEvents) {
   for (const event of aliasResolutionEvents) {
     // AWF has evolved the model alias event schema over time; support the known
     // snake_case/camelCase and token-diag data payload variants emitted by gateway/rpc JSONL streams.
-    const data = event.data && typeof event.data === "object" ? event.data : null;
+    const data = event.data && typeof event.data === "object" && !Array.isArray(event.data) ? event.data : null;
     const provider = event.provider || data?.provider || event.resolved_provider || event.target_provider || "-";
     const requestId = event.request_id || data?.request_id || event.requestId || data?.requestId || "-";
     const alias = event.alias || event.model_alias || event.requested_alias || event.requested_model || event.requestedModel || data?.original_model || "-";
