@@ -229,7 +229,6 @@ func TestRenderForecastTable_ZeroMonteCarloRangeRendersDash(t *testing.T) {
 				WorkflowID:  "smoke-copilot",
 				SampledRuns: 1,
 				SuccessRate: 1,
-				Yield:       1,
 				MonteCarlo: &ForecastMonteCarloSummary{
 					P10ProjectedEffectiveTokens: 0,
 					P50ProjectedEffectiveTokens: 0,
