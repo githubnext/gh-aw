@@ -37,7 +37,7 @@ describe("generateGitBundle (incremental)", () => {
     }
   });
 
-  it("excludes origin/base branch objects from incremental bundles when available", async () => {
+  it("reduces bundle size by excluding origin/base branch objects already on remote", async () => {
     const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-remote-"));
     const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-work-"));
     tempDirs.push(remoteDir, workDir);
@@ -60,10 +60,10 @@ describe("generateGitBundle (incremental)", () => {
     execGit(["push", "-u", "origin", "pr-branch"], { cwd: workDir });
 
     execGit(["checkout", "main"], { cwd: workDir });
-    for (let i = 0; i < 4; i++) {
-      fs.writeFileSync(path.join(workDir, `upstream-${i}.txt`), `upstream ${i}\n`);
-      execGit(["add", `upstream-${i}.txt`], { cwd: workDir });
-      execGit(["commit", "-m", `upstream ${i}`], { cwd: workDir });
+    for (let commitIndex = 0; commitIndex < 4; commitIndex++) {
+      fs.writeFileSync(path.join(workDir, `upstream-${commitIndex}.txt`), `upstream ${commitIndex}\n`);
+      execGit(["add", `upstream-${commitIndex}.txt`], { cwd: workDir });
+      execGit(["commit", "-m", `upstream ${commitIndex}`], { cwd: workDir });
     }
     execGit(["push", "origin", "main"], { cwd: workDir });
 
