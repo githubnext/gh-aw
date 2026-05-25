@@ -18,6 +18,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -37,6 +38,12 @@ func timelineEventIcon(kind TimelineEventKind) string {
 		return "✓"
 	case TimelineKindNetworkBlocked:
 		return "✗"
+	case TimelineKindAgentTurn:
+		return "💬"
+	case TimelineKindAgentToolStart:
+		return "▶"
+	case TimelineKindAgentToolDone:
+		return "■"
 	default:
 		return "·"
 	}
@@ -55,6 +62,12 @@ func timelineEventKindLabel(kind TimelineEventKind) string {
 		return "net_allowed"
 	case TimelineKindNetworkBlocked:
 		return "net_blocked"
+	case TimelineKindAgentTurn:
+		return "agent_turn"
+	case TimelineKindAgentToolStart:
+		return "tool_start"
+	case TimelineKindAgentToolDone:
+		return "tool_done"
 	default:
 		return string(kind)
 	}
@@ -67,6 +80,8 @@ func timelineSourceLabel(source TimelineEventSource) string {
 		return "GW"
 	case TimelineSourceFirewall:
 		return "FW"
+	case TimelineSourceAgent:
+		return "AG"
 	default:
 		return strings.ToUpper(string(source))[:2]
 	}
@@ -216,6 +231,66 @@ func renderFirewallNetworkBlockedRow(evt UnifiedTimelineEvent) []string {
 	return []string{ts, src, kind, detail, status}
 }
 
+// renderAgentTurnRow renders a TimelineKindAgentTurn event as a table row.
+//
+// Columns: Time | Src | Kind | Detail | Status
+//
+// Detail encodes the 1-based turn number.  Status is left empty since a turn
+// marker does not represent a completed operation.
+func renderAgentTurnRow(evt UnifiedTimelineEvent) []string {
+	ts := formatTimelineTime(evt)
+	src := timelineSourceLabel(evt.Source)
+	kind := timelineEventIcon(TimelineKindAgentTurn) + " " + timelineEventKindLabel(TimelineKindAgentTurn)
+	detail := fmt.Sprintf("turn %d", evt.TurnIndex)
+	return []string{ts, src, kind, detail, ""}
+}
+
+// renderAgentToolStartRow renders a TimelineKindAgentToolStart event as a table row.
+//
+// Columns: Time | Src | Kind | Detail | Status
+//
+// Detail shows "server/tool" (or just "tool" when the server name is absent).
+// Status is left empty because execution has not completed yet.
+func renderAgentToolStartRow(evt UnifiedTimelineEvent) []string {
+	ts := formatTimelineTime(evt)
+	src := timelineSourceLabel(evt.Source)
+	kind := timelineEventIcon(TimelineKindAgentToolStart) + " " + timelineEventKindLabel(TimelineKindAgentToolStart)
+	var detail string
+	if evt.ServerName != "" {
+		detail = stringutil.Truncate(evt.ServerName+"/"+evt.ToolName, 48)
+	} else {
+		detail = stringutil.Truncate(evt.ToolName, 48)
+	}
+	return []string{ts, src, kind, detail, ""}
+}
+
+// renderAgentToolDoneRow renders a TimelineKindAgentToolDone event as a table row.
+//
+// Columns: Time | Src | Kind | Detail | Status
+//
+// Detail shows "server/tool" (or just "tool") matching the start event. Status is
+// "success" or "error".
+func renderAgentToolDoneRow(evt UnifiedTimelineEvent) []string {
+	ts := formatTimelineTime(evt)
+	src := timelineSourceLabel(evt.Source)
+	kind := timelineEventIcon(TimelineKindAgentToolDone) + " " + timelineEventKindLabel(TimelineKindAgentToolDone)
+	var detail string
+	if evt.ServerName != "" {
+		detail = stringutil.Truncate(evt.ServerName+"/"+evt.ToolName, 48)
+	} else {
+		detail = stringutil.Truncate(evt.ToolName, 48)
+	}
+	status := evt.Status
+	if status == "" {
+		if evt.Success {
+			status = "success"
+		} else {
+			status = "error"
+		}
+	}
+	return []string{ts, src, kind, detail, status}
+}
+
 // renderTimelineEventRow dispatches to the appropriate per-kind rendering primitive and
 // returns a []string table row with columns: Time | Src | Kind | Detail | Status.
 func renderTimelineEventRow(evt UnifiedTimelineEvent) []string {
@@ -230,6 +305,12 @@ func renderTimelineEventRow(evt UnifiedTimelineEvent) []string {
 		return renderFirewallNetworkAllowedRow(evt)
 	case TimelineKindNetworkBlocked:
 		return renderFirewallNetworkBlockedRow(evt)
+	case TimelineKindAgentTurn:
+		return renderAgentTurnRow(evt)
+	case TimelineKindAgentToolStart:
+		return renderAgentToolStartRow(evt)
+	case TimelineKindAgentToolDone:
+		return renderAgentToolDoneRow(evt)
 	default:
 		// Fallback for any future event kinds not yet handled.
 		ts := formatTimelineTime(evt)
@@ -248,14 +329,17 @@ func renderUnifiedTimeline(events []UnifiedTimelineEvent) string {
 	}
 
 	// Tally event counts for the summary header.
-	var gwCount, fwCount int
+	var gwCount, fwCount, agCount int
 	var toolCalls, difcFiltered, guardBlocked, netAllowed, netBlocked int
+	var agentTurns, agentToolStarts, agentToolDones int
 	for _, evt := range events {
 		switch evt.Source {
 		case TimelineSourceGateway:
 			gwCount++
 		case TimelineSourceFirewall:
 			fwCount++
+		case TimelineSourceAgent:
+			agCount++
 		}
 		switch evt.Kind {
 		case TimelineKindToolCall:
@@ -268,13 +352,19 @@ func renderUnifiedTimeline(events []UnifiedTimelineEvent) string {
 			netAllowed++
 		case TimelineKindNetworkBlocked:
 			netBlocked++
+		case TimelineKindAgentTurn:
+			agentTurns++
+		case TimelineKindAgentToolStart:
+			agentToolStarts++
+		case TimelineKindAgentToolDone:
+			agentToolDones++
 		}
 	}
 
 	var sb strings.Builder
 
 	sb.WriteString("\n")
-	sb.WriteString(console.FormatInfoMessage("Unified MCP + Firewall Event Timeline"))
+	sb.WriteString(console.FormatInfoMessage("Unified MCP + Firewall + Agent Event Timeline"))
 	sb.WriteString("\n\n")
 
 	fmt.Fprintf(&sb, "Total Events  : %d\n", len(events))
@@ -285,6 +375,10 @@ func renderUnifiedTimeline(events []UnifiedTimelineEvent) string {
 	if fwCount > 0 {
 		fmt.Fprintf(&sb, "  Firewall    : %d  (allowed=%d, blocked=%d)\n",
 			fwCount, netAllowed, netBlocked)
+	}
+	if agCount > 0 {
+		fmt.Fprintf(&sb, "  Agent       : %d  (turns=%d, tool_start=%d, tool_done=%d)\n",
+			agCount, agentTurns, agentToolStarts, agentToolDones)
 	}
 	sb.WriteString("\n")
 
@@ -317,7 +411,7 @@ func displayUnifiedTimeline(processedRuns []ProcessedRun, verbose bool) {
 		}
 		events, err := BuildUnifiedTimeline(logDir, verbose)
 		if err != nil {
-			gatewayLogsLog.Printf("BuildUnifiedTimeline error for run %d: %v", pr.Run.RunID, err)
+			gatewayLogsLog.Printf("BuildUnifiedTimeline error for run %d: %v", pr.Run.DatabaseID, err)
 			continue
 		}
 		allEvents = append(allEvents, events...)

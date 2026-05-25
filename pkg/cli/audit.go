@@ -743,6 +743,7 @@ func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics L
 		return err
 	}
 	renderAuditGatewayMetrics(runOutputDir, opts.Verbose)
+	renderAuditUnifiedTimeline(runOutputDir, opts.Verbose)
 	parseAuditLogsIfRequested(runID, runOutputDir, opts)
 	renderAuditCompletion(runOutputDir, opts.JSONOutput)
 	return nil
@@ -778,6 +779,20 @@ func renderAuditGatewayMetrics(runOutputDir string, verbose bool) {
 	}
 	if metricsOutput := renderGatewayMetricsTable(gatewayMetrics, verbose); metricsOutput != "" {
 		fmt.Fprint(os.Stderr, metricsOutput)
+	}
+}
+
+// renderAuditUnifiedTimeline builds the unified event timeline from the run output
+// directory (combining MCP Gateway, AWF firewall, and agent events) and writes the
+// rendered table to stderr.  It is a no-op when no events can be collected.
+func renderAuditUnifiedTimeline(runOutputDir string, verbose bool) {
+	events, err := BuildUnifiedTimeline(runOutputDir, verbose)
+	if err != nil {
+		auditLog.Printf("BuildUnifiedTimeline error for %s: %v", runOutputDir, err)
+		return
+	}
+	if output := renderUnifiedTimeline(events); output != "" {
+		fmt.Fprint(os.Stderr, output)
 	}
 }
 

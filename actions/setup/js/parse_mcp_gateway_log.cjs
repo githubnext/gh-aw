@@ -6,6 +6,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { displayDirectories } = require("./display_file_helpers.cjs");
 const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
 const { computeEffectiveTokens, getTokenClassWeights, formatET } = require("./effective_tokens.cjs");
+const { generateUnifiedTimelineSummary } = require("./unified_timeline.cjs");
 
 /**
  * Parses MCP gateway logs and creates a step summary
@@ -207,6 +208,16 @@ function writeStepSummaryWithTokenUsage(coreObj) {
       }
     }
   }
+
+  // Append the unified event timeline (gateway + firewall audit + agent events)
+  // to the step summary immediately before flushing, so it appears as the last
+  // section regardless of which gateway log format was detected above.
+  const timelineMd = generateUnifiedTimelineSummary();
+  if (timelineMd) {
+    coreObj.info(`Appending unified event timeline to step summary`);
+    coreObj.summary.addRaw(timelineMd);
+  }
+
   coreObj.summary.write();
 }
 

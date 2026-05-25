@@ -1,12 +1,14 @@
-// This file implements unified timeline merging for MCP Gateway and AWF firewall JSONL logs.
+// This file implements unified timeline merging for MCP Gateway, AWF firewall, and agent
+// JSONL logs.
 //
-// Both systems emit JSONL logs during an agentic workflow run:
-//   - MCP Gateway:    gateway.jsonl (or rpc-messages.jsonl as fallback)
-//   - AWF Firewall:   audit.jsonl
+// All three systems emit JSONL logs during an agentic workflow run:
+//   - MCP Gateway:  gateway.jsonl (or rpc-messages.jsonl as fallback)
+//   - AWF Firewall: audit.jsonl
+//   - Agent:        events.jsonl  (Copilot CLI session events)
 //
 // All JSONL files are collected from a run directory, each line is converted to a
 // [UnifiedTimelineEvent], and the resulting stream is sorted by wall-clock time so
-// that a caller can render a single, chronologically ordered timeline that spans both
+// that a caller can render a single, chronologically ordered timeline that spans all
 // system boundaries.
 
 package cli
@@ -14,6 +16,7 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -31,6 +34,8 @@ const (
 	TimelineSourceGateway TimelineEventSource = "gateway"
 	// TimelineSourceFirewall indicates the event came from the AWF firewall (audit.jsonl).
 	TimelineSourceFirewall TimelineEventSource = "firewall"
+	// TimelineSourceAgent indicates the event came from the agent session (events.jsonl).
+	TimelineSourceAgent TimelineEventSource = "agent"
 )
 
 // TimelineEventKind classifies the type of a unified timeline event.
@@ -47,13 +52,23 @@ const (
 	TimelineKindNetworkAllowed TimelineEventKind = "net_allowed"
 	// TimelineKindNetworkBlocked is a network request that the AWF firewall denied.
 	TimelineKindNetworkBlocked TimelineEventKind = "net_blocked"
+	// TimelineKindAgentTurn marks the start of a new conversation turn (user.message event).
+	TimelineKindAgentTurn TimelineEventKind = "agent_turn"
+	// TimelineKindAgentToolStart marks the beginning of an agent-initiated tool execution
+	// (tool.execution_start event).
+	TimelineKindAgentToolStart TimelineEventKind = "agent_tool_start"
+	// TimelineKindAgentToolDone marks the completion of an agent-initiated tool execution
+	// (tool.execution_complete event).
+	TimelineKindAgentToolDone TimelineEventKind = "agent_tool_done"
 )
 
-// UnifiedTimelineEvent represents a single event from either the MCP Gateway or the AWF
-// firewall, normalised to a common structure for merged timeline rendering.
+// UnifiedTimelineEvent represents a single event from the MCP Gateway, the AWF
+// firewall, or the agent session, normalised to a common structure for merged timeline
+// rendering.
 //
 // Gateway events populate the Server/Tool/Method/Status/Error/Duration fields.
 // Firewall events populate the Host/HTTPMethod/HTTPStatus/Decision fields.
+// Agent events populate the ToolName/ServerName (for tool events) or TurnIndex field.
 // A subset of fields (Reason, AuthorLogin) may be set by either source.
 type UnifiedTimelineEvent struct {
 	Time   time.Time           // Normalised wall-clock time used for sorting
@@ -74,6 +89,11 @@ type UnifiedTimelineEvent struct {
 	HTTPMethod string // HTTP method (GET, CONNECT, …)
 	HTTPStatus int    // HTTP response status code
 	Decision   string // Proxy decision string (e.g. TCP_TUNNEL:HIER_DIRECT)
+
+	// Agent-specific fields (agent_turn, agent_tool_start, agent_tool_done)
+	TurnIndex  int    // 1-based conversation turn number (agent_turn events)
+	ToolCallID string // Opaque call ID that pairs start/done events
+	Success    bool   // True when tool execution succeeded (agent_tool_done events)
 
 	// Shared fields
 	Reason string // Human-readable reason or description
@@ -364,12 +384,130 @@ func collectFirewallTimelineEvents(logDir string, verbose bool) ([]UnifiedTimeli
 	return events, nil
 }
 
-// BuildUnifiedTimeline collects all JSONL events from the MCP Gateway and the AWF
-// firewall in logDir, merges them into a single slice, and sorts the slice in ascending
-// wall-clock order (oldest first).
+// parseEventsJSONL reads a Copilot events.jsonl file and returns the raw entries in the
+// order they appear in the file.  Malformed lines are silently skipped.
+func parseEventsJSONL(path string) ([]copilotEventsJSONLEntry, error) {
+	cleanPath := filepath.Clean(path)
+	f, err := os.Open(cleanPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open events.jsonl: %w", err)
+	}
+	defer f.Close()
+
+	var entries []copilotEventsJSONLEntry
+	scanner := bufio.NewScanner(f)
+	buf := make([]byte, maxScannerBufferSize)
+	scanner.Buffer(buf, maxScannerBufferSize)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || !strings.HasPrefix(line, "{") {
+			continue
+		}
+		var entry copilotEventsJSONLEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			gatewayLogsLog.Printf("Skipping malformed events.jsonl line: %v", err)
+			continue
+		}
+		entries = append(entries, entry)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error reading events.jsonl: %w", err)
+	}
+	return entries, nil
+}
+
+// agentEntryToTimelineEvent converts a single agent copilotEventsJSONLEntry into a
+// UnifiedTimelineEvent.  Only event types that are meaningful at the timeline level
+// (user.message, tool.execution_start, tool.execution_complete) are converted; all
+// other types are silently skipped (ok == false).
+func agentEntryToTimelineEvent(entry copilotEventsJSONLEntry, turnIndex int) (UnifiedTimelineEvent, bool) {
+	t, err := time.Parse(time.RFC3339Nano, entry.Timestamp)
+	if err != nil {
+		t2, err2 := time.Parse(time.RFC3339, entry.Timestamp)
+		if err2 != nil {
+			return UnifiedTimelineEvent{}, false
+		}
+		t = t2
+	}
+
+	switch entry.Type {
+	case "user.message":
+		return UnifiedTimelineEvent{
+			Time:      t,
+			Source:    TimelineSourceAgent,
+			Kind:      TimelineKindAgentTurn,
+			TurnIndex: turnIndex,
+		}, true
+
+	case "tool.execution_start":
+		return UnifiedTimelineEvent{
+			Time:       t,
+			Source:     TimelineSourceAgent,
+			Kind:       TimelineKindAgentToolStart,
+			ToolName:   entry.Data.ToolName,
+			ServerName: entry.Data.MCPServerName,
+			ToolCallID: entry.Data.ToolCallID,
+		}, true
+
+	case "tool.execution_complete":
+		status := "success"
+		if !entry.Data.Success {
+			status = "error"
+		}
+		return UnifiedTimelineEvent{
+			Time:       t,
+			Source:     TimelineSourceAgent,
+			Kind:       TimelineKindAgentToolDone,
+			ToolName:   entry.Data.ToolName,
+			ServerName: entry.Data.MCPServerName,
+			ToolCallID: entry.Data.ToolCallID,
+			Success:    entry.Data.Success,
+			Status:     status,
+		}, true
+
+	default:
+		return UnifiedTimelineEvent{}, false
+	}
+}
+
+// collectAgentTimelineEvents reads events.jsonl from the agent session directory inside
+// logDir and returns a slice of timeline events.  Returns nil (not an error) when no
+// file is found.
+func collectAgentTimelineEvents(logDir string, verbose bool) ([]UnifiedTimelineEvent, error) {
+	eventsPath := findEventsJSONLFile(logDir)
+	if eventsPath == "" {
+		gatewayLogsLog.Printf("No events.jsonl found in %s; skipping agent timeline collection", logDir)
+		return nil, nil
+	}
+
+	gatewayLogsLog.Printf("Collecting agent timeline events from: %s", eventsPath)
+
+	entries, err := parseEventsJSONL(eventsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var events []UnifiedTimelineEvent
+	turnIndex := 0
+	for _, entry := range entries {
+		if entry.Type == "user.message" {
+			turnIndex++
+		}
+		if evt, ok := agentEntryToTimelineEvent(entry, turnIndex); ok {
+			events = append(events, evt)
+		}
+	}
+
+	gatewayLogsLog.Printf("Collected %d agent timeline events from %s", len(events), filepath.Base(eventsPath))
+	return events, nil
+}
+
+// BuildUnifiedTimeline collects all JSONL events from the MCP Gateway, the AWF
+// firewall, and the agent session in logDir, merges them into a single slice, and
+// sorts the slice in ascending wall-clock order (oldest first).
 //
 // If a source is unavailable (no matching file), it is silently skipped; collection
-// errors are logged but do not prevent events from the other source from being returned.
+// errors are logged but do not prevent events from the other sources from being returned.
 func BuildUnifiedTimeline(logDir string, verbose bool) ([]UnifiedTimelineEvent, error) {
 	gatewayEvents, gwErr := collectGatewayTimelineEvents(logDir, verbose)
 	if gwErr != nil {
@@ -381,16 +519,22 @@ func BuildUnifiedTimeline(logDir string, verbose bool) ([]UnifiedTimelineEvent, 
 		gatewayLogsLog.Printf("collectFirewallTimelineEvents error: %v", fwErr)
 	}
 
-	events := make([]UnifiedTimelineEvent, 0, len(gatewayEvents)+len(firewallEvents))
+	agentEvents, agErr := collectAgentTimelineEvents(logDir, verbose)
+	if agErr != nil {
+		gatewayLogsLog.Printf("collectAgentTimelineEvents error: %v", agErr)
+	}
+
+	events := make([]UnifiedTimelineEvent, 0, len(gatewayEvents)+len(firewallEvents)+len(agentEvents))
 	events = append(events, gatewayEvents...)
 	events = append(events, firewallEvents...)
+	events = append(events, agentEvents...)
 
 	sort.Slice(events, func(i, j int) bool {
 		return events[i].Time.Before(events[j].Time)
 	})
 
-	gatewayLogsLog.Printf("Built unified timeline: %d events (gateway=%d, firewall=%d)",
-		len(events), len(gatewayEvents), len(firewallEvents))
+	gatewayLogsLog.Printf("Built unified timeline: %d events (gateway=%d, firewall=%d, agent=%d)",
+		len(events), len(gatewayEvents), len(firewallEvents), len(agentEvents))
 
 	return events, nil
 }

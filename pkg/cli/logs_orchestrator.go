@@ -695,6 +695,9 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 		// Display aggregated gateway metrics if any runs have gateway.jsonl files
 		displayAggregatedGatewayMetrics(processedRuns, opts.outputDir, opts.verbose)
 
+		// Display unified event timeline (gateway + firewall + agent events)
+		displayUnifiedTimeline(processedRuns, opts.verbose)
+
 		// Generate tool sequence graph if requested (console output only)
 		if opts.toolGraph {
 			generateToolGraph(processedRuns, opts.verbose)
