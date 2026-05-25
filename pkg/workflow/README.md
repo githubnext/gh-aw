@@ -70,6 +70,7 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `GeminiEngine` | struct | Google Gemini CLI coding agent engine |
 | `CrushEngine` | struct | Crush coding agent engine |
 | `OpenCodeEngine` | struct | OpenCode coding agent engine |
+| `PiEngine` | struct | Pi coding agent engine |
 | `UniversalLLMBackend` | string alias | Universal LLM backend identifier (`claude`, `codex`) |
 | `UniversalLLMConsumerEngine` | struct | Shared implementation for universal LLM backends |
 | `EngineCatalog` | struct | Catalog of engine definitions with lookup and resolution helpers |
@@ -86,6 +87,7 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `NewGeminiEngine` | `func() *GeminiEngine` | Creates the Gemini engine |
 | `NewCrushEngine` | `func() *CrushEngine` | Creates the Crush engine |
 | `NewOpenCodeEngine` | `func() *OpenCodeEngine` | Creates the OpenCode engine |
+| `NewPiEngine` | `func() *PiEngine` | Creates the Pi engine |
 | `NewEngineCatalog` | `func(registry *EngineRegistry) *EngineCatalog` | Creates an engine catalog from an engine registry |
 
 ### Frontmatter Configuration Types
