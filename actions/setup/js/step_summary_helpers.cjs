@@ -5,6 +5,7 @@ const { BUILT_IN_PATTERNS, extractMCPGatewayTokens, MCP_GATEWAY_CONFIG_PATHS } =
 
 const REDACTED = "***REDACTED***";
 const PATCH_FLAG = Symbol.for("gh-aw.step-summary-helper-installed");
+const BUILT_IN_REDACTION_REGEXES = BUILT_IN_PATTERNS.map(builtInPattern => new RegExp(builtInPattern.pattern.source, builtInPattern.pattern.flags));
 
 /**
  * @param {any} fn
@@ -143,13 +144,12 @@ function collectSecretsFromEnv() {
 function redactMarkdown(markdown) {
   let result = String(markdown || "");
 
-  for (const builtInPattern of BUILT_IN_PATTERNS) {
-    const pattern = new RegExp(builtInPattern.pattern.source, builtInPattern.pattern.flags);
+  for (const pattern of BUILT_IN_REDACTION_REGEXES) {
     result = result.replace(pattern, REDACTED);
   }
 
   for (const value of collectSecretsFromEnv()) {
-    result = result.split(value).join(REDACTED);
+    result = result.replaceAll(value, REDACTED);
   }
 
   return result;

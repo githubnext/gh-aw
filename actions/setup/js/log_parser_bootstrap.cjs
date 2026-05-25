@@ -4,6 +4,8 @@
 const { generatePlainTextSummary, generateCopilotCliStyleSummary, wrapAgentLogInSection, formatSafeOutputsPreview } = require("./log_parser_shared.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Bootstrap helper for log parser entry points.
@@ -19,8 +21,6 @@ const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 async function runLogParser(options) {
   const fs = require("fs");
   const path = require("path");
-  const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
-  installStepSummaryHelpers(globalThis.core);
   const { parseLog, parserName, supportsDirectories = false } = options;
 
   /**

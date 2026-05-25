@@ -24,8 +24,8 @@
  * @returns {Promise<void>}
  */
 const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
-installStepSummaryHelpers(globalThis.core);
 async function determineAutomaticLockdown(github, context, core) {
+  installStepSummaryHelpers(core);
   try {
     core.info("Determining automatic guard policy for GitHub MCP server");
 
