@@ -295,6 +295,9 @@ function getGatewayEventName(entry) {
   return typeof entry?.event === "string" ? entry.event : typeof entry?.type === "string" ? entry.type : "";
 }
 
+const MODEL_ALIAS_EVENT_PATTERN = /model_alias|model_rewrite/i;
+const MODEL_ALIAS_EVENT_NAMES = new Set(["model_alias_resolution", "model_rewrite", "MODEL_ALIAS_REWRITE"]);
+
 /**
  * Parses gateway.jsonl content and extracts model alias resolution events emitted by
  * the AWF API proxy.
@@ -306,11 +309,11 @@ function parseGatewayJsonlForModelAliasResolution(jsonlContent) {
   const lines = jsonlContent.split("\n");
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed || !/model_alias|model_rewrite/i.test(trimmed)) continue;
+    if (!trimmed || !MODEL_ALIAS_EVENT_PATTERN.test(trimmed)) continue;
     try {
       const entry = JSON.parse(trimmed);
       const eventName = getGatewayEventName(entry);
-      if (eventName === "model_alias_resolution" || eventName === "model_rewrite" || eventName === "MODEL_ALIAS_REWRITE") {
+      if (MODEL_ALIAS_EVENT_NAMES.has(eventName)) {
         aliasResolutionEvents.push(entry);
       }
     } catch {
