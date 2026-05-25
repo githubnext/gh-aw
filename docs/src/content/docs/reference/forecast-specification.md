@@ -171,6 +171,16 @@ yield = observed_runs_per_period × success_rate
 
 Where `success_rate = successful_run_count / total_sampled_run_count`.
 
+Example:
+
+If `successful_run_count = 18`, `total_sampled_run_count = 24`, and
+`observed_runs_per_period = 20`, then:
+
+```
+success_rate = 18 / 24 = 0.75
+yield = observed_runs_per_period × success_rate = 20 × 0.75 = 15
+```
+
 ### 3.10 Bootstrap Resampling
 
 An empirical resampling technique where individual observations are drawn with replacement from the observed sample. Used in Section 7 to model per-run token usage without parametric distribution assumptions.
@@ -188,6 +198,8 @@ A `.lock.yml` file located in `.github/workflows/` that declares a compiled agen
 ```
 gh aw forecast [workflow_id...] [flags]
 ```
+
+Security and operational safeguards for this command interface are defined in §10.7.
 
 ### 4.2 Positional Arguments
 
@@ -822,6 +834,36 @@ workflows):
   defined in Section 10.6; callers MUST treat its absence as equivalent to `false` (per
   §11.5 / **R-IMPL-041**, unknown fields in JSON output MUST be treated as ignorable).
 
+### 10.7 Safeguards
+
+#### 10.7.1 Threat Model
+
+- **Credential scope abuse**: Over-scoped credentials could allow unauthorized repository access.
+- **Artifact privacy leakage**: `aw_info.json` artifacts may contain operationally sensitive ET
+  metadata and prompt-adjacent context.
+- **Rate-limit abuse**: Aggressive polling or unrestricted retries can amplify API pressure and
+  trigger organizational throttling.
+
+#### 10.7.2 Required Mitigations
+
+- **Credential scope**: The forecast command accesses the GitHub Actions API using `gh` CLI
+  credentials. Token permissions MUST include only the minimum required scope (`actions:read` for
+  target repositories).
+- **Artifact privacy**: Implementations MUST NOT log raw artifact payloads at default verbosity and
+  SHOULD redact prompt-adjacent fields in diagnostic output.
+- **Rate-limit abuse controls**: Implementations MUST implement bounded retry/backoff behavior and
+  MUST stop retrying when the retry budget is exhausted.
+- **Remote repository access**: When `--repo` targets a repository the caller does not own, the
+  caller MUST have explicit read access. Implementations MUST NOT bypass repository access controls.
+- **JSON output handling**: The JSON schema can expose model and usage topology; operators SHOULD
+  treat it as internal data and apply least-privilege access controls.
+
+#### 10.7.3 Residual Risk
+
+Even with these safeguards, operators with valid read access can still infer workload intensity
+from forecast outputs. This residual risk is accepted and MUST be managed through repository
+visibility and access-governance controls.
+
 ---
 
 ## 11. Implementation Requirements
@@ -950,6 +992,9 @@ This section maps normative forecast requirements to implementation files.
 
 | Normative Area | Implementation File(s) |
 |---|---|
+| §4.5 Exit codes | `pkg/cli/forecast_command.go` |
+| §6 Data Sampling | `pkg/cli/forecast.go` |
+| §7 Monte Carlo Projection Engine | `pkg/cli/forecast_montecarlo.go` |
 | Monte Carlo engine (Poisson/Bootstrap/Bernoulli) | `pkg/cli/forecast_montecarlo.go` |
 | Forecast command orchestration and output fields | `pkg/cli/forecast.go`, `pkg/cli/forecast_command.go` |
 | Workflow discovery, rate-limit backoff, and run sampling | `pkg/cli/forecast.go` |
@@ -1044,35 +1089,9 @@ Conforming implementations SHOULD:
 2. Treat per-workflow 404/410 responses as recoverable partial failures.
 3. Continue processing unaffected workflows and emit a warning for each raced workflow.
 
-### Appendix F: Safeguards
+### Appendix F: Safeguards (Moved)
 
-#### F.1 Threat Model
-
-- **Credential scope abuse**: Over-scoped credentials could allow unauthorized repository access.
-- **Artifact privacy leakage**: `aw_info.json` artifacts may contain operationally sensitive ET
-  metadata and prompt-adjacent context.
-- **Rate-limit abuse**: Aggressive polling or unrestricted retries can amplify API pressure and
-  trigger organizational throttling.
-
-#### F.2 Required Mitigations
-
-- **Credential scope**: The forecast command accesses the GitHub Actions API using `gh` CLI
-  credentials. Token permissions MUST include only the minimum required scope (`actions:read` for
-  target repositories).
-- **Artifact privacy**: Implementations MUST NOT log raw artifact payloads at default verbosity and
-  SHOULD redact prompt-adjacent fields in diagnostic output.
-- **Rate-limit abuse controls**: Implementations MUST implement bounded retry/backoff behavior and
-  MUST stop retrying when the retry budget is exhausted.
-- **Remote repository access**: When `--repo` targets a repository the caller does not own, the
-  caller MUST have explicit read access. Implementations MUST NOT bypass repository access controls.
-- **JSON output handling**: The JSON schema can expose model and usage topology; operators SHOULD
-  treat it as internal data and apply least-privilege access controls.
-
-#### F.3 Residual Risk
-
-Even with these safeguards, operators with valid read access can still infer workload intensity
-from forecast outputs. This residual risk is accepted and MUST be managed through repository
-visibility and access-governance controls.
+Safeguard requirements for this specification are now defined in §10.7.
 
 ---
 

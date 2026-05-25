@@ -240,6 +240,18 @@ hashes for any corpus member.
 
 ## Implementation Notes
 
+### Caller Operations
+
+`pkg/cli/hash_command.go` MUST invoke the hash API with the following operational sequence:
+
+1. The caller MUST resolve the target workflow markdown file path and fail with a descriptive error
+   when the file cannot be read.
+2. The caller MUST pass workflow content and repository path context to the frontmatter hash
+   implementation so imports can be traversed deterministically.
+3. The caller MUST return the computed 64-character lowercase SHA-256 hash string on success.
+4. The caller MUST surface deterministic hash-computation failures (parse/import/read errors) as
+   command errors without fallback hashing.
+
 ### Go Implementation
 
 The current Go implementation (`pkg/parser/frontmatter_hash.go`) uses a **text-based approach** that diverges from the field-selection model described in Section 2 ("Field Selection") of this specification:
@@ -318,7 +330,10 @@ The Go and JavaScript implementations must produce byte-for-byte identical canon
 
 Very large frontmatter payloads can cause excessive memory use and hash-computation latency during compilation and runtime verification. This can degrade CI reliability and increase stale-lock false positives due to timeout or resource pressure.
 
-**Mitigation**: Implementations SHOULD enforce a maximum cumulative frontmatter input size and MUST fail deterministically with a descriptive error when the limit is exceeded. A limit of 1 MiB for the combined normalized frontmatter input is RECOMMENDED unless repository-specific requirements justify a higher bound.
+**Mitigation**: Implementations MUST enforce a maximum cumulative normalized frontmatter input size
+of **1,048,576 bytes (1 MiB)** and MUST fail deterministically with a descriptive error when that
+limit is exceeded. This limit bounds worst-case memory/latency behavior while remaining well above
+typical workflow frontmatter sizes.
 
 ---
 
@@ -476,3 +491,15 @@ imports:
 
 # Import-based Workflow
 ```
+
+### FH-TV-NEG-001 (Oversized Input Rejection)
+
+Input description:
+
+- A workflow (including imported frontmatter content) whose cumulative normalized frontmatter input
+  exceeds **1,048,576 bytes**.
+
+Expected result:
+
+- Hash computation is rejected before digest generation.
+- Error text includes: `frontmatter input exceeds 1048576-byte limit`.

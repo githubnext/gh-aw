@@ -361,8 +361,39 @@ When sub-agents are not fully observable, implementations MUST still report aggr
 
 ### 8.5 Safeguards
 
-Implementations must prevent unbounded ET accumulation from producing non-finite or
-non-interoperable outputs.
+Implementations MUST apply the following safeguards to prevent unbounded ET accumulation from
+producing non-finite or non-interoperable outputs.
+
+#### S-1: Overflow and Capping
+
+**Threat**: Unbounded multi-invocation ET aggregation can exceed numeric interoperability limits and
+produce values that cannot be represented safely across systems.
+
+**Mitigation**: Implementations MUST enforce the JavaScript-safe numeric ceiling and record
+deterministic overflow state when capping occurs, including the ceiling value in the emitted
+flag/error payload.
+
+Normative requirements: **R-SAFE-002**, **R-SAFE-003**, **R-SAFE-003A**, **R-SAFE-004**
+
+#### S-2: Non-Finite Numeric Rejection
+
+**Threat**: `NaN`, `+Inf`, and `-Inf` values in multipliers or token class weights can silently
+corrupt ET outputs and break downstream serialization/aggregation.
+
+**Mitigation**: Implementations MUST reject non-finite or invalid numeric registry values before ET
+computation begins.
+
+Normative requirements: **R-SAFE-007**, **R-SAFE-008**
+
+#### S-3: Registry Validation Failure Handling
+
+**Threat**: Continuing ET computation after registry validation failure can produce inconsistent,
+partially parsed, or non-reproducible outputs.
+
+**Mitigation**: Implementations MUST fail deterministically with field-level diagnostics and MUST NOT
+continue with partially parsed registry data.
+
+Normative requirements: **R-SAFE-009**, **R-SAFE-010**
 
 **R-SAFE-001**: ET aggregation logic **MUST** detect overflow and non-finite arithmetic states
 (`NaN`, `+Inf`, `-Inf`) before serializing output.
@@ -638,6 +669,42 @@ ET_total = Σ [ m_i × (max(I_i - C_i, 0) + 0.1 C_i + 4 O_i + 4 R_i) ]
 
 ET values are derived from token usage metadata. Implementations SHOULD treat per-invocation token data as potentially sensitive since usage patterns may reveal information about system prompts, model configurations, or user behavior. Aggregate ET values suitable for observability dashboards SHOULD be separated from detailed per-invocation data in access-controlled reporting systems.
 
+### Appendix D: ET Test Vectors
+
+#### ET-TV-001 (Single Invocation Baseline)
+
+Input:
+
+- `model multiplier m = 1.0`
+- `input_tokens = 200`
+- `cached_input_tokens = 50`
+- `output_tokens = 10`
+- `reasoning_tokens = 0`
+
+Expected ET:
+
+```
+base_weighted_tokens = max(200-50,0) + 0.1×50 + 4×10 + 4×0 = 150 + 5 + 40 + 0 = 195
+effective_tokens = 1.0 × 195 = 195
+```
+
+#### ET-TV-002 (Three-Node Graph, Mixed Cached/Output Tokens)
+
+Input invocation set:
+
+1. Root: `m=2.0`, `I=500`, `C=200`, `O=120`, `R=0`
+2. Sub-agent A: `m=1.0`, `I=300`, `C=0`, `O=90`, `R=10`
+3. Sub-agent B: `m=2.0`, `I=150`, `C=50`, `O=80`, `R=0`
+
+Expected ET:
+
+```
+Root:      base = max(500-200,0) + 0.1×200 + 4×120 + 4×0  = 300 + 20 + 480 + 0 = 800;  ET = 2.0×800 = 1600
+Sub-agent: base = max(300-0,0)   + 0.1×0   + 4×90  + 4×10 = 300 + 0  + 360 + 40 = 700;  ET = 1.0×700 = 700
+Sub-agent: base = max(150-50,0)  + 0.1×50  + 4×80  + 4×0  = 100 + 5  + 320 + 0  = 425;  ET = 2.0×425 = 850
+ET_total = 1600 + 700 + 850 = 3150
+```
+
 ---
 
 ## Model Multiplier Registry
@@ -714,6 +781,17 @@ The table below maps the normative sections of this specification to the impleme
 | §7 Reporting | Console and JSON output of ET summaries and per-model breakdowns | `pkg/cli/audit_report.go`, `pkg/cli/audit_report_render_tools.go`, `pkg/cli/audit_diff.go`, `pkg/cli/logs_report.go` |
 | §7.1 OTel Attribute Requirements | OpenTelemetry span attribute emission for ET metrics | `pkg/cli/token_usage.go`, `pkg/cli/logs_run_processor.go` |
 | §8 Implementation Requirements | Completeness, determinism, versioning, partial visibility safeguards | `pkg/cli/effective_tokens.go`, `pkg/cli/forecast_montecarlo.go` |
+
+### §7.1 OTel Attribute Row-to-Code Mapping
+
+| §7.1 Attribute Key | Implementation Mapping |
+|---|---|
+| `llm.token.effective_total` | `pkg/cli/token_usage.go` → `TokenUsageSummary.TotalEffectiveTokens`, populated by `populateEffectiveTokensWithCustomWeights` |
+| `llm.token.input` | `pkg/cli/token_usage.go` → `TokenUsageEntry.InputTokens` and `ModelTokenUsage.InputTokens`, aggregated in `parseTokenUsageFile` |
+| `llm.token.output` | `pkg/cli/token_usage.go` → `TokenUsageEntry.OutputTokens` and `ModelTokenUsage.OutputTokens`, aggregated in `parseTokenUsageFile` |
+| `llm.token.cached_input` | `pkg/cli/token_usage.go` → `TokenUsageEntry.CacheReadTokens` and `ModelTokenUsage.CacheReadTokens`, aggregated in `parseTokenUsageFile` |
+| `llm.token.base_weighted` | `pkg/cli/effective_tokens.go` → base token weighting in `computeModelEffectiveTokensWithWeights` (pre-multiplier term) |
+| `llm.model.multiplier` | `pkg/cli/effective_tokens.go` → multiplier resolution in `computeModelEffectiveTokensWithWeights` (`mult` selection by model key/prefix) |
 
 ### §4–§8 Sync Procedure
 
