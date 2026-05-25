@@ -589,6 +589,9 @@ describe("pick_experiment", () => {
       await main();
 
       const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
+      expect(rawCall).toContain("### 📋 Assignment Details");
+      expect(rawCall).toContain("<summary>🔎 style assignment metadata</summary>");
+      expect(rawCall).toContain("### style");
       expect(rawCall).toContain("| Field | Value |");
       expect(rawCall).toContain("| Experiment | `style` |");
       expect(rawCall).toContain("| Assigned variant | `B` |");

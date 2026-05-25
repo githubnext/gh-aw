@@ -245,7 +245,11 @@ async function writeSummary(assignments, configs, state, core) {
       notifyTargets.push(`issue #${cfg.notify.issue}`);
     }
 
-    detailLines.push(`**${name}**`);
+    detailLines.push("<details>");
+    detailLines.push(`<summary>🔎 ${name} assignment metadata</summary>`);
+    detailLines.push("");
+    detailLines.push(`### ${name}`);
+    detailLines.push("");
     detailLines.push("");
     detailLines.push("| Field | Value |");
     detailLines.push("| --- | --- |");
@@ -260,11 +264,13 @@ async function writeSummary(assignments, configs, state, core) {
       detailLines.push(`| Notify | ${notifyTargets.join("; ")} |`);
     }
     detailLines.push("");
+    detailLines.push("</details>");
+    detailLines.push("");
   }
   lines.push("");
 
   if (detailLines.length > 0) {
-    lines.push("### Assignment Details");
+    lines.push("### 📋 Assignment Details");
     lines.push("");
     lines.push(...detailLines);
   }
