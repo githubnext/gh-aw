@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var stringutilLog = logger.New("stringutil:stringutil")
 
 // Truncate truncates a string to a maximum length, adding "..." if truncated.
 // If maxLen is 3 or less, the string is truncated without "...".
@@ -18,8 +22,10 @@ func Truncate(s string, maxLen int) string {
 		return s
 	}
 	if maxLen <= 3 {
+		stringutilLog.Printf("Truncate: hard-cut at maxLen=%d (no ellipsis)", maxLen)
 		return s[:maxLen]
 	}
+	stringutilLog.Printf("Truncate: shortened from %d to %d chars", len(s), maxLen)
 	return s[:maxLen-3] + "..."
 }
 
@@ -54,6 +60,7 @@ func ParseVersionValue(version any) string {
 	case float64:
 		return fmt.Sprintf("%g", v)
 	default:
+		stringutilLog.Printf("ParseVersionValue: unsupported type %T, returning empty string", version)
 		return ""
 	}
 }
@@ -109,6 +116,8 @@ func NormalizeLeadingWhitespace(content string) string {
 	if minLeading <= 0 {
 		return content
 	}
+
+	stringutilLog.Printf("NormalizeLeadingWhitespace: stripping %d leading whitespace chars from %d lines", minLeading, len(lines))
 
 	// Remove the minimum leading whitespace from all lines
 	var result strings.Builder
