@@ -228,14 +228,14 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
             const defaultBranchRef = `refs/remotes/origin/${defaultBranch}`;
             let hasDefaultBranchRef = false;
             try {
-              execGitSync(["show-ref", "--verify", "--quiet", defaultBranchRef], { cwd });
+              execGitSync(["show-ref", "--verify", "--quiet", defaultBranchRef], { cwd, suppressLogs: true });
               hasDefaultBranchRef = true;
             } catch {
               debugLog(`Strategy 1 (incremental): ${defaultBranchRef} not found locally, attempting fetch`);
               try {
                 const fullFetchEnv = { ...process.env, ...getGitAuthEnv(options.token) };
-                execGitSync(["fetch", "origin", "--", defaultBranch], { cwd, env: fullFetchEnv });
-                execGitSync(["show-ref", "--verify", "--quiet", defaultBranchRef], { cwd });
+                execGitSync(["fetch", "origin", "--", defaultBranch], { cwd, env: fullFetchEnv, suppressLogs: true });
+                execGitSync(["show-ref", "--verify", "--quiet", defaultBranchRef], { cwd, suppressLogs: true });
                 hasDefaultBranchRef = true;
                 debugLog(`Strategy 1 (incremental): fetched origin/${defaultBranch} for bundle exclusions`);
               } catch (fetchErr) {

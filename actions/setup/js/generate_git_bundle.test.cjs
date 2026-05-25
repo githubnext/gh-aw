@@ -30,10 +30,24 @@ function execGit(args, options = {}) {
 
 describe("generateGitBundle (incremental)", () => {
   const tempDirs = [];
+  const bundlePaths = [];
 
   afterEach(() => {
     for (const tempDir of tempDirs.splice(0)) {
       fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+    for (const bundlePath of bundlePaths.splice(0)) {
+      fs.rmSync(bundlePath, { force: true });
+      const bundleDir = path.dirname(bundlePath);
+      if (bundleDir.startsWith(path.join(os.tmpdir(), "gh-aw"))) {
+        try {
+          if (fs.readdirSync(bundleDir).length === 0) {
+            fs.rmdirSync(bundleDir);
+          }
+        } catch {
+          // Ignore cleanup failures in teardown.
+        }
+      }
     }
   });
 
@@ -77,17 +91,21 @@ describe("generateGitBundle (incremental)", () => {
     const result = await generateGitBundle("pr-branch", "main", { mode: "incremental", cwd: workDir });
     expect(result.success).toBe(true);
     expect(result.bundlePath).toBeTruthy();
+    bundlePaths.push(result.bundlePath);
 
     const naiveBundlePath = path.join(workDir, "naive.bundle");
     const optimizedBundlePath = path.join(workDir, "optimized.bundle");
     execGit(["bundle", "create", naiveBundlePath, "origin/pr-branch..pr-branch"], { cwd: workDir });
     execGit(["bundle", "create", optimizedBundlePath, "origin/pr-branch..pr-branch", "^origin/main"], { cwd: workDir });
 
+    const prHeadSha = execGit(["rev-parse", "pr-branch"], { cwd: workDir }).stdout.trim();
+    const generatedHeads = execGit(["bundle", "list-heads", result.bundlePath], { cwd: workDir }).stdout.trim();
+    const optimizedHeads = execGit(["bundle", "list-heads", optimizedBundlePath], { cwd: workDir }).stdout.trim();
     const generatedSize = fs.statSync(result.bundlePath).size;
     const naiveSize = fs.statSync(naiveBundlePath).size;
-    const optimizedSize = fs.statSync(optimizedBundlePath).size;
 
-    expect(generatedSize).toBe(optimizedSize);
+    expect(generatedHeads).toBe(optimizedHeads);
+    expect(generatedHeads).toContain(prHeadSha);
     expect(generatedSize).toBeLessThan(naiveSize);
   });
 });
