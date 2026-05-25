@@ -229,7 +229,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"",
 				"[shell_environment_policy]",
 				"inherit = \"core\"",
-				"include_only = [\"CODEX_API_KEY\", \"GITHUB_PERSONAL_ACCESS_TOKEN\", \"HOME\", \"OPENAI_API_KEY\", \"PATH\"]",
+				"include_only = [\"^CODEX_API_KEY$\", \"^GITHUB_PERSONAL_ACCESS_TOKEN$\", \"^HOME$\", \"^OPENAI_API_KEY$\", \"^PATH$\"]",
 				"",
 				"[mcp_servers.github]",
 				"user_agent = \"test-workflow\"",
@@ -275,7 +275,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"cat > \"/tmp/gh-aw/mcp-config/config.toml\" << GH_AW_CODEX_SHELL_POLICY_NORM_EOF",
 				"[shell_environment_policy]",
 				"inherit = \"core\"",
-				"include_only = [\"CODEX_API_KEY\", \"GITHUB_PERSONAL_ACCESS_TOKEN\", \"HOME\", \"OPENAI_API_KEY\", \"PATH\"]",
+				"include_only = [\"^CODEX_API_KEY$\", \"^GITHUB_PERSONAL_ACCESS_TOKEN$\", \"^HOME$\", \"^OPENAI_API_KEY$\", \"^PATH$\"]",
 				"GH_AW_CODEX_SHELL_POLICY_NORM_EOF",
 				"cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"",
 				"chmod 600 \"/tmp/gh-aw/mcp-config/config.toml\"",
@@ -955,7 +955,7 @@ func TestCodexEngineWebSearch(t *testing.T) {
 func TestCodexEngineWebFetch(t *testing.T) {
 	engine := NewCodexEngine()
 
-	t.Run("fetch tool disabled by default when tool not specified", func(t *testing.T) {
+	t.Run("fetch config is not emitted when tool not specified", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 		}
@@ -964,8 +964,8 @@ func TestCodexEngineWebFetch(t *testing.T) {
 			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 		stepContent := strings.Join([]string(steps[0]), "\n")
-		if !strings.Contains(stepContent, `-c fetch="disabled"`) {
-			t.Errorf(`Expected -c fetch="disabled" config when web-fetch tool is not specified, got:\n%s`, stepContent)
+		if strings.Contains(stepContent, `-c fetch="disabled"`) {
+			t.Errorf(`Expected no -c fetch="disabled" config when web-fetch tool is not specified, got:\n%s`, stepContent)
 		}
 	})
 
