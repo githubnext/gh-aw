@@ -27,6 +27,9 @@ func TestNewAddCommand(t *testing.T) {
 	assert.Equal(t, "add <workflow>...", cmd.Use, "Command use should be 'add <workflow>...'")
 	assert.Equal(t, "Add agentic workflows from repositories or local files to .github/workflows", cmd.Short, "Command short description should match")
 	assert.Contains(t, cmd.Long, "Add one or more agentic workflows", "Command long description should contain expected text")
+	assert.Contains(t, cmd.Long, "shorthand specs resolve on your enterprise host by default.")
+	assert.Contains(t, cmd.Long, "For github/*, githubnext/*, and microsoft/*, shorthand resolves on github.com.")
+	assert.Contains(t, cmd.Long, "Use full https://github.com/... URLs when sourcing other public github.com workflows.")
 
 	// Verify Args validator is set
 	assert.NotNil(t, cmd.Args, "Args validator should be set")

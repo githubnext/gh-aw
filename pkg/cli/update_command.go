@@ -42,6 +42,10 @@ For workflow updates, it fetches the latest version based on the current ref:
 
 For extension updates, action updates, agent files, and codemods, use 'gh aw upgrade'.
 
+Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterprise host by default.
+      For github/*, githubnext/*, and microsoft/* sources, shorthand resolves on github.com.
+      Use full https://github.com/... source URLs for other public github.com workflows.
+
 ` + WorkflowIDExplanation + `
 
 Examples:

@@ -233,7 +233,7 @@ func hostResolutionHintForNotFound(owner, repo, ref, workflowPath, explicitHost 
 	trimmedPath := strings.TrimPrefix(workflowPath, "/")
 	fullURL := fmt.Sprintf("https://github.com/%s/%s/blob/%s/%s", owner, repo, ref, trimmedPath)
 	return fmt.Sprintf(
-		"Shorthand specs resolved on %s. Try using the full github.com URL instead: gh aw add-wizard %s",
+		"Shorthand specs resolved on %s. Try using a full github.com source URL instead (for example: gh aw add %s)",
 		resolvedHost, fullURL,
 	), true
 }
