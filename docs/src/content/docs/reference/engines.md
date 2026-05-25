@@ -438,18 +438,40 @@ timeout-minutes: 60
 
 ## Claude Tool Enforcement Security Model
 
-Claude Code uses one of two permission modes at runtime, and which mode is selected determines whether the declared `tools:` allowlist is enforced:
+Claude Code accepts a `--permission-mode` flag that determines whether the declared `tools:` allowlist is enforced. gh-aw selects the mode using the resolution order below and emits exactly one `--permission-mode` flag in the final Claude CLI invocation.
+
+### Setting permission mode (`engine.permission-mode`)
+
+`engine.permission-mode` is a schema-validated, first-class engine setting. Accepted values are `auto`, `acceptEdits`, `plan`, and `bypassPermissions`:
+
+```yaml wrap
+engine:
+  id: claude
+  permission-mode: auto
+```
+
+When set, `engine.permission-mode` takes precedence over the default and over any `--permission-mode` flag supplied through `engine.args`. Omit the field to fall back to the default.
+
+### Default selection
+
+The default permission mode is `acceptEdits`. When `tools.edit: false` is set explicitly and `engine.permission-mode` is unset, the default becomes `auto` because such workflows do not rely on edit auto-approval.
+
+gh-aw **does not** derive `bypassPermissions` from `bash: "*"`, `bash: [":*"]`, or `bash: null`. To use `bypassPermissions`, set it explicitly with `engine.permission-mode: bypassPermissions`.
 
 ### `acceptEdits` mode (default)
 
-By default, gh-aw starts Claude Code with `--permission-mode acceptEdits`. In this mode, Claude honors the `--allowed-tools` flag. The workflow's declared `tools:` and `mcp-servers: allowed:` configuration is compiled into an explicit allowlist and passed to the Claude CLI. Only the tools listed there are accessible to the agent.
+In `acceptEdits` mode, Claude honors the `--allowed-tools` flag. The workflow's declared `tools:` and `mcp-servers: allowed:` configuration is compiled into an explicit allowlist and passed to the Claude CLI. Only the tools listed there are accessible to the agent.
 
-### `bypassPermissions` mode (unrestricted bash)
+### `bypassPermissions` mode
 
-When the workflow grants unrestricted bash access — `bash: "*"`, `bash: [":*"]`, or `bash: null` — gh-aw switches to `--permission-mode bypassPermissions`. **In this mode, Claude Code silently ignores `--allowed-tools`.** Every tool exposed by the MCP gateway is reachable regardless of the workflow's declared tool configuration.
+When `engine.permission-mode: bypassPermissions` is set, **Claude Code silently ignores `--allowed-tools`.** Every tool exposed by the MCP gateway is reachable regardless of the workflow's declared tool configuration.
 
 > [!WARNING]
-> Do not rely on `tools:` or `mcp-servers: allowed:` for security guarantees when unrestricted bash is granted. In `bypassPermissions` mode, the agent can already run arbitrary shell commands, so `--allowed-tools` provides no meaningful additional boundary.
+> Do not rely on `tools:` or `mcp-servers: allowed:` for security guarantees in `bypassPermissions` mode. The agent can already run arbitrary shell commands when unrestricted bash is granted, so `--allowed-tools` provides no meaningful additional boundary.
+
+### Legacy `engine.args` compatibility
+
+Workflows that previously set `engine.args: ["--permission-mode", "<value>"]` continue to work. gh-aw strips legacy `--permission-mode` flags from `engine.args` and substitutes the value into the single emitted flag. If both `engine.permission-mode` and a legacy `engine.args` flag are present, `engine.permission-mode` wins.
 
 ### Gateway-side enforcement
 
@@ -464,12 +486,16 @@ mcp-servers:
 
 ### Summary
 
-| Workflow config | Permission mode | `--allowed-tools` enforced? | Gateway `allowed:` enforced? |
+| `engine.permission-mode` | Effective mode | `--allowed-tools` enforced? | Gateway `allowed:` enforced? |
 |---|---|:---:|:---:|
-| No unrestricted bash | `acceptEdits` | ✅ Yes | ✅ Yes |
-| `bash: "*"` / `bash: [":*"]` / `bash: null` | `bypassPermissions` | ❌ No | ✅ Yes |
+| unset (default) | `acceptEdits` | ✅ Yes | ✅ Yes |
+| unset, with `tools.edit: false` | `auto` | ✅ Yes | ✅ Yes |
+| `auto` | `auto` | ✅ Yes | ✅ Yes |
+| `acceptEdits` | `acceptEdits` | ✅ Yes | ✅ Yes |
+| `plan` | `plan` | ✅ Yes | ✅ Yes |
+| `bypassPermissions` | `bypassPermissions` | ❌ No | ✅ Yes |
 
-For workflows that must restrict which MCP tools are accessible, always specify `allowed:` on each `mcp-servers:` entry. This applies regardless of whether unrestricted bash is used.
+For workflows that must restrict which MCP tools are accessible, always specify `allowed:` on each `mcp-servers:` entry. This applies regardless of the selected permission mode.
 
 ## Related Documentation
 
