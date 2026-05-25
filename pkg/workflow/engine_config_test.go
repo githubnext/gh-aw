@@ -990,7 +990,7 @@ func TestBareMode_UnsupportedEngineNoFlag(t *testing.T) {
 		}
 	})
 
-	t.Run("antigravity does not inject GEMINI_SYSTEM_MD=/dev/null", func(t *testing.T) {
+	t.Run("antigravity does not inject legacy bare-mode env var", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -1005,7 +1005,7 @@ func TestBareMode_UnsupportedEngineNoFlag(t *testing.T) {
 		for _, step := range steps {
 			for _, line := range step {
 				if strings.Contains(line, "GEMINI_SYSTEM_MD") && strings.Contains(line, "/dev/null") {
-					t.Error("Antigravity should not inject GEMINI_SYSTEM_MD=/dev/null (bare mode unsupported)")
+					t.Error("Antigravity should not inject the legacy GEMINI_SYSTEM_MD=/dev/null bare-mode env var")
 					return
 				}
 			}

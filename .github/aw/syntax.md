@@ -412,7 +412,7 @@ The YAML frontmatter supports these fields:
       args: ["--verbose"]               # Optional: custom CLI arguments injected before prompt (array)
       api-target: api.acme.ghe.com      # Optional: custom API endpoint hostname for GHEC/GHES (hostname only, no protocol/path)
       command: /usr/local/bin/copilot   # Optional: override default engine executable (skips installation)
-      bare: true                        # Optional: disable automatic context loading (copilot: --no-custom-instructions; claude: --bare; codex: --no-system-prompt; antigravity: GEMINI_SYSTEM_MD=/dev/null). Default: false
+      bare: true                        # Optional: disable automatic context loading (copilot: --no-custom-instructions; claude: --bare; codex: unsupported; antigravity: unsupported). Default: false
       user-agent: "myapp/1.0"           # Optional: custom user agent string (codex engine only)
       config: |                         # Optional: additional TOML config appended to config.toml (codex engine only)
         [extra]

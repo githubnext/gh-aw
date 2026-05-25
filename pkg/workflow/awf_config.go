@@ -300,9 +300,9 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		targets["copilot"] = &AWFAPITargetConfig{Host: copilotTarget}
 		awfConfigLog.Printf("API proxy: custom copilot target=%s", copilotTarget)
 	}
-	if geminiTarget := GetAntigravityAPITarget(config.WorkflowData, config.EngineName); geminiTarget != "" {
-		targets["antigravity"] = &AWFAPITargetConfig{Host: geminiTarget}
-		awfConfigLog.Printf("API proxy: custom antigravity target=%s", geminiTarget)
+	if antigravityTarget := GetAntigravityAPITarget(config.WorkflowData, config.EngineName); antigravityTarget != "" {
+		targets["antigravity"] = &AWFAPITargetConfig{Host: antigravityTarget}
+		awfConfigLog.Printf("API proxy: custom antigravity target=%s", antigravityTarget)
 	}
 
 	if len(targets) > 0 {

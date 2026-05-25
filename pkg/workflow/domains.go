@@ -970,8 +970,8 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 
 	// Add Antigravity API target domains so GH_AW_ALLOWED_DOMAINS stays in sync with --allow-domains.
 	// Resolved from ANTIGRAVITY_API_BASE_URL in engine.env or default generativelanguage.googleapis.com.
-	if geminiAPITarget := GetAntigravityAPITarget(data, engineID); geminiAPITarget != "" {
-		base = mergeAPITargetDomains(base, geminiAPITarget)
+	if antigravityAPITarget := GetAntigravityAPITarget(data, engineID); antigravityAPITarget != "" {
+		base = mergeAPITargetDomains(base, antigravityAPITarget)
 	}
 
 	// Cache the result for subsequent calls during the same compilation.

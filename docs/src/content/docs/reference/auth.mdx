@@ -19,7 +19,7 @@ Configure one GitHub Actions secret per engine before running your first workflo
 | **Copilot** (default) | [`COPILOT_GITHUB_TOKEN`](#copilot_github_token) | — | Fine-grained PAT with Copilot Requests permission |
 | **Claude** | [`ANTHROPIC_API_KEY`](#anthropic_api_key) | — | API key from Anthropic Console |
 | **Codex** | [`OPENAI_API_KEY`](#openai_api_key) | `CODEX_API_KEY` | Runtime uses `CODEX_API_KEY` if present, otherwise falls back to `OPENAI_API_KEY` |
-| **Antigravity** | [`ANTIGRAVITY_API_KEY`](#gemini_api_key) | — | API key from Google AI Studio |
+| **Antigravity** | [`ANTIGRAVITY_API_KEY`](#antigravity_api_key) | — | API key from Google AI Studio |
 
 Most workflows will run without any additional secrets or additional authentication beyond this one engine secret.
 
@@ -171,6 +171,8 @@ See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for add
 ### `ANTIGRAVITY_API_KEY`
 
 If using the Antigravity by Google engine, you need to set a GitHub Actions secret `ANTIGRAVITY_API_KEY` with an API key from Google AI Studio.
+
+Older gh-aw docs and workflows may still refer to Gemini. In current gh-aw releases, Gemini has been renamed to Antigravity — run `gh aw fix --write` and use `ANTIGRAVITY_API_KEY`.
 
 **Setup**:
 

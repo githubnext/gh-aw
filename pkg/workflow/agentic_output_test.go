@@ -264,19 +264,19 @@ func TestEngineOutputFileDeclarations(t *testing.T) {
 
 	// Test Antigravity engine declares output files for error log collection
 	antigravityEngine := NewAntigravityEngine()
-	geminiOutputFiles := antigravityEngine.GetDeclaredOutputFiles()
+	antigravityOutputFiles := antigravityEngine.GetDeclaredOutputFiles()
 
-	if len(geminiOutputFiles) == 0 {
+	if len(antigravityOutputFiles) == 0 {
 		t.Error("Antigravity engine should declare output files for error log collection")
 	}
 
-	if len(geminiOutputFiles) > 0 && geminiOutputFiles[0] != "/tmp/gh-aw/antigravity-client-error-*.json" {
-		t.Errorf("Antigravity engine should declare /tmp/gh-aw/antigravity-client-error-*.json, got: %v", geminiOutputFiles[0])
+	if len(antigravityOutputFiles) > 0 && antigravityOutputFiles[0] != "/tmp/gh-aw/antigravity-client-error-*.json" {
+		t.Errorf("Antigravity engine should declare /tmp/gh-aw/antigravity-client-error-*.json, got: %v", antigravityOutputFiles[0])
 	}
 
 	t.Logf("Claude engine declares: %v", claudeOutputFiles)
 	t.Logf("Codex engine declares: %v", codexOutputFiles)
-	t.Logf("Antigravity engine declares: %v", geminiOutputFiles)
+	t.Logf("Antigravity engine declares: %v", antigravityOutputFiles)
 }
 
 func TestEngineOutputCleanupExcludesTmpFiles(t *testing.T) {

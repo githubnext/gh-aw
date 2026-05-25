@@ -487,10 +487,10 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Added --anthropic-api-base-path=%s", anthropicBasePath)
 	}
 
-	geminiBasePath := extractAPIBasePath(config.WorkflowData, "ANTIGRAVITY_API_BASE_URL")
-	if geminiBasePath != "" {
-		awfArgs = append(awfArgs, "--antigravity-api-base-path", geminiBasePath)
-		awfHelpersLog.Printf("Added --antigravity-api-base-path=%s", geminiBasePath)
+	antigravityBasePath := extractAPIBasePath(config.WorkflowData, "ANTIGRAVITY_API_BASE_URL")
+	if antigravityBasePath != "" {
+		awfArgs = append(awfArgs, "--antigravity-api-base-path", antigravityBasePath)
+		awfHelpersLog.Printf("Added --antigravity-api-base-path=%s", antigravityBasePath)
 	}
 
 	// Add SSL Bump support for HTTPS content inspection (v0.9.0+)

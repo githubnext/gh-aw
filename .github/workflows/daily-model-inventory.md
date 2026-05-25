@@ -124,7 +124,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  collect_gemini_models:
+  collect_antigravity_models:
     runs-on: ubuntu-latest
     needs: [activation]
     permissions:

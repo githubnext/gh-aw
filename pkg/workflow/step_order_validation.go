@@ -187,7 +187,7 @@ func isPathScannedBySecretRedaction(path string) bool {
 	// Paths must be under /tmp/gh-aw/ or ${RUNNER_TEMP}/gh-aw/ to be scanned.
 	// Accept both literal paths and environment variable references.
 	// Engines that produce output outside /tmp/gh-aw/ must move their files into /tmp/gh-aw/
-	// via GetPreBundleSteps before the unified artifact upload (see gemini_engine.go).
+	// via GetPreBundleSteps before the unified artifact upload (see antigravity_engine.go).
 	if !strings.HasPrefix(path, "/tmp/gh-aw/") && !strings.HasPrefix(path, "${RUNNER_TEMP}/gh-aw/") && !strings.HasPrefix(path, "${{ runner.temp }}/gh-aw/") {
 		// Check if it's an environment variable that might resolve to /tmp/gh-aw/ or ${RUNNER_TEMP}/gh-aw/
 		// For now, we'll allow ${{ env.* }} patterns through as we can't resolve them at compile time
