@@ -51,10 +51,6 @@
           "type": "boolean",
           "description": "Enable the API proxy sidecar container. When enabled, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, COPILOT_GITHUB_TOKEN, COPILOT_API_KEY, GEMINI_API_KEY) are held exclusively in the sidecar and excluded from the agent environment. The agent receives proxy-routing base URLs instead. See docs/awf-config-spec.md §9 for credential isolation semantics."
         },
-        "enableOpenCode": {
-          "type": "boolean",
-          "description": "Enable the OpenCode API proxy endpoint (port 10004)."
-        },
         "enableTokenSteering": {
           "type": "boolean",
           "description": "Enable effective token budget steering. When true, the proxy injects budget-warning system messages at 80%, 90%, 95%, and 99% usage to nudge the agent to wrap up. Requires maxEffectiveTokens. Default: false."
@@ -65,7 +61,10 @@
         },
         "anthropicCacheTailTtl": {
           "type": "string",
-          "enum": ["5m", "1h"],
+          "enum": [
+            "5m",
+            "1h"
+          ],
           "description": "TTL for Anthropic cache tail optimization. Only applies when anthropicAutoCache is enabled. Allowed values: \"5m\" or \"1h\"."
         },
         "maxEffectiveTokens": {
@@ -97,7 +96,9 @@
             },
             "strategy": {
               "type": "string",
-              "enum": ["middle_power"],
+              "enum": [
+                "middle_power"
+              ],
               "description": "Fallback selection strategy. Currently only 'middle_power' is supported."
             }
           }
@@ -375,7 +376,12 @@
       "properties": {
         "logLevel": {
           "type": "string",
-          "enum": ["debug", "info", "warn", "error"],
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
           "description": "Log verbosity level. Defaults to \"info\"."
         },
         "diagnosticLogs": {
