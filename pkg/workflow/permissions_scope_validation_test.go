@@ -41,6 +41,17 @@ pull-requests: read`,
 			wantErr: false,
 		},
 		{
+			name: "quoted scope keys are valid",
+			yaml: `"contents": read
+"pull-requests": write`,
+			wantErr: false,
+		},
+		{
+			name:    "flow mapping shorthand remains valid",
+			yaml:    `{contents: read, issues: write}`,
+			wantErr: false,
+		},
+		{
 			name:        "typo in scope name suggests correction",
 			yaml:        `contnts: read`,
 			wantErr:     true,

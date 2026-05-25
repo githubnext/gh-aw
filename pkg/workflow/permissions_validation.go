@@ -14,6 +14,20 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+var (
+	permissionScopeValidationAllScopes = buildPermissionScopeValidationAllScopes()
+	permissionScopeValidationMeta      = map[string]struct{}{
+		"all":       {},
+		"read-all":  {},
+		"write-all": {},
+		"none":      {},
+	}
+	permissionScopeValidationValidScopesPreview = strings.Join(
+		permissionScopeValidationAllScopes[:min(10, len(permissionScopeValidationAllScopes))],
+		", ",
+	) + "..."
+)
+
 // PermissionsValidationResult contains the result of permissions validation
 type PermissionsValidationResult struct {
 	MissingPermissions    map[PermissionScope]PermissionLevel // Permissions required but not granted
@@ -402,27 +416,6 @@ func ValidatePermissionScopeNames(permissionsYAML string) error {
 
 	permissionsValidationLog.Print("Validating permission scope names")
 
-	// Collect all valid scope names for fuzzy matching
-	ghTokenScopes := GetAllPermissionScopes()
-	appOnlyScopes := GetAllGitHubAppOnlyScopes()
-	// +1 for copilot-requests which is not in GetAllPermissionScopes
-	allScopes := make([]string, 0, safeAllocationCapacity(len(ghTokenScopes), len(appOnlyScopes), 1))
-	for _, scope := range ghTokenScopes {
-		allScopes = append(allScopes, string(scope))
-	}
-	for _, scope := range appOnlyScopes {
-		allScopes = append(allScopes, string(scope))
-	}
-	// copilot-requests is valid even though not in GetAllPermissionScopes
-	allScopes = append(allScopes, string(PermissionCopilotRequests))
-	// "all" is a meta-key that is always valid in shorthand contexts
-	validMeta := map[string]bool{
-		"all":       true,
-		"read-all":  true,
-		"write-all": true,
-		"none":      true,
-	}
-
 	// Strip optional "permissions:" prefix so we can parse just the map content
 	content := strings.TrimSpace(permissionsYAML)
 	if strings.HasPrefix(content, "permissions:") {
@@ -435,7 +428,17 @@ func ValidatePermissionScopeNames(permissionsYAML string) error {
 		}
 	}
 
-	// Try to parse the content as a YAML map of scope → level
+	scopeKeys, parsedFast := extractTopLevelPermissionScopeKeys(content)
+	if parsedFast {
+		for _, scopeKey := range scopeKeys {
+			if err := validateSinglePermissionScopeKey(scopeKey); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// Fallback to YAML map parsing for non-standard formats (flow mappings, etc.).
 	var permsMap map[string]any
 	if err := yaml.Unmarshal([]byte(content), &permsMap); err != nil {
 		// Not a map (e.g., a shorthand like "read-all"); nothing to validate
@@ -443,42 +446,116 @@ func ValidatePermissionScopeNames(permissionsYAML string) error {
 	}
 
 	for scopeKey := range permsMap {
-		if validMeta[scopeKey] {
-			continue
+		if err := validateSinglePermissionScopeKey(scopeKey); err != nil {
+			return err
 		}
-		if _, ok := validPermissionScopes[scopeKey]; ok {
-			continue
-		}
-
-		// Unknown scope key — check for a case-only difference first (e.g. "Contents" → "contents")
-		lowerScopeKey := strings.ToLower(scopeKey)
-		if lowerScopeKey != scopeKey {
-			if _, ok := validPermissionScopes[lowerScopeKey]; ok {
-				return fmt.Errorf(
-					"unknown permission scope %q.\n\nDid you mean: %s?\n\nValid permission scopes include: %s\n\nSee: %s",
-					scopeKey,
-					lowerScopeKey,
-					strings.Join(allScopes[:min(10, len(allScopes))], ", ")+"...",
-					constants.DocsPermissionsURL,
-				)
-			}
-		}
-
-		// Check for a close fuzzy match
-		permissionsValidationLog.Printf("Unknown permission scope key: %q", scopeKey)
-		suggestions := stringutil.FindClosestMatches(scopeKey, allScopes, 3)
-		if len(suggestions) == 0 {
-			continue // too different to be a typo, ignore silently
-		}
-
-		return fmt.Errorf(
-			"unknown permission scope %q.\n\nDid you mean: %s?\n\nValid permission scopes include: %s\n\nSee: %s",
-			scopeKey,
-			strings.Join(suggestions, ", "),
-			strings.Join(allScopes[:min(10, len(allScopes))], ", ")+"...",
-			constants.DocsPermissionsURL,
-		)
 	}
 
 	return nil
+}
+
+func validateSinglePermissionScopeKey(scopeKey string) error {
+	if _, ok := permissionScopeValidationMeta[scopeKey]; ok {
+		return nil
+	}
+	if _, ok := validPermissionScopes[scopeKey]; ok {
+		return nil
+	}
+
+	// Unknown scope key — check for a case-only difference first (e.g. "Contents" → "contents")
+	lowerScopeKey := strings.ToLower(scopeKey)
+	if lowerScopeKey != scopeKey {
+		if _, ok := validPermissionScopes[lowerScopeKey]; ok {
+			return fmt.Errorf(
+				"unknown permission scope %q.\n\nDid you mean: %s?\n\nValid permission scopes include: %s\n\nSee: %s",
+				scopeKey,
+				lowerScopeKey,
+				permissionScopeValidationValidScopesPreview,
+				constants.DocsPermissionsURL,
+			)
+		}
+	}
+
+	// Check for a close fuzzy match
+	permissionsValidationLog.Printf("Unknown permission scope key: %q", scopeKey)
+	suggestions := stringutil.FindClosestMatches(scopeKey, permissionScopeValidationAllScopes, 3)
+	if len(suggestions) == 0 {
+		return nil // too different to be a typo, ignore silently
+	}
+
+	return fmt.Errorf(
+		"unknown permission scope %q.\n\nDid you mean: %s?\n\nValid permission scopes include: %s\n\nSee: %s",
+		scopeKey,
+		strings.Join(suggestions, ", "),
+		permissionScopeValidationValidScopesPreview,
+		constants.DocsPermissionsURL,
+	)
+}
+
+func extractTopLevelPermissionScopeKeys(content string) ([]string, bool) {
+	if content == "" {
+		return nil, false
+	}
+	// Flow-style mappings ("{contents: read}") and sequence values are uncommon here.
+	// Let the YAML decoder handle those to preserve behavior.
+	if strings.Contains(content, "{") || strings.Contains(content, "}") || strings.Contains(content, "[") || strings.Contains(content, "]") {
+		return nil, false
+	}
+
+	lines := strings.Split(content, "\n")
+	keys := make([]string, 0, 4)
+	baseIndent := -1
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		colonIdx := strings.IndexByte(trimmed, ':')
+		if colonIdx <= 0 {
+			return nil, false
+		}
+
+		indent := countLeadingSpacesAndTabs(line)
+		if baseIndent == -1 {
+			baseIndent = indent
+		}
+		if indent != baseIndent {
+			// Nested block content (value continuation), not a top-level scope key.
+			continue
+		}
+
+		key := strings.TrimSpace(trimmed[:colonIdx])
+		if key == "" || strings.HasPrefix(key, "-") {
+			return nil, false
+		}
+		key = strings.Trim(key, `"'`)
+
+		keys = append(keys, key)
+	}
+
+	return keys, len(keys) > 0
+}
+
+func countLeadingSpacesAndTabs(s string) int {
+	i := 0
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+		i++
+	}
+	return i
+}
+
+func buildPermissionScopeValidationAllScopes() []string {
+	ghTokenScopes := GetAllPermissionScopes()
+	appOnlyScopes := GetAllGitHubAppOnlyScopes()
+	allScopes := make([]string, 0, safeAllocationCapacity(len(ghTokenScopes), len(appOnlyScopes), 1))
+	for _, scope := range ghTokenScopes {
+		allScopes = append(allScopes, string(scope))
+	}
+	for _, scope := range appOnlyScopes {
+		allScopes = append(allScopes, string(scope))
+	}
+	// copilot-requests is valid even though not in GetAllPermissionScopes
+	allScopes = append(allScopes, string(PermissionCopilotRequests))
+	return allScopes
 }
