@@ -173,6 +173,15 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		webSearchParam = ""
 	}
 
+	// Build fetch parameter: disable fetch by default, enable only if web-fetch tool is present.
+	// Codex enables fetch by default, so we must explicitly set fetch="disabled" unless web-fetch is configured.
+	// Leading space is intentional: the format string concatenates this directly after "exec" with no space separator.
+	webFetchParam := ` -c fetch="disabled"`
+	if workflowData.ParsedTools != nil && workflowData.ParsedTools.WebFetch != nil {
+		// Fetch is enabled by default in Codex; no extra flag needed when web-fetch is configured.
+		webFetchParam = ""
+	}
+
 	// See https://github.com/github/gh-aw/issues/892
 	// In AWF mode we bypass Codex approvals/sandboxing because AWF provides the sandbox layer.
 	// Outside AWF, keep Codex sandboxing enabled and disable approvals for non-interactive execution.
@@ -220,12 +229,12 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Harness-wrapped execution: the harness reads --prompt-file and passes its content
 		// as the last positional arg.  The harness also provides retry logic.
 		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
-			execPrefix, modelParam, webSearchParam, executionPolicyParam, customArgsParam)
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
+			execPrefix, modelParam, webSearchParam, webFetchParam, executionPolicyParam, customArgsParam)
 	} else {
 		// Without harness: use shell expansion for the prompt (no retry logic).
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s\"$INSTRUCTION\"",
-			commandName, modelParam, webSearchParam, executionPolicyParam, customArgsParam)
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s\"$INSTRUCTION\"",
+			commandName, modelParam, webSearchParam, webFetchParam, executionPolicyParam, customArgsParam)
 	}
 
 	// Build the full command with agent file handling and AWF wrapping if enabled

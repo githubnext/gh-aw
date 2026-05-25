@@ -1010,7 +1010,7 @@ func TestCodexEngineWebSearch(t *testing.T) {
 func TestCodexEngineWebFetch(t *testing.T) {
 	engine := NewCodexEngine()
 
-	t.Run("fetch config is not emitted when tool not specified", func(t *testing.T) {
+	t.Run("fetch disabled by default when tool not specified", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 		}
@@ -1019,8 +1019,8 @@ func TestCodexEngineWebFetch(t *testing.T) {
 			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 		stepContent := strings.Join([]string(steps[0]), "\n")
-		if strings.Contains(stepContent, `-c fetch="disabled"`) {
-			t.Errorf(`Expected no -c fetch="disabled" config when web-fetch tool is not specified, got:\n%s`, stepContent)
+		if !strings.Contains(stepContent, `-c fetch="disabled"`) {
+			t.Errorf(`Expected -c fetch="disabled" config when web-fetch tool is not specified, got:\n%s`, stepContent)
 		}
 	})
 
