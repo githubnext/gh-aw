@@ -309,8 +309,7 @@ function parseGatewayJsonlForModelAliasResolution(jsonlContent) {
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    const lower = trimmed.toLowerCase();
-    if (!lower.includes("model_alias") && !lower.includes("model_rewrite")) continue;
+    if (!trimmed.includes("model_alias") && !trimmed.includes("model_rewrite") && !trimmed.includes("MODEL_ALIAS")) continue;
     try {
       const entry = JSON.parse(trimmed);
       const eventName = getGatewayEventName(entry);
@@ -373,7 +372,7 @@ function generateModelAliasResolutionSummary(aliasResolutionEvents) {
     const data = event.data && typeof event.data === "object" && !Array.isArray(event.data) ? event.data : null;
     const provider = event.provider || data?.provider || event.resolved_provider || event.target_provider || "-";
     const requestId = event.request_id || data?.request_id || event.requestId || data?.requestId || "-";
-    const alias = event.alias || event.model_alias || event.requested_alias || event.requested_model || event.requestedModel || data?.original_model || "-";
+    const alias = event.alias || event.model_alias || data?.original_model || event.requested_alias || event.requested_model || event.requestedModel || "-";
     const resolvedModel = event.resolved_model || event.resolvedModel || event.model || event.selected_model || event.selectedModel || data?.resolved_model || data?.resolvedModel || "-";
     lines.push(buildRpcSummaryRow([formatRpcMessageTime(event.timestamp), provider, requestId, alias, resolvedModel]));
   }
