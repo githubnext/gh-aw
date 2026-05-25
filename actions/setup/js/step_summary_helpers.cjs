@@ -170,7 +170,7 @@ function normalizeStepSummaryMarkdown(markdown) {
 function normalizeSummaryTableRows(rows) {
   return rows.map(row =>
     row.map(cell => {
-      if (cell && typeof cell === "object" && "data" in cell) {
+      if (cell !== null && typeof cell === "object" && "data" in cell) {
         return {
           ...cell,
           data: redactMarkdown(String(cell.data ?? "")),
@@ -201,34 +201,38 @@ function installStepSummaryHelpers(coreObj) {
   };
 
   if (original.addRaw) {
-    summary.addRaw = function addRawNormalized(text, addEOL) {
-      return original.addRaw.call(summary, normalizeStepSummaryMarkdown(String(text ?? "")), addEOL);
-    };
-    if (isMockFunction(original.addRaw)) summary.addRaw = original.addRaw;
+    if (!isMockFunction(original.addRaw)) {
+      summary.addRaw = function addRawNormalized(text, addEOL) {
+        return original.addRaw.call(summary, normalizeStepSummaryMarkdown(String(text ?? "")), addEOL);
+      };
+    }
   }
 
   if (original.addHeading) {
-    summary.addHeading = function addHeadingNormalized(text, level) {
-      return original.addHeading.call(summary, stripLeadingEmoji(String(text ?? "")), normalizeHeadingLevel(level));
-    };
-    if (isMockFunction(original.addHeading)) summary.addHeading = original.addHeading;
+    if (!isMockFunction(original.addHeading)) {
+      summary.addHeading = function addHeadingNormalized(text, level) {
+        return original.addHeading.call(summary, stripLeadingEmoji(String(text ?? "")), normalizeHeadingLevel(level));
+      };
+    }
   }
 
   if (original.addTable) {
-    summary.addTable = function addTableNormalized(rows) {
-      if (Array.isArray(rows)) {
-        return original.addTable.call(summary, normalizeSummaryTableRows(rows));
-      }
-      return original.addTable.call(summary, rows);
-    };
-    if (isMockFunction(original.addTable)) summary.addTable = original.addTable;
+    if (!isMockFunction(original.addTable)) {
+      summary.addTable = function addTableNormalized(rows) {
+        if (Array.isArray(rows)) {
+          return original.addTable.call(summary, normalizeSummaryTableRows(rows));
+        }
+        return original.addTable.call(summary, rows);
+      };
+    }
   }
 
   if (original.addDetails) {
-    summary.addDetails = function addDetailsNormalized(label, content) {
-      return original.addDetails.call(summary, stripLeadingEmoji(String(label ?? "")), normalizeStepSummaryMarkdown(String(content ?? "")));
-    };
-    if (isMockFunction(original.addDetails)) summary.addDetails = original.addDetails;
+    if (!isMockFunction(original.addDetails)) {
+      summary.addDetails = function addDetailsNormalized(label, content) {
+        return original.addDetails.call(summary, stripLeadingEmoji(String(label ?? "")), normalizeStepSummaryMarkdown(String(content ?? "")));
+      };
+    }
   }
 }
 
