@@ -126,46 +126,46 @@ func TestDurationEnrichment(t *testing.T) {
 // that no intermediate recalculation or mutation of λ occurs between JSON output and
 // Monte Carlo execution.
 func TestObservedRunsPerPeriodConsistency(t *testing.T) {
-// Reproduce the λ calculation from forecastWorkflow.
-const (
-historyDays   = 30
-sampledRuns   = 15
-projectedDays = 30 // "month" period
-)
-observedRunsPerPeriod := float64(sampledRuns) / float64(historyDays) * float64(projectedDays)
+	// Reproduce the λ calculation from forecastWorkflow.
+	const (
+		historyDays   = 30
+		sampledRuns   = 15
+		projectedDays = 30 // "month" period
+	)
+	observedRunsPerPeriod := float64(sampledRuns) / float64(historyDays) * float64(projectedDays)
 
-// Populate a ForecastWorkflowResult the same way forecastWorkflow does.
-result := ForecastWorkflowResult{
-WorkflowID:            "ci-doctor",
-Period:                "month",
-SampledRuns:           sampledRuns,
-HistoryDays:           historyDays,
-ObservedRunsPerPeriod: observedRunsPerPeriod,
-}
+	// Populate a ForecastWorkflowResult the same way forecastWorkflow does.
+	result := ForecastWorkflowResult{
+		WorkflowID:            "ci-doctor",
+		Period:                "month",
+		SampledRuns:           sampledRuns,
+		HistoryDays:           historyDays,
+		ObservedRunsPerPeriod: observedRunsPerPeriod,
+	}
 
-// Build deterministic ET observations.
-etObs := make([]int, sampledRuns)
-for i := range etObs {
-etObs[i] = 10_000 + i*500
-}
-successCount := sampledRuns
+	// Build deterministic ET observations.
+	etObs := make([]int, sampledRuns)
+	for i := range etObs {
+		etObs[i] = 10_000 + i*500
+	}
+	successCount := sampledRuns
 
-// runMonteCarlo uses result.ObservedRunsPerPeriod as λ — the same field that
-// appears in JSON output. Verify both the field value and the simulation are
-// consistent (non-nil, same λ).
-rng := rand.New(rand.NewSource(99)) //nolint:gosec
-mc := runMonteCarlo(etObs, successCount, result.ObservedRunsPerPeriod, rng)
-require.NotNil(t, mc, "runMonteCarlo must return non-nil for positive ObservedRunsPerPeriod")
+	// runMonteCarlo uses result.ObservedRunsPerPeriod as λ — the same field that
+	// appears in JSON output. Verify both the field value and the simulation are
+	// consistent (non-nil, same λ).
+	rng := rand.New(rand.NewSource(99)) //nolint:gosec
+	mc := runMonteCarlo(etObs, successCount, result.ObservedRunsPerPeriod, rng)
+	require.NotNil(t, mc, "runMonteCarlo must return non-nil for positive ObservedRunsPerPeriod")
 
-// The field exposed in JSON output must equal what was used for MC.
-assert.Equal(t, observedRunsPerPeriod, result.ObservedRunsPerPeriod,
-"ObservedRunsPerPeriod JSON field must equal the λ passed to runMonteCarlo")
+	// The field exposed in JSON output must equal what was used for MC.
+	assert.Equal(t, observedRunsPerPeriod, result.ObservedRunsPerPeriod,
+		"ObservedRunsPerPeriod JSON field must equal the λ passed to runMonteCarlo")
 
-// Sanity-check simulation output is plausible for the given λ.
-assert.Greater(t, mc.P50ProjectedEffectiveTokens, 0,
-"P50 should be positive when success rate is 100%%")
-assert.LessOrEqual(t, mc.P10ProjectedEffectiveTokens, mc.P50ProjectedEffectiveTokens,
-"P10 ≤ P50")
-assert.LessOrEqual(t, mc.P50ProjectedEffectiveTokens, mc.P90ProjectedEffectiveTokens,
-"P50 ≤ P90")
+	// Sanity-check simulation output is plausible for the given λ.
+	assert.Greater(t, mc.P50ProjectedEffectiveTokens, 0,
+		"P50 should be positive when success rate is 100%%")
+	assert.LessOrEqual(t, mc.P10ProjectedEffectiveTokens, mc.P50ProjectedEffectiveTokens,
+		"P10 ≤ P50")
+	assert.LessOrEqual(t, mc.P50ProjectedEffectiveTokens, mc.P90ProjectedEffectiveTokens,
+		"P50 ≤ P90")
 }
