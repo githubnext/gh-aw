@@ -270,7 +270,7 @@ func TestAntigravityEngineExecution(t *testing.T) {
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
 				Env: map[string]string{
-					"ANTIGRAVITY_API_KEY": "${{ secrets.MY_ORG_GEMINI_KEY }}",
+					"ANTIGRAVITY_API_KEY": "${{ secrets.MY_ORG_ANTIGRAVITY_KEY }}",
 				},
 			},
 		}
@@ -281,8 +281,18 @@ func TestAntigravityEngineExecution(t *testing.T) {
 		stepContent := strings.Join(steps[1], "\n")
 
 		// The user-provided value should override the default token expression
-		assert.Contains(t, stepContent, "ANTIGRAVITY_API_KEY: ${{ secrets.MY_ORG_GEMINI_KEY }}", "engine.env should override the default ANTIGRAVITY_API_KEY expression")
+		assert.Contains(t, stepContent, "ANTIGRAVITY_API_KEY: ${{ secrets.MY_ORG_ANTIGRAVITY_KEY }}", "engine.env should override the default ANTIGRAVITY_API_KEY expression")
 		assert.NotContains(t, stepContent, "ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}", "Default ANTIGRAVITY_API_KEY expression should be replaced by engine.env")
+	})
+
+	t.Run("secret validation no longer references legacy Gemini secret", func(t *testing.T) {
+		step := engine.GetSecretValidationStep(&WorkflowData{Name: "test-workflow"})
+		require.NotEmpty(t, step, "Should generate secret validation step")
+
+		stepContent := strings.Join(step, "\n")
+		assert.Contains(t, stepContent, "Validate ANTIGRAVITY_API_KEY secret", "Should validate the Antigravity secret")
+		assert.NotContains(t, stepContent, "GEMINI_API_KEY", "Should not reference the removed Gemini secret")
+		assert.NotContains(t, stepContent, "engine: gemini is no longer supported", "Should not carry legacy Gemini compatibility logic in the validation step")
 	})
 
 	t.Run("engine env adds custom non-secret env vars", func(t *testing.T) {

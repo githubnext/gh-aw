@@ -3,7 +3,6 @@ package workflow
 import (
 	"fmt"
 	"maps"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -72,32 +71,12 @@ func (e *AntigravityEngine) GetRequiredSecretNames(workflowData *WorkflowData) [
 // GetSecretValidationStep returns the secret validation step for the Antigravity engine.
 // Returns an empty step if custom command is specified.
 func (e *AntigravityEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		antigravityLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return GitHubActionStep{}
-	}
-	if workflowData != nil && strings.TrimSpace(workflowData.Environment) != "" {
-		antigravityLog.Print("Skipping secret validation step: top-level environment is configured")
-		return GitHubActionStep{}
-	}
-	command := `if [ -n "${GEMINI_API_KEY:-}" ] && [ -z "${ANTIGRAVITY_API_KEY:-}" ]; then
-  echo "engine: gemini is no longer supported. Run 'gh aw fix --write' to migrate workflows and configure ANTIGRAVITY_API_KEY." >&2
-  exit 1
-fi
-bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" ANTIGRAVITY_API_KEY 'Antigravity CLI' https://antigravity.google/docs/cli-overview`
-	stepLines := []string{"      - name: Validate ANTIGRAVITY_API_KEY secret"}
-	env := maps.Clone(getEngineEnvOverrides(workflowData))
-	if env == nil {
-		env = map[string]string{}
-	}
-	if _, ok := env["ANTIGRAVITY_API_KEY"]; !ok {
-		env["ANTIGRAVITY_API_KEY"] = "${{ secrets.ANTIGRAVITY_API_KEY }}"
-	}
-	if _, ok := env["GEMINI_API_KEY"]; !ok {
-		env["GEMINI_API_KEY"] = "${{ secrets.GEMINI_API_KEY }}"
-	}
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
-	return GitHubActionStep(stepLines)
+	return BuildDefaultSecretValidationStep(
+		workflowData,
+		[]string{"ANTIGRAVITY_API_KEY"},
+		"Antigravity CLI",
+		"https://antigravity.google/docs/cli-overview",
+	)
 }
 
 func (e *AntigravityEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
