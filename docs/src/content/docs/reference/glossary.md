@@ -340,6 +340,18 @@ Named shorthand references to predefined domain sets used in `network.allowed` a
 
 The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports seven engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, **Crush** (experimental), **OpenCode** (experimental), and **Pi** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
 
+### Engine Permission Mode (`engine.permission-mode`)
+
+A first-class Claude engine setting that controls how Claude Code enforces tool access boundaries. Accepts one of four values: `acceptEdits` (default — Claude honors `--allowed-tools`; the workflow's declared `tools:` and `mcp-servers: allowed:` list is the effective tool boundary), `bypassPermissions` (Claude ignores `--allowed-tools`; the MCP gateway's `allowed:` filter becomes the sole boundary), `auto` (Claude selects the least-privileged mode that fits the workflow's tool configuration; the default when `tools.edit: false`), and `plan` (Claude presents changes for approval before applying them).
+
+Previously, `bypassPermissions` was derived implicitly whenever a workflow granted unrestricted bash access (`bash: "*"`, `bash: [":*"]`, or `bash: null`), which could silently disable `--allowed-tools` enforcement. Setting `engine.permission-mode` explicitly overrides that implicit derivation and any legacy `--permission-mode` flag in `engine.args`. The compiler validates the value against the fixed enum at compile time. See [AI Engines Reference](/gh-aw/reference/engines/#acceptedits-mode-default).
+
+```aw wrap
+engine:
+  id: claude
+  permission-mode: acceptEdits
+```
+
 ### Enterprise API Endpoint (`api-target`)
 
 An `engine` configuration field specifying a custom API endpoint hostname for GitHub Enterprise Cloud (GHEC) or GitHub Enterprise Server (GHES) deployments. When set, the compiler automatically adds both the API domain and the base hostname to the AWF firewall `--allow-domains` list and the `GH_AW_ALLOWED_DOMAINS` environment variable, eliminating the need for manual network configuration after each recompile. The value must be a hostname only — no protocol or path (e.g., `api.acme.ghe.com`). See [Engines Reference](/gh-aw/reference/engines/#enterprise-api-endpoint-api-target).
