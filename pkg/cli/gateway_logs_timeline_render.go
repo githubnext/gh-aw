@@ -83,7 +83,11 @@ func timelineSourceLabel(source TimelineEventSource) string {
 	case TimelineSourceAgent:
 		return "AG"
 	default:
-		return strings.ToUpper(string(source))[:2]
+		s := strings.ToUpper(string(source))
+		if len(s) < 2 {
+			return s
+		}
+		return s[:2]
 	}
 }
 
@@ -423,13 +427,7 @@ func displayUnifiedTimeline(processedRuns []ProcessedRun, verbose bool) {
 	}
 
 	// Re-sort after merging events from multiple runs.
-	for i := 1; i < len(allEvents); i++ {
-		if allEvents[i].Time.Before(allEvents[i-1].Time) {
-			// Only sort if needed (avoids allocation when already sorted).
-			sortUnifiedTimelineEvents(allEvents)
-			break
-		}
-	}
+	sortUnifiedTimelineEvents(allEvents)
 
 	gatewayLogsLog.Printf("Rendering unified timeline: %d total events across %d runs", len(allEvents), len(processedRuns))
 	if output := renderUnifiedTimeline(allEvents); output != "" {
@@ -438,20 +436,16 @@ func displayUnifiedTimeline(processedRuns []ProcessedRun, verbose bool) {
 }
 
 // sortUnifiedTimelineEvents sorts events in-place by ascending wall-clock time.
+// It is a no-op when the slice is already sorted; otherwise it delegates to
+// sort.SliceStable, which preserves insertion order for equal timestamps.
 func sortUnifiedTimelineEvents(events []UnifiedTimelineEvent) {
 	for i := 1; i < len(events); i++ {
 		if events[i].Time.Before(events[i-1].Time) {
-			// Insertion sort is efficient for nearly-sorted slices; use stdlib for
-			// general correctness.
-			sortEventsStable(events)
+			// Only sort when the slice is not already in order.
+			sort.SliceStable(events, func(a, b int) bool {
+				return events[a].Time.Before(events[b].Time)
+			})
 			return
 		}
 	}
-}
-
-func sortEventsStable(events []UnifiedTimelineEvent) {
-	// sort.SliceStable preserves insertion order for equal timestamps.
-	sort.SliceStable(events, func(i, j int) bool {
-		return events[i].Time.Before(events[j].Time)
-	})
 }

@@ -134,7 +134,8 @@ function sourceLabel(source) {
     case SOURCE_GATEWAY: return "GW";
     case SOURCE_FIREWALL: return "FW";
     case SOURCE_AGENT: return "AG";
-    default: return source.slice(0, 2).toUpperCase();
+    default:
+      return source.length < 2 ? source.toUpperCase() : source.slice(0, 2).toUpperCase();
   }
 }
 
@@ -291,7 +292,7 @@ function collectFirewallEvents(opts = {}) {
     const blocked = /denied|blocked|reject/i.test(decision) ||
       (typeof status === "number" && status >= 400 && status < 600);
 
-    const detail = [host, method].filter(Boolean).join(" ").slice(0, 48);
+    const detail = truncate([host, method].filter(Boolean).join(" "), 48);
     const statusStr = status ? String(status) : (blocked ? "blocked" : "allowed");
 
     events.push({

@@ -586,7 +586,7 @@ describe("buildUnifiedTimelineMarkdown", () => {
     // After escaping, literal | inside cells should not appear
     const rows = md.split("\n").filter(l => l.startsWith("| 10:"));
     expect(rows).toHaveLength(1);
-    expect(rows[0]).not.toMatch(/\bsrv\|tool\b/);
+    expect(rows[0]).not.toContain("srv|tool");
     expect(rows[0]).toContain("&#124;");
   });
 });
