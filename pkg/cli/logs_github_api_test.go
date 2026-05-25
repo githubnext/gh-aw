@@ -223,16 +223,53 @@ func TestListWorkflowRunsErrorHandling(t *testing.T) {
 }
 
 func TestWorkflowRunsSpinnerMessage(t *testing.T) {
-	t.Run("without target count", func(t *testing.T) {
-		msg := workflowRunsSpinnerMessage(ListWorkflowRunsOptions{})
-		assert.Equal(t, "Fetching workflow runs from GitHub...", msg)
-	})
+	tests := []struct {
+		name string
+		opts ListWorkflowRunsOptions
+		want string
+	}{
+		{
+			name: "without target count",
+			opts: ListWorkflowRunsOptions{},
+			want: "Fetching workflow runs from GitHub...",
+		},
+		{
+			name: "with target count",
+			opts: ListWorkflowRunsOptions{
+				ProcessedCount: 3,
+				TargetCount:    10,
+			},
+			want: "Fetching workflow runs from GitHub... (3 / 10)",
+		},
+		{
+			name: "processed equals target",
+			opts: ListWorkflowRunsOptions{
+				ProcessedCount: 10,
+				TargetCount:    10,
+			},
+			want: "Fetching workflow runs from GitHub... (10 / 10)",
+		},
+		{
+			name: "processed exceeds target",
+			opts: ListWorkflowRunsOptions{
+				ProcessedCount: 12,
+				TargetCount:    10,
+			},
+			want: "Fetching workflow runs from GitHub... (12 / 10)",
+		},
+		{
+			name: "processed without target",
+			opts: ListWorkflowRunsOptions{
+				ProcessedCount: 4,
+			},
+			want: "Fetching workflow runs from GitHub...",
+		},
+	}
 
-	t.Run("with target count", func(t *testing.T) {
-		msg := workflowRunsSpinnerMessage(ListWorkflowRunsOptions{
-			ProcessedCount: 3,
-			TargetCount:    10,
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := workflowRunsSpinnerMessage(tt.opts)
+			assert.Equal(t, tt.want, msg)
 		})
-		assert.Equal(t, "Fetching workflow runs from GitHub... (3 / 10)", msg)
-	})
+	}
 }
