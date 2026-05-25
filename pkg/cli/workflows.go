@@ -399,20 +399,19 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 }
 
 // extractWorkflowNameFromFile extracts the workflow name from a file's H1 header
-func extractWorkflowNameFromFile(filePath string) (title string, err error) {
+func extractWorkflowNameFromFile(filePath string) (string, error) {
 	fd, err := os.Open(filePath)
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if closeErr := fd.Close(); closeErr != nil && err == nil {
-			err = fmt.Errorf("failed to close workflow file %s: %w", filePath, closeErr)
-		}
-	}()
 
-	title, err = fastParseTitleFromReader(fd)
+	title, err := fastParseTitleFromReader(fd)
+	closeErr := fd.Close()
 	if err != nil {
 		return "", err
+	}
+	if closeErr != nil {
+		return "", fmt.Errorf("failed to close workflow file %s: %w", filePath, closeErr)
 	}
 	if title != "" {
 		return title, nil
