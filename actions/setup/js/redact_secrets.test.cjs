@@ -172,7 +172,11 @@ describe("redact_secrets.cjs", () => {
 
         it("should redact long JWT-like GitHub Server-to-Server Token (ghs_)", async () => {
           const testFile = path.join(tempDir, "test.txt");
-          const tokenSegments = [Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url"), Buffer.from(JSON.stringify({ installation_id: 123, repository: "gh-aw", scope: "read_write" })).toString("base64url"), `sig_${"A".repeat(40)}`];
+          const tokenSegments = [
+            Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url"),
+            Buffer.from(JSON.stringify({ installation_id: 123, repository: "gh-aw", scope: "read_write" })).toString("base64url"),
+            `sig_${"A".repeat(40)}`,
+          ];
           const ghToken = `${["gh", "s_"].join("")}${tokenSegments.join(".")}`;
           fs.writeFileSync(testFile, `Long server token: ${ghToken}`);
           process.env.GH_AW_SECRET_NAMES = "";
