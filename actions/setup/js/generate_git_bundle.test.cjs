@@ -38,16 +38,6 @@ describe("generateGitBundle (incremental)", () => {
     }
     for (const bundlePath of bundlePaths.splice(0)) {
       fs.rmSync(bundlePath, { force: true });
-      const bundleDir = path.dirname(bundlePath);
-      if (bundleDir.startsWith(path.join(os.tmpdir(), "gh-aw"))) {
-        try {
-          if (fs.readdirSync(bundleDir).length === 0) {
-            fs.rmdirSync(bundleDir);
-          }
-        } catch {
-          // Ignore cleanup failures in teardown.
-        }
-      }
     }
   });
 
