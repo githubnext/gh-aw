@@ -174,8 +174,8 @@ func resolveCommitSHAWithRetries(ctx context.Context, owner, repo, ref, workflow
 			retryCommand := fmt.Sprintf("gh aw add %s/%s/%s@<40-char-sha>", owner, repo, workflowPath)
 			if hostHint, ok := hostResolutionHintForNotFound(owner, repo, ref, workflowPath, host, err); ok {
 				return "", fmt.Errorf(
-					"failed to resolve '%s' to commit SHA for '%s/%s'. Expected the GitHub API to return a commit SHA for the ref. Try: %s. %s: %w",
-					ref, owner, repo, retryCommand, hostHint, err,
+					"failed to resolve '%s' to commit SHA for '%s/%s'. Expected the GitHub API to return a commit SHA for the ref. %s: %w",
+					ref, owner, repo, hostHint, err,
 				)
 			}
 			return "", fmt.Errorf(
@@ -216,7 +216,7 @@ func hostResolutionHintForNotFound(owner, repo, ref, workflowPath, explicitHost 
 	}
 
 	errorText := strings.ToLower(err.Error())
-	if !strings.Contains(errorText, "not found") && !strings.Contains(errorText, "http 404") {
+	if !strings.Contains(errorText, "http 404") && !strings.Contains(errorText, "status 404") {
 		return "", false
 	}
 

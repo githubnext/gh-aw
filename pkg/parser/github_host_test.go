@@ -2,7 +2,11 @@
 
 package parser
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestGetGitHubHostForRepo_PublicOrgFallback(t *testing.T) {
 	tests := []struct {
@@ -50,9 +54,7 @@ func TestGetGitHubHostForRepo_PublicOrgFallback(t *testing.T) {
 			t.Setenv("GH_HOST", "")
 
 			host := GetGitHubHostForRepo(tt.owner, tt.repo)
-			if host != tt.expectedHost {
-				t.Errorf("GetGitHubHostForRepo(%q, %q) = %q, want %q", tt.owner, tt.repo, host, tt.expectedHost)
-			}
+			assert.Equal(t, tt.expectedHost, host, "GetGitHubHostForRepo(%q, %q)", tt.owner, tt.repo)
 		})
 	}
 }

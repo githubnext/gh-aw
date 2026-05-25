@@ -19,15 +19,15 @@ func getGitHubHost() string {
 // getGitHubHostForRepo returns the GitHub host URL for a specific repository.
 // Repositories under the github, githubnext, and microsoft organizations are
 // fetched from public GitHub (https://github.com) in cross-host contexts.
+// microsoft/* is included because canonical shared workflows (for example
+// microsoft/apm/.github/workflows/shared/apm.md) are maintained on github.com.
 // For all other repositories, it uses getGitHubHost().
 func getGitHubHostForRepo(repo string) string {
 	parts := strings.SplitN(repo, "/", 2)
-	if len(parts) > 0 {
-		switch parts[0] {
-		case "github", "githubnext", "microsoft":
-			githubLog.Printf("Using public GitHub host for %s organization repository", parts[0])
-			return string(constants.PublicGitHubHost)
-		}
+	switch parts[0] {
+	case "github", "githubnext", "microsoft":
+		githubLog.Printf("Using public GitHub host for %s organization repository", parts[0])
+		return string(constants.PublicGitHubHost)
 	}
 
 	// For all other repositories, use the configured GitHub host
