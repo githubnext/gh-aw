@@ -140,6 +140,55 @@ except OSError as exc:
 PY`, string(WorkflowCallNetworkAllowedEnvVar), string(ecosystemJSON)), nil
 }
 
+// buildModelsFromJSONUpdateScript returns a Python heredoc that reads the merged
+// model aliases from the computed models.json (written by the compute_models
+// activation step) and injects them as apiProxy.models in the AWF config file.
+//
+// The script runs at job runtime, after the activation artifact has been downloaded
+// and models.json is available.  If models.json is absent (e.g. a workflow compiled
+// before this feature was introduced), the script exits cleanly without modifying
+// the config so that backwards compatibility is preserved.
+func buildModelsFromJSONUpdateScript() string {
+	return fmt.Sprintf(`python - <<'PY'
+import json
+import os
+from pathlib import Path
+
+runner_temp = os.environ.get("RUNNER_TEMP")
+if not runner_temp:
+    raise SystemExit("RUNNER_TEMP is not set")
+
+config_path = Path(runner_temp) / "gh-aw" / "awf-config.json"
+models_path = Path(%q)
+
+if not models_path.exists():
+    raise SystemExit(0)
+
+try:
+    config = json.loads(config_path.read_text())
+except FileNotFoundError as exc:
+    raise SystemExit(f"Missing AWF config file at {config_path}") from exc
+except json.JSONDecodeError as exc:
+    raise SystemExit(f"Invalid AWF config JSON at {config_path}: {exc}") from exc
+except OSError as exc:
+    raise SystemExit(f"Failed to read AWF config file at {config_path}: {exc}") from exc
+
+try:
+    models_data = json.loads(models_path.read_text())
+except (json.JSONDecodeError, OSError) as exc:
+    raise SystemExit(f"Failed to read models.json at {models_path}: {exc}") from exc
+
+aliases = models_data.get("aliases", {})
+if aliases:
+    config.setdefault("apiProxy", {})["models"] = aliases
+
+try:
+    config_path.write_text(json.dumps(config, separators=(",", ":"), ensure_ascii=False) + "\n")
+except OSError as exc:
+    raise SystemExit(f"Failed to write AWF config at {config_path}: {exc}") from exc
+PY`, constants.ModelsJSONPath)
+}
+
 // BuildAWFCommand builds a complete AWF command with all arguments.
 // This consolidates the AWF command building logic that was duplicated across
 // Copilot, Claude, and Codex engines.
@@ -221,6 +270,10 @@ fi`,
 				configFileSetup += "\n" + updateScript
 			}
 		}
+		// Inject models from the activation-computed models.json into apiProxy.models.
+		// The script reads /tmp/gh-aw/models.json (written by the compute_models step and
+		// included in the activation artifact) and patches the config file in place.
+		configFileSetup += "\n" + buildModelsFromJSONUpdateScript()
 		configFileSetup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
 		// Add --config as the first expandable arg so it appears before --container-workdir.
 		expandableArgs = fmt.Sprintf("--config %q ", awfConfigRuntimePathExpr) + expandableArgs

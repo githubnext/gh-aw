@@ -717,6 +717,37 @@ func TestBuildAWFCommand_WorkflowCallNetworkAllowedUpdaterUsesRunnerTempEnv(t *t
 	assert.NotContains(t, command, `Path("${RUNNER_TEMP}/gh-aw/awf-config.json")`, "workflow_call network updater should not embed an unexpanded RUNNER_TEMP literal")
 }
 
+// TestBuildAWFCommand_InjectsModelsFromJSON verifies that BuildAWFCommand includes the
+// Python script that reads /tmp/gh-aw/models.json and injects apiProxy.models into the
+// AWF config file at runtime.
+func TestBuildAWFCommand_InjectsModelsFromJSON(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:    "copilot",
+		EngineCommand: "copilot --prompt-file /tmp/prompt.txt",
+		LogFile:       "/tmp/gh-aw/agent-stdio.log",
+		AllowedDomains: "github.com",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+
+	// The models injection script must be present.
+	assert.Contains(t, command, "/tmp/gh-aw/models.json", "command must reference models.json path")
+	assert.Contains(t, command, `models_data.get("aliases", {})`, "command must read aliases from models.json")
+	assert.Contains(t, command, `config.setdefault("apiProxy", {})["models"] = aliases`, "command must inject aliases into apiProxy.models")
+
+	// The models script must run BEFORE the config is copied to /tmp/gh-aw/awf-config.json,
+	// so the copy captures the patched config.
+	modelsIdx := strings.Index(command, "/tmp/gh-aw/models.json")
+	cpIdx := strings.Index(command, constants.AWFConfigFilePath)
+	assert.Less(t, modelsIdx, cpIdx, "models injection script must run before the config copy step")
+}
+
 // TestBuildAWFCommand_WritesAgentCLIStartTimestamp verifies that BuildAWFCommand
 // always emits a printf command that writes the epoch-ms timestamp to
 // AgentCLIStartMsPath at the very beginning of the run block, before any

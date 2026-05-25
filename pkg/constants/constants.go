@@ -165,6 +165,10 @@ const PreAgentAuditFilePath = "/tmp/gh-aw/pre-agent-audit.txt"
 // for post-run analysis without mixing path roots in the artifact.
 const AWFConfigFilePath = "/tmp/gh-aw/awf-config.json"
 
+// ModelsJSONPath is the path where the merged model alias map is written by the
+// compute_models activation step and read at AWF config time to populate apiProxy.models.
+const ModelsJSONPath = "/tmp/gh-aw/models.json"
+
 // AWFReflectFilePath is the path where the AWF API proxy /reflect response is persisted
 // by the agent harness before exiting. It is co-located with other firewall observability
 // data under /tmp/gh-aw/sandbox/firewall/ so the existing chmod and artifact-upload steps

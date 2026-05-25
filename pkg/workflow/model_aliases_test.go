@@ -3,7 +3,6 @@
 package workflow
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -76,20 +75,14 @@ func TestBuiltinModelAliases(t *testing.T) {
 	assert.NotEqual(t, aliases["sonnet"], aliases2["sonnet"], "BuiltinModelAliases should return a fresh copy each time")
 }
 
-// awfConfigModelsResult is a helper type for parsing the apiProxy.models section
-// from generated AWF config JSON in tests.
-type awfConfigModelsResult struct {
-	APIProxy struct {
-		Models map[string][]string `json:"models"`
-	} `json:"apiProxy"`
-}
-
 // TestBuildAWFConfigJSON_ModelsSection verifies model alias behaviour in BuildAWFConfigJSON.
 //
-// Models are serialised under apiProxy.models per the AWF config schema (apiProxy.models
-// is supported in AWF v0.25.38+). The builtin aliases are included when ModelMappings is set.
+// Models are no longer inlined in the static AWF config JSON.  Instead, they are injected at
+// runtime by a Python script that reads /tmp/gh-aw/models.json (written by the compute_models
+// activation step).  ModelMappings on WorkflowData is still populated for compile-time
+// validation purposes (e.g. alias reference checks), but it is not embedded in the config.
 func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
-	t.Run("builtin model aliases are included when WorkflowData has ModelMappings", func(t *testing.T) {
+	t.Run("models section is absent from static config even when WorkflowData has ModelMappings", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com",
@@ -105,20 +98,16 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
-		var parsed awfConfigModelsResult
-		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "result must be valid JSON")
+		// models are injected at runtime from models.json, not inlined in the static config
+		assert.NotContains(t, jsonStr, `"models"`, "models section must be absent from static AWF config JSON")
 
-		// models must appear nested under apiProxy
-		assert.NotEmpty(t, parsed.APIProxy.Models, "models section must be present and non-empty under apiProxy in AWF config JSON")
-		assert.Contains(t, jsonStr, `"models"`, "models key must appear in AWF config JSON")
-
-		// the alias map is populated in WorkflowData
-		assert.NotEmpty(t, config.WorkflowData.ModelMappings, "ModelMappings should be populated on WorkflowData")
+		// the alias map is still populated in WorkflowData for compile-time validation
+		assert.NotEmpty(t, config.WorkflowData.ModelMappings, "ModelMappings should be populated on WorkflowData for validation")
 		assert.Contains(t, config.WorkflowData.ModelMappings, "sonnet", "ModelMappings should include sonnet alias")
 		assert.Contains(t, config.WorkflowData.ModelMappings, "haiku", "ModelMappings should include haiku alias")
 	})
 
-	t.Run("frontmatter override is reflected in WorkflowData and in AWF config JSON", func(t *testing.T) {
+	t.Run("frontmatter override is reflected in WorkflowData but not inlined in static config JSON", func(t *testing.T) {
 		custom := map[string][]string{
 			"sonnet": {"myvendor/sonnet-v3"},
 			"":       {"sonnet"},
@@ -138,21 +127,14 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
-		var parsed awfConfigModelsResult
-		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "result must be valid JSON")
+		// models are injected at runtime from models.json, not inlined in the static config
+		assert.NotContains(t, jsonStr, `"models"`, "models section must be absent from static AWF config JSON")
 
-		// models must appear nested under apiProxy
-		assert.Contains(t, jsonStr, `"models"`, "models section must be present in AWF config JSON")
-
-		// frontmatter overrides are visible in both WorkflowData and the JSON
+		// frontmatter overrides are still visible in WorkflowData for validation/compile-time use
 		assert.Equal(t, []string{"myvendor/sonnet-v3"}, config.WorkflowData.ModelMappings["sonnet"],
 			"frontmatter override for sonnet should be stored in ModelMappings")
-		assert.Equal(t, []string{"myvendor/sonnet-v3"}, parsed.APIProxy.Models["sonnet"],
-			"frontmatter override for sonnet should be emitted under apiProxy.models in AWF config JSON")
 		assert.Equal(t, []string{"sonnet"}, config.WorkflowData.ModelMappings[""],
 			"default policy should be stored in ModelMappings")
-		assert.Equal(t, []string{"sonnet"}, parsed.APIProxy.Models[""],
-			"default policy should be emitted under apiProxy.models in AWF config JSON")
 	})
 
 	t.Run("no models section when ModelMappings is nil", func(t *testing.T) {

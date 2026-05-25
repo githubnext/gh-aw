@@ -108,8 +108,9 @@ func TestModelAliasesImportMergeOrder(t *testing.T) {
 }
 
 // TestModelAliasesAWFConfigJSON verifies that model alias entries from imported workflows
-// are merged into WorkflowData.ModelMappings during compilation and emitted under
-// apiProxy.models in the AWF config JSON.
+// are merged into WorkflowData.ModelMappings during compilation.  Models are no longer
+// inlined in the static AWF config JSON — they are injected at runtime by a Python script
+// that reads /tmp/gh-aw/models.json (written by the compute_models activation step).
 func TestModelAliasesAWFConfigJSON(t *testing.T) {
 	awfConfig := workflow.AWFCommandConfig{
 		EngineName:     "copilot",
@@ -134,10 +135,10 @@ func TestModelAliasesAWFConfigJSON(t *testing.T) {
 	jsonStr, err := workflow.BuildAWFConfigJSON(awfConfig)
 	require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
 
-	// models must appear nested under apiProxy
-	assert.Contains(t, jsonStr, `"models"`, "models section must be present under apiProxy in AWF config JSON")
+	// models are injected at runtime from models.json, not inlined in the static config
+	assert.NotContains(t, jsonStr, `"models"`, "models section must be absent from static AWF config JSON")
 
-	// Verify that the alias map is correctly populated in WorkflowData.
+	// Verify that the alias map is correctly populated in WorkflowData for validation.
 	mappings := awfConfig.WorkflowData.ModelMappings
 	require.NotNil(t, mappings, "ModelMappings should be set on WorkflowData")
 

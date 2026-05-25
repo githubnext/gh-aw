@@ -310,11 +310,10 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("API proxy: %d custom targets configured", len(targets))
 	}
 
-	// ── Models section (nested under apiProxy per AWF config schema) ──────────
-	if config.WorkflowData != nil && len(config.WorkflowData.ModelMappings) > 0 {
-		apiProxy.Models = config.WorkflowData.ModelMappings
-		awfConfigLog.Printf("Models section: %d alias entries", len(config.WorkflowData.ModelMappings))
-	}
+	// Models are injected at runtime from /tmp/gh-aw/models.json (written by the
+	// compute_models activation step) rather than being inlined here at compile time.
+	// This avoids bloating compiled YAML with builtin alias data that can change
+	// independently of the workflow definition.
 
 	awfConfig.APIProxy = apiProxy
 

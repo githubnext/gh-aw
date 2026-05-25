@@ -579,7 +579,7 @@ type WorkflowData struct {
 	CachedAllowedDomainsStr        string                          // cached allowed-domains string for sanitization (for performance optimization); computed once and reused across multiple compilation steps
 	CachedAllowedDomainsComputed   bool                            // true once CachedAllowedDomainsStr has been set; distinguishes "computed empty" from "not yet computed"
 	KnownActionCredentialEnvVars   map[string]bool                 // env vars for clean_known_action_credentials.sh; keyed by GH_AW_CLEAN_* names; nil when no known credential-leaking actions are detected
-	ModelMappings                  map[string][]string             // merged model alias map (builtins + imported workflow aliases + main frontmatter overrides, in priority order); used for AWF config JSON (config.models)
+	ModelMappings                  map[string][]string             // merged model alias map (builtins + imported workflow aliases + main frontmatter overrides, in priority order); used for compile-time validation only — runtime AWF config models are injected from /tmp/gh-aw/models.json
 	UserModelAliases               map[string][]string             // user-defined alias overrides only (imported workflow aliases + main frontmatter overrides, without builtins); emitted as GH_AW_INFO_MODEL_ALIASES in the activation step to minimize compiled-workflow bloat
 }
 
