@@ -2,6 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const { jsonObjectToMarkdown } = require("./json_object_to_markdown.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Generate workflow overview step that writes an agentic workflow run overview
@@ -13,8 +15,6 @@ const { jsonObjectToMarkdown } = require("./json_object_to_markdown.cjs");
  */
 async function generateWorkflowOverview(core) {
   const fs = require("fs");
-  const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
-  installStepSummaryHelpers(globalThis.core);
   const awInfoPath = "/tmp/gh-aw/aw_info.json";
 
   // Load aw_info.json
