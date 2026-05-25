@@ -40,6 +40,7 @@ steps:
       npm install -g @xenova/transformers
 
 imports:
+  - shared/pmg.md
   - shared/hippo-memory.md
 
   - shared/otlp.md

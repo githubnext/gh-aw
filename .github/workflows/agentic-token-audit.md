@@ -69,6 +69,8 @@ steps:
         echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/agent/token-audit/workflow-logs.json
       fi
 timeout-minutes: 25
+imports:
+  - shared/pmg.md
 source: githubnext/agentic-ops/workflows/agentic-token-audit.md@e10687ae8f19a5b37b061db524be27948568c411
 ---
 

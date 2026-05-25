@@ -15,35 +15,6 @@ var claudeToolsLog = logger.New("workflow:claude_tools")
 
 const defaultClaudeTmpWritePath = "/tmp"
 
-// hasBashWildcardInTools returns true when the neutral tools map grants unrestricted
-// bash access — either because bash is not a list (e.g. bash: true) or because the
-// list contains a "*" or ":*" wildcard entry.
-//
-// When bash is unrestricted the agent can already reach any tool via the shell, so
-// --permission-mode bypassPermissions is safe and produces a smoother headless
-// experience than acceptEdits (which can stall on some non-file-edit permission
-// requests that do not match the acceptEdits auto-approval pattern).
-func hasBashWildcardInTools(tools map[string]any) bool {
-	if tools == nil {
-		return false
-	}
-	bashVal, hasBash := tools["bash"]
-	if !hasBash {
-		return false
-	}
-	// bash: true (non-list value) means unrestricted bash
-	bashCommands, ok := bashVal.([]any)
-	if !ok {
-		return true
-	}
-	for _, cmd := range bashCommands {
-		if cmdStr, ok := cmd.(string); ok && (cmdStr == "*" || cmdStr == ":*") {
-			return true
-		}
-	}
-	return false
-}
-
 // expandNeutralToolsToClaudeTools converts neutral tool names to Claude-specific tool configurations
 func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map[string]any {
 	claudeToolsLog.Printf("Starting neutral tools expansion: input_tools=%d", len(tools))
