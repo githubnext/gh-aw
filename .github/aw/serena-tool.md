@@ -60,14 +60,7 @@ imports:
 
 ### 1. Activate Serena First
 
-**Always call activate_project before other Serena tools:**
-
-```javascript
-// activate_project tool
-{
-  "path": "/home/runner/work/gh-aw/gh-aw"
-}
-```
+Always call `activate_project` before other Serena tools, passing the workspace path.
 
 ### 2. Combine with Other Tools
 
@@ -96,35 +89,6 @@ imports:
 cache-memory: true  # Store analysis history
 ```
 
-## Common Patterns
-
-### Pattern 1: Find All Function Usages
-
-```
-1. Use find_symbol to locate function definition
-2. Use find_referencing_code_snippets to find call sites
-3. Analyze patterns
-```
-
-### Pattern 2: Code Quality Analysis
-
-```
-1. Use get_symbols_overview on multiple files
-2. Use find_symbol for similar function names
-3. Use search_for_pattern for duplicate logic
-4. Identify consolidation opportunities
-```
-
-### Pattern 3: Daily Code Analysis
-
-```
-1. Load previous state from cache-memory
-2. Select files using round-robin or priority
-3. Use Serena for semantic analysis
-4. Save findings to cache
-5. Generate improvement tasks
-```
-
 ## Common Pitfalls
 
 ❌ **Using Serena for non-code files** - Use `edit` for YAML/JSON/Markdown
@@ -134,23 +98,4 @@ cache-memory: true  # Store analysis history
 
 ## Supported Languages
 
-Primary languages with full LSP features:
-- `go` (gopls)
-- `typescript` (TypeScript/JavaScript)
-- `python` (jedi/pyright)
-- `ruby` (solargraph)
-- `rust` (rust-analyzer)
-- `java`, `cpp`, `csharp`
-
-See `.serena/project.yml` for complete list (25+ languages).
-
-## Decision Tree
-
-```
-Task requires code semantics/structure?
-├─ NO → Use bash/edit/view
-└─ YES
-    ├─ Simple text search/replace? → Use grep/bash
-    ├─ Config/data files? → Use edit
-    └─ Symbol/structure/semantic patterns? → Use Serena ✅
-```
+Full LSP: `go` (gopls), `typescript`, `python` (jedi/pyright), `ruby` (solargraph), `rust` (rust-analyzer), `java`, `cpp`, `csharp`. See `.serena/project.yml` for full list (25+).
