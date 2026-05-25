@@ -219,8 +219,35 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
 
         if (commitCount > 0) {
           // Generate bundle from the determined base to the branch
-          // git bundle create <file> <range> creates a bundle with the commit range
-          execGitSync(["bundle", "create", bundlePath, `${baseRef}..${branchName}`], { cwd });
+          // git bundle create <file> <range> creates a bundle with the commit range.
+          // In incremental mode, also exclude origin/<defaultBranch> when present so
+          // a "merge base branch into PR branch" workflow does not re-embed upstream
+          // commits that the remote already has.
+          const bundleCreateArgs = ["bundle", "create", bundlePath, `${baseRef}..${branchName}`];
+          if (mode === "incremental") {
+            const defaultBranchRef = `refs/remotes/origin/${defaultBranch}`;
+            let hasDefaultBranchRef = false;
+            try {
+              execGitSync(["show-ref", "--verify", "--quiet", defaultBranchRef], { cwd });
+              hasDefaultBranchRef = true;
+            } catch {
+              debugLog(`Strategy 1 (incremental): ${defaultBranchRef} not found locally, attempting fetch`);
+              try {
+                const fullFetchEnv = { ...process.env, ...getGitAuthEnv(options.token) };
+                execGitSync(["fetch", "origin", "--", defaultBranch], { cwd, env: fullFetchEnv });
+                execGitSync(["show-ref", "--verify", "--quiet", defaultBranchRef], { cwd });
+                hasDefaultBranchRef = true;
+                debugLog(`Strategy 1 (incremental): fetched origin/${defaultBranch} for bundle exclusions`);
+              } catch (fetchErr) {
+                debugLog(`Strategy 1 (incremental): could not fetch origin/${defaultBranch} for exclusions - ${getErrorMessage(fetchErr)}`);
+              }
+            }
+            if (hasDefaultBranchRef) {
+              bundleCreateArgs.push(`^origin/${defaultBranch}`);
+              debugLog(`Strategy 1 (incremental): excluding origin/${defaultBranch} from bundle prerequisites`);
+            }
+          }
+          execGitSync(bundleCreateArgs, { cwd });
 
           if (fs.existsSync(bundlePath)) {
             const stat = fs.statSync(bundlePath);
