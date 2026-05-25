@@ -234,7 +234,8 @@ async function writeSummary(assignments, configs, state, core) {
     lines.push(`| \`${name}\` | **${selected}** | ${thisCount} / ${totalCount} |`);
 
     const cfg = configs[name] || {};
-    const minSamples = Number.isInteger(cfg.min_samples) && cfg.min_samples > 0 ? cfg.min_samples : null;
+    const configuredMinSamples = cfg.min_samples;
+    const minSamples = typeof configuredMinSamples === "number" && Number.isInteger(configuredMinSamples) && configuredMinSamples > 0 ? configuredMinSamples : null;
     const analysisType = cfg.analysis_type || "n/a";
     const tags = Array.isArray(cfg.tags) ? cfg.tags.filter(t => typeof t === "string" && t.length > 0) : [];
     const notifyTargets = [];
