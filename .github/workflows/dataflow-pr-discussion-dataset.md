@@ -16,6 +16,7 @@ network:
     - python
     - github-actions
 imports:
+  - shared/pmg.md
   - uses: shared/discussions-data-fetch.md
   - uses: shared/repo-memory-standard.md
     with:
