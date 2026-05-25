@@ -772,7 +772,7 @@ func getEngineAPIHosts(data *WorkflowData, engine CodingAgentEngine) []string {
 	case *CodexEngine:
 		return []string{"api.openai.com"}
 	case *GeminiEngine:
-		return []string{DefaultAntigravityAPITarget}
+		return []string{DefaultGeminiAPITarget}
 	case *AntigravityEngine:
 		return []string{DefaultAntigravityAPITarget}
 	default:

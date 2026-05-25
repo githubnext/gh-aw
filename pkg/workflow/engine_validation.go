@@ -439,6 +439,7 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 //   - Claude engine: Adds step unless custom command is set
 //   - Codex engine: Adds step unless custom command is set
 //   - Antigravity engine: Adds step unless custom command is set
+//   - Gemini engine (deprecated): Adds step unless custom command is set
 //   - Custom engine: Never adds this step (uses BaseEngine default which returns empty)
 //
 // Parameters:

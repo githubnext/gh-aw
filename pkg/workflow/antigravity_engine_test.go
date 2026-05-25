@@ -156,7 +156,7 @@ func TestAntigravityEngineExecution(t *testing.T) {
 
 		assert.Contains(t, stepContent, "name: Execute Antigravity CLI", "Should have correct step name")
 		assert.Contains(t, stepContent, "id: agentic_execution", "Should have agentic_execution ID")
-		assert.Contains(t, stepContent, "antigravity", "Should invoke antigravity command")
+		assert.Contains(t, stepContent, "agy --yolo", "Should invoke the agy CLI binary as the first token in the command")
 		assert.Contains(t, stepContent, "--yolo", "Should include --yolo flag for auto-approving tool executions")
 		assert.Contains(t, stepContent, "--skip-trust", "Should include --skip-trust flag to prevent workspace trust check from overriding --yolo")
 		assert.Contains(t, stepContent, "--output-format stream-json", "Should use streaming JSON output format")

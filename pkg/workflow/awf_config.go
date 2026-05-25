@@ -166,7 +166,7 @@ type AWFAPIProxyConfig struct {
 	ModelMultipliers map[string]float64 `json:"modelMultipliers,omitempty"`
 
 	// Targets holds per-provider API target overrides.
-	// Supported keys: "openai", "anthropic", "copilot", "antigravity"
+	// Supported keys: "openai", "anthropic", "copilot", "antigravity", "gemini" (deprecated, use "antigravity")
 	Targets map[string]*AWFAPITargetConfig `json:"targets,omitempty"`
 
 	// Models contains model alias and fallback policy definitions.
