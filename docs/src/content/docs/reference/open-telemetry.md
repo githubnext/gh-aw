@@ -169,7 +169,7 @@ and is emitted as `SPAN_KIND_CLIENT`.
 
 Outcome evaluation data is emitted in OpenTelemetry spans after safe outputs are checked against repository state. These attributes are the span-level view of the outcomes model described in [Outcomes](/gh-aw/reference/outcomes/).
 
-Workflow-level outcome rollups appear on outcome summary or job conclusion spans.
+Workflow-level outcome rollups appear on outcome summary or job conclusion spans. The table below is a high-level, non-exhaustive subset.
 
 | Attribute | Description |
 | --- | --- |
