@@ -34,6 +34,7 @@ function debugLog(message) {
  * @param {string} [options.token] - Optional auth token used for fetch
  * @param {boolean} [options.suppressLogs=false] - Whether to suppress execGitSync error logs
  * @returns {{ exists: boolean, fetched: boolean, fetchError?: Error }}
+ *   fetchError is populated only when exists=false after a failed fetch attempt.
  */
 function ensureOriginRemoteTrackingRef(branch, options) {
   const ref = `refs/remotes/origin/${branch}`;
@@ -226,7 +227,7 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
               }
             } else {
               debugLog(`Strategy 1 (full): origin/${defaultBranch} not found locally, attempting fetch`);
-              debugLog(`Strategy 1 (full): Fetch failed - ${getErrorMessage(defaultBranchRefResult.fetchError)} (will try other strategies)`);
+              debugLog(`Strategy 1 (full): Fetch failed - ${getErrorMessage(defaultBranchRefResult.fetchError || new Error("Unknown fetch error"))} (will try other strategies)`);
             }
 
             if (hasLocalDefaultBranch) {
@@ -267,7 +268,7 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
               bundleCreateArgs.push(`^origin/${defaultBranch}`);
               debugLog(`Strategy 1 (incremental): excluding origin/${defaultBranch} from bundle prerequisites`);
             } else {
-              const warningMessage = `Strategy 1 (incremental): could not fetch origin/${defaultBranch} for exclusions - ${getErrorMessage(defaultBranchRefResult.fetchError)}. Bundle will include base-branch history.`;
+              const warningMessage = `Strategy 1 (incremental): could not fetch origin/${defaultBranch} for exclusions - ${getErrorMessage(defaultBranchRefResult.fetchError || new Error("Unknown fetch error"))}. Bundle will include base-branch history.`;
               debugLog(warningMessage);
               core.warning(warningMessage);
             }
