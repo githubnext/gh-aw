@@ -33,6 +33,18 @@ if (!global.core) {
   };
 }
 
+if (!global.core.summary || typeof global.core.summary !== "object") {
+  global.core.summary = {};
+}
+
+if (typeof global.core.summary.addRaw !== "function") {
+  global.core.summary.addRaw = () => global.core.summary;
+}
+
+if (typeof global.core.summary.write !== "function") {
+  global.core.summary.write = async () => {};
+}
+
 if (!global.context) {
   // Build a context object from GitHub Actions environment variables,
   // mirroring the shape of @actions/github's Context class.

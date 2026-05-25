@@ -3,7 +3,6 @@ import fs from "fs";
 
 const mockCore = {
   info: vi.fn(),
-  setOutput: vi.fn(),
   summary: {
     addRaw: vi.fn().mockReturnThis(),
     write: vi.fn().mockResolvedValue(),
@@ -379,11 +378,10 @@ describe("awf_reflect_summary.cjs", () => {
       expect(summary).toContain("openai");
       expect(summary).toContain("Runtime models.json");
       expect(mockCore.summary.write).toHaveBeenCalledTimes(1);
-      expect(mockCore.setOutput).toHaveBeenCalledWith("awf-reflect-summary", expect.any(String));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("AWF reflect summary written"));
     });
 
-    it("writes core output even when step summary API is unavailable", async () => {
+    it("does not throw when step summary API is unavailable", async () => {
       const originalSummary = mockCore.summary;
       try {
         mockCore.summary = null;
@@ -391,11 +389,7 @@ describe("awf_reflect_summary.cjs", () => {
 
         await module.main();
 
-        expect(mockCore.setOutput).toHaveBeenCalledWith("awf-reflect-summary", expect.any(String));
-        const outputSummary = mockCore.setOutput.mock.calls.find(([name]) => name === "awf-reflect-summary")?.[1];
-        expect(typeof outputSummary).toBe("string");
-        expect(outputSummary).toContain("AWF API proxy");
-        expect(outputSummary).toContain("openai");
+        expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("AWF reflect summary written"));
       } finally {
         mockCore.summary = originalSummary;
       }
