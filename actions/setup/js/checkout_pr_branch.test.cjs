@@ -145,6 +145,11 @@ describe("checkout_pr_branch.cjs", () => {
           },
         };
       }
+      if (module === "./step_summary_helpers.cjs") {
+        return {
+          installStepSummaryHelpers: () => {},
+        };
+      }
       if (module === "fs") {
         return {
           readFileSync: (path, encoding) => {

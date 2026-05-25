@@ -19,8 +19,8 @@ const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 async function runLogParser(options) {
   const fs = require("fs");
   const path = require("path");
-const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
-installStepSummaryHelpers(globalThis.core);
+  const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+  installStepSummaryHelpers(globalThis.core);
   const { parseLog, parserName, supportsDirectories = false } = options;
 
   /**

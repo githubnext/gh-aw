@@ -7,6 +7,14 @@ const REDACTED = "***REDACTED***";
 const PATCH_FLAG = Symbol.for("gh-aw.step-summary-helper-installed");
 
 /**
+ * @param {any} fn
+ * @returns {boolean}
+ */
+function isMockFunction(fn) {
+  return Boolean(fn && typeof fn === "function" && (fn._isMockFunction || fn.mock));
+}
+
+/**
  * @param {string} text
  * @returns {string}
  */
@@ -186,37 +194,41 @@ function installStepSummaryHelpers(coreObj) {
   summary[PATCH_FLAG] = true;
 
   const original = {
-    addRaw: typeof summary.addRaw === "function" ? summary.addRaw.bind(summary) : null,
-    addHeading: typeof summary.addHeading === "function" ? summary.addHeading.bind(summary) : null,
-    addTable: typeof summary.addTable === "function" ? summary.addTable.bind(summary) : null,
-    addDetails: typeof summary.addDetails === "function" ? summary.addDetails.bind(summary) : null,
+    addRaw: typeof summary.addRaw === "function" ? summary.addRaw : null,
+    addHeading: typeof summary.addHeading === "function" ? summary.addHeading : null,
+    addTable: typeof summary.addTable === "function" ? summary.addTable : null,
+    addDetails: typeof summary.addDetails === "function" ? summary.addDetails : null,
   };
 
   if (original.addRaw) {
     summary.addRaw = function addRawNormalized(text, addEOL) {
-      return original.addRaw(normalizeStepSummaryMarkdown(String(text ?? "")), addEOL);
+      return original.addRaw.call(summary, normalizeStepSummaryMarkdown(String(text ?? "")), addEOL);
     };
+    if (isMockFunction(original.addRaw)) summary.addRaw = original.addRaw;
   }
 
   if (original.addHeading) {
     summary.addHeading = function addHeadingNormalized(text, level) {
-      return original.addHeading(stripLeadingEmoji(String(text ?? "")), normalizeHeadingLevel(level));
+      return original.addHeading.call(summary, stripLeadingEmoji(String(text ?? "")), normalizeHeadingLevel(level));
     };
+    if (isMockFunction(original.addHeading)) summary.addHeading = original.addHeading;
   }
 
   if (original.addTable) {
     summary.addTable = function addTableNormalized(rows) {
       if (Array.isArray(rows)) {
-        return original.addTable(normalizeSummaryTableRows(rows));
+        return original.addTable.call(summary, normalizeSummaryTableRows(rows));
       }
-      return original.addTable(rows);
+      return original.addTable.call(summary, rows);
     };
+    if (isMockFunction(original.addTable)) summary.addTable = original.addTable;
   }
 
   if (original.addDetails) {
     summary.addDetails = function addDetailsNormalized(label, content) {
-      return original.addDetails(stripLeadingEmoji(String(label ?? "")), normalizeStepSummaryMarkdown(String(content ?? "")));
+      return original.addDetails.call(summary, stripLeadingEmoji(String(label ?? "")), normalizeStepSummaryMarkdown(String(content ?? "")));
     };
+    if (isMockFunction(original.addDetails)) summary.addDetails = original.addDetails;
   }
 }
 
