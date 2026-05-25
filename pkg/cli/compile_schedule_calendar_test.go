@@ -4,9 +4,12 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -299,5 +302,93 @@ func TestDisplayScheduleCalendar_ContainsAllHourHeaders(t *testing.T) {
 	// Spot-check a few hour labels in the header row.
 	for _, h := range []string{"00", "06", "12", "18", "23"} {
 		assert.Contains(t, output, h, "hour header %q should appear in output", h)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// End-to-end: fuzzy schedule → ScatterSchedule → compile_schedule_calendar
+// ---------------------------------------------------------------------------
+
+// TestFuzzyScheduleEndToEnd exercises a fuzzy cron expression through the full
+// pipeline: ScatterSchedule (pkg/parser) → parseCronSchedule → buildScheduleGrid
+// → displayScheduleCalendar. It asserts that:
+//  1. A fuzzy expression is scattered to a valid 5-field cron string.
+//  2. The scattered cron is accepted by parseCronSchedule without error.
+//  3. buildScheduleGrid registers at least one non-zero slot for the workflow.
+//  4. displayScheduleCalendar produces output that contains the workflow name.
+func TestFuzzyScheduleEndToEnd(t *testing.T) {
+	fuzzyExpressions := []struct {
+		fuzzyCron     string
+		workflowID    string
+		expectedHours int // how many distinct hour values we expect (1 for DAILY patterns)
+	}{
+		{"FUZZY:DAILY * * *", "ci-doctor", 1},
+		{"FUZZY:DAILY_WEEKDAYS * * *", "daily-planner", 1},
+		{"FUZZY:DAILY_AROUND:14:0 * * *", "weekly-audit", 1},
+	}
+
+	for _, tt := range fuzzyExpressions {
+		t.Run(fmt.Sprintf("%s/%s", tt.fuzzyCron, tt.workflowID), func(t *testing.T) {
+			// Step 1: scatter the fuzzy expression to a real cron string.
+			scatteredCron, err := parser.ScatterSchedule(tt.fuzzyCron, tt.workflowID)
+			require.NoError(t, err, "ScatterSchedule should not error for %s", tt.fuzzyCron)
+			require.NotEmpty(t, scatteredCron, "ScatterSchedule should return a non-empty cron")
+			require.False(t, strings.HasPrefix(scatteredCron, "FUZZY:"),
+				"scattered result must not be a fuzzy expression: %s", scatteredCron)
+
+			fields := strings.Fields(scatteredCron)
+			require.Len(t, fields, 5,
+				"scattered cron %q must have exactly 5 fields", scatteredCron)
+
+			// Step 2: parse the scattered cron with parseCronSchedule.
+			hours, daysOfWeek, err := parseCronSchedule(scatteredCron)
+			require.NoError(t, err,
+				"parseCronSchedule should accept scattered cron %q", scatteredCron)
+			assert.Len(t, hours, tt.expectedHours,
+				"expected %d distinct hour(s) for %s", tt.expectedHours, tt.fuzzyCron)
+			assert.NotEmpty(t, daysOfWeek,
+				"daysOfWeek should be non-empty for %s", tt.fuzzyCron)
+
+			// Step 3: buildScheduleGrid should register at least one slot.
+			lockName := tt.workflowID + ".lock.yml"
+			statsList := []*WorkflowStats{
+				{Workflow: lockName, Schedules: []string{scatteredCron}},
+			}
+			grid := buildScheduleGrid(statsList)
+			require.NotNil(t, grid, "buildScheduleGrid should return non-nil grid")
+
+			totalSlots := 0
+			for _, day := range grid {
+				for _, count := range day {
+					totalSlots += count
+				}
+			}
+			assert.Positive(t, totalSlots,
+				"grid should contain at least one scheduled slot for %s", scatteredCron)
+
+			// Step 4: displayScheduleCalendar should produce output referencing the hour.
+			oldStderr := os.Stderr
+			r, w, pipeErr := os.Pipe()
+			require.NoError(t, pipeErr)
+			os.Stderr = w
+
+			displayScheduleCalendar(statsList)
+
+			w.Close()
+			os.Stderr = oldStderr
+
+			var buf bytes.Buffer
+			_, _ = buf.ReadFrom(r)
+			output := buf.String()
+
+			assert.Contains(t, output, "Schedule Heatmap",
+				"output should contain Schedule Heatmap header")
+			// The hour from the scattered cron should appear in the output.
+			for _, h := range hours {
+				hourStr := fmt.Sprintf("%02d", h)
+				assert.Contains(t, output, hourStr,
+					"output should contain hour %s from scattered cron %s", hourStr, scatteredCron)
+			}
+		})
 	}
 }

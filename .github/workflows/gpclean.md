@@ -37,6 +37,22 @@ tools:
   web-fetch:
   bash: [":*"]
 
+experiments:
+  tool_verbosity:
+    variants: [full_bash, minimal_toolset]
+    description: "Test whether restricting bash tools reduces cost without compromising GPL detection quality"
+    hypothesis: "H0: no change in token consumption. H1: minimal toolset reduces tokens by 10-15% while maintaining issue quality (detection accuracy + alternative research depth)"
+    metric: effective_token_count
+    secondary_metrics: [run_duration_seconds, tools_invoked_count, issue_completeness_score]
+    guardrail_metrics:
+      - name: gpl_detection_rate
+        threshold: "==100"
+      - name: issue_created_rate
+        threshold: ">=90"
+    min_samples: 30
+    weight: [50, 50]
+    start_date: "2026-05-24"
+
 strict: false
 
 imports:
@@ -58,17 +74,23 @@ steps:
         -H "Accept: application/vnd.github+json" \
         -H "X-GitHub-Api-Version: 2022-11-28" \
         "/repos/$GITHUB_REPOSITORY/dependency-graph/sbom" \
-        > /tmp/sbom.json
+        > /tmp/gh-aw/agent/sbom.json
       
-      echo "✅ SBOM downloaded successfully to /tmp/sbom.json"
+      echo "✅ SBOM downloaded successfully to /tmp/gh-aw/agent/sbom.json"
       
       # Show SBOM summary
       if command -v jq &> /dev/null; then
-        PACKAGE_COUNT=$(jq '.sbom.packages | length' /tmp/sbom.json 2>/dev/null || echo "unknown")
+        PACKAGE_COUNT=$(jq '.sbom.packages | length' /tmp/gh-aw/agent/sbom.json 2>/dev/null || echo "unknown")
         echo "📊 SBOM contains ${PACKAGE_COUNT} packages"
       fi
 
 ---
+
+{{#if experiments.tool_verbosity == 'minimal_toolset' }}
+## Tool Usage Constraint (minimal_toolset variant)
+
+For this run you are in the **minimal_toolset** experiment variant. Restrict your bash command usage exclusively to the following essential commands: `go`, `grep`, `jq`, `cat`, `mkdir`, `echo`, `wc`, `head`, `tail`. Do not invoke any other bash commands. Use these tools only when strictly necessary for SBOM parsing, dependency analysis, license detection, and cache-memory state management.
+{{/if}}
 
 # GPL Dependency Cleaner (gpclean)
 
@@ -88,10 +110,10 @@ Systematically detect Go dependencies that introduce non-MIT friendly (GPL-type)
 
 Use the repository's SBOM (Software Bill of Materials) to get accurate dependency information, then select one module to analyze in a round-robin fashion.
 
-**IMPORTANT**: The SBOM has been pre-downloaded to `/tmp/sbom.json` in the frontmatter setup step. **Use this file directly** - do NOT try to download it again using curl or gh api (you do not have a GitHub token in the agent environment).
+**IMPORTANT**: The SBOM has been pre-downloaded to `/tmp/gh-aw/agent/sbom.json` in the frontmatter setup step. **Use this file directly** - do NOT try to download it again using curl or gh api (you do not have a GitHub token in the agent environment).
 
 1. **Use Pre-Downloaded SBOM**:
-   - The SBOM file is already available at `/tmp/sbom.json`
+   - The SBOM file is already available at `/tmp/gh-aw/agent/sbom.json`
    - It was downloaded using the GitHub Dependency Graph API with `contents: read` permission
    - Simply read and parse this file in subsequent steps
 
@@ -101,14 +123,14 @@ Use the repository's SBOM (Software Bill of Materials) to get accurate dependenc
    - Filter for Go packages (those with `purl` starting with `pkg:golang/`)
    - Extract the package names (module paths) from the `purl` field
    - Focus on direct dependencies (not dev dependencies or build tools)
-   - Save the list of dependencies to `/tmp/go-dependencies.txt`
+   - Save the list of dependencies to `/tmp/gh-aw/agent/go-dependencies.txt`
 
 3. **Load tracking state** from `/tmp/gh-aw/cache-memory/gpclean/state.json`:
    - If file doesn't exist, create it with initial state: `{"last_checked_module": "", "checked_modules": []}`
    - State tracks which modules have been checked recently
 
 4. **Select next module to check**:
-   - Use the dependencies list from SBOM (`/tmp/go-dependencies.txt`)
+   - Use the dependencies list from SBOM (`/tmp/gh-aw/agent/go-dependencies.txt`)
    - Find the first module NOT in `checked_modules` list
    - If all modules have been checked, reset `checked_modules` to empty array and start over
    - Update state with selected module and save to cache-memory
@@ -347,8 +369,8 @@ After creating the issue:
 
 ### SBOM Usage
 
-- **SBOM is pre-downloaded** - The SBOM has been downloaded in the frontmatter setup step and is available at `/tmp/sbom.json`
-- **Do NOT try to download SBOM again** - You do not have a GitHub token in the agent environment. Use the pre-downloaded file at `/tmp/sbom.json`
+- **SBOM is pre-downloaded** - The SBOM has been downloaded in the frontmatter setup step and is available at `/tmp/gh-aw/agent/sbom.json`
+- **Do NOT try to download SBOM again** - You do not have a GitHub token in the agent environment. Use the pre-downloaded file at `/tmp/gh-aw/agent/sbom.json`
 - SBOM is in SPDX format with packages listed in `sbom.packages[]` array
 - Go packages have `purl` (Package URL) in format: `pkg:golang/github.com/org/repo@version`
 - Parse the SBOM to extract all Go dependencies before license checking
@@ -405,7 +427,7 @@ After creating the issue:
 
 ## Error Handling
 
-- If the SBOM file `/tmp/sbom.json` is missing or corrupted, report the error and exit (this should not happen as it's pre-downloaded in frontmatter)
+- If the SBOM file `/tmp/gh-aw/agent/sbom.json` is missing or corrupted, report the error and exit (this should not happen as it's pre-downloaded in frontmatter)
 - If `go mod graph` fails, report the error and exit
 - If license detection fails for a module, document it in the issue and recommend manual review
 - If no direct dependencies exist, exit successfully

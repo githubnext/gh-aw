@@ -19,6 +19,14 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = 24 * 7;
+const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
+// Engine-side 429/rate-limit signatures:
+// - HTTP 429 accompanied by "too many requests"/"rate limit" phrasing
+// - provider error codes like rate_limit_error / rate_limit_exceeded
+// - Copilot/CAPI "CAPIError: 429" and utility-model quota text
+// - retry wrapper text that includes the canonical "Failed to get response..." phrase
+const ENGINE_RATE_LIMIT_429_RE =
+  /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|rate_limit_(?:error|exceeded)|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
 
 /**
  * Parse action failure issue expiration from environment.
@@ -1094,6 +1102,55 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
 }
 
 /**
+ * Detect HTTP 429/rate-limit engine failures in text payloads.
+ * @param {string} content
+ * @returns {boolean}
+ */
+function hasEngineRateLimit429Signal(content) {
+  if (!content) {
+    return false;
+  }
+  return ENGINE_RATE_LIMIT_429_RE.test(content);
+}
+
+/**
+ * Detect HTTP 429/rate-limit engine failures from OTLP JSONL mirror payloads.
+ * @param {string} [otelJsonlPathOverride]
+ * @returns {boolean}
+ */
+function hasEngineRateLimit429InOTELMirror(otelJsonlPathOverride) {
+  const otelJsonlPath = otelJsonlPathOverride || process.env.GH_AW_OTEL_JSONL_PATH || DEFAULT_OTEL_JSONL_PATH;
+  try {
+    if (!fs.existsSync(otelJsonlPath)) {
+      return false;
+    }
+    const content = fs.readFileSync(otelJsonlPath, "utf8");
+    return hasEngineRateLimit429Signal(content);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Build dedicated context for engine 429/rate-limit failures.
+ * @param {string} engineLabel
+ * @returns {string}
+ */
+function buildEngineRateLimit429Context(engineLabel) {
+  const normalizedEngineLabel = engineLabel.trim() || "AI";
+  const templatePath = getPromptPath("engine_rate_limit_429.md");
+  try {
+    return "\n" + renderTemplateFromFile(templatePath, { engine_label: normalizedEngineLabel });
+  } catch {
+    return (
+      `\n**🚦 Engine Rate Limited (HTTP 429)**: The ${normalizedEngineLabel} engine hit provider rate limits and could not complete this run.\n\n` +
+      "This signal was detected from engine runtime logs/OTLP telemetry.\n\n" +
+      "Retry after a short delay. If this recurs, reduce concurrent runs or review provider quota/rate-limit policies.\n"
+    );
+  }
+}
+
+/**
  * Read and render token usage from token-usage.jsonl for inclusion in the ET computation table.
  * Returns null gracefully when files are absent, empty, or unparseable.
  * @returns {string | null} Pre-rendered per-model markdown table, or null
@@ -1490,6 +1547,13 @@ function buildEngineFailureContext() {
       return "";
     }
 
+    // Special handling for provider-side 429/rate-limit failures. These can appear
+    // in agent stdio output or only in mirrored OTLP telemetry payloads.
+    if (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror()) {
+      core.info("Detected engine HTTP 429/rate-limit signal — using dedicated context message");
+      return buildEngineRateLimit429Context(engineLabel);
+    }
+
     const errorMessages = new Set();
 
     for (const line of lines) {
@@ -1507,10 +1571,27 @@ function buildEngineFailureContext() {
         continue;
       }
 
+      // AWF startup failures can appear as "[ERROR] Failed to start ...".
+      // Exclude generic wrapper [ERROR] lines (e.g., command completion/exit noise)
+      // because they are infrastructure output and don't provide actionable startup context.
+      const awfStartupBracketErrorMatch = line.match(/^\[ERROR\]\s*((?:Failed to start|dependency failed to start:).+)$/);
+      if (awfStartupBracketErrorMatch) {
+        errorMessages.add(awfStartupBracketErrorMatch[1].trim());
+        continue;
+      }
+
       // Fatal errors: "Fatal: <message>" or "FATAL: <message>"
       const fatalMatch = line.match(/^(?:FATAL|Fatal):\s*(.+)$/);
       if (fatalMatch) {
         errorMessages.add(fatalMatch[1].trim());
+        continue;
+      }
+
+      // AWF docker-compose dependency failures surface this root-cause line without
+      // an explicit log-level prefix.
+      const awfDependencyFailureMatch = line.match(/^dependency failed to start:\s*(.+)$/);
+      if (awfDependencyFailureMatch) {
+        errorMessages.add(`dependency failed to start: ${awfDependencyFailureMatch[1].trim()}`);
         continue;
       }
 
@@ -1595,6 +1676,209 @@ function buildEngineFailureContext() {
   } catch (error) {
     core.info(`Failed to read agent-stdio.log for engine failure context: ${getErrorMessage(error)}`);
     return "";
+  }
+}
+
+/** Cascade detection constants */
+const CASCADE_WINDOW_MINUTES = 60;
+const CASCADE_WINDOW_MS = CASCADE_WINDOW_MINUTES * 60 * 1000;
+const CASCADE_THRESHOLD = 10;
+const CASCADE_ROLLUP_TITLE = "[aw] Failure cascade detected";
+const CASCADE_LABEL = "cascade-suspected";
+const CASCADE_ROLLUP_LABEL = "cascade-rollup";
+/** Matches the exact title pattern produced by handle_agent_failure for individual failure issues */
+const FAILURE_TITLE_PATTERN = /^\[aw\] .+ failed$/;
+
+/**
+ * Ensure a GitHub label exists in the repository, creating it with a deterministic
+ * pastel color if it does not exist yet. Failures are non-fatal (logged as warnings).
+ * @param {string} owner
+ * @param {string} repo
+ * @param {string} labelName
+ * @returns {Promise<void>}
+ */
+async function ensureLabelExists(owner, repo, labelName) {
+  try {
+    await github.rest.issues.getLabel({ owner, repo, name: labelName });
+  } catch (err) {
+    // 404 → label does not exist, create it
+    const statusCode = err && typeof err === "object" && "status" in err ? /** @type {any} */ err.status : undefined;
+    if (statusCode !== 404) {
+      core.warning(`Could not check label "${labelName}": ${getErrorMessage(err)}`);
+      return;
+    }
+    try {
+      // Derive a deterministic pastel color from the label name
+      let hash = 0;
+      for (let i = 0; i < labelName.length; i++) {
+        hash = (hash * 31 + labelName.charCodeAt(i)) >>> 0;
+      }
+      const r = 128 + (hash & 0x3f);
+      const g = 128 + ((hash >> 6) & 0x3f);
+      const b = 128 + ((hash >> 12) & 0x3f);
+      const color = ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
+      await github.rest.issues.createLabel({ owner, repo, name: labelName, color });
+      core.info(`✓ Created label "${labelName}" (#${color})`);
+    } catch (createErr) {
+      core.warning(`Could not create label "${labelName}": ${getErrorMessage(createErr)}`);
+    }
+  }
+}
+
+/**
+ * Detect whether a failure cascade is active by counting `[aw] * failed` issues
+ * created within the last CASCADE_WINDOW_MINUTES minutes.
+ *
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {Promise<Array<{number: number, title: string, html_url: string, created_at: string}>>}
+ *   Issues that belong to the cascade window (may be empty).
+ */
+async function findRecentFailureIssues(owner, repo) {
+  const windowStart = new Date(Date.now() - CASCADE_WINDOW_MS);
+  const since = windowStart.toISOString().slice(0, 19) + "Z"; // e.g. "2026-05-22T02:00:00Z"
+
+  // GitHub search API supports `created:>=YYYY-MM-DDTHH:MM:SSZ`
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows "[aw]" "failed" in:title created:>=${since}`;
+
+  try {
+    const result = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: 100,
+      sort: "created",
+      order: "asc",
+    });
+    return result.data.items
+      .filter(item => FAILURE_TITLE_PATTERN.test(item.title))
+      .map(item => ({
+        number: item.number,
+        title: item.title,
+        html_url: item.html_url,
+        created_at: item.created_at,
+      }));
+  } catch (err) {
+    core.warning(`Could not query recent failure issues for cascade detection: ${getErrorMessage(err)}`);
+    return [];
+  }
+}
+
+/**
+ * Find an existing open cascade rollup issue.
+ * @param {string} owner
+ * @param {string} repo
+ * @returns {Promise<{number: number, html_url: string} | null>}
+ */
+async function findExistingCascadeRollupIssue(owner, repo) {
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:${CASCADE_ROLLUP_LABEL} in:title "${CASCADE_ROLLUP_TITLE}"`;
+  try {
+    const result = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: 1,
+    });
+    if (result.data.total_count > 0) {
+      const item = result.data.items[0];
+      return { number: item.number, html_url: item.html_url };
+    }
+  } catch (err) {
+    core.warning(`Could not search for cascade rollup issue: ${getErrorMessage(err)}`);
+  }
+  return null;
+}
+
+/**
+ * Detect a failure cascade and, when one is active, create/update a rollup issue
+ * and add the `cascade-suspected` label to every issue in the cascade window
+ * (including the issue that was just created/updated, identified by `triggeringIssueNumber`).
+ *
+ * A cascade is active when ≥CASCADE_THRESHOLD `[aw] * failed` issues were filed
+ * within the last CASCADE_WINDOW_MINUTES minutes.
+ *
+ * @param {string} owner
+ * @param {string} repo
+ * @param {number} triggeringIssueNumber - The issue just created or updated by this run
+ * @returns {Promise<void>}
+ */
+async function detectAndHandleFailureCascade(owner, repo, triggeringIssueNumber) {
+  try {
+    const recentIssues = await findRecentFailureIssues(owner, repo);
+
+    // Ensure the triggering issue is included even if GitHub search indexing lags
+    const issueNumbers = new Set(recentIssues.map(i => i.number));
+    issueNumbers.add(triggeringIssueNumber);
+
+    if (issueNumbers.size < CASCADE_THRESHOLD) {
+      core.info(`Cascade check: ${issueNumbers.size} failure issue(s) in the last ${CASCADE_WINDOW_MINUTES} min (threshold: ${CASCADE_THRESHOLD}) — no cascade`);
+      return;
+    }
+
+    core.info(`⚠️ Cascade detected: ${issueNumbers.size} failure issues in the last ${CASCADE_WINDOW_MINUTES} min — creating rollup and labeling individual issues`);
+
+    // Ensure required labels exist
+    await ensureLabelExists(owner, repo, CASCADE_LABEL);
+    await ensureLabelExists(owner, repo, CASCADE_ROLLUP_LABEL);
+
+    // Build rollup body
+    const affectedList = recentIssues.map(i => `- [#${i.number}](${i.html_url}) — ${i.title}`).join("\n");
+    const windowStart = new Date(Date.now() - CASCADE_WINDOW_MS);
+    const rollupBody = [
+      `## ⚠️ Failure Cascade Detected`,
+      ``,
+      `**${issueNumbers.size} \`[aw] * failed\` issues** were filed within the last **${CASCADE_WINDOW_MINUTES} minutes** (since ${windowStart.toUTCString()}).`,
+      ``,
+      `This volume suggests a common root cause (e.g., lockfile drift, provider outage, infrastructure change) rather than isolated workflow failures.`,
+      ``,
+      `### Affected Workflows`,
+      ``,
+      affectedList || `_(none indexed yet — search indexing may lag)_`,
+      ``,
+      `### What to Do`,
+      ``,
+      `1. Identify the common root cause (check recent infra changes, provider status, lockfile drift).`,
+      `2. Once the root cause is resolved, batch-close the \`${CASCADE_LABEL}\`-labeled issues.`,
+      `3. Close this rollup issue when the cascade is resolved.`,
+      ``,
+      `### Labels`,
+      ``,
+      `Each individual failure issue in the cascade window has been labeled \`${CASCADE_LABEL}\` so you can filter and batch-close them once the root cause is patched.`,
+    ].join("\n");
+
+    // Create or update the cascade rollup issue
+    const existing = await findExistingCascadeRollupIssue(owner, repo);
+    if (existing) {
+      await github.rest.issues.update({
+        owner,
+        repo,
+        issue_number: existing.number,
+        body: rollupBody,
+      });
+      core.info(`✓ Updated cascade rollup issue #${existing.number}: ${existing.html_url}`);
+    } else {
+      const newRollup = await github.rest.issues.create({
+        owner,
+        repo,
+        title: CASCADE_ROLLUP_TITLE,
+        body: rollupBody,
+        labels: ["agentic-workflows", CASCADE_ROLLUP_LABEL],
+      });
+      core.info(`✓ Created cascade rollup issue #${newRollup.data.number}: ${newRollup.data.html_url}`);
+    }
+
+    // Add cascade-suspected label to every issue in the window
+    for (const number of issueNumbers) {
+      try {
+        await github.rest.issues.addLabels({
+          owner,
+          repo,
+          issue_number: number,
+          labels: [CASCADE_LABEL],
+        });
+        core.info(`✓ Labeled issue #${number} with "${CASCADE_LABEL}"`);
+      } catch (labelErr) {
+        core.warning(`Could not label issue #${number} with "${CASCADE_LABEL}": ${getErrorMessage(labelErr)}`);
+      }
+    }
+  } catch (err) {
+    core.warning(`Cascade detection failed (non-fatal): ${getErrorMessage(err)}`);
   }
 }
 
@@ -2146,6 +2430,9 @@ async function main() {
         });
 
         core.info(`✓ Added comment to existing issue #${existingIssue.number}`);
+
+        // Cascade detection: check for storm of failures within the window
+        await detectAndHandleFailureCascade(owner, repo, existingIssue.number);
       } else {
         // No existing issue, create a new one
         core.info("No existing issue found, creating a new one");
@@ -2343,6 +2630,9 @@ async function main() {
             // Continue even if linking fails
           }
         }
+
+        // Cascade detection: check for storm of failures within the window
+        await detectAndHandleFailureCascade(owner, repo, newIssue.data.number);
       }
     } catch (error) {
       core.warning(`Failed to create or update failure tracking issue: ${getErrorMessage(error)}`);
@@ -2372,10 +2662,22 @@ module.exports = {
   buildPermissionDeniedContext,
   buildCredentialAuthErrorContext,
   buildEffectiveTokensRateLimitErrorContext,
+  hasEngineRateLimit429Signal,
+  hasEngineRateLimit429InOTELMirror,
+  buildEngineRateLimit429Context,
   readTokenUsageMarkdown,
   parseFirewallAuthErrors,
   parseMaxEffectiveTokensFromAuditLog,
   parseEffectiveTokensErrorInfoFromAuditLog,
   getActionFailureIssueExpiresHours,
   hasAgentTerminalReasonCompleted,
+  detectAndHandleFailureCascade,
+  findRecentFailureIssues,
+  CASCADE_WINDOW_MINUTES,
+  CASCADE_WINDOW_MS,
+  CASCADE_THRESHOLD,
+  CASCADE_LABEL,
+  CASCADE_ROLLUP_LABEL,
+  CASCADE_ROLLUP_TITLE,
+  FAILURE_TITLE_PATTERN,
 };

@@ -428,14 +428,14 @@ Test whether compilation correctly detects changes:
 
 ```bash
 # Record current state
-ls -la .github/workflows/*.lock.yml > /tmp/before.txt
+ls -la .github/workflows/*.lock.yml > /tmp/gh-aw/agent/before.txt
 
 # Compile again without changes
 # Use the "compile" tool to recompile all workflows
 
 # Check if lock files changed
-ls -la .github/workflows/*.lock.yml > /tmp/after.txt
-diff /tmp/before.txt /tmp/after.txt
+ls -la .github/workflows/*.lock.yml > /tmp/gh-aw/agent/after.txt
+diff /tmp/gh-aw/agent/before.txt /tmp/gh-aw/agent/after.txt
 ```
 
 **Expected**: Lock files should not change if markdown source hasn't changed
@@ -538,7 +538,7 @@ Monitor resource consumption during testing:
 
 ```bash
 # Check disk usage
-df -h /tmp/gh-aw/
+df -h /tmp/gh-aw/agent/
 
 # Count log files downloaded
 find /tmp/gh-aw/aw-mcp/logs/ -type f | wc -l

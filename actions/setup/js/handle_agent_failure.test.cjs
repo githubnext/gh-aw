@@ -1124,6 +1124,7 @@ describe("handle_agent_failure", () => {
       vi.resetModules();
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-"));
       stdioLogPath = path.join(tmpDir, "agent-stdio.log");
+      process.env.GH_AW_OTEL_JSONL_PATH = path.join(tmpDir, "otel.jsonl");
       promptsDir = path.join(tmpDir, "gh-aw", "prompts");
       fs.mkdirSync(promptsDir, { recursive: true });
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
@@ -1134,6 +1135,7 @@ describe("handle_agent_failure", () => {
     afterEach(() => {
       delete process.env.GH_AW_AGENT_OUTPUT;
       delete process.env.GH_AW_ENGINE_ID;
+      delete process.env.GH_AW_OTEL_JSONL_PATH;
       delete process.env.RUNNER_TEMP;
       // Clean up temp dir
       if (fs.existsSync(tmpDir)) {
@@ -1164,11 +1166,64 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("Error details:");
     });
 
+    it("returns dedicated context for engine 429/rate-limit failures in stdio logs", () => {
+      fs.writeFileSync(stdioLogPath, "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 429 Sorry, you've exceeded your rate limit for utility models.\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Rate Limited (HTTP 429)");
+      expect(result).toContain("OTLP telemetry");
+      expect(result).not.toContain("Last agent output");
+    });
+
+    it("returns dedicated context when 429/rate-limit is only present in OTLP mirror", () => {
+      fs.writeFileSync(stdioLogPath, "Agent terminated unexpectedly without clear error details\n");
+      fs.writeFileSync(
+        process.env.GH_AW_OTEL_JSONL_PATH,
+        JSON.stringify({
+          resourceSpans: [
+            {
+              scopeSpans: [
+                {
+                  spans: [
+                    {
+                      name: "gh-aw.agent.conclusion",
+                      status: { code: 2, message: "agent failure: CAPIError: 429 Too Many Requests" },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }) + "\n"
+      );
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Rate Limited (HTTP 429)");
+      expect(result).toContain("OTLP telemetry");
+      expect(result).not.toContain("Last agent output");
+    });
+
     it("detects Error: prefix pattern (Node.js style)", () => {
       fs.writeFileSync(stdioLogPath, "Error: connect ECONNREFUSED 127.0.0.1:8080\n");
       const result = buildEngineFailureContext();
       expect(result).toContain("Engine Failure");
       expect(result).toContain("connect ECONNREFUSED 127.0.0.1:8080");
+    });
+
+    it("extracts AWF startup errors from dependency lines and container startup failures", () => {
+      const lines = [
+        " Container awf-squid  Error",
+        "dependency failed to start: container awf-squid is unhealthy",
+        "[ERROR] Failed to start containers: Error: Command failed with exit code 1: docker compose up -d --pull never",
+        "  stdout: undefined,",
+        "  stderr: undefined,",
+      ];
+      fs.writeFileSync(stdioLogPath, lines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("dependency failed to start: container awf-squid is unhealthy");
+      expect(result).toContain("Failed to start containers: Error: Command failed with exit code 1: docker compose up -d --pull never");
+      expect(result).not.toContain("Last agent output");
+      expect(result).not.toContain("stdout: undefined");
+      expect(result).not.toContain("stderr: undefined");
     });
 
     it("detects Fatal: prefix pattern", () => {
@@ -1251,6 +1306,7 @@ describe("handle_agent_failure", () => {
         "[SUCCESS] Containers stopped successfully",
         "[INFO] Agent session state preserved at: /tmp/awf-agent-session-state-abc123",
         "[INFO] API proxy logs available at: /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs",
+        "[ERROR] Command completed with exit code: 1",
         "[WARN] Command completed with exit code: 1",
         "Process exiting with code: 1",
       ];
@@ -1263,6 +1319,7 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Last agent output");
       expect(result).not.toContain("awf-squid");
       expect(result).not.toContain("Command completed with exit code");
+      expect(result).not.toContain("[ERROR]");
       expect(result).not.toContain("Process exiting with code");
     });
 
@@ -2723,6 +2780,321 @@ describe("handle_agent_failure", () => {
 
       const result = buildCredentialAuthErrorContext();
       expect(result).toContain("OpenAI");
+    });
+  });
+
+  describe("detectAndHandleFailureCascade", () => {
+    let detectAndHandleFailureCascade;
+    let findRecentFailureIssues;
+    let CASCADE_THRESHOLD;
+    let CASCADE_LABEL;
+    let CASCADE_ROLLUP_LABEL;
+    let CASCADE_ROLLUP_TITLE;
+    let CASCADE_WINDOW_MINUTES;
+
+    /**
+     * Build a list of N fake `[aw] * failed` items starting at issue number `startNum`.
+     * @param {number} count
+     * @param {number} [startNum=100]
+     */
+    function makeFailureItems(count, startNum = 100) {
+      return Array.from({ length: count }, (_, i) => ({
+        number: startNum + i,
+        title: `[aw] Workflow ${i} failed`,
+        html_url: `https://github.com/owner/repo/issues/${startNum + i}`,
+        created_at: new Date().toISOString(),
+      }));
+    }
+
+    beforeEach(() => {
+      vi.resetModules();
+      ({ detectAndHandleFailureCascade, findRecentFailureIssues, CASCADE_THRESHOLD, CASCADE_LABEL, CASCADE_ROLLUP_LABEL, CASCADE_ROLLUP_TITLE, CASCADE_WINDOW_MINUTES } = require("./handle_agent_failure.cjs"));
+    });
+
+    it("exports cascade constants with expected values", () => {
+      expect(CASCADE_THRESHOLD).toBe(10);
+      expect(CASCADE_WINDOW_MINUTES).toBe(60);
+      expect(CASCADE_LABEL).toBe("cascade-suspected");
+      expect(CASCADE_ROLLUP_LABEL).toBe("cascade-rollup");
+      expect(CASCADE_ROLLUP_TITLE).toBe("[aw] Failure cascade detected");
+    });
+
+    it("does nothing when fewer than CASCADE_THRESHOLD issues are in the window", async () => {
+      const createIssueMock = vi.fn();
+      const addLabelsMock = vi.fn();
+      const searchMock = vi.fn(async ({ q }) => {
+        if (q.includes("cascade-rollup")) return { data: { total_count: 0, items: [] } };
+        // Return 5 issues — below threshold
+        const items = makeFailureItems(5);
+        return { data: { total_count: items.length, items } };
+      });
+
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: searchMock },
+          issues: {
+            getLabel: vi.fn().mockResolvedValue({ data: {} }),
+            create: createIssueMock,
+            update: vi.fn(),
+            addLabels: addLabelsMock,
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      await detectAndHandleFailureCascade("owner", "repo", 999);
+
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(addLabelsMock).not.toHaveBeenCalled();
+    });
+
+    it("creates a rollup issue and labels individual issues when CASCADE_THRESHOLD is met", async () => {
+      const createIssueMock = vi.fn().mockResolvedValue({
+        data: { number: 200, html_url: "https://github.com/owner/repo/issues/200", node_id: "I_200" },
+      });
+      const addLabelsMock = vi.fn().mockResolvedValue({});
+      const getLabelMock = vi.fn().mockResolvedValue({ data: {} });
+
+      const recentItems = makeFailureItems(10);
+
+      const searchMock = vi.fn(async ({ q }) => {
+        if (q.includes("cascade-rollup")) return { data: { total_count: 0, items: [] } };
+        return { data: { total_count: recentItems.length, items: recentItems } };
+      });
+
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: searchMock },
+          issues: {
+            getLabel: getLabelMock,
+            create: createIssueMock,
+            update: vi.fn(),
+            addLabels: addLabelsMock,
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      // triggeringIssueNumber is already in recentItems (100)
+      await detectAndHandleFailureCascade("owner", "repo", 100);
+
+      // Rollup issue created
+      expect(createIssueMock).toHaveBeenCalledOnce();
+      const createCall = createIssueMock.mock.calls[0][0];
+      expect(createCall.title).toBe(CASCADE_ROLLUP_TITLE);
+      expect(createCall.labels).toContain(CASCADE_ROLLUP_LABEL);
+      expect(createCall.labels).toContain("agentic-workflows");
+
+      // All 10 issues labeled
+      expect(addLabelsMock).toHaveBeenCalledTimes(10);
+      for (const call of addLabelsMock.mock.calls) {
+        expect(call[0].labels).toContain(CASCADE_LABEL);
+      }
+    });
+
+    it("triggers cascade when triggering issue is not in search results (search indexing lag)", async () => {
+      const createIssueMock = vi.fn().mockResolvedValue({
+        data: { number: 201, html_url: "https://github.com/owner/repo/issues/201", node_id: "I_201" },
+      });
+      const addLabelsMock = vi.fn().mockResolvedValue({});
+
+      // Search returns only 9 issues (not the triggering one — simulating indexing lag)
+      const recentItems = makeFailureItems(9);
+
+      const searchMock = vi.fn(async ({ q }) => {
+        if (q.includes("cascade-rollup")) return { data: { total_count: 0, items: [] } };
+        return { data: { total_count: recentItems.length, items: recentItems } };
+      });
+
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: searchMock },
+          issues: {
+            getLabel: vi.fn().mockResolvedValue({ data: {} }),
+            create: createIssueMock,
+            update: vi.fn(),
+            addLabels: addLabelsMock,
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      // Triggering issue (109) is NOT in recentItems — total becomes 10 once merged
+      await detectAndHandleFailureCascade("owner", "repo", 109);
+
+      expect(createIssueMock).toHaveBeenCalledOnce();
+      // 9 from search + 1 triggering issue = 10 addLabels calls
+      expect(addLabelsMock).toHaveBeenCalledTimes(10);
+    });
+
+    it("updates existing rollup issue instead of creating a new one", async () => {
+      const createIssueMock = vi.fn();
+      const updateIssueMock = vi.fn().mockResolvedValue({});
+      const addLabelsMock = vi.fn().mockResolvedValue({});
+
+      const recentItems = makeFailureItems(10);
+
+      const searchMock = vi.fn(async ({ q }) => {
+        if (q.includes("cascade-rollup")) {
+          return {
+            data: {
+              total_count: 1,
+              items: [{ number: 50, html_url: "https://github.com/owner/repo/issues/50" }],
+            },
+          };
+        }
+        return { data: { total_count: recentItems.length, items: recentItems } };
+      });
+
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: searchMock },
+          issues: {
+            getLabel: vi.fn().mockResolvedValue({ data: {} }),
+            create: createIssueMock,
+            update: updateIssueMock,
+            addLabels: addLabelsMock,
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      await detectAndHandleFailureCascade("owner", "repo", 100);
+
+      // Should update, not create
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(updateIssueMock).toHaveBeenCalledOnce();
+      expect(updateIssueMock.mock.calls[0][0].issue_number).toBe(50);
+    });
+
+    it("creates cascade-suspected label when it does not exist (404)", async () => {
+      const createLabelMock = vi.fn().mockResolvedValue({});
+      const createIssueMock = vi.fn().mockResolvedValue({
+        data: { number: 202, html_url: "https://github.com/owner/repo/issues/202", node_id: "I_202" },
+      });
+      const addLabelsMock = vi.fn().mockResolvedValue({});
+
+      const recentItems = makeFailureItems(10);
+
+      const searchMock = vi.fn(async ({ q }) => {
+        if (q.includes("cascade-rollup")) return { data: { total_count: 0, items: [] } };
+        return { data: { total_count: recentItems.length, items: recentItems } };
+      });
+
+      const getLabelMock = vi.fn().mockRejectedValue(Object.assign(new Error("Not Found"), { status: 404 }));
+
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: searchMock },
+          issues: {
+            getLabel: getLabelMock,
+            createLabel: createLabelMock,
+            create: createIssueMock,
+            update: vi.fn(),
+            addLabels: addLabelsMock,
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      await detectAndHandleFailureCascade("owner", "repo", 100);
+
+      // Both cascade-suspected and cascade-rollup labels should be created
+      expect(createLabelMock).toHaveBeenCalledTimes(2);
+      const createdNames = createLabelMock.mock.calls.map(c => c[0].name);
+      expect(createdNames).toContain(CASCADE_LABEL);
+      expect(createdNames).toContain(CASCADE_ROLLUP_LABEL);
+    });
+
+    it("rollup body includes affected workflow list", async () => {
+      let capturedBody = "";
+      const createIssueMock = vi.fn(async ({ body }) => {
+        capturedBody = body;
+        return { data: { number: 203, html_url: "https://github.com/owner/repo/issues/203", node_id: "I_203" } };
+      });
+
+      const recentItems = makeFailureItems(10);
+
+      const searchMock = vi.fn(async ({ q }) => {
+        if (q.includes("cascade-rollup")) return { data: { total_count: 0, items: [] } };
+        return { data: { total_count: recentItems.length, items: recentItems } };
+      });
+
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: searchMock },
+          issues: {
+            getLabel: vi.fn().mockResolvedValue({ data: {} }),
+            create: createIssueMock,
+            update: vi.fn(),
+            addLabels: vi.fn().mockResolvedValue({}),
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      await detectAndHandleFailureCascade("owner", "repo", 100);
+
+      expect(capturedBody).toContain("⚠️ Failure Cascade Detected");
+      expect(capturedBody).toContain("cascade-suspected");
+      expect(capturedBody).toContain("#100");
+      expect(capturedBody).toContain("[aw] Workflow 0 failed");
+    });
+
+    it("filters out non-[aw] failed issues from findRecentFailureIssues", async () => {
+      const mixedItems = [
+        {
+          number: 1,
+          title: "[aw] My Workflow failed",
+          html_url: "https://github.com/owner/repo/issues/1",
+          created_at: new Date().toISOString(),
+        },
+        {
+          number: 2,
+          title: "Some other issue title",
+          html_url: "https://github.com/owner/repo/issues/2",
+          created_at: new Date().toISOString(),
+        },
+        {
+          number: 3,
+          title: "[aw] Another Workflow failed",
+          html_url: "https://github.com/owner/repo/issues/3",
+          created_at: new Date().toISOString(),
+        },
+      ];
+
+      const searchMock = vi.fn().mockResolvedValue({ data: { total_count: mixedItems.length, items: mixedItems } });
+
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: searchMock },
+          issues: { getLabel: vi.fn(), addLabels: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      const result = await findRecentFailureIssues("owner", "repo");
+      expect(result).toHaveLength(2);
+      expect(result.map(i => i.number)).toEqual([1, 3]);
+    });
+
+    it("is non-fatal: handles search API errors gracefully", async () => {
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockRejectedValue(new Error("API rate limit exceeded")),
+          },
+          issues: {
+            getLabel: vi.fn(),
+            create: vi.fn(),
+            addLabels: vi.fn(),
+          },
+        },
+        graphql: vi.fn(),
+      };
+
+      // Should not throw
+      await expect(detectAndHandleFailureCascade("owner", "repo", 999)).resolves.toBeUndefined();
     });
   });
 });

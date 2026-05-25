@@ -190,6 +190,10 @@ func TestApplySandboxDefaults(t *testing.T) {
 	}
 }
 
+func TestDefaultAgentWorkspaceWritePath(t *testing.T) {
+	assert.Equal(t, "/tmp/gh-aw/agent", defaultAgentWorkspaceWritePath)
+}
+
 func TestWorkflowHashWithSandbox(t *testing.T) {
 	// Test that sandbox config is included in workflow hash
 	tmpDir := t.TempDir()

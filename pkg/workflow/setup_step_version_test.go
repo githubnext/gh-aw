@@ -141,6 +141,91 @@ func TestGenerateSetupStepIncludesVersion(t *testing.T) {
 	}
 }
 
+func TestGenerateSetupStepIncludesAWFVersion(t *testing.T) {
+	tests := []struct {
+		name            string
+		data            *WorkflowData
+		expectedVersion string
+		expectNoAWFLine bool
+	}{
+		{
+			name: "firewall enabled with explicit version",
+			data: &WorkflowData{
+				Name: "my-workflow",
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: "v1.2.3-awf",
+					},
+				},
+			},
+			expectedVersion: "v1.2.3-awf",
+		},
+		{
+			name: "firewall enabled with default version",
+			data: &WorkflowData{
+				Name: "my-workflow",
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+					},
+				},
+			},
+			expectedVersion: string(constants.DefaultFirewallVersion),
+		},
+		{
+			name: "sandbox agent version overrides firewall version",
+			data: &WorkflowData{
+				Name: "my-workflow",
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+					},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type:    SandboxTypeAWF,
+						Version: "v9.9.9-awf",
+					},
+				},
+			},
+			expectedVersion: "v9.9.9-awf",
+		},
+		{
+			name: "firewall disabled does not inject GH_AW_INFO_AWF_VERSION",
+			data: &WorkflowData{
+				Name: "my-workflow",
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: false,
+					},
+				},
+			},
+			expectNoAWFLine: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewCompiler()
+			lines := c.generateSetupStep(tt.data, "github/gh-aw/actions/setup@abc123", "${{ runner.temp }}/gh-aw", false, "", "")
+			combined := strings.Join(lines, "")
+
+			if tt.expectNoAWFLine {
+				if strings.Contains(combined, "GH_AW_INFO_AWF_VERSION") {
+					t.Errorf("expected no GH_AW_INFO_AWF_VERSION in setup step, but found it:\n%s", combined)
+				}
+				return
+			}
+
+			expectedLine := `GH_AW_INFO_AWF_VERSION: "` + tt.expectedVersion + `"`
+			if !strings.Contains(combined, expectedLine) {
+				t.Errorf("expected setup step to contain %q, got:\n%s", expectedLine, combined)
+			}
+		})
+	}
+}
+
 func TestGenerateSetupStepIncludesParentSpanID(t *testing.T) {
 	c := NewCompiler()
 	data := &WorkflowData{Name: "my-workflow"}

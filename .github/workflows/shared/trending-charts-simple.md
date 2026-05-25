@@ -23,11 +23,11 @@ steps:
     run: |
       mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
       # Create a virtual environment for proper package isolation (avoids --break-system-packages)
-      if [ ! -d /tmp/gh-aw/venv ]; then
-        python3 -m venv /tmp/gh-aw/venv
+      if [ ! -d /tmp/gh-aw/agent/venv ]; then
+        python3 -m venv /tmp/gh-aw/agent/venv
       fi
-      echo "/tmp/gh-aw/venv/bin" >> "$GITHUB_PATH"
-      /tmp/gh-aw/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
+      echo "/tmp/gh-aw/agent/venv/bin" >> "$GITHUB_PATH"
+      /tmp/gh-aw/agent/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
 
   - name: Upload source files and data
     if: always()

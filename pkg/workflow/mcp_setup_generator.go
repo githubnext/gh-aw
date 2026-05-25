@@ -266,8 +266,8 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	hasEnvVars := len(configSecrets) > 0 || len(configContextVars) > 0 || len(configWorkflowInputs) > 0
 	if hasEnvVars {
 		yaml.WriteString("        env:\n")
-		envKeys := make([]string, 0, len(configSecrets)+len(configContextVars)+len(configWorkflowInputs))
-		envValues := make(map[string]string, len(configSecrets)+len(configContextVars)+len(configWorkflowInputs))
+		envKeys := make([]string, 0, safeAllocationCapacity(len(configSecrets), len(configContextVars), len(configWorkflowInputs)))
+		envValues := make(map[string]string, safeAllocationCapacity(len(configSecrets), len(configContextVars), len(configWorkflowInputs)))
 		// addEnvValue deduplicates envKeys while allowing later sources to override
 		// the value in envValues for duplicate keys.
 		addEnvValue := func(key, value string) {

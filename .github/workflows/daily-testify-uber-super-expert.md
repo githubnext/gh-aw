@@ -97,7 +97,7 @@ Find all Go test files and select one that hasn't been processed in the last 30 
 
 ```bash
 # Get all test files
-find . -name '*_test.go' -type f > /tmp/all_test_files.txt
+find . -name '*_test.go' -type f > /tmp/gh-aw/agent/all_test_files.txt
 
 # Filter out recently processed files (last 30 days)
 CUTOFF_DATE=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
@@ -105,17 +105,17 @@ CUTOFF_DATE=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-
 # Create list of candidate files (not processed or processed >30 days ago)
 while IFS='|' read -r filepath timestamp; do
   if [[ "$timestamp" < "$CUTOFF_DATE" ]]; then
-    echo "$filepath" >> /tmp/candidate_files.txt
+    echo "$filepath" >> /tmp/gh-aw/agent/candidate_files.txt
   fi
 done < "$CACHE_FILE" 2>/dev/null || true
 
 # If no cache or all files old, use all test files
-if [ ! -f /tmp/candidate_files.txt ]; then
-  cp /tmp/all_test_files.txt /tmp/candidate_files.txt
+if [ ! -f /tmp/gh-aw/agent/candidate_files.txt ]; then
+  cp /tmp/gh-aw/agent/all_test_files.txt /tmp/gh-aw/agent/candidate_files.txt
 fi
 
 # Select a random file from candidates
-TARGET_FILE=$(shuf -n 1 /tmp/candidate_files.txt)
+TARGET_FILE=$(shuf -n 1 /tmp/gh-aw/agent/candidate_files.txt)
 echo "Selected file: $TARGET_FILE"
 ```
 

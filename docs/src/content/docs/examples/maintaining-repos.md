@@ -1,6 +1,6 @@
 ---
-title: Maintaining Repos with Agentic Workflows
-description: How to use repo-assist, safe-outputs, and integrity filtering to manage an open-source repository at scale — controlling what agents can do, filtering untrusted input, and debugging failures.
+title: 'Example: Automated Repository Maintenance'
+description: How to use repo-assist, safe-outputs, and integrity filtering to manage open-source repositories at scale — controlling what agents can do, filtering untrusted input, and debugging failures.
 sidebar:
   order: 20
 ---
@@ -11,6 +11,10 @@ Open-source maintainers face a unique challenge when running agentic workflows: 
 - **Integrity filtering** — The primary mechanism for controlling *what content the agent sees*. Content from untrusted authors is filtered from the agent's context before the run starts.
 
 Together they form a defense-in-depth model: integrity filtering keeps untrusted content out of the agent's context, and safe-outputs ensure the agent can only produce authorized side-effects. This guide shows how to use [🌈 Repo Assist](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md) as the primary entry point for managing incoming work, and how to configure both mechanisms so your repository scales safely.
+
+:::note[Real-world impact]
+A [study of 15 open-source repositories](https://github.com/githubnext/repo-assist-impact/blob/main/report.md) found this approach achieved a **9× median increase** in issue closure and PR merge velocity, reducing open issue counts in every repository. Projects that were largely dormant became actively maintained, with several reaching near-complete backlog clearance. Results hold across languages and project types.
+:::
 
 ## Repo Assist as Your Triage Layer
 
@@ -102,7 +106,7 @@ user-rate-limit:
   window: 60
 ```
 
-See [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) for full options.
+Match your production rate to your available review bandwidth. In practice, maintainers who found the default cadence too high reduced frequency rather than disabling automation entirely — keeping the value while avoiding notification pressure. See [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) for full options.
 
 ### Pre-Activation Association Skips
 

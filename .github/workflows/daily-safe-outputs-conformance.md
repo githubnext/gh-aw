@@ -64,7 +64,7 @@ Execute the conformance checker script and capture its output:
 
 ```bash
 cd /home/runner/work/gh-aw/gh-aw
-bash scripts/check-safe-outputs-conformance.sh 2>&1 | tee /tmp/conformance-results.txt
+bash scripts/check-safe-outputs-conformance.sh 2>&1 | tee /tmp/gh-aw/agent/conformance-results.txt
 exit_code=${PIPESTATUS[0]}
 echo "Exit code: $exit_code"
 ```
@@ -76,13 +76,13 @@ echo "Exit code: $exit_code"
 
 ## Phase 2: Parse and Analyze Results
 
-Analyze the output from `/tmp/conformance-results.txt`:
+Analyze the output from `/tmp/gh-aw/agent/conformance-results.txt`:
 
 1. **Extract failure counts** from the summary section:
-   - Critical Failures: `grep "Critical Failures:" /tmp/conformance-results.txt`
-   - High Failures: `grep "High Failures:" /tmp/conformance-results.txt`
-   - Medium Failures: `grep "Medium Failures:" /tmp/conformance-results.txt`
-   - Low Failures: `grep "Low Failures:" /tmp/conformance-results.txt`
+   - Critical Failures: `grep "Critical Failures:" /tmp/gh-aw/agent/conformance-results.txt`
+   - High Failures: `grep "High Failures:" /tmp/gh-aw/agent/conformance-results.txt`
+   - Medium Failures: `grep "Medium Failures:" /tmp/gh-aw/agent/conformance-results.txt`
+   - Low Failures: `grep "Low Failures:" /tmp/gh-aw/agent/conformance-results.txt`
 
 2. **Extract specific check failures** by parsing lines that start with:
    - `[CRITICAL]` - Security violations requiring immediate attention

@@ -320,6 +320,99 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.True(t, strings.HasPrefix(wd.Env, "env:"), "Env should start with 'env:'")
 	})
 
+	t.Run("injects OTEL_RESOURCE_ATTRIBUTES with gh-aw context and engine id", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			AI: "copilot",
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com:4317"},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		assert.Contains(
+			t,
+			wd.Env,
+			"OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=unknown,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=copilot'",
+		)
+	})
+
+	t.Run("injects OTEL_RESOURCE_ATTRIBUTES without engine id when unavailable", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com:4317"},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		assert.Contains(
+			t,
+			wd.Env,
+			"OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=unknown,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }}'",
+		)
+		assert.NotContains(t, wd.Env, "gh-aw.engine.id=")
+	})
+
+	t.Run("escapes OTEL_RESOURCE_ATTRIBUTES engine id value", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			AI: `copilot,eq=uals\slash`,
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com:4317"},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		assert.Contains(
+			t,
+			wd.Env,
+			`gh-aw.engine.id=copilot\,eq\=uals\\slash`,
+		)
+	})
+
+	t.Run("escapes OTEL_RESOURCE_ATTRIBUTES workflow name value", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			Name: "triage,weekly=run\\v2",
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com:4317"},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		assert.Contains(t, wd.Env, `gh-aw.workflow.name=triage\,weekly\=run\\v2`)
+	})
+
+	t.Run("escapes single quotes in OTEL_RESOURCE_ATTRIBUTES YAML scalar", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			Name: "owner's workflow",
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com:4317"},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		assert.Contains(t, wd.Env, "OTEL_RESOURCE_ATTRIBUTES:", "resource attributes should be injected")
+		assert.Contains(
+			t,
+			wd.Env,
+			"OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=owner''s workflow,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }}'",
+			"resource attributes should remain fully single-quoted with embedded single quotes escaped",
+		)
+	})
+
 	t.Run("appends domain to existing NetworkPermissions.Allowed", func(t *testing.T) {
 		c := newCompiler()
 		wd := &WorkflowData{

@@ -100,6 +100,85 @@ func TestRunMonteCarloNilOnEmpty(t *testing.T) {
 	assert.Nil(t, runMonteCarlo([]int{100, 200}, 2, -1.0, rng), "negative lambda")
 }
 
+// TestRunMonteCarloNonFiniteLambda verifies that runMonteCarlo returns nil for
+// non-finite λ inputs (NaN and +Inf) without hanging or panicking.
+// Specification reference: R-MC-001 requires graceful handling of degenerate λ values.
+func TestRunMonteCarloNonFiniteLambda(t *testing.T) {
+	obs := []int{1000, 2000, 3000}
+
+	tests := []struct {
+		name   string
+		lambda float64
+	}{
+		{"NaN lambda", math.NaN()},
+		{"+Inf lambda", math.Inf(1)},
+		{"-Inf lambda", math.Inf(-1)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rng := deterministicRNG()
+			result := runMonteCarlo(obs, len(obs), tt.lambda, rng)
+			assert.Nil(t, result, "non-finite λ=%v should return nil (zero-projection fallback)", tt.lambda)
+		})
+	}
+}
+
+// TestRunMonteCarloZeroLambdaFallback verifies the zero-projection fallback behaviour
+// (R-MC-001): when λ = 0 (observedRunsPerPeriod = 0), runMonteCarlo MUST return nil
+// rather than producing a summary with zero projections, signalling to the caller that
+// there are no runs to project.
+func TestRunMonteCarloZeroLambdaFallback(t *testing.T) {
+	tests := []struct {
+		name                  string
+		etObs                 []int
+		successCount          int
+		observedRunsPerPeriod float64
+		wantNil               bool
+	}{
+		{
+			name:                  "zero observedRunsPerPeriod returns nil",
+			etObs:                 []int{1000, 2000, 3000},
+			successCount:          3,
+			observedRunsPerPeriod: 0.0,
+			wantNil:               true,
+		},
+		{
+			name:                  "negative observedRunsPerPeriod returns nil",
+			etObs:                 []int{1000, 2000, 3000},
+			successCount:          3,
+			observedRunsPerPeriod: -0.001,
+			wantNil:               true,
+		},
+		{
+			name:                  "empty observations returns nil regardless of lambda",
+			etObs:                 []int{},
+			successCount:          0,
+			observedRunsPerPeriod: 5.0,
+			wantNil:               true,
+		},
+		{
+			name:                  "positive lambda with observations returns non-nil",
+			etObs:                 []int{1000, 2000, 3000},
+			successCount:          3,
+			observedRunsPerPeriod: 1.0,
+			wantNil:               false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rng := deterministicRNG()
+			result := runMonteCarlo(tt.etObs, tt.successCount, tt.observedRunsPerPeriod, rng)
+			if tt.wantNil {
+				assert.Nil(t, result, "expected nil for λ=%.4f with %d observations", tt.observedRunsPerPeriod, len(tt.etObs))
+			} else {
+				assert.NotNil(t, result, "expected non-nil for λ=%.4f with %d observations", tt.observedRunsPerPeriod, len(tt.etObs))
+			}
+		})
+	}
+}
+
 // TestRunMonteCarloBasicProperties checks that the Monte Carlo summary satisfies
 // statistical invariants (P10 ≤ P50 ≤ P90, mean ≥ 0, stddev ≥ 0).
 func TestRunMonteCarloBasicProperties(t *testing.T) {

@@ -325,7 +325,7 @@ cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md
 
 ## Workflow
 
-{{#if experiments.prompt_style == "concise"}}
+{{#if experiments.prompt_style == 'concise'}}
 ### 1. Attribute Issues
 
 Read `attribution_by_author.json` (Tier 0–2, pre-grouped and pre-sorted — do not
@@ -350,7 +350,7 @@ Any candidate still unresolved after Tier 3 becomes a **Tier 4**
 are deferred to the next run — do not attempt to process them.
 {{#endif}}
 
-{{#if experiments.prompt_style == "concise"}}
+{{#if experiments.prompt_style == 'concise'}}
 ### 2. Update Wiki Page
 
 Read the existing wiki at `/tmp/gh-aw/repo-memory-default/Community-Contributors.md`
@@ -401,7 +401,7 @@ Write the updated content back to
 `/tmp/gh-aw/repo-memory-default/Community-Contributors.md` using the edit tool.
 {{#endif}}
 
-{{#if experiments.prompt_style == "concise"}}
+{{#if experiments.prompt_style == 'concise'}}
 ### 3. Build Community Section
 
 Start from `readme_community_section_tier012.md` (pre-formatted Tier 0-2 content).
@@ -455,7 +455,7 @@ linked to a specific merged PR. Please verify whether they should be credited:
 ```
 {{#endif}}
 
-{{#if experiments.prompt_style == "concise"}}
+{{#if experiments.prompt_style == 'concise'}}
 ### 4. Update README.md
 
 Replace `## 🌍 Community Contributions` in `README.md` with the new content
@@ -470,7 +470,7 @@ section if it does not yet exist.
 Use the edit tool to make the change in-place.
 {{#endif}}
 
-{{#if experiments.prompt_style == "concise"}}
+{{#if experiments.prompt_style == 'concise'}}
 ### 5. Open Pull Request
 
 If `README.md` or wiki changed: call `create_pull_request` with title
@@ -508,7 +508,7 @@ and the Community Contributors wiki page.
 ```
 {{#endif}}
 
-{{#if experiments.prompt_style == "concise"}}
+{{#if experiments.prompt_style == 'concise'}}
 ## Token Budget
 
 - Read each data file once only; use `cat` on pre-formatted files — no bash pipelines
@@ -531,7 +531,7 @@ This workflow uses the Copilot engine — max-turns is not available. Follow the
 - **Do not access any external URLs** — use only GitHub MCP `issue_read` for GitHub data; do not call `gh api` or any external HTTP endpoints directly
 {{#endif}}
 
-{{#if experiments.prompt_style == "concise"}}
+{{#if experiments.prompt_style == 'concise'}}
 ### 6. Report Failures
 
 On error: call `create_issue` safe-output tool with a brief title and body.

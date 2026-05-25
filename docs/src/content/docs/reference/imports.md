@@ -227,7 +227,7 @@ This form is required when workflows in different directories need to import the
 
 ### Cross-repo imports
 
-Paths matching `owner/repo/path@ref` are fetched from GitHub at compile time. The `@ref` suffix pins to a semantic tag (`@v1.0.0`), branch (`@main`), or commit SHA. Remote imports are cached in `.github/aw/imports/` by commit SHA, enabling offline compilation; local imports are never cached. See [Reusing Workflows](/gh-aw/guides/packaging-imports/) for installation and update flows.
+Paths matching `owner/repo/path@ref` are fetched from GitHub at compile time. The `@ref` suffix pins to a semantic tag (`@v1.0.0`), branch (`@main`), or commit SHA. Remote imports are cached in `.github/aw/imports/` by commit SHA, enabling offline compilation; local imports are never cached. See [Reusing Workflows](/gh-aw/guides/reusing-workflows/) for installation and update flows.
 
 ```aw wrap
 ---
@@ -540,7 +540,7 @@ gh aw compile my-workflow
 
 ## Related Documentation
 
-- [Packaging and Updating](/gh-aw/guides/packaging-imports/) - Complete guide to managing workflow imports
+- [Reusing Workflows](/gh-aw/guides/reusing-workflows/) - Adding and updating installed workflows with `gh aw add` and `gh aw update`
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options reference
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output configuration details

@@ -1,5 +1,5 @@
 ---
-title: Cross-Repository Issue Tracking
+title: 'Example: Cross-Repository Issue Tracking'
 description: Centralize issue tracking across multiple repositories with automated tracking issue creation and status synchronization.
 sidebar:
   badge: { text: 'Multi-Repo', variant: 'note' }

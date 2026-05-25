@@ -400,7 +400,7 @@ tools: ## Install build-time tools from tools.go
 .PHONY: install-golangci-lint
 install-golangci-lint:
 	@echo "Installing golangci-lint binary..."
-	@GOLANGCI_LINT_VERSION="v2.8.0"; \
+	@GOLANGCI_LINT_VERSION="v2.12.2"; \
 	GOPATH=$$(go env GOPATH); \
 	GOOS=$$(go env GOOS); \
 	GOARCH=$$(go env GOARCH); \

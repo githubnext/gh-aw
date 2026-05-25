@@ -467,19 +467,14 @@ func TestSpec_VersionConstants_DefaultPiVersion(t *testing.T) {
 
 // TestSpec_CopilotBYOK validates the documented Copilot BYOK constants.
 // Spec section: "### Copilot BYOK"
-//
-// SPEC_MISMATCH: README documents CopilotBYOKDefaultModel as "claude-sonnet-4.6"
-// but the implementation defines it as "claude-sonnet-4.5". The test below
-// validates only the non-empty contract; the exact value is intentionally not
-// asserted until the spec and implementation are reconciled.
 func TestSpec_CopilotBYOK(t *testing.T) {
 	// From spec: CopilotBYOKDummyAPIKey // "dummy-byok-key-for-offline-mode"
 	assert.Equal(t, "dummy-byok-key-for-offline-mode", constants.CopilotBYOKDummyAPIKey,
 		"CopilotBYOKDummyAPIKey should match the documented value")
 
-	// From spec: CopilotBYOKDefaultModel — exact value mismatched between README and code.
-	assert.NotEmpty(t, constants.CopilotBYOKDefaultModel,
-		"CopilotBYOKDefaultModel should be a non-empty fallback model name as documented")
+	// From spec: CopilotBYOKDefaultModel // "claude-sonnet-4.6"
+	assert.Equal(t, "claude-sonnet-4.6", constants.CopilotBYOKDefaultModel,
+		"CopilotBYOKDefaultModel should match the documented fallback model")
 }
 
 // TestSpec_RuntimeConfiguration_GhAwRootDir validates the documented runtime root directory

@@ -112,8 +112,7 @@ func TestSpec_PublicAPI_Printf(t *testing.T) {
 		})
 		assert.Contains(t, output, "spec:printf", "output should contain the namespace")
 		assert.Contains(t, output, "hello world", "output should contain the formatted message")
-		assert.True(t, strings.HasSuffix(strings.TrimRight(output, "\n"), output[:len(output)-1]) || strings.Contains(output, "+"),
-			"output should include time diff (+<duration>)")
+		assert.Contains(t, output, "+", "output should include time diff (+<duration>) per the spec format")
 	})
 
 	t.Run("Printf always adds a newline", func(t *testing.T) {

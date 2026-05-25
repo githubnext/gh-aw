@@ -276,3 +276,68 @@ func TestExtensionUpgradeArgs(t *testing.T) {
 	args := extensionUpgradeArgs()
 	assert.Equal(t, []string{"extension", "upgrade", "github/gh-aw", "--force"}, args, "upgrade command must force upgrades for pinned extensions")
 }
+
+func TestPrereleaseChannelNotice(t *testing.T) {
+	tests := []struct {
+		name               string
+		currentVersion     string
+		latestStable       string
+		includePrereleases bool
+		want               []string
+	}{
+		{
+			name:               "stable channel prerelease hint",
+			currentVersion:     "v0.75.3-beta.1",
+			latestStable:       "v0.74.8",
+			includePrereleases: false,
+			want: []string{
+				"Current gh-aw version v0.75.3-beta.1 (pre-release) is newer than the latest stable release v0.74.8.",
+				"Run `gh aw upgrade --pre-releases` to check for newer pre-releases.",
+			},
+		},
+		{
+			name:               "no hint when prereleases included",
+			currentVersion:     "v0.75.3-beta.1",
+			latestStable:       "v0.74.8",
+			includePrereleases: true,
+			want:               nil,
+		},
+		{
+			name:               "no hint for stable version",
+			currentVersion:     "v0.74.8",
+			latestStable:       "v0.74.8",
+			includePrereleases: false,
+			want:               nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, prereleaseChannelNotice(tt.currentVersion, tt.latestStable, tt.includePrereleases))
+		})
+	}
+}
+
+func TestExtensionHelpCommands(t *testing.T) {
+	assert.Equal(t,
+		"gh extension upgrade github/gh-aw --force",
+		extensionUpgradeHelpCommand("v0.74.8"),
+		"stable releases should use gh extension upgrade")
+	assert.Equal(t,
+		"gh extension install github/gh-aw --force --pin v0.75.3-beta.1",
+		extensionUpgradeHelpCommand("v0.75.3-beta.1"),
+		"pre-releases should use an exact pin")
+	assert.Equal(t,
+		"gh extension install github/gh-aw",
+		extensionInstallHelpCommand("v0.74.8"),
+		"stable reinstalls should use plain install")
+	assert.Equal(t,
+		"gh extension install github/gh-aw --force --pin v0.75.3-beta.1",
+		extensionInstallHelpCommand("v0.75.3-beta.1"),
+		"pre-release reinstalls should preserve the exact tag")
+}
+
+func TestRenderReleaseVersion(t *testing.T) {
+	assert.Equal(t, "v0.74.8", renderReleaseVersion("v0.74.8"))
+	assert.Equal(t, "v0.75.3-beta.1 (pre-release)", renderReleaseVersion("v0.75.3-beta.1"))
+}

@@ -106,6 +106,8 @@ func TestIsExemptFromCoolDown(t *testing.T) {
 }
 
 func TestCheckReleaseCoolDown(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		coolDown        time.Duration
@@ -145,22 +147,21 @@ func TestCheckReleaseCoolDown(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			orig := getReleasePublishedAtFn
-			defer func() { getReleasePublishedAtFn = orig }()
-
+			t.Parallel()
 			var published time.Time
+			deps := defaultCoolDownDeps()
 			if tt.fetchErr != nil {
-				getReleasePublishedAtFn = func(_ context.Context, _, _ string) (time.Time, error) {
+				deps.getReleasePublishedAt = func(_ context.Context, _, _ string) (time.Time, error) {
 					return time.Time{}, tt.fetchErr
 				}
 			} else if tt.coolDown > 0 {
 				published = time.Now().Add(-tt.publishedAgo)
-				getReleasePublishedAtFn = func(_ context.Context, _, _ string) (time.Time, error) {
+				deps.getReleasePublishedAt = func(_ context.Context, _, _ string) (time.Time, error) {
 					return published, nil
 				}
 			}
 
-			result := checkReleaseCoolDown(context.Background(), "owner/repo", "v1.2.0", tt.coolDown)
+			result := checkReleaseCoolDownWithDeps(context.Background(), deps, "owner/repo", "v1.2.0", tt.coolDown)
 			assert.Equal(t, tt.wantInCoolDown, result.InCoolDown, "InCoolDown mismatch for %q", tt.name)
 			if tt.wantPublishedAt {
 				assert.True(t, result.PublishedAt.Equal(published), "PublishedAt should match the fetched value for %q", tt.name)

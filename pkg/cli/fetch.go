@@ -172,6 +172,12 @@ func resolveCommitSHAWithRetries(ctx context.Context, owner, repo, ref, workflow
 
 		if !isTransientSHAResolutionError(err) {
 			retryCommand := fmt.Sprintf("gh aw add %s/%s/%s@<40-char-sha>", owner, repo, workflowPath)
+			if hostHint, ok := hostResolutionHintForNotFound(owner, repo, ref, workflowPath, host, err); ok {
+				return "", fmt.Errorf(
+					"failed to resolve '%s' to commit SHA for '%s/%s'. Expected the GitHub API to return a commit SHA for the ref. %s: %w",
+					ref, owner, repo, hostHint, err,
+				)
+			}
 			return "", fmt.Errorf(
 				"failed to resolve '%s' to commit SHA for '%s/%s'. Expected the GitHub API to return a commit SHA for the ref. Try: %s: %w",
 				ref, owner, repo, retryCommand, err,
@@ -200,6 +206,45 @@ func resolveCommitSHAWithRetries(ctx context.Context, owner, repo, ref, workflow
 		"failed to resolve '%s' to commit SHA after %d retries for '%s/%s'. Expected the GitHub API to return a commit SHA for the ref. Check rate limits or try: %s: %w",
 		ref, len(shaResolutionRetryDelays), owner, repo, retryCommand, lastErr,
 	)
+}
+
+// hostResolutionHintForNotFound returns a user-facing hint and whether it is applicable.
+// hasHint is true only for 404-style resolution failures on non-github.com hosts.
+func hostResolutionHintForNotFound(owner, repo, ref, workflowPath, explicitHost string, err error) (hint string, hasHint bool) {
+	if err == nil {
+		return "", false
+	}
+
+	errorText := strings.ToLower(err.Error())
+	if !strings.Contains(errorText, "http 404") && !strings.Contains(errorText, "status 404") {
+		return "", false
+	}
+
+	normalizedExplicitHost := normalizeHostForHint(explicitHost)
+	if normalizedExplicitHost != "" {
+		return "", false
+	}
+
+	resolvedHost := normalizeHostForHint(getGitHubHost())
+	if resolvedHost == "" || resolvedHost == "github.com" {
+		return "", false
+	}
+
+	trimmedPath := strings.TrimPrefix(workflowPath, "/")
+	fullURL := fmt.Sprintf("https://github.com/%s/%s/blob/%s/%s", owner, repo, ref, trimmedPath)
+	return fmt.Sprintf(
+		"Shorthand specs resolved on %s. Try using a full github.com source URL instead (for example: gh aw add %s)",
+		resolvedHost, fullURL,
+	), true
+}
+
+func normalizeHostForHint(host string) string {
+	host = strings.TrimSpace(strings.ToLower(host))
+	host = strings.TrimPrefix(strings.TrimPrefix(host, "https://"), "http://")
+	if idx := strings.Index(host, "/"); idx >= 0 {
+		host = host[:idx]
+	}
+	return strings.TrimSuffix(host, "/")
 }
 
 // sleepForSHAResolutionRetry waits for the retry delay or context cancellation.

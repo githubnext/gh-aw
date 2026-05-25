@@ -31,7 +31,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           set -euo pipefail
-          OUT="/tmp/gh-aw/model-inventory/openai"
+          OUT="/tmp/gh-aw/agent/model-inventory/openai"
           mkdir -p "$OUT"
           if [ -z "${OPENAI_API_KEY:-}" ]; then
             echo '{"provider":"openai","error":"OPENAI_API_KEY not set","models":[]}' > "$OUT/models.json"
@@ -65,8 +65,8 @@ jobs:
         with:
           name: openai-models
           path: |
-            /tmp/gh-aw/model-inventory/openai/models.json
-            /tmp/gh-aw/model-inventory/openai/raw.json
+            /tmp/gh-aw/agent/model-inventory/openai/models.json
+            /tmp/gh-aw/agent/model-inventory/openai/raw.json
           if-no-files-found: error
           retention-days: 7
 
@@ -83,7 +83,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set -euo pipefail
-          OUT="/tmp/gh-aw/model-inventory/anthropic"
+          OUT="/tmp/gh-aw/agent/model-inventory/anthropic"
           mkdir -p "$OUT"
           if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
             echo '{"provider":"anthropic","error":"ANTHROPIC_API_KEY not set","models":[]}' > "$OUT/models.json"
@@ -119,8 +119,8 @@ jobs:
         with:
           name: anthropic-models
           path: |
-            /tmp/gh-aw/model-inventory/anthropic/models.json
-            /tmp/gh-aw/model-inventory/anthropic/raw.json
+            /tmp/gh-aw/agent/model-inventory/anthropic/models.json
+            /tmp/gh-aw/agent/model-inventory/anthropic/raw.json
           if-no-files-found: error
           retention-days: 7
 
@@ -137,7 +137,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           set -euo pipefail
-          OUT="/tmp/gh-aw/model-inventory/gemini"
+          OUT="/tmp/gh-aw/agent/model-inventory/gemini"
           mkdir -p "$OUT"
           if [ -z "${GEMINI_API_KEY:-}" ]; then
             echo '{"provider":"gemini","error":"GEMINI_API_KEY not set","models":[]}' > "$OUT/models.json"
@@ -174,8 +174,8 @@ jobs:
         with:
           name: gemini-models
           path: |
-            /tmp/gh-aw/model-inventory/gemini/models.json
-            /tmp/gh-aw/model-inventory/gemini/raw.json
+            /tmp/gh-aw/agent/model-inventory/gemini/models.json
+            /tmp/gh-aw/agent/model-inventory/gemini/raw.json
           if-no-files-found: error
           retention-days: 7
 
@@ -190,7 +190,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          OUT="/tmp/gh-aw/model-inventory/copilot-billing"
+          OUT="/tmp/gh-aw/agent/model-inventory/copilot-billing"
           mkdir -p "$OUT"
           python3 - <<'PYEOF'
           import json, sys, urllib.request, html.parser
@@ -241,7 +241,7 @@ jobs:
                   html_content = resp.read().decode("utf-8", errors="replace")
           except Exception as e:
               result = {"source": URL, "error": str(e), "headers": [], "models": []}
-              with open("/tmp/gh-aw/model-inventory/copilot-billing/multipliers.json", "w") as f:
+              with open("/tmp/gh-aw/agent/model-inventory/copilot-billing/multipliers.json", "w") as f:
                   json.dump(result, f, indent=2)
               print(f"Error fetching page: {e}", file=sys.stderr)
               sys.exit(0)
@@ -257,7 +257,7 @@ jobs:
                       models.append(entry)
 
           result = {"source": URL, "headers": parser.headers, "models": models}
-          out_path = "/tmp/gh-aw/model-inventory/copilot-billing/multipliers.json"
+          out_path = "/tmp/gh-aw/agent/model-inventory/copilot-billing/multipliers.json"
           with open(out_path, "w") as f:
               json.dump(result, f, indent=2)
           print(f"Extracted {len(models)} model multiplier entries", file=sys.stderr)
@@ -269,7 +269,7 @@ jobs:
         uses: actions/upload-artifact@v7.0.1
         with:
           name: copilot-billing-multipliers
-          path: /tmp/gh-aw/model-inventory/copilot-billing/multipliers.json
+          path: /tmp/gh-aw/agent/model-inventory/copilot-billing/multipliers.json
           if-no-files-found: error
           retention-days: 7
 
@@ -277,13 +277,13 @@ steps:
   - name: Download all model artifacts
     uses: actions/download-artifact@v8.0.1
     with:
-      path: /tmp/gh-aw/model-inventory/artifacts
+      path: /tmp/gh-aw/agent/model-inventory/artifacts
 
   - name: Merge artifacts into combined inventory
     shell: bash
     run: |
-      INVENTORY="/tmp/gh-aw/model-inventory/inventory.json"
-      jq -s '.' /tmp/gh-aw/model-inventory/artifacts/*/models.json > "$INVENTORY"
+      INVENTORY="/tmp/gh-aw/agent/model-inventory/inventory.json"
+      jq -s '.' /tmp/gh-aw/agent/model-inventory/artifacts/*/models.json > "$INVENTORY"
       echo "Combined inventory written to $INVENTORY"
       cat "$INVENTORY"
 
@@ -321,10 +321,10 @@ updating.
 The pre-job steps have already fetched model lists from OpenAI, Anthropic, and Gemini, then merged
 them into:
 
-- Combined inventory: `/tmp/gh-aw/model-inventory/inventory.json`
-- Individual provider files: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/models.json`
-- Raw provider responses: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/raw.json`
-- Copilot live provider metadata: `/tmp/gh-aw/model-inventory/reflect.json` (generated in
+- Combined inventory: `/tmp/gh-aw/agent/model-inventory/inventory.json`
+- Individual provider files: `/tmp/gh-aw/agent/model-inventory/artifacts/<provider>-models/models.json`
+- Raw provider responses: `/tmp/gh-aw/agent/model-inventory/artifacts/<provider>-models/raw.json`
+- Copilot live provider metadata: `/tmp/gh-aw/agent/model-inventory/reflect.json` (generated in
   Step 0 below; filter `.endpoints[] | select(.provider == "copilot") | .models`). If the
   file contains an `error` field, treat Copilot data as unavailable for this run and
   continue with the remaining providers.
@@ -382,13 +382,13 @@ The alias pattern syntax is:
 
 Before loading the inventory, fetch Copilot model metadata from the AWF `api-proxy` `/reflect`
 endpoint from within this agent execution context and write it to:
-`/tmp/gh-aw/model-inventory/reflect.json`.
+`/tmp/gh-aw/agent/model-inventory/reflect.json`.
 
 Run:
 
 ```bash
 set -euo pipefail
-OUT="/tmp/gh-aw/model-inventory/reflect.json"
+OUT="/tmp/gh-aw/agent/model-inventory/reflect.json"
 mkdir -p "$(dirname "$OUT")"
 if ! curl -fsS http://api-proxy:10000/reflect > "$OUT"; then
   printf '%s' '{"endpoints":[],"error":"reflect endpoint unavailable"}' > "$OUT"
@@ -422,8 +422,8 @@ echo "Copilot reflect metadata written to $OUT"
 
 ### Step 1: Load and Validate the Inventory
 
-Read the combined inventory from `/tmp/gh-aw/model-inventory/inventory.json`. Then read
-the `/tmp/gh-aw/model-inventory/reflect.json` file from Step 0 and extract the configured
+Read the combined inventory from `/tmp/gh-aw/agent/model-inventory/inventory.json`. Then read
+the `/tmp/gh-aw/agent/model-inventory/reflect.json` file from Step 0 and extract the configured
 `copilot` endpoint (`.endpoints[] | select(.provider == "copilot" and .configured)`).
 
 List the providers that returned data and the count of models available from each, including
@@ -436,8 +436,8 @@ unavailable and continue.
 
 For each provider that returned data, examine the raw response to identify all available fields:
 
-- OpenAI / Anthropic / Gemini: `/tmp/gh-aw/model-inventory/artifacts/<provider>-models/raw.json`
-- Copilot: `/tmp/gh-aw/model-inventory/reflect.json` filtered to the `copilot` endpoint object
+- OpenAI / Anthropic / Gemini: `/tmp/gh-aw/agent/model-inventory/artifacts/<provider>-models/raw.json`
+- Copilot: `/tmp/gh-aw/agent/model-inventory/reflect.json` filtered to the `copilot` endpoint object
 
 Specifically look for:
 
@@ -459,7 +459,7 @@ Read the current built-in multiplier table from `pkg/cli/data/model_multipliers.
 The pre-job step has also fetched the **official GitHub Copilot billing multipliers** from the
 documentation page and stored them as:
 
-- `/tmp/gh-aw/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json`
+- `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-billing-multipliers/multipliers.json`
 
 This file contains the authoritative ET multipliers per model extracted from
 `https://docs.github.com/en/copilot/reference/copilot-billing/model-multipliers-for-annual-plans`,
@@ -472,7 +472,7 @@ failed or returned an empty model list, fall back to the heuristics below.
 For each provider's enriched data, attempt to infer or validate the ET multiplier for each model:
 
 1. **Copilot reflect data** — use the `copilot` endpoint's `models` list from
-   `/tmp/gh-aw/model-inventory/reflect.json` as the live model source, then match model
+   `/tmp/gh-aw/agent/model-inventory/reflect.json` as the live model source, then match model
    names/IDs against the official docs table first. If a match is found,
    use the `New multiplier` as the authoritative value. Compare against the matching entry in
    `model_multipliers.json`, and list discrepancies or missing models.
@@ -492,7 +492,8 @@ For each provider's enriched data, attempt to infer or validate the ET multiplie
 Produce a consolidated multiplier gap table listing:
 - Models present in the live inventory but **missing** from `model_multipliers.json` — include
   the provider name for each model (e.g. "openai", "anthropic", "gemini", "copilot")
-- Models in `model_multipliers.json` that are **no longer returned** by any API (stale)
+- Models in `model_multipliers.json` that are **not currently returned** by live APIs; keep these
+  in the payload as historical entries (do not propose automatic removals)
 - Models where the **inferred multiplier** differs from the stored one
 
 ### Step 4: Identify New or Updated Model Families
@@ -570,9 +571,11 @@ in the enriched `models.json` artifact (context limits, capabilities, billing fi
 |----------|----------|--------------------:|-------|
 | ...      | ...      | ...                 | ...   |
 
-#### Stale entries (no longer returned by any API)
+#### Historical entries not currently returned
 
 List model IDs that appear in `model_multipliers.json` but are absent from all live inventories.
+Treat these as historical records that should remain in the payload unless a human explicitly
+decides to delete them.
 
 #### Inferred vs stored discrepancies
 
@@ -596,7 +599,7 @@ List the complete sorted model IDs for each provider.
 
 ### Notes
 
-Any caveats, stale patterns removed, or aliases that are already well-covered.
+Any caveats, historical entries retained, or aliases that are already well-covered.
 ```
 
 If no updates are needed (all live models are already covered by existing aliases, all

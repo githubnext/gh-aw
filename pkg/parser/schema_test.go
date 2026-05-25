@@ -332,6 +332,52 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineHarnessPatte
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EnginePermissionMode(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id":              "claude",
+			"permission-mode": "auto",
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/engine-permission-mode-valid-test.md")
+	if err != nil {
+		t.Fatalf("expected valid engine.permission-mode to pass schema validation, got: %v", err)
+	}
+
+	invalidFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id":              "claude",
+			"permission-mode": "invalid-mode",
+		},
+	}
+
+	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/engine-permission-mode-invalid-test.md")
+	if err == nil {
+		t.Fatal("expected invalid engine.permission-mode to fail schema validation")
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_ToolsEditBoolean(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": "push",
+		"tools": map[string]any{
+			"edit": false,
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/tools-edit-boolean-test.md")
+	if err != nil {
+		t.Fatalf("expected tools.edit=false to pass schema validation, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensStringMustBePositive(t *testing.T) {
 	t.Parallel()
 

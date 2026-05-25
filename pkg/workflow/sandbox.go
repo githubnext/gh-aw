@@ -14,6 +14,8 @@
 package workflow
 
 import (
+	"slices"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -203,10 +205,8 @@ func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig) {
 	if sandboxConfig.Agent.Config.Filesystem == nil {
 		sandboxConfig.Agent.Config.Filesystem = &SRTFilesystemConfig{}
 	}
-	for _, path := range sandboxConfig.Agent.Config.Filesystem.AllowWrite {
-		if path == defaultAgentWorkspaceWritePath {
-			return
-		}
+	if slices.Contains(sandboxConfig.Agent.Config.Filesystem.AllowWrite, defaultAgentWorkspaceWritePath) {
+		return
 	}
 	sandboxConfig.Agent.Config.Filesystem.AllowWrite = append(
 		sandboxConfig.Agent.Config.Filesystem.AllowWrite,

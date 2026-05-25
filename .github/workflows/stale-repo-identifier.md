@@ -98,10 +98,10 @@ steps:
     env:
       INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
     run: |
-      mkdir -p /tmp/stale-repos-data
-      echo "$INACTIVE_REPOS" > /tmp/stale-repos-data/inactive-repos.json
+      mkdir -p /tmp/gh-aw/agent/stale-repos-data
+      echo "$INACTIVE_REPOS" > /tmp/gh-aw/agent/stale-repos-data/inactive-repos.json
       echo "Stale repositories data saved"
-      echo "Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)"
+      echo "Total stale repositories: $(jq 'length' /tmp/gh-aw/agent/stale-repos-data/inactive-repos.json)"
 
 ---
 
@@ -129,7 +129,7 @@ Analyze repositories identified as potentially stale by the stale-repos tool and
 ## Data Available
 
 The stale-repos tool has identified potentially inactive repositories. The output is saved at:
-- **File**: `/tmp/stale-repos-data/inactive-repos.json`
+- **File**: `/tmp/gh-aw/agent/stale-repos-data/inactive-repos.json`
 
 This file contains an array of repository objects with information about each stale repository.
 
@@ -139,12 +139,12 @@ This file contains an array of repository objects with information about each st
 
 Read the stale repositories data:
 ```bash
-cat /tmp/stale-repos-data/inactive-repos.json | jq .
+cat /tmp/gh-aw/agent/stale-repos-data/inactive-repos.json | jq .
 ```
 
 Analyze the structure and count:
 ```bash
-echo "Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)"
+echo "Total stale repositories: $(jq 'length' /tmp/gh-aw/agent/stale-repos-data/inactive-repos.json)"
 ```
 
 ### Step 2: Deep Research Each Repository

@@ -264,6 +264,38 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).not.toMatch(/^Tokens\s+↑/m);
     });
 
+    it("extracts token counts from the new Copilot CLI footer (Tokens ↑X • ↓Y • Z (cached))", () => {
+      const prettyLog = ["● Bash", "    └ ok", "The work is done.", "", "Changes   +0 -0", "Duration  11s", "Tokens    ↑ 163.9k • ↓ 567 • 149.2k (cached)"].join("\n");
+
+      const result = parseCopilotLog(prettyLog);
+      const resultEntry = result.logEntries.find(e => e.type === "result");
+
+      expect(resultEntry).toBeDefined();
+      expect(resultEntry.usage).toEqual(
+        expect.objectContaining({
+          input_tokens: 163900,
+          output_tokens: 567,
+          cache_read_input_tokens: 149200,
+        })
+      );
+      // Information section should render the parsed tokens
+      expect(result.markdown).toContain("Token Usage");
+      expect(result.markdown).toContain("163,900");
+      expect(result.markdown).toContain("567");
+      expect(result.markdown).toContain("149,200");
+    });
+
+    it("handles the new footer without a cached segment", () => {
+      const prettyLog = ["● Bash", "    └ ok", "", "Tokens    ↑ 1.2k • ↓ 50"].join("\n");
+
+      const result = parseCopilotLog(prettyLog);
+      const resultEntry = result.logEntries.find(e => e.type === "result");
+
+      expect(resultEntry.usage.input_tokens).toBe(1200);
+      expect(resultEntry.usage.output_tokens).toBe(50);
+      expect(resultEntry.usage.cache_read_input_tokens).toBeUndefined();
+    });
+
     it("should parse debug log format with reasoning_text", () => {
       const debugLog = [
         "2026-02-21T00:06:13.708Z [INFO] Starting Copilot CLI: 0.0.412",

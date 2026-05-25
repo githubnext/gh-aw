@@ -52,7 +52,7 @@ Expose BYOK as an engine-level option (e.g., `engine: copilot\nbyok: true`) rath
 1. The compiler **MUST** inject a dummy `COPILOT_API_KEY` sentinel value for all `engine: copilot` workflows, regardless of whether `features.byok-copilot` is present.
 2. The compiler **MUST** treat `cli-proxy` as enabled for all `engine: copilot` workflows unless `tools.github.mode` explicitly overrides it.
 3. The compiler **MUST** install the Copilot CLI at `latest` for all `engine: copilot` workflows and **MUST NOT** honour a pinned `engine.version` for the Copilot CLI install step.
-4. The compiler **MUST** set `COPILOT_MODEL` to `${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}` when no explicit model is configured, providing a non-empty fallback required by BYOK providers.
+4. The compiler **MUST** set `COPILOT_MODEL` to `${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'default' }}` when no explicit model is configured, providing a non-empty fallback required by BYOK providers.
 
 ### Feature Flag Deprecation
 

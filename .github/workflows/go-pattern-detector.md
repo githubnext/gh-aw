@@ -30,11 +30,11 @@ jobs:
         id: detect
         run: |
           # Run ast-grep to detect json:"-" pattern in Go files
-          if sg --pattern 'json:"-"' --lang go . > /tmp/ast-grep-results.txt 2>&1; then
-            if [ -s /tmp/ast-grep-results.txt ]; then
+          if sg --pattern 'json:"-"' --lang go . > /tmp/gh-aw/agent/ast-grep-results.txt 2>&1; then
+            if [ -s /tmp/gh-aw/agent/ast-grep-results.txt ]; then
               echo "found_patterns=true" >> "$GITHUB_OUTPUT"
               echo "::notice::Found Go patterns matching json:\"-\""
-              cat /tmp/ast-grep-results.txt
+              cat /tmp/gh-aw/agent/ast-grep-results.txt
             else
               echo "found_patterns=false" >> "$GITHUB_OUTPUT"
               echo "::notice::No Go patterns matching json:\"-\" found"

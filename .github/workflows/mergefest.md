@@ -53,7 +53,7 @@ steps:
       git config user.email "github-actions[bot]@users.noreply.github.com"
       
       # Create .gitignore to exclude workflow YAML files
-      cat > /tmp/merge-gitignore << 'EOF'
+      cat > /tmp/gh-aw/agent/merge-gitignore << 'EOF'
       # Exclude all .yml files in .github/workflows/
       .github/workflows/*.yml
       EOF

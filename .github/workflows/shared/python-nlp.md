@@ -15,21 +15,21 @@ steps:
     run: |
       mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
       # Create a virtual environment for proper package isolation (avoids --break-system-packages)
-      if [ ! -d /tmp/gh-aw/venv ]; then
-        python3 -m venv /tmp/gh-aw/venv
+      if [ ! -d /tmp/gh-aw/agent/venv ]; then
+        python3 -m venv /tmp/gh-aw/agent/venv
       fi
-      echo "/tmp/gh-aw/venv/bin" >> "$GITHUB_PATH"
-      /tmp/gh-aw/venv/bin/pip install --quiet nltk scikit-learn textblob wordcloud
+      echo "/tmp/gh-aw/agent/venv/bin" >> "$GITHUB_PATH"
+      /tmp/gh-aw/agent/venv/bin/pip install --quiet nltk scikit-learn textblob wordcloud
 
       # Download required NLTK corpora
-      /tmp/gh-aw/venv/bin/python3 -c "
+      /tmp/gh-aw/agent/venv/bin/python3 -c "
       import nltk
       for corpus in ['punkt_tab', 'stopwords', 'vader_lexicon', 'averaged_perceptron_tagger_eng']:
           nltk.download(corpus, quiet=True)
       print('NLTK corpora ready')
       "
 
-      /tmp/gh-aw/venv/bin/python3 -c "import sklearn; print(f'scikit-learn {sklearn.__version__}')"
+      /tmp/gh-aw/agent/venv/bin/python3 -c "import sklearn; print(f'scikit-learn {sklearn.__version__}')"
 ---
 
 ## Python NLP Environment Ready

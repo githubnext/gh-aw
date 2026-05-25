@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -10,7 +9,7 @@ import (
 var tokenLog = logger.New("workflow:github_token")
 
 func wrapGitHubExpression(expression string) string {
-	return fmt.Sprintf("${{ %s }}", strings.TrimSpace(expression))
+	return "${{ " + strings.TrimSpace(expression) + " }}"
 }
 
 func combineTokenExpressions(primaryExpression, fallbackExpression string) string {
@@ -59,7 +58,7 @@ func getEffectiveMaintenanceGitHubToken(secretName string) string {
 		return ""
 	}
 	tokenLog.Printf("Using configured maintenance compile GitHub token secret %q", secretName)
-	return wrapGitHubExpression(fmt.Sprintf("secrets.%s", secretName))
+	return wrapGitHubExpression("secrets." + secretName)
 }
 
 // getEffectiveCopilotRequestsToken returns the GitHub token to use for Copilot-related operations,

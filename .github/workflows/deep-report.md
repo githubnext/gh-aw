@@ -107,7 +107,7 @@ Analyze recent discussions in this repository, focusing on:
 - **Report** discussions (category: reports) - Various agent analysis reports
 - **General** discussions - Other agent outputs
 
-Pre-fetched discussions data is available at `/tmp/gh-aw/discussions-data/discussions.json` (populated by the discussions-data-fetch step). Use this file as the primary source for discussion analysis.
+Pre-fetched discussions data is available at `/tmp/gh-aw/agent/discussions-data/discussions.json` (populated by the discussions-data-fetch step). Use this file as the primary source for discussion analysis.
 
 ### Secondary: Workflow Logs
 
@@ -119,7 +119,7 @@ Use the gh-aw MCP server to access workflow execution logs:
 
 ### Tertiary: Repository Issues
 
-Pre-fetched issues data from the last 7 days is available at `/tmp/gh-aw/weekly-issues-data/issues.json`.
+Pre-fetched issues data from the last 7 days is available at `/tmp/gh-aw/agent/weekly-issues-data/issues.json`.
 
 Use this data to:
 - Analyze recent issue activity and trends
@@ -150,16 +150,16 @@ Use this data to:
 **Example jq queries:**
 ```bash
 # Count total issues
-jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json
+jq 'length' /tmp/gh-aw/agent/weekly-issues-data/issues.json
 
 # Get open issues
-jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/weekly-issues-data/issues.json
+jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/agent/weekly-issues-data/issues.json
 
 # Count by state
-jq 'group_by(.state) | map({state: .[0].state, count: length})' /tmp/gh-aw/weekly-issues-data/issues.json
+jq 'group_by(.state) | map({state: .[0].state, count: length})' /tmp/gh-aw/agent/weekly-issues-data/issues.json
 
 # Get unique authors
-jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
+jq '[.[].author.login] | unique' /tmp/gh-aw/agent/weekly-issues-data/issues.json
 ```
 
 ## Intelligence Collection Process
@@ -179,7 +179,7 @@ jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
 
 ### Step 1: Gather Discussion Intelligence
 
-1. Load discussions from the pre-fetched data file at `/tmp/gh-aw/discussions-data/discussions.json`
+1. Load discussions from the pre-fetched data file at `/tmp/gh-aw/agent/discussions-data/discussions.json`
 2. Filter for discussions from the past 7 days using the `createdAt` or `updatedAt` fields
 3. For each discussion:
     - Extract key metrics and findings
@@ -194,17 +194,17 @@ jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
 **Example jq queries:**
 ```bash
 # Get all discussions
-jq 'length' /tmp/gh-aw/discussions-data/discussions.json
+jq 'length' /tmp/gh-aw/agent/discussions-data/discussions.json
 
 # Get discussions from the past 7 days
 DATE_7_DAYS_AGO=$(date -d '7 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-7d '+%Y-%m-%dT%H:%M:%SZ')
-jq --arg date "$DATE_7_DAYS_AGO" '[.[] | select(.updatedAt >= $date)]' /tmp/gh-aw/discussions-data/discussions.json
+jq --arg date "$DATE_7_DAYS_AGO" '[.[] | select(.updatedAt >= $date)]' /tmp/gh-aw/agent/discussions-data/discussions.json
 
 # Get discussions by category slug (e.g. "reports", "audits", "daily-news")
-jq '[.[] | select(.categorySlug == "reports")]' /tmp/gh-aw/discussions-data/discussions.json
+jq '[.[] | select(.categorySlug == "reports")]' /tmp/gh-aw/agent/discussions-data/discussions.json
 
 # Get AI-generated discussions only
-jq '[.[] | select(.isAgenticWorkflow == true)]' /tmp/gh-aw/discussions-data/discussions.json
+jq '[.[] | select(.isAgenticWorkflow == true)]' /tmp/gh-aw/agent/discussions-data/discussions.json
 ```
 
 ### Step 2: Gather Workflow Intelligence
@@ -220,7 +220,7 @@ Use the gh-aw `logs` tool to:
 ### Step 2.5: Analyze Repository Issues
 
 Load and analyze the pre-fetched issues data:
-1. Read `/tmp/gh-aw/weekly-issues-data/issues.json`
+1. Read `/tmp/gh-aw/agent/weekly-issues-data/issues.json`
 2. Analyze:
    - Issue creation/closure trends over the week
    - Most common labels and categories
@@ -277,12 +277,12 @@ Save your findings to `/tmp/gh-aw/repo-memory/default/memory/deep-report/` as ma
 
 ## Report Structure
 
-{{#if experiments.output_format == "executive_brief"}}
+{{#if experiments.output_format == 'executive_brief'}}
 Generate a **condensed intelligence brief** with these sections only:
 1. **🔍 Executive Summary** — 3 sentences: overall health, top finding, urgent action.
 2. **🚨 Top 5 Findings** — Flat bullet list, one line each, most impactful first.
 3. **✅ Actionable Agentic Tasks** — Exactly 7 items as before.
-{{#elseif experiments.output_format == "annotated_brief"}}
+{{#elseif experiments.output_format == 'annotated_brief'}}
 Generate a **condensed intelligence brief with inline citations** with these sections only:
 1. **🔍 Executive Summary** — 3 sentences with at least one cited source link per sentence.
 2. **🚨 Top 5 Findings** — Flat bullet list, one line each, each ending with `([source](url))`.

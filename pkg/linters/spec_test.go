@@ -10,6 +10,8 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
+	"github.com/github/gh-aw/pkg/linters"
+	"github.com/github/gh-aw/pkg/linters/errormessage"
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
@@ -50,6 +52,37 @@ func TestSpec_PublicAPI_OsExitInLibraryAnalyzer(t *testing.T) {
 	assert.NotNil(t, a.Run, "Analyzer.Run must be wired so the analyzer is executable")
 }
 
+// TestSpec_PublicAPI_ErrorMessageAnalyzer validates that the errormessage
+// subpackage exposes an Analyzer entry point per the README Subpackages table.
+func TestSpec_PublicAPI_ErrorMessageAnalyzer(t *testing.T) {
+	a := errormessage.Analyzer
+	require.NotNil(t, a, "errormessage.Analyzer must be a non-nil *analysis.Analyzer")
+	assert.IsType(t, (*analysis.Analyzer)(nil), a, "Analyzer should be *analysis.Analyzer for go/analysis drivers")
+	assert.NotEmpty(t, a.Name, "Analyzer.Name should be set so go/analysis drivers can identify it")
+	assert.NotNil(t, a.Run, "Analyzer.Run must be wired so the analyzer is executable")
+}
+
+// TestSpec_PublicAPI_SSLJsonAnalyzer validates that the ssljson subpackage
+// exposes an Analyzer entry point per the README Subpackages table.
+func TestSpec_PublicAPI_SSLJsonAnalyzer(t *testing.T) {
+	a := ssljson.Analyzer
+	require.NotNil(t, a, "ssljson.Analyzer must be a non-nil *analysis.Analyzer")
+	assert.IsType(t, (*analysis.Analyzer)(nil), a, "Analyzer should be *analysis.Analyzer for go/analysis drivers")
+	assert.NotEmpty(t, a.Name, "Analyzer.Name should be set so go/analysis drivers can identify it")
+	assert.NotNil(t, a.Run, "Analyzer.Run must be wired so the analyzer is executable")
+}
+
+// TestSpec_NamespaceExports_ErrorMessageAnalyzer validates the documented
+// namespace-level compatibility alias `ErrorMessageAnalyzer` referenced in the
+// README "Namespace exports" table.
+// Spec: "ErrorMessageAnalyzer | Compatibility alias to pkg/linters/errormessage.Analyzer"
+func TestSpec_NamespaceExports_ErrorMessageAnalyzer(t *testing.T) {
+	require.NotNil(t, linters.ErrorMessageAnalyzer,
+		"linters.ErrorMessageAnalyzer must be a non-nil compatibility alias per the README")
+	assert.Same(t, errormessage.Analyzer, linters.ErrorMessageAnalyzer,
+		"linters.ErrorMessageAnalyzer should be the same *analysis.Analyzer as errormessage.Analyzer")
+}
+
 // TestSpec_Constants_DefaultMaxParams validates the documented default
 // "8 parameters" threshold for the excessivefuncparams analyzer.
 // Spec: "excessivefuncparams ... defaults to 8 parameters (DefaultMaxParams)."
@@ -84,14 +117,17 @@ func TestSpec_DesignDecision_MaxLinesFlag(t *testing.T) {
 
 // TestSpec_UsageExample_AnalyzersUsable validates the documented usage pattern:
 // each Analyzer can be referenced (e.g. passed to multichecker/singlechecker).
-// Spec usage example:
+// Spec usage example imports all five documented subpackages:
 //
 //	_ = excessivefuncparams.Analyzer
+//	_ = errormessage.Analyzer
 //	_ = largefunc.Analyzer
 //	_ = osexitinlibrary.Analyzer
+//	_ = ssljson.Analyzer
 func TestSpec_UsageExample_AnalyzersUsable(t *testing.T) {
 	analyzers := []*analysis.Analyzer{
 		excessivefuncparams.Analyzer,
+		errormessage.Analyzer,
 		largefunc.Analyzer,
 		osexitinlibrary.Analyzer,
 		ssljson.Analyzer,
@@ -109,9 +145,10 @@ func TestSpec_UsageExample_AnalyzersUsable(t *testing.T) {
 func TestSpec_DesignDecision_UniqueAnalyzerNames(t *testing.T) {
 	names := map[string]bool{
 		excessivefuncparams.Analyzer.Name: true,
+		errormessage.Analyzer.Name:        true,
 		largefunc.Analyzer.Name:           true,
 		osexitinlibrary.Analyzer.Name:     true,
 		ssljson.Analyzer.Name:             true,
 	}
-	assert.Len(t, names, 4, "each documented subpackage should expose a distinct Analyzer.Name")
+	assert.Len(t, names, 5, "each documented subpackage should expose a distinct Analyzer.Name")
 }

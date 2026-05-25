@@ -68,7 +68,7 @@ Every run must:
 ## Run Context
 
 - Cache root: `/tmp/gh-aw/cache-memory/aw-compat`
-- Work root: `/tmp/gh-aw/aw-compat-work`
+- Work root: `/tmp/gh-aw/agent/aw-compat-work`
 - Use filesystem-safe timestamps only: `YYYY-MM-DD-HH-MM-SS-sss` (no colons).
 
 ## Phase 0: Prepare Workspace and Build Latest gh-aw
@@ -79,7 +79,7 @@ set -euo pipefail
 RUN_TS="$(date -u +%Y-%m-%d-%H-%M-%S)-$(date -u +%3N)"
 CACHE_ROOT="/tmp/gh-aw/cache-memory/aw-compat"
 RUN_DIR="$CACHE_ROOT/runs/$RUN_TS"
-WORK_ROOT="/tmp/gh-aw/aw-compat-work/$RUN_TS"
+WORK_ROOT="/tmp/gh-aw/agent/aw-compat-work/$RUN_TS"
 
 mkdir -p "$RUN_DIR" "$WORK_ROOT" "$CACHE_ROOT/index"
 

@@ -5,7 +5,7 @@
 //
 // A model identifier string takes one of the following forms:
 //
-//	bare-name                         e.g. "sonnet", "auto"
+//	bare-name                         e.g. "sonnet", "agent"
 //	provider/model-token              e.g. "copilot/gpt-5"
 //	provider/model-glob-token         e.g. "copilot/*sonnet*"
 //	any of the above + "?" params     e.g. "opus?effort=high"

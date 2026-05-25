@@ -113,12 +113,26 @@ async function main() {
     // Write agent_usage.json so the aggregated totals are bundled in the agent
     // artifact and accessible to third-party tools without parsing the step summary.
     const effectiveTokens = Math.round(summary.totalEffectiveTokens || 0);
+
+    // Determine the primary model: the one with the highest effective tokens.
+    // This is the actual model name from the API call logs, which may differ from
+    // GH_AW_ENGINE_MODEL when the user specified a model alias (e.g. "agent").
+    let primaryModel = "";
+    let primaryModelET = -1;
+    for (const [model, usage] of Object.entries(summary.byModel || {})) {
+      if (model !== "unknown" && usage && typeof usage.effectiveTokens === "number" && usage.effectiveTokens > primaryModelET) {
+        primaryModelET = usage.effectiveTokens;
+        primaryModel = model;
+      }
+    }
+
     const agentUsage = {
       input_tokens: summary.totalInputTokens,
       output_tokens: summary.totalOutputTokens,
       cache_read_tokens: summary.totalCacheReadTokens,
       cache_write_tokens: summary.totalCacheWriteTokens,
       effective_tokens: effectiveTokens,
+      ...(primaryModel ? { primary_model: primaryModel } : {}),
     };
     fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify(agentUsage) + "\n");
 

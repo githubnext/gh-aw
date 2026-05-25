@@ -41,13 +41,13 @@ func extractCommandExamples(cmd *cobra.Command) []string {
 	}
 
 	if cmd.Example != "" {
-		for _, line := range strings.Split(cmd.Example, "\n") {
+		for line := range strings.SplitSeq(cmd.Example, "\n") {
 			appendFromLine(line)
 		}
 	}
 
 	inExamples := false
-	for _, line := range strings.Split(cmd.Long, "\n") {
+	for line := range strings.SplitSeq(cmd.Long, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.EqualFold(trimmed, "Examples:") {
 			inExamples = true
@@ -122,8 +122,7 @@ func validateExampleTokens(t *testing.T, cmd *cobra.Command, tokens []string) {
 			continue
 		}
 
-		if strings.HasPrefix(token, "--") {
-			nameValue := strings.TrimPrefix(token, "--")
+		if nameValue, ok := strings.CutPrefix(token, "--"); ok {
 			name, _, hasValue := strings.Cut(nameValue, "=")
 			flag := cmd.Flags().Lookup(name)
 			if flag == nil {

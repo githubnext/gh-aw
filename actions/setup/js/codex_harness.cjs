@@ -60,6 +60,11 @@ const MAX_DELAY_MS = 60000;
 const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError/i;
 const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?/i;
 
+// Pattern to detect a missing API key at startup — Codex emits this before making any API
+// calls when neither CODEX_API_KEY nor OPENAI_API_KEY is available in the environment.
+// Example: "ERROR: Missing environment variable: `OPENAI_API_KEY`"
+const MISSING_API_KEY_PATTERN = /Missing environment variable:\s*`?(?:CODEX_API_KEY|OPENAI_API_KEY)\b`?/i;
+
 // Pattern to detect OpenAI server-side errors (HTTP 500, 503).
 // These are transient infrastructure failures that may resolve on retry.
 const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
@@ -93,6 +98,16 @@ function isRateLimitError(output) {
  */
 function isAuthenticationFailedError(output) {
   return AUTHENTICATION_FAILED_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output indicates a missing API key at startup.
+ * Codex exits before producing any agent output in this case, so retrying is futile.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isMissingApiKeyError(output) {
+  return MISSING_API_KEY_PATTERN.test(output);
 }
 
 /**
@@ -246,6 +261,134 @@ function resolveCodexPromptFileArgs(args) {
 }
 
 /**
+ * Inject `--json` after `exec` in the args list so that Codex streams structured
+ * JSON Lines (JSONL) to stdout.  This enables machine-readable output for CI
+ * pipelines without changing how stderr progress output works.
+ *
+ * No-op when the subcommand is not `exec` or when `--json` is already present.
+ *
+ * @param {string[]} args
+ * @returns {string[]}
+ */
+function injectJsonFlag(args) {
+  if (args.length === 0 || args[0] !== "exec") return args;
+  if (args.includes("--json")) return args;
+  return ["exec", "--json", ...args.slice(1)];
+}
+
+/**
+ * Build child process environment for Codex execution.
+ * Preserve API keys captured at harness startup, even if the parent environment
+ * is sanitized later in the run.
+ *
+ * @param {NodeJS.ProcessEnv} baseEnv
+ * @param {string|undefined} codexApiKey
+ * @param {string|undefined} openaiApiKey
+ * @returns {NodeJS.ProcessEnv}
+ */
+function buildCodexChildEnv(baseEnv, codexApiKey, openaiApiKey) {
+  const childEnv = { ...baseEnv };
+  if (codexApiKey) {
+    childEnv.CODEX_API_KEY = codexApiKey;
+  }
+  if (openaiApiKey) {
+    childEnv.OPENAI_API_KEY = openaiApiKey;
+  }
+  return childEnv;
+}
+
+/**
+ * Extract numeric port from a URL string.
+ * @param {string} urlString
+ * @returns {number|null}
+ */
+function extractPortFromURL(urlString) {
+  if (!urlString || typeof urlString !== "string") return null;
+  try {
+    const parsed = new URL(urlString);
+    if (!parsed.port) return null;
+    return Number(parsed.port);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read Codex openai-proxy base_url from config.toml content.
+ * @param {string} tomlContent
+ * @returns {string|null}
+ */
+function extractOpenAIProxyBaseURLFromToml(tomlContent) {
+  if (!tomlContent || typeof tomlContent !== "string") return null;
+  const providerSection = tomlContent.match(/\[model_providers\.openai-proxy\]([\s\S]*?)(?:\n\[|$)/);
+  if (!providerSection) return null;
+  const baseURLMatch = providerSection[1].match(/(?:^|\n)\s*base_url\s*=\s*"([^"]+)"/);
+  return baseURLMatch && baseURLMatch[1] ? baseURLMatch[1].trim() : null;
+}
+
+/**
+ * Determine configured OpenAI endpoint port from AWF /reflect payload.
+ * @param {any} reflectData
+ * @returns {number|null}
+ */
+function getConfiguredOpenAIPortFromReflect(reflectData) {
+  const endpoints = reflectData && Array.isArray(reflectData.endpoints) ? reflectData.endpoints : [];
+  const openAIEndpoint = endpoints.find(ep => {
+    if (!ep || ep.configured !== true || typeof ep.provider !== "string") return false;
+    return ep.provider.toLowerCase() === "openai";
+  });
+  if (!openAIEndpoint || openAIEndpoint.port == null) return null;
+  const parsedPort = Number(openAIEndpoint.port);
+  return Number.isNaN(parsedPort) ? null : parsedPort;
+}
+
+/**
+ * Validate that Codex openai-proxy base_url matches the configured OpenAI endpoint from /reflect.
+ * @param {{
+ *   codexConfigPath: string,
+ *   reflectPath: string,
+ *   readFileSync?: (path: import("node:fs").PathOrFileDescriptor, options?: import("node:fs").ObjectEncodingOptions & { flag?: string } | BufferEncoding | null) => string
+ * }} options
+ * @returns {{ ok: boolean, reason?: string }}
+ */
+function validateCodexOpenAIBaseURLFromReflect(options) {
+  const readFileSync = (options && options.readFileSync) || fs.readFileSync;
+  const codexConfigPath = options && options.codexConfigPath;
+  const reflectPath = options && options.reflectPath;
+  if (!codexConfigPath || !reflectPath) return { ok: true };
+
+  let tomlContent;
+  let reflectContent;
+  try {
+    tomlContent = readFileSync(codexConfigPath, "utf8");
+    reflectContent = readFileSync(reflectPath, "utf8");
+  } catch {
+    return { ok: true };
+  }
+
+  const baseURL = extractOpenAIProxyBaseURLFromToml(tomlContent);
+  if (!baseURL) return { ok: true };
+  const baseURLPort = extractPortFromURL(baseURL);
+  if (baseURLPort == null) return { ok: true };
+
+  let reflectData;
+  try {
+    reflectData = JSON.parse(reflectContent);
+  } catch {
+    return { ok: true };
+  }
+  const openAIPort = getConfiguredOpenAIPortFromReflect(reflectData);
+  if (openAIPort == null) return { ok: true };
+  if (openAIPort !== baseURLPort) {
+    return {
+      ok: false,
+      reason: `Codex openai-proxy base_url port mismatch: config.toml uses ${baseURLPort}, but /reflect reports OpenAI on port ${openAIPort}`,
+    };
+  }
+  return { ok: true };
+}
+
+/**
  * Main entry point: run codex with retry logic for transient API failures.
  * Codex does not support --continue session resumption, so all retries are fresh runs.
  */
@@ -258,6 +401,21 @@ async function main() {
   }
 
   log(`starting: command=${command} maxRetries=${MAX_RETRIES} initialDelayMs=${INITIAL_DELAY_MS}` + ` backoffMultiplier=${BACKOFF_MULTIPLIER} maxDelayMs=${MAX_DELAY_MS}` + ` nodeVersion=${process.version} platform=${process.platform}`);
+
+  // Diagnose API key presence so CI failures can be triaged without exposing secret values.
+  const codexApiKey = process.env.CODEX_API_KEY;
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+  const codexChildEnv = buildCodexChildEnv(process.env, codexApiKey, openaiApiKey);
+  log(`secrets: CODEX_API_KEY=${codexApiKey ? `set (length=${codexApiKey.length})` : "not set"}` + ` OPENAI_API_KEY=${openaiApiKey ? `set (length=${openaiApiKey.length})` : "not set"}`);
+
+  // Pre-flight: require at least one API key before spawning codex.
+  // Without a key, codex exits immediately with "Missing environment variable" and every
+  // retry attempt fails the same way. Failing here avoids burning the retry budget and
+  // surfaces a clear, actionable message in CI logs.
+  if (!codexApiKey && !openaiApiKey) {
+    log("fatal: no API key available - set CODEX_API_KEY or OPENAI_API_KEY and retry");
+    process.exit(1);
+  }
 
   // Resolve the prompt for the initial run (reads --prompt-file content).
   // A missing or unreadable prompt file is treated as a fatal startup error.
@@ -276,9 +434,24 @@ async function main() {
   const hadPromptFile = args.includes("--prompt-file");
   const safeArgs = hadPromptFile && resolvedArgs.length > 0 ? [...resolvedArgs.slice(0, -1), "<prompt omitted>"] : resolvedArgs;
 
+  // Inject --json after `exec` to stream structured JSONL events to stdout, making
+  // Codex output machine-readable in CI without affecting the stderr progress stream.
+  resolvedArgs = injectJsonFlag(resolvedArgs);
+
   // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
   // This is best-effort: failures are logged but do not affect the agent run.
   await fetchAWFReflect({ logger: log });
+  const codexHome = process.env.CODEX_HOME || "";
+  if (codexHome) {
+    const validation = validateCodexOpenAIBaseURLFromReflect({
+      codexConfigPath: `${codexHome}/config.toml`,
+      reflectPath: AWF_REFLECT_OUTPUT_PATH,
+    });
+    if (!validation.ok) {
+      log(`fatal: ${validation.reason}`);
+      process.exit(1);
+    }
+  }
 
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;
@@ -296,7 +469,7 @@ async function main() {
       log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
     }
 
-    const result = await runProcess({ command, args: resolvedArgs, attempt, log, logArgs: safeArgs });
+    const result = await runProcess({ command, args: resolvedArgs, attempt, log, logArgs: safeArgs, env: codexChildEnv });
     lastExitCode = result.exitCode;
 
     // Success — stop retrying
@@ -308,6 +481,7 @@ async function main() {
 
     const isRateLimit = isRateLimitError(result.output);
     const isAuthenticationFailed = isAuthenticationFailedError(result.output);
+    const isMissingApiKey = isMissingApiKeyError(result.output);
     const isServer = isServerError(result.output);
     const permissionDeniedCount = countPermissionDeniedIssues(result.output);
     const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
@@ -316,6 +490,7 @@ async function main() {
         ` exitCode=${result.exitCode}` +
         ` isRateLimitError=${isRateLimit}` +
         ` isAuthenticationFailedError=${isAuthenticationFailed}` +
+        ` isMissingApiKeyError=${isMissingApiKey}` +
         ` isServerError=${isServer}` +
         ` permissionDeniedCount=${permissionDeniedCount}` +
         ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
@@ -325,6 +500,11 @@ async function main() {
 
     if (attempt === 0 && isAuthenticationFailed) {
       log(`attempt ${attempt + 1}: authentication failed — not retrying (first-attempt auth failure is non-retryable)`);
+      break;
+    }
+
+    if (isMissingApiKey) {
+      log(`attempt ${attempt + 1}: missing API key — not retrying (configure CODEX_API_KEY or OPENAI_API_KEY)`);
       break;
     }
 
@@ -363,14 +543,21 @@ async function main() {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     resolveCodexPromptFileArgs,
+    injectJsonFlag,
     isRateLimitError,
     isAuthenticationFailedError,
+    isMissingApiKeyError,
     isServerError,
     countPermissionDeniedIssues,
     hasNumerousPermissionDeniedIssues,
     extractDeniedCommands,
     buildMissingToolPermissionIssuePayload,
     emitMissingToolPermissionIssue,
+    buildCodexChildEnv,
+    extractPortFromURL,
+    extractOpenAIProxyBaseURLFromToml,
+    getConfiguredOpenAIPortFromReflect,
+    validateCodexOpenAIBaseURLFromReflect,
   };
 }
 

@@ -6,7 +6,7 @@ tools:
     - "gh issue list *"
     - "gh api *"
     - "jq *"
-    - "/tmp/gh-aw/jqschema.sh"
+    - "./.github/skills/jqschema/jqschema.sh"
     - "mkdir *"
     - "date *"
     - "cp *"
@@ -19,7 +19,7 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       # Create output directories
-      mkdir -p /tmp/gh-aw/weekly-issues-data
+      mkdir -p /tmp/gh-aw/agent/weekly-issues-data
       mkdir -p /tmp/gh-aw/cache-memory
       
       # Get today's date for cache identification
@@ -29,16 +29,16 @@ steps:
       # Check if cached data exists from today
       if [ -f "$CACHE_DIR/weekly-issues-${TODAY}.json" ] && [ -s "$CACHE_DIR/weekly-issues-${TODAY}.json" ]; then
         echo "✓ Found cached weekly issues data from ${TODAY}"
-        cp "$CACHE_DIR/weekly-issues-${TODAY}.json" /tmp/gh-aw/weekly-issues-data/issues.json
+        cp "$CACHE_DIR/weekly-issues-${TODAY}.json" /tmp/gh-aw/agent/weekly-issues-data/issues.json
         
         # Regenerate schema if missing
         if [ ! -f "$CACHE_DIR/weekly-issues-${TODAY}-schema.json" ]; then
-          /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/weekly-issues-data/issues.json > "$CACHE_DIR/weekly-issues-${TODAY}-schema.json"
+          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/weekly-issues-data/issues.json > "$CACHE_DIR/weekly-issues-${TODAY}-schema.json"
         fi
-        cp "$CACHE_DIR/weekly-issues-${TODAY}-schema.json" /tmp/gh-aw/weekly-issues-data/issues-schema.json
+        cp "$CACHE_DIR/weekly-issues-${TODAY}-schema.json" /tmp/gh-aw/agent/weekly-issues-data/issues-schema.json
         
         echo "Using cached data from ${TODAY}"
-        echo "Total issues in cache: $(jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json)"
+        echo "Total issues in cache: $(jq 'length' /tmp/gh-aw/agent/weekly-issues-data/issues.json)"
       else
         echo "⬇ Downloading fresh weekly issues data..."
         
@@ -54,22 +54,22 @@ steps:
           --state all \
           --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees,comments \
           --limit 500 \
-          > /tmp/gh-aw/weekly-issues-data/issues.json
+          > /tmp/gh-aw/agent/weekly-issues-data/issues.json
 
         # Generate schema for reference
-        /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/weekly-issues-data/issues.json > /tmp/gh-aw/weekly-issues-data/issues-schema.json
+        ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/weekly-issues-data/issues.json > /tmp/gh-aw/agent/weekly-issues-data/issues-schema.json
 
         # Store in cache with today's date
-        cp /tmp/gh-aw/weekly-issues-data/issues.json "$CACHE_DIR/weekly-issues-${TODAY}.json"
-        cp /tmp/gh-aw/weekly-issues-data/issues-schema.json "$CACHE_DIR/weekly-issues-${TODAY}-schema.json"
+        cp /tmp/gh-aw/agent/weekly-issues-data/issues.json "$CACHE_DIR/weekly-issues-${TODAY}.json"
+        cp /tmp/gh-aw/agent/weekly-issues-data/issues-schema.json "$CACHE_DIR/weekly-issues-${TODAY}-schema.json"
 
         echo "✓ Weekly issues data saved to cache: weekly-issues-${TODAY}.json"
-        echo "Total issues found: $(jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json)"
+        echo "Total issues found: $(jq 'length' /tmp/gh-aw/agent/weekly-issues-data/issues.json)"
       fi
       
       # Always ensure data is available at expected locations for backward compatibility
-      echo "Weekly issues data available at: /tmp/gh-aw/weekly-issues-data/issues.json"
-      echo "Schema available at: /tmp/gh-aw/weekly-issues-data/issues-schema.json"
+      echo "Weekly issues data available at: /tmp/gh-aw/agent/weekly-issues-data/issues.json"
+      echo "Schema available at: /tmp/gh-aw/agent/weekly-issues-data/issues-schema.json"
 ---
 
 <!--
@@ -79,7 +79,7 @@ This shared component fetches issues from the last 7 days, with intelligent cach
 
 ### What It Does
 
-1. Creates output directories at `/tmp/gh-aw/weekly-issues-data/` and `/tmp/gh-aw/cache-memory/`
+1. Creates output directories at `/tmp/gh-aw/agent/weekly-issues-data/` and `/tmp/gh-aw/cache-memory/`
 2. Checks for cached issues data from today's date in cache-memory
 3. If cache exists (from earlier workflow runs today):
    - Uses cached data instead of making API calls
@@ -103,8 +103,8 @@ This shared component fetches issues from the last 7 days, with intelligent cach
 
 ### Output Files
 
-- **`/tmp/gh-aw/weekly-issues-data/issues.json`**: Issues data from the last 7 days
-- **`/tmp/gh-aw/weekly-issues-data/issues-schema.json`**: JSON schema showing the data structure
+- **`/tmp/gh-aw/agent/weekly-issues-data/issues.json`**: Issues data from the last 7 days
+- **`/tmp/gh-aw/agent/weekly-issues-data/issues-schema.json`**: JSON schema showing the data structure
 
 ### Requirements
 
@@ -116,7 +116,7 @@ This shared component fetches issues from the last 7 days, with intelligent cach
 
 ## Weekly Issues Data
 
-Pre-fetched issues data from the last 7 days is available at `/tmp/gh-aw/weekly-issues-data/issues.json`.
+Pre-fetched issues data from the last 7 days is available at `/tmp/gh-aw/agent/weekly-issues-data/issues.json`.
 
 This includes issues that were created or updated within the past week, providing a focused dataset for recent activity analysis.
 
@@ -183,30 +183,30 @@ The weekly issues data structure is:
 
 ```bash
 # Get total number of issues from the last week
-jq 'length' /tmp/gh-aw/weekly-issues-data/issues.json
+jq 'length' /tmp/gh-aw/agent/weekly-issues-data/issues.json
 
 # Get only open issues
-jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/weekly-issues-data/issues.json
+jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/agent/weekly-issues-data/issues.json
 
 # Get only closed issues
-jq '[.[] | select(.state == "CLOSED")]' /tmp/gh-aw/weekly-issues-data/issues.json
+jq '[.[] | select(.state == "CLOSED")]' /tmp/gh-aw/agent/weekly-issues-data/issues.json
 
 # Get issue numbers
-jq '[.[].number]' /tmp/gh-aw/weekly-issues-data/issues.json
+jq '[.[].number]' /tmp/gh-aw/agent/weekly-issues-data/issues.json
 
 # Get issues with specific label
-jq '[.[] | select(.labels | any(.name == "bug"))]' /tmp/gh-aw/weekly-issues-data/issues.json
+jq '[.[] | select(.labels | any(.name == "bug"))]' /tmp/gh-aw/agent/weekly-issues-data/issues.json
 
 # Get issues created in the last 3 days
 DATE_3_DAYS_AGO=$(date -d '3 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-3d '+%Y-%m-%dT%H:%M:%SZ')
-jq --arg date "$DATE_3_DAYS_AGO" '[.[] | select(.createdAt >= $date)]' /tmp/gh-aw/weekly-issues-data/issues.json
+jq --arg date "$DATE_3_DAYS_AGO" '[.[] | select(.createdAt >= $date)]' /tmp/gh-aw/agent/weekly-issues-data/issues.json
 
 # Count issues by state
-jq 'group_by(.state) | map({state: .[0].state, count: length})' /tmp/gh-aw/weekly-issues-data/issues.json
+jq 'group_by(.state) | map({state: .[0].state, count: length})' /tmp/gh-aw/agent/weekly-issues-data/issues.json
 
 # Get unique authors
-jq '[.[].author.login] | unique' /tmp/gh-aw/weekly-issues-data/issues.json
+jq '[.[].author.login] | unique' /tmp/gh-aw/agent/weekly-issues-data/issues.json
 
 # Get issues sorted by update time (most recent first)
-jq 'sort_by(.updatedAt) | reverse' /tmp/gh-aw/weekly-issues-data/issues.json
+jq 'sort_by(.updatedAt) | reverse' /tmp/gh-aw/agent/weekly-issues-data/issues.json
 ```

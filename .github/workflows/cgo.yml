@@ -984,7 +984,7 @@ jobs:
       # Downloads pre-built binary from GitHub releases instead of using go install
     - name: Install golangci-lint
       run: |
-        GOLANGCI_LINT_VERSION="v2.8.0"
+        GOLANGCI_LINT_VERSION="v2.12.2"
         GOOS=$(go env GOOS)
         GOARCH=$(go env GOARCH)
         GOPATH=$(go env GOPATH)
@@ -1034,10 +1034,11 @@ jobs:
     - name: Lint error messages
       run: make lint-errors
 
-      # Enforce the production errstringmatch analyzer without blocking on unrelated
-      # legacy custom analyzer findings in tests or other analyzer families.
+      # Enforce the production errstringmatch and panicinlibrarycode analyzers without
+      # blocking on unrelated legacy custom analyzer findings in tests or other analyzer
+      # families.
     - name: Run custom linters
-      run: make golint-custom LINTER_FLAGS="-errstringmatch -test=false"
+      run: make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -test=false"
 
   actions-build:
     runs-on: ubuntu-latest

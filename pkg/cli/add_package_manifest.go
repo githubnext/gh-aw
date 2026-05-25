@@ -91,6 +91,9 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	if len(installationSources) == 0 {
 		return nil, fmt.Errorf("repository %q does not declare any installable workflow markdown files", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
 	}
+	if err := validateUniqueManifestWorkflowFilenames(installationSources, manifestPath); err != nil {
+		return nil, err
+	}
 
 	docsPath, err := resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host)
 	if err != nil {
@@ -390,6 +393,25 @@ func isRepositoryPackageManifestNotFound(err error) bool {
 func isSupportedManifestMinVersion(version string) bool {
 	const expectedManifestMinVersionDotCount = 2
 	return semverutil.IsActionVersionTag(version) && strings.Count(strings.TrimPrefix(version, "v"), ".") == expectedManifestMinVersionDotCount
+}
+
+func validateUniqueManifestWorkflowFilenames(paths []string, manifestPath string) error {
+	seen := make(map[string]string, len(paths))
+	for _, installPath := range paths {
+		if !strings.HasSuffix(strings.ToLower(installPath), ".md") {
+			continue
+		}
+		filenameWithoutExt := strings.TrimSuffix(filepath.Base(installPath), filepath.Ext(installPath))
+		key := strings.ToLower(strings.TrimSpace(filenameWithoutExt))
+		if key == "" {
+			continue
+		}
+		if previous, exists := seen[key]; exists {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: duplicate workflow filename %q in files entries %q and %q (filenames must be unique across a package)", manifestPath, filenameWithoutExt, previous, installPath)
+		}
+		seen[key] = installPath
+	}
+	return nil
 }
 
 func downloadRepositoryPackageFileFromGitHubForHost(owner, repo, path, ref, host string) ([]byte, error) {

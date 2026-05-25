@@ -163,6 +163,7 @@ func ShortenCommand(command string) string {
 //
 // When seed is empty, the function falls back to crypto/rand — the same behaviour as
 // GenerateHeredocDelimiter — so callers that lack a hash continue to work correctly.
+// Panics on crypto/rand failure when no seed is provided.
 func GenerateHeredocDelimiterFromSeed(name string, seed string) string {
 	upperName := strings.ToUpper(name)
 	var tag string
@@ -173,7 +174,7 @@ func GenerateHeredocDelimiterFromSeed(name string, seed string) string {
 	} else {
 		b := make([]byte, 8)
 		if _, err := rand.Read(b); err != nil {
-			panic("crypto/rand failed: " + err.Error())
+			panic("BUG: crypto/rand failed: " + err.Error())
 		}
 		tag = hex.EncodeToString(b)
 	}

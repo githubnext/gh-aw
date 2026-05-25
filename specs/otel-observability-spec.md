@@ -239,6 +239,19 @@ Passing `OTEL_EXPORTER_OTLP_HEADERS` through the environment is REQUIRED so cred
 
 The runtime setup layer SHOULD provide valid `GITHUB_AW_OTEL_TRACE_ID` and `GITHUB_AW_OTEL_PARENT_SPAN_ID` values to downstream helpers and gateway consumers when a valid trace and parent span exist for the job.
 
+### 6.6 Fan-Out Operations Flow and Partial Failure Handling
+
+For multi-endpoint OTLP export, a conforming implementation MUST execute this operations flow:
+
+1. Normalize configured endpoints into ordered OTLP entries (Section 4) and select index `0` as primary compatibility endpoint.
+2. Emit the local mirror event first (or in a non-blocking parallel path) so telemetry survives remote exporter failure.
+3. Attempt export to each endpoint in declared order, recording per-endpoint status (`success`, `transient_failure`, `permanent_failure`).
+4. On transient failure (`5xx`, timeout, transport reset, `429`), continue fan-out to remaining endpoints and schedule retry for failed endpoints only.
+5. On permanent failure (`4xx` non-rate-limit, invalid auth format), continue fan-out to remaining endpoints and record a non-retriable error.
+6. Complete the workflow step without making observability export globally fatal unless an explicit `if-missing: error` setup policy requires fail-fast behavior for missing mandatory configuration.
+
+Partial endpoint failure MUST NOT suppress successful exports to other endpoints, and MUST remain visible through local mirror artifacts and warning telemetry.
+
 ---
 
 ## 7. Local Mirrors and Artifacts

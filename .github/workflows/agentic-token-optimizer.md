@@ -36,7 +36,7 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -euo pipefail
-      mkdir -p /tmp/gh-aw/token-audit
+      mkdir -p /tmp/gh-aw/agent/token-audit
 
       echo "📥 Downloading agentic workflow logs (last 7 days)..."
 
@@ -45,23 +45,23 @@ steps:
         --start-date -7d \
         --json \
         -c 50 \
-        > /tmp/gh-aw/token-audit/all-runs.json || LOGS_EXIT=$?
+        > /tmp/gh-aw/agent/token-audit/all-runs.json || LOGS_EXIT=$?
 
-      if [ -s /tmp/gh-aw/token-audit/all-runs.json ]; then
-        TOTAL=$(jq '.runs | length' /tmp/gh-aw/token-audit/all-runs.json)
+      if [ -s /tmp/gh-aw/agent/token-audit/all-runs.json ]; then
+        TOTAL=$(jq '.runs | length' /tmp/gh-aw/agent/token-audit/all-runs.json)
         echo "✅ Downloaded $TOTAL agentic workflow runs (last 7 days)"
         if [ "$LOGS_EXIT" -ne 0 ]; then
           echo "⚠️ gh aw logs exited with code $LOGS_EXIT (partial results — likely API rate limit)"
         fi
       else
         echo "❌ No log data downloaded (exit code $LOGS_EXIT)"
-        echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/all-runs.json
+        echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/agent/token-audit/all-runs.json
       fi
 
   - name: Aggregate top workflows by token usage
     run: |
       set -euo pipefail
-      mkdir -p /tmp/gh-aw/token-audit
+      mkdir -p /tmp/gh-aw/agent/token-audit
 
       jq '{
         generated_at: (now | todateiso8601),
@@ -91,10 +91,10 @@ steps:
           | reverse
           | .[:10]
         )
-      }' /tmp/gh-aw/token-audit/all-runs.json > /tmp/gh-aw/token-audit/top-workflows.json
+      }' /tmp/gh-aw/agent/token-audit/all-runs.json > /tmp/gh-aw/agent/token-audit/top-workflows.json
 
-      echo "✅ Generated top workflow summary at /tmp/gh-aw/token-audit/top-workflows.json"
-      jq '.top_workflows' /tmp/gh-aw/token-audit/top-workflows.json
+      echo "✅ Generated top workflow summary at /tmp/gh-aw/agent/token-audit/top-workflows.json"
+      jq '.top_workflows' /tmp/gh-aw/agent/token-audit/top-workflows.json
 
   - name: Load optimization history
     run: |
@@ -150,8 +150,8 @@ Prefer `--jq` on `gh api` calls over a separate `| jq` step when the filter is s
 
 ## Data Inputs
 
-- `/tmp/gh-aw/token-audit/all-runs.json`: full 7-day run data (`gh aw logs --json`).
-- `/tmp/gh-aw/token-audit/top-workflows.json`: pre-aggregated top 10 workflows by total tokens.
+- `/tmp/gh-aw/agent/token-audit/all-runs.json`: full 7-day run data (`gh aw logs --json`).
+- `/tmp/gh-aw/agent/token-audit/top-workflows.json`: pre-aggregated top 10 workflows by total tokens.
 - `/tmp/gh-aw/repo-memory/default/YYYY-MM-DD.json`: daily audit snapshots.
 - `/tmp/gh-aw/repo-memory/default/optimization-log.json`: prior optimizations (if present).
 

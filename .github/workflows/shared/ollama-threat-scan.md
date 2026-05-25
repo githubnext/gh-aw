@@ -37,10 +37,10 @@ safe-outputs:
             core.info('🚀 Starting Ollama installation...');
             try {
               core.info('📥 Downloading Ollama installer...');
-              await exec.exec('curl', ['-fsSL', 'https://ollama.com/install.sh', '-o', '/tmp/install-ollama.sh']);
+              await exec.exec('curl', ['-fsSL', 'https://ollama.com/install.sh', '-o', '/tmp/gh-aw/agent/install-ollama.sh']);
               
               core.info('📦 Installing Ollama...');
-              await exec.exec('sh', ['/tmp/install-ollama.sh']);
+              await exec.exec('sh', ['/tmp/gh-aw/agent/install-ollama.sh']);
               
               core.info('✅ Verifying Ollama installation...');
               const versionOutput = await exec.getExecOutput('ollama', ['--version']);
@@ -53,7 +53,7 @@ safe-outputs:
             
             // ===== START OLLAMA SERVICE =====
             core.info('🚀 Starting Ollama service...');
-            const logDir = '/tmp/gh-aw/ollama-logs';
+            const logDir = '/tmp/gh-aw/agent/ollama-logs';
             if (!fs.existsSync(logDir)) {
               fs.mkdirSync(logDir, { recursive: true });
             }
@@ -123,7 +123,7 @@ safe-outputs:
             
             // ===== SCAN SAFE OUTPUTS =====
             core.info('🔍 Starting Llama Guard 3 threat scan...');
-            const scanDir = '/tmp/gh-aw/threat-detection';
+            const scanDir = '/tmp/gh-aw/agent/threat-detection';
             
             let threatsDetected = false;
             const results = [];
@@ -303,7 +303,7 @@ safe-outputs:
             }
             
             // Write results
-            const resultsPath = '/tmp/gh-aw/threat-detection/ollama-scan-results.json';
+            const resultsPath = '/tmp/gh-aw/agent/threat-detection/ollama-scan-results.json';
             fs.writeFileSync(resultsPath, JSON.stringify(results, null, 2));
             core.info(`\n📝 Results written to: ${resultsPath}`);
             
@@ -333,8 +333,8 @@ safe-outputs:
         with:
           name: ollama-scan-results
           path: |
-            /tmp/gh-aw/threat-detection/ollama-scan-results.json
-            /tmp/gh-aw/ollama-logs/
+            /tmp/gh-aw/agent/threat-detection/ollama-scan-results.json
+            /tmp/gh-aw/agent/ollama-logs/
           if-no-files-found: ignore
 ---
 
@@ -409,7 +409,7 @@ timeout-minutes: 20
 
 The scan results are uploaded as artifacts including:
 - `ollama-scan-results.json`: Detailed JSON results for each scanned file with safe/unsafe status
-- Ollama service logs (`/tmp/gh-aw/ollama-logs/`) for debugging
+- Ollama service logs (`/tmp/gh-aw/agent/ollama-logs/`) for debugging
 
 ## Integration with Existing Threat Detection
 
@@ -432,7 +432,7 @@ This Ollama scanning complements the existing AI-based threat detection:
 
 **Service not ready:**
 - Increase wait loop iterations (default: 30 seconds)
-- Check `/tmp/gh-aw/ollama-logs/ollama-serve-error.log` for startup errors
+- Check `/tmp/gh-aw/agent/ollama-logs/ollama-serve-error.log` for startup errors
 - Verify port 11434 is not already in use
 
 **Scan produces false positives:**

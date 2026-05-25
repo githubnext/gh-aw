@@ -15,6 +15,16 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+func newTestActionUpdateDeps() actionUpdateDeps {
+	return defaultActionUpdateDeps()
+}
+
+func newActionUpdateDepsWithLatestRelease(fn func(context.Context, string, string, bool, bool) (string, string, error)) actionUpdateDeps {
+	deps := newTestActionUpdateDeps()
+	deps.getLatestRelease = fn
+	return deps
+}
+
 func TestActionKeyVersionConsistency(t *testing.T) {
 	// This test ensures that when an action is updated, the key in the map
 	// is updated to match the new version, preventing key/version mismatches
@@ -108,9 +118,7 @@ func TestUpdateActions_SafeOutputsInputsPreserved(t *testing.T) {
 
 	// Stub the release-fetch function so no network calls are made.
 	// actions/checkout gets a bump; owner/my-safe-action is already at latest.
-	orig := getLatestActionReleaseFn
-	defer func() { getLatestActionReleaseFn = orig }()
-	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	deps := newActionUpdateDepsWithLatestRelease(func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		switch repo {
 		case "actions/checkout":
 			return "v5", "newcheckoutsha1234567890123456789012345", nil
@@ -120,7 +128,7 @@ func TestUpdateActions_SafeOutputsInputsPreserved(t *testing.T) {
 		default:
 			return currentVersion, "", nil
 		}
-	}
+	})
 
 	// Build actions-lock.json with a regular action and a safe-outputs action (with cached inputs).
 	cache := workflow.NewActionCache(tmpDir)
@@ -147,7 +155,7 @@ func TestUpdateActions_SafeOutputsInputsPreserved(t *testing.T) {
 		t.Fatalf("failed to chdir: %v", err)
 	}
 
-	if err := UpdateActions(context.Background(), false, false, false, 0); err != nil {
+	if err := updateActions(context.Background(), deps, false, false, false, 0); err != nil {
 		t.Fatalf("UpdateActions() error = %v", err)
 	}
 
@@ -345,49 +353,9 @@ func TestIsCoreAction(t *testing.T) {
 	}
 }
 
-func TestUpdateActionRefsInContent_NonCoreActionsUnchanged(t *testing.T) {
-	// When allowMajor=false (--disable-release-bump), non-actions/* org references
-	// should not be modified because they are not core actions.
-	input := `steps:
-  - uses: docker/login-action@v3
-  - uses: github/codeql-action/upload-sarif@v3
-  - run: echo hello`
-
-	cache := make(map[string]latestReleaseResult)
-	changed, newContent, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), false, false, 0)
-	if err != nil {
-		t.Fatalf("updateActionRefsInContent() error = %v", err)
-	}
-	if changed {
-		t.Errorf("updateActionRefsInContent() changed = true, want false for non-actions/* refs with allowMajor=false")
-	}
-	if newContent != input {
-		t.Errorf("updateActionRefsInContent() modified content for non-actions/* refs\nGot: %s\nWant: %s", newContent, input)
-	}
-}
-
-func TestUpdateActionRefsInContent_NoActionRefs(t *testing.T) {
-	input := `description: Test workflow
-steps:
-  - run: echo hello
-  - run: echo world`
-
-	cache := make(map[string]latestReleaseResult)
-	changed, _, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), true, false, 0)
-	if err != nil {
-		t.Fatalf("updateActionRefsInContent() error = %v", err)
-	}
-	if changed {
-		t.Errorf("updateActionRefsInContent() changed = true, want false for content with no action refs")
-	}
-}
-
 func TestUpdateActionRefsInContent_VersionTagReplacement(t *testing.T) {
-	// Stub getLatestActionReleaseFn so the test doesn't hit the network
-	orig := getLatestActionReleaseFn
-	defer func() { getLatestActionReleaseFn = orig }()
-
-	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	// Stub latest release lookup so the test doesn't hit the network.
+	deps := newActionUpdateDepsWithLatestRelease(func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		switch repo {
 		case "actions/checkout":
 			return "v6", "de0fac2e4500dabe0009e67214ff5f5447ce83dd", nil
@@ -396,7 +364,7 @@ func TestUpdateActionRefsInContent_VersionTagReplacement(t *testing.T) {
 		default:
 			return currentVersion, "", nil
 		}
-	}
+	})
 
 	input := `steps:
   - uses: actions/checkout@v4
@@ -409,7 +377,7 @@ func TestUpdateActionRefsInContent_VersionTagReplacement(t *testing.T) {
   - run: echo hello`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, got, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), true, false, 0)
+	changed, got, err := updateActionRefsInContentWithDeps(context.Background(), deps, input, cache, make(map[string]coolDownCheckResult), true, false, 0)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -422,21 +390,17 @@ func TestUpdateActionRefsInContent_VersionTagReplacement(t *testing.T) {
 }
 
 func TestUpdateActionRefsInContent_SHAPinnedReplacement(t *testing.T) {
-	// Stub getLatestActionReleaseFn so the test doesn't hit the network
-	orig := getLatestActionReleaseFn
-	defer func() { getLatestActionReleaseFn = orig }()
-
 	newSHA := "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
-	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	deps := newActionUpdateDepsWithLatestRelease(func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		return "v6.0.2", newSHA, nil
-	}
+	})
 
 	oldSHA := "11bd71901bbe5b1630ceea73d27597364c9af683"
 	input := "        uses: actions/checkout@" + oldSHA + " # v5.0.0"
 	want := "        uses: actions/checkout@" + newSHA + "  # v6.0.2"
 
 	cache := make(map[string]latestReleaseResult)
-	changed, got, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), true, false, 0)
+	changed, got, err := updateActionRefsInContentWithDeps(context.Background(), deps, input, cache, make(map[string]coolDownCheckResult), true, false, 0)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -449,15 +413,12 @@ func TestUpdateActionRefsInContent_SHAPinnedReplacement(t *testing.T) {
 }
 
 func TestUpdateActionRefsInContent_CacheReusedAcrossLines(t *testing.T) {
-	// Verify that the cache prevents duplicate calls to getLatestActionReleaseFn
-	orig := getLatestActionReleaseFn
-	defer func() { getLatestActionReleaseFn = orig }()
-
+	// Verify that the cache prevents duplicate calls to latest-release resolution.
 	callCount := 0
-	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	deps := newActionUpdateDepsWithLatestRelease(func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		callCount++
 		return "v8", "ed597411d8f9245be5a6f5b7f5d52e63b7e62e96", nil
-	}
+	})
 
 	// Two lines referencing the same repo@version: should resolve via cache after first call
 	input := `steps:
@@ -465,7 +426,7 @@ func TestUpdateActionRefsInContent_CacheReusedAcrossLines(t *testing.T) {
   - uses: actions/github-script@v7`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, _, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), true, false, 0)
+	changed, _, err := updateActionRefsInContentWithDeps(context.Background(), deps, input, cache, make(map[string]coolDownCheckResult), true, false, 0)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -473,17 +434,14 @@ func TestUpdateActionRefsInContent_CacheReusedAcrossLines(t *testing.T) {
 		t.Error("updateActionRefsInContent() changed = false, want true")
 	}
 	if callCount != 1 {
-		t.Errorf("getLatestActionReleaseFn called %d times, want 1 (cache should prevent second call)", callCount)
+		t.Errorf("latest release resolver called %d times, want 1 (cache should prevent second call)", callCount)
 	}
 }
 
 func TestUpdateActionRefsInContent_AllOrgsUpdatedWhenAllowMajor(t *testing.T) {
 	// With allowMajor=true (default behaviour), non-actions/* org references should
 	// also be updated to the latest major version.
-	orig := getLatestActionReleaseFn
-	defer func() { getLatestActionReleaseFn = orig }()
-
-	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	deps := newActionUpdateDepsWithLatestRelease(func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		switch repo {
 		case "docker/login-action":
 			return "v4", "newsha11234567890123456789012345678901234", nil
@@ -492,7 +450,7 @@ func TestUpdateActionRefsInContent_AllOrgsUpdatedWhenAllowMajor(t *testing.T) {
 		default:
 			return currentVersion, "", nil
 		}
-	}
+	})
 
 	input := `steps:
   - uses: docker/login-action@v3
@@ -503,7 +461,7 @@ func TestUpdateActionRefsInContent_AllOrgsUpdatedWhenAllowMajor(t *testing.T) {
   - uses: github/codeql-action@v4`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, got, err := updateActionRefsInContent(context.Background(), input, cache, make(map[string]coolDownCheckResult), true, false, 0)
+	changed, got, err := updateActionRefsInContentWithDeps(context.Background(), deps, input, cache, make(map[string]coolDownCheckResult), true, false, 0)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -519,25 +477,20 @@ func TestUpdateActionRefsInContent_AllOrgsUpdatedWhenAllowMajor(t *testing.T) {
 // Releases API returns an empty list, getLatestActionRelease falls back to the git
 // ls-remote tag scan (getLatestActionReleaseViaGitFn) rather than returning an error.
 func TestGetLatestActionRelease_FallsBackToGitWhenNoReleases(t *testing.T) {
-	origAPIfn := runGHReleasesAPIFn
-	origGitFn := getLatestActionReleaseViaGitFn
-	defer func() {
-		runGHReleasesAPIFn = origAPIfn
-		getLatestActionReleaseViaGitFn = origGitFn
-	}()
+	deps := newTestActionUpdateDeps()
 
 	// Simulate the GitHub Releases API returning an empty list (no releases published).
-	runGHReleasesAPIFn = func(_ context.Context, baseRepo string) ([]byte, error) {
+	deps.runGHReleasesAPI = func(_ context.Context, baseRepo string) ([]byte, error) {
 		return []byte(""), nil
 	}
 
 	gitFnCalled := false
-	getLatestActionReleaseViaGitFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	deps.getLatestReleaseViaGit = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		gitFnCalled = true
 		return "v1.2.3", "abc1234567890123456789012345678901234567", nil
 	}
 
-	version, sha, err := getLatestActionRelease(context.Background(), "github/gh-aw-actions/setup", "v1", false, false)
+	version, sha, err := getLatestActionReleaseWithDeps(context.Background(), deps, "github/gh-aw-actions/setup", "v1", false, false)
 	if err != nil {
 		t.Fatalf("expected no error when git fallback succeeds, got: %v", err)
 	}
@@ -556,24 +509,19 @@ func TestGetLatestActionRelease_FallsBackToGitWhenNoReleases(t *testing.T) {
 // GitHub Releases API returns an empty list and the git fallback also fails, the
 // function returns an error rather than silently succeeding.
 func TestGetLatestActionRelease_FallbackReturnsErrorWhenBothFail(t *testing.T) {
-	origAPIfn := runGHReleasesAPIFn
-	origGitFn := getLatestActionReleaseViaGitFn
-	defer func() {
-		runGHReleasesAPIFn = origAPIfn
-		getLatestActionReleaseViaGitFn = origGitFn
-	}()
+	deps := newTestActionUpdateDeps()
 
 	// Simulate the GitHub Releases API returning an empty list.
-	runGHReleasesAPIFn = func(_ context.Context, baseRepo string) ([]byte, error) {
+	deps.runGHReleasesAPI = func(_ context.Context, baseRepo string) ([]byte, error) {
 		return []byte(""), nil
 	}
 
 	// Simulate the git fallback also finding nothing.
-	getLatestActionReleaseViaGitFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	deps.getLatestReleaseViaGit = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		return "", "", errors.New("no releases found")
 	}
 
-	_, _, err := getLatestActionRelease(context.Background(), "github/gh-aw-actions/setup", "v1", false, false)
+	_, _, err := getLatestActionReleaseWithDeps(context.Background(), deps, "github/gh-aw-actions/setup", "v1", false, false)
 	if err == nil {
 		t.Fatal("expected error when both releases API and git fallback fail, got nil")
 	}
@@ -584,23 +532,18 @@ func TestGetLatestActionRelease_FallbackReturnsErrorWhenBothFail(t *testing.T) {
 // the latest stable release.  Per semver rules, v1.1.0-beta.1 > v1.0.0 (base version
 // comparison), so without explicit filtering a prerelease could be picked incorrectly.
 func TestGetLatestActionRelease_PrereleaseTagsSkipped(t *testing.T) {
-	origAPIfn := runGHReleasesAPIFn
-	origSHAfn := getActionSHAForTagFn
-	defer func() {
-		runGHReleasesAPIFn = origAPIfn
-		getActionSHAForTagFn = origSHAfn
-	}()
+	deps := newTestActionUpdateDeps()
 
 	// Return a stable release alongside a higher-versioned prerelease.
-	runGHReleasesAPIFn = func(_ context.Context, baseRepo string) ([]byte, error) {
+	deps.runGHReleasesAPI = func(_ context.Context, baseRepo string) ([]byte, error) {
 		return []byte("v1.0.0\nv1.1.0-beta.1"), nil
 	}
 
-	getActionSHAForTagFn = func(_ context.Context, repo, tag string) (string, error) {
+	deps.getActionSHAForTag = func(_ context.Context, repo, tag string) (string, error) {
 		return "stablesha1234567890123456789012345678901", nil
 	}
 
-	version, _, err := getLatestActionRelease(context.Background(), "actions/checkout", "v1.0.0", true, false)
+	version, _, err := getLatestActionReleaseWithDeps(context.Background(), deps, "actions/checkout", "v1.0.0", true, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -619,11 +562,10 @@ func TestUpdateActions_GhAwNativeActionCappedAtCLIVersion(t *testing.T) {
 	SetVersionInfo("v0.68.3")
 	defer SetVersionInfo(origVersion)
 
-	// Stub getLatestActionReleaseFn to return a newer version (v0.68.7) simulating
+	// Stub latest release resolution to return a newer version (v0.68.7) simulating
 	// the scenario where a newer release exists but the CLI is still at v0.68.3.
-	origReleaseFn := getLatestActionReleaseFn
-	defer func() { getLatestActionReleaseFn = origReleaseFn }()
-	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	deps := newTestActionUpdateDeps()
+	deps.getLatestRelease = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		switch repo {
 		case "github/gh-aw-actions/setup":
 			return "v0.68.7", "newersha1234567890123456789012345678901234", nil
@@ -634,11 +576,9 @@ func TestUpdateActions_GhAwNativeActionCappedAtCLIVersion(t *testing.T) {
 		}
 	}
 
-	// Stub getActionSHAForTagFn to return a SHA for the CLI version tag (v0.68.3).
-	origSHAfn := getActionSHAForTagFn
-	defer func() { getActionSHAForTagFn = origSHAfn }()
+	// Stub tag-to-SHA resolution to return a SHA for the CLI version tag (v0.68.3).
 	const cliVersionSHA = "cliversha12345678901234567890123456789012"
-	getActionSHAForTagFn = func(_ context.Context, repo, tag string) (string, error) {
+	deps.getActionSHAForTag = func(_ context.Context, repo, tag string) (string, error) {
 		if tag == "v0.68.3" {
 			return cliVersionSHA, nil
 		}
@@ -666,7 +606,7 @@ func TestUpdateActions_GhAwNativeActionCappedAtCLIVersion(t *testing.T) {
 		t.Fatalf("failed to chdir: %v", err)
 	}
 
-	if err := UpdateActions(context.Background(), false, false, false, 0); err != nil {
+	if err := updateActions(context.Background(), deps, false, false, false, 0); err != nil {
 		t.Fatalf("UpdateActions() error = %v", err)
 	}
 
@@ -726,12 +666,10 @@ func TestIsGhAwNativeAction(t *testing.T) {
 // so if the current version (e.g. v1.1.3) was tag-only, the API may return an older
 // release (e.g. v1.1.0) as the "latest". The update logic must detect this and skip.
 func TestUpdateActions_NeverDowngrades(t *testing.T) {
-	orig := getLatestActionReleaseFn
-	defer func() { getLatestActionReleaseFn = orig }()
-
+	deps := newTestActionUpdateDeps()
 	// Simulate the Releases API returning a lower version than what is already pinned
 	// in actions-lock.json (e.g. actions-ecosystem/action-add-labels: v1.1.3 → v1.1.0).
-	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	deps.getLatestRelease = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		if repo == "actions-ecosystem/action-add-labels" {
 			// API only knows about v1.1.0 even though v1.1.3 is already pinned
 			return "v1.1.0", "oldsha1234567890123456789012345678901234a", nil
@@ -761,7 +699,7 @@ func TestUpdateActions_NeverDowngrades(t *testing.T) {
 		t.Fatalf("failed to chdir: %v", err)
 	}
 
-	if err := UpdateActions(context.Background(), true, false, false, 0); err != nil {
+	if err := updateActions(context.Background(), deps, true, false, false, 0); err != nil {
 		t.Fatalf("UpdateActions() error = %v", err)
 	}
 
@@ -785,10 +723,9 @@ func TestUpdateActions_NeverDowngrades(t *testing.T) {
 }
 
 func TestUpdateActionsInWorkflowFiles_UpdatesUsesReferences(t *testing.T) {
-	// Stub the release-fetch function so no network calls are made.
-	orig := getLatestActionReleaseFn
-	defer func() { getLatestActionReleaseFn = orig }()
-	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	// Stub latest release lookup so no network calls are made.
+	deps := newTestActionUpdateDeps()
+	deps.getLatestRelease = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		if repo == "ruby/setup-ruby" {
 			return "v1.310.0", "newrubysha1234567890123456789012345678901", nil
 		}
@@ -803,7 +740,7 @@ func TestUpdateActionsInWorkflowFiles_UpdatesUsesReferences(t *testing.T) {
 		t.Fatalf("failed to write workflow file: %v", err)
 	}
 
-	if err := UpdateActionsInWorkflowFiles(context.Background(), workflowsDir, "", false, false, true, 0); err != nil {
+	if err := updateActionsInWorkflowFiles(context.Background(), deps, workflowsDir, "", false, false, true, 0); err != nil {
 		t.Fatalf("UpdateActionsInWorkflowFiles() error = %v", err)
 	}
 
@@ -821,9 +758,8 @@ func TestUpdateActionsInWorkflowFiles_NeverDowngrades(t *testing.T) {
 	// Mirrors TestUpdateActions_NeverDowngrades: the release resolver returns a lower
 	// version than what is already pinned in the .md file; the source file must not
 	// be rewritten to the older tag.
-	orig := getLatestActionReleaseFn
-	defer func() { getLatestActionReleaseFn = orig }()
-	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	deps := newTestActionUpdateDeps()
+	deps.getLatestRelease = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		if repo == "actions-ecosystem/action-add-labels" {
 			return "v1.1.0", "oldsha1234567890123456789012345678901234a", nil
 		}
@@ -837,7 +773,7 @@ func TestUpdateActionsInWorkflowFiles_NeverDowngrades(t *testing.T) {
 		t.Fatalf("failed to write workflow file: %v", err)
 	}
 
-	if err := UpdateActionsInWorkflowFiles(context.Background(), workflowsDir, "", false, false, true, 0); err != nil {
+	if err := updateActionsInWorkflowFiles(context.Background(), deps, workflowsDir, "", false, false, true, 0); err != nil {
 		t.Fatalf("UpdateActionsInWorkflowFiles() error = %v", err)
 	}
 

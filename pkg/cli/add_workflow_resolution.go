@@ -231,12 +231,14 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 		workflowName := strings.TrimSuffix(base, filepath.Ext(base))
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
 			RepoSpec: RepoSpec{
-				RepoSlug: repoSpec.RepoSlug,
-				Version:  repoSpec.Version,
+				RepoSlug:    repoSpec.RepoSlug,
+				Version:     repoSpec.Version,
+				PackagePath: repoSpec.PackagePath,
 			},
-			WorkflowPath: installationSource,
-			WorkflowName: workflowName,
-			Host:         host,
+			WorkflowPath:           installationSource,
+			WorkflowName:           workflowName,
+			Host:                   host,
+			FromRepositoryManifest: true,
 		})
 	}
 

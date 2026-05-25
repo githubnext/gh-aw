@@ -2,7 +2,7 @@
 
 **Source**: [github/github-mcp-server](https://github.com/github/github-mcp-server/tree/main/pkg/github)
 **Mapping File**: [pkg/workflow/data/github_toolsets_permissions.json](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json)
-**Last Updated**: 2026-05-11
+**Last Updated**: 2026-05-24
 
 ## Overview
 
@@ -125,6 +125,7 @@ The following toolsets are recommended as defaults for typical agentic workflows
 | `list_branches` | List branches in a repository | `owner`, `repo`, `page`, `per_page` |
 | `list_commits` | List commits in a repository | `owner`, `repo`, `sha`, `path`, `page` |
 | `list_releases` | List all releases for a repository | `owner`, `repo`, `page`, `per_page` |
+| `list_repository_collaborators` | List collaborators of a repository | `owner`, `repo`, `affiliation`, `page`, `per_page` |
 | `list_tags` | List tags in a repository | `owner`, `repo`, `page`, `per_page` |
 | `push_files` | Push multiple files in a single commit | `owner`, `repo`, `branch`, `files`, `message` |
 

@@ -465,27 +465,6 @@ jobs:
 
 // TestExtractWorkflowCallInputsFromParsed tests the parsing of workflow_call inputs
 // from an already-parsed workflow map
-func TestExtractWorkflowCallInputsFromParsed(t *testing.T) {
-	workflow := map[string]any{
-		"on": map[string]any{
-			"workflow_call": map[string]any{
-				"inputs": map[string]any{
-					"payload": map[string]any{
-						"type":     "string",
-						"required": false,
-					},
-				},
-			},
-		},
-	}
-
-	inputs := extractWorkflowCallInputsFromParsed(workflow)
-	assert.Contains(t, inputs, "payload", "Should extract payload input")
-
-	payloadInput, ok := inputs["payload"].(map[string]any)
-	require.True(t, ok, "payload input should be a map")
-	assert.Equal(t, "string", payloadInput["type"], "payload should be string type")
-}
 
 // TestCallWorkflowConfig_WithGeneratedYAML tests that the compiled YAML for a gateway workflow
 // includes the expected call-workflow fan-out jobs structure

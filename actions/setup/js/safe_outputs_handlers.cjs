@@ -376,12 +376,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Get base branch for the resolved target repository.
     // Prefer explicit safe-output config value when provided, otherwise fall back
     // to dynamic resolution from trigger context/default branch. For side-repo
-    // checkouts, prefer the actual checked-out branch before the repository default
-    // branch so release-branch workflows generate patches against the right base.
+    // checkouts, prefer repository default-branch resolution from local
+    // origin/HEAD metadata before payload/API fallback.
     const baseBranch =
       prConfig.base_branch ||
       (await getBaseBranch(repoParts, {
-        preferCheckedOutBranch: Boolean(repoCwd),
+        preferLocalDefaultBranchMetadata: Boolean(repoCwd),
         cwd: repoCwd || undefined,
       }));
 
@@ -403,6 +403,26 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       }
 
       entry.branch = detectedBranch;
+    }
+
+    // Reject if branch still equals base_branch after detection.
+    // This means the base branch was incorrectly resolved (e.g., resolved to the
+    // feature branch itself due to a confused event context). Writing a safe output
+    // in this state would cause a cryptic git exit-1 in the safe_outputs job when
+    // it tries to fetch a non-existent remote ref.
+    if (entry.branch === entry.base_branch) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: `Branch '${entry.branch}' equals base_branch '${entry.base_branch}'. Cannot create a pull request from a branch into itself. Ensure 'branch' is your feature branch and that the base branch resolves to the target (e.g., 'main' or 'master').`,
+            }),
+          },
+        ],
+        isError: true,
+      };
     }
 
     const allowedBranches = parseAllowedBranchPatterns(prConfig.allowed_branches);
@@ -671,10 +691,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
 
     // Get base branch for the resolved target repository.
-    // For side-repo checkouts, prefer the actual checked-out branch before falling
-    // back to the repository default branch.
+    // For side-repo checkouts, prefer repository default-branch resolution from
+    // local origin/HEAD metadata before payload/API fallback.
     const baseBranch = await getBaseBranch(repoParts, {
-      preferCheckedOutBranch: Boolean(repoCwd),
+      preferLocalDefaultBranchMetadata: Boolean(repoCwd),
       cwd: repoCwd || undefined,
     });
 
@@ -696,6 +716,26 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       }
 
       entry.branch = detectedBranch;
+    }
+
+    // Reject if branch still equals base_branch after detection.
+    // This means the base branch was incorrectly resolved (e.g., resolved to the
+    // feature branch itself due to a confused event context). Writing a safe output
+    // in this state would cause a cryptic git exit-1 in the safe_outputs job when
+    // it tries to fetch a non-existent remote ref.
+    if (entry.branch === entry.base_branch) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: `Branch '${entry.branch}' equals base_branch '${entry.base_branch}'. Cannot push to a pull request branch that targets itself. Ensure 'branch' is your feature branch and that the base branch resolves to the target (e.g., 'main' or 'master').`,
+            }),
+          },
+        ],
+        isError: true,
+      };
     }
 
     const intentValidationError = validatePushToPullRequestBranchIntent(entry);

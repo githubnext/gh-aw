@@ -11,20 +11,32 @@ import (
 
 var workflowRunBranchesCodemodLog = logger.New("cli:codemod_workflow_run_branches")
 
-var resolveCurrentRepoDefaultBranchFn = func() (string, error) {
-	repoSlug := getRepositorySlugFromRemote()
-	if repoSlug == "" {
-		return "", errors.New("could not determine repository slug from git remote")
+type workflowRunBranchesCodemodDeps struct {
+	resolveCurrentRepoDefaultBranch func() (string, error)
+}
+
+func defaultWorkflowRunBranchesCodemodDeps() workflowRunBranchesCodemodDeps {
+	return workflowRunBranchesCodemodDeps{
+		resolveCurrentRepoDefaultBranch: func() (string, error) {
+			repoSlug := getRepositorySlugFromRemote()
+			if repoSlug == "" {
+				return "", errors.New("could not determine repository slug from git remote")
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			return getRepoDefaultBranch(ctx, repoSlug)
+		},
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	return getRepoDefaultBranch(ctx, repoSlug)
 }
 
 // getWorkflowRunBranchesCodemod adds default branch restrictions for bare workflow_run triggers.
 func getWorkflowRunBranchesCodemod() Codemod {
+	return getWorkflowRunBranchesCodemodWithDeps(defaultWorkflowRunBranchesCodemodDeps())
+}
+
+func getWorkflowRunBranchesCodemodWithDeps(deps workflowRunBranchesCodemodDeps) Codemod {
 	return Codemod{
 		ID:           "workflow-run-branches-default",
 		Name:         "Add workflow_run branch restrictions",
@@ -56,7 +68,7 @@ func getWorkflowRunBranchesCodemod() Codemod {
 			}
 
 			branches := []string{"main", "master"}
-			defaultBranch, err := resolveCurrentRepoDefaultBranchFn()
+			defaultBranch, err := deps.resolveCurrentRepoDefaultBranch()
 			if err != nil {
 				workflowRunBranchesCodemodLog.Printf("Could not resolve repository default branch via GitHub API, falling back to [main, master]: %v", err)
 			} else if strings.TrimSpace(defaultBranch) != "" {

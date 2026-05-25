@@ -75,7 +75,7 @@ timeout-minutes: 10
 - NO verbose explanations or unnecessary context.
 - Minimize file reading - only read what is absolutely necessary for the task.
 
-{{#if experiments.sub_agent_strategy == "single_agent"}}
+{{#if experiments.sub_agent_strategy == 'single_agent'}}
 ## Test Requirements (Single Agent — Baseline)
 
 Execute all 5 tests sequentially in this agent:
@@ -84,12 +84,12 @@ Execute all 5 tests sequentially in this agent:
 2. **Web Fetch Testing**: Use the web-fetch MCP tool to fetch https://github.com and verify the response contains "GitHub" (do NOT use bash or playwright)
 3. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-gemini-${{ github.run_id }}.txt` with content "Smoke test passed for Gemini at $(date)"
 4. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-5. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project. If the command fails, mark this test as ❌ and report the failure.
+5. **Build gh-aw**: Run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build` to verify the agent can successfully build the gh-aw project. If the command fails, mark this test as ❌ and report the failure.
 
 After completing all tests, proceed to the Output section below.
 {{/if}}
 
-{{#if experiments.sub_agent_strategy == "sub_agents"}}
+{{#if experiments.sub_agent_strategy == 'sub_agents'}}
 ## Test Requirements (Sub-Agent Strategy)
 
 Launch 5 parallel `task` sub-agents (agent_type: `task`) to execute tests independently. Each sub-agent should run one test requirement and return a simple ✅ or ❌ result.
@@ -100,7 +100,7 @@ Use the `task` tool with `mode: "background"` to launch all 5 agents in parallel
 2. **Agent: web-fetch-test** — Use the web-fetch MCP tool to fetch https://github.com and verify the response contains "GitHub". Return ✅ if successful.
 3. **Agent: file-write-test** — Create a test file `/tmp/gh-aw/agent/smoke-test-gemini-${{ github.run_id }}.txt` with content "Smoke test passed for Gemini at $(date)". Return ✅ if successful.
 4. **Agent: bash-test** — Execute bash commands to verify file creation was successful (use `cat` to read the file back). Return ✅ if successful.
-5. **Agent: build-test** — Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project. Return ✅ if successful, ❌ if failed.
+5. **Agent: build-test** — Run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build` to verify the agent can successfully build the gh-aw project. Return ✅ if successful, ❌ if failed.
 
 After launching all agents, wait for completion notifications and collect results using `read_agent`. Then proceed to the Output section below.
 {{/if}}

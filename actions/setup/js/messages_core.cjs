@@ -16,7 +16,7 @@
  * - {triggering_number} - Issue/PR/Discussion number that triggered this workflow
  * - {effective_tokens} - Raw total effective token count for the run (e.g. 1200), only present when > 0
  * - {effective_tokens_formatted} - Compact formatted effective tokens (e.g. "1.2K", "3M"), only present when > 0
- * - {effective_tokens_suffix} - Pre-formatted suffix including the ● symbol (e.g. " · ● 1.2K"), or "" when not available
+ * - {effective_tokens_suffix} - Pre-formatted suffix (e.g. " · 1.2K"), or "" when not available
  * - {operation} - Operation name (for staged mode titles/descriptions)
  * - {event_type} - Event type description (for run-started messages)
  * - {status} - Workflow status text (for run-failure messages)
@@ -93,16 +93,14 @@ function renderTemplate(template, context) {
  * - Trims each entry and drops empty segments
  * - Accepts filenames already wrapped in backticks
  * - Redacts unsafe/invalid entries as `redacted`
- * @param {string|number|boolean} value
+ * @param {string[]|string|number|boolean} value
  * @returns {string}
  */
 function renderFilesList(value) {
-  const files = String(value)
-    .split(",")
-    .map(file => file.trim())
-    .filter(Boolean);
+  const files = Array.isArray(value) ? value : String(value).split(",");
+  const normalizedFiles = files.map(file => String(file).trim()).filter(Boolean);
 
-  return files
+  return normalizedFiles
     .map(file => {
       let normalized = file;
       if (normalized.startsWith("`") && normalized.endsWith("`")) {

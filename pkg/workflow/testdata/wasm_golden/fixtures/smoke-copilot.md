@@ -113,6 +113,15 @@ strict: true
 
 **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 
+## Hard Limit: `add_comment` Budget
+
+`safe-outputs.add-comment.max` is `2`. Never exceed 2 total `add_comment` calls in this run.
+
+- Call #1 is required for the discussion interaction test (comment on latest discussion).
+- Call #2 depends on trigger:
+  - `pull_request` event: post the brief PR summary comment, and **skip** the fun discussion follow-up comment.
+  - non-`pull_request` event: **skip** the PR summary comment and post the fun discussion follow-up comment.
+
 ## Test Requirements
 
 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
@@ -143,13 +152,13 @@ strict: true
      - Timestamp
      - Pull request author and assignees
 
-2. Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+2. **Only if this workflow was triggered by a pull_request event**: Add a **very brief** comment (max 5-10 lines) to the current pull request with:
    - PR titles only (no descriptions)
    - ✅ or ❌ for each test result
    - Overall status: PASS or FAIL
    - Mention the pull request author and any assignees
 
-3. Use the `add_comment` tool to add a **fun and creative comment** to the latest discussion (using the `discussion_number` you extracted in step 7) - be playful and entertaining in your comment
+3. **Only if this workflow was NOT triggered by a pull_request event**: Use the `add_comment` tool to add a **fun and creative comment** to the latest discussion (using the `discussion_number` you extracted in step 7) - be playful and entertaining in your comment
 
 4. Use the `send_slack_message` tool to send a brief summary message (e.g., "Smoke test ${{ github.run_id }}: All tests passed! ✅")
 

@@ -2,7 +2,13 @@
 // returned by the GitHub API and gh CLI.
 package errorutil
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var errorutilLog = logger.New("errorutil:errors")
 
 // IsNotFoundError reports whether err represents an HTTP 404 / "not found" response.
 // It returns false when err is nil.
@@ -10,7 +16,11 @@ import "strings"
 // the phrase "not found", which covers all known forms returned by the GitHub API,
 // the gh CLI, and the go-gh library.
 func IsNotFoundError(err error) bool {
-	return containsErrorSubstring(err, "404", "not found")
+	matched := containsErrorSubstring(err, "404", "not found")
+	if matched {
+		errorutilLog.Printf("Classified error as not-found (404): %v", err)
+	}
+	return matched
 }
 
 // IsForbiddenError reports whether err represents an HTTP 403 / "forbidden" response.
@@ -19,7 +29,11 @@ func IsNotFoundError(err error) bool {
 // "HTTP 403" or "403 Forbidden", which avoids misclassifying unrelated errors
 // like "forbidden character".
 func IsForbiddenError(err error) bool {
-	return containsHTTPStatusSubstring(err, "403", "forbidden")
+	matched := containsHTTPStatusSubstring(err, "403", "forbidden")
+	if matched {
+		errorutilLog.Printf("Classified error as forbidden (403): %v", err)
+	}
+	return matched
 }
 
 // IsGoneError reports whether err represents an HTTP 410 / "gone" response.
@@ -28,7 +42,11 @@ func IsForbiddenError(err error) bool {
 // "HTTP 410" or "410 Gone", which avoids misclassifying unrelated errors like
 // "connection has gone away".
 func IsGoneError(err error) bool {
-	return containsHTTPStatusSubstring(err, "410", "gone")
+	matched := containsHTTPStatusSubstring(err, "410", "gone")
+	if matched {
+		errorutilLog.Printf("Classified error as gone (410): %v", err)
+	}
+	return matched
 }
 
 // containsErrorSubstring reports whether err contains any of the provided

@@ -7,13 +7,20 @@ import path from "path";
 const require = createRequire(import.meta.url);
 const {
   resolveCodexPromptFileArgs,
+  injectJsonFlag,
   isRateLimitError,
   isAuthenticationFailedError,
+  isMissingApiKeyError,
   isServerError,
   countPermissionDeniedIssues,
   hasNumerousPermissionDeniedIssues,
   extractDeniedCommands,
   buildMissingToolPermissionIssuePayload,
+  buildCodexChildEnv,
+  extractPortFromURL,
+  extractOpenAIProxyBaseURLFromToml,
+  getConfiguredOpenAIPortFromReflect,
+  validateCodexOpenAIBaseURLFromReflect,
 } = require("./codex_harness.cjs");
 
 describe("codex_harness.cjs", () => {
@@ -98,6 +105,156 @@ describe("codex_harness.cjs", () => {
     it("returns false for non-authentication-failed output", () => {
       expect(isAuthenticationFailedError("No authentication information found")).toBe(false);
       expect(isAuthenticationFailedError("rate_limit_exceeded")).toBe(false);
+    });
+  });
+
+  describe("isMissingApiKeyError", () => {
+    it("returns true for missing OPENAI_API_KEY with backtick delimiters", () => {
+      expect(isMissingApiKeyError("ERROR: Missing environment variable: `OPENAI_API_KEY`")).toBe(true);
+    });
+
+    it("returns true for missing CODEX_API_KEY with backtick delimiters", () => {
+      expect(isMissingApiKeyError("ERROR: Missing environment variable: `CODEX_API_KEY`")).toBe(true);
+    });
+
+    it("returns true for missing OPENAI_API_KEY without backtick delimiters", () => {
+      expect(isMissingApiKeyError("Missing environment variable: OPENAI_API_KEY")).toBe(true);
+    });
+
+    it("returns true when the error appears within a larger output block", () => {
+      const output = "Starting codex...\nERROR: Missing environment variable: `OPENAI_API_KEY`\nExiting.";
+      expect(isMissingApiKeyError(output)).toBe(true);
+    });
+
+    it("returns false for unrelated errors", () => {
+      expect(isMissingApiKeyError("Authentication failed")).toBe(false);
+      expect(isMissingApiKeyError("rate_limit_exceeded")).toBe(false);
+      expect(isMissingApiKeyError("Missing environment variable: HOME")).toBe(false);
+      expect(isMissingApiKeyError("")).toBe(false);
+    });
+  });
+
+  describe("injectJsonFlag", () => {
+    it("injects --json after exec when not already present", () => {
+      expect(injectJsonFlag(["exec", "--dangerously-bypass-approvals-and-sandbox", "do the thing"])).toEqual(["exec", "--json", "--dangerously-bypass-approvals-and-sandbox", "do the thing"]);
+    });
+
+    it("does not inject --json when already present", () => {
+      expect(injectJsonFlag(["exec", "--json", "--skip-git-repo-check", "do the thing"])).toEqual(["exec", "--json", "--skip-git-repo-check", "do the thing"]);
+    });
+
+    it("does not inject --json for non-exec subcommands", () => {
+      expect(injectJsonFlag(["resume", "--last", "fix it"])).toEqual(["resume", "--last", "fix it"]);
+    });
+
+    it("returns empty array unchanged", () => {
+      expect(injectJsonFlag([])).toEqual([]);
+    });
+  });
+
+  describe("buildCodexChildEnv", () => {
+    it("preserves captured keys even when base environment is missing them", () => {
+      const result = buildCodexChildEnv({ PATH: "/usr/bin" }, "codex-key", "openai-key");
+      expect(result.CODEX_API_KEY).toBe("codex-key");
+      expect(result.OPENAI_API_KEY).toBe("openai-key");
+      expect(result.PATH).toBe("/usr/bin");
+    });
+
+    it("does not add unset keys", () => {
+      const result = buildCodexChildEnv({ PATH: "/usr/bin" }, undefined, undefined);
+      expect(result.CODEX_API_KEY).toBeUndefined();
+      expect(result.OPENAI_API_KEY).toBeUndefined();
+    });
+  });
+
+  describe("OpenAI base URL validation", () => {
+    it("extracts port from URL", () => {
+      expect(extractPortFromURL("http://172.30.0.30:10000")).toBe(10000);
+      expect(extractPortFromURL("https://example.com")).toBeNull();
+      expect(extractPortFromURL("not-a-url")).toBeNull();
+    });
+
+    it("extracts openai-proxy base_url from TOML", () => {
+      const toml = `
+[history]
+persistence = "none"
+[model_providers.openai-proxy]
+name = "OpenAI AWF proxy"
+base_url = "http://172.30.0.30:10000"
+env_key = "OPENAI_API_KEY"
+`;
+      expect(extractOpenAIProxyBaseURLFromToml(toml)).toBe("http://172.30.0.30:10000");
+    });
+
+    it("extracts configured OpenAI port from reflect payload", () => {
+      const reflect = {
+        endpoints: [
+          { provider: "anthropic", port: 10001, configured: true },
+          { provider: "openai", port: 10000, configured: true },
+        ],
+      };
+      expect(getConfiguredOpenAIPortFromReflect(reflect)).toBe(10000);
+    });
+
+    it("returns null for malformed reflect endpoint ports", () => {
+      const reflect = {
+        endpoints: [{ provider: "openai", port: "not-a-number", configured: true }],
+      };
+      expect(getConfiguredOpenAIPortFromReflect(reflect)).toBeNull();
+    });
+
+    it("fails validation when config and reflect OpenAI ports mismatch", () => {
+      const toml = `[model_providers.openai-proxy]\nbase_url = "http://172.30.0.30:10001"\n`;
+      const reflect = JSON.stringify({
+        endpoints: [
+          { provider: "openai", port: 10000, configured: true },
+          { provider: "anthropic", port: 10001, configured: true },
+        ],
+      });
+      const files = {
+        "/tmp/codex-config.toml": toml,
+        "/tmp/awf-reflect.json": reflect,
+      };
+      const readFileSync = filePath => files[filePath];
+      const result = validateCodexOpenAIBaseURLFromReflect({
+        codexConfigPath: "/tmp/codex-config.toml",
+        reflectPath: "/tmp/awf-reflect.json",
+        readFileSync,
+      });
+      expect(result.ok).toBe(false);
+      expect(result.reason).toContain("mismatch");
+    });
+
+    it("passes validation when ports match", () => {
+      const toml = `[model_providers.openai-proxy]\nbase_url = "http://172.30.0.30:10000"\n`;
+      const reflect = JSON.stringify({
+        endpoints: [{ provider: "openai", port: 10000, configured: true }],
+      });
+      const files = {
+        "/tmp/codex-config.toml": toml,
+        "/tmp/awf-reflect.json": reflect,
+      };
+      const readFileSync = filePath => files[filePath];
+      const result = validateCodexOpenAIBaseURLFromReflect({
+        codexConfigPath: "/tmp/codex-config.toml",
+        reflectPath: "/tmp/awf-reflect.json",
+        readFileSync,
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it("passes through when TOML lacks openai-proxy section", () => {
+      const files = {
+        "/tmp/codex-config.toml": `[history]\npersistence = "none"\n`,
+        "/tmp/awf-reflect.json": JSON.stringify({ endpoints: [{ provider: "openai", port: 10000, configured: true }] }),
+      };
+      const readFileSync = filePath => files[filePath];
+      const result = validateCodexOpenAIBaseURLFromReflect({
+        codexConfigPath: "/tmp/codex-config.toml",
+        reflectPath: "/tmp/awf-reflect.json",
+        readFileSync,
+      });
+      expect(result.ok).toBe(true);
     });
   });
 
@@ -223,6 +380,7 @@ describe("codex_harness.cjs", () => {
       const RATE_LIMIT_ERROR_PATTERN = /rate_limit_exceeded|429 Too Many Requests|RateLimitError/i;
       const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
       if (attempt === 0 && isAuthenticationFailedError(result.output)) return false;
+      if (isMissingApiKeyError(result.output)) return false;
       if (hasNumerousPermissionDeniedIssues(result.output)) return false;
       const isTransient = RATE_LIMIT_ERROR_PATTERN.test(result.output) || SERVER_ERROR_PATTERN.test(result.output);
       return attempt < MAX_RETRIES && (result.hasOutput || isTransient);
@@ -246,6 +404,12 @@ describe("codex_harness.cjs", () => {
     it("does not retry when first attempt fails authentication", () => {
       const result = { exitCode: 1, hasOutput: true, output: "Authentication failed (Request ID: ABC123)" };
       expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("does not retry when missing API key is detected (any attempt)", () => {
+      const result = { exitCode: 1, hasOutput: false, output: "ERROR: Missing environment variable: `OPENAI_API_KEY`" };
+      expect(shouldRetry(result, 0)).toBe(false);
+      expect(shouldRetry(result, 1)).toBe(false);
     });
 
     it("does not retry when no output was produced and no transient error", () => {

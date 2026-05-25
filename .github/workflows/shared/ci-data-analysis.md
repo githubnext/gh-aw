@@ -24,13 +24,13 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       # Download workflow runs for split CI workflows (ci, cgo, cjs)
-      gh run list --repo "$GITHUB_REPOSITORY" --workflow=ci.yml --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,number > /tmp/ci-runs-ci.json
-      gh run list --repo "$GITHUB_REPOSITORY" --workflow=cgo.yml --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,number > /tmp/ci-runs-cgo.json
-      gh run list --repo "$GITHUB_REPOSITORY" --workflow=cjs.yml --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,number > /tmp/ci-runs-cjs.json
-      jq -s 'add | sort_by(.createdAt) | reverse | .[0:60]' /tmp/ci-runs-ci.json /tmp/ci-runs-cgo.json /tmp/ci-runs-cjs.json > /tmp/ci-runs.json
+      gh run list --repo "$GITHUB_REPOSITORY" --workflow=ci.yml --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,number > /tmp/gh-aw/agent/ci-runs-ci.json
+      gh run list --repo "$GITHUB_REPOSITORY" --workflow=cgo.yml --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,number > /tmp/gh-aw/agent/ci-runs-cgo.json
+      gh run list --repo "$GITHUB_REPOSITORY" --workflow=cjs.yml --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,number > /tmp/gh-aw/agent/ci-runs-cjs.json
+      jq -s 'add | sort_by(.createdAt) | reverse | .[0:60]' /tmp/gh-aw/agent/ci-runs-ci.json /tmp/gh-aw/agent/ci-runs-cgo.json /tmp/gh-aw/agent/ci-runs-cjs.json > /tmp/gh-aw/agent/ci-runs.json
       
       # Create directory for artifacts
-      mkdir -p /tmp/ci-artifacts
+      mkdir -p /tmp/gh-aw/agent/ci-artifacts
       
       # Download artifacts from recent successful runs across split workflows
       echo "Downloading artifacts from recent CI/cgo/cjs runs..."
@@ -40,11 +40,11 @@ steps:
         gh run list --repo "$GITHUB_REPOSITORY" --workflow=cjs.yml --status success --limit 2 --json databaseId
       } | jq -s 'add | .[].databaseId' -r | while read -r run_id; do
         echo "Processing run $run_id"
-        gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --dir "/tmp/ci-artifacts/$run_id" 2>/dev/null || echo "No artifacts for run $run_id"
+        gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --dir "/tmp/gh-aw/agent/ci-artifacts/$run_id" 2>/dev/null || echo "No artifacts for run $run_id"
       done
       
-      echo "CI runs data saved to /tmp/ci-runs.json"
-      echo "Artifacts saved to /tmp/ci-artifacts/"
+      echo "CI runs data saved to /tmp/gh-aw/agent/ci-runs.json"
+      echo "Artifacts saved to /tmp/gh-aw/agent/ci-artifacts/"
       
   - name: Build CI summary for optimization analysis
     run: |
@@ -61,10 +61,10 @@ steps:
         branch_counts: (group_by(.headBranch) | map({branch: .[0].headBranch, count: length}) | sort_by(-.count) | .[0:10]),
         avg_duration_seconds: ([.[] | safe_duration | select(. != null)] | if length > 0 then (add / length) else null end),
         top_recent_failures: ([.[] | select(.conclusion == "failure" or .conclusion == "cancelled") | {id: .databaseId, run_number: .number, title: .displayTitle, branch: .headBranch, event: .event, url: .url, updated_at: .updatedAt}] | sort_by(.updated_at) | reverse | .[0:10])
-      }' /tmp/ci-runs.json > /tmp/ci-summary.json
+      }' /tmp/gh-aw/agent/ci-runs.json > /tmp/gh-aw/agent/ci-summary.json
 
       echo "## CI Summary" >> "$GITHUB_STEP_SUMMARY"
-      jq -r '"- runs analyzed: \(.total_runs)\n- avg duration (sec): \(.avg_duration_seconds // "n/a")\n- recent failure records: \(.top_recent_failures | length)"' /tmp/ci-summary.json >> "$GITHUB_STEP_SUMMARY"
+      jq -r '"- runs analyzed: \(.total_runs)\n- avg duration (sec): \(.avg_duration_seconds // "n/a")\n- recent failure records: \(.top_recent_failures | length)"' /tmp/gh-aw/agent/ci-summary.json >> "$GITHUB_STEP_SUMMARY"
   
   - name: Setup Node.js
     uses: actions/setup-node@v6.4.0
@@ -103,8 +103,8 @@ steps:
   - name: Run unit tests
     continue-on-error: true
     run: |
-      mkdir -p /tmp/gh-aw
-      go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... | tee /tmp/gh-aw/test-results.json
+      mkdir -p /tmp/gh-aw/agent
+      go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... | tee /tmp/gh-aw/agent/test-results.json
 ---
 
 # CI Data Analysis
@@ -113,13 +113,13 @@ Pre-downloaded CI run data and artifacts are available for analysis:
 
 ## Available Data
 
-1. **CI Runs**: `/tmp/ci-runs.json`
+1. **CI Runs**: `/tmp/gh-aw/agent/ci-runs.json`
    - Last 60 workflow runs with status, timing, and metadata from `ci.yml`, `cgo.yml`, and `cjs.yml`
 
-2. **CI Summary**: `/tmp/ci-summary.json`
+2. **CI Summary**: `/tmp/gh-aw/agent/ci-summary.json`
    - Pre-computed totals, failure patterns, branch distribution, and average duration
     
-3. **Artifacts**: `/tmp/ci-artifacts/`
+3. **Artifacts**: `/tmp/gh-aw/agent/ci-artifacts/`
    - Coverage reports and benchmark results from recent successful runs
    - **Fuzz test results**: `*/fuzz-results/*.txt` - Output from fuzz tests
    - **Fuzz corpus data**: `*/fuzz-results/corpus/*` - Input corpus for each fuzz test
@@ -132,7 +132,7 @@ Pre-downloaded CI run data and artifacts are available for analysis:
 5. **Cache Memory**: `/tmp/gh-aw/cache-memory/`
    - Historical analysis data from previous runs
    
-6. **Test Results**: `/tmp/gh-aw/test-results.json`
+6. **Test Results**: `/tmp/gh-aw/agent/test-results.json`
    - JSON output from Go unit tests with performance and timing data
 
 ## Test Case Locations
@@ -162,14 +162,14 @@ This means you can:
 Start with the pre-computed summary:
 
 ```bash
-cat /tmp/ci-summary.json | jq .
+cat /tmp/gh-aw/agent/ci-summary.json | jq .
 ```
 
 Only use raw run data for deeper validation:
 
 ```bash
 # Analyze run data
-cat /tmp/ci-runs.json | jq '
+cat /tmp/gh-aw/agent/ci-runs.json | jq '
 {
   total_runs: length,
   by_status: group_by(.status) | map({status: .[0].status, count: length}),
@@ -192,7 +192,7 @@ Examine downloaded artifacts for insights:
 
 ```bash
 # List downloaded artifacts
-find /tmp/ci-artifacts -type f -name "*.txt" -o -name "*.html" -o -name "*.json"
+find /tmp/gh-aw/agent/ci-artifacts -type f -name "*.txt" -o -name "*.html" -o -name "*.json"
 
 # Analyze coverage reports if available
 # Check benchmark results for performance trends

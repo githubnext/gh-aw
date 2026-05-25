@@ -45,7 +45,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          ARTIFACT_DIR="/tmp/gh-aw/spellcheck"
+          ARTIFACT_DIR="/tmp/gh-aw/agent/spellcheck"
           mkdir -p "$ARTIFACT_DIR"
 
           find "$GITHUB_WORKSPACE/docs/src/content" -type f \( -name '*.md' -o -name '*.mdx' \) | sort > "$ARTIFACT_DIR/files.txt"
@@ -192,7 +192,7 @@ jobs:
         if: success()
         shell: bash
         run: |
-          ARTIFACT_DIR="/tmp/gh-aw/spellcheck"
+          ARTIFACT_DIR="/tmp/gh-aw/agent/spellcheck"
           FINDINGS_COUNT=$(jq -r '.findings' "$ARTIFACT_DIR/summary.json")
           FILES_CHECKED=$(jq -r '.files_checked' "$ARTIFACT_DIR/summary.json")
           DICT_PATH=$(jq -r '.dictionary.path // "none"' "$ARTIFACT_DIR/summary.json")
@@ -226,12 +226,12 @@ jobs:
         with:
           name: spellcheck-results
           path: |
-            /tmp/gh-aw/spellcheck/summary.json
-            /tmp/gh-aw/spellcheck/cspell-results.json
-            /tmp/gh-aw/spellcheck/cspell.stderr.log
-            /tmp/gh-aw/spellcheck/cspell-runtime-config.json
-            /tmp/gh-aw/spellcheck/findings.ndjson
-            /tmp/gh-aw/spellcheck/files.txt
+            /tmp/gh-aw/agent/spellcheck/summary.json
+            /tmp/gh-aw/agent/spellcheck/cspell-results.json
+            /tmp/gh-aw/agent/spellcheck/cspell.stderr.log
+            /tmp/gh-aw/agent/spellcheck/cspell-runtime-config.json
+            /tmp/gh-aw/agent/spellcheck/findings.ndjson
+            /tmp/gh-aw/agent/spellcheck/files.txt
             docs/.cspell.docs.json
           if-no-files-found: error
           retention-days: 3
@@ -253,7 +253,7 @@ steps:
     uses: actions/download-artifact@v8.0.1
     with:
       name: spellcheck-results
-      path: /tmp/gh-aw/spellcheck
+      path: /tmp/gh-aw/agent/spellcheck
 
 tools:
   cli-proxy: true
@@ -295,10 +295,10 @@ You maintain spelling quality for AstroStyleLite documentation under `docs/src/c
 
 The spellcheck job runs after activation and before the agent job, and stores machine-readable results at:
 
-- `/tmp/gh-aw/spellcheck/summary.json`
-- `/tmp/gh-aw/spellcheck/cspell-results.json`
-- `/tmp/gh-aw/spellcheck/findings.ndjson`
-- `/tmp/gh-aw/spellcheck/files.txt`
+- `/tmp/gh-aw/agent/spellcheck/summary.json`
+- `/tmp/gh-aw/agent/spellcheck/cspell-results.json`
+- `/tmp/gh-aw/agent/spellcheck/findings.ndjson`
+- `/tmp/gh-aw/agent/spellcheck/files.txt`
 - `docs/.cspell.docs.json`
 
 Dictionary source files referenced by `docs/.cspell.docs.json` are optional:
@@ -322,16 +322,16 @@ Spellcheck summary:
 This workflow is intentionally gated so the agent path only runs when `needs.spellcheck.outputs.has_findings == 'true'`.
 When no findings exist, the workflow stops after spellcheck and skips agent execution.
 
-{{#if experiments.prompt_style == "concise"}}
+{{#if experiments.prompt_style == 'concise'}}
 Fix spelling errors in `docs/src/content/` markdown files.
 
-Inputs: `/tmp/gh-aw/spellcheck/findings.ndjson` and `summary.json`.
+Inputs: `/tmp/gh-aw/agent/spellcheck/findings.ndjson` and `summary.json`.
 Preserve technical terms, product names, and code symbols.
 Branch: `spellcheck/YYYY-MM-DD`. Call `noop` if no safe fixes exist.
 {{#else}}
 ## Task
 
-1. Read `/tmp/gh-aw/spellcheck/summary.json` and `/tmp/gh-aw/spellcheck/findings.ndjson`.
+1. Read `/tmp/gh-aw/agent/spellcheck/summary.json` and `/tmp/gh-aw/agent/spellcheck/findings.ndjson`.
 2. Apply only justified spelling fixes in `docs/src/content/**/*.md` and `docs/src/content/**/*.mdx`.
 3. Preserve technical terms, product names, code symbols, and intentional capitalization.
 4. Do not re-run spellcheck in the agent job; use the provided artifact as the source of truth.

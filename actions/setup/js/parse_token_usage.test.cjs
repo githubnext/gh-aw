@@ -159,7 +159,7 @@ describe("parse_token_usage", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Token usage summary appended"));
     });
 
-    test("writes agent_usage.json with aggregated token totals including effective_tokens", async () => {
+    test("writes agent_usage.json with aggregated token totals including effective_tokens and primary_model", async () => {
       const agentUsageFile = path.join(tmpDir, "agent_usage.json");
 
       fs.existsSync = vi.fn(p => {
@@ -194,6 +194,8 @@ describe("parse_token_usage", () => {
       expect(agentUsage.cache_read_tokens).toBe(5000);
       expect(agentUsage.cache_write_tokens).toBe(3000);
       expect(typeof agentUsage.effective_tokens).toBe("number");
+      // primary_model is the actual model from token-usage data (not a user alias)
+      expect(agentUsage.primary_model).toBe("claude-sonnet-4-6");
     });
 
     test("exports effective_tokens as step output and env var when non-zero", async () => {

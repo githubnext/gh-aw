@@ -1967,6 +1967,17 @@ Test Case 4: Mention Filtering
 
 This section provides complete normative definitions for all safe output types. Each definition includes tool schema, operational semantics, configuration parameters, and security requirements.
 
+### 7.0 Schema and Agent Sync Requirements
+
+When a safe-output MCP tool schema changes (new required field, removed field, renamed field, or semantic contract change), the same pull request **MUST** update:
+
+1. This Section 7 type definition and JSON schema snippet.
+2. The corresponding handler contract in both Go and JavaScript runtime paths, if both runtimes support the type.
+3. Agent-facing prompt/tool examples that rely on the changed fields.
+4. Outcome-evaluation mappings when the change affects evaluable state or identifiers.
+
+Schema-only updates without matching agent/runtime sync updates **MUST NOT** be considered conformant.
+
 ### 7.1 Core Issue Operations
 
 #### Type: create_issue
@@ -2021,6 +2032,7 @@ This section provides complete normative definitions for all safe output types. 
 4. **Label Validation**: Labels must exist in repository; non-existent labels cause failure.
 5. **Issue Field Validation**: Field names/values must match configured repository issue fields; invalid values return actionable errors.
 6. **Cross-Repository**: When `target-repo` configured, created in that repository (must be in `allowed-repos`).
+7. **Temporary ID collision norm**: A temporary ID (`aw_*`) is workflow-run scoped and MUST map to exactly one created object. Reusing the same temporary ID for a different target object in the same run MUST be rejected as ambiguous (`E005`). Reuse that references the same previously-created object is allowed and MUST resolve deterministically to the first mapping.
 
 **Configuration Parameters**:
 

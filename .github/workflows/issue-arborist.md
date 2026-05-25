@@ -28,7 +28,7 @@ tools:
   bash:
     - "cat *"
     - "jq *"
-    - "/tmp/gh-aw/jqschema.sh"
+    - "./.github/skills/jqschema/jqschema.sh"
 steps:
   - name: Fetch issues
     env:
@@ -36,7 +36,7 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       # Create output directory
-      mkdir -p /tmp/gh-aw/issues-data
+      mkdir -p /tmp/gh-aw/agent/issues-data
       
       echo "⬇ Downloading the last 100 open issues (excluding sub-issues)..."
       
@@ -47,17 +47,17 @@ steps:
         --state open \
         --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \
         --limit 100 \
-        > /tmp/gh-aw/issues-data/issues.json
+        > /tmp/gh-aw/agent/issues-data/issues.json
 
       # Generate schema for reference using jqschema
-      /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/issues-data/issues.json > /tmp/gh-aw/issues-data/issues-schema.json
+      ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/issues-data/issues.json > /tmp/gh-aw/agent/issues-data/issues-schema.json
 
-      echo "✓ Issues data saved to /tmp/gh-aw/issues-data/issues.json"
-      echo "✓ Schema saved to /tmp/gh-aw/issues-data/issues-schema.json"
-      echo "Total issues fetched: $(jq 'length' /tmp/gh-aw/issues-data/issues.json)"
+      echo "✓ Issues data saved to /tmp/gh-aw/agent/issues-data/issues.json"
+      echo "✓ Schema saved to /tmp/gh-aw/agent/issues-data/issues-schema.json"
+      echo "Total issues fetched: $(jq 'length' /tmp/gh-aw/agent/issues-data/issues.json)"
       echo ""
       echo "Schema of the issues data:"
-      cat /tmp/gh-aw/issues-data/issues-schema.json | jq .
+      cat /tmp/gh-aw/agent/issues-data/issues-schema.json | jq .
 safe-outputs:
   create-issue:
     expires: 2d
@@ -92,7 +92,7 @@ experiments:
 
 ---
 
-{{#if experiments.prompt_style == "detailed"}}
+{{#if experiments.prompt_style == 'detailed'}}
 # Issue Arborist 🌳
 
 You are the Issue Arborist - an intelligent agent that cultivates the issue garden by identifying and linking related issues as parent-child relationships.
@@ -104,16 +104,16 @@ Analyze the last 100 open issues in repository $GITHUB_REPOSITORY (see `issues_a
 ## Pre-Downloaded Data
 
 The issue data has been pre-downloaded and is available at:
-- **Issues data**: `/tmp/gh-aw/issues-data/issues.json` - Contains the last 100 open issues (excluding those that are already sub-issues)
-- **Schema**: `/tmp/gh-aw/issues-data/issues-schema.json` - JSON schema showing the structure of the data
+- **Issues data**: `/tmp/gh-aw/agent/issues-data/issues.json` - Contains the last 100 open issues (excluding those that are already sub-issues)
+- **Schema**: `/tmp/gh-aw/agent/issues-data/issues-schema.json` - JSON schema showing the structure of the data
 
-Use `cat /tmp/gh-aw/issues-data/issues.json | jq ...` to query and analyze the issues.
+Use `cat /tmp/gh-aw/agent/issues-data/issues.json | jq ...` to query and analyze the issues.
 
 ## Process
 
 ### Step 1: Load and Analyze Issues
 
-Read the pre-downloaded issues data from `/tmp/gh-aw/issues-data/issues.json`. The data includes:
+Read the pre-downloaded issues data from `/tmp/gh-aw/agent/issues-data/issues.json`. The data includes:
 - Issue number
 - Title
 - Body/description
@@ -124,13 +124,13 @@ Read the pre-downloaded issues data from `/tmp/gh-aw/issues-data/issues.json`. T
 Use `jq` to filter and analyze the data. Example queries:
 ```bash
 # Get count of issues
-jq 'length' /tmp/gh-aw/issues-data/issues.json
+jq 'length' /tmp/gh-aw/agent/issues-data/issues.json
 
 # Get open issues only
-jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/issues-data/issues.json
+jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/agent/issues-data/issues.json
 
 # Get issues with specific label
-jq '[.[] | select(.labels | any(.name == "bug"))]' /tmp/gh-aw/issues-data/issues.json
+jq '[.[] | select(.labels | any(.name == "bug"))]' /tmp/gh-aw/agent/issues-data/issues.json
 ```
 
 ### Step 2: Analyze Relationships
@@ -232,7 +232,7 @@ Your discussion should include:
 {{else}}
 # Issue Arborist 🌳
 
-You are the Issue Arborist. Pre-downloaded issue data is at `/tmp/gh-aw/issues-data/issues.json` (last 100 open issues). Your goal:
+You are the Issue Arborist. Pre-downloaded issue data is at `/tmp/gh-aw/agent/issues-data/issues.json` (last 100 open issues). Your goal:
 
 1. Use `jq` to identify clusters of 5+ related issues that share a theme but lack a parent.
 2. Create a parent issue (title prefix `[Parent] `) for each cluster and link its members as sub-issues.

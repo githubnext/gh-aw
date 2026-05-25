@@ -304,19 +304,26 @@ func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
 func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 	workflowFiles := make([]string, 0, len(mdFiles))
 	for _, file := range mdFiles {
-		fd, err := os.Open(file)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read workflow file %s: %w", file, err)
-		}
+		firstLine, err := func() (firstLine string, err error) {
+			fd, err := os.Open(file)
+			if err != nil {
+				return "", fmt.Errorf("failed to read workflow file %s: %w", file, err)
+			}
+			defer func() {
+				if closeErr := fd.Close(); closeErr != nil {
+					err = fmt.Errorf("failed to close workflow file %s: %w", file, closeErr)
+				}
+			}()
 
-		reader := bufio.NewReader(fd)
-		firstLine, readErr := reader.ReadString('\n')
-		closeErr := fd.Close()
-		if closeErr != nil {
-			return nil, fmt.Errorf("failed to close workflow file %s: %w", file, closeErr)
-		}
-		if readErr != nil && !errors.Is(readErr, io.EOF) {
-			return nil, fmt.Errorf("failed to read workflow file %s: %w", file, readErr)
+			reader := bufio.NewReader(fd)
+			firstLine, err = reader.ReadString('\n')
+			if err != nil && !errors.Is(err, io.EOF) {
+				return "", fmt.Errorf("failed to read workflow file %s: %w", file, err)
+			}
+			return firstLine, nil
+		}()
+		if err != nil {
+			return nil, err
 		}
 
 		if firstLine == "" {
@@ -392,19 +399,20 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 }
 
 // extractWorkflowNameFromFile extracts the workflow name from a file's H1 header
-func extractWorkflowNameFromFile(filePath string) (string, error) {
+func extractWorkflowNameFromFile(filePath string) (title string, err error) {
 	fd, err := os.Open(filePath)
 	if err != nil {
 		return "", err
 	}
+	defer func() {
+		if closeErr := fd.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close workflow file %s: %w", filePath, closeErr)
+		}
+	}()
 
-	title, err := fastParseTitleFromReader(fd)
-	closeErr := fd.Close()
+	title, err = fastParseTitleFromReader(fd)
 	if err != nil {
 		return "", err
-	}
-	if closeErr != nil {
-		return "", fmt.Errorf("failed to close workflow file %s: %w", filePath, closeErr)
 	}
 	if title != "" {
 		return title, nil

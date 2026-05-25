@@ -10,8 +10,9 @@
 //     (e.g. `needs: job-name`, `state: failure`), handle the string case explicitly at the call site.
 //   - coerceStringOrArrayField() - Converts a single string scalar field into a one-element []string
 //     for fields that accept either a single value or an array in workflow YAML.
-//   - preprocessProtectedFilesField() - Normalises the "protected-files" field from its object or
-//     string form before downstream enum validation.
+//
+// Config normalization helpers such as preprocessProtectedFilesField now live in
+// config_preprocessing.go.
 
 package workflow
 
@@ -42,49 +43,6 @@ func coerceStringOrArrayFields(configData map[string]any, keys []string, debugLo
 	for _, key := range keys {
 		coerceStringOrArrayField(configData, key, debugLog)
 	}
-}
-
-// preprocessProtectedFilesField preprocesses the "protected-files" field in configData,
-// handling both the legacy string-enum form and the new object form.
-//
-// String form (unchanged): "blocked", "allowed", or "fallback-to-issue".
-// Object form: { policy: "blocked", exclude: ["AGENTS.md"] }
-//   - policy is optional; when missing or empty, this preprocessing step treats it as absent
-//     and leaves downstream default handling to apply (the "protected-files" key is deleted)
-//   - exclude is a list of filenames/path-prefixes to remove from the default protected set
-//
-// When the object form is encountered the field is normalised in-place:
-//   - "protected-files" is replaced with the extracted policy string, or deleted when policy is absent/empty
-//   - The extracted exclude slice is returned so callers can store it in the config struct
-//
-// When the string form is encountered the field is left unchanged and nil is returned.
-// The debugLog parameter is optional; pass nil to suppress debug output.
-func preprocessProtectedFilesField(configData map[string]any, debugLog *logger.Logger) []string {
-	if configData == nil {
-		return nil
-	}
-	raw, exists := configData["protected-files"]
-	if !exists || raw == nil {
-		return nil
-	}
-	pfMap, ok := raw.(map[string]any)
-	if !ok {
-		// String form — left for validateStringEnumField to handle
-		return nil
-	}
-	// Object form: extract policy and exclude
-	if policy, ok := pfMap["policy"].(string); ok && policy != "" {
-		configData["protected-files"] = policy
-		if debugLog != nil {
-			debugLog.Printf("protected-files object form: policy=%s", policy)
-		}
-	} else {
-		delete(configData, "protected-files")
-		if debugLog != nil {
-			debugLog.Print("protected-files object form: no policy, using default")
-		}
-	}
-	return parseStringSliceAny(pfMap["exclude"], debugLog)
 }
 
 // parseStringSliceAny coerces a raw any value into a []string.

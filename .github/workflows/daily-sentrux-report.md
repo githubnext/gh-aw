@@ -44,10 +44,10 @@ Run a full sentrux scan on the workspace using bash:
 cd ${{ github.workspace }}
 
 # Check rules and capture output (continues even if rules fail)
-sentrux check . 2>&1 | tee /tmp/sentrux-check.txt || true
+sentrux check . 2>&1 | tee /tmp/gh-aw/agent/sentrux-check.txt || true
 
 # Save a gate baseline for comparison in future runs
-sentrux gate --save . 2>&1 | tee /tmp/sentrux-gate.txt || true
+sentrux gate --save . 2>&1 | tee /tmp/gh-aw/agent/sentrux-gate.txt || true
 ```
 
 Parse the output to extract:

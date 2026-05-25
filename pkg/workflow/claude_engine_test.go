@@ -64,6 +64,9 @@ func TestClaudeEngine(t *testing.T) {
 	if strings.Contains(installStep, "--ignore-scripts") {
 		t.Errorf("Expected no --ignore-scripts flag for Claude Code (requires post-install scripts), got: %s", installStep)
 	}
+	if strings.Contains(installStep, "NPM_CONFIG_MIN_RELEASE_AGE") {
+		t.Errorf("Expected no npm release-age cooldown env for Claude install, got: %s", installStep)
+	}
 
 	// Test execution steps
 	workflowData := &WorkflowData{
@@ -208,6 +211,7 @@ func TestClaudeEnginePermissionMode(t *testing.T) {
 	tests := []struct {
 		name            string
 		tools           map[string]any
+		engineConfig    *EngineConfig
 		expectedMode    string
 		notExpectedMode string
 	}{
@@ -226,36 +230,89 @@ func TestClaudeEnginePermissionMode(t *testing.T) {
 			notExpectedMode: "bypassPermissions",
 		},
 		{
-			name: "bash wildcard * — bypassPermissions",
+			name: "bash wildcard * no longer forces bypassPermissions",
 			tools: map[string]any{
 				"bash": []any{"*"},
 			},
-			expectedMode:    "bypassPermissions",
-			notExpectedMode: "acceptEdits",
+			expectedMode:    "acceptEdits",
+			notExpectedMode: "bypassPermissions",
 		},
 		{
-			name: "bash colon-wildcard :* — bypassPermissions",
+			name: "bash colon-wildcard :* no longer forces bypassPermissions",
 			tools: map[string]any{
 				"bash": []any{":*"},
 			},
-			expectedMode:    "bypassPermissions",
-			notExpectedMode: "acceptEdits",
+			expectedMode:    "acceptEdits",
+			notExpectedMode: "bypassPermissions",
 		},
 		{
-			name: "bash nil value (unrestricted) — bypassPermissions",
+			name: "bash true no longer forces bypassPermissions",
+			tools: map[string]any{
+				"bash": true,
+			},
+			expectedMode:    "acceptEdits",
+			notExpectedMode: "bypassPermissions",
+		},
+		{
+			name: "bash nil no longer forces bypassPermissions",
 			tools: map[string]any{
 				"bash": nil,
 			},
-			expectedMode:    "bypassPermissions",
+			expectedMode:    "acceptEdits",
+			notExpectedMode: "bypassPermissions",
+		},
+		{
+			name: "edit false defaults to auto permission mode",
+			tools: map[string]any{
+				"edit": false,
+			},
+			expectedMode:    "auto",
 			notExpectedMode: "acceptEdits",
+		},
+		{
+			name: "engine.permission-mode overrides tools.edit=false default",
+			tools: map[string]any{
+				"edit": false,
+			},
+			engineConfig: &EngineConfig{
+				PermissionMode: "acceptEdits",
+			},
+			expectedMode:    "acceptEdits",
+			notExpectedMode: "auto",
+		},
+		{
+			name: "legacy engine.args permission-mode override still works with one emitted flag",
+			engineConfig: &EngineConfig{
+				Args: []string{"--permission-mode", "auto"},
+			},
+			expectedMode:    "auto",
+			notExpectedMode: "acceptEdits",
+		},
+		{
+			name: "legacy engine.args permission-mode=value override still works with one emitted flag",
+			engineConfig: &EngineConfig{
+				Args: []string{"--permission-mode=auto"},
+			},
+			expectedMode:    "auto",
+			notExpectedMode: "acceptEdits",
+		},
+		{
+			name: "engine.permission-mode overrides legacy engine.args permission-mode",
+			engineConfig: &EngineConfig{
+				PermissionMode: "plan",
+				Args:           []string{"--permission-mode", "auto"},
+			},
+			expectedMode:    "plan",
+			notExpectedMode: "auto",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
-				Name:  "test-workflow",
-				Tools: tt.tools,
+				Name:         "test-workflow",
+				Tools:        tt.tools,
+				EngineConfig: tt.engineConfig,
 			}
 			steps := engine.GetExecutionSteps(workflowData, "test-log")
 			require.Len(t, steps, 1, "Expected one execution step")
@@ -264,6 +321,111 @@ func TestClaudeEnginePermissionMode(t *testing.T) {
 				"Expected --permission-mode %s", tt.expectedMode)
 			assert.NotContains(t, stepContent, "--permission-mode "+tt.notExpectedMode,
 				"Did not expect --permission-mode %s", tt.notExpectedMode)
+			assert.Equal(t, 1, strings.Count(stepContent, "--permission-mode"),
+				"Expected exactly one --permission-mode flag in CLI args")
+		})
+	}
+}
+
+func TestIsEditToolExplicitlyDisabled(t *testing.T) {
+	tests := []struct {
+		name     string
+		tools    map[string]any
+		expected bool
+	}{
+		{
+			name:     "nil tools",
+			tools:    nil,
+			expected: false,
+		},
+		{
+			name: "edit missing",
+			tools: map[string]any{
+				"bash": []any{"echo"},
+			},
+			expected: false,
+		},
+		{
+			name: "edit false",
+			tools: map[string]any{
+				"edit": false,
+			},
+			expected: true,
+		},
+		{
+			name: "edit true",
+			tools: map[string]any{
+				"edit": true,
+			},
+			expected: false,
+		},
+		{
+			name: "edit null",
+			tools: map[string]any{
+				"edit": nil,
+			},
+			expected: false,
+		},
+		{
+			name: "edit as string",
+			tools: map[string]any{
+				"edit": "false",
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isEditToolExplicitlyDisabled(tt.tools))
+		})
+	}
+}
+
+func TestStripClaudePermissionModeArgs(t *testing.T) {
+	tests := []struct {
+		name               string
+		inputArgs          []string
+		expectedArgs       []string
+		expectedPermission string
+	}{
+		{
+			name:               "no permission mode args",
+			inputArgs:          []string{"--foo", "bar"},
+			expectedArgs:       []string{"--foo", "bar"},
+			expectedPermission: "",
+		},
+		{
+			name:               "split permission mode arg",
+			inputArgs:          []string{"--permission-mode", "auto", "--foo"},
+			expectedArgs:       []string{"--foo"},
+			expectedPermission: "auto",
+		},
+		{
+			name:               "equals permission mode arg",
+			inputArgs:          []string{"--foo", "--permission-mode=plan"},
+			expectedArgs:       []string{"--foo"},
+			expectedPermission: "plan",
+		},
+		{
+			name:               "multiple permission mode args use last value",
+			inputArgs:          []string{"--permission-mode", "auto", "--permission-mode=acceptEdits", "--foo"},
+			expectedArgs:       []string{"--foo"},
+			expectedPermission: "acceptEdits",
+		},
+		{
+			name:               "dangling permission mode flag is removed",
+			inputArgs:          []string{"--foo", "--permission-mode"},
+			expectedArgs:       []string{"--foo"},
+			expectedPermission: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args, permissionMode := stripClaudePermissionModeArgs(tt.inputArgs)
+			assert.Equal(t, tt.expectedArgs, args)
+			assert.Equal(t, tt.expectedPermission, permissionMode)
 		})
 	}
 }

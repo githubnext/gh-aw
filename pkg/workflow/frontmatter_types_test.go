@@ -342,6 +342,127 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("handles top-level runs-on forms", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			runsOn    any
+			assertion func(t *testing.T, got any)
+		}{
+			{
+				name:   "string form",
+				runsOn: "ubuntu-latest",
+				assertion: func(t *testing.T, got any) {
+					parsed, ok := got.(string)
+					if !ok {
+						t.Fatalf("RunsOn should be preserved as a string, got %T", got)
+					}
+					if parsed != "ubuntu-latest" {
+						t.Errorf("RunsOn = %v, want ubuntu-latest", parsed)
+					}
+				},
+			},
+			{
+				name:   "array form",
+				runsOn: []any{"self-hosted", "linux"},
+				assertion: func(t *testing.T, got any) {
+					parsed, ok := got.([]any)
+					if !ok {
+						t.Fatalf("RunsOn should be preserved as a slice, got %T", got)
+					}
+					if len(parsed) != 2 || parsed[0] != "self-hosted" || parsed[1] != "linux" {
+						t.Errorf("RunsOn = %v, want [self-hosted linux]", parsed)
+					}
+				},
+			},
+			{
+				name: "object form",
+				runsOn: map[string]any{
+					"group":  "arc-custom",
+					"labels": []any{"self-hosted", "linux"},
+				},
+				assertion: func(t *testing.T, got any) {
+					parsed, ok := got.(map[string]any)
+					if !ok {
+						t.Fatalf("RunsOn should be preserved as a map, got %T", got)
+					}
+					if parsed["group"] != "arc-custom" {
+						t.Errorf("RunsOn group = %v, want arc-custom", parsed["group"])
+					}
+				},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				frontmatter := map[string]any{
+					"runs-on": tt.runsOn,
+				}
+
+				config, err := ParseFrontmatterConfig(frontmatter)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+
+				tt.assertion(t, config.RunsOn)
+
+				reconstructed := config.ToMap()
+				tt.assertion(t, reconstructed["runs-on"])
+
+				config2, err := ParseFrontmatterConfig(reconstructed)
+				require.NoError(t, err)
+				tt.assertion(t, config2.RunsOn)
+
+				reconstructed2 := config2.ToMap()
+				assert.Equal(t, reconstructed, reconstructed2)
+			})
+		}
+	})
+
+	t.Run("rejects invalid top-level runs-on forms", func(t *testing.T) {
+		tests := []struct {
+			name        string
+			runsOn      any
+			errContains string
+		}{
+			{
+				name:        "number form",
+				runsOn:      42,
+				errContains: "invalid runs-on type",
+			},
+			{
+				name:        "array contains non-string",
+				runsOn:      []any{"self-hosted", 42},
+				errContains: "invalid runs-on array entry type",
+			},
+			{
+				name:        "object contains unknown key",
+				runsOn:      map[string]any{"unknown": "value"},
+				errContains: "invalid runs-on object key",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				_, err := ParseFrontmatterConfig(map[string]any{
+					"runs-on": tt.runsOn,
+				})
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			})
+		}
+	})
+
+	t.Run("omits typed-nil top-level runs-on during serialization", func(t *testing.T) {
+		var runsOn *string
+		config := &FrontmatterConfig{
+			RunsOn: runsOn,
+		}
+
+		reconstructed := config.ToMap()
+		_, ok := reconstructed["runs-on"]
+		assert.False(t, ok)
+	})
+
 	t.Run("preserves complex nested structures", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"safe-outputs": map[string]any{

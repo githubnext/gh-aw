@@ -245,23 +245,25 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	}
 
 	// Add inference_access_error, mcp_policy_error, agentic_engine_timeout, and
-	// model_not_supported_error outputs for Copilot engine only.
-	// These outputs are set by the detect-copilot-errors step which scans the agent
-	// stdio log for known error patterns in a single JavaScript step
+	// model_not_supported_error outputs for engines that provide an error detection step.
+	// These outputs are written by the host-runner detect-agent-errors step (via the
+	// engine's GetErrorDetectionScriptId script) rather than from inside the AWF container,
+	// because GITHUB_OUTPUT is not accessible inside the sandbox.
 	engine, engineErr := c.getAgenticEngine(data.AI)
 	if engineErr == nil {
-		if _, ok := engine.(*CopilotEngine); ok {
-			outputs["inference_access_error"] = "${{ steps.detect-copilot-errors.outputs.inference_access_error || 'false' }}"
-			compilerMainJobLog.Print("Added inference_access_error output (Copilot engine)")
+		if engine.GetErrorDetectionScriptId() != "" {
+			stepRef := fmt.Sprintf("steps.%s.outputs", constants.DetectAgentErrorsStepID)
+			outputs["inference_access_error"] = fmt.Sprintf("${{ %s.inference_access_error || 'false' }}", stepRef)
+			compilerMainJobLog.Printf("Added inference_access_error output (engine=%s, step=%s)", engine.GetID(), constants.DetectAgentErrorsStepID)
 
-			outputs["mcp_policy_error"] = "${{ steps.detect-copilot-errors.outputs.mcp_policy_error || 'false' }}"
-			compilerMainJobLog.Print("Added mcp_policy_error output (Copilot engine)")
+			outputs["mcp_policy_error"] = fmt.Sprintf("${{ %s.mcp_policy_error || 'false' }}", stepRef)
+			compilerMainJobLog.Printf("Added mcp_policy_error output (engine=%s, step=%s)", engine.GetID(), constants.DetectAgentErrorsStepID)
 
-			outputs["agentic_engine_timeout"] = "${{ steps.detect-copilot-errors.outputs.agentic_engine_timeout || 'false' }}"
-			compilerMainJobLog.Print("Added agentic_engine_timeout output (Copilot engine)")
+			outputs["agentic_engine_timeout"] = fmt.Sprintf("${{ %s.agentic_engine_timeout || 'false' }}", stepRef)
+			compilerMainJobLog.Printf("Added agentic_engine_timeout output (engine=%s, step=%s)", engine.GetID(), constants.DetectAgentErrorsStepID)
 
-			outputs["model_not_supported_error"] = "${{ steps.detect-copilot-errors.outputs.model_not_supported_error || 'false' }}"
-			compilerMainJobLog.Print("Added model_not_supported_error output (Copilot engine)")
+			outputs["model_not_supported_error"] = fmt.Sprintf("${{ %s.model_not_supported_error || 'false' }}", stepRef)
+			compilerMainJobLog.Printf("Added model_not_supported_error output (engine=%s, step=%s)", engine.GetID(), constants.DetectAgentErrorsStepID)
 		}
 	}
 

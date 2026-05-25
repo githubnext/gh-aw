@@ -661,6 +661,31 @@ files:
 		require.NotEmpty(t, pkg.Warnings)
 		assert.Contains(t, pkg.Warnings[0], "Ignoring files entry")
 	})
+
+	t.Run("rejects duplicate markdown filenames across different folders", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "aw.yml":
+				return []byte(`name: Duplicate Filenames
+files:
+  - workflows/triage.md
+  - workflows/subdir/triage.md
+`), nil
+			case "README.md":
+				return []byte("# Duplicate Filenames\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected scan of %s", workflowPath)
+			return nil, nil
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate workflow filename")
+	})
 }
 
 func TestResolveWorkflows_ActionWorkflowYML(t *testing.T) {

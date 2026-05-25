@@ -88,9 +88,9 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		version,
 		"Install Claude Code CLI",
 		"claude",
-		true, // Include Node.js setup
-		true, // Claude Code requires post-install scripts for native binaries
-		resolveRuntimeCooldown(workflowData, "node"),
+		true,  // Include Node.js setup
+		true,  // Claude Code requires post-install scripts for native binaries
+		false, // Agentic engine installs should not apply npm release-age cooldown
 	)
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
@@ -174,22 +174,20 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add permission mode for non-interactive execution.
 	//
-	// We use "acceptEdits" by default so that Claude Code honours --allowed-tools as
-	// the effective MCP tool boundary.  In "bypassPermissions" mode the allowlist is
-	// silently ignored — every tool exposed by the MCP gateway is reachable regardless
-	// of the workflow's declared tool configuration.
-	//
-	// Exception: when the workflow grants unrestricted bash access (bash: "*"), the
-	// agent can reach any tool via the shell regardless, so --allowed-tools provides
-	// no meaningful security boundary.  In that case we switch back to
-	// "bypassPermissions" which auto-approves all permission requests and produces a
-	// smoother headless execution experience.
+	// Default to "acceptEdits" so Claude Code honours --allowed-tools as the effective
+	// MCP tool boundary. Workflows that explicitly set tools.edit=false default to
+	// "auto" because they don't rely on acceptEdits write auto-approval behavior.
 	permissionMode := "acceptEdits"
-	if hasBashWildcardInTools(workflowData.Tools) {
-		claudeLog.Print("Unrestricted bash detected: using bypassPermissions mode")
-		permissionMode = "bypassPermissions"
+	if isEditToolExplicitlyDisabled(workflowData.Tools) {
+		claudeLog.Print("tools.edit=false detected: using auto permission mode")
+		permissionMode = "auto"
+	}
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.PermissionMode != "" {
+		permissionMode = workflowData.EngineConfig.PermissionMode
+		claudeLog.Printf("Using engine.permission-mode override: %s", permissionMode)
 	}
 	claudeArgs = append(claudeArgs, "--permission-mode", permissionMode)
+	permissionModeValueIndex := len(claudeArgs) - 1
 
 	// Add output format for structured output
 	// Use "stream-json" to output JSONL format (newline-delimited JSON objects)
@@ -203,9 +201,17 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, "--bare")
 	}
 
-	// Add custom args from engine configuration before the prompt
+	// Add custom args from engine configuration before the prompt.
+	// Strip any user-supplied --permission-mode flags so exactly one flag is emitted.
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
-		claudeArgs = append(claudeArgs, workflowData.EngineConfig.Args...)
+		// stripClaudePermissionModeArgs returns an empty permission-mode string when no
+		// override flag is present.
+		engineArgs, permissionModeFromArgs := stripClaudePermissionModeArgs(workflowData.EngineConfig.Args)
+		if permissionModeFromArgs != "" && workflowData.EngineConfig.PermissionMode == "" {
+			claudeLog.Printf("Using legacy engine.args permission mode override: %s", permissionModeFromArgs)
+			claudeArgs[permissionModeValueIndex] = permissionModeFromArgs
+		}
+		claudeArgs = append(claudeArgs, engineArgs...)
 	}
 
 	// The prompt is always read from prompt.txt, which is assembled by the compiler in the
@@ -507,4 +513,44 @@ func (e *ClaudeEngine) GetHarnessScriptName() string {
 // GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
 func (e *ClaudeEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
 	return defaultGetSquidLogsSteps(workflowData, claudeLog)
+}
+
+func isEditToolExplicitlyDisabled(tools map[string]any) bool {
+	if tools == nil {
+		return false
+	}
+
+	editConfig, hasEdit := tools["edit"]
+	if !hasEdit {
+		return false
+	}
+
+	enabled, isBool := editConfig.(bool)
+	return isBool && !enabled
+}
+
+// stripClaudePermissionModeArgs removes all --permission-mode flags from args
+// (both "--permission-mode <value>" and "--permission-mode=<value>" forms).
+// It returns the filtered argument list and the last permission-mode value found.
+// The returned permission-mode value is an empty string when no such flag exists.
+func stripClaudePermissionModeArgs(args []string) ([]string, string) {
+	filtered := make([]string, 0, len(args))
+	permissionMode := ""
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--permission-mode":
+			if i+1 < len(args) {
+				permissionMode = args[i+1]
+				i++
+			}
+		case strings.HasPrefix(arg, "--permission-mode="):
+			permissionMode = strings.TrimPrefix(arg, "--permission-mode=")
+		default:
+			filtered = append(filtered, arg)
+		}
+	}
+
+	return filtered, permissionMode
 }

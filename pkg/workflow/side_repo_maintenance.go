@@ -572,11 +572,11 @@ jobs:
 `)
 
 	// Add validate_workflows job for workflow_dispatch/workflow_call with operation == 'validate'
-	validateRunsOnValue := FormatRunsOn(nil, "ubuntu-latest")
+	formattedRunsOn := FormatRunsOn(nil, "ubuntu-latest")
 	yaml.WriteString(`
   validate_workflows:
     if: ${{ ` + RenderCondition(buildDispatchOperationCondition("validate")) + ` }}
-    runs-on: ` + validateRunsOnValue + `
+    runs-on: ` + formattedRunsOn + `
     permissions:
       contents: read
       issues: write

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -35,6 +36,9 @@ type WorkflowSpec struct {
 	WorkflowName string // e.g., "workflow-name"
 	IsWildcard   bool   // true if this is a wildcard spec (e.g., "owner/repo/*")
 	Host         string // explicit hostname from URL (e.g., "github.com", "myorg.ghe.com"); empty = use configured GH_HOST
+	// FromRepositoryManifest is true when this workflow was selected from an aw.yml
+	// repository package manifest (root or nested package path).
+	FromRepositoryManifest bool
 	// RawURL is set only for generic HTTP(S) URL specs whose host is not a recognized
 	// GitHub host.  When non-empty, WorkflowPath, RepoSlug, Version, and Host are all
 	// empty; the spec is resolved by fetching the URL and dispatching on Content-Type.
@@ -463,6 +467,17 @@ func buildSourceStringWithCommitSHA(workflow *WorkflowSpec, commitSHA string) st
 		return ""
 	}
 
+	if workflow.FromRepositoryManifest {
+		ref := workflow.Version
+		if commitSHA != "" {
+			ref = commitSHA
+		}
+		if ref == "" {
+			return repositoryPackageIdentifier(workflow.RepoSlug, workflow.PackagePath)
+		}
+		return repositoryPackageIdentifier(workflow.RepoSlug, workflow.PackagePath) + "@" + ref
+	}
+
 	// For local workflows, remove the "./" prefix from the WorkflowPath
 	workflowPath := strings.TrimPrefix(workflow.WorkflowPath, "./")
 
@@ -503,7 +518,7 @@ func genericURLWorkflowName(rawURL string) string {
 
 	// Walk path segments from the end looking for a non-empty one.
 	segments := strings.Split(strings.Trim(parsed.Path, "/"), "/")
-	for i := len(segments) - 1; i >= 0; i-- {
+	for i := range slices.Backward(segments) {
 		seg := segments[i]
 		if seg == "" {
 			continue

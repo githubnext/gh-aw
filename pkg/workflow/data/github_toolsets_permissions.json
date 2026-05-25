@@ -127,6 +127,7 @@
         "list_branches",
         "list_commits",
         "list_releases",
+        "list_repository_collaborators",
         "list_tags",
         "push_files"
       ]

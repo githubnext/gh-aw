@@ -118,7 +118,7 @@ func injectInputIntoTrigger(onSection string, triggerName string, inputName stri
 
 	inputLines := buildInputLines(triggerIndent)
 
-	result := make([]string, 0, len(lines)+len(inputLines)+1)
+	result := make([]string, 0, safeAllocationCapacity(len(lines), len(inputLines), 1))
 	for i, line := range lines {
 		// When the trigger line contains an explicit null/~ value,
 		// replace it with a bare trigger so sub-keys can follow.

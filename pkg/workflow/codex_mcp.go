@@ -170,6 +170,8 @@ func (e *CodexEngine) renderOpenAIProxyProviderToml(yaml *strings.Builder, inden
 }
 
 func (e *CodexEngine) getOpenAIProxyProviderBaseURL() string {
+	// AWF exposes the OpenAI-compatible provider on the shared OpenAI/Responses
+	// gateway port (10000).
 	return "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.ClaudeLLMGatewayPort))
 }
 

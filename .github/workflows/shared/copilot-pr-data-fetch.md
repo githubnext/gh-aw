@@ -4,7 +4,7 @@ tools:
     key: copilot-pr-data
   bash:
     - "jq *"
-    - "/tmp/gh-aw/jqschema.sh"
+    - "./.github/skills/jqschema/jqschema.sh"
     - "mkdir *"
     - "date *"
     - "cp *"
@@ -21,7 +21,7 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       # Create output directories
-      mkdir -p /tmp/gh-aw/pr-data
+      mkdir -p /tmp/gh-aw/agent/pr-data
       mkdir -p /tmp/gh-aw/cache-memory
       
       # Get today's date for cache identification
@@ -31,16 +31,16 @@ steps:
       # Check if cached data exists from today
       if [ -f "$CACHE_DIR/copilot-prs-${TODAY}.json" ] && [ -s "$CACHE_DIR/copilot-prs-${TODAY}.json" ]; then
         echo "✓ Found cached PR data from ${TODAY}"
-        cp "$CACHE_DIR/copilot-prs-${TODAY}.json" /tmp/gh-aw/pr-data/copilot-prs.json
+        cp "$CACHE_DIR/copilot-prs-${TODAY}.json" /tmp/gh-aw/agent/pr-data/copilot-prs.json
         
         # Regenerate schema if missing
         if [ ! -f "$CACHE_DIR/copilot-prs-${TODAY}-schema.json" ]; then
-          /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/pr-data/copilot-prs.json > "$CACHE_DIR/copilot-prs-${TODAY}-schema.json"
+          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/pr-data/copilot-prs.json > "$CACHE_DIR/copilot-prs-${TODAY}-schema.json"
         fi
-        cp "$CACHE_DIR/copilot-prs-${TODAY}-schema.json" /tmp/gh-aw/pr-data/copilot-prs-schema.json
+        cp "$CACHE_DIR/copilot-prs-${TODAY}-schema.json" /tmp/gh-aw/agent/pr-data/copilot-prs-schema.json
         
         echo "Using cached data from ${TODAY}"
-        echo "Total PRs in cache: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)"
+        echo "Total PRs in cache: $(jq 'length' /tmp/gh-aw/agent/pr-data/copilot-prs.json)"
       else
         echo "⬇ Downloading fresh PR data..."
         
@@ -55,22 +55,22 @@ steps:
           --state all \
           --json number,title,author,headRefName,createdAt,state,url,body,labels,updatedAt,closedAt,mergedAt \
           --limit 1000 \
-          > /tmp/gh-aw/pr-data/copilot-prs.json
+          > /tmp/gh-aw/agent/pr-data/copilot-prs.json
 
         # Generate schema for reference
-        /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/pr-data/copilot-prs.json > /tmp/gh-aw/pr-data/copilot-prs-schema.json
+        ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/pr-data/copilot-prs.json > /tmp/gh-aw/agent/pr-data/copilot-prs-schema.json
 
         # Store in cache with today's date
-        cp /tmp/gh-aw/pr-data/copilot-prs.json "$CACHE_DIR/copilot-prs-${TODAY}.json"
-        cp /tmp/gh-aw/pr-data/copilot-prs-schema.json "$CACHE_DIR/copilot-prs-${TODAY}-schema.json"
+        cp /tmp/gh-aw/agent/pr-data/copilot-prs.json "$CACHE_DIR/copilot-prs-${TODAY}.json"
+        cp /tmp/gh-aw/agent/pr-data/copilot-prs-schema.json "$CACHE_DIR/copilot-prs-${TODAY}-schema.json"
 
         echo "✓ PR data saved to cache: copilot-prs-${TODAY}.json"
-        echo "Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)"
+        echo "Total PRs found: $(jq 'length' /tmp/gh-aw/agent/pr-data/copilot-prs.json)"
       fi
       
       # Always ensure data is available at expected locations for backward compatibility
-      echo "PR data available at: /tmp/gh-aw/pr-data/copilot-prs.json"
-      echo "Schema available at: /tmp/gh-aw/pr-data/copilot-prs-schema.json"
+      echo "PR data available at: /tmp/gh-aw/agent/pr-data/copilot-prs.json"
+      echo "Schema available at: /tmp/gh-aw/agent/pr-data/copilot-prs-schema.json"
 ---
 
 <!--
@@ -80,7 +80,7 @@ This shared component fetches pull request data for GitHub Copilot coding agent-
 
 ### What It Does
 
-1. Creates output directories at `/tmp/gh-aw/pr-data/` and `/tmp/gh-aw/cache-memory/`
+1. Creates output directories at `/tmp/gh-aw/agent/pr-data/` and `/tmp/gh-aw/cache-memory/`
 2. Checks for cached PR data from today's date in cache-memory
 3. If cache exists (from earlier workflow runs today):
    - Uses cached data instead of making API calls
@@ -104,8 +104,8 @@ This shared component fetches pull request data for GitHub Copilot coding agent-
 
 ### Output Files
 
-- **`/tmp/gh-aw/pr-data/copilot-prs.json`**: Full PR data including number, title, author, branch name, timestamps, state, URL, body, labels, etc.
-- **`/tmp/gh-aw/pr-data/copilot-prs-schema.json`**: JSON schema showing the structure of the PR data
+- **`/tmp/gh-aw/agent/pr-data/copilot-prs.json`**: Full PR data including number, title, author, branch name, timestamps, state, URL, body, labels, etc.
+- **`/tmp/gh-aw/agent/pr-data/copilot-prs-schema.json`**: JSON schema showing the structure of the PR data
 - **`/tmp/gh-aw/cache-memory/copilot-prs-YYYY-MM-DD.json`**: Cached PR data with date
 - **`/tmp/gh-aw/cache-memory/copilot-prs-YYYY-MM-DD-schema.json`**: Cached schema with date
 
@@ -124,13 +124,13 @@ Then access the pre-fetched data in your workflow prompt:
 ```bash
 # Get PRs from the last 24 hours
 TODAY="$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')"
-jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today)]' /tmp/gh-aw/pr-data/copilot-prs.json
+jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today)]' /tmp/gh-aw/agent/pr-data/copilot-prs.json
 
 # Count total PRs
-jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json
+jq 'length' /tmp/gh-aw/agent/pr-data/copilot-prs.json
 
 # Get PR numbers
-jq '[.[].number]' /tmp/gh-aw/pr-data/copilot-prs.json
+jq '[.[].number]' /tmp/gh-aw/agent/pr-data/copilot-prs.json
 ```
 
 ### Requirements

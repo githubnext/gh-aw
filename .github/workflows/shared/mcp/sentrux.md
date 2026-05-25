@@ -22,9 +22,9 @@ steps:
   - name: Install sentrux
     run: |
       SENTRUX_VERSION="0.5.7"
-      curl -fsSL -o /tmp/sentrux "https://github.com/sentrux/sentrux/releases/download/v${SENTRUX_VERSION}/sentrux-linux-x86_64"
-      chmod +x /tmp/sentrux
-      sudo mv /tmp/sentrux /usr/local/bin/sentrux
+      curl -fsSL -o /tmp/gh-aw/agent/sentrux "https://github.com/sentrux/sentrux/releases/download/v${SENTRUX_VERSION}/sentrux-linux-x86_64"
+      chmod +x /tmp/gh-aw/agent/sentrux
+      sudo mv /tmp/gh-aw/agent/sentrux /usr/local/bin/sentrux
       sentrux --version
 ---
 

@@ -132,7 +132,7 @@ Using your expertise in OTel and DevOps observability, evaluate the instrumentat
 3. **Resource attributes** — Are standard OTel resource attributes populated (`service.version`, `deployment.environment`, `github.repository`, `github.run_id`)?
 4. **Error observability** — When a job fails, does the span carry the failure reason, not just the status code?
 5. **Trace continuity** — Is the trace ID reliably propagated across all jobs (activation, agent, safe-outputs, conclusion)?
-6. **Local JSONL mirror quality** — Is the local `/tmp/gh-aw/otel.jsonl` mirror useful for post-hoc debugging without a live collector?
+6. **Local JSONL mirror quality** — Is the local `/tmp/gh-aw/agent/otel.jsonl` mirror useful for post-hoc debugging without a live collector?
 7. **Span kind accuracy** — Are span kinds (CLIENT, SERVER, INTERNAL) accurate for each operation?
 
 ### Step 4: Select the Single Best Improvement

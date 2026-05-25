@@ -1007,3 +1007,93 @@ func TestExtractMCPToolUsageDataWithGuardPolicy(t *testing.T) {
 	require.Len(t, mcpData.GuardPolicySummary.Events, 1)
 	assert.Equal(t, "pull_request_read", mcpData.GuardPolicySummary.Events[0].ToolName)
 }
+
+// TestExtractToolCallsStatusInference verifies that extractToolCallsFromGatewayLog correctly
+// infers the per-call status when the gateway.jsonl entry omits the "status" field.
+// Post-OTel-collector migrations may drop the explicit "status" key; the parser must
+// fall back to the "error"/"level" fields to produce "success" or "error" rather than
+// leaving Status blank (which downstream agents render as "unknown").
+func TestExtractToolCallsStatusInference(t *testing.T) {
+	tests := []struct {
+		name         string
+		logLine      string
+		wantStatus   string
+		wantErrField string
+	}{
+		{
+			name:       "explicit status success",
+			logLine:    `{"timestamp":"2024-01-12T10:00:00Z","level":"info","event":"tool_call","server_name":"github","tool_name":"list_issues","duration":100,"status":"success"}`,
+			wantStatus: "success",
+		},
+		{
+			name:         "explicit status error with error field",
+			logLine:      `{"timestamp":"2024-01-12T10:00:01Z","level":"error","event":"tool_call","server_name":"github","tool_name":"list_issues","duration":50,"status":"error","error":"rate limit"}`,
+			wantStatus:   "error",
+			wantErrField: "rate limit",
+		},
+		{
+			name:       "no status field, level info — infer success",
+			logLine:    `{"timestamp":"2024-01-12T10:00:02Z","level":"info","event":"tool_call","server_name":"github","tool_name":"list_issues","duration":120}`,
+			wantStatus: "success",
+		},
+		{
+			name:         "no status field, level error — infer error",
+			logLine:      `{"timestamp":"2024-01-12T10:00:03Z","level":"error","event":"tool_call","server_name":"github","tool_name":"list_issues","duration":30}`,
+			wantStatus:   "error",
+			wantErrField: "",
+		},
+		{
+			name:         "no status field, non-empty error field — infer error",
+			logLine:      `{"timestamp":"2024-01-12T10:00:04Z","level":"info","event":"tool_call","server_name":"github","tool_name":"list_issues","duration":40,"error":"connection reset"}`,
+			wantStatus:   "error",
+			wantErrField: "connection reset",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			gatewayLogPath := filepath.Join(tmpDir, "gateway.jsonl")
+			require.NoError(t, os.WriteFile(gatewayLogPath, []byte(tt.logLine+"\n"), 0600))
+
+			mcpData := &MCPToolUsageData{ToolCalls: []MCPToolCall{}}
+			require.NoError(t, extractToolCallsFromGatewayLog(gatewayLogPath, mcpData))
+			require.Len(t, mcpData.ToolCalls, 1, "should have exactly one tool call record")
+
+			tc := mcpData.ToolCalls[0]
+			require.Equal(t, tt.wantStatus, tc.Status, "tool call status mismatch")
+			assert.Equal(t, tt.wantErrField, tc.Error, "tool call error field mismatch")
+		})
+	}
+}
+
+// TestProcessGatewayLogEntryLevelErrorCounting verifies that processGatewayLogEntry
+// counts a tool-call entry as an error when "level":"error" is set, even if the
+// "status" and "error" fields are absent (post-OTel format drift).
+func TestProcessGatewayLogEntryLevelErrorCounting(t *testing.T) {
+	metrics := &GatewayMetrics{
+		Servers: make(map[string]*GatewayServerMetrics),
+	}
+
+	// Simulate a gateway log entry that uses level:"error" without an explicit status field.
+	entry := &GatewayLogEntry{
+		Timestamp:  "2024-01-12T10:00:00Z",
+		Level:      "error",
+		Event:      "tool_call",
+		ServerName: "github",
+		ToolName:   "list_issues",
+		Duration:   50,
+	}
+
+	processGatewayLogEntry(entry, metrics, false)
+
+	assert.Equal(t, 1, metrics.TotalRequests, "should count as a request")
+	assert.Equal(t, 1, metrics.TotalErrors, "level:error should increment TotalErrors")
+
+	server := metrics.Servers["github"]
+	require.NotNil(t, server)
+	assert.Equal(t, 1, server.ErrorCount, "server error count should be 1")
+	tool := server.Tools["list_issues"]
+	require.NotNil(t, tool)
+	assert.Equal(t, 1, tool.ErrorCount, "tool error count should be 1")
+}

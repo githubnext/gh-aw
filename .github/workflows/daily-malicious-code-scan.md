@@ -56,101 +56,83 @@ When suspicious patterns are detected, generate code-scanning alerts (not standa
 
 ## Analysis Framework
 
-### 1. Fetch Git History
+### 1. Fetch Git History (Setup)
 
 Since this is a fresh clone, fetch the complete git history:
+Generate reusable artifacts once for sections 2-4.
 
 ```bash
 # Fetch all history for analysis
 git fetch --unshallow || echo "Repository already has full history"
 
-# Get list of files changed in last 3 days
-git log --since="3 days ago" --name-only --pretty=format: | sort | uniq > /tmp/changed_files.txt
+# Files changed in last 3 days (used by sections 2 and 3)
+git log --since="3 days ago" --name-only --pretty=format: | sort | uniq > /tmp/gh-aw/agent/changed_files.txt
 
-# Get commit details for context
-git log --since="3 days ago" --pretty=format:"%h - %an, %ar : %s" > /tmp/recent_commits.txt
+# Newly added files (used by section 2 out-of-context checks)
+git log --since="3 days ago" --diff-filter=A --name-only --pretty=format: | sort | uniq > /tmp/gh-aw/agent/added_files.txt
+
+# Commit summary (used by section 4)
+git log --since="3 days ago" --pretty=format:"%h - %an, %ar : %s" > /tmp/gh-aw/agent/recent_commits.txt
+
+# Authors (used by section 4)
+git log --since="3 days ago" --format="%an" | sort | uniq > /tmp/gh-aw/agent/authors.txt
+
+# Full diff for analysis (used by section 3)
+git diff HEAD~$(git rev-list --count --since="3 days ago" HEAD)..HEAD > /tmp/gh-aw/agent/diff.txt
+
+# Per-commit patches (used by section 3)
+git log --since="3 days ago" --all -p > /tmp/gh-aw/agent/recent_patches.txt
 ```
 
 ### 2. Suspicious Pattern Detection
 
-Look for these red flags in the changed code:
+Use setup artifacts instead of re-running git:
+- `/tmp/gh-aw/agent/changed_files.txt`
+- `/tmp/gh-aw/agent/added_files.txt`
+- `/tmp/gh-aw/agent/diff.txt`
 
-#### Secret Exfiltration Patterns
-- Network requests to external domains not in allow-lists
-- Environment variable access followed by external communication
-- Base64 encoding of sensitive-looking data
-- Suspicious use of `curl`, `wget`, or HTTP libraries
-- Data serialization followed by network calls
-- Unusual file system writes to temporary or hidden directories
+For each file in `/tmp/gh-aw/agent/changed_files.txt`, call the `suspicious-pattern-classifier` agent with:
+- file path
+- file-specific diff/content evidence extracted from `/tmp/gh-aw/agent/diff.txt`
+- whether the file is newly added (from `/tmp/gh-aw/agent/added_files.txt`)
 
-**Example patterns to detect:**
+Collect all non-empty JSON findings returned by the agent across files. These findings must use one of:
+- `secret-exfiltration`
+- `out-of-context`
+- `suspicious-network`
+- `system-access`
+- `obfuscation`
+- `privilege-escalation`
+
+Example file loop:
 ```bash
-# Search for suspicious network patterns
-grep -E "(curl|wget|fetch|http\.get|requests\.)" /tmp/changed_files.txt | while read -r file; do
+# Iterate over changed files from setup artifacts
+cat /tmp/gh-aw/agent/changed_files.txt | while read -r file; do
   if [ -f "$file" ]; then
-    echo "Checking: $file"
-    # Check for secrets + network combination
-    if grep -i "secret\|token\|password\|key" "$file" >/dev/null && \
-       grep -E "curl|wget|http|fetch" "$file" >/dev/null; then
-      echo "WARNING: Potential secret exfiltration in $file"
-    fi
+    file_diff=$(awk -v f="$file" '
+      /^diff --git / {show = ($0 ~ (" b/" f "$"))}
+      show {print}
+    ' /tmp/gh-aw/agent/diff.txt)
+
+    # Call suspicious-pattern-classifier with file + related diff context
+    # and collect returned JSON findings for later scoring
+    echo "Analyze with suspicious-pattern-classifier: $file"
   fi
 done
 ```
-
-#### Out-of-Context Code Patterns
-- Files with imports or dependencies unusual for their location
-- Code in unexpected directories (e.g., ML models in a CLI tool)
-- Sudden introduction of cryptographic operations
-- Code that accesses unusual system APIs
-- Files with mismatched naming conventions
-- Sudden changes in code complexity or style
-
-**Example patterns to detect:**
-```bash
-# Check for unusual file additions
-git log --since="3 days ago" --diff-filter=A --name-only --pretty=format: | \
-  sort | uniq | while read -r file; do
-  if [ -f "$file" ]; then
-    # Check if file is in an unusual location for its type
-    case "$file" in
-      *.go)
-        # Go files outside expected directories
-        if ! echo "$file" | grep -qE "^(cmd|pkg|internal)/"; then
-          echo "WARNING: Go file in unusual location: $file"
-        fi
-        ;;
-      *.js|*.cjs)
-        # JavaScript outside expected directories
-        if ! echo "$file" | grep -qE "^(pkg/workflow/js|scripts)/"; then
-          echo "WARNING: JavaScript file in unusual location: $file"
-        fi
-        ;;
-    esac
-  fi
-done
-```
-
-#### Suspicious System Operations
-- Execution of shell commands with user input
-- File operations in sensitive directories
-- Process spawning or system calls
-- Access to `/etc/passwd`, `/etc/shadow`, or other sensitive files
-- Privilege escalation attempts
-- Modification of security-critical files
 
 ### 3. Code Review Analysis
 
 For each file that changed in the last 3 days:
 
-1. **Get the full diff** to understand what changed:
+1. **Read the full diff artifact** to understand what changed:
    ```bash
-   git diff HEAD~$(git rev-list --count --since="3 days ago" HEAD)..HEAD
+   cat /tmp/gh-aw/agent/diff.txt
    ```
 
-2. **Analyze new function additions** for suspicious logic:
+2. **Analyze new function additions** for suspicious logic from patch artifacts:
    ```bash
-   git log --since="3 days ago" --all -p | grep -A 20 "^+func\|^+def\|^+function"
+   grep -A 20 "^+func\|^+def\|^+function" /tmp/gh-aw/agent/recent_patches.txt
    ```
 
 3. **Check for obfuscated code**:
@@ -171,8 +153,8 @@ Use the GitHub API tools to gather context:
 
 1. **Review recent PRs and commits** to understand the changes:
    ```bash
-   # Get list of authors from last 3 days
-   git log --since="3 days ago" --format="%an" | sort | uniq
+   cat /tmp/gh-aw/agent/recent_commits.txt
+   cat /tmp/gh-aw/agent/authors.txt
    ```
 
 2. **Check if changes align with repository purpose**:
@@ -188,13 +170,14 @@ Use the GitHub API tools to gather context:
 
 ### 5. Threat Scoring
 
-For each suspicious finding, calculate a threat score (0-10):
+For each suspicious finding, call the `threat-scorer` agent with:
+- `{category, evidence, file, confidence}`
+- Pass as JSON object input (for example: `{"category":"secret-exfiltration","evidence":"...","file":"path/to/file","confidence":"high"}`)
 
-- **Critical (9-10)**: Active secret exfiltration, backdoors, malicious payloads
-- **High (7-8)**: Suspicious patterns with high confidence
-- **Medium (5-6)**: Unusual code that warrants investigation
-- **Low (3-4)**: Minor anomalies or style inconsistencies
-- **Info (1-2)**: Informational findings
+Attach the returned JSON fields to the finding:
+- `score` (0-10)
+- `severity` (`error|warning|note`)
+- `rationale` (single-sentence explanation)
 
 ## Alert Generation Format
 
@@ -222,13 +205,6 @@ When suspicious patterns are found, create code-scanning alerts with this struct
 - `system-access`: Suspicious system operations
 - `obfuscation`: Deliberately obscured code
 - `privilege-escalation`: Attempts to gain elevated access
-
-**Severity Mapping**:
-- Threat score 9-10: `error`
-- Threat score 7-8: `error`
-- Threat score 5-6: `warning`
-- Threat score 3-4: `warning`
-- Threat score 1-2: `note`
 
 ## Important Guidelines
 
@@ -330,3 +306,44 @@ Your output MUST:
 **The workflow WILL FAIL if you don't call one of these tools.** Writing a message in your output text is NOT sufficient - you must actually invoke the tool.
 
 Begin your daily malicious code scan now. Analyze all code changes from the last 3 days, identify suspicious patterns, and generate appropriate code-scanning alerts for any threats detected.
+
+## agent: `suspicious-pattern-classifier`
+---
+description: Classify a single file diff against six malicious-code threat categories and return matches with evidence.
+model: small
+---
+You receive one file path and its diff or content. Decide which of these six categories match and return a JSON array.
+
+Categories: `secret-exfiltration`, `out-of-context`, `suspicious-network`, `system-access`, `obfuscation`, `privilege-escalation`.
+
+Match rules:
+- secret-exfiltration: env-var/secret access followed by external HTTP/network call, or base64 of sensitive-looking data.
+- out-of-context: imports, libraries, or domain unusual for the file's directory or project purpose.
+- suspicious-network: network requests to domains not used elsewhere in the repo.
+- system-access: shell exec of user input, /etc/passwd reads, privilege APIs.
+- obfuscation: long hex/base64 strings, deliberately obscure identifiers, encoded code blobs.
+- privilege-escalation: setuid, sudo invocations, capability changes.
+
+Return JSON only: `[{"category":"...","evidence":"<short quote or line>","line":<int|null>,"confidence":"high|medium|low"}, ...]`.
+- Use an integer `line` when a concrete line in the file diff/content is identifiable.
+- Use `null` when evidence is file-level or spans multiple lines without a single anchor.
+- Return an empty array if nothing matches.
+- Do not invent findings.
+
+## agent: `threat-scorer`
+---
+description: Assign a 0-10 threat score and severity bucket to a single suspicious-code finding.
+model: small
+---
+You receive one finding: `{category, evidence, file, confidence}`.
+
+Scoring rubric:
+- 9-10 critical: active secret exfiltration, working backdoor, executable malicious payload.
+- 7-8 high: strong suspicious pattern with high confidence and clear attack vector.
+- 5-6 medium: unusual code that warrants investigation; ambiguous intent.
+- 3-4 low: minor anomaly or style inconsistency.
+- 1-2 info: informational only.
+
+Severity mapping: 7-10 -> `error`, 3-6 -> `warning`, 1-2 -> `note`.
+
+Return JSON only: `{"score":<int>,"severity":"error|warning|note","rationale":"<one sentence>"}`. Do not add extra fields.

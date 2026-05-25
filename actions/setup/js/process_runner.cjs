@@ -49,7 +49,8 @@ function sleep(ms) {
  *   args: string[],
  *   attempt: number,
  *   log: (message: string) => void,
- *   logArgs?: string[]
+ *   logArgs?: string[],
+ *   env?: NodeJS.ProcessEnv
  * }} options
  *   - command   - The executable to run
  *   - args      - Arguments to pass to the command
@@ -59,7 +60,7 @@ function sleep(ms) {
  *                 Pass a redacted copy to avoid leaking sensitive values.
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-function runProcess({ command, args, attempt, log, logArgs }) {
+function runProcess({ command, args, attempt, log, logArgs, env }) {
   return new Promise(resolve => {
     const startTime = Date.now();
     // Guard against the promise being settled more than once.  On some systems Node
@@ -78,7 +79,7 @@ function runProcess({ command, args, attempt, log, logArgs }) {
 
     const child = spawn(command, args, {
       stdio: ["inherit", "pipe", "pipe"],
-      env: process.env,
+      env: env ?? process.env,
     });
 
     log(`attempt ${attempt + 1}: process started (pid=${child.pid ?? "unknown"})`);

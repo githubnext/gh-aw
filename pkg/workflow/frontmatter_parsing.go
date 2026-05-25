@@ -28,6 +28,10 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 		return nil, fmt.Errorf("failed to unmarshal frontmatter into config: %w", err)
 	}
 
+	if err := validateRunsOnValue(config.RunsOn); err != nil {
+		return nil, err
+	}
+
 	// Parse typed Runtimes field if runtimes exist
 	if len(config.Runtimes) > 0 {
 		runtimesTyped, err := parseRuntimesConfig(config.Runtimes)
@@ -77,7 +81,6 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%v", config.Name, config.Engine)
 	return &config, nil
 }
-
 func parseOnNeedsConfig(on map[string]any) ([]string, error) {
 	return parseOnNeedsValues(on)
 }

@@ -25,22 +25,22 @@ engine:
     
     - name: Convert prompt to GenAI format
       run: |
-        mkdir -p /tmp/gh-aw/aw-prompts
-        echo "---" > /tmp/gh-aw/aw-prompts/prompt.genai.md
-        echo "model: ${GH_AW_AGENT_MODEL_VERSION}" >> /tmp/gh-aw/aw-prompts/prompt.genai.md
-        echo "system: []" >> /tmp/gh-aw/aw-prompts/prompt.genai.md
-        echo "system-safety: false" >> /tmp/gh-aw/aw-prompts/prompt.genai.md
-        echo "---" >> /tmp/gh-aw/aw-prompts/prompt.genai.md
-        cat "$GH_AW_PROMPT" >> /tmp/gh-aw/aw-prompts/prompt.genai.md
+        mkdir -p /tmp/gh-aw/agent/aw-prompts
+        echo "---" > /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
+        echo "model: ${GH_AW_AGENT_MODEL_VERSION}" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
+        echo "system: []" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
+        echo "system-safety: false" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
+        echo "---" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
+        cat "$GH_AW_PROMPT" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
         echo "Generated GenAI prompt file:"
-        cat /tmp/gh-aw/aw-prompts/prompt.genai.md
+        cat /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
       env:
         GH_AW_PROMPT: ${{ env.GH_AW_PROMPT }}
         GH_AW_AGENT_MODEL_VERSION: ${{ env.GH_AW_AGENT_MODEL_VERSION }}
     
     - name: Run GenAIScript
       id: genaiscript
-      run: genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md --mcp-config "$GH_AW_MCP_CONFIG" --out /tmp/gh-aw/genaiscript-output.md
+      run: genaiscript run /tmp/gh-aw/agent/aw-prompts/prompt.genai.md --mcp-config "$GH_AW_MCP_CONFIG" --out /tmp/gh-aw/agent/genaiscript-output.md
       env:
         DEBUG: genaiscript:*
         GH_AW_PROMPT: ${{ env.GH_AW_PROMPT }}

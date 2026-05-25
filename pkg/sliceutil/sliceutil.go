@@ -3,7 +3,11 @@ package sliceutil
 
 import (
 	"slices"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var sliceutilLog = logger.New("sliceutil:sliceutil")
 
 // Filter returns a new slice containing only elements that match the predicate.
 // This is a pure function that does not modify the input slice.
@@ -70,6 +74,9 @@ func Deduplicate[T comparable](slice []T) []T {
 			result = append(result, item)
 		}
 	}
+	if sliceutilLog.Enabled() && len(result) < len(slice) {
+		sliceutilLog.Printf("Deduplicate: removed %d duplicate(s) from %d items", len(slice)-len(result), len(slice))
+	}
 	return result
 }
 
@@ -94,6 +101,9 @@ func MergeUnique[T comparable](base []T, extra ...T) []T {
 			seen[item] = struct{}{}
 			result = append(result, item)
 		}
+	}
+	if sliceutilLog.Enabled() {
+		sliceutilLog.Printf("MergeUnique: base=%d extra=%d result=%d", len(base), len(extra), len(result))
 	}
 	return result
 }

@@ -22,6 +22,9 @@ import (
 
 var mcpInspectLog = logger.New("cli:mcp_inspect")
 
+// mcpScriptsServerShutdownDelay gives the embedded mcp-scripts server a brief window to stop gracefully.
+const mcpScriptsServerShutdownDelay = 500 * time.Millisecond
+
 // InspectWorkflowMCP inspects MCP servers used by a workflow and lists available tools, resources, and roots
 func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter string, verbose bool, useActionsSecrets bool) error {
 	mcpInspectLog.Printf("Inspecting workflow MCP: workflow=%s, serverFilter=%s, toolFilter=%s",
@@ -131,7 +134,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to send interrupt signal: %v", err)))
 				}
 				// Wait a moment for graceful shutdown
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(mcpScriptsServerShutdownDelay)
 				// Attempt force kill (may fail if process already exited gracefully, which is fine)
 				_ = mcpScriptsServerCmd.Process.Kill()
 			}

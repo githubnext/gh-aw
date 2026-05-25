@@ -21,8 +21,11 @@ import (
 	"github.com/github/gh-aw/pkg/linters/errstringmatch"
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
 	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
+	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
+	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
+	panicinlibrarycode "github.com/github/gh-aw/pkg/linters/panic-in-library-code"
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
@@ -32,11 +35,14 @@ func main() {
 	multichecker.Main(
 		ctxbackground.Analyzer,
 		errormessage.Analyzer,
+		fprintlnsprintf.Analyzer,
 		errstringmatch.Analyzer,
 		excessivefuncparams.Analyzer,
 		fileclosenotdeferred.Analyzer,
 		largefunc.Analyzer,
+		manualmutexunlock.Analyzer,
 		osexitinlibrary.Analyzer,
+		panicinlibrarycode.Analyzer,
 		rawloginlib.Analyzer,
 		regexpcompileinfunction.Analyzer,
 		ssljson.Analyzer,

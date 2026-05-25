@@ -70,7 +70,6 @@ type builtinModelAliasesFile struct {
 // Meta-aliases (reference other aliases; resolved recursively by AWF):
 //   - "mini"  → haiku, gpt-5-mini, gpt-5-nano, gemini-flash-lite, copilot/raptor*mini*
 //   - "large" → sonnet, gpt-5-pro, gpt-5, gemini-pro
-//   - "auto"  → large (convenience alias for the default capable tier)
 //   - "any"   → copilot/*, anthropic/*, openai/*, google/*, gemini/*
 //   - "agent" → sonnet-6x, gpt-5.4, gpt-5, gemini-pro, haiku, any
 //
@@ -79,10 +78,12 @@ type builtinModelAliasesFile struct {
 //   - "claude"  → agent, sonnet-6x, haiku, any
 //   - "codex"   → agent, gpt-5-codex, gpt-5, any
 //   - "gemini"  → agent, gemini-pro, gemini-flash, any
+//
+// Panics on invalid embedded model_aliases.json data.
 func BuiltinModelAliases() map[string][]string {
 	var data builtinModelAliasesFile
 	if err := json.Unmarshal(builtinModelAliasesJSON, &data); err != nil {
-		panic(fmt.Sprintf("workflow: failed to parse embedded model_aliases.json: %v (try 'make build' to rebuild with the latest data)", err))
+		panic(fmt.Sprintf("BUG: workflow: failed to parse embedded model_aliases.json: %v (try 'make build' to rebuild with the latest data)", err))
 	}
 	// Return a fresh copy so callers may freely modify it.
 	result := make(map[string][]string, len(data.Aliases))

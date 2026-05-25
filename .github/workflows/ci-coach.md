@@ -71,29 +71,29 @@ Analyze the CI workflow daily to identify concrete optimization opportunities th
 
 The `ci-data-analysis` shared module has pre-downloaded CI run data and built the project. Available data:
 
-1. **CI Runs**: `/tmp/ci-runs.json` - Last 60 workflow runs
-2. **CI Summary**: `/tmp/ci-summary.json` - Pre-computed failure patterns, duration stats, and top opportunities
-3. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports, benchmarks, and **fuzz test results**
+1. **CI Runs**: `/tmp/gh-aw/agent/ci-runs.json` - Last 60 workflow runs
+2. **CI Summary**: `/tmp/gh-aw/agent/ci-summary.json` - Pre-computed failure patterns, duration stats, and top opportunities
+3. **Artifacts**: `/tmp/gh-aw/agent/ci-artifacts/` - Coverage reports, benchmarks, and **fuzz test results**
 4. **CI Configuration**:
    - `.github/workflows/ci.yml`
    - `.github/workflows/cgo.yml`
    - `.github/workflows/cjs.yml`
 5. **Cache Memory**: `/tmp/gh-aw/cache-memory/` - Historical analysis data
-6. **Test Results**: `/tmp/gh-aw/test-results.json` - Test performance data
-7. **Fuzz Results**: `/tmp/ci-artifacts/*/fuzz-results/` - Fuzz test output and corpus data
+6. **Test Results**: `/tmp/gh-aw/agent/test-results.json` - Test performance data
+7. **Fuzz Results**: `/tmp/gh-aw/agent/ci-artifacts/*/fuzz-results/` - Fuzz test output and corpus data
 
 The project has been **built, linted, and tested** so you can validate changes immediately.
-Start from `/tmp/ci-summary.json` first and only read raw files if a summary metric needs verification.
+Start from `/tmp/gh-aw/agent/ci-summary.json` first and only read raw files if a summary metric needs verification.
 
-{{#if experiments.prompt_style == "concise" }}
+{{#if experiments.prompt_style == 'concise' }}
 ## Task
 
-Analyze CI workflows (`.github/workflows/ci.yml`, `cgo.yml`, `cjs.yml`) using pre-downloaded data in `/tmp`. Identify the top 3 highest-impact optimizations for cost and speed. If you find actionable improvements, make focused changes, validate with `make lint && make build && make test-unit && make recompile`, and create a PR. If CI is healthy, call `noop`. Never modify test code to hide failures.
+Analyze CI workflows (`.github/workflows/ci.yml`, `cgo.yml`, `cjs.yml`) using pre-downloaded data in `/tmp/gh-aw/agent` (plus cache-memory where noted). Identify the top 3 highest-impact optimizations for cost and speed. If you find actionable improvements, make focused changes, validate with `make lint && make build && make test-unit && make recompile`, and create a PR. If CI is healthy, call `noop`. Never modify test code to hide failures.
 
 **Data**:
-- `/tmp/ci-summary.json` (start here)
-- `/tmp/ci-runs.json`
-- `/tmp/ci-artifacts/`
+- `/tmp/gh-aw/agent/ci-summary.json` (start here)
+- `/tmp/gh-aw/agent/ci-runs.json`
+- `/tmp/gh-aw/agent/ci-artifacts/`
 - `/tmp/gh-aw/cache-memory/`
 
 **Required approach**:
@@ -131,7 +131,7 @@ Follow the optimization strategies defined in the `ci-optimization-strategies` s
   - Check that the test suite FAILS when individual tests fail (not just reporting failures)
   - Review test job exit codes - ensure failed tests cause the job to exit with non-zero status
   - Validate that test result artifacts show actual test failures, not swallowed errors
-- **Analyze fuzz test performance**: Review fuzz test results in `/tmp/ci-artifacts/*/fuzz-results/`
+- **Analyze fuzz test performance**: Review fuzz test results in `/tmp/gh-aw/agent/ci-artifacts/*/fuzz-results/`
   - Check for new crash inputs or interesting corpus growth
   - Evaluate fuzz test duration (currently 10s per test)
   - Consider if fuzz time should be increased for security-critical tests
@@ -235,7 +235,7 @@ Use this compact structure (h3 or lower headers only):
 - **Cap analysis depth**: Focus on the **top 3 highest-impact opportunities** only. Do not perform exhaustive investigation of every possible metric.
 - **Early exit on no-op**: If Phase 1 (CI job health) and Phase 2 (test coverage) show no issues, skip Phases 3–5 and call `noop` immediately.
 - **Concise PR descriptions**: Keep PR descriptions under 600 words. Use `<details>` tags for any extended examples or comparisons.
-- **Reuse pre-downloaded data**: All data is already available under `/tmp`. Do not download anything twice or request data not referenced in the Data Available section.
+- **Reuse pre-downloaded data**: All data is already available under `/tmp/gh-aw/agent` (plus cache-memory where noted). Do not download anything twice or request data not referenced in the Data Available section.
 - **Limit validation scope**: Run only `make lint && make build && make test-unit && make recompile`. Do not add extra validation steps.
 - **Stop after PR**: Once a PR is created (or `noop` is called), stop — do not generate additional commentary.
 

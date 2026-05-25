@@ -10,6 +10,9 @@ const {
   AWF_REFLECT_OUTPUT_PATH,
   AWF_REFLECT_TIMEOUT_MS,
   AWF_MODELS_URL_TIMEOUT_MS,
+  AWF_MODELS_URL_MAX_ATTEMPTS,
+  AWF_MODELS_URL_RETRY_BASE_MS,
+  AWF_MODELS_URL_RETRY_MAX_MS,
   GEMINI_MODEL_NAME_PREFIX,
   enrichReflectModels,
   extractModelIds,
@@ -24,6 +27,9 @@ describe("awf_reflect.cjs", () => {
       expect(AWF_REFLECT_OUTPUT_PATH).toBe("/tmp/gh-aw/sandbox/firewall/awf-reflect.json");
       expect(AWF_REFLECT_TIMEOUT_MS).toBe(60000);
       expect(AWF_MODELS_URL_TIMEOUT_MS).toBe(3000);
+      expect(AWF_MODELS_URL_MAX_ATTEMPTS).toBe(5);
+      expect(AWF_MODELS_URL_RETRY_BASE_MS).toBe(250);
+      expect(AWF_MODELS_URL_RETRY_MAX_MS).toBe(2000);
       expect(GEMINI_MODEL_NAME_PREFIX).toBe("models/");
     });
   });
@@ -170,6 +176,33 @@ describe("awf_reflect.cjs", () => {
       const result = await fetchModelsFromUrl("http://api-proxy:10000/v1/models", 1000, msg => logs.push(msg));
       expect(result).toBeNull();
       expect(logs.some(l => l.includes("models fetch error"))).toBe(true);
+    });
+
+    it("retries on 503 and eventually succeeds", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValueOnce({ ok: false, status: 503 })
+          .mockResolvedValueOnce({ ok: false, status: 503 })
+          .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [{ id: "gpt-4o" }] }) })
+      );
+
+      const logs = [];
+      const result = await fetchModelsFromUrl("http://api-proxy:10000/v1/models", 1000, msg => logs.push(msg));
+      expect(result).toEqual(["gpt-4o"]);
+      expect(logs.filter(l => l.includes("retrying (attempt")).length).toBe(2);
+      expect(logs.some(l => l.includes("fetched 1 model(s)"))).toBe(true);
+    });
+
+    it("stops retrying after max attempts on repeated 503 responses", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+
+      const logs = [];
+      const result = await fetchModelsFromUrl("http://api-proxy:10000/v1/models", 1000, msg => logs.push(msg));
+      expect(result).toBeNull();
+      expect(logs.filter(l => l.includes("retrying (attempt")).length).toBe(AWF_MODELS_URL_MAX_ATTEMPTS - 1);
+      expect(logs.some(l => l.includes("models fetch returned 503"))).toBe(true);
     });
   });
 

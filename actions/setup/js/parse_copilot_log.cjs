@@ -292,6 +292,16 @@ function parsePrettyPrintFormat(logContent) {
         premiumRequests = parseFloat(premMatch[1]);
         hasPremiumModel = true;
       }
+      // Newer Copilot CLI footer: "Tokens    ↑ 163.9k • ↓ 567 • 149.2k (cached)"
+      // The arrow + (cached) form has no "Breakdown by AI model" section, so this
+      // is the only place token totals appear. Capture them when present so they
+      // surface in the Information section.
+      const tokenMatch = trimmed.match(/^Tokens\s+↑\s*([\d.]+k?)\s*[•·]\s*↓\s*([\d.]+k?)(?:\s*[•·]\s*([\d.]+k?)\s*\(cached\))?/);
+      if (tokenMatch) {
+        if (inputTokens === 0) inputTokens = parseTokenCount(tokenMatch[1]);
+        if (outputTokens === 0) outputTokens = parseTokenCount(tokenMatch[2]);
+        if (tokenMatch[3] && cacheReadTokens === 0) cacheReadTokens = parseTokenCount(tokenMatch[3]);
+      }
       i++;
       continue;
     }

@@ -11,17 +11,15 @@ import (
 )
 
 func TestWorkflowRunBranchesCodemod(t *testing.T) {
-	originalResolveFn := resolveCurrentRepoDefaultBranchFn
-	t.Cleanup(func() {
-		resolveCurrentRepoDefaultBranchFn = originalResolveFn
-	})
-
-	codemod := getWorkflowRunBranchesCodemod()
+	t.Parallel()
 
 	t.Run("adds current repository default branch for bare workflow_run trigger", func(t *testing.T) {
-		resolveCurrentRepoDefaultBranchFn = func() (string, error) {
+		t.Parallel()
+		deps := defaultWorkflowRunBranchesCodemodDeps()
+		deps.resolveCurrentRepoDefaultBranch = func() (string, error) {
 			return "trunk", nil
 		}
+		codemod := getWorkflowRunBranchesCodemodWithDeps(deps)
 
 		content := `---
 on:
@@ -51,9 +49,12 @@ on:
 	})
 
 	t.Run("falls back to main and master when default branch cannot be resolved", func(t *testing.T) {
-		resolveCurrentRepoDefaultBranchFn = func() (string, error) {
+		t.Parallel()
+		deps := defaultWorkflowRunBranchesCodemodDeps()
+		deps.resolveCurrentRepoDefaultBranch = func() (string, error) {
 			return "", errors.New("api unavailable")
 		}
+		codemod := getWorkflowRunBranchesCodemodWithDeps(deps)
 
 		content := `---
 on:
@@ -81,6 +82,8 @@ on:
 	})
 
 	t.Run("does not modify workflow_run that already has branches", func(t *testing.T) {
+		t.Parallel()
+		codemod := getWorkflowRunBranchesCodemodWithDeps(defaultWorkflowRunBranchesCodemodDeps())
 		content := `---
 on:
   workflow_run:
@@ -107,6 +110,7 @@ on:
 	})
 
 	t.Run("normalizeWorkflowRunBranches falls back when all values are empty", func(t *testing.T) {
+		t.Parallel()
 		branches := normalizeWorkflowRunBranches([]string{"", "   "})
 		assert.Equal(t, []string{"main", "master"}, branches, "Normalization should fall back to defaults for empty branch values")
 	})

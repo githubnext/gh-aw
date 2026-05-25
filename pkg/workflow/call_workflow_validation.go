@@ -191,12 +191,6 @@ func extractMDWorkflowCallInputs(mdPath string) (map[string]any, error) {
 	return extractInputsFromMarkdown(mdPath, "workflow_call")
 }
 
-// extractWorkflowCallInputsFromParsed extracts workflow_call inputs from an already-parsed
-// workflow map (used for both .lock.yml and .yml files).
-func extractWorkflowCallInputsFromParsed(workflow map[string]any) map[string]any {
-	return extractInputsFromParsedWorkflow(workflow, "workflow_call")
-}
-
 // mdHasWorkflowCall reads a .md workflow file's frontmatter and reports whether
 // the workflow includes a workflow_call trigger in its 'on:' section.
 func mdHasWorkflowCall(mdPath string) (bool, error) {

@@ -90,6 +90,10 @@ const NO_AUTH_INFO_PATTERN = /No authentication information found/;
 // After a first-attempt auth failure, retrying is futile because the entrypoint unsets
 // COPILOT_GITHUB_TOKEN between attempts.
 const AUTHENTICATION_FAILED_PATTERN = /Authentication failed(?:\s*\(Request ID:[^)]+\))?/i;
+// Pattern: Copilot CLI inference access denied
+const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/;
+// Pattern: Agentic engine process killed by signal (timeout)
+const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 
 // Pattern to detect null-type tool_call error that poisons conversation history.
 // Matches the Copilot API 400 error:
@@ -164,6 +168,40 @@ function isNoAuthInfoError(output) {
  */
 function isAuthenticationFailedError(output) {
   return AUTHENTICATION_FAILED_PATTERN.test(output);
+}
+
+/**
+ * Detect known Copilot error patterns for workflow outputs.
+ * @param {string} output
+ * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean }}
+ */
+function detectCopilotErrors(output) {
+  return {
+    inferenceAccessError: INFERENCE_ACCESS_ERROR_PATTERN.test(output),
+    mcpPolicyError: isMCPPolicyError(output),
+    agenticEngineTimeout: AGENTIC_ENGINE_TIMEOUT_PATTERN.test(output),
+    modelNotSupportedError: isModelNotSupportedError(output),
+  };
+}
+
+/**
+ * Write Copilot detection outputs to $GITHUB_OUTPUT.
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean }} results
+ */
+function writeCopilotOutputs(results) {
+  const outputFile = process.env.GITHUB_OUTPUT;
+  if (!outputFile) {
+    log("GITHUB_OUTPUT not set — skipping copilot error outputs");
+    return;
+  }
+
+  const lines = [
+    `inference_access_error=${results.inferenceAccessError}`,
+    `mcp_policy_error=${results.mcpPolicyError}`,
+    `agentic_engine_timeout=${results.agenticEngineTimeout}`,
+    `model_not_supported_error=${results.modelNotSupportedError}`,
+  ];
+  fs.appendFileSync(outputFile, lines.join("\n") + "\n");
 }
 
 /**
@@ -436,6 +474,12 @@ async function main() {
   // This prevents a broken --continue recovery from resurrecting --continue on the next attempt.
   let continueDisabledPermanently = false;
   const driverStartTime = Date.now();
+  const detectedCopilotErrors = {
+    inferenceAccessError: false,
+    mcpPolicyError: false,
+    agenticEngineTimeout: false,
+    modelNotSupportedError: false,
+  };
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     // Add --continue flag on retries so the copilot session continues from where it left off
@@ -453,6 +497,11 @@ async function main() {
     const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
     const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs });
     lastExitCode = result.exitCode;
+    const attemptDetections = detectCopilotErrors(result.output);
+    detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;
+    detectedCopilotErrors.mcpPolicyError ||= attemptDetections.mcpPolicyError;
+    detectedCopilotErrors.agenticEngineTimeout ||= attemptDetections.agenticEngineTimeout;
+    detectedCopilotErrors.modelNotSupportedError ||= attemptDetections.modelNotSupportedError;
 
     // Success — record exit code and stop retrying
     if (result.exitCode === 0) {
@@ -614,9 +663,13 @@ if (typeof module !== "undefined" && module.exports) {
     fetchAWFReflect,
     fetchModelsFromUrl,
     countPermissionDeniedIssues,
+    detectCopilotErrors,
     hasNumerousPermissionDeniedIssues,
+    INFERENCE_ACCESS_ERROR_PATTERN,
+    AGENTIC_ENGINE_TIMEOUT_PATTERN,
     buildMissingToolPermissionIssuePayload,
     isAuthenticationFailedError,
+    writeCopilotOutputs,
     resolvePromptFileArgs,
   };
 }

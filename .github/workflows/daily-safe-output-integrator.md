@@ -197,10 +197,10 @@ print(f'Total missing: {len(missing)}')
 
 Run the script:
 ```bash
-python3 /tmp/check_coverage.py
+python3 /tmp/gh-aw/agent/check_coverage.py
 ```
 
-(Save the script content to `/tmp/check_coverage.py` first using the edit tool, then run it.)
+(Save the script content to `/tmp/gh-aw/agent/check_coverage.py` first using the edit tool, then run it.)
 
 ## Phase 3: Scan Existing Go Tests
 

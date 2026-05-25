@@ -69,8 +69,24 @@ func UpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error {
 	var successfulUpdates []string
 	var failedUpdates []updateFailure
 
-	// Update each workflow
+	manifestGroups := make(map[string][]*workflowWithSource)
+	var directWorkflows []*workflowWithSource
 	for _, wf := range workflows {
+		if _, ok, err := parseManifestSourceSpec(wf.SourceSpec); err != nil {
+			failedUpdates = append(failedUpdates, updateFailure{
+				Name:  wf.Name,
+				Error: err.Error(),
+			})
+			continue
+		} else if ok {
+			manifestGroups[strings.TrimSpace(wf.SourceSpec)] = append(manifestGroups[strings.TrimSpace(wf.SourceSpec)], wf)
+			continue
+		}
+		directWorkflows = append(directWorkflows, wf)
+	}
+
+	// Update each workflow
+	for _, wf := range directWorkflows {
 		updateLog.Printf("Updating workflow: %s (source: %s)", wf.Name, wf.SourceSpec)
 		if err := updateWorkflow(ctx, wf, opts); err != nil {
 			updateLog.Printf("Failed to update workflow %s: %v", wf.Name, err)
@@ -82,6 +98,11 @@ func UpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error {
 		}
 		updateLog.Printf("Successfully updated workflow: %s", wf.Name)
 		successfulUpdates = append(successfulUpdates, wf.Name)
+	}
+	for source, grouped := range manifestGroups {
+		groupSuccesses, groupFailures := updateManifestWorkflowGroup(ctx, source, grouped, opts)
+		successfulUpdates = append(successfulUpdates, groupSuccesses...)
+		failedUpdates = append(failedUpdates, groupFailures...)
 	}
 
 	// Show summary
@@ -298,15 +319,24 @@ func getLatestBranchCommitSHA(ctx context.Context, repo, branch string) (string,
 	return sha, nil
 }
 
-// runWorkflowReleasesAPIFn calls the GitHub Releases API for the given repository and
-// returns the newline-delimited tag names. It is a package-level variable so that
-// tests can replace it without spawning real gh CLI processes.
-var runWorkflowReleasesAPIFn = func(ctx context.Context, repo string) ([]byte, error) {
-	return workflow.RunGHContext(ctx, "Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
+type workflowUpdateDeps struct {
+	runReleasesAPI func(ctx context.Context, repo string) ([]byte, error)
+}
+
+func defaultWorkflowUpdateDeps() workflowUpdateDeps {
+	return workflowUpdateDeps{
+		runReleasesAPI: func(ctx context.Context, repo string) ([]byte, error) {
+			return workflow.RunGHContext(ctx, "Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
+		},
+	}
 }
 
 // resolveLatestRelease resolves the latest compatible release for a workflow source
 func resolveLatestRelease(ctx context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error) {
+	return resolveLatestReleaseWithDeps(ctx, defaultWorkflowUpdateDeps(), repo, currentRef, allowMajor, verbose, coolDown)
+}
+
+func resolveLatestReleaseWithDeps(ctx context.Context, deps workflowUpdateDeps, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error) {
 	updateLog.Printf("Resolving latest release for repo %s (current: %s, allowMajor=%v)", repo, currentRef, allowMajor)
 
 	if verbose {
@@ -314,7 +344,7 @@ func resolveLatestRelease(ctx context.Context, repo, currentRef string, allowMaj
 	}
 
 	// Get all releases using gh CLI
-	output, err := runWorkflowReleasesAPIFn(ctx, repo)
+	output, err := deps.runReleasesAPI(ctx, repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch releases: %w", err)
 	}

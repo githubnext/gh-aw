@@ -68,7 +68,7 @@ func TestParseMentionsConfig_Object(t *testing.T) {
 				AllowTeamMembers: boolPtr(true),
 				AllowContext:     boolPtr(false),
 				Allowed:          []string{"bot1", "bot2"},
-				Max:              intPtr(10),
+				Max:              new(10),
 			},
 		},
 		{
@@ -79,7 +79,7 @@ func TestParseMentionsConfig_Object(t *testing.T) {
 			},
 			expected: &MentionsConfig{
 				Allowed: []string{"bot1"},
-				Max:     intPtr(5),
+				Max:     new(5),
 			},
 		},
 		{
@@ -106,7 +106,7 @@ func TestParseMentionsConfig_Object(t *testing.T) {
 				"max": 10.5,
 			},
 			expected: &MentionsConfig{
-				Max: intPtr(10), // should be truncated
+				Max: new(10), // should be truncated
 			},
 		},
 		{
@@ -199,7 +199,7 @@ func TestGenerateSafeOutputsConfig_WithMentions(t *testing.T) {
 				AllowTeamMembers: boolPtr(false),
 				AllowContext:     boolPtr(true),
 				Allowed:          []string{"bot1", "bot2"},
-				Max:              intPtr(20),
+				Max:              new(20),
 			},
 			expected: map[string]any{
 				"allowTeamMembers": false,
@@ -314,7 +314,7 @@ func TestExtractSafeOutputsConfig_WithMentions(t *testing.T) {
 				AllowTeamMembers: boolPtr(false),
 				AllowContext:     boolPtr(true),
 				Allowed:          []string{"bot1"},
-				Max:              intPtr(15),
+				Max:              new(15),
 			},
 		},
 		{
@@ -408,9 +408,4 @@ func TestExtractSafeOutputsConfig_WithMentions(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper function
-func intPtr(i int) *int {
-	return &i
 }

@@ -60,7 +60,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 	}
 
 	// Use atomic counter for thread-safe progress tracking
-	var completedCount int64
+	var completedCount atomic.Int64
 
 	// Get configured max concurrent downloads (default or from environment variable)
 	maxConcurrent := getMaxConcurrentDownloads()
@@ -134,7 +134,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					Cached:                  true, // Mark as cached
 				}
 				// Update progress counter
-				completed := atomic.AddInt64(&completedCount, 1)
+				completed := completedCount.Add(1)
 				if progressBar != nil {
 					fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(completed))
 				}
@@ -407,7 +407,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 			}
 
 			// Update progress counter for completed downloads
-			completed := atomic.AddInt64(&completedCount, 1)
+			completed := completedCount.Add(1)
 			if progressBar != nil {
 				fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(completed))
 			}

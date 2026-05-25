@@ -68,9 +68,12 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       required-title-prefix: "[bot]"    # Optional: only close matching prefix
       max: 20                           # Optional: max closures (default: 1)
       state-reason: "not_planned"       # Optional: "completed" (default), "not_planned", "duplicate"
+      allow-body: false                 # Optional: when false, any body the agent emits is dropped (warning logged) and the issue closes without a comment; defaults to true
       target-repo: "owner/repo"         # Optional: cross-repository
       allowed-repos: [owner/other]      # Optional: additional repos agent can close issues in
   ```
+
+  Set `allow-body: false` to guarantee a clean close with no comment — useful when an earlier `add-comment` step already posted the summary and you want to prevent the agent from duplicating it.
 
 - `create-discussion:` - Safe GitHub discussion creation (status, audits, reports, logs)
 
@@ -105,10 +108,11 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       required-labels: [resolved]       # Optional: only close if ALL these labels are present
       required-title-prefix: "[ai]"     # Optional: only close matching prefix
       max: 1                            # Optional: max closures (default: 1)
+      allow-body: false                 # Optional: when false, any body the agent emits is dropped (warning logged) and the discussion closes without a comment; defaults to true
       target-repo: "owner/repo"         # Optional: cross-repository
   ```
 
-  Resolution reasons: `RESOLVED`, `DUPLICATE`, `OUTDATED`, `ANSWERED`.
+  Resolution reasons: `RESOLVED`, `DUPLICATE`, `OUTDATED`, `ANSWERED`. Set `allow-body: false` to close without a comment when a prior `add-comment` step already posted the summary.
 - `add-comment:` - Safe comment creation on issues/PRs/discussions
 
   ```yaml
@@ -135,6 +139,21 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   ```json
   {"type": "add_comment", "body": "Thread reply text", "reply_to_id": 12345}
   ```
+
+- `comment-memory:` - Persist and update a managed memory comment on the triggering issue/PR
+
+  ```yaml
+  safe-outputs:
+    comment-memory:
+      max: 1                          # Optional: max comment_memory updates (default: 1, range: 1-100)
+      target: "triggering"            # Optional: "triggering" (default), "*", or explicit issue/PR number
+      memory-id: "default"            # Optional: default memory identifier when items omit memory_id (default: "default")
+      footer: true                    # Optional: include AI footer in the managed comment (default: true)
+      target-repo: "owner/repo"       # Optional: cross-repository
+      allowed-repos: [owner/other]    # Optional: additional repos agent can target
+  ```
+
+  Boolean shorthand: `comment-memory: true` enables defaults; `false` or `null` disables. The handler materializes memory content to files before agent execution and synchronizes edits back to a single managed comment on the issue/PR after execution, providing durable cross-run state without external storage.
 
 - `create-pull-request:` - Safe pull request creation with git patches
 
@@ -647,6 +666,20 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   ```
 
   Provides automated fixes for code scanning alerts.
+- `create-check-run:` - Create GitHub Check Runs to surface agent analysis results in the PR Checks UI
+
+  ```yaml
+  safe-outputs:
+    create-check-run:
+      name: "Security Analysis"       # Optional: check run name (defaults to workflow name)
+      max: 1                          # Optional: max check runs per workflow run (default: 1)
+      output:                         # Optional: static fallback values used when the agent omits the field
+        title: "Pending analysis"     # Fallback title (max 256 chars)
+        summary: "Awaiting agent output"  # Fallback summary (max 65535 chars)
+  ```
+
+  Requires `checks: write` permission, which is added automatically. Agents call `create_check_run` with `conclusion` (e.g., `success`, `failure`, `neutral`), `title`, `summary`, and optional `annotations`. Useful for reporting structured analysis results (security findings, code quality, test outcomes) directly on commits and pull requests.
+
 - `create-agent-session:` - Create GitHub Copilot coding agent sessions
 
   ```yaml

@@ -98,7 +98,7 @@ The slides use Marp syntax. Build them to HTML for testing:
 
 ```bash
 cd ${{ github.workspace }}/docs
-npx @marp-team/marp-cli slides/index.md --html --allow-local-files -o /tmp/slides-preview.html
+npx @marp-team/marp-cli slides/index.md --html --allow-local-files -o /tmp/gh-aw/agent/slides-preview.html
 ```
 
 ## Step 2: Serve Slides Locally
@@ -106,9 +106,9 @@ npx @marp-team/marp-cli slides/index.md --html --allow-local-files -o /tmp/slide
 Start a simple HTTP server to view the slides:
 
 ```bash
-cd /tmp
-npx http-server -p 8080 > /tmp/server.log 2>&1 &
-echo $! > /tmp/server.pid
+cd /tmp/gh-aw/agent
+npx http-server -p 8080 > /tmp/gh-aw/agent/server.log 2>&1 &
+echo $! > /tmp/gh-aw/agent/server.pid
 
 # Wait for server to be ready
 for i in {1..20}; do
@@ -276,7 +276,7 @@ After editing, rebuild and retest:
 
 ```bash
 cd ${{ github.workspace }}/docs
-npx @marp-team/marp-cli slides/index.md --html --allow-local-files -o /tmp/slides-preview-updated.html
+npx @marp-team/marp-cli slides/index.md --html --allow-local-files -o /tmp/gh-aw/agent/slides-preview-updated.html
 ```
 
 Run Playwright checks again to ensure no new overflow issues were introduced.
@@ -286,8 +286,8 @@ Run Playwright checks again to ensure no new overflow issues were introduced.
 Stop the server:
 
 ```bash
-kill $(cat /tmp/server.pid) 2>/dev/null || true
-rm -f /tmp/server.pid /tmp/slides-preview.html /tmp/slides-preview-updated.html /tmp/server.log
+kill $(cat /tmp/gh-aw/agent/server.pid) 2>/dev/null || true
+rm -f /tmp/gh-aw/agent/server.pid /tmp/gh-aw/agent/slides-preview.html /tmp/gh-aw/agent/slides-preview-updated.html /tmp/gh-aw/agent/server.log
 ```
 
 ## Step 9: Report Your Actions (REQUIRED)

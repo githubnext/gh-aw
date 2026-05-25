@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var timeutilLog = logger.New("timeutil:format")
 
 // FormatDuration formats a duration for display like the debug npm package.
 // It provides granular formatting from nanoseconds to hours.
@@ -46,6 +50,7 @@ func FormatDurationMs(ms int) string {
 // Returns "—" for zero or negative values. Uses Go's standard duration rounding to seconds.
 func FormatDurationNs(ns int64) string {
 	if ns <= 0 {
+		timeutilLog.Printf("FormatDurationNs: non-positive ns=%d, returning placeholder", ns)
 		return "—"
 	}
 	d := time.Duration(ns)

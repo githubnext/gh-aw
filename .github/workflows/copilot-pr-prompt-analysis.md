@@ -57,7 +57,7 @@ Generate a daily report analyzing Copilot-generated PRs from the last 30 days, f
 
 - **Repository**: ${{ github.repository }}
 - **Analysis Period**: Last 30 days
-- **Data Location**: Pre-fetched PR data is available at `/tmp/gh-aw/pr-data/copilot-prs.json`
+- **Data Location**: Pre-fetched PR data is available at `/tmp/gh-aw/agent/pr-data/copilot-prs.json`
 
 ## Task Overview
 
@@ -67,12 +67,12 @@ Generate a daily report analyzing Copilot-generated PRs from the last 30 days, f
 
 1. **Load the data**:
    ```bash
-   cat /tmp/gh-aw/pr-data/copilot-prs.json
+   cat /tmp/gh-aw/agent/pr-data/copilot-prs.json
    ```
 
 2. **Verify data**:
    ```bash
-   echo "Total PRs loaded: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)"
+   echo "Total PRs loaded: $(jq 'length' /tmp/gh-aw/agent/pr-data/copilot-prs.json)"
    ```
 
 ### Phase 2: Extract and Categorize Prompts

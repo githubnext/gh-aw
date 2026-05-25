@@ -11,9 +11,12 @@ const {
   buildInfrastructureIncompletePayload,
   buildPromptFileFallbackInstruction,
   countPermissionDeniedIssues,
+  detectCopilotErrors,
   emitInfrastructureIncomplete,
   extractDeniedCommands,
   hasNumerousPermissionDeniedIssues,
+  INFERENCE_ACCESS_ERROR_PATTERN,
+  AGENTIC_ENGINE_TIMEOUT_PATTERN,
   isAuthenticationFailedError,
   enrichReflectModels,
   extractModelIds,
@@ -22,6 +25,7 @@ const {
   GEMINI_MODEL_NAME_PREFIX,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
+  writeCopilotOutputs,
 } = require("./copilot_harness.cjs");
 
 describe("copilot_harness.cjs", () => {
@@ -365,6 +369,48 @@ describe("copilot_harness.cjs", () => {
     it("matches the exact error from the issue report", () => {
       const errorOutput = "Execution failed: CAPIError: 400 The requested model is not supported.";
       expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    describe("copilot output detection + workflow outputs", () => {
+      afterEach(() => {
+        delete process.env.GITHUB_OUTPUT;
+      });
+
+      it("detects inference/mcp/timeout/model-not-supported patterns from output", () => {
+        const output = [
+          "Access denied by policy settings",
+          "MCP servers were blocked by policy: 'github'",
+          "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM",
+          "Execution failed: CAPIError: 400 The requested model is not supported.",
+        ].join("\n");
+        expect(detectCopilotErrors(output)).toEqual({
+          inferenceAccessError: true,
+          mcpPolicyError: true,
+          agenticEngineTimeout: true,
+          modelNotSupportedError: true,
+        });
+        expect(INFERENCE_ACCESS_ERROR_PATTERN.test(output)).toBe(true);
+        expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test(output)).toBe(true);
+      });
+
+      it("writes copilot detection outputs to GITHUB_OUTPUT", () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "copilot-output-test-"));
+        const outputFile = path.join(tempDir, "github-output.txt");
+        process.env.GITHUB_OUTPUT = outputFile;
+
+        writeCopilotOutputs({
+          inferenceAccessError: true,
+          mcpPolicyError: false,
+          agenticEngineTimeout: true,
+          modelNotSupportedError: false,
+        });
+
+        const content = fs.readFileSync(outputFile, "utf8");
+        expect(content).toContain("inference_access_error=true");
+        expect(content).toContain("mcp_policy_error=false");
+        expect(content).toContain("agentic_engine_timeout=true");
+        expect(content).toContain("model_not_supported_error=false");
+      });
     });
 
     it("matches when embedded in larger log output", () => {

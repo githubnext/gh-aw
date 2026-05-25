@@ -81,16 +81,13 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		return []GitHubActionStep{}
 	}
 
-	// Use base installation steps (npm install only; secret validation is in the activation job)
-	steps := GetBaseInstallationSteps(EngineInstallConfig{
-		Secrets:         []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
-		DocsURL:         "https://github.github.com/gh-aw/reference/engines/#openai-codex",
-		NpmPackage:      "@openai/codex",
-		Version:         string(constants.DefaultCodexVersion),
-		Name:            "Codex CLI",
-		InstallStepName: "Install Codex CLI",
-		CliName:         "codex",
-	}, workflowData)
+	steps := BuildStandardNpmEngineInstallStepsNoCooldown(
+		"@openai/codex",
+		string(constants.DefaultCodexVersion),
+		"Install Codex CLI",
+		"codex",
+		workflowData,
+	)
 
 	// Add AWF installation step if firewall is enabled
 	if isFirewallEnabled(workflowData) {
@@ -154,7 +151,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	// Codex does not support a native model environment variable, so model selection
 	// always uses GH_AW_MODEL_AGENT_CODEX or GH_AW_MODEL_DETECTION_CODEX with shell expansion
 	// via the --model flag. This also correctly handles GitHub Actions expressions like ${{ inputs.model }}.
-	// Note: the older -c model="$VAR" TOML override syntax is silently ignored by Codex CLI v0.128+.
+	// Note: Codex also supports config-layer model selection (config key `model`, including `-c model="..."`),
+	// but `--model` is a direct CLI flag and avoids TOML quoting/parsing edge cases in automation.
 	isDetectionJob := workflowData.SafeOutputs == nil
 	var modelEnvVar string
 	if isDetectionJob {
@@ -175,21 +173,13 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		webSearchParam = ""
 	}
 
-	// Build fetch parameter: disable the native fetch tool by default, enable only if web-fetch tool is present.
-	// Codex enables the fetch tool by default, so we must explicitly set fetch="disabled" to disable it.
-	// See https://developers.openai.com/api/docs/mcp#fetch-tool
-	// Leading space is intentional: the format string concatenates this directly after webSearchParam with no space separator.
-	webFetchParam := ` -c fetch="disabled"`
-	if workflowData.ParsedTools != nil && workflowData.ParsedTools.WebFetch != nil {
-		// Fetch is enabled by default in Codex; no extra flag needed.
-		webFetchParam = ""
-	}
-
 	// See https://github.com/github/gh-aw/issues/892
-	// --dangerously-bypass-approvals-and-sandbox: Skips all confirmation prompts and disables sandboxing
-	// This is safe because AWF already provides a container-level sandbox layer
-	// --skip-git-repo-check: Allows running in directories without a git repo
-	fullAutoParam := " --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check "
+	// In AWF mode we bypass Codex approvals/sandboxing because AWF provides the sandbox layer.
+	// Outside AWF, keep Codex sandboxing enabled and disable approvals for non-interactive execution.
+	executionPolicyParam := ` --sandbox workspace-write --skip-git-repo-check -c approval_policy="never" `
+	if firewallEnabled {
+		executionPolicyParam = " --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check "
+	}
 
 	// Build custom args parameter if specified in engineConfig
 	var customArgsParam string
@@ -230,12 +220,12 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Harness-wrapped execution: the harness reads --prompt-file and passes its content
 		// as the last positional arg.  The harness also provides retry logic.
 		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
-			execPrefix, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
+			execPrefix, modelParam, webSearchParam, executionPolicyParam, customArgsParam)
 	} else {
 		// Without harness: use shell expansion for the prompt (no retry logic).
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s\"$INSTRUCTION\"",
-			commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s\"$INSTRUCTION\"",
+			commandName, modelParam, webSearchParam, executionPolicyParam, customArgsParam)
 	}
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
@@ -288,14 +278,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			// The agent writes its step summary content to AgentStepSummaryPath, which is
 			// appended to $GITHUB_STEP_SUMMARY after secret redaction.
 			PathSetup: "mkdir -p \"$CODEX_HOME/logs\" && touch " + AgentStepSummaryPath,
-			// Keep real API keys out of the AWF agent container unless there is an
-			// explicit, verifiable capability check proving they will be sanitized
-			// before exposure. This preserves the secret-isolation boundary even when
-			// api-proxy behavior is unavailable or changes.
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{
-				"CODEX_API_KEY",
-				"OPENAI_API_KEY",
-			}),
+			// Exclude Codex/OpenAI API key env vars from the AWF container.
+			// AWF's API proxy handles auth, so raw token values should not be
+			// visible to in-container tools (e.g., env/printenv).
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"CODEX_API_KEY", "OPENAI_API_KEY"}),
 		})
 	} else {
 		// Build the command without AWF wrapping.
@@ -388,7 +374,7 @@ mkdir -p "$CODEX_HOME/logs"
 		codexEngineLog.Printf("Setting %s env var for model: %s", modelEnvVar, workflowData.EngineConfig.Model)
 		env[modelEnvVar] = workflowData.EngineConfig.Model
 	} else {
-		env[modelEnvVar] = fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVar)
+		env[modelEnvVar] = fmt.Sprintf("${{ vars.%s || '%s' }}", modelEnvVar, constants.CodexDefaultModel)
 	}
 
 	// Add custom environment variables from engine config
@@ -570,7 +556,13 @@ func (e *CodexEngine) getShellEnvironmentPolicyVars(tools map[string]any, mcpToo
 	}
 	sort.Strings(sortedEnvVars)
 
-	return sortedEnvVars
+	// Codex expects regex patterns for shell_environment_policy.include_only, not literal names.
+	// Anchor each variable name to avoid accidental substring matches (for example "PATH" matching "PATH_SUFFIX").
+	var includeOnlyPatterns []string
+	for _, envVar := range sortedEnvVars {
+		includeOnlyPatterns = append(includeOnlyPatterns, "^"+regexp.QuoteMeta(envVar)+"$")
+	}
+	return includeOnlyPatterns
 }
 
 // renderShellEnvironmentPolicy generates the [shell_environment_policy] section for config.toml

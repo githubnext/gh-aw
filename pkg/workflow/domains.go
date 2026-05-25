@@ -254,7 +254,7 @@ func getOpenCodeDefaultDomains(model string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	domains := make([]string, 0, len(OpenCodeBaseDefaultDomains)+1)
+	domains := make([]string, 0, safeAllocationCapacity(len(OpenCodeBaseDefaultDomains), 1))
 	domains = append(domains, OpenCodeBaseDefaultDomains...)
 
 	if domain, ok := openCodeProviderDomains[provider]; ok {
@@ -272,7 +272,7 @@ func getCrushDefaultDomains(model string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	domains := make([]string, 0, len(CrushBaseDefaultDomains)+1)
+	domains := make([]string, 0, safeAllocationCapacity(len(CrushBaseDefaultDomains), 1))
 	domains = append(domains, CrushBaseDefaultDomains...)
 
 	if domain, ok := crushProviderDomains[provider]; ok {
@@ -293,7 +293,7 @@ func getPiDefaultDomains(model string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	domains := make([]string, 0, len(PiBaseDefaultDomains)+1)
+	domains := make([]string, 0, safeAllocationCapacity(len(PiBaseDefaultDomains), 1))
 	domains = append(domains, PiBaseDefaultDomains...)
 
 	if domain, ok := piProviderDomains[provider]; ok {

@@ -44,7 +44,7 @@ import json
 
 # Load issues data
 # See scratchpad/metrics-glossary.md for metric definitions
-with open('/tmp/gh-aw/issues-data/issues.json', 'r') as f:
+with open('/tmp/gh-aw/agent/issues-data/issues.json', 'r') as f:
     issues = json.load(f)
 df = pd.DataFrame(issues)
 
@@ -104,21 +104,21 @@ else:
 
 ```bash
 # Calculate PR metrics using jq
-# Input: /tmp/gh-aw/pr-data/prs.json
+# Input: /tmp/gh-aw/agent/pr-data/prs.json
 # See scratchpad/metrics-glossary.md for metric definitions
 
 # Volume metrics
 # Scope: All PRs in repository
-total_prs=$(jq 'length' /tmp/gh-aw/pr-data/prs.json)
+total_prs=$(jq 'length' /tmp/gh-aw/agent/pr-data/prs.json)
 
 # Scope: PRs where merged = true
-merged_prs=$(jq '[.[] | select(.mergedAt != null)] | length' /tmp/gh-aw/pr-data/prs.json)
+merged_prs=$(jq '[.[] | select(.mergedAt != null)] | length' /tmp/gh-aw/agent/pr-data/prs.json)
 
 # Scope: PRs where state = "open"
-open_prs=$(jq '[.[] | select(.state == "OPEN")] | length' /tmp/gh-aw/pr-data/prs.json)
+open_prs=$(jq '[.[] | select(.state == "OPEN")] | length' /tmp/gh-aw/agent/pr-data/prs.json)
 
 # Scope: PRs where state = "closed" and merged = false
-closed_prs=$(jq '[.[] | select(.state == "CLOSED" and .mergedAt == null)] | length' /tmp/gh-aw/pr-data/prs.json)
+closed_prs=$(jq '[.[] | select(.state == "CLOSED" and .mergedAt == null)] | length' /tmp/gh-aw/agent/pr-data/prs.json)
 
 # Time-based metrics (last 7 days)
 # Cross-platform date handling (works on GNU and BSD systems)
@@ -131,7 +131,7 @@ else
 fi
 
 # Scope: PRs created in last 7 days
-prs_opened_7d=$(jq --arg date "$DATE_7D" '[.[] | select(.createdAt >= $date)] | length' /tmp/gh-aw/pr-data/prs.json)
+prs_opened_7d=$(jq --arg date "$DATE_7D" '[.[] | select(.createdAt >= $date)] | length' /tmp/gh-aw/agent/pr-data/prs.json)
 
 # Calculate merge rate
 # Scope: merged_prs / total_prs
@@ -155,23 +155,23 @@ echo "Merge Rate: $merge_rate"
 # See scratchpad/metrics-glossary.md for metric definitions
 
 # Ensure output directory exists
-mkdir -p /tmp/gh-aw/data
+mkdir -p /tmp/gh-aw/agent/data
 
 # Total LOC by language
 # Scope: All source files in repository
-cloc . --json --quiet > /tmp/gh-aw/data/cloc_output.json
+cloc . --json --quiet > /tmp/gh-aw/agent/data/cloc_output.json
 
 # Check if cloc produced valid output
-if [ -f /tmp/gh-aw/data/cloc_output.json ] && [ -s /tmp/gh-aw/data/cloc_output.json ]; then
-    lines_of_code_total=$(jq '.SUM.code' /tmp/gh-aw/data/cloc_output.json)
+if [ -f /tmp/gh-aw/agent/data/cloc_output.json ] && [ -s /tmp/gh-aw/agent/data/cloc_output.json ]; then
+    lines_of_code_total=$(jq '.SUM.code' /tmp/gh-aw/agent/data/cloc_output.json)
     
     # Test LOC (find test files and measure)
     # Scope: Files matching test patterns (*_test.go, *.test.js, *.test.cjs, test_*.py, *_test.py, *Tests.cs, *Test.cs)
     test_files=$(find . -name "*_test.go" -o -name "*.test.js" -o -name "*.test.cjs" -o -name "test_*.py" -o -name "*_test.py" -o -name "*Tests.cs" -o -name "*Test.cs" 2>/dev/null)
     
     if [ -n "$test_files" ]; then
-        echo "$test_files" | xargs cloc --json --quiet > /tmp/gh-aw/data/test_cloc.json
-        test_lines_of_code=$(jq '.SUM.code' /tmp/gh-aw/data/test_cloc.json)
+        echo "$test_files" | xargs cloc --json --quiet > /tmp/gh-aw/agent/data/test_cloc.json
+        test_lines_of_code=$(jq '.SUM.code' /tmp/gh-aw/agent/data/test_cloc.json)
     else
         test_lines_of_code=0
     fi
@@ -467,11 +467,11 @@ Always verify that input files exist and contain valid data:
 import os
 
 # Check file exists
-if not os.path.exists('/tmp/gh-aw/issues-data/issues.json'):
+if not os.path.exists('/tmp/gh-aw/agent/issues-data/issues.json'):
     raise FileNotFoundError("Issues data file not found")
 
 # Load and validate JSON
-with open('/tmp/gh-aw/issues-data/issues.json', 'r') as f:
+with open('/tmp/gh-aw/agent/issues-data/issues.json', 'r') as f:
     issues = json.load(f)
 
 if not issues or len(issues) == 0:
@@ -480,7 +480,7 @@ if not issues or len(issues) == 0:
 
 ```bash
 # Check file exists and is not empty
-if [ ! -f /tmp/gh-aw/pr-data/prs.json ] || [ ! -s /tmp/gh-aw/pr-data/prs.json ]; then
+if [ ! -f /tmp/gh-aw/agent/pr-data/prs.json ] || [ ! -s /tmp/gh-aw/agent/pr-data/prs.json ]; then
     echo "Error: PR data file not found or empty"
     exit 1
 fi

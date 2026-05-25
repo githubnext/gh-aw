@@ -27,12 +27,12 @@ steps:
       sudo apt-get update && sudo apt-get install -y ffmpeg
       version=$(ffmpeg -version | head -n1)
       echo "version=$version" >> "$GITHUB_OUTPUT"
-      mkdir -p /tmp/gh-aw/ffmpeg
+      mkdir -p /tmp/gh-aw/agent/ffmpeg
 ---
 
 # FFmpeg Usage Guide
 
-FFmpeg and ffprobe have been installed and are available in your PATH. A temporary folder `/tmp/gh-aw/ffmpeg` is available for caching intermediate results.
+FFmpeg and ffprobe have been installed and are available in your PATH. A temporary folder `/tmp/gh-aw/agent/ffmpeg` is available for caching intermediate results.
 
 **Note**: FFmpeg operations can take several minutes for large video files. Bash commands have a 5-minute timeout. For longer operations, break them into smaller steps or increase workflow timeout-minutes.
 
@@ -157,5 +157,5 @@ This hash changes only when:
 - The ffmpeg command arguments change
 - Any input file content changes
 
-Use this hash as a cache key in `/tmp/gh-aw/ffmpeg/` to avoid reprocessing identical operations.
+Use this hash as a cache key in `/tmp/gh-aw/agent/ffmpeg/` to avoid reprocessing identical operations.
 

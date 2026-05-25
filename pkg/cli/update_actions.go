@@ -34,6 +34,24 @@ func isGhAwNativeAction(repo string) bool {
 	return base == "github/gh-aw" || base == "github/gh-aw-actions"
 }
 
+type actionUpdateDeps struct {
+	getLatestRelease       func(ctx context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error)
+	getLatestReleaseViaGit func(ctx context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error)
+	runGHReleasesAPI       func(ctx context.Context, baseRepo string) ([]byte, error)
+	getActionSHAForTag     func(ctx context.Context, repo, tag string) (string, error)
+}
+
+func defaultActionUpdateDeps() actionUpdateDeps {
+	return actionUpdateDeps{
+		getLatestRelease:       getLatestActionRelease,
+		getLatestReleaseViaGit: getLatestActionReleaseViaGit,
+		runGHReleasesAPI: func(ctx context.Context, baseRepo string) ([]byte, error) {
+			return workflow.RunGHCombinedContext(ctx, "Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", baseRepo), "--jq", ".[].tag_name")
+		},
+		getActionSHAForTag: getActionSHAForTag,
+	}
+}
+
 // UpdateActions updates GitHub Actions versions in .github/aw/actions-lock.json
 // It checks each action for newer releases and updates the SHA if a newer version is found.
 // By default all actions are updated to the latest major version; pass disableReleaseBump=true
@@ -46,6 +64,10 @@ func isGhAwNativeAction(repo string) bool {
 // for safe-outputs.actions entries are preserved when their SHA is unchanged, and cleared
 // when the SHA changes (prompting a re-fetch on the next compile).
 func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump bool, coolDown time.Duration) error {
+	return updateActions(ctx, defaultActionUpdateDeps(), allowMajor, verbose, disableReleaseBump, coolDown)
+}
+
+func updateActions(ctx context.Context, deps actionUpdateDeps, allowMajor, verbose, disableReleaseBump bool, coolDown time.Duration) error {
 	updateLog.Print("Starting action updates")
 
 	if verbose {
@@ -96,7 +118,7 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 		effectiveAllowMajor := !disableReleaseBump || allowMajor || isCoreAction(entry.Repo)
 
 		// Check for latest release using the injectable function (also used by updateActionRefsInContent)
-		latestVersion, latestSHA, err := getLatestActionReleaseFn(ctx, entry.Repo, entry.Version, effectiveAllowMajor, verbose)
+		latestVersion, latestSHA, err := deps.getLatestRelease(ctx, entry.Repo, entry.Version, effectiveAllowMajor, verbose)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check %s: %v", entry.Repo, err)))
@@ -119,7 +141,7 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("%s: capping update target to CLI version %s (latest %s is newer than running CLI)", entry.Repo, cappedVersion, latestVersion)))
 				}
-				cappedSHA, shaErr := getActionSHAForTagFn(ctx, gitutil.ExtractBaseRepo(entry.Repo), cappedVersion)
+				cappedSHA, shaErr := deps.getActionSHAForTag(ctx, gitutil.ExtractBaseRepo(entry.Repo), cappedVersion)
 				if shaErr != nil {
 					updateLog.Printf("Cannot resolve SHA for %s@%s (CLI version cap): %v; skipping update", entry.Repo, cappedVersion, shaErr)
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: cannot resolve SHA for CLI version %s: %v", entry.Repo, cappedVersion, shaErr)))
@@ -246,6 +268,10 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 // getLatestActionRelease gets the latest release for an action repository
 // It respects semantic versioning and the allowMajor flag
 func getLatestActionRelease(ctx context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	return getLatestActionReleaseWithDeps(ctx, defaultActionUpdateDeps(), repo, currentVersion, allowMajor, verbose)
+}
+
+func getLatestActionReleaseWithDeps(ctx context.Context, deps actionUpdateDeps, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 	updateLog.Printf("Getting latest release for %s@%s (allowMajor=%v)", repo, currentVersion, allowMajor)
 
 	// Extract base repository (e.g., "actions/cache/restore" -> "actions/cache")
@@ -253,14 +279,14 @@ func getLatestActionRelease(ctx context.Context, repo, currentVersion string, al
 	updateLog.Printf("Using base repository: %s for action: %s", baseRepo, repo)
 
 	// Use gh CLI to get releases
-	output, err := runGHReleasesAPIFn(ctx, baseRepo)
+	output, err := deps.runGHReleasesAPI(ctx, baseRepo)
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
 		if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
 			updateLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s", repo)
 			// Try fallback using git ls-remote
-			latestRelease, latestSHA, gitErr := getLatestActionReleaseViaGitFn(ctx, repo, currentVersion, allowMajor, verbose)
+			latestRelease, latestSHA, gitErr := deps.getLatestReleaseViaGit(ctx, repo, currentVersion, allowMajor, verbose)
 			if gitErr != nil {
 				return "", "", fmt.Errorf("failed to fetch releases via GitHub API and git: API error: %w, Git Error: %w", err, gitErr)
 			}
@@ -282,7 +308,7 @@ func getLatestActionRelease(ctx context.Context, repo, currentVersion string, al
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(baseRepo+": no GitHub Releases found, falling back to tag scanning (safe to ignore)"))
 		}
-		latestRelease, latestSHA, gitErr := getLatestActionReleaseViaGitFn(ctx, repo, currentVersion, allowMajor, verbose)
+		latestRelease, latestSHA, gitErr := deps.getLatestReleaseViaGit(ctx, repo, currentVersion, allowMajor, verbose)
 		if gitErr != nil {
 			return "", "", fmt.Errorf("no releases or tags found for %s: %w", baseRepo, gitErr)
 		}
@@ -322,7 +348,7 @@ func getLatestActionRelease(ctx context.Context, repo, currentVersion string, al
 	// If current version is not valid, return the highest semver release
 	if currentVer == nil {
 		latestRelease := validReleases[0].tag
-		sha, err := getActionSHAForTagFn(ctx, baseRepo, latestRelease)
+		sha, err := deps.getActionSHAForTag(ctx, baseRepo, latestRelease)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to get SHA for %s: %w", latestRelease, err)
 		}
@@ -361,7 +387,7 @@ func getLatestActionRelease(ctx context.Context, repo, currentVersion string, al
 	}
 
 	// Get the SHA for the latest compatible release
-	sha, err := getActionSHAForTagFn(ctx, baseRepo, latestCompatible)
+	sha, err := deps.getActionSHAForTag(ctx, baseRepo, latestCompatible)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get SHA for %s: %w", latestCompatible, err)
 	}
@@ -546,31 +572,6 @@ func getActionSHAForTag(ctx context.Context, repo, tag string) (string, error) {
 // (4) optional version comment (e.g., "v6.0.2" from "# v6.0.2"), (5) trailing whitespace.
 var actionRefPattern = regexp.MustCompile(`(uses:\s+)([a-zA-Z0-9][a-zA-Z0-9_-]*/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*)@([a-fA-F0-9]{40}|[^\s#\n]+?)(\s*#\s*\S+)?(\s*)$`)
 
-// getLatestActionReleaseFn is the function used to fetch the latest release for an action.
-// It is used by both UpdateActions and updateActionRefsInContent and can be replaced in
-// tests to avoid network calls.
-var getLatestActionReleaseFn = func(ctx context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
-	return getLatestActionRelease(ctx, repo, currentVersion, allowMajor, verbose)
-}
-
-// getLatestActionReleaseViaGitFn is the function used to fetch the latest release via git
-// ls-remote as a fallback. It can be replaced in tests to avoid network calls.
-var getLatestActionReleaseViaGitFn = func(ctx context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
-	return getLatestActionReleaseViaGit(ctx, repo, currentVersion, allowMajor, verbose)
-}
-
-// runGHReleasesAPIFn calls the GitHub Releases API for the given base repository and
-// returns the raw output. It can be replaced in tests to avoid network calls.
-var runGHReleasesAPIFn = func(ctx context.Context, baseRepo string) ([]byte, error) {
-	return workflow.RunGHCombinedContext(ctx, "Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", baseRepo), "--jq", ".[].tag_name")
-}
-
-// getActionSHAForTagFn resolves the commit SHA for a given tag. It can be replaced in
-// tests to avoid network calls.
-var getActionSHAForTagFn = func(ctx context.Context, repo, tag string) (string, error) {
-	return getActionSHAForTag(ctx, repo, tag)
-}
-
 // latestReleaseResult caches a resolved version/SHA pair.
 type latestReleaseResult struct {
 	version string
@@ -583,6 +584,10 @@ type latestReleaseResult struct {
 // the latest major version; pass disableReleaseBump=true to only update core
 // (actions/*) references.
 func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool, coolDown time.Duration) error {
+	return updateActionsInWorkflowFiles(ctx, defaultActionUpdateDeps(), workflowsDir, engineOverride, verbose, disableReleaseBump, noCompile, coolDown)
+}
+
+func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool, coolDown time.Duration) error {
 	if workflowsDir == "" {
 		workflowsDir = getWorkflowsDir()
 	}
@@ -615,7 +620,7 @@ func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverr
 			return nil
 		}
 
-		updated, newContent, err := updateActionRefsInContent(ctx, string(content), cache, coolDownCache, !disableReleaseBump, verbose, coolDown)
+		updated, newContent, err := updateActionRefsInContentWithDeps(ctx, deps, string(content), cache, coolDownCache, !disableReleaseBump, verbose, coolDown)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update action refs in %s: %v", path, err)))
@@ -655,14 +660,7 @@ func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverr
 	return nil
 }
 
-// updateActionRefsInContent replaces outdated "uses: org/repo@version" references
-// in content with the latest major version and SHA. Returns (changed, newContent, error).
-// cache is keyed by "repo@currentVersion" and avoids redundant API calls across lines/files.
-// coolDownCache is keyed by "repo@tag" and avoids redundant cooldown date API calls.
-// When allowMajor is true (the default), all matched actions are updated to the latest
-// major version. When allowMajor is false (--disable-release-bump), non-core (non
-// actions/*) action refs are skipped; core actions are always updated.
-func updateActionRefsInContent(ctx context.Context, content string, cache map[string]latestReleaseResult, coolDownCache map[string]coolDownCheckResult, allowMajor, verbose bool, coolDown time.Duration) (bool, string, error) {
+func updateActionRefsInContentWithDeps(ctx context.Context, deps actionUpdateDeps, content string, cache map[string]latestReleaseResult, coolDownCache map[string]coolDownCheckResult, allowMajor, verbose bool, coolDown time.Duration) (bool, string, error) {
 	changed := false
 	lines := strings.Split(content, "\n")
 
@@ -691,7 +689,7 @@ func updateActionRefsInContent(ctx context.Context, content string, cache map[st
 			continue
 		}
 
-		// Determine the "current version" to pass to getLatestActionReleaseFn
+		// Determine the "current version" to pass to the latest-release resolver.
 		isSHA := IsCommitSHA(ref)
 		currentVersion := ref
 		if isSHA {
@@ -713,7 +711,7 @@ func updateActionRefsInContent(ctx context.Context, content string, cache map[st
 		cacheKey := repo + "|" + currentVersion
 		result, cached := cache[cacheKey]
 		if !cached {
-			latestVersion, latestSHA, err := getLatestActionReleaseFn(ctx, repo, currentVersion, effectiveAllowMajor, verbose)
+			latestVersion, latestSHA, err := deps.getLatestRelease(ctx, repo, currentVersion, effectiveAllowMajor, verbose)
 			if err != nil {
 				updateLog.Printf("Failed to get latest release for %s: %v", repo, err)
 				continue

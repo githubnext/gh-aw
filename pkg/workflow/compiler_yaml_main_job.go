@@ -498,16 +498,11 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	// Stop CLI proxy after AWF execution (always runs to ensure cleanup)
 	c.generateStopCliProxyStep(yaml, data)
 
-	// Add Copilot error detection step (inference access + MCP policy)
-	// This single step detects both inference access errors and MCP policy errors
-	// It must run in the main job (not threat detection job) to avoid step ID conflicts
-	if _, ok := engine.(*CopilotEngine); ok {
-		detectionStep := generateCopilotErrorDetectionStep()
-		for _, line := range detectionStep {
-			yaml.WriteString(line)
-			yaml.WriteByte('\n')
-		}
-	}
+	// Detect agent errors on the host runner immediately after the AWF container exits.
+	// GITHUB_OUTPUT is not accessible inside the AWF sandbox, so this step must run here
+	// (on the host runner) rather than from within the container. Engines that provide a
+	// detection script via GetErrorDetectionScriptId will emit this step.
+	c.generateDetectAgentErrorsStep(yaml, data, engine)
 
 	// Mark that we've completed agent execution - step order validation starts from here
 	compilerYamlLog.Print("Marking agent execution as complete for step order tracking")

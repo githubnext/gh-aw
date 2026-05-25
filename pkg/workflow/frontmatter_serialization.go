@@ -1,5 +1,7 @@
 package workflow
 
+import "reflect"
+
 // countRuntimes counts the number of non-nil runtimes in RuntimesConfig
 func countRuntimes(config *RuntimesConfig) int {
 	if config == nil {
@@ -180,7 +182,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	}
 
 	// Execution settings
-	if fc.RunsOn != "" {
+	if !isNilValue(fc.RunsOn) {
 		result["runs-on"] = fc.RunsOn
 	}
 	if fc.RunsOnSlim != "" {
@@ -231,6 +233,20 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	}
 
 	return result
+}
+
+func isNilValue(v any) bool {
+	if v == nil {
+		return true
+	}
+
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return rv.IsNil()
+	default:
+		return false
+	}
 }
 
 // runtimeConfigToMap converts a single RuntimeConfig to map[string]any

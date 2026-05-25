@@ -161,8 +161,9 @@ func processGatewayLogEntry(entry *GatewayLogEntry, metrics *GatewayMetrics, ver
 		return
 	}
 
-	// Track errors
-	if entry.Status == "error" || entry.Error != "" {
+	// Track errors. Include entries where level is "error" to handle gateway log formats
+	// that omit the "status" field post-OTel-collector migration.
+	if entry.Status == "error" || entry.Error != "" || entry.Level == "error" {
 		metrics.TotalErrors++
 		if entry.ServerName != "" {
 			server := getOrCreateServer(metrics, entry.ServerName)

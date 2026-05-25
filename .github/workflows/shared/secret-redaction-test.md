@@ -4,8 +4,8 @@ secret-masking:
     - name: Redact dummy password pattern
       if: always()
       run: |
-        echo "Searching for dummy password patterns in /tmp/gh-aw/"
-        find /tmp/gh-aw -type f -exec sed -i 's/password123/REDACTED/g' {} + 2>/dev/null || true
+        echo "Searching for dummy password patterns in /tmp/gh-aw/agent/"
+        find /tmp/gh-aw/agent -type f -exec sed -i 's/password123/REDACTED/g' {} + 2>/dev/null || true
         echo "Secret masking complete"
 ---
 

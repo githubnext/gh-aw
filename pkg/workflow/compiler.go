@@ -423,60 +423,66 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 
 	workflowLog.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
 
-	// Read the existing lock file to extract the previous gh-aw-manifest for safe update
-	// enforcement.
-	//
-	// Priority (highest to lowest):
-	//  1. Pre-cached manifest supplied by the caller (e.g. MCP server collected at startup
-	//     before any agent interaction, making it tamper-proof without requiring git access).
-	//  2. Content from the last git commit (HEAD) – prevents a local agent from modifying
-	//     the .lock.yml file on disk to forge an approved manifest.
-	//  3. Filesystem read – fallback for first-time compilations or non-git environments.
+	// Resolve and cache the baseline manifest only when safe update mode is active.
+	// This avoids unnecessary git/filesystem reads on compile paths that skip safe update
+	// enforcement (e.g., --approve or strict: false).
+	safeUpdateEnabled := c.effectiveSafeUpdate(workflowData)
 	var oldManifest *GHAWManifest
-	if cached, ok := c.priorManifests[lockFile]; ok {
-		oldManifest = cached
-		secretCount := 0
-		if cached != nil {
-			secretCount = len(cached.Secrets)
-		}
-		workflowLog.Printf("Using pre-cached gh-aw-manifest for %s: %d secret(s)", lockFile, secretCount)
-	} else if committedContent, readErr := c.readLockFileFromHEAD(lockFile); readErr == nil {
-		if m, parseErr := ExtractGHAWManifestFromLockFile(committedContent); parseErr == nil {
-			oldManifest = m
-			if oldManifest != nil {
-				workflowLog.Printf("Loaded committed gh-aw-manifest from HEAD: %d secret(s)", len(oldManifest.Secrets))
+	if safeUpdateEnabled {
+		// Read the existing lock file to extract the previous gh-aw-manifest for safe update
+		// enforcement.
+		//
+		// Priority (highest to lowest):
+		//  1. Pre-cached manifest supplied by the caller (e.g. MCP server collected at startup
+		//     before any agent interaction, making it tamper-proof without requiring git access).
+		//  2. Content from the last git commit (HEAD) – prevents a local agent from modifying
+		//     the .lock.yml file on disk to forge an approved manifest.
+		//  3. Filesystem read – fallback for first-time compilations or non-git environments.
+		if cached, ok := c.priorManifests[lockFile]; ok {
+			oldManifest = cached
+			secretCount := 0
+			if cached != nil {
+				secretCount = len(cached.Secrets)
 			}
-		} else {
-			workflowLog.Printf("Failed to parse committed gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
-		}
-	} else {
-		workflowLog.Printf("Lock file %s not found in HEAD commit (%v); falling back to filesystem read.", lockFile, readErr)
-		if existingContent, fsErr := os.ReadFile(lockFile); fsErr == nil {
-			if m, parseErr := ExtractGHAWManifestFromLockFile(string(existingContent)); parseErr == nil {
+			workflowLog.Printf("Using pre-cached gh-aw-manifest for %s: %d secret(s)", lockFile, secretCount)
+		} else if committedContent, readErr := c.readLockFileFromHEAD(lockFile); readErr == nil {
+			if m, parseErr := ExtractGHAWManifestFromLockFile(committedContent); parseErr == nil {
 				oldManifest = m
 				if oldManifest != nil {
-					workflowLog.Printf("Loaded gh-aw-manifest from filesystem: %d secret(s)", len(oldManifest.Secrets))
+					workflowLog.Printf("Loaded committed gh-aw-manifest from HEAD: %d secret(s)", len(oldManifest.Secrets))
 				}
 			} else {
-				workflowLog.Printf("Failed to parse filesystem gh-aw-manifest: %v. Safe update enforcement will treat as empty manifest.", parseErr)
+				workflowLog.Printf("Failed to parse committed gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
 			}
 		} else {
-			// No lock file anywhere — this is a brand-new workflow.  Use an empty
-			// (non-nil) manifest so EnforceSafeUpdate applies enforcement and flags
-			// any newly introduced secrets or actions for review.
-			workflowLog.Printf("Lock file %s not found (new workflow). Safe update enforcement will use an empty baseline.", lockFile)
-			oldManifest = &GHAWManifest{Version: currentGHAWManifestVersion}
+			workflowLog.Printf("Lock file %s not found in HEAD commit (%v); falling back to filesystem read.", lockFile, readErr)
+			if existingContent, fsErr := os.ReadFile(lockFile); fsErr == nil {
+				if m, parseErr := ExtractGHAWManifestFromLockFile(string(existingContent)); parseErr == nil {
+					oldManifest = m
+					if oldManifest != nil {
+						workflowLog.Printf("Loaded gh-aw-manifest from filesystem: %d secret(s)", len(oldManifest.Secrets))
+					}
+				} else {
+					workflowLog.Printf("Failed to parse filesystem gh-aw-manifest: %v. Safe update enforcement will treat as empty manifest.", parseErr)
+				}
+			} else {
+				// No lock file anywhere — this is a brand-new workflow.  Use an empty
+				// (non-nil) manifest so EnforceSafeUpdate applies enforcement and flags
+				// any newly introduced secrets or actions for review.
+				workflowLog.Printf("Lock file %s not found (new workflow). Safe update enforcement will use an empty baseline.", lockFile)
+				oldManifest = &GHAWManifest{Version: currentGHAWManifestVersion}
+			}
 		}
-	}
-	// Keep the first non-nil baseline seen by this compiler instance.
-	// This intentionally does not overwrite an existing cache entry so repeated
-	// compiles in the same process continue to compare against the same trusted
-	// baseline rather than a just-generated local lock file.
-	// Nil baselines (e.g., legacy lock files without gh-aw-manifest) are not
-	// cached so future compiles can pick up a newly available manifest.
-	if oldManifest != nil {
-		if _, ok := c.priorManifests[lockFile]; !ok {
-			c.priorManifests[lockFile] = oldManifest
+		// Keep the first non-nil baseline seen by this compiler instance.
+		// This intentionally does not overwrite an existing cache entry so repeated
+		// compiles in the same process continue to compare against the same trusted
+		// baseline rather than a just-generated local lock file.
+		// Nil baselines (e.g., legacy lock files without gh-aw-manifest) are not
+		// cached so future compiles can pick up a newly available manifest.
+		if oldManifest != nil {
+			if _, ok := c.priorManifests[lockFile]; !ok {
+				c.priorManifests[lockFile] = oldManifest
+			}
 		}
 	}
 
@@ -515,7 +521,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	//
 	// Emitting a warning instead of failing allows compilation to succeed so that the lock
 	// file is written and the agent receives the actionable guidance embedded in the warning.
-	if c.effectiveSafeUpdate(workflowData) {
+	if safeUpdateEnabled {
 		if enforceErr := EnforceSafeUpdate(oldManifest, bodySecrets, bodyActions, workflowData.Redirect); enforceErr != nil {
 			warningMsg := buildSafeUpdateWarningPrompt(enforceErr.Error())
 			c.AddSafeUpdateWarning(warningMsg)

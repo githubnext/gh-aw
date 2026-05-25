@@ -35,9 +35,9 @@ tools:
 steps:
   - name: Install DataFlow
     run: |
-      python3 -m venv /tmp/gh-aw/venv
-      /tmp/gh-aw/venv/bin/pip install --quiet open-dataflow
-      /tmp/gh-aw/venv/bin/python3 -c "
+      python3 -m venv /tmp/gh-aw/agent/venv
+      /tmp/gh-aw/agent/venv/bin/pip install --quiet open-dataflow
+      /tmp/gh-aw/agent/venv/bin/python3 -c "
       import dataflow
       print('DataFlow', getattr(dataflow, '__version__', 'installed'), 'ready')
       # Print available operators for reference
@@ -45,7 +45,7 @@ steps:
       available = [m.name for m in pkgutil.iter_modules(ops.__path__)]
       print('Operator modules:', available)
       "
-      mkdir -p /tmp/gh-aw/dataflow/{input,output,pipeline,reports}
+      mkdir -p /tmp/gh-aw/agent/dataflow/{input,output,pipeline,reports}
 
   - name: Fetch merged PRs
     env:
@@ -60,9 +60,9 @@ steps:
         --state merged \
         --limit 500 \
         --json number,title,body,createdAt,mergedAt,url,author,labels \
-        > /tmp/gh-aw/dataflow/input/prs.json
+        > /tmp/gh-aw/agent/dataflow/input/prs.json
 
-      echo "Fetched $(jq 'length' /tmp/gh-aw/dataflow/input/prs.json) merged PRs"
+      echo "Fetched $(jq 'length' /tmp/gh-aw/agent/dataflow/input/prs.json) merged PRs"
 
 safe-outputs:
   upload-artifact:
@@ -97,10 +97,10 @@ Build a cleaned, quality-scored, and deduplicated JSONL dataset from this reposi
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Data available**:
-  - Discussions: `/tmp/gh-aw/discussions-data/discussions.json` (pre-fetched by shared component)
-  - PRs: `/tmp/gh-aw/dataflow/input/prs.json` (pre-fetched in `steps:`)
-- **DataFlow venv**: `/tmp/gh-aw/venv/bin/python3`
-- **Output dir**: `/tmp/gh-aw/dataflow/output/`
+  - Discussions: `/tmp/gh-aw/agent/discussions-data/discussions.json` (pre-fetched by shared component)
+  - PRs: `/tmp/gh-aw/agent/dataflow/input/prs.json` (pre-fetched in `steps:`)
+- **DataFlow venv**: `/tmp/gh-aw/agent/venv/bin/python3`
+- **Output dir**: `/tmp/gh-aw/agent/dataflow/output/`
 
 ## Pipeline Overview
 
@@ -137,7 +137,7 @@ GitHub Discussions + PRs
 Before building the pipeline, discover which operators are installed:
 
 ```bash
-/tmp/gh-aw/venv/bin/python3 -c "
+/tmp/gh-aw/agent/venv/bin/python3 -c "
 import pkgutil, dataflow.operators as ops
 for m in pkgutil.iter_modules(ops.__path__):
     print(m.name)
@@ -147,7 +147,7 @@ for m in pkgutil.iter_modules(ops.__path__):
 Then list classes in the `filter` and `dedup` sub-modules (if present):
 
 ```bash
-/tmp/gh-aw/venv/bin/python3 -c "
+/tmp/gh-aw/agent/venv/bin/python3 -c "
 import inspect
 try:
     import dataflow.operators.filter as f
@@ -170,7 +170,7 @@ Use the discovered class names throughout the pipeline below.
 Convert both discussions and PRs into a unified JSONL format with a `text` field that
 DataFlow operators will read.
 
-Write a Python script `/tmp/gh-aw/dataflow/pipeline/01_normalise.py`:
+Write a Python script `/tmp/gh-aw/agent/dataflow/pipeline/01_normalise.py`:
 
 ```python
 #!/usr/bin/env python3
@@ -180,11 +180,11 @@ import json
 import sys
 from pathlib import Path
 
-OUT = Path("/tmp/gh-aw/dataflow/input/combined_raw.jsonl")
+OUT = Path("/tmp/gh-aw/agent/dataflow/input/combined_raw.jsonl")
 records = []
 
 # ── Discussions ───────────────────────────────────────────────────────────────
-disc_path = Path("/tmp/gh-aw/discussions-data/discussions.json")
+disc_path = Path("/tmp/gh-aw/agent/discussions-data/discussions.json")
 if disc_path.exists():
     discussions = json.loads(disc_path.read_text())
     for d in discussions:
@@ -206,7 +206,7 @@ if disc_path.exists():
     print(f"Loaded {len(discussions)} discussions → {sum(1 for r in records if r['source']=='discussion')} with text")
 
 # ── Pull Requests ─────────────────────────────────────────────────────────────
-pr_path = Path("/tmp/gh-aw/dataflow/input/prs.json")
+pr_path = Path("/tmp/gh-aw/agent/dataflow/input/prs.json")
 if pr_path.exists():
     prs = json.loads(pr_path.read_text())
     pr_count_before = len(records)
@@ -241,12 +241,12 @@ print(f"Total records written: {len(records)} → {OUT}")
 Run it:
 
 ```bash
-/tmp/gh-aw/venv/bin/python3 /tmp/gh-aw/dataflow/pipeline/01_normalise.py
+/tmp/gh-aw/agent/venv/bin/python3 /tmp/gh-aw/agent/dataflow/pipeline/01_normalise.py
 ```
 
 ### Step 3: Build and Run the DataFlow Pipeline
 
-Write `/tmp/gh-aw/dataflow/pipeline/02_pipeline.py`:
+Write `/tmp/gh-aw/agent/dataflow/pipeline/02_pipeline.py`:
 
 ```python
 #!/usr/bin/env python3
@@ -262,11 +262,11 @@ DataFlow text processing pipeline:
 import json, sys, inspect, traceback
 from pathlib import Path
 
-INPUT  = "/tmp/gh-aw/dataflow/input/combined_raw.jsonl"
-OUTPUT = "/tmp/gh-aw/dataflow/output/dataset_clean.jsonl"
-STATS  = "/tmp/gh-aw/dataflow/output/pipeline_stats.json"
+INPUT  = "/tmp/gh-aw/agent/dataflow/input/combined_raw.jsonl"
+OUTPUT = "/tmp/gh-aw/agent/dataflow/output/dataset_clean.jsonl"
+STATS  = "/tmp/gh-aw/agent/dataflow/output/pipeline_stats.json"
 
-Path("/tmp/gh-aw/dataflow/output").mkdir(parents=True, exist_ok=True)
+Path("/tmp/gh-aw/agent/dataflow/output").mkdir(parents=True, exist_ok=True)
 
 # ── Load DataFlow storage ─────────────────────────────────────────────────────
 try:
@@ -403,14 +403,14 @@ print(json.dumps(stats, indent=2))
 Run it:
 
 ```bash
-/tmp/gh-aw/venv/bin/python3 /tmp/gh-aw/dataflow/pipeline/02_pipeline.py
+/tmp/gh-aw/agent/venv/bin/python3 /tmp/gh-aw/agent/dataflow/pipeline/02_pipeline.py
 ```
 
 Verify output:
 
 ```bash
-echo "Output records: $(wc -l < /tmp/gh-aw/dataflow/output/dataset_clean.jsonl)"
-cat /tmp/gh-aw/dataflow/output/pipeline_stats.json
+echo "Output records: $(wc -l < /tmp/gh-aw/agent/dataflow/output/dataset_clean.jsonl)"
+cat /tmp/gh-aw/agent/dataflow/output/pipeline_stats.json
 ```
 
 ### Step 4: Upload Dataset Artifact
@@ -420,7 +420,7 @@ Stage the output file and upload it as a workflow artifact:
 ```bash
 # Stage for upload
 mkdir -p "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts"
-cp /tmp/gh-aw/dataflow/output/dataset_clean.jsonl \
+cp /tmp/gh-aw/agent/dataflow/output/dataset_clean.jsonl \
    "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/dataset_clean.jsonl"
 ```
 
@@ -442,7 +442,7 @@ Save pipeline statistics for trend tracking across runs:
 ```bash
 DATE=$(date '+%Y-%m-%d')
 RUN_ID="${GITHUB_RUN_ID}"
-STATS=$(cat /tmp/gh-aw/dataflow/output/pipeline_stats.json)
+STATS=$(cat /tmp/gh-aw/agent/dataflow/output/pipeline_stats.json)
 
 # Load existing history (or start fresh)
 HISTORY_FILE="/tmp/gh-aw/repo-memory/default/dataflow-runs.jsonl"
@@ -468,13 +468,13 @@ print('Run appended to history')
 Read the clean output and compute a per-source breakdown:
 
 ```bash
-/tmp/gh-aw/venv/bin/python3 - << 'EOF'
+/tmp/gh-aw/agent/venv/bin/python3 - << 'EOF'
 import json
 from collections import Counter
 from pathlib import Path
 
-records = [json.loads(l) for l in open("/tmp/gh-aw/dataflow/output/dataset_clean.jsonl")]
-stats   = json.loads(Path("/tmp/gh-aw/dataflow/output/pipeline_stats.json").read_text())
+records = [json.loads(l) for l in open("/tmp/gh-aw/agent/dataflow/output/dataset_clean.jsonl")]
+stats   = json.loads(Path("/tmp/gh-aw/agent/dataflow/output/pipeline_stats.json").read_text())
 
 by_source = Counter(r.get("source", "unknown") for r in records)
 avg_len   = sum(len(r.get("text", "")) for r in records) / max(len(records), 1)
@@ -488,7 +488,7 @@ report = {
     "retention_rate_pct": round(len(records) / max(stats.get("input_count", 1), 1) * 100, 1),
 }
 
-Path("/tmp/gh-aw/dataflow/reports/quality_breakdown.json").write_text(json.dumps(report, indent=2))
+Path("/tmp/gh-aw/agent/dataflow/reports/quality_breakdown.json").write_text(json.dumps(report, indent=2))
 print(json.dumps(report, indent=2))
 EOF
 ```
@@ -503,8 +503,8 @@ Read the quality breakdown and artifact URL from files, then construct the discu
 import json
 from pathlib import Path
 
-quality = json.loads(Path("/tmp/gh-aw/dataflow/reports/quality_breakdown.json").read_text())
-stats   = json.loads(Path("/tmp/gh-aw/dataflow/output/pipeline_stats.json").read_text())
+quality = json.loads(Path("/tmp/gh-aw/agent/dataflow/reports/quality_breakdown.json").read_text())
+stats   = json.loads(Path("/tmp/gh-aw/agent/dataflow/output/pipeline_stats.json").read_text())
 
 # Read artifact URL saved after upload_artifact call
 artifact_url = ""

@@ -17,7 +17,7 @@ tools:
     key: copilot-session-data
   bash:
     - "jq *"
-    - "/tmp/gh-aw/jqschema.sh"
+    - "./.github/skills/jqschema/jqschema.sh"
     - "mkdir *"
     - "date *"
     - "cp *"
@@ -37,8 +37,8 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       # Create output directories
-      mkdir -p /tmp/gh-aw/session-data
-      mkdir -p /tmp/gh-aw/session-data/logs
+      mkdir -p /tmp/gh-aw/agent/session-data
+      mkdir -p /tmp/gh-aw/agent/session-data/logs
       mkdir -p /tmp/gh-aw/cache-memory
       
       # Get today's date for cache identification
@@ -48,23 +48,23 @@ steps:
       # Check if cached data exists from today
       if [ -f "$CACHE_DIR/copilot-sessions-${TODAY}.json" ] && [ -s "$CACHE_DIR/copilot-sessions-${TODAY}.json" ]; then
         echo "✓ Found cached session data from ${TODAY}"
-        cp "$CACHE_DIR/copilot-sessions-${TODAY}.json" /tmp/gh-aw/session-data/sessions-list.json
+        cp "$CACHE_DIR/copilot-sessions-${TODAY}.json" /tmp/gh-aw/agent/session-data/sessions-list.json
         
         # Regenerate schema if missing
         if [ ! -f "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json" ]; then
-          /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/session-data/sessions-list.json > "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json"
+          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/session-data/sessions-list.json > "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json"
         fi
-        cp "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json" /tmp/gh-aw/session-data/sessions-schema.json
+        cp "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json" /tmp/gh-aw/agent/session-data/sessions-schema.json
         
         # Restore cached log files if they exist
         if [ -d "$CACHE_DIR/session-logs-${TODAY}" ]; then
           echo "✓ Found cached session logs from ${TODAY}"
-          cp -r "$CACHE_DIR/session-logs-${TODAY}"/* /tmp/gh-aw/session-data/logs/ 2>/dev/null || true
-          echo "Restored $(find /tmp/gh-aw/session-data/logs -type f | wc -l) session log files from cache"
+          cp -r "$CACHE_DIR/session-logs-${TODAY}"/* /tmp/gh-aw/agent/session-data/logs/ 2>/dev/null || true
+          echo "Restored $(find /tmp/gh-aw/agent/session-data/logs -type f | wc -l) session log files from cache"
         fi
         
         echo "Using cached data from ${TODAY}"
-        echo "Total sessions in cache: $(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)"
+        echo "Total sessions in cache: $(jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json)"
       else
         echo "⬇ Downloading fresh session data..."
         
@@ -80,19 +80,19 @@ steps:
           --paginate \
           --jq ".workflow_runs[] | select(.head_branch | startswith(\"copilot/\")) | select(.created_at >= \"${DATE_30_DAYS_AGO}\") | {id, name, head_branch, created_at, updated_at, status, conclusion, html_url}" \
           | jq -s '.[0:50]' \
-          > /tmp/gh-aw/session-data/sessions-list.json
+          > /tmp/gh-aw/agent/session-data/sessions-list.json
 
         # Generate schema for reference
-        /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/session-data/sessions-list.json > /tmp/gh-aw/session-data/sessions-schema.json
+        ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/session-data/sessions-list.json > /tmp/gh-aw/agent/session-data/sessions-schema.json
 
         # Download conversation logs using gh agent-task command (limit to first 50)
-        SESSION_COUNT=$(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)
+        SESSION_COUNT=$(jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json)
         echo "Downloading conversation logs for $SESSION_COUNT sessions..."
         
         # Use gh agent-task to fetch session logs with conversation transcripts
         # Extract session numbers from head_branch (format: copilot/issue-123 or copilot/task-456)
         # The number is the issue/task/PR number that the gh agent-task command uses
-        jq -r '.[].head_branch' /tmp/gh-aw/session-data/sessions-list.json | while read -r branch; do
+        jq -r '.[].head_branch' /tmp/gh-aw/agent/session-data/sessions-list.json | while read -r branch; do
           if [ -n "$branch" ]; then
             # Extract number from branch name (e.g., copilot/issue-123 -> 123)
             # This is the session identifier used by gh agent-task
@@ -104,19 +104,19 @@ steps:
               # Use gh agent-task view --log to get conversation transcript
               # This contains the agent's internal monologue, tool calls, and reasoning
               gh agent-task view --repo "$GITHUB_REPOSITORY" "$session_number" --log \
-                > "/tmp/gh-aw/session-data/logs/${session_number}-conversation.txt" 2>&1 || {
+                > "/tmp/gh-aw/agent/session-data/logs/${session_number}-conversation.txt" 2>&1 || {
                 echo "Warning: Could not fetch conversation log for session #$session_number"
                 # If gh agent-task fails, fall back to downloading GitHub Actions logs
                 # This ensures we have some data even if agent-task command is unavailable
-                run_id=$(jq -r ".[] | select(.head_branch == \"$branch\") | .id" /tmp/gh-aw/session-data/sessions-list.json)
+                run_id=$(jq -r ".[] | select(.head_branch == \"$branch\") | .id" /tmp/gh-aw/agent/session-data/sessions-list.json)
                 if [ -n "$run_id" ]; then
                   echo "Falling back to GitHub Actions logs for run ID: $run_id"
                   gh api "repos/$GITHUB_REPOSITORY/actions/runs/${run_id}/logs" \
-                    > "/tmp/gh-aw/session-data/logs/${session_number}-actions.zip" 2>&1 || true
+                    > "/tmp/gh-aw/agent/session-data/logs/${session_number}-actions.zip" 2>&1 || true
                   
-                  if [ -f "/tmp/gh-aw/session-data/logs/${session_number}-actions.zip" ] && [ -s "/tmp/gh-aw/session-data/logs/${session_number}-actions.zip" ]; then
-                    unzip -q "/tmp/gh-aw/session-data/logs/${session_number}-actions.zip" -d "/tmp/gh-aw/session-data/logs/${session_number}/" 2>/dev/null || true
-                    rm "/tmp/gh-aw/session-data/logs/${session_number}-actions.zip"
+                  if [ -f "/tmp/gh-aw/agent/session-data/logs/${session_number}-actions.zip" ] && [ -s "/tmp/gh-aw/agent/session-data/logs/${session_number}-actions.zip" ]; then
+                    unzip -q "/tmp/gh-aw/agent/session-data/logs/${session_number}-actions.zip" -d "/tmp/gh-aw/agent/session-data/logs/${session_number}/" 2>/dev/null || true
+                    rm "/tmp/gh-aw/agent/session-data/logs/${session_number}-actions.zip"
                   fi
                 fi
               }
@@ -124,33 +124,33 @@ steps:
           fi
         done
         
-        LOG_COUNT=$(find /tmp/gh-aw/session-data/logs/ -type f -name "*-conversation.txt" | wc -l)
+        LOG_COUNT=$(find /tmp/gh-aw/agent/session-data/logs/ -type f -name "*-conversation.txt" | wc -l)
         echo "Conversation logs downloaded: $LOG_COUNT session logs"
         
-        FALLBACK_COUNT=$(find /tmp/gh-aw/session-data/logs/ -type d -mindepth 1 | wc -l)
+        FALLBACK_COUNT=$(find /tmp/gh-aw/agent/session-data/logs/ -type d -mindepth 1 | wc -l)
         if [ "$FALLBACK_COUNT" -gt 0 ]; then
           echo "Fallback GitHub Actions logs: $FALLBACK_COUNT sessions"
         fi
 
         # Store in cache with today's date
-        cp /tmp/gh-aw/session-data/sessions-list.json "$CACHE_DIR/copilot-sessions-${TODAY}.json"
-        cp /tmp/gh-aw/session-data/sessions-schema.json "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json"
+        cp /tmp/gh-aw/agent/session-data/sessions-list.json "$CACHE_DIR/copilot-sessions-${TODAY}.json"
+        cp /tmp/gh-aw/agent/session-data/sessions-schema.json "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json"
         
         # Cache the log files
         mkdir -p "$CACHE_DIR/session-logs-${TODAY}"
-        cp -r /tmp/gh-aw/session-data/logs/* "$CACHE_DIR/session-logs-${TODAY}/" 2>/dev/null || true
+        cp -r /tmp/gh-aw/agent/session-data/logs/* "$CACHE_DIR/session-logs-${TODAY}/" 2>/dev/null || true
 
         echo "✓ Session data saved to cache: copilot-sessions-${TODAY}.json"
-        echo "Total sessions found: $(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)"
+        echo "Total sessions found: $(jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json)"
       fi
       
       # Always ensure data is available at expected locations for backward compatibility
-      echo "Session data available at: /tmp/gh-aw/session-data/sessions-list.json"
-      echo "Schema available at: /tmp/gh-aw/session-data/sessions-schema.json"
-      echo "Logs available at: /tmp/gh-aw/session-data/logs/"
+      echo "Session data available at: /tmp/gh-aw/agent/session-data/sessions-list.json"
+      echo "Schema available at: /tmp/gh-aw/agent/session-data/sessions-schema.json"
+      echo "Logs available at: /tmp/gh-aw/agent/session-data/logs/"
       
       # Set outputs for downstream use
-      echo "sessions_count=$(jq 'length' /tmp/gh-aw/session-data/sessions-list.json)" >> "$GITHUB_OUTPUT"
+      echo "sessions_count=$(jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json)" >> "$GITHUB_OUTPUT"
 ---
 
 <!--
@@ -160,7 +160,7 @@ This shared component fetches GitHub Copilot coding agent session data by analyz
 
 ### What It Does
 
-1. Creates output directories at `/tmp/gh-aw/session-data/` and `/tmp/gh-aw/cache-memory/`
+1. Creates output directories at `/tmp/gh-aw/agent/session-data/` and `/tmp/gh-aw/cache-memory/`
 2. Checks for cached session data from today's date in cache-memory
 3. If cache exists (from earlier workflow runs today):
    - Uses cached data instead of making API calls
@@ -196,9 +196,9 @@ This shared component fetches GitHub Copilot coding agent session data by analyz
 
 ### Output Files
 
-- **`/tmp/gh-aw/session-data/sessions-list.json`**: Full session data including run ID, name, branch, timestamps, status, conclusion, and URL
-- **`/tmp/gh-aw/session-data/sessions-schema.json`**: JSON schema showing the structure of the session data
-- **`/tmp/gh-aw/session-data/logs/`**: Directory containing session conversation logs
+- **`/tmp/gh-aw/agent/session-data/sessions-list.json`**: Full session data including run ID, name, branch, timestamps, status, conclusion, and URL
+- **`/tmp/gh-aw/agent/session-data/sessions-schema.json`**: JSON schema showing the structure of the session data
+- **`/tmp/gh-aw/agent/session-data/logs/`**: Directory containing session conversation logs
   - **`{session_number}-conversation.txt`**: Agent conversation transcript with internal monologue and tool usage (primary)
   - **`{session_number}/`**: GitHub Actions infrastructure logs (fallback only)
 - **`/tmp/gh-aw/cache-memory/copilot-sessions-YYYY-MM-DD.json`**: Cached session data with date
@@ -221,19 +221,19 @@ Then access the pre-fetched data in your workflow prompt:
 ```bash
 # Get sessions from the last 24 hours
 TODAY="$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')"
-jq --arg today "$TODAY" '[.[] | select(.created_at >= $today)]' /tmp/gh-aw/session-data/sessions-list.json
+jq --arg today "$TODAY" '[.[] | select(.created_at >= $today)]' /tmp/gh-aw/agent/session-data/sessions-list.json
 
 # Count total sessions
-jq 'length' /tmp/gh-aw/session-data/sessions-list.json
+jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json
 
 # Get session numbers for conversation logs
-jq -r '.[].head_branch' /tmp/gh-aw/session-data/sessions-list.json | sed 's/copilot\///' | sed 's/[^0-9]//g'
+jq -r '.[].head_branch' /tmp/gh-aw/agent/session-data/sessions-list.json | sed 's/copilot\///' | sed 's/[^0-9]//g'
 
 # List conversation log files
-find /tmp/gh-aw/session-data/logs -type f -name "*-conversation.txt"
+find /tmp/gh-aw/agent/session-data/logs -type f -name "*-conversation.txt"
 
 # Read a specific conversation log (session number 123)
-cat /tmp/gh-aw/session-data/logs/123-conversation.txt
+cat /tmp/gh-aw/agent/session-data/logs/123-conversation.txt
 ```
 
 ### Requirements

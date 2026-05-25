@@ -107,7 +107,7 @@ You have access to:
 1. **Serena MCP**: Static analysis and code intelligence capabilities
 2. **gh-aw MCP**: GitHub Agentic Workflows introspection and management
 3. **Playwright**: Browser automation via CLI (`playwright-cli <command>` in bash)
-4. **JQ Schema**: JSON structure discovery tool at `/tmp/gh-aw/jqschema.sh`
+4. **JQ Schema**: JSON structure discovery tool at `./.github/skills/jqschema/jqschema.sh`
 5. **Cache Memory**: Persistent memory storage at `/tmp/gh-aw/cache-memory/` for multi-step reasoning
 6. **Edit Tool**: For file creation and modification
 7. **Bash Tools**: Shell command execution with JQ support

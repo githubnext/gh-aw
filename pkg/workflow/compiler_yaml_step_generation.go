@@ -157,6 +157,9 @@ func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, 
 			if v := getVersionForSetup(data); v != "" {
 				lines = append(lines, fmt.Sprintf("          GH_AW_INFO_VERSION: %q\n", v))
 			}
+			if v := getAWFVersionForSetup(data); v != "" {
+				lines = append(lines, fmt.Sprintf("          GH_AW_INFO_AWF_VERSION: %q\n", v))
+			}
 			if data.Source != "" {
 				lines = append(lines, "          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")
 			}
@@ -202,6 +205,9 @@ func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, 
 	)
 	if v := getVersionForSetup(data); v != "" {
 		lines = append(lines, fmt.Sprintf("          GH_AW_INFO_VERSION: %q\n", v))
+	}
+	if v := getAWFVersionForSetup(data); v != "" {
+		lines = append(lines, fmt.Sprintf("          GH_AW_INFO_AWF_VERSION: %q\n", v))
 	}
 	if data.Source != "" {
 		lines = append(lines, "          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")

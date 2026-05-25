@@ -64,11 +64,11 @@ Copilot offline Bring Your Own Key (BYOK) behavior is now the default for `engin
 1. Injecting a dummy `COPILOT_API_KEY` to trigger the AWF BYOK runtime path.
 2. Implicitly enabling `cli-proxy`.
 3. Forcing the Copilot CLI to install at `latest` (ignoring any pinned `engine.version`).
-4. Setting `COPILOT_MODEL` to `${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}` — Copilot BYOK providers require a non-empty model, so the compiler provides `claude-sonnet-4.6` as the fallback when `GH_AW_MODEL_AGENT_COPILOT` is not set.
+4. Setting `COPILOT_MODEL` to `${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'default' }}` — Copilot BYOK providers require a non-empty model, so the compiler provides the `default` sentinel as the fallback when `GH_AW_MODEL_AGENT_COPILOT` is not set.
 
 No feature flag is required.
 
-To use a different model, set the `GH_AW_MODEL_AGENT_COPILOT` repository variable. The compiled workflow uses `${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}` for `COPILOT_MODEL`.
+To use a different model, set the `GH_AW_MODEL_AGENT_COPILOT` repository variable. The compiled workflow uses `${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'default' }}` for `COPILOT_MODEL`.
 
 > [!IMPORTANT]
 > `features.byok-copilot` is deprecated and no longer needed. Existing workflows may still include it, but it has no effect.

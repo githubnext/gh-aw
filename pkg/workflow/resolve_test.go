@@ -11,6 +11,8 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // shouldSkipFirewallWorkflow returns true if the workflow filename contains ".firewall"
@@ -19,6 +21,17 @@ import (
 // when the GH_AW_FEATURES environment variable doesn't include "firewall".
 func shouldSkipFirewallWorkflow(workflowName string) bool {
 	return strings.Contains(workflowName, ".firewall") && !isFeatureEnabled(constants.FeatureFlag("firewall"), nil)
+}
+
+// setupWorkflowDir creates a temporary directory with the workflows sub-directory,
+// changes the working directory to it, and returns the path to the workflows directory.
+func setupWorkflowDir(t *testing.T) string {
+	t.Helper()
+	tempDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "failed to create workflows directory")
+	t.Chdir(tempDir)
+	return workflowsDir
 }
 
 func TestNormalizeWorkflowName(t *testing.T) {
@@ -62,21 +75,13 @@ func TestNormalizeWorkflowName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := stringutil.NormalizeWorkflowName(tt.input)
-			if result != tt.expected {
-				t.Errorf("stringutil.NormalizeWorkflowName(%q) = %q, expected %q", tt.input, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "NormalizeWorkflowName(%q) should return %q", tt.input, tt.expected)
 		})
 	}
 }
 
 func TestResolveWorkflowName(t *testing.T) {
-	// Create a temporary directory with workflow files
-	tempDir := testutil.TempDir(t, "test-*")
-	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
-	err := os.MkdirAll(workflowsDir, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
+	workflowsDir := setupWorkflowDir(t)
 
 	// Create sample workflow files
 	testWorkflows := map[string]string{
@@ -88,20 +93,11 @@ func TestResolveWorkflowName(t *testing.T) {
 		mdFile := filepath.Join(workflowsDir, workflowID+".md")
 		lockFile := filepath.Join(workflowsDir, workflowID+".lock.yml")
 
-		err = os.WriteFile(mdFile, []byte("# "+workflowID+"\nSome content"), 0644)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.WriteFile(mdFile, []byte("# "+workflowID+"\nSome content"), 0644), "failed to write workflow markdown file")
 
 		lockContent := "name: \"" + workflowName + "\"\non: push\n"
-		err = os.WriteFile(lockFile, []byte(lockContent), 0644)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.WriteFile(lockFile, []byte(lockContent), 0644), "failed to write workflow lock file")
 	}
-
-	// Change to the temp directory
-	t.Chdir(tempDir)
 
 	tests := []struct {
 		name                 string
@@ -150,136 +146,67 @@ func TestResolveWorkflowName(t *testing.T) {
 			result, err := ResolveWorkflowName(tt.workflowInput)
 
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("Expected error for workflow input %q, but got none", tt.workflowInput)
-				}
+				assert.Error(t, err, "ResolveWorkflowName(%q) should return an error", tt.workflowInput)
 			} else {
-				if err != nil {
-					t.Errorf("Unexpected error for workflow input %q: %v", tt.workflowInput, err)
-				}
-				if result != tt.expectedWorkflowName {
-					t.Errorf("Expected workflow name %q, got %q", tt.expectedWorkflowName, result)
-				}
+				assert.NoError(t, err, "ResolveWorkflowName(%q) should not return an error", tt.workflowInput)
+				assert.Equal(t, tt.expectedWorkflowName, result, "ResolveWorkflowName(%q) should return correct workflow name", tt.workflowInput)
 			}
 		})
 	}
 }
 
 func TestResolveWorkflowName_MissingLockFile(t *testing.T) {
-	// Create a temporary directory with workflow files
-	tempDir := testutil.TempDir(t, "test-*")
-	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
-	err := os.MkdirAll(workflowsDir, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
+	workflowsDir := setupWorkflowDir(t)
 
 	// Create only the .md file, but not the .lock.yml file
 	mdFile := filepath.Join(workflowsDir, "incomplete-workflow.md")
-	err = os.WriteFile(mdFile, []byte("# Incomplete Workflow\nSome content"), 0644)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Change to the temp directory
-	t.Chdir(tempDir)
+	require.NoError(t, os.WriteFile(mdFile, []byte("# Incomplete Workflow\nSome content"), 0644), "failed to write workflow markdown file")
 
 	// Test that it returns an error when lock file is missing
-	_, err = ResolveWorkflowName("incomplete-workflow")
-	if err == nil {
-		t.Error("Expected error when lock file is missing, but got none")
-	}
-	if err != nil && !contains(err.Error(), "Run 'gh aw compile'") {
-		t.Errorf("Expected error to mention compilation, got: %v", err)
-	}
+	_, err := ResolveWorkflowName("incomplete-workflow")
+	require.Error(t, err, "ResolveWorkflowName should return an error when lock file is missing")
+	assert.Contains(t, err.Error(), "Run 'gh aw compile'", "error should mention compilation when lock file is missing")
 }
 
 func TestResolveWorkflowName_InvalidYAML(t *testing.T) {
-	// Create a temporary directory with workflow files
-	tempDir := testutil.TempDir(t, "test-*")
-	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
-	err := os.MkdirAll(workflowsDir, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
+	workflowsDir := setupWorkflowDir(t)
 
 	// Create workflow with invalid YAML
 	mdFile := filepath.Join(workflowsDir, "invalid-yaml.md")
 	lockFile := filepath.Join(workflowsDir, "invalid-yaml.lock.yml")
 
-	err = os.WriteFile(mdFile, []byte("# Invalid YAML\nSome content"), 0644)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Create lock file with invalid YAML
-	err = os.WriteFile(lockFile, []byte("invalid: yaml: content: ["), 0644)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Change to the temp directory
-	t.Chdir(tempDir)
+	require.NoError(t, os.WriteFile(mdFile, []byte("# Invalid YAML\nSome content"), 0644), "failed to write workflow markdown file")
+	require.NoError(t, os.WriteFile(lockFile, []byte("invalid: yaml: content: ["), 0644), "failed to write invalid YAML lock file")
 
 	// Test that it returns an error when YAML is invalid
-	_, err = ResolveWorkflowName("invalid-yaml")
-	if err == nil {
-		t.Error("Expected error when YAML is invalid, but got none")
-	}
-	if err != nil && !contains(err.Error(), "failed to parse YAML") {
-		t.Errorf("Expected error to mention YAML parsing, got: %v", err)
-	}
+	_, err := ResolveWorkflowName("invalid-yaml")
+	require.Error(t, err, "ResolveWorkflowName should return an error when YAML is invalid")
+	assert.Contains(t, err.Error(), "failed to parse YAML", "error should mention YAML parsing failure")
 }
 
 func TestResolveWorkflowName_MissingNameField(t *testing.T) {
-	// Create a temporary directory with workflow files
-	tempDir := testutil.TempDir(t, "test-*")
-	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
-	err := os.MkdirAll(workflowsDir, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
+	workflowsDir := setupWorkflowDir(t)
 
 	// Create workflow with valid YAML but missing name field
 	mdFile := filepath.Join(workflowsDir, "no-name.md")
 	lockFile := filepath.Join(workflowsDir, "no-name.lock.yml")
 
-	err = os.WriteFile(mdFile, []byte("# No Name\nSome content"), 0644)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Create lock file with valid YAML but no name field
-	err = os.WriteFile(lockFile, []byte("on: push\njobs: {}\n"), 0644)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Change to the temp directory
-	t.Chdir(tempDir)
+	require.NoError(t, os.WriteFile(mdFile, []byte("# No Name\nSome content"), 0644), "failed to write workflow markdown file")
+	require.NoError(t, os.WriteFile(lockFile, []byte("on: push\njobs: {}\n"), 0644), "failed to write lock file without name field")
 
 	// Test that it returns an error when name field is missing
-	_, err = ResolveWorkflowName("no-name")
-	if err == nil {
-		t.Error("Expected error when name field is missing, but got none")
-	}
-	if err != nil && !contains(err.Error(), "workflow name not found") {
-		t.Errorf("Expected error to mention missing workflow name, got: %v", err)
-	}
+	_, err := ResolveWorkflowName("no-name")
+	require.Error(t, err, "ResolveWorkflowName should return an error when name field is missing")
+	assert.Contains(t, err.Error(), "workflow name not found", "error should mention missing workflow name")
 }
 
 func TestResolveWorkflowName_ExistingAgenticWorkflow(t *testing.T) {
-	// Get current working directory
+	// The test is run from the project root where go.mod is located.
+	// If running from a subdirectory, walk up to find the project root.
 	currentDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal("Cannot determine current directory")
-	}
+	require.NoError(t, err, "cannot determine current directory")
 
-	// The test is run from the project root where go.mod is located
-	// Check if we are already in the right place by looking for go.mod and .github/workflows
 	projectRoot := currentDir
-
-	// If we're in a subdirectory (like pkg/workflow), go up to find the project root
 	for {
 		if _, err := os.Stat(filepath.Join(projectRoot, "go.mod")); err == nil {
 			if _, err := os.Stat(filepath.Join(projectRoot, constants.GetWorkflowDir())); err == nil {
@@ -293,18 +220,7 @@ func TestResolveWorkflowName_ExistingAgenticWorkflow(t *testing.T) {
 		projectRoot = parent
 	}
 
-	// Change to project root if needed
-	if projectRoot != currentDir {
-		err = os.Chdir(projectRoot)
-		if err != nil {
-			t.Skipf("Cannot change to project root: %v", err)
-		}
-		defer func() {
-			if err := os.Chdir(currentDir); err != nil {
-				t.Errorf("Failed to restore working directory: %v", err)
-			}
-		}()
-	}
+	t.Chdir(projectRoot)
 
 	// Test with known existing workflows - we'll read the actual name from lock files
 	knownWorkflows := []string{"weekly-research", "daily-plan", "issue-triage"}
@@ -330,36 +246,20 @@ func TestResolveWorkflowName_ExistingAgenticWorkflow(t *testing.T) {
 
 			// Test resolving the workflow
 			result, err := ResolveWorkflowName(workflow)
-			if err != nil {
-				t.Errorf("Error resolving existing workflow %s: %v", workflow, err)
-			}
+			assert.NoError(t, err, "ResolveWorkflowName should resolve existing workflow %q without error", workflow)
 
 			// The result should be the actual workflow name from the YAML, not the filename
-			if result == "" {
-				t.Errorf("Expected non-empty workflow name for %s", workflow)
-			}
-			// Since we don't know the exact content of the real lock files,
-			// just verify we get a non-empty string that's different from the filename
-			if result == workflow+".lock.yml" {
-				t.Errorf("Expected workflow name from YAML, but got filename %s", result)
-			}
+			assert.NotEmpty(t, result, "ResolveWorkflowName should return a non-empty name for existing workflow %q", workflow)
+			assert.NotEqual(t, workflow+".lock.yml", result, "ResolveWorkflowName should return the YAML name, not the lock filename, for %q", workflow)
 
 			// Test with different input formats - should all return the same workflow name
 			result2, err := ResolveWorkflowName(workflow + ".md")
-			if err != nil {
-				t.Errorf("Error resolving workflow %s.md: %v", workflow, err)
-			}
-			if result2 != result {
-				t.Errorf("Expected %s for input %s.md, got %s", result, workflow, result2)
-			}
+			assert.NoError(t, err, "ResolveWorkflowName should resolve %q with .md extension without error", workflow)
+			assert.Equal(t, result, result2, "ResolveWorkflowName should return the same name for %q with .md extension", workflow)
 
 			result3, err := ResolveWorkflowName(workflow + ".lock.yml")
-			if err != nil {
-				t.Errorf("Error resolving workflow %s.lock.yml: %v", workflow, err)
-			}
-			if result3 != result {
-				t.Errorf("Expected %s for input %s.lock.yml, got %s", result, workflow, result3)
-			}
+			assert.NoError(t, err, "ResolveWorkflowName should resolve %q with .lock.yml extension without error", workflow)
+			assert.Equal(t, result, result3, "ResolveWorkflowName should return the same name for %q with .lock.yml extension", workflow)
 		})
 	}
 }
@@ -411,39 +311,15 @@ func TestShouldSkipFirewallWorkflow(t *testing.T) {
 			}
 
 			result := shouldSkipFirewallWorkflow(tt.workflowName)
-			if result != tt.shouldSkip {
-				t.Errorf("shouldSkipFirewallWorkflow(%q) with GH_AW_FEATURES=%q = %v, expected %v",
-					tt.workflowName, tt.featureValue, result, tt.shouldSkip)
-			}
+			assert.Equal(t, tt.shouldSkip, result,
+				"shouldSkipFirewallWorkflow(%q) with GH_AW_FEATURES=%q should return %v",
+				tt.workflowName, tt.featureValue, tt.shouldSkip)
 		})
 	}
 }
 
-// contains checks if a string contains a substring
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		(len(s) > len(substr) && s[len(s)-len(substr):] == substr) ||
-		(len(s) > len(substr) && s[:len(substr)] == substr) ||
-		(len(s) > len(substr) && findSubstring(s, substr)))
-}
-
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
-
 func TestFindWorkflowName(t *testing.T) {
-	// Create a temporary directory with workflow files
-	tempDir := testutil.TempDir(t, "test-*")
-	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
-	err := os.MkdirAll(workflowsDir, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
+	workflowsDir := setupWorkflowDir(t)
 
 	// Create sample workflow files
 	testWorkflows := map[string]string{
@@ -455,20 +331,11 @@ func TestFindWorkflowName(t *testing.T) {
 		mdFile := filepath.Join(workflowsDir, workflowID+".md")
 		lockFile := filepath.Join(workflowsDir, workflowID+".lock.yml")
 
-		err = os.WriteFile(mdFile, []byte("# "+workflowID+"\nSome content"), 0644)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.WriteFile(mdFile, []byte("# "+workflowID+"\nSome content"), 0644), "failed to write workflow markdown file")
 
 		lockContent := "name: \"" + displayName + "\"\non: push\n"
-		err = os.WriteFile(lockFile, []byte(lockContent), 0644)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.WriteFile(lockFile, []byte(lockContent), 0644), "failed to write workflow lock file")
 	}
-
-	// Change to the temp directory
-	t.Chdir(tempDir)
 
 	tests := []struct {
 		name         string
@@ -536,29 +403,17 @@ func TestFindWorkflowName(t *testing.T) {
 			result, err := FindWorkflowName(tt.input)
 
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("Expected error for input %q, but got none", tt.input)
-				}
+				assert.Error(t, err, "FindWorkflowName(%q) should return an error", tt.input)
 			} else {
-				if err != nil {
-					t.Errorf("Unexpected error for input %q: %v", tt.input, err)
-				}
-				if result != tt.expectedName {
-					t.Errorf("Expected workflow name %q, got %q", tt.expectedName, result)
-				}
+				assert.NoError(t, err, "FindWorkflowName(%q) should not return an error", tt.input)
+				assert.Equal(t, tt.expectedName, result, "FindWorkflowName(%q) should return correct workflow name", tt.input)
 			}
 		})
 	}
 }
 
 func TestGetAllWorkflows(t *testing.T) {
-	// Create a temporary directory with workflow files
-	tempDir := testutil.TempDir(t, "test-*")
-	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
-	err := os.MkdirAll(workflowsDir, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
+	workflowsDir := setupWorkflowDir(t)
 
 	// Create sample workflow files
 	testWorkflows := map[string]string{
@@ -569,25 +424,15 @@ func TestGetAllWorkflows(t *testing.T) {
 	for workflowID, displayName := range testWorkflows {
 		lockFile := filepath.Join(workflowsDir, workflowID+".lock.yml")
 		lockContent := "name: \"" + displayName + "\"\non: push\n"
-		err = os.WriteFile(lockFile, []byte(lockContent), 0644)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.WriteFile(lockFile, []byte(lockContent), 0644), "failed to write workflow lock file")
 	}
-
-	// Change to the temp directory
-	t.Chdir(tempDir)
 
 	// Get all workflows
 	workflows, err := GetAllWorkflows()
-	if err != nil {
-		t.Fatalf("GetAllWorkflows returned error: %v", err)
-	}
+	require.NoError(t, err, "GetAllWorkflows should not return an error")
 
 	// Check count
-	if len(workflows) != len(testWorkflows) {
-		t.Errorf("Expected %d workflows, got %d", len(testWorkflows), len(workflows))
-	}
+	assert.Len(t, workflows, len(testWorkflows), "GetAllWorkflows should return the expected number of workflows")
 
 	// Check that all workflows are present
 	workflowMap := make(map[string]string)
@@ -597,23 +442,13 @@ func TestGetAllWorkflows(t *testing.T) {
 
 	for workflowID, expectedDisplayName := range testWorkflows {
 		actualDisplayName, exists := workflowMap[workflowID]
-		if !exists {
-			t.Errorf("Expected workflow ID %q not found in results", workflowID)
-		} else if actualDisplayName != expectedDisplayName {
-			t.Errorf("For workflow ID %q, expected display name %q, got %q",
-				workflowID, expectedDisplayName, actualDisplayName)
-		}
+		assert.True(t, exists, "workflow ID %q should be present in results", workflowID)
+		assert.Equal(t, expectedDisplayName, actualDisplayName, "workflow ID %q should have correct display name", workflowID)
 	}
 }
 
 func TestGetWorkflowLockFileName(t *testing.T) {
-	// Create a temporary directory with workflow files
-	tempDir := testutil.TempDir(t, "test-*")
-	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
-	err := os.MkdirAll(workflowsDir, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
+	workflowsDir := setupWorkflowDir(t)
 
 	// Create sample workflow files
 	testWorkflows := map[string]string{
@@ -624,20 +459,11 @@ func TestGetWorkflowLockFileName(t *testing.T) {
 		mdFile := filepath.Join(workflowsDir, workflowID+".md")
 		lockFile := filepath.Join(workflowsDir, workflowID+".lock.yml")
 
-		err = os.WriteFile(mdFile, []byte("# "+workflowID+"\nSome content"), 0644)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.WriteFile(mdFile, []byte("# "+workflowID+"\nSome content"), 0644), "failed to write workflow markdown file")
 
 		lockContent := "name: \"" + displayName + "\"\non: push\n"
-		err = os.WriteFile(lockFile, []byte(lockContent), 0644)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.WriteFile(lockFile, []byte(lockContent), 0644), "failed to write workflow lock file")
 	}
-
-	// Change to the temp directory
-	t.Chdir(tempDir)
 
 	tests := []struct {
 		name         string
@@ -687,20 +513,12 @@ func TestGetWorkflowLockFileName(t *testing.T) {
 			result, err := GetWorkflowLockFileName(tt.input)
 
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("Expected error for input %q, but got none (result: %q)", tt.input, result)
-				}
+				assert.Error(t, err, "GetWorkflowLockFileName(%q) should return an error", tt.input)
 				return
 			}
 
-			if err != nil {
-				t.Errorf("Unexpected error for input %q: %v", tt.input, err)
-				return
-			}
-
-			if result != tt.expectedFile {
-				t.Errorf("Expected lock file %q, got %q", tt.expectedFile, result)
-			}
+			assert.NoError(t, err, "GetWorkflowLockFileName(%q) should not return an error", tt.input)
+			assert.Equal(t, tt.expectedFile, result, "GetWorkflowLockFileName(%q) should return the correct lock file name", tt.input)
 		})
 	}
 }

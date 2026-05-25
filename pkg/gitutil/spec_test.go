@@ -1,6 +1,6 @@
 //go:build !integration
 
-package gitutil
+package gitutil_test
 
 import (
 	"path/filepath"
@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/github/gh-aw/pkg/gitutil"
 )
 
 // TestSpec_PublicAPI_IsRateLimitError validates the documented behavior of
@@ -56,7 +58,7 @@ func TestSpec_PublicAPI_IsRateLimitError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := IsRateLimitError(tt.errMsg)
+			result := gitutil.IsRateLimitError(tt.errMsg)
 			assert.Equal(t, tt.expected, result,
 				"IsRateLimitError(%q) should match documented behavior", tt.errMsg)
 		})
@@ -114,7 +116,7 @@ func TestSpec_PublicAPI_IsAuthError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := IsAuthError(tt.errMsg)
+			result := gitutil.IsAuthError(tt.errMsg)
 			assert.Equal(t, tt.expected, result,
 				"IsAuthError(%q) should match documented behavior", tt.errMsg)
 		})
@@ -171,7 +173,7 @@ func TestSpec_PublicAPI_IsHexString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := IsHexString(tt.input)
+			result := gitutil.IsHexString(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"IsHexString(%q) should match documented behavior", tt.input)
 		})
@@ -213,7 +215,7 @@ func TestSpec_PublicAPI_ExtractBaseRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ExtractBaseRepo(tt.input)
+			result := gitutil.ExtractBaseRepo(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"ExtractBaseRepo(%q) should extract owner/repo portion", tt.input)
 		})
@@ -266,7 +268,7 @@ func TestSpec_PublicAPI_IsValidFullSHA(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := IsValidFullSHA(tt.input)
+			result := gitutil.IsValidFullSHA(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"IsValidFullSHA(%q) should match documented behavior", tt.input)
 		})
@@ -281,7 +283,7 @@ func TestSpec_PublicAPI_IsValidFullSHA(t *testing.T) {
 // starts from the current working directory.
 func TestSpec_PublicAPI_FindGitRoot(t *testing.T) {
 	t.Run("returns non-empty absolute path when in git repository", func(t *testing.T) {
-		root, err := FindGitRoot()
+		root, err := gitutil.FindGitRoot()
 		require.NoError(t, err, "FindGitRoot should not error when inside a git repository")
 		assert.NotEmpty(t, root, "FindGitRoot should return a non-empty path")
 		assert.True(t, filepath.IsAbs(root),
@@ -300,10 +302,10 @@ func TestSpec_PublicAPI_FindGitRootFrom(t *testing.T) {
 		// The current working directory of this test is inside the gh-aw
 		// repository, so any subdirectory inside it should resolve to the
 		// repository root.
-		repoRoot, err := FindGitRoot()
+		repoRoot, err := gitutil.FindGitRoot()
 		require.NoError(t, err, "FindGitRoot should succeed inside the gh-aw repository")
 
-		root, err := FindGitRootFrom(repoRoot)
+		root, err := gitutil.FindGitRootFrom(repoRoot)
 		require.NoError(t, err, "FindGitRootFrom should succeed when startDir is inside a repository")
 		assert.NotEmpty(t, root, "FindGitRootFrom should return a non-empty path")
 		assert.True(t, filepath.IsAbs(root),
@@ -311,12 +313,12 @@ func TestSpec_PublicAPI_FindGitRootFrom(t *testing.T) {
 	})
 
 	t.Run("traverses upward from a subdirectory to locate the repository root", func(t *testing.T) {
-		repoRoot, err := FindGitRoot()
+		repoRoot, err := gitutil.FindGitRoot()
 		require.NoError(t, err, "FindGitRoot should succeed inside the gh-aw repository")
 
 		// Start from a subdirectory of the repo; FindGitRootFrom should walk
 		// upward and land on the same root.
-		fromSub, err := FindGitRootFrom(filepath.Join(repoRoot, "pkg", "gitutil"))
+		fromSub, err := gitutil.FindGitRootFrom(filepath.Join(repoRoot, "pkg", "gitutil"))
 		require.NoError(t, err, "FindGitRootFrom should succeed from a subdirectory")
 		assert.Equal(t, repoRoot, fromSub,
 			"FindGitRootFrom from a subdirectory should return the same root as FindGitRoot")
@@ -325,7 +327,7 @@ func TestSpec_PublicAPI_FindGitRootFrom(t *testing.T) {
 	t.Run("returns error when startDir is not inside a git repository", func(t *testing.T) {
 		// A directory created outside any git repository should produce an error.
 		isolated := t.TempDir()
-		_, err := FindGitRootFrom(isolated)
+		_, err := gitutil.FindGitRootFrom(isolated)
 		assert.Error(t, err,
 			"FindGitRootFrom should return an error when startDir is not inside a git repository")
 	})
@@ -337,19 +339,19 @@ func TestSpec_PublicAPI_FindGitRootFrom(t *testing.T) {
 // Specification: Reads a file's content from the HEAD commit without touching
 // the working tree; rejects paths that escape the repository.
 func TestSpec_PublicAPI_ReadFileFromHEAD(t *testing.T) {
-	root, err := FindGitRoot()
+	root, err := gitutil.FindGitRoot()
 	if err != nil {
 		t.Skip("not inside a git repository, skipping ReadFileFromHEAD tests")
 	}
 
 	t.Run("reads known file from HEAD without error", func(t *testing.T) {
-		content, err := ReadFileFromHEAD(filepath.Join(root, "go.mod"), root)
+		content, err := gitutil.ReadFileFromHEAD(filepath.Join(root, "go.mod"), root)
 		require.NoError(t, err, "ReadFileFromHEAD should read go.mod without error")
 		assert.NotEmpty(t, content, "content of go.mod should not be empty")
 	})
 
 	t.Run("returns error for non-existent file", func(t *testing.T) {
-		_, err := ReadFileFromHEAD("this-file-does-not-exist-xyzzy.txt", root)
+		_, err := gitutil.ReadFileFromHEAD("this-file-does-not-exist-xyzzy.txt", root)
 		assert.Error(t, err, "ReadFileFromHEAD should return error for non-existent file")
 	})
 
@@ -357,14 +359,14 @@ func TestSpec_PublicAPI_ReadFileFromHEAD(t *testing.T) {
 		// Specification: "The function rejects paths that escape the repository
 		// (i.e. paths containing .. after resolution)."
 		outsidePath := filepath.Join(root, "..", "outside.txt")
-		_, err := ReadFileFromHEAD(outsidePath, root)
+		_, err := gitutil.ReadFileFromHEAD(outsidePath, root)
 		require.Error(t, err, "ReadFileFromHEAD should reject path-traversal attempts")
 		assert.Contains(t, err.Error(), "outside the git repository root")
 	})
 
 	t.Run("returns error when gitRoot is empty", func(t *testing.T) {
 		// Specification: gitRoot must be the repository root (from FindGitRoot)
-		_, err := ReadFileFromHEAD("go.mod", "")
+		_, err := gitutil.ReadFileFromHEAD("go.mod", "")
 		assert.Error(t, err, "ReadFileFromHEAD should return error when gitRoot is empty")
 	})
 }

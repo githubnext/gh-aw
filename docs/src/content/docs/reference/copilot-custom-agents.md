@@ -138,5 +138,5 @@ Instead of (or alongside) importing agent files from `.github/agents/`, you can 
 
 - [Imports Reference](/gh-aw/reference/imports/) - Complete import system documentation
 - [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining Copilot sub-agents inside a workflow file
-- [Reusing Workflows](/gh-aw/guides/packaging-imports/) - Managing workflow imports
+- [Reusing Workflows](/gh-aw/guides/reusing-workflows/) - Adding and updating workflows from other repositories
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options reference

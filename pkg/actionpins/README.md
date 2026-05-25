@@ -27,7 +27,6 @@ Resolution supports two modes:
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `GetActionPins` | `func() []ActionPin` | Returns all loaded pins |
 | `GetActionPinsByRepo` | `func(repo string) []ActionPin` | Returns all pins for a repository (version-descending) |
 | `GetLatestActionPinByRepo` | `func(repo string) (ActionPin, bool)` | Returns the latest pin for a repository |
 | `GetContainerPin` | `func(image string) (ContainerPin, bool)` | Returns a pinned container image by its original image reference |

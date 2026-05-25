@@ -2,36 +2,30 @@
 
 // This file provides Git repository utilities for workflow compilation.
 //
-// This file contains helper functions for interacting with Git repositories
-// to extract metadata such as tags and version information. These helpers are
-// used during workflow compilation to determine release contexts and versioning.
+// This file contains the small set of Git helpers still needed by workflow
+// compilation: locating the repository root and running git commands with
+// consistent spinner behavior in interactive terminals.
 //
 // # Organization Rationale
 //
 // These Git utilities are grouped in a helper file because they:
-//   - Provide Git-specific functionality (tags, versions)
+//   - Provide Git-specific functionality
 //   - Are used by multiple workflow compilation modules
 //   - Encapsulate Git command execution and error handling
-//   - Have a clear domain focus (Git repository metadata)
+//   - Have a clear domain focus (repository discovery and command execution)
 //
 // This follows the helper file conventions documented in the developer instructions.
 // See skills/developer/SKILL.md#helper-file-conventions for details.
 //
 // # Key Functions
 //
-// Tag Detection:
-//   - GetCurrentGitTag() - Detect current Git tag from environment or repository
-//
 // Command Execution with Spinner:
-//   - RunGit() - Execute git command with spinner, returning stdout
 //   - RunGitCombined() - Execute git command with spinner, returning combined stdout+stderr
 //
 // # Usage Patterns
 //
 // These functions are primarily used during workflow compilation to:
-//   - Detect release contexts (tags vs. regular commits)
-//   - Extract version information for releases
-//   - Support conditional workflow behavior based on Git state
+//   - Discover the active repository root when workflows need repository context
 //   - Execute git commands with spinner feedback in interactive terminals
 
 package workflow

@@ -97,6 +97,7 @@ func TestGeminiEngineInstallation(t *testing.T) {
 			stepContent := strings.Join(steps[1], "\n")
 			assert.Contains(t, stepContent, "Install Gemini CLI", "Second step should install Gemini CLI")
 			assert.Contains(t, stepContent, "@google/gemini-cli", "Should install @google/gemini-cli package")
+			assert.NotContains(t, stepContent, "NPM_CONFIG_MIN_RELEASE_AGE", "Gemini installation should not set npm release-age cooldown")
 		}
 	})
 

@@ -83,7 +83,7 @@ This specification does NOT cover:
 
 - The Effective Tokens (ET) computation algorithm (defined in the [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/))
 - The `aw_info.json` artifact schema
-- A/B experiment frontmatter schema (defined in the [A/B Experiments Specification](/gh-aw/practices/experiments-specification/))
+- A/B experiment frontmatter schema (defined in the [A/B Experiments Specification](/gh-aw/experimental/experiments-specification/))
 - Billing, pricing, or financial modeling beyond token projections
 - Streaming or real-time token consumption reporting
 
@@ -962,12 +962,14 @@ Sync procedure:
 
 Sync follow-up tasks:
 
+- **[Resolved]** Expand forecast fixtures to cover invalid/non-finite `λ` derivation paths and
+  zero-projection fallback behavior. Resolved in `pkg/cli/forecast_montecarlo_test.go` via
+  `TestRunMonteCarloNonFiniteLambda` and `TestRunMonteCarloZeroLambdaFallback`.
 - Add an implementation-level assertion that verbose diagnostics and JSON output are derived from the
-  same `λ` value used by the Monte Carlo engine.
-- Expand forecast fixtures to cover invalid/non-finite `λ` derivation paths and zero-projection
-  fallback behavior.
+  same `λ` value used by the Monte Carlo engine. Track in
+  [#31984](https://github.com/github/gh-aw/issues/31984).
 - Re-review Appendix B whenever the Poisson branch threshold or `observed_runs_per_period`
-  calculation changes.
+  calculation changes. Track in [#31985](https://github.com/github/gh-aw/issues/31985).
 
 ---
 
@@ -1081,7 +1083,7 @@ visibility and access-governance controls.
 - **[RFC 2119]** Bradner, S., "Key words for use in RFCs to Indicate Requirement Levels", BCP 14, RFC 2119, March 1997. <https://www.ietf.org/rfc/rfc2119.txt>
 - **[RFC 3339]** Klyne, G. and Newman, C., "Date and Time on the Internet: Timestamps", RFC 3339, July 2002. <https://www.ietf.org/rfc/rfc3339.txt>
 - **[ET-SPEC]** GitHub Agentic Workflows Team, "Effective Tokens Specification". [effective-tokens-specification](/gh-aw/reference/effective-tokens-specification/)
-- **[EXP-SPEC]** GitHub Agentic Workflows Team, "A/B Experiments Specification". [experiments-specification](/gh-aw/practices/experiments-specification/)
+- **[EXP-SPEC]** GitHub Agentic Workflows Team, "A/B Experiments Specification". [experiments-specification](/gh-aw/experimental/experiments-specification/)
 
 ### Informative References
 

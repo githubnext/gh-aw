@@ -35,9 +35,10 @@ Upgrade the `gh aw` extension to get the latest features and codemods:
 
 ```bash wrap
 gh extension upgrade gh-aw
+gh aw upgrade --pre-releases    # Also consider newer pre-releases
 ```
 
-Check your version with `gh aw version` and compare against the [latest release](https://github.com/github/gh-aw/releases). If you encounter issues, try a clean reinstall with `gh extension remove gh-aw` followed by `gh extension install github/gh-aw`.
+Check your version with `gh aw version` and compare against the [latest release](https://github.com/github/gh-aw/releases). By default, `gh aw upgrade` follows stable releases; use `--pre-releases` to opt into pre-release builds, which are installed by exact tag. If you encounter issues, try a clean reinstall with `gh extension remove gh-aw` followed by `gh extension install github/gh-aw`.
 
 ## Step 2: Run the Upgrade Command
 
@@ -47,28 +48,7 @@ Run the upgrade command from your repository root:
 gh aw upgrade
 ```
 
-This command performs three main operations:
-
-### 2.1 Updates Dispatcher Agent File
-
-Updates `.github/agents/agentic-workflows.agent.md` to the latest template. Workflow prompt files (`.github/aw/*.md`) are resolved directly from GitHub by the agent — they're no longer managed by the CLI.
-
-### 2.2 Applies Codemods to All Workflows
-
-The upgrade automatically applies codemods to fix deprecated fields in all workflow files (`.github/workflows/*.md`).
-
-### 2.3 Compiles All Workflows
-
-The upgrade automatically compiles all workflows to generate or update `.lock.yml` files, ensuring they're ready to run in GitHub Actions.
-
-### Command Options
-
-```bash wrap
-gh aw upgrade                       # updates agent files + codemods + compiles
-gh aw upgrade -v                    # verbose output
-gh aw upgrade --no-fix              # skip codemods and compilation
-gh aw upgrade --dir custom/workflows
-```
+This updates `.github/agents/agentic-workflows.agent.md` to the latest template, applies codemods to fix deprecated fields in all workflow files (`.github/workflows/*.md`), and recompiles all workflows to regenerate `.lock.yml` files. Use `--no-fix` to skip codemods and compilation, `-v` for verbose output, or `--dir` to target a custom workflows directory.
 
 ## Step 3: Review the Changes
 

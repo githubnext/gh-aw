@@ -162,16 +162,19 @@ Use the `tool-doc-writer` agent. Pass it the discovered tool list (from Phase 1 
 ### Phase 4: Generate Comprehensive Report
 
 Create a detailed markdown report with the following structure:
+- Use h3 (`###`) or lower for all headers in your report to maintain proper document hierarchy.
+- Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Structure the report so brief summary, key metrics/highlights, and recommendations are always visible, while detailed analysis is placed inside `<details>` sections.
 
 ```markdown
-# GitHub MCP Remote Server Tools Report
+### GitHub MCP Remote Server Tools Report
 
 **Generated**: [DATE]
 **MCP Mode**: Remote
 **Toolsets**: All
 **Previous Report**: [DATE or "None" if first run]
 
-## Executive Summary
+#### Executive Summary
 
 - **Total Tools Discovered**: [NUMBER]
 - **Toolset Categories**: [NUMBER]
@@ -183,9 +186,9 @@ Create a detailed markdown report with the following structure:
   - **Removed Tools**: [NUMBER]
   - **Unchanged Tools**: [NUMBER]
 
-## Inconsistency Detection
+#### Inconsistency Detection
 
-### Toolset Integrity Checks
+##### Toolset Integrity Checks
 
 Report any inconsistencies discovered during the systematic exploration:
 
@@ -197,9 +200,9 @@ Report any inconsistencies discovered during the systematic exploration:
 
 [If no inconsistencies found: "✅ All tools are properly categorized with no detected inconsistencies."]
 
-## JSON Mapping Comparison
+#### JSON Mapping Comparison
 
-### Discrepancies Between MCP Server and JSON Mapping
+##### Discrepancies Between MCP Server and JSON Mapping
 
 Report on the comparison between the MCP server tools and the [`pkg/workflow/data/github_toolsets_permissions.json`](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json) file:
 
@@ -211,19 +214,19 @@ Report on the comparison between the MCP server tools and the [`pkg/workflow/dat
 
 [If discrepancies found, create detailed tables below. If no discrepancies, show: "✅ JSON mapping is accurate and matches the MCP server."]
 
-### Missing Tools (in JSON but not in MCP)
+##### Missing Tools (in JSON but not in MCP)
 
 | Toolset | Tool Name | Status |
 |---------|-----------|--------|
 | [toolset] | [tool] | Not found in MCP server |
 
-### Extra Tools (in MCP but not in JSON)
+##### Extra Tools (in MCP but not in JSON)
 
 | Toolset | Tool Name | Action Taken |
 |---------|-----------|--------------|
 | [toolset] | [tool] | Added to JSON mapping |
 
-### Moved Tools
+##### Moved Tools
 
 | Tool Name | JSON Toolset | MCP Toolset | Action Taken |
 |-----------|--------------|-------------|--------------|
@@ -231,11 +234,11 @@ Report on the comparison between the MCP server tools and the [`pkg/workflow/dat
 
 **Action**: [If discrepancies were found and fixed, state: "Created pull request [#NUMBER](URL) with updated JSON mapping." Otherwise: "No updates needed."]
 
-## Changes Since Last Report
+#### Changes Since Last Report
 
 [Only include this section if previous data exists]
 
-### New Tools Added ✨
+##### New Tools Added ✨
 
 List any tools that were added since the last report, organized by toolsets:
 
@@ -243,7 +246,7 @@ List any tools that were added since the last report, organized by toolsets:
 |---------|-----------|---------|
 | [toolset] | [tool] | [description] |
 
-### Removed Tools 🗑️
+##### Removed Tools 🗑️
 
 List any tools that were removed since the last report:
 
@@ -251,7 +254,7 @@ List any tools that were removed since the last report:
 |---------|-----------|--------------------------------|
 | [toolset] | [tool] | [description] |
 
-### Tools Moved Between Toolsets 🔄
+##### Tools Moved Between Toolsets 🔄
 
 List any tools that changed their toolset categorization:
 
@@ -261,13 +264,13 @@ List any tools that changed their toolset categorization:
 
 [If no changes: "No tools were added, removed, or moved since the last report."]
 
-## Tools by Toolset
+#### Tools by Toolset
 
 Organize tools into their respective toolset categories. For each toolset that has tools, create a section with a table listing all tools.
 
 **Example format for each toolsets:**
 
-### [Toolset Name] Toolset
+##### [Toolset Name] Toolset
 Brief description of the toolset.
 
 **Source**: [pkg/github/[file].go](https://github.com/github/github-mcp-server/blob/main/pkg/github/[file].go)
@@ -278,7 +281,7 @@ Brief description of the toolset.
 
 **All available toolsets**: context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users
 
-## Recommended Default Toolsets
+#### Recommended Default Toolsets
 
 Based on the analysis of available tools and their usage patterns, the following toolsets are recommended as defaults when no toolset is specified:
 
@@ -292,7 +295,7 @@ Based on the analysis of available tools and their usage patterns, the following
 **Specialized Toolsets** (enable explicitly when needed):
 - List toolsets that should not be in defaults and when to use them
 
-## Toolset Configuration Reference
+#### Toolset Configuration Reference
 
 When configuring the GitHub MCP server in agentic workflows, you can enable specific toolsets:
 
@@ -324,11 +327,11 @@ tools:
 - `users` - User information
 - `all` - Enable all toolsets
 
-## Notes and Observations
+#### Notes and Observations
 
 [Include any interesting findings, patterns, or recommendations discovered during the tool enumeration]
 
-## Methodology
+#### Methodology
 
 - **Discovery Method**: Self-inspection of available tools in the GitHub MCP remote server
 - **MCP Configuration**: Remote mode with all toolsets enabled

@@ -478,4 +478,4 @@ For workflows that must restrict which MCP tools are accessible, always specify 
 - [Security Guide](/gh-aw/introduction/architecture/) - Security considerations for AI engines
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
 - [Long Build Times](/gh-aw/reference/sandbox/#long-build-times) - Timeout tuning for large repositories
-- [Self-Hosted Runners](/gh-aw/guides/self-hosted-runners/) - Fast hardware for long-running workflows
+- [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) - Fast hardware for long-running workflows

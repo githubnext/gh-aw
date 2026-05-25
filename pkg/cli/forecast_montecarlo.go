@@ -93,7 +93,7 @@ type ForecastMonteCarloSummary struct {
 // Returns nil when etObservations is empty or observedRunsPerPeriod ≤ 0.
 func runMonteCarlo(etObservations []int, successCount int, observedRunsPerPeriod float64, rng *rand.Rand) *ForecastMonteCarloSummary {
 	n := len(etObservations)
-	if n == 0 || observedRunsPerPeriod <= 0 {
+	if n == 0 || observedRunsPerPeriod <= 0 || math.IsNaN(observedRunsPerPeriod) || math.IsInf(observedRunsPerPeriod, 0) {
 		forecastMonteCarloLog.Printf("Skipping Monte Carlo: observations=%d, runs_per_period=%.2f", n, observedRunsPerPeriod)
 		return nil
 	}

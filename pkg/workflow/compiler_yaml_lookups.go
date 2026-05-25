@@ -48,6 +48,23 @@ func getVersionForSetup(data *WorkflowData) string {
 	}
 }
 
+// getAWFVersionForSetup returns the AWF runtime version to inject as
+// GH_AW_INFO_AWF_VERSION in setup steps so all job-local OTel spans can
+// attribute telemetry to the firewall runtime that executed the job.
+func getAWFVersionForSetup(data *WorkflowData) string {
+	if data == nil {
+		return ""
+	}
+	firewallConfig := getFirewallConfig(data)
+	if firewallConfig == nil || !firewallConfig.Enabled {
+		return ""
+	}
+	if firewallConfig.Version != "" {
+		return firewallConfig.Version
+	}
+	return string(constants.DefaultFirewallVersion)
+}
+
 // getInstallationVersion returns the version that will be installed for the given engine.
 // This matches the logic in BuildStandardNpmEngineInstallSteps.
 func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string {
@@ -84,14 +101,16 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 // getDefaultAgentModel returns the model display value to use when no explicit model is configured.
 // For the copilot engine this matches the CopilotBYOKDefaultModel used in COPILOT_MODEL so that
 // GH_AW_INFO_MODEL and COPILOT_MODEL agree on the same fallback.
-// Returns "auto" for other known engines whose model is dynamically determined by the AI provider,
+// Returns "agent" for other known engines whose model is dynamically determined by the AI provider,
 // or empty string for custom/unknown engines.
 func getDefaultAgentModel(engineID string) string {
 	switch engineID {
 	case "copilot":
 		return constants.CopilotBYOKDefaultModel
-	case "claude", "codex", "gemini", "opencode", "crush", "pi":
-		return "auto"
+	case "claude", "gemini", "opencode", "crush", "pi":
+		return "agent"
+	case "codex":
+		return constants.CodexDefaultModel
 	default:
 		return ""
 	}
