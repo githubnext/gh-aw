@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.10  
+**Version**: 1.0.11  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -24,7 +24,7 @@ This specification is the source of truth for detection rule coverage, implement
 
 This is a Candidate Recommendation specification. It may be revised based on operational evidence, threat-model updates, and conformance results.
 
-**Publication Date**: May 17, 2026  
+**Publication Date**: May 25, 2026  
 **Governance**: This specification is maintained by the gh-aw maintainers and governed by gh-aw security review processes.
 
 ## Table of Contents
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.11` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
 | `1.0.10` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
 | `1.0.9` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016) and update-check validation (`check-for-updates` handling for CTR-018). Top-level `sandbox: false` is no longer a valid workflow input; `sandbox.agent: false` is the supported field for CTR-004 detection. |
 | `1.0.8` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016) and update-check validation (`check-for-updates` handling for CTR-018). |
@@ -255,16 +256,16 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-015 Allowed Label Glob Scope | `pkg/workflow/safe_outputs_allowed_labels_validation.go` (`validateSafeOutputsAllowedLabelsGlobScope`) | `pkg/workflow/safe_outputs_allowed_labels_validation_test.go` |
 | CTR-016 Compile-Time Manifest Drift | `pkg/workflow/safe_update_enforcement.go` (`EnforceSafeUpdate`, `collectSecretViolations`, `collectActionViolations`, `collectRedirectViolations`), called from `pkg/workflow/compiler.go` | `pkg/workflow/safe_update_enforcement_test.go` |
 | CTR-017 Secret Leakage via Environment Variables | `pkg/workflow/strict_mode_env_validation.go` (`validateEnvSecrets`, `validateEnvSecretsSection`), `pkg/workflow/strict_mode_steps_validation.go` (`validateStepsSecrets`, `validateStepsSectionSecrets`) | `pkg/workflow/env_secrets_validation_test.go`, `pkg/workflow/jobs_secrets_validation_test.go` |
-| CTR-018 Version Integrity Bypass | `pkg/workflow/update_check_validation.go` (`validateUpdateCheck`) | `pkg/workflow/update_check_validation_test.go` |
+| CTR-018 Version Integrity Bypass | `pkg/workflow/strict_mode_update_check_validation.go` (`validateUpdateCheck`) | `pkg/workflow/strict_mode_update_check_validation_test.go` |
 | CTR-019 Cache-Memory Integrity Enforcement | `pkg/workflow/cache.go` (`buildUpdateCacheMemoryJob` using `buildDetectionSuccessCondition`), `pkg/workflow/expression_builder.go` (`buildDetectionSuccessCondition`) | `pkg/workflow/cache_memory_threat_detection_test.go`, `pkg/workflow/threat_detection_job_combinations_integration_test.go` |
 
 The mappings above are pattern-based references and MUST be validated against concrete file paths whenever this specification is updated.
 
 When mappings change, this table MUST be updated in the same change set as the implementation update.
 
-### 7.2 Mapping Audit (2026-05-22)
+### 7.2 Mapping Audit (2026-05-25)
 
-Audit result: ✅ all listed `CTR-001` through `CTR-019` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Latest addition: CTR-019 Cache-Memory Integrity Enforcement added in version 1.0.10 to document the PR #33885 implementation that tightened `update_cache_memory` job gating to require detection success instead of accepting skipped results.
+Audit result: ✅ all listed `CTR-001` through `CTR-019` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Correction applied in version 1.0.11: CTR-018 implementation mapping updated from `update_check_validation.go` to `strict_mode_update_check_validation.go` (and corresponding test file `strict_mode_update_check_validation_test.go`) to match the actual file paths in the codebase. No new uncovered threats were identified in this review cycle; PR #34525 (decoupled `engine.permission-mode`) introduced `bypassPermissions` as an explicit first-class field — this is documented security model behavior with the MCP gateway filter as the sole enforcement boundary in that mode, and does not require a new CTR rule at this time.
 
 ### 7.3 Sync Protocol for CTR Rule and Manifest Updates
 
@@ -335,6 +336,12 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 ---
 
 ## 10. Change Log
+
+### 1.0.11 (2026-05-25)
+
+- Corrected CTR-018 implementation mapping: `pkg/workflow/update_check_validation.go` → `pkg/workflow/strict_mode_update_check_validation.go` (the spec referenced a non-existent filename; the actual implementation and test file are `strict_mode_update_check_validation.go` and `strict_mode_update_check_validation_test.go`)
+- Updated Section 7.2 mapping audit to 2026-05-25 noting the CTR-018 filename correction and confirming no new uncovered threats in this review cycle
+- Updated Section 2 spec-to-implementation sync table with version 1.0.11 entry
 
 ### 1.0.10 (2026-05-22)
 
