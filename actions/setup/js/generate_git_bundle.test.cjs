@@ -98,7 +98,6 @@ describe("generateGitBundle (incremental)", () => {
     expect(prBranchHeadSha).toMatch(/^[a-f0-9]{40}$/);
     expect(optimizedBundleHeads).toContain(prBranchHeadSha);
     expect(generatedBundleHeads).toBe(optimizedBundleHeads);
-    expect(generatedBundleHeads).toContain(prBranchHeadSha);
     expect(generatedSize).toBeLessThan(naiveSize);
   });
 });
