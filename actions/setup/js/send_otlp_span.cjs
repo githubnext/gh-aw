@@ -1148,6 +1148,7 @@ async function sendJobSetupSpan(options = {}) {
   const runnerArch = process.env.RUNNER_ARCH || "";
   const runnerName = process.env.RUNNER_NAME || "";
   const runnerEnvironment = process.env.RUNNER_ENVIRONMENT || "";
+  const scopeVersion = process.env.GH_AW_INFO_VERSION || process.env.GH_AW_INFO_CLI_VERSION || process.env.GITHUB_SHA || "unknown";
 
   const attributes = [
     buildAttr("gh-aw.job.name", jobName),
@@ -1157,6 +1158,9 @@ async function sendJobSetupSpan(options = {}) {
     buildAttr("gh-aw.run.actor", actor),
     buildAttr("gh-aw.repository", repository),
   ];
+  if (scopeVersion !== "unknown") {
+    attributes.push(buildAttr("gh-aw.cli.version", scopeVersion));
+  }
 
   if (engineId) {
     const genAiSystem = ENGINE_TO_SYSTEM_MAP[engineId] || engineId;
@@ -1224,7 +1228,7 @@ async function sendJobSetupSpan(options = {}) {
     startMs,
     endMs,
     serviceName,
-    scopeVersion: process.env.GH_AW_INFO_VERSION || process.env.GH_AW_INFO_CLI_VERSION || process.env.GITHUB_SHA || "unknown",
+    scopeVersion,
     attributes,
     resourceAttributes,
   });
@@ -1843,6 +1847,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
 
   const attributes = [buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.attempt", runAttempt), buildAttr("gh-aw.run.actor", actor), buildAttr("gh-aw.repository", repository)];
+  if (version !== "unknown") {
+    attributes.push(buildAttr("gh-aw.cli.version", version));
+  }
   attributes.push(buildAttr("gh-aw.run.status", runStatus));
   attributes.push(buildAttr("gh-aw.error_count", outputErrors.length));
   attributes.push(buildAttr("gh-aw.warning_count", warningCount));
