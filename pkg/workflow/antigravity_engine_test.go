@@ -285,7 +285,7 @@ func TestAntigravityEngineExecution(t *testing.T) {
 		assert.NotContains(t, stepContent, "ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}", "Default ANTIGRAVITY_API_KEY expression should be replaced by engine.env")
 	})
 
-	t.Run("secret validation no longer references legacy Gemini secret", func(t *testing.T) {
+	t.Run("validates ANTIGRAVITY_API_KEY secret", func(t *testing.T) {
 		step := engine.GetSecretValidationStep(&WorkflowData{Name: "test-workflow"})
 		require.NotEmpty(t, step, "Should generate secret validation step")
 

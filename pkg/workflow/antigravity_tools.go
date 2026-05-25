@@ -40,7 +40,6 @@ var antigravityToolsLog = logger.New("workflow:antigravity_tools")
 // agentic workflows: glob, grep_search, list_directory, read_file, read_many_files.
 //
 // See: https://antigravity.google/docs/cli-overview
-// See: https://antigravity.google/docs/cli-overview
 func computeAntigravityToolsCore(tools map[string]any) []string {
 	// Always include essential read-only file system tools
 	toolsCore := []string{
