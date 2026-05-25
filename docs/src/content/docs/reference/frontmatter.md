@@ -468,6 +468,41 @@ The `redirect` field uses the same `owner/repo/path@ref` format as `source:`. Re
 > [!NOTE]
 > The `redirect` field is set by workflow *authors* to signal that a workflow has moved. It is not typically set by end-users. If you see a redirect when running `gh aw update`, it means the upstream workflow has been relocated.
 
+### Tracker ID (`tracker-id:`)
+
+Embeds a stable identifier into the body of every asset (issues, pull requests, discussions, comments) created by the workflow. This ties all output to a single searchable token, making it easy to find and manage everything a workflow has ever created — even across repositories or over time.
+
+```yaml wrap
+tracker-id: code-simplifier
+```
+
+The identifier is inserted as a hidden HTML comment in every created body:
+
+```html
+<!-- gh-aw-tracker-id: code-simplifier -->
+```
+
+Use it in GitHub search to find all assets created by a specific workflow:
+
+```
+repo:owner/repo "gh-aw-tracker-id: code-simplifier" in:body
+```
+
+**Constraints:**
+
+- 8–128 characters
+- Alphanumeric characters, hyphens (`-`), and underscores (`_`) only
+- Leading and trailing whitespace is stripped automatically
+
+Most workflows use their own filename as the tracker ID for clarity:
+
+```yaml wrap
+tracker-id: daily-compiler-quality
+```
+
+> [!NOTE]
+> The `tracker-id` field controls the search marker embedded in created assets. The `gh-aw-workflow-id` marker (derived from the workflow filename) is always included regardless of this field. See [Footers](/gh-aw/reference/footers/) for details on both markers and how to control footer visibility.
+
 ### Private Workflows (`private:`)
 
 Mark a workflow as private to prevent it from being installed into other repositories via `gh aw add`.
