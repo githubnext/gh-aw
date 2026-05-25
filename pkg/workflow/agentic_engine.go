@@ -215,7 +215,7 @@ type SecurityProvider interface {
 // The default implementation in BaseEngine returns "" (no native env var).
 type ModelEnvVarProvider interface {
 	// GetModelEnvVarName returns the name of the native environment variable the CLI
-	// uses for model selection (e.g., "COPILOT_MODEL", "ANTHROPIC_MODEL", "GEMINI_MODEL").
+	// uses for model selection (e.g., "COPILOT_MODEL", "ANTHROPIC_MODEL", "ANTIGRAVITY_MODEL").
 	// Returns an empty string if the engine does not support a native model env var.
 	GetModelEnvVarName() string
 }
@@ -455,6 +455,7 @@ func NewEngineRegistry() *EngineRegistry {
 		NewCodexEngine(),
 		NewCopilotEngine(),
 		NewGeminiEngine(),
+		NewAntigravityEngine(),
 		NewOpenCodeEngine(),
 		NewCrushEngine(),
 		NewPiEngine(),

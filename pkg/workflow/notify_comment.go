@@ -772,7 +772,9 @@ func getEngineAPIHosts(data *WorkflowData, engine CodingAgentEngine) []string {
 	case *CodexEngine:
 		return []string{"api.openai.com"}
 	case *GeminiEngine:
-		return []string{DefaultGeminiAPITarget}
+		return []string{DefaultAntigravityAPITarget}
+	case *AntigravityEngine:
+		return []string{DefaultAntigravityAPITarget}
 	default:
 		// Custom or unknown engine — no known API hosts without explicit api-target.
 		return nil
