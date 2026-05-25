@@ -1,5 +1,5 @@
 // This file contains rendering primitives and the top-level render function for the
-// unified MCP Gateway + AWF firewall timeline produced by BuildUnifiedTimeline.
+// unified MCP Gateway + AWF firewall + Agent timeline produced by BuildUnifiedTimeline.
 //
 // A dedicated rendering primitive exists for every TimelineEventKind so that each event
 // type is displayed with appropriate context and formatting:
@@ -9,6 +9,9 @@
 //   TimelineKindGuardPolicyBlocked – renderGatewayGuardPolicyBlockedRow
 //   TimelineKindNetworkAllowed     – renderFirewallNetworkAllowedRow
 //   TimelineKindNetworkBlocked     – renderFirewallNetworkBlockedRow
+//   TimelineKindAgentTurn          – renderAgentTurnRow
+//   TimelineKindAgentToolStart     – renderAgentToolStartRow
+//   TimelineKindAgentToolDone      – renderAgentToolDoneRow
 //
 // renderTimelineEventRow dispatches to the appropriate primitive and returns a
 // []string suitable for inclusion in a console.TableConfig.Rows slice.

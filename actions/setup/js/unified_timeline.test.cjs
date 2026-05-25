@@ -359,6 +359,29 @@ describe("collectFirewallEvents", () => {
     const events = collectFirewallEvents({ auditJsonlPath: auditPath });
     expect(events).toHaveLength(1);
   });
+
+  it("skips benign Squid operational entries (error:transaction-end-before-headers)", () => {
+    const auditPath = path.join(tmpDir, "audit.jsonl");
+    writeJsonl(auditPath, [
+      { ts: 1705312800.0, host: "squid.internal", url: "error:transaction-end-before-headers" },
+      { ts: 1705312801.0, host: "ok.example.com" },
+    ]);
+    const events = collectFirewallEvents({ auditJsonlPath: auditPath });
+    expect(events).toHaveLength(1);
+    expect(events[0].detail).toContain("ok.example.com");
+  });
+
+  it("skips entries with empty or dash host", () => {
+    const auditPath = path.join(tmpDir, "audit.jsonl");
+    writeJsonl(auditPath, [
+      { ts: 1705312800.0, host: "" },
+      { ts: 1705312801.0, host: "-" },
+      { ts: 1705312802.0, host: "ok.example.com" },
+    ]);
+    const events = collectFirewallEvents({ auditJsonlPath: auditPath });
+    expect(events).toHaveLength(1);
+    expect(events[0].detail).toContain("ok.example.com");
+  });
 });
 
 // ---------------------------------------------------------------------------

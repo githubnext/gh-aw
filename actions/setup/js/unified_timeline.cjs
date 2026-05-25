@@ -283,7 +283,14 @@ function collectFirewallEvents(opts = {}) {
     const time = parseTimestamp(entry.ts);
     if (!time) continue;
 
+    // Skip benign Squid operational entries (mirrors Go auditEntryToTimelineEvent filter).
+    const url = entry.url ?? entry.URL ?? "";
+    if (url === "error:transaction-end-before-headers") continue;
+
     const host = entry.host ?? entry.domain ?? "";
+    // Skip entries with no host information (mirrors Go auditEntryToTimelineEvent filter).
+    if (!host || host === "-") continue;
+
     const method = entry.method ?? "";
     const status = entry.status ?? entry.http_status ?? "";
 
