@@ -6,10 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Note: The following tests exist in other test files and are not duplicated here:
@@ -26,16 +27,12 @@ func TestGetCurrentBranch(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
+	require.NoError(t, err, "get current directory for test setup")
 	defer func() {
 		_ = os.Chdir(originalDir)
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	require.NoError(t, os.Chdir(tmpDir), "change to temp directory for test setup")
 
 	// Initialize git repo
 	if err := exec.Command("git", "init").Run(); err != nil {
@@ -47,9 +44,7 @@ func TestGetCurrentBranch(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Create initial commit to establish branch
-	if err := os.WriteFile("test.txt", []byte("test"), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
+	require.NoError(t, os.WriteFile("test.txt", []byte("test"), 0644), "create initial test file")
 	exec.Command("git", "add", "test.txt").Run()
 	if err := exec.Command("git", "commit", "-m", "Initial commit").Run(); err != nil {
 		t.Skip("Failed to create initial commit")
@@ -57,9 +52,7 @@ func TestGetCurrentBranch(t *testing.T) {
 
 	// Get current branch
 	branch, err := getCurrentBranch()
-	if err != nil {
-		t.Fatalf("getCurrentBranch() failed: %v", err)
-	}
+	require.NoError(t, err, "get current branch in git repository")
 
 	// Should be on main or master branch
 	if branch != "main" && branch != "master" {
@@ -67,47 +60,35 @@ func TestGetCurrentBranch(t *testing.T) {
 	}
 
 	// Verify it's not empty
-	if branch == "" {
-		t.Error("getCurrentBranch() returned empty branch name")
-	}
+	assert.NotEmpty(t, branch, "getCurrentBranch should return a non-empty branch name")
 }
 
 func TestGetCurrentBranchNotInRepo(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
+	require.NoError(t, err, "get current directory for test setup")
 	defer func() {
 		_ = os.Chdir(originalDir)
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	require.NoError(t, os.Chdir(tmpDir), "change to temp directory for test setup")
 
 	// Don't initialize git - should error
 	_, err = getCurrentBranch()
-	if err == nil {
-		t.Error("getCurrentBranch() should return error when not in git repo")
-	}
+	assert.Error(t, err, "getCurrentBranch should return an error when not in a git repository")
 }
 
 func TestCreateAndSwitchBranch(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
+	require.NoError(t, err, "get current directory for test setup")
 	defer func() {
 		_ = os.Chdir(originalDir)
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	require.NoError(t, os.Chdir(tmpDir), "change to temp directory for test setup")
 
 	// Initialize git repo
 	if err := exec.Command("git", "init").Run(); err != nil {
@@ -119,9 +100,7 @@ func TestCreateAndSwitchBranch(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Create initial commit
-	if err := os.WriteFile("test.txt", []byte("test"), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
+	require.NoError(t, os.WriteFile("test.txt", []byte("test"), 0644), "create initial test file")
 	exec.Command("git", "add", "test.txt").Run()
 	if err := exec.Command("git", "commit", "-m", "Initial commit").Run(); err != nil {
 		t.Skip("Failed to create initial commit")
@@ -130,35 +109,24 @@ func TestCreateAndSwitchBranch(t *testing.T) {
 	// Create and switch to new branch
 	branchName := "test-branch"
 	err = createAndSwitchBranch(branchName, false)
-	if err != nil {
-		t.Fatalf("createAndSwitchBranch() failed: %v", err)
-	}
+	require.NoError(t, err, "create and switch to new branch")
 
 	// Verify we're on the new branch
 	currentBranch, err := getCurrentBranch()
-	if err != nil {
-		t.Fatalf("getCurrentBranch() failed: %v", err)
-	}
-
-	if currentBranch != branchName {
-		t.Errorf("Expected to be on branch %q, got %q", branchName, currentBranch)
-	}
+	require.NoError(t, err, "get current branch after branch switch")
+	assert.Equal(t, branchName, currentBranch, "current branch should match the newly created branch")
 }
 
 func TestSwitchBranch(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
+	require.NoError(t, err, "get current directory for test setup")
 	defer func() {
 		_ = os.Chdir(originalDir)
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	require.NoError(t, os.Chdir(tmpDir), "change to temp directory for test setup")
 
 	// Initialize git repo
 	if err := exec.Command("git", "init").Run(); err != nil {
@@ -170,9 +138,7 @@ func TestSwitchBranch(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Create initial commit
-	if err := os.WriteFile("test.txt", []byte("test"), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
+	require.NoError(t, os.WriteFile("test.txt", []byte("test"), 0644), "create initial test file")
 	exec.Command("git", "add", "test.txt").Run()
 	if err := exec.Command("git", "commit", "-m", "Initial commit").Run(); err != nil {
 		t.Skip("Failed to create initial commit")
@@ -180,47 +146,32 @@ func TestSwitchBranch(t *testing.T) {
 
 	// Get initial branch name
 	initialBranch, err := getCurrentBranch()
-	if err != nil {
-		t.Fatalf("getCurrentBranch() failed: %v", err)
-	}
+	require.NoError(t, err, "get initial branch")
 
 	// Create a new branch
 	newBranch := "feature-branch"
-	if err := exec.Command("git", "checkout", "-b", newBranch).Run(); err != nil {
-		t.Fatalf("Failed to create new branch: %v", err)
-	}
+	require.NoError(t, exec.Command("git", "checkout", "-b", newBranch).Run(), "create a new branch for switch testing")
 
 	// Switch back to initial branch
 	err = switchBranch(initialBranch, false)
-	if err != nil {
-		t.Fatalf("switchBranch() failed: %v", err)
-	}
+	require.NoError(t, err, "switch back to the initial branch")
 
 	// Verify we're on the initial branch
 	currentBranch, err := getCurrentBranch()
-	if err != nil {
-		t.Fatalf("getCurrentBranch() failed: %v", err)
-	}
-
-	if currentBranch != initialBranch {
-		t.Errorf("Expected to be on branch %q, got %q", initialBranch, currentBranch)
-	}
+	require.NoError(t, err, "get current branch after switching back")
+	assert.Equal(t, initialBranch, currentBranch, "current branch should match the original branch")
 }
 
 func TestCommitChanges(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
+	require.NoError(t, err, "get current directory for test setup")
 	defer func() {
 		_ = os.Chdir(originalDir)
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	require.NoError(t, os.Chdir(tmpDir), "change to temp directory for test setup")
 
 	// Initialize git repo
 	if err := exec.Command("git", "init").Run(); err != nil {
@@ -232,30 +183,19 @@ func TestCommitChanges(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Create and stage a file
-	if err := os.WriteFile("test.txt", []byte("test content"), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-	if err := exec.Command("git", "add", "test.txt").Run(); err != nil {
-		t.Fatalf("Failed to stage file: %v", err)
-	}
+	require.NoError(t, os.WriteFile("test.txt", []byte("test content"), 0644), "create test file")
+	require.NoError(t, exec.Command("git", "add", "test.txt").Run(), "stage test file")
 
 	// Commit changes
 	commitMessage := "Test commit"
 	err = commitChanges(commitMessage, false)
-	if err != nil {
-		t.Fatalf("commitChanges() failed: %v", err)
-	}
+	require.NoError(t, err, "commit staged changes")
 
 	// Verify commit was created
 	cmd := exec.Command("git", "log", "--oneline", "-1")
 	output, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("Failed to get git log: %v", err)
-	}
-
-	if !strings.Contains(string(output), commitMessage) {
-		t.Errorf("Expected commit message %q not found in git log", commitMessage)
-	}
+	require.NoError(t, err, "read latest git log entry")
+	assert.Contains(t, string(output), commitMessage, "latest git log entry should contain the commit message")
 }
 
 // Note: TestStageWorkflowChanges is in commands_compile_workflow_test.go
@@ -267,16 +207,12 @@ func TestPushBranchNotImplemented(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
+	require.NoError(t, err, "get current directory for test setup")
 	defer func() {
 		_ = os.Chdir(originalDir)
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	require.NoError(t, os.Chdir(tmpDir), "change to temp directory for test setup")
 
 	// Initialize git repo
 	if err := exec.Command("git", "init").Run(); err != nil {
@@ -295,16 +231,12 @@ func TestCheckWorkflowFileStatus(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
+	require.NoError(t, err, "get current directory for test setup")
 	defer func() {
 		_ = os.Chdir(originalDir)
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	require.NoError(t, os.Chdir(tmpDir), "change to temp directory for test setup")
 
 	// Initialize git repo
 	if err := exec.Command("git", "init").Run(); err != nil {
@@ -317,27 +249,21 @@ func TestCheckWorkflowFileStatus(t *testing.T) {
 
 	// Create .github/workflows directory
 	workflowDir := ".github/workflows"
-	if err := os.MkdirAll(workflowDir, 0755); err != nil {
-		t.Fatalf("Failed to create workflow directory: %v", err)
-	}
+	require.NoError(t, os.MkdirAll(workflowDir, 0755), "create workflow directory")
 
 	workflowFile := ".github/workflows/test.md"
 
 	// Test 1: File doesn't exist - should return empty status
 	t.Run("file_not_tracked", func(t *testing.T) {
 		status, err := checkWorkflowFileStatus(workflowFile)
-		if err != nil {
-			t.Fatalf("checkWorkflowFileStatus() failed: %v", err)
-		}
-		if status.IsModified || status.IsStaged || status.HasUnpushedCommits {
-			t.Error("Expected empty status for untracked file")
-		}
+		require.NoError(t, err, "get workflow file status for untracked file")
+		assert.False(t, status.IsModified, "untracked file should not be marked modified")
+		assert.False(t, status.IsStaged, "untracked file should not be marked staged")
+		assert.False(t, status.HasUnpushedCommits, "untracked file should not report unpushed commits")
 	})
 
 	// Create and commit a workflow file
-	if err := os.WriteFile(workflowFile, []byte("# Test Workflow\n"), 0644); err != nil {
-		t.Fatalf("Failed to create workflow file: %v", err)
-	}
+	require.NoError(t, os.WriteFile(workflowFile, []byte("# Test Workflow\n"), 0644), "create workflow file")
 	exec.Command("git", "add", workflowFile).Run()
 	if err := exec.Command("git", "commit", "-m", "Add workflow").Run(); err != nil {
 		t.Skip("Failed to create initial commit")
@@ -346,31 +272,20 @@ func TestCheckWorkflowFileStatus(t *testing.T) {
 	// Test 2: Clean file - no changes
 	t.Run("clean_file", func(t *testing.T) {
 		status, err := checkWorkflowFileStatus(workflowFile)
-		if err != nil {
-			t.Fatalf("checkWorkflowFileStatus() failed: %v", err)
-		}
-		if status.IsModified || status.IsStaged || status.HasUnpushedCommits {
-			t.Error("Expected empty status for clean file")
-		}
+		require.NoError(t, err, "get workflow file status for clean file")
+		assert.False(t, status.IsModified, "clean file should not be marked modified")
+		assert.False(t, status.IsStaged, "clean file should not be marked staged")
+		assert.False(t, status.HasUnpushedCommits, "clean file should not report unpushed commits")
 	})
 
 	// Test 3: Modified file (unstaged changes)
 	t.Run("modified_file", func(t *testing.T) {
-		if err := os.WriteFile(workflowFile, []byte("# Modified Workflow\n"), 0644); err != nil {
-			t.Fatalf("Failed to modify workflow file: %v", err)
-		}
+		require.NoError(t, os.WriteFile(workflowFile, []byte("# Modified Workflow\n"), 0644), "modify workflow file")
 
 		status, err := checkWorkflowFileStatus(workflowFile)
-		if err != nil {
-			t.Fatalf("checkWorkflowFileStatus() failed: %v", err)
-		}
-
-		if !status.IsModified {
-			t.Error("Expected IsModified to be true for modified file")
-		}
-		if status.IsStaged {
-			t.Error("Expected IsStaged to be false for unstaged file")
-		}
+		require.NoError(t, err, "get workflow file status for modified file")
+		assert.True(t, status.IsModified, "modified file should be marked modified")
+		assert.False(t, status.IsStaged, "unstaged modified file should not be marked staged")
 
 		// Clean up - restore file
 		exec.Command("git", "checkout", workflowFile).Run()
@@ -378,19 +293,12 @@ func TestCheckWorkflowFileStatus(t *testing.T) {
 
 	// Test 4: Staged file
 	t.Run("staged_file", func(t *testing.T) {
-		if err := os.WriteFile(workflowFile, []byte("# Staged Workflow\n"), 0644); err != nil {
-			t.Fatalf("Failed to modify workflow file: %v", err)
-		}
+		require.NoError(t, os.WriteFile(workflowFile, []byte("# Staged Workflow\n"), 0644), "modify workflow file before staging")
 		exec.Command("git", "add", workflowFile).Run()
 
 		status, err := checkWorkflowFileStatus(workflowFile)
-		if err != nil {
-			t.Fatalf("checkWorkflowFileStatus() failed: %v", err)
-		}
-
-		if !status.IsStaged {
-			t.Error("Expected IsStaged to be true for staged file")
-		}
+		require.NoError(t, err, "get workflow file status for staged file")
+		assert.True(t, status.IsStaged, "staged file should be marked staged")
 
 		// Clean up - unstage and restore file
 		exec.Command("git", "reset", "HEAD", workflowFile).Run()
@@ -400,27 +308,16 @@ func TestCheckWorkflowFileStatus(t *testing.T) {
 	// Test 5: Both staged and modified
 	t.Run("staged_and_modified", func(t *testing.T) {
 		// Modify and stage
-		if err := os.WriteFile(workflowFile, []byte("# Staged content\n"), 0644); err != nil {
-			t.Fatalf("Failed to modify workflow file: %v", err)
-		}
+		require.NoError(t, os.WriteFile(workflowFile, []byte("# Staged content\n"), 0644), "write staged workflow content")
 		exec.Command("git", "add", workflowFile).Run()
 
 		// Modify again (unstaged change)
-		if err := os.WriteFile(workflowFile, []byte("# Staged and modified\n"), 0644); err != nil {
-			t.Fatalf("Failed to modify workflow file again: %v", err)
-		}
+		require.NoError(t, os.WriteFile(workflowFile, []byte("# Staged and modified\n"), 0644), "write unstaged workflow content")
 
 		status, err := checkWorkflowFileStatus(workflowFile)
-		if err != nil {
-			t.Fatalf("checkWorkflowFileStatus() failed: %v", err)
-		}
-
-		if !status.IsStaged {
-			t.Error("Expected IsStaged to be true")
-		}
-		if !status.IsModified {
-			t.Error("Expected IsModified to be true")
-		}
+		require.NoError(t, err, "get workflow file status for staged and modified file")
+		assert.True(t, status.IsStaged, "staged-and-modified file should be marked staged")
+		assert.True(t, status.IsModified, "staged-and-modified file should be marked modified")
 
 		// Clean up - unstage and restore file
 		exec.Command("git", "reset", "HEAD", workflowFile).Run()
@@ -432,27 +329,19 @@ func TestCheckWorkflowFileStatusNotInRepo(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
+	require.NoError(t, err, "get current directory for test setup")
 	defer func() {
 		_ = os.Chdir(originalDir)
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	require.NoError(t, os.Chdir(tmpDir), "change to temp directory for test setup")
 
 	// Don't initialize git - should return empty status without error
 	status, err := checkWorkflowFileStatus("test.md")
-	if err != nil {
-		t.Fatalf("checkWorkflowFileStatus() failed: %v", err)
-	}
-
-	// Should return empty status for non-git directory
-	if status.IsModified || status.IsStaged || status.HasUnpushedCommits {
-		t.Error("Expected empty status when not in git repository")
-	}
+	require.NoError(t, err, "get workflow file status outside a git repository")
+	assert.False(t, status.IsModified, "non-git directory should not report a modified workflow file")
+	assert.False(t, status.IsStaged, "non-git directory should not report a staged workflow file")
+	assert.False(t, status.HasUnpushedCommits, "non-git directory should not report unpushed commits")
 }
 
 func TestExtractHostFromRemoteURL(t *testing.T) {
@@ -541,9 +430,7 @@ func TestExtractHostFromRemoteURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := extractHostFromRemoteURL(tt.url)
-			if got != tt.expected {
-				t.Errorf("extractHostFromRemoteURL(%q) = %q, want %q", tt.url, got, tt.expected)
-			}
+			assert.Equal(t, tt.expected, got, "extractHostFromRemoteURL should return the expected host for %q", tt.url)
 		})
 	}
 }
@@ -552,18 +439,14 @@ func TestGetHostFromOriginRemote(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-get-host-*")
 
 	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
+	require.NoError(t, err, "get current directory for test setup")
 	defer func() {
 		if err := os.Chdir(originalDir); err != nil {
 			t.Logf("Warning: failed to restore directory: %v", err)
 		}
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	require.NoError(t, os.Chdir(tmpDir), "change to temp directory for test setup")
 
 	// Initialize a git repo
 	if err := exec.Command("git", "init").Run(); err != nil {
@@ -572,61 +455,41 @@ func TestGetHostFromOriginRemote(t *testing.T) {
 
 	t.Run("no remote defaults to github.com", func(t *testing.T) {
 		got := getHostFromOriginRemote()
-		if got != "github.com" {
-			t.Errorf("getHostFromOriginRemote() without remote = %q, want %q", got, "github.com")
-		}
+		assert.Equal(t, "github.com", got, "getHostFromOriginRemote should default to github.com without remotes")
 	})
 
 	t.Run("public GitHub remote", func(t *testing.T) {
-		if err := exec.Command("git", "remote", "add", "origin", "https://github.com/owner/repo.git").Run(); err != nil {
-			t.Fatalf("Failed to add remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "origin", "https://github.com/owner/repo.git").Run(), "add origin remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "origin").Run() }()
 
 		got := getHostFromOriginRemote()
-		if got != "github.com" {
-			t.Errorf("getHostFromOriginRemote() = %q, want %q", got, "github.com")
-		}
+		assert.Equal(t, "github.com", got, "getHostFromOriginRemote should return the origin host")
 	})
 
 	t.Run("GHES remote", func(t *testing.T) {
-		if err := exec.Command("git", "remote", "add", "origin", "https://ghes.example.com/org/repo.git").Run(); err != nil {
-			t.Fatalf("Failed to add remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "origin", "https://ghes.example.com/org/repo.git").Run(), "add GHES origin remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "origin").Run() }()
 
 		got := getHostFromOriginRemote()
-		if got != "ghes.example.com" {
-			t.Errorf("getHostFromOriginRemote() = %q, want %q", got, "ghes.example.com")
-		}
+		assert.Equal(t, "ghes.example.com", got, "getHostFromOriginRemote should return the GHES origin host")
 	})
 
 	t.Run("non-origin single remote falls back to that remote", func(t *testing.T) {
-		if err := exec.Command("git", "remote", "add", "upstream", "https://github.com/owner/repo.git").Run(); err != nil {
-			t.Fatalf("Failed to add remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "upstream", "https://github.com/owner/repo.git").Run(), "add upstream remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "upstream").Run() }()
 
 		got := getHostFromOriginRemote()
-		if got != "github.com" {
-			t.Errorf("getHostFromOriginRemote() with non-origin remote = %q, want %q", got, "github.com")
-		}
+		assert.Equal(t, "github.com", got, "getHostFromOriginRemote should fall back to a single non-origin remote")
 	})
 
 	t.Run("multiple remotes without origin defaults to github.com", func(t *testing.T) {
-		if err := exec.Command("git", "remote", "add", "myorg", "https://github.com/myorg/repo.git").Run(); err != nil {
-			t.Fatalf("Failed to add first remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "myorg", "https://github.com/myorg/repo.git").Run(), "add first non-origin remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "myorg").Run() }()
-		if err := exec.Command("git", "remote", "add", "other", "https://github.com/other/repo.git").Run(); err != nil {
-			t.Fatalf("Failed to add second remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "other", "https://github.com/other/repo.git").Run(), "add second non-origin remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "other").Run() }()
 
 		got := getHostFromOriginRemote()
-		if got != "github.com" {
-			t.Errorf("getHostFromOriginRemote() with multiple non-origin remotes = %q, want %q", got, "github.com")
-		}
+		assert.Equal(t, "github.com", got, "getHostFromOriginRemote should default to github.com with multiple non-origin remotes")
 	})
 }
 
@@ -634,18 +497,14 @@ func TestResolveRemoteURL(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-resolve-remote-*")
 
 	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
+	require.NoError(t, err, "get current directory for test setup")
 	defer func() {
 		if err := os.Chdir(originalDir); err != nil {
 			t.Logf("Warning: failed to restore directory: %v", err)
 		}
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	require.NoError(t, os.Chdir(tmpDir), "change to temp directory for test setup")
 
 	// Initialize a git repo
 	if err := exec.Command("git", "init").Run(); err != nil {
@@ -654,83 +513,49 @@ func TestResolveRemoteURL(t *testing.T) {
 
 	t.Run("no remotes returns error", func(t *testing.T) {
 		_, _, err := resolveRemoteURL("")
-		if err == nil {
-			t.Error("resolveRemoteURL() should return error when no remotes are configured")
-		}
+		assert.Error(t, err, "resolveRemoteURL should return an error when no remotes are configured")
 	})
 
 	t.Run("origin remote is used when present", func(t *testing.T) {
-		if err := exec.Command("git", "remote", "add", "origin", "https://github.com/owner/repo.git").Run(); err != nil {
-			t.Fatalf("Failed to add remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "origin", "https://github.com/owner/repo.git").Run(), "add origin remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "origin").Run() }()
 
 		url, name, err := resolveRemoteURL("")
-		if err != nil {
-			t.Fatalf("resolveRemoteURL() failed: %v", err)
-		}
-		if name != "origin" {
-			t.Errorf("resolveRemoteURL() remote name = %q, want %q", name, "origin")
-		}
-		if url != "https://github.com/owner/repo.git" {
-			t.Errorf("resolveRemoteURL() URL = %q, want %q", url, "https://github.com/owner/repo.git")
-		}
+		require.NoError(t, err, "resolve remote URL with origin present")
+		assert.Equal(t, "origin", name, "resolveRemoteURL should prefer the origin remote")
+		assert.Equal(t, "https://github.com/owner/repo.git", url, "resolveRemoteURL should return the origin remote URL")
 	})
 
 	t.Run("single non-origin remote is used as fallback", func(t *testing.T) {
-		if err := exec.Command("git", "remote", "add", "myorg", "https://github.com/myorg/repo.git").Run(); err != nil {
-			t.Fatalf("Failed to add remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "myorg", "https://github.com/myorg/repo.git").Run(), "add fallback remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "myorg").Run() }()
 
 		url, name, err := resolveRemoteURL("")
-		if err != nil {
-			t.Fatalf("resolveRemoteURL() failed: %v", err)
-		}
-		if name != "myorg" {
-			t.Errorf("resolveRemoteURL() remote name = %q, want %q", name, "myorg")
-		}
-		if url != "https://github.com/myorg/repo.git" {
-			t.Errorf("resolveRemoteURL() URL = %q, want %q", url, "https://github.com/myorg/repo.git")
-		}
+		require.NoError(t, err, "resolve remote URL with a single non-origin remote")
+		assert.Equal(t, "myorg", name, "resolveRemoteURL should use the only configured non-origin remote")
+		assert.Equal(t, "https://github.com/myorg/repo.git", url, "resolveRemoteURL should return the only configured non-origin remote URL")
 	})
 
 	t.Run("multiple non-origin remotes returns error", func(t *testing.T) {
-		if err := exec.Command("git", "remote", "add", "remote1", "https://github.com/org1/repo.git").Run(); err != nil {
-			t.Fatalf("Failed to add first remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "remote1", "https://github.com/org1/repo.git").Run(), "add first non-origin remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "remote1").Run() }()
-		if err := exec.Command("git", "remote", "add", "remote2", "https://github.com/org2/repo.git").Run(); err != nil {
-			t.Fatalf("Failed to add second remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "remote2", "https://github.com/org2/repo.git").Run(), "add second non-origin remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "remote2").Run() }()
 
 		_, _, err := resolveRemoteURL("")
-		if err == nil {
-			t.Error("resolveRemoteURL() should return error when multiple non-origin remotes are configured")
-		}
+		assert.Error(t, err, "resolveRemoteURL should return an error when multiple non-origin remotes are configured")
 	})
 
 	t.Run("origin takes precedence when multiple remotes exist", func(t *testing.T) {
-		if err := exec.Command("git", "remote", "add", "origin", "https://github.com/owner/repo.git").Run(); err != nil {
-			t.Fatalf("Failed to add origin remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "origin", "https://github.com/owner/repo.git").Run(), "add origin remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "origin").Run() }()
-		if err := exec.Command("git", "remote", "add", "upstream", "https://github.com/upstream/repo.git").Run(); err != nil {
-			t.Fatalf("Failed to add upstream remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "upstream", "https://github.com/upstream/repo.git").Run(), "add upstream remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "upstream").Run() }()
 
 		url, name, err := resolveRemoteURL("")
-		if err != nil {
-			t.Fatalf("resolveRemoteURL() failed: %v", err)
-		}
-		if name != "origin" {
-			t.Errorf("resolveRemoteURL() remote name = %q, want %q", name, "origin")
-		}
-		if url != "https://github.com/owner/repo.git" {
-			t.Errorf("resolveRemoteURL() URL = %q, want %q", url, "https://github.com/owner/repo.git")
-		}
+		require.NoError(t, err, "resolve remote URL with origin and upstream remotes")
+		assert.Equal(t, "origin", name, "resolveRemoteURL should prefer origin over other remotes")
+		assert.Equal(t, "https://github.com/owner/repo.git", url, "resolveRemoteURL should return the origin URL when origin is present")
 	})
 }
 
@@ -738,18 +563,14 @@ func TestGetRepositorySlugFromRemotePreferringUpstream(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-slug-upstream-*")
 
 	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
+	require.NoError(t, err, "get current directory for test setup")
 	defer func() {
 		if err := os.Chdir(originalDir); err != nil {
 			t.Logf("Warning: failed to restore directory: %v", err)
 		}
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	require.NoError(t, os.Chdir(tmpDir), "change to temp directory for test setup")
 
 	if err := exec.Command("git", "init").Run(); err != nil {
 		t.Skip("Git not available")
@@ -758,13 +579,9 @@ func TestGetRepositorySlugFromRemotePreferringUpstream(t *testing.T) {
 	addRemote := func(t *testing.T, name, remoteURL string) {
 		t.Helper()
 		if err := exec.Command("git", "remote", "get-url", name).Run(); err == nil {
-			if err := exec.Command("git", "remote", "remove", name).Run(); err != nil {
-				t.Fatalf("Failed to remove existing %s remote: %v", name, err)
-			}
+			require.NoError(t, exec.Command("git", "remote", "remove", name).Run(), "remove existing %s remote", name)
 		}
-		if err := exec.Command("git", "remote", "add", name, remoteURL).Run(); err != nil {
-			t.Fatalf("Failed to add %s remote: %v", name, err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", name, remoteURL).Run(), "add %s remote", name)
 		t.Cleanup(func() {
 			if err := exec.Command("git", "remote", "remove", name).Run(); err != nil {
 				t.Logf("Warning: failed to remove %s remote during cleanup: %v", name, err)
@@ -777,18 +594,14 @@ func TestGetRepositorySlugFromRemotePreferringUpstream(t *testing.T) {
 		addRemote(t, "upstream", "https://github.com/upstream/repo.git")
 
 		slug := getRepositorySlugFromRemotePreferringUpstream()
-		if slug != "upstream/repo" {
-			t.Errorf("getRepositorySlugFromRemotePreferringUpstream() = %q, want %q", slug, "upstream/repo")
-		}
+		assert.Equal(t, "upstream/repo", slug, "getRepositorySlugFromRemotePreferringUpstream should prefer upstream")
 	})
 
 	t.Run("falls back to origin when upstream missing", func(t *testing.T) {
 		addRemote(t, "origin", "https://github.com/myorg/myrepo.git")
 
 		slug := getRepositorySlugFromRemotePreferringUpstream()
-		if slug != "myorg/myrepo" {
-			t.Errorf("getRepositorySlugFromRemotePreferringUpstream() = %q, want %q", slug, "myorg/myrepo")
-		}
+		assert.Equal(t, "myorg/myrepo", slug, "getRepositorySlugFromRemotePreferringUpstream should fall back to origin")
 	})
 
 	t.Run("falls back to origin when upstream is unparsable", func(t *testing.T) {
@@ -796,9 +609,7 @@ func TestGetRepositorySlugFromRemotePreferringUpstream(t *testing.T) {
 		addRemote(t, "upstream", "https://example.com/upstream/repo.git")
 
 		slug := getRepositorySlugFromRemotePreferringUpstream()
-		if slug != "myorg/myrepo" {
-			t.Errorf("getRepositorySlugFromRemotePreferringUpstream() with unparsable upstream = %q, want %q", slug, "myorg/myrepo")
-		}
+		assert.Equal(t, "myorg/myrepo", slug, "getRepositorySlugFromRemotePreferringUpstream should fall back to origin when upstream is unparsable")
 	})
 }
 
@@ -807,18 +618,14 @@ func TestGetRepositorySlugFromRemoteForPathPreferringUpstream(t *testing.T) {
 	testFilePath := filepath.Join(tmpDir, "workflow.md")
 
 	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
+	require.NoError(t, err, "get current directory for test setup")
 	defer func() {
 		if err := os.Chdir(originalDir); err != nil {
 			t.Logf("Warning: failed to restore directory: %v", err)
 		}
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	require.NoError(t, os.Chdir(tmpDir), "change to temp directory for test setup")
 
 	if err := exec.Command("git", "init").Run(); err != nil {
 		t.Skip("Git not available")
@@ -827,13 +634,9 @@ func TestGetRepositorySlugFromRemoteForPathPreferringUpstream(t *testing.T) {
 	addRemote := func(t *testing.T, name, remoteURL string) {
 		t.Helper()
 		if err := exec.Command("git", "remote", "get-url", name).Run(); err == nil {
-			if err := exec.Command("git", "remote", "remove", name).Run(); err != nil {
-				t.Fatalf("Failed to remove existing %s remote: %v", name, err)
-			}
+			require.NoError(t, exec.Command("git", "remote", "remove", name).Run(), "remove existing %s remote", name)
 		}
-		if err := exec.Command("git", "remote", "add", name, remoteURL).Run(); err != nil {
-			t.Fatalf("Failed to add %s remote: %v", name, err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", name, remoteURL).Run(), "add %s remote", name)
 		t.Cleanup(func() {
 			if err := exec.Command("git", "remote", "remove", name).Run(); err != nil {
 				t.Logf("Warning: failed to remove %s remote during cleanup: %v", name, err)
@@ -846,9 +649,7 @@ func TestGetRepositorySlugFromRemoteForPathPreferringUpstream(t *testing.T) {
 		addRemote(t, "upstream", "https://github.com/upstream/repo.git")
 
 		slug := getRepositorySlugFromRemoteForPath(testFilePath)
-		if slug != "upstream/repo" {
-			t.Errorf("getRepositorySlugFromRemoteForPath() = %q, want %q", slug, "upstream/repo")
-		}
+		assert.Equal(t, "upstream/repo", slug, "getRepositorySlugFromRemoteForPath should prefer upstream")
 	})
 }
 
@@ -856,18 +657,14 @@ func TestGetRepositorySlugFromRemoteFallback(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-slug-fallback-*")
 
 	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
+	require.NoError(t, err, "get current directory for test setup")
 	defer func() {
 		if err := os.Chdir(originalDir); err != nil {
 			t.Logf("Warning: failed to restore directory: %v", err)
 		}
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+	require.NoError(t, os.Chdir(tmpDir), "change to temp directory for test setup")
 
 	// Initialize a git repo
 	if err := exec.Command("git", "init").Run(); err != nil {
@@ -875,30 +672,20 @@ func TestGetRepositorySlugFromRemoteFallback(t *testing.T) {
 	}
 
 	t.Run("single non-origin remote provides repo slug", func(t *testing.T) {
-		if err := exec.Command("git", "remote", "add", "myorg", "https://github.com/myorg/myrepo.git").Run(); err != nil {
-			t.Fatalf("Failed to add remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "myorg", "https://github.com/myorg/myrepo.git").Run(), "add fallback remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "myorg").Run() }()
 
 		slug := getRepositorySlugFromRemote()
-		if slug != "myorg/myrepo" {
-			t.Errorf("getRepositorySlugFromRemote() = %q, want %q", slug, "myorg/myrepo")
-		}
+		assert.Equal(t, "myorg/myrepo", slug, "getRepositorySlugFromRemote should return the only configured non-origin slug")
 	})
 
 	t.Run("multiple non-origin remotes returns empty slug", func(t *testing.T) {
-		if err := exec.Command("git", "remote", "add", "remote1", "https://github.com/org1/repo1.git").Run(); err != nil {
-			t.Fatalf("Failed to add first remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "remote1", "https://github.com/org1/repo1.git").Run(), "add first non-origin remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "remote1").Run() }()
-		if err := exec.Command("git", "remote", "add", "remote2", "https://github.com/org2/repo2.git").Run(); err != nil {
-			t.Fatalf("Failed to add second remote: %v", err)
-		}
+		require.NoError(t, exec.Command("git", "remote", "add", "remote2", "https://github.com/org2/repo2.git").Run(), "add second non-origin remote")
 		defer func() { _ = exec.Command("git", "remote", "remove", "remote2").Run() }()
 
 		slug := getRepositorySlugFromRemote()
-		if slug != "" {
-			t.Errorf("getRepositorySlugFromRemote() with multiple non-origin remotes = %q, want %q", slug, "")
-		}
+		assert.Empty(t, slug, "getRepositorySlugFromRemote should return an empty slug when multiple non-origin remotes exist")
 	})
 }
