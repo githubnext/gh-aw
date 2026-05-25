@@ -117,13 +117,13 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 	// version.
 	if includePrereleases && !needsRenameWorkaround() {
 		updateExtensionCheckLog.Printf("Prerelease upgrade on macOS: skipping gh extension upgrade (uses /releases/latest, ignores prereleases), using pin-based install for %s", latestVersion)
-		removeCmd := exec.Command("gh", "extension", "remove", extensionRepo)
+		removeCmd := ghCmdForExtension("extension", "remove", extensionRepo)
 		removeCmd.Stdout = os.Stderr
 		removeCmd.Stderr = os.Stderr
 		if removeErr := removeCmd.Run(); removeErr != nil {
 			updateExtensionCheckLog.Printf("Could not remove extension before pin-based install (continuing anyway): %v", removeErr)
 		}
-		pinCmd := exec.Command("gh", "extension", "install", extensionRepo, "--pin", latestVersion)
+		pinCmd := ghCmdForExtension("extension", "install", extensionRepo, "--pin", latestVersion)
 		pinCmd.Stdout = os.Stderr
 		pinCmd.Stderr = os.Stderr
 		if pinErr := pinCmd.Run(); pinErr != nil {
@@ -144,7 +144,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 	// rename+retry path succeeds and the user is not shown a confusing failure.
 	var firstAttemptBuf bytes.Buffer
 	firstAttemptOut := firstAttemptWriter(os.Stderr, &firstAttemptBuf)
-	firstCmd := exec.Command("gh", extensionUpgradeArgs()...)
+	firstCmd := ghCmdForExtension(extensionUpgradeArgs()...)
 	firstCmd.Stdout = firstAttemptOut
 	firstCmd.Stderr = firstAttemptOut
 	firstErr := firstCmd.Run()
@@ -248,7 +248,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 	// been moved to the OS temp directory (above) so the remove step can always
 	// succeed.  In both cases we clear backupPath after a successful remove to
 	// avoid a misleading restore attempt on subsequent failures.
-	removeCmd := exec.Command("gh", "extension", "remove", extensionRepo)
+	removeCmd := ghCmdForExtension("extension", "remove", extensionRepo)
 	removeCmd.Stdout = os.Stderr
 	removeCmd.Stderr = os.Stderr
 	if removeErr := removeCmd.Run(); removeErr == nil {
@@ -258,7 +258,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 		updateExtensionCheckLog.Printf("Could not remove extension before reinstall (will attempt install anyway): %v", removeErr)
 	}
 
-	retryCmd := exec.Command("gh", "extension", "install", extensionRepo, "--pin", latestVersion)
+	retryCmd := ghCmdForExtension("extension", "install", extensionRepo, "--pin", latestVersion)
 	retryCmd.Stdout = os.Stderr
 	retryCmd.Stderr = os.Stderr
 	if retryErr := retryCmd.Run(); retryErr != nil {
@@ -424,6 +424,26 @@ func isWindowsLockError(output string, err error) bool {
 // can be upgraded in-place.
 func extensionUpgradeArgs() []string {
 	return []string{"extension", "upgrade", extensionRepo, "--force"}
+}
+
+// ghCmdForExtension creates an exec.Cmd for a gh CLI invocation that must
+// target github.com.  gh-aw is only published to github.com; in mixed-host
+// environments where GH_HOST points at a GHE instance, the default gh
+// commands would hit the wrong host and report "already up to date" or fail.
+// Pinning GH_HOST=github.com in the child process environment prevents that.
+func ghCmdForExtension(args ...string) *exec.Cmd {
+	cmd := exec.Command("gh", args...)
+	// Inherit the full environment so that PATH, HOME, etc. remain intact,
+	// then override (or add) GH_HOST to ensure github.com is always used.
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, e := range os.Environ() {
+		if !strings.HasPrefix(e, "GH_HOST=") {
+			env = append(env, e)
+		}
+	}
+	env = append(env, "GH_HOST=github.com")
+	cmd.Env = env
+	return cmd
 }
 
 func prereleaseChannelNotice(currentVersion, latestStable string, includePrereleases bool) []string {
