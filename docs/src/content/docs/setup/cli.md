@@ -242,7 +242,7 @@ gh aw secrets bootstrap --engine copilot                 # Check only Copilot se
 gh aw secrets bootstrap --non-interactive                # Display missing secrets without prompting
 ```
 
-**Options:** `--engine` (copilot, claude, codex, antigravity, crush), `--non-interactive`, `--repo`
+**Options:** `--engine` (copilot, claude, codex, gemini, antigravity, crush), `--non-interactive`, `--repo`
 
 See [Authentication](/gh-aw/reference/auth/) for details.
 

@@ -112,7 +112,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, antigravity, crush)")
+	cmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, antigravity, crush)")
 	_ = cmd.Flags().MarkHidden("engine") // Hide the engine flag from help output (internal use only)
 	cmd.Flags().Bool("no-mcp", false, "Skip configuring gh-aw MCP server integration for GitHub Copilot Agent")
 	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use with an empty value for the current repo only")

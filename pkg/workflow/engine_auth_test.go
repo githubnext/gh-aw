@@ -404,6 +404,7 @@ func TestBuiltInEngineAuthUnchanged(t *testing.T) {
 		{"claude", "ANTHROPIC_API_KEY"},
 		{"codex", "CODEX_API_KEY"},
 		{"copilot", "COPILOT_GITHUB_TOKEN"},
+		{"gemini", "GEMINI_API_KEY"},
 		{"antigravity", "ANTIGRAVITY_API_KEY"},
 		{"opencode", "COPILOT_GITHUB_TOKEN"},
 		{"crush", "COPILOT_GITHUB_TOKEN"},

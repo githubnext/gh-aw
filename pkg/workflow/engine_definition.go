@@ -236,10 +236,6 @@ func (c *EngineCatalog) All() []*EngineDefinition {
 func (c *EngineCatalog) Resolve(id string, config *EngineConfig) (*ResolvedEngineTarget, error) {
 	engineCatalogLog.Printf("Resolving engine: %s", id)
 
-	if id == "gemini" {
-		return nil, errors.New("engine: gemini is no longer supported. Run `gh aw fix --write` to migrate workflows and configure ANTIGRAVITY_API_KEY.")
-	}
-
 	// Exact catalog lookup
 	if def, ok := c.definitions[id]; ok {
 		engineCatalogLog.Printf("Exact catalog match found for engine: %s (runtimeID=%s)", id, def.RuntimeID)

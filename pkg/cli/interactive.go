@@ -125,6 +125,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		huh.NewOption("copilot - GitHub Copilot CLI", "copilot"),
 		huh.NewOption("claude - Anthropic Claude Code coding agent", "claude"),
 		huh.NewOption("codex - OpenAI Codex engine", "codex"),
+		huh.NewOption("gemini - Google Gemini CLI (deprecated)", "gemini"),
 		huh.NewOption("antigravity - Antigravity CLI", "antigravity"),
 	}
 

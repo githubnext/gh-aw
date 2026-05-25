@@ -101,7 +101,7 @@ func TestAgenticEngines(t *testing.T) {
 		t.Error("AgenticEngines should not be empty")
 	}
 
-	expectedEngines := []string{"claude", "codex", "copilot", "antigravity", "opencode", "crush", "pi"}
+	expectedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
 	if len(AgenticEngines) != len(expectedEngines) {
 		t.Errorf("AgenticEngines length = %d, want %d", len(AgenticEngines), len(expectedEngines))
 	}
@@ -651,6 +651,8 @@ func TestGetAllEngineSecretNames(t *testing.T) {
 		"COPILOT_GITHUB_TOKEN",
 		"ANTHROPIC_API_KEY",
 		"OPENAI_API_KEY",
+		"GEMINI_API_KEY",
+		"ANTIGRAVITY_API_KEY",
 	}
 
 	for _, expected := range expectedSecrets {

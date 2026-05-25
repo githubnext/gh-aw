@@ -310,6 +310,12 @@ func TestValidationStepUsesEngineEnvOverride(t *testing.T) {
 			overrideSecret: "MY_ORG_CODEX_KEY",
 		},
 		{
+			name:           "Gemini engine validation uses engine.env override",
+			engine:         NewGeminiEngine(),
+			tokenKey:       "GEMINI_API_KEY",
+			overrideSecret: "MY_ORG_GEMINI_KEY",
+		},
+		{
 			name:           "Antigravity engine validation uses engine.env override",
 			engine:         NewAntigravityEngine(),
 			tokenKey:       "ANTIGRAVITY_API_KEY",

@@ -15,7 +15,7 @@ func TestEngineRegistry(t *testing.T) {
 		registry := NewEngineRegistry()
 		supportedEngines := registry.GetSupportedEngines()
 
-		expectedEngineIDs := []string{"claude", "codex", "copilot", "antigravity", "opencode", "crush"}
+		expectedEngineIDs := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush"}
 		for _, engineID := range expectedEngineIDs {
 			assert.True(t, slices.Contains(supportedEngines, engineID), "expected engine %q to be registered", engineID)
 		}
@@ -28,6 +28,7 @@ func TestEngineRegistry(t *testing.T) {
 			{engineID: "claude"},
 			{engineID: "codex"},
 			{engineID: "copilot"},
+			{engineID: "gemini"},
 			{engineID: "antigravity"},
 			{engineID: "opencode"},
 			{engineID: "crush"},
@@ -52,7 +53,7 @@ func TestEngineRegistry(t *testing.T) {
 	t.Run("IsValidEngine", func(t *testing.T) {
 		registry := NewEngineRegistry()
 
-		validEngines := []string{"claude", "codex", "copilot", "antigravity", "opencode", "crush"}
+		validEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush"}
 		for _, id := range validEngines {
 			assert.True(t, registry.IsValidEngine(id), "IsValidEngine(%q) should return true", id)
 		}
@@ -143,7 +144,7 @@ func TestGetGlobalEngineRegistry(t *testing.T) {
 
 	t.Run("singleton contains expected built-in engines", func(t *testing.T) {
 		registry := GetGlobalEngineRegistry()
-		expectedEngineIDs := []string{"claude", "codex", "copilot", "antigravity", "opencode", "crush"}
+		expectedEngineIDs := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush"}
 		supportedEngines := registry.GetSupportedEngines()
 		for _, engineID := range expectedEngineIDs {
 			assert.True(t, slices.Contains(supportedEngines, engineID), "global registry should contain built-in engine %q", engineID)
@@ -170,7 +171,7 @@ func TestEngineRegistry_GetAllAgentManifestFolders(t *testing.T) {
 		registry := NewEngineRegistry()
 		folders := registry.GetAllAgentManifestFolders()
 		// Claude and Copilot engines provide known config directory prefixes
-		expectedFolders := []string{".agents", ".claude", ".antigravity", ".github"}
+		expectedFolders := []string{".agents", ".claude", ".gemini", ".antigravity", ".github"}
 		for _, folder := range expectedFolders {
 			assert.Contains(t, folders, folder, "manifest folders should include engine config directory %q", folder)
 		}
@@ -208,7 +209,7 @@ func TestEngineRegistry_GetAllAgentManifestFiles(t *testing.T) {
 		registry := NewEngineRegistry()
 		files := registry.GetAllAgentManifestFiles()
 		// Known instruction files contributed by built-in engines
-		expectedFiles := []string{"AGENTS.md", "CLAUDE.md", "ANTIGRAVITY.md"}
+		expectedFiles := []string{"AGENTS.md", "CLAUDE.md", "GEMINI.md", "ANTIGRAVITY.md"}
 		for _, file := range expectedFiles {
 			assert.Contains(t, files, file, "manifest files should include instruction file %q", file)
 		}

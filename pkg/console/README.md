@@ -399,7 +399,7 @@ err := console.CompilerError{
     Type:     "error",
     Message:  "unknown engine: 'myengine'",
     Context:  []string{"engine: myengine"},
-    Hint:     "Valid engines are: copilot, claude, codex, antigravity, crush",
+    Hint:     "Valid engines are: copilot, claude, codex, gemini, antigravity, crush",
 }
 fmt.Fprint(os.Stderr, console.FormatError(err))
 ```

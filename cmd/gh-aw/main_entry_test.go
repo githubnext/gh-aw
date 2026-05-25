@@ -48,6 +48,11 @@ func TestValidateEngine(t *testing.T) {
 			expectErr: false,
 		},
 		{
+			name:      "valid gemini engine",
+			engine:    "gemini",
+			expectErr: false,
+		},
+		{
 			name:       "invalid engine",
 			engine:     "gpt4",
 			expectErr:  true,

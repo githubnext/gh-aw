@@ -68,7 +68,7 @@ func TestSecretsCommandStructure(t *testing.T) {
 	}
 }
 
-func TestSecretsBootstrapEngineFlagIncludesAntigravity(t *testing.T) {
+func TestSecretsBootstrapEngineFlagIncludesGeminiAndAntigravity(t *testing.T) {
 	cmd := NewSecretsCommand()
 
 	var bootstrapCmd *cobra.Command
@@ -83,5 +83,6 @@ func TestSecretsBootstrapEngineFlagIncludesAntigravity(t *testing.T) {
 
 	engineFlag := bootstrapCmd.Flags().Lookup("engine")
 	require.NotNil(t, engineFlag, "--engine flag should exist on bootstrap")
+	assert.Contains(t, engineFlag.Usage, "gemini", "--engine help should include deprecated gemini engine")
 	assert.Contains(t, engineFlag.Usage, "antigravity", "--engine help should include antigravity engine")
 }

@@ -454,6 +454,7 @@ func NewEngineRegistry() *EngineRegistry {
 		NewClaudeEngine(),
 		NewCodexEngine(),
 		NewCopilotEngine(),
+		NewGeminiEngine(),
 		NewAntigravityEngine(),
 		NewOpenCodeEngine(),
 		NewCrushEngine(),

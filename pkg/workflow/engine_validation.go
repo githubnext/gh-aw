@@ -165,10 +165,6 @@ func (c *Compiler) validateEngineInlineDefinition(config *EngineConfig) error {
 
 	engineValidationLog.Printf("Validating inline engine definition: runtimeID=%s", config.ID)
 
-	if config.ID == "gemini" {
-		return errors.New("engine: gemini is no longer supported. Run `gh aw fix --write` to migrate workflows and configure ANTIGRAVITY_API_KEY.")
-	}
-
 	if config.ID == "" {
 		return fmt.Errorf("inline engine definition is missing required 'runtime.id' field.\n\nExample:\nengine:\n  runtime:\n    id: codex\n\nSee: %s", constants.DocsEnginesURL)
 	}

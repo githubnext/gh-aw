@@ -37,7 +37,7 @@ Examples:
 	}
 
 	cmd.Flags().BoolVar(&nonInteractiveFlag, "non-interactive", false, "Check secrets without prompting (display-only mode)")
-	cmd.Flags().StringVarP(&engineFlag, "engine", "e", "", "Check tokens for specific engine (copilot, claude, codex, antigravity, crush)")
+	cmd.Flags().StringVarP(&engineFlag, "engine", "e", "", "Check tokens for specific engine (copilot, claude, codex, gemini, antigravity, crush)")
 	addRepoFlag(cmd)
 
 	return cmd

@@ -19,6 +19,7 @@ Configure one GitHub Actions secret per engine before running your first workflo
 | **Copilot** (default) | [`COPILOT_GITHUB_TOKEN`](#copilot_github_token) | — | Fine-grained PAT with Copilot Requests permission |
 | **Claude** | [`ANTHROPIC_API_KEY`](#anthropic_api_key) | — | API key from Anthropic Console |
 | **Codex** | [`OPENAI_API_KEY`](#openai_api_key) | `CODEX_API_KEY` | Runtime uses `CODEX_API_KEY` if present, otherwise falls back to `OPENAI_API_KEY` |
+| **Gemini** (deprecated) | [`GEMINI_API_KEY`](#gemini_api_key) | — | Legacy Google Gemini CLI API key |
 | **Antigravity** | [`ANTIGRAVITY_API_KEY`](#antigravity_api_key) | — | API key from Google AI Studio |
 
 Most workflows will run without any additional secrets or additional authentication beyond this one engine secret.
@@ -172,7 +173,7 @@ See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for add
 
 If using the Antigravity by Google engine, you need to set a GitHub Actions secret `ANTIGRAVITY_API_KEY` with an API key from Google AI Studio.
 
-Older gh-aw docs and workflows may still refer to Gemini. In current gh-aw releases, Gemini has been renamed to Antigravity — run `gh aw fix --write` and use `ANTIGRAVITY_API_KEY`.
+Gemini remains temporarily supported, but new workflows should use Antigravity instead. Run `gh aw fix --write` to migrate existing Gemini workflows when you're ready.
 
 **Setup**:
 
@@ -185,6 +186,27 @@ Older gh-aw docs and workflows may still refer to Gemini. In current gh-aw relea
    ```
 
 See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Antigravity with GitHub MCP.
+
+---
+
+### `GEMINI_API_KEY`
+
+If using the deprecated Gemini by Google engine, you need to set a GitHub Actions secret `GEMINI_API_KEY` with an API key from Google AI Studio.
+
+> [!WARNING]
+> `engine: gemini` is deprecated. Prefer `engine: antigravity` with `ANTIGRAVITY_API_KEY` for new workflows.
+
+**Setup**:
+
+1. Create an API key at https://aistudio.google.com/api-keys
+
+2. Add it to your repository secrets, either by CLI or GitHub UI:
+
+   ```bash wrap
+   gh aw secrets set GEMINI_API_KEY --value "YOUR_GEMINI_API_KEY"
+   ```
+
+See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for migration guidance to Antigravity.
 
 ---
 
