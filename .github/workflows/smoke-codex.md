@@ -19,7 +19,9 @@ permissions:
   issues: read
   pull-requests: read
 name: Smoke Codex
-engine: codex
+engine:
+  id: codex
+  model: gpt-5.3-codex
 strict: false
 imports:
   - shared/gh.md
