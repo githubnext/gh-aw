@@ -136,7 +136,14 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 		if oldPath == "" {
 			oldPath = latestPath
 		}
-		if err := updateManifestManagedWorkflow(ctx, wf, repoSpec.RepoSlug, oldPath, latestPath, currentRef, latestRef, manifestSource, opts); err != nil {
+		if err := updateManifestManagedWorkflow(ctx, wf, updateManifestManagedWorkflowArgs{
+			repo:           repoSpec.RepoSlug,
+			currentPath:    oldPath,
+			latestPath:     latestPath,
+			currentRef:     currentRef,
+			latestRef:      latestRef,
+			manifestSource: manifestSource,
+		}, opts); err != nil {
 			failures = append(failures, updateFailure{Name: wf.Name, Error: err.Error()})
 			continue
 		}
@@ -171,7 +178,23 @@ func removeManifestManagedWorkflow(workflowPath string) error {
 	return nil
 }
 
-func updateManifestManagedWorkflow(ctx context.Context, wf *workflowWithSource, repo, currentPath, latestPath, currentRef, latestRef, manifestSource string, opts UpdateWorkflowsOptions) error {
+type updateManifestManagedWorkflowArgs struct {
+	repo           string
+	currentPath    string
+	latestPath     string
+	currentRef     string
+	latestRef      string
+	manifestSource string
+}
+
+func updateManifestManagedWorkflow(ctx context.Context, wf *workflowWithSource, args updateManifestManagedWorkflowArgs, opts UpdateWorkflowsOptions) error {
+	repo := args.repo
+	currentPath := args.currentPath
+	latestPath := args.latestPath
+	currentRef := args.currentRef
+	latestRef := args.latestRef
+	manifestSource := args.manifestSource
+
 	updateManifestLog.Printf("Updating manifest-managed workflow %s: %s@%s -> %s@%s", wf.Name, currentPath, currentRef, latestPath, latestRef)
 	sourceSpecCurrent := sourceSpecWithRef(&SourceSpec{Repo: repo, Path: currentPath}, currentRef)
 	newContent, err := downloadWorkflowContentFn(ctx, repo, latestPath, latestRef, opts.Verbose)
