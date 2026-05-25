@@ -81,7 +81,7 @@ func (e *AntigravityEngine) GetSecretValidationStep(workflowData *WorkflowData) 
 		return GitHubActionStep{}
 	}
 	command := `if [ -n "${GEMINI_API_KEY:-}" ] && [ -z "${ANTIGRAVITY_API_KEY:-}" ]; then
-  echo "engine: gemini is no longer supported. Run the Antigravity migration codemod and configure ANTIGRAVITY_API_KEY." >&2
+  echo "engine: gemini is no longer supported. Run 'gh aw fix --write' to migrate workflows and configure ANTIGRAVITY_API_KEY." >&2
   exit 1
 fi
 bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" ANTIGRAVITY_API_KEY 'Antigravity CLI' https://antigravity.google/docs/cli-overview`
@@ -265,7 +265,7 @@ touch %s
 	// Build environment variables
 	env := map[string]string{
 		"ANTIGRAVITY_API_KEY": "${{ secrets.ANTIGRAVITY_API_KEY }}",
-		"GH_AW_PROMPT":   "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW":        "true",
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",

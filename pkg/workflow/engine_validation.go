@@ -166,7 +166,7 @@ func (c *Compiler) validateEngineInlineDefinition(config *EngineConfig) error {
 	engineValidationLog.Printf("Validating inline engine definition: runtimeID=%s", config.ID)
 
 	if config.ID == "gemini" {
-		return errors.New("engine: gemini is no longer supported. Run the Antigravity migration codemod and configure ANTIGRAVITY_API_KEY.")
+		return errors.New("engine: gemini is no longer supported. Run `gh aw fix --write` to migrate workflows and configure ANTIGRAVITY_API_KEY.")
 	}
 
 	if config.ID == "" {

@@ -1,6 +1,6 @@
 ---
 emoji: "🧪"
-description: Smoke test workflow that validates Gemini engine functionality twice daily
+description: Smoke test workflow that validates Antigravity engine functionality twice daily
 on:
   workflow_dispatch:
   pull_request:
@@ -12,7 +12,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-name: Smoke Gemini
+name: Smoke Antigravity
 experiments:
   sub_agent_strategy:
     variants: [single_agent, sub_agents]
@@ -29,7 +29,7 @@ experiments:
     analysis_type: mann_whitney
     tags: [cost_optimization, smoke_tests]
 engine:
-  id: gemini
+  id: antigravity
 strict: true
 imports:
   - shared/gh.md
@@ -55,20 +55,20 @@ safe-outputs:
     create-issue:
       expires: 2h
       close-older-issues: true
-      close-older-key: "smoke-gemini"
+      close-older-key: "smoke-antigravity"
       labels: [automation, testing]
     add-labels:
-      allowed: [smoke-gemini]
+      allowed: [smoke-antigravity]
     messages:
-      footer: "> ✨ *[{workflow_name}]({run_url}) — Powered by Gemini*{effective_tokens_suffix}{history_link}"
-      run-started: "✨ Gemini awakens... [{workflow_name}]({run_url}) begins its journey on this {event_type}..."
-      run-success: "🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Gemini has spoken. ✨"
-      run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. Gemini encountered unexpected challenges..."
+      footer: "> ✨ *[{workflow_name}]({run_url}) — Powered by Antigravity*{effective_tokens_suffix}{history_link}"
+      run-started: "✨ Antigravity engages... [{workflow_name}]({run_url}) begins its journey on this {event_type}..."
+      run-success: "🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Antigravity has spoken. ✨"
+      run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. Antigravity encountered unexpected challenges..."
 timeout-minutes: 10
 
 ---
 
-# Smoke Test: Gemini Engine Validation
+# Smoke Test: Antigravity Engine Validation
 
 **CRITICAL EFFICIENCY REQUIREMENTS:**
 - Keep ALL outputs extremely short and concise. Use single-line responses.
@@ -119,6 +119,6 @@ After launching all agents, wait for completion notifications and collect result
 - ✅ or ❌ for each test result
 - Overall status: PASS or FAIL
 
-If all tests pass and this workflow was triggered by a pull_request event, use the `add_labels` safe-output tool to add the label `smoke-gemini` to the pull request (omit the `item_number` parameter to auto-target the triggering PR).
+If all tests pass and this workflow was triggered by a pull_request event, use the `add_labels` safe-output tool to add the label `smoke-antigravity` to the pull request (omit the `item_number` parameter to auto-target the triggering PR).
 
 {{#runtime-import shared/noop-reminder.md}}

@@ -237,7 +237,7 @@ func (c *EngineCatalog) Resolve(id string, config *EngineConfig) (*ResolvedEngin
 	engineCatalogLog.Printf("Resolving engine: %s", id)
 
 	if id == "gemini" {
-		return nil, errors.New("engine: gemini is no longer supported. Run the Antigravity migration codemod and configure ANTIGRAVITY_API_KEY.")
+		return nil, errors.New("engine: gemini is no longer supported. Run `gh aw fix --write` to migrate workflows and configure ANTIGRAVITY_API_KEY.")
 	}
 
 	// Exact catalog lookup

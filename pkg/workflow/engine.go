@@ -504,7 +504,7 @@ func (c *Compiler) getAgenticEngine(engineSetting string) (CodingAgentEngine, er
 	engineLog.Printf("Getting agentic engine for setting: %s", engineSetting)
 
 	if engineSetting == "gemini" {
-		return nil, errors.New("engine: gemini is no longer supported. Run the Antigravity migration codemod and configure ANTIGRAVITY_API_KEY.")
+		return nil, errors.New("engine: gemini is no longer supported. Run `gh aw fix --write` to migrate workflows and configure ANTIGRAVITY_API_KEY.")
 	}
 
 	// First try exact match
