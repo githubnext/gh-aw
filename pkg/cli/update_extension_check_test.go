@@ -351,8 +351,8 @@ func TestGhCmdForExtension(t *testing.T) {
 		cmd := ghCmdForExtension("extension", "list")
 		ghHost := ""
 		for _, e := range cmd.Env {
-			if strings.HasPrefix(e, "GH_HOST=") {
-				ghHost = strings.TrimPrefix(e, "GH_HOST=")
+			if v, ok := strings.CutPrefix(e, "GH_HOST="); ok {
+				ghHost = v
 			}
 		}
 		assert.Equal(t, "github.com", ghHost, "GH_HOST must be github.com")
@@ -364,8 +364,8 @@ func TestGhCmdForExtension(t *testing.T) {
 		cmd := ghCmdForExtension("extension", "upgrade", extensionRepo, "--force")
 		ghHostValues := []string{}
 		for _, e := range cmd.Env {
-			if strings.HasPrefix(e, "GH_HOST=") {
-				ghHostValues = append(ghHostValues, strings.TrimPrefix(e, "GH_HOST="))
+			if v, ok := strings.CutPrefix(e, "GH_HOST="); ok {
+				ghHostValues = append(ghHostValues, v)
 			}
 		}
 		require.Len(t, ghHostValues, 1, "exactly one GH_HOST entry must be present")
