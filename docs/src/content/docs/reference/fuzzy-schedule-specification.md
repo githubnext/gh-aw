@@ -1245,6 +1245,8 @@ This section maps the fuzzy schedule specification to implementation files.
 
 | Normative Area | Implementation File(s) |
 |---|---|
+| §3.1 Grammar (`schedule: daily around HH[:MM][am/pm][ timezone]`) | `pkg/parser/schedule_parser.go` (`parseFuzzyScheduleExpression`, tokenizer/grammar helpers) |
+| §6 Scattering algorithm | `pkg/parser/schedule_fuzzy_scatter.go` (`scatterDailyTime`, weighted slot selection and deterministic hashing) |
 | Frontmatter schedule parsing and grammar handling | `pkg/parser/schedule_parser.go` |
 | Deterministic fuzzy scattering and peak-minute avoidance | `pkg/parser/schedule_fuzzy_scatter.go` |
 | Parser/scatter conformance tests | `pkg/parser/schedule_parser_test.go`, `pkg/parser/schedule_fuzzy_scatter_test.go` |

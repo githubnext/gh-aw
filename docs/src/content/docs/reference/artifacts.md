@@ -60,12 +60,15 @@ The `firewall-audit-logs` artifact is uploaded by **all firewall-enabled workflo
 ```
 firewall-audit-logs/
 ├── api-proxy-logs/
-│   └── token-usage.jsonl        ← Token usage data (input/output/cache tokens per API request)
+│   ├── token-usage.jsonl        ← Token usage data (input/output/cache tokens per API request)
+│   └── token-diag.log           ← Token diagnostics JSONL (only when AWF_DEBUG_TOKENS=1)
 ├── squid-logs/
 │   └── access.log               ← Network policy log (domain allow/deny decisions)
 ├── audit.jsonl                  ← Firewall audit trail (policy matches, rule evaluations)
 └── policy-manifest.json         ← Policy configuration snapshot
 ```
+
+`token-diag.log` is written by the AWF api-proxy `diag()` path (`containers/api-proxy/token-persistence.js`) to `$AWF_TOKEN_LOG_DIR/token-diag.log` (default `/var/log/api-proxy/token-diag.log`). It is only emitted when `AWF_DEBUG_TOKENS=1`, so set that environment variable on the workflow step that runs with AWF enabled when you need token diagnostics.
 
 ### Accessing Token Usage Data
 

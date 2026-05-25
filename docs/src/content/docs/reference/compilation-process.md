@@ -194,12 +194,15 @@ The `firewall-audit-logs` artifact is a dedicated multi-file artifact uploaded b
 ```
 firewall-audit-logs/
 ├── api-proxy-logs/
-│   └── token-usage.jsonl        ← Token usage data per request
+│   ├── token-usage.jsonl        ← Token usage data per request
+│   └── token-diag.log           ← Token diagnostics JSONL (only when AWF_DEBUG_TOKENS=1)
 ├── squid-logs/
 │   └── access.log               ← Network policy log (allow/deny)
 ├── audit.jsonl                  ← Firewall audit trail
 └── policy-manifest.json         ← Policy configuration snapshot
 ```
+
+`token-diag.log` is optional debug output from the AWF api-proxy token persistence diagnostics (`diag()` in `containers/api-proxy/token-persistence.js`). The file is only written when `AWF_DEBUG_TOKENS=1`, so that variable must be set on the workflow step that runs with AWF enabled when token diagnostics are needed.
 
 > **Tip:** Use `gh aw logs <run-id> --artifacts firewall` to download and analyze firewall data instead of `gh run download` directly. The CLI handles artifact naming and backward compatibility automatically. See the [Artifacts reference](/gh-aw/reference/artifacts/) for the complete artifact naming guide.
 

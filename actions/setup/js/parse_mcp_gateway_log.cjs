@@ -275,7 +275,7 @@ function parseGatewayJsonlForTokenSteering(jsonlContent) {
     if (!trimmed || !trimmed.includes("token_steering")) continue;
     try {
       const entry = JSON.parse(trimmed);
-      const eventName = typeof entry?.event === "string" ? entry.event : typeof entry?.type === "string" ? entry.type : "";
+      const eventName = getGatewayEventName(entry);
       if (eventName === "token_steering") {
         steeringEvents.push(entry);
       }
@@ -284,6 +284,43 @@ function parseGatewayJsonlForTokenSteering(jsonlContent) {
     }
   }
   return steeringEvents;
+}
+
+/**
+ * Resolve a normalized event/type name from a gateway JSONL entry.
+ * @param {Object} entry
+ * @returns {string}
+ */
+function getGatewayEventName(entry) {
+  return typeof entry?.event === "string" ? entry.event : typeof entry?.type === "string" ? entry.type : "";
+}
+
+const MODEL_ALIAS_EVENT_NAMES = new Set(["model_alias_resolution", "model_rewrite", "MODEL_ALIAS_REWRITE"]);
+
+/**
+ * Parses gateway.jsonl content and extracts model alias resolution events emitted by
+ * the AWF API proxy.
+ * @param {string} jsonlContent
+ * @returns {Array<Object>}
+ */
+function parseGatewayJsonlForModelAliasResolution(jsonlContent) {
+  const aliasResolutionEvents = [];
+  const lines = jsonlContent.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (!trimmed.includes("model_alias") && !trimmed.includes("model_rewrite") && !trimmed.includes("MODEL_ALIAS")) continue;
+    try {
+      const entry = JSON.parse(trimmed);
+      const eventName = getGatewayEventName(entry);
+      if (MODEL_ALIAS_EVENT_NAMES.has(eventName)) {
+        aliasResolutionEvents.push(entry);
+      }
+    } catch {
+      // skip malformed lines
+    }
+  }
+  return aliasResolutionEvents;
 }
 
 /**
@@ -307,6 +344,43 @@ function generateTokenSteeringSummary(steeringEvents) {
     lines.push(buildRpcSummaryRow([formatRpcMessageTime(event.timestamp), event.provider || "-", event.request_id || "-", event.message || "-"]));
   }
 
+  lines.push("");
+  lines.push("</details>\n");
+  return lines.join("\n");
+}
+
+/**
+ * Generates a markdown summary section for model alias resolution events.
+ * Includes a compact table plus a full raw JSON payload for complete inspection.
+ * @param {Array<Object>} aliasResolutionEvents
+ * @returns {string}
+ */
+function generateModelAliasResolutionSummary(aliasResolutionEvents) {
+  if (!aliasResolutionEvents || aliasResolutionEvents.length === 0) return "";
+
+  const lines = [];
+  lines.push("<details>");
+  lines.push(`<summary>🧭 Model Alias Resolution Events (${aliasResolutionEvents.length})</summary>\n`);
+  lines.push("");
+  lines.push("Model alias requests captured by the firewall API proxy.");
+  lines.push("");
+  lines.push("| Time | Provider | Request ID | Alias | Resolved model |");
+  lines.push("|------|----------|------------|-------|----------------|");
+  for (const event of aliasResolutionEvents) {
+    // AWF has evolved the model alias event schema over time; support the known
+    // snake_case/camelCase and token-diag data payload variants emitted by gateway/rpc JSONL streams.
+    const data = event.data && typeof event.data === "object" && !Array.isArray(event.data) ? event.data : null;
+    const provider = event.provider || data?.provider || event.resolved_provider || event.target_provider || "-";
+    const requestId = event.request_id || data?.request_id || event.requestId || data?.requestId || "-";
+    const alias = event.alias || event.model_alias || data?.original_model || event.requested_alias || event.requested_model || event.requestedModel || "-";
+    const resolvedModel = event.resolved_model || data?.resolved_model || event.resolvedModel || data?.resolvedModel || event.model || event.selected_model || event.selectedModel || "-";
+    lines.push(buildRpcSummaryRow([formatRpcMessageTime(event.timestamp), provider, requestId, alias, resolvedModel]));
+  }
+  lines.push("");
+  lines.push("Raw events");
+  lines.push("```json");
+  lines.push(JSON.stringify(aliasResolutionEvents, null, 2));
+  lines.push("```");
   lines.push("");
   lines.push("</details>\n");
   return lines.join("\n");
@@ -783,18 +857,23 @@ async function main() {
     // Both files use the same JSONL format with DIFC_FILTERED entries interleaved.
     let difcFilteredEvents = [];
     let tokenSteeringEvents = [];
+    let modelAliasResolutionEvents = [];
     let rpcMessagesContent = null;
     if (fs.existsSync(gatewayJsonlPath)) {
       const jsonlContent = fs.readFileSync(gatewayJsonlPath, "utf8");
       core.info(`Found gateway.jsonl (${jsonlContent.length} bytes)`);
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(jsonlContent);
       tokenSteeringEvents = parseGatewayJsonlForTokenSteering(jsonlContent);
+      modelAliasResolutionEvents = parseGatewayJsonlForModelAliasResolution(jsonlContent);
       effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([jsonlContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in gateway.jsonl`);
       }
       if (tokenSteeringEvents.length > 0) {
         core.info(`Found ${tokenSteeringEvents.length} token_steering event(s) in gateway.jsonl`);
+      }
+      if (modelAliasResolutionEvents.length > 0) {
+        core.info(`Found ${modelAliasResolutionEvents.length} model alias event(s) in gateway.jsonl`);
       }
     } else if (fs.existsSync(rpcMessagesPath)) {
       rpcMessagesContent = fs.readFileSync(rpcMessagesPath, "utf8");
@@ -804,12 +883,16 @@ async function main() {
       }
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(rpcMessagesContent);
       tokenSteeringEvents = parseGatewayJsonlForTokenSteering(rpcMessagesContent);
+      modelAliasResolutionEvents = parseGatewayJsonlForModelAliasResolution(rpcMessagesContent);
       effectiveTokensRateLimitError ||= hasEffectiveTokensRateLimitError([rpcMessagesContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in rpc-messages.jsonl`);
       }
       if (tokenSteeringEvents.length > 0) {
         core.info(`Found ${tokenSteeringEvents.length} token_steering event(s) in rpc-messages.jsonl`);
+      }
+      if (modelAliasResolutionEvents.length > 0) {
+        core.info(`Found ${modelAliasResolutionEvents.length} model alias event(s) in rpc-messages.jsonl`);
       }
     } else {
       core.info(`No gateway.jsonl or rpc-messages.jsonl found for steering or DIFC_FILTERED scanning`);
@@ -829,6 +912,11 @@ async function main() {
         if (tokenSteeringEvents.length > 0) {
           const steeringSummary = generateTokenSteeringSummary(tokenSteeringEvents);
           core.summary.addRaw(steeringSummary);
+        }
+
+        if (modelAliasResolutionEvents.length > 0) {
+          const modelAliasResolutionSummary = generateModelAliasResolutionSummary(modelAliasResolutionEvents);
+          core.summary.addRaw(modelAliasResolutionSummary);
         }
 
         if (difcFilteredEvents.length > 0) {
@@ -873,6 +961,9 @@ async function main() {
         if (tokenSteeringEvents.length > 0) {
           core.summary.addRaw(generateTokenSteeringSummary(tokenSteeringEvents));
         }
+        if (modelAliasResolutionEvents.length > 0) {
+          core.summary.addRaw(generateModelAliasResolutionSummary(modelAliasResolutionEvents));
+        }
       } else {
         core.info("rpc-messages.jsonl is present but contains no renderable messages");
       }
@@ -904,7 +995,13 @@ async function main() {
     }
 
     // If no legacy log content and no DIFC events, check if token usage is available
-    if ((!gatewayLogContent || gatewayLogContent.trim().length === 0) && (!stderrLogContent || stderrLogContent.trim().length === 0) && difcFilteredEvents.length === 0 && tokenSteeringEvents.length === 0) {
+    if (
+      (!gatewayLogContent || gatewayLogContent.trim().length === 0) &&
+      (!stderrLogContent || stderrLogContent.trim().length === 0) &&
+      difcFilteredEvents.length === 0 &&
+      tokenSteeringEvents.length === 0 &&
+      modelAliasResolutionEvents.length === 0
+    ) {
       core.info("MCP gateway log files are empty or missing");
       setEffectiveTokensRateLimitOutput(core, effectiveTokensRateLimitError);
       writeStepSummaryWithTokenUsage(core);
@@ -920,8 +1017,9 @@ async function main() {
     // Generate step summary: legacy logs + DIFC filtered section
     const legacySummary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
     const steeringSummary = generateTokenSteeringSummary(tokenSteeringEvents);
+    const modelAliasResolutionSummary = generateModelAliasResolutionSummary(modelAliasResolutionEvents);
     const difcSummary = generateDifcFilteredSummary(difcFilteredEvents);
-    const fullSummary = [legacySummary, steeringSummary, difcSummary].filter(s => s.length > 0).join("\n");
+    const fullSummary = [legacySummary, steeringSummary, modelAliasResolutionSummary, difcSummary].filter(s => s.length > 0).join("\n");
 
     if (fullSummary.length > 0) {
       core.summary.addRaw(fullSummary);
@@ -1044,8 +1142,10 @@ if (typeof module !== "undefined" && module.exports) {
     generatePlainTextLegacySummary,
     parseGatewayJsonlForDifcFiltered,
     parseGatewayJsonlForTokenSteering,
+    parseGatewayJsonlForModelAliasResolution,
     generateDifcFilteredSummary,
     generateTokenSteeringSummary,
+    generateModelAliasResolutionSummary,
     parseRpcMessagesJsonl,
     getRpcRequestLabel,
     generateRpcMessagesSummary,

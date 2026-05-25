@@ -148,7 +148,7 @@ func TestResolveWorkflowName(t *testing.T) {
 			if tt.expectError {
 				assert.Error(t, err, "ResolveWorkflowName(%q) should return an error", tt.workflowInput)
 			} else {
-				assert.NoError(t, err, "ResolveWorkflowName(%q) should not return an error", tt.workflowInput)
+				require.NoError(t, err, "ResolveWorkflowName(%q) should not return an error", tt.workflowInput)
 				assert.Equal(t, tt.expectedWorkflowName, result, "ResolveWorkflowName(%q) should return correct workflow name", tt.workflowInput)
 			}
 		})
@@ -246,7 +246,7 @@ func TestResolveWorkflowName_ExistingAgenticWorkflow(t *testing.T) {
 
 			// Test resolving the workflow
 			result, err := ResolveWorkflowName(workflow)
-			assert.NoError(t, err, "ResolveWorkflowName should resolve existing workflow %q without error", workflow)
+			require.NoError(t, err, "ResolveWorkflowName should resolve existing workflow %q without error", workflow)
 
 			// The result should be the actual workflow name from the YAML, not the filename
 			assert.NotEmpty(t, result, "ResolveWorkflowName should return a non-empty name for existing workflow %q", workflow)
@@ -254,11 +254,11 @@ func TestResolveWorkflowName_ExistingAgenticWorkflow(t *testing.T) {
 
 			// Test with different input formats - should all return the same workflow name
 			result2, err := ResolveWorkflowName(workflow + ".md")
-			assert.NoError(t, err, "ResolveWorkflowName should resolve %q with .md extension without error", workflow)
+			require.NoError(t, err, "ResolveWorkflowName should resolve %q with .md extension without error", workflow)
 			assert.Equal(t, result, result2, "ResolveWorkflowName should return the same name for %q with .md extension", workflow)
 
 			result3, err := ResolveWorkflowName(workflow + ".lock.yml")
-			assert.NoError(t, err, "ResolveWorkflowName should resolve %q with .lock.yml extension without error", workflow)
+			require.NoError(t, err, "ResolveWorkflowName should resolve %q with .lock.yml extension without error", workflow)
 			assert.Equal(t, result, result3, "ResolveWorkflowName should return the same name for %q with .lock.yml extension", workflow)
 		})
 	}
@@ -405,7 +405,7 @@ func TestFindWorkflowName(t *testing.T) {
 			if tt.expectError {
 				assert.Error(t, err, "FindWorkflowName(%q) should return an error", tt.input)
 			} else {
-				assert.NoError(t, err, "FindWorkflowName(%q) should not return an error", tt.input)
+				require.NoError(t, err, "FindWorkflowName(%q) should not return an error", tt.input)
 				assert.Equal(t, tt.expectedName, result, "FindWorkflowName(%q) should return correct workflow name", tt.input)
 			}
 		})
@@ -517,7 +517,7 @@ func TestGetWorkflowLockFileName(t *testing.T) {
 				return
 			}
 
-			assert.NoError(t, err, "GetWorkflowLockFileName(%q) should not return an error", tt.input)
+			require.NoError(t, err, "GetWorkflowLockFileName(%q) should not return an error", tt.input)
 			assert.Equal(t, tt.expectedFile, result, "GetWorkflowLockFileName(%q) should return the correct lock file name", tt.input)
 		})
 	}

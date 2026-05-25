@@ -7,8 +7,10 @@ const {
   generatePlainTextLegacySummary,
   parseGatewayJsonlForDifcFiltered,
   parseGatewayJsonlForTokenSteering,
+  parseGatewayJsonlForModelAliasResolution,
   generateDifcFilteredSummary,
   generateTokenSteeringSummary,
+  generateModelAliasResolutionSummary,
   parseRpcMessagesJsonl,
   getRpcRequestLabel,
   generateRpcMessagesSummary,
@@ -563,6 +565,90 @@ Some content here.`;
       }
     });
 
+    test("renders model alias resolution events from rpc-messages.jsonl when gateway.md and gateway.jsonl are absent", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
+      const rpcMessagesPath = path.join(tmpDir, "rpc-messages.jsonl");
+      const originalExistsSync = fs.existsSync;
+      const originalReadFileSync = fs.readFileSync;
+
+      try {
+        fs.writeFileSync(
+          rpcMessagesPath,
+          [
+            JSON.stringify({
+              timestamp: "2026-03-18T17:30:00.123456789Z",
+              direction: "OUT",
+              type: "REQUEST",
+              server_id: "github",
+              payload: { method: "tools/call", params: { name: "list_issues", arguments: {} } },
+            }),
+            JSON.stringify({
+              timestamp: "2026-03-18T17:30:01.123456789Z",
+              event: "MODEL_ALIAS_REWRITE",
+              data: {
+                request_id: "req-900",
+                provider: "copilot",
+                original_model: "sonnet",
+                resolved_model: "claude-sonnet-4.6",
+                fallback_index: 0,
+              },
+            }),
+          ].join("\n")
+        );
+
+        const mockCore = {
+          info: vi.fn(),
+          debug: vi.fn(),
+          startGroup: vi.fn(),
+          endGroup: vi.fn(),
+          notice: vi.fn(),
+          warning: vi.fn(),
+          error: vi.fn(),
+          setFailed: vi.fn(),
+          exportVariable: vi.fn(),
+          setOutput: vi.fn(),
+          summary: {
+            addRaw: vi.fn().mockReturnThis(),
+            addDetails: vi.fn().mockReturnThis(),
+            write: vi.fn(),
+          },
+        };
+
+        fs.existsSync = vi.fn(filepath => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl") return true;
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") return false;
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.jsonl") return false;
+          return originalExistsSync(filepath);
+        });
+
+        fs.readFileSync = vi.fn((filepath, encoding) => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl") {
+            return originalReadFileSync(rpcMessagesPath, encoding);
+          }
+          return originalReadFileSync(filepath, encoding);
+        });
+
+        global.core = mockCore;
+
+        const { main } = require("./parse_mcp_gateway_log.cjs");
+        await main();
+
+        const summaryOutput = mockCore.summary.addRaw.mock.calls.map(call => call[0]).join("\n");
+        expect(summaryOutput).toContain("Model Alias Resolution Events (1)");
+        expect(summaryOutput).toContain("| Time | Provider | Request ID | Alias | Resolved model |");
+        expect(summaryOutput).toContain("req-900");
+        expect(summaryOutput).toContain("sonnet");
+        expect(summaryOutput).toContain("claude-sonnet-4.6");
+        expect(summaryOutput).toContain('"event": "MODEL_ALIAS_REWRITE"');
+        expect(mockCore.summary.write).toHaveBeenCalled();
+      } finally {
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
+        delete global.core;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
     test("warns and continues when rpc-messages.jsonl is zero bytes", async () => {
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
       const rpcMessagesPath = path.join(tmpDir, "rpc-messages.jsonl");
@@ -971,6 +1057,62 @@ Some content here.`;
     });
   });
 
+  describe("parseGatewayJsonlForModelAliasResolution", () => {
+    test("extracts model alias rewrite/resolution events from gateway.jsonl content", () => {
+      const jsonlContent = [
+        JSON.stringify({
+          timestamp: "2026-03-18T17:30:02Z",
+          event: "model_alias_resolution",
+          request_id: "req-200",
+          provider: "copilot",
+          alias: "sonnet",
+          resolved_model: "claude-sonnet-4.6",
+        }),
+        JSON.stringify({ timestamp: "2026-03-18T17:30:03Z", event: "request_start", request_id: "req-201" }),
+        JSON.stringify({
+          timestamp: "2026-03-18T17:30:04Z",
+          type: "model_alias_resolution",
+          request_id: "req-202",
+          provider: "openai",
+          model_alias: "mini",
+          resolved_model: "gpt-5-mini",
+        }),
+        JSON.stringify({
+          timestamp: "2026-03-18T17:30:05Z",
+          event: "MODEL_ALIAS_REWRITE",
+          data: {
+            provider: "anthropic",
+            request_id: "req-203",
+            original_model: "sonnet",
+            resolved_model: "claude-sonnet-4.6",
+          },
+        }),
+        JSON.stringify({
+          timestamp: "2026-03-18T17:30:06Z",
+          event: "model_rewrite",
+          request_id: "req-204",
+          provider: "copilot",
+          original_model: "gpt-5-mini",
+          resolved_model: "gpt-5.4-mini",
+        }),
+      ].join("\n");
+
+      const events = parseGatewayJsonlForModelAliasResolution(jsonlContent);
+
+      expect(events).toHaveLength(4);
+      expect(events[0].request_id).toBe("req-200");
+      expect(events[1].request_id).toBe("req-202");
+      expect(events[2].data.request_id).toBe("req-203");
+      expect(events[3].request_id).toBe("req-204");
+    });
+
+    test("returns empty array when no model alias resolution events are present", () => {
+      const jsonlContent = [JSON.stringify({ event: "request_start" }), JSON.stringify({ type: "RESPONSE" })].join("\n");
+
+      expect(parseGatewayJsonlForModelAliasResolution(jsonlContent)).toHaveLength(0);
+    });
+  });
+
   describe("generateDifcFilteredSummary", () => {
     const sampleEvents = [
       {
@@ -1089,6 +1231,50 @@ Some content here.`;
       expect(summary).toContain("copilot");
       expect(summary).toContain("req-123");
       expect(summary).toContain("[AWF TOKEN WARNING] You have used 90% of your effective token budget.");
+    });
+  });
+
+  describe("generateModelAliasResolutionSummary", () => {
+    test("returns empty string for empty events array", () => {
+      expect(generateModelAliasResolutionSummary([])).toBe("");
+    });
+
+    test("renders a model alias resolution summary table and raw event JSON", () => {
+      const summary = generateModelAliasResolutionSummary([
+        {
+          timestamp: "2026-03-18T17:30:02.123456789Z",
+          event: "model_alias_resolution",
+          provider: "copilot",
+          request_id: "req-200",
+          alias: "sonnet",
+          resolved_model: "claude-sonnet-4.6",
+          candidates: ["claude-sonnet-4.6", "gpt-4o"],
+        },
+        {
+          timestamp: "2026-03-18T17:30:03.123456789Z",
+          event: "MODEL_ALIAS_REWRITE",
+          data: {
+            provider: "anthropic",
+            request_id: "req-201",
+            original_model: "sonnet",
+            resolved_model: "claude-sonnet-4.6",
+          },
+        },
+      ]);
+
+      expect(summary).toContain("Model Alias Resolution Events (2)");
+      expect(summary).toContain("| Time | Provider | Request ID | Alias | Resolved model |");
+      expect(summary).toContain("2026-03-18 17:30:02Z");
+      expect(summary).toContain("copilot");
+      expect(summary).toContain("req-200");
+      expect(summary).toContain("sonnet");
+      expect(summary).toContain("claude-sonnet-4.6");
+      expect(summary).toContain("anthropic");
+      expect(summary).toContain("req-201");
+      expect(summary).toContain("Raw events");
+      expect(summary).toContain('"event": "model_alias_resolution"');
+      expect(summary).toContain('"event": "MODEL_ALIAS_REWRITE"');
+      expect(summary).toContain('"candidates"');
     });
   });
 
