@@ -20,6 +20,8 @@ const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = requir
 const { ensureFullHistoryForBundle, getGitAuthEnv, extractBundlePrerequisiteCommits } = require("./git_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { getThreatDetectedMarker } = require("./threat_detection_warning.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction

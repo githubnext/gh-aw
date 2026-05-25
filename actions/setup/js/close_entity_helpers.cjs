@@ -12,6 +12,8 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { validateTargetRepo, resolveTargetRepoConfig } = require("./repo_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * @typedef {'issue' | 'pull_request'} EntityType

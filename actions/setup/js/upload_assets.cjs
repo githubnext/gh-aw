@@ -7,6 +7,8 @@ const crypto = require("crypto");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Normalizes a branch name to be a valid git branch name.

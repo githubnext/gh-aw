@@ -21,6 +21,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { extractHashFromLockFile, computeFrontmatterHash, createGitHubFileReader } = require("./frontmatter_hash_pure.cjs");
 const { getFileContent } = require("./github_api_helpers.cjs");
 const { ERR_CONFIG } = require("./error_codes.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 // Matches GitHub workflow ref paths of the form "owner/repo/...[@ref]"
 // and captures: [1] owner, [2] repo, [3] optional ref

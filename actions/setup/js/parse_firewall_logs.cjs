@@ -5,6 +5,8 @@ const fs = require("fs");
 const path = require("path");
 const { sanitizeWorkflowName } = require("./sanitize_workflow_name.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Parses firewall logs and creates a step summary

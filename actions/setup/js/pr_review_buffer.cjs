@@ -23,6 +23,8 @@ const { generateFooterWithMessages, getDetectionCautionAlert } = require("./mess
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 const SUPERSEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflow.";
 const MAX_SUPERSEDE_REVIEW_PAGES = 10;

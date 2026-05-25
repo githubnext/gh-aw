@@ -5,6 +5,8 @@ const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Parses mcp-scripts MCP server logs and creates a step summary

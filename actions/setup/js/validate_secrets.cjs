@@ -19,6 +19,8 @@ const { exec } = require("child_process");
 const execAsync = promisify(exec);
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Test result status

@@ -18,6 +18,8 @@ const { checkFileExists } = require("./file_helpers.cjs");
 const { AGENT_OUTPUT_FILENAME } = require("./constants.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { getPromptPath } = require("./messages_core.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Main entry point for setting up threat detection

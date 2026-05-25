@@ -10,6 +10,8 @@ const { sleep } = require("./error_recovery.cjs");
 const { parseAllowedRepos, validateRepo, resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { resolvePullRequestRepo } = require("./pr_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Module-level state — populated by main(), read by the exported getters below.

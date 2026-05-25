@@ -3,6 +3,8 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM } = require("./error_codes.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Files that the 'update' command can modify outside of .github/workflows/.

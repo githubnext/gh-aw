@@ -5,6 +5,8 @@ const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Parses the firewall proxy token-usage.jsonl and appends a collapsible markdown

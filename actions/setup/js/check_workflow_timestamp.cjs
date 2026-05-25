@@ -10,6 +10,8 @@
 const fs = require("fs");
 const path = require("path");
 const { ERR_CONFIG } = require("./error_codes.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 async function main() {
   const workspace = process.env.GITHUB_WORKSPACE;

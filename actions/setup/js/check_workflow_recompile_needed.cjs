@@ -8,6 +8,8 @@ const { getGitAuthEnv } = require("./git_helpers.cjs");
 const { resolvePullRequestRepo } = require("./pr_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 const RECOMPILE_ISSUE_TITLE = "[aw] agentic workflows out of sync";
 const RECOMPILE_PR_TITLE = "[aw] recompile agentic workflows";

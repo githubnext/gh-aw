@@ -5,6 +5,8 @@ const { AGENT_LOGIN_NAMES, findAgent, getIssueDetails, assignAgentToIssue, gener
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sleep } = require("./error_recovery.cjs");
 const { ERR_API, ERR_PERMISSION } = require("./error_codes.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Assign copilot to issues created by create_issue job.

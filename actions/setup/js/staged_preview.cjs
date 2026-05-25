@@ -12,6 +12,8 @@
  * @returns {Promise<void>}
  */
 const { ERR_SYSTEM } = require("./error_codes.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 async function generateStagedPreview(options) {
   const { title, description, items, renderItem } = options;
 

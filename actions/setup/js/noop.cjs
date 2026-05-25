@@ -3,6 +3,8 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Main function to handle noop safe output

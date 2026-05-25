@@ -5,6 +5,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Run full workflow validation using gh-aw compile --validate and all known

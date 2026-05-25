@@ -35,6 +35,8 @@ const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_age
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits } = require("./git_helpers.cjs");
 const { parseDiffGitHeader: parseDiffGitHeaderPaths, extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 const {
   MANAGED_FALLBACK_ISSUE_LABEL,
   LABEL_MAX_RETRIES,

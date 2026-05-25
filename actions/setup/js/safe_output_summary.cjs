@@ -9,6 +9,8 @@
  */
 
 const { displayFileContent } = require("./display_file_helpers.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Generate a step summary for a single safe-output message

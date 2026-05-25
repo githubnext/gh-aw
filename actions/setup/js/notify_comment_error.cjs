@@ -13,6 +13,8 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Collect generated asset URLs from safe output jobs

@@ -3,6 +3,8 @@
 
 const { searchEntitiesWithExpiration } = require("./expired_entity_search_helpers.cjs");
 const { buildExpirationSummary, categorizeByExpiration, DEFAULT_GRAPHQL_DELAY_MS, DEFAULT_MAX_UPDATES_PER_RUN, processExpiredEntities } = require("./expired_entity_cleanup_helpers.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Configuration for entity-specific behavior

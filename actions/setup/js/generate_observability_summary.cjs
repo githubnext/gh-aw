@@ -2,6 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const fs = require("fs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 const AW_INFO_PATH = "/tmp/gh-aw/aw_info.json";
 const AGENT_OUTPUT_PATH = "/tmp/gh-aw/agent_output.json";

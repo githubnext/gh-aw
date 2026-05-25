@@ -3,6 +3,8 @@
 
 const path = require("path");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Writes a pre-activation skip denial summary to the GitHub Actions job summary.

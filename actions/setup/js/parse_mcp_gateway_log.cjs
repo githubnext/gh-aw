@@ -6,6 +6,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { displayDirectories } = require("./display_file_helpers.cjs");
 const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
 const { computeEffectiveTokens, getTokenClassWeights, formatET } = require("./effective_tokens.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Parses MCP gateway logs and creates a step summary

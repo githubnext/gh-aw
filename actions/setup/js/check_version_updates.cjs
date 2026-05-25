@@ -17,6 +17,8 @@
  */
 
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/releases.json";
 

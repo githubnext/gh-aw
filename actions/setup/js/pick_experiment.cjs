@@ -28,6 +28,8 @@
 
 const fs = require("fs");
 const path = require("path");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /** Maximum number of per-run records retained in state.runs. Older entries are pruned to keep state.json small. */
 const MAX_RUN_HISTORY = 512;

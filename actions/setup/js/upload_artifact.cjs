@@ -38,6 +38,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Staging directory where the model places files to be uploaded.

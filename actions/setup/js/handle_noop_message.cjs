@@ -10,6 +10,8 @@ const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs")
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { getEffectiveTokensSuffix } = require("./effective_tokens.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Search for or create the parent issue for all agentic workflow no-op runs

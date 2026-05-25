@@ -5,6 +5,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { delay } = require("./expired_entity_cleanup_helpers.cjs");
 const { checkRateLimit, MIN_RATE_LIMIT_REMAINING } = require("./rate_limit_helpers.cjs");
 const { fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Default delay in ms between delete operations to avoid throttling.

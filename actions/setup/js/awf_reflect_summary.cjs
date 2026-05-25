@@ -2,6 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const fs = require("fs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 const AWF_CONFIG_PATH = "/tmp/gh-aw/awf-config.json";
 const AWF_REFLECT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";

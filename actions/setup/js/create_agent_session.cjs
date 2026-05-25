@@ -6,6 +6,8 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Module-level state — populated by handleMessage(), read by the exported getters below.

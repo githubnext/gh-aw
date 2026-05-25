@@ -29,6 +29,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
+const { installStepSummaryHelpers } = require("./step_summary_helpers.cjs");
+installStepSummaryHelpers(globalThis.core);
 
 /**
  * Log detailed PR context information for debugging
