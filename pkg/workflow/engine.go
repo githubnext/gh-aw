@@ -30,6 +30,7 @@ type EngineConfig struct {
 	ID                 string
 	Version            string
 	Model              string
+	PermissionMode     string
 	MaxTurns           string
 	MaxRuns            int    // Maximum number of LLM invocations per run (AWF apiProxy.maxRuns)
 	MaxContinuations   int    // Maximum number of continuations for autopilot mode (copilot engine only; > 1 enables --autopilot)
@@ -256,6 +257,12 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 						engineLog.Printf("Extracted bare mode (inline): %v", config.Bare)
 					}
 				}
+				// Extract optional 'permission-mode' field (shared with non-inline path)
+				if permissionMode, hasPermissionMode := engineObj["permission-mode"]; hasPermissionMode {
+					if permissionModeStr, ok := permissionMode.(string); ok {
+						config.PermissionMode = permissionModeStr
+					}
+				}
 				config.MaxRuns = topLevelMaxRuns
 				config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
 
@@ -279,6 +286,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			if model, hasModel := engineObj["model"]; hasModel {
 				if modelStr, ok := model.(string); ok {
 					config.Model = modelStr
+				}
+			}
+
+			// Extract optional 'permission-mode' field
+			if permissionMode, hasPermissionMode := engineObj["permission-mode"]; hasPermissionMode {
+				if permissionModeStr, ok := permissionMode.(string); ok {
+					config.PermissionMode = permissionModeStr
 				}
 			}
 

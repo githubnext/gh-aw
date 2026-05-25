@@ -113,6 +113,43 @@ func TestEngineArgsFieldExtraction(t *testing.T) {
 	})
 }
 
+func TestEnginePermissionModeFieldExtraction(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("extracts engine permission-mode", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"engine": map[string]any{
+				"id":              "claude",
+				"permission-mode": "auto",
+			},
+		}
+
+		_, config := compiler.ExtractEngineConfig(frontmatter)
+		if config == nil {
+			t.Fatal("Expected config to be non-nil")
+		}
+		if config.PermissionMode != "auto" {
+			t.Errorf("Expected permission mode auto, got %q", config.PermissionMode)
+		}
+	})
+
+	t.Run("permission-mode omitted keeps empty default", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"engine": map[string]any{
+				"id": "claude",
+			},
+		}
+
+		_, config := compiler.ExtractEngineConfig(frontmatter)
+		if config == nil {
+			t.Fatal("Expected config to be non-nil")
+		}
+		if config.PermissionMode != "" {
+			t.Errorf("Expected empty permission mode, got %q", config.PermissionMode)
+		}
+	})
+}
+
 func TestEngineExtensionsFieldExtraction(t *testing.T) {
 	compiler := NewCompiler()
 

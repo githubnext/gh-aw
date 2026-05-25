@@ -87,6 +87,9 @@ The --dir flag allows you to specify the workflow directory (default: .github/wo
 The --create-pull-request flag creates a pull request with the workflow changes.
 The --force flag overwrites existing workflow files.
 
+Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterprise host by default.
+      For github/*, githubnext/*, and microsoft/* sources, shorthand resolves on github.com.
+      Use full https://github.com/... source URLs for other public github.com workflows.
 Note: To create a new workflow from scratch, use the 'new' command instead.
 Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 		Args: func(cmd *cobra.Command, args []string) error {

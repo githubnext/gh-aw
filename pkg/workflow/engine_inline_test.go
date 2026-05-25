@@ -22,6 +22,7 @@ func TestExtractEngineConfig_InlineDefinition(t *testing.T) {
 		expectedModel         string
 		expectedProviderID    string
 		expectedSecret        string
+		expectedPermission    string
 		expectInlineFlag      bool
 		expectedEngineSetting string
 	}{
@@ -51,6 +52,21 @@ func TestExtractEngineConfig_InlineDefinition(t *testing.T) {
 			expectedID:            "codex",
 			expectedVersion:       "0.105.0",
 			expectedEngineSetting: "codex",
+			expectInlineFlag:      true,
+		},
+		{
+			name: "runtime with permission mode",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"permission-mode": "plan",
+					"runtime": map[string]any{
+						"id": "claude",
+					},
+				},
+			},
+			expectedID:            "claude",
+			expectedPermission:    "plan",
+			expectedEngineSetting: "claude",
 			expectInlineFlag:      true,
 		},
 		{
@@ -108,6 +124,7 @@ func TestExtractEngineConfig_InlineDefinition(t *testing.T) {
 			assert.Equal(t, tt.expectedModel, config.Model, "Model should match provider.model")
 			assert.Equal(t, tt.expectedProviderID, config.InlineProviderID, "InlineProviderID should match provider.id")
 			assert.Equal(t, tt.expectedSecret, config.InlineProviderSecret, "InlineProviderSecret should match provider.auth.secret")
+			assert.Equal(t, tt.expectedPermission, config.PermissionMode, "PermissionMode should match engine.permission-mode")
 		})
 	}
 }

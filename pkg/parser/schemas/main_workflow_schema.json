@@ -4127,6 +4127,10 @@
               "description": "Enable edit tool"
             },
             {
+              "type": "boolean",
+              "description": "Boolean to explicitly enable (true) or disable (false) the edit tool."
+            },
+            {
               "type": "object",
               "description": "Edit tool configuration object",
               "additionalProperties": false
@@ -10503,6 +10507,11 @@
             "model": {
               "type": "string",
               "description": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). Has sensible defaults and can typically be omitted."
+            },
+            "permission-mode": {
+              "type": "string",
+              "enum": ["auto", "acceptEdits", "plan", "bypassPermissions"],
+              "description": "Claude permission mode override. Defaults to acceptEdits (or auto when tools.edit is false)."
             },
             "max-turns": {
               "oneOf": [
