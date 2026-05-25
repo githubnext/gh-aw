@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+require("./shim.cjs");
+
 const fs = require("fs");
 
 const AWF_CONFIG_PATH = "/tmp/gh-aw/awf-config.json";
@@ -260,7 +262,10 @@ async function main() {
   }
 
   const markdown = buildReflectSummary(reflectData, { awfConfigData, runtimeModelsData });
-  await core.summary.addRaw(markdown).write();
+  if (core.summary && typeof core.summary.addRaw === "function") {
+    await core.summary.addRaw(markdown).write();
+  }
+  core.setOutput("awf-reflect-summary", markdown);
   core.info("AWF reflect summary written to step summary");
 }
 

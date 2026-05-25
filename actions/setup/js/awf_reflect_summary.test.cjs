@@ -3,6 +3,7 @@ import fs from "fs";
 
 const mockCore = {
   info: vi.fn(),
+  setOutput: vi.fn(),
   summary: {
     addRaw: vi.fn().mockReturnThis(),
     write: vi.fn().mockResolvedValue(),
@@ -378,7 +379,19 @@ describe("awf_reflect_summary.cjs", () => {
       expect(summary).toContain("openai");
       expect(summary).toContain("Runtime models.json");
       expect(mockCore.summary.write).toHaveBeenCalledTimes(1);
+      expect(mockCore.setOutput).toHaveBeenCalledWith("awf-reflect-summary", expect.any(String));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("AWF reflect summary written"));
+    });
+
+    it("writes core output even when step summary API is unavailable", async () => {
+      const originalSummary = mockCore.summary;
+      mockCore.summary = null;
+      fs.writeFileSync(REFLECT_PATH, JSON.stringify(SAMPLE_REFLECT), "utf8");
+
+      await module.main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("awf-reflect-summary", expect.any(String));
+      mockCore.summary = originalSummary;
     });
   });
 });
