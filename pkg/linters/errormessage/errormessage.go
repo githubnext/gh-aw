@@ -62,7 +62,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 		if msg, ok := extractLiteralErrorMessage(call); ok && returnsError(pass, call) {
 			checkNegativeLanguage(pass, call, msg)
-			checkGenericWrap(pass, call, msg)
+			checkFailedToErrorWrap(pass, call, msg)
 			checkValidationFmtErrorf(pass, call, pos.Filename)
 		}
 
@@ -177,7 +177,7 @@ func checkNewValidationSuggestion(pass *analysis.Pass, call *ast.CallExpr) {
 	}
 }
 
-func checkGenericWrap(pass *analysis.Pass, call *ast.CallExpr, msg string) {
+func checkFailedToErrorWrap(pass *analysis.Pass, call *ast.CallExpr, msg string) {
 	if !isFmtErrorf(call) {
 		return
 	}
