@@ -106,7 +106,7 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		compilerSafeOutputsConfigLog.Printf("Marshaling handler config with %d handlers", len(config))
 		configJSON, err := json.Marshal(config)
 		if err != nil {
-			consolidatedSafeOutputsLog.Printf("Failed to marshal handler config: %v", err)
+			compilerSafeOutputsConfigLog.Printf("Failed to marshal handler config: %v", err)
 			return
 		}
 		// Escape the JSON for YAML (handle quotes and special chars)

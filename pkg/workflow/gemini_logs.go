@@ -29,6 +29,8 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 
 	// Aggregate tool calls in a map to deduplicate across multiple JSON lines
 	toolCallCounts := make(map[string]int)
+	var turns int
+	var tokenUsage int
 
 	// Try to parse the JSON response from Gemini
 	lines := strings.SplitSeq(logContent, "\n")
@@ -46,7 +48,7 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 
 		// Successfully parsed JSON response - use the last valid response for turn count
 		if response.Response != "" {
-			metrics.Turns = 1 // At least one turn if we got a response
+			turns = 1 // At least one turn if we got a response
 		}
 
 		// Extract token usage from stats if available
@@ -55,10 +57,10 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 				for _, modelStats := range models {
 					if stats, ok := modelStats.(map[string]any); ok {
 						if inputTokens, ok := stats["input_tokens"].(float64); ok {
-							metrics.TokenUsage += int(inputTokens)
+							tokenUsage += int(inputTokens)
 						}
 						if outputTokens, ok := stats["output_tokens"].(float64); ok {
-							metrics.TokenUsage += int(outputTokens)
+							tokenUsage += int(outputTokens)
 						}
 					}
 				}
@@ -75,13 +77,20 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		geminiLogsLog.Printf("Parsed JSON response: response_len=%d, stats_present=%v", len(response.Response), response.Stats != nil)
 	}
 
-	// Convert tool call map to slice
+	toolCallMap := make(map[string]*ToolCallInfo, len(toolCallCounts))
 	for toolName, count := range toolCallCounts {
-		metrics.ToolCalls = append(metrics.ToolCalls, ToolCallInfo{
+		toolCallMap[toolName] = &ToolCallInfo{
 			Name:      toolName,
 			CallCount: count,
-		})
+		}
 	}
+
+	FinalizeToolMetrics(FinalizeToolMetricsOptions{
+		Metrics:     &metrics,
+		ToolCallMap: toolCallMap,
+		Turns:       turns,
+		TokenUsage:  tokenUsage,
+	})
 
 	geminiLogsLog.Printf("Parsed metrics: turns=%d, token_usage=%d, tool_calls=%d",
 		metrics.Turns, metrics.TokenUsage, len(metrics.ToolCalls))
