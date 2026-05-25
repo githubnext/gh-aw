@@ -153,10 +153,8 @@ func (c *Compiler) buildInitialWorkflowData(
 		frontmatterModels = toolsResult.parsedFrontmatter.Models
 	}
 	workflowData.ModelMappings = MergeImportedModelAliases(importsResult.MergedModels, frontmatterModels)
-	// UserModelAliases holds only the user-defined overrides (imports + frontmatter, no builtins).
-	// This compact delta is emitted as GH_AW_INFO_MODEL_ALIASES in the compiled workflow so the
-	// activation step can merge it with the pre-computed builtin aliases at runtime without
-	// inlining the full alias map in every compiled workflow YAML.
+	// UserModelAliases holds user-defined overrides (imports + frontmatter, no builtins).
+	// Emitted as GH_AW_INFO_MODEL_ALIASES in the compiled workflow to minimize YAML bloat.
 	workflowData.UserModelAliases = MergeUserModelAliases(importsResult.MergedModels, frontmatterModels)
 
 	return workflowData

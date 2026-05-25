@@ -9,8 +9,11 @@ const { MODELS_JSON_PATH } = require("./constants.cjs");
  * Actions destination path set by setup.sh — the directory where models.json
  * (pre-computed builtin aliases) was copied during the setup step.
  * Computed lazily at call time so RUNNER_TEMP overrides in tests take effect.
+ *
+ * Falls back to the GitHub Actions default runner temp path when RUNNER_TEMP is unset.
  */
 function getActionsDestination() {
+  // RUNNER_TEMP is always set by GitHub Actions; the fallback covers local dev/test environments.
   return `${process.env.RUNNER_TEMP || "/home/runner/work/_temp"}/gh-aw/actions`;
 }
 
