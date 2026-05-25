@@ -24,8 +24,7 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: gemini-to-antigravity
-engine:
-  id: copilot
+engine: copilot
 strict: true
 timeout-minutes: 45
 network:
@@ -105,13 +104,14 @@ If `${{ github.event.inputs.dry_run }}` is `true`, do not edit files and do not 
 ## Phase 0 — Research and Inventory
 
 1. Read the current Antigravity CLI documentation using `web-fetch`.
-2. Confirm and record:
+2. Confirm that the upstream product and CLI are currently documented as an Antigravity migration target before making code changes.
+3. Confirm and record:
    - the non-interactive CI invocation for `agy`
    - authentication requirements
    - supported model names or aliases
    - configuration paths for plugins, hooks, skills, MCP, and subagents
-3. Inventory every active Gemini reference in the repository.
-4. Classify each reference as one of:
+4. Inventory every active Gemini reference in the repository.
+5. Classify each reference as one of:
    - engine API
    - CLI invocation
    - credential
@@ -142,10 +142,12 @@ Add this migration diagnostic and use it consistently in strict validation:
 
 Require the new Antigravity credential:
 
-- introduce `ANTIGRAVITY_API_KEY` unless implementation research proves a better official secret name
+- require `ANTIGRAVITY_API_KEY`
 - validate the new credential before invoking `agy`
 - reject `GEMINI_API_KEY` as insufficient
 - emit a clear diagnostic when only `GEMINI_API_KEY` is present
+
+If vendor documentation contradicts `ANTIGRAVITY_API_KEY`, stop and call `noop` with a blocker summary instead of inventing a different secret name during the same run.
 
 Ensure runtime configuration is deterministic in CI:
 
