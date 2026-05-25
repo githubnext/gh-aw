@@ -565,7 +565,7 @@ Some content here.`;
       }
     });
 
-    test("renders model alias resolution events from rpc-messages.jsonl when gateway.md is absent", async () => {
+    test("renders model alias resolution events from rpc-messages.jsonl when gateway.md and gateway.jsonl are absent", async () => {
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
       const rpcMessagesPath = path.join(tmpDir, "rpc-messages.jsonl");
       const originalExistsSync = fs.existsSync;

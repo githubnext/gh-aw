@@ -306,11 +306,11 @@ function parseGatewayJsonlForModelAliasResolution(jsonlContent) {
   const lines = jsonlContent.split("\n");
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed || (!trimmed.includes("model_alias_resolution") && !trimmed.includes("modelAliasResolution"))) continue;
+    if (!trimmed || !trimmed.includes("model_alias_resolution")) continue;
     try {
       const entry = JSON.parse(trimmed);
       const eventName = getGatewayEventName(entry);
-      if (eventName === "model_alias_resolution" || eventName === "modelAliasResolution") {
+      if (eventName === "model_alias_resolution") {
         aliasResolutionEvents.push(entry);
       }
     } catch {
@@ -364,6 +364,8 @@ function generateModelAliasResolutionSummary(aliasResolutionEvents) {
   lines.push("| Time | Provider | Request ID | Alias | Resolved model |");
   lines.push("|------|----------|------------|-------|----------------|");
   for (const event of aliasResolutionEvents) {
+    // AWF has evolved the model alias event schema over time; support the known
+    // snake_case/camelCase field variants emitted by gateway/rpc JSONL streams.
     const provider = event.provider || event.resolved_provider || event.target_provider || "-";
     const requestId = event.request_id || event.requestId || "-";
     const alias = event.alias || event.model_alias || event.requested_alias || event.requested_model || event.requestedModel || "-";
