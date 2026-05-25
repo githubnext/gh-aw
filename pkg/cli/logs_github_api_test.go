@@ -221,3 +221,18 @@ func TestListWorkflowRunsErrorHandling(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkflowRunsSpinnerMessage(t *testing.T) {
+	t.Run("without target count", func(t *testing.T) {
+		msg := workflowRunsSpinnerMessage(ListWorkflowRunsOptions{})
+		assert.Equal(t, "Fetching workflow runs from GitHub...", msg)
+	})
+
+	t.Run("with target count", func(t *testing.T) {
+		msg := workflowRunsSpinnerMessage(ListWorkflowRunsOptions{
+			ProcessedCount: 3,
+			TargetCount:    10,
+		})
+		assert.Equal(t, "Fetching workflow runs from GitHub... (3 / 10)", msg)
+	})
+}

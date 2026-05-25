@@ -493,6 +493,7 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 		WorkflowName: apiName,
 		StartDate:    startDate,
 		Limit:        config.SampleSize,
+		TargetCount:  config.SampleSize,
 		RepoOverride: config.RepoOverride,
 		Verbose:      config.Verbose,
 	}
@@ -883,6 +884,7 @@ func evaluateForecast(ctx context.Context, workflowName string, forecast Forecas
 		WorkflowName: apiName,
 		StartDate:    validationStartDate,
 		Limit:        config.SampleSize,
+		TargetCount:  config.SampleSize,
 		RepoOverride: config.RepoOverride,
 		Verbose:      config.Verbose,
 	}

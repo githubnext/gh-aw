@@ -232,7 +232,7 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 	}
 
 	// Start spinner for network operation
-	spinnerMsg := fmt.Sprintf("Fetching workflow runs from GitHub... (%d / %d)", opts.ProcessedCount, opts.TargetCount)
+	spinnerMsg := workflowRunsSpinnerMessage(opts)
 	spinner := console.NewSpinner(spinnerMsg)
 	if !opts.Verbose {
 		spinner.Start()
@@ -355,4 +355,11 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 	}
 
 	return agenticRuns, totalFetched, nil
+}
+
+func workflowRunsSpinnerMessage(opts ListWorkflowRunsOptions) string {
+	if opts.TargetCount > 0 {
+		return fmt.Sprintf("Fetching workflow runs from GitHub... (%d / %d)", opts.ProcessedCount, opts.TargetCount)
+	}
+	return "Fetching workflow runs from GitHub..."
 }
