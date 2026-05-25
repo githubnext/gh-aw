@@ -245,7 +245,7 @@ function reduceModelNameToIdentifier(modelName) {
     { familyPattern: /opus/, versionPattern: new RegExp(`opus${VERSION_SUFFIX_PATTERN}`), prefix: "opus" },
     { familyPattern: /haiku/, versionPattern: new RegExp(`haiku${VERSION_SUFFIX_PATTERN}`), prefix: "haiku" },
     { familyPattern: /gpt/, versionPattern: new RegExp(`gpt${VERSION_SUFFIX_PATTERN}`), prefix: "gpt" },
-    { familyPattern: /gemini/, versionPattern: new RegExp(`gemini${VERSION_SUFFIX_PATTERN}`), prefix: "gem" },
+    { familyPattern: /antigravity/, versionPattern: new RegExp(`antigravity${VERSION_SUFFIX_PATTERN}`), prefix: "gem" },
   ];
 
   for (const { familyPattern, versionPattern, prefix } of shortcuts) {

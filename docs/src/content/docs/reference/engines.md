@@ -1,6 +1,6 @@
 ---
 title: AI Engines (aka Coding Agents)
-description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, Codex, Gemini, Crush, OpenCode, and Pi with their specific configuration options.
+description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, Codex, Antigravity, Crush, OpenCode, and Pi with their specific configuration options.
 sidebar:
   order: 600
 ---
@@ -16,7 +16,7 @@ Set `engine:` in your workflow frontmatter and configure the corresponding secre
 | [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) (default) | `copilot` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
 | [Claude by Anthropic (Claude Code)](https://www.anthropic.com/index/claude) | `claude` | [ANTHROPIC_API_KEY](/gh-aw/reference/auth/#anthropic_api_key) |
 | [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | [OPENAI_API_KEY](/gh-aw/reference/auth/#openai_api_key) |
-| [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | [GEMINI_API_KEY](/gh-aw/reference/auth/#gemini_api_key) |
+| [Antigravity CLI](https://github.com/google-antigravity/antigravity-cli) | `antigravity` | [ANTIGRAVITY_API_KEY](/gh-aw/reference/auth/#gemini_api_key) |
 | [Crush](https://github.com/charmbracelet/crush) (experimental) | `crush` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
 | [OpenCode](https://opencode.ai) (experimental) | `opencode` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
 | [Pi](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) (experimental) | `pi` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) (default); switches to provider-specific secret when `model:` uses `provider/model` format |
@@ -25,13 +25,13 @@ Copilot CLI is the default — `engine:` can be omitted when using Copilot. See 
 
 ## Which engine should I choose?
 
-Choose the engine that best matches your needs and existing AI account: Copilot supports the broadest gh-aw feature set, including custom agents and autopilot-style continuations; Claude offers stronger control over turn limits (`max-turns`) for long reasoning sessions; and Gemini or Codex fit well when those models are already part of existing tooling or budget decisions. You can switch later by changing only `engine:` and the corresponding secret.
+Choose the engine that best matches your needs and existing AI account: Copilot supports the broadest gh-aw feature set, including custom agents and autopilot-style continuations; Claude offers stronger control over turn limits (`max-turns`) for long reasoning sessions; and Antigravity or Codex fit well when those models are already part of existing tooling or budget decisions. You can switch later by changing only `engine:` and the corresponding secret.
 
 ## Engine Feature Comparison
 
 Not all features are available across all engines. The table below summarizes per-engine support for commonly used workflow options:
 
-| Feature | Copilot | Claude | Codex | Gemini | Crush | OpenCode | Pi |
+| Feature | Copilot | Claude | Codex | Antigravity | Crush | OpenCode | Pi |
 |---------|:-------:|:------:|:-----:|:------:|:-----:|:--------:|:--:|
 | `max-runs` (AWF invocation cap) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `max-turns` | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -78,7 +78,7 @@ By default, workflows install the latest available version of each engine CLI. T
 | GitHub Copilot CLI | `copilot` | `"0.0.422"` |
 | Claude Code | `claude` | `"2.1.70"` |
 | Codex | `codex` | `"0.111.0"` |
-| Gemini CLI | `gemini` | `"0.31.0"` |
+| Antigravity CLI | `antigravity` | `"0.31.0"` |
 | Crush | `crush` | `"1.2.14"` |
 | OpenCode | `opencode` | `"0.1.0"` |
 | Pi | `pi` | `"0.72.1"` |
@@ -180,7 +180,7 @@ Set a base URL environment variable in `engine.env` to route API calls to an int
 | `codex`, `crush` | `OPENAI_BASE_URL` |
 | `claude` | `ANTHROPIC_BASE_URL` |
 | `copilot` | `GITHUB_COPILOT_BASE_URL` |
-| `gemini` | `GEMINI_API_BASE_URL` |
+| `antigravity` | `ANTIGRAVITY_API_BASE_URL` |
 
 ```yaml wrap
 engine:
@@ -331,7 +331,7 @@ The underlying mechanism is engine-specific:
 | Copilot | Passes `--no-custom-instructions` — suppresses `.github/AGENTS.md` and user-level custom instructions |
 | Claude | Passes `--bare` — suppresses CLAUDE.md memory files |
 | Codex | Passes `--no-system-prompt` — suppresses the default system prompt |
-| Gemini | Sets `GEMINI_SYSTEM_MD=/dev/null` — overrides the built-in system prompt with an empty file |
+| Antigravity | Sets `GEMINI_SYSTEM_MD=/dev/null` — overrides the built-in system prompt with an empty file |
 
 Defaults to `false`.
 
@@ -383,7 +383,7 @@ tools:
 | Copilot | not enforced by gh-aw (engine-managed) |
 | Claude | 60 s |
 | Codex | 120 s |
-| Gemini | not enforced by gh-aw (engine-managed) |
+| Antigravity | not enforced by gh-aw (engine-managed) |
 | Crush | not enforced by gh-aw (engine-managed) |
 
 See [Tool Timeout Configuration](/gh-aw/reference/tools/#tool-timeout-configuration) for full documentation including `tools.startup-timeout`.
@@ -416,7 +416,7 @@ timeout-minutes: 60
 
 The `CLAUDE_CODE_MAX_TURNS` environment variable is a Claude Code CLI equivalent of `max-turns`. When `max-turns` is set in frontmatter, gh-aw passes it to the Claude CLI automatically — you do not need to set this env var separately.
 
-#### Codex, Gemini, and Crush
+#### Codex, Antigravity, and Crush
 
 These engines do not support `max-turns` or `max-continuations`. Use `timeout-minutes` and `tools.timeout` to bound execution:
 
@@ -428,7 +428,7 @@ timeout-minutes: 60
 
 ### Summary Table
 
-| Timeout knob | Copilot | Claude | Codex | Gemini | Crush | OpenCode | Notes |
+| Timeout knob | Copilot | Claude | Codex | Antigravity | Crush | OpenCode | Notes |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|---|
 | `timeout-minutes` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Job-level wall clock |
 | `tools.timeout` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Per tool-call limit (seconds) |

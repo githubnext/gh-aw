@@ -1635,8 +1635,8 @@ features:
 # names to try in sequence. Entries defined here are merged on top of the builtin
 # aliases; the main workflow file always wins over imported aliases. Builtin
 # aliases include: sonnet, sonnet-6x, haiku, opus, gpt-5, gpt-5-mini, gpt-5-codex,
-# gemini-flash, gemini-pro, small, mini, large, auto, any, agent, copilot, claude,
-# codex, gemini.
+# antigravity-flash, antigravity-pro, small, mini, large, auto, any, agent, copilot, claude,
+# codex, antigravity.
 # (optional)
 models:
   {}
@@ -2022,14 +2022,14 @@ post-steps: []
 # (optional)
 # Accepted formats:
 
-# Format 1: Engine name: built-in ('claude', 'codex', 'copilot', 'gemini',
+# Format 1: Engine name: built-in ('claude', 'codex', 'copilot', 'antigravity',
 # 'opencode', 'crush', 'pi') or a named catalog entry
 engine: "example-value"
 
 # Format 2: Extended engine configuration object with advanced options for model
 # selection, turn limiting, environment variables, and custom steps
 engine:
-  # AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini',
+  # AI engine identifier: built-in ('claude', 'codex', 'copilot', 'antigravity',
   # 'opencode', 'crush', 'pi') or a named catalog entry
   id: "example-value"
 
@@ -2208,7 +2208,7 @@ engine:
   # AI engine. The engine-specific flag depends on the engine: copilot uses
   # --no-custom-instructions (suppresses .github/AGENTS.md and user-level custom
   # instructions), claude uses --bare (suppresses CLAUDE.md memory files), codex
-  # uses --no-system-prompt (suppresses the default system prompt), gemini sets
+  # uses --no-system-prompt (suppresses the default system prompt), antigravity sets
   # GEMINI_SYSTEM_MD=/dev/null (overrides the built-in system prompt with an empty
   # one). Defaults to false.
   # (optional)
@@ -2239,7 +2239,7 @@ engine:
 engine:
   # Runtime adapter reference for the inline engine definition
   runtime:
-    # Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini',
+    # Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'antigravity',
     # 'opencode', 'crush', 'pi')
     id: "example-value"
 
@@ -2316,14 +2316,14 @@ engine:
   # When true, disables automatic loading of context and custom instructions by the
   # AI engine. The engine-specific flag depends on the engine: copilot uses
   # --no-custom-instructions, claude uses --bare, codex uses --no-system-prompt,
-  # gemini sets GEMINI_SYSTEM_MD=/dev/null. Defaults to false.
+  # antigravity sets GEMINI_SYSTEM_MD=/dev/null. Defaults to false.
   # (optional)
   bare: true
 
 # Format 4: Engine definition: full declarative metadata for a named engine entry
 # (used in builtin engine shared workflow files such as @builtin:engines/*.md)
 engine:
-  # Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini',
+  # Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'antigravity',
   # 'opencode', 'crush', 'pi')
   id: "example-value"
 

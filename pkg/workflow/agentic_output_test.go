@@ -262,21 +262,21 @@ func TestEngineOutputFileDeclarations(t *testing.T) {
 		t.Errorf("Codex engine should declare /tmp/gh-aw/mcp-config/logs/, got: %v", codexOutputFiles[0])
 	}
 
-	// Test Gemini engine declares output files for error log collection
-	geminiEngine := NewGeminiEngine()
-	geminiOutputFiles := geminiEngine.GetDeclaredOutputFiles()
+	// Test Antigravity engine declares output files for error log collection
+	antigravityEngine := NewAntigravityEngine()
+	geminiOutputFiles := antigravityEngine.GetDeclaredOutputFiles()
 
 	if len(geminiOutputFiles) == 0 {
-		t.Error("Gemini engine should declare output files for error log collection")
+		t.Error("Antigravity engine should declare output files for error log collection")
 	}
 
-	if len(geminiOutputFiles) > 0 && geminiOutputFiles[0] != "/tmp/gh-aw/gemini-client-error-*.json" {
-		t.Errorf("Gemini engine should declare /tmp/gh-aw/gemini-client-error-*.json, got: %v", geminiOutputFiles[0])
+	if len(geminiOutputFiles) > 0 && geminiOutputFiles[0] != "/tmp/gh-aw/antigravity-client-error-*.json" {
+		t.Errorf("Antigravity engine should declare /tmp/gh-aw/antigravity-client-error-*.json, got: %v", geminiOutputFiles[0])
 	}
 
 	t.Logf("Claude engine declares: %v", claudeOutputFiles)
 	t.Logf("Codex engine declares: %v", codexOutputFiles)
-	t.Logf("Gemini engine declares: %v", geminiOutputFiles)
+	t.Logf("Antigravity engine declares: %v", geminiOutputFiles)
 }
 
 func TestEngineOutputCleanupExcludesTmpFiles(t *testing.T) {
@@ -660,9 +660,9 @@ This workflow tests that the redacted URLs log file is included in artifact uplo
 	t.Log("Successfully verified that redacted URLs log path is included in the unified agent artifact")
 }
 
-func TestGeminiEngineOutputFilesGeneratedByCompiler(t *testing.T) {
+func TestAntigravityEngineOutputFilesGeneratedByCompiler(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir := testutil.TempDir(t, "gemini-engine-output-test")
+	tmpDir := testutil.TempDir(t, "antigravity-engine-output-test")
 
 	testContent := `---
 on: push
@@ -673,22 +673,22 @@ permissions:
 tools:
   github:
     allowed: [list_issues]
-engine: gemini
+engine: antigravity
 ---
 
-# Test Gemini Engine Output Collection
+# Test Antigravity Engine Output Collection
 
-This workflow tests that the Gemini engine error log wildcard is uploaded as an artifact.
+This workflow tests that the Antigravity engine error log wildcard is uploaded as an artifact.
 `
 
-	testFile := filepath.Join(tmpDir, "test-gemini-output.md")
+	testFile := filepath.Join(tmpDir, "test-antigravity-output.md")
 	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
-		t.Fatalf("Failed to compile Gemini workflow: %v", err)
+		t.Fatalf("Failed to compile Antigravity workflow: %v", err)
 	}
 
 	lockFile := stringutil.MarkdownToLockFile(testFile)
@@ -701,25 +701,25 @@ This workflow tests that the Gemini engine error log wildcard is uploaded as an 
 	// Verify that the compiler does NOT generate a separate Upload engine output files step
 	// (engine output paths are now merged into the unified agent artifact)
 	if strings.Contains(lockStr, "- name: Upload engine output files") {
-		t.Error("Gemini workflow should NOT have separate 'Upload engine output files' step (merged into unified agent artifact)")
+		t.Error("Antigravity workflow should NOT have separate 'Upload engine output files' step (merged into unified agent artifact)")
 	}
 
-	// Verify that the Gemini error log wildcard path is included in the unified artifact upload
+	// Verify that the Antigravity error log wildcard path is included in the unified artifact upload
 	// under /tmp/gh-aw/ (not /tmp/) so the artifact upload LCA stays at /tmp/gh-aw/
-	if !strings.Contains(lockStr, "/tmp/gh-aw/gemini-client-error-*.json") {
-		t.Error("Gemini workflow should include '/tmp/gh-aw/gemini-client-error-*.json' in unified agent artifact upload")
+	if !strings.Contains(lockStr, "/tmp/gh-aw/antigravity-client-error-*.json") {
+		t.Error("Antigravity workflow should include '/tmp/gh-aw/antigravity-client-error-*.json' in unified agent artifact upload")
 	}
-	if strings.Contains(lockStr, "path: /tmp/gemini-client-error") {
-		t.Error("Gemini workflow must NOT have '/tmp/gemini-client-error' artifact path (causes wrong LCA)")
+	if strings.Contains(lockStr, "path: /tmp/antigravity-client-error") {
+		t.Error("Antigravity workflow must NOT have '/tmp/antigravity-client-error' artifact path (causes wrong LCA)")
 	}
 
 	// Verify that the unified agent artifact name is used (not separate agent_outputs)
 	if strings.Contains(lockStr, "name: agent_outputs") {
-		t.Error("Gemini engine output should be in unified 'agent' artifact, not separate 'agent_outputs'")
+		t.Error("Antigravity engine output should be in unified 'agent' artifact, not separate 'agent_outputs'")
 	}
 	if !strings.Contains(lockStr, "name: agent\n") {
-		t.Error("Gemini workflow should use unified 'agent' artifact name")
+		t.Error("Antigravity workflow should use unified 'agent' artifact name")
 	}
 
-	t.Log("Successfully verified that Gemini engine error log wildcard is included in the unified agent artifact")
+	t.Log("Successfully verified that Antigravity engine error log wildcard is included in the unified agent artifact")
 }

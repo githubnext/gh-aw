@@ -95,14 +95,14 @@ func TestApplySandboxDefaults(t *testing.T) {
 		},
 		{
 			// version-only object (no id/type) must default to AWF so the sandbox is
-			// always enabled, matching the previous analysis of the smoke-gemini bug.
+			// always enabled, matching the previous analysis of the smoke-antigravity bug.
 			name: "version-only agent defaults to AWF",
 			config: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Version: "v0.25.29",
 				},
 			},
-			engine:                 &EngineConfig{ID: "gemini"},
+			engine:                 &EngineConfig{ID: "antigravity"},
 			expectDefaultWritePath: true,
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{

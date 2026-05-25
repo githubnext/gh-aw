@@ -102,7 +102,7 @@ function groupMultipliers(mults) {
       groups["OpenAI Reasoning"].push({ model, value });
     } else if (model.startsWith("gpt-")) {
       groups["OpenAI"].push({ model, value });
-    } else if (model.startsWith("gemini-")) {
+    } else if (model.startsWith("antigravity-")) {
       groups["Google"].push({ model, value });
     } else {
       groups["Other"].push({ model, value });

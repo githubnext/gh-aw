@@ -18,8 +18,8 @@ const (
 	ClaudeEngine EngineName = "claude"
 	// CodexEngine is the OpenAI Codex engine identifier
 	CodexEngine EngineName = "codex"
-	// GeminiEngine is the Google Gemini engine identifier
-	GeminiEngine EngineName = "gemini"
+	// AntigravityEngine is the Antigravity engine identifier
+	AntigravityEngine EngineName = "antigravity"
 	// OpenCodeEngine is the OpenCode engine identifier
 	OpenCodeEngine EngineName = "opencode"
 	// CrushEngine is the Crush engine identifier
@@ -36,7 +36,7 @@ const (
 // Deprecated: Use workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs() for a
 // catalog-derived list. This slice is maintained for backward compatibility and must
 // stay in sync with the built-in engines registered in NewEngineCatalog.
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(OpenCodeEngine), string(CrushEngine), string(PiEngine)}
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(AntigravityEngine), string(OpenCodeEngine), string(CrushEngine), string(PiEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
@@ -82,12 +82,12 @@ var EngineOptions = []EngineOption{
 		WhenNeeded:         "Codex/OpenAI engine workflows",
 	},
 	{
-		Value:       string(GeminiEngine),
-		Label:       "Gemini",
-		Description: "Google Gemini CLI coding agent",
-		SecretName:  "GEMINI_API_KEY",
+		Value:       string(AntigravityEngine),
+		Label:       "Antigravity",
+		Description: "Antigravity CLI coding agent",
+		SecretName:  "ANTIGRAVITY_API_KEY",
 		KeyURL:      "https://aistudio.google.com/app/apikey",
-		WhenNeeded:  "Gemini engine workflows",
+		WhenNeeded:  "Antigravity engine workflows",
 	},
 	{
 		Value:              string(OpenCodeEngine),
@@ -200,8 +200,8 @@ const (
 	EnvVarModelAgentCodex = "GH_AW_MODEL_AGENT_CODEX"
 	// EnvVarModelAgentCustom configures the default Custom model for agent execution
 	EnvVarModelAgentCustom = "GH_AW_MODEL_AGENT_CUSTOM"
-	// EnvVarModelAgentGemini configures the default Gemini model for agent execution
-	EnvVarModelAgentGemini = "GH_AW_MODEL_AGENT_GEMINI"
+	// EnvVarModelAgentAntigravity configures the default Antigravity model for agent execution
+	EnvVarModelAgentAntigravity = "GH_AW_MODEL_AGENT_ANTIGRAVITY"
 	// EnvVarModelAgentOpenCode configures the default OpenCode model for agent execution
 	EnvVarModelAgentOpenCode = "GH_AW_MODEL_AGENT_OPENCODE"
 	// EnvVarModelDetectionCopilot configures the default Copilot model for detection
@@ -210,8 +210,8 @@ const (
 	EnvVarModelDetectionClaude = "GH_AW_MODEL_DETECTION_CLAUDE"
 	// EnvVarModelDetectionCodex configures the default Codex model for detection
 	EnvVarModelDetectionCodex = "GH_AW_MODEL_DETECTION_CODEX"
-	// EnvVarModelDetectionGemini configures the default Gemini model for detection
-	EnvVarModelDetectionGemini = "GH_AW_MODEL_DETECTION_GEMINI"
+	// EnvVarModelDetectionAntigravity configures the default Antigravity model for detection
+	EnvVarModelDetectionAntigravity = "GH_AW_MODEL_DETECTION_ANTIGRAVITY"
 	// EnvVarModelDetectionOpenCode configures the default OpenCode model for detection
 	EnvVarModelDetectionOpenCode = "GH_AW_MODEL_DETECTION_OPENCODE"
 	// EnvVarModelAgentCrush configures the default Crush model for agent execution
@@ -278,9 +278,9 @@ const (
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	ClaudeCLIModelEnvVar = "ANTHROPIC_MODEL"
 
-	// GeminiCLIModelEnvVar is the native environment variable name supported by the Gemini CLI
+	// AntigravityCLIModelEnvVar is the native environment variable name supported by the Antigravity CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
-	GeminiCLIModelEnvVar = "GEMINI_MODEL"
+	AntigravityCLIModelEnvVar = "ANTIGRAVITY_MODEL"
 
 	// CrushCLIModelEnvVar is the native environment variable name for Crush model selection.
 	// Crush uses provider/model format (e.g., "anthropic/claude-sonnet-4-20250514").

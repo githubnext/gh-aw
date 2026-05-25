@@ -80,7 +80,7 @@ func cleanJSONSchemaErrorMessage(errorMsg string) string {
 //
 // into plain language:
 //
-//	"value must be one of 'claude', 'codex', 'copilot', 'gemini'"
+//	"value must be one of 'claude', 'codex', 'copilot', 'antigravity'"
 func cleanOneOfMessage(message string) string {
 	if !strings.Contains(message, "'oneOf' failed") {
 		return message
@@ -133,7 +133,7 @@ var typeConflictGotWantPattern = regexp.MustCompile(`(?:^|: )got (\w+), want (\w
 // The engine list mirrors the built-in engines in NewEngineCatalog.
 // Update this list when built-in engines change.
 var knownOneOfFieldHints = map[string]string{
-	"/engine":                "Valid engine names: claude, codex, copilot, gemini.\n\nExample:\nengine: copilot\n# or with options:\nengine:\n  id: copilot\n  max-turns: 15",
+	"/engine":                "Valid engine names: claude, codex, copilot, antigravity.\n\nExample:\nengine: copilot\n# or with options:\nengine:\n  id: copilot\n  max-turns: 15",
 	"/tools/github/toolsets": "Valid toolsets: all, default, action-friendly, context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, search, secret_protection, security_advisories, stargazers, users.\n\nExample:\ntools:\n  github:\n    toolsets: default\n    # or as an array:\n    toolsets: [default, repos]",
 }
 

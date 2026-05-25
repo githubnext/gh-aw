@@ -380,8 +380,8 @@ describe("effective_tokens", () => {
         expect(reduceModelNameToIdentifier("haiku")).toBe("haiku");
       });
 
-      test("uses well-known gemini shortcut", () => {
-        expect(reduceModelNameToIdentifier("gemini-2.5-pro")).toBe("gem25");
+      test("uses well-known antigravity shortcut", () => {
+        expect(reduceModelNameToIdentifier("antigravity-2.5-pro")).toBe("gem25");
       });
 
       test("handles date-like suffixes deterministically", () => {

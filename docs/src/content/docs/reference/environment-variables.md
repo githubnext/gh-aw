@@ -165,7 +165,7 @@ These variables override the default AI model used for agent runs and threat det
 | `GH_AW_MODEL_AGENT_COPILOT` | GitHub Copilot |
 | `GH_AW_MODEL_AGENT_CLAUDE` | Anthropic Claude |
 | `GH_AW_MODEL_AGENT_CODEX` | OpenAI Codex |
-| `GH_AW_MODEL_AGENT_GEMINI` | Google Gemini |
+| `GH_AW_MODEL_AGENT_ANTIGRAVITY` | Antigravity |
 | `GH_AW_MODEL_AGENT_CRUSH` | Crush |
 | `GH_AW_MODEL_AGENT_CUSTOM` | Custom engine |
 
@@ -176,7 +176,7 @@ These variables override the default AI model used for agent runs and threat det
 | `GH_AW_MODEL_DETECTION_COPILOT` | GitHub Copilot |
 | `GH_AW_MODEL_DETECTION_CLAUDE` | Anthropic Claude |
 | `GH_AW_MODEL_DETECTION_CODEX` | OpenAI Codex |
-| `GH_AW_MODEL_DETECTION_GEMINI` | Google Gemini |
+| `GH_AW_MODEL_DETECTION_ANTIGRAVITY` | Antigravity |
 | `GH_AW_MODEL_DETECTION_CRUSH` | Crush |
 
 Set a model override as an organization variable:

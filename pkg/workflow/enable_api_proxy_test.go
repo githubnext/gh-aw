@@ -113,11 +113,11 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 		}
 	})
 
-	t.Run("Gemini AWF command includes apiProxy enabled in config file", func(t *testing.T) {
+	t.Run("Antigravity AWF command includes apiProxy enabled in config file", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
-				ID: "gemini",
+				ID: "antigravity",
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{
@@ -126,18 +126,18 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 			},
 		}
 
-		engine := NewGeminiEngine()
+		engine := NewAntigravityEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
 		if len(steps) < 2 {
 			t.Fatal("Expected at least two execution steps (settings + execution)")
 		}
 
-		// steps[0] = Write Gemini Config, steps[1] = Execute Gemini CLI
+		// steps[0] = Write Antigravity Config, steps[1] = Execute Antigravity CLI
 		stepContent := strings.Join(steps[1], "\n")
 
 		if !strings.Contains(stepContent, `"enabled":true`) {
-			t.Error("Expected Gemini AWF command to contain apiProxy enabled in config JSON")
+			t.Error("Expected Antigravity AWF command to contain apiProxy enabled in config JSON")
 		}
 	})
 

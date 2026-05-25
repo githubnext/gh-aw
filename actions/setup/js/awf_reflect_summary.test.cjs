@@ -43,7 +43,7 @@ const SAMPLE_REFLECT = {
       models_url: "http://api-proxy:10002/models",
     },
     {
-      provider: "gemini",
+      provider: "antigravity",
       port: 10003,
       base_url: "http://api-proxy:10003",
       configured: false,

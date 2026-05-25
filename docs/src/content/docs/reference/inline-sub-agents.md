@@ -59,7 +59,7 @@ At runtime, each inline sub-agent block is extracted to a location that the AI e
 | `copilot` | `.github/agents/<name>.agent.md` |
 | `claude` | `.claude/agents/<name>.md` |
 | `codex` | `.codex/agents/<name>.md` |
-| `gemini` | `.gemini/agents/<name>.md` |
+| `antigravity` | `.antigravity/agents/<name>.md` |
 
 To use a sub-agent, instruct the parent workflow's prompt to invoke it by name:
 

@@ -67,7 +67,7 @@ func TestSpec_Types_CompilerError(t *testing.T) {
 		Type:     "error",
 		Message:  "unknown engine: 'myengine'",
 		Context:  []string{"engine: myengine"},
-		Hint:     "Valid engines are: copilot, claude, codex, gemini",
+		Hint:     "Valid engines are: copilot, claude, codex, antigravity",
 	}
 
 	assert.Equal(t, "workflow.md", err.Position.File, "ErrorPosition.File should be accessible")
@@ -77,7 +77,7 @@ func TestSpec_Types_CompilerError(t *testing.T) {
 	assert.Equal(t, "unknown engine: 'myengine'", err.Message, "CompilerError.Message should be accessible")
 	require.Len(t, err.Context, 1, "CompilerError.Context should hold context lines")
 	assert.Equal(t, "engine: myengine", err.Context[0], "CompilerError.Context[0] should match")
-	assert.Equal(t, "Valid engines are: copilot, claude, codex, gemini", err.Hint, "CompilerError.Hint should be accessible")
+	assert.Equal(t, "Valid engines are: copilot, claude, codex, antigravity", err.Hint, "CompilerError.Hint should be accessible")
 }
 
 // TestSpec_Types_CompilerError_DocumentedTypes validates that CompilerError.Type
@@ -485,7 +485,7 @@ func TestSpec_PublicAPI_FormatError(t *testing.T) {
 		Type:     "error",
 		Message:  "unknown engine: 'myengine'",
 		Context:  []string{"engine: myengine"},
-		Hint:     "Valid engines are: copilot, claude, codex, gemini, crush",
+		Hint:     "Valid engines are: copilot, claude, codex, antigravity, crush",
 	}
 	result := FormatError(err)
 	assert.NotEmpty(t, result, "FormatError should return non-empty output")

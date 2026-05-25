@@ -56,7 +56,7 @@ Fetch content from the web.
 // TestMCPFetchNotAddedForAnyEngine tests that the mcp/fetch container is never added
 // to any compiled workflow, regardless of engine, since the fallback has been removed.
 func TestMCPFetchNotAddedForAnyEngine(t *testing.T) {
-	engines := []string{"codex", "claude", "copilot", "gemini"}
+	engines := []string{"codex", "claude", "copilot", "antigravity"}
 
 	for _, engine := range engines {
 		t.Run(engine, func(t *testing.T) {
@@ -130,12 +130,12 @@ Run some bash commands.
 	}
 }
 
-// TestWebFetchGeminiNativeWebFetchTool tests that a Gemini workflow with web-fetch
+// TestWebFetchAntigravityNativeWebFetchTool tests that a Antigravity workflow with web-fetch
 // includes web_fetch in its tools.core settings.
-func TestWebFetchGeminiNativeWebFetchTool(t *testing.T) {
-	lockContent := compileWebFetchWorkflow(t, "gemini")
+func TestWebFetchAntigravityNativeWebFetchTool(t *testing.T) {
+	lockContent := compileWebFetchWorkflow(t, "antigravity")
 	if !strings.Contains(lockContent, "web_fetch") {
-		t.Errorf("Expected Gemini workflow with web-fetch to include web_fetch in tools.core, but it didn't")
+		t.Errorf("Expected Antigravity workflow with web-fetch to include web_fetch in tools.core, but it didn't")
 	}
 }
 

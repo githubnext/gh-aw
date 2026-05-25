@@ -22,7 +22,7 @@ curl -sf http://api-proxy:10000/reflect | jq '.endpoints[] | select(.configured)
 | `openai` / `codex` | 10000 | `http://api-proxy:10000/v1` | `OPENAI_API_KEY` |
 | `anthropic` | 10001 | `http://api-proxy:10001/v1` (or no `/v1` for native SDK) | `ANTHROPIC_API_KEY` |
 | `copilot` | 10002 | `http://api-proxy:10002/v1` | `COPILOT_GITHUB_TOKEN` |
-| `gemini` | 10003 | `http://api-proxy:10003/v1` | `GEMINI_API_KEY` |
+| `antigravity` | 10003 | `http://api-proxy:10003/v1` | `ANTIGRAVITY_API_KEY` |
 
 All ports use the OpenAI-compatible API format. The api-proxy injects auth headers automatically — **do not pass raw API keys** to these URLs.
 
@@ -34,7 +34,7 @@ All ports use the OpenAI-compatible API format. The api-proxy injects auth heade
     { "provider": "openai",    "port": 10000, "configured": true,  "models": ["gpt-4o", "o1-mini"], "models_url": "http://api-proxy:10000/v1/models" },
     { "provider": "anthropic", "port": 10001, "configured": true,  "models": ["claude-sonnet-4-5"],  "models_url": "http://api-proxy:10001/v1/models" },
     { "provider": "copilot",   "port": 10002, "configured": true,  "models": null,                   "models_url": "http://api-proxy:10002/models" },
-    { "provider": "gemini",    "port": 10003, "configured": false, "models": null,                   "models_url": null }
+    { "provider": "antigravity",    "port": 10003, "configured": false, "models": null,                   "models_url": null }
   ],
   "models_fetch_complete": true
 }
@@ -76,7 +76,7 @@ curl -sf http://api-proxy:10000/reflect \
   | jq -r '.endpoints[] | select(.provider == "openai" and .configured) | .models_url' \
   | xargs curl -sf | jq '[.data[].id]'
 
-# Gemini format → { models: [{name: "models/gemini-..."}] }
+# Antigravity format → { models: [{name: "models/antigravity-..."}] }
 curl -sf http://api-proxy:10003/v1/models | jq '[.models[].name | ltrimstr("models/")]'
 ```
 

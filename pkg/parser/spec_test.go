@@ -152,9 +152,9 @@ func TestSpec_InlineSubAgents_GetEngineSubAgentDir(t *testing.T) {
 			expected: ".codex/agents",
 		},
 		{
-			name:     "gemini engine uses .gemini/agents",
-			engineID: "gemini",
-			expected: ".gemini/agents",
+			name:     "antigravity engine uses .antigravity/agents",
+			engineID: "antigravity",
+			expected: ".antigravity/agents",
 		},
 		{
 			name:     "unknown engine falls back to .github/agents",
@@ -176,7 +176,7 @@ func TestSpec_InlineSubAgents_GetEngineSubAgentDir(t *testing.T) {
 // behavior of GetEngineSubAgentExt as described in the package README.md.
 //
 // Specification: Returns the file extension for sub-agent files for a given
-// engine (.md for claude/codex/gemini, .agent.md otherwise).
+// engine (.md for claude/codex/antigravity, .agent.md otherwise).
 func TestSpec_InlineSubAgents_GetEngineSubAgentExt(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -194,8 +194,8 @@ func TestSpec_InlineSubAgents_GetEngineSubAgentExt(t *testing.T) {
 			expected: ".md",
 		},
 		{
-			name:     "gemini engine uses .md",
-			engineID: "gemini",
+			name:     "antigravity engine uses .md",
+			engineID: "antigravity",
 			expected: ".md",
 		},
 		{

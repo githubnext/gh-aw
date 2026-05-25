@@ -125,7 +125,7 @@ func buildStandardNpmEngineInstallSteps(
 
 // BuildNpmEngineInstallStepsWithAWF injects an AWF installation step between the Node.js
 // setup step and the CLI install steps when the firewall is enabled. This eliminates the
-// duplicated AWF-injection pattern shared by Claude, Gemini, and Copilot engines.
+// duplicated AWF-injection pattern shared by Claude, Antigravity, and Copilot engines.
 //
 // The expected layout of npmSteps is:
 //   - npmSteps[0]  – Node.js setup step

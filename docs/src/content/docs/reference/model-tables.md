@@ -35,20 +35,20 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `coding` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*`, `gpt-5-codex` |
 | `gpt-5-pro` | `copilot/gpt-5*pro*`, `openai/gpt-5*pro*` |
 | `reasoning` | `copilot/o1*`, `copilot/o3*`, `copilot/o4*`, `openai/o1*`, `openai/o3*`, `openai/o4*` |
-| `gemini-flash` | `copilot/gemini-*flash*`, `google/gemini-*flash*`, `gemini/gemini-*flash*` |
-| `gemini-flash-lite` | `copilot/gemini-*flash*lite*`, `google/gemini-*flash*lite*`, `gemini/gemini-*flash*lite*` |
-| `gemini-pro` | `copilot/gemini-*pro*`, `google/gemini-*pro*`, `gemini/gemini-*pro*` |
-| `vision` | `copilot/gemini-*image*`, `gemini/gemini-*image*`, `copilot/gemini-*flash*`, `gemini/gemini-*flash*` |
-| `gemma` | `copilot/gemma*`, `google/gemma*`, `gemini/gemma*` |
-| `deep-research` | `copilot/deep-research*`, `copilot/o3-deep-research*`, `copilot/o4-mini-deep-research*`, `google/deep-research*`, `gemini/deep-research*`, `openai/o3-deep-research*`, `openai/o4-mini-deep-research*` |
-| `any` | `copilot/*`, `anthropic/*`, `openai/*`, `google/*`, `gemini/*` |
-| `gemini-3-pro` | `copilot/gemini-3*pro*`, `google/gemini-3*pro*`, `gemini/gemini-3*pro*` |
-| `gemini-3-flash` | `copilot/gemini-3*flash*`, `google/gemini-3*flash*`, `gemini/gemini-3*flash*` |
-| `gemini-3.1-pro` | `copilot/gemini-3.1*pro*`, `google/gemini-3.1*pro*`, `gemini/gemini-3.1*pro*` |
-| `gemini-3.1-flash` | `copilot/gemini-3.1*flash*`, `google/gemini-3.1*flash*`, `gemini/gemini-3.1*flash*` |
-| `antigravity` | `copilot/antigravity*`, `google/antigravity*`, `gemini/antigravity*` |
-| `computer-use` | `copilot/*computer-use*`, `google/*computer-use*`, `gemini/*computer-use*`, `openai/*computer-use*` |
-| `robotics` | `copilot/*robotics*`, `google/*robotics*`, `gemini/*robotics*` |
+| `antigravity-flash` | `copilot/antigravity-*flash*`, `google/antigravity-*flash*`, `antigravity/antigravity-*flash*` |
+| `antigravity-flash-lite` | `copilot/antigravity-*flash*lite*`, `google/antigravity-*flash*lite*`, `antigravity/antigravity-*flash*lite*` |
+| `antigravity-pro` | `copilot/antigravity-*pro*`, `google/antigravity-*pro*`, `antigravity/antigravity-*pro*` |
+| `vision` | `copilot/antigravity-*image*`, `antigravity/antigravity-*image*`, `copilot/antigravity-*flash*`, `antigravity/antigravity-*flash*` |
+| `gemma` | `copilot/gemma*`, `google/gemma*`, `antigravity/gemma*` |
+| `deep-research` | `copilot/deep-research*`, `copilot/o3-deep-research*`, `copilot/o4-mini-deep-research*`, `google/deep-research*`, `antigravity/deep-research*`, `openai/o3-deep-research*`, `openai/o4-mini-deep-research*` |
+| `any` | `copilot/*`, `anthropic/*`, `openai/*`, `google/*`, `antigravity/*` |
+| `antigravity-3-pro` | `copilot/antigravity-3*pro*`, `google/antigravity-3*pro*`, `antigravity/antigravity-3*pro*` |
+| `antigravity-3-flash` | `copilot/antigravity-3*flash*`, `google/antigravity-3*flash*`, `antigravity/antigravity-3*flash*` |
+| `antigravity-3.1-pro` | `copilot/antigravity-3.1*pro*`, `google/antigravity-3.1*pro*`, `antigravity/antigravity-3.1*pro*` |
+| `antigravity-3.1-flash` | `copilot/antigravity-3.1*flash*`, `google/antigravity-3.1*flash*`, `antigravity/antigravity-3.1*flash*` |
+| `antigravity` | `copilot/antigravity*`, `google/antigravity*`, `antigravity/antigravity*` |
+| `computer-use` | `copilot/*computer-use*`, `google/*computer-use*`, `antigravity/*computer-use*`, `openai/*computer-use*` |
+| `robotics` | `copilot/*robotics*`, `google/*robotics*`, `antigravity/*robotics*` |
 
 ### Meta-Aliases
 
@@ -58,16 +58,16 @@ Some meta-aliases also bake in model parameters (for example, `opusplan` sets `e
 | Meta-alias | Expands to |
 |------------|------------|
 | `small` | `mini` |
-| `mini` | `haiku` → `gpt-5-mini` → `gpt-5-nano` → `gemini-flash-lite` |
+| `mini` | `haiku` → `gpt-5-mini` → `gpt-5-nano` → `antigravity-flash-lite` |
 | `opusplan` | `opus?effort=high` |
-| `large` | `sonnet` → `gpt-5-pro` → `gpt-5` → `gemini-pro` |
+| `large` | `sonnet` → `gpt-5-pro` → `gpt-5` → `antigravity-pro` |
 | `auto` | `large` |
-| `agent` | `sonnet-6x` → `gpt-5.4` → `gpt-5` → `gemini-pro` → `haiku` → `any` |
+| `agent` | `sonnet-6x` → `gpt-5.4` → `gpt-5` → `antigravity-pro` → `haiku` → `any` |
 | `copilot` | `agent` → `gpt-5.4` → `sonnet` → `gpt-5` → `any` |
 | `claude` | `agent` → `sonnet-6x` → `haiku` → `any` |
 | `codex` | `agent` → `gpt-5-codex` → `gpt-5` → `any` |
-| `gemini` | `agent` → `gemini-pro` → `gemini-flash` → `any` |
-| `summarization` | `haiku` → `gpt-5-mini` → `gemini-flash-lite` → `mini` |
+| `antigravity` | `agent` → `antigravity-pro` → `antigravity-flash` → `any` |
+| `summarization` | `haiku` → `gpt-5-mini` → `antigravity-flash-lite` → `mini` |
 
 ## Model Multipliers
 
@@ -201,42 +201,42 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 
 | Model | Multiplier |
 |-------|-----------|
-| `gemini-2.5-pro` | 1 |
-| `gemini-2.5-pro-preview-tts` | 1 |
-| `gemini-2.5-flash` | 0.2 |
-| `gemini-2.5-flash-native-audio-latest` | 0.2 |
-| `gemini-2.5-flash-native-audio-preview-09-2025` | 0.2 |
-| `gemini-2.5-flash-native-audio-preview-12-2025` | 0.2 |
-| `gemini-2.5-flash-preview-tts` | 0.2 |
-| `gemini-2.5-flash-image` | 0.2 |
-| `gemini-2.5-flash-lite` | 0.1 |
-| `gemini-2.0-flash` | 0.1 |
-| `gemini-2.0-flash-001` | 0.1 |
-| `gemini-2.0-flash-lite` | 0.1 |
-| `gemini-2.0-flash-lite-001` | 0.1 |
-| `gemini-1.5-pro` | 1 |
-| `gemini-1.5-flash` | 0.1 |
-| `gemini-flash-latest` | 0.2 |
-| `gemini-flash-lite-latest` | 0.1 |
-| `gemini-pro-latest` | 1 |
-| `gemini-3-flash` | 0.33 |
-| `gemini-3-flash-preview` | 0.33 |
-| `gemini-3-pro` | 6 |
-| `gemini-3-pro-preview` | 6 |
-| `gemini-3-pro-image-preview` | 6 |
-| `gemini-3.1-pro` | 6 |
-| `gemini-3.1-pro-preview` | 6 |
-| `gemini-3.1-pro-preview-customtools` | 6 |
-| `gemini-3.1-flash-live-preview` | 0.1 |
-| `gemini-3.1-flash-lite` | 0.1 |
-| `gemini-3.1-flash-lite-preview` | 0.1 |
-| `gemini-3.1-flash-image-preview` | 0.33 |
-| `gemini-3.1-flash-tts-preview` | 0.1 |
-| `gemini-3.5-flash` | 14 |
-| `gemini-2.5-computer-use-preview` | 0.2 |
-| `gemini-2.5-computer-use-preview-10-2025` | 0.2 |
-| `gemini-robotics-er-1.5-preview` | 0.2 |
-| `gemini-robotics-er-1.6-preview` | 0.2 |
+| `antigravity-2.5-pro` | 1 |
+| `antigravity-2.5-pro-preview-tts` | 1 |
+| `antigravity-2.5-flash` | 0.2 |
+| `antigravity-2.5-flash-native-audio-latest` | 0.2 |
+| `antigravity-2.5-flash-native-audio-preview-09-2025` | 0.2 |
+| `antigravity-2.5-flash-native-audio-preview-12-2025` | 0.2 |
+| `antigravity-2.5-flash-preview-tts` | 0.2 |
+| `antigravity-2.5-flash-image` | 0.2 |
+| `antigravity-2.5-flash-lite` | 0.1 |
+| `antigravity-2.0-flash` | 0.1 |
+| `antigravity-2.0-flash-001` | 0.1 |
+| `antigravity-2.0-flash-lite` | 0.1 |
+| `antigravity-2.0-flash-lite-001` | 0.1 |
+| `antigravity-1.5-pro` | 1 |
+| `antigravity-1.5-flash` | 0.1 |
+| `antigravity-flash-latest` | 0.2 |
+| `antigravity-flash-lite-latest` | 0.1 |
+| `antigravity-pro-latest` | 1 |
+| `antigravity-3-flash` | 0.33 |
+| `antigravity-3-flash-preview` | 0.33 |
+| `antigravity-3-pro` | 6 |
+| `antigravity-3-pro-preview` | 6 |
+| `antigravity-3-pro-image-preview` | 6 |
+| `antigravity-3.1-pro` | 6 |
+| `antigravity-3.1-pro-preview` | 6 |
+| `antigravity-3.1-pro-preview-customtools` | 6 |
+| `antigravity-3.1-flash-live-preview` | 0.1 |
+| `antigravity-3.1-flash-lite` | 0.1 |
+| `antigravity-3.1-flash-lite-preview` | 0.1 |
+| `antigravity-3.1-flash-image-preview` | 0.33 |
+| `antigravity-3.1-flash-tts-preview` | 0.1 |
+| `antigravity-3.5-flash` | 14 |
+| `antigravity-2.5-computer-use-preview` | 0.2 |
+| `antigravity-2.5-computer-use-preview-10-2025` | 0.2 |
+| `antigravity-robotics-er-1.5-preview` | 0.2 |
+| `antigravity-robotics-er-1.6-preview` | 0.2 |
 
 ### Other
 

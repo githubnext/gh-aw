@@ -2263,13 +2263,13 @@ describe("handle_agent_failure", () => {
       expect(result[0].credential).toContain("ANTHROPIC_API_KEY");
     });
 
-    it("detects Gemini 403 auth rejection via hardcoded fallback", () => {
+    it("detects Antigravity 403 auth rejection via hardcoded fallback", () => {
       const jsonlPath = path.join(tmpDir, "audit.jsonl");
       fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "generativelanguage.googleapis.com:443", status: 403 }));
       const result = parseFirewallAuthErrors(jsonlPath);
       expect(result).toHaveLength(1);
-      expect(result[0].provider).toBe("Google Gemini");
-      expect(result[0].credential).toContain("GEMINI_API_KEY");
+      expect(result[0].provider).toBe("Antigravity");
+      expect(result[0].credential).toContain("ANTIGRAVITY_API_KEY");
     });
 
     it("deduplicates multiple auth errors for the same provider", () => {

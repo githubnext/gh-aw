@@ -678,7 +678,7 @@ func (c *Compiler) generateSummarySteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add firewall log parsing for all firewall-enabled engines.
 	// This replaces the previous per-engine blocks (Copilot, Codex, Claude) and extends
-	// support to all engines (including Gemini) so every agentic workflow uploads audit logs.
+	// support to all engines (including Antigravity) so every agentic workflow uploads audit logs.
 	if isFirewallEnabled(data) {
 		firewallLogParsing := generateFirewallLogParsingStep(data.Name)
 		for _, line := range firewallLogParsing {

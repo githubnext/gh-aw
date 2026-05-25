@@ -25,7 +25,7 @@ require("./shim.cjs");
  * - GITHUB_OUTPUT: Path to GitHub Actions output file
  *
  * Optional:
- * - GH_AW_ENGINE: Engine type (copilot, codex, claude, gemini)
+ * - GH_AW_ENGINE: Engine type (copilot, codex, claude, antigravity)
  * - GH_AW_MCP_CLI_SERVERS: JSON array of server names to exclude from agent config
  */
 
@@ -690,7 +690,7 @@ async function main() {
     copilot: "convert_gateway_config_copilot.cjs",
     codex: "convert_gateway_config_codex.cjs",
     claude: "convert_gateway_config_claude.cjs",
-    gemini: "convert_gateway_config_gemini.cjs",
+    antigravity: "convert_gateway_config_antigravity.cjs",
   };
 
   const converterFile = converters[/** @type {keyof typeof converters} */ engineType];

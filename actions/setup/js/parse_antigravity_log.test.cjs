@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-describe("parse_gemini_log.cjs", () => {
+describe("parse_antigravity_log.cjs", () => {
   let mockCore;
-  let parseGeminiLog, transformGeminiEntries;
+  let parseAntigravityLog, transformAntigravityEntries;
 
   beforeEach(async () => {
     mockCore = {
@@ -19,18 +19,18 @@ describe("parse_gemini_log.cjs", () => {
     };
     global.core = mockCore;
 
-    const module = await import("./parse_gemini_log.cjs?" + Date.now());
-    parseGeminiLog = module.parseGeminiLog;
-    transformGeminiEntries = module.transformGeminiEntries;
+    const module = await import("./parse_antigravity_log.cjs?" + Date.now());
+    parseAntigravityLog = module.parseAntigravityLog;
+    transformAntigravityEntries = module.transformAntigravityEntries;
   });
 
   afterEach(() => {
     delete global.core;
   });
 
-  describe("parseGeminiLog function", () => {
+  describe("parseAntigravityLog function", () => {
     it("should return a default message for empty input", () => {
-      const result = parseGeminiLog("");
+      const result = parseAntigravityLog("");
 
       expect(result.markdown).toContain("No log content provided");
       expect(result.logEntries).toEqual([]);
@@ -39,31 +39,31 @@ describe("parse_gemini_log.cjs", () => {
     });
 
     it("should return error message for null input", () => {
-      const result = parseGeminiLog(null);
+      const result = parseAntigravityLog(null);
 
       expect(result.markdown).toContain("No log content provided");
     });
 
     it("should return unrecognized format message for non-JSON content", () => {
-      const result = parseGeminiLog("plain text log content\nnot json at all");
+      const result = parseAntigravityLog("plain text log content\nnot json at all");
 
-      expect(result.markdown).toContain("Log format not recognized as Gemini JSONL");
+      expect(result.markdown).toContain("Log format not recognized as Antigravity JSONL");
     });
 
     it("should parse init entry and show model in initialization section", () => {
-      const logContent = [JSON.stringify({ type: "init", timestamp: "2026-01-01T00:00:00Z", session_id: "sess-123", model: "gemini-2.0-flash" })].join("\n");
+      const logContent = [JSON.stringify({ type: "init", timestamp: "2026-01-01T00:00:00Z", session_id: "sess-123", model: "antigravity-2.0-flash" })].join("\n");
 
-      const result = parseGeminiLog(logContent);
+      const result = parseAntigravityLog(logContent);
 
       expect(result.markdown).toContain("## 🚀 Initialization");
-      expect(result.markdown).toContain("gemini-2.0-flash");
+      expect(result.markdown).toContain("antigravity-2.0-flash");
       expect(result.markdown).toContain("sess-123");
     });
 
     it("should merge consecutive assistant delta messages into one reasoning block", () => {
       const logContent = [JSON.stringify({ type: "message", role: "assistant", content: "I will analyze", delta: true }), JSON.stringify({ type: "message", role: "assistant", content: " the repository.", delta: true })].join("\n");
 
-      const result = parseGeminiLog(logContent);
+      const result = parseAntigravityLog(logContent);
 
       expect(result.markdown).toContain("## 🤖 Reasoning");
       expect(result.markdown).toContain("I will analyze the repository.");
@@ -75,7 +75,7 @@ describe("parse_gemini_log.cjs", () => {
         JSON.stringify({ type: "tool_result", tool_id: "tool_001", status: "success", output: '{"items":[]}' }),
       ].join("\n");
 
-      const result = parseGeminiLog(logContent);
+      const result = parseAntigravityLog(logContent);
 
       expect(result.markdown).toContain("✅");
       expect(result.markdown).toContain("list_pull_requests");
@@ -87,7 +87,7 @@ describe("parse_gemini_log.cjs", () => {
         JSON.stringify({ type: "tool_result", tool_id: "tool_002", status: "error", output: "Permission denied" }),
       ].join("\n");
 
-      const result = parseGeminiLog(logContent);
+      const result = parseAntigravityLog(logContent);
 
       expect(result.markdown).toContain("❌");
       expect(result.markdown).toContain("create_issue");
@@ -109,7 +109,7 @@ describe("parse_gemini_log.cjs", () => {
         }),
       ].join("\n");
 
-      const result = parseGeminiLog(logContent);
+      const result = parseAntigravityLog(logContent);
 
       expect(result.markdown).toContain("## 📊 Information");
       expect(result.markdown).toContain("900");
@@ -118,7 +118,7 @@ describe("parse_gemini_log.cjs", () => {
 
     it("should parse a complete conversation flow", () => {
       const logContent = [
-        JSON.stringify({ type: "init", timestamp: "2026-01-01T00:00:00Z", session_id: "sess-abc", model: "auto-gemini-3" }),
+        JSON.stringify({ type: "init", timestamp: "2026-01-01T00:00:00Z", session_id: "sess-abc", model: "auto-antigravity-3" }),
         JSON.stringify({ type: "message", role: "user", content: "Please list PRs." }),
         JSON.stringify({ type: "message", role: "assistant", content: "I will list the PRs.", delta: true }),
         JSON.stringify({ type: "tool_use", tool_name: "list_pull_requests", tool_id: "tool_003", parameters: { owner: "github", repo: "gh-aw" } }),
@@ -127,10 +127,10 @@ describe("parse_gemini_log.cjs", () => {
         JSON.stringify({ type: "result", status: "success", stats: { total_tokens: 500, input_tokens: 400, output_tokens: 100, cached: 50, duration_ms: 3000, tool_calls: 1 } }),
       ].join("\n");
 
-      const result = parseGeminiLog(logContent);
+      const result = parseAntigravityLog(logContent);
 
       expect(result.markdown).toContain("## 🚀 Initialization");
-      expect(result.markdown).toContain("auto-gemini-3");
+      expect(result.markdown).toContain("auto-antigravity-3");
       expect(result.markdown).toContain("## 🤖 Reasoning");
       expect(result.markdown).toContain("I will list the PRs.");
       expect(result.markdown).toContain("## 🤖 Commands and Tools");
@@ -142,25 +142,25 @@ describe("parse_gemini_log.cjs", () => {
     });
 
     it("should skip non-JSON lines in the log", () => {
-      const logContent = ["[INFO] Starting agent", JSON.stringify({ type: "init", session_id: "sess-xyz", model: "gemini-pro" }), "[INFO] Agent complete"].join("\n");
+      const logContent = ["[INFO] Starting agent", JSON.stringify({ type: "init", session_id: "sess-xyz", model: "antigravity-pro" }), "[INFO] Agent complete"].join("\n");
 
-      const result = parseGeminiLog(logContent);
+      const result = parseAntigravityLog(logContent);
 
-      expect(result.markdown).toContain("gemini-pro");
+      expect(result.markdown).toContain("antigravity-pro");
       expect(result.markdown).not.toContain("[INFO]");
     });
   });
 
-  describe("transformGeminiEntries function", () => {
+  describe("transformAntigravityEntries function", () => {
     it("should transform init entry to system init format", () => {
-      const raw = [{ type: "init", session_id: "sess-1", model: "gemini-flash" }];
+      const raw = [{ type: "init", session_id: "sess-1", model: "antigravity-flash" }];
 
-      const entries = transformGeminiEntries(raw);
+      const entries = transformAntigravityEntries(raw);
 
       expect(entries).toHaveLength(1);
       expect(entries[0].type).toBe("system");
       expect(entries[0].subtype).toBe("init");
-      expect(entries[0].model).toBe("gemini-flash");
+      expect(entries[0].model).toBe("antigravity-flash");
       expect(entries[0].session_id).toBe("sess-1");
     });
 
@@ -171,7 +171,7 @@ describe("parse_gemini_log.cjs", () => {
         { type: "message", role: "assistant", content: "!", delta: true },
       ];
 
-      const entries = transformGeminiEntries(raw);
+      const entries = transformAntigravityEntries(raw);
 
       expect(entries).toHaveLength(1);
       expect(entries[0].type).toBe("assistant");
@@ -185,7 +185,7 @@ describe("parse_gemini_log.cjs", () => {
         { type: "message", role: "assistant", content: "Second message.", delta: true },
       ];
 
-      const entries = transformGeminiEntries(raw);
+      const entries = transformAntigravityEntries(raw);
 
       const assistantEntries = entries.filter(e => e.type === "assistant" && e.message?.content?.[0]?.type === "text");
       expect(assistantEntries).toHaveLength(2);
@@ -196,7 +196,7 @@ describe("parse_gemini_log.cjs", () => {
     it("should transform tool_use to assistant entry", () => {
       const raw = [{ type: "tool_use", tool_name: "search_code", tool_id: "tool_abc", parameters: { query: "test" } }];
 
-      const entries = transformGeminiEntries(raw);
+      const entries = transformAntigravityEntries(raw);
 
       expect(entries).toHaveLength(1);
       expect(entries[0].type).toBe("assistant");
@@ -209,7 +209,7 @@ describe("parse_gemini_log.cjs", () => {
     it("should transform tool_result to user entry with success status", () => {
       const raw = [{ type: "tool_result", tool_id: "tool_abc", status: "success", output: "result data" }];
 
-      const entries = transformGeminiEntries(raw);
+      const entries = transformAntigravityEntries(raw);
 
       expect(entries).toHaveLength(1);
       expect(entries[0].type).toBe("user");
@@ -222,7 +222,7 @@ describe("parse_gemini_log.cjs", () => {
     it("should transform tool_result to user entry with error status", () => {
       const raw = [{ type: "tool_result", tool_id: "tool_xyz", status: "error", output: "Something went wrong" }];
 
-      const entries = transformGeminiEntries(raw);
+      const entries = transformAntigravityEntries(raw);
 
       expect(entries[0].message.content[0].is_error).toBe(true);
     });
@@ -233,7 +233,7 @@ describe("parse_gemini_log.cjs", () => {
         { type: "result", status: "success", stats: {} },
       ];
 
-      const entries = transformGeminiEntries(raw);
+      const entries = transformAntigravityEntries(raw);
 
       expect(entries).toHaveLength(0);
     });
@@ -245,7 +245,7 @@ describe("parse_gemini_log.cjs", () => {
         { type: "message", role: "assistant", content: "Valid content", delta: true },
       ];
 
-      const entries = transformGeminiEntries(raw);
+      const entries = transformAntigravityEntries(raw);
 
       expect(entries).toHaveLength(1);
       expect(entries[0].message.content[0].text).toBe("Valid content");
@@ -254,7 +254,7 @@ describe("parse_gemini_log.cjs", () => {
     it("should serialize non-string tool_result output as JSON", () => {
       const raw = [{ type: "tool_result", tool_id: "t1", status: "success", output: { items: [1, 2] } }];
 
-      const entries = transformGeminiEntries(raw);
+      const entries = transformAntigravityEntries(raw);
 
       expect(entries[0].message.content[0].content).toBe('{"items":[1,2]}');
     });

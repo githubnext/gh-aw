@@ -31,7 +31,7 @@ This document compares the syntax of mdflow and GitHub Agentic Workflows (gh-aw)
 
 ```markdown
 review.claude.md      # Runs: claude --print "..."
-commit.gemini.md      # Runs: gemini "..."
+commit.antigravity.md      # Runs: antigravity "..."
 task.copilot.md       # Runs: copilot --silent --prompt "..."
 explain.i.claude.md   # Runs: claude "..." (interactive)
 ```
@@ -291,7 +291,7 @@ mdflow task.claude.md --_interactive
 **Per-Command Behavior**:
 - Claude: `--print` flag for print mode
 - Copilot: `--silent --prompt` for print mode
-- Gemini: One-shot by default
+- Antigravity: One-shot by default
 
 ### GitHub Agentic Workflows
 
@@ -519,7 +519,7 @@ commands:
 
 **Example Workflows**:
 - `review.claude.md` - Review current code changes
-- `commit.gemini.md` - Generate commit messages
+- `commit.antigravity.md` - Generate commit messages
 - `explain.claude.md` - Explain complex code
 - `debug.claude.md` - Debug issues interactively
 
@@ -581,7 +581,7 @@ commands:
 
 **Extensibility**:
 - Custom MCP servers via `mcp-config`
-- Any CLI AI tool (claude, gemini, copilot, codex)
+- Any CLI AI tool (claude, antigravity, copilot, codex)
 - Shell command inlines
 - File imports from anywhere
 - Template system for dynamic prompts

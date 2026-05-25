@@ -405,9 +405,9 @@ case "$ENGINE_TYPE" in
     echo "Using Claude converter..."
     node "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_claude.cjs"
     ;;
-  gemini)
-    echo "Using Gemini converter..."
-    node "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_gemini.cjs"
+  antigravity)
+    echo "Using Antigravity converter..."
+    node "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_antigravity.cjs"
     ;;
   crush)
     echo "Using Crush converter..."

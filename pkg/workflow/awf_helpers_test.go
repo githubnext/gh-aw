@@ -1307,9 +1307,9 @@ func TestAWFSupportsTokenSteering(t *testing.T) {
 	}
 }
 
-// TestGetGeminiAPITarget tests the GetGeminiAPITarget helper that resolves the effective
-// Gemini API target from GEMINI_API_BASE_URL in engine.env or the default endpoint.
-func TestGetGeminiAPITarget(t *testing.T) {
+// TestGetAntigravityAPITarget tests the GetAntigravityAPITarget helper that resolves the effective
+// Antigravity API target from ANTIGRAVITY_API_BASE_URL in engine.env or the default endpoint.
+func TestGetAntigravityAPITarget(t *testing.T) {
 	tests := []struct {
 		name         string
 		workflowData *WorkflowData
@@ -1317,30 +1317,30 @@ func TestGetGeminiAPITarget(t *testing.T) {
 		expected     string
 	}{
 		{
-			name: "returns default target for gemini engine with no custom URL",
+			name: "returns default target for antigravity engine with no custom URL",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
-					ID: "gemini",
+					ID: "antigravity",
 				},
 			},
-			engineName: "gemini",
+			engineName: "antigravity",
 			expected:   "generativelanguage.googleapis.com",
 		},
 		{
-			name: "custom GEMINI_API_BASE_URL takes precedence over default",
+			name: "custom ANTIGRAVITY_API_BASE_URL takes precedence over default",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
-					ID: "gemini",
+					ID: "antigravity",
 					Env: map[string]string{
-						"GEMINI_API_BASE_URL": "https://gemini-proxy.internal.company.com/v1",
+						"ANTIGRAVITY_API_BASE_URL": "https://antigravity-proxy.internal.company.com/v1",
 					},
 				},
 			},
-			engineName: "gemini",
-			expected:   "gemini-proxy.internal.company.com",
+			engineName: "antigravity",
+			expected:   "antigravity-proxy.internal.company.com",
 		},
 		{
-			name: "returns empty for non-gemini engine without custom URL",
+			name: "returns empty for non-antigravity engine without custom URL",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
 					ID: "claude",
@@ -1352,16 +1352,16 @@ func TestGetGeminiAPITarget(t *testing.T) {
 		{
 			name:         "returns empty when workflowData is nil",
 			workflowData: nil,
-			engineName:   "gemini",
+			engineName:   "antigravity",
 			expected:     "generativelanguage.googleapis.com",
 		},
 		{
-			name: "returns custom target for non-gemini engine with GEMINI_API_BASE_URL",
+			name: "returns custom target for non-antigravity engine with ANTIGRAVITY_API_BASE_URL",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
 					ID: "custom",
 					Env: map[string]string{
-						"GEMINI_API_BASE_URL": "https://custom-proxy.example.com",
+						"ANTIGRAVITY_API_BASE_URL": "https://custom-proxy.example.com",
 					},
 				},
 			},
@@ -1372,20 +1372,20 @@ func TestGetGeminiAPITarget(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GetGeminiAPITarget(tt.workflowData, tt.engineName)
-			assert.Equal(t, tt.expected, result, "GetGeminiAPITarget should return expected hostname")
+			result := GetAntigravityAPITarget(tt.workflowData, tt.engineName)
+			assert.Equal(t, tt.expected, result, "GetAntigravityAPITarget should return expected hostname")
 		})
 	}
 }
 
-// TestAWFGeminiAPITargetFlags tests that BuildAWFConfigJSON includes --gemini target
-// for the Gemini engine with default and custom endpoints, while base paths remain CLI flags.
-func TestAWFGeminiAPITargetFlags(t *testing.T) {
-	t.Run("includes default gemini target in config JSON for gemini engine", func(t *testing.T) {
+// TestAWFAntigravityAPITargetFlags tests that BuildAWFConfigJSON includes --antigravity target
+// for the Antigravity engine with default and custom endpoints, while base paths remain CLI flags.
+func TestAWFAntigravityAPITargetFlags(t *testing.T) {
+	t.Run("includes default antigravity target in config JSON for antigravity engine", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
-				ID: "gemini",
+				ID: "antigravity",
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{
@@ -1395,30 +1395,30 @@ func TestAWFGeminiAPITargetFlags(t *testing.T) {
 		}
 
 		config := AWFCommandConfig{
-			EngineName:     "gemini",
+			EngineName:     "antigravity",
 			WorkflowData:   workflowData,
 			AllowedDomains: "github.com",
 		}
 
-		// Gemini target is in the JSON config, not in CLI args
+		// Antigravity target is in the JSON config, not in CLI args
 		awfConfigJSON, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
-		assert.Contains(t, awfConfigJSON, `"gemini"`, "Should include gemini target in config JSON")
-		assert.Contains(t, awfConfigJSON, "generativelanguage.googleapis.com", "Should include default Gemini API hostname")
+		assert.Contains(t, awfConfigJSON, `"antigravity"`, "Should include antigravity target in config JSON")
+		assert.Contains(t, awfConfigJSON, "generativelanguage.googleapis.com", "Should include default Antigravity API hostname")
 
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
-		assert.NotContains(t, argsStr, "--gemini-api-target", "Should not emit --gemini-api-target as CLI flag")
+		assert.NotContains(t, argsStr, "--antigravity-api-target", "Should not emit --antigravity-api-target as CLI flag")
 	})
 
-	t.Run("includes custom gemini target in config JSON when GEMINI_API_BASE_URL is configured", func(t *testing.T) {
+	t.Run("includes custom antigravity target in config JSON when ANTIGRAVITY_API_BASE_URL is configured", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
-				ID: "gemini",
+				ID: "antigravity",
 				Env: map[string]string{
-					"GEMINI_API_BASE_URL": "https://gemini-proxy.internal.company.com/v1",
-					"GEMINI_API_KEY":      "${{ secrets.GEMINI_PROXY_KEY }}",
+					"ANTIGRAVITY_API_BASE_URL": "https://antigravity-proxy.internal.company.com/v1",
+					"ANTIGRAVITY_API_KEY":      "${{ secrets.GEMINI_PROXY_KEY }}",
 				},
 			},
 			NetworkPermissions: &NetworkPermissions{
@@ -1429,22 +1429,22 @@ func TestAWFGeminiAPITargetFlags(t *testing.T) {
 		}
 
 		config := AWFCommandConfig{
-			EngineName:     "gemini",
+			EngineName:     "antigravity",
 			WorkflowData:   workflowData,
 			AllowedDomains: "github.com",
 		}
 
 		awfConfigJSON, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
-		assert.Contains(t, awfConfigJSON, `"gemini"`, "Should include gemini target in config JSON")
-		assert.Contains(t, awfConfigJSON, "gemini-proxy.internal.company.com", "Should include custom Gemini hostname")
+		assert.Contains(t, awfConfigJSON, `"antigravity"`, "Should include antigravity target in config JSON")
+		assert.Contains(t, awfConfigJSON, "antigravity-proxy.internal.company.com", "Should include custom Antigravity hostname")
 
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
-		assert.NotContains(t, argsStr, "--gemini-api-target", "Should not emit --gemini-api-target as CLI flag")
+		assert.NotContains(t, argsStr, "--antigravity-api-target", "Should not emit --antigravity-api-target as CLI flag")
 	})
 
-	t.Run("does not include gemini target for non-gemini engine without custom URL", func(t *testing.T) {
+	t.Run("does not include antigravity target for non-antigravity engine without custom URL", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -1465,21 +1465,21 @@ func TestAWFGeminiAPITargetFlags(t *testing.T) {
 
 		awfConfigJSON, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
-		assert.NotContains(t, awfConfigJSON, `"gemini"`, "Should not include gemini target for non-gemini engine")
+		assert.NotContains(t, awfConfigJSON, `"antigravity"`, "Should not include antigravity target for non-antigravity engine")
 
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
-		assert.NotContains(t, argsStr, "--gemini-api-target", "Should not include --gemini-api-target for non-gemini engine")
+		assert.NotContains(t, argsStr, "--antigravity-api-target", "Should not include --antigravity-api-target for non-antigravity engine")
 	})
 
-	t.Run("includes gemini-api-base-path when custom URL has path component", func(t *testing.T) {
+	t.Run("includes antigravity-api-base-path when custom URL has path component", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
-				ID: "gemini",
+				ID: "antigravity",
 				Env: map[string]string{
-					"GEMINI_API_BASE_URL": "https://gemini-proxy.company.com/serving-endpoints",
-					"GEMINI_API_KEY":      "${{ secrets.GEMINI_PROXY_KEY }}",
+					"ANTIGRAVITY_API_BASE_URL": "https://antigravity-proxy.company.com/serving-endpoints",
+					"ANTIGRAVITY_API_KEY":      "${{ secrets.GEMINI_PROXY_KEY }}",
 				},
 			},
 			NetworkPermissions: &NetworkPermissions{
@@ -1490,7 +1490,7 @@ func TestAWFGeminiAPITargetFlags(t *testing.T) {
 		}
 
 		config := AWFCommandConfig{
-			EngineName:     "gemini",
+			EngineName:     "antigravity",
 			WorkflowData:   workflowData,
 			AllowedDomains: "github.com",
 		}
@@ -1499,18 +1499,18 @@ func TestAWFGeminiAPITargetFlags(t *testing.T) {
 		argsStr := strings.Join(args, " ")
 
 		// Base path remains as a CLI flag (not in config file schema yet)
-		assert.Contains(t, argsStr, "--gemini-api-base-path", "Should include --gemini-api-base-path flag")
+		assert.Contains(t, argsStr, "--antigravity-api-base-path", "Should include --antigravity-api-base-path flag")
 		assert.Contains(t, argsStr, "/serving-endpoints", "Should include the path component")
 	})
 }
 
-// TestGeminiEngineIncludesGeminiAPITarget tests that the Gemini engine execution
-// step includes the gemini API target in the JSON config when firewall is enabled.
-func TestGeminiEngineIncludesGeminiAPITarget(t *testing.T) {
+// TestAntigravityEngineIncludesAntigravityAPITarget tests that the Antigravity engine execution
+// step includes the antigravity API target in the JSON config when firewall is enabled.
+func TestAntigravityEngineIncludesAntigravityAPITarget(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			ID: "gemini",
+			ID: "antigravity",
 		},
 		NetworkPermissions: &NetworkPermissions{
 			Firewall: &FirewallConfig{
@@ -1519,20 +1519,20 @@ func TestGeminiEngineIncludesGeminiAPITarget(t *testing.T) {
 		},
 	}
 
-	engine := NewGeminiEngine()
+	engine := NewAntigravityEngine()
 	steps := engine.GetExecutionSteps(workflowData, "test.log")
 
 	if len(steps) < 2 {
 		t.Fatal("Expected at least two execution steps (settings + execution)")
 	}
 
-	// steps[0] = Write Gemini Config, steps[1] = Execute Gemini CLI
+	// steps[0] = Write Antigravity Config, steps[1] = Execute Antigravity CLI
 	stepContent := strings.Join(steps[1], "\n")
 
-	// With config file support, Gemini target is in the JSON config (not as CLI flag)
-	assert.Contains(t, stepContent, `"gemini"`, "Should include gemini target in config JSON")
-	assert.Contains(t, stepContent, "generativelanguage.googleapis.com", "Should include default Gemini API hostname")
-	assert.NotContains(t, stepContent, "--gemini-api-target", "Should not emit --gemini-api-target as CLI flag")
+	// With config file support, Antigravity target is in the JSON config (not as CLI flag)
+	assert.Contains(t, stepContent, `"antigravity"`, "Should include antigravity target in config JSON")
+	assert.Contains(t, stepContent, "generativelanguage.googleapis.com", "Should include default Antigravity API hostname")
+	assert.NotContains(t, stepContent, "--antigravity-api-target", "Should not emit --antigravity-api-target as CLI flag")
 }
 
 func TestBuildAWFImageTagWithDigests(t *testing.T) {

@@ -54,7 +54,7 @@ func TestFindFrontmatterFieldLine(t *testing.T) {
 		},
 		{
 			name:             "frontmatter starts later in the document",
-			frontmatterLines: []string{"on: push", "engine: gemini"},
+			frontmatterLines: []string{"on: push", "engine: antigravity"},
 			frontmatterStart: 10,
 			fieldName:        "engine",
 			expectedDocLine:  11, // frontmatterStart + 1

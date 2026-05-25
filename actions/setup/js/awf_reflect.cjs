@@ -8,7 +8,7 @@
  * model information without needing the containers to still be running.
  *
  * Provides model-ID parsing helpers that understand the response formats used by all
- * supported providers (OpenAI / Anthropic / Copilot and Gemini).
+ * supported providers (OpenAI / Anthropic / Copilot and Antigravity).
  *
  * Exported by: copilot_harness.cjs, claude_harness.cjs (and any future agent harnesses)
  */
@@ -38,9 +38,9 @@ const AWF_MODELS_URL_MAX_ATTEMPTS = 5;
 const AWF_MODELS_URL_RETRY_BASE_MS = 250;
 // Cap for exponential backoff delay between retries.
 const AWF_MODELS_URL_RETRY_MAX_MS = 2000;
-// Gemini model name prefix stripped from model IDs in the Gemini models API response.
-// Example: { name: "models/gemini-1.5-pro" } → "gemini-1.5-pro"
-const GEMINI_MODEL_NAME_PREFIX = "models/";
+// Antigravity model name prefix stripped from model IDs in the Antigravity models API response.
+// Example: { name: "models/antigravity-1.5-pro" } → "antigravity-1.5-pro"
+const ANTIGRAVITY_MODEL_NAME_PREFIX = "models/";
 
 // Default logger used by fetchAWFReflect when no logger is provided via options.
 // All lines are prefixed with "[awf-reflect]" for easy grepping in combined logs.
@@ -52,7 +52,7 @@ const DEFAULT_REFLECT_LOGGER = /** @type {(msg: string) => void} */ (msg => proc
  *
  * Handles:
  *   - OpenAI / Anthropic / Copilot format: { data: [{ id: "..." }, ...] }
- *   - Gemini format: { models: [{ name: "models/gemini-1.5-pro" }, ...] }
+ *   - Antigravity format: { models: [{ name: "models/antigravity-1.5-pro" }, ...] }
  *
  * @param {object|null} json - Parsed API response
  * @returns {string[]|null} Sorted array of model IDs, or null if unavailable
@@ -66,14 +66,14 @@ function extractModelIds(json) {
     return ids.length > 0 ? ids.sort() : null;
   }
 
-  // Gemini format: { models: [{ name: "models/gemini-1.5-pro", ... }, ...] }
+  // Antigravity format: { models: [{ name: "models/antigravity-1.5-pro", ... }, ...] }
   if (Array.isArray(json.models)) {
     const ids = json.models
       .map(m => {
         if (!m) return null;
         const name = m.name || null;
         if (!name) return null;
-        return name.startsWith(GEMINI_MODEL_NAME_PREFIX) ? name.slice(GEMINI_MODEL_NAME_PREFIX.length) : name;
+        return name.startsWith(ANTIGRAVITY_MODEL_NAME_PREFIX) ? name.slice(ANTIGRAVITY_MODEL_NAME_PREFIX.length) : name;
       })
       .filter(Boolean);
     return ids.length > 0 ? ids.sort() : null;
@@ -309,7 +309,7 @@ if (typeof module !== "undefined" && module.exports) {
     AWF_MODELS_URL_MAX_ATTEMPTS,
     AWF_MODELS_URL_RETRY_BASE_MS,
     AWF_MODELS_URL_RETRY_MAX_MS,
-    GEMINI_MODEL_NAME_PREFIX,
+    ANTIGRAVITY_MODEL_NAME_PREFIX,
     enrichReflectModels,
     extractModelIds,
     fetchAWFReflect,

@@ -10,7 +10,7 @@
 
 ### Context
 
-The `sandbox.agent` configuration in gh-aw workflow files allows users to customize the AWF (Agent Workflow Firewall) sandbox that isolates agent execution. A user can specify just a version pin — for example `{ version: "v0.25.29" }` — without providing an explicit `id` or `type` field, intending to use the AWF sandbox at a specific version. However, `getAgentType()` returns an empty string when neither `ID` nor `Type` is set on `AgentSandboxConfig`, and `isSupportedSandboxType("")` returns `false`, which caused `isSandboxEnabled()` to return `false`. This silently disabled the AWF firewall and ran the agent on the host runner, breaking MCP connectivity (the "smoke-gemini" incident). `applySandboxDefaults` only defaulted the agent type to AWF for a `nil` agent config, not for a non-nil agent config with an empty type.
+The `sandbox.agent` configuration in gh-aw workflow files allows users to customize the AWF (Agent Workflow Firewall) sandbox that isolates agent execution. A user can specify just a version pin — for example `{ version: "v0.25.29" }` — without providing an explicit `id` or `type` field, intending to use the AWF sandbox at a specific version. However, `getAgentType()` returns an empty string when neither `ID` nor `Type` is set on `AgentSandboxConfig`, and `isSupportedSandboxType("")` returns `false`, which caused `isSandboxEnabled()` to return `false`. This silently disabled the AWF firewall and ran the agent on the host runner, breaking MCP connectivity (the "smoke-antigravity" incident). `applySandboxDefaults` only defaulted the agent type to AWF for a `nil` agent config, not for a non-nil agent config with an empty type.
 
 ### Decision
 

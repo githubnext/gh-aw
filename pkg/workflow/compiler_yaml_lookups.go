@@ -107,7 +107,7 @@ func getDefaultAgentModel(engineID string) string {
 	switch engineID {
 	case "copilot":
 		return constants.CopilotBYOKDefaultModel
-	case "claude", "gemini", "opencode", "crush", "pi":
+	case "claude", "antigravity", "opencode", "crush", "pi":
 		return "agent"
 	case "codex":
 		return constants.CodexDefaultModel

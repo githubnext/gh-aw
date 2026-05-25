@@ -168,7 +168,7 @@ Inline sub-agents are secondary agent definitions embedded in the same markdown 
 | `ValidateInlineSubAgentsFrontmatter` | `func(markdown string) []string` | Validates inline sub-agent frontmatter in a full workflow file (strips top-level frontmatter first); returns advisory warning strings |
 | `ValidateInlineSubAgentsInBody` | `func(body string) []string` | Validates inline sub-agent frontmatter in an already-stripped markdown body |
 | `GetEngineSubAgentDir` | `func(engineID string) string` | Returns the relative directory used for sub-agent files for a given engine (`claude` → `.claude/agents`, etc.) |
-| `GetEngineSubAgentExt` | `func(engineID string) string` | Returns the file extension for sub-agent files for a given engine (`.md` for `claude`/`codex`/`gemini`, `.agent.md` otherwise) |
+| `GetEngineSubAgentExt` | `func(engineID string) string` | Returns the file extension for sub-agent files for a given engine (`.md` for `claude`/`codex`/`antigravity`, `.agent.md` otherwise) |
 
 #### Virtual Filesystem and Workflow Update Helpers
 

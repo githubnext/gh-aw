@@ -44,25 +44,25 @@ func TestGetEngineArtifactPaths_WithOutputFiles(t *testing.T) {
 	}
 }
 
-// TestGetEngineArtifactPaths_GeminiEngine verifies Gemini wildcard paths are preserved.
-func TestGetEngineArtifactPaths_GeminiEngine(t *testing.T) {
-	geminiEngine := NewGeminiEngine()
-	paths := getEngineArtifactPaths(geminiEngine)
+// TestGetEngineArtifactPaths_AntigravityEngine verifies Antigravity wildcard paths are preserved.
+func TestGetEngineArtifactPaths_AntigravityEngine(t *testing.T) {
+	antigravityEngine := NewAntigravityEngine()
+	paths := getEngineArtifactPaths(antigravityEngine)
 
-	require.NotNil(t, paths, "Gemini engine should have artifact paths")
+	require.NotNil(t, paths, "Antigravity engine should have artifact paths")
 
-	// Gemini declares the client-error wildcard log
+	// Antigravity declares the client-error wildcard log
 	wildcardFound := false
 	for _, p := range paths {
-		if strings.Contains(p, "gemini-client-error") {
+		if strings.Contains(p, "antigravity-client-error") {
 			wildcardFound = true
 			break
 		}
 	}
-	assert.True(t, wildcardFound, "Gemini artifact paths should include gemini-client-error wildcard")
+	assert.True(t, wildcardFound, "Antigravity artifact paths should include antigravity-client-error wildcard")
 
 	// Redacted URLs log should be present
-	assert.Contains(t, paths, RedactedURLsLogPath, "RedactedURLsLogPath should be present in Gemini artifact paths")
+	assert.Contains(t, paths, RedactedURLsLogPath, "RedactedURLsLogPath should be present in Antigravity artifact paths")
 }
 
 // TestGenerateEngineOutputCleanup_NoOutputFiles verifies that engines with no declared

@@ -71,21 +71,21 @@ func TestGenerateSchemaBasedSuggestions(t *testing.T) {
 		},
 		{
 			name:               "enum violation with close match suggests Did you mean",
-			errorMessage:       "value must be one of 'claude', 'codex', 'copilot', 'gemini'",
+			errorMessage:       "value must be one of 'claude', 'codex', 'copilot', 'antigravity'",
 			jsonPath:           "/engine",
 			frontmatterContent: "engine: coplit\n",
 			wantContains:       []string{"Did you mean", "copilot"},
 		},
 		{
 			name:               "enum violation with no user value returns empty",
-			errorMessage:       "value must be one of 'claude', 'codex', 'copilot', 'gemini'",
+			errorMessage:       "value must be one of 'claude', 'codex', 'copilot', 'antigravity'",
 			jsonPath:           "/engine",
 			frontmatterContent: "",
 			wantEmpty:          true,
 		},
 		{
 			name:               "enum violation with no close match returns empty",
-			errorMessage:       "value must be one of 'claude', 'codex', 'copilot', 'gemini'",
+			errorMessage:       "value must be one of 'claude', 'codex', 'copilot', 'antigravity'",
 			jsonPath:           "/engine",
 			frontmatterContent: "engine: xyz123\n",
 			wantEmpty:          true,
@@ -327,8 +327,8 @@ func TestExtractEnumValuesFromError(t *testing.T) {
 	}{
 		{
 			name:  "engine enum values",
-			input: "value must be one of 'claude', 'codex', 'copilot', 'gemini'",
-			want:  []string{"claude", "codex", "copilot", "gemini"},
+			input: "value must be one of 'claude', 'codex', 'copilot', 'antigravity'",
+			want:  []string{"claude", "codex", "copilot", "antigravity"},
 		},
 		{
 			name:  "permissions enum values",

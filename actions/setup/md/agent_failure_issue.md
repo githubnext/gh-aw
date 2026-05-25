@@ -13,7 +13,7 @@
 <details>
 <summary>Debug with any coding agent</summary>
 
-Use this prompt with any coding agent (GitHub Copilot, Claude, Gemini, etc.):
+Use this prompt with any coding agent (GitHub Copilot, Claude, Antigravity, etc.):
 
 ````
 Debug the agentic workflow failure using https://raw.githubusercontent.com/github/gh-aw/main/debug.md

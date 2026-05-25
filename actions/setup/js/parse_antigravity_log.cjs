@@ -4,14 +4,14 @@
 const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse } = require("./log_parser_shared.cjs");
 
 const main = createEngineLogParser({
-  parserName: "Gemini",
-  parseFunction: parseGeminiLog,
+  parserName: "Antigravity",
+  parseFunction: parseAntigravityLog,
   supportsDirectories: false,
 });
 
 /**
- * Parse Gemini CLI JSONL log output and format as markdown.
- * Gemini CLI outputs one JSON object per line (JSONL) with typed entries:
+ * Parse Antigravity CLI JSONL log output and format as markdown.
+ * Antigravity CLI outputs one JSON object per line (JSONL) with typed entries:
  * - type "init": session initialization with model and session_id
  * - type "message": user/assistant messages, assistant uses delta:true for streaming chunks
  * - type "tool_use": tool invocations with tool_name, tool_id, and parameters
@@ -20,10 +20,10 @@ const main = createEngineLogParser({
  * @param {string} logContent - The raw log content to parse
  * @returns {{markdown: string, logEntries: Array, mcpFailures: Array<string>, maxTurnsHit: boolean}} Parsed log data
  */
-function parseGeminiLog(logContent) {
+function parseAntigravityLog(logContent) {
   if (!logContent) {
     return {
-      markdown: "## 🤖 Gemini\n\nNo log content provided.\n\n",
+      markdown: "## 🤖 Antigravity\n\nNo log content provided.\n\n",
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,
@@ -47,15 +47,15 @@ function parseGeminiLog(logContent) {
 
   if (rawEntries.length === 0) {
     return {
-      markdown: "## 🤖 Gemini\n\nLog format not recognized as Gemini JSONL.\n\n",
+      markdown: "## 🤖 Antigravity\n\nLog format not recognized as Antigravity JSONL.\n\n",
       logEntries: [],
       mcpFailures: [],
       maxTurnsHit: false,
     };
   }
 
-  // Transform Gemini JSONL entries into canonical logEntries format
-  const logEntries = transformGeminiEntries(rawEntries);
+  // Transform Antigravity JSONL entries into canonical logEntries format
+  const logEntries = transformAntigravityEntries(rawEntries);
 
   // Extract the final result entry for stats
   const resultEntry = rawEntries.find(e => e.type === "result");
@@ -68,7 +68,7 @@ function parseGeminiLog(logContent) {
 
   let markdown = conversationResult.markdown;
 
-  // Add Information section using Gemini-specific stats from the result entry
+  // Add Information section using Antigravity-specific stats from the result entry
   if (resultEntry && resultEntry.stats) {
     const stats = resultEntry.stats;
     const syntheticEntry = {
@@ -104,10 +104,10 @@ function isConsecutiveDeltaEntry(entry) {
 }
 
 /**
- * Transforms raw Gemini JSONL entries into the canonical logEntries format
+ * Transforms raw Antigravity JSONL entries into the canonical logEntries format
  * used by the shared generateConversationMarkdown function.
  *
- * Gemini entry types and their canonical mappings:
+ * Antigravity entry types and their canonical mappings:
  * - "init" → {type:"system", subtype:"init", model, session_id}
  * - "message" (assistant, delta:true) → merged into {type:"assistant", message:{content:[{type:"text"}]}}
  * - "tool_use" → {type:"assistant", message:{content:[{type:"tool_use", id, name, input}]}}
@@ -116,7 +116,7 @@ function isConsecutiveDeltaEntry(entry) {
  * @param {Array<any>} rawEntries - Raw parsed JSONL entries
  * @returns {Array<any>} Canonical log entries for generateConversationMarkdown
  */
-function transformGeminiEntries(rawEntries) {
+function transformAntigravityEntries(rawEntries) {
   /** @type {Array<any>} */
   const entries = [];
 
@@ -184,7 +184,7 @@ function transformGeminiEntries(rawEntries) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     main,
-    parseGeminiLog,
-    transformGeminiEntries,
+    parseAntigravityLog,
+    transformAntigravityEntries,
   };
 }

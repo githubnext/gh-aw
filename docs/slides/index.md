@@ -240,7 +240,7 @@ Analyze issue and break down into implementation tasks
 - **GitHub Copilot CLI** (default, recommended)
 - **Claude Code**
 - **OpenAI Codex**
-- **Google Gemini CLI**
+- **Antigravity CLI**
 - **Crush** / **OpenCode** — experimental multi-provider AI coding agents
 
 ```yaml

@@ -442,7 +442,7 @@ Examples of version extraction:
 | `copilot/claude-opus-4` | `4` |
 | `copilot/claude-sonnet-4.5-20250514` | `4.5` (scans to find last numeric sequence pattern; date portion treated separately — see §8.4.2) |
 | `openai/gpt-5` | `5` |
-| `copilot/gemini-2.5-pro` | `2.5` |
+| `copilot/antigravity-2.5-pro` | `2.5` |
 | `copilot/model-without-version` | `0.0.0` |
 
 #### 8.4.2 Semver Comparison
@@ -539,24 +539,24 @@ AWF ships the following builtin aliases. Workflow frontmatter definitions (and i
 | `gpt-5-nano` | `copilot/gpt-5*nano*`, `openai/gpt-5*nano*` |
 | `gpt-5-codex` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*` |
 | `reasoning` | `copilot/o1*`, `copilot/o3*`, `copilot/o4*`, `openai/o1*`, `openai/o3*`, `openai/o4*` |
-| `gemini-flash` | `copilot/gemini-*flash*`, `google/gemini-*flash*` |
-| `gemini-flash-lite` | `copilot/gemini-*flash*lite*`, `google/gemini-*flash*lite*`, `gemini/gemini-*flash*lite*` |
-| `gemini-pro` | `copilot/gemini-*pro*`, `google/gemini-*pro*` |
+| `antigravity-flash` | `copilot/antigravity-*flash*`, `google/antigravity-*flash*` |
+| `antigravity-flash-lite` | `copilot/antigravity-*flash*lite*`, `google/antigravity-*flash*lite*`, `antigravity/antigravity-*flash*lite*` |
+| `antigravity-pro` | `copilot/antigravity-*pro*`, `google/antigravity-*pro*` |
 
 ### 9.2 Meta-Aliases
 
 | Alias | Resolves to (in order) |
 |-------|------------------------|
 | `small` | `mini` |
-| `mini` | `haiku`, `gpt-5-mini`, `gpt-5-nano`, `gemini-flash-lite` |
-| `large` | `sonnet`, `gpt-5`, `gemini-pro` |
+| `mini` | `haiku`, `gpt-5-mini`, `gpt-5-nano`, `antigravity-flash-lite` |
+| `large` | `sonnet`, `gpt-5`, `antigravity-pro` |
 | `auto` | `large` |
-| `any` | `copilot/*`, `anthropic/*`, `openai/*`, `google/*`, `gemini/*` |
-| `agent` | `sonnet-6x`, `gpt-5.4`, `gpt-5`, `gemini-pro`, `haiku`, `any` |
+| `any` | `copilot/*`, `anthropic/*`, `openai/*`, `google/*`, `antigravity/*` |
+| `agent` | `sonnet-6x`, `gpt-5.4`, `gpt-5`, `antigravity-pro`, `haiku`, `any` |
 | `copilot` | `agent`, `gpt-5.4`, `sonnet`, `gpt-5`, `any` |
 | `claude` | `agent`, `sonnet-6x`, `haiku`, `any` |
 | `codex` | `agent`, `gpt-5-codex`, `gpt-5`, `any` |
-| `gemini` | `agent`, `gemini-pro`, `gemini-flash`, `any` |
+| `antigravity` | `agent`, `antigravity-pro`, `antigravity-flash`, `any` |
 
 Meta-aliases reference other aliases and are resolved recursively. They allow workflow authors to express capability tiers (`mini`, `large`) without committing to a specific vendor.
 

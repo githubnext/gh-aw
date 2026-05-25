@@ -43,8 +43,8 @@ func TestValidateEngine(t *testing.T) {
 			expectErr: false,
 		},
 		{
-			name:      "valid gemini engine",
-			engine:    "gemini",
+			name:      "valid antigravity engine",
+			engine:    "antigravity",
 			expectErr: false,
 		},
 		{

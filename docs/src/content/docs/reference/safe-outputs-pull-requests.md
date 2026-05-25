@@ -402,7 +402,7 @@ The following are always protected regardless of policy (unless explicitly exclu
 
 - **Package manifests**: `package.json`, `go.mod`, `go.sum`, `Gemfile`, `Pipfile`, `pyproject.toml`, and other runtime lockfiles.
 - **Security configuration**: `CODEOWNERS`, `DESIGN.md`.
-- **Agent instruction files**: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and other engine-specific instruction files.
+- **Agent instruction files**: `AGENTS.md`, `CLAUDE.md`, `ANTIGRAVITY.md`, and other engine-specific instruction files.
 - **Common top-level documentation**: `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`. These files are frequently imported by agents as context, so they are protected by default.
 - **Specific protected directories**: `.github/`, `.agents/`, `.githooks/`, `.husky/`.
 - **Any top-level directory starting with `.`**: for example `.cursor/`, `.vscode/`, `.devcontainer/`, or any other hidden configuration directory at the repository root. This rule catches newly-created dot-directories without requiring an explicit list update.

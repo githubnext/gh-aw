@@ -173,7 +173,7 @@ func validateSubAgentFrontmatterFields(agent InlineSubAgent) []string {
 //
 //	claude   → .claude/agents
 //	codex    → .codex/agents
-//	gemini   → .gemini/agents
+//	antigravity   → .antigravity/agents
 //	others   → .github/agents  (Copilot default)
 func GetEngineSubAgentDir(engineID string) string {
 	switch strings.ToLower(engineID) {
@@ -181,8 +181,8 @@ func GetEngineSubAgentDir(engineID string) string {
 		return ".claude/agents"
 	case "codex":
 		return ".codex/agents"
-	case "gemini":
-		return ".gemini/agents"
+	case "antigravity":
+		return ".antigravity/agents"
 	default:
 		return ".github/agents"
 	}
@@ -191,11 +191,11 @@ func GetEngineSubAgentDir(engineID string) string {
 // GetEngineSubAgentExt returns the file extension used for inline sub-agent files
 // for a given engine.
 //
-//	claude / codex / gemini → .md
+//	claude / codex / antigravity → .md
 //	others                  → .agent.md  (Copilot default)
 func GetEngineSubAgentExt(engineID string) string {
 	switch strings.ToLower(engineID) {
-	case "claude", "codex", "gemini":
+	case "claude", "codex", "antigravity":
 		return ".md"
 	default:
 		return ".agent.md"

@@ -130,26 +130,26 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Fetch Gemini models
+      - name: Fetch Antigravity models
         id: fetch
         shell: bash
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
         run: |
           set -euo pipefail
-          OUT="/tmp/gh-aw/agent/model-inventory/gemini"
+          OUT="/tmp/gh-aw/agent/model-inventory/antigravity"
           mkdir -p "$OUT"
-          if [ -z "${GEMINI_API_KEY:-}" ]; then
-            echo '{"provider":"gemini","error":"GEMINI_API_KEY not set","models":[]}' > "$OUT/models.json"
-            echo '{"provider":"gemini","error":"GEMINI_API_KEY not set"}' > "$OUT/raw.json"
+          if [ -z "${ANTIGRAVITY_API_KEY:-}" ]; then
+            echo '{"provider":"antigravity","error":"ANTIGRAVITY_API_KEY not set","models":[]}' > "$OUT/models.json"
+            echo '{"provider":"antigravity","error":"ANTIGRAVITY_API_KEY not set"}' > "$OUT/raw.json"
             echo "status=skipped" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           HTTP_STATUS=$(curl -sf -o "$OUT/raw.json" -w "%{http_code}" \
-            "https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}") || true
+            "https://generativelanguage.googleapis.com/v1beta/models?key=${ANTIGRAVITY_API_KEY}") || true
           if [ "${HTTP_STATUS:-0}" = "200" ]; then
             jq '{
-              provider: "gemini",
+              provider: "antigravity",
               models: [
                 .models[] | {
                   id: (.name | ltrimstr("models/")),
@@ -164,18 +164,18 @@ jobs:
             }' "$OUT/raw.json" > "$OUT/models.json"
             echo "status=ok" >> "$GITHUB_OUTPUT"
           else
-            echo "{\"provider\":\"gemini\",\"error\":\"HTTP $HTTP_STATUS\",\"models\":[]}" > "$OUT/models.json"
+            echo "{\"provider\":\"antigravity\",\"error\":\"HTTP $HTTP_STATUS\",\"models\":[]}" > "$OUT/models.json"
             echo "status=error" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Upload Gemini artifacts
+      - name: Upload Antigravity artifacts
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: gemini-models
+          name: antigravity-models
           path: |
-            /tmp/gh-aw/agent/model-inventory/gemini/models.json
-            /tmp/gh-aw/agent/model-inventory/gemini/raw.json
+            /tmp/gh-aw/agent/model-inventory/antigravity/models.json
+            /tmp/gh-aw/agent/model-inventory/antigravity/raw.json
           if-no-files-found: error
           retention-days: 7
 
@@ -318,7 +318,7 @@ updating.
 
 ## Inputs
 
-The pre-job steps have already fetched model lists from OpenAI, Anthropic, and Gemini, then merged
+The pre-job steps have already fetched model lists from OpenAI, Anthropic, and Antigravity, then merged
 them into:
 
 - Combined inventory: `/tmp/gh-aw/agent/model-inventory/inventory.json`
@@ -366,8 +366,8 @@ built-in aliases are:
 | `gpt-5` | OpenAI GPT-5 family |
 | `gpt-5-mini` | OpenAI GPT-5 mini family |
 | `gpt-5-codex` | OpenAI GPT-5 Codex family |
-| `gemini-flash` | Google Gemini Flash family |
-| `gemini-pro` | Google Gemini Pro family |
+| `antigravity-flash` | Antigravity Flash family |
+| `antigravity-pro` | Antigravity Pro family |
 | `small` / `mini` | Lightweight/fast models |
 | `large` | Full-capability models |
 | `auto` | Convenience alias for `large` |
@@ -436,7 +436,7 @@ unavailable and continue.
 
 For each provider that returned data, examine the raw response to identify all available fields:
 
-- OpenAI / Anthropic / Gemini: `/tmp/gh-aw/agent/model-inventory/artifacts/<provider>-models/raw.json`
+- OpenAI / Anthropic / Antigravity: `/tmp/gh-aw/agent/model-inventory/artifacts/<provider>-models/raw.json`
 - Copilot: `/tmp/gh-aw/agent/model-inventory/reflect.json` filtered to the `copilot` endpoint object
 
 Specifically look for:
@@ -477,7 +477,7 @@ For each provider's enriched data, attempt to infer or validate the ET multiplie
    use the `New multiplier` as the authoritative value. Compare against the matching entry in
    `model_multipliers.json`, and list discrepancies or missing models.
 
-2. **Gemini API** — use `inputTokenLimit` / `outputTokenLimit` as an approximate proxy for model
+2. **Antigravity API** — use `inputTokenLimit` / `outputTokenLimit` as an approximate proxy for model
    complexity (this is an inference heuristic, not a definitive billing mapping).
    Large-context, high-output-limit models typically correspond to Pro-tier multipliers (~1.0);
    smaller Flash models to lower multipliers (~0.1–0.2). Flag any models whose limits suggest a
@@ -491,7 +491,7 @@ For each provider's enriched data, attempt to infer or validate the ET multiplie
 
 Produce a consolidated multiplier gap table listing:
 - Models present in the live inventory but **missing** from `model_multipliers.json` — include
-  the provider name for each model (e.g. "openai", "anthropic", "gemini", "copilot")
+  the provider name for each model (e.g. "openai", "anthropic", "antigravity", "copilot")
 - Models in `model_multipliers.json` that are **not currently returned** by live APIs; keep these
   in the payload as historical entries (do not propose automatic removals)
 - Models where the **inferred multiplier** differs from the stored one
@@ -544,7 +544,7 @@ If you found any meaningful updates to propose, create a GitHub issue using `cre
 
 Brief description of what was found.
 
-- Providers queried: OpenAI, Anthropic, Gemini, Copilot
+- Providers queried: OpenAI, Anthropic, Antigravity, Copilot
 - Total models found: <count>
 - Proposed alias changes: <count>
 - Multiplier gaps found: <count>
@@ -555,7 +555,7 @@ Brief description of what was found.
 |----------|-----------------|--------|
 | openai   | 42              | ✅ ok  |
 | anthropic | 15             | ✅ ok  |
-| gemini   | 28              | ✅ ok  |
+| antigravity   | 28              | ✅ ok  |
 | copilot  | 35              | ✅ ok  |
 
 ### Raw API Fields Discovered

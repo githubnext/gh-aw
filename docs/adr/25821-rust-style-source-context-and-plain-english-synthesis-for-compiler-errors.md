@@ -20,7 +20,7 @@ We will adopt Rust-style compiler error rendering as the standard for field-leve
 
 #### Alternative 1: Generic "wrong type" message without field hints
 
-The simplest fix was to replace JSON Schema jargon with a static message like `"invalid value: expected a string or object"` for all `oneOf` type failures. This was considered because it requires no per-field maintenance. It was rejected because it omits valid values, which is the most actionable piece of information for the user — knowing that `claude`, `codex`, `copilot`, and `gemini` are accepted is more useful than knowing the abstract type.
+The simplest fix was to replace JSON Schema jargon with a static message like `"invalid value: expected a string or object"` for all `oneOf` type failures. This was considered because it requires no per-field maintenance. It was rejected because it omits valid values, which is the most actionable piece of information for the user — knowing that `claude`, `codex`, `copilot`, and `antigravity` are accepted is more useful than knowing the abstract type.
 
 #### Alternative 2: Runtime engine list lookup from the catalog
 

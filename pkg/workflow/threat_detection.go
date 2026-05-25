@@ -392,7 +392,7 @@ func (c *Compiler) buildClearMCPConfigStep() []string {
 		"        run: |\n",
 		"          rm -f \"${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json\"\n",
 		"          rm -f /home/runner/.copilot/mcp-config.json\n",
-		"          rm -f \"$GITHUB_WORKSPACE/.gemini/settings.json\"\n",
+		"          rm -f \"$GITHUB_WORKSPACE/.antigravity/settings.json\"\n",
 	}
 }
 

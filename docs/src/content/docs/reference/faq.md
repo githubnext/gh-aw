@@ -364,7 +364,7 @@ gh aw compile --ghes my-workflow.md
 
 ### I'm not using a supported AI Engine (coding agent). What should I do?
 
-Supported engines are Copilot, Claude, Codex, Gemini, and Crush. Contribute support to the [gh-aw repository](https://github.com/github/gh-aw) or open an issue describing your use case. See [AI Engines](/gh-aw/reference/engines/).
+Supported engines are Copilot, Claude, Codex, Antigravity, and Crush. Contribute support to the [gh-aw repository](https://github.com/github/gh-aw) or open an issue describing your use case. See [AI Engines](/gh-aw/reference/engines/).
 
 ### Can I test workflows without affecting my repository?
 
@@ -576,7 +576,7 @@ For scheduled workflows, run frequency is the primary cost lever — an hourly s
 Spend controls live at the provider level:
 
 - **Actions minutes**: org spending limit in GitHub Billing.
-- **Claude / Codex / Gemini**: API key or project-level limits in Anthropic Console / OpenAI platform.
+- **Claude / Codex / Antigravity**: API key or project-level limits in Anthropic Console / OpenAI platform.
 - **Copilot**: quota-based — the plan's monthly request quota is the natural cap.
 
 For per-repository tracking, use a dedicated API key per repository. Use `gh aw audit <run-id>` for per-run detail and `gh aw logs` for aggregate metrics.

@@ -5856,7 +5856,7 @@ describe("resolveEngineId", () => {
   });
 
   it("ignores whitespace-only awInfo.engine_id and falls back to context", () => {
-    expect(resolveEngineId({ engine_id: "  ", context: { engine_id: "gemini" } })).toBe("gemini");
+    expect(resolveEngineId({ engine_id: "  ", context: { engine_id: "antigravity" } })).toBe("antigravity");
   });
 });
 

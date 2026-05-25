@@ -1134,7 +1134,7 @@ CI/CD Execution (gh-aw):
 - Examples: ~10 example workflows
 
 **Integration**:
-- Works with any CLI AI tool (claude, gemini, copilot)
+- Works with any CLI AI tool (claude, antigravity, copilot)
 - MCP server compatible
 - Bun/Node.js ecosystem
 
@@ -1380,7 +1380,7 @@ src/
 ├── parse.ts (frontmatter parsing)
 └── adapters/ (AI command adapters)
     ├── claude.ts
-    ├── gemini.ts
+    ├── antigravity.ts
     └── copilot.ts
 ```
 

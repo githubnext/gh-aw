@@ -2273,12 +2273,12 @@ Some AI engine CLIs do not support a `--mcp-config` flag and instead read MCP se
 args = append(args, "--mcp-config", "/tmp/gh-aw/mcp-config/mcp-servers.json")
 ```
 
-**Pattern: Engine-native config file** (Gemini):
+**Pattern: Engine-native config file** (Antigravity):
 ```bash
-# Gemini CLI does not support --mcp-config flag
-# Use a conversion script to write to .gemini/settings.json instead
-actions/setup/sh/convert_gateway_config_gemini.sh
-# Writes MCP server configuration to .gemini/settings.json (project-level)
+# Antigravity CLI does not support --mcp-config flag
+# Use a conversion script to write to .antigravity/settings.json instead
+actions/setup/sh/convert_gateway_config_antigravity.sh
+# Writes MCP server configuration to .antigravity/settings.json (project-level)
 ```
 
 **Implementation**: Use a shell script in `actions/setup/sh/` to convert the MCP gateway config to the engine's native format. Route the engine to this script via `start_mcp_gateway.sh`.
@@ -3039,7 +3039,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - v2.9 (2026-02-24): Added Engine Interface Architecture (ISP 7-interface design, BaseEngine, EngineRegistry), JavaScript Content Sanitization Pipeline with HTML entity bypass fix (T24 template delimiter neutralization), and Activation Output Transformations compiler behavior; added 4 new Related Documentation links
 - v2.8 (2026-02-23): Documented PR #17769 features: unassign-from-user safe output, blocked deny-list for assign/unassign, standardized error code registry, templatable integer fields, safe outputs prompt template system, XPIA defense policy, MCP template expression escaping, status-comment decoupling, sandbox.agent migration, agent instruction files in .github/agents/
 - v2.6 (2026-02-20): Fixed 8 tone issues across 4 spec files, documented post-processing extraction pattern and CLI flag propagation rule from PR #17316, analyzed 61 files
-- v2.5 (2026-02-19): Fixed 6 tone issues in engine review docs, added Engine-Specific MCP Config Delivery section (Gemini pattern), analyzed 61 files
+- v2.5 (2026-02-19): Fixed 6 tone issues in engine review docs, added Engine-Specific MCP Config Delivery section (Antigravity pattern), analyzed 61 files
 - v2.4 (2026-02-17): Quality verification - analyzed 4 new files, zero tone issues found across all 61 files
 - v2.3 (2026-02-16): Quality verification - zero tone issues, all formatting standards maintained
 - v2.2 (2026-02-15): Quality verification with metadata update

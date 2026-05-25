@@ -5,7 +5,7 @@
 //
 // This file consolidates MCP infrastructure helpers: URL rewriting for Docker
 // networking and shared rendering functions used across multiple engines
-// (Claude, Gemini, Copilot, Codex).
+// (Claude, Antigravity, Copilot, Codex).
 //
 // URL rewriting:
 // When MCP servers run on the host machine (like safe-outputs HTTP server
@@ -90,7 +90,7 @@ type renderStandardJSONMCPConfigOptions struct {
 }
 
 // renderDefaultJSONMCPConfig is a convenience wrapper for renderStandardJSONMCPConfig used by
-// simple JSON engines (Claude, Gemini, Crush, OpenCode) that share the standard
+// simple JSON engines (Claude, Antigravity, Crush, OpenCode) that share the standard
 // renderCustomMCPConfigWrapperWithContext callback and differ only in their config path.
 func renderDefaultJSONMCPConfig(
 	sb *strings.Builder,
@@ -111,7 +111,7 @@ func renderDefaultJSONMCPConfig(
 }
 
 // renderStandardJSONMCPConfig is a shared helper for JSON MCP config rendering used by
-// Claude, Gemini, Copilot, and Codex engines. It consolidates the repeated sequence of:
+// Claude, Antigravity, Copilot, and Codex engines. It consolidates the repeated sequence of:
 // buildMCPRendererFactory → buildMCPGatewayConfig → buildStandardJSONMCPRenderers → RenderJSONMCPConfig.
 func renderStandardJSONMCPConfig(
 	yaml *strings.Builder,
@@ -161,7 +161,7 @@ func buildMCPRendererFactory(workflowData *WorkflowData, format string, includeC
 }
 
 // buildStandardJSONMCPRenderers constructs MCPToolRenderers with the standard rendering callbacks
-// shared across JSON-format engines (Claude, Gemini, Copilot, Codex gateway).
+// shared across JSON-format engines (Claude, Antigravity, Copilot, Codex gateway).
 //
 // All standard tool callbacks (GitHub, Playwright, CacheMemory, AgenticWorkflows,
 // SafeOutputs, MCPScripts) are wired to the corresponding unified renderer methods

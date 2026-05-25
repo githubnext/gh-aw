@@ -32,7 +32,7 @@ This document compares **oh-my-opencode** and **GitHub Agentic Workflows** (gh-a
 Local Development Environment (OpenCode IDE)
 ├── Main Agent: Sisyphus (Claude Opus 4.5 High)
 │   ├── Background Agents (async execution)
-│   │   ├── Frontend UI/UX Engineer (Gemini 3 Pro)
+│   │   ├── Frontend UI/UX Engineer (Antigravity 3 Pro)
 │   │   ├── Librarian (Claude Sonnet 4.5)
 │   │   └── Oracle (GPT 5.2 Medium)
 │   └── Specialized Workers
@@ -194,7 +194,7 @@ Use GitHub MCP to access PR files and repository context.
 |-------|-------|------|----------------|
 | **Sisyphus** | Claude Opus 4.5 High | Main implementation, coordination | Foreground |
 | **Oracle** | GPT 5.2 Medium | Design, debugging, problem-solving | On-demand |
-| **Frontend Engineer** | Gemini 3 Pro | UI/UX implementation | Background |
+| **Frontend Engineer** | Antigravity 3 Pro | UI/UX implementation | Background |
 | **Librarian** | Claude Sonnet 4.5 | Documentation research, codebase exploration | Background |
 | **Explore** | Grok Code | Fast codebase grep/search | Background |
 
@@ -722,7 +722,7 @@ inputs:
   ],
   "providers": {
     "anthropic": { "models": ["claude-opus-4.5-high"] },
-    "google": { "models": ["gemini-3-pro-high"] },
+    "google": { "models": ["antigravity-3-pro-high"] },
     "openai": { "models": ["gpt-5.2-medium"] }
   }
 }
@@ -738,7 +738,7 @@ inputs:
       "role": "Main implementation agent"
     },
     "frontend-ui-ux-engineer": {
-      "model": "google/gemini-3-pro-high",
+      "model": "google/antigravity-3-pro-high",
       "background": true
     },
     "oracle": {
@@ -1034,7 +1034,7 @@ gh aw mcp inspect issue-responder
 **Resource Usage**:
 - **CPU**: Depends on agent count (2-5 agents typical)
 - **Memory**: 2-8 GB (depends on language servers)
-- **Network**: API calls to LLM providers (Claude, GPT, Gemini)
+- **Network**: API calls to LLM providers (Claude, GPT, Antigravity)
 - **Storage**: Local workspace + IDE state
 
 **Performance Characteristics**:
@@ -1052,7 +1052,7 @@ gh aw mcp inspect issue-responder
 - **Cost**: Pay for LLM API usage only (no CI/CD minutes)
 
 **Optimization Tips**:
-- Use faster models for background agents (Gemini Flash)
+- Use faster models for background agents (Antigravity Flash)
 - Use slower, higher-capability models for main agent (Opus 4.5)
 - Cache context with Librarian agent
 - Use LSP for low-latency code lookups

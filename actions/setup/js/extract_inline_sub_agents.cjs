@@ -171,7 +171,7 @@ function extractInlineSubAgents(content) {
  * Each AI engine stores its sub-agent definitions in a different location:
  *   claude   → .claude/agents/<name>.md
  *   codex    → .codex/agents/<name>.md
- *   gemini   → .gemini/agents/<name>.md
+ *   antigravity   → .antigravity/agents/<name>.md
  *   copilot  → .github/agents/<name>.agent.md  (default)
  *   others   → .github/agents/<name>.agent.md  (fallback)
  *
@@ -184,8 +184,8 @@ function getEngineSubAgentTarget(engineId) {
       return { dir: ".claude/agents", ext: ".md" };
     case "codex":
       return { dir: ".codex/agents", ext: ".md" };
-    case "gemini":
-      return { dir: ".gemini/agents", ext: ".md" };
+    case "antigravity":
+      return { dir: ".antigravity/agents", ext: ".md" };
     default:
       return { dir: ".github/agents", ext: ".agent.md" };
   }
@@ -198,7 +198,7 @@ function getEngineSubAgentTarget(engineId) {
  * The target directory and filename extension are determined by engineId:
  *   - claude  → <base>/.claude/agents/<name>.md
  *   - codex   → <base>/.codex/agents/<name>.md
- *   - gemini  → <base>/.gemini/agents/<name>.md
+ *   - antigravity  → <base>/.antigravity/agents/<name>.md
  *   - default → <base>/.github/agents/<name>.agent.md
  *
  * Returns the main content (before the first ## agent: marker) after stripping

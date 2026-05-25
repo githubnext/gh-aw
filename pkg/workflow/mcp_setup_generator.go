@@ -665,7 +665,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	yaml.WriteString("          # Export gateway environment variables for MCP config and gateway script\n")
 	yaml.WriteString("          export MCP_GATEWAY_PORT=\"" + strconv.Itoa(port) + "\"\n")
 	yaml.WriteString("          export MCP_GATEWAY_DOMAIN=\"" + domain + "\"\n")
-	// MCP_GATEWAY_HOST_DOMAIN is the domain used by host-side clients (e.g. Gemini CLI).
+	// MCP_GATEWAY_HOST_DOMAIN is the domain used by host-side clients (e.g. Antigravity CLI).
 	// When MCP_GATEWAY_DOMAIN is host.docker.internal (only reachable from containers),
 	// use localhost instead; otherwise inherit the configured domain as-is.
 	hostDomain := domain

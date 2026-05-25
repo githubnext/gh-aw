@@ -24,7 +24,7 @@ func TestNewEngineCatalog_BuiltIns(t *testing.T) {
 		{"claude", "Claude Code", "anthropic"},
 		{"codex", "Codex", "openai"},
 		{"copilot", "GitHub Copilot CLI", "github"},
-		{"gemini", "Google Gemini CLI", "google"},
+		{"antigravity", "Antigravity CLI", "google"},
 		{"opencode", "OpenCode", "github"},
 		{"crush", "Crush", "github"},
 		{"pi", "Pi", "github"},

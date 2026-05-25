@@ -62,8 +62,8 @@ Only two fields are supported inside a sub-agent frontmatter block:
 
 | Alias | Resolves to | When to use |
 |---|---|---|
-| `small` | `mini` → haiku, gpt-5-mini, gpt-5-nano, gemini-flash | Cheap, fast tasks: extraction, classification, formatting |
-| `large` | sonnet, gpt-5-pro, gpt-5, gemini-pro | Complex reasoning or synthesis tasks |
+| `small` | `mini` → haiku, gpt-5-mini, gpt-5-nano, antigravity-flash | Cheap, fast tasks: extraction, classification, formatting |
+| `large` | sonnet, gpt-5-pro, gpt-5, antigravity-pro | Complex reasoning or synthesis tasks |
 | `inherited` | Parent workflow model | Default — use when the sub-agent needs the same capability as the parent |
 
 All other fields (`engine`, `tools`, `network`, etc.) are stripped at runtime with a warning. Sub-agents inherit the parent's engine, tool access, and network configuration.
@@ -79,7 +79,7 @@ Sub-agent files are written to the directory and with the extension each engine 
 | Copilot (default) | `.agents/agents/` | `.agent.md` |
 | Claude | `.claude/agents/` | `.md` |
 | Codex | `.codex/agents/` | `.md` |
-| Gemini | `.gemini/agents/` | `.md` |
+| Antigravity | `.antigravity/agents/` | `.md` |
 
 The engine is detected at compile time from the `engine:` field and injected as `GH_AW_ENGINE_ID` into the interpolation step's environment.
 

@@ -25,8 +25,8 @@ assert() {
 }
 
 # Simulated engine-registry values (matches what the Go compiler would emit)
-AGENT_FOLDERS=".agents .claude .codex .gemini .github"
-AGENT_FILES="AGENTS.md CLAUDE.md GEMINI.md"
+AGENT_FOLDERS=".agents .claude .codex .antigravity .github"
+AGENT_FILES="AGENTS.md CLAUDE.md ANTIGRAVITY.md"
 
 REAL_DEST="/tmp/gh-aw/base"
 

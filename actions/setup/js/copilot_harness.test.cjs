@@ -22,7 +22,7 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
-  GEMINI_MODEL_NAME_PREFIX,
+  ANTIGRAVITY_MODEL_NAME_PREFIX,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
   writeCopilotOutputs,
@@ -879,14 +879,14 @@ describe("copilot_harness.cjs", () => {
       expect(extractModelIds(json)).toEqual(["model-a", "model-b"]);
     });
 
-    it("extracts ids from Gemini format, stripping prefix", () => {
+    it("extracts ids from Antigravity format, stripping prefix", () => {
       const json = {
-        models: [{ name: "models/gemini-1.5-pro" }, { name: "models/gemini-1.0-pro" }],
+        models: [{ name: "models/antigravity-1.5-pro" }, { name: "models/antigravity-1.0-pro" }],
       };
-      expect(extractModelIds(json)).toEqual(["gemini-1.0-pro", "gemini-1.5-pro"]);
+      expect(extractModelIds(json)).toEqual(["antigravity-1.0-pro", "antigravity-1.5-pro"]);
     });
 
-    it("handles Gemini entries without the prefix", () => {
+    it("handles Antigravity entries without the prefix", () => {
       const json = { models: [{ name: "custom-model" }] };
       expect(extractModelIds(json)).toEqual(["custom-model"]);
     });

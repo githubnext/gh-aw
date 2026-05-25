@@ -7,19 +7,19 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var geminiLogsLog = logger.New("workflow:gemini_logs")
+var antigravityLogsLog = logger.New("workflow:antigravity_logs")
 
-// GeminiResponse represents the JSON structure returned by Gemini CLI
-type GeminiResponse struct {
+// AntigravityResponse represents the JSON structure returned by Antigravity CLI
+type AntigravityResponse struct {
 	Response string         `json:"response"`
 	Stats    map[string]any `json:"stats"`
 }
 
-// ParseLogMetrics parses Gemini CLI log output and extracts metrics.
-// Gemini CLI outputs a single JSON response when using --output-format json.
+// ParseLogMetrics parses Antigravity CLI log output and extracts metrics.
+// Antigravity CLI outputs a single JSON response when using --output-format json.
 // We parse the last valid JSON line (most complete response) and aggregate stats.
-func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
-	geminiLogsLog.Printf("Parsing Gemini log metrics: log_size=%d bytes, verbose=%v", len(logContent), verbose)
+func (e *AntigravityEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
+	antigravityLogsLog.Printf("Parsing Antigravity log metrics: log_size=%d bytes, verbose=%v", len(logContent), verbose)
 
 	metrics := LogMetrics{
 		Turns:      0,
@@ -30,7 +30,7 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 	// Aggregate tool calls in a map to deduplicate across multiple JSON lines
 	toolCallCounts := make(map[string]int)
 
-	// Try to parse the JSON response from Gemini
+	// Try to parse the JSON response from Antigravity
 	lines := strings.SplitSeq(logContent, "\n")
 	for line := range lines {
 		line = strings.TrimSpace(line)
@@ -39,7 +39,7 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		}
 
 		// Try to parse as JSON
-		var response GeminiResponse
+		var response AntigravityResponse
 		if err := json.Unmarshal([]byte(line), &response); err != nil {
 			continue
 		}
@@ -72,7 +72,7 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 			}
 		}
 
-		geminiLogsLog.Printf("Parsed JSON response: response_len=%d, stats_present=%v", len(response.Response), response.Stats != nil)
+		antigravityLogsLog.Printf("Parsed JSON response: response_len=%d, stats_present=%v", len(response.Response), response.Stats != nil)
 	}
 
 	// Convert tool call map to slice
@@ -83,24 +83,24 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		})
 	}
 
-	geminiLogsLog.Printf("Parsed metrics: turns=%d, token_usage=%d, tool_calls=%d",
+	antigravityLogsLog.Printf("Parsed metrics: turns=%d, token_usage=%d, tool_calls=%d",
 		metrics.Turns, metrics.TokenUsage, len(metrics.ToolCalls))
 
 	return metrics
 }
 
-// GetLogParserScriptId returns the script ID for parsing Gemini logs
-func (e *GeminiEngine) GetLogParserScriptId() string {
-	return "parse_gemini_log"
+// GetLogParserScriptId returns the script ID for parsing Antigravity logs
+func (e *AntigravityEngine) GetLogParserScriptId() string {
+	return "parse_antigravity_log"
 }
 
 // GetLogFileForParsing returns the log file path for parsing
-func (e *GeminiEngine) GetLogFileForParsing() string {
+func (e *AntigravityEngine) GetLogFileForParsing() string {
 	return "/tmp/gh-aw/agent-stdio.log"
 }
 
 // GetDefaultDetectionModel returns the default model for threat detection
-// Gemini does not specify a default detection model yet
-func (e *GeminiEngine) GetDefaultDetectionModel() string {
+// Antigravity does not specify a default detection model yet
+func (e *AntigravityEngine) GetDefaultDetectionModel() string {
 	return ""
 }

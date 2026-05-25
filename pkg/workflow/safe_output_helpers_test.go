@@ -619,7 +619,7 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 // TestBuildAgentOutputDownloadSteps verifies the agent output download steps
 // include directory creation to handle cases where artifact doesn't exist,
 // and that GH_AW_AGENT_OUTPUT is only set when the artifact download succeeds.
-// The Gemini engine's GetPreBundleSteps moves /tmp/gemini-client-error-*.json
+// The Antigravity engine's GetPreBundleSteps moves /tmp/antigravity-client-error-*.json
 // into /tmp/gh-aw/ before upload, so the artifact LCA is always /tmp/gh-aw/
 // and the hardcoded path is reliable.
 func TestBuildAgentOutputDownloadSteps(t *testing.T) {
@@ -649,7 +649,7 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		}
 	}
 
-	// Verify no dynamic find-based lookup is used (regression guard: the Gemini engine
+	// Verify no dynamic find-based lookup is used (regression guard: the Antigravity engine
 	// moves files to /tmp/gh-aw/ via GetPreBundleSteps so the hardcoded path is always valid)
 	if strings.Contains(stepsStr, "FOUND_FILE=$(find") {
 		t.Error("Step must not use dynamic find resolution; hardcoded path should be used instead")

@@ -610,7 +610,7 @@ function parseCodexLog(logContent) {
   const logEntries = convertToLogEntries(parsedData);
 
   // Always prepend a system init entry so the session preview is shown even for
-  // failed or sparse runs (matches behaviour of Claude, Copilot, and Gemini parsers).
+  // failed or sparse runs (matches behaviour of Claude, Copilot, and Antigravity parsers).
   const model = extractCodexModel(logContent);
   logEntries.unshift({
     type: "system",

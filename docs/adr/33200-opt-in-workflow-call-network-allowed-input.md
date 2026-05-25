@@ -10,7 +10,7 @@
 
 ### Context
 
-Reusable `.lock.yml` workflows currently bake the source workflow's `network.allowed` allowlist directly into the compiled AWF config. Consumer repositories that need to add a domain or ecosystem to that allowlist cannot do so without forking the source workflow and recompiling the lock file, which defeats the purpose of centrally hosted reusable workers. The source author still needs to retain a static minimum floor for the allowlist so callers cannot weaken the security posture set by the publisher. The change must apply consistently across all AWF-backed engines (Claude, Codex, Copilot, Crush, Gemini, OpenCode, Pi) so the reusable contract behaves the same regardless of which engine is configured.
+Reusable `.lock.yml` workflows currently bake the source workflow's `network.allowed` allowlist directly into the compiled AWF config. Consumer repositories that need to add a domain or ecosystem to that allowlist cannot do so without forking the source workflow and recompiling the lock file, which defeats the purpose of centrally hosted reusable workers. The source author still needs to retain a static minimum floor for the allowlist so callers cannot weaken the security posture set by the publisher. The change must apply consistently across all AWF-backed engines (Claude, Codex, Copilot, Crush, Antigravity, OpenCode, Pi) so the reusable contract behaves the same regardless of which engine is configured.
 
 ### Decision
 
@@ -78,7 +78,7 @@ Encourage consumers to fork or run `gh-aw compile` against the source workflow w
 
 ### Engine Wiring
 
-1. AWF-backed engines (Claude, Codex, Copilot, Crush, Gemini, OpenCode, Pi) **MUST** pass the caller-supplied `network_allowed` value to the runtime config-setup step via the `GH_AW_WORKFLOW_CALL_NETWORK_ALLOWED` environment variable.
+1. AWF-backed engines (Claude, Codex, Copilot, Crush, Antigravity, OpenCode, Pi) **MUST** pass the caller-supplied `network_allowed` value to the runtime config-setup step via the `GH_AW_WORKFLOW_CALL_NETWORK_ALLOWED` environment variable.
 2. The caller-supplied value **MUST NOT** be inlined into shell scripts via `${{ inputs.network_allowed }}` expression interpolation at any site other than the engine-step `env:` block.
 3. The environment variable **MUST NOT** be set when `network.allowed-input` is disabled for the workflow, so consuming steps can rely on its presence as a feature signal.
 

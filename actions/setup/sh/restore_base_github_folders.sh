@@ -21,9 +21,9 @@ set +o histexpand
 # and are passed via the same environment variables:
 #
 #   GH_AW_AGENT_FOLDERS  - space-separated list of directories to restore
-#                          (e.g. ".agents .claude .codex .gemini .github")
+#                          (e.g. ".agents .claude .codex .antigravity .github")
 #   GH_AW_AGENT_FILES    - space-separated list of root files to restore
-#                          (e.g. "AGENTS.md CLAUDE.md GEMINI.md")
+#                          (e.g. "AGENTS.md CLAUDE.md ANTIGRAVITY.md")
 #
 # Exit codes:
 #   0 - Success

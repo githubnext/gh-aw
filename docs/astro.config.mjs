@@ -260,10 +260,10 @@ export default defineConfig({
 							url: 'https://openai.com/index/openai-codex/',
 							picture: '/gh-aw/codex.png',
 						},
-						'gemini': {
-							name: 'Gemini',
-							url: 'https://gemini.google.com',
-							picture: '/gh-aw/gemini.png',
+						'antigravity': {
+							name: 'Antigravity',
+							url: 'https://antigravity.google.com',
+							picture: '/gh-aw/antigravity.png',
 						},
 						'copilot': {
 							name: 'Copilot',

@@ -942,7 +942,7 @@ A `make aw-harness` Makefile target **SHOULD** be added that runs esbuild and co
 | `engine: copilot` (existing) | Uses current `copilot_harness.cjs` — unchanged |
 | `engine: claude` (existing) | Uses current Claude Code flow — unchanged |
 | `engine: codex` (existing) | Uses current Codex flow — unchanged |
-| `engine: gemini` (existing) | Uses current Gemini flow — unchanged |
+| `engine: antigravity` (existing) | Uses current Antigravity flow — unchanged |
 | `engine: opencode` (existing) | Uses current OpenCode flow — unchanged |
 | `engine: crush` (existing) | Uses current Crush flow — unchanged |
 | `engine: aw` | Single-session: entire `prompt.txt` = one Pi session prompt |

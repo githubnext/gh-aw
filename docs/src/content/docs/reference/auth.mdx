@@ -19,7 +19,7 @@ Configure one GitHub Actions secret per engine before running your first workflo
 | **Copilot** (default) | [`COPILOT_GITHUB_TOKEN`](#copilot_github_token) | — | Fine-grained PAT with Copilot Requests permission |
 | **Claude** | [`ANTHROPIC_API_KEY`](#anthropic_api_key) | — | API key from Anthropic Console |
 | **Codex** | [`OPENAI_API_KEY`](#openai_api_key) | `CODEX_API_KEY` | Runtime uses `CODEX_API_KEY` if present, otherwise falls back to `OPENAI_API_KEY` |
-| **Gemini** | [`GEMINI_API_KEY`](#gemini_api_key) | — | API key from Google AI Studio |
+| **Antigravity** | [`ANTIGRAVITY_API_KEY`](#gemini_api_key) | — | API key from Google AI Studio |
 
 Most workflows will run without any additional secrets or additional authentication beyond this one engine secret.
 
@@ -168,9 +168,9 @@ See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for add
 
 ---
 
-### `GEMINI_API_KEY`
+### `ANTIGRAVITY_API_KEY`
 
-If using the Gemini by Google engine, you need to set a GitHub Actions secret `GEMINI_API_KEY` with an API key from Google AI Studio.
+If using the Antigravity by Google engine, you need to set a GitHub Actions secret `ANTIGRAVITY_API_KEY` with an API key from Google AI Studio.
 
 **Setup**:
 
@@ -179,10 +179,10 @@ If using the Gemini by Google engine, you need to set a GitHub Actions secret `G
 2. Add it to your repository secrets, either by CLI or GitHub UI:
 
    ```bash wrap
-   gh aw secrets set GEMINI_API_KEY --value "YOUR_GEMINI_API_KEY"
+   gh aw secrets set ANTIGRAVITY_API_KEY --value "YOUR_ANTIGRAVITY_API_KEY"
    ```
 
-See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Gemini with GitHub MCP.
+See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Antigravity with GitHub MCP.
 
 ---
 
@@ -202,9 +202,9 @@ The `ANTHROPIC_API_KEY` secret is missing, expired, or invalid. Verify the key i
 
 The `OPENAI_API_KEY` (or `CODEX_API_KEY`) secret is missing, expired, or has insufficient quota. Verify the key at https://platform.openai.com/api-keys. If using a custom endpoint, confirm `OPENAI_BASE_URL` points to a reachable host and that the host is listed under `network.allowed`.
 
-**`401 Unauthorized` (Gemini)**
+**`401 Unauthorized` (Antigravity)**
 
-The `GEMINI_API_KEY` secret is missing or invalid. Generate a new key at https://aistudio.google.com/api-keys.
+The `ANTIGRAVITY_API_KEY` secret is missing or invalid. Generate a new key at https://aistudio.google.com/api-keys.
 
 **Copilot license or inference access errors**
 

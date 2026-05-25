@@ -391,7 +391,7 @@ func TestStrictModeGetEngineBaseEnvVarKeys_IncludesAuthSecrets(t *testing.T) {
 }
 
 // TestBuiltInEngineAuthUnchanged is a regression test verifying that the built-in engines
-// (claude, codex, copilot, gemini) retain their original auth configuration after the
+// (claude, codex, copilot, antigravity) retain their original auth configuration after the
 // AuthDefinition changes.
 func TestBuiltInEngineAuthUnchanged(t *testing.T) {
 	registry := NewEngineRegistry()
@@ -404,7 +404,7 @@ func TestBuiltInEngineAuthUnchanged(t *testing.T) {
 		{"claude", "ANTHROPIC_API_KEY"},
 		{"codex", "CODEX_API_KEY"},
 		{"copilot", "COPILOT_GITHUB_TOKEN"},
-		{"gemini", "GEMINI_API_KEY"},
+		{"antigravity", "ANTIGRAVITY_API_KEY"},
 		{"opencode", "COPILOT_GITHUB_TOKEN"},
 		{"crush", "COPILOT_GITHUB_TOKEN"},
 		{"pi", "COPILOT_GITHUB_TOKEN"},

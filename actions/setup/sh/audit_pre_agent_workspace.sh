@@ -16,7 +16,7 @@ set +o histexpand
 #   $GITHUB_WORKSPACE/.github/copilot/      - workspace Copilot config
 #   $GITHUB_WORKSPACE/.claude/              - Claude engine config
 #   $GITHUB_WORKSPACE/.codex/               - Codex engine config
-#   $GITHUB_WORKSPACE/.gemini/              - Gemini engine config
+#   $GITHUB_WORKSPACE/.antigravity/              - Antigravity engine config
 #   $GITHUB_WORKSPACE/.crush/               - Crush engine config
 #   $GITHUB_WORKSPACE/.opencode/            - OpenCode engine config
 #   $GITHUB_WORKSPACE/.pi/                  - Pi engine config
@@ -24,7 +24,7 @@ set +o histexpand
 # Directories scanned (user home):
 #   $HOME/.github/                          - agent user home .github
 #   $HOME/.claude/                          - Claude per-user config
-#   $HOME/.gemini/                          - Gemini per-user config
+#   $HOME/.antigravity/                          - Antigravity per-user config
 #   $HOME/.local/share/gh/extensions/       - installed gh extensions
 #   $RUNNER_TEMP/gh-aw/                     - runner temp gh-aw directory
 #
@@ -84,7 +84,7 @@ list_dir() {
   echo "--- Engine config dirs ---"
   list_dir "Workspace claude"        "${GITHUB_WORKSPACE}/.claude"
   list_dir "Workspace codex"         "${GITHUB_WORKSPACE}/.codex"
-  list_dir "Workspace gemini"        "${GITHUB_WORKSPACE}/.gemini"
+  list_dir "Workspace antigravity"        "${GITHUB_WORKSPACE}/.antigravity"
   list_dir "Workspace crush"         "${GITHUB_WORKSPACE}/.crush"
   list_dir "Workspace opencode"      "${GITHUB_WORKSPACE}/.opencode"
   list_dir "Workspace pi"            "${GITHUB_WORKSPACE}/.pi"
@@ -92,7 +92,7 @@ list_dir() {
   echo "--- User home ---"
   list_dir "Agent user home .github" "${HOME}/.github"
   list_dir "Agent user home .claude" "${HOME}/.claude"
-  list_dir "Agent user home .gemini" "${HOME}/.gemini"
+  list_dir "Agent user home .antigravity" "${HOME}/.antigravity"
   list_dir "gh extensions"           "${HOME}/.local/share/gh/extensions"
 
   echo "--- Runner ---"

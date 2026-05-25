@@ -29,7 +29,7 @@ Use this route when building shared workflows, tools, or extensions that need ru
 
 The response includes an `endpoints` array and a `models_fetch_complete` flag:
 
-- `endpoints[].provider`: provider identifier (e.g., `openai`, `anthropic`, `copilot`, `gemini`)
+- `endpoints[].provider`: provider identifier (e.g., `openai`, `anthropic`, `copilot`, `antigravity`)
 - `endpoints[].base_url`: gateway base URL for inference calls
 - `endpoints[].configured`: whether credentials/config are present for that provider
 - `endpoints[].models`: discovered model IDs, or `null` when model discovery is not yet complete

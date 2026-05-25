@@ -3,56 +3,57 @@ package workflow
 import (
 	"fmt"
 	"maps"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var geminiLog = logger.New("workflow:gemini_engine")
+var antigravityLog = logger.New("workflow:antigravity_engine")
 
-// GeminiEngine represents the Google Gemini CLI agentic engine
-type GeminiEngine struct {
+// AntigravityEngine represents the Google Antigravity CLI agentic engine
+type AntigravityEngine struct {
 	BaseEngine
 }
 
-func NewGeminiEngine() *GeminiEngine {
-	return &GeminiEngine{
+func NewAntigravityEngine() *AntigravityEngine {
+	return &AntigravityEngine{
 		BaseEngine: BaseEngine{
-			id:           "gemini",
-			displayName:  "Google Gemini CLI",
-			description:  "Google Gemini CLI with headless mode and LLM gateway support",
+			id:           "antigravity",
+			displayName:  "Antigravity CLI",
+			description:  "Antigravity CLI with headless mode and LLM gateway support",
 			experimental: false,
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
 				MaxTurns:         false,
-				MaxContinuations: false, // Gemini CLI does not support --max-autopilot-continues-style continuation mode
+				MaxContinuations: false, // Antigravity CLI does not support --max-autopilot-continues-style continuation mode
 				WebSearch:        false,
-				NativeAgentFile:  false, // Gemini does not support agent file natively; the compiler prepends the agent file content to prompt.txt
+				NativeAgentFile:  false, // Antigravity does not support agent file natively; the compiler prepends the agent file content to prompt.txt
 			},
-			dedicatedLLMGatewayPort: constants.GeminiLLMGatewayPort,
+			dedicatedLLMGatewayPort: constants.AntigravityLLMGatewayPort,
 		},
 	}
 }
 
-// GetModelEnvVarName returns the native environment variable name that the Gemini CLI uses
-// for model selection. Setting GEMINI_MODEL is equivalent to passing --model to the CLI.
-func (e *GeminiEngine) GetModelEnvVarName() string {
-	return constants.GeminiCLIModelEnvVar
+// GetModelEnvVarName returns the native environment variable name that the Antigravity CLI uses
+// for model selection. Setting ANTIGRAVITY_MODEL is equivalent to passing --model to the CLI.
+func (e *AntigravityEngine) GetModelEnvVarName() string {
+	return constants.AntigravityCLIModelEnvVar
 }
 
-// GetRequiredSecretNames returns the list of secrets required by the Gemini engine
-// This includes GEMINI_API_KEY and optionally MCP_GATEWAY_API_KEY, GITHUB_MCP_SERVER_TOKEN,
+// GetRequiredSecretNames returns the list of secrets required by the Antigravity engine
+// This includes ANTIGRAVITY_API_KEY and optionally MCP_GATEWAY_API_KEY, GITHUB_MCP_SERVER_TOKEN,
 // HTTP MCP header secrets, and mcp-scripts secrets
-func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
-	geminiLog.Print("Collecting required secrets for Gemini engine")
-	secrets := []string{"GEMINI_API_KEY"}
+func (e *AntigravityEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
+	antigravityLog.Print("Collecting required secrets for Antigravity engine")
+	secrets := []string{"ANTIGRAVITY_API_KEY"}
 
 	// Add common MCP secrets (MCP_GATEWAY_API_KEY if MCP servers present, mcp-scripts secrets)
 	secrets = append(secrets, collectCommonMCPSecrets(workflowData)...)
 
 	// Add GitHub token for GitHub MCP server if present
 	if hasGitHubTool(workflowData.ParsedTools) {
-		geminiLog.Print("Adding GITHUB_MCP_SERVER_TOKEN secret")
+		antigravityLog.Print("Adding GITHUB_MCP_SERVER_TOKEN secret")
 		secrets = append(secrets, "GITHUB_MCP_SERVER_TOKEN")
 	}
 
@@ -62,137 +63,153 @@ func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 		secrets = append(secrets, varName)
 	}
 	if len(headerSecrets) > 0 {
-		geminiLog.Printf("Added %d HTTP MCP header secrets", len(headerSecrets))
+		antigravityLog.Printf("Added %d HTTP MCP header secrets", len(headerSecrets))
 	}
 
 	return secrets
 }
 
-// GetSecretValidationStep returns the secret validation step for the Gemini engine.
+// GetSecretValidationStep returns the secret validation step for the Antigravity engine.
 // Returns an empty step if custom command is specified.
-func (e *GeminiEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	return BuildDefaultSecretValidationStep(
-		workflowData,
-		[]string{"GEMINI_API_KEY"},
-		"Gemini CLI",
-		"https://geminicli.com/docs/get-started/authentication/",
-	)
+func (e *AntigravityEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		antigravityLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return GitHubActionStep{}
+	}
+	if workflowData != nil && strings.TrimSpace(workflowData.Environment) != "" {
+		antigravityLog.Print("Skipping secret validation step: top-level environment is configured")
+		return GitHubActionStep{}
+	}
+	command := `if [ -n "${GEMINI_API_KEY:-}" ] && [ -z "${ANTIGRAVITY_API_KEY:-}" ]; then
+  echo "engine: gemini is no longer supported. Run the Antigravity migration codemod and configure ANTIGRAVITY_API_KEY." >&2
+  exit 1
+fi
+bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" ANTIGRAVITY_API_KEY 'Antigravity CLI' https://antigravity.google/docs/cli-overview`
+	stepLines := []string{"      - name: Validate ANTIGRAVITY_API_KEY secret"}
+	env := getEngineEnvOverrides(workflowData)
+	if env == nil {
+		env = map[string]string{}
+	}
+	env["ANTIGRAVITY_API_KEY"] = "${{ secrets.ANTIGRAVITY_API_KEY }}"
+	env["GEMINI_API_KEY"] = "${{ secrets.GEMINI_API_KEY }}"
+	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
+	return GitHubActionStep(stepLines)
 }
 
-func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	geminiLog.Printf("Generating installation steps for Gemini engine: workflow=%s", workflowData.Name)
+func (e *AntigravityEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	antigravityLog.Printf("Generating installation steps for Antigravity engine: workflow=%s", workflowData.Name)
 
 	// Skip installation if custom command is specified
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		geminiLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
+		antigravityLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
 		return []GitHubActionStep{}
 	}
 
 	npmSteps := BuildStandardNpmEngineInstallStepsNoCooldown(
-		"@google/gemini-cli",
-		string(constants.DefaultGeminiVersion),
-		"Install Gemini CLI",
-		"gemini",
+		"@google/antigravity-cli",
+		string(constants.DefaultAntigravityVersion),
+		"Install Antigravity CLI",
+		"antigravity",
 		workflowData,
 	)
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
 
-// GetDeclaredOutputFiles returns the output files that Gemini may produce.
-// Gemini CLI writes structured error reports to /tmp/gemini-client-error-*.json
-// with a timestamp in the filename (e.g. gemini-client-error-Turn.run-sendMessageStream-2026-02-21T20-45-59-824Z.json).
-// These files provide detailed diagnostics when the Gemini API call fails.
+// GetDeclaredOutputFiles returns the output files that Antigravity may produce.
+// Antigravity CLI writes structured error reports to /tmp/antigravity-client-error-*.json
+// with a timestamp in the filename (e.g. antigravity-client-error-Turn.run-sendMessageStream-2026-02-21T20-45-59-824Z.json).
+// These files provide detailed diagnostics when the Antigravity API call fails.
 // GetPreBundleSteps moves these files into /tmp/gh-aw/ so all artifact paths share a common
 // ancestor under /tmp/gh-aw/ and the actions/upload-artifact LCA calculation stays correct.
-func (e *GeminiEngine) GetDeclaredOutputFiles() []string {
+func (e *AntigravityEngine) GetDeclaredOutputFiles() []string {
 	return []string{
-		"/tmp/gh-aw/gemini-client-error-*.json",
+		"/tmp/gh-aw/antigravity-client-error-*.json",
 	}
 }
 
-// GetAgentManifestFiles returns Gemini-specific instruction files that should be
+// GetAgentManifestFiles returns Antigravity-specific instruction files that should be
 // treated as security-sensitive manifests.  A fork PR that modifies these files
 // can redirect the agent's behaviour or expand which files it treats as instructions.
-// GEMINI.md is the primary per-project context file; AGENTS.md is the cross-engine
-// convention that Gemini CLI also reads.
-func (e *GeminiEngine) GetAgentManifestFiles() []string {
-	return []string{"GEMINI.md", "AGENTS.md"}
+// ANTIGRAVITY.md is the primary per-project context file; AGENTS.md is the cross-engine
+// convention that Antigravity CLI also reads.
+func (e *AntigravityEngine) GetAgentManifestFiles() []string {
+	return []string{"ANTIGRAVITY.md", "AGENTS.md"}
 }
 
-// GetAgentManifestPathPrefixes returns Gemini-specific config directory prefixes.
-// The .gemini/ directory contains settings.json and other configuration that could
+// GetAgentManifestPathPrefixes returns Antigravity-specific config directory prefixes.
+// The .antigravity/ directory contains settings.json and other configuration that could
 // expand which files are treated as instructions or alter agent behaviour.
 // Protecting this directory prevents fork PRs from injecting malicious configuration.
-func (e *GeminiEngine) GetAgentManifestPathPrefixes() []string {
-	return []string{".gemini/"}
+func (e *AntigravityEngine) GetAgentManifestPathPrefixes() []string {
+	return []string{".antigravity/"}
 }
 
-// GetPreBundleSteps returns a step that moves Gemini CLI error reports from /tmp/ into
+// GetPreBundleSteps returns a step that moves Antigravity CLI error reports from /tmp/ into
 // /tmp/gh-aw/ before the unified artifact upload. This keeps all artifact paths under
 // /tmp/gh-aw/ so that actions/upload-artifact computes the correct least-common-ancestor
 // path and downstream jobs find files at the expected locations.
-func (e *GeminiEngine) GetPreBundleSteps(workflowData *WorkflowData) []GitHubActionStep {
+func (e *AntigravityEngine) GetPreBundleSteps(workflowData *WorkflowData) []GitHubActionStep {
 	return []GitHubActionStep{
 		{
-			"      - name: Move Gemini error files to artifact directory",
+			"      - name: Move Antigravity error files to artifact directory",
 			"        if: always()",
-			"        run: mv /tmp/gemini-client-error-*.json /tmp/gh-aw/ 2>/dev/null || true",
+			"        run: mv /tmp/antigravity-client-error-*.json /tmp/gh-aw/ 2>/dev/null || true",
 		},
 	}
 }
 
-// GetExecutionSteps returns the GitHub Actions steps for executing Gemini
-func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
-	geminiLog.Printf("Generating execution steps for Gemini engine: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
+// GetExecutionSteps returns the GitHub Actions steps for executing Antigravity
+func (e *AntigravityEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
+	antigravityLog.Printf("Generating execution steps for Antigravity engine: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
 
 	var steps []GitHubActionStep
 
-	// Write .gemini/settings.json with context.includeDirectories and tools.core.
+	// Write .antigravity/settings.json with context.includeDirectories and tools.core.
 	// This step runs after the MCP gateway setup (which may have written mcpServers config)
 	// and merges the context/tools settings into any existing settings.json.
-	settingsStep := e.generateGeminiSettingsStep(workflowData)
+	settingsStep := e.generateAntigravitySettingsStep(workflowData)
 	steps = append(steps, settingsStep)
 
-	// Build gemini CLI arguments based on configuration
-	var geminiArgs []string
+	// Build agy CLI arguments based on configuration
+	var agyArgs []string
 
-	// Model is passed via the native GEMINI_MODEL environment variable only when explicitly
-	// configured. When not configured, the Gemini CLI uses its built-in default model.
+	// Model is passed via the native ANTIGRAVITY_MODEL environment variable only when explicitly
+	// configured. When not configured, the Antigravity CLI uses its built-in default model.
 	// This avoids embedding the value directly in the shell command (which fails template injection
 	// validation for GitHub Actions expressions like ${{ inputs.model }}).
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
 
-	// Gemini CLI reads MCP config from .gemini/settings.json (project-level)
-	// The conversion script (convert_gateway_config_gemini.sh) writes settings.json
+	// Antigravity CLI reads MCP config from .antigravity/settings.json (project-level)
+	// The conversion script (convert_gateway_config_antigravity.sh) writes settings.json
 	// during the MCP setup step, so no --mcp-config flag is needed here.
 
 	// Auto-approve all tool executions (equivalent to Codex's --dangerously-bypass-approvals-and-sandbox)
-	// Without this, Gemini CLI's default approval mode rejects tool calls with "Tool execution denied by policy"
-	geminiArgs = append(geminiArgs, "--yolo")
+	// Without this, Antigravity CLI's default approval mode rejects tool calls with "Tool execution denied by policy"
+	agyArgs = append(agyArgs, "--yolo")
 
 	// Skip the workspace trust check so --yolo is not overridden to "default" approval mode.
-	// Gemini CLI v1.x checks whether the working directory is trusted and overrides --yolo
+	// Antigravity CLI v1.x checks whether the working directory is trusted and overrides --yolo
 	// with "default" approval mode (exit code 55) when the folder is untrusted.
-	// GEMINI_CLI_TRUST_WORKSPACE=true (also set in the step env) handles the same case via
+	// ANTIGRAVITY_CLI_TRUST_WORKSPACE=true (also set in the step env) handles the same case via
 	// environment variable, but --skip-trust is more reliable when AWF's sandbox does not
 	// forward all host environment variables into the container.
-	geminiArgs = append(geminiArgs, "--skip-trust")
+	agyArgs = append(agyArgs, "--skip-trust")
 
 	// Add streaming JSON output (JSONL format, compatible with the log parser)
-	geminiArgs = append(geminiArgs, "--output-format", "stream-json")
+	agyArgs = append(agyArgs, "--output-format", "stream-json")
 
 	// Note: the --prompt argument is appended raw after shellJoinArgs below because it contains
 	// a shell command substitution ("$(cat ...)") that must NOT go through shellEscapeArg —
 	// single-quoting it would prevent shell expansion at runtime.
 
 	// Build the command
-	commandName := "gemini"
+	commandName := "agy"
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
 		commandName = workflowData.EngineConfig.Command
 	}
 
 	// Append the prompt arg raw (not through shellJoinArgs) to preserve shell expansion
-	geminiCommand := fmt.Sprintf(`%s %s --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, commandName, shellJoinArgs(geminiArgs))
+	agyCommand := fmt.Sprintf(`%s %s --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, commandName, shellJoinArgs(agyArgs))
 
 	// Build the full command with AWF wrapping if enabled
 	var command string
@@ -204,7 +221,7 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		if workflowData.CachedAllowedDomainsComputed {
 			allowedDomains = workflowData.CachedAllowedDomainsStr
 		} else {
-			allowedDomains = GetAllowedDomainsForEngine(constants.GeminiEngine,
+			allowedDomains = GetAllowedDomainsForEngine(constants.AntigravityEngine,
 				workflowData.NetworkPermissions,
 				workflowData.Tools,
 				workflowData.Runtimes,
@@ -216,15 +233,15 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 
 		npmPathSetup := GetNpmBinPathSetup()
-		geminiCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, geminiCommand)
+		agyCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, agyCommand)
 		// Add MCP CLI bin directory to PATH when cli-proxy is enabled
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
-			geminiCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, geminiCommandWithPath)
+			agyCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, agyCommandWithPath)
 		}
 
 		command = BuildAWFCommand(AWFCommandConfig{
-			EngineName:     "gemini",
-			EngineCommand:  geminiCommandWithPath,
+			EngineName:     "antigravity",
+			EngineCommand:  agyCommandWithPath,
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false,
@@ -235,19 +252,19 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			PathSetup: "touch " + AgentStepSummaryPath,
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"GEMINI_API_KEY"}),
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"ANTIGRAVITY_API_KEY"}),
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
-%s 2>&1 | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, geminiCommand, logFile)
+%s 2>&1 | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, agyCommand, logFile)
 	}
 
 	// Build environment variables
 	env := map[string]string{
-		"GEMINI_API_KEY": "${{ secrets.GEMINI_API_KEY }}",
+		"ANTIGRAVITY_API_KEY": "${{ secrets.ANTIGRAVITY_API_KEY }}",
 		"GH_AW_PROMPT":   "/tmp/gh-aw/aw-prompts/prompt.txt",
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW":        "true",
@@ -257,14 +274,14 @@ touch %s
 		// we create this file before the agent starts and append it to the real
 		// $GITHUB_STEP_SUMMARY after secret redaction.
 		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
-		// Enable verbose debug logging from Gemini CLI for better diagnostics.
-		// Gemini CLI uses the npm 'debug' package, and 'gemini-cli:*' enables all
-		// internal Gemini CLI debug channels (see: https://gemini-cli-docs.pages.dev/cli/configuration).
+		// Enable verbose debug logging from Antigravity CLI for better diagnostics.
+		// Antigravity CLI uses the npm 'debug' package, and 'antigravity-cli:*' enables all
+		// internal Antigravity CLI debug channels (see: https://antigravity.google/docs/cli-overview).
 		// Non-JSON debug lines are gracefully skipped by ParseLogMetrics.
-		"DEBUG": "gemini-cli:*",
-		// Trust the workspace to prevent Gemini CLI v1.x from overriding --yolo to default
+		"DEBUG": "antigravity-cli:*",
+		// Trust the workspace to prevent Antigravity CLI v1.x from overriding --yolo to default
 		// approval mode when the workspace is untrusted, which causes exit code 55.
-		"GEMINI_CLI_TRUST_WORKSPACE": "true",
+		"ANTIGRAVITY_CLI_TRUST_WORKSPACE": "true",
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection
@@ -280,15 +297,15 @@ touch %s
 		env["GH_AW_VERSION"] = "dev"
 	}
 
-	// Add MCP config env var if needed (points to .gemini/settings.json for Gemini)
+	// Add MCP config env var if needed (points to .antigravity/settings.json for Antigravity)
 	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/.gemini/settings.json"
+		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/.antigravity/settings.json"
 	}
 
-	// When the firewall (AWF) is enabled with --enable-api-proxy, point Gemini CLI at the
+	// When the firewall (AWF) is enabled with --enable-api-proxy, point Antigravity CLI at the
 	// LLM gateway sidecar instead of the real googleapis.com endpoint.
 	if firewallEnabled {
-		env["GEMINI_API_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d", constants.GeminiLLMGatewayPort)
+		env["ANTIGRAVITY_API_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d", constants.AntigravityLLMGatewayPort)
 
 		// Set git identity environment variables so the first git commit succeeds inside the
 		// container. AWF's --env-all forwards these to the container, ensuring git does not
@@ -300,18 +317,18 @@ touch %s
 	applySafeOutputEnvToMap(env, workflowData)
 
 	// Set the model environment variable only when explicitly configured.
-	// When model is configured, use the native GEMINI_MODEL env var - the Gemini CLI reads it
+	// When model is configured, use the native ANTIGRAVITY_MODEL env var - the Antigravity CLI reads it
 	// directly, avoiding the need to embed the value in the shell command (which would fail
 	// template injection validation for GitHub Actions expressions like ${{ inputs.model }}).
-	// When model is not configured, let the Gemini CLI use its built-in default model.
+	// When model is not configured, let the Antigravity CLI use its built-in default model.
 	if modelConfigured {
-		geminiLog.Printf("Setting %s env var for model: %s", constants.GeminiCLIModelEnvVar, workflowData.EngineConfig.Model)
-		env[constants.GeminiCLIModelEnvVar] = workflowData.EngineConfig.Model
+		antigravityLog.Printf("Setting %s env var for model: %s", constants.AntigravityCLIModelEnvVar, workflowData.EngineConfig.Model)
+		env[constants.AntigravityCLIModelEnvVar] = workflowData.EngineConfig.Model
 	}
 
 	// Add custom environment variables from engine config.
 	// This allows users to override the default engine token expression (e.g.
-	// GEMINI_API_KEY: ${{ secrets.MY_ORG_GEMINI_KEY }}) via engine.env.
+	// ANTIGRAVITY_API_KEY: ${{ secrets.MY_ORG_ANTIGRAVITY_KEY }}) via engine.env.
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
 		maps.Copy(env, workflowData.EngineConfig.Env)
 	}
@@ -320,12 +337,12 @@ touch %s
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && len(agentConfig.Env) > 0 {
 		maps.Copy(env, agentConfig.Env)
-		geminiLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
+		antigravityLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
 
 	// Generate the execution step
 	stepLines := []string{
-		"      - name: Execute Gemini CLI",
+		"      - name: Execute Antigravity CLI",
 		"        id: agentic_execution",
 	}
 

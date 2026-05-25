@@ -356,10 +356,10 @@ func TestBareMode_UnsupportedEngineWarningIntegration(t *testing.T) {
 			workflowTitle: "Test Bare Mode Codex",
 		},
 		{
-			name:          "gemini emits warning, no GEMINI_SYSTEM_MD=/dev/null in output",
-			engineID:      "gemini",
+			name:          "antigravity emits warning, no GEMINI_SYSTEM_MD=/dev/null in output",
+			engineID:      "antigravity",
 			bannedOutput:  []string{"GEMINI_SYSTEM_MD=/dev/null"},
-			workflowTitle: "Test Bare Mode Gemini",
+			workflowTitle: "Test Bare Mode Antigravity",
 		},
 	}
 

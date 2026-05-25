@@ -235,7 +235,7 @@ describe("parseDetectionLog", () => {
       expect(error).toContain('Invalid type for "prompt_injection"');
     });
 
-    it("should parse Gemini stream-json assistant chunks when verdict is split across messages", () => {
+    it("should parse Antigravity stream-json assistant chunks when verdict is split across messages", () => {
       const content = [
         // User prompt can contain the expected output format example and must be ignored.
         JSON.stringify({

@@ -12,7 +12,7 @@ import (
 func TestAddWizardCommandMentionsCrush(t *testing.T) {
 	cmd := NewAddWizardCommand(func(string) error { return nil })
 	require.NotNil(t, cmd, "Add wizard command should be created")
-	assert.Contains(t, cmd.Long, "Copilot, Claude, Codex, Gemini, or Crush", "Add wizard help should mention all interactive engine options")
+	assert.Contains(t, cmd.Long, "Copilot, Claude, Codex, Antigravity, or Crush", "Add wizard help should mention all interactive engine options")
 }
 
 func TestAddWizardCommand_UsesStandardThreePartWorkflowSpecWording(t *testing.T) {

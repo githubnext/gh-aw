@@ -1,21 +1,21 @@
 package workflow
 
-// This file provides Gemini engine tool configuration logic.
+// This file provides Antigravity engine tool configuration logic.
 //
 // It handles two key responsibilities:
 //
-//  1. Tool Core Mapping (computeGeminiToolsCore):
+//  1. Tool Core Mapping (computeAntigravityToolsCore):
 //     Converts neutral tool names from the workflow configuration into
-//     Gemini CLI built-in tool names for the tools.core allowlist in
-//     .gemini/settings.json. This restricts the agent to only the tools
+//     Antigravity CLI built-in tool names for the tools.core allowlist in
+//     .antigravity/settings.json. This restricts the agent to only the tools
 //     explicitly requested by the workflow.
 //
-//  2. Settings Step Generation (generateGeminiSettingsStep):
-//     Generates a GitHub Actions step that writes or merges .gemini/settings.json
-//     before the Gemini CLI execution. This step always sets:
+//  2. Settings Step Generation (generateAntigravitySettingsStep):
+//     Generates a GitHub Actions step that writes or merges .antigravity/settings.json
+//     before the Antigravity CLI execution. This step always sets:
 //     - context.includeDirectories: ["/tmp/"] so file tools can access /tmp/
 //     - tools.core: derived from neutral tool configuration
-//     The merge approach ensures MCP server config (written by convert_gateway_config_gemini.sh)
+//     The merge approach ensures MCP server config (written by convert_gateway_config_antigravity.sh)
 //     is preserved while adding the context and tool settings.
 
 import (
@@ -26,12 +26,12 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var geminiToolsLog = logger.New("workflow:gemini_tools")
+var antigravityToolsLog = logger.New("workflow:antigravity_tools")
 
-// computeGeminiToolsCore maps neutral tool names to Gemini CLI built-in tool names
-// for use in the tools.core allowlist in .gemini/settings.json.
+// computeAntigravityToolsCore maps neutral tool names to Antigravity CLI built-in tool names
+// for use in the tools.core allowlist in .antigravity/settings.json.
 //
-// Neutral tool → Gemini CLI tool mapping:
+// Neutral tool → Antigravity CLI tool mapping:
 //   - bash: [cmd, ...]     → run_shell_command(cmd), ... (one entry per command)
 //   - bash: * or bash: nil → run_shell_command           (allow all shell commands)
 //   - edit: {}             → replace, write_file          (file write tools)
@@ -39,9 +39,9 @@ var geminiToolsLog = logger.New("workflow:gemini_tools")
 // Read-only file system tools are always included as they are essential for
 // agentic workflows: glob, grep_search, list_directory, read_file, read_many_files.
 //
-// See: https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/file-system.md
-// See: https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/shell.md
-func computeGeminiToolsCore(tools map[string]any) []string {
+// See: https://antigravity.google/docs/cli-overview
+// See: https://antigravity.google/docs/cli-overview
+func computeAntigravityToolsCore(tools map[string]any) []string {
 	// Always include essential read-only file system tools
 	toolsCore := []string{
 		"glob",
@@ -60,7 +60,7 @@ func computeGeminiToolsCore(tools map[string]any) []string {
 		bashCommands, ok := bashConfig.([]any)
 		if !ok || len(bashCommands) == 0 {
 			// bash with no specific commands - allow all shell commands
-			geminiToolsLog.Print("bash (no specific commands) → run_shell_command")
+			antigravityToolsLog.Print("bash (no specific commands) → run_shell_command")
 			toolsCore = append(toolsCore, "run_shell_command")
 		} else {
 			// Check for wildcard (* or :*)
@@ -72,7 +72,7 @@ func computeGeminiToolsCore(tools map[string]any) []string {
 				}
 			}
 			if hasWildcard {
-				geminiToolsLog.Print("bash wildcard → run_shell_command")
+				antigravityToolsLog.Print("bash wildcard → run_shell_command")
 				toolsCore = append(toolsCore, "run_shell_command")
 			} else {
 				// Add an entry for each specific command: run_shell_command(cmd)
@@ -83,7 +83,7 @@ func computeGeminiToolsCore(tools map[string]any) []string {
 						// regardless of whether the command was written with or without the wildcard.
 						normalized, _ := normalizeBashCommand(cmdStr)
 						entry := fmt.Sprintf("run_shell_command(%s)", normalized)
-						geminiToolsLog.Printf("bash %q → %s", cmdStr, entry)
+						antigravityToolsLog.Printf("bash %q → %s", cmdStr, entry)
 						toolsCore = append(toolsCore, entry)
 					}
 				}
@@ -91,17 +91,17 @@ func computeGeminiToolsCore(tools map[string]any) []string {
 		}
 	}
 
-	// Map edit neutral tool to write_file and replace (Gemini's file write tools)
+	// Map edit neutral tool to write_file and replace (Antigravity's file write tools)
 	if _, hasEdit := tools["edit"]; hasEdit {
-		geminiToolsLog.Print("edit → replace, write_file")
+		antigravityToolsLog.Print("edit → replace, write_file")
 		toolsCore = append(toolsCore, "replace")
 		toolsCore = append(toolsCore, "write_file")
 	}
 
-	// Map web-fetch neutral tool to web_fetch (Gemini's native HTTP fetch tool)
-	// See: https://geminicli.com/docs/tools/web-fetch/
+	// Map web-fetch neutral tool to web_fetch (Antigravity's native HTTP fetch tool)
+	// See: https://antigravity.google/docs/cli-overview
 	if _, hasWebFetch := tools["web-fetch"]; hasWebFetch {
-		geminiToolsLog.Print("web-fetch → web_fetch")
+		antigravityToolsLog.Print("web-fetch → web_fetch")
 		toolsCore = append(toolsCore, "web_fetch")
 	}
 
@@ -109,21 +109,21 @@ func computeGeminiToolsCore(tools map[string]any) []string {
 	return toolsCore
 }
 
-// generateGeminiSettingsStep creates a GitHub Actions step that writes the
-// Gemini CLI project settings file (.gemini/settings.json) before execution.
+// generateAntigravitySettingsStep creates a GitHub Actions step that writes the
+// Antigravity CLI project settings file (.antigravity/settings.json) before execution.
 //
 // This step:
-//  1. Sets context.includeDirectories to ["/tmp/"] so that Gemini CLI file system
+//  1. Sets context.includeDirectories to ["/tmp/"] so that Antigravity CLI file system
 //     tools (write_file, replace) can access files in /tmp/ including
 //     /tmp/gh-aw/cache-memory/ and other agent working directories.
 //  2. Sets tools.core to the list of built-in tools derived from the workflow's
 //     neutral tool configuration (bash → run_shell_command, edit → write_file/replace).
-//  3. Merges the above settings with any existing .gemini/settings.json, which
-//     may have been written by convert_gateway_config_gemini.sh with MCP server
+//  3. Merges the above settings with any existing .antigravity/settings.json, which
+//     may have been written by convert_gateway_config_antigravity.sh with MCP server
 //     configuration. The merge preserves the MCP server config while adding
 //     the context and tools settings.
-func (e *GeminiEngine) generateGeminiSettingsStep(workflowData *WorkflowData) GitHubActionStep {
-	geminiToolsLog.Printf("Generating Gemini settings step for: %s", workflowData.Name)
+func (e *AntigravityEngine) generateAntigravitySettingsStep(workflowData *WorkflowData) GitHubActionStep {
+	antigravityToolsLog.Printf("Generating Antigravity settings step for: %s", workflowData.Name)
 
 	tools := workflowData.Tools
 	if tools == nil {
@@ -134,8 +134,8 @@ func (e *GeminiEngine) generateGeminiSettingsStep(workflowData *WorkflowData) Gi
 	tools = withMountedCLIShellCommandsInRestrictedBash(&workflowDataWithEffectiveTools)
 
 	// Compute tools.core from neutral tool configuration
-	toolsCore := computeGeminiToolsCore(tools)
-	geminiToolsLog.Printf("tools.core entries: %d", len(toolsCore))
+	toolsCore := computeAntigravityToolsCore(tools)
+	antigravityToolsLog.Printf("tools.core entries: %d", len(toolsCore))
 
 	// Build the settings JSON object
 	config := map[string]any{
@@ -149,24 +149,24 @@ func (e *GeminiEngine) generateGeminiSettingsStep(workflowData *WorkflowData) Gi
 
 	configJSON, err := json.Marshal(config)
 	if err != nil {
-		geminiToolsLog.Printf("ERROR: Failed to marshal Gemini settings: %v", err)
+		antigravityToolsLog.Printf("ERROR: Failed to marshal Antigravity settings: %v", err)
 		configJSON = []byte(`{"context":{"includeDirectories":["/tmp/"]},"tools":{"core":[]}}`)
 	}
 
 	// Generate a shell script that:
-	// - Creates the .gemini directory if needed
+	// - Creates the .antigravity directory if needed
 	// - Merges settings into an existing settings.json (from MCP gateway setup), or
 	// - Creates a new settings.json when no MCP servers are configured
 	//
-	// The JSON config is passed via the GH_AW_GEMINI_BASE_CONFIG environment variable
+	// The JSON config is passed via the GH_AW_ANTIGRAVITY_BASE_CONFIG environment variable
 	// to avoid any shell quoting issues with special characters in the JSON.
 	//
 	// jq merge: '$existing * $base' means the RIGHT operand ($base) overrides the LEFT
 	// operand ($existing) for conflicting keys. Non-conflicting keys from $existing
-	// (e.g. mcpServers written by convert_gateway_config_gemini.sh) are preserved.
-	command := `mkdir -p "$GITHUB_WORKSPACE/.gemini"
-SETTINGS="$GITHUB_WORKSPACE/.gemini/settings.json"
-BASE_CONFIG="$GH_AW_GEMINI_BASE_CONFIG"
+	// (e.g. mcpServers written by convert_gateway_config_antigravity.sh) are preserved.
+	command := `mkdir -p "$GITHUB_WORKSPACE/.antigravity"
+SETTINGS="$GITHUB_WORKSPACE/.antigravity/settings.json"
+BASE_CONFIG="$GH_AW_ANTIGRAVITY_BASE_CONFIG"
 if [ -f "$SETTINGS" ]; then
   MERGED=$(jq -n --argjson base "$BASE_CONFIG" --argjson existing "$(cat "$SETTINGS")" '$existing * $base')
   echo "$MERGED" > "$SETTINGS"
@@ -175,10 +175,10 @@ else
 fi`
 
 	stepLines := []string{
-		"      - name: Write Gemini Config",
+		"      - name: Write Antigravity Config",
 	}
 	env := map[string]string{
-		"GH_AW_GEMINI_BASE_CONFIG": string(configJSON),
+		"GH_AW_ANTIGRAVITY_BASE_CONFIG": string(configJSON),
 	}
 	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
 	return GitHubActionStep(stepLines)

@@ -125,8 +125,8 @@ const (
 	// CopilotLLMGatewayPort is the port for the Copilot LLM gateway
 	CopilotLLMGatewayPort = 10002
 
-	// GeminiLLMGatewayPort is the port for the Gemini LLM gateway
-	GeminiLLMGatewayPort = 10003
+	// AntigravityLLMGatewayPort is the port for the Antigravity LLM gateway
+	AntigravityLLMGatewayPort = 10003
 )
 
 // DefaultGitHubLockdown is the default value for the GitHub MCP server lockdown setting.

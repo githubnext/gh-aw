@@ -168,7 +168,7 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 				"repos": []string{
 					"github/*",           // owner wildcard
 					"microsoft/copilot*", // prefix wildcard
-					"google/gemini",      // specific repo
+					"google/antigravity",      // specific repo
 				},
 				"min-integrity": "approved",
 			},
@@ -177,7 +177,7 @@ func TestDeriveSafeOutputsGuardPolicyFromGitHub(t *testing.T) {
 					"accept": []string{
 						"private:github",
 						"private:microsoft/copilot*",
-						"private:google/gemini",
+						"private:google/antigravity",
 					},
 				},
 			},

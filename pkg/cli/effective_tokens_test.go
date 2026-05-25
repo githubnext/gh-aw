@@ -76,9 +76,9 @@ func TestModelMultipliersInventoryUpdate20260510(t *testing.T) {
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-nano"], 1e-9, "gpt-5.4-nano should use updated multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-pro"], 1e-9, "gpt-5.4-pro should use updated multiplier")
 	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4.6"], 1e-9, "claude-opus-4.6 should use updated multiplier")
-	assert.InDelta(t, 0.1, loadedMultipliers["gemini-3.1-flash-lite"], 1e-9, "gemini-3.1-flash-lite should be present")
-	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3.1-pro-preview-customtools"], 1e-9, "gemini-3.1-pro-preview-customtools should be present")
-	assert.InDelta(t, 0.2, loadedMultipliers["gemini-2.5-computer-use-preview-10-2025"], 1e-9, "gemini-2.5-computer-use-preview-10-2025 should be present")
+	assert.InDelta(t, 0.1, loadedMultipliers["antigravity-3.1-flash-lite"], 1e-9, "antigravity-3.1-flash-lite should be present")
+	assert.InDelta(t, 6.0, loadedMultipliers["antigravity-3.1-pro-preview-customtools"], 1e-9, "antigravity-3.1-pro-preview-customtools should be present")
+	assert.InDelta(t, 0.2, loadedMultipliers["antigravity-2.5-computer-use-preview-10-2025"], 1e-9, "antigravity-2.5-computer-use-preview-10-2025 should be present")
 	assert.InDelta(t, 0.33, loadedMultipliers["grok-code-fast-1"], 1e-9, "grok-code-fast-1 should be present")
 	assert.InDelta(t, 1.0, loadedMultipliers["deep-research-max-preview-04-2026"], 1e-9, "deep-research-max-preview-04-2026 should be present")
 }
@@ -94,9 +94,9 @@ func TestModelMultipliersInventoryUpdate20260517(t *testing.T) {
 	assert.InDelta(t, 7.5, loadedMultipliers["gpt-5.5-2026-04-23"], 1e-9, "gpt-5.5-2026-04-23 should be present")
 	assert.InDelta(t, 3.0, loadedMultipliers["o3-deep-research-2025-06-26"], 1e-9, "o3-deep-research-2025-06-26 should be present")
 	assert.InDelta(t, 0.5, loadedMultipliers["o4-mini-deep-research-2025-06-26"], 1e-9, "o4-mini-deep-research-2025-06-26 should be present")
-	assert.InDelta(t, 0.2, loadedMultipliers["gemini-2.5-flash-native-audio-preview-12-2025"], 1e-9, "gemini-2.5-flash-native-audio-preview-12-2025 should be present")
-	assert.InDelta(t, 1.0, loadedMultipliers["gemini-2.5-pro-preview-tts"], 1e-9, "gemini-2.5-pro-preview-tts should be present")
-	assert.InDelta(t, 0.1, loadedMultipliers["gemini-2.0-flash-lite-001"], 1e-9, "gemini-2.0-flash-lite-001 should be present")
+	assert.InDelta(t, 0.2, loadedMultipliers["antigravity-2.5-flash-native-audio-preview-12-2025"], 1e-9, "antigravity-2.5-flash-native-audio-preview-12-2025 should be present")
+	assert.InDelta(t, 1.0, loadedMultipliers["antigravity-2.5-pro-preview-tts"], 1e-9, "antigravity-2.5-pro-preview-tts should be present")
+	assert.InDelta(t, 0.1, loadedMultipliers["antigravity-2.0-flash-lite-001"], 1e-9, "antigravity-2.0-flash-lite-001 should be present")
 }
 
 func TestModelMultipliersInventoryUpdate20260519(t *testing.T) {
@@ -114,7 +114,7 @@ func TestModelMultipliersInventoryUpdate20260520(t *testing.T) {
 	initMultipliers()
 
 	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
-	assert.InDelta(t, 14.0, loadedMultipliers["gemini-3.5-flash"], 1e-9, "gemini-3.5-flash should use the documented premium multiplier")
+	assert.InDelta(t, 14.0, loadedMultipliers["antigravity-3.5-flash"], 1e-9, "antigravity-3.5-flash should use the documented premium multiplier")
 }
 
 func TestModelMultipliersInventoryUpdate20260521(t *testing.T) {
@@ -129,9 +129,9 @@ func TestModelMultipliersInventoryUpdate20260521(t *testing.T) {
 	assert.InDelta(t, 3.0, loadedMultipliers["gpt-5.2-pro-2025-12-11"], 1e-9, "gpt-5.2-pro-2025-12-11 should match documented multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-nano-2026-03-17"], 1e-9, "gpt-5.4-nano-2026-03-17 should match documented multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-pro-2026-03-05"], 1e-9, "gpt-5.4-pro-2026-03-05 should match documented multiplier")
-	assert.InDelta(t, 0.33, loadedMultipliers["gemini-3-flash"], 1e-9, "gemini-3-flash should be present with official billing multiplier")
-	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3-pro"], 1e-9, "gemini-3-pro should be present with official billing multiplier")
-	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3.1-pro"], 1e-9, "gemini-3.1-pro should be present with official billing multiplier")
+	assert.InDelta(t, 0.33, loadedMultipliers["antigravity-3-flash"], 1e-9, "antigravity-3-flash should be present with official billing multiplier")
+	assert.InDelta(t, 6.0, loadedMultipliers["antigravity-3-pro"], 1e-9, "antigravity-3-pro should be present with official billing multiplier")
+	assert.InDelta(t, 6.0, loadedMultipliers["antigravity-3.1-pro"], 1e-9, "antigravity-3.1-pro should be present with official billing multiplier")
 }
 
 func TestPopulateEffectiveTokensWithCustomWeights(t *testing.T) {

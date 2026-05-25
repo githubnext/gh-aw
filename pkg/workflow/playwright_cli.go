@@ -48,7 +48,7 @@ func isPlaywrightCLIMode(tools map[string]any) bool {
 // when playwright is configured in CLI mode. Returns nil if playwright is in MCP mode.
 //
 // Node.js setup is intentionally omitted here because all supported engines
-// (copilot, claude, codex, gemini) include a Node.js setup step in their own
+// (copilot, claude, codex, antigravity) include a Node.js setup step in their own
 // installation steps, which run before this function is called.
 func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActionStep {
 	if !isPlaywrightCLIMode(workflowData.Tools) {

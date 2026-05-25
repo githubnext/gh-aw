@@ -1276,7 +1276,7 @@ const ENGINE_ID_TO_CREDENTIAL = /** @type {Record<string, string>} */ {
   copilot: "`COPILOT_GITHUB_TOKEN`",
   claude: "`ANTHROPIC_API_KEY`",
   codex: "`CODEX_API_KEY` / `OPENAI_API_KEY`",
-  gemini: "`GEMINI_API_KEY`",
+  antigravity: "`ANTIGRAVITY_API_KEY`",
 };
 
 // Maps engine ID to a human-readable provider label.
@@ -1284,7 +1284,7 @@ const ENGINE_ID_TO_LABEL = /** @type {Record<string, string>} */ {
   copilot: "GitHub Copilot",
   claude: "Anthropic Claude",
   codex: "OpenAI Codex",
-  gemini: "Google Gemini",
+  antigravity: "Antigravity",
 };
 
 // Hardcoded fallback provider hosts for when GH_AW_ENGINE_API_HOSTS is not set.
@@ -1293,7 +1293,7 @@ const FIREWALL_AUTH_PROVIDER_HOSTS = /** @type {Array<{provider: string, pattern
   { provider: "GitHub Copilot", pattern: /\.githubcopilot\.com/i, credential: "`COPILOT_GITHUB_TOKEN`" },
   { provider: "OpenAI Codex", pattern: /^api\.openai\.com/i, credential: "`CODEX_API_KEY` / `OPENAI_API_KEY`" },
   { provider: "Anthropic Claude", pattern: /^api\.anthropic\.com/i, credential: "`ANTHROPIC_API_KEY`" },
-  { provider: "Google Gemini", pattern: /^generativelanguage\.googleapis\.com/i, credential: "`GEMINI_API_KEY`" },
+  { provider: "Antigravity", pattern: /^generativelanguage\.googleapis\.com/i, credential: "`ANTIGRAVITY_API_KEY`" },
 ];
 
 /**

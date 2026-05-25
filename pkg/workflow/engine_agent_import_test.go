@@ -307,24 +307,24 @@ func TestCodexEngineAWFWithAgentFileReadsPromptTxt(t *testing.T) {
 	}
 }
 
-// TestGeminiEngineDoesNotSupportNativeAgentFile verifies that the Gemini engine declares
+// TestAntigravityEngineDoesNotSupportNativeAgentFile verifies that the Antigravity engine declares
 // it does not handle agent files natively, so the compiler knows to prepend the agent file
 // content to prompt.txt during the activation job instead.
-func TestGeminiEngineDoesNotSupportNativeAgentFile(t *testing.T) {
-	engine := NewGeminiEngine()
+func TestAntigravityEngineDoesNotSupportNativeAgentFile(t *testing.T) {
+	engine := NewAntigravityEngine()
 	if engine.GetCapabilities().NativeAgentFile {
-		t.Errorf("Gemini engine should report NativeAgentFile=false; the compiler handles agent file injection")
+		t.Errorf("Antigravity engine should report NativeAgentFile=false; the compiler handles agent file injection")
 	}
 }
 
-// TestGeminiEngineWithAgentFromImports tests that Gemini engine does NOT handle agent file natively
+// TestAntigravityEngineWithAgentFromImports tests that Antigravity engine does NOT handle agent file natively
 // and instead relies on the compiler to include the agent file content in prompt.txt
-func TestGeminiEngineWithAgentFromImports(t *testing.T) {
-	engine := NewGeminiEngine()
+func TestAntigravityEngineWithAgentFromImports(t *testing.T) {
+	engine := NewAntigravityEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			ID: "gemini",
+			ID: "antigravity",
 		},
 		AgentFile: ".github/agents/test-agent.md",
 		Tools:     map[string]any{},
@@ -332,7 +332,7 @@ func TestGeminiEngineWithAgentFromImports(t *testing.T) {
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	// GetExecutionSteps returns a settings step + execution step for Gemini
+	// GetExecutionSteps returns a settings step + execution step for Antigravity
 	if len(steps) == 0 {
 		t.Fatal("Expected at least one execution step")
 	}
@@ -345,32 +345,32 @@ func TestGeminiEngineWithAgentFromImports(t *testing.T) {
 	}
 	combined := allContent.String()
 
-	// Gemini does not handle the agent file natively — no awk or AGENT_CONTENT
+	// Antigravity does not handle the agent file natively — no awk or AGENT_CONTENT
 	if strings.Contains(combined, "AGENT_CONTENT") {
-		t.Errorf("Gemini must NOT handle agent file natively (AGENT_CONTENT found in steps); the compiler handles it:\n%s", combined)
+		t.Errorf("Antigravity must NOT handle agent file natively (AGENT_CONTENT found in steps); the compiler handles it:\n%s", combined)
 	}
 	if strings.Contains(combined, "awk") {
-		t.Errorf("Gemini must NOT invoke awk for agent file reading (found in steps); the compiler handles it:\n%s", combined)
+		t.Errorf("Antigravity must NOT invoke awk for agent file reading (found in steps); the compiler handles it:\n%s", combined)
 	}
 
 	// The execution step must read the prompt from prompt.txt
 	if !strings.Contains(combined, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
-		t.Errorf("Expected Gemini to read from prompt.txt, got:\n%s", combined)
+		t.Errorf("Expected Antigravity to read from prompt.txt, got:\n%s", combined)
 	}
 }
 
-// TestGeminiEngineAWFWithAgentFileReadsPromptTxt verifies that when an agent file is used
-// with the firewall (AWF) enabled, the gemini command reads from prompt.txt (not from a
+// TestAntigravityEngineAWFWithAgentFileReadsPromptTxt verifies that when an agent file is used
+// with the firewall (AWF) enabled, the antigravity command reads from prompt.txt (not from a
 // AGENT_CONTENT shell variable). The compiler prepends the agent file content to prompt.txt
 // in the activation job.
-func TestGeminiEngineAWFWithAgentFileReadsPromptTxt(t *testing.T) {
-	engine := NewGeminiEngine()
+func TestAntigravityEngineAWFWithAgentFileReadsPromptTxt(t *testing.T) {
+	engine := NewAntigravityEngine()
 
 	agentSandbox := &AgentSandboxConfig{Type: SandboxTypeAWF}
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			ID: "gemini",
+			ID: "antigravity",
 		},
 		AgentFile: ".github/agents/test-agent.md",
 		SandboxConfig: &SandboxConfig{
@@ -393,15 +393,15 @@ func TestGeminiEngineAWFWithAgentFileReadsPromptTxt(t *testing.T) {
 
 	// No AGENT_CONTENT shell variable anywhere in the steps.
 	if strings.Contains(combined, "AGENT_CONTENT") {
-		t.Errorf("AGENT_CONTENT must not appear in the Gemini AWF steps; compiler handles agent file injection:\n%s", combined)
+		t.Errorf("AGENT_CONTENT must not appear in the Antigravity AWF steps; compiler handles agent file injection:\n%s", combined)
 	}
 	if strings.Contains(combined, "awk") {
-		t.Errorf("awk must not appear in the Gemini AWF steps; compiler handles agent file injection:\n%s", combined)
+		t.Errorf("awk must not appear in the Antigravity AWF steps; compiler handles agent file injection:\n%s", combined)
 	}
 
 	// The command must still read from prompt.txt.
 	if !strings.Contains(combined, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
-		t.Errorf("Expected gemini to read from prompt.txt in AWF mode, got:\n%s", combined)
+		t.Errorf("Expected antigravity to read from prompt.txt in AWF mode, got:\n%s", combined)
 	}
 }
 
@@ -505,7 +505,7 @@ This is a test agent file.
 }
 
 // TestInvalidAgentFilePathGeneratesFailingStep tests that engines that do NOT handle agent files
-// natively (Claude, Codex, Gemini) rely on the compiler's validateAgentFile to reject malicious
+// natively (Claude, Codex, Antigravity) rely on the compiler's validateAgentFile to reject malicious
 // paths at compile time. Engine steps should proceed normally and never reference agent file paths.
 func TestInvalidAgentFilePathGeneratesFailingStep(t *testing.T) {
 	maliciousPath := `.github/agents/a";id;"b.md`

@@ -16,9 +16,9 @@ set +o histexpand
 # the engine registry in the Go compiler is the single source of truth:
 #
 #   GH_AW_AGENT_FOLDERS  - space-separated list of directories to snapshot
-#                          (e.g. ".agents .claude .codex .gemini .github")
+#                          (e.g. ".agents .claude .codex .antigravity .github")
 #   GH_AW_AGENT_FILES    - space-separated list of root files to snapshot
-#                          (e.g. "AGENTS.md CLAUDE.md GEMINI.md")
+#                          (e.g. "AGENTS.md CLAUDE.md ANTIGRAVITY.md")
 #
 # Exit codes:
 #   0 - Success

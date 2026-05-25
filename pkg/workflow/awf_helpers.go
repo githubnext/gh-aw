@@ -360,7 +360,7 @@ fi`,
 //   - --openai-api-target                 → apiProxy.targets.openai.host
 //   - --anthropic-api-target              → apiProxy.targets.anthropic.host
 //   - --copilot-api-target                → apiProxy.targets.copilot.host
-//   - --gemini-api-target                 → apiProxy.targets.gemini.host
+//   - --antigravity-api-target                 → apiProxy.targets.antigravity.host
 //
 // Parameters:
 //   - config: AWF command configuration
@@ -487,10 +487,10 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Added --anthropic-api-base-path=%s", anthropicBasePath)
 	}
 
-	geminiBasePath := extractAPIBasePath(config.WorkflowData, "GEMINI_API_BASE_URL")
+	geminiBasePath := extractAPIBasePath(config.WorkflowData, "ANTIGRAVITY_API_BASE_URL")
 	if geminiBasePath != "" {
-		awfArgs = append(awfArgs, "--gemini-api-base-path", geminiBasePath)
-		awfHelpersLog.Printf("Added --gemini-api-base-path=%s", geminiBasePath)
+		awfArgs = append(awfArgs, "--antigravity-api-base-path", geminiBasePath)
+		awfHelpersLog.Printf("Added --antigravity-api-base-path=%s", geminiBasePath)
 	}
 
 	// Add SSL Bump support for HTTPS content inspection (v0.9.0+)

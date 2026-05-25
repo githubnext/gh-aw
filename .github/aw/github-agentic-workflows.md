@@ -19,7 +19,7 @@ on:
 permissions:
   contents: read
   actions: read
-engine: copilot          # or: claude, codex, gemini, opencode
+engine: copilot          # or: claude, codex, antigravity, opencode
 strict: true
 timeout-minutes: 15
 network:

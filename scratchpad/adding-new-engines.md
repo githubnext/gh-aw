@@ -790,7 +790,7 @@ var engineDefaultDomains = map[constants.EngineName][]string{
     constants.CopilotEngine:  CopilotDefaultDomains,
     constants.ClaudeEngine:   ClaudeDefaultDomains,
     constants.CodexEngine:    CodexDefaultDomains,
-    constants.GeminiEngine:   GeminiDefaultDomains,
+    constants.AntigravityEngine:   AntigravityDefaultDomains,
     constants.MyEngine:       MyEngineDefaultDomains, // Add your engine here
 }
 ```

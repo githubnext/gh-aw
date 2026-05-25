@@ -40,7 +40,7 @@ const ENGINE_TO_SYSTEM_MAP = Object.assign(Object.create(null), {
   copilot: "github_models",
   claude: "anthropic",
   codex: "openai",
-  gemini: "google_vertex_ai",
+  antigravity: "google_vertex_ai",
 });
 
 // ---------------------------------------------------------------------------

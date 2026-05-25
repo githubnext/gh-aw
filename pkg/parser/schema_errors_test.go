@@ -20,10 +20,10 @@ func TestCleanOneOfMessage(t *testing.T) {
 		{
 			name: "engine typo removes got-string-want-object branch",
 			input: "at '/engine': 'oneOf' failed, none matched\n" +
-				"- at '/engine': value must be one of 'claude', 'codex', 'copilot', 'gemini'\n" +
+				"- at '/engine': value must be one of 'claude', 'codex', 'copilot', 'antigravity'\n" +
 				"- at '/engine': got string, want object",
 			wantNot: []string{"oneOf", "got string, want object"},
-			wantAny: []string{"value must be one of 'claude', 'codex', 'copilot', 'gemini'"},
+			wantAny: []string{"value must be one of 'claude', 'codex', 'copilot', 'antigravity'"},
 		},
 		{
 			name: "permissions typo removes got-object-want-string branch",

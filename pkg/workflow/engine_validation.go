@@ -165,6 +165,10 @@ func (c *Compiler) validateEngineInlineDefinition(config *EngineConfig) error {
 
 	engineValidationLog.Printf("Validating inline engine definition: runtimeID=%s", config.ID)
 
+	if config.ID == "gemini" {
+		return errors.New("engine: gemini is no longer supported. Run the Antigravity migration codemod and configure ANTIGRAVITY_API_KEY.")
+	}
+
 	if config.ID == "" {
 		return fmt.Errorf("inline engine definition is missing required 'runtime.id' field.\n\nExample:\nengine:\n  runtime:\n    id: codex\n\nSee: %s", constants.DocsEnginesURL)
 	}
@@ -414,7 +418,7 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 //   - Copilot engine: Adds step unless copilot-requests feature is enabled or custom command is set
 //   - Claude engine: Adds step unless custom command is set
 //   - Codex engine: Adds step unless custom command is set
-//   - Gemini engine: Adds step unless custom command is set
+//   - Antigravity engine: Adds step unless custom command is set
 //   - Custom engine: Never adds this step (uses BaseEngine default which returns empty)
 //
 // Parameters:

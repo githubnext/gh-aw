@@ -416,7 +416,7 @@ describe("parse_copilot_log.cjs", () => {
       expect(extractPremiumRequestCount("premium requests consumed: 2")).toBe(2);
     });
 
-    it("should parse decimal premium request count (e.g. gemini-3-flash-preview)", () => {
+    it("should parse decimal premium request count (e.g. antigravity-3-flash-preview)", () => {
       expect(extractPremiumRequestCount("premium requests consumed: 0.33")).toBe(0.33);
     });
 

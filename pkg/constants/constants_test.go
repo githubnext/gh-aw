@@ -101,7 +101,7 @@ func TestAgenticEngines(t *testing.T) {
 		t.Error("AgenticEngines should not be empty")
 	}
 
-	expectedEngines := []string{"claude", "codex", "copilot", "gemini", "opencode", "crush", "pi"}
+	expectedEngines := []string{"claude", "codex", "copilot", "antigravity", "opencode", "crush", "pi"}
 	if len(AgenticEngines) != len(expectedEngines) {
 		t.Errorf("AgenticEngines length = %d, want %d", len(AgenticEngines), len(expectedEngines))
 	}
@@ -122,8 +122,8 @@ func TestAgenticEngines(t *testing.T) {
 	if string(CopilotEngine) != "copilot" {
 		t.Errorf("CopilotEngine constant = %q, want %q", CopilotEngine, "copilot")
 	}
-	if string(GeminiEngine) != "gemini" {
-		t.Errorf("GeminiEngine constant = %q, want %q", GeminiEngine, "gemini")
+	if string(AntigravityEngine) != "antigravity" {
+		t.Errorf("AntigravityEngine constant = %q, want %q", AntigravityEngine, "antigravity")
 	}
 	if DefaultEngine != CopilotEngine {
 		t.Errorf("DefaultEngine = %q, want CopilotEngine (%q)", DefaultEngine, CopilotEngine)

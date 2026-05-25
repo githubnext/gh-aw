@@ -811,10 +811,10 @@ func TestEngineBareFieldExtraction(t *testing.T) {
 			expectedBare: true,
 		},
 		{
-			name: "bare true for gemini",
+			name: "bare true for antigravity",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
-					"id":   "gemini",
+					"id":   "antigravity",
 					"bare": true,
 				},
 			},
@@ -953,8 +953,8 @@ func TestSupportsBareMode(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:     "gemini does not support bare mode",
-			engine:   NewGeminiEngine(),
+			name:     "antigravity does not support bare mode",
+			engine:   NewAntigravityEngine(),
 			expected: false,
 		},
 	}
@@ -990,22 +990,22 @@ func TestBareMode_UnsupportedEngineNoFlag(t *testing.T) {
 		}
 	})
 
-	t.Run("gemini does not inject GEMINI_SYSTEM_MD=/dev/null", func(t *testing.T) {
+	t.Run("antigravity does not inject GEMINI_SYSTEM_MD=/dev/null", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
-				ID:   "gemini",
+				ID:   "antigravity",
 				Bare: true,
 			},
 		}
 
-		engine := NewGeminiEngine()
+		engine := NewAntigravityEngine()
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
 		for _, step := range steps {
 			for _, line := range step {
 				if strings.Contains(line, "GEMINI_SYSTEM_MD") && strings.Contains(line, "/dev/null") {
-					t.Error("Gemini should not inject GEMINI_SYSTEM_MD=/dev/null (bare mode unsupported)")
+					t.Error("Antigravity should not inject GEMINI_SYSTEM_MD=/dev/null (bare mode unsupported)")
 					return
 				}
 			}

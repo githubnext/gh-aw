@@ -10,7 +10,7 @@
 
 ### Context
 
-The `pkg/workflow` package had grown large umbrella helper files — most notably `awf_helpers.go` and `validation_helpers.go` — that mixed unrelated concerns in a single file. Engine API target resolution (hostname extraction, base path parsing, Copilot/Gemini target lookup) lived alongside AWF command and argument construction in `awf_helpers.go`. Similarly, a generic `extractStringSliceField` utility in `validation_helpers.go` duplicated the responsibility of `parseStringSliceAny`, and a string-slice config helper existed in both `safe_outputs_config_helpers.go` and needed by `config_helpers.go`. The mixture made it difficult to locate related logic, understand module boundaries, or reason about which helper was canonical.
+The `pkg/workflow` package had grown large umbrella helper files — most notably `awf_helpers.go` and `validation_helpers.go` — that mixed unrelated concerns in a single file. Engine API target resolution (hostname extraction, base path parsing, Copilot/Antigravity target lookup) lived alongside AWF command and argument construction in `awf_helpers.go`. Similarly, a generic `extractStringSliceField` utility in `validation_helpers.go` duplicated the responsibility of `parseStringSliceAny`, and a string-slice config helper existed in both `safe_outputs_config_helpers.go` and needed by `config_helpers.go`. The mixture made it difficult to locate related logic, understand module boundaries, or reason about which helper was canonical.
 
 ### Decision
 
@@ -43,7 +43,7 @@ A dedicated sub-package would enforce a hard import boundary and make the API ta
 - Call sites of the removed `extractStringSliceField` must be updated; contributors who learned the old function name must discover the replacement.
 
 #### Neutral
-- No public API surface changes; `GetCopilotAPITarget`, `GetGeminiAPITarget`, and `DefaultGeminiAPITarget` retain their signatures and are re-exported from the new file.
+- No public API surface changes; `GetCopilotAPITarget`, `GetAntigravityAPITarget`, and `DefaultAntigravityAPITarget` retain their signatures and are re-exported from the new file.
 - The refactor is behavior-preserving: empty-string filtering and type coercion semantics are maintained across all moved and renamed helpers.
 
 ---
@@ -54,7 +54,7 @@ A dedicated sub-package would enforce a hard import boundary and make the API ta
 
 ### File Organization
 
-1. Engine API target resolution helpers (`extractAPITargetHost`, `extractAPIBasePath`, `GetCopilotAPITarget`, `GetGeminiAPITarget`, `DefaultGeminiAPITarget`) **MUST** reside in `pkg/workflow/engine_api_targets.go`.
+1. Engine API target resolution helpers (`extractAPITargetHost`, `extractAPIBasePath`, `GetCopilotAPITarget`, `GetAntigravityAPITarget`, `DefaultAntigravityAPITarget`) **MUST** reside in `pkg/workflow/engine_api_targets.go`.
 2. New engine-specific API target helpers added in the future **MUST** be placed in `engine_api_targets.go` and **MUST NOT** be added to `awf_helpers.go` or other umbrella helper files.
 3. `awf_helpers.go` **MUST NOT** contain engine API target resolution logic; it **MUST** be limited to AWF command construction and argument assembly.
 4. String-slice config extraction helpers (`extractStringSliceFromConfig`) **MUST** be defined in `pkg/workflow/config_helpers.go` and **MUST NOT** be duplicated in other files within the package.

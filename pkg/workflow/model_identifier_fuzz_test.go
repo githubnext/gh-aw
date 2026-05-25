@@ -31,7 +31,7 @@ func FuzzParseModelIdentifier(f *testing.F) {
 	f.Add("copilot/gpt-5")
 	f.Add("openai/o3")
 	f.Add("anthropic/claude-opus-4.5")
-	f.Add("google/gemini-pro")
+	f.Add("google/antigravity-pro")
 
 	// Valid glob patterns.
 	f.Add("copilot/*sonnet*")

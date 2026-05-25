@@ -396,7 +396,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 
 	// Add engine-specific agent config directories to the sparse checkout.
 	// .github and .agents are already included in GenerateGitHubFolderCheckoutStep's hardcoded list.
-	// Root instruction files (AGENTS.md, CLAUDE.md, GEMINI.md) are excluded — they are not needed
+	// Root instruction files (AGENTS.md, CLAUDE.md, ANTIGRAVITY.md) are excluded — they are not needed
 	// during activation and are omitted to keep the shallow checkout minimal.
 	defaultSparseCheckoutDirs := map[string]bool{".github": true, ".agents": true}
 	registry := GetGlobalEngineRegistry()

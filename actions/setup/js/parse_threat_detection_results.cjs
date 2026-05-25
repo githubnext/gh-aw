@@ -162,7 +162,7 @@ function parseDetectionLog(content) {
   }
 
   // Phase 2: If no stream-json result field matches, try assistant stream chunk matching.
-  // Gemini stream-json output may emit assistant text in multiple "type":"message"
+  // Antigravity stream-json output may emit assistant text in multiple "type":"message"
   // entries (with role=assistant) where the verdict is split across chunks:
   //   "THREAT_DETECTION_"
   //   "RESULT:{...}"

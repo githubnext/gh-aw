@@ -13,7 +13,7 @@ const {
   AWF_MODELS_URL_MAX_ATTEMPTS,
   AWF_MODELS_URL_RETRY_BASE_MS,
   AWF_MODELS_URL_RETRY_MAX_MS,
-  GEMINI_MODEL_NAME_PREFIX,
+  ANTIGRAVITY_MODEL_NAME_PREFIX,
   enrichReflectModels,
   extractModelIds,
   fetchAWFReflect,
@@ -30,7 +30,7 @@ describe("awf_reflect.cjs", () => {
       expect(AWF_MODELS_URL_MAX_ATTEMPTS).toBe(5);
       expect(AWF_MODELS_URL_RETRY_BASE_MS).toBe(250);
       expect(AWF_MODELS_URL_RETRY_MAX_MS).toBe(2000);
-      expect(GEMINI_MODEL_NAME_PREFIX).toBe("models/");
+      expect(ANTIGRAVITY_MODEL_NAME_PREFIX).toBe("models/");
     });
   });
 
@@ -57,14 +57,14 @@ describe("awf_reflect.cjs", () => {
       expect(extractModelIds(json)).toEqual(["model-a", "model-b"]);
     });
 
-    it("extracts ids from Gemini format, stripping prefix", () => {
+    it("extracts ids from Antigravity format, stripping prefix", () => {
       const json = {
-        models: [{ name: "models/gemini-1.5-pro" }, { name: "models/gemini-1.0-pro" }],
+        models: [{ name: "models/antigravity-1.5-pro" }, { name: "models/antigravity-1.0-pro" }],
       };
-      expect(extractModelIds(json)).toEqual(["gemini-1.0-pro", "gemini-1.5-pro"]);
+      expect(extractModelIds(json)).toEqual(["antigravity-1.0-pro", "antigravity-1.5-pro"]);
     });
 
-    it("handles Gemini entries without the prefix", () => {
+    it("handles Antigravity entries without the prefix", () => {
       const json = { models: [{ name: "custom-model" }] };
       expect(extractModelIds(json)).toEqual(["custom-model"]);
     });

@@ -7,7 +7,7 @@ sidebar:
 
 Control network access for AI engines using the top-level `network` field to specify which domains and services your agentic workflows can access during execution.
 
-> **Note**: Network permissions are supported by all four engines: Copilot, Claude, Codex, and Gemini (via the AWF firewall). See the [Implementation](#implementation) section for engine-specific details.
+> **Note**: Network permissions are supported by all four engines: Copilot, Claude, Codex, and Antigravity (via the AWF firewall). See the [Implementation](#implementation) section for engine-specific details.
 
 If no `network:` permission is specified, it defaults to `network: defaults` which allows access to basic infrastructure domains (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources).
 
@@ -222,9 +222,9 @@ network:
 
 When enabled, AWF enforces domain allowlisting via `--allow-domains`, automatically includes all subdomains (e.g., `github.com` allows `api.github.com`), supports wildcard patterns, and logs all network activity for audit purposes.
 
-### Claude, Codex, and Gemini Engines
+### Claude, Codex, and Antigravity Engines
 
-The Claude, Codex, and Gemini engines use the same AWF firewall as the Copilot engine. Configure network permissions using the same `network.allowed` / `network.blocked` fields:
+The Claude, Codex, and Antigravity engines use the same AWF firewall as the Copilot engine. Configure network permissions using the same `network.allowed` / `network.blocked` fields:
 
 ```yaml wrap
 # Claude
@@ -241,8 +241,8 @@ network:
     - defaults
     - node
 
-# Gemini
-engine: gemini
+# Antigravity
+engine: antigravity
 network:
   allowed:
     - defaults

@@ -10,14 +10,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGeminiEngine(t *testing.T) {
-	engine := NewGeminiEngine()
+func TestAntigravityEngine(t *testing.T) {
+	engine := NewAntigravityEngine()
 
 	t.Run("engine identity", func(t *testing.T) {
-		assert.Equal(t, "gemini", engine.GetID(), "Engine ID should be 'gemini'")
-		assert.Equal(t, "Google Gemini CLI", engine.GetDisplayName(), "Display name should be 'Google Gemini CLI'")
+		assert.Equal(t, "antigravity", engine.GetID(), "Engine ID should be 'antigravity'")
+		assert.Equal(t, "Antigravity CLI", engine.GetDisplayName(), "Display name should be 'Antigravity CLI'")
 		assert.NotEmpty(t, engine.GetDescription(), "Description should not be empty")
-		assert.False(t, engine.IsExperimental(), "Gemini engine should not be experimental")
+		assert.False(t, engine.IsExperimental(), "Antigravity engine should not be experimental")
 	})
 
 	t.Run("capabilities", func(t *testing.T) {
@@ -34,7 +34,7 @@ func TestGeminiEngine(t *testing.T) {
 			Tools:       map[string]any{},
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
-		assert.Contains(t, secrets, "GEMINI_API_KEY", "Should require GEMINI_API_KEY")
+		assert.Contains(t, secrets, "ANTIGRAVITY_API_KEY", "Should require ANTIGRAVITY_API_KEY")
 	})
 
 	t.Run("required secrets with MCP servers", func(t *testing.T) {
@@ -48,7 +48,7 @@ func TestGeminiEngine(t *testing.T) {
 			},
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
-		assert.Contains(t, secrets, "GEMINI_API_KEY", "Should require GEMINI_API_KEY")
+		assert.Contains(t, secrets, "ANTIGRAVITY_API_KEY", "Should require ANTIGRAVITY_API_KEY")
 		assert.Contains(t, secrets, "MCP_GATEWAY_API_KEY", "Should require MCP_GATEWAY_API_KEY when MCP servers present")
 		assert.Contains(t, secrets, "GITHUB_MCP_SERVER_TOKEN", "Should require GITHUB_MCP_SERVER_TOKEN for GitHub tool")
 	})
@@ -56,7 +56,7 @@ func TestGeminiEngine(t *testing.T) {
 	t.Run("declared output files", func(t *testing.T) {
 		outputFiles := engine.GetDeclaredOutputFiles()
 		require.Len(t, outputFiles, 1, "Should declare one output file path")
-		assert.Equal(t, "/tmp/gh-aw/gemini-client-error-*.json", outputFiles[0], "Should declare Gemini error log wildcard path under /tmp/gh-aw/")
+		assert.Equal(t, "/tmp/gh-aw/antigravity-client-error-*.json", outputFiles[0], "Should declare Antigravity error log wildcard path under /tmp/gh-aw/")
 	})
 
 	t.Run("pre-bundle steps move files to /tmp/gh-aw/", func(t *testing.T) {
@@ -65,14 +65,14 @@ func TestGeminiEngine(t *testing.T) {
 		require.Len(t, steps, 1, "Should return exactly one pre-bundle step")
 
 		stepContent := strings.Join(steps[0], "\n")
-		assert.Contains(t, stepContent, "Move Gemini error files", "Step name should describe move operation")
-		assert.Contains(t, stepContent, "mv /tmp/gemini-client-error-*.json /tmp/gh-aw/", "Step should move files to /tmp/gh-aw/")
+		assert.Contains(t, stepContent, "Move Antigravity error files", "Step name should describe move operation")
+		assert.Contains(t, stepContent, "mv /tmp/antigravity-client-error-*.json /tmp/gh-aw/", "Step should move files to /tmp/gh-aw/")
 		assert.Contains(t, stepContent, "if: always()", "Step should run always so files are captured on failure")
 	})
 }
 
-func TestGeminiEngineInstallation(t *testing.T) {
-	engine := NewGeminiEngine()
+func TestAntigravityEngineInstallation(t *testing.T) {
+	engine := NewAntigravityEngine()
 
 	t.Run("standard installation", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -82,7 +82,7 @@ func TestGeminiEngineInstallation(t *testing.T) {
 		steps := engine.GetInstallationSteps(workflowData)
 		require.NotEmpty(t, steps, "Should generate installation steps")
 
-		// Should have at least: Node.js setup + Install Gemini
+		// Should have at least: Node.js setup + Install Antigravity
 		// (secret validation is now in the activation job via GetSecretValidationStep)
 		assert.GreaterOrEqual(t, len(steps), 2, "Should have at least 2 installation steps")
 
@@ -92,12 +92,12 @@ func TestGeminiEngineInstallation(t *testing.T) {
 			assert.Contains(t, stepContent, "Setup Node.js", "First step should setup Node.js")
 		}
 
-		// Verify second step is Install Gemini CLI
+		// Verify second step is Install Antigravity CLI
 		if len(steps) > 1 && len(steps[1]) > 0 {
 			stepContent := strings.Join(steps[1], "\n")
-			assert.Contains(t, stepContent, "Install Gemini CLI", "Second step should install Gemini CLI")
-			assert.Contains(t, stepContent, "@google/gemini-cli", "Should install @google/gemini-cli package")
-			assert.NotContains(t, stepContent, "NPM_CONFIG_MIN_RELEASE_AGE", "Gemini installation should not set npm release-age cooldown")
+			assert.Contains(t, stepContent, "Install Antigravity CLI", "Second step should install Antigravity CLI")
+			assert.Contains(t, stepContent, "@google/antigravity-cli", "Should install @google/antigravity-cli package")
+			assert.NotContains(t, stepContent, "NPM_CONFIG_MIN_RELEASE_AGE", "Antigravity installation should not set npm release-age cooldown")
 		}
 	})
 
@@ -105,7 +105,7 @@ func TestGeminiEngineInstallation(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
-				Command: "/custom/gemini",
+				Command: "/custom/antigravity",
 			},
 		}
 
@@ -140,8 +140,8 @@ func TestGeminiEngineInstallation(t *testing.T) {
 	})
 }
 
-func TestGeminiEngineExecution(t *testing.T) {
-	engine := NewGeminiEngine()
+func TestAntigravityEngineExecution(t *testing.T) {
+	engine := NewAntigravityEngine()
 
 	t.Run("basic execution", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -151,25 +151,25 @@ func TestGeminiEngineExecution(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 		require.Len(t, steps, 2, "Should generate settings step and execution step")
 
-		// steps[0] = Write Gemini Config, steps[1] = Execute Gemini CLI
+		// steps[0] = Write Antigravity Config, steps[1] = Execute Antigravity CLI
 		stepContent := strings.Join(steps[1], "\n")
 
-		assert.Contains(t, stepContent, "name: Execute Gemini CLI", "Should have correct step name")
+		assert.Contains(t, stepContent, "name: Execute Antigravity CLI", "Should have correct step name")
 		assert.Contains(t, stepContent, "id: agentic_execution", "Should have agentic_execution ID")
-		assert.Contains(t, stepContent, "gemini", "Should invoke gemini command")
+		assert.Contains(t, stepContent, "antigravity", "Should invoke antigravity command")
 		assert.Contains(t, stepContent, "--yolo", "Should include --yolo flag for auto-approving tool executions")
 		assert.Contains(t, stepContent, "--skip-trust", "Should include --skip-trust flag to prevent workspace trust check from overriding --yolo")
 		assert.Contains(t, stepContent, "--output-format stream-json", "Should use streaming JSON output format")
 		assert.Contains(t, stepContent, `--prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "Should include prompt argument with correct shell quoting")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
-		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Should set GEMINI_API_KEY env var")
+		assert.Contains(t, stepContent, "ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}", "Should set ANTIGRAVITY_API_KEY env var")
 	})
 
 	t.Run("with model", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
-				Model: "gemini-1.5-pro",
+				Model: "antigravity-1.5-pro",
 			},
 		}
 
@@ -178,9 +178,9 @@ func TestGeminiEngineExecution(t *testing.T) {
 
 		stepContent := strings.Join(steps[1], "\n")
 
-		// Model is passed via the native GEMINI_MODEL env var (not as a --model flag)
-		assert.Contains(t, stepContent, "GEMINI_MODEL: gemini-1.5-pro", "Should set GEMINI_MODEL env var")
-		assert.NotContains(t, stepContent, "--model gemini-1.5-pro", "Should not embed model in command")
+		// Model is passed via the native ANTIGRAVITY_MODEL env var (not as a --model flag)
+		assert.Contains(t, stepContent, "ANTIGRAVITY_MODEL: antigravity-1.5-pro", "Should set ANTIGRAVITY_MODEL env var")
+		assert.NotContains(t, stepContent, "--model antigravity-1.5-pro", "Should not embed model in command")
 	})
 
 	t.Run("with MCP servers", func(t *testing.T) {
@@ -199,16 +199,16 @@ func TestGeminiEngineExecution(t *testing.T) {
 
 		stepContent := strings.Join(steps[1], "\n")
 
-		// Gemini CLI reads MCP config from .gemini/settings.json, not --mcp-config flag
-		assert.NotContains(t, stepContent, "--mcp-config", "Should NOT include --mcp-config flag (Gemini CLI does not support it)")
-		assert.Contains(t, stepContent, "GH_AW_MCP_CONFIG: ${{ github.workspace }}/.gemini/settings.json", "Should set MCP config env var to Gemini settings.json path")
+		// Antigravity CLI reads MCP config from .antigravity/settings.json, not --mcp-config flag
+		assert.NotContains(t, stepContent, "--mcp-config", "Should NOT include --mcp-config flag (Antigravity CLI does not support it)")
+		assert.Contains(t, stepContent, "GH_AW_MCP_CONFIG: ${{ github.workspace }}/.antigravity/settings.json", "Should set MCP config env var to Antigravity settings.json path")
 	})
 
 	t.Run("with custom command", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
-				Command: "/custom/gemini",
+				Command: "/custom/antigravity",
 			},
 		}
 
@@ -217,7 +217,7 @@ func TestGeminiEngineExecution(t *testing.T) {
 
 		stepContent := strings.Join(steps[1], "\n")
 
-		assert.Contains(t, stepContent, "/custom/gemini", "Should use custom command")
+		assert.Contains(t, stepContent, "/custom/antigravity", "Should use custom command")
 	})
 
 	t.Run("environment variables", func(t *testing.T) {
@@ -230,15 +230,15 @@ func TestGeminiEngineExecution(t *testing.T) {
 
 		stepContent := strings.Join(steps[1], "\n")
 
-		assert.Contains(t, stepContent, "GEMINI_API_KEY:", "Should include GEMINI_API_KEY")
+		assert.Contains(t, stepContent, "ANTIGRAVITY_API_KEY:", "Should include ANTIGRAVITY_API_KEY")
 		assert.Contains(t, stepContent, "GH_AW_PROMPT:", "Should include GH_AW_PROMPT")
 		assert.Contains(t, stepContent, "GITHUB_WORKSPACE:", "Should include GITHUB_WORKSPACE")
-		assert.Contains(t, stepContent, "DEBUG: gemini-cli:*", "Should include DEBUG env var for verbose diagnostics")
-		assert.Contains(t, stepContent, "GEMINI_CLI_TRUST_WORKSPACE: true", "Should include GEMINI_CLI_TRUST_WORKSPACE")
+		assert.Contains(t, stepContent, "DEBUG: antigravity-cli:*", "Should include DEBUG env var for verbose diagnostics")
+		assert.Contains(t, stepContent, "ANTIGRAVITY_CLI_TRUST_WORKSPACE: true", "Should include ANTIGRAVITY_CLI_TRUST_WORKSPACE")
 	})
 
 	t.Run("model environment variables", func(t *testing.T) {
-		// When model is not configured, no model env var should be set (let Gemini CLI use its default)
+		// When model is not configured, no model env var should be set (let Antigravity CLI use its default)
 		noModelWorkflow := &WorkflowData{
 			Name:        "no-model",
 			SafeOutputs: &SafeOutputsConfig{},
@@ -247,22 +247,22 @@ func TestGeminiEngineExecution(t *testing.T) {
 		steps := engine.GetExecutionSteps(noModelWorkflow, "/tmp/test.log")
 		require.Len(t, steps, 2, "Should generate settings step and execution step")
 		stepContent := strings.Join(steps[1], "\n")
-		assert.NotContains(t, stepContent, "GH_AW_MODEL_DETECTION_GEMINI", "Should not include detection model env var when model is unconfigured")
-		assert.NotContains(t, stepContent, "GH_AW_MODEL_AGENT_GEMINI", "Should not include agent model env var when model is unconfigured")
-		assert.NotContains(t, stepContent, "GEMINI_MODEL", "Should not include GEMINI_MODEL when model is unconfigured")
+		assert.NotContains(t, stepContent, "GH_AW_MODEL_DETECTION_ANTIGRAVITY", "Should not include detection model env var when model is unconfigured")
+		assert.NotContains(t, stepContent, "GH_AW_MODEL_AGENT_ANTIGRAVITY", "Should not include agent model env var when model is unconfigured")
+		assert.NotContains(t, stepContent, "ANTIGRAVITY_MODEL", "Should not include ANTIGRAVITY_MODEL when model is unconfigured")
 
-		// When model is configured, use the native GEMINI_MODEL env var
+		// When model is configured, use the native ANTIGRAVITY_MODEL env var
 		modelWorkflow := &WorkflowData{
 			Name: "model-configured",
 			EngineConfig: &EngineConfig{
-				Model: "gemini-2.0-flash",
+				Model: "antigravity-2.0-flash",
 			},
 		}
 
 		steps = engine.GetExecutionSteps(modelWorkflow, "/tmp/test.log")
 		require.Len(t, steps, 2, "Should generate settings step and execution step")
 		stepContent = strings.Join(steps[1], "\n")
-		assert.Contains(t, stepContent, "GEMINI_MODEL: gemini-2.0-flash", "Should set GEMINI_MODEL when model is explicitly configured")
+		assert.Contains(t, stepContent, "ANTIGRAVITY_MODEL: antigravity-2.0-flash", "Should set ANTIGRAVITY_MODEL when model is explicitly configured")
 	})
 
 	t.Run("engine env overrides default token expression", func(t *testing.T) {
@@ -270,7 +270,7 @@ func TestGeminiEngineExecution(t *testing.T) {
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
 				Env: map[string]string{
-					"GEMINI_API_KEY": "${{ secrets.MY_ORG_GEMINI_KEY }}",
+					"ANTIGRAVITY_API_KEY": "${{ secrets.MY_ORG_GEMINI_KEY }}",
 				},
 			},
 		}
@@ -281,8 +281,8 @@ func TestGeminiEngineExecution(t *testing.T) {
 		stepContent := strings.Join(steps[1], "\n")
 
 		// The user-provided value should override the default token expression
-		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.MY_ORG_GEMINI_KEY }}", "engine.env should override the default GEMINI_API_KEY expression")
-		assert.NotContains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Default GEMINI_API_KEY expression should be replaced by engine.env")
+		assert.Contains(t, stepContent, "ANTIGRAVITY_API_KEY: ${{ secrets.MY_ORG_GEMINI_KEY }}", "engine.env should override the default ANTIGRAVITY_API_KEY expression")
+		assert.NotContains(t, stepContent, "ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}", "Default ANTIGRAVITY_API_KEY expression should be replaced by engine.env")
 	})
 
 	t.Run("engine env adds custom non-secret env vars", func(t *testing.T) {
@@ -314,15 +314,15 @@ func TestGeminiEngineExecution(t *testing.T) {
 		settingsContent := strings.Join(steps[0], "\n")
 		execContent := strings.Join(steps[1], "\n")
 
-		assert.Contains(t, settingsContent, "Write Gemini Config", "First step should be Write Gemini Config")
+		assert.Contains(t, settingsContent, "Write Antigravity Config", "First step should be Write Antigravity Config")
 		assert.Contains(t, settingsContent, "includeDirectories", "Settings step should set includeDirectories")
 		assert.Contains(t, settingsContent, "/tmp/", "Settings step should include /tmp/ in include directories")
-		assert.Contains(t, execContent, "Execute Gemini CLI", "Second step should be Execute Gemini CLI")
+		assert.Contains(t, execContent, "Execute Antigravity CLI", "Second step should be Execute Antigravity CLI")
 	})
 }
 
-func TestGeminiEngineFirewallIntegration(t *testing.T) {
-	engine := NewGeminiEngine()
+func TestAntigravityEngineFirewallIntegration(t *testing.T) {
+	engine := NewAntigravityEngine()
 
 	t.Run("firewall enabled", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -345,7 +345,7 @@ func TestGeminiEngineFirewallIntegration(t *testing.T) {
 		// With config file support, domains and apiProxy are in the JSON config
 		assert.Contains(t, stepContent, "allowDomains", "Should include allowDomains in config JSON")
 		assert.Contains(t, stepContent, `"enabled":true`, "Should include apiProxy enabled in config JSON")
-		assert.Contains(t, stepContent, "GEMINI_API_BASE_URL: http://host.docker.internal:10003", "Should set GEMINI_API_BASE_URL to LLM gateway URL")
+		assert.Contains(t, stepContent, "ANTIGRAVITY_API_BASE_URL: http://host.docker.internal:10003", "Should set ANTIGRAVITY_API_BASE_URL to LLM gateway URL")
 	})
 
 	t.Run("firewall disabled", func(t *testing.T) {
@@ -366,13 +366,13 @@ func TestGeminiEngineFirewallIntegration(t *testing.T) {
 		// Should use simple command without AWF
 		assert.Contains(t, stepContent, "set -o pipefail", "Should use simple command with pipefail")
 		assert.NotContains(t, stepContent, "awf", "Should not use AWF when firewall is disabled")
-		assert.NotContains(t, stepContent, "GEMINI_API_BASE_URL", "Should not set GEMINI_API_BASE_URL when firewall is disabled")
+		assert.NotContains(t, stepContent, "ANTIGRAVITY_API_BASE_URL", "Should not set ANTIGRAVITY_API_BASE_URL when firewall is disabled")
 	})
 }
 
-func TestComputeGeminiToolsCore(t *testing.T) {
+func TestComputeAntigravityToolsCore(t *testing.T) {
 	t.Run("nil tools includes default read-only tools", func(t *testing.T) {
-		result := computeGeminiToolsCore(nil)
+		result := computeAntigravityToolsCore(nil)
 		assert.Contains(t, result, "glob", "Should include glob")
 		assert.Contains(t, result, "grep_search", "Should include grep_search")
 		assert.Contains(t, result, "list_directory", "Should include list_directory")
@@ -384,7 +384,7 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 	})
 
 	t.Run("empty tools includes default read-only tools", func(t *testing.T) {
-		result := computeGeminiToolsCore(map[string]any{})
+		result := computeAntigravityToolsCore(map[string]any{})
 		assert.Contains(t, result, "read_file", "Should include read_file")
 		assert.NotContains(t, result, "run_shell_command", "Should not include run_shell_command")
 	})
@@ -393,7 +393,7 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 		tools := map[string]any{
 			"bash": []any{"grep", "ls", "git"},
 		}
-		result := computeGeminiToolsCore(tools)
+		result := computeAntigravityToolsCore(tools)
 		assert.Contains(t, result, "run_shell_command(grep)", "Should map grep to run_shell_command(grep)")
 		assert.Contains(t, result, "run_shell_command(ls)", "Should map ls to run_shell_command(ls)")
 		assert.Contains(t, result, "run_shell_command(git)", "Should map git to run_shell_command(git)")
@@ -404,7 +404,7 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 		tools := map[string]any{
 			"bash": []any{"*"},
 		}
-		result := computeGeminiToolsCore(tools)
+		result := computeAntigravityToolsCore(tools)
 		assert.Contains(t, result, "run_shell_command", "Should include unrestricted run_shell_command for wildcard")
 		assert.NotContains(t, result, "run_shell_command(*)", "Should not include run_shell_command(*)")
 	})
@@ -413,7 +413,7 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 		tools := map[string]any{
 			"bash": []any{":*"},
 		}
-		result := computeGeminiToolsCore(tools)
+		result := computeAntigravityToolsCore(tools)
 		assert.Contains(t, result, "run_shell_command", "Should include unrestricted run_shell_command for :* wildcard")
 	})
 
@@ -421,7 +421,7 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 		tools := map[string]any{
 			"bash": nil,
 		}
-		result := computeGeminiToolsCore(tools)
+		result := computeAntigravityToolsCore(tools)
 		assert.Contains(t, result, "run_shell_command", "Should include unrestricted run_shell_command when bash has no commands")
 	})
 
@@ -429,7 +429,7 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 		tools := map[string]any{
 			"edit": map[string]any{},
 		}
-		result := computeGeminiToolsCore(tools)
+		result := computeAntigravityToolsCore(tools)
 		assert.Contains(t, result, "write_file", "Should map edit to write_file")
 		assert.Contains(t, result, "replace", "Should map edit to replace")
 	})
@@ -439,7 +439,7 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 			"bash": []any{"grep"},
 			"edit": map[string]any{},
 		}
-		result := computeGeminiToolsCore(tools)
+		result := computeAntigravityToolsCore(tools)
 		assert.Contains(t, result, "run_shell_command(grep)", "Should include run_shell_command(grep)")
 		assert.Contains(t, result, "write_file", "Should include write_file")
 		assert.Contains(t, result, "replace", "Should include replace")
@@ -451,7 +451,7 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 			"bash": []any{"zzz", "aaa"},
 			"edit": map[string]any{},
 		}
-		result := computeGeminiToolsCore(tools)
+		result := computeAntigravityToolsCore(tools)
 		for i := 1; i < len(result); i++ {
 			assert.LessOrEqual(t, result[i-1], result[i], "Tools should be sorted alphabetically")
 		}
@@ -461,7 +461,7 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 		tools := map[string]any{
 			"bash": []any{"jq *"},
 		}
-		result := computeGeminiToolsCore(tools)
+		result := computeAntigravityToolsCore(tools)
 		assert.Contains(t, result, "run_shell_command(jq)", "Should normalize 'jq *' to run_shell_command(jq)")
 		assert.NotContains(t, result, "run_shell_command(jq *)", "Should not emit run_shell_command(jq *)")
 	})
@@ -470,7 +470,7 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 		tools := map[string]any{
 			"bash": []any{"jq *", "sed *", "awk *", "cat *"},
 		}
-		result := computeGeminiToolsCore(tools)
+		result := computeAntigravityToolsCore(tools)
 		assert.Contains(t, result, "run_shell_command(jq)", "Should normalize 'jq *'")
 		assert.Contains(t, result, "run_shell_command(sed)", "Should normalize 'sed *'")
 		assert.Contains(t, result, "run_shell_command(awk)", "Should normalize 'awk *'")
@@ -479,21 +479,21 @@ func TestComputeGeminiToolsCore(t *testing.T) {
 	})
 }
 
-func TestGenerateGeminiSettingsStep(t *testing.T) {
-	engine := NewGeminiEngine()
+func TestGenerateAntigravitySettingsStep(t *testing.T) {
+	engine := NewAntigravityEngine()
 
 	t.Run("step sets context.includeDirectories to /tmp/", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:  "test-workflow",
 			Tools: map[string]any{},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateAntigravitySettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
-		assert.Contains(t, content, "Write Gemini Config", "Should have correct step name")
+		assert.Contains(t, content, "Write Antigravity Config", "Should have correct step name")
 		assert.Contains(t, content, "/tmp/", "Should include /tmp/ in include directories")
 		assert.Contains(t, content, "includeDirectories", "Should set includeDirectories")
-		assert.Contains(t, content, ".gemini", "Should reference .gemini directory")
+		assert.Contains(t, content, ".antigravity", "Should reference .antigravity directory")
 		assert.Contains(t, content, "GITHUB_WORKSPACE", "Should use GITHUB_WORKSPACE")
 	})
 
@@ -502,7 +502,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 			Name:  "test-workflow",
 			Tools: map[string]any{},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateAntigravitySettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		assert.Contains(t, content, "if [ -f", "Should check for existing settings.json")
@@ -517,7 +517,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 				"bash": []any{"grep", "git"},
 			},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateAntigravitySettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		assert.Contains(t, content, "run_shell_command(grep)", "Should include run_shell_command(grep) for bash grep")
@@ -532,23 +532,23 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 				"edit": map[string]any{},
 			},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateAntigravitySettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		assert.Contains(t, content, "write_file", "Should include write_file for edit tool")
 		assert.Contains(t, content, "replace", "Should include replace for edit tool")
 	})
 
-	t.Run("GH_AW_GEMINI_BASE_CONFIG env var is single-quoted for valid YAML", func(t *testing.T) {
+	t.Run("GH_AW_ANTIGRAVITY_BASE_CONFIG env var is single-quoted for valid YAML", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:  "test-workflow",
 			Tools: map[string]any{},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateAntigravitySettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		// The JSON value must be single-quoted so YAML doesn't treat it as an object
-		assert.Contains(t, content, "GH_AW_GEMINI_BASE_CONFIG: '", "JSON env var value must be single-quoted for valid YAML")
+		assert.Contains(t, content, "GH_AW_ANTIGRAVITY_BASE_CONFIG: '", "JSON env var value must be single-quoted for valid YAML")
 	})
 
 	t.Run("step includes web_fetch in tools.core when web-fetch tool is specified", func(t *testing.T) {
@@ -558,7 +558,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 				"web-fetch": nil,
 			},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateAntigravitySettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		assert.Contains(t, content, "web_fetch", "Should include web_fetch in tools.core when web-fetch is specified")
@@ -569,7 +569,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 			Name:  "test-workflow",
 			Tools: map[string]any{},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateAntigravitySettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		assert.NotContains(t, content, "web_fetch", "Should not include web_fetch in tools.core when web-fetch is not specified")
@@ -591,7 +591,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 				NoOp: &NoOpConfig{},
 			},
 		}
-		step := engine.generateGeminiSettingsStep(workflowData)
+		step := engine.generateAntigravitySettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
 		assert.Contains(t, content, "run_shell_command(echo)", "Should include original restricted bash command")
@@ -601,14 +601,14 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 	})
 }
 
-func TestGeminiEngineWithExpressionVersion(t *testing.T) {
-	engine := NewGeminiEngine()
+func TestAntigravityEngineWithExpressionVersion(t *testing.T) {
+	engine := NewAntigravityEngine()
 
 	expressionVersion := "${{ inputs.engine-version }}"
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			ID:      "gemini",
+			ID:      "antigravity",
 			Version: expressionVersion,
 		},
 	}
@@ -640,7 +640,7 @@ func TestGeminiEngineWithExpressionVersion(t *testing.T) {
 	}
 
 	// Should NOT embed expression directly in npm install command
-	if strings.Contains(installStep, "@google/gemini-cli@"+expressionVersion) {
+	if strings.Contains(installStep, "@google/antigravity-cli@"+expressionVersion) {
 		t.Errorf("Expression should NOT be embedded directly in npm install command, got:\n%s", installStep)
 	}
 }

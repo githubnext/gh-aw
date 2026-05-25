@@ -2734,7 +2734,7 @@
       ]
     },
     "models": {
-      "description": "Named model alias definitions with ordered fallback lists, resolved recursively by AWF. Each key is an alias name (use empty string \"\" for the default policy). Each value is an ordered list of vendor/modelid glob patterns or other alias names to try in sequence. Entries defined here are merged on top of the builtin aliases; the main workflow file always wins over imported aliases. Builtin aliases include: sonnet, sonnet-6x, haiku, opus, gpt-5, gpt-5-mini, gpt-5-codex, gemini-flash, gemini-pro, small, mini, large, auto, any, agent, copilot, claude, codex, gemini.",
+      "description": "Named model alias definitions with ordered fallback lists, resolved recursively by AWF. Each key is an alias name (use empty string \"\" for the default policy). Each value is an ordered list of vendor/modelid glob patterns or other alias names to try in sequence. Entries defined here are merged on top of the builtin aliases; the main workflow file always wins over imported aliases. Builtin aliases include: sonnet, sonnet-6x, haiku, opus, gpt-5, gpt-5-mini, gpt-5-codex, antigravity-flash, antigravity-pro, small, mini, large, auto, any, agent, copilot, claude, codex, antigravity.",
       "type": "object",
       "additionalProperties": {
         "type": "array",
@@ -10485,7 +10485,7 @@
       "oneOf": [
         {
           "type": "string",
-          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog entry"
+          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'antigravity', 'opencode', 'crush', 'pi') or a named catalog entry"
         },
         {
           "type": "object",
@@ -10493,7 +10493,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog entry"
+              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'antigravity', 'opencode', 'crush', 'pi') or a named catalog entry"
             },
             "version": {
               "type": ["string", "number"],
@@ -10681,7 +10681,7 @@
             },
             "bare": {
               "type": "boolean",
-              "description": "When true, disables automatic loading of context and custom instructions by the AI engine. The engine-specific flag depends on the engine: copilot uses --no-custom-instructions (suppresses .github/AGENTS.md and user-level custom instructions), claude uses --bare (suppresses CLAUDE.md memory files), codex uses --no-system-prompt (suppresses the default system prompt), gemini sets GEMINI_SYSTEM_MD=/dev/null (overrides the built-in system prompt with an empty one). Defaults to false.",
+              "description": "When true, disables automatic loading of context and custom instructions by the AI engine. The engine-specific flag depends on the engine: copilot uses --no-custom-instructions (suppresses .github/AGENTS.md and user-level custom instructions), claude uses --bare (suppresses CLAUDE.md memory files), codex uses --no-system-prompt (suppresses the default system prompt), antigravity sets GEMINI_SYSTEM_MD=/dev/null (overrides the built-in system prompt with an empty one). Defaults to false.",
               "default": false
             },
             "mcp": {
@@ -10715,8 +10715,8 @@
               "properties": {
                 "id": {
                   "type": "string",
-                  "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini', 'opencode', 'crush', 'pi')",
-                  "examples": ["codex", "claude", "copilot", "gemini", "opencode", "crush", "pi"]
+                  "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'antigravity', 'opencode', 'crush', 'pi')",
+                  "examples": ["codex", "claude", "copilot", "antigravity", "opencode", "crush", "pi"]
                 },
                 "version": {
                   "type": ["string", "number"],
@@ -10824,7 +10824,7 @@
             },
             "bare": {
               "type": "boolean",
-              "description": "When true, disables automatic loading of context and custom instructions by the AI engine. The engine-specific flag depends on the engine: copilot uses --no-custom-instructions, claude uses --bare, codex uses --no-system-prompt, gemini sets GEMINI_SYSTEM_MD=/dev/null. Defaults to false.",
+              "description": "When true, disables automatic loading of context and custom instructions by the AI engine. The engine-specific flag depends on the engine: copilot uses --no-custom-instructions, claude uses --bare, codex uses --no-system-prompt, antigravity sets GEMINI_SYSTEM_MD=/dev/null. Defaults to false.",
               "default": false
             }
           },
@@ -10837,7 +10837,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'opencode', 'crush', 'pi')"
+              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'antigravity', 'opencode', 'crush', 'pi')"
             },
             "display-name": {
               "type": "string",

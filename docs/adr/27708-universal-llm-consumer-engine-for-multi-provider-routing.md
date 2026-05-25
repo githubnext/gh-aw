@@ -29,7 +29,7 @@ A dedicated `LLMProviderRegistry` that maps provider strings to backend profiles
 ### Consequences
 
 #### Positive
-- Provider-to-backend routing logic is a single source of truth: adding a new supported provider (e.g., Gemini) requires a change in one place (`universal_llm_consumer_engine.go`) rather than two.
+- Provider-to-backend routing logic is a single source of truth: adding a new supported provider (e.g., Antigravity) requires a change in one place (`universal_llm_consumer_engine.go`) rather than two.
 - Compile-time validation ensures that workflows using OpenCode or Crush always declare a valid `engine.model` in `provider/model` format, preventing silent misconfiguration.
 - Native provider API routing (e.g., `ANTHROPIC_API_KEY` + `ANTHROPIC_BASE_URL`) is now correctly applied without requiring manual `engine.env` overrides.
 

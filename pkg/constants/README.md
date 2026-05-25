@@ -24,7 +24,7 @@ The package uses typed aliases to prevent mixing unrelated string or integer val
 
 | Type | Description | Example constant |
 |------|-------------|-----------------|
-| `EngineName` | AI engine identifier | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `GeminiEngine`, `OpenCodeEngine`, `CrushEngine`, `PiEngine` |
+| `EngineName` | AI engine identifier | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `AntigravityEngine`, `OpenCodeEngine`, `CrushEngine`, `PiEngine` |
 | `FeatureFlag` | Feature flag identifier | `MCPGatewayFeatureFlag`, `MCPScriptsFeatureFlag` |
 | `JobName` | GitHub Actions job name | `AgentJobName`, `ActivationJobName` |
 | `StepID` | GitHub Actions step identifier | `CheckMembershipStepID`, `CheckRateLimitStepID` |
@@ -48,14 +48,14 @@ import "github.com/github/gh-aw/pkg/constants"
 constants.CopilotEngine   // "copilot"
 constants.ClaudeEngine    // "claude"
 constants.CodexEngine     // "codex"
-constants.GeminiEngine    // "gemini"
+constants.AntigravityEngine    // "antigravity"
 constants.OpenCodeEngine  // "opencode"
 constants.CrushEngine     // "crush"
 constants.PiEngine        // "pi" (experimental)
 constants.DefaultEngine   // "copilot"
 
 // All supported engine names
-constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "opencode", "crush", "pi"}
+constants.AgenticEngines // []string{"claude", "codex", "copilot", "antigravity", "opencode", "crush", "pi"}
 
 // Get engine metadata
 opt := constants.GetEngineOption("copilot")
@@ -97,14 +97,14 @@ constants.EnvVarModelAgentCopilot    // "GH_AW_MODEL_AGENT_COPILOT"
 constants.EnvVarModelAgentClaude     // "GH_AW_MODEL_AGENT_CLAUDE"
 constants.EnvVarModelAgentCodex      // "GH_AW_MODEL_AGENT_CODEX"
 constants.EnvVarModelAgentCustom     // "GH_AW_MODEL_AGENT_CUSTOM"
-constants.EnvVarModelAgentGemini     // "GH_AW_MODEL_AGENT_GEMINI"
+constants.EnvVarModelAgentAntigravity     // "GH_AW_MODEL_AGENT_ANTIGRAVITY"
 constants.EnvVarModelAgentOpenCode   // "GH_AW_MODEL_AGENT_OPENCODE"
 constants.EnvVarModelAgentCrush      // "GH_AW_MODEL_AGENT_CRUSH"
 constants.EnvVarModelAgentPi         // "GH_AW_MODEL_AGENT_PI"
 constants.EnvVarModelDetectionCopilot// "GH_AW_MODEL_DETECTION_COPILOT"
 constants.EnvVarModelDetectionClaude // "GH_AW_MODEL_DETECTION_CLAUDE"
 constants.EnvVarModelDetectionCodex  // "GH_AW_MODEL_DETECTION_CODEX"
-constants.EnvVarModelDetectionGemini // "GH_AW_MODEL_DETECTION_GEMINI"
+constants.EnvVarModelDetectionAntigravity // "GH_AW_MODEL_DETECTION_ANTIGRAVITY"
 constants.EnvVarModelDetectionOpenCode // "GH_AW_MODEL_DETECTION_OPENCODE"
 constants.EnvVarModelDetectionCrush  // "GH_AW_MODEL_DETECTION_CRUSH"
 
@@ -112,7 +112,7 @@ constants.EnvVarModelDetectionCrush  // "GH_AW_MODEL_DETECTION_CRUSH"
 constants.CopilotCLIModelEnvVar         // "COPILOT_MODEL"
 constants.CopilotCLIIntegrationIDEnvVar // "GITHUB_COPILOT_INTEGRATION_ID"
 constants.ClaudeCLIModelEnvVar          // "ANTHROPIC_MODEL"
-constants.GeminiCLIModelEnvVar          // "GEMINI_MODEL"
+constants.AntigravityCLIModelEnvVar          // "ANTIGRAVITY_MODEL"
 constants.CrushCLIModelEnvVar           // "CRUSH_MODEL"
 constants.OpenCodeCLIModelEnvVar        // "OPENCODE_MODEL"
 constants.PiCLIModelEnvVar              // "PI_MODEL"
@@ -255,7 +255,7 @@ constants.AgenticWorkflowsMCPServerID  // "agenticworkflows"
 constants.DefaultCopilotVersion         // Copilot CLI version (e.g. "1.0.21")
 constants.DefaultClaudeCodeVersion      // Claude Code CLI version
 constants.DefaultCodexVersion           // OpenAI Codex CLI version
-constants.DefaultGeminiVersion          // Google Gemini CLI version
+constants.DefaultAntigravityVersion          // Antigravity CLI version
 constants.DefaultCrushVersion           // Crush CLI version
 constants.DefaultOpenCodeVersion        // OpenCode CLI version
 constants.DefaultPiVersion              // Pi CLI version (experimental)
@@ -428,7 +428,7 @@ constants.MaxNetworkPort            // 65535
 constants.ClaudeLLMGatewayPort      // 10000
 constants.CodexLLMGatewayPort       // 10001
 constants.CopilotLLMGatewayPort     // 10002
-constants.GeminiLLMGatewayPort      // 10003
+constants.AntigravityLLMGatewayPort      // 10003
 ```
 
 ## Tool Lists

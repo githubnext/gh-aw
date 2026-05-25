@@ -6,21 +6,21 @@ import { join } from "path";
 import { tmpdir } from "os";
 
 const req = createRequire(import.meta.url);
-const { transformGeminiEntry, main } = req("./convert_gateway_config_gemini.cjs");
+const { transformAntigravityEntry, main } = req("./convert_gateway_config_antigravity.cjs");
 
-describe("convert_gateway_config_gemini", () => {
-  describe("transformGeminiEntry", () => {
+describe("convert_gateway_config_antigravity", () => {
+  describe("transformAntigravityEntry", () => {
     const urlPrefix = "http://localhost:8080";
 
     it("removes the type field from the entry", () => {
       const entry = { type: "http", url: "http://old/mcp/github" };
-      const result = transformGeminiEntry(entry, urlPrefix);
+      const result = transformAntigravityEntry(entry, urlPrefix);
       expect(result).not.toHaveProperty("type");
     });
 
     it("rewrites the url to use the configured domain and port", () => {
       const entry = { url: "http://host.docker.internal:80/mcp/github" };
-      const result = transformGeminiEntry(entry, urlPrefix);
+      const result = transformAntigravityEntry(entry, urlPrefix);
       expect(result.url).toBe("http://localhost:8080/mcp/github");
     });
 
@@ -31,7 +31,7 @@ describe("convert_gateway_config_gemini", () => {
         headers: { Authorization: "Bearer token" },
         tools: ["read", "write"],
       };
-      const result = transformGeminiEntry(entry, urlPrefix);
+      const result = transformAntigravityEntry(entry, urlPrefix);
       expect(result.headers).toEqual({ Authorization: "Bearer token" });
       expect(result.tools).toEqual(["read", "write"]);
     });
@@ -44,13 +44,13 @@ describe("convert_gateway_config_gemini", () => {
         tools: ["read", "write"],
       };
       const original = JSON.parse(JSON.stringify(entry));
-      transformGeminiEntry(entry, urlPrefix);
+      transformAntigravityEntry(entry, urlPrefix);
       expect(entry).toEqual(original);
     });
 
     it("handles entries without a url field gracefully", () => {
       const entry = { type: "http", headers: { Authorization: "Bearer x" } };
-      const result = transformGeminiEntry(entry, urlPrefix);
+      const result = transformAntigravityEntry(entry, urlPrefix);
       expect(result).not.toHaveProperty("type");
       expect(result).not.toHaveProperty("url");
       expect(result.headers).toEqual({ Authorization: "Bearer x" });
@@ -58,19 +58,19 @@ describe("convert_gateway_config_gemini", () => {
 
     it("handles entries with non-string url values unchanged", () => {
       const entry = { type: "http", url: 42 };
-      const result = transformGeminiEntry(entry, urlPrefix);
+      const result = transformAntigravityEntry(entry, urlPrefix);
       expect(result.url).toBe(42);
     });
 
     it("works with a different urlPrefix", () => {
       const entry = { url: "http://host.docker.internal:80/mcp/playwright" };
-      const result = transformGeminiEntry(entry, "http://host.docker.internal:9090");
+      const result = transformAntigravityEntry(entry, "http://host.docker.internal:9090");
       expect(result.url).toBe("http://host.docker.internal:9090/mcp/playwright");
     });
 
     it("handles entries with empty object", () => {
       const entry = {};
-      const result = transformGeminiEntry(entry, urlPrefix);
+      const result = transformAntigravityEntry(entry, urlPrefix);
       expect(result).toEqual({});
     });
   });
@@ -86,7 +86,7 @@ describe("convert_gateway_config_gemini", () => {
     let savedEnv;
 
     beforeEach(() => {
-      tempDir = mkdtempSync(join(tmpdir(), "gemini-config-test-"));
+      tempDir = mkdtempSync(join(tmpdir(), "antigravity-config-test-"));
       workspace = join(tempDir, "workspace");
       gatewayOutputFile = join(tempDir, "gateway-output.json");
 
@@ -133,12 +133,12 @@ describe("convert_gateway_config_gemini", () => {
       process.env.MCP_GATEWAY_OUTPUT = gatewayOutputFile;
     }
 
-    it("writes settings.json to .gemini directory in workspace", () => {
+    it("writes settings.json to .antigravity directory in workspace", () => {
       writeGatewayOutput({ github: { url: "http://host.docker.internal:80/mcp/github" } });
 
       main();
 
-      const settingsPath = join(workspace, ".gemini", "settings.json");
+      const settingsPath = join(workspace, ".antigravity", "settings.json");
       const settings = JSON.parse(readFileSync(settingsPath, "utf8"));
       expect(settings).toHaveProperty("mcpServers");
       expect(settings).toHaveProperty("context.includeDirectories");
@@ -149,7 +149,7 @@ describe("convert_gateway_config_gemini", () => {
 
       main();
 
-      const settings = JSON.parse(readFileSync(join(workspace, ".gemini", "settings.json"), "utf8"));
+      const settings = JSON.parse(readFileSync(join(workspace, ".antigravity", "settings.json"), "utf8"));
       expect(settings.mcpServers.github.url).toBe("http://localhost:80/mcp/github");
     });
 
@@ -161,7 +161,7 @@ describe("convert_gateway_config_gemini", () => {
 
       main();
 
-      const settings = JSON.parse(readFileSync(join(workspace, ".gemini", "settings.json"), "utf8"));
+      const settings = JSON.parse(readFileSync(join(workspace, ".antigravity", "settings.json"), "utf8"));
       expect(settings.mcpServers.github).not.toHaveProperty("type");
       expect(settings.mcpServers.playwright).not.toHaveProperty("type");
     });
@@ -171,7 +171,7 @@ describe("convert_gateway_config_gemini", () => {
 
       main();
 
-      const settings = JSON.parse(readFileSync(join(workspace, ".gemini", "settings.json"), "utf8"));
+      const settings = JSON.parse(readFileSync(join(workspace, ".antigravity", "settings.json"), "utf8"));
       expect(settings.context.includeDirectories).toContain("/tmp/");
     });
 
@@ -184,7 +184,7 @@ describe("convert_gateway_config_gemini", () => {
 
       main();
 
-      const settings = JSON.parse(readFileSync(join(workspace, ".gemini", "settings.json"), "utf8"));
+      const settings = JSON.parse(readFileSync(join(workspace, ".antigravity", "settings.json"), "utf8"));
       expect(settings.mcpServers).toHaveProperty("github");
       expect(settings.mcpServers).not.toHaveProperty("playwright");
     });
@@ -194,7 +194,7 @@ describe("convert_gateway_config_gemini", () => {
 
       main();
 
-      const settingsPath = join(workspace, ".gemini", "settings.json");
+      const settingsPath = join(workspace, ".antigravity", "settings.json");
       const mode = statSync(settingsPath).mode & 0o777;
       expect(mode).toBe(0o600);
     });
@@ -205,7 +205,7 @@ describe("convert_gateway_config_gemini", () => {
 
       main();
 
-      const settings = JSON.parse(readFileSync(join(workspace, ".gemini", "settings.json"), "utf8"));
+      const settings = JSON.parse(readFileSync(join(workspace, ".antigravity", "settings.json"), "utf8"));
       expect(settings.mcpServers.server.url).toBe("http://localhost:80/mcp/server");
     });
 
@@ -214,7 +214,7 @@ describe("convert_gateway_config_gemini", () => {
 
       main();
 
-      const settings = JSON.parse(readFileSync(join(workspace, ".gemini", "settings.json"), "utf8"));
+      const settings = JSON.parse(readFileSync(join(workspace, ".antigravity", "settings.json"), "utf8"));
       expect(settings.mcpServers).toEqual({});
       expect(settings.context.includeDirectories).toContain("/tmp/");
     });
@@ -224,7 +224,7 @@ describe("convert_gateway_config_gemini", () => {
 
       main();
 
-      const settings = JSON.parse(readFileSync(join(workspace, ".gemini", "settings.json"), "utf8"));
+      const settings = JSON.parse(readFileSync(join(workspace, ".antigravity", "settings.json"), "utf8"));
       expect(settings.mcpServers).toEqual({});
     });
 
@@ -233,7 +233,7 @@ describe("convert_gateway_config_gemini", () => {
 
       main();
 
-      const settings = JSON.parse(readFileSync(join(workspace, ".gemini", "settings.json"), "utf8"));
+      const settings = JSON.parse(readFileSync(join(workspace, ".antigravity", "settings.json"), "utf8"));
       expect(settings.mcpServers).toEqual({});
     });
 
@@ -242,7 +242,7 @@ describe("convert_gateway_config_gemini", () => {
 
       main();
 
-      const settings = JSON.parse(readFileSync(join(workspace, ".gemini", "settings.json"), "utf8"));
+      const settings = JSON.parse(readFileSync(join(workspace, ".antigravity", "settings.json"), "utf8"));
       expect(settings.mcpServers).toEqual({});
     });
   });

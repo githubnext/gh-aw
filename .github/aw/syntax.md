@@ -395,12 +395,12 @@ The YAML frontmatter supports these fields:
     ```
 
 - **`engine:`** - AI processor configuration
-  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or `"opencode"` (experimental)
+  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"antigravity"`, or `"opencode"` (experimental)
   - Object format for extended configuration:
 
     ```yaml
     engine:
-      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, gemini, or opencode)
+      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, antigravity, or opencode)
       version: beta                     # Optional: version of the action (has sensible default); also accepts GitHub Actions expressions: ${{ inputs.engine-version }}
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       agent: technical-doc-writer       # Optional: custom agent file (Copilot only, references .github/agents/{agent}.agent.md)
@@ -412,7 +412,7 @@ The YAML frontmatter supports these fields:
       args: ["--verbose"]               # Optional: custom CLI arguments injected before prompt (array)
       api-target: api.acme.ghe.com      # Optional: custom API endpoint hostname for GHEC/GHES (hostname only, no protocol/path)
       command: /usr/local/bin/copilot   # Optional: override default engine executable (skips installation)
-      bare: true                        # Optional: disable automatic context loading (copilot: --no-custom-instructions; claude: --bare; codex: --no-system-prompt; gemini: GEMINI_SYSTEM_MD=/dev/null). Default: false
+      bare: true                        # Optional: disable automatic context loading (copilot: --no-custom-instructions; claude: --bare; codex: --no-system-prompt; antigravity: GEMINI_SYSTEM_MD=/dev/null). Default: false
       user-agent: "myapp/1.0"           # Optional: custom user agent string (codex engine only)
       config: |                         # Optional: additional TOML config appended to config.toml (codex engine only)
         [extra]
@@ -426,7 +426,7 @@ The YAML frontmatter supports these fields:
     ```
 
   - **Note**: The `version`, `model`, and `max-turns` fields have sensible defaults and can typically be omitted unless you need specific customization.
-  - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `max-turns`, `web-fetch`, or `web-search`. Supports AWF firewall and LLM gateway.
+  - **`antigravity` engine**: Antigravity CLI. Requires `ANTIGRAVITY_API_KEY` secret. Does not support `max-turns`, `web-fetch`, or `web-search`. Supports AWF firewall and LLM gateway.
   - **`opencode` engine** (experimental): Provider-agnostic, open-source AI coding agent (BYOK). Defaults to Copilot routing via `COPILOT_GITHUB_TOKEN` (or `${{ github.token }}` with `copilot-requests` feature). Supports 75+ models via `provider/model` format. Supports AWF firewall and LLM gateway.
 
 - **`network:`** - Network access control for AI engines (top-level field)

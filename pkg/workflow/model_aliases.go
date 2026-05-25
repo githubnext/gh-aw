@@ -62,22 +62,22 @@ type builtinModelAliasesFile struct {
 //   - "gpt-5-codex"    → OpenAI GPT-5-Codex family
 //   - "gpt-5-pro"      → OpenAI GPT-5 Pro high-capability tier
 //   - "reasoning"      → OpenAI o1/o3/o4 reasoning model families
-//   - "gemini-flash"   → Google Gemini Flash family (fast/lightweight)
-//   - "gemini-flash-lite" → Google Gemini Flash-Lite subfamily (lowest-cost/latency)
-//   - "gemini-pro"     → Google Gemini Pro family (full-capability)
-//   - "deep-research"  → Google Gemini deep-research family (specialized research agents)
+//   - "antigravity-flash"   → Antigravity Flash family (fast/lightweight)
+//   - "antigravity-flash-lite" → Antigravity Flash-Lite subfamily (lowest-cost/latency)
+//   - "antigravity-pro"     → Antigravity Pro family (full-capability)
+//   - "deep-research"  → Antigravity deep-research family (specialized research agents)
 //
 // Meta-aliases (reference other aliases; resolved recursively by AWF):
-//   - "mini"  → haiku, gpt-5-mini, gpt-5-nano, gemini-flash-lite, copilot/raptor*mini*
-//   - "large" → sonnet, gpt-5-pro, gpt-5, gemini-pro
-//   - "any"   → copilot/*, anthropic/*, openai/*, google/*, gemini/*
-//   - "agent" → sonnet-6x, gpt-5.4, gpt-5, gemini-pro, haiku, any
+//   - "mini"  → haiku, gpt-5-mini, gpt-5-nano, antigravity-flash-lite, copilot/raptor*mini*
+//   - "large" → sonnet, gpt-5-pro, gpt-5, antigravity-pro
+//   - "any"   → copilot/*, anthropic/*, openai/*, google/*, antigravity/*
+//   - "agent" → sonnet-6x, gpt-5.4, gpt-5, antigravity-pro, haiku, any
 //
 // Per-engine default aliases:
 //   - "copilot" → agent, gpt-5.4, sonnet, gpt-5, any
 //   - "claude"  → agent, sonnet-6x, haiku, any
 //   - "codex"   → agent, gpt-5-codex, gpt-5, any
-//   - "gemini"  → agent, gemini-pro, gemini-flash, any
+//   - "antigravity"  → agent, antigravity-pro, antigravity-flash, any
 //
 // Panics on invalid embedded model_aliases.json data.
 func BuiltinModelAliases() map[string][]string {

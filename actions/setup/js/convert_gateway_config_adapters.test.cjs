@@ -7,7 +7,7 @@ import path from "path";
 import { rewriteUrl, filterAndTransformServers, writeSecureOutput } from "./convert_gateway_config_shared.cjs";
 import { transformClaudeEntry } from "./convert_gateway_config_claude.cjs";
 import { transformCopilotEntry } from "./convert_gateway_config_copilot.cjs";
-import { transformGeminiEntry } from "./convert_gateway_config_gemini.cjs";
+import { transformAntigravityEntry } from "./convert_gateway_config_antigravity.cjs";
 import { toCodexTomlSection } from "./convert_gateway_config_codex.cjs";
 
 describe("convert gateway config shared pipeline", () => {
@@ -64,8 +64,8 @@ describe("convert gateway config adapters", () => {
     expect(withTools.tools).toEqual(["repo.read"]);
   });
 
-  it("gemini adapter removes type while keeping other fields", () => {
-    const converted = transformGeminiEntry({ type: "http", url: "http://old/mcp/github", headers: { Authorization: "token" } }, urlPrefix);
+  it("antigravity adapter removes type while keeping other fields", () => {
+    const converted = transformAntigravityEntry({ type: "http", url: "http://old/mcp/github", headers: { Authorization: "token" } }, urlPrefix);
     expect(converted).toEqual({
       url: "http://host.docker.internal:80/mcp/github",
       headers: { Authorization: "token" },

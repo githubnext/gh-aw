@@ -136,13 +136,13 @@ func TestCodexEngineGitIdentityEnvSandbox(t *testing.T) {
 	})
 }
 
-// TestGeminiEngineGitIdentityEnvSandbox verifies git identity env vars are present in sandbox mode
+// TestAntigravityEngineGitIdentityEnvSandbox verifies git identity env vars are present in sandbox mode
 // and absent in non-sandbox mode.
-func TestGeminiEngineGitIdentityEnvSandbox(t *testing.T) {
-	engine := NewGeminiEngine()
+func TestAntigravityEngineGitIdentityEnvSandbox(t *testing.T) {
+	engine := NewAntigravityEngine()
 
 	t.Run("sandbox mode includes git identity env vars", func(t *testing.T) {
-		steps := engine.GetExecutionSteps(sandboxWorkflowData("test-gemini"), "test.log")
+		steps := engine.GetExecutionSteps(sandboxWorkflowData("test-antigravity"), "test.log")
 		stepContent := joinSteps(steps)
 
 		for _, key := range gitIdentityKeys {
@@ -153,7 +153,7 @@ func TestGeminiEngineGitIdentityEnvSandbox(t *testing.T) {
 	})
 
 	t.Run("non-sandbox mode does not include git identity env vars", func(t *testing.T) {
-		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-gemini-no-fw"}, "test.log")
+		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-antigravity-no-fw"}, "test.log")
 		stepContent := joinSteps(steps)
 
 		for _, key := range gitIdentityKeys {

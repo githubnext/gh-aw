@@ -465,7 +465,7 @@ func addObjectExamples(result map[string]any, properties map[string]any, require
 var enumValuePattern = regexp.MustCompile(`'([^']+)'`)
 
 // extractEnumValuesFromError extracts the list of valid enum values from an error message
-// like "value must be one of 'claude', 'codex', 'copilot', 'gemini'".
+// like "value must be one of 'claude', 'codex', 'copilot', 'antigravity'".
 func extractEnumValuesFromError(errorMessage string) []string {
 	matches := enumValuePattern.FindAllStringSubmatch(errorMessage, -1)
 	var values []string

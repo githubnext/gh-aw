@@ -134,7 +134,7 @@ func TestExtractEngineConfig_InlineDefinition_NotTriggeredByIDField(t *testing.T
 func TestExtractEngineConfig_LegacyStringFormat_Regression(t *testing.T) {
 	c := NewCompiler()
 
-	for _, engineID := range []string{"copilot", "claude", "codex", "gemini"} {
+	for _, engineID := range []string{"copilot", "claude", "codex", "antigravity"} {
 		t.Run(engineID, func(t *testing.T) {
 			frontmatter := map[string]any{"engine": engineID}
 			engineSetting, config := c.ExtractEngineConfig(frontmatter)

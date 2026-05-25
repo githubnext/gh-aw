@@ -402,7 +402,7 @@ This section defines the attributes each span type MUST or MAY carry.
 | Attribute | Type | Description |
 |---|---|---|
 | `gen_ai.system` | string | Mapped AI system name (e.g., `github_models`, `anthropic`, `openai`) |
-| `gh-aw.engine.id` | string | Raw engine identifier (`copilot`, `claude`, `codex`, `gemini`, custom) |
+| `gh-aw.engine.id` | string | Raw engine identifier (`copilot`, `claude`, `codex`, `antigravity`, custom) |
 | `gh-aw.event_name` | string | GitHub event type |
 | `gh-aw.trigger.item_type` | string | Triggering item (`issue`, `pull_request`, `discussion`, etc.) |
 | `gh-aw.trigger.item_number` | string | Triggering item ID/number |

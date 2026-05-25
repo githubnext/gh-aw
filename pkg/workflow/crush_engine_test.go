@@ -477,7 +477,7 @@ func TestExtractProviderFromModel(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "openai", provider)
 
-		provider, err = extractProviderFromModel("google/gemini-2.5-pro")
+		provider, err = extractProviderFromModel("google/antigravity-2.5-pro")
 		require.NoError(t, err)
 		assert.Equal(t, "google", provider)
 	})

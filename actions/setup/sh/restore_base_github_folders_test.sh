@@ -25,8 +25,8 @@ assert() {
 }
 
 # Simulated engine-registry values (matches what the Go compiler would emit)
-AGENT_FOLDERS=".agents .claude .codex .gemini .github"
-AGENT_FILES="AGENTS.md CLAUDE.md GEMINI.md"
+AGENT_FOLDERS=".agents .claude .codex .antigravity .github"
+AGENT_FILES="AGENTS.md CLAUDE.md ANTIGRAVITY.md"
 
 cleanup() {
   rm -rf "${TEST_WORKSPACE:-}" "/tmp/gh-aw/base"
@@ -69,25 +69,25 @@ rm -rf "${TEST_WORKSPACE}" /tmp/gh-aw/base
 echo ""
 
 # ── Test 2: Engine-specific folders restored ─────────────────────────────────
-echo "Test 2: Engine-specific .claude and .gemini folders restored"
+echo "Test 2: Engine-specific .claude and .antigravity folders restored"
 TEST_WORKSPACE=$(mktemp -d)
 
 mkdir -p /tmp/gh-aw/base/.claude/commands
 echo "trusted cmd" >/tmp/gh-aw/base/.claude/commands/cmd.md
-mkdir -p /tmp/gh-aw/base/.gemini
-echo '{"trusted":true}' >/tmp/gh-aw/base/.gemini/settings.json
+mkdir -p /tmp/gh-aw/base/.antigravity
+echo '{"trusted":true}' >/tmp/gh-aw/base/.antigravity/settings.json
 
 # PR-branch: evil versions
 mkdir -p "${TEST_WORKSPACE}/.claude/commands"
 echo "evil cmd" >"${TEST_WORKSPACE}/.claude/commands/cmd.md"
-mkdir -p "${TEST_WORKSPACE}/.gemini"
-echo '{"evil":true}' >"${TEST_WORKSPACE}/.gemini/settings.json"
+mkdir -p "${TEST_WORKSPACE}/.antigravity"
+echo '{"evil":true}' >"${TEST_WORKSPACE}/.antigravity/settings.json"
 
 GH_AW_AGENT_FOLDERS="${AGENT_FOLDERS}" GH_AW_AGENT_FILES="${AGENT_FILES}" \
   GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1
 
 assert ".claude/commands/cmd.md restored" "grep -q 'trusted cmd' '${TEST_WORKSPACE}/.claude/commands/cmd.md'"
-assert ".gemini/settings.json restored" "grep -q 'trusted' '${TEST_WORKSPACE}/.gemini/settings.json'"
+assert ".antigravity/settings.json restored" "grep -q 'trusted' '${TEST_WORKSPACE}/.antigravity/settings.json'"
 rm -rf "${TEST_WORKSPACE}" /tmp/gh-aw/base
 echo ""
 

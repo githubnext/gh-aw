@@ -444,7 +444,7 @@ func TestGetModelEnvVarName(t *testing.T) {
 		{"copilot", constants.CopilotCLIModelEnvVar}, // "COPILOT_MODEL"
 		{"claude", constants.ClaudeCLIModelEnvVar},   // "ANTHROPIC_MODEL"
 		{"codex", ""}, // no native model env var
-		{"gemini", constants.GeminiCLIModelEnvVar},     // "GEMINI_MODEL"
+		{"antigravity", constants.AntigravityCLIModelEnvVar},     // "ANTIGRAVITY_MODEL"
 		{"opencode", constants.OpenCodeCLIModelEnvVar}, // "OPENCODE_MODEL"
 		{"crush", constants.CrushCLIModelEnvVar},       // "CRUSH_MODEL"
 	}

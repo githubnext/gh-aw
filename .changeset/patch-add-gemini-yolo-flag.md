@@ -2,4 +2,4 @@
 "gh-aw": patch
 ---
 
-Add `--yolo` to Gemini CLI invocations so tool executions are automatically approved.
+Add `--yolo` to Antigravity CLI invocations so tool executions are automatically approved.

@@ -65,7 +65,7 @@ The retry loop could be implemented in Go directly, where the engine already con
 ### Shared AWF Reflection Module
 
 1. All harnesses that require AWF API proxy reflection **MUST** import the shared `awf_reflect.cjs` module rather than duplicating its constants or functions inline.
-2. `awf_reflect.cjs` **MUST** export at minimum: `AWF_API_PROXY_REFLECT_URL`, `AWF_REFLECT_OUTPUT_PATH`, `AWF_REFLECT_TIMEOUT_MS`, `AWF_MODELS_URL_TIMEOUT_MS`, `GEMINI_MODEL_NAME_PREFIX`, `extractModelIds`, `fetchModelsFromUrl`, `enrichReflectModels`, and `fetchAWFReflect`.
+2. `awf_reflect.cjs` **MUST** export at minimum: `AWF_API_PROXY_REFLECT_URL`, `AWF_REFLECT_OUTPUT_PATH`, `AWF_REFLECT_TIMEOUT_MS`, `AWF_MODELS_URL_TIMEOUT_MS`, `ANTIGRAVITY_MODEL_NAME_PREFIX`, `extractModelIds`, `fetchModelsFromUrl`, `enrichReflectModels`, and `fetchAWFReflect`.
 
 ### Conformance
 

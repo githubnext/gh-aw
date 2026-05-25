@@ -50,7 +50,7 @@ func TestRenderConfig_BuiltinEnginesReturnNil(t *testing.T) {
 	registry := NewEngineRegistry()
 	catalog := NewEngineCatalog(registry)
 
-	engineIDs := []string{"claude", "codex", "copilot", "gemini"}
+	engineIDs := []string{"claude", "codex", "copilot", "antigravity"}
 	for _, id := range engineIDs {
 		t.Run(id, func(t *testing.T) {
 			resolved, err := catalog.Resolve(id, &EngineConfig{ID: id})

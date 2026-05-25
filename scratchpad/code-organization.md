@@ -164,7 +164,7 @@ When implementing a feature:
 
 2. **Adding a new engine**
    - Pattern: `<engine-name>_engine.go`
-   - Example: `gemini_engine.go` for Google Gemini support
+   - Example: `gemini_engine.go` for Antigravity support
 
 3. **Building a new domain feature**
    - Pattern: `<feature-name>.go`

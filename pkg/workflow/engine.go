@@ -44,7 +44,7 @@ type EngineConfig struct {
 	Args               []string
 	Agent              string // Agent identifier for copilot --agent flag (copilot engine only)
 	APITarget          string // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
-	Bare               bool   // When true, disables automatic loading of context/instructions (copilot: --no-custom-instructions, claude: --bare, codex: --no-system-prompt, gemini: GEMINI_SYSTEM_MD=/dev/null)
+	Bare               bool   // When true, disables automatic loading of context/instructions (copilot: --no-custom-instructions, claude: --bare, codex: --no-system-prompt, antigravity: GEMINI_SYSTEM_MD=/dev/null)
 	// TokenWeights provides custom model cost data for effective token computation.
 	// When set, overrides or extends the built-in model_multipliers.json values.
 	TokenWeights *types.TokenWeights
@@ -502,6 +502,10 @@ func (c *Compiler) getAgenticEngine(engineSetting string) (CodingAgentEngine, er
 	}
 
 	engineLog.Printf("Getting agentic engine for setting: %s", engineSetting)
+
+	if engineSetting == "gemini" {
+		return nil, errors.New("engine: gemini is no longer supported. Run the Antigravity migration codemod and configure ANTIGRAVITY_API_KEY.")
+	}
 
 	// First try exact match
 	if c.engineRegistry.IsValidEngine(engineSetting) {

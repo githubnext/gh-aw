@@ -7,7 +7,7 @@ description: Dictation instructions for fixing speech-to-text errors and improvi
 
 ## Technical Context
 
-gh-aw (GitHub Agentic Workflows) is a CLI extension for GitHub that compiles markdown workflow files into GitHub Actions YAML. It enables AI-powered workflows using natural language instructions with support for multiple engines (Copilot, Claude, Codex, Gemini), tools (GitHub API, bash, web-fetch, playwright), and security features (safe-outputs, network permissions, integrity levels).
+gh-aw (GitHub Agentic Workflows) is a CLI extension for GitHub that compiles markdown workflow files into GitHub Actions YAML. It enables AI-powered workflows using natural language instructions with support for multiple engines (Copilot, Claude, Codex, Antigravity), tools (GitHub API, bash, web-fetch, playwright), and security features (safe-outputs, network permissions, integrity levels).
 
 ## Project Glossary
 
@@ -136,9 +136,9 @@ fonts
 forecasting
 format
 frontmatter
-gemini
-gemini-flash
-gemini-pro
+antigravity
+antigravity-flash
+antigravity-pro
 gh-aw
 gh-host
 gh-proxy
@@ -369,7 +369,7 @@ Common misrecognitions to correct:
 - "pull request" → "pull-request" (hyphenated in YAML context)
 - "cop pilot" → "copilot" (one word)
 - "code X" → "codex" (one word)
-- "Gemini" → "gemini" (lowercase in YAML context)
+- "Antigravity" → "antigravity" (lowercase in YAML context)
 - "engine dot model" → "engine.model"
 - "engine dot env" → "engine.env"
 - "tools dot GitHub" → "tools.github"
