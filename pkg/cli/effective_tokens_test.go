@@ -134,6 +134,22 @@ func TestModelMultipliersInventoryUpdate20260521(t *testing.T) {
 	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3.1-pro"], 1e-9, "gemini-3.1-pro should be present with official billing multiplier")
 }
 
+func TestModelMultipliersInventoryUpdate20260525(t *testing.T) {
+	loadedMultipliers = nil
+	initMultipliers()
+
+	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
+	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4-7"], 1e-9, "claude-opus-4-7 should match claude-opus-4.7 multiplier")
+	assert.InDelta(t, 0.33, loadedMultipliers["gpt-4o-2024-05-13"], 1e-9, "gpt-4o-2024-05-13 should match gpt-4o multiplier")
+	assert.InDelta(t, 0.33, loadedMultipliers["gpt-4o-2024-08-06"], 1e-9, "gpt-4o-2024-08-06 should match gpt-4o multiplier")
+	assert.InDelta(t, 0.33, loadedMultipliers["gpt-4o-2024-11-20"], 1e-9, "gpt-4o-2024-11-20 should match gpt-4o multiplier")
+	assert.InDelta(t, 0.33, loadedMultipliers["gpt-4o-mini-2024-07-18"], 1e-9, "gpt-4o-mini-2024-07-18 should match gpt-4o-mini multiplier")
+	assert.InDelta(t, 1.0, loadedMultipliers["gpt-4-o-preview"], 1e-9, "gpt-4-o-preview should be present with legacy gpt-4 tier multiplier")
+	assert.InDelta(t, 1.0, loadedMultipliers["gpt-4-0613"], 1e-9, "gpt-4-0613 should be present with legacy gpt-4 tier multiplier")
+	assert.InDelta(t, 0.0, loadedMultipliers["gpt-3.5-turbo"], 1e-9, "gpt-3.5-turbo should be present with zero multiplier")
+	assert.InDelta(t, 0.0, loadedMultipliers["gpt-3.5-turbo-0613"], 1e-9, "gpt-3.5-turbo-0613 should be present with zero multiplier")
+}
+
 func TestPopulateEffectiveTokensWithCustomWeights(t *testing.T) {
 	loadedMultipliers = nil
 
