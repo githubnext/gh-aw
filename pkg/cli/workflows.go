@@ -399,39 +399,39 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 }
 
 // extractWorkflowNameFromFile extracts the workflow name from a file's H1 header
-func extractWorkflowNameFromFile(filePath string) (title string, err error) {
+func extractWorkflowNameFromFile(filePath string) (string, error) {
 	fd, err := os.Open(filePath)
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if closeErr := fd.Close(); closeErr != nil && err == nil {
-			err = fmt.Errorf("failed to close workflow file %s: %w", filePath, closeErr)
-		}
-	}()
 
-	title, err = fastParseTitleFromReader(fd)
+	title, err := fastParseTitleFromReader(fd)
 	if err != nil {
+		_ = fd.Close()
 		return "", err
 	}
-	if title != "" {
-		return title, nil
-	}
 
-	// No H1 header found, generate default name from filename
-	baseName := filepath.Base(filePath)
-	baseName = strings.TrimSuffix(baseName, filepath.Ext(baseName))
-	baseName = strings.ReplaceAll(baseName, "-", " ")
+	if title == "" {
+		// No H1 header found, generate default name from filename
+		baseName := filepath.Base(filePath)
+		baseName = strings.TrimSuffix(baseName, filepath.Ext(baseName))
+		baseName = strings.ReplaceAll(baseName, "-", " ")
 
-	// Capitalize first letter of each word
-	words := strings.Fields(baseName)
-	for i, word := range words {
-		if len(word) > 0 {
-			words[i] = strings.ToUpper(word[:1]) + word[1:]
+		// Capitalize first letter of each word
+		words := strings.Fields(baseName)
+		for i, word := range words {
+			if len(word) > 0 {
+				words[i] = strings.ToUpper(word[:1]) + word[1:]
+			}
 		}
+		title = strings.Join(words, " ")
 	}
 
-	return strings.Join(words, " "), nil
+	if closeErr := fd.Close(); closeErr != nil {
+		return title, fmt.Errorf("failed to close workflow file %s: %w", filePath, closeErr)
+	}
+
+	return title, nil
 }
 
 // extractEngineIDFromFrontmatter extracts the engine ID from a parsed frontmatter map.

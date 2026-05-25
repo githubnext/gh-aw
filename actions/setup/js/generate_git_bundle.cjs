@@ -25,6 +25,41 @@ function debugLog(message) {
 }
 
 /**
+ * Ensure refs/remotes/origin/<branch> is available locally.
+ * Returns whether the ref exists and whether a fetch was required.
+ *
+ * @param {string} branch - Branch name (without origin/ prefix)
+ * @param {Object} options
+ * @param {string} options.cwd - Working directory for git commands
+ * @param {string} [options.token] - Optional auth token used for fetch
+ * @param {boolean} [options.suppressLogs=false] - Whether to suppress execGitSync error logs
+ * @returns {{ exists: boolean, fetched: boolean, fetchError?: Error }}
+ *   fetchError is populated only when exists=false after a failed fetch attempt.
+ */
+function ensureOriginRemoteTrackingRef(branch, options) {
+  const ref = `refs/remotes/origin/${branch}`;
+  try {
+    execGitSync(["show-ref", "--verify", "--quiet", ref], {
+      cwd: options.cwd,
+      suppressLogs: options.suppressLogs || false,
+    });
+    return { exists: true, fetched: false };
+  } catch {
+    try {
+      const fetchEnv = { ...process.env, ...getGitAuthEnv(options.token) };
+      execGitSync(["fetch", "origin", "--", branch], {
+        cwd: options.cwd,
+        env: fetchEnv,
+        suppressLogs: options.suppressLogs || false,
+      });
+      return { exists: true, fetched: true };
+    } catch (fetchError) {
+      return { exists: false, fetched: false, fetchError };
+    }
+  }
+}
+
+/**
  * Sanitize a string for use as a bundle filename component.
  * Replaces path separators and special characters with dashes.
  * @param {string} value - The value to sanitize
@@ -182,21 +217,17 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
             debugLog(`Strategy 1 (full): Using existing origin/${branchName} as baseRef`);
           } catch {
             debugLog(`Strategy 1 (full): origin/${branchName} not found, trying merge-base with ${defaultBranch}`);
-            let hasLocalDefaultBranch = false;
-            try {
-              execGitSync(["show-ref", "--verify", "--quiet", `refs/remotes/origin/${defaultBranch}`], { cwd });
-              hasLocalDefaultBranch = true;
-              debugLog(`Strategy 1 (full): origin/${defaultBranch} exists locally`);
-            } catch {
-              debugLog(`Strategy 1 (full): origin/${defaultBranch} not found locally, attempting fetch`);
-              try {
-                const fullFetchEnv = { ...process.env, ...getGitAuthEnv(options.token) };
-                execGitSync(["fetch", "origin", "--", defaultBranch], { cwd, env: fullFetchEnv });
-                hasLocalDefaultBranch = true;
+            const defaultBranchRefResult = ensureOriginRemoteTrackingRef(defaultBranch, { cwd, token: options.token });
+            const hasLocalDefaultBranch = defaultBranchRefResult.exists;
+            if (hasLocalDefaultBranch) {
+              if (defaultBranchRefResult.fetched) {
                 debugLog(`Strategy 1 (full): Successfully fetched origin/${defaultBranch}`);
-              } catch (fetchErr) {
-                debugLog(`Strategy 1 (full): Fetch failed - ${getErrorMessage(fetchErr)} (will try other strategies)`);
+              } else {
+                debugLog(`Strategy 1 (full): origin/${defaultBranch} exists locally`);
               }
+            } else {
+              debugLog(`Strategy 1 (full): origin/${defaultBranch} not found locally, attempting fetch`);
+              debugLog(`Strategy 1 (full): Fetch failed - ${getErrorMessage(defaultBranchRefResult.fetchError || new Error("Unknown fetch error"))} (will try other strategies)`);
             }
 
             if (hasLocalDefaultBranch) {
@@ -219,8 +250,30 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
 
         if (commitCount > 0) {
           // Generate bundle from the determined base to the branch
-          // git bundle create <file> <range> creates a bundle with the commit range
-          execGitSync(["bundle", "create", bundlePath, `${baseRef}..${branchName}`], { cwd });
+          // git bundle create <file> <range> creates a bundle with the commit range.
+          // In incremental mode, also exclude origin/<defaultBranch> when present so
+          // a "merge base branch into PR branch" workflow does not re-embed upstream
+          // commits that the remote already has.
+          const bundleCreateArgs = ["bundle", "create", bundlePath, `${baseRef}..${branchName}`];
+          if (mode === "incremental") {
+            const defaultBranchRefResult = ensureOriginRemoteTrackingRef(defaultBranch, {
+              cwd,
+              token: options.token,
+              suppressLogs: true,
+            });
+            if (defaultBranchRefResult.exists) {
+              if (defaultBranchRefResult.fetched) {
+                debugLog(`Strategy 1 (incremental): fetched origin/${defaultBranch} for bundle exclusions`);
+              }
+              bundleCreateArgs.push(`^origin/${defaultBranch}`);
+              debugLog(`Strategy 1 (incremental): excluding origin/${defaultBranch} from bundle prerequisites`);
+            } else {
+              const warningMessage = `Strategy 1 (incremental): could not fetch origin/${defaultBranch} for exclusions - ${getErrorMessage(defaultBranchRefResult.fetchError || new Error("Unknown fetch error"))}. Bundle will include base-branch history.`;
+              debugLog(warningMessage);
+              core.warning(warningMessage);
+            }
+          }
+          execGitSync(bundleCreateArgs, { cwd });
 
           if (fs.existsSync(bundlePath)) {
             const stat = fs.statSync(bundlePath);
