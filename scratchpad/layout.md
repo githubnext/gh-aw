@@ -1,17 +1,17 @@
 # GitHub Actions Workflow Layout Specification
 
 > Auto-generated specification documenting patterns used in compiled `.lock.yml` files.
-> Last updated: 2026-05-18
+> Last updated: 2026-05-25
 
 ## Overview
 
 This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). It serves as a reference for developers working with the gh-aw codebase.
 
 **Statistics:**
-- **Lock files analyzed**: 230
+- **Lock files analyzed**: 235
 - **Unique GitHub Actions**: 27
-- **Artifact patterns**: 48
-- **Job name patterns**: 39
+- **Artifact patterns**: 56
+- **Job name patterns**: 40
 - **File path references**: 83
 
 ## GitHub Actions
@@ -104,6 +104,14 @@ Artifacts uploaded/downloaded between workflow jobs:
 | `dailysecurityredteam-experiment` | Daily workflow job | Download step | Daily security red team experiment artifact |
 | `dailysemgrepscan-experiment` | Daily workflow job | Download step | Daily Semgrep scan experiment artifact |
 | `trufflehog-scan-results` | TruffleHog scan job | Download step | TruffleHog secret scanner results |
+| `agentperformanceanalyzer-experiment` | Agent performance analyzer job | Download step | Agent performance analyzer experiment artifact |
+| `agentpersonaexplorer-experiment` | Agent persona explorer job | Download step | Agent persona explorer experiment artifact |
+| `dailycompilerquality-experiment` | Daily workflow job | Download step | Daily compiler quality experiment artifact |
+| `gpclean-experiment` | Agent job | Download step | GP clean experiment artifact |
+| `smokegemini-experiment` | Smoke test job | Download step | Smoke test Gemini experiment artifact |
+| `smokepi-experiment` | Smoke test job | Download step | Smoke test PI experiment artifact |
+| `smoketemporaryid-experiment` | Smoke test job | Download step | Smoke test temporary ID experiment artifact |
+| `typist-experiment` | Agent job | Download step | Typist experiment artifact |
 
 ## Common Job Names
 
@@ -146,6 +154,7 @@ Standard job names across compiled workflows:
 | `indexing` | QMD document indexing | `activation` | Runs QMD (Quarto Markdown) indexing on GPU runner for document search/embedding |
 | `apm-prep` | APM preparation | `activation` | Prepares APM matrix groups configuration before parallel APM jobs |
 | `collect_anthropic_models` | Model collection | Various | Collects Anthropic model inventory |
+| `collect_copilot_billing_multipliers` | Model collection | Various | Collects Copilot billing multipliers inventory |
 | `collect_copilot_models` | Model collection | Various | Collects Copilot model inventory |
 | `collect_gemini_models` | Model collection | Various | Collects Gemini model inventory |
 | `collect_openai_models` | Model collection | Various | Collects OpenAI model inventory |
@@ -738,9 +747,9 @@ This specification is automatically maintained by the **Layout Specification Mai
 4. Updates this document with findings
 5. Creates a PR with the changes
 
-**Last extraction run**: 2026-05-18
-**Lock files analyzed**: 230
-**Patterns documented**: 420+
+**Last extraction run**: 2026-05-25
+**Lock files analyzed**: 235
+**Patterns documented**: 430+
 
 ---
 
