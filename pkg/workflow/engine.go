@@ -257,6 +257,12 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 						engineLog.Printf("Extracted bare mode (inline): %v", config.Bare)
 					}
 				}
+				// Extract optional 'permission-mode' field (shared with non-inline path)
+				if permissionMode, hasPermissionMode := engineObj["permission-mode"]; hasPermissionMode {
+					if permissionModeStr, ok := permissionMode.(string); ok {
+						config.PermissionMode = permissionModeStr
+					}
+				}
 				config.MaxRuns = topLevelMaxRuns
 				config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
 

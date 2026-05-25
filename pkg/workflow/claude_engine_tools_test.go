@@ -262,6 +262,13 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			expected: "Edit,ExitPlanMode,Glob,Grep,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write",
 		},
 		{
+			name: "neutral edit tool explicitly disabled",
+			tools: map[string]any{
+				"edit": false,
+			},
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite",
+		},
+		{
 			name: "mixed neutral and MCP tools",
 			tools: map[string]any{
 				"web-fetch": nil,

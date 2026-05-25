@@ -246,6 +246,22 @@ func TestClaudeEnginePermissionMode(t *testing.T) {
 			notExpectedMode: "bypassPermissions",
 		},
 		{
+			name: "bash true no longer forces bypassPermissions",
+			tools: map[string]any{
+				"bash": true,
+			},
+			expectedMode:    "acceptEdits",
+			notExpectedMode: "bypassPermissions",
+		},
+		{
+			name: "bash nil no longer forces bypassPermissions",
+			tools: map[string]any{
+				"bash": nil,
+			},
+			expectedMode:    "acceptEdits",
+			notExpectedMode: "bypassPermissions",
+		},
+		{
 			name: "edit false defaults to auto permission mode",
 			tools: map[string]any{
 				"edit": false,

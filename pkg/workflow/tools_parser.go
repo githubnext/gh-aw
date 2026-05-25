@@ -496,6 +496,9 @@ func parseWebSearchTool(val any) *WebSearchToolConfig {
 
 // parseEditTool converts raw edit tool configuration
 func parseEditTool(val any) *EditToolConfig {
+	if boolVal, ok := val.(bool); ok && !boolVal {
+		return nil
+	}
 	// edit is either nil or an empty object
 	return &EditToolConfig{}
 }

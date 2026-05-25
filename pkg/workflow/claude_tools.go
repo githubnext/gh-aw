@@ -118,7 +118,7 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 		claudeAllowed["WebSearch"] = nil
 	}
 
-	if editTool, hasEdit := tools["edit"]; hasEdit {
+	if editTool, hasEdit := tools["edit"]; hasEdit && !isExplicitlyDisabledTool(editTool) {
 		// edit -> Edit, MultiEdit, NotebookEdit, Write
 		claudeAllowed["Edit"] = nil
 		claudeAllowed["MultiEdit"] = nil
@@ -145,6 +145,11 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 
 	claudeToolsLog.Printf("Expansion complete: result_tools=%d, claude_allowed=%d", len(result), len(claudeAllowed))
 	return result
+}
+
+func isExplicitlyDisabledTool(tool any) bool {
+	enabled, ok := tool.(bool)
+	return ok && !enabled
 }
 
 // computeAllowedClaudeToolsString generates the tool specification string for Claude's --allowed-tools flag.
