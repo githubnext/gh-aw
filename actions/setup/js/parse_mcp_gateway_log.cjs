@@ -373,7 +373,7 @@ function generateModelAliasResolutionSummary(aliasResolutionEvents) {
     const provider = event.provider || data?.provider || event.resolved_provider || event.target_provider || "-";
     const requestId = event.request_id || data?.request_id || event.requestId || data?.requestId || "-";
     const alias = event.alias || event.model_alias || data?.original_model || event.requested_alias || event.requested_model || event.requestedModel || "-";
-    const resolvedModel = event.resolved_model || event.resolvedModel || event.model || event.selected_model || event.selectedModel || data?.resolved_model || data?.resolvedModel || "-";
+    const resolvedModel = event.resolved_model || data?.resolved_model || event.resolvedModel || data?.resolvedModel || event.model || event.selected_model || event.selectedModel || "-";
     lines.push(buildRpcSummaryRow([formatRpcMessageTime(event.timestamp), provider, requestId, alias, resolvedModel]));
   }
   lines.push("");
