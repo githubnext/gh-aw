@@ -100,4 +100,39 @@ describe("generateGitBundle (incremental)", () => {
     expect(generatedBundleHeads).toBe(optimizedBundleHeads);
     expect(generatedSize).toBeLessThan(naiveSize);
   });
+
+  it("falls back to non-exclusion bundle generation when origin/base branch is unavailable", async () => {
+    const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-remote-"));
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-work-"));
+    tempDirs.push(remoteDir, workDir);
+
+    execGit(["init", "--bare"], { cwd: remoteDir });
+    execGit(["clone", remoteDir, workDir]);
+    execGit(["config", "user.name", "Test User"], { cwd: workDir });
+    execGit(["config", "user.email", "test@example.com"], { cwd: workDir });
+
+    execGit(["checkout", "-b", "pr-branch"], { cwd: workDir });
+    fs.writeFileSync(path.join(workDir, "pr.txt"), "pr start\n");
+    execGit(["add", "pr.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "pr start"], { cwd: workDir });
+    execGit(["push", "-u", "origin", "pr-branch"], { cwd: workDir });
+
+    fs.writeFileSync(path.join(workDir, "pr-2.txt"), "pr second\n");
+    execGit(["add", "pr-2.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "pr second"], { cwd: workDir });
+
+    const { generateGitBundle } = require("./generate_git_bundle.cjs");
+    const result = await generateGitBundle("pr-branch", "main", { mode: "incremental", cwd: workDir });
+    expect(result.success).toBe(true);
+    expect(result.bundlePath).toBeTruthy();
+    bundlePaths.push(result.bundlePath);
+
+    const naiveBundlePath = path.join(workDir, "naive.bundle");
+    execGit(["bundle", "create", naiveBundlePath, "origin/pr-branch..pr-branch"], { cwd: workDir });
+
+    const generatedBundleHeads = execGit(["bundle", "list-heads", result.bundlePath], { cwd: workDir }).stdout.trim();
+    const naiveBundleHeads = execGit(["bundle", "list-heads", naiveBundlePath], { cwd: workDir }).stdout.trim();
+
+    expect(generatedBundleHeads).toBe(naiveBundleHeads);
+  });
 });
