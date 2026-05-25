@@ -1,8 +1,8 @@
 package cli
 
 // This file implements the `forecast` command, which samples a workflow's recent
-// GitHub Actions run history and projects forward effective token usage on a
-// per-week or per-month basis.
+// GitHub Actions run history and projects forward effective token usage (including
+// Monte Carlo probability distributions) on a per-week or per-month basis.
 //
 // Workflow metadata (trigger types, concurrency, experiments) is read from the
 // workflow's Markdown frontmatter so that projections account for how often the
