@@ -181,6 +181,11 @@ func TestForecastRateLimitSleep_ContextCancelled(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 }
 
+func TestForecastRateLimitSleep_CompletesWithoutCancellation(t *testing.T) {
+	err := forecastRateLimitSleep(context.Background(), time.Millisecond)
+	require.NoError(t, err)
+}
+
 func TestForecastWorkflow_IgnoresSkippedRuns(t *testing.T) {
 	originalList := forecastListWorkflowRunsPaginated
 	t.Cleanup(func() {

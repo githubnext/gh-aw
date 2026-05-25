@@ -510,10 +510,7 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 	// Only use completed runs for metric computation.
 	completed := make([]WorkflowRun, 0, len(runs))
 	for _, r := range runs {
-		if r.Status == "completed" {
-			if r.Conclusion == "skipped" {
-				continue
-			}
+		if isCompletedNonSkippedRun(r) {
 			// Compute Duration from StartedAt/UpdatedAt when not already set (gh run list
 			// does not populate the Duration field; health_command uses the same approach).
 			if r.Duration == 0 && !r.StartedAt.IsZero() && !r.UpdatedAt.IsZero() {
@@ -849,6 +846,10 @@ func loadCachedEffectiveTokens(runID int64, verbose bool) int {
 	return 0
 }
 
+func isCompletedNonSkippedRun(r WorkflowRun) bool {
+	return r.Status == "completed" && r.Conclusion != "skipped"
+}
+
 // evaluateForecast fetches actual completed runs in the validation window and
 // returns a ForecastEvaluation comparing them against the Monte Carlo forecast.
 //
@@ -896,10 +897,7 @@ func evaluateForecast(ctx context.Context, workflowName string, forecast Forecas
 	validationEnd := time.Now()
 	validationStart, _ := time.Parse("2006-01-02", validationStartDate)
 	for _, r := range runs {
-		if r.Status != "completed" {
-			continue
-		}
-		if r.Conclusion == "skipped" {
+		if !isCompletedNonSkippedRun(r) {
 			continue
 		}
 		// Skip runs with no timestamp — we cannot verify they belong to the
@@ -976,11 +974,12 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 		unreliableMark := ""
 		if mc := wf.MonteCarlo; mc != nil {
 			projETStr = formatForecastTokens(mc.P50ProjectedEffectiveTokens)
-			etRangeStr = fmt.Sprintf("%s–%s",
-				formatForecastTokens(mc.P10ProjectedEffectiveTokens),
-				formatForecastTokens(mc.P90ProjectedEffectiveTokens))
-			if etRangeStr == "-–-" {
+			if mc.P10ProjectedEffectiveTokens == 0 && mc.P90ProjectedEffectiveTokens == 0 {
 				etRangeStr = "-"
+			} else {
+				etRangeStr = fmt.Sprintf("%s–%s",
+					formatForecastTokens(mc.P10ProjectedEffectiveTokens),
+					formatForecastTokens(mc.P90ProjectedEffectiveTokens))
 			}
 			if !mc.IsReliable {
 				anyUnreliable = true
