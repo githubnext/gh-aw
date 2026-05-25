@@ -96,7 +96,7 @@ func TestAntigravityEngineInstallation(t *testing.T) {
 		if len(steps) > 1 && len(steps[1]) > 0 {
 			stepContent := strings.Join(steps[1], "\n")
 			assert.Contains(t, stepContent, "Install Antigravity CLI", "Second step should install Antigravity CLI")
-			assert.Contains(t, stepContent, "@google/antigravity-cli", "Should install @google/antigravity-cli package")
+			assert.Contains(t, stepContent, "install_antigravity_cli.sh", "Should use the Antigravity CLI install script")
 			assert.NotContains(t, stepContent, "NPM_CONFIG_MIN_RELEASE_AGE", "Antigravity installation should not set npm release-age cooldown")
 		}
 	})
@@ -625,18 +625,18 @@ func TestAntigravityEngineWithExpressionVersion(t *testing.T) {
 
 	installSteps := engine.GetInstallationSteps(workflowData)
 
-	// Find the npm install step
+	// Find the install step (uses install_antigravity_cli.sh)
 	var installStep string
 	for _, step := range installSteps {
 		stepContent := strings.Join([]string(step), "\n")
-		if strings.Contains(stepContent, "npm install") {
+		if strings.Contains(stepContent, "install_antigravity_cli.sh") {
 			installStep = stepContent
 			break
 		}
 	}
 
 	if installStep == "" {
-		t.Fatal("Could not find npm install step")
+		t.Fatal("Could not find antigravity install step")
 	}
 
 	// Should use ENGINE_VERSION env var for injection safety
@@ -646,11 +646,11 @@ func TestAntigravityEngineWithExpressionVersion(t *testing.T) {
 
 	// Should reference env var in command
 	if !strings.Contains(installStep, `"${ENGINE_VERSION}"`) {
-		t.Errorf(`Expected "$ENGINE_VERSION" in npm install command, got:\n%s`, installStep)
+		t.Errorf(`Expected "${ENGINE_VERSION}" in install command, got:\n%s`, installStep)
 	}
 
-	// Should NOT embed expression directly in npm install command
-	if strings.Contains(installStep, "@google/antigravity-cli@"+expressionVersion) {
-		t.Errorf("Expression should NOT be embedded directly in npm install command, got:\n%s", installStep)
+	// Should NOT embed expression directly in install command
+	if strings.Contains(installStep, "install_antigravity_cli.sh "+expressionVersion) {
+		t.Errorf("Expression should NOT be embedded directly in install command, got:\n%s", installStep)
 	}
 }
