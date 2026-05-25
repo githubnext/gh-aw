@@ -104,6 +104,7 @@ func TestNewUpdateCommand_MentionsEnterpriseSourceResolution(t *testing.T) {
 	cmd := NewUpdateCommand(func(string) error { return nil })
 	require.NotNil(t, cmd)
 
+	assert.Contains(t, cmd.Long, "Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterprise host by default.")
 	assert.Contains(t, cmd.Long, "shorthand source specs resolve on your enterprise host by default.")
 	assert.Contains(t, cmd.Long, "For github/*, githubnext/*, and microsoft/* sources, shorthand resolves on github.com.")
 	assert.Contains(t, cmd.Long, "Use full https://github.com/... source URLs for other public github.com workflows.")
