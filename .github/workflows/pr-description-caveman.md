@@ -54,8 +54,9 @@ steps:
       git diff "$BASE_SHA"..."$HEAD_SHA" -- "${EXCLUSIONS[@]}" \
         | split -l 400 - /tmp/gh-aw/agent/chunks/chunk_ 2>/dev/null || true
 
-      # Record chunk count so the agent knows how many to process
-      ls /tmp/gh-aw/agent/chunks/ | wc -l > /tmp/gh-aw/agent/chunk-count.txt
+      # Record chunk manifest and count so the agent can process deterministically
+      ls /tmp/gh-aw/agent/chunks/ > /tmp/gh-aw/agent/chunk-manifest.txt
+      wc -l < /tmp/gh-aw/agent/chunk-manifest.txt > /tmp/gh-aw/agent/chunk-count.txt
 safe-outputs:
   update-pull-request:
     body: true
@@ -86,34 +87,41 @@ Write in a clear, considered tone. Be accurate, concise, and machine-friendly. A
 cat /tmp/gh-aw/agent/diff-stat.txt
 cat /tmp/gh-aw/agent/commits.txt
 cat /tmp/gh-aw/agent/chunk-count.txt
+cat /tmp/gh-aw/agent/chunk-manifest.txt
 ```
 
 If `diff-stat.txt` is empty (no non-generated files changed), call `noop` with reason "No non-generated changes found" and stop.
 
 ### Step 2 — Analyse chunks with sub-agents
 
-Read the chunk count:
+Read the chunk manifest:
 
 ```bash
-ls /tmp/gh-aw/agent/chunks/
+cat /tmp/gh-aw/agent/chunk-manifest.txt
 ```
 
-For **each chunk file** found under `/tmp/gh-aw/agent/chunks/`, invoke the `chunk-analyzer` sub-agent and collect its output. Process all chunks before proceeding.
+For **each chunk filename** listed in `chunk-manifest.txt`, invoke the inline sub-agent `chunk-analyzer` and collect its output. Process all chunks before proceeding.
 
 Each call to `chunk-analyzer`:
 1. Read the chunk: `cat /tmp/gh-aw/agent/chunks/<chunk_file>`
 2. Pass its content to the sub-agent along with the chunk filename so it can track file boundaries.
+3. Provide input in this format:
+   - `chunk_file: <chunk_file>`
+   - `chunk_content:` followed by the full chunk text.
 
 Store each sub-agent response in memory (no disk write needed — synthesise in the next step).
 
-### Step 3 — Synthesise with `description-synthesizer`
+### Step 3 — Synthesise with `pr-description-synthesizer`
 
-Pass **all chunk-analyzer outputs** (concatenated) plus `diff-stat.txt` and `commits.txt` to the `description-synthesizer` sub-agent. It will produce the final structured description.
+Pass **all chunk-analyzer outputs** (concatenated) plus `diff-stat.txt` and `commits.txt` to the inline sub-agent `pr-description-synthesizer`. It will produce the final structured description.
+Do not invoke `skill(description-synthesizer)` — use the inline sub-agent name exactly.
 
 ### Step 4 — Update the PR
 
-Call `update_pull_request` with the synthesised description body.
+Call `update_pull_request` with the synthesised description body exactly once.
 `operation` is `replace` — it overwrites the existing description entirely.
+If your client requires JSON stdin, write the payload to `/tmp/gh-aw/agent/pr-body.json` and pipe that file as stdin. Do not use a `printf`-pipe retry pattern.
+Do not retry unless the tool returns an explicit error.
 
 If there are no meaningful changes, call `noop` instead.
 
@@ -146,8 +154,9 @@ Output as a markdown list of records, one per file. Example:
 
 Ignore files that are lock files, generated code, vendored dependencies, or minified assets.
 If the slice contains no complete file diff (boundary chunk), output what you can; do not hallucinate file paths.
+Do not read additional files or invoke shell tools. The chunk content is provided directly in each call.
 
-## agent: `description-synthesizer`
+## agent: `pr-description-synthesizer`
 ---
 description: Combines per-chunk analysis results and diff metadata into a final structured PR description optimised for agentic analysis.
 model: large
