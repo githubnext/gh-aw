@@ -31,12 +31,11 @@
     "copilot": ["agent"],
     "claude": ["agent"],
     "codex": ["agent"],
-    "antigravity": ["agent"],
+    "antigravity": ["agent", "antigravity-pro", "antigravity-flash", "any"],
     "antigravity-3-pro": ["copilot/antigravity-3*pro*", "google/antigravity-3*pro*", "antigravity/antigravity-3*pro*"],
     "antigravity-3-flash": ["copilot/antigravity-3*flash*", "google/antigravity-3*flash*", "antigravity/antigravity-3*flash*"],
     "antigravity-3.1-pro": ["copilot/antigravity-3.1*pro*", "google/antigravity-3.1*pro*", "antigravity/antigravity-3.1*pro*"],
     "antigravity-3.1-flash": ["copilot/antigravity-3.1*flash*", "google/antigravity-3.1*flash*", "antigravity/antigravity-3.1*flash*"],
-    "antigravity": ["copilot/antigravity*", "google/antigravity*", "antigravity/antigravity*"],
     "summarization": ["haiku", "gpt-5-mini", "antigravity-flash-lite", "mini"],
     "computer-use": ["copilot/*computer-use*", "google/*computer-use*", "antigravity/*computer-use*", "openai/*computer-use*"],
     "robotics": ["copilot/*robotics*", "google/*robotics*", "antigravity/*robotics*"]

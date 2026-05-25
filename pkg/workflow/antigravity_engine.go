@@ -86,12 +86,16 @@ func (e *AntigravityEngine) GetSecretValidationStep(workflowData *WorkflowData) 
 fi
 bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" ANTIGRAVITY_API_KEY 'Antigravity CLI' https://antigravity.google/docs/cli-overview`
 	stepLines := []string{"      - name: Validate ANTIGRAVITY_API_KEY secret"}
-	env := getEngineEnvOverrides(workflowData)
+	env := maps.Clone(getEngineEnvOverrides(workflowData))
 	if env == nil {
 		env = map[string]string{}
 	}
-	env["ANTIGRAVITY_API_KEY"] = "${{ secrets.ANTIGRAVITY_API_KEY }}"
-	env["GEMINI_API_KEY"] = "${{ secrets.GEMINI_API_KEY }}"
+	if _, ok := env["ANTIGRAVITY_API_KEY"]; !ok {
+		env["ANTIGRAVITY_API_KEY"] = "${{ secrets.ANTIGRAVITY_API_KEY }}"
+	}
+	if _, ok := env["GEMINI_API_KEY"]; !ok {
+		env["GEMINI_API_KEY"] = "${{ secrets.GEMINI_API_KEY }}"
+	}
 	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
 	return GitHubActionStep(stepLines)
 }
