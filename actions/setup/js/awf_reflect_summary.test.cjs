@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "fs";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
 
 const mockCore = {
   info: vi.fn(),
@@ -381,17 +384,24 @@ describe("awf_reflect_summary.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("AWF reflect summary written"));
     });
 
-    it("does not throw when step summary API is unavailable", async () => {
-      const originalSummary = mockCore.summary;
+    it("uses shimmed summary methods when step summary API is missing", async () => {
+      const originalSummary = global.core.summary;
       try {
-        mockCore.summary = null;
+        global.core.summary = undefined;
+        const shimPath = require.resolve("./shim.cjs");
+        delete require.cache[shimPath];
+        require("./shim.cjs");
+        const addRawSpy = vi.spyOn(global.core.summary, "addRaw");
+        const writeSpy = vi.spyOn(global.core.summary, "write");
         fs.writeFileSync(REFLECT_PATH, JSON.stringify(SAMPLE_REFLECT), "utf8");
 
         await module.main();
 
+        expect(addRawSpy).toHaveBeenCalledTimes(1);
+        expect(writeSpy).toHaveBeenCalledTimes(1);
         expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("AWF reflect summary written"));
       } finally {
-        mockCore.summary = originalSummary;
+        global.core.summary = originalSummary;
       }
     });
   });
