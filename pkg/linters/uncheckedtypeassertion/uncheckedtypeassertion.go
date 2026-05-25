@@ -66,8 +66,10 @@ func run(pass *analysis.Pass) (any, error) {
 
 		// Skip the safe two-value form:  v, ok := x.(T)  or  v, ok = x.(T)
 		if parents != nil {
-			if assign, ok := parents[typeAssert].(*ast.AssignStmt); ok && len(assign.Lhs) == 2 && len(assign.Rhs) == 1 {
-				return
+			if assign, ok := parents[typeAssert].(*ast.AssignStmt); ok {
+				if isSafeTwoValueAssertion(assign) {
+					return
+				}
 			}
 		}
 
@@ -75,6 +77,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if t == nil {
 			return
 		}
+
 		pass.ReportRangef(
 			typeAssert,
 			"type assertion x.(%s) is unchecked and may panic; use the two-value form v, ok := x.(%s) instead",
@@ -83,6 +86,10 @@ func run(pass *analysis.Pass) (any, error) {
 	})
 
 	return nil, nil
+}
+
+func isSafeTwoValueAssertion(assign *ast.AssignStmt) bool {
+	return len(assign.Lhs) == 2 && len(assign.Rhs) == 1
 }
 
 // buildParentMap constructs a map from each AST node to its direct parent node.
