@@ -18,25 +18,16 @@ func GenerateAntigravityInstallerSteps(version, stepName string) []GitHubActionS
 
 	antigravityInstallerLog.Printf("Generating Antigravity installer steps using install_antigravity_cli.sh: version=%s", version)
 
-	// Use the install_antigravity_cli.sh script from actions/setup/sh
-	// This script downloads the Antigravity CLI binary directly from Google Cloud Storage.
-	var installStep GitHubActionStep
-	if ExpressionPattern.MatchString(version) {
-		// Version is a GitHub Actions expression (e.g. ${{ inputs.engine-version }}).
-		// Pass it via an env var instead of direct shell interpolation to prevent injection.
-		antigravityInstallerLog.Printf("Version contains GitHub Actions expression, using env var for injection safety: %s", version)
-		installStep = GitHubActionStep([]string{
-			"      - name: " + stepName,
-			`        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_antigravity_cli.sh" "${ENGINE_VERSION}"`,
-			"        env:",
-			"          ENGINE_VERSION: " + version,
-		})
-	} else {
-		installStep = GitHubActionStep([]string{
-			"      - name: " + stepName,
-			"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_antigravity_cli.sh\" " + version,
-		})
-	}
+	// Always pass the version via an env var rather than direct shell interpolation.
+	// This prevents injection from user-supplied engine.version values (e.g. values
+	// with spaces or shell metacharacters) and also handles GitHub Actions expressions
+	// like ${{ inputs.engine-version }} safely.
+	installStep := GitHubActionStep([]string{
+		"      - name: " + stepName,
+		`        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_antigravity_cli.sh" "${ENGINE_VERSION}"`,
+		"        env:",
+		"          ENGINE_VERSION: " + version,
+	})
 
-	return []GitHubActionStep{GenerateNodeJsSetupStep(), installStep}
+	return []GitHubActionStep{installStep}
 }

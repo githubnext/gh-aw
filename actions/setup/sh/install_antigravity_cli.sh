@@ -2,13 +2,13 @@
 set +o histexpand
 
 # Install Antigravity CLI (agy) from Google Cloud Storage
-# Usage: install_antigravity_cli.sh [VERSION]
+# Usage: install_antigravity_cli.sh VERSION
 #
 # This script downloads and installs the Antigravity CLI binary directly from
 # Google Cloud Storage (https://storage.googleapis.com/antigravity-public/).
 #
 # Arguments:
-#   VERSION - Antigravity CLI version to install (default: uses DefaultAntigravityVersion)
+#   VERSION - Antigravity CLI version to install (required)
 #
 # Security features:
 #   - Downloads binary directly from Google Cloud Storage over HTTPS

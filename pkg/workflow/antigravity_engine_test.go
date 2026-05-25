@@ -17,7 +17,7 @@ func TestAntigravityEngine(t *testing.T) {
 		assert.Equal(t, "antigravity", engine.GetID(), "Engine ID should be 'antigravity'")
 		assert.Equal(t, "Antigravity CLI", engine.GetDisplayName(), "Display name should be 'Antigravity CLI'")
 		assert.NotEmpty(t, engine.GetDescription(), "Description should not be empty")
-		assert.False(t, engine.IsExperimental(), "Antigravity engine should not be experimental")
+		assert.True(t, engine.IsExperimental(), "Antigravity engine should be experimental")
 	})
 
 	t.Run("capabilities", func(t *testing.T) {
@@ -82,21 +82,16 @@ func TestAntigravityEngineInstallation(t *testing.T) {
 		steps := engine.GetInstallationSteps(workflowData)
 		require.NotEmpty(t, steps, "Should generate installation steps")
 
-		// Should have at least: Node.js setup + Install Antigravity
-		// (secret validation is now in the activation job via GetSecretValidationStep)
-		assert.GreaterOrEqual(t, len(steps), 2, "Should have at least 2 installation steps")
+		// Should have exactly 1 step: Install Antigravity CLI
+		// (no Node.js setup needed; agy is a GCS binary, not an npm package)
+		assert.GreaterOrEqual(t, len(steps), 1, "Should have at least 1 installation step")
 
-		// Verify first step is Node.js setup
+		// Verify first step is Install Antigravity CLI
 		if len(steps) > 0 && len(steps[0]) > 0 {
 			stepContent := strings.Join(steps[0], "\n")
-			assert.Contains(t, stepContent, "Setup Node.js", "First step should setup Node.js")
-		}
-
-		// Verify second step is Install Antigravity CLI
-		if len(steps) > 1 && len(steps[1]) > 0 {
-			stepContent := strings.Join(steps[1], "\n")
-			assert.Contains(t, stepContent, "Install Antigravity CLI", "Second step should install Antigravity CLI")
+			assert.Contains(t, stepContent, "Install Antigravity CLI", "First step should install Antigravity CLI")
 			assert.Contains(t, stepContent, "install_antigravity_cli.sh", "Should use the Antigravity CLI install script")
+			assert.Contains(t, stepContent, `"${ENGINE_VERSION}"`, "Should pass version via ENGINE_VERSION env var")
 			assert.NotContains(t, stepContent, "NPM_CONFIG_MIN_RELEASE_AGE", "Antigravity installation should not set npm release-age cooldown")
 		}
 	})
