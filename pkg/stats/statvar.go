@@ -4,7 +4,11 @@ package stats
 import (
 	"math"
 	"sort"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var statsLog = logger.New("stats:statvar")
 
 // StatVar accumulates a stream of float64 observations and computes descriptive
 // statistics: count, sum, min, max, mean, variance, standard deviation, and
@@ -106,6 +110,7 @@ func (s *StatVar) Median() float64 {
 	if s.count == 0 {
 		return 0
 	}
+	statsLog.Printf("Median: sorting %d observations", len(s.values))
 	sorted := make([]float64, len(s.values))
 	copy(sorted, s.values)
 	sort.Float64s(sorted)

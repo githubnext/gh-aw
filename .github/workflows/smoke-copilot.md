@@ -145,6 +145,15 @@ Talk like a caveman in all your responses and outputs. Use short, broken sentenc
 
 **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 
+## Hard Limit: `add_comment` Budget
+
+`safe-outputs.add-comment.max` is `2`. Never exceed 2 total `add_comment` calls in this run.
+
+- Call #1 is required for the discussion interaction test (comment on latest discussion).
+- Call #2 depends on trigger:
+  - `pull_request` event: post the brief PR summary comment, and **skip** the fun discussion follow-up comment.
+  - non-`pull_request` event: **skip** the PR summary comment and post the fun discussion follow-up comment.
+
 ## Tool Access Overview
 
 This workflow uses `cli-proxy: true`. The following MCP servers are **NOT available as MCP tools** — they are mounted exclusively as **shell CLI commands** (see `<mcp-clis>` section above). You **must** use them via the `bash` tool:
@@ -208,7 +217,7 @@ These are **not** MCP protocol tools — they are bash executables. Call them wi
    - Overall status: PASS or FAIL
    - Mention the pull request author and any assignees
 
-4. Use the `add_comment` tool to add a **fun and creative comment** to the newly created discussion (use the temporary ID `aw_smoke_discussion` from step 11) - be playful and entertaining in your comment
+4. **Only if this workflow was NOT triggered by a pull_request event**: Use the `add_comment` tool to add a **fun and creative comment** to the newly created discussion (use the temporary ID `aw_smoke_discussion` from step 11) - be playful and entertaining in your comment
 
 5. Use the `send_slack_message` tool to send a brief summary message (e.g., "Smoke test ${{ github.run_id }}: All tests passed! ✅")
 

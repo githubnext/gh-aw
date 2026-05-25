@@ -251,6 +251,55 @@ describe("action_setup_otlp.cjs", () => {
     });
   });
 
+  describe("INPUT_PARENT_SPAN_ID handling", () => {
+    it("should pass parentSpanId=undefined when INPUT_PARENT_SPAN_ID is not set", async () => {
+      await run();
+
+      expect(mockSendJobSetupSpan).toHaveBeenCalledWith(expect.objectContaining({ parentSpanId: undefined }));
+    });
+
+    it("should pass the parent span ID to sendJobSetupSpan when INPUT_PARENT_SPAN_ID is set", async () => {
+      process.env.INPUT_PARENT_SPAN_ID = "aabbccddeeff0011";
+
+      await run();
+
+      expect(mockSendJobSetupSpan).toHaveBeenCalledWith(expect.objectContaining({ parentSpanId: "aabbccddeeff0011" }));
+    });
+
+    it("should normalize INPUT_PARENT_SPAN_ID to lowercase", async () => {
+      process.env.INPUT_PARENT_SPAN_ID = "AABBCCDDEEFF0011";
+
+      await run();
+
+      expect(mockSendJobSetupSpan).toHaveBeenCalledWith(expect.objectContaining({ parentSpanId: "aabbccddeeff0011" }));
+    });
+
+    it("should log the INPUT_PARENT_SPAN_ID value when set", async () => {
+      process.env.INPUT_PARENT_SPAN_ID = "aabbccddeeff0011";
+
+      await run();
+
+      expect(console.log).toHaveBeenCalledWith("[otlp] INPUT_PARENT_SPAN_ID=aabbccddeeff0011 (will parent setup span)");
+    });
+
+    it("should accept the hyphen form INPUT_PARENT-SPAN-ID as a fallback", async () => {
+      process.env["INPUT_PARENT-SPAN-ID"] = "aabbccddeeff0011";
+
+      await run();
+
+      expect(mockSendJobSetupSpan).toHaveBeenCalledWith(expect.objectContaining({ parentSpanId: "aabbccddeeff0011" }));
+    });
+
+    it("should set INPUT_PARENT_SPAN_ID env var from the hyphen form when only hyphen form is present", async () => {
+      delete process.env.INPUT_PARENT_SPAN_ID;
+      process.env["INPUT_PARENT-SPAN-ID"] = "aabbccddeeff0011";
+
+      await run();
+
+      expect(process.env.INPUT_PARENT_SPAN_ID).toBe("aabbccddeeff0011");
+    });
+  });
+
   describe("INPUT_JOB_NAME normalization", () => {
     it("should set INPUT_JOB_NAME env var from the hyphen form when only hyphen form is present", async () => {
       delete process.env.INPUT_JOB_NAME;

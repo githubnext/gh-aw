@@ -4,7 +4,7 @@ set +o histexpand
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
 # Specification: docs/src/content/docs/reference/safe-outputs-specification.md
-# Version: 1.20.0 (2026-05-15)
+# Version: 1.21.0 (2026-05-19)
 
 set -euo pipefail
 
@@ -1322,6 +1322,54 @@ check_wtd_abort_outputs() {
     fi
 }
 check_wtd_abort_outputs
+
+# TYPE-005: add_comment Status-Comment Reuse Extension (Section 7.1, v1.21.0)
+echo "Running TYPE-005: add_comment Status-Comment Reuse Extension..."
+check_add_comment_status_target() {
+    local handler="actions/setup/js/add_comment.cjs"
+    local failed=0
+
+    # Per spec Section 7.1 (v1.21.0):
+    # 1. When target:"status" is set and a reusable status comment ID is available,
+    #    implementations MUST update the existing issue/PR comment instead of creating a new one.
+    # 2. When target:"status" is set but no reusable status comment ID is available,
+    #    implementations MUST create a new comment.
+    # 3. target:"status" and comment_id MUST be rejected for discussion comments.
+
+    if [ ! -f "$handler" ]; then
+        log_high "TYPE-005: add_comment handler missing: $handler"
+        return
+    fi
+
+    # Check that target=status handling exists
+    if ! grep -qE 'target.*status|status.*target' "$handler"; then
+        log_high "TYPE-005: add_comment handler has no target=status handling (Section 7.1 requirement 1/2)"
+        failed=1
+    fi
+
+    # Check that existing comment update path exists (MUST update existing comment when ID available)
+    if ! grep -qE 'updateComment|update.*comment|commentIdToReuse|comment_id.*reuse' "$handler"; then
+        log_high "TYPE-005: add_comment handler lacks existing comment update path for status reuse (Section 7.1 requirement 1)"
+        failed=1
+    fi
+
+    # Check that fallback to new comment creation exists (MUST create new when no ID available)
+    if ! grep -qE 'no reusable status comment|creating a new comment|statusCommentId.*null|statusCommentId.*empty' "$handler"; then
+        log_medium "TYPE-005: add_comment handler may lack fallback new-comment creation for target=status with no ID (Section 7.1 requirement 2)"
+        failed=1
+    fi
+
+    # Check that discussion rejection is implemented (MUST reject target=status for discussions)
+    if ! grep -qE 'discussion.*reject|only.*issue.*pull.request|issue.*pull.request.*only|not.*discussion' "$handler"; then
+        log_high "TYPE-005: add_comment handler must reject target=status for discussion comments (Section 7.1 requirement 3)"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-005: add_comment handler correctly implements status-comment reuse extension (Section 7.1 v1.21.0)"
+    fi
+}
+check_add_comment_status_target
 
 # Summary
 echo ""

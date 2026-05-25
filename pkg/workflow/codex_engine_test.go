@@ -462,6 +462,61 @@ func TestCodexEngineExecutionAddsMountedMCPCLIPathSetup(t *testing.T) {
 	}
 }
 
+func TestCodexEngineExecutionPassesModelEnvVarIntoAWFStep(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name             string
+		safeOutputs      *SafeOutputsConfig
+		expectedModelEnv string
+	}{
+		{
+			name:             "agent job uses agent model env var",
+			safeOutputs:      &SafeOutputsConfig{},
+			expectedModelEnv: constants.EnvVarModelAgentCodex,
+		},
+		{
+			name:             "detection job uses detection model env var",
+			safeOutputs:      nil,
+			expectedModelEnv: constants.EnvVarModelDetectionCodex,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name: "test-workflow",
+				NetworkPermissions: &NetworkPermissions{
+					Allowed: []string{"defaults"},
+					Firewall: &FirewallConfig{
+						Enabled: true,
+					},
+				},
+				Tools: map[string]any{
+					"bash": []any{"echo"},
+				},
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+			if len(steps) == 0 {
+				t.Fatal("Expected execution step")
+			}
+
+			stepContent := strings.Join([]string(steps[0]), "\n")
+			expectedEnvLine := tt.expectedModelEnv + ": ${{ vars." + tt.expectedModelEnv + " || '" + constants.CodexDefaultModel + "' }}"
+			if !strings.Contains(stepContent, expectedEnvLine) {
+				t.Errorf("Expected model env var to be included in AWF step env:\n%s", stepContent)
+			}
+
+			expectedModelFlag := fmt.Sprintf("${%s:+ --model \"$%s\"}", tt.expectedModelEnv, tt.expectedModelEnv)
+			if !strings.Contains(stepContent, expectedModelFlag) {
+				t.Errorf("Expected AWF command to use %s for --model shell expansion:\n%s", tt.expectedModelEnv, stepContent)
+			}
+		})
+	}
+}
+
 func TestCodexEngineUserAgentIdentifierConversion(t *testing.T) {
 	engine := NewCodexEngine()
 

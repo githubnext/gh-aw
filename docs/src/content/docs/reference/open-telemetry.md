@@ -165,6 +165,24 @@ and is emitted as `SPAN_KIND_CLIENT`.
 | `gen_ai.usage.cache_creation.input_tokens` | Cache-creation tokens written |
 | `gen_ai.response.finish_reasons` | Array containing the agent stop reason |
 
+## Outcome span attributes
+
+Outcome evaluation data is emitted in OpenTelemetry spans after safe outputs are checked against repository state. These attributes are the span-level view of the outcomes model described in [Outcomes](/gh-aw/reference/outcomes/).
+
+Workflow-level outcome rollups appear on outcome summary or job conclusion spans. The table below is a high-level, non-exhaustive subset.
+
+| Attribute | Description |
+| --- | --- |
+| `gh-aw.outcome.total` | Total evaluated outcomes for the run |
+| `gh-aw.outcome.accepted` | Number of accepted outcomes |
+| `gh-aw.outcome.rejected` | Number of rejected outcomes |
+| `gh-aw.outcome.pending` | Number of pending outcomes |
+| `gh-aw.outcome.ignored` | Number of ignored outcomes |
+| `gh-aw.outcome.acceptance_rate` | Accepted fraction for the evaluated outcomes |
+| `gh-aw.outcome.waste_rate` | Rejected fraction for the evaluated outcomes |
+
+Per-item outcome spans can also carry more detailed fields such as object type, URL, comments, review activity, and zero-touch acceptance.
+
 ## Trace files and artifacts
 
 When observability is enabled, trace data is also mirrored

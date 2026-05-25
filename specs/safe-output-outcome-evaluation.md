@@ -12,9 +12,9 @@ Every safe output type has a measurable outcome. This spec defines the exact eva
 
 ## Principles
 
-1. **Same as a human would check.** If a human did this action, how would you know it was good?
-2. **Level 2 only.** We check whether the action stuck, not whether it caused downstream effects.
-3. **Bot-aware.** Distinguish bot-initiated closes/edits from human ones.
+1. **Same as a repository observer would check.** If this action happened on GitHub, how would an observer decide it was good from visible repository state?
+2. **Direct Outcome Only.** We check whether the action stuck, not whether it caused downstream effects.
+3. **Bot-aware, not provenance-perfect.** Distinguish bot/app-visible closes and edits from non-bot ones, but do not assume non-bot actors are unassisted by AI.
 4. **Time-bounded.** Check outcomes after a configurable delay (default: 48 hours).
 
 ## Norms
@@ -26,6 +26,16 @@ The key words **MUST**, **MUST NOT**, and **SHOULD** in this document are to be 
 3. Outcome evaluation workers **MUST** treat GitHub API rate-limit responses (`403` with limit exhaustion or `429`) as transient and **SHOULD** reschedule evaluation using the reset window before emitting final outcomes.
 4. Outcome evaluation workers **MUST NOT** emit `accepted` or `rejected` when API failures prevent verification of the authoritative object state.
 
+## Provenance Limits
+
+Outcome evaluation is based on observable GitHub state and actor identity, not hidden authoring provenance.
+
+1. Outcome evaluation workers **MUST** treat actions performed by visible bot or app identities as bot/app actions.
+2. Outcome evaluation workers **MUST** treat actions performed by visible non-bot user identities as non-bot actions, even if those users may have used Copilot or another AI assistant.
+3. Outcome evaluation workers **MUST NOT** infer hidden AI assistance when GitHub exposes only a normal user identity.
+4. Metrics and fields that use `human_*` names are historical names. In this specification they mean actor-visible, non-bot activity unless explicit provenance metadata is available.
+5. Implementations **SHOULD** prefer explicit provenance markers when available, such as bot identities, GitHub App identities, trace IDs, labels, commit trailers, or other durable metadata emitted by the workflow.
+
 ## Outcome Categories
 
 Every evaluation produces one of these outcomes:
@@ -34,10 +44,10 @@ Every evaluation produces one of these outcomes:
 |---------|---------|
 | `accepted` | The action was kept, merged, resolved, or engaged with |
 | `rejected` | The action was undone, closed-as-not-planned, removed, or reverted |
-| `ignored` | No human interaction within the evaluation window |
+| `ignored` | No observable non-bot interaction within the evaluation window |
 | `pending` | The object has not reached a terminal state yet |
 | `lifecycle` | Closed/removed by the workflow itself (e.g., `close-older-issues`) — not a rejection |
-| `lifecycle_close` | Closed by lifecycle/noop bot policy and not reopened by humans |
+| `lifecycle_close` | Closed by lifecycle/noop bot policy and not reopened by a visible non-bot actor |
 
 ## Common OTel Attributes
 
@@ -45,19 +55,19 @@ Every outcome span carries these attributes:
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `ghaw.outcome.type` | string | Safe output type (e.g., `create_pull_request`) |
-| `ghaw.outcome.result` | string | One of: `accepted`, `rejected`, `ignored`, `pending`, `lifecycle`, `lifecycle_close` |
-| `ghaw.outcome.object_url` | string | GitHub URL of the affected object |
-| `ghaw.outcome.object_number` | int | Issue/PR/discussion number |
-| `ghaw.outcome.repo` | string | `owner/repo` |
-| `ghaw.outcome.source_run_id` | string | Workflow run that created this output |
-| `ghaw.outcome.source_trace_id` | string | Original OTLP trace ID |
-| `ghaw.outcome.created_at` | string | When the safe output was executed |
-| `ghaw.outcome.checked_at` | string | When this evaluation ran |
-| `ghaw.outcome.time_to_outcome_hours` | float | Hours from creation to terminal state |
-| `ghaw.outcome.human_comments` | int | Human (non-bot) comments on the object |
-| `ghaw.outcome.human_edits` | int | Human edits before acceptance (0 = zero-touch) |
-| `ghaw.outcome.zero_touch` | bool | Accepted with no human modifications |
+| `gh-aw.outcome.type` | string | Safe output type (e.g., `create_pull_request`) |
+| `gh-aw.outcome.result` | string | One of: `accepted`, `rejected`, `ignored`, `pending`, `lifecycle`, `lifecycle_close` |
+| `gh-aw.outcome.object_url` | string | GitHub URL of the affected object |
+| `gh-aw.outcome.object_number` | int | Issue/PR/discussion number |
+| `gh-aw.outcome.repo` | string | `owner/repo` |
+| `gh-aw.outcome.source_run_id` | string | Workflow run that created this output |
+| `gh-aw.outcome.source_trace_id` | string | Original OTLP trace ID |
+| `gh-aw.outcome.created_at` | string | When the safe output was executed |
+| `gh-aw.outcome.checked_at` | string | When this evaluation ran |
+| `gh-aw.outcome.time_to_outcome_hours` | float | Hours from creation to terminal state |
+| `gh-aw.outcome.human_comments` | int | Historical field name; means actor-visible non-bot comments on the object |
+| `gh-aw.outcome.human_edits` | int | Historical field name; means actor-visible non-bot edits before acceptance |
+| `gh-aw.outcome.zero_touch` | bool | Accepted with no actor-visible non-bot modifications |
 
 ## Implementation
 
@@ -67,6 +77,44 @@ Status meanings:
 - `implemented`: dedicated evaluator logic exists in both Go and JS.
 - `partial`: dedicated evaluator exists in one runtime; the other relies on generic fallback logic.
 - `not-started`: no dedicated evaluator exists yet; current behavior is generic/no-op only.
+
+### Current Default Acceptance Map
+
+This table summarizes the current runtime behavior in `pkg/cli/outcome_eval*.go`. It is intentionally about what the evaluator accepts today, not just the intended long-term spec semantics.
+
+Rows marked `evalGenericSticky` fallback are generic existence checks, not type-specific acceptance logic.
+
+| Output type | Current evaluator | `accepted` at a glance |
+|-------------|-------------------|------------------------|
+| `create_pull_request` | `evalCreatePullRequest` | merged |
+| `create_issue` | `evalCreateIssue` | completed/closed |
+| `add_comment` | `evalAddComment` | reacted to or replied to |
+| `add_labels` | `evalAddLabels` | label retention |
+| `add_reviewer` | `evalGenericSticky` fallback | review target exists |
+| `update_issue` | `evalGenericSticky` fallback | issue still exists |
+| `update_pull_request` | `evalGenericSticky` fallback | PR still exists |
+| `close_issue` | `evalCloseSticky` | still closed |
+| `close_pull_request` | `evalCloseSticky` | still closed |
+| `close_discussion` | `evalCloseDiscussion` | none yet |
+| `create_discussion` | `evalCreateDiscussion` | none yet |
+| `update_discussion` | `evalGenericSticky` fallback | discussion target exists |
+| `create_pull_request_review_comment` | `evalReviewComment` | none yet |
+| `submit_pull_request_review` | `evalGenericSticky` fallback | PR still exists |
+| `reply_to_pull_request_review_comment` | `evalGenericSticky` fallback | review target exists |
+| `resolve_pull_request_review_thread` | `evalResolveThread` | none yet |
+| `push_to_pull_request_branch` | `evalPushToPRBranch` | merged |
+| `mark_pull_request_as_ready_for_review` | `evalMarkReady` | reviewed |
+| `assign_to_agent` | `evalAssignToAgent` | merged or completed |
+| `dispatch_workflow` | `evalGenericSticky` fallback | dispatch target exists |
+| `autofix_code_scanning_alert` | `evalGenericSticky` fallback | alert target exists |
+| `create_code_scanning_alert` | `evalGenericSticky` fallback | alert target exists |
+| `link_sub_issue` | `evalGenericSticky` fallback | sub-issue link target exists |
+| `hide_comment` | `evalHideComment` | none yet |
+| `assign_milestone` | `evalAssignMilestone` | milestone still set |
+| `update_project` | `evalGenericSticky` fallback | object still exists |
+| `update_release` | `evalGenericSticky` fallback | object still exists |
+| `noop` | explicit skip | skipped |
+| `missing_tool` | explicit skip | skipped |
 
 | Output type | Implementation status | Go implementation areas | JS/runtime implementation areas |
 |-------------|------------------------|--------------------------|---------------------------------|
@@ -117,9 +165,9 @@ Status meanings:
 | `state == "open"` | `pending` |
 
 **Extra signals:**
-- `human_edits`: count commits pushed by users other than the PR author after creation
-- `human_comments`: count non-bot comments on the PR
-- `zero_touch`: `accepted` and `human_edits == 0`
+- `human_edits`: historical field name; count actor-visible non-bot commits pushed by users other than the PR author after creation
+- `human_comments`: historical field name; count actor-visible non-bot comments on the PR
+- `zero_touch`: `accepted` and `human_edits == 0`, meaning no actor-visible non-bot follow-up
 - `time_to_outcome_hours`: `merged_at - created_at` or `closed_at - created_at`
 
 **Additional OTel attributes:**
@@ -145,14 +193,14 @@ Status meanings:
 |-----------|---------|
 | `state == "closed"` and `state_reason == "completed"` | `accepted` |
 | `state == "closed"` and `state_reason == "not_planned"` and closed by bot | `lifecycle` |
-| `state == "closed"` and `state_reason == "not_planned"` and closed by human | `rejected` |
-| `state == "open"` and has human comments | `pending` (engaged) |
-| `state == "open"` and no human comments | `ignored` |
+| `state == "closed"` and `state_reason == "not_planned"` and closed by a visible non-bot actor | `rejected` |
+| `state == "open"` and has non-bot comments | `pending` (engaged) |
+| `state == "open"` and no non-bot comments | `ignored` |
 
 **Bot detection:** check the close event in `GET /repos/{owner}/{repo}/issues/{number}/timeline` — if the actor is `github-actions[bot]`, classify as `lifecycle` not `rejected`.
 
 **Extra signals:**
-- `human_comments`: non-bot comments
+- `human_comments`: historical field name; non-bot comments
 - Reactions on the issue body
 
 **Additional OTel attributes:**
@@ -259,9 +307,9 @@ Status meanings:
 | Condition | Outcome |
 |-----------|---------|
 | Title/body unchanged since workflow edit (or only bot edits after) | `accepted` |
-| Title/body changed by a human after workflow edit | `rejected` |
+| Title/body changed by a visible non-bot actor after workflow edit | `rejected` |
 
-**Detection:** compare `updated_at` with the workflow's edit timestamp. If `updated_at` is close to the workflow timestamp and no human events follow, the edit stuck.
+**Detection:** compare `updated_at` with the workflow's edit timestamp. If `updated_at` is close to the workflow timestamp and no visible non-bot events follow, the edit stuck.
 
 ---
 
@@ -288,7 +336,7 @@ Same logic as `update_issue` but on a PR object.
 | Condition | Outcome |
 |-----------|---------|
 | Issue still closed and close actor is `github-actions[bot]` or configured lifecycle bot | `lifecycle_close` |
-| Issue still closed and close actor is a non-lifecycle actor (human or non-lifecycle GitHub App/integration) | `rejected` |
+| Issue still closed and close actor is a non-lifecycle actor (visible non-bot user or non-lifecycle GitHub App/integration) | `rejected` |
 | Issue reopened | `rejected` |
 
 ---
@@ -306,7 +354,7 @@ Same logic as `update_issue` but on a PR object.
 | Condition | Outcome |
 |-----------|---------|
 | PR still closed and close actor is `github-actions[bot]` or configured lifecycle bot | `lifecycle_close` |
-| PR still closed and close actor is a non-lifecycle actor (human or non-lifecycle GitHub App/integration) | `rejected` |
+| PR still closed and close actor is a non-lifecycle actor (visible non-bot user or non-lifecycle GitHub App/integration) | `rejected` |
 | PR reopened | `rejected` |
 
 ---
@@ -626,7 +674,7 @@ From the outcome evaluations above, compute:
 | `acceptance_rate` | accepted / (accepted + rejected) | How often actions are kept | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
 | `waste_rate` | rejected / total | How often actions are undone | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
 | `ignore_rate` | ignored / total | How often actions get no response | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
-| `zero_touch_rate` | zero_touch / accepted | How often accepted actions need no human edits | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
+| `zero_touch_rate` | zero_touch / accepted | How often accepted actions need no actor-visible non-bot edits | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
 | `time_to_outcome` | median(time_to_outcome_hours) | How fast outcomes resolve | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
 | `cost_per_accepted_outcome` | total_run_cost / accepted_count | Efficiency metric | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
 
@@ -653,32 +701,32 @@ The table below specifies one conformance test row per safe-output type. Each ro
 | Output type | Expected `ghaw.outcome.type` OTel attribute | Pass condition | Fail condition |
 |---|---|---|---|
 | `create_pull_request` | `create_pull_request` | PR exists in open or merged state; was not closed-as-not-planned or reverted within the evaluation window | PR closed-as-not-planned, reverted, or deleted within the evaluation window |
-| `create_issue` | `create_issue` | Issue exists in open state, or was closed by human action (not bot policy) within the evaluation window | Issue closed-as-not-planned by human within the evaluation window, or deleted |
-| `add_comment` | `add_comment` | Comment exists on the target object at evaluation time | Comment was deleted or hidden by a human (non-bot) actor within the evaluation window |
-| `add_labels` | `add_labels` | At least one of the bot-applied labels is still present on the target object at evaluation time | All bot-applied labels were removed by a human actor within the evaluation window |
-| `add_reviewer` | `add_reviewer` | Requested reviewer is still listed as a requested reviewer, or has already submitted a review | Reviewer request was removed by a human actor before any review was submitted |
-| `update_issue` | `update_issue` | Updated field(s) (title, body, assignee) match the values the bot submitted at evaluation time | Updated field(s) were reverted to pre-bot values by a human actor within the evaluation window |
-| `update_pull_request` | `update_pull_request` | Updated field(s) (title, body, base branch) match the values the bot submitted at evaluation time | Updated field(s) were reverted to pre-bot values by a human actor within the evaluation window |
-| `close_issue` | `close_issue` | Issue remains closed at evaluation time | Issue was reopened by a human actor within the evaluation window |
+| `create_issue` | `create_issue` | Issue exists in open state, or was closed by a visible non-bot action (not bot policy) within the evaluation window | Issue closed-as-not-planned by a visible non-bot actor within the evaluation window, or deleted |
+| `add_comment` | `add_comment` | Comment exists on the target object at evaluation time | Comment was deleted or hidden by a visible non-bot actor within the evaluation window |
+| `add_labels` | `add_labels` | At least one of the bot-applied labels is still present on the target object at evaluation time | All bot-applied labels were removed by a visible non-bot actor within the evaluation window |
+| `add_reviewer` | `add_reviewer` | Requested reviewer is still listed as a requested reviewer, or has already submitted a review | Reviewer request was removed by a visible non-bot actor before any review was submitted |
+| `update_issue` | `update_issue` | Updated field(s) (title, body, assignee) match the values the bot submitted at evaluation time | Updated field(s) were reverted to pre-bot values by a visible non-bot actor within the evaluation window |
+| `update_pull_request` | `update_pull_request` | Updated field(s) (title, body, base branch) match the values the bot submitted at evaluation time | Updated field(s) were reverted to pre-bot values by a visible non-bot actor within the evaluation window |
+| `close_issue` | `close_issue` | Issue remains closed at evaluation time | Issue was reopened by a visible non-bot actor within the evaluation window |
 | `close_pull_request` | `close_pull_request` | PR remains closed (not merged) at evaluation time | PR was reopened or merged after the bot closed it within the evaluation window |
-| `close_discussion` | `close_discussion` | Discussion remains closed at evaluation time | Discussion was reopened by a human actor within the evaluation window |
+| `close_discussion` | `close_discussion` | Discussion remains closed at evaluation time | Discussion was reopened by a visible non-bot actor within the evaluation window |
 | `create_discussion` | `create_discussion` | Discussion exists and has not been deleted or locked within the evaluation window | Discussion was deleted or permanently locked (preventing any responses) within the evaluation window |
-| `update_discussion` | `update_discussion` | Updated field(s) (title, body, category) match the values the bot submitted at evaluation time | Updated field(s) were reverted to pre-bot values by a human actor within the evaluation window |
-| `create_pull_request_review_comment` | `create_pull_request_review_comment` | Review comment exists on the PR diff at evaluation time | Review comment was deleted by a human actor within the evaluation window |
-| `submit_pull_request_review` | `submit_pull_request_review` | PR review record exists with the submitted state (APPROVED, CHANGES_REQUESTED, COMMENT) at evaluation time | Review was dismissed by a human actor within the evaluation window |
-| `reply_to_pull_request_review_comment` | `reply_to_pull_request_review_comment` | Reply comment exists in the review thread at evaluation time | Reply comment was deleted by a human actor within the evaluation window |
-| `resolve_pull_request_review_thread` | `resolve_pull_request_review_thread` | Review thread remains resolved at evaluation time | Thread was re-opened (un-resolved) by a human actor within the evaluation window |
-| `push_to_pull_request_branch` | `push_to_pull_request_branch` | The pushed commit SHA is still present in the PR branch history at evaluation time | The commit was force-pushed out of the branch history by a human actor within the evaluation window |
-| `mark_pull_request_as_ready_for_review` | `mark_pull_request_as_ready_for_review` | PR is no longer in draft state at evaluation time | PR was converted back to draft by a human actor within the evaluation window |
-| `assign_to_agent` | `assign_to_agent` | Assignment record exists on the target issue/PR at evaluation time | Assignment was removed by a human actor before the assigned agent acted on it |
+| `update_discussion` | `update_discussion` | Updated field(s) (title, body, category) match the values the bot submitted at evaluation time | Updated field(s) were reverted to pre-bot values by a visible non-bot actor within the evaluation window |
+| `create_pull_request_review_comment` | `create_pull_request_review_comment` | Review comment exists on the PR diff at evaluation time | Review comment was deleted by a visible non-bot actor within the evaluation window |
+| `submit_pull_request_review` | `submit_pull_request_review` | PR review record exists with the submitted state (APPROVED, CHANGES_REQUESTED, COMMENT) at evaluation time | Review was dismissed by a visible non-bot actor within the evaluation window |
+| `reply_to_pull_request_review_comment` | `reply_to_pull_request_review_comment` | Reply comment exists in the review thread at evaluation time | Reply comment was deleted by a visible non-bot actor within the evaluation window |
+| `resolve_pull_request_review_thread` | `resolve_pull_request_review_thread` | Review thread remains resolved at evaluation time | Thread was re-opened (un-resolved) by a visible non-bot actor within the evaluation window |
+| `push_to_pull_request_branch` | `push_to_pull_request_branch` | The pushed commit SHA is still present in the PR branch history at evaluation time | The commit was force-pushed out of the branch history by a visible non-bot actor within the evaluation window |
+| `mark_pull_request_as_ready_for_review` | `mark_pull_request_as_ready_for_review` | PR is no longer in draft state at evaluation time | PR was converted back to draft by a visible non-bot actor within the evaluation window |
+| `assign_to_agent` | `assign_to_agent` | Assignment record exists on the target issue/PR at evaluation time | Assignment was removed by a visible non-bot actor before the assigned agent acted on it |
 | `dispatch_workflow` | `dispatch_workflow` | The dispatched workflow run exists and reached a terminal state (success or failure) within the evaluation window | The dispatched workflow run was cancelled before reaching a terminal state; or no corresponding run record is found |
 | `autofix_code_scanning_alert` | `autofix_code_scanning_alert` | Code scanning alert is in a fixed or dismissed state at evaluation time | Alert was re-opened or the fix commit was reverted within the evaluation window |
 | `create_code_scanning_alert` | `create_code_scanning_alert` | Alert record exists in the repository's code scanning results at evaluation time | Alert was immediately dismissed (within the evaluation window) with no investigation action |
-| `link_sub_issue` | `link_sub_issue` | Sub-issue link exists on the parent issue at evaluation time | Sub-issue link was removed by a human actor within the evaluation window |
-| `hide_comment` | `hide_comment` | Comment is minimized (hidden) at evaluation time | Comment was un-hidden by a human actor within the evaluation window |
-| `assign_milestone` | `assign_milestone` | Milestone assignment is present on the target issue/PR at evaluation time | Milestone assignment was removed by a human actor within the evaluation window |
-| `update_project` | `update_project` | Project item field(s) match the values the bot submitted at evaluation time | Project item field(s) were reverted to pre-bot values by a human actor within the evaluation window |
-| `update_release` | `update_release` | Release field(s) (name, body, tag, draft status) match the values the bot submitted at evaluation time | Release field(s) were reverted by a human actor, or the release was deleted within the evaluation window |
+| `link_sub_issue` | `link_sub_issue` | Sub-issue link exists on the parent issue at evaluation time | Sub-issue link was removed by a visible non-bot actor within the evaluation window |
+| `hide_comment` | `hide_comment` | Comment is minimized (hidden) at evaluation time | Comment was un-hidden by a visible non-bot actor within the evaluation window |
+| `assign_milestone` | `assign_milestone` | Milestone assignment is present on the target issue/PR at evaluation time | Milestone assignment was removed by a visible non-bot actor within the evaluation window |
+| `update_project` | `update_project` | Project item field(s) match the values the bot submitted at evaluation time | Project item field(s) were reverted to pre-bot values by a visible non-bot actor within the evaluation window |
+| `update_release` | `update_release` | Release field(s) (name, body, tag, draft status) match the values the bot submitted at evaluation time | Release field(s) were reverted by a visible non-bot actor, or the release was deleted within the evaluation window |
 | `noop` | `noop` | Evaluation is skipped; no outcome is computed | N/A — `noop` always results in `ignored` |
 | `missing_tool` | `missing_tool` | Evaluation is skipped; no outcome is computed | N/A — `missing_tool` always results in `ignored` |
 
