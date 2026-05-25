@@ -1,6 +1,6 @@
 ---
 emoji: "🔢"
-description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright CLI, Playwright Browser, MCP Gateway) for new versions
+description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, Antigravity CLI, GitHub MCP Server, Playwright MCP, Playwright CLI, Playwright Browser, MCP Gateway) for new versions
 on:
   schedule: daily
   workflow_dispatch:
@@ -35,7 +35,7 @@ timeout-minutes: 45
 
 # CLI Version Checker
 
-Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright CLI, Playwright Browser, and MCP Gateway.
+Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, Antigravity CLI, GitHub MCP Server, Playwright MCP, Playwright CLI, Playwright Browser, and MCP Gateway.
 
 **Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}
 
@@ -50,7 +50,7 @@ Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Co
 
 For each CLI/MCP server:
 1. Fetch latest version from NPM registry or GitHub releases (use npm view commands for package metadata)
-2. Compare with current version in `./pkg/constants/constants.go`
+2. Compare with current version in `./pkg/constants/version_constants.go`
 3. If newer version exists, research changes and prepare update
 
 ### Version Sources
@@ -65,6 +65,9 @@ For each CLI/MCP server:
 - **Codex**: Use `npm view @openai/codex version`
   - Repository: https://github.com/openai/codex
   - Release Notes: https://github.com/openai/codex/releases
+- **Antigravity CLI**: Use `npm view @google/antigravity-cli version`
+  - Repository: https://github.com/google-antigravity/antigravity-cli
+  - Release Notes: https://github.com/google-antigravity/antigravity-cli/releases
 - **GitHub MCP Server**: `https://api.github.com/repos/github/github-mcp-server/releases/latest`
   - Release Notes: https://github.com/github/github-mcp-server/releases
 - **Playwright MCP**: Use `npm view @playwright/mcp version`
@@ -95,6 +98,10 @@ For each update, analyze intermediate versions:
   - Parse the "Highlights" section for key changes
   - Parse the "PRs merged" or "Merged PRs" section for detailed changes
   - **CRITICAL**: Convert PR/issue references (e.g., `#6211`) to full URLs since they refer to external repositories (e.g., `https://github.com/openai/codex/pull/6211`)
+- **Antigravity CLI**: Fetch release notes from https://github.com/google-antigravity/antigravity-cli/releases/tag/v{VERSION}
+  - Parse release highlights and changelog entries
+  - Note new CLI flags, subcommands, or authentication changes
+  - **CRITICAL**: Convert PR/issue references to full URLs (e.g., `https://github.com/google-antigravity/antigravity-cli/pull/123`)
 - **GitHub MCP Server**: Fetch release notes from https://github.com/github/github-mcp-server/releases/tag/v{VERSION}
   - Parse release body for changelog entries
   - **CRITICAL**: Convert PR/issue references (e.g., `#1105`) to full URLs since they refer to external repositories (e.g., `https://github.com/github/github-mcp-server/pull/1105`)
@@ -145,12 +152,14 @@ For each CLI tool update:
    - Claude Code: `npm install -g @anthropic-ai/claude-code@<version>`
    - Copilot CLI: `npm install -g @github/copilot@<version>`
    - Codex: `npm install -g @openai/codex@<version>`
+   - Antigravity CLI: `npm install -g @google/antigravity-cli@<version>`
    - Playwright MCP: `npm install -g @playwright/mcp@<version>`
    - Playwright CLI: `npm install -g @playwright/cli@<version>`
 2. Invoke help to discover commands and flags (compare with cached output if available):
    - Run `claude-code --help`
    - Run `copilot --help` or `copilot help copilot`
    - Run `codex --help`
+   - Run `agy --help`
    - Run `npx @playwright/mcp@<version> --help` (if available)
    - Run `playwright-cli --help` (if available)
 3. **Explore subcommand help** for each tool (especially Copilot CLI):
