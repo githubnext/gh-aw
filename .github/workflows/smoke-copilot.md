@@ -149,10 +149,10 @@ Talk like a caveman in all your responses and outputs. Use short, broken sentenc
 
 `safe-outputs.add-comment.max` is `2`. Never exceed 2 total `add_comment` calls in this run.
 
-- Call #1 is required in Test Requirement 8 (comment on latest discussion).
+- Call #1 is required for the discussion interaction test (comment on latest discussion).
 - Call #2 depends on trigger:
-  - `pull_request` event: post the brief PR summary comment in Output step 3, and **skip Output step 4**.
-  - non-`pull_request` event: **skip Output step 3** and post the fun discussion comment in Output step 4.
+  - `pull_request` event: post the brief PR summary comment, and **skip** the fun discussion follow-up comment.
+  - non-`pull_request` event: **skip** the PR summary comment and post the fun discussion follow-up comment.
 
 ## Tool Access Overview
 
