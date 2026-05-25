@@ -170,6 +170,37 @@ describe("redact_secrets.cjs", () => {
           expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Server-to-Server Token"));
         });
 
+        it("should redact long JWT-like GitHub Server-to-Server Token (ghs_)", async () => {
+          const testFile = path.join(tempDir, "test.txt");
+          const tokenSegments = [
+            Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url"),
+            Buffer.from(JSON.stringify({ installation_id: 123, repository: "gh-aw", scope: "read_write" })).toString("base64url"),
+            `sig_${"A".repeat(40)}`,
+          ];
+          const ghToken = `${["gh", "s_"].join("")}${tokenSegments.join(".")}`;
+          expect(ghToken).toMatch(/^ghs_[0-9A-Za-z_-]{10,}(?:\.[0-9A-Za-z_-]{10,}){2,}$/);
+          fs.writeFileSync(testFile, `Long server token: ${ghToken}`);
+          process.env.GH_AW_SECRET_NAMES = "";
+          const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
+          await eval(`(async () => { ${modifiedScript}; await main(); })()`);
+          const redacted = fs.readFileSync(testFile, "utf8");
+          expect(redacted).toBe("Long server token: ***REDACTED***");
+          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Server-to-Server Token"));
+        });
+
+        it("should redact boundary-length JWT-like GitHub Server-to-Server Token (ghs_)", async () => {
+          const testFile = path.join(tempDir, "test.txt");
+          const ghToken = `${["gh", "s_"].join("")}${["abcdefghij", "klmnopqrst", "uvwxyzABCD"].join(".")}`;
+          expect(ghToken).toMatch(/^ghs_[0-9A-Za-z_-]{10,}(?:\.[0-9A-Za-z_-]{10,}){2,}$/);
+          fs.writeFileSync(testFile, `Boundary server token: ${ghToken}`);
+          process.env.GH_AW_SECRET_NAMES = "";
+          const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
+          await eval(`(async () => { ${modifiedScript}; await main(); })()`);
+          const redacted = fs.readFileSync(testFile, "utf8");
+          expect(redacted).toBe("Boundary server token: ***REDACTED***");
+          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Server-to-Server Token"));
+        });
+
         it("should redact GitHub OAuth Access Token (gho_)", async () => {
           const testFile = path.join(tempDir, "test.txt");
           const ghToken = "gho_0123456789ABCDEFGHIJKLMNOPQRSTUVWxyz";
@@ -431,13 +462,13 @@ describe("redact_secrets.cjs", () => {
         it("should not redact partial matches", async () => {
           const testFile = path.join(tempDir, "test.txt");
           // These should NOT be redacted (not valid token formats)
-          fs.writeFileSync(testFile, "ghp_short ghs_toolong_this_is_not_a_valid_token_because_its_way_too_long");
+          fs.writeFileSync(testFile, "ghp_short ghs_toolong_this_is_not_a_valid_token_because_its_way_too_long ghs_short.segment.other ghs_abcdefghij.klmnopqrst");
           process.env.GH_AW_SECRET_NAMES = "";
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const content = fs.readFileSync(testFile, "utf8");
           // These should remain unchanged since they don't match the exact pattern
-          expect(content).toBe("ghp_short ghs_toolong_this_is_not_a_valid_token_because_its_way_too_long");
+          expect(content).toBe("ghp_short ghs_toolong_this_is_not_a_valid_token_because_its_way_too_long ghs_short.segment.other ghs_abcdefghij.klmnopqrst");
         });
 
         it("should handle URLs with secrets", async () => {
