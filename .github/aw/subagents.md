@@ -10,17 +10,7 @@ Inline sub-agents let you define specialised agents directly inside a workflow m
 
 ## Enabling the Feature
 
-Inline sub-agent extraction and restoration steps are enabled by default:
-
-```yaml
----
-engine: copilot
----
-```
-
-> `features.inline-agents` is deprecated and should be removed. Inline sub-agent extraction is always on, so this field is unnecessary.
->
-> `inline-sub-agents: false` is not supported and fails compilation. Remove the field.
+Inline sub-agent extraction is always on — no config needed. The deprecated `features.inline-agents` field and the unsupported `inline-sub-agents: false` field both fail compilation; remove them.
 
 ---
 
@@ -87,12 +77,10 @@ The engine is detected at compile time from the `engine:` field and injected as 
 
 ## MCP Access in Sub-Agents
 
-Sub-agents **do not have their own MCP servers**. They run within the parent workflow's agent environment but without independent tool configuration.
+Sub-agents **do not have their own MCP servers** — they run within the parent's agent environment without independent tool config. To give them file system and shell access, enable on the parent workflow:
 
-For sub-agents to perform useful work they typically need access to the file system and shell. The following tools must be enabled on the parent workflow:
-
-- **`cli-proxy: true`** — enables the GitHub CLI proxy so the sub-agent can make authenticated GitHub API calls via `gh`. Strongly recommended for any sub-agent that reads or writes repository content.
-- **`tools.github.mode: gh-proxy`** — routes GitHub API calls through the gh proxy sidecar; required for the sub-agent to operate on private repositories or to use the GitHub MCP toolset.
+- **`cli-proxy: true`** — GitHub CLI proxy for authenticated `gh` calls. Recommended for any sub-agent that reads/writes repo content.
+- **`tools.github.mode: gh-proxy`** — routes GitHub API calls through the gh proxy sidecar; required for private repos or the GitHub MCP toolset.
 
 ```yaml
 ---
@@ -199,6 +187,4 @@ changes. Return a bulleted list, one bullet per file.
 
 - Sub-agents do not support `engine:`, `tools:`, `network:`, or `mcp-servers:` fields — those are stripped at runtime.
 - Sub-agents cannot define their own safe-output jobs.
-- `features.inline-agents` is deprecated and should be removed; inline sub-agent upload/restore is always generated.
-- `inline-sub-agents: false` is rejected at compile time; inline sub-agents cannot be disabled.
 - Sub-agent blocks must appear in the main workflow file body; they are not resolved inside imported shared files.

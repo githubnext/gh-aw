@@ -219,8 +219,10 @@ func checkForUpdates(noCheckUpdate bool, verbose bool) {
 func getLatestRelease(includePrereleases bool) (string, error) {
 	updateCheckLog.Print("Querying GitHub API for latest release...")
 
-	// Create GitHub REST client using go-gh
-	client, err := api.NewRESTClient(api.ClientOptions{})
+	// Always target github.com explicitly: gh-aw is only published to github.com,
+	// and users in mixed-host environments (e.g. a GHE active auth host) must
+	// still reach the canonical registry to get the correct release metadata.
+	client, err := api.NewRESTClient(api.ClientOptions{Host: "github.com"})
 	if err != nil {
 		return "", fmt.Errorf("failed to create GitHub client: %w", err)
 	}

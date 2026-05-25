@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -340,4 +341,39 @@ func TestExtensionHelpCommands(t *testing.T) {
 func TestRenderReleaseVersion(t *testing.T) {
 	assert.Equal(t, "v0.74.8", renderReleaseVersion("v0.74.8"))
 	assert.Equal(t, "v0.75.3-beta.1 (pre-release)", renderReleaseVersion("v0.75.3-beta.1"))
+}
+
+// TestGhCmdForExtension verifies that ghCmdForExtension always pins
+// GH_HOST=github.com so that GHE-authenticated environments do not
+// redirect extension upgrade/install/remove commands to the wrong host.
+func TestGhCmdForExtension(t *testing.T) {
+	t.Run("sets GH_HOST to github.com", func(t *testing.T) {
+		cmd := ghCmdForExtension("extension", "list")
+		ghHost := ""
+		for _, e := range cmd.Env {
+			if v, ok := strings.CutPrefix(e, "GH_HOST="); ok {
+				ghHost = v
+			}
+		}
+		assert.Equal(t, "github.com", ghHost, "GH_HOST must be github.com")
+	})
+
+	t.Run("overrides existing GH_HOST set to a GHE instance", func(t *testing.T) {
+		t.Setenv("GH_HOST", "ghe.example.com")
+
+		cmd := ghCmdForExtension("extension", "upgrade", extensionRepo, "--force")
+		ghHostValues := []string{}
+		for _, e := range cmd.Env {
+			if v, ok := strings.CutPrefix(e, "GH_HOST="); ok {
+				ghHostValues = append(ghHostValues, v)
+			}
+		}
+		require.Len(t, ghHostValues, 1, "exactly one GH_HOST entry must be present")
+		assert.Equal(t, "github.com", ghHostValues[0], "GH_HOST must be overridden to github.com")
+	})
+
+	t.Run("uses gh as executable", func(t *testing.T) {
+		cmd := ghCmdForExtension("extension", "list")
+		assert.Equal(t, "gh", filepath.Base(cmd.Path), "executable must be gh")
+	})
 }
