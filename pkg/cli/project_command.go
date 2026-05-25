@@ -153,10 +153,15 @@ func RunProjectNew(ctx context.Context, config ProjectConfig) error {
 		return fmt.Errorf("failed to create project: %w", err)
 	}
 
+	projectID, ok := project["id"].(string)
+	if !ok || projectID == "" {
+		return errors.New("failed to get project ID from response")
+	}
+
 	// Link to repository if specified
 	if config.Repo != "" {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Linking project to repository %s...", config.Repo)))
-		if err := linkProjectToRepo(ctx, project["id"].(string), config.Repo, config.Verbose); err != nil {
+		if err := linkProjectToRepo(ctx, projectID, config.Repo, config.Verbose); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to link project to repository: %v", err)))
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Project linked to repository"))
