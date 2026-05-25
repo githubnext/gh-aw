@@ -399,6 +399,9 @@ describe("awf_reflect_summary.cjs", () => {
 
         expect(addRawSpy).toHaveBeenCalledTimes(1);
         expect(writeSpy).toHaveBeenCalledTimes(1);
+        const summary = addRawSpy.mock.calls[0][0];
+        expect(summary).toContain("AWF API proxy");
+        expect(summary).toContain("openai");
         expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("AWF reflect summary written"));
       } finally {
         global.core.summary = originalSummary;
