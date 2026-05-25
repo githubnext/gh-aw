@@ -55,19 +55,19 @@ Every outcome span carries these attributes:
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `ghaw.outcome.type` | string | Safe output type (e.g., `create_pull_request`) |
-| `ghaw.outcome.result` | string | One of: `accepted`, `rejected`, `ignored`, `pending`, `lifecycle`, `lifecycle_close` |
-| `ghaw.outcome.object_url` | string | GitHub URL of the affected object |
-| `ghaw.outcome.object_number` | int | Issue/PR/discussion number |
-| `ghaw.outcome.repo` | string | `owner/repo` |
-| `ghaw.outcome.source_run_id` | string | Workflow run that created this output |
-| `ghaw.outcome.source_trace_id` | string | Original OTLP trace ID |
-| `ghaw.outcome.created_at` | string | When the safe output was executed |
-| `ghaw.outcome.checked_at` | string | When this evaluation ran |
-| `ghaw.outcome.time_to_outcome_hours` | float | Hours from creation to terminal state |
-| `ghaw.outcome.human_comments` | int | Historical field name; means actor-visible non-bot comments on the object |
-| `ghaw.outcome.human_edits` | int | Historical field name; means actor-visible non-bot edits before acceptance |
-| `ghaw.outcome.zero_touch` | bool | Accepted with no actor-visible non-bot modifications |
+| `gh-aw.outcome.type` | string | Safe output type (e.g., `create_pull_request`) |
+| `gh-aw.outcome.result` | string | One of: `accepted`, `rejected`, `ignored`, `pending`, `lifecycle`, `lifecycle_close` |
+| `gh-aw.outcome.object_url` | string | GitHub URL of the affected object |
+| `gh-aw.outcome.object_number` | int | Issue/PR/discussion number |
+| `gh-aw.outcome.repo` | string | `owner/repo` |
+| `gh-aw.outcome.source_run_id` | string | Workflow run that created this output |
+| `gh-aw.outcome.source_trace_id` | string | Original OTLP trace ID |
+| `gh-aw.outcome.created_at` | string | When the safe output was executed |
+| `gh-aw.outcome.checked_at` | string | When this evaluation ran |
+| `gh-aw.outcome.time_to_outcome_hours` | float | Hours from creation to terminal state |
+| `gh-aw.outcome.human_comments` | int | Historical field name; means actor-visible non-bot comments on the object |
+| `gh-aw.outcome.human_edits` | int | Historical field name; means actor-visible non-bot edits before acceptance |
+| `gh-aw.outcome.zero_touch` | bool | Accepted with no actor-visible non-bot modifications |
 
 ## Implementation
 
