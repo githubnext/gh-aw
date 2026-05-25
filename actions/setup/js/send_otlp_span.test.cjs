@@ -1805,6 +1805,8 @@ describe("sendJobSetupSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "v1.2.3" } });
+    const spanAttrs = body.resourceSpans[0].scopeSpans[0].spans[0].attributes;
+    expect(spanAttrs).toContainEqual({ key: "gh-aw.cli.version", value: { stringValue: "v1.2.3" } });
   });
 
   it("falls back to GH_AW_INFO_CLI_VERSION for service.version when GH_AW_INFO_VERSION is absent (custom engines)", async () => {
@@ -3597,6 +3599,8 @@ describe("sendJobConclusionSpan", () => {
     expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v3.1.0");
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "v3.1.0" } });
+    const spanAttrs = body.resourceSpans[0].scopeSpans[0].spans[0].attributes;
+    expect(spanAttrs).toContainEqual({ key: "gh-aw.cli.version", value: { stringValue: "v3.1.0" } });
   });
 
   it("prefers agent_version from aw_info.json over cli_version for scope version", async () => {
