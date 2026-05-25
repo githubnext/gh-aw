@@ -385,13 +385,20 @@ describe("awf_reflect_summary.cjs", () => {
 
     it("writes core output even when step summary API is unavailable", async () => {
       const originalSummary = mockCore.summary;
-      mockCore.summary = null;
-      fs.writeFileSync(REFLECT_PATH, JSON.stringify(SAMPLE_REFLECT), "utf8");
+      try {
+        mockCore.summary = null;
+        fs.writeFileSync(REFLECT_PATH, JSON.stringify(SAMPLE_REFLECT), "utf8");
 
-      await module.main();
+        await module.main();
 
-      expect(mockCore.setOutput).toHaveBeenCalledWith("awf-reflect-summary", expect.any(String));
-      mockCore.summary = originalSummary;
+        expect(mockCore.setOutput).toHaveBeenCalledWith("awf-reflect-summary", expect.any(String));
+        const outputSummary = mockCore.setOutput.mock.calls.find(([name]) => name === "awf-reflect-summary")?.[1];
+        expect(typeof outputSummary).toBe("string");
+        expect(outputSummary).toContain("AWF API proxy");
+        expect(outputSummary).toContain("openai");
+      } finally {
+        mockCore.summary = originalSummary;
+      }
     });
   });
 });
