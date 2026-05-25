@@ -269,7 +269,7 @@ fi`,
 awf_bootstrap_retry_delay=5
 awf_bootstrap_attempt=1
 while true; do
-  awf_attempt_log=$(mktemp)
+  awf_attempt_log=$(umask 177 && mktemp "${RUNNER_TEMP:-/tmp}/awf-startup-XXXXXX.log")
   # shellcheck disable=SC1003
   %s %s %s %s \
     -- %s 2>&1 | tee "$awf_attempt_log" | tee -a %s
