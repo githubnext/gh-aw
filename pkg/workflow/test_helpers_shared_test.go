@@ -1,5 +1,3 @@
-//go:build !integration
-
 package workflow
 
 // boolPtr returns a pointer to a bool value.
