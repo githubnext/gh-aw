@@ -691,7 +691,10 @@ async function main(config = {}) {
               core.info(`Note: could not fetch base_commit ${recordedBaseCommit} explicitly (${getErrorMessage(fetchError)}); will verify local availability next`);
             }
             await exec.exec("git", ["cat-file", "-e", recordedBaseCommit], baseGitOpts);
-            await exec.exec("git", ["merge-base", "--is-ancestor", recordedBaseCommit, `origin/${branchName}`], baseGitOpts);
+            const ancestryCheck = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", recordedBaseCommit, `origin/${branchName}`], { ...baseGitOpts, ignoreReturnCode: true });
+            if (ancestryCheck.exitCode !== 0) {
+              throw new Error(`recorded base_commit ${recordedBaseCommit} is not an ancestor of origin/${branchName}`);
+            }
             if (remoteHeadBeforePatch && remoteHeadBeforePatch !== recordedBaseCommit) {
               core.warning(`Remote PR branch advanced since patch generation (remote HEAD ${remoteHeadBeforePatch}, patch base ${recordedBaseCommit}); applying patch from recorded base commit`);
             }
