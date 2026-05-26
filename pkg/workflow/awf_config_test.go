@@ -632,7 +632,7 @@ func TestBuildAWFCommand_ModelMultipliersLoadedFromFile(t *testing.T) {
 	command := BuildAWFCommand(config)
 
 	assert.Contains(t, command, awfModelMultipliersFilePath, "expected model multipliers artifact path in runtime updater script")
-	assert.Contains(t, command, `api_proxy["modelMultipliers"] = normalized`, "expected runtime updater script to populate apiProxy.modelMultipliers")
+	assert.Contains(t, command, `node "${RUNNER_TEMP}/gh-aw/actions/merge_awf_model_multipliers.cjs"`, "expected runtime updater script to invoke JS model multiplier merger")
 	assert.NotContains(t, command, "my-custom-model", "expected custom model multipliers to be omitted from inline AWF config JSON")
 }
 

@@ -38,6 +38,7 @@ const (
 	awfArcDindPrefixArgsVarName = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
 	awfConfigRuntimePathExpr    = "${RUNNER_TEMP}/gh-aw/awf-config.json"
 	awfModelMultipliersFilePath = "/tmp/gh-aw/model_multipliers.json"
+	awfMergeModelMultipliersJS  = "${RUNNER_TEMP}/gh-aw/actions/merge_awf_model_multipliers.cjs"
 	// Bash regex used in [[ ... =~ ... ]] to detect TCP Docker hosts (ARC/DinD).
 	// Any tcp:// DOCKER_HOST indicates the Docker daemon runs on a separate filesystem,
 	// requiring --docker-host-path-prefix so AWF bind-mounts resolve against the daemon.
@@ -103,53 +104,7 @@ func cloneWorkflowDataWithoutModelMultipliers(data *WorkflowData) *WorkflowData 
 }
 
 func buildModelMultipliersFromFileScript() string {
-	return fmt.Sprintf(`python - <<'PY'
-import json
-import os
-import sys
-from pathlib import Path
-
-runner_temp = os.environ.get("RUNNER_TEMP")
-if not runner_temp:
-  raise SystemExit("RUNNER_TEMP is required")
-
-config_path = Path(runner_temp) / "gh-aw" / "awf-config.json"
-if not config_path.exists():
-  raise SystemExit(0)
-
-multipliers_path = Path(%q)
-if not multipliers_path.exists():
-  raise SystemExit(0)
-
-try:
-  multipliers_doc = json.loads(multipliers_path.read_text(encoding="utf-8"))
-except json.JSONDecodeError as err:
-  print(f"warning: failed to parse model multipliers file: {err}", file=sys.stderr)
-  raise SystemExit(0)
-
-raw_multipliers = multipliers_doc.get("multipliers")
-if not isinstance(raw_multipliers, dict):
-  raise SystemExit(0)
-
-normalized = {}
-for key, value in raw_multipliers.items():
-  if isinstance(value, (int, float)) and not isinstance(value, bool):
-    normalized[key] = float(value)
-
-try:
-  config_doc = json.loads(config_path.read_text(encoding="utf-8"))
-except json.JSONDecodeError as err:
-  print(f"warning: failed to parse awf-config.json before model multiplier merge: {err}", file=sys.stderr)
-  raise SystemExit(0)
-
-api_proxy = config_doc.setdefault("apiProxy", {})
-if normalized:
-  api_proxy["modelMultipliers"] = normalized
-else:
-  api_proxy.pop("modelMultipliers", None)
-
-config_path.write_text(json.dumps(config_doc, separators=(",", ":")), encoding="utf-8")
-PY`, awfModelMultipliersFilePath)
+	return fmt.Sprintf(`GH_AW_MODEL_MULTIPLIERS_PATH=%q node "%s"`, awfModelMultipliersFilePath, awfMergeModelMultipliersJS)
 }
 
 func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
