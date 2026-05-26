@@ -173,6 +173,19 @@ describe("extractFromStreamJson", () => {
     expect(verdict.reasons[0]).toContain("Found injection in");
     expect(verdict.reasons[0]).toContain("line 5");
   });
+
+  it("should extract result from codex response.output_text.done events with log prefix", () => {
+    const line =
+      '2026-05-26T03:17:17.7671911Z TRACE codex_api::sse::responses: SSE event: {"type":"response.output_text.done","text":"THREAT_DETECTION_RESULT:{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[]}"}';
+    const result = extractFromStreamJson(line);
+    expect(result).toBe('THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}');
+  });
+
+  it("should extract result from codex item.completed events", () => {
+    const line = '{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"THREAT_DETECTION_RESULT:{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[]}"}}';
+    const result = extractFromStreamJson(line);
+    expect(result).toBe('THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}');
+  });
 });
 
 describe("parseDetectionLog", () => {
@@ -437,6 +450,22 @@ describe("parseDetectionLog", () => {
 
       expect(error).toBeUndefined();
       expect(verdict).toBeDefined();
+    });
+
+    it("should parse codex response events with timestamp prefixes", () => {
+      const content = [
+        '2026-05-26T03:17:06.382419Z DEBUG codex_core::session::handlers: {"model":"gpt-5-mini","instructions":"Output format: THREAT_DETECTION_RESULT:{\\"prompt_injection\\":false}"}',
+        '2026-05-26T03:17:17.7671911Z TRACE codex_api::sse::responses: SSE event: {"type":"response.output_text.done","text":"THREAT_DETECTION_RESULT:{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[]}"}',
+      ].join("\n");
+      const { verdict, error } = parseDetectionLog(content);
+
+      expect(error).toBeUndefined();
+      expect(verdict).toEqual({
+        prompt_injection: false,
+        secret_leak: false,
+        malicious_patch: false,
+        reasons: [],
+      });
     });
   });
 
