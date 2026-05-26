@@ -371,6 +371,7 @@ jobs:
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/base
             /tmp/gh-aw/.github/agents
+            /tmp/gh-aw/.github/skills
           if-no-files-found: ignore
           retention-days: 1
 
@@ -524,6 +525,10 @@ jobs:
           GH_AW_SUB_AGENT_DIR: ".github/agents"
           GH_AW_SUB_AGENT_EXT: ".agent.md"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh"
+      - name: Restore inline skills from activation artifact
+        env:
+          GH_AW_SKILL_DIR: ".github/skills"
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Preload linter source and cache context
         run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent\n\n: > /tmp/gh-aw/agent/linters-src.txt\nwhile IFS= read -r -d '' file; do\n  printf '\\n===== FILE: %s =====\\n' \"$file\" >> /tmp/gh-aw/agent/linters-src.txt\n  cat \"$file\" >> /tmp/gh-aw/agent/linters-src.txt\ndone < <(find pkg/linters -type f -name '*.go' -print0 | sort -z)\ncat .github/skills/go-linters/SKILL.md > /tmp/gh-aw/agent/go-linters-skill.txt\n\nprior_file=\"\"\nif [ -d /tmp/gh-aw/cache-memory ]; then\n  prior_file=\"$(find /tmp/gh-aw/cache-memory -maxdepth 4 -type f -name 'proposed-linters.json' | sort | head -n 1 || true)\"\n  if [ -z \"${prior_file}\" ]; then\n    prior_file=\"$(find /tmp/gh-aw/cache-memory -maxdepth 4 -type f -name 'proposed-linters' | sort | head -n 1 || true)\"\n  fi\nfi\nif [ -n \"${prior_file}\" ] && [ -f \"${prior_file}\" ]; then\n  cp \"${prior_file}\" /tmp/gh-aw/agent/prior-linters.json\nelse\n  echo \"[]\" > /tmp/gh-aw/agent/prior-linters.json\nfi\n"
 

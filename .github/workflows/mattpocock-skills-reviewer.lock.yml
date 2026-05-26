@@ -397,6 +397,7 @@ jobs:
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/base
             /tmp/gh-aw/.github/agents
+            /tmp/gh-aw/.github/skills
           if-no-files-found: ignore
           retention-days: 1
 
@@ -527,6 +528,10 @@ jobs:
           GH_AW_SUB_AGENT_DIR: ".github/agents"
           GH_AW_SUB_AGENT_EXT: ".agent.md"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh"
+      - name: Restore inline skills from activation artifact
+        env:
+          GH_AW_SKILL_DIR: ".github/skills"
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Upgrade gh CLI
         run: "bash \"${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh\"\nGH_VERSION=$(gh --version | head -1 | grep -oP '\\d+\\.\\d+\\.\\d+')\necho \"gh version: ${GH_VERSION}\"\nREQUIRED=\"2.90.0\"\nif ! printf '%s\\n%s\\n' \"$REQUIRED\" \"$GH_VERSION\" | sort -V -C; then\n  echo \"::error::gh ${GH_VERSION} is older than required ${REQUIRED} (gh skill support requires v2.90+)\"\n  exit 1\nfi\n"
       - env:

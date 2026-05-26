@@ -319,6 +319,7 @@ jobs:
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/base
             /tmp/gh-aw/.github/agents
+            /tmp/gh-aw/.github/skills
           if-no-files-found: ignore
           retention-days: 1
 
@@ -456,6 +457,10 @@ jobs:
           GH_AW_SUB_AGENT_DIR: ".github/agents"
           GH_AW_SUB_AGENT_EXT: ".agent.md"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh"
+      - name: Restore inline skills from activation artifact
+        env:
+          GH_AW_SKILL_DIR: ".github/skills"
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Build CLI and pre-collect help output
         run: "set -euo pipefail\ncd /home/runner/work/gh-aw/gh-aw\nmake build\n\noutput_dir=\"/tmp/gh-aw/agent/help-output\"\nmkdir -p \"${output_dir}\"\nextract_commands='\n  /^[[:space:]]+[[:alnum:]_-]+([[:space:]]|$)/ {\n    cmd=$1\n    gsub(/:$/, \"\", cmd)\n    if (cmd != \"\" && cmd != \"Commands\") print cmd\n  }\n'\n\n./gh-aw --help > \"${output_dir}/main.txt\"\nmapfile -t top_commands < <(awk \"${extract_commands}\" \"${output_dir}/main.txt\" | sort -u)\n\nfor cmd in \"${top_commands[@]}\"; do\n  if ! ./gh-aw \"$cmd\" --help > \"${output_dir}/${cmd}.txt\" 2>&1; then\n    echo \"warning: failed to collect help for '${cmd}'\" >&2\n    continue\n  fi\n  mapfile -t subcommands < <(awk \"${extract_commands}\" \"${output_dir}/${cmd}.txt\" | sort -u)\n  for sub in \"${subcommands[@]}\"; do\n    if ! ./gh-aw \"$cmd\" \"$sub\" --help > \"${output_dir}/${cmd}-${sub}.txt\" 2>&1; then\n      echo \"warning: failed to collect help for '${cmd} ${sub}'\" >&2\n    fi\n  done\ndone\n\nshopt -s nullglob\nhelp_files=(\"${output_dir}\"/*.txt)\nif [ ${#help_files[@]} -eq 0 ]; then\n  echo \"No help output files were generated\" >&2\n  exit 1\nfi\ncat \"${help_files[@]}\" > /tmp/gh-aw/agent/all-help.txt\nwc -l /tmp/gh-aw/agent/all-help.txt | awk '{print \"Pre-collected help lines:\", $1}'\n"
 
