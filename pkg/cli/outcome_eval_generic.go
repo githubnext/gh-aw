@@ -7,6 +7,7 @@ import (
 )
 
 var outcomeEvalGenericLog = logger.New("cli:outcome_eval_generic")
+var genericOutcomeGHAPIGet = ghAPIGet
 
 // evalCloseSticky checks whether a closed issue or PR stayed closed.
 func evalCloseSticky(item CreatedItemReport, repoOverride string) OutcomeReport {
@@ -238,14 +239,19 @@ func evalGenericSticky(item CreatedItemReport, repoOverride string) OutcomeRepor
 		return report
 	}
 
-	_, err := ghAPIGet(fmt.Sprintf("issues/%d", num), repo)
+	_, err := genericOutcomeGHAPIGet(fmt.Sprintf("issues/%d", num), repo)
 	if err != nil {
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
 		return report
 	}
 
-	report.Result = OutcomeAccepted
+	report.Result = OutcomeUnknown
 	report.Detail = "object still exists"
+	report.OutcomeEvaluation = OutcomeEvaluation{
+		OutcomeStatus:    OutcomeStatusUnknown,
+		EvidenceStrength: EvidenceWeak,
+		Signal:           "target_exists_only",
+	}
 	return report
 }

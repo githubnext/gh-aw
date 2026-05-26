@@ -183,6 +183,10 @@ describe("emit_outcome_spans.cjs", () => {
       ignored: 0,
       pending: 0,
       noop: 0,
+      accepted_strong: 1,
+      accepted_medium: 0,
+      accepted_weak: 0,
+      fallback_exists_only_count: 1,
       noop_rate: 0,
       zero_touch: 1,
       zero_touch_rate: 1,
@@ -197,7 +201,10 @@ describe("emit_outcome_spans.cjs", () => {
         JSON.stringify({
           type: "issue",
           result: "accepted",
-          detail: "created item",
+          outcome_status: "accepted",
+          evidence_strength: "strong",
+          signal: "merged",
+          detail: "merged",
           workflow: "triage",
           run_id: 101,
           url: "https://github.com/github/gh-aw/issues/1",
@@ -216,6 +223,9 @@ describe("emit_outcome_spans.cjs", () => {
         JSON.stringify({
           type: "comment",
           result: "rejected",
+          outcome_status: "unknown",
+          evidence_strength: "weak",
+          signal: "target_exists_only",
           workflow: "triage",
           run_id: 102,
           repo: "github/gh-aw",
@@ -271,16 +281,21 @@ describe("emit_outcome_spans.cjs", () => {
       expect.objectContaining({
         spanName: "gh-aw.outcome.evaluation",
         parentSpanId: summarySpan.spanId,
-        statusCode: 2,
+        statusCode: 0,
       })
     );
 
     expect(summarySpan.attributes).toContainEqual({ key: "gh-aw.exporter.name", value: "outcome-collector" });
     expect(summarySpan.attributes).toContainEqual({ key: "gh-aw.outcome.date", value: "2026-05-13" });
     expect(summarySpan.attributes).toContainEqual({ key: "gh-aw.outcome.zero_touch_count", value: 1 });
+    expect(summarySpan.attributes).toContainEqual({ key: "gh-aw.outcome.accepted_strong", value: 1 });
+    expect(summarySpan.attributes).toContainEqual({ key: "gh-aw.outcome.fallback_exists_only_count", value: 1 });
     expect(spans[1].attributes).toContainEqual({ key: "gh-aw.exporter.name", value: "outcome-collector" });
     expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.url", value: "https://github.com/github/gh-aw/issues/1" });
-    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.detail", value: "created item" });
+    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.detail", value: "merged" });
+    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.outcome_status", value: "accepted" });
+    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.evidence_strength", value: "strong" });
+    expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.signal", value: "merged" });
     expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.created_at", value: "2026-05-13T09:00:00Z" });
     expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.review_comments", value: 0 });
     expect(spans[1].attributes).toContainEqual({ key: "gh-aw.outcome.changed_files", value: 3 });
@@ -300,6 +315,9 @@ describe("emit_outcome_spans.cjs", () => {
     expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.reactions_negative")).toBeUndefined();
     expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.comments")).toBeUndefined();
     expect(spans[2].attributes.find(attr => attr.key === "gh-aw.outcome.zero_touch")).toBeUndefined();
+    expect(spans[2].attributes).toContainEqual({ key: "gh-aw.outcome.outcome_status", value: "unknown" });
+    expect(spans[2].attributes).toContainEqual({ key: "gh-aw.outcome.evidence_strength", value: "weak" });
+    expect(spans[2].attributes).toContainEqual({ key: "gh-aw.outcome.signal", value: "target_exists_only" });
 
     expect(mockAppendToOTLPJSONL).toHaveBeenCalledOnce();
     expect(mockSendOTLPToAllEndpoints).not.toHaveBeenCalled();

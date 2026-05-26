@@ -26,10 +26,14 @@ func writeOutcomeJSONL(dir string, runID int64, reports []OutcomeReport) {
 	defer f.Close()
 
 	for _, r := range reports {
+		eval := normalizeOutcomeEvaluation(r)
 		entry := map[string]any{
 			"run_id":                runID,
 			"type":                  r.Type,
 			"result":                r.Result,
+			"outcome_status":        eval.OutcomeStatus,
+			"evidence_strength":     eval.EvidenceStrength,
+			"signal":                eval.Signal,
 			"detail":                r.Detail,
 			"object_url":            r.ObjectURL,
 			"object_number":         r.ObjectNumber,
