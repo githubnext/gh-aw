@@ -107,13 +107,15 @@ func buildViewRunDir(t *testing.T) string {
 
 	// Write a minimal events.jsonl so the agent timeline source is populated.
 	// Include content in user/assistant/reasoning messages to test snippet rendering.
-	timestamp := time.Now().UTC().Add(-time.Minute).Format(time.RFC3339Nano)
+	// Use distinct timestamps to guarantee deterministic sort order in BuildUnifiedTimeline.
+	base := time.Now().UTC().Add(-time.Minute)
+	ts := func(offset time.Duration) string { return base.Add(offset).Format(time.RFC3339Nano) }
 	eventsContent := strings.Join([]string{
-		`{"type":"user.message","id":"id1","timestamp":"` + timestamp + `","data":{"content":"What files are in the repo?"}}`,
-		`{"type":"tool.execution_start","id":"id2","timestamp":"` + timestamp + `","data":{"toolCallId":"c1","toolName":"search","mcpServerName":"github"}}`,
-		`{"type":"tool.execution_complete","id":"id3","timestamp":"` + timestamp + `","data":{"toolCallId":"c1","toolName":"search","mcpServerName":"github","success":true}}`,
-		`{"type":"assistant.message","id":"id4","timestamp":"` + timestamp + `","data":{"content":"I found the following files in the repo."}}`,
-		`{"type":"reasoning","id":"id5","timestamp":"` + timestamp + `","data":{"content":"The user wants a list of files."}}`,
+		`{"type":"user.message","id":"id1","timestamp":"` + ts(0) + `","data":{"content":"What files are in the repo?"}}`,
+		`{"type":"tool.execution_start","id":"id2","timestamp":"` + ts(10*time.Millisecond) + `","data":{"toolCallId":"c1","toolName":"search","mcpServerName":"github"}}`,
+		`{"type":"tool.execution_complete","id":"id3","timestamp":"` + ts(20*time.Millisecond) + `","data":{"toolCallId":"c1","toolName":"search","mcpServerName":"github","success":true}}`,
+		`{"type":"assistant.message","id":"id4","timestamp":"` + ts(30*time.Millisecond) + `","data":{"content":"I found the following files in the repo."}}`,
+		`{"type":"reasoning","id":"id5","timestamp":"` + ts(40*time.Millisecond) + `","data":{"content":"The user wants a list of files."}}`,
 	}, "\n") + "\n"
 	if err := os.WriteFile(filepath.Join(runDir, "events.jsonl"), []byte(eventsContent), 0600); err != nil {
 		t.Fatalf("WriteFile events.jsonl: %v", err)

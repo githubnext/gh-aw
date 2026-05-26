@@ -12,6 +12,8 @@
 //   TimelineKindAgentTurn          – renderAgentTurnRow
 //   TimelineKindAgentToolStart     – renderAgentToolStartRow
 //   TimelineKindAgentToolDone      – renderAgentToolDoneRow
+//   TimelineKindAssistantMessage   – renderAgentAssistantMessageRow
+//   TimelineKindReasoning          – renderAgentReasoningRow
 //
 // renderTimelineEventRow dispatches to the appropriate primitive and returns a
 // []string suitable for inclusion in a console.TableConfig.Rows slice.
@@ -310,6 +312,32 @@ func renderAgentToolDoneRow(evt UnifiedTimelineEvent) []string {
 	return []string{ts, src, kind, detail, status}
 }
 
+// renderAgentAssistantMessageRow renders a TimelineKindAssistantMessage event as a table row.
+//
+// Columns: Time | Src | Kind | Detail | Status
+//
+// Detail shows a truncated preview of the message content. Status is left empty.
+func renderAgentAssistantMessageRow(evt UnifiedTimelineEvent) []string {
+	ts := formatTimelineTime(evt)
+	src := timelineSourceLabel(evt.Source)
+	kind := timelineEventIcon(TimelineKindAssistantMessage) + " " + timelineEventKindLabel(TimelineKindAssistantMessage)
+	detail := stringutil.Truncate(evt.MessageContent, 48)
+	return []string{ts, src, kind, detail, ""}
+}
+
+// renderAgentReasoningRow renders a TimelineKindReasoning event as a table row.
+//
+// Columns: Time | Src | Kind | Detail | Status
+//
+// Detail shows a truncated preview of the reasoning content. Status is left empty.
+func renderAgentReasoningRow(evt UnifiedTimelineEvent) []string {
+	ts := formatTimelineTime(evt)
+	src := timelineSourceLabel(evt.Source)
+	kind := timelineEventIcon(TimelineKindReasoning) + " " + timelineEventKindLabel(TimelineKindReasoning)
+	detail := stringutil.Truncate(evt.MessageContent, 48)
+	return []string{ts, src, kind, detail, ""}
+}
+
 // renderTimelineEventRow dispatches to the appropriate per-kind rendering primitive and
 // returns a []string table row with columns: Time | Src | Kind | Detail | Status.
 func renderTimelineEventRow(evt UnifiedTimelineEvent) []string {
@@ -330,6 +358,10 @@ func renderTimelineEventRow(evt UnifiedTimelineEvent) []string {
 		return renderAgentToolStartRow(evt)
 	case TimelineKindAgentToolDone:
 		return renderAgentToolDoneRow(evt)
+	case TimelineKindAssistantMessage:
+		return renderAgentAssistantMessageRow(evt)
+	case TimelineKindReasoning:
+		return renderAgentReasoningRow(evt)
 	default:
 		// Fallback for any future event kinds not yet handled.
 		ts := formatTimelineTime(evt)
@@ -573,7 +605,7 @@ func renderUnifiedTimeline(events []UnifiedTimelineEvent) string {
 	// Tally event counts for the summary header.
 	var gwCount, fwCount, agCount int
 	var toolCalls, difcFiltered, guardBlocked, netAllowed, netBlocked int
-	var agentTurns, agentToolStarts, agentToolDones int
+	var agentTurns, agentToolStarts, agentToolDones, assistantMessages, reasoningCount int
 	for _, evt := range events {
 		switch evt.Source {
 		case TimelineSourceGateway:
@@ -600,6 +632,10 @@ func renderUnifiedTimeline(events []UnifiedTimelineEvent) string {
 			agentToolStarts++
 		case TimelineKindAgentToolDone:
 			agentToolDones++
+		case TimelineKindAssistantMessage:
+			assistantMessages++
+		case TimelineKindReasoning:
+			reasoningCount++
 		}
 	}
 
@@ -619,8 +655,8 @@ func renderUnifiedTimeline(events []UnifiedTimelineEvent) string {
 			fwCount, netAllowed, netBlocked)
 	}
 	if agCount > 0 {
-		fmt.Fprintf(&sb, "  Agent       : %d  (turns=%d, tool_start=%d, tool_done=%d)\n",
-			agCount, agentTurns, agentToolStarts, agentToolDones)
+		fmt.Fprintf(&sb, "  Agent       : %d  (turns=%d, tool_start=%d, tool_done=%d, messages=%d, reasoning=%d)\n",
+			agCount, agentTurns, agentToolStarts, agentToolDones, assistantMessages, reasoningCount)
 	}
 	sb.WriteString("\n")
 
