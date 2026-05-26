@@ -382,7 +382,7 @@ describe("handle_agent_failure", () => {
     it("escapes workflow IDs before searching for legacy XML marker matches", async () => {
       const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
       const createIssueMock = vi.fn();
-      const workflowId = 'test"workflow\\path';
+      const workflowId = 'test"workflow\\path\nnext-line';
       const searchMock = vi.fn(async ({ q }) => {
         if (q.includes("is:pr")) {
           return { data: { total_count: 0, items: [] } };
@@ -422,7 +422,7 @@ describe("handle_agent_failure", () => {
 
       expect(createCommentMock).toHaveBeenCalledOnce();
       expect(createIssueMock).not.toHaveBeenCalled();
-      expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"workflow_id: test\\"workflow\\\\path" in:body') }));
+      expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"workflow_id: test\\"workflow\\\\path next-line" in:body') }));
     });
 
     it("creates a new issue when only mismatched precise failure metadata exists", async () => {

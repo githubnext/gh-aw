@@ -269,6 +269,9 @@ function isLegacyReusableFailureIssue(body, workflowId) {
 
 /**
  * Escape a GitHub search phrase for safe inclusion inside double quotes.
+ * GitHub search phrases are wrapped in double quotes, so embedded backslashes and
+ * quotes must be escaped, and newlines are normalized to spaces to keep the query
+ * on a single line.
  * @param {string} value - Raw phrase value
  * @returns {string} Escaped phrase
  */
