@@ -211,6 +211,14 @@ describe("handle_agent_failure", () => {
       );
     }
 
+    function buildLegacyIssueBody({ expires = "2099-01-01T00:00:00.000Z", workflowName = "Test Workflow" } = {}) {
+      return (
+        `> Generated from [${workflowName}](https://github.com/owner/repo/actions/runs/123456)\n` +
+        `> - [x] expires <!-- gh-aw-expires: ${expires} --> on Jan 1, 2099, 12:00 AM UTC\n\n` +
+        `<!-- gh-aw-agentic-workflow: ${workflowName}, workflow_id: test-workflow, run: https://github.com/owner/repo/actions/runs/123456 -->`
+      );
+    }
+
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-handle-agent-failure-match-"));
       promptsDir = path.join(tmpDir, "gh-aw", "prompts");
@@ -327,31 +335,32 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).not.toHaveBeenCalled();
     });
 
-    it("adds a comment when an open issue has the exact failure title even without reusable metadata", async () => {
+    it("adds a comment when an open issue has matching workflow XML metadata even without reusable failure metadata", async () => {
       const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
       const createIssueMock = vi.fn();
+      const searchMock = vi.fn(async ({ q }) => {
+        if (q.includes("is:pr")) {
+          return { data: { total_count: 0, items: [] } };
+        }
+        return {
+          data: {
+            total_count: 1,
+            items: [
+              {
+                number: 42,
+                title: "[aw] Test Workflow failed",
+                html_url: "https://github.com/owner/repo/issues/42",
+                body: buildLegacyIssueBody(),
+              },
+            ],
+          },
+        };
+      });
 
       global.github = {
         rest: {
           search: {
-            issuesAndPullRequests: vi.fn(async ({ q }) => {
-              if (q.includes("is:pr")) {
-                return { data: { total_count: 0, items: [] } };
-              }
-              return {
-                data: {
-                  total_count: 1,
-                  items: [
-                    {
-                      number: 42,
-                      title: "[aw] Test Workflow failed",
-                      html_url: "https://github.com/owner/repo/issues/42",
-                      body: "> Generated from an older reporter run without failure metadata",
-                    },
-                  ],
-                },
-              };
-            }),
+            issuesAndPullRequests: searchMock,
           },
           issues: {
             create: createIssueMock,
@@ -366,11 +375,15 @@ describe("handle_agent_failure", () => {
 
       expect(createCommentMock).toHaveBeenCalledOnce();
       expect(createIssueMock).not.toHaveBeenCalled();
+      expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"gh-aw-agentic-workflow:"') }));
+      expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"workflow_id: test-workflow" in:body') }));
     });
 
-    it("adds a comment when an open issue has the same title but different metadata", async () => {
+    it("creates a new issue when only mismatched precise failure metadata exists", async () => {
       const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
-      const createIssueMock = vi.fn();
+      const createIssueMock = vi.fn(async () => ({
+        data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
+      }));
 
       global.github = {
         rest: {
@@ -411,8 +424,8 @@ describe("handle_agent_failure", () => {
 
       await main();
 
-      expect(createCommentMock).toHaveBeenCalledOnce();
-      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(createCommentMock).not.toHaveBeenCalled();
+      expect(createIssueMock).toHaveBeenCalledOnce();
     });
 
     it("creates a new issue instead of commenting on an expired issue", async () => {
@@ -518,9 +531,11 @@ describe("handle_agent_failure", () => {
       expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
     });
 
-    it("adds a comment when the pull request metadata differs but the open issue title matches", async () => {
+    it("creates a new issue when the pull request metadata differs on an existing precise failure issue", async () => {
       const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
-      const createIssueMock = vi.fn();
+      const createIssueMock = vi.fn(async () => ({
+        data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
+      }));
 
       global.github = {
         rest: {
@@ -573,8 +588,8 @@ describe("handle_agent_failure", () => {
 
       await main();
 
-      expect(createCommentMock).toHaveBeenCalledOnce();
-      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(createCommentMock).not.toHaveBeenCalled();
+      expect(createIssueMock).toHaveBeenCalledOnce();
     });
   });
 

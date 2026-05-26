@@ -242,7 +242,34 @@ function isReusableFailureIssue(body, options) {
 }
 
 /**
- * Find an existing open failure issue that exactly matches the current failure metadata.
+ * Determine whether an existing issue body belongs to the same workflow and predates
+ * the precise failure metadata marker.
+ * @param {string} body - Existing issue body
+ * @param {string} workflowId - Workflow identifier
+ * @returns {boolean} True when the issue belongs to the workflow, is not expired, and
+ *   does not already carry a precise failure marker
+ */
+function isLegacyReusableFailureIssue(body, workflowId) {
+  if (!body) {
+    return false;
+  }
+
+  const expirationDate = extractExpirationDate(body);
+  if (expirationDate && expirationDate.getTime() <= Date.now()) {
+    return false;
+  }
+
+  const workflowMarker = parseHTMLCommentMetadata(body, "gh-aw-agentic-workflow");
+  if (!workflowMarker || workflowMarker.workflow_id !== workflowId) {
+    return false;
+  }
+
+  return !parseHTMLCommentMetadata(body, "gh-aw-failure-issue");
+}
+
+/**
+ * Find an existing open failure issue that exactly matches the current failure metadata,
+ * or a legacy issue for the same workflow that lacks the precise failure marker.
  * @param {Object} options - Search options
  * @param {string} options.owner - Repository owner
  * @param {string} options.repo - Repository name
@@ -255,10 +282,11 @@ function isReusableFailureIssue(body, options) {
  */
 async function findExistingFailureIssue(options) {
   const { owner, repo, issueTitle, workflowId, branch, pullRequestNumber, failureCategories } = options;
-  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows in:title "${issueTitle}"`;
+  const escapedWorkflowId = workflowId.replace(/"/g, '\\"');
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows ` + `"gh-aw-agentic-workflow:" "workflow_id: ${escapedWorkflowId}" in:body`;
   const perPage = 100;
   /** @type {{number: number, html_url: string} | null} */
-  let fallbackTitleMatch = null;
+  let legacyWorkflowMatch = null;
 
   for (let page = 1; ; page += 1) {
     const searchResult = await github.rest.search.issuesAndPullRequests({
@@ -268,13 +296,6 @@ async function findExistingFailureIssue(options) {
     });
 
     for (const item of searchResult.data.items) {
-      if (!fallbackTitleMatch && item.title === issueTitle) {
-        fallbackTitleMatch = {
-          number: item.number,
-          html_url: item.html_url,
-        };
-      }
-
       let body = typeof item.body === "string" ? item.body : "";
       if (!body) {
         const issueResult = await github.rest.issues.get({
@@ -283,6 +304,13 @@ async function findExistingFailureIssue(options) {
           issue_number: item.number,
         });
         body = issueResult.data.body || "";
+      }
+
+      if (!legacyWorkflowMatch && item.title === issueTitle && isLegacyReusableFailureIssue(body, workflowId)) {
+        legacyWorkflowMatch = {
+          number: item.number,
+          html_url: item.html_url,
+        };
       }
 
       if (
@@ -305,7 +333,7 @@ async function findExistingFailureIssue(options) {
     }
   }
 
-  return fallbackTitleMatch;
+  return legacyWorkflowMatch;
 }
 
 /**
@@ -2248,7 +2276,7 @@ async function main() {
       hasStaleLockFileFailed,
     });
 
-    core.info(`Checking for existing issue with precise metadata match for title: "${issueTitle}"`);
+    core.info(`Checking for existing issue with precise failure metadata or legacy workflow XML markers for title: "${issueTitle}"`);
 
     try {
       const existingIssue = await findExistingFailureIssue({
