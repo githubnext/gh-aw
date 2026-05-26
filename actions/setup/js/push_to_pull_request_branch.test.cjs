@@ -725,6 +725,33 @@ index 0000000..abc1234
       }
     });
 
+    it("should fall back to current HEAD when base_commit is unavailable for patch transport", async () => {
+      const patchPath = createPatchFile();
+      const recordedBaseCommit = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+      mockExec.exec.mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "cat-file" && args[2] === recordedBaseCommit) {
+          throw new Error("not in object store");
+        }
+        return 0;
+      });
+
+      const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("abc123");
+
+      try {
+        const module = await loadModule();
+        const handler = await module.main({});
+        const result = await handler({ patch_path: patchPath, base_commit: recordedBaseCommit }, {});
+
+        expect(result.success).toBe(true);
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["reset", "--hard", recordedBaseCommit], expect.any(Object));
+        expect(pushSignedSpy).toHaveBeenCalledWith(expect.objectContaining({ baseRef: "abc123" }));
+      } finally {
+        pushSignedSpy.mockRestore();
+      }
+    });
+
     it("should ignore invalid message.base_commit for patch transport", async () => {
       const patchPath = createPatchFile();
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });

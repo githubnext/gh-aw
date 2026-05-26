@@ -1524,6 +1524,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
             core.info(`Note: could not fetch base commit ${recordedBaseCommit} explicitly (${fetchError instanceof Error ? fetchError.message : String(fetchError)}); will verify local availability next`);
           }
           await exec.exec("git", ["cat-file", "-e", recordedBaseCommit]);
+          await exec.exec("git", ["merge-base", "--is-ancestor", recordedBaseCommit, `origin/${baseBranch}`]);
           branchBaseRef = recordedBaseCommit;
         } catch (baseCommitError) {
           core.warning(`Recorded base_commit ${recordedBaseCommit} is not available in this checkout (${baseCommitError instanceof Error ? baseCommitError.message : String(baseCommitError)}); falling back to ${baseBranch}`);

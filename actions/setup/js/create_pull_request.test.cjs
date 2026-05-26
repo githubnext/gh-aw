@@ -2396,6 +2396,26 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     expect(global.core.warning).toHaveBeenCalledWith("Ignoring invalid base_commit value for patch apply: not-a-sha --bad");
   });
 
+  it("should fall back to base branch when base_commit is unavailable", async () => {
+    global.exec = {
+      exec: vi.fn().mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "cat-file") {
+          throw new Error("not in object store");
+        }
+        return 0;
+      }),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(true);
+    const checkoutWithBaseBranch = global.exec.exec.mock.calls.find(([cmd, args]) => cmd === "git" && Array.isArray(args) && args[0] === "checkout" && args[1] === "-b" && args[3] === "main");
+    expect(checkoutWithBaseBranch).toBeTruthy();
+  });
+
   it("should fall back to original base commit when git am --3way fails with merge conflicts", async () => {
     let primaryAmAttempted = false;
     global.exec = {
