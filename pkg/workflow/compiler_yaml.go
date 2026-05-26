@@ -80,7 +80,7 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 // for description, source, imports/includes, frontmatter-hash, stop-time, and manual-approval.
 // All ANSI escape codes are stripped from the output.
 // The gh-aw-metadata line is placed first for easy machine parsing.
-func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, secrets []string, actions []string) {
+func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, bodyHash string, secrets []string, actions []string) {
 	// Skip the ASCII art banner in wasm/editor mode — it takes up too much space
 	if c.skipHeader {
 		return
@@ -105,7 +105,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 			agentInfo.DetectionAgentID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
 			agentInfo.DetectionAgentModel = data.SafeOutputs.ThreatDetection.EngineConfig.Model
 		}
-		metadata := GenerateLockMetadata(frontmatterHash, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter), agentInfo)
+		metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: frontmatterHash, BodyHash: bodyHash}, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter), agentInfo)
 		metadataJSON, err := metadata.ToJSON()
 		if err != nil {
 			// Fallback to legacy format if JSON serialization fails
@@ -309,25 +309,55 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Using the hex-encoded SHA-256 frontmatter hash string as an HMAC key keeps
 	// the compiled lock file identical across repeated compilations of the same workflow.
 	var frontmatterHash string
+	var bodyHash string
 	if markdownPath != "" {
 		baseDir := filepath.Dir(markdownPath)
 		cache := parser.NewImportCache(baseDir)
-		var hash string
-		var err error
-		if data.RawMarkdown != "" {
-			// Fast path: use pre-parsed content from WorkflowData to avoid re-reading the file.
-			hash, err = parser.ComputeFrontmatterHashFromParsedContent(data.FrontmatterYAML, data.RawMarkdown, data.RawFrontmatter, baseDir, cache, parser.DefaultFileReader)
-		} else {
-			// Fallback: read file from disk (used when WorkflowData was constructed without RawMarkdown,
-			// e.g. via CompileWorkflowData called directly with externally constructed WorkflowData).
+
+		// computeWorkflowHash calls the parsed-content path when RawMarkdown is
+		// available (fast path), falling back to a disk read otherwise.
+		computeWorkflowHash := func(
+			fromParsed func() (string, error),
+			fromFile func() (string, error),
+		) (string, error) {
+			if data.RawMarkdown != "" {
+				return fromParsed()
+			}
 			compilerYamlLog.Printf("RawMarkdown not set; falling back to reading file from disk: %s", markdownPath)
-			hash, err = parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, data.RawFrontmatter, cache, parser.DefaultFileReader)
+			return fromFile()
 		}
+
+		hash, err := computeWorkflowHash(
+			func() (string, error) {
+				return parser.ComputeFrontmatterHashFromParsedContent(data.FrontmatterYAML, data.RawMarkdown, data.RawFrontmatter, baseDir, cache, parser.DefaultFileReader)
+			},
+			func() (string, error) {
+				return parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, data.RawFrontmatter, cache, parser.DefaultFileReader)
+			},
+		)
 		if err != nil {
 			return "", nil, nil, fmt.Errorf("failed to generate workflow YAML: could not compute stable frontmatter hash for %q: %w", markdownPath, err)
 		}
 		frontmatterHash = hash
 		compilerYamlLog.Printf("Computed frontmatter hash: %s", hash)
+
+		// Compute body hash to cover changes to the markdown body that are not captured
+		// by the frontmatter hash. This enables stale-check: full detection.
+		bHash, bErr := computeWorkflowHash(
+			func() (string, error) {
+				return parser.ComputeBodyHashFromParsedContent(data.RawMarkdown, data.FrontmatterYAML, baseDir, parser.DefaultFileReader)
+			},
+			func() (string, error) {
+				return parser.ComputeBodyHashFromFile(markdownPath)
+			},
+		)
+		if bErr != nil {
+			compilerYamlLog.Printf("Warning: could not compute body hash for %q: %v", markdownPath, bErr)
+			// Non-fatal: continue without body hash
+		} else {
+			bodyHash = bHash
+			compilerYamlLog.Printf("Computed body hash: %s", bodyHash)
+		}
 	}
 	// Store hash on WorkflowData so job-building helpers (MCP renderers, prompt
 	// step generators, etc.) can derive stable heredoc delimiters from it.
@@ -378,7 +408,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	}
 
 	// Generate workflow header comments (including metadata as first line, plus secrets/actions lists)
-	c.generateWorkflowHeader(&yaml, data, frontmatterHash, secrets, actions)
+	c.generateWorkflowHeader(&yaml, data, frontmatterHash, bodyHash, secrets, actions)
 
 	// Append the workflow body
 	yaml.WriteString(bodyContent)

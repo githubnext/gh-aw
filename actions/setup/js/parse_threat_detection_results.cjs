@@ -79,6 +79,34 @@ function extractResultFromText(text) {
   return RESULT_PREFIX + text.substring(jsonStartPos, jsonEndPos + 1);
 }
 
+/** Required fields that must be present for a valid structured threat detection object. */
+const STRUCTURED_OUTPUT_REQUIRED_FIELDS = ["prompt_injection", "secret_leak", "malicious_patch"];
+
+/**
+ * Try to extract a threat detection verdict from Codex structured output.
+ * When Codex runs with -c response_schema enabled for detection jobs, it outputs the
+ * JSON verdict object directly — without the THREAT_DETECTION_RESULT: prefix that
+ * non-structured (text-mode) engines use.  This function detects such output by
+ * checking for the expected threat detection fields and wraps it with the prefix so
+ * the existing parsing pipeline can handle it uniformly.
+ *
+ * @param {string} text - Text that may be a raw JSON threat detection object
+ * @returns {string|null} RESULT_PREFIX + JSON string if the text is a valid
+ *   threat detection object without the prefix, null otherwise
+ */
+function extractStructuredOutput(text) {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{")) return null;
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    if (!STRUCTURED_OUTPUT_REQUIRED_FIELDS.every(field => field in parsed)) return null;
+    return RESULT_PREFIX + trimmed;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Try to extract a THREAT_DETECTION_RESULT value from a stream-json line.
  * Stream-json output from Claude wraps the result in JSON envelopes like:
@@ -86,6 +114,10 @@ function extractResultFromText(text) {
  *
  * The same result also appears in {"type":"assistant"} messages, but we only
  * extract from "type":"result" which is the authoritative final summary.
+ *
+ * When Codex runs with structured outputs (response_schema), the Responses API
+ * emits the verdict as a plain JSON object in response events (no prefix).
+ * extractStructuredOutput handles that case as a fallback.
  *
  * @param {string} line - A single line from the detection log
  * @returns {string|null} The raw THREAT_DETECTION_RESULT:... string if found, null otherwise
@@ -144,14 +176,16 @@ function extractFromStreamJson(line) {
     }
 
     // Codex responses API emits final output text in response events.
+    // Try the prefixed format first; fall back to structured output (no prefix)
+    // when Codex runs with -c response_schema in detection mode.
     if (obj.type === "response.output_text.done" && typeof obj.text === "string") {
-      return extractPrefixedResult(obj.text);
+      return extractPrefixedResult(obj.text) || extractStructuredOutput(obj.text);
     }
     if (obj.type === "response.content_part.done" && obj.part && typeof obj.part.text === "string") {
-      return extractPrefixedResult(obj.part.text);
+      return extractPrefixedResult(obj.part.text) || extractStructuredOutput(obj.part.text);
     }
     if (obj.type === "item.completed" && obj.item && typeof obj.item.text === "string") {
-      return extractPrefixedResult(obj.item.text);
+      return extractPrefixedResult(obj.item.text) || extractStructuredOutput(obj.item.text);
     }
   } catch {
     // Not valid JSON — not a stream-json line
@@ -489,4 +523,4 @@ async function main() {
   } // end runMain
 }
 
-module.exports = { main, parseDetectionLog, extractFromStreamJson, extractResultFromText };
+module.exports = { main, parseDetectionLog, extractFromStreamJson, extractResultFromText, extractStructuredOutput };
