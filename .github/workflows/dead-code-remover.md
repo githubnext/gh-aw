@@ -69,6 +69,7 @@ Run the `deadcode` static analyzer, select a batch of up to 5 unreachable functi
 - **Run ID**: ${{ github.run_id }}
 
 Inline sub-agent block syntax: `agent` names the sub-agent, `model` selects a smaller model, and `task` is its exact execution brief.
+After it runs, parse its stdout JSON and use `skip` / `candidates` as inputs for later phases.
 
 ## agent: discover-candidates
 model: small
@@ -82,7 +83,7 @@ task: |
   - extractJobSection (shared helper used across many compiler tests)
   Review this skip list periodically.
   Output JSON to stdout in this exact shape:
-  {"skip":false,"candidates":[{"function":"Name","file":"pkg/...","reason":"no callers"}]}
+  {"skip":false,"candidates":[{"function":"Name","file":"pkg/workflow/compiler.go","reason":"no callers"}]}
   Allowed `reason` examples: "no callers", "test-only callers", "unreachable".
   If 0 candidates remain:
   {"skip":true,"candidates":[]}
@@ -110,7 +111,8 @@ For every function in the batch, run this **single consolidated bash block** bef
 
 ```bash
 func="FunctionName"
-file="pkg/path/file.go"
+file="pkg/path/file.go"   # normalize by stripping leading "./" before checks
+file="${file#./}"
 
 echo "=== Caller check ==="
 grep -rn -m 5 "$func" --include="*.go" .
@@ -165,7 +167,7 @@ echo "Exit: $?"
 
 The `&&` chain intentionally short-circuits on first failure.
 
-If the run is already >35 turns after Phase 5, use the circuit-breaker verification instead:
+If the run is already >35 turns after Phase 5 (or clearly over budget), use the circuit-breaker verification instead:
 
 ```bash
 go build ./... && go vet ./...
