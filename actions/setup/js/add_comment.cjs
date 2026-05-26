@@ -826,6 +826,7 @@ async function main(config = {}) {
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       const normalizedErrorMessage = errorMessage.toLowerCase();
+      // Known GitHub lock-related message fragments observed from REST/GraphQL comment APIs.
       const lockPhrases = ["issue is locked", "conversation is locked", "resource is locked", "resource locked"];
       const hasKnownLockPhrase = lockPhrases.some(phrase => normalizedErrorMessage.includes(phrase));
 
@@ -833,7 +834,7 @@ async function main(config = {}) {
       const is404 = error?.status === 404 || errorMessage.includes("404") || normalizedErrorMessage.includes("not found");
       const isHttp423Locked = error?.status === 423;
       const isHttp403WithLockedMessage = error?.status === 403 && normalizedErrorMessage.includes("locked");
-      const isLockedByKnownMessageWithoutStatus = !error?.status && hasKnownLockPhrase;
+      const isLockedByKnownMessageWithoutStatus = (error?.status === undefined || error?.status === null) && hasKnownLockPhrase;
       const isLocked = isHttp423Locked || isHttp403WithLockedMessage || isLockedByKnownMessageWithoutStatus;
 
       // If 404 and item_number was explicitly provided and we tried as issue/PR,
