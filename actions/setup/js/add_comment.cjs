@@ -826,13 +826,15 @@ async function main(config = {}) {
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       const normalizedErrorMessage = errorMessage.toLowerCase();
+      const hasKnownLockPhrase =
+        normalizedErrorMessage.includes("issue is locked") ||
+        normalizedErrorMessage.includes("conversation is locked") ||
+        normalizedErrorMessage.includes("resource is locked") ||
+        normalizedErrorMessage.includes("resource locked");
 
       // Check if this is a 404 error (discussion/issue was deleted or wrong type)
       const is404 = error?.status === 404 || errorMessage.includes("404") || normalizedErrorMessage.includes("not found");
-      const isLocked =
-        error?.status === 423 ||
-        (error?.status === 403 && normalizedErrorMessage.includes("locked")) ||
-        (!error?.status && normalizedErrorMessage.includes("locked"));
+      const isLocked = error?.status === 423 || (error?.status === 403 && normalizedErrorMessage.includes("locked")) || (!error?.status && hasKnownLockPhrase);
 
       // If 404 and item_number was explicitly provided and we tried as issue/PR,
       // retry as a discussion (the user may have provided a discussion number)
