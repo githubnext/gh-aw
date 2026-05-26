@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.11  
+**Version**: 1.0.12  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -24,7 +24,7 @@ This specification is the source of truth for detection rule coverage, implement
 
 This is a Candidate Recommendation specification. It may be revised based on operational evidence, threat-model updates, and conformance results.
 
-**Publication Date**: May 25, 2026  
+**Publication Date**: May 26, 2026  
 **Governance**: This specification is maintained by the gh-aw maintainers and governed by gh-aw security review processes.
 
 ## Table of Contents
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.12` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
 | `1.0.11` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
 | `1.0.10` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
 | `1.0.9` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016) and update-check validation (`check-for-updates` handling for CTR-018). Top-level `sandbox: false` is no longer a valid workflow input; `sandbox.agent: false` is the supported field for CTR-004 detection. |
@@ -263,9 +264,9 @@ The mappings above are pattern-based references and MUST be validated against co
 
 When mappings change, this table MUST be updated in the same change set as the implementation update.
 
-### 7.2 Mapping Audit (2026-05-25)
+### 7.2 Mapping Audit (2026-05-26)
 
-Audit result: ✅ all listed `CTR-001` through `CTR-019` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Correction applied in version 1.0.11: CTR-018 implementation mapping updated from `update_check_validation.go` to `strict_mode_update_check_validation.go` (and corresponding test file `strict_mode_update_check_validation_test.go`) to match the actual file paths in the codebase. No new uncovered threats were identified in this review cycle; PR #34525 (decoupled `engine.permission-mode`) introduced `bypassPermissions` as an explicit first-class field — this is documented security model behavior with the MCP gateway filter as the sole enforcement boundary in that mode, and does not require a new CTR rule at this time.
+Audit result: ✅ all listed `CTR-001` through `CTR-019` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: commits merged through 2026-05-26 (PR #34841 / commit 34e5154). Three security-related items were evaluated: (1) `pkg/workflow/heredoc_validation.go` (heredoc delimiter injection defense, `patch-fix-heredoc-delimiter-injection`) — already mapped under CTR-006 since version 1.0.2; no change required. (2) MCP server actor validation (`--validate-actor` runtime flag, `patch-add-mcp-actor-validation`) — runtime RBAC enforced by the MCP gateway container; not a compiler threat detection rule and requires no new CTR entry. (3) Cross-repository allowlist validation (`allowed-repos`/`target-repo` field hardening for SEC-005, `patch-cross-repo-allowlist-validation`) — compiler-side configuration parsing hardening for safe-output handlers; strengthens existing CTR-005 and CTR-012 enforcement boundaries but introduces no new threat class requiring a distinct CTR rule. No new uncovered threats were identified in this review cycle.
 
 ### 7.3 Sync Protocol for CTR Rule and Manifest Updates
 
@@ -336,6 +337,12 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 ---
 
 ## 10. Change Log
+
+### 1.0.12 (2026-05-26)
+
+- Updated Section 7.2 mapping audit to 2026-05-26 confirming no new uncovered threats in this review cycle
+- Evaluated three security items from PR #34841: heredoc delimiter injection defense (already covered by CTR-006), MCP actor validation runtime flag (not a compiler detection rule), and cross-repo allowlist validation for SEC-005 (strengthens CTR-005/CTR-012 boundaries; no new CTR rule required)
+- Updated Section 2 spec-to-implementation sync table with version 1.0.12 entry
 
 ### 1.0.11 (2026-05-25)
 

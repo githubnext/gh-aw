@@ -31,35 +31,7 @@ type FrontmatterResult struct {
 // opening "---" delimiter). The returned line numbers are absolute: they can be used
 // directly as file:line positions for IDE-navigable error messages.
 func extractTopLevelFieldLines(yamlContent string, frontmatterStart int) map[string]int {
-	fieldLines := make(map[string]int)
-	relLine := 0
-	for line := range strings.SplitSeq(yamlContent, "\n") {
-		relLine++
-		// Skip empty lines and YAML comments
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		// Top-level keys have no leading indentation
-		if len(line) > 0 && line[0] != ' ' && line[0] != '\t' {
-			colonIdx := strings.Index(trimmed, ":")
-			if colonIdx > 0 {
-				key := strings.TrimSpace(trimmed[:colonIdx])
-				// Accept simple unquoted keys only. Bracket characters in the key position
-				// ({, }, [, ]) indicate inline YAML maps/sequences rather than plain string keys
-				// (e.g. `[anchor]: value` or `{implicit_key}: value`). These forms are not used
-				// in workflow frontmatter, so we skip them to avoid false positives.
-				// Quoted YAML keys such as `"key[0]"` are also not used in workflow frontmatter
-				// and are excluded by this check (the extracted substring will contain the quote).
-				if key != "" && !strings.ContainsAny(key, " \t{}[]\"'") {
-					if _, alreadySeen := fieldLines[key]; !alreadySeen {
-						// absoluteLine = relLine + frontmatterStart - 1
-						fieldLines[key] = relLine + frontmatterStart - 1
-					}
-				}
-			}
-		}
-	}
+	_, fieldLines := extractFrontmatterMetadata(yamlContent, frontmatterStart)
 	return fieldLines
 }
 
@@ -79,7 +51,7 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	}
 
 	frontmatterYAML := content[searchStart:frontmatterEndStart]
-	frontmatterLines := splitFrontmatterLines(frontmatterYAML)
+	frontmatterLines, fieldLines := extractFrontmatterMetadata(frontmatterYAML, frontmatterStartLine)
 	frontmatter, err := parseFrontmatterYAML(frontmatterYAML)
 	if err != nil {
 		return nil, err
@@ -87,15 +59,16 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	markdown := extractMarkdownAfterFrontmatter(content, markdownStart)
 
 	parserLog.Printf("Successfully extracted frontmatter: fields=%d, markdown_size=%d bytes", len(frontmatter), len(markdown))
-	const frontmatterStartLine = 2 // Line 2 is where frontmatter content starts (after opening ---)
 	return &FrontmatterResult{
 		Frontmatter:      frontmatter,
 		Markdown:         strings.TrimSpace(markdown),
 		FrontmatterLines: frontmatterLines,
 		FrontmatterStart: frontmatterStartLine,
-		FieldLines:       extractTopLevelFieldLines(frontmatterYAML, frontmatterStartLine),
+		FieldLines:       fieldLines,
 	}, nil
 }
+
+const frontmatterStartLine = 2 // Line 2 is where frontmatter content starts (after opening ---)
 
 func splitFirstLine(content string) (int, string) {
 	firstNewline := strings.IndexByte(content, '\n')
@@ -166,6 +139,44 @@ func splitFrontmatterLines(frontmatterYAML string) []string {
 		lines = lines[:len(lines)-1]
 	}
 	return lines
+}
+
+func extractFrontmatterMetadata(frontmatterYAML string, frontmatterStart int) ([]string, map[string]int) {
+	if frontmatterYAML == "" {
+		return []string{}, map[string]int{}
+	}
+
+	lines := make([]string, 0, strings.Count(frontmatterYAML, "\n")+1)
+	fieldLines := make(map[string]int)
+	relLine := 0
+
+	for line := range strings.SplitSeq(frontmatterYAML, "\n") {
+		relLine++
+		lines = append(lines, line)
+
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+
+		if len(line) > 0 && line[0] != ' ' && line[0] != '\t' {
+			colonIdx := strings.IndexByte(trimmed, ':')
+			if colonIdx > 0 {
+				key := strings.TrimSpace(trimmed[:colonIdx])
+				if key != "" && !strings.ContainsAny(key, " \t{}[]\"'") {
+					if _, alreadySeen := fieldLines[key]; !alreadySeen {
+						fieldLines[key] = relLine + frontmatterStart - 1
+					}
+				}
+			}
+		}
+	}
+
+	if strings.HasSuffix(frontmatterYAML, "\n") {
+		lines = lines[:len(lines)-1]
+	}
+
+	return lines, fieldLines
 }
 
 func parseFrontmatterYAML(frontmatterYAML string) (map[string]any, error) {
