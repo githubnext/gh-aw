@@ -420,6 +420,12 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if len(result.AllowedDomains) == 0 && len(importedConfig.AllowedDomains) > 0 {
 		result.AllowedDomains = importedConfig.AllowedDomains
 	}
+	if result.URLPolicy == "" && importedConfig.URLPolicy != "" {
+		result.URLPolicy = importedConfig.URLPolicy
+	}
+	if result.Reputation == nil && importedConfig.Reputation != nil {
+		result.Reputation = importedConfig.Reputation
+	}
 	if !result.Staged && importedConfig.Staged {
 		result.Staged = importedConfig.Staged
 	}

@@ -1515,7 +1515,7 @@ Validation rules:
 - Built-in jobs are rejected (`agent`, `activation`, `pre_activation`/`pre-activation`, `conclusion`, `safe_outputs`, `detection`, `unlock`, `push_repo_memory`, `update_cache_memory`)
 - Unknown jobs fail compilation with an actionable error
 
-### Text Sanitization (`allowed-domains:`, `allowed-github-references:`)
+### Text Sanitization (`allowed-domains:`, `url-policy:`, `reputation:`, `allowed-github-references:`)
 
 The text output by AI agents is automatically sanitized to prevent injection of malicious content and ensure safe rendering on GitHub. The auto-sanitization applied is: XML escaped, HTTPS only, domain allowlist (GitHub by default), 0.5MB/65k line limits, control char stripping.
 
@@ -1524,6 +1524,7 @@ You can configure sanitization options:
 ```yaml wrap
 safe-outputs:
   allowed-domains: [api.github.com]  # GitHub domains always included
+  url-policy: allowlist              # allowlist (default), audit, or reputation
   allowed-github-references: []      # Escape all GitHub references
 ```
 
@@ -1542,6 +1543,20 @@ safe-outputs:
 ```
 
 The `default-safe-outputs` compound ecosystem is the recommended baseline — it covers infrastructure certificates (`defaults`), GitHub domains (`github`), popular developer tooling (`dev-tools`), and loopback addresses (`local`).
+
+**URL Policy** (`url-policy`): Controls what happens to URLs outside the allowlist.
+
+- `allowlist` (default): redact unallowlisted URLs to `(domain/redacted)`
+- `audit`: keep all URLs unchanged, but log each unallowlisted domain
+- `reputation`: keep URLs unless a configured reputation provider flags them malicious
+
+```yaml wrap
+safe-outputs:
+  url-policy: reputation
+  reputation:
+    provider: google-safe-browsing
+    api-key-secret: SB_API_KEY
+```
 
 **Reference Escaping** (`allowed-github-references`): Controls which GitHub repository references (`#123`, `owner/repo#456`) are allowed in workflow output. When configured, references to unlisted repositories are escaped with backticks to prevent GitHub from creating timeline items. This is particularly useful for [side repository](/gh-aw/patterns/multi-repo-ops/#using-a-side-repository) workflows to prevent automation from cluttering your main repository's timeline.
 

@@ -538,6 +538,22 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				"GITHUB_API_URL: ${{ github.api_url }}",
 			},
 		},
+		{
+			name: "handler manager with reputation url policy propagates config",
+			safeOutputs: &SafeOutputsConfig{
+				URLPolicy: "reputation",
+				Reputation: &SafeOutputsReputationConfig{
+					Provider:     "google-safe-browsing",
+					APIKeySecret: "SB_API_KEY",
+				},
+				AddComments: &AddCommentsConfig{},
+			},
+			checkContains: []string{
+				"GH_AW_URL_POLICY: \"reputation\"",
+				"GH_AW_URL_REPUTATION_PROVIDER: \"google-safe-browsing\"",
+				"GH_AW_URL_REPUTATION_API_KEY: \"${{ secrets.SB_API_KEY }}\"",
+			},
+		},
 		// Note: create_project is now handled by the unified handler manager,
 		// not the separate project handler manager
 		{

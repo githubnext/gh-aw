@@ -671,6 +671,8 @@ type SafeOutputsConfig struct {
 	NoOp                            *NoOpConfig                            `yaml:"noop,omitempty"`                         // No-op output for logging only (always available as fallback)
 	ReportIncomplete                *ReportIncompleteConfig                `yaml:"report-incomplete,omitempty"`            // Signal that the task could not be completed due to a tool or infrastructure failure
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`             // Threat detection configuration
+	URLPolicy                       string                                 `yaml:"url-policy,omitempty"`                   // URL sanitization policy: allowlist (default), audit, or reputation
+	Reputation                      *SafeOutputsReputationConfig           `yaml:"reputation,omitempty"`                   // URL reputation configuration used when url-policy is "reputation"
 	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`                         // Safe-jobs configuration (moved from top-level)
 	Scripts                         map[string]*SafeScriptConfig           `yaml:"scripts,omitempty"`                      // Custom inline handlers that run in the safe-output handler loop
 	GitHubApp                       *GitHubAppConfig                       `yaml:"github-app,omitempty"`                   // GitHub App credentials for token minting
@@ -696,6 +698,12 @@ type SafeOutputsConfig struct {
 	Environment                     string                                 `yaml:"environment,omitempty"`                  // Override the GitHub deployment environment for the safe-outputs job (defaults to the top-level environment: field)
 	Actions                         map[string]*SafeOutputActionConfig     `yaml:"actions,omitempty"`                      // Custom GitHub Actions mounted as safe output tools (resolved at compile time)
 	AutoInjectedCreateIssue         bool                                   `yaml:"-"`                                      // Internal: true when create-issues was automatically injected by the compiler (not user-configured)
+}
+
+// SafeOutputsReputationConfig configures URL reputation checks for safe-output URL sanitization.
+type SafeOutputsReputationConfig struct {
+	Provider     string `yaml:"provider,omitempty"`       // Reputation provider identifier (currently: google-safe-browsing)
+	APIKeySecret string `yaml:"api-key-secret,omitempty"` // Secret name containing provider API key (e.g., SB_API_KEY)
 }
 
 // SafeOutputMessagesConfig holds custom message templates for safe-output footer and notification messages

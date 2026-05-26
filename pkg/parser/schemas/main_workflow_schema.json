@@ -4818,6 +4818,28 @@
             "type": "string"
           }
         },
+        "url-policy": {
+          "type": "string",
+          "description": "URL sanitization policy for safe outputs. 'allowlist' (default) redacts URLs not in the allowlist. 'audit' preserves all URLs but logs domains that are outside the allowlist. 'reputation' preserves URLs unless a configured reputation provider marks them malicious.",
+          "enum": ["allowlist", "audit", "reputation"],
+          "default": "allowlist"
+        },
+        "reputation": {
+          "type": "object",
+          "description": "Configuration for URL reputation checks used when url-policy is 'reputation'.",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "description": "URL reputation provider identifier.",
+              "enum": ["google-safe-browsing"]
+            },
+            "api-key-secret": {
+              "type": "string",
+              "description": "GitHub Actions secret name containing the provider API key (for example, 'SB_API_KEY')."
+            }
+          },
+          "additionalProperties": false
+        },
         "allowed-github-references": {
           "type": "array",
           "description": "List of allowed repositories for GitHub references (e.g., #123 or owner/repo#456). Use 'repo' to allow current repository. References to other repositories will be escaped with backticks. If not specified, all references are allowed.",

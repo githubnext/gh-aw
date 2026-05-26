@@ -22,6 +22,9 @@ describe("sanitize_content.cjs", () => {
   afterEach(() => {
     delete global.core;
     delete process.env.GH_AW_ALLOWED_DOMAINS;
+    delete process.env.GH_AW_URL_POLICY;
+    delete process.env.GH_AW_URL_REPUTATION_PROVIDER;
+    delete process.env.GH_AW_URL_REPUTATION_API_KEY;
     delete process.env.GH_AW_ALLOWED_GITHUB_REFS;
     delete process.env.GH_AW_COMMANDS;
     delete process.env.GITHUB_SERVER_URL;
@@ -1061,6 +1064,22 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("Visit https://evil.com/malicious");
       expect(result).toContain("(evil.com/redacted)");
       expect(mockCore.info).toHaveBeenCalled();
+    });
+
+    it("should preserve disallowed domains in audit url-policy mode", () => {
+      process.env.GH_AW_URL_POLICY = "audit";
+      const result = sanitizeContent("Visit https://evil.com/malicious");
+      expect(result).toContain("https://evil.com/malicious");
+      expect(result).not.toContain("(evil.com/redacted)");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Audited URL"));
+    });
+
+    it("should preserve disallowed domains in reputation mode when provider is not configured", () => {
+      process.env.GH_AW_URL_POLICY = "reputation";
+      const result = sanitizeContent("Visit https://evil.com/malicious");
+      expect(result).toContain("https://evil.com/malicious");
+      expect(result).not.toContain("(evil.com/redacted)");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("reputation url-policy enabled"));
     });
 
     it("should use custom allowed domains from environment", () => {

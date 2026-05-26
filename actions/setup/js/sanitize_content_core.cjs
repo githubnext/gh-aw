@@ -7,12 +7,14 @@
  */
 
 const { isRepoAllowed } = require("./repo_helpers.cjs");
+const { execFileSync } = require("child_process");
 
 /**
  * Module-level set to collect redacted URL domains across sanitization calls.
  * @type {string[]}
  */
 const redactedDomains = [];
+const reputationDecisionCache = new Map();
 
 /**
  * Gets the list of redacted URL domains collected during sanitization.
@@ -134,6 +136,73 @@ function buildAllowedDomains() {
 
   // Remove duplicates
   return [...new Set(allowedDomains)];
+}
+
+/**
+ * Resolve URL sanitization policy from environment.
+ * @returns {"allowlist" | "audit" | "reputation"}
+ */
+function getURLPolicy() {
+  const rawPolicy = process.env.GH_AW_URL_POLICY;
+  if (!rawPolicy) {
+    return "allowlist";
+  }
+  const normalized = rawPolicy.trim().toLowerCase();
+  if (normalized === "allowlist" || normalized === "audit" || normalized === "reputation") {
+    return normalized;
+  }
+  core.warning(`Invalid GH_AW_URL_POLICY value "${rawPolicy}", defaulting to allowlist`);
+  return "allowlist";
+}
+
+/**
+ * Check URL reputation with configured provider.
+ * Returns true when the URL should be considered malicious and redacted.
+ * @param {string} url
+ * @returns {boolean}
+ */
+function isMaliciousByReputation(url) {
+  const provider = (process.env.GH_AW_URL_REPUTATION_PROVIDER || "").trim().toLowerCase();
+  if (provider !== "google-safe-browsing") {
+    core.warning("reputation url-policy enabled but GH_AW_URL_REPUTATION_PROVIDER is not configured to google-safe-browsing; allowing URL");
+    return false;
+  }
+
+  const apiKey = (process.env.GH_AW_URL_REPUTATION_API_KEY || "").trim();
+  if (!apiKey) {
+    core.warning("reputation url-policy enabled but GH_AW_URL_REPUTATION_API_KEY is not set; allowing URL");
+    return false;
+  }
+
+  if (reputationDecisionCache.has(url)) {
+    return reputationDecisionCache.get(url) === true;
+  }
+
+  const endpoint = `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${encodeURIComponent(apiKey)}`;
+  const payload = JSON.stringify({
+    client: {
+      clientId: "gh-aw",
+      clientVersion: "1.0",
+    },
+    threatInfo: {
+      threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
+      platformTypes: ["ANY_PLATFORM"],
+      threatEntryTypes: ["URL"],
+      threatEntries: [{ url }],
+    },
+  });
+
+  try {
+    const output = execFileSync("curl", ["--silent", "--show-error", "--fail", "--max-time", "2", "--connect-timeout", "2", "-X", "POST", "-H", "Content-Type: application/json", "-d", payload, endpoint], { encoding: "utf8" });
+    const parsed = output ? JSON.parse(output) : {};
+    const malicious = Boolean(parsed && Array.isArray(parsed.matches) && parsed.matches.length > 0);
+    reputationDecisionCache.set(url, malicious);
+    return malicious;
+  } catch (error) {
+    core.warning(`reputation check failed; allowing URL (${error && error.message ? error.message : "unknown error"})`);
+    reputationDecisionCache.set(url, false);
+    return false;
+  }
 }
 
 /**
@@ -293,16 +362,33 @@ function sanitizeUrlDomains(s, allowed) {
 
     if (isAllowed) {
       return match; // Keep the full URL as-is
-    } else {
-      // Redact the domain but preserve the protocol and structure for debugging
-      const sanitized = sanitizeDomainName(hostname);
-      const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
-      core.info(`Redacted URL: ${truncated}`);
-      core.debug(`Redacted URL (full): ${match}`);
-      addRedactedDomain(hostname);
-      // Return sanitized domain format
-      return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
     }
+
+    const policy = getURLPolicy();
+    const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
+
+    if (policy === "audit") {
+      core.info(`Audited URL (outside allowlist): ${truncated}`);
+      core.debug(`Audited URL (full): ${match}`);
+      return match;
+    }
+
+    if (policy === "reputation") {
+      const reputationURL = match.startsWith("//") ? `https:${match}` : match;
+      if (!isMaliciousByReputation(reputationURL)) {
+        core.info(`Reputation-allowed URL: ${truncated}`);
+        core.debug(`Reputation-allowed URL (full): ${match}`);
+        return match;
+      }
+    }
+
+    // Redact the domain but preserve the protocol and structure for debugging
+    const sanitized = sanitizeDomainName(hostname);
+    core.info(`Redacted URL: ${truncated}`);
+    core.debug(`Redacted URL (full): ${match}`);
+    addRedactedDomain(hostname);
+    // Return sanitized domain format
+    return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
   }
 
   // First pass: handle explicit https:// URLs

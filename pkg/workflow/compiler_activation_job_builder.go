@@ -312,6 +312,7 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 		if domainsStr != "" {
 			envLines = append(envLines, formatYAMLEnv("          ", "GH_AW_ALLOWED_DOMAINS", domainsStr))
 		}
+		appendSafeOutputsURLPolicyEnvLines(&envLines, "          ", data)
 		if len(envLines) > 0 {
 			ctx.steps = append(ctx.steps, "        env:\n")
 			ctx.steps = append(ctx.steps, envLines...)

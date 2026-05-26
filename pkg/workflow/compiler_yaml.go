@@ -917,6 +917,11 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	if domainsStr != "" {
 		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
 	}
+	var urlPolicyEnvLines []string
+	appendSafeOutputsURLPolicyEnvLines(&urlPolicyEnvLines, "          ", data)
+	for _, line := range urlPolicyEnvLines {
+		yaml.WriteString(line)
+	}
 
 	// Add allowed GitHub references configuration for reference escaping
 	if data.SafeOutputs != nil && data.SafeOutputs.AllowGitHubReferences != nil {

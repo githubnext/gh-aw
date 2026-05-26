@@ -173,6 +173,12 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
+	// Validate safe-outputs URL sanitization policy configuration
+	workflowLog.Printf("Validating safe-outputs url-policy")
+	if err := validateSafeOutputsURLPolicy(workflowData.SafeOutputs); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	// Validate safe-outputs merge-pull-request configuration
 	workflowLog.Printf("Validating safe-outputs merge-pull-request")
 	if err := validateSafeOutputsMergePullRequest(workflowData.SafeOutputs); err != nil {

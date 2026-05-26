@@ -7,6 +7,8 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
+var safeOutputsURLPolicyValidationLog = newValidationLogger("safe_outputs_url_policy")
+
 var safeOutputsDomainsValidationLog = newValidationLogger("safe_outputs_domains")
 
 // validateSafeOutputsAllowedDomains validates the allowed-domains configuration in safe-outputs.
@@ -41,6 +43,34 @@ func (c *Compiler) validateSafeOutputsAllowedDomains(config *SafeOutputsConfig) 
 	}
 
 	safeOutputsDomainsValidationLog.Print("Safe outputs allowed domains validation passed")
+	return nil
+}
+
+func validateSafeOutputsURLPolicy(config *SafeOutputsConfig) error {
+	if config == nil || config.URLPolicy == "" {
+		return nil
+	}
+
+	policy := strings.ToLower(strings.TrimSpace(config.URLPolicy))
+	switch policy {
+	case "allowlist", "audit", "reputation":
+		// valid
+	default:
+		return fmt.Errorf("safe-outputs.url-policy: invalid value %q (expected one of: allowlist, audit, reputation)", config.URLPolicy)
+	}
+
+	if policy == "reputation" && (config.Reputation == nil || config.Reputation.Provider == "") {
+		return fmt.Errorf("safe-outputs.url-policy: reputation mode requires safe-outputs.reputation.provider")
+	}
+
+	if config.Reputation != nil {
+		provider := strings.ToLower(strings.TrimSpace(config.Reputation.Provider))
+		if provider != "" && provider != "google-safe-browsing" {
+			return fmt.Errorf("safe-outputs.reputation.provider: invalid value %q (expected: google-safe-browsing)", config.Reputation.Provider)
+		}
+	}
+
+	safeOutputsURLPolicyValidationLog.Printf("Validated safe-outputs URL policy: %s", policy)
 	return nil
 }
 

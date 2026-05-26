@@ -192,6 +192,29 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Parse url-policy configuration for URL sanitization behavior
+			if urlPolicy, exists := outputMap["url-policy"]; exists {
+				if urlPolicyStr, ok := urlPolicy.(string); ok {
+					config.URLPolicy = strings.TrimSpace(urlPolicyStr)
+				}
+			}
+
+			// Parse reputation configuration (used when url-policy is "reputation")
+			if reputation, exists := outputMap["reputation"]; exists {
+				if reputationMap, ok := reputation.(map[string]any); ok {
+					reputationConfig := &SafeOutputsReputationConfig{}
+					if provider, ok := reputationMap["provider"].(string); ok {
+						reputationConfig.Provider = strings.TrimSpace(provider)
+					}
+					if apiKeySecret, ok := reputationMap["api-key-secret"].(string); ok {
+						reputationConfig.APIKeySecret = strings.TrimSpace(apiKeySecret)
+					}
+					if reputationConfig.Provider != "" || reputationConfig.APIKeySecret != "" {
+						config.Reputation = reputationConfig
+					}
+				}
+			}
+
 			// Parse allowed-github-references configuration
 			if allowGitHubRefs, exists := outputMap["allowed-github-references"]; exists {
 				if refsArray, ok := allowGitHubRefs.([]any); ok {
