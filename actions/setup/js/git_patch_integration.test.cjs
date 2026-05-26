@@ -476,6 +476,8 @@ describe("git patch integration tests", () => {
       execGit(["checkout", "pr-branch"], { cwd: repoDir });
       const applyOnAdvancedHead = execGit(["am", "--3way", patchPath], { cwd: repoDir, allowFailure: true });
       expect(applyOnAdvancedHead.status).not.toBe(0);
+      const conflictOutput = applyOnAdvancedHead.stderr.toLowerCase();
+      expect(conflictOutput.includes("patch does not apply") || conflictOutput.includes("conflict") || conflictOutput.includes("failed to merge")).toBe(true);
       execGit(["am", "--abort"], { cwd: repoDir, allowFailure: true });
 
       // Re-anchor to the recorded base commit first, then apply.
