@@ -24,7 +24,7 @@ List available skills and their locations before deciding which strategy to appl
 
 **Use when**: You want to keep the main prompt compact while still shipping task-specific skill guidance with the workflow.
 
-Inline skills let a workflow embed a complete skill or a partial skill fragment under `## skill: \`name\``. At runtime, gh-aw extracts each block into engine-specific skill locations and removes those blocks from the main prompt body. This keeps the main prompt slim and flexible while still making the fused guidance available as skills.
+Inline skills let a workflow embed a complete skill or a partial skill fragment under `## skill: \`name\``. During workflow execution, gh-aw extracts each block into engine-specific skill locations and removes those blocks from the main prompt body. This keeps the main prompt slim and flexible while still making the fused guidance available as skills.
 
 Use this to fuse:
 
@@ -33,7 +33,7 @@ Use this to fuse:
 
 **Pattern**:
 
-```aw wrap
+```markdown
 on:
   workflow_dispatch:
 engine: copilot
