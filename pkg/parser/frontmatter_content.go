@@ -25,16 +25,6 @@ type FrontmatterResult struct {
 	FieldLines       map[string]int // Absolute line numbers (1-based) of top-level frontmatter keys in the file
 }
 
-// extractTopLevelFieldLines scans YAML text and returns a map of top-level key names to
-// their absolute line numbers in the source file. frontmatterStart is the 1-based line
-// number of the first frontmatter content line (i.e. the line immediately after the
-// opening "---" delimiter). The returned line numbers are absolute: they can be used
-// directly as file:line positions for IDE-navigable error messages.
-func extractTopLevelFieldLines(yamlContent string, frontmatterStart int) map[string]int {
-	_, fieldLines := extractFrontmatterMetadata(yamlContent, frontmatterStart)
-	return fieldLines
-}
-
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
 func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	parserLog.Printf("Extracting frontmatter from content: size=%d bytes", len(content))

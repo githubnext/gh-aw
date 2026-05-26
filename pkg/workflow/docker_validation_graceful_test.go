@@ -6,14 +6,17 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/syncutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // resetDockerDaemonStateForTest resets the package-level daemon state so
 // individual tests can control it without interference from earlier tests.
+// We use a zero-value assignment to clear the cached state.
 func resetDockerDaemonStateForTest() {
-	dockerDaemonLoader.Reset()
+	// Clear by assigning a new zero-value loader that will re-run detection on next call
+	dockerDaemonLoader = syncutil.OnceLoader[bool]{}
 }
 
 // TestValidateDockerImage_SkipsWhenDockerUnavailable verifies that

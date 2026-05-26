@@ -752,34 +752,3 @@ func TestAnalyzeFirewallPolicy(t *testing.T) {
 		assert.Nil(t, analysis, "Should return nil when no artifacts found")
 	})
 }
-
-func TestFormatUnixTimestamp(t *testing.T) {
-	tests := []struct {
-		name     string
-		ts       float64
-		expected string
-	}{
-		{
-			name:     "valid timestamp",
-			ts:       1761074374.646,
-			expected: "19:19:34",
-		},
-		{
-			name:     "zero timestamp",
-			ts:       0,
-			expected: "-",
-		},
-		{
-			name:     "negative timestamp",
-			ts:       -1.0,
-			expected: "-",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatUnixTimestamp(tt.ts)
-			assert.Equal(t, tt.expected, result, "formatUnixTimestamp(%v)", tt.ts)
-		})
-	}
-}

@@ -36,18 +36,6 @@ func (o *OnceLoader[T]) Get(loader func() (T, error)) (T, error) {
 	return o.result, o.err
 }
 
-// Reset clears cached state.
-func (o *OnceLoader[T]) Reset() {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
-	syncutilLog.Print("OnceLoader.Reset: clearing cached state")
-	var zero T
-	o.result = zero
-	o.err = nil
-	o.done = false
-}
-
 // Override stores result and err as the cached value without invoking the
 // loader. Subsequent calls to Get will return this value without invoking the
 // loader. Safe for concurrent use.
