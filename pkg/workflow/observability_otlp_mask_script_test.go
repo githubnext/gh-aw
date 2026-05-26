@@ -25,9 +25,10 @@ func TestMaskOTLPHeadersScript(t *testing.T) {
 	scriptPath := filepath.Join(filepath.Dir(file), "..", "..", "actions", "setup", "sh", "mask_otlp_headers.sh")
 
 	tests := []struct {
-		name string
-		env  []string
-		want []string
+		name    string
+		env     []string
+		want    []string
+		wantNot []string
 	}{
 		{
 			name: "multi endpoint headers complete successfully",
@@ -53,6 +54,19 @@ func TestMaskOTLPHeadersScript(t *testing.T) {
 				"::add-mask::raw-token",
 			},
 		},
+		{
+			name: "short values are not emitted as masks",
+			env: []string{
+				"OTEL_EXPORTER_OTLP_HEADERS=Authorization=4,Api-Key=1234",
+			},
+			want: []string{
+				"::add-mask::Authorization=4,Api-Key=1234",
+				"::add-mask::1234",
+			},
+			wantNot: []string{
+				"::add-mask::4",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -69,6 +83,9 @@ func TestMaskOTLPHeadersScript(t *testing.T) {
 			output := string(out)
 			for _, want := range tt.want {
 				assert.Contains(t, output, want)
+			}
+			for _, wantNot := range tt.wantNot {
+				assert.NotContains(t, output, wantNot)
 			}
 		})
 	}

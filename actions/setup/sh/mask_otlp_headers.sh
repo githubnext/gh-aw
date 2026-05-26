@@ -27,6 +27,16 @@ set +o histexpand
 
 set -euo pipefail
 
+MIN_MASK_LENGTH=4
+
+# emit_mask emits ::add-mask:: only for non-empty values at or above MIN_MASK_LENGTH.
+emit_mask() {
+  local _value="${1:-}"
+  [ -z "$_value" ] && return
+  [ "${#_value}" -lt "$MIN_MASK_LENGTH" ] && return
+  echo '::add-mask::'"$_value"
+}
+
 # mask_headers masks all values in a comma-separated key=value headers string.
 mask_headers() {
   local _headers="$1"
@@ -35,7 +45,7 @@ mask_headers() {
   [ -z "$_headers" ] && return
 
   # Level 1: mask the entire comma-separated headers string.
-  echo '::add-mask::'"$_headers"
+  emit_mask "$_headers"
 
   # Levels 2 & 3: split on commas, extract each value, and mask it individually.
   # For "Bearer <token>" values, also mask the raw token without the scheme prefix.
@@ -43,10 +53,10 @@ mask_headers() {
   mapfile -t _pairs < <(printf '%s' "$_headers" | tr ',' '\n')
   for _pair in "${_pairs[@]}"; do
     _val="${_pair#*=}"
-    [ -n "$_val" ] && echo '::add-mask::'"$_val"
+    emit_mask "$_val"
     _no_bearer="${_val#Bearer }"
     if [ "$_no_bearer" != "$_val" ]; then
-      echo '::add-mask::'"$_no_bearer"
+      emit_mask "$_no_bearer"
     fi
   done
 }
