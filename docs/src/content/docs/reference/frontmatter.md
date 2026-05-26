@@ -508,6 +508,26 @@ The `private:` field only blocks installation via `gh aw add`. It does not affec
 
 Enable experimental or optional compiler and runtime behaviors as key-value pairs. See [Feature Flags](/gh-aw/reference/feature-flags/) for complete documentation.
 
+### `check-for-updates:`
+
+Controls whether the activation job verifies that the workflow was compiled with a supported `gh-aw` version. The default is `true`.
+
+```yaml wrap
+check-for-updates: false
+```
+
+Set this field to `false` only in isolated environments where the version check cannot reach the `gh-aw` repository. The compiler emits a warning in non-strict mode, and strict mode rejects `check-for-updates: false`.
+
+### `run-install-scripts:`
+
+Allows npm preinstall and postinstall scripts to run during generated package installation steps. The default is `false`, and generated npm installs use `--ignore-scripts` unless this field is enabled.
+
+```yaml wrap
+run-install-scripts: true
+```
+
+Enabling install scripts increases supply-chain risk because package hooks execute arbitrary code. The compiler emits a warning in non-strict mode, and strict mode rejects this setting. To scope the behavior to Node.js only, use `runtimes.node.run-install-scripts: true`.
+
 ### Strict Mode (`strict:`)
 
 Disables enhanced security validation for production workflows.
