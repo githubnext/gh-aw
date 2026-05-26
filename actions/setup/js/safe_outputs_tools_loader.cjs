@@ -6,6 +6,30 @@ const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require(
 const fs = require("fs");
 
 /**
+ * Strip unknown keys from tool arguments when schema is strict.
+ * @param {any} args - Tool call arguments
+ * @param {any} inputSchema - Tool input schema
+ * @returns {any} Sanitized args
+ */
+function sanitizeArgsBySchema(args, inputSchema) {
+  if (!args || typeof args !== "object" || Array.isArray(args)) {
+    return args;
+  }
+  if (!inputSchema || inputSchema.additionalProperties !== false || !inputSchema.properties || typeof inputSchema.properties !== "object") {
+    return args;
+  }
+
+  const allowedKeys = new Set(Object.keys(inputSchema.properties));
+  const sanitizedArgs = {};
+  for (const [key, value] of Object.entries(args)) {
+    if (allowedKeys.has(key)) {
+      sanitizedArgs[key] = value;
+    }
+  }
+  return sanitizedArgs;
+}
+
+/**
  * Load tools from tools.json file
  * @param {Object} server - The MCP server instance for logging
  * @returns {Array} Array of tool definitions
@@ -126,6 +150,14 @@ function attachHandlers(tools, handlers) {
           workflow_name: workflowName,
         });
       };
+    }
+
+    const hasStrictSchema = !!tool.inputSchema && tool.inputSchema.additionalProperties === false && !!tool.inputSchema.properties && typeof tool.inputSchema.properties === "object";
+
+    if (typeof tool.handler === "function" && hasStrictSchema) {
+      const handler = tool.handler;
+      const inputSchema = tool.inputSchema;
+      tool.handler = args => handler(sanitizeArgsBySchema(args, inputSchema));
     }
   });
 

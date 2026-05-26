@@ -277,6 +277,74 @@ describe("safe_outputs_tools_loader", () => {
       });
     });
 
+    it("should drop unknown keys for strict schema tools", () => {
+      const createIssueHandler = vi.fn();
+      const tools = [
+        {
+          name: "create_issue",
+          description: "Create issue",
+          inputSchema: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              body: { type: "string" },
+            },
+            additionalProperties: false,
+          },
+        },
+      ];
+      const handlers = {
+        createIssueHandler,
+      };
+
+      const result = attachHandlers(tools, handlers);
+      result[0].handler({
+        title: "hello",
+        body: "world",
+        integrity: "high",
+      });
+
+      expect(createIssueHandler).toHaveBeenCalledWith({
+        title: "hello",
+        body: "world",
+      });
+    });
+
+    it("should drop unknown keys before wrapping dispatch_workflow inputs", () => {
+      const mockHandlerFunction = vi.fn();
+      const defaultHandler = vi.fn(() => mockHandlerFunction);
+      const tools = [
+        {
+          name: "dispatch_ci",
+          description: "Dispatch CI",
+          _workflow_name: "ci",
+          inputSchema: {
+            type: "object",
+            properties: {
+              issue_number: { type: "string" },
+            },
+            additionalProperties: false,
+          },
+        },
+      ];
+      const handlers = {
+        defaultHandler,
+      };
+
+      const result = attachHandlers(tools, handlers);
+      result[0].handler({
+        issue_number: "123",
+        secrecy: "medium",
+      });
+
+      expect(mockHandlerFunction).toHaveBeenCalledWith({
+        workflow_name: "ci",
+        inputs: {
+          issue_number: "123",
+        },
+      });
+    });
+
     it("should attach create_pull_request_review_comment handler", () => {
       const tools = [{ name: "create_pull_request_review_comment", description: "Create review comment" }];
       const handlers = {
