@@ -333,7 +333,8 @@ mkdir -p "$CODEX_HOME/logs"
 		// Keep Codex runtime state in /tmp/gh-aw because ${RUNNER_TEMP}/gh-aw is
 		// mounted read-only inside the AWF chroot sandbox.
 		"CODEX_HOME":                   "/tmp/gh-aw/mcp-config",
-		"RUST_LOG":                     "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
+		// Enable verbose RUST_LOG only in debug mode (runner.debug == 1); default to warn to avoid noisy output.
+		"RUST_LOG": "${{ runner.debug == 1 && 'trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug' || 'warn' }}",
 		"GH_AW_GITHUB_TOKEN":           effectiveGitHubToken,
 		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,                                     // Used by GitHub MCP server via env_vars
 		"OPENAI_API_KEY":               "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}", // Fallback for CODEX_API_KEY
