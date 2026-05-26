@@ -550,3 +550,32 @@ func TestTokenWeightsSingleQuoteEscapingInYAML(t *testing.T) {
 		t.Errorf("Unescaped single quote found in YAML output:\n%s", output)
 	}
 }
+
+func TestTokenWeightsEnvOmittedWhenOnlyTokenClassWeightsConfigured(t *testing.T) {
+	compiler := NewCompiler()
+	registry := GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine("claude")
+	if err != nil {
+		t.Fatalf("Failed to get claude engine: %v", err)
+	}
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+			TokenWeights: &types.TokenWeights{
+				TokenClassWeights: &types.TokenClassWeights{
+					Output: 6.0,
+				},
+			},
+		},
+	}
+
+	var out strings.Builder
+	compiler.generateCreateAwInfo(&out, workflowData, engine)
+	output := out.String()
+
+	if strings.Contains(output, "GH_AW_INFO_TOKEN_WEIGHTS") {
+		t.Errorf("Did not expect GH_AW_INFO_TOKEN_WEIGHTS in YAML output when only token-class-weights are configured, got:\n%s", output)
+	}
+}
