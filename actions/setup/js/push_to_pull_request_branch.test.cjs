@@ -704,6 +704,19 @@ index 0000000..abc1234
       expect(result.commit_url).toContain("test-owner/test-repo/commit/");
     });
 
+    it("should reset to message.base_commit before applying patch transport", async () => {
+      const patchPath = createPatchFile();
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ patch_path: patchPath, base_commit: "base-sha-123" }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["cat-file", "-e", "base-sha-123"], expect.any(Object));
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--hard", "base-sha-123"], expect.any(Object));
+    });
+
     it("should use pushed commit SHA returned by pushSignedCommits for activation comment commit link", async () => {
       const patchPath = createPatchFile();
       const updateActivationCommentModule = require("./update_activation_comment.cjs");

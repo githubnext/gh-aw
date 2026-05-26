@@ -659,6 +659,33 @@ async function main(config = {}) {
         // Non-fatal - extra empty commit will be skipped
       }
 
+      // Pin patch application to the recorded base commit captured at patch-generation time.
+      // This avoids applying a patch generated from an older branch tip onto a newer remote tip.
+      // If the commit is unavailable (e.g. cross-repo/missing object), continue with current HEAD.
+      if (!hasBundleFile && message.base_commit) {
+        const recordedBaseCommit = String(message.base_commit).trim();
+        if (recordedBaseCommit) {
+          try {
+            try {
+              await exec.exec("git", ["fetch", "origin", recordedBaseCommit, "--depth=1"], {
+                env: { ...process.env, ...gitAuthEnv },
+                ...baseGitOpts,
+              });
+            } catch (fetchError) {
+              core.info(`Note: could not fetch base_commit ${recordedBaseCommit} explicitly (${getErrorMessage(fetchError)}); will verify local availability next`);
+            }
+            await exec.exec("git", ["cat-file", "-e", recordedBaseCommit], baseGitOpts);
+            if (remoteHeadBeforePatch && remoteHeadBeforePatch !== recordedBaseCommit) {
+              core.warning(`Remote PR branch advanced since patch generation (remote HEAD ${remoteHeadBeforePatch}, patch base ${recordedBaseCommit}); applying patch from recorded base commit`);
+            }
+            await exec.exec("git", ["reset", "--hard", recordedBaseCommit], baseGitOpts);
+            core.info(`Reset branch to recorded base_commit before patch apply: ${recordedBaseCommit}`);
+          } catch (baseCommitError) {
+            core.warning(`Unable to use recorded base_commit ${recordedBaseCommit}; applying patch on current branch HEAD: ${getErrorMessage(baseCommitError)}`);
+          }
+        }
+      }
+
       if (hasBundleFile) {
         // Bundle transport: fetch commits directly from the bundle file.
         // This preserves merge commit topology and per-commit metadata.

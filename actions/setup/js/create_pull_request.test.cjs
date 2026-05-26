@@ -2365,6 +2365,22 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     return false;
   }
 
+  it("should create the PR branch from base_commit before applying the patch when available", async () => {
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["cat-file", "-e", MOCK_BASE_COMMIT_SHA]);
+    const checkoutWithBaseCommit = global.exec.exec.mock.calls.find(([cmd, args]) => cmd === "git" && Array.isArray(args) && args[0] === "checkout" && args[1] === "-b" && args[3] === MOCK_BASE_COMMIT_SHA);
+    expect(checkoutWithBaseCommit).toBeTruthy();
+  });
+
   it("should fall back to original base commit when git am --3way fails with merge conflicts", async () => {
     let primaryAmAttempted = false;
     global.exec = {

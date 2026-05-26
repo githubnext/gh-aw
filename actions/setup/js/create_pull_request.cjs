@@ -1501,9 +1501,25 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
       }
 
       // Handle branch creation/checkout
-      core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
-      await exec.exec(`git checkout -b ${branchName}`);
-      core.info(`Created new branch from base: ${branchName}`);
+      let branchBaseRef = baseBranch;
+      const recordedBaseCommit = pullRequestItem.base_commit;
+      if (recordedBaseCommit) {
+        core.info(`Using base_commit from safe output entry for patch apply: ${recordedBaseCommit}`);
+        try {
+          try {
+            await exec.exec("git", ["fetch", "origin", recordedBaseCommit, "--depth=1"]);
+          } catch (fetchError) {
+            core.info(`Note: could not fetch base commit ${recordedBaseCommit} explicitly (${fetchError instanceof Error ? fetchError.message : String(fetchError)}); will verify local availability next`);
+          }
+          await exec.exec("git", ["cat-file", "-e", recordedBaseCommit]);
+          branchBaseRef = recordedBaseCommit;
+        } catch (baseCommitError) {
+          core.warning(`Recorded base_commit ${recordedBaseCommit} is not available in this checkout (${baseCommitError instanceof Error ? baseCommitError.message : String(baseCommitError)}); falling back to ${baseBranch}`);
+        }
+      }
+      core.info(`Branch should not exist locally, creating new branch from base: ${branchName} (${branchBaseRef})`);
+      await exec.exec("git", ["checkout", "-b", branchName, branchBaseRef]);
+      core.info(`Created new branch from base: ${branchName} (${branchBaseRef})`);
 
       // Apply the patch using git CLI (skip if empty)
       if (!isEmpty) {
