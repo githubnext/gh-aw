@@ -257,6 +257,8 @@ async function findExistingFailureIssue(options) {
   const { owner, repo, issueTitle, workflowId, branch, pullRequestNumber, failureCategories } = options;
   const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows in:title "${issueTitle}"`;
   const perPage = 100;
+  /** @type {{number: number, html_url: string} | null} */
+  let fallbackTitleMatch = null;
 
   for (let page = 1; ; page += 1) {
     const searchResult = await github.rest.search.issuesAndPullRequests({
@@ -266,6 +268,13 @@ async function findExistingFailureIssue(options) {
     });
 
     for (const item of searchResult.data.items) {
+      if (!fallbackTitleMatch && item.title === issueTitle) {
+        fallbackTitleMatch = {
+          number: item.number,
+          html_url: item.html_url,
+        };
+      }
+
       let body = typeof item.body === "string" ? item.body : "";
       if (!body) {
         const issueResult = await github.rest.issues.get({
@@ -296,7 +305,7 @@ async function findExistingFailureIssue(options) {
     }
   }
 
-  return null;
+  return fallbackTitleMatch;
 }
 
 /**

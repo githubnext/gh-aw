@@ -327,11 +327,50 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).not.toHaveBeenCalled();
     });
 
-    it("creates a new issue when an open issue with the same title has a different branch or category", async () => {
-      const createCommentMock = vi.fn();
-      const createIssueMock = vi.fn(async ({ body }) => ({
-        data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123", body },
-      }));
+    it("adds a comment when an open issue has the exact failure title even without reusable metadata", async () => {
+      const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
+      const createIssueMock = vi.fn();
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return {
+                data: {
+                  total_count: 1,
+                  items: [
+                    {
+                      number: 42,
+                      title: "[aw] Test Workflow failed",
+                      html_url: "https://github.com/owner/repo/issues/42",
+                      body: "> Generated from an older reporter run without failure metadata",
+                    },
+                  ],
+                },
+              };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(createCommentMock).toHaveBeenCalledOnce();
+      expect(createIssueMock).not.toHaveBeenCalled();
+    });
+
+    it("adds a comment when an open issue has the same title but different metadata", async () => {
+      const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
+      const createIssueMock = vi.fn();
 
       global.github = {
         rest: {
@@ -346,11 +385,13 @@ describe("handle_agent_failure", () => {
                   items: [
                     {
                       number: 42,
+                      title: "[aw] Test Workflow failed",
                       html_url: "https://github.com/owner/repo/issues/42",
                       body: buildExistingIssueBody({ branch: "feature/other", categories: ["missing_safe_outputs"] }),
                     },
                     {
                       number: 43,
+                      title: "[aw] Test Workflow failed",
                       html_url: "https://github.com/owner/repo/issues/43",
                       body: buildExistingIssueBody({ branch: "feature/current", categories: ["agent_failure"] }),
                     },
@@ -370,11 +411,8 @@ describe("handle_agent_failure", () => {
 
       await main();
 
-      expect(createCommentMock).not.toHaveBeenCalled();
-      expect(createIssueMock).toHaveBeenCalledOnce();
-      expect(createIssueMock.mock.calls[0][0].body).toContain("gh-aw-failure-issue: true");
-      expect(createIssueMock.mock.calls[0][0].body).toContain("branch: feature/current");
-      expect(createIssueMock.mock.calls[0][0].body).toContain("failure_categories: missing_safe_outputs");
+      expect(createCommentMock).toHaveBeenCalledOnce();
+      expect(createIssueMock).not.toHaveBeenCalled();
     });
 
     it("creates a new issue instead of commenting on an expired issue", async () => {
@@ -480,11 +518,9 @@ describe("handle_agent_failure", () => {
       expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
     });
 
-    it("creates a new issue when the pull request metadata does not match exactly", async () => {
-      const createCommentMock = vi.fn();
-      const createIssueMock = vi.fn(async ({ body }) => ({
-        data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123", body },
-      }));
+    it("adds a comment when the pull request metadata differs but the open issue title matches", async () => {
+      const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
+      const createIssueMock = vi.fn();
 
       global.github = {
         rest: {
@@ -504,6 +540,7 @@ describe("handle_agent_failure", () => {
                   items: [
                     {
                       number: 42,
+                      title: "[aw] Test Workflow failed",
                       html_url: "https://github.com/owner/repo/issues/42",
                       body: buildExistingIssueBody({
                         branch: "feature/current",
@@ -536,9 +573,8 @@ describe("handle_agent_failure", () => {
 
       await main();
 
-      expect(createCommentMock).not.toHaveBeenCalled();
-      expect(createIssueMock).toHaveBeenCalledOnce();
-      expect(createIssueMock.mock.calls[0][0].body).toContain("pull_request: 123");
+      expect(createCommentMock).toHaveBeenCalledOnce();
+      expect(createIssueMock).not.toHaveBeenCalled();
     });
   });
 
