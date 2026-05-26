@@ -229,4 +229,3 @@ func formatTokens(tokens int) string {
 	}
 	return fmt.Sprintf("%.1fM", float64(tokens)/1000000)
 }
-

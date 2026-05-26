@@ -45,18 +45,18 @@ type OutcomeReport struct {
 
 // OutcomeSummary aggregates outcomes across multiple safe output items.
 type OutcomeSummary struct {
-	Total                  int     `json:"total" console:"header:Total"`
-	Accepted               int     `json:"accepted" console:"header:Accepted"`
-	Rejected               int     `json:"rejected" console:"header:Rejected"`
-	Ignored                int     `json:"ignored" console:"header:Ignored"`
-	Pending                int     `json:"pending" console:"header:Pending"`
-	Lifecycle              int     `json:"lifecycle" console:"header:Lifecycle"`
-	Errors                 int     `json:"errors" console:"header:Errors"`
-	ZeroTouch              int     `json:"zero_touch" console:"header:Zero-touch"`
-	AcceptanceRate         float64 `json:"acceptance_rate" console:"header:Acceptance Rate"`
-	WasteRate              float64 `json:"waste_rate" console:"header:Waste Rate"`
-	ZeroTouchRate          float64 `json:"zero_touch_rate" console:"header:Zero-touch Rate"`
-	MedianTimeToOutcome    float64 `json:"median_time_to_outcome_hours,omitempty"`
+	Total               int     `json:"total" console:"header:Total"`
+	Accepted            int     `json:"accepted" console:"header:Accepted"`
+	Rejected            int     `json:"rejected" console:"header:Rejected"`
+	Ignored             int     `json:"ignored" console:"header:Ignored"`
+	Pending             int     `json:"pending" console:"header:Pending"`
+	Lifecycle           int     `json:"lifecycle" console:"header:Lifecycle"`
+	Errors              int     `json:"errors" console:"header:Errors"`
+	ZeroTouch           int     `json:"zero_touch" console:"header:Zero-touch"`
+	AcceptanceRate      float64 `json:"acceptance_rate" console:"header:Acceptance Rate"`
+	WasteRate           float64 `json:"waste_rate" console:"header:Waste Rate"`
+	ZeroTouchRate       float64 `json:"zero_touch_rate" console:"header:Zero-touch Rate"`
+	MedianTimeToOutcome float64 `json:"median_time_to_outcome_hours,omitempty"`
 }
 
 // outcomeEvaluator is a function that evaluates one safe output item.

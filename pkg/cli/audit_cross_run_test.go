@@ -642,14 +642,14 @@ func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
 			UniqueDomains:   1,
 		},
 		MetricsTrend: MetricsTrendData{
-			TotalTokens:  30000,
-			AvgTokens:    15000,
-			MinTokens:    10000,
-			MaxTokens:    20000,
-			TotalTurns:   15,
-			MaxTurns:     10,
-			AvgTurns:     7.5,
-			TokenSpikes:  []int64{200},
+			TotalTokens: 30000,
+			AvgTokens:   15000,
+			MinTokens:   10000,
+			MaxTokens:   20000,
+			TotalTurns:  15,
+			MaxTurns:    10,
+			AvgTurns:    7.5,
+			TokenSpikes: []int64{200},
 		},
 		MCPHealth: []MCPServerCrossRunHealth{
 			{
@@ -747,8 +747,8 @@ func TestBuildDrain3InsightsFromCrossRunInputs_WithInputs(t *testing.T) {
 			WorkflowName: "test-workflow",
 			Conclusion:   "success",
 			Metrics: LogMetrics{
-				Turns:         5,
-				TokenUsage:    1000,
+				Turns:      5,
+				TokenUsage: 1000,
 			},
 			ErrorCount: 0,
 		},
@@ -757,8 +757,8 @@ func TestBuildDrain3InsightsFromCrossRunInputs_WithInputs(t *testing.T) {
 			WorkflowName: "test-workflow",
 			Conclusion:   "failure",
 			Metrics: LogMetrics{
-				Turns:         8,
-				TokenUsage:    2000,
+				Turns:      8,
+				TokenUsage: 2000,
 			},
 			ErrorCount: 2,
 			MCPFailures: []MCPFailureReport{
@@ -772,12 +772,12 @@ func TestBuildDrain3InsightsFromCrossRunInputs_WithInputs(t *testing.T) {
 	for _, in := range inputs {
 		runs = append(runs, ProcessedRun{
 			Run: WorkflowRun{
-				DatabaseID:    in.RunID,
-				WorkflowName:  in.WorkflowName,
-				Conclusion:    in.Conclusion,
-				Turns:         in.Metrics.Turns,
-				TokenUsage:    in.Metrics.TokenUsage,
-				ErrorCount:    in.ErrorCount,
+				DatabaseID:   in.RunID,
+				WorkflowName: in.WorkflowName,
+				Conclusion:   in.Conclusion,
+				Turns:        in.Metrics.Turns,
+				TokenUsage:   in.Metrics.TokenUsage,
+				ErrorCount:   in.ErrorCount,
 			},
 			MCPFailures: in.MCPFailures,
 		})

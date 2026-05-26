@@ -285,10 +285,10 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 
 	// Build metrics
 	metricsData := MetricsData{
-		TokenUsage:    run.TokenUsage,
-		Turns:         run.Turns,
-		ErrorCount:    run.ErrorCount,
-		WarningCount:  run.WarningCount,
+		TokenUsage:   run.TokenUsage,
+		Turns:        run.Turns,
+		ErrorCount:   run.ErrorCount,
+		WarningCount: run.WarningCount,
 	}
 
 	needsFallbackMetrics := metricsData.TokenUsage == 0 || metricsData.Turns == 0

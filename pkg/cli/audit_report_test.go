@@ -21,22 +21,22 @@ import (
 // createTestProcessedRun creates a test ProcessedRun with customizable parameters
 func createTestProcessedRun(opts ...func(*ProcessedRun)) ProcessedRun {
 	run := WorkflowRun{
-		DatabaseID:    123456,
-		WorkflowName:  "Test Workflow",
-		Status:        "completed",
-		Conclusion:    "success",
-		CreatedAt:     time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
-		StartedAt:     time.Date(2024, 1, 1, 10, 0, 30, 0, time.UTC),
-		UpdatedAt:     time.Date(2024, 1, 1, 10, 5, 0, 0, time.UTC),
-		Duration:      4*time.Minute + 30*time.Second,
-		Event:         "push",
-		HeadBranch:    "main",
-		URL:           "https://github.com/org/repo/actions/runs/123456",
-		TokenUsage:    1500,
-		Turns:         5,
-		ErrorCount:    0,
-		WarningCount:  0,
-		LogsPath:      "/tmp/test-logs",
+		DatabaseID:   123456,
+		WorkflowName: "Test Workflow",
+		Status:       "completed",
+		Conclusion:   "success",
+		CreatedAt:    time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
+		StartedAt:    time.Date(2024, 1, 1, 10, 0, 30, 0, time.UTC),
+		UpdatedAt:    time.Date(2024, 1, 1, 10, 5, 0, 0, time.UTC),
+		Duration:     4*time.Minute + 30*time.Second,
+		Event:        "push",
+		HeadBranch:   "main",
+		URL:          "https://github.com/org/repo/actions/runs/123456",
+		TokenUsage:   1500,
+		Turns:        5,
+		ErrorCount:   0,
+		WarningCount: 0,
+		LogsPath:     "/tmp/test-logs",
 	}
 
 	processedRun := ProcessedRun{
@@ -110,10 +110,10 @@ func TestGenerateFindings(t *testing.T) {
 				return pr
 			}(),
 			metrics: MetricsData{
-				TokenUsage:    1000,
-				Turns:         3,
-				ErrorCount:    0,
-				WarningCount:  0,
+				TokenUsage:   1000,
+				Turns:        3,
+				ErrorCount:   0,
+				WarningCount: 0,
 			},
 			errors:        []ErrorInfo{},
 			expectedCount: 1, // Should have success finding
@@ -130,10 +130,10 @@ func TestGenerateFindings(t *testing.T) {
 				return pr
 			}(),
 			metrics: MetricsData{
-				TokenUsage:    1000,
-				Turns:         3,
-				ErrorCount:    2,
-				WarningCount:  0,
+				TokenUsage:   1000,
+				Turns:        3,
+				ErrorCount:   2,
+				WarningCount: 0,
 			},
 			errors:        []ErrorInfo{{Type: "error", Message: "Test error"}},
 			expectedCount: 1, // Should have failure finding
@@ -627,22 +627,22 @@ func TestBuildAuditDataComplete(t *testing.T) {
 
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
-			DatabaseID:    12345,
-			WorkflowName:  "Complete Test Workflow",
-			Status:        "completed",
-			Conclusion:    "failure",
-			CreatedAt:     time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
-			StartedAt:     time.Date(2024, 1, 1, 10, 0, 30, 0, time.UTC),
-			UpdatedAt:     time.Date(2024, 1, 1, 10, 10, 0, 0, time.UTC),
-			Duration:      9*time.Minute + 30*time.Second,
-			Event:         "pull_request",
-			HeadBranch:    "feature-branch",
-			URL:           "https://github.com/test/repo/actions/runs/12345",
-			TokenUsage:    25000,
-			Turns:         8,
-			ErrorCount:    3,
-			WarningCount:  2,
-			LogsPath:      tmpDir,
+			DatabaseID:   12345,
+			WorkflowName: "Complete Test Workflow",
+			Status:       "completed",
+			Conclusion:   "failure",
+			CreatedAt:    time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
+			StartedAt:    time.Date(2024, 1, 1, 10, 0, 30, 0, time.UTC),
+			UpdatedAt:    time.Date(2024, 1, 1, 10, 10, 0, 0, time.UTC),
+			Duration:     9*time.Minute + 30*time.Second,
+			Event:        "pull_request",
+			HeadBranch:   "feature-branch",
+			URL:          "https://github.com/test/repo/actions/runs/12345",
+			TokenUsage:   25000,
+			Turns:        8,
+			ErrorCount:   3,
+			WarningCount: 2,
+			LogsPath:     tmpDir,
 		},
 		JobDetails: []JobInfoWithDuration{
 			{JobInfo: JobInfo{Name: "build", Status: "completed", Conclusion: "success"}, Duration: 2 * time.Minute},
@@ -674,8 +674,8 @@ func TestBuildAuditDataComplete(t *testing.T) {
 	}
 
 	metrics := workflow.LogMetrics{
-		TokenUsage:    25000,
-		Turns:         8,
+		TokenUsage: 25000,
+		Turns:      8,
 		ToolCalls: []workflow.ToolCallInfo{
 			{Name: "bash", CallCount: 15, MaxInputSize: 500, MaxOutputSize: 2000, MaxDuration: 5 * time.Second},
 			{Name: "github_issue_read", CallCount: 8, MaxInputSize: 100, MaxOutputSize: 5000, MaxDuration: 2 * time.Second},
@@ -842,10 +842,10 @@ func TestRenderJSONComplete(t *testing.T) {
 			URL:          "https://github.com/test/repo/actions/runs/99999",
 		},
 		Metrics: MetricsData{
-			TokenUsage:    5000,
-			Turns:         4,
-			ErrorCount:    1,
-			WarningCount:  2,
+			TokenUsage:   5000,
+			Turns:        4,
+			ErrorCount:   1,
+			WarningCount: 2,
 		},
 		KeyFindings: []Finding{
 			{Category: "success", Severity: "info", Title: "Test Finding", Description: "Test description"},
@@ -978,8 +978,8 @@ func TestFindingSeverityOrdering(t *testing.T) {
 	}
 
 	metrics := MetricsData{
-		ErrorCount:    5,
-		Turns:         15,  // Many turns
+		ErrorCount: 5,
+		Turns:      15, // Many turns
 	}
 
 	errors := []ErrorInfo{
@@ -1025,8 +1025,7 @@ func TestRecommendationPriorityOrdering(t *testing.T) {
 		},
 	}
 
-	metrics := MetricsData{
-	}
+	metrics := MetricsData{}
 
 	findings := []Finding{
 		{Category: "error", Severity: "critical", Title: "Critical"},

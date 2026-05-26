@@ -164,7 +164,7 @@ func TestRecommendationsGeneration(t *testing.T) {
 				Conclusion: "success",
 			},
 			metrics: MetricsData{
-				Turns:         15,
+				Turns: 15,
 			},
 			findings: []Finding{
 				{Severity: "high", Category: "cost", Title: "High Cost"},
@@ -321,24 +321,24 @@ func TestPerformanceMetricsGeneration(t *testing.T) {
 func TestAuditDataJSONStructure(t *testing.T) {
 	// Create comprehensive audit data
 	run := WorkflowRun{
-		DatabaseID:    123456,
-		WorkflowName:  "Test Workflow",
-		Status:        "completed",
-		Conclusion:    "failure",
-		CreatedAt:     time.Now(),
-		Event:         "push",
-		HeadBranch:    "main",
-		URL:           "https://github.com/org/repo/actions/runs/123456",
-		TokenUsage:    5000,
-		Turns:         8,
-		ErrorCount:    2,
-		WarningCount:  1,
-		Duration:      5 * time.Minute,
+		DatabaseID:   123456,
+		WorkflowName: "Test Workflow",
+		Status:       "completed",
+		Conclusion:   "failure",
+		CreatedAt:    time.Now(),
+		Event:        "push",
+		HeadBranch:   "main",
+		URL:          "https://github.com/org/repo/actions/runs/123456",
+		TokenUsage:   5000,
+		Turns:        8,
+		ErrorCount:   2,
+		WarningCount: 1,
+		Duration:     5 * time.Minute,
 	}
 
 	metrics := LogMetrics{
-		TokenUsage:    5000,
-		Turns:         8,
+		TokenUsage: 5000,
+		Turns:      8,
 		ToolCalls: []workflow.ToolCallInfo{
 			{Name: "bash", CallCount: 5, MaxDuration: 2 * time.Second},
 		},
