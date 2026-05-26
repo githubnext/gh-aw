@@ -272,7 +272,6 @@ async function findExistingFailureIssue(options) {
   const escapedWorkflowId = escapeGitHubSearchPhrase(workflowId);
   const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows ` + `"gh-aw-agentic-workflow:" "workflow_id: ${escapedWorkflowId}" in:body`;
   const perPage = 100;
-
   for (let page = 1; ; page += 1) {
     const searchResult = await github.rest.search.issuesAndPullRequests({
       q: searchQuery,
