@@ -1346,17 +1346,12 @@ index 0000000..abc1234
         const module = await loadModule();
         const handler = await module.main({});
         // message.branch contains shell metacharacters; branchName from the GitHub API is "feature-branch"
-        const result = await handler(
-          { branch: "feature-branch; rm -rf /", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 },
-          {},
-        );
+        const result = await handler({ branch: "feature-branch; rm -rf /", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(true);
 
         // Bundle fetch must use the sanitized API branch name, not the agent-supplied message.branch
-        const bundleFetchCall = mockExec.getExecOutput.mock.calls.find(
-          ([, args, opts]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && opts && opts.ignoreReturnCode,
-        );
+        const bundleFetchCall = mockExec.getExecOutput.mock.calls.find(([, args, opts]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && opts && opts.ignoreReturnCode);
         expect(bundleFetchCall).toBeDefined();
         // Refspec must use the sanitized name "feature-branch", not "feature-branch; rm -rf /"
         expect(bundleFetchCall[1][2]).toMatch(/^refs\/heads\/feature-branch:/);
@@ -1458,17 +1453,13 @@ index 0000000..abc1234
         expect(result.success).toBe(true);
 
         // Should have detected the merge commit count with the correct range
-        const mergeCountCall = mockExec.getExecOutput.mock.calls.find(
-          ([, args]) => Array.isArray(args) && args[0] === "rev-list" && args[1] === "--merges" && args[2] === "--count",
-        );
+        const mergeCountCall = mockExec.getExecOutput.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "rev-list" && args[1] === "--merges" && args[2] === "--count");
         expect(mergeCountCall).toBeDefined();
         // Verify the range parameter: squashBase (= remoteHeadBeforePatch = "remote-head") to HEAD
         expect(mergeCountCall[1]).toEqual(["rev-list", "--merges", "--count", "remote-head..HEAD"]);
 
         // Verify only the first non-merge commit message is fetched (--max-count=1)
-        const firstNonMergeCall = mockExec.getExecOutput.mock.calls.find(
-          ([, args]) => Array.isArray(args) && args[0] === "log" && args.includes("--no-merges"),
-        );
+        const firstNonMergeCall = mockExec.getExecOutput.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "log" && args.includes("--no-merges"));
         expect(firstNonMergeCall).toBeDefined();
         expect(firstNonMergeCall[1]).toContain("--max-count=1");
 
@@ -1476,11 +1467,7 @@ index 0000000..abc1234
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--soft", "remote-head"], expect.any(Object));
 
         // Should have used the first non-merge commit's message for the squash commit
-        expect(mockExec.exec).toHaveBeenCalledWith(
-          "git",
-          ["commit", "--allow-empty", "--no-verify", "-m", "Fix typo in README"],
-          expect.any(Object),
-        );
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "--allow-empty", "--no-verify", "-m", "Fix typo in README"], expect.any(Object));
 
         // pushSignedCommits should still be called after linearization
         expect(pushSignedSpy).toHaveBeenCalled();
@@ -1538,11 +1525,7 @@ index 0000000..abc1234
         expect(result.success).toBe(true);
 
         // Should have fallen back to the merge commit's message
-        expect(mockExec.exec).toHaveBeenCalledWith(
-          "git",
-          ["commit", "--allow-empty", "--no-verify", "-m", "Merge branch 'main' into feature-branch"],
-          expect.any(Object),
-        );
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "--allow-empty", "--no-verify", "-m", "Merge branch 'main' into feature-branch"], expect.any(Object));
       } finally {
         pushSignedSpy.mockRestore();
       }

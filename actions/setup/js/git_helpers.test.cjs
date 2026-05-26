@@ -471,9 +471,7 @@ describe("git_helpers.cjs", () => {
         exec: vi.fn(),
       };
 
-      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(
-        "Could not resolve current HEAD before linearizing range",
-      );
+      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow("Could not resolve current HEAD before linearizing range");
       expect(execApi.exec).not.toHaveBeenCalled();
     });
 
@@ -482,9 +480,7 @@ describe("git_helpers.cjs", () => {
       const warning = mockCoreWarning();
       const execApi = makeExecApi({ stagedFiles: "" });
 
-      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(
-        /Failed to linearize origin\/main\.\.HEAD/,
-      );
+      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(/Failed to linearize origin\/main\.\.HEAD/);
 
       // Should have rolled back to the original HEAD
       expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--hard", ORIGINAL_HEAD]);
@@ -505,9 +501,7 @@ describe("git_helpers.cjs", () => {
         }),
       };
 
-      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(
-        /Failed to linearize origin\/main\.\.HEAD.*reset failed/s,
-      );
+      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(/Failed to linearize origin\/main\.\.HEAD.*reset failed/s);
 
       // Should have attempted rollback (reset --hard)
       expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--hard", ORIGINAL_HEAD]);
@@ -529,9 +523,7 @@ describe("git_helpers.cjs", () => {
         }),
       };
 
-      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(
-        /Failed to linearize origin\/main\.\.HEAD.*commit failed/s,
-      );
+      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(/Failed to linearize origin\/main\.\.HEAD.*commit failed/s);
 
       expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--hard", ORIGINAL_HEAD]);
       expect(warning).toHaveBeenCalledWith(expect.stringContaining(`restored original HEAD ${ORIGINAL_HEAD}`));

@@ -242,11 +242,7 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
     await execApi.exec("git", ["reset", "--soft", baseRef], ...execArgs);
     const { stdout: stagedFilesOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only"], ...execArgs);
     if (!stagedFilesOut.trim()) {
-      throw new Error(
-        `No staged changes found after soft reset to ${baseRef}. ` +
-          `The commit range may contain only no-op or empty commits. ` +
-          `Ensure your commits contain actual file changes before pushing.`,
-      );
+      throw new Error(`No staged changes found after soft reset to ${baseRef}. ` + `The commit range may contain only no-op or empty commits. ` + `Ensure your commits contain actual file changes before pushing.`);
     }
     await execApi.exec("git", ["commit", ...commitFlags, "-m", commitMessage], ...execArgs);
     const { stdout: newHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], ...execArgs);

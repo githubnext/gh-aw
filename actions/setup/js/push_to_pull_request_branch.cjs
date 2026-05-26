@@ -927,17 +927,13 @@ async function main(config = {}) {
             core.warning(
               `push_to_pull_request_branch: detected ${mergeCount} merge commit(s) in range ${squashBase}..HEAD. ` +
                 `Merge commits cannot be pushed as signed commits. Squashing the range into a single regular commit to preserve content. ` +
-                `To avoid this, use 'git rebase' instead of 'git merge' when updating the PR branch.`,
+                `To avoid this, use 'git rebase' instead of 'git merge' when updating the PR branch.`
             );
             // Prefer the message from the first non-merge commit in the range — it carries
             // the most meaningful description of the actual work.  Fall back to the last
             // commit's message (which may be the merge commit itself) if no regular commit
             // exists, and finally to a generic label.
-            const { stdout: firstNonMergeOut } = await exec.getExecOutput(
-              "git",
-              ["log", "--no-merges", "--max-count=1", "--format=%B", "--reverse", `${squashBase}..HEAD`],
-              baseGitOpts,
-            );
+            const { stdout: firstNonMergeOut } = await exec.getExecOutput("git", ["log", "--no-merges", "--max-count=1", "--format=%B", "--reverse", `${squashBase}..HEAD`], baseGitOpts);
             let squashMessage = firstNonMergeOut.trim();
             if (!squashMessage) {
               const { stdout: lastMsgOut } = await exec.getExecOutput("git", ["log", "-1", "--format=%B"], baseGitOpts);
