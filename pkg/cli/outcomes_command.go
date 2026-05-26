@@ -166,7 +166,7 @@ func RunOutcomes(config OutcomesConfig) error {
 
 	// Run the evaluations
 	reports := EvaluateOutcomes(items, repo)
-	outcomeSummary := ComputeOutcomeSummary(reports, 0) // TODO: pass actual cost when available
+	outcomeSummary := ComputeOutcomeSummary(reports)
 
 	// Write outcome JSONL if requested (for OTLP export or downstream processing).
 	// The --outcomes-dir flag takes precedence over the GH_AW_OUTCOMES_DIR env var.

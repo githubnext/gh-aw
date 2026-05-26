@@ -495,7 +495,6 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 
 	// Update run with metrics
 	run.TokenUsage = metrics.TokenUsage
-	run.EstimatedCost = metrics.EstimatedCost
 	run.Turns = metrics.Turns
 	run.ErrorCount = 0
 	run.WarningCount = 0
