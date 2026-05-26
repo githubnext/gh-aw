@@ -1,10 +1,10 @@
-// This file implements the "replay" command, which downloads artifacts for a
+// This file implements the "view" command, which downloads artifacts for a
 // workflow run (reusing the helpers from audit/logs) and renders a unified
 // MCP Gateway + AWF Firewall + Agent event timeline directly in the console.
 //
 // Usage:
 //
-//	gh aw replay <run-id-or-url>
+//	gh aw view <run-id-or-url>
 //
 // The output simulates the chronological activity log that would be visible
 // while observing a Copilot CLI session, but is produced entirely offline
@@ -27,15 +27,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var replayLog = logger.New("cli:replay")
+var viewLog = logger.New("cli:view")
 
-// NewReplayCommand creates the replay command.
-func NewReplayCommand() *cobra.Command {
+// NewViewCommand creates the view command.
+func NewViewCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "replay <run-id-or-url>",
-		Short: "Render unified timeline logs for a workflow run in the console",
+		Use:   "view <run-id-or-url>",
+		Short: "Render unified timeline and safe outputs for a workflow run",
 		Long: `Download artifacts for a workflow run and render a unified, chronologically
-ordered activity timeline in the console.
+ordered activity timeline together with any safe outputs in the console.
 
 The timeline merges events from three sources:
   - MCP Gateway logs  (gateway.jsonl / rpc-messages.jsonl)
@@ -43,7 +43,9 @@ The timeline merges events from three sources:
   - Agent session logs (events.jsonl)
 
 The result simulates what you would see when watching a Copilot CLI session
-live, providing a readable, complete log of all agentic activity.
+live, providing a readable, complete log of all agentic activity, followed
+by any safe outputs created during the run (e.g. issues, pull requests,
+comments) and a link to the GitHub Actions workflow run page.
 
 The run argument accepts the same formats as the "audit" command:
   - A numeric run ID                     (e.g., 1234567890)
@@ -55,11 +57,11 @@ invocations for the same run ID will read from the local cache without
 re-downloading.
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` replay 1234567890
-  ` + string(constants.CLIExtensionPrefix) + ` replay https://github.com/owner/repo/actions/runs/1234567890
-  ` + string(constants.CLIExtensionPrefix) + ` replay 1234567890 --repo owner/repo
-  ` + string(constants.CLIExtensionPrefix) + ` replay 1234567890 -o ./my-logs
-  ` + string(constants.CLIExtensionPrefix) + ` replay 1234567890 -v`,
+  ` + string(constants.CLIExtensionPrefix) + ` view 1234567890
+  ` + string(constants.CLIExtensionPrefix) + ` view https://github.com/owner/repo/actions/runs/1234567890
+  ` + string(constants.CLIExtensionPrefix) + ` view 1234567890 --repo owner/repo
+  ` + string(constants.CLIExtensionPrefix) + ` view 1234567890 -o ./my-logs
+  ` + string(constants.CLIExtensionPrefix) + ` view 1234567890 -v`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -87,7 +89,7 @@ Examples:
 				outputDir = defaultLogsOutputDir
 			}
 
-			return ReplayWorkflowRun(cmd.Context(), components.Number, ReplayOptions{
+			return ViewWorkflowRun(cmd.Context(), components.Number, ViewOptions{
 				Owner:     components.Owner,
 				Repo:      components.Repo,
 				Hostname:  components.Host,
@@ -104,8 +106,8 @@ Examples:
 	return cmd
 }
 
-// ReplayOptions holds configuration for the replay command.
-type ReplayOptions struct {
+// ViewOptions holds configuration for the view command.
+type ViewOptions struct {
 	Owner     string
 	Repo      string
 	Hostname  string
@@ -113,17 +115,17 @@ type ReplayOptions struct {
 	Verbose   bool
 }
 
-// ReplayWorkflowRun downloads artifacts for the given run (if not already cached)
-// and renders the unified event timeline to stdout.
-func ReplayWorkflowRun(ctx context.Context, runID int64, opts ReplayOptions) error {
-	replayLog.Printf("Starting replay for run %d (owner=%s, repo=%s, hostname=%s)", runID, opts.Owner, opts.Repo, opts.Hostname)
+// ViewWorkflowRun downloads artifacts for the given run (if not already cached)
+// and renders the unified event timeline, safe outputs, and a link to the run page.
+func ViewWorkflowRun(ctx context.Context, runID int64, opts ViewOptions) error {
+	viewLog.Printf("Starting view for run %d (owner=%s, repo=%s, hostname=%s)", runID, opts.Owner, opts.Repo, opts.Hostname)
 
 	// Auto-detect GHES host from git remote when not explicitly provided.
 	hostname := opts.Hostname
 	if hostname == "" {
 		hostname = getHostFromOriginRemote()
 		if hostname != "github.com" {
-			replayLog.Printf("Auto-detected GHES host from git remote: %s", hostname)
+			viewLog.Printf("Auto-detected GHES host from git remote: %s", hostname)
 		}
 	}
 
@@ -133,7 +135,7 @@ func ReplayWorkflowRun(ctx context.Context, runID int64, opts ReplayOptions) err
 	}
 
 	if opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Replaying run %d...", runID)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Viewing run %d...", runID)))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run directory: "+runDir))
 	}
 
@@ -161,13 +163,55 @@ func ReplayWorkflowRun(ctx context.Context, runID int64, opts ReplayOptions) err
 	if len(events) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No timeline events found for run %d.", runID)))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Ensure the workflow has gateway.jsonl, audit.jsonl, or events.jsonl artifacts."))
-		return nil
+	} else {
+		output := renderUnifiedTimelineStream(events)
+		if output != "" {
+			fmt.Print(output)
+		}
 	}
 
-	output := renderUnifiedTimelineStream(events)
-	if output != "" {
-		fmt.Print(output)
+	// Render safe outputs if any were created during the run.
+	renderViewSafeOutputs(runDir)
+
+	// Finish with a link to the GitHub Actions run page.
+	runURL := buildRunHTMLURL(hostname, opts.Owner, opts.Repo, runID)
+	if runURL != "" {
+		fmt.Fprintln(os.Stdout, console.FormatInfoMessage(runURL))
 	}
 
 	return nil
+}
+
+// buildRunHTMLURL constructs the GitHub Actions HTML URL for a workflow run.
+// Returns an empty string when owner or repo are unknown.
+func buildRunHTMLURL(hostname, owner, repo string, runID int64) string {
+	if owner == "" || repo == "" {
+		return ""
+	}
+	if hostname == "" {
+		hostname = "github.com"
+	}
+	return fmt.Sprintf("https://%s/%s/%s/actions/runs/%d", hostname, owner, repo, runID)
+}
+
+// renderViewSafeOutputs reads safe-output-items.jsonl from runDir and prints a
+// human-friendly summary of every item that was created during the run.
+// A missing or empty manifest is silently ignored.
+func renderViewSafeOutputs(runDir string) {
+	items := extractCreatedItemsFromManifest(runDir)
+	if len(items) == 0 {
+		return
+	}
+
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(os.Stdout, console.FormatSectionHeader("Safe Outputs"))
+	for _, item := range items {
+		line := "  " + item.Type
+		if item.URL != "" {
+			line += "  " + item.URL
+		} else if item.Repo != "" && item.Number > 0 {
+			line += fmt.Sprintf("  %s#%d", item.Repo, item.Number)
+		}
+		fmt.Fprintln(os.Stdout, line)
+	}
 }
