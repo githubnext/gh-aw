@@ -339,6 +339,7 @@ jobs:
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/base
             /tmp/gh-aw/.github/agents
+            /tmp/gh-aw/.github/skills
           if-no-files-found: ignore
           retention-days: 1
 
@@ -486,6 +487,10 @@ jobs:
           GH_AW_SUB_AGENT_DIR: ".github/agents"
           GH_AW_SUB_AGENT_EXT: ".agent.md"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh"
+      - name: Restore inline skills from activation artifact
+        env:
+          GH_AW_SKILL_DIR: ".github/skills"
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Sample files and load memory
         run: "mkdir -p /tmp/gh-aw/agent\n# Sample documentation files (eliminates agent exploratory find turns)\nfind docs/src/content/docs \\( -name '*.md' -o -name '*.mdx' \\) | shuf -n 2 > /tmp/gh-aw/agent/doc-samples.txt\n# Sample workflows with messages (pre-compute instead of agent grep)\ngrep -rl \"messages:\" .github/workflows/ --include=\"*.md\" | shuf -n 2 > /tmp/gh-aw/agent/workflow-samples.txt\n# Sample validation files\nfind pkg -name '*validation*.go' | shuf -n 1 > /tmp/gh-aw/agent/validation-sample.txt || echo \"No validation files found\" > /tmp/gh-aw/agent/validation-sample.txt\n# Load historical memory (eliminates agent memory-read turns)\ncat memory/delight/previous-findings.json 2>/dev/null > /tmp/gh-aw/agent/previous-findings.json || echo \"[]\" > /tmp/gh-aw/agent/previous-findings.json\ncat memory/delight/improvement-themes.json 2>/dev/null > /tmp/gh-aw/agent/improvement-themes.json || echo \"[]\" > /tmp/gh-aw/agent/improvement-themes.json\n"
 
