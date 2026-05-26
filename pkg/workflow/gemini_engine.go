@@ -29,7 +29,8 @@ func NewGeminiEngine() *GeminiEngine {
 				WebSearch:        false,
 				NativeAgentFile:  false, // Gemini does not support agent file natively; the compiler prepends the agent file content to prompt.txt
 			},
-			dedicatedLLMGatewayPort: constants.GeminiLLMGatewayPort,
+			defaultJSONMCPConfigPath: "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json",
+			dedicatedLLMGatewayPort:  constants.GeminiLLMGatewayPort,
 		},
 	}
 }

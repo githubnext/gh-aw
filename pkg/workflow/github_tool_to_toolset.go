@@ -24,6 +24,3 @@ func init() {
 	}
 	githubToolToToolsetLog.Printf("Loaded GitHub tool-to-toolset mapping: %d entries", len(GitHubToolToToolsetMap))
 }
-
-// GitHubToolToToolsetMap is the last declaration in this file; ValidateGitHubToolsAgainstToolsets
-// has been moved to tools_validation.go.

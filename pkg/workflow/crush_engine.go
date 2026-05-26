@@ -31,6 +31,7 @@ func NewCrushEngine() *CrushEngine {
 					MaxTurns:       false, // No --max-turns flag in crush run
 					WebSearch:      false, // Has built-in websearch but not exposed via gh-aw neutral tools yet
 				},
+				defaultJSONMCPConfigPath: "/tmp/gh-aw/mcp-config/mcp-servers.json",
 			},
 		},
 	}

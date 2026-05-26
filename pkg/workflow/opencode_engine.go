@@ -30,6 +30,7 @@ func NewOpenCodeEngine() *OpenCodeEngine {
 					MaxTurns:       false,
 					WebSearch:      false,
 				},
+				defaultJSONMCPConfigPath: "/tmp/gh-aw/mcp-config/mcp-servers.json",
 			},
 		},
 	}

@@ -29,7 +29,8 @@ func NewAntigravityEngine() *AntigravityEngine {
 				WebSearch:        false,
 				NativeAgentFile:  false, // Antigravity does not support agent file natively; the compiler prepends the agent file content to prompt.txt
 			},
-			dedicatedLLMGatewayPort: constants.AntigravityLLMGatewayPort,
+			defaultJSONMCPConfigPath: "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json",
+			dedicatedLLMGatewayPort:  constants.AntigravityLLMGatewayPort,
 		},
 	}
 }

@@ -290,12 +290,13 @@ type CodingAgentEngine interface {
 
 // BaseEngine provides common functionality for agentic engines
 type BaseEngine struct {
-	id                      string
-	displayName             string
-	description             string
-	experimental            bool
-	capabilities            EngineCapabilities
-	dedicatedLLMGatewayPort int
+	id                       string
+	displayName              string
+	description              string
+	experimental             bool
+	capabilities             EngineCapabilities
+	defaultJSONMCPConfigPath string
+	dedicatedLLMGatewayPort  int
 }
 
 func (e *BaseEngine) GetID() string {
@@ -401,10 +402,15 @@ func (e *BaseEngine) GetErrorDetectionScriptId() string {
 }
 
 // RenderMCPConfig provides a default no-op implementation for MCP configuration
-// Engines can override this to provide custom MCP server configuration
+// Engines can override this to provide custom MCP server configuration.
+// When defaultJSONMCPConfigPath is set, BaseEngine emits the shared JSON MCP config.
 func (e *BaseEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
-	// Default implementation does nothing - engines that support MCP should override this
-	return nil
+	if e.defaultJSONMCPConfigPath == "" {
+		return nil
+	}
+
+	agenticEngineLog.Printf("Rendering default JSON MCP config for %s: tool_count=%d, mcp_tool_count=%d", e.id, len(tools), len(mcpTools))
+	return renderDefaultJSONMCPConfig(yaml, tools, mcpTools, workflowData, e.defaultJSONMCPConfigPath)
 }
 
 // GetAgentManifestFiles returns nil by default (no engine-specific manifest files).

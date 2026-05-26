@@ -33,7 +33,8 @@ func NewClaudeEngine() *ClaudeEngine {
 				NativeAgentFile:  false, // Claude does not support agent file natively; the compiler prepends the agent file content to prompt.txt
 				BareMode:         true,  // Claude CLI supports --bare
 			},
-			dedicatedLLMGatewayPort: constants.ClaudeLLMGatewayPort,
+			defaultJSONMCPConfigPath: "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json",
+			dedicatedLLMGatewayPort:  constants.ClaudeLLMGatewayPort,
 		},
 	}
 }

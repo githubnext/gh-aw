@@ -25,6 +25,7 @@ import (
 // Handler registry entries live in compiler_safe_outputs_handlers.go.
 
 var compilerSafeOutputsConfigLog = logger.New("workflow:compiler_safe_outputs_config")
+var consolidatedSafeOutputsLog = logger.New("workflow:compiler_safe_outputs_consolidated")
 
 func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs == nil {
