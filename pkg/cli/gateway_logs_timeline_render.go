@@ -26,6 +26,8 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/styles"
+	"github.com/github/gh-aw/pkg/tty"
 )
 
 // timelineEventIcon returns a single Unicode icon for each event kind.
@@ -353,6 +355,18 @@ func renderUnifiedTimelineStream(events []UnifiedTimelineEvent) string {
 		return ""
 	}
 
+	isTerminal := tty.IsStdoutTerminal()
+
+	// streamColor wraps text with a lipgloss/WasmStyle only when output is a TTY so
+	// that piped output stays clean of ANSI escape codes.
+	type styleRenderer interface{ Render(strs ...string) string }
+	streamColor := func(s styleRenderer, text string) string {
+		if isTerminal {
+			return s.Render(text)
+		}
+		return text
+	}
+
 	var sb strings.Builder
 	inTurn := false
 
@@ -365,11 +379,16 @@ func renderUnifiedTimelineStream(events []UnifiedTimelineEvent) string {
 				sb.WriteString("\n")
 			}
 			inTurn = true
-			fmt.Fprintf(&sb, "> Turn %d [%s]\n", evt.TurnIndex, ts)
+			// Turn headers are bold purple (Command), timestamp muted.
+			turnLabel := streamColor(styles.Command, fmt.Sprintf("> Turn %d", evt.TurnIndex))
+			tsLabel := streamColor(styles.LineNumber, "["+ts+"]")
+			fmt.Fprintf(&sb, "%s %s\n", turnLabel, tsLabel)
 
 		case TimelineKindAgentToolStart:
 			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
-			fmt.Fprintf(&sb, "  %s %s\n", timelineEventIcon(TimelineKindAgentToolStart), detail)
+			// Tool start is yellow progress indicator.
+			icon := streamColor(styles.Progress, timelineEventIcon(TimelineKindAgentToolStart))
+			fmt.Fprintf(&sb, "  %s %s\n", icon, detail)
 
 		case TimelineKindAgentToolDone:
 			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
@@ -381,50 +400,66 @@ func renderUnifiedTimelineStream(events []UnifiedTimelineEvent) string {
 					status = "error"
 				}
 			}
-			fmt.Fprintf(&sb, "  %s %s  %s\n", timelineEventIcon(TimelineKindAgentToolDone), detail, status)
+			// Completion icon and status are green on success, red on error.
+			if evt.Success || status == "success" {
+				icon := streamColor(styles.Success, timelineEventIcon(TimelineKindAgentToolDone))
+				statusColored := streamColor(styles.Success, status)
+				fmt.Fprintf(&sb, "  %s %s  %s\n", icon, detail, statusColored)
+			} else {
+				icon := streamColor(styles.Error, timelineEventIcon(TimelineKindAgentToolDone))
+				statusColored := streamColor(styles.Error, status)
+				fmt.Fprintf(&sb, "  %s %s  %s\n", icon, detail, statusColored)
+			}
 
 		case TimelineKindToolCall:
 			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
+			icon := streamColor(styles.ServerName, timelineEventIcon(TimelineKindToolCall))
 			suffix := ""
 			if evt.Duration > 0 {
-				suffix = fmt.Sprintf("  %.0fms", evt.Duration)
+				suffix = "  " + streamColor(styles.LineNumber, fmt.Sprintf("%.0fms", evt.Duration))
 			} else if evt.Error != "" {
-				suffix = "  error: " + stringutil.Truncate(evt.Error, streamMaxAnnotationLen)
+				suffix = "  " + streamColor(styles.Error, "error: "+stringutil.Truncate(evt.Error, streamMaxAnnotationLen))
 			}
-			fmt.Fprintf(&sb, "    %s %s%s\n", timelineEventIcon(TimelineKindToolCall), detail, suffix)
+			fmt.Fprintf(&sb, "    %s %s%s\n", icon, detail, suffix)
 
 		case TimelineKindNetworkAllowed:
 			method := ""
 			if evt.HTTPMethod != "" {
-				method = "  " + evt.HTTPMethod
+				method = "  " + streamColor(styles.LineNumber, evt.HTTPMethod)
 			}
-			fmt.Fprintf(&sb, "    %s %s%s\n", timelineEventIcon(TimelineKindNetworkAllowed), evt.Host, method)
+			icon := streamColor(styles.Info, timelineEventIcon(TimelineKindNetworkAllowed))
+			fmt.Fprintf(&sb, "    %s %s%s\n", icon, evt.Host, method)
 
 		case TimelineKindNetworkBlocked:
 			method := ""
 			if evt.HTTPMethod != "" {
-				method = "  " + evt.HTTPMethod
+				method = "  " + streamColor(styles.LineNumber, evt.HTTPMethod)
 			}
-			fmt.Fprintf(&sb, "    %s %s%s  [blocked]\n", timelineEventIcon(TimelineKindNetworkBlocked), evt.Host, method)
+			icon := streamColor(styles.Error, timelineEventIcon(TimelineKindNetworkBlocked))
+			blocked := streamColor(styles.Error, "[blocked]")
+			fmt.Fprintf(&sb, "    %s %s%s  %s\n", icon, evt.Host, method, blocked)
 
 		case TimelineKindDIFCFiltered:
 			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
+			icon := streamColor(styles.Warning, timelineEventIcon(TimelineKindDIFCFiltered))
 			reason := ""
 			if evt.Reason != "" {
-				reason = "  " + stringutil.Truncate(evt.Reason, streamMaxAnnotationLen)
+				reason = "  " + streamColor(styles.Warning, stringutil.Truncate(evt.Reason, streamMaxAnnotationLen))
 			}
-			fmt.Fprintf(&sb, "    %s %s%s\n", timelineEventIcon(TimelineKindDIFCFiltered), detail, reason)
+			fmt.Fprintf(&sb, "    %s %s%s\n", icon, detail, reason)
 
 		case TimelineKindGuardPolicyBlocked:
 			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
+			icon := streamColor(styles.Error, timelineEventIcon(TimelineKindGuardPolicyBlocked))
 			annotation := evt.Reason
 			if annotation == "" {
 				annotation = evt.Error
 			}
+			annotationStr := ""
 			if annotation != "" {
-				annotation = "  " + stringutil.Truncate(annotation, streamMaxAnnotationLen)
+				annotationStr = "  " + streamColor(styles.Error, stringutil.Truncate(annotation, streamMaxAnnotationLen))
 			}
-			fmt.Fprintf(&sb, "    %s %s%s\n", timelineEventIcon(TimelineKindGuardPolicyBlocked), detail, annotation)
+			fmt.Fprintf(&sb, "    %s %s%s\n", icon, detail, annotationStr)
 
 		default:
 			fmt.Fprintf(&sb, "  · [%s] %s  %s\n", ts, string(evt.Kind), timelineSourceLabel(evt.Source))
