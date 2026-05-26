@@ -868,6 +868,10 @@ async function main(config = {}) {
     // Always require patch content for policy enforcement, even when bundle transport
     // is used for apply-time commit transport.
     const hasBundleFile = !!(bundleFilePath && fs.existsSync(bundleFilePath));
+    core.info(`Transport mode: ${hasBundleFile ? "bundle" : "patch"} (bundle file present: ${hasBundleFile})`);
+    if (bundleFilePath && !hasBundleFile) {
+      core.warning(`Bundle file path was provided but file is not present on disk: ${bundleFilePath}`);
+    }
     const hasPatchFile = !!(patchFilePath && fs.existsSync(patchFilePath));
     if (!hasPatchFile) {
       // If allow-empty is enabled, we can proceed without a patch file
@@ -1505,6 +1509,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
       let branchBaseRef = baseBranch;
       const recordedBaseCommit = normalizeCommitSHA(pullRequestItem.base_commit);
       if (recordedBaseCommit) {
+        core.info(`Patch route base_commit received: ${String(pullRequestItem.base_commit).trim()}`);
         core.info(`Using base_commit from safe output entry for patch apply: ${recordedBaseCommit}`);
         try {
           try {

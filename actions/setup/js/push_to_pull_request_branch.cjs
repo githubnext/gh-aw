@@ -195,6 +195,10 @@ async function main(config = {}) {
     // Check if bundle or patch file exists
     const hasBundleFile = !!(bundleFilePath && fs.existsSync(bundleFilePath));
     const hasPatchFile = !!(patchFilePath && fs.existsSync(patchFilePath));
+    core.info(`Transport mode: ${hasBundleFile ? "bundle" : "patch"} (patch file present: ${hasPatchFile}, bundle file present: ${hasBundleFile})`);
+    if (bundleFilePath && !hasBundleFile) {
+      core.warning(`Bundle file path was provided but file is not present on disk: ${bundleFilePath}`);
+    }
 
     // Always require a patch file for policy enforcement. Bundle is used for apply-time
     // transport, but allowed-files/protected-files checks must run on patch content
@@ -658,6 +662,7 @@ async function main(config = {}) {
         remoteHeadBeforePatch = stdout.trim();
         if (remoteHeadBeforePatch) {
           rangeBaseRef = remoteHeadBeforePatch;
+          core.info(`Remote branch HEAD before apply: ${remoteHeadBeforePatch}`);
         }
       } catch {
         // Non-fatal - extra empty commit will be skipped
@@ -667,6 +672,7 @@ async function main(config = {}) {
       // This avoids applying a patch generated from an older branch tip onto a newer remote tip.
       // If the commit is unavailable (e.g. cross-repo/missing object), continue with current HEAD.
       if (!hasBundleFile && message.base_commit) {
+        core.info(`Patch route base_commit received: ${String(message.base_commit).trim()}`);
         const recordedBaseCommit = normalizeCommitSHA(message.base_commit);
         if (recordedBaseCommit) {
           try {
@@ -740,13 +746,14 @@ async function main(config = {}) {
           // checkouts, merge --ff-only can fail to discover the ancestry even
           // when the bundle tip is based on the current branch tip and the
           // prerequisite exists locally.
+          core.info(`Updating local branch ref refs/heads/${branchName} to ${bundleRef} (expected previous tip: ${remoteHeadBeforePatch || "unknown"})`);
           const updateRefArgs = ["update-ref", `refs/heads/${branchName}`, bundleRef];
           if (remoteHeadBeforePatch) {
             updateRefArgs.push(remoteHeadBeforePatch);
           }
           await exec.exec("git", updateRefArgs, baseGitOpts);
           await exec.exec("git", ["reset", "--hard"], baseGitOpts);
-          core.info("Updated branch to bundle tip");
+          core.info(`Updated branch to bundle tip from ${bundleRef}`);
 
           // Clean up the temporary ref
           try {
@@ -870,6 +877,7 @@ async function main(config = {}) {
           }
         }
       } // end else (patch path)
+      core.info(`Apply transport completed; signed-push base ref: ${rangeBaseRef}`);
 
       // When threat detection produced a warning, create a review PR instead of pushing
       // directly to the existing PR branch. This allows manual review of the changes
