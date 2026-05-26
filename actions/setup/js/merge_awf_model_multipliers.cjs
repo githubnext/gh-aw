@@ -31,6 +31,91 @@ function normalizeMultipliers(rawMultipliers) {
 }
 
 /**
+ * @param {unknown} rawModels
+ * @returns {Array<{alias: string, targets: string[]}>}
+ */
+function normalizeAliasRows(rawModels) {
+  if (!isPlainObject(rawModels)) {
+    return [];
+  }
+
+  /** @type {Array<{alias: string, targets: string[]}>} */
+  const rows = [];
+  for (const [alias, rawTargets] of Object.entries(rawModels)) {
+    if (!Array.isArray(rawTargets)) {
+      continue;
+    }
+    const trimmedTargets = rawTargets.map(target => (typeof target === "string" ? target.trim() : ""));
+    const targets = trimmedTargets.filter(target => target !== "");
+    if (targets.length === 0) {
+      continue;
+    }
+    rows.push({ alias, targets });
+  }
+
+  rows.sort((a, b) => {
+    // Sort the default alias ("") last for readability in step-summary tables.
+    // We substitute it with U+ffff only for comparison; it is a noncharacter and
+    // reliably sorts after typical printable alias strings in localeCompare.
+    const left = a.alias || "\uffff";
+    const right = b.alias || "\uffff";
+    return left.localeCompare(right);
+  });
+  return rows;
+}
+
+/**
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeTableValue(value) {
+  return value.replace(/\|/g, "\\|");
+}
+
+/**
+ * @param {Array<{alias: string, targets: string[]}>} aliasRows
+ * @returns {string}
+ */
+function renderModelAliasSummary(aliasRows) {
+  const lines = [];
+  lines.push("<details>");
+  lines.push(`<summary>AWF model aliases (${aliasRows.length})</summary>`);
+  lines.push("");
+  lines.push("| Alias | Resolution order |");
+  lines.push("|-------|------------------|");
+  for (const row of aliasRows) {
+    const aliasLabel = row.alias === "" ? "(default)" : `\`${escapeTableValue(row.alias)}\``;
+    const resolutionOrder = row.targets.map(target => `\`${escapeTableValue(target)}\``).join(" → ");
+    lines.push(`| ${aliasLabel} | ${resolutionOrder} |`);
+  }
+  lines.push("");
+  lines.push("</details>");
+  lines.push("");
+  return lines.join("\n");
+}
+
+/**
+ * @param {Array<{alias: string, targets: string[]}>} aliasRows
+ * @param {(message: string) => void} warn
+ */
+function writeAliasSummary(aliasRows, warn) {
+  if (aliasRows.length === 0) {
+    return;
+  }
+
+  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+  if (!summaryPath) {
+    return;
+  }
+
+  try {
+    fs.appendFileSync(summaryPath, renderModelAliasSummary(aliasRows), "utf8");
+  } catch (error) {
+    warn(`warning: failed to write AWF model alias summary: ${String(error)}`);
+  }
+}
+
+/**
  * @param {object} options
  * @param {string} options.configPath
  * @param {string} options.multipliersPath
@@ -74,6 +159,7 @@ function mergeModelMultipliers({ configPath, multipliersPath, warn }) {
   }
 
   const apiProxy = isPlainObject(configDoc.apiProxy) ? configDoc.apiProxy : {};
+  const aliasRows = normalizeAliasRows(apiProxy.models);
   if (Object.keys(normalized).length > 0) {
     apiProxy.modelMultipliers = normalized;
   } else {
@@ -82,6 +168,7 @@ function mergeModelMultipliers({ configPath, multipliersPath, warn }) {
   configDoc.apiProxy = apiProxy;
 
   fs.writeFileSync(configPath, JSON.stringify(configDoc), "utf8");
+  writeAliasSummary(aliasRows, warn);
 }
 
 /**
@@ -117,6 +204,9 @@ module.exports = {
   DEFAULT_MODEL_MULTIPLIERS_PATH,
   isPlainObject,
   normalizeMultipliers,
+  normalizeAliasRows,
+  renderModelAliasSummary,
+  writeAliasSummary,
   mergeModelMultipliers,
   main,
 };
