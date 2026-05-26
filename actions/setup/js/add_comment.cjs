@@ -831,6 +831,7 @@ async function main(config = {}) {
       const is404 = error?.status === 404 || errorMessage.includes("404") || normalizedErrorMessage.includes("not found");
       const isLocked =
         error?.status === 423 ||
+        (error?.status === 403 && normalizedErrorMessage.includes("locked")) ||
         normalizedErrorMessage.includes("issue is locked") ||
         normalizedErrorMessage.includes("conversation is locked") ||
         normalizedErrorMessage.includes("resource is locked") ||
