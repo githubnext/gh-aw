@@ -380,7 +380,7 @@ if: github.event.pull_request.draft == false
 
 For conditions based on GitHub search results, use [`skip-if-match:`](#skip-if-match-condition-skip-if-match) or [`skip-if-no-match:`](#skip-if-no-match-condition-skip-if-no-match) in the `on:` section. These accept standard [GitHub search query syntax](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) and produce the same skipped-not-failed behavior.
 
-### Filtering by Repository Access Roles (`on.roles:`, `on.skip-roles`)
+### Filtering by Repository Access Roles (`on.roles:`, `on.skip-roles:`)
 
 Controls who can trigger agentic workflows based on repository permission level. Defaults to `[admin, maintainer, write]`. Use `skip-roles:` to exempt team members from checks that should only apply to external contributors.
 
@@ -550,9 +550,9 @@ on:
     private-key: ${{ secrets.APP_KEY }}
 ```
 
-The `github-app` object accepts `app-id`, `private-key`, and optionally `owner` and `repositories` — the same fields used elsewhere in the framework. The token is minted once in the pre-activation job.
+The `github-app` object accepts `client-id`, `private-key`, and optionally `owner` and `repositories` — the same fields used elsewhere in the framework (`app-id` is a deprecated alias for `client-id`). The token is minted once in the pre-activation job.
 
-Both fields can be defined in a **shared agentic workflow** and are inherited by importers (first-wins). A central CentralRepoOps shared workflow can define the app config once and all importers benefit:
+Both fields can be defined in a **shared agentic workflow** and are inherited by importers (first-wins). A `CentralRepoOps` shared workflow can define the app config once and all importers benefit:
 
 ```yaml wrap
 # shared-ops.md - define app config once
@@ -637,7 +637,7 @@ on:
 |-------|----------|-------------|
 | `scope: none` | inside `skip-if-match` | Disables the automatic `repo:owner/repo` qualifier |
 | `github-token` | top-level `on:` | Custom PAT or token for all skip-if searches (e.g. `${{ secrets.CROSS_ORG_TOKEN }}`) |
-| `github-app` | top-level `on:` | Mints a short-lived installation token shared across all skip-if steps; requires `app-id` and `private-key` |
+| `github-app` | top-level `on:` | Mints a short-lived installation token shared across all skip-if steps; requires `client-id` and `private-key` |
 
 `github-token` and `github-app` are mutually exclusive. String shorthand always uses the default `GITHUB_TOKEN` scoped to the current repository.
 
