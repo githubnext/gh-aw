@@ -182,6 +182,34 @@ async function main() {
   // The activation job's "Checkout .github and .agents folders" step always runs before
   // this check and places the workflow source files in $GITHUB_WORKSPACE, so the local
   // files are always available at this point.
+
+  /**
+   * When full check mode is enabled, compares the stored body hash in the lock file content
+   * against the body hash computed from the workflow source using the given file reader.
+   * Returns true if the body hashes match (or if the lock file predates body hash support),
+   * false if they differ.
+   * @param {string} lockFileContent - Content of the .lock.yml file
+   * @param {string} mdPath - Path to the .md file to compute the body hash from
+   * @param {Object} [options] - Options forwarded to computeBodyHash (e.g. { fileReader })
+   * @param {string} [label] - Optional label appended to log lines for context (e.g. "local filesystem fallback")
+   * @returns {Promise<boolean>} true if match or no body hash present, false if mismatch
+   */
+  async function checkBodyHashIfFullMode(lockFileContent, mdPath, options, label) {
+    const suffix = label ? ` (${label})` : "";
+    const storedBodyHash = extractBodyHashFromLockFile(lockFileContent);
+    if (!storedBodyHash) {
+      core.info(`No body hash found in lock file; skipping body hash check${suffix} (lock file may predate body hash support)`);
+      return true;
+    }
+    const recomputedBodyHash = await computeBodyHash(mdPath, options);
+    const match = storedBodyHash === recomputedBodyHash;
+    core.info(`Body hash comparison${suffix}:`);
+    core.info(`  Lock file body hash:    ${storedBodyHash}`);
+    core.info(`  Recomputed body hash:   ${recomputedBodyHash}`);
+    core.info(`  Status: ${match ? "✅ Body hashes match" : "⚠️  Body hashes differ"}`);
+    return match;
+  }
+
   async function compareFrontmatterHashesFromLocalFiles() {
     const workspace = process.env.GITHUB_WORKSPACE;
     if (!workspace) {
@@ -239,17 +267,7 @@ async function main() {
 
       // When full check mode is enabled, also compare body hashes.
       if (match && fullCheckMode) {
-        const storedBodyHash = extractBodyHashFromLockFile(localLockContent);
-        if (storedBodyHash) {
-          const recomputedBodyHash = await computeBodyHash(localMdFilePath);
-          match = storedBodyHash === recomputedBodyHash;
-          core.info(`Body hash comparison (local filesystem fallback):`);
-          core.info(`  Lock file body hash:    ${storedBodyHash}`);
-          core.info(`  Recomputed body hash:   ${recomputedBodyHash}`);
-          core.info(`  Status: ${match ? "✅ Body hashes match" : "⚠️  Body hashes differ"}`);
-        } else {
-          core.info("No body hash found in local lock file; skipping body hash check (lock file may predate body hash support)");
-        }
+        match = await checkBodyHashIfFullMode(localLockContent, localMdFilePath, undefined, "local filesystem fallback");
       }
 
       return { match, storedHash, recomputedHash };
@@ -308,17 +326,7 @@ async function main() {
 
       // When full check mode is enabled, also compare body hashes.
       if (match && fullCheckMode) {
-        const storedBodyHash = extractBodyHashFromLockFile(lockFileContent);
-        if (storedBodyHash) {
-          const recomputedBodyHash = await computeBodyHash(workflowMdPath, { fileReader });
-          match = storedBodyHash === recomputedBodyHash;
-          core.info(`Body hash comparison:`);
-          core.info(`  Lock file body hash:    ${storedBodyHash}`);
-          core.info(`  Recomputed body hash:   ${recomputedBodyHash}`);
-          core.info(`  Status: ${match ? "✅ Body hashes match" : "⚠️  Body hashes differ"}`);
-        } else {
-          core.info("No body hash found in lock file; skipping body hash check (lock file may predate body hash support)");
-        }
+        match = await checkBodyHashIfFullMode(lockFileContent, workflowMdPath, { fileReader });
       }
 
       return { result: { match, storedHash, recomputedHash }, crossRepoAuthFailure: null };

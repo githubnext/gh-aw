@@ -332,18 +332,17 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 		// Compute body hash to cover changes to the markdown body that are not captured
 		// by the frontmatter hash. This enables stale-check: full detection.
-		var bHash string
 		if data.RawMarkdown != "" {
-			bHash, err = parser.ComputeBodyHashFromParsedContent(data.RawMarkdown, data.FrontmatterYAML, baseDir, parser.DefaultFileReader)
+			bodyHash, err = parser.ComputeBodyHashFromParsedContent(data.RawMarkdown, data.FrontmatterYAML, baseDir, parser.DefaultFileReader)
 		} else {
-			bHash, err = parser.ComputeBodyHashFromFile(markdownPath)
+			bodyHash, err = parser.ComputeBodyHashFromFile(markdownPath)
 		}
 		if err != nil {
 			compilerYamlLog.Printf("Warning: could not compute body hash for %q: %v", markdownPath, err)
 			// Non-fatal: continue without body hash
+			bodyHash = ""
 		} else {
-			bodyHash = bHash
-			compilerYamlLog.Printf("Computed body hash: %s", bHash)
+			compilerYamlLog.Printf("Computed body hash: %s", bodyHash)
 		}
 	}
 	// Store hash on WorkflowData so job-building helpers (MCP renderers, prompt
