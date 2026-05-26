@@ -527,6 +527,81 @@ func TestGenerateSafeOutputsConfigCreatePullRequestBackwardCompat(t *testing.T) 
 	assert.False(t, hasAllowedRepos, "allowed_repos should not be present when not configured")
 }
 
+func TestGenerateSafeOutputsConfigInjectsCurrentCheckoutPatchWorkspacePath(t *testing.T) {
+	data := &WorkflowData{
+		CheckoutConfigs: []*CheckoutConfig{
+			{
+				Repository: "caido/proxy-frontend",
+				Path:       "./proxy-frontend",
+				Current:    true,
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				TargetRepoSlug:       "caido/proxy-frontend",
+			},
+			PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+				TargetRepoSlug: "caido/proxy-frontend",
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+
+	prConfig, ok := parsed["create_pull_request"].(map[string]any)
+	require.True(t, ok, "Expected create_pull_request key in config")
+	assert.Equal(t, "proxy-frontend", prConfig["patch_workspace_path"])
+	assert.Equal(t, "caido/proxy-frontend", prConfig["current_checkout_repo"])
+
+	pushConfig, ok := parsed["push_to_pull_request_branch"].(map[string]any)
+	require.True(t, ok, "Expected push_to_pull_request_branch key in config")
+	assert.Equal(t, "proxy-frontend", pushConfig["patch_workspace_path"])
+	assert.Equal(t, "caido/proxy-frontend", pushConfig["current_checkout_repo"])
+}
+
+func TestGenerateSafeOutputsConfigSkipsPatchWorkspacePathForExplicitTargetRepoWhenCurrentRepoIsWorkflowRepo(t *testing.T) {
+	data := &WorkflowData{
+		CheckoutConfigs: []*CheckoutConfig{
+			{
+				Path:    "./proxy-frontend",
+				Current: true,
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				TargetRepoSlug:       "caido/proxy-frontend",
+			},
+			PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+				TargetRepoSlug: "caido/proxy-frontend",
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+
+	prConfig, ok := parsed["create_pull_request"].(map[string]any)
+	require.True(t, ok, "Expected create_pull_request key in config")
+	assert.NotContains(t, prConfig, "patch_workspace_path")
+	assert.NotContains(t, prConfig, "current_checkout_repo")
+
+	pushConfig, ok := parsed["push_to_pull_request_branch"].(map[string]any)
+	require.True(t, ok, "Expected push_to_pull_request_branch key in config")
+	assert.NotContains(t, pushConfig, "patch_workspace_path")
+	assert.NotContains(t, pushConfig, "current_checkout_repo")
+}
+
 func TestGenerateSafeOutputsConfigCreatePullRequestIncludesEngineManifests(t *testing.T) {
 	data := &WorkflowData{
 		EngineConfig: &EngineConfig{ID: "claude"},

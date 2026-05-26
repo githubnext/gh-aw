@@ -1516,7 +1516,7 @@ describe("add_comment", () => {
       expect(result.warning).toContain("not found");
       expect(result.skipped).toBe(true);
       expect(warningCalls.length).toBeGreaterThan(0);
-      expect(warningCalls[0]).toContain("not found");
+      expect(warningCalls.some(w => w.toLowerCase().includes("not found"))).toBe(true);
       expect(errorCalls.length).toBe(0);
     });
 

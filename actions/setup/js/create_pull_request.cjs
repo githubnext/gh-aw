@@ -30,9 +30,10 @@ const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { renderTemplateFromFile, renderFilesList, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
-const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits } = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, linearizeRangeAsCommit } = require("./git_helpers.cjs");
 const { parseDiffGitHeader: parseDiffGitHeaderPaths, extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 const {
@@ -268,11 +269,6 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
  */
 async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi) {
   const baseRef = `origin/${baseBranch}`;
-  const { stdout: originalHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"]);
-  const originalHead = originalHeadOut.trim();
-  if (!originalHead) {
-    throw new Error("Could not resolve current HEAD before bundle rewrite");
-  }
 
   let commitHeadline = "Apply bundled create_pull_request changes";
   try {
@@ -285,27 +281,8 @@ async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi) {
   }
 
   core.warning(`Rewriting bundled commits to a single linear commit for signed push compatibility (base: ${baseRef})`);
-  try {
-    await execApi.exec("git", ["reset", "--soft", baseRef]);
-    const { stdout: stagedFilesOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only"]);
-    if (!stagedFilesOut.trim()) {
-      throw new Error(`No staged changes found after soft reset to ${baseRef}`);
-    }
-    await execApi.exec("git", ["commit", "-m", commitHeadline]);
-    const { stdout: rewrittenHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"]);
-    const rewrittenHead = rewrittenHeadOut.trim();
-    core.info(`Bundle rewrite completed (old HEAD: ${originalHead}, new HEAD: ${rewrittenHead})`);
-  } catch (rewriteError) {
-    try {
-      await execApi.exec("git", ["reset", "--hard", originalHead]);
-      core.warning(`Bundle rewrite failed; restored original HEAD ${originalHead}`);
-    } catch (restoreError) {
-      core.warning(`Bundle rewrite rollback failed: ${restoreError instanceof Error ? restoreError.message : String(restoreError)}`);
-    }
-    throw new Error(`Failed to rewrite bundled commits for signed push retry: ${rewriteError instanceof Error ? rewriteError.message : String(rewriteError)}`, {
-      cause: rewriteError,
-    });
-  }
+  const newHead = await linearizeRangeAsCommit(baseRef, commitHeadline, execApi);
+  core.info(`Bundle rewrite completed (new HEAD: ${newHead})`);
 }
 
 // NOTE: isLabelTransientError, LABEL_MAX_RETRIES, LABEL_INITIAL_DELAY_MS, LABEL_MAX_DELAY_MS,
@@ -891,6 +868,11 @@ async function main(config = {}) {
     // Always require patch content for policy enforcement, even when bundle transport
     // is used for apply-time commit transport.
     const hasBundleFile = !!(bundleFilePath && fs.existsSync(bundleFilePath));
+    const applyTransport = hasBundleFile ? "bundle" : "patch";
+    core.info(`Apply transport mode: ${applyTransport} (bundle file present: ${hasBundleFile})`);
+    if (bundleFilePath && !hasBundleFile) {
+      core.warning(`Bundle file path was provided but file is not present on disk: ${bundleFilePath}; falling back to patch transport`);
+    }
     const hasPatchFile = !!(patchFilePath && fs.existsSync(patchFilePath));
     if (!hasPatchFile) {
       // If allow-empty is enabled, we can proceed without a patch file
@@ -1525,9 +1507,32 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
       }
 
       // Handle branch creation/checkout
-      core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
-      await exec.exec(`git checkout -b ${branchName}`);
-      core.info(`Created new branch from base: ${branchName}`);
+      let branchBaseRef = baseBranch;
+      const recordedBaseCommit = normalizeCommitSHA(pullRequestItem.base_commit);
+      if (recordedBaseCommit) {
+        core.info(`Patch route base_commit resolved: ${recordedBaseCommit}`);
+        core.info(`Using base_commit from safe output entry for patch apply: ${recordedBaseCommit}`);
+        try {
+          try {
+            await exec.exec("git", ["fetch", "origin", recordedBaseCommit, "--depth=1"]);
+          } catch (fetchError) {
+            core.info(`Note: could not fetch base commit ${recordedBaseCommit} explicitly (${fetchError instanceof Error ? fetchError.message : String(fetchError)}); will verify local availability next`);
+          }
+          await exec.exec("git", ["cat-file", "-e", recordedBaseCommit]);
+          const ancestryCheck = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", recordedBaseCommit, `origin/${baseBranch}`], { ignoreReturnCode: true });
+          if (ancestryCheck.exitCode !== 0) {
+            throw new Error(`recorded base_commit ${recordedBaseCommit} is not an ancestor of origin/${baseBranch}; falling back to ${baseBranch}`);
+          }
+          branchBaseRef = recordedBaseCommit;
+        } catch (baseCommitError) {
+          core.warning(`Recorded base_commit ${recordedBaseCommit} is not available in this checkout (${baseCommitError instanceof Error ? baseCommitError.message : String(baseCommitError)}); falling back to ${baseBranch}`);
+        }
+      } else if (String(pullRequestItem.base_commit ?? "").trim()) {
+        core.warning(`Ignoring invalid base_commit value for patch apply: ${String(pullRequestItem.base_commit).trim()}`);
+      }
+      core.info(`Branch should not exist locally, creating new branch from base: ${branchName} (${branchBaseRef})`);
+      await exec.exec("git", ["checkout", "-b", branchName, branchBaseRef]);
+      core.info(`Created new branch from base: ${branchName} (${branchBaseRef})`);
 
       // Apply the patch using git CLI (skip if empty)
       if (!isEmpty) {
@@ -1603,7 +1608,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
               // Use the base commit recorded at patch generation time.
               // The From <sha> header in format-patch output contains the agent's new commit SHA
               // which does not exist in this checkout, so we cannot derive the base from it.
-              const originalBaseCommit = pullRequestItem.base_commit;
+              const originalBaseCommit = normalizeCommitSHA(pullRequestItem.base_commit);
               if (!originalBaseCommit) {
                 core.warning("No base_commit recorded in safe output entry - fallback not possible");
               } else {

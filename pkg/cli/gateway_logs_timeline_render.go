@@ -12,6 +12,8 @@
 //   TimelineKindAgentTurn          – renderAgentTurnRow
 //   TimelineKindAgentToolStart     – renderAgentToolStartRow
 //   TimelineKindAgentToolDone      – renderAgentToolDoneRow
+//   TimelineKindAssistantMessage   – renderAgentAssistantMessageRow
+//   TimelineKindReasoning          – renderAgentReasoningRow
 //
 // renderTimelineEventRow dispatches to the appropriate primitive and returns a
 // []string suitable for inclusion in a console.TableConfig.Rows slice.
@@ -26,27 +28,35 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/styles"
+	"github.com/github/gh-aw/pkg/tty"
 )
 
 // timelineEventIcon returns a single Unicode icon for each event kind.
+// All icons are cross-compatible Unicode symbols that render correctly in all modern terminals.
+// Reasoning uses ◐ (half-filled circle) to match the step summary convention for thinking content.
 func timelineEventIcon(kind TimelineEventKind) string {
 	switch kind {
 	case TimelineKindToolCall:
-		return "🔧"
+		return "⚙"
 	case TimelineKindDIFCFiltered:
-		return "🚫"
+		return "⊖"
 	case TimelineKindGuardPolicyBlocked:
-		return "🛡"
+		return "⊗"
 	case TimelineKindNetworkAllowed:
 		return "✓"
 	case TimelineKindNetworkBlocked:
 		return "✗"
 	case TimelineKindAgentTurn:
-		return "💬"
+		return "○"
 	case TimelineKindAgentToolStart:
 		return "▶"
 	case TimelineKindAgentToolDone:
 		return "■"
+	case TimelineKindAssistantMessage:
+		return "●"
+	case TimelineKindReasoning:
+		return "◐"
 	default:
 		return "·"
 	}
@@ -71,6 +81,10 @@ func timelineEventKindLabel(kind TimelineEventKind) string {
 		return "tool_start"
 	case TimelineKindAgentToolDone:
 		return "tool_done"
+	case TimelineKindAssistantMessage:
+		return "assistant_message"
+	case TimelineKindReasoning:
+		return "reasoning"
 	default:
 		return string(kind)
 	}
@@ -298,6 +312,32 @@ func renderAgentToolDoneRow(evt UnifiedTimelineEvent) []string {
 	return []string{ts, src, kind, detail, status}
 }
 
+// renderAgentAssistantMessageRow renders a TimelineKindAssistantMessage event as a table row.
+//
+// Columns: Time | Src | Kind | Detail | Status
+//
+// Detail shows a truncated preview of the message content. Status is left empty.
+func renderAgentAssistantMessageRow(evt UnifiedTimelineEvent) []string {
+	ts := formatTimelineTime(evt)
+	src := timelineSourceLabel(evt.Source)
+	kind := timelineEventIcon(TimelineKindAssistantMessage) + " " + timelineEventKindLabel(TimelineKindAssistantMessage)
+	detail := stringutil.Truncate(evt.MessageContent, 48)
+	return []string{ts, src, kind, detail, ""}
+}
+
+// renderAgentReasoningRow renders a TimelineKindReasoning event as a table row.
+//
+// Columns: Time | Src | Kind | Detail | Status
+//
+// Detail shows a truncated preview of the reasoning content. Status is left empty.
+func renderAgentReasoningRow(evt UnifiedTimelineEvent) []string {
+	ts := formatTimelineTime(evt)
+	src := timelineSourceLabel(evt.Source)
+	kind := timelineEventIcon(TimelineKindReasoning) + " " + timelineEventKindLabel(TimelineKindReasoning)
+	detail := stringutil.Truncate(evt.MessageContent, 48)
+	return []string{ts, src, kind, detail, ""}
+}
+
 // renderTimelineEventRow dispatches to the appropriate per-kind rendering primitive and
 // returns a []string table row with columns: Time | Src | Kind | Detail | Status.
 func renderTimelineEventRow(evt UnifiedTimelineEvent) []string {
@@ -318,11 +358,238 @@ func renderTimelineEventRow(evt UnifiedTimelineEvent) []string {
 		return renderAgentToolStartRow(evt)
 	case TimelineKindAgentToolDone:
 		return renderAgentToolDoneRow(evt)
+	case TimelineKindAssistantMessage:
+		return renderAgentAssistantMessageRow(evt)
+	case TimelineKindReasoning:
+		return renderAgentReasoningRow(evt)
 	default:
 		// Fallback for any future event kinds not yet handled.
 		ts := formatTimelineTime(evt)
 		return []string{ts, timelineSourceLabel(evt.Source), string(evt.Kind), "", ""}
 	}
+}
+
+// ─── Stream renderer ─────────────────────────────────────────────────────────
+
+// streamStyleRenderer is an interface satisfied by lipgloss style objects (and
+// any other type with a Render method).  It is used to pass style objects to
+// helper functions without importing lipgloss directly in those helpers.
+type streamStyleRenderer interface{ Render(strs ...string) string }
+
+// noopStyleRenderer is a streamStyleRenderer that returns its input unchanged.
+// It is used in place of a real lipgloss style when output is not a TTY.
+type noopStyleRenderer struct{}
+
+func (noopStyleRenderer) Render(strs ...string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+	return strs[0]
+}
+
+// streamMaxAnnotationLen is the maximum number of runes shown for inline error
+// and reason annotations in the stream renderer.
+const streamMaxAnnotationLen = 40
+
+// streamMaxMessageLines is the maximum number of lines of message content shown
+// in the stream renderer for user/assistant/reasoning messages.
+const streamMaxMessageLines = 3
+
+// streamMaxLineLength is the maximum number of runes per line of message content
+// shown in the stream renderer.
+const streamMaxLineLength = 80
+
+// formatStreamToolDetail returns "server/tool" when both are non-empty, "tool"
+// when only the tool name is set, and "server" as a last resort.
+func formatStreamToolDetail(serverName, toolName string) string {
+	if serverName != "" && toolName != "" {
+		return serverName + "/" + toolName
+	}
+	if toolName != "" {
+		return toolName
+	}
+	return serverName
+}
+
+// renderMessageSnippet returns up to streamMaxMessageLines non-empty lines of text,
+// each indented with prefix and styled using the provided renderer.
+// A trailing "…" line (styled muted) is appended when content is truncated.
+// Returns an empty string when content is blank.
+func renderMessageSnippet(content, indent string, lineStyle, truncStyle streamStyleRenderer) string {
+	if content == "" {
+		return ""
+	}
+	var sb strings.Builder
+	lines := strings.Split(content, "\n")
+	shown := 0
+	for _, line := range lines {
+		line = strings.TrimRight(line, " \t\r")
+		if line == "" {
+			continue
+		}
+		if shown >= streamMaxMessageLines {
+			sb.WriteString(indent)
+			sb.WriteString(truncStyle.Render("…"))
+			sb.WriteString("\n")
+			break
+		}
+		sb.WriteString(indent)
+		sb.WriteString(lineStyle.Render(stringutil.Truncate(line, streamMaxLineLength)))
+		sb.WriteString("\n")
+		shown++
+	}
+	return sb.String()
+}
+
+// renderUnifiedTimelineStream renders a merged slice of UnifiedTimelineEvents as a
+// flowing, line-by-line stream that simulates watching a live agentic session.
+// Agent turns become section headers; tool and network events are indented beneath
+// them. No summary statistics or table are produced.
+// Returns an empty string when events is empty.
+func renderUnifiedTimelineStream(events []UnifiedTimelineEvent) string {
+	if len(events) == 0 {
+		return ""
+	}
+
+	isTerminal := tty.IsStdoutTerminal()
+
+	// streamColor wraps text with a lipgloss style only when output is a TTY so
+	// that piped output stays clean of ANSI escape codes.
+	streamColor := func(s streamStyleRenderer, text string) string {
+		if isTerminal {
+			return s.Render(text)
+		}
+		return text
+	}
+
+	// coloredMessageSnippet renders the first few lines of message content.
+	// lineStyle and truncStyle are applied only when output is a TTY.
+	coloredMessageSnippet := func(content, indent string, lineStyle, truncStyle streamStyleRenderer) string {
+		ls, ts := streamStyleRenderer(noopStyleRenderer{}), streamStyleRenderer(noopStyleRenderer{})
+		if isTerminal {
+			ls, ts = lineStyle, truncStyle
+		}
+		return renderMessageSnippet(content, indent, ls, ts)
+	}
+
+	var sb strings.Builder
+	inTurn := false
+
+	for _, evt := range events {
+		ts := formatTimelineTime(evt)
+
+		switch evt.Kind {
+		case TimelineKindAgentTurn:
+			if inTurn {
+				sb.WriteString("\n")
+			}
+			inTurn = true
+			// Turn headers are bold purple (Command), timestamp muted.
+			turnLabel := streamColor(styles.Command, fmt.Sprintf("> Turn %d", evt.TurnIndex))
+			tsLabel := streamColor(styles.LineNumber, "["+ts+"]")
+			fmt.Fprintf(&sb, "%s %s\n", turnLabel, tsLabel)
+			// Show the first few lines of the user's message in muted style.
+			sb.WriteString(coloredMessageSnippet(evt.MessageContent, "  ", styles.ContextLine, styles.LineNumber))
+
+		case TimelineKindAssistantMessage:
+			icon := streamColor(styles.Info, timelineEventIcon(TimelineKindAssistantMessage))
+			fmt.Fprintf(&sb, "  %s\n", icon)
+			// Show assistant response snippet in standard foreground, muted truncation.
+			sb.WriteString(coloredMessageSnippet(evt.MessageContent, "  ", styles.ContextLine, styles.LineNumber))
+
+		case TimelineKindReasoning:
+			icon := streamColor(styles.Verbose, timelineEventIcon(TimelineKindReasoning))
+			fmt.Fprintf(&sb, "  %s\n", icon)
+			// Show reasoning snippet in muted/verbose style.
+			sb.WriteString(coloredMessageSnippet(evt.MessageContent, "  ", styles.Verbose, styles.LineNumber))
+
+		case TimelineKindAgentToolStart:
+			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
+			// Tool start is yellow progress indicator.
+			icon := streamColor(styles.Progress, timelineEventIcon(TimelineKindAgentToolStart))
+			fmt.Fprintf(&sb, "  %s %s\n", icon, detail)
+
+		case TimelineKindAgentToolDone:
+			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
+			status := evt.Status
+			if status == "" {
+				if evt.Success {
+					status = "success"
+				} else {
+					status = "error"
+				}
+			}
+			// Completion icon and status are green on success, red on error.
+			if evt.Success || status == "success" {
+				icon := streamColor(styles.Success, timelineEventIcon(TimelineKindAgentToolDone))
+				statusColored := streamColor(styles.Success, status)
+				fmt.Fprintf(&sb, "  %s %s  %s\n", icon, detail, statusColored)
+			} else {
+				icon := streamColor(styles.Error, timelineEventIcon(TimelineKindAgentToolDone))
+				statusColored := streamColor(styles.Error, status)
+				fmt.Fprintf(&sb, "  %s %s  %s\n", icon, detail, statusColored)
+			}
+
+		case TimelineKindToolCall:
+			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
+			icon := streamColor(styles.ServerName, timelineEventIcon(TimelineKindToolCall))
+			suffix := ""
+			if evt.Duration > 0 {
+				suffix = "  " + streamColor(styles.LineNumber, fmt.Sprintf("%.0fms", evt.Duration))
+			} else if evt.Error != "" {
+				suffix = "  " + streamColor(styles.Error, "error: "+stringutil.Truncate(evt.Error, streamMaxAnnotationLen))
+			}
+			fmt.Fprintf(&sb, "    %s %s%s\n", icon, detail, suffix)
+
+		case TimelineKindNetworkAllowed:
+			method := ""
+			if evt.HTTPMethod != "" {
+				method = "  " + streamColor(styles.LineNumber, evt.HTTPMethod)
+			}
+			icon := streamColor(styles.Info, timelineEventIcon(TimelineKindNetworkAllowed))
+			fmt.Fprintf(&sb, "    %s %s%s\n", icon, evt.Host, method)
+
+		case TimelineKindNetworkBlocked:
+			method := ""
+			if evt.HTTPMethod != "" {
+				method = "  " + streamColor(styles.LineNumber, evt.HTTPMethod)
+			}
+			icon := streamColor(styles.Error, timelineEventIcon(TimelineKindNetworkBlocked))
+			blocked := streamColor(styles.Error, "[blocked]")
+			fmt.Fprintf(&sb, "    %s %s%s  %s\n", icon, evt.Host, method, blocked)
+
+		case TimelineKindDIFCFiltered:
+			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
+			icon := streamColor(styles.Warning, timelineEventIcon(TimelineKindDIFCFiltered))
+			reason := ""
+			if evt.Reason != "" {
+				reason = "  " + streamColor(styles.Warning, stringutil.Truncate(evt.Reason, streamMaxAnnotationLen))
+			}
+			fmt.Fprintf(&sb, "    %s %s%s\n", icon, detail, reason)
+
+		case TimelineKindGuardPolicyBlocked:
+			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
+			icon := streamColor(styles.Error, timelineEventIcon(TimelineKindGuardPolicyBlocked))
+			annotation := evt.Reason
+			if annotation == "" {
+				annotation = evt.Error
+			}
+			annotationStr := ""
+			if annotation != "" {
+				annotationStr = "  " + streamColor(styles.Error, stringutil.Truncate(annotation, streamMaxAnnotationLen))
+			}
+			fmt.Fprintf(&sb, "    %s %s%s\n", icon, detail, annotationStr)
+
+		default:
+			fmt.Fprintf(&sb, "  · [%s] %s  %s\n", ts, string(evt.Kind), timelineSourceLabel(evt.Source))
+		}
+	}
+
+	if inTurn {
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
 }
 
 // ─── Top-level renderer ───────────────────────────────────────────────────────
@@ -338,7 +605,7 @@ func renderUnifiedTimeline(events []UnifiedTimelineEvent) string {
 	// Tally event counts for the summary header.
 	var gwCount, fwCount, agCount int
 	var toolCalls, difcFiltered, guardBlocked, netAllowed, netBlocked int
-	var agentTurns, agentToolStarts, agentToolDones int
+	var agentTurns, agentToolStarts, agentToolDones, assistantMessages, reasoningCount int
 	for _, evt := range events {
 		switch evt.Source {
 		case TimelineSourceGateway:
@@ -365,6 +632,10 @@ func renderUnifiedTimeline(events []UnifiedTimelineEvent) string {
 			agentToolStarts++
 		case TimelineKindAgentToolDone:
 			agentToolDones++
+		case TimelineKindAssistantMessage:
+			assistantMessages++
+		case TimelineKindReasoning:
+			reasoningCount++
 		}
 	}
 
@@ -384,8 +655,8 @@ func renderUnifiedTimeline(events []UnifiedTimelineEvent) string {
 			fwCount, netAllowed, netBlocked)
 	}
 	if agCount > 0 {
-		fmt.Fprintf(&sb, "  Agent       : %d  (turns=%d, tool_start=%d, tool_done=%d)\n",
-			agCount, agentTurns, agentToolStarts, agentToolDones)
+		fmt.Fprintf(&sb, "  Agent       : %d  (turns=%d, tool_start=%d, tool_done=%d, messages=%d, reasoning=%d)\n",
+			agCount, agentTurns, agentToolStarts, agentToolDones, assistantMessages, reasoningCount)
 	}
 	sb.WriteString("\n")
 

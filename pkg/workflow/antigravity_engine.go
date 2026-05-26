@@ -164,20 +164,10 @@ func (e *AntigravityEngine) GetExecutionSteps(workflowData *WorkflowData, logFil
 	// The conversion script (convert_gateway_config_antigravity.sh) writes settings.json
 	// during the MCP setup step, so no --mcp-config flag is needed here.
 
-	// Auto-approve all tool executions (equivalent to Codex's --dangerously-bypass-approvals-and-sandbox)
-	// Without this, Antigravity CLI's default approval mode rejects tool calls with "Tool execution denied by policy"
-	agyArgs = append(agyArgs, "--yolo")
-
-	// Skip the workspace trust check so --yolo is not overridden to "default" approval mode.
-	// Antigravity CLI v1.x checks whether the working directory is trusted and overrides --yolo
-	// with "default" approval mode (exit code 55) when the folder is untrusted.
-	// ANTIGRAVITY_CLI_TRUST_WORKSPACE=true (also set in the step env) handles the same case via
-	// environment variable, but --skip-trust is more reliable when AWF's sandbox does not
-	// forward all host environment variables into the container.
-	agyArgs = append(agyArgs, "--skip-trust")
-
-	// Add streaming JSON output (JSONL format, compatible with the log parser)
-	agyArgs = append(agyArgs, "--output-format", "stream-json")
+	// Auto-approve all tool executions so non-interactive CI runs don't block on permission prompts.
+	// agy does not support the Gemini-style --yolo/--skip-trust flags.
+	// This flag grants broad tool permission inside the workflow sandbox, so it is only used in AWF-managed runs.
+	agyArgs = append(agyArgs, "--dangerously-skip-permissions")
 
 	// Note: the --prompt argument is appended raw after shellJoinArgs below because it contains
 	// a shell command substitution ("$(cat ...)") that must NOT go through shellEscapeArg —
@@ -233,7 +223,7 @@ func (e *AntigravityEngine) GetExecutionSteps(workflowData *WorkflowData, logFil
 			PathSetup: "touch " + AgentStepSummaryPath,
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"ANTIGRAVITY_API_KEY"}),
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"ANTIGRAVITY_API_KEY", "GEMINI_API_KEY"}),
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
@@ -320,6 +310,12 @@ touch %s
 		maps.Copy(env, agentConfig.Env)
 		antigravityLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
+	// The Antigravity CLI and AWF's Gemini API proxy both rely on a Gemini provider key.
+	// Keep GEMINI_API_KEY aligned with the effective ANTIGRAVITY_API_KEY by default so the
+	// workflow can authenticate non-interactively without requiring users to duplicate secrets.
+	if _, hasGeminiKey := env["GEMINI_API_KEY"]; !hasGeminiKey {
+		env["GEMINI_API_KEY"] = env["ANTIGRAVITY_API_KEY"]
+	}
 
 	// Generate the execution step
 	stepLines := []string{
@@ -328,7 +324,7 @@ touch %s
 	}
 
 	// Filter environment variables for security
-	allowedSecrets := e.GetRequiredSecretNames(workflowData)
+	allowedSecrets := append([]string{"GEMINI_API_KEY"}, e.GetRequiredSecretNames(workflowData)...)
 	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
 
 	// Inject GH_TOKEN for CLI proxy (added after filtering since it uses a special

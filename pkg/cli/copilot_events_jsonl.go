@@ -66,6 +66,9 @@ type copilotEventsJSONLEntryData struct {
 	Success bool   `json:"success"`
 	Model   string `json:"model,omitempty"`
 
+	// user.message / assistant.message / reasoning fields
+	Content string `json:"content,omitempty"`
+
 	// session.shutdown fields
 	ShutdownType         string                          `json:"shutdownType,omitempty"`
 	TotalPremiumRequests int                             `json:"totalPremiumRequests,omitempty"`

@@ -2365,6 +2365,58 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     return false;
   }
 
+  it("should create the PR branch from normalized base_commit before applying the patch when available", async () => {
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: `  ${MOCK_BASE_COMMIT_SHA}  ` }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["cat-file", "-e", MOCK_BASE_COMMIT_SHA]);
+    const checkoutWithBaseCommit = global.exec.exec.mock.calls.find(([cmd, args]) => cmd === "git" && Array.isArray(args) && args[0] === "checkout" && args[1] === "-b" && args[3] === MOCK_BASE_COMMIT_SHA);
+    expect(checkoutWithBaseCommit).toBeTruthy();
+  });
+
+  it("should ignore invalid base_commit values when creating the branch", async () => {
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: "not-a-sha --bad" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["cat-file", "-e", "not-a-sha --bad"]);
+    expect(global.core.warning).toHaveBeenCalledWith("Ignoring invalid base_commit value for patch apply: not-a-sha --bad");
+  });
+
+  it("should fall back to base branch when base_commit is unavailable", async () => {
+    global.exec = {
+      exec: vi.fn().mockImplementation(async (cmd, args) => {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "cat-file" && args[1] === "-e" && args[2] === MOCK_BASE_COMMIT_SHA) {
+          throw new Error("not in object store");
+        }
+        return 0;
+      }),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["cat-file", "-e", MOCK_BASE_COMMIT_SHA]);
+    const checkoutWithBaseBranch = global.exec.exec.mock.calls.find(([cmd, args]) => cmd === "git" && Array.isArray(args) && args[0] === "checkout" && args[1] === "-b" && args[3] === "main");
+    expect(checkoutWithBaseBranch).toBeTruthy();
+  });
+
   it("should fall back to original base commit when git am --3way fails with merge conflicts", async () => {
     let primaryAmAttempted = false;
     global.exec = {

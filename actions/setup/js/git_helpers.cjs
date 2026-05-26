@@ -3,6 +3,7 @@
 
 const { spawnSync } = require("child_process");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Build GIT_CONFIG_* environment variables that inject an Authorization header
@@ -206,10 +207,62 @@ function extractBundlePrerequisiteCommits(message) {
   return [...new Set((message.match(/\b[0-9a-f]{40}\b/gi) || []).map(sha => sha.toLowerCase()))];
 }
 
+/**
+ * Rewrite the commit range `baseRef..HEAD` as a single regular commit carrying the same tree.
+ *
+ * Saves the current HEAD, soft-resets to `baseRef`, validates that at least one file is
+ * staged, and recommits under `commitMessage`.  On any failure the original HEAD is restored
+ * via `reset --hard` and the error is re-thrown so the caller can surface an actionable
+ * message.
+ *
+ * @param {string} baseRef - The base ref to reset to (e.g. `"origin/main"` or a SHA).
+ * @param {string} commitMessage - Commit message for the linearized commit.
+ * @param {{ exec: Function, getExecOutput: Function }} execApi - Actions exec API (e.g. the `exec` global).
+ * @param {Object} [opts]
+ * @param {Object} [opts.gitOpts] - Extra options passed to every exec call (e.g. `{ cwd }`).
+ *   When omitted, exec calls are made without additional options.
+ * @param {string[]} [opts.commitFlags] - Extra flags prepended before `-m` in the `git commit`
+ *   invocation (e.g. `["--allow-empty", "--no-verify"]`).
+ * @returns {Promise<string>} The new HEAD SHA after the rewrite.
+ * @throws {Error} If the soft reset, staged-changes validation, or recommit fails.
+ */
+async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}) {
+  const { gitOpts, commitFlags = [] } = opts;
+  // Spread gitOpts into exec calls only when it is explicitly provided — passing
+  // `undefined` as a third argument changes the arity seen by mocks in tests.
+  const execArgs = gitOpts !== undefined ? [gitOpts] : [];
+
+  const { stdout: originalHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], ...execArgs);
+  const originalHead = originalHeadOut.trim();
+  if (!originalHead) {
+    throw new Error("Could not resolve current HEAD before linearizing range");
+  }
+
+  try {
+    await execApi.exec("git", ["reset", "--soft", baseRef], ...execArgs);
+    const { stdout: stagedFilesOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only"], ...execArgs);
+    if (!stagedFilesOut.trim()) {
+      throw new Error(`No staged changes found after soft reset to ${baseRef}. ` + `The commit range may contain only no-op or empty commits. ` + `Ensure your commits contain actual file changes before pushing.`);
+    }
+    await execApi.exec("git", ["commit", ...commitFlags, "-m", commitMessage], ...execArgs);
+    const { stdout: newHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], ...execArgs);
+    return newHeadOut.trim();
+  } catch (rewriteError) {
+    try {
+      await execApi.exec("git", ["reset", "--hard", originalHead], ...execArgs);
+      core.warning(`linearizeRangeAsCommit: rewrite failed; restored original HEAD ${originalHead}`);
+    } catch (restoreError) {
+      core.warning(`linearizeRangeAsCommit: rollback also failed: ${getErrorMessage(restoreError)}`);
+    }
+    throw new Error(`Failed to linearize ${baseRef}..HEAD as a single commit: ${getErrorMessage(rewriteError)}`, { cause: rewriteError });
+  }
+}
+
 module.exports = {
   execGitSync,
   ensureFullHistoryForBundle,
   extractBundlePrerequisiteCommits,
   getGitAuthEnv,
   hasMergeCommitsInRange,
+  linearizeRangeAsCommit,
 };

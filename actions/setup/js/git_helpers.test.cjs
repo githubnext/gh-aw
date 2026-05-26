@@ -388,4 +388,181 @@ describe("git_helpers.cjs", () => {
       expect(result).toContain(fullSha);
     });
   });
+
+  describe("linearizeRangeAsCommit", () => {
+    const ORIGINAL_HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const NEW_HEAD = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+    function makeExecApi({ originalHead = ORIGINAL_HEAD, newHead = NEW_HEAD, stagedFiles = "README.md\n" } = {}) {
+      let headCallCount = 0;
+      return {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-parse" && args[1] === "HEAD") {
+            headCallCount += 1;
+            // First call returns originalHead; subsequent calls return newHead
+            return Promise.resolve({ stdout: headCallCount === 1 ? `${originalHead}\n` : `${newHead}\n` });
+          }
+          if (args[0] === "diff" && args[1] === "--cached") {
+            return Promise.resolve({ stdout: stagedFiles });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+    }
+
+    it("should return the new HEAD SHA after successful linearization", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const execApi = makeExecApi();
+
+      const result = await linearizeRangeAsCommit("origin/main", "Squash commit", execApi);
+
+      expect(result).toBe(NEW_HEAD);
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--soft", "origin/main"]);
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["commit", "-m", "Squash commit"]);
+    });
+
+    it("should prepend commitFlags before -m in the git commit call", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const execApi = makeExecApi();
+
+      await linearizeRangeAsCommit("origin/main", "Squash commit", execApi, {
+        commitFlags: ["--allow-empty", "--no-verify"],
+      });
+
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["commit", "--allow-empty", "--no-verify", "-m", "Squash commit"]);
+    });
+
+    it("should pass gitOpts to every exec and getExecOutput call", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const execApi = makeExecApi();
+      const gitOpts = { cwd: "/tmp/repo" };
+
+      await linearizeRangeAsCommit("origin/main", "Squash commit", execApi, { gitOpts });
+
+      // Every call should have received gitOpts as the trailing argument
+      for (const [, , opts] of execApi.exec.mock.calls) {
+        expect(opts).toEqual(gitOpts);
+      }
+      for (const [, , opts] of execApi.getExecOutput.mock.calls) {
+        expect(opts).toEqual(gitOpts);
+      }
+    });
+
+    it("should not append a third argument when gitOpts is not provided", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const execApi = makeExecApi();
+
+      await linearizeRangeAsCommit("origin/main", "Squash commit", execApi);
+
+      // exec and getExecOutput should each be called with exactly 2 arguments
+      for (const callArgs of execApi.exec.mock.calls) {
+        expect(callArgs.length).toBe(2);
+      }
+      for (const callArgs of execApi.getExecOutput.mock.calls) {
+        expect(callArgs.length).toBe(2);
+      }
+    });
+
+    it("should throw immediately when HEAD cannot be resolved (empty stdout)", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({ stdout: "   \n" }),
+        exec: vi.fn(),
+      };
+
+      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow("Could not resolve current HEAD before linearizing range");
+      expect(execApi.exec).not.toHaveBeenCalled();
+    });
+
+    it("should roll back to originalHead and throw when no staged changes exist after soft reset", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const warning = mockCoreWarning();
+      const execApi = makeExecApi({ stagedFiles: "" });
+
+      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(/Failed to linearize origin\/main\.\.HEAD/);
+
+      // Should have rolled back to the original HEAD
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--hard", ORIGINAL_HEAD]);
+
+      // Should have emitted a warning about restoring the original HEAD
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining(`restored original HEAD ${ORIGINAL_HEAD}`));
+    });
+
+    it("should roll back to originalHead and throw when soft reset fails", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const warning = mockCoreWarning();
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({ stdout: `${ORIGINAL_HEAD}\n` }),
+        exec: vi.fn().mockImplementation((_cmd, args) => {
+          // Soft reset fails; hard reset (rollback) succeeds
+          if (args[0] === "reset" && args[1] === "--soft") return Promise.reject(new Error("reset failed"));
+          return Promise.resolve(0);
+        }),
+      };
+
+      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(/Failed to linearize origin\/main\.\.HEAD.*reset failed/s);
+
+      // Should have attempted rollback (reset --hard)
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--hard", ORIGINAL_HEAD]);
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining(`restored original HEAD ${ORIGINAL_HEAD}`));
+    });
+
+    it("should roll back to originalHead and throw when git commit fails", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const warning = mockCoreWarning();
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-parse") return Promise.resolve({ stdout: `${ORIGINAL_HEAD}\n` });
+          if (args[0] === "diff") return Promise.resolve({ stdout: "file.txt\n" });
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "commit") return Promise.reject(new Error("commit failed"));
+          return Promise.resolve(0);
+        }),
+      };
+
+      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(/Failed to linearize origin\/main\.\.HEAD.*commit failed/s);
+
+      expect(execApi.exec).toHaveBeenCalledWith("git", ["reset", "--hard", ORIGINAL_HEAD]);
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining(`restored original HEAD ${ORIGINAL_HEAD}`));
+    });
+
+    it("should emit a rollback-failure warning when reset --hard also fails", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const warning = mockCoreWarning();
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-parse") return Promise.resolve({ stdout: `${ORIGINAL_HEAD}\n` });
+          if (args[0] === "diff") return Promise.resolve({ stdout: "" });
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockRejectedValue(new Error("disk failure")),
+      };
+
+      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(/Failed to linearize/);
+
+      // Should have warned about the rollback failure
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining("rollback also failed"));
+    });
+
+    it("should carry the original error as the cause on failure", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      mockCoreWarning();
+      const cause = new Error("inner error");
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-parse") return Promise.resolve({ stdout: `${ORIGINAL_HEAD}\n` });
+          if (args[0] === "diff") return Promise.resolve({ stdout: "" });
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockRejectedValue(cause),
+      };
+
+      const err = await linearizeRangeAsCommit("origin/main", "msg", execApi).catch(e => e);
+
+      expect(err.cause).toBe(cause);
+    });
+  });
 });

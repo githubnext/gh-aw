@@ -321,6 +321,36 @@ func (cm *CheckoutManager) HasAppAuth() bool {
 	return false
 }
 
+// GetCurrentRepository returns the repository slug for the checkout marked
+// current:true. Returns an empty string when no current checkout is configured
+// or when the current checkout targets the workflow repository.
+func (cm *CheckoutManager) GetCurrentRepository() string {
+	for _, entry := range cm.ordered {
+		if entry.current {
+			return entry.key.repository
+		}
+	}
+	return ""
+}
+
+// GetCurrentCheckoutPath returns the current checkout path after trimming
+// leading "./" and surrounding whitespace. Returns an empty string when no
+// current checkout is configured or when the current checkout is at workspace
+// root.
+func (cm *CheckoutManager) GetCurrentCheckoutPath() string {
+	for _, entry := range cm.ordered {
+		if !entry.current {
+			continue
+		}
+		path := strings.TrimSpace(strings.TrimPrefix(entry.key.path, "./"))
+		if path == "." || path == "" {
+			return ""
+		}
+		return path
+	}
+	return ""
+}
+
 // HasExternalRootCheckout returns true if any checkout entry targets an external
 // repository (non-empty repository field) and writes to the workspace root (empty path).
 // When such a checkout exists, the workspace root is replaced with the external

@@ -40,6 +40,8 @@ function debugLog(message) {
  *     In incremental mode, origin/branchName is fetched explicitly and merge-base fallback is disabled.
  * @param {string} [options.cwd] - Working directory for git commands. Defaults to GITHUB_WORKSPACE or process.cwd().
  *   Use this for multi-repo scenarios where repos are checked out to subdirectories.
+ * @param {string} [options.workspacePath] - Path relative to GITHUB_WORKSPACE used as git working directory.
+ *   When set, this takes precedence over options.cwd and must resolve to a directory under GITHUB_WORKSPACE.
  * @param {string} [options.repoSlug] - Repository slug (owner/repo) to include in patch filename for disambiguation.
  *   Required for multi-repo scenarios to prevent patch file collisions.
  * @param {string} [options.token] - GitHub token for git authentication. Falls back to GITHUB_TOKEN env var.
@@ -51,8 +53,8 @@ function debugLog(message) {
  */
 async function generateGitPatch(branchName, baseBranch, options = {}) {
   const mode = options.mode || "full";
-  // Support custom cwd for multi-repo scenarios
-  const cwd = options.cwd || process.env.GITHUB_WORKSPACE || process.cwd();
+  const workspaceRoot = process.env.GITHUB_WORKSPACE || process.cwd();
+  let cwd = options.cwd || workspaceRoot;
   // Include repo slug in patch path for multi-repo disambiguation
 
   // Build :(exclude) pathspec arguments from the excludedFiles option.
@@ -69,6 +71,35 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     return excludeArgsArr;
   }
   const patchPath = options.repoSlug ? getPatchPathForRepo(branchName, options.repoSlug) : getPatchPath(branchName);
+
+  if (options.workspacePath !== undefined && options.workspacePath !== null && String(options.workspacePath).trim() !== "") {
+    const root = path.resolve(workspaceRoot);
+    const candidate = path.resolve(root, String(options.workspacePath));
+    const relative = path.relative(root, candidate);
+    if (relative.startsWith("..") || path.isAbsolute(relative)) {
+      const errorMessage = `Invalid workspacePath '${String(options.workspacePath)}': path must stay under GITHUB_WORKSPACE`;
+      return {
+        success: false,
+        error: errorMessage,
+        patchPath,
+      };
+    }
+    if (!fs.existsSync(candidate)) {
+      return {
+        success: false,
+        error: `Invalid workspacePath '${String(options.workspacePath)}': directory does not exist`,
+        patchPath,
+      };
+    }
+    if (!fs.statSync(candidate).isDirectory()) {
+      return {
+        success: false,
+        error: `Invalid workspacePath '${String(options.workspacePath)}': path is not a directory`,
+        patchPath,
+      };
+    }
+    cwd = candidate;
+  }
 
   // Validate baseBranch early to avoid confusing git errors (e.g., origin/undefined)
   if (typeof baseBranch !== "string" || baseBranch.trim() === "") {

@@ -25,16 +25,6 @@ type FrontmatterResult struct {
 	FieldLines       map[string]int // Absolute line numbers (1-based) of top-level frontmatter keys in the file
 }
 
-// extractTopLevelFieldLines scans YAML text and returns a map of top-level key names to
-// their absolute line numbers in the source file. frontmatterStart is the 1-based line
-// number of the first frontmatter content line (i.e. the line immediately after the
-// opening "---" delimiter). The returned line numbers are absolute: they can be used
-// directly as file:line positions for IDE-navigable error messages.
-func extractTopLevelFieldLines(yamlContent string, frontmatterStart int) map[string]int {
-	_, fieldLines := extractFrontmatterMetadata(yamlContent, frontmatterStart)
-	return fieldLines
-}
-
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
 func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	parserLog.Printf("Extracting frontmatter from content: size=%d bytes", len(content))
@@ -126,19 +116,6 @@ func frontmatterLineBounds(content string, cursor int) (int, int, int) {
 		}
 	}
 	return lineStart, lineEnd, nextCursor
-}
-
-func splitFrontmatterLines(frontmatterYAML string) []string {
-	if frontmatterYAML == "" {
-		return []string{}
-	}
-	lines := strings.Split(frontmatterYAML, "\n")
-	// Preserve previous behavior from lines[1:endIndex]: a trailing newline before
-	// the closing delimiter does not create an additional empty frontmatter line.
-	if strings.HasSuffix(frontmatterYAML, "\n") {
-		lines = lines[:len(lines)-1]
-	}
-	return lines
 }
 
 func extractFrontmatterMetadata(frontmatterYAML string, frontmatterStart int) ([]string, map[string]int) {

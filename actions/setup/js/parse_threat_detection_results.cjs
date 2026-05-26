@@ -92,10 +92,26 @@ function extractResultFromText(text) {
  */
 function extractFromStreamJson(line) {
   const trimmed = line.trim();
-  if (!trimmed.startsWith("{")) return null;
+
+  // Support log lines prefixed with runner/codex tracing metadata, e.g.:
+  //   2026-... TRACE ...: {"type":"response.output_text.done",...}
+  // Assumes the first JSON object on the line is the event payload.
+  const jsonStart = trimmed.indexOf("{");
+  if (jsonStart === -1) return null;
+  const jsonText = trimmed.slice(jsonStart);
+
+  /**
+   * @param {string} text
+   * @returns {string|null}
+   */
+  function extractPrefixedResult(text) {
+    const prefixIdx = text.indexOf(RESULT_PREFIX);
+    if (prefixIdx === -1) return null;
+    return extractResultFromText(text.slice(prefixIdx));
+  }
 
   try {
-    const obj = JSON.parse(trimmed);
+    const obj = JSON.parse(jsonText);
     // Only extract from the authoritative "result" summary, not "assistant" messages.
     // In stream-json mode, the same content appears in both; using only "result"
     // avoids double-counting.
@@ -125,6 +141,17 @@ function extractFromStreamJson(line) {
 
       // Extract the complete JSON object using brace-counting.
       return extractResultFromText(joined);
+    }
+
+    // Codex responses API emits final output text in response events.
+    if (obj.type === "response.output_text.done" && typeof obj.text === "string") {
+      return extractPrefixedResult(obj.text);
+    }
+    if (obj.type === "response.content_part.done" && obj.part && typeof obj.part.text === "string") {
+      return extractPrefixedResult(obj.part.text);
+    }
+    if (obj.type === "item.completed" && obj.item && typeof obj.item.text === "string") {
+      return extractPrefixedResult(obj.item.text);
     }
   } catch {
     // Not valid JSON — not a stream-json line

@@ -836,6 +836,7 @@ strict: true
 # Bot Detection
 
 You are a repository security triage agent whose job is to detect and summarize **suspicious activity** in ${{ github.repository }} over the last **6 hours**.
+Use the inline skill `bot-detection-risk-scoring` for deterministic risk scoring details.
 
 ## What to Investigate
 
@@ -901,7 +902,10 @@ This workflow enforces determinism via a **precompute job**.
 
 - Do not modify the precomputed markdown body.
 
-## Risk Scoring (rules-based)
+## skill: `bot-detection-risk-scoring`
+---
+description: Documents deterministic bot-detection risk scoring rules and thresholds.
+---
 
 `risk_score` is computed in the precompute job (cap 100) from deterministic signals:
 

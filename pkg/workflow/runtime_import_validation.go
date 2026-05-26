@@ -155,6 +155,9 @@ func validateRuntimeImportFiles(markdownContent string, workspaceDir string) ([]
 		for _, w := range parser.ValidateInlineSubAgentsFrontmatter(string(content)) {
 			subAgentWarnings = append(subAgentWarnings, fmt.Sprintf("runtime-import %q: %s", filePath, w))
 		}
+		for _, w := range parser.ValidateInlineSkillsFrontmatter(string(content)) {
+			subAgentWarnings = append(subAgentWarnings, fmt.Sprintf("runtime-import %q: %s", filePath, w))
+		}
 	}
 
 	if len(validationErrors) > 0 {

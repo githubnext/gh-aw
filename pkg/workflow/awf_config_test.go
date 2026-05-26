@@ -293,6 +293,51 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, "corp-gateway.example.com", "should include the anthropic host")
 	})
 
+	t.Run("antigravity engine routes API target through gemini provider", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "antigravity",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "antigravity"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		assert.Contains(t, jsonStr, `"gemini"`, "should include gemini target for antigravity engine")
+		assert.Contains(t, jsonStr, "generativelanguage.googleapis.com", "should include default Gemini API hostname")
+		assert.NotContains(t, jsonStr, `"antigravity"`, "should not include unsupported antigravity target key")
+	})
+
+	t.Run("antigravity custom base URL maps to gemini provider target", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "antigravity",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "antigravity",
+					Env: map[string]string{
+						"ANTIGRAVITY_API_BASE_URL": "https://antigravity-proxy.internal.example.com/v1",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		assert.Contains(t, jsonStr, `"gemini"`, "should include gemini target for antigravity engine")
+		assert.Contains(t, jsonStr, "antigravity-proxy.internal.example.com", "should include host from ANTIGRAVITY_API_BASE_URL")
+		assert.NotContains(t, jsonStr, `"antigravity"`, "should not include unsupported antigravity target key")
+	})
+
 	t.Run("no API targets section when no custom endpoints are configured", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",

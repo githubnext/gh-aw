@@ -425,6 +425,7 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	// is not clobbered. Inline sub-agents are enabled by default.
 	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), data) {
 		generateRestoreInlineSubAgentsStep(yaml, data)
+		generateRestoreInlineSkillsStep(yaml, data)
 	}
 
 	// Add pre-agent-steps (if any) after base-branch restore but before MCP setup.

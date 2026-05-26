@@ -17,7 +17,8 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
-const { ensureFullHistoryForBundle, getGitAuthEnv, extractBundlePrerequisiteCommits } = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, getGitAuthEnv, extractBundlePrerequisiteCommits, linearizeRangeAsCommit } = require("./git_helpers.cjs");
+const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { getThreatDetectedMarker } = require("./threat_detection_warning.cjs");
 
@@ -37,7 +38,6 @@ const MISSING_REMOTE_REF_PATTERNS = [
   "fatal: couldn't find remote ref",
   "exit code 128",
 ];
-
 /**
  * @param {unknown} value
  * @returns {boolean}
@@ -195,6 +195,11 @@ async function main(config = {}) {
     // Check if bundle or patch file exists
     const hasBundleFile = !!(bundleFilePath && fs.existsSync(bundleFilePath));
     const hasPatchFile = !!(patchFilePath && fs.existsSync(patchFilePath));
+    const applyTransport = hasBundleFile ? "bundle" : "patch";
+    core.info(`Apply transport mode: ${applyTransport} (patch file present: ${hasPatchFile}, bundle file present: ${hasBundleFile})`);
+    if (bundleFilePath && !hasBundleFile) {
+      core.warning(`Bundle file path was provided but file is not present on disk: ${bundleFilePath}; falling back to patch transport`);
+    }
 
     // Always require a patch file for policy enforcement. Bundle is used for apply-time
     // transport, but allowed-files/protected-files checks must run on patch content
@@ -650,13 +655,53 @@ async function main(config = {}) {
     let newCommitCount = 0;
     let remoteHeadBeforePatch = "";
     let pushedCommitSha = "";
+    let rangeBaseRef = `origin/${branchName}`;
     if (hasChanges) {
       // Capture HEAD before applying changes to compute new-commit count later
       try {
         const { stdout } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], baseGitOpts);
         remoteHeadBeforePatch = stdout.trim();
+        if (remoteHeadBeforePatch) {
+          rangeBaseRef = remoteHeadBeforePatch;
+          core.info(`Remote branch HEAD before apply: ${remoteHeadBeforePatch}`);
+        }
       } catch {
         // Non-fatal - extra empty commit will be skipped
+      }
+
+      // Pin patch application to the recorded base commit captured at patch-generation time.
+      // This avoids applying a patch generated from an older branch tip onto a newer remote tip.
+      // If the commit is unavailable (e.g. cross-repo/missing object), continue with current HEAD.
+      if (!hasBundleFile && message.base_commit) {
+        const recordedBaseCommit = normalizeCommitSHA(message.base_commit);
+        if (recordedBaseCommit) {
+          core.info(`Patch route base_commit resolved: ${recordedBaseCommit}`);
+          try {
+            try {
+              await exec.exec("git", ["fetch", "origin", recordedBaseCommit, "--depth=1"], {
+                env: { ...process.env, ...gitAuthEnv },
+                ...baseGitOpts,
+              });
+            } catch (fetchError) {
+              core.info(`Note: could not fetch base_commit ${recordedBaseCommit} explicitly (${getErrorMessage(fetchError)}); will verify local availability next`);
+            }
+            await exec.exec("git", ["cat-file", "-e", recordedBaseCommit], baseGitOpts);
+            const ancestryCheck = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", recordedBaseCommit, `origin/${branchName}`], { ...baseGitOpts, ignoreReturnCode: true });
+            if (ancestryCheck.exitCode !== 0) {
+              throw new Error(`recorded base_commit ${recordedBaseCommit} is not an ancestor of origin/${branchName}; cannot safely re-anchor patch apply`);
+            }
+            if (remoteHeadBeforePatch && remoteHeadBeforePatch !== recordedBaseCommit) {
+              core.warning(`Remote PR branch advanced since patch generation (remote HEAD ${remoteHeadBeforePatch}, patch base ${recordedBaseCommit}); applying patch from recorded base commit`);
+            }
+            await exec.exec("git", ["reset", "--hard", recordedBaseCommit], baseGitOpts);
+            rangeBaseRef = recordedBaseCommit;
+            core.info(`Reset branch to recorded base_commit before patch apply: ${recordedBaseCommit}`);
+          } catch (baseCommitError) {
+            core.warning(`Unable to use recorded base_commit ${recordedBaseCommit}; applying patch on current branch HEAD: ${getErrorMessage(baseCommitError)}`);
+          }
+        } else if (String(message.base_commit).trim()) {
+          core.warning(`Ignoring invalid base_commit value for patch apply: ${String(message.base_commit).trim()}`);
+        }
       }
 
       if (hasBundleFile) {
@@ -674,7 +719,7 @@ async function main(config = {}) {
           // Use getExecOutput with ignoreReturnCode so we can read the actual stderr from git —
           // exec() only throws "The process '...' failed with exit code 1" which loses the
           // "lacks these prerequisite commits" text needed for the recovery path below.
-          const bundleFetchRef = `refs/heads/${message.branch}:${bundleRef}`;
+          const bundleFetchRef = `refs/heads/${branchName}:${bundleRef}`;
           const initialBundleFetch = await exec.getExecOutput("git", ["fetch", bundleFilePath, bundleFetchRef], { ...baseGitOpts, ignoreReturnCode: true });
           if (initialBundleFetch.exitCode !== 0) {
             const initialFetchErrorOutput = initialBundleFetch.stderr || `exit code ${initialBundleFetch.exitCode}`;
@@ -702,13 +747,14 @@ async function main(config = {}) {
           // checkouts, merge --ff-only can fail to discover the ancestry even
           // when the bundle tip is based on the current branch tip and the
           // prerequisite exists locally.
+          core.info(`Updating local branch ref refs/heads/${branchName} to ${bundleRef} (expected previous tip: ${remoteHeadBeforePatch || "unknown"})`);
           const updateRefArgs = ["update-ref", `refs/heads/${branchName}`, bundleRef];
           if (remoteHeadBeforePatch) {
             updateRefArgs.push(remoteHeadBeforePatch);
           }
           await exec.exec("git", updateRefArgs, baseGitOpts);
           await exec.exec("git", ["reset", "--hard"], baseGitOpts);
-          core.info("Updated branch to bundle tip");
+          core.info(`Updated branch to bundle tip from ${bundleRef}`);
 
           // Clean up the temporary ref
           try {
@@ -832,6 +878,7 @@ async function main(config = {}) {
           }
         }
       } // end else (patch path)
+      core.info(`Apply transport completed; signed-push base ref: ${rangeBaseRef}`);
 
       // When threat detection produced a warning, create a review PR instead of pushing
       // directly to the existing PR branch. This allows manual review of the changes
@@ -911,6 +958,42 @@ async function main(config = {}) {
         }
       }
 
+      // When signed commits are required, the GitHub GraphQL createCommitOnBranch mutation
+      // cannot represent merge commits.  If the range to be pushed contains merge commits
+      // (e.g. the agent ran `git merge origin/main` instead of `git rebase origin/main`),
+      // squash the entire range into a single regular commit that carries the same tree.
+      // This preserves the file-level outcome while producing a linear history that can
+      // be signed.  A warning is emitted so workflow authors and agents know that rebase
+      // should be preferred over merge in future runs.
+      if (signedCommits && hasChanges) {
+        const squashBase = rangeBaseRef;
+        try {
+          const { stdout: mergeCountOut } = await exec.getExecOutput("git", ["rev-list", "--merges", "--count", `${squashBase}..HEAD`], baseGitOpts);
+          const mergeCount = parseInt(mergeCountOut.trim(), 10);
+          if (Number.isFinite(mergeCount) && mergeCount > 0) {
+            core.warning(
+              `push_to_pull_request_branch: detected ${mergeCount} merge commit(s) in range ${squashBase}..HEAD. ` +
+                `Merge commits cannot be pushed as signed commits. Squashing the range into a single regular commit to preserve content. ` +
+                `To avoid this, use 'git rebase' instead of 'git merge' when updating the PR branch.`
+            );
+            // Prefer the message from the first non-merge commit in the range — it carries
+            // the most meaningful description of the actual work.  Fall back to the last
+            // commit's message (which may be the merge commit itself) if no regular commit
+            // exists, and finally to a generic label.
+            const { stdout: firstNonMergeOut } = await exec.getExecOutput("git", ["log", "--no-merges", "--max-count=1", "--format=%B", "--reverse", `${squashBase}..HEAD`], baseGitOpts);
+            let squashMessage = firstNonMergeOut.trim();
+            if (!squashMessage) {
+              const { stdout: lastMsgOut } = await exec.getExecOutput("git", ["log", "-1", "--format=%B"], baseGitOpts);
+              squashMessage = lastMsgOut.trim() || "Merge changes";
+            }
+            await linearizeRangeAsCommit(squashBase, squashMessage, exec, { gitOpts: baseGitOpts, commitFlags: ["--allow-empty", "--no-verify"] });
+            core.info(`push_to_pull_request_branch: merge commits linearized into single regular commit for signed-commit push`);
+          }
+        } catch (squashErr) {
+          core.warning(`push_to_pull_request_branch: failed to linearize merge commits: ${getErrorMessage(squashErr)}; push may fail`);
+        }
+      }
+
       // Push the applied commits to the branch using signed GraphQL commits (outside patch try/catch so push failures are not misattributed)
       try {
         const pushedSha = await pushSignedCommits({
@@ -918,7 +1001,7 @@ async function main(config = {}) {
           owner: repoParts.owner,
           repo: repoParts.repo,
           branch: branchName,
-          baseRef: remoteHeadBeforePatch || `origin/${branchName}`,
+          baseRef: rangeBaseRef,
           cwd: repoCwd || process.cwd(),
           gitAuthEnv,
           signedCommits,

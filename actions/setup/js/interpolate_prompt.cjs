@@ -14,6 +14,7 @@ const { isTruthy } = require("./is_truthy.cjs");
 const { selectBranch } = require("./template_branch.cjs");
 const { processRuntimeImports } = require("./runtime_import.cjs");
 const { writeInlineSubAgents } = require("./extract_inline_sub_agents.cjs");
+const { writeInlineSkills } = require("./extract_inline_skills.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 
@@ -271,6 +272,25 @@ async function main() {
       core.info(`Content length change: ${beforeExtraction} -> ${afterExtraction} (${afterExtraction > beforeExtraction ? "+" : ""}${afterExtraction - beforeExtraction})`);
     } else {
       core.info("No inline sub-agent markers found, skipping");
+    }
+
+    // Step 1.6: Extract and write inline skills
+    // ## skill: `name` blocks are written to engine-specific skills directories.
+    // This runs after runtime imports so macros inside skill blocks are resolved.
+    core.info("\n========================================");
+    core.info("[main] STEP 1.6: Inline Skill Extraction");
+    core.info("========================================");
+    const hasSkillMarkers = /^##[ \t]+skill:[ \t]+`[a-z]/m.test(content);
+    if (hasSkillMarkers) {
+      const beforeExtraction = content.length;
+      const skillsBaseDir = "/tmp/gh-aw";
+      const engineId = process.env.GH_AW_ENGINE_ID || "";
+      content = writeInlineSkills(content, workspaceDir, skillsBaseDir, engineId);
+      const afterExtraction = content.length;
+      core.info(`Inline skills extracted and written`);
+      core.info(`Content length change: ${beforeExtraction} -> ${afterExtraction} (${afterExtraction > beforeExtraction ? "+" : ""}${afterExtraction - beforeExtraction})`);
+    } else {
+      core.info("No inline skill markers found, skipping");
     }
 
     // Step 2: Interpolate variables

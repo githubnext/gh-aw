@@ -239,6 +239,67 @@ func TestAgentEntryToTimelineEvent_BadTimestamp(t *testing.T) {
 	}
 }
 
+func TestAgentEntryToTimelineEvent_UserMessage_WithContent(t *testing.T) {
+	entry := copilotEventsJSONLEntry{
+		Type:      "user.message",
+		Timestamp: "2024-01-15T10:00:01Z",
+		Data:      copilotEventsJSONLEntryData{Content: "What files are in the repo?"},
+	}
+	evt, ok := agentEntryToTimelineEvent(entry, 1)
+	if !ok {
+		t.Fatal("ok = false; want true for user.message")
+	}
+	if evt.Kind != TimelineKindAgentTurn {
+		t.Errorf("Kind = %q; want %q", evt.Kind, TimelineKindAgentTurn)
+	}
+	if evt.MessageContent != "What files are in the repo?" {
+		t.Errorf("MessageContent = %q; want %q", evt.MessageContent, "What files are in the repo?")
+	}
+}
+
+func TestAgentEntryToTimelineEvent_AssistantMessage(t *testing.T) {
+	entry := copilotEventsJSONLEntry{
+		Type:      "assistant.message",
+		Timestamp: "2024-01-15T10:00:02Z",
+		Data:      copilotEventsJSONLEntryData{Content: "Here are the files."},
+	}
+	evt, ok := agentEntryToTimelineEvent(entry, 1)
+	if !ok {
+		t.Fatal("ok = false; want true for assistant.message")
+	}
+	if evt.Kind != TimelineKindAssistantMessage {
+		t.Errorf("Kind = %q; want %q", evt.Kind, TimelineKindAssistantMessage)
+	}
+	if evt.MessageContent != "Here are the files." {
+		t.Errorf("MessageContent = %q; want %q", evt.MessageContent, "Here are the files.")
+	}
+	if evt.Source != TimelineSourceAgent {
+		t.Errorf("Source = %q; want %q", evt.Source, TimelineSourceAgent)
+	}
+}
+
+func TestAgentEntryToTimelineEvent_Reasoning(t *testing.T) {
+	for _, eventType := range []string{"reasoning", "assistant.reasoning"} {
+		t.Run(eventType, func(t *testing.T) {
+			entry := copilotEventsJSONLEntry{
+				Type:      eventType,
+				Timestamp: "2024-01-15T10:00:03Z",
+				Data:      copilotEventsJSONLEntryData{Content: "I should search for files."},
+			}
+			evt, ok := agentEntryToTimelineEvent(entry, 1)
+			if !ok {
+				t.Fatalf("ok = false; want true for %s", eventType)
+			}
+			if evt.Kind != TimelineKindReasoning {
+				t.Errorf("Kind = %q; want %q", evt.Kind, TimelineKindReasoning)
+			}
+			if evt.MessageContent != "I should search for files." {
+				t.Errorf("MessageContent = %q; want %q", evt.MessageContent, "I should search for files.")
+			}
+		})
+	}
+}
+
 // ─── collectAgentTimelineEvents ──────────────────────────────────────────────
 
 func TestCollectAgentTimelineEvents_ReturnsNilWhenMissing(t *testing.T) {
@@ -518,6 +579,8 @@ func TestTimelineEventIcon_AllKinds(t *testing.T) {
 		TimelineKindAgentTurn,
 		TimelineKindAgentToolStart,
 		TimelineKindAgentToolDone,
+		TimelineKindAssistantMessage,
+		TimelineKindReasoning,
 	}
 	for _, k := range kinds {
 		icon := timelineEventIcon(k)
@@ -530,5 +593,50 @@ func TestTimelineEventIcon_AllKinds(t *testing.T) {
 func TestTimelineSourceLabel_Agent(t *testing.T) {
 	if got := timelineSourceLabel(TimelineSourceAgent); got != "AG" {
 		t.Errorf("timelineSourceLabel(TimelineSourceAgent) = %q; want AG", got)
+	}
+}
+
+// ─── renderMessageSnippet ─────────────────────────────────────────────────────
+
+func TestRenderMessageSnippet_Empty(t *testing.T) {
+	noop := noopStyleRenderer{}
+	out := renderMessageSnippet("", "  ", noop, noop)
+	if out != "" {
+		t.Errorf("renderMessageSnippet(\"\") = %q; want empty string", out)
+	}
+}
+
+func TestRenderMessageSnippet_SingleLine(t *testing.T) {
+	noop := noopStyleRenderer{}
+	out := renderMessageSnippet("hello world", "  ", noop, noop)
+	if !strings.Contains(out, "hello world") {
+		t.Errorf("renderMessageSnippet single line = %q; want to contain 'hello world'", out)
+	}
+	if strings.Contains(out, "…") {
+		t.Errorf("renderMessageSnippet single line = %q; should not contain truncation marker", out)
+	}
+}
+
+func TestRenderMessageSnippet_TruncatesAfterMaxLines(t *testing.T) {
+	noop := noopStyleRenderer{}
+	content := "line1\nline2\nline3\nline4\nline5"
+	out := renderMessageSnippet(content, "  ", noop, noop)
+	if !strings.Contains(out, "line1") || !strings.Contains(out, "line2") || !strings.Contains(out, "line3") {
+		t.Errorf("renderMessageSnippet = %q; want first 3 lines present", out)
+	}
+	if strings.Contains(out, "line4") || strings.Contains(out, "line5") {
+		t.Errorf("renderMessageSnippet = %q; should not contain lines beyond max (%d)", out, streamMaxMessageLines)
+	}
+	if !strings.Contains(out, "…") {
+		t.Errorf("renderMessageSnippet = %q; want truncation marker '…'", out)
+	}
+}
+
+func TestRenderMessageSnippet_SkipsBlankLines(t *testing.T) {
+	noop := noopStyleRenderer{}
+	content := "\n\nfirst line\n\nsecond line\n"
+	out := renderMessageSnippet(content, "  ", noop, noop)
+	if !strings.Contains(out, "first line") || !strings.Contains(out, "second line") {
+		t.Errorf("renderMessageSnippet = %q; want non-blank lines shown", out)
 	}
 }

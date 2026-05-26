@@ -6,6 +6,53 @@ const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require(
 const fs = require("fs");
 
 /**
+ * Check whether a schema enforces strict object keys.
+ * @param {any} inputSchema - Tool input schema
+ * @returns {boolean} True when additional properties are disallowed
+ */
+function isStrictSchema(inputSchema) {
+  if (!inputSchema || typeof inputSchema !== "object") {
+    return false;
+  }
+  if (inputSchema.additionalProperties !== false) {
+    return false;
+  }
+  const { properties } = inputSchema;
+  return !!properties && typeof properties === "object" && !Array.isArray(properties);
+}
+
+/**
+ * Strip unknown keys from tool arguments when schema is strict.
+ * @param {any} args - Tool call arguments
+ * @param {any} inputSchema - Tool input schema
+ * @param {(keys: string[]) => void} [onUnknownKeysStripped] - Optional callback for stripped keys
+ * @returns {any} Sanitized args
+ */
+function sanitizeArgsBySchema(args, inputSchema, onUnknownKeysStripped) {
+  if (!args || typeof args !== "object" || Array.isArray(args)) {
+    return args;
+  }
+  if (!isStrictSchema(inputSchema)) {
+    return args;
+  }
+
+  const allowedKeys = new Set(Object.keys(inputSchema.properties));
+  const sanitizedArgs = {};
+  const strippedKeys = [];
+  for (const [key, value] of Object.entries(args)) {
+    if (allowedKeys.has(key)) {
+      sanitizedArgs[key] = value;
+    } else {
+      strippedKeys.push(key);
+    }
+  }
+  if (strippedKeys.length > 0 && typeof onUnknownKeysStripped === "function") {
+    onUnknownKeysStripped(strippedKeys);
+  }
+  return sanitizedArgs;
+}
+
+/**
  * Load tools from tools.json file
  * @param {Object} server - The MCP server instance for logging
  * @returns {Array} Array of tool definitions
@@ -68,9 +115,10 @@ function loadTools(server) {
  * Attach handlers to tools
  * @param {Array} tools - Array of tool definitions
  * @param {Object} handlers - Object containing handler functions
+ * @param {{ debug?: Function }} [logger] - Optional logger
  * @returns {Array} Tools with handlers attached
  */
-function attachHandlers(tools, handlers) {
+function attachHandlers(tools, handlers, logger) {
   const handlerMap = {
     create_issue: handlers.createIssueHandler,
     create_pull_request: handlers.createPullRequestHandler,
@@ -89,6 +137,8 @@ function attachHandlers(tools, handlers) {
     const handler = handlerMap[tool.name];
     if (handler) {
       tool.handler = handler;
+    } else if (typeof handlers.defaultHandler === "function") {
+      tool.handler = handlers.defaultHandler(tool.name);
     }
 
     // Check if this is a dispatch_workflow tool (dynamic tool with workflow metadata)
@@ -127,6 +177,16 @@ function attachHandlers(tools, handlers) {
         });
       };
     }
+
+    if (typeof tool.handler === "function" && isStrictSchema(tool.inputSchema)) {
+      const originalHandler = tool.handler;
+      tool.handler = args =>
+        originalHandler(
+          sanitizeArgsBySchema(args, tool.inputSchema, strippedKeys => {
+            logger?.debug?.(`Stripped unknown keys for strict schema tool '${tool.name}': ${JSON.stringify(strippedKeys)}`);
+          })
+        );
+    }
   });
 
   return tools;
@@ -158,6 +218,9 @@ function registerPredefinedTools(server, tools, config, registerTool, normalizeT
       // Enrich create_pull_request tool description when target-repo is configured
       if (safetyWarning || isCreatePullRequestTool) {
         toolToRegister = JSON.parse(JSON.stringify(tool));
+        if (tool.handler) {
+          toolToRegister.handler = tool.handler;
+        }
         if (safetyWarning) {
           toolToRegister.description += safetyWarning;
         }

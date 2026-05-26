@@ -264,12 +264,18 @@ Generate a human-readable Markdown report and create a discussion.
 Daily Copilot Agent Session Analysis — [YYYY-MM-DD]
 ```
 
+### Report Formatting
+
+- Use h3 (`###`) or lower for all headers in the discussion body. Never use h1 (`#`) or h2 (`##`) — these are reserved for the discussion title.
+- Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.
+- Keep Executive Summary, Key Metrics, and Recommendations always visible; collapse verbose per-session data in `<details>` blocks.
+
 **Discussion Template**:
 
 ```markdown
-# 🤖 Copilot Agent Session Analysis — [DATE]
+### 🤖 Copilot Agent Session Analysis — [DATE]
 
-## Executive Summary
+#### Executive Summary
 
 - **Sessions Analyzed**: [NUMBER]
 - **Analysis Period**: [DATE RANGE]
@@ -277,7 +283,7 @@ Daily Copilot Agent Session Analysis — [YYYY-MM-DD]
 - **Average Duration**: [TIME]
 - **Experimental Strategy**: [STRATEGY NAME] (if applicable)
 
-## Key Metrics
+#### Key Metrics
 
 | Metric | Value | Trend |
 |--------|-------|-------|
@@ -288,7 +294,7 @@ Daily Copilot Agent Session Analysis — [YYYY-MM-DD]
 | Loop Detection Rate | [N] ([%]) | [↑↓→] |
 | Context Issues | [N] ([%]) | [↑↓→] |
 
-## Success Factors ✅
+#### Success Factors ✅
 
 Patterns associated with successful task completion:
 
@@ -302,7 +308,7 @@ Patterns associated with successful task completion:
 
 [Include 3-5 key success patterns]
 
-## Failure Signals ⚠️
+#### Failure Signals ⚠️
 
 Common indicators of inefficiency or failure:
 
@@ -316,9 +322,12 @@ Common indicators of inefficiency or failure:
 
 [Include 3-5 key failure patterns]
 
-## Prompt Quality Analysis 📝
+#### Prompt Quality Analysis 📝
 
-### High-Quality Prompt Characteristics
+<details>
+<summary><b>Per-Prompt Breakdown</b></summary>
+
+##### High-Quality Prompt Characteristics
 
 - [Characteristic 1]: Found in [%] of successful sessions
 - [Characteristic 2]: Found in [%] of successful sessions
@@ -329,7 +338,7 @@ Common indicators of inefficiency or failure:
 [Example of an effective task description]
 ```
 
-### Low-Quality Prompt Characteristics
+##### Low-Quality Prompt Characteristics
 
 - [Characteristic 1]: Found in [%] of failed sessions
 - [Characteristic 2]: Found in [%] of failed sessions
@@ -339,17 +348,22 @@ Common indicators of inefficiency or failure:
 [Example of an ineffective task description]
 ```
 
-## Orphaned Branch Escalation Alerts 🚨
+</details>
+
+#### Orphaned Branch Escalation Alerts 🚨
 
 > Branches with ≥5 simultaneous gate firings and no Copilot agent assigned for >2 hours.
 
-### Summary
+##### Summary
 
 - **Orphaned Branches Today**: [N] out of [TOTAL] active branches ([%])
 - **Historical Baseline**: ~40% orphaned rate
 - **Status**: [NORMAL / ⚠️ ELEVATED] (flag if today's rate > 50%)
 
-### Escalation Candidates
+<details>
+<summary><b>Escalation Candidate Details</b></summary>
+
+##### Escalation Candidates
 
 | Branch | PR | Gate Count | Wait Time | Severity | Recommended Action |
 |--------|-----|------------|-----------|----------|--------------------|
@@ -357,29 +371,36 @@ Common indicators of inefficiency or failure:
 
 _(If no escalation candidates: "✅ No orphaned branches exceed the escalation threshold today.")_
 
-### CI Waste Estimate
+##### CI Waste Estimate
 
 - **Orphaned gate-hours today**: [N] gate × [Xh] ≈ [N] CI-minutes wasted
 - **Recoverable capacity**: Assigning agents to critical/high branches could recover ~[%] of orphaned CI capacity
 
-## Notable Observations
+</details>
 
-### Loop Detection
+#### Notable Observations
+
+<details>
+<summary><b>Loop Detection and Session Diagnostics</b></summary>
+
+##### Loop Detection
 - **Sessions with loops**: [N] ([%])
 - **Average loop count**: [NUMBER]
 - **Common loop patterns**: [Description]
 
-### Tool Usage
+##### Tool Usage
 - **Most used tools**: [List]
 - **Tool success rates**: [Statistics]
 - **Missing tools**: [List of requested but unavailable tools]
 
-### Context Issues
+##### Context Issues
 - **Sessions with confusion**: [N] ([%])
 - **Common confusion points**: [List]
 - **Clarification requests**: [N]
 
-## Experimental Analysis
+</details>
+
+#### Experimental Analysis
 
 **This run included experimental strategy**: [STRATEGY NAME]
 
@@ -395,9 +416,9 @@ _(If no escalation candidates: "✅ No orphaned branches exceed the escalation t
 
 [If not experimental, include note: "Standard analysis only - no experimental strategy this run"]
 
-## Actionable Recommendations
+#### Actionable Recommendations
 
-### For Users Writing Task Descriptions
+##### For Users Writing Task Descriptions
 
 1. **[Recommendation 1]**: [Specific guidance]
    - Example: [Before/After example]
@@ -408,7 +429,7 @@ _(If no escalation candidates: "✅ No orphaned branches exceed the escalation t
 3. **[Recommendation 3]**: [Specific guidance]
    - Example: [Before/After example]
 
-### For System Improvements
+##### For System Improvements
 
 1. **[Improvement Area]**: [Description]
    - Potential impact: [High/Medium/Low]
@@ -416,13 +437,16 @@ _(If no escalation candidates: "✅ No orphaned branches exceed the escalation t
 2. **[Improvement Area]**: [Description]
    - Potential impact: [High/Medium/Low]
 
-### For Tool Development
+##### For Tool Development
 
 1. **[Missing Tool/Capability]**: [Description]
    - Frequency of need: [NUMBER] sessions
    - Use case: [Description]
 
-## Trends Over Time
+<details>
+<summary><b>Historical Trends and Statistical Summary</b></summary>
+
+#### Trends Over Time
 
 [Compare with historical data from cache memory if available]
 
@@ -430,7 +454,7 @@ _(If no escalation candidates: "✅ No orphaned branches exceed the escalation t
 - **Average duration trend**: [Description]
 - **Quality improvement**: [Description]
 
-## Statistical Summary
+#### Statistical Summary
 
 ```
 Total Sessions Analyzed:     [N]
@@ -453,7 +477,9 @@ Medium-Quality Prompts:    [N] ([%])
 Low-Quality Prompts:       [N] ([%])
 ```
 
-## Next Steps
+</details>
+
+#### Next Steps
 
 - [ ] Review recommendations with team
 - [ ] Implement high-priority prompt improvements

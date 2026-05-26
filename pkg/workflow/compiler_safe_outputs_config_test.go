@@ -2762,6 +2762,55 @@ func TestProtectTopLevelDotFolders(t *testing.T) {
 	}
 }
 
+func TestHandlerConfigInjectsCurrentCheckoutPatchWorkspacePath(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		CheckoutConfigs: []*CheckoutConfig{
+			{
+				Repository: "caido/proxy-frontend",
+				Path:       "./proxy-frontend",
+				Current:    true,
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				TargetRepoSlug:       "caido/proxy-frontend",
+			},
+			PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+				TargetRepoSlug: "caido/proxy-frontend",
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "should produce config steps")
+
+	var configJSON string
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			require.Len(t, parts, 2, "should split env var line")
+			configJSON = strings.TrimSpace(parts[1])
+			configJSON = strings.Trim(configJSON, "\"")
+			configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+		}
+	}
+	require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+	var config map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+	for _, handlerName := range []string{"create_pull_request", "push_to_pull_request_branch"} {
+		handlerCfg, ok := config[handlerName]
+		require.True(t, ok, "%s handler should be present", handlerName)
+		assert.Equal(t, "proxy-frontend", handlerCfg["patch_workspace_path"])
+		assert.Equal(t, "caido/proxy-frontend", handlerCfg["current_checkout_repo"])
+	}
+}
+
 // TestProtectTopLevelMdFiles verifies that well-known top-level Markdown files
 // (README.md, CONTRIBUTING.md, CHANGELOG.md, SECURITY.md, CODE_OF_CONDUCT.md) are
 // always included in the protected_files list in both handler configs.

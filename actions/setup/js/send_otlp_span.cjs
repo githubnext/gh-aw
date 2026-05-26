@@ -372,9 +372,9 @@ function buildGitHubActionsResourceAttributes({
   runAttempt = "1",
 }) {
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId), buildAttr("github.run_attempt", runAttempt)];
-  if (repository && runId && repository.includes("/")) {
-    const [owner, repo] = repository.split("/");
-    resourceAttributes.push(buildAttr("github.actions.run_url", buildWorkflowRunUrl({ runId }, { owner, repo })));
+  const runUrlAttr = buildGitHubActionsRunUrlAttribute(repository, runId);
+  if (runUrlAttr) {
+    resourceAttributes.push(runUrlAttr);
   }
   if (eventName) {
     resourceAttributes.push(buildAttr("github.event_name", eventName));
@@ -420,6 +420,21 @@ function buildGitHubActionsResourceAttributes({
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
   return resourceAttributes;
+}
+
+/**
+ * Build github.actions.run_url attribute when repository and run ID are available.
+ *
+ * @param {string} repository
+ * @param {string} runId
+ * @returns {{ key: string, value: object } | null}
+ */
+function buildGitHubActionsRunUrlAttribute(repository, runId) {
+  if (!repository || !runId || !repository.includes("/")) {
+    return null;
+  }
+  const [owner, repo] = repository.split("/");
+  return buildAttr("github.actions.run_url", buildWorkflowRunUrl({ runId }, { owner, repo }));
 }
 
 /**
@@ -1158,6 +1173,10 @@ async function sendJobSetupSpan(options = {}) {
     buildAttr("gh-aw.run.actor", actor),
     buildAttr("gh-aw.repository", repository),
   ];
+  const runUrlAttr = buildGitHubActionsRunUrlAttribute(repository, runId);
+  if (runUrlAttr) {
+    attributes.push(runUrlAttr);
+  }
   if (scopeVersion !== "unknown") {
     attributes.push(buildAttr("gh-aw.cli.version", scopeVersion));
   }
@@ -1847,6 +1866,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
 
   const attributes = [buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.attempt", runAttempt), buildAttr("gh-aw.run.actor", actor), buildAttr("gh-aw.repository", repository)];
+  const runUrlAttr = buildGitHubActionsRunUrlAttribute(repository, runId);
+  if (runUrlAttr) {
+    attributes.push(runUrlAttr);
+  }
   if (version !== "unknown") {
     attributes.push(buildAttr("gh-aw.cli.version", version));
   }

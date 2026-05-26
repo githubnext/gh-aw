@@ -21,6 +21,8 @@ The `checkout:` frontmatter field controls how `actions/checkout` is invoked in 
 
 For multi-repository workflows, list multiple entries to clone several repos into the workspace. Mark the agent's primary target with `current: true` when working from a central repository that targets a different repo.
 
+When `current: true` points to a checkout in a subdirectory, pull-request patch generation for `create-pull-request` and `push-to-pull-request-branch` runs from that checkout path (when targeting that repository). This ensures PR patches include the real file changes instead of workspace-root gitlinks/subproject entries.
+
 ```yaml wrap
 checkout:
   - fetch-depth: 0                 # checkout this repository with full history

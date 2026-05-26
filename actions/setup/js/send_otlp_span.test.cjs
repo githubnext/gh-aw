@@ -1153,6 +1153,7 @@ describe("sendJobSetupSpan", () => {
     "GITHUB_RUN_ATTEMPT",
     "GITHUB_ACTOR",
     "GITHUB_REPOSITORY",
+    "GITHUB_SERVER_URL",
     "GITHUB_EVENT_NAME",
     "GITHUB_REF",
     "GITHUB_REF_NAME",
@@ -1739,7 +1740,7 @@ describe("sendJobSetupSpan", () => {
     expect(resourceAttrs).toContainEqual({ key: "github.job", value: { stringValue: "agent" } });
   });
 
-  it("includes github.actions.run_url as resource attribute when repository and run_id are set", async () => {
+  it("includes github.actions.run_url as resource and span attributes when repository and run_id are set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -1752,7 +1753,12 @@ describe("sendJobSetupSpan", () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    const spanAttrs = body.resourceSpans[0].scopeSpans[0].spans[0].attributes;
     expect(resourceAttrs).toContainEqual({
+      key: "github.actions.run_url",
+      value: { stringValue: "https://github.com/owner/repo/actions/runs/987654321" },
+    });
+    expect(spanAttrs).toContainEqual({
       key: "github.actions.run_url",
       value: { stringValue: "https://github.com/owner/repo/actions/runs/987654321" },
     });
@@ -1771,7 +1777,12 @@ describe("sendJobSetupSpan", () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    const spanAttrs = body.resourceSpans[0].scopeSpans[0].spans[0].attributes;
     expect(resourceAttrs).toContainEqual({
+      key: "github.actions.run_url",
+      value: { stringValue: "https://github.example.com/owner/repo/actions/runs/987654321" },
+    });
+    expect(spanAttrs).toContainEqual({
       key: "github.actions.run_url",
       value: { stringValue: "https://github.example.com/owner/repo/actions/runs/987654321" },
     });
@@ -1790,7 +1801,10 @@ describe("sendJobSetupSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     const resourceKeys = resourceAttrs.map(a => a.key);
+    const spanAttrs = body.resourceSpans[0].scopeSpans[0].spans[0].attributes;
+    const spanKeys = spanAttrs.map(a => a.key);
     expect(resourceKeys).not.toContain("github.actions.run_url");
+    expect(spanKeys).not.toContain("github.actions.run_url");
   });
 
   it("includes service.version resource attribute when GH_AW_INFO_VERSION is set", async () => {
@@ -3890,7 +3904,7 @@ describe("sendJobConclusionSpan", () => {
     expect(resourceKeys).not.toContain("github.sha");
   });
 
-  it("includes github.actions.run_url as resource attribute when repository and run_id are set", async () => {
+  it("includes github.actions.run_url as resource and span attributes when repository and run_id are set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -3903,7 +3917,12 @@ describe("sendJobConclusionSpan", () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    const spanAttrs = body.resourceSpans[0].scopeSpans[0].spans[0].attributes;
     expect(resourceAttrs).toContainEqual({
+      key: "github.actions.run_url",
+      value: { stringValue: "https://github.com/owner/repo/actions/runs/987654321" },
+    });
+    expect(spanAttrs).toContainEqual({
       key: "github.actions.run_url",
       value: { stringValue: "https://github.com/owner/repo/actions/runs/987654321" },
     });
@@ -3922,7 +3941,12 @@ describe("sendJobConclusionSpan", () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    const spanAttrs = body.resourceSpans[0].scopeSpans[0].spans[0].attributes;
     expect(resourceAttrs).toContainEqual({
+      key: "github.actions.run_url",
+      value: { stringValue: "https://github.example.com/owner/repo/actions/runs/987654321" },
+    });
+    expect(spanAttrs).toContainEqual({
       key: "github.actions.run_url",
       value: { stringValue: "https://github.example.com/owner/repo/actions/runs/987654321" },
     });
@@ -3941,7 +3965,10 @@ describe("sendJobConclusionSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     const resourceKeys = resourceAttrs.map(a => a.key);
+    const spanAttrs = body.resourceSpans[0].scopeSpans[0].spans[0].attributes;
+    const spanKeys = spanAttrs.map(a => a.key);
     expect(resourceKeys).not.toContain("github.actions.run_url");
+    expect(spanKeys).not.toContain("github.actions.run_url");
   });
 
   it("includes service.version resource attribute when version is known", async () => {

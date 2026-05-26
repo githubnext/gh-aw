@@ -1,5 +1,5 @@
 ---
-description: Guide for leveraging skills (SKILL.md files) in agentic workflows — hint strategy and fusion strategy
+description: Guide for leveraging skills (SKILL.md files) in agentic workflows — hint, fusion, and inline fusion strategies
 ---
 
 # Skills in Agentic Workflows
@@ -17,6 +17,44 @@ find "${GITHUB_WORKSPACE}" -name "SKILL.md" -maxdepth 6
 ```
 
 List available skills and their locations before deciding which strategy to apply.
+
+---
+
+## Inline Skills (Fusion at Authoring Time)
+
+**Use when**: You want to keep the main prompt compact while still shipping task-specific skill guidance with the workflow.
+
+Inline skills let a workflow embed a complete skill or a partial skill fragment under `## skill: \`name\``.
+Extraction happens in the setup/interpolation runtime step of workflow execution, not at `.md` to `.lock.yml` compile time.
+gh-aw writes each block into engine-specific skill locations and removes those blocks from the main prompt body.
+This keeps the main prompt slim and flexible while still making the fused guidance available as skills.
+
+Use this to fuse:
+
+- A full skill when the workflow needs a self-contained capability.
+- Partial skill sections when only targeted guidance is needed.
+
+**Pattern**:
+
+```markdown
+on:
+  workflow_dispatch:
+engine: copilot
+---
+
+Triage the issue and propose next steps.
+
+## skill: `issue-triage`
+---
+description: Classify issues and suggest next actions.
+---
+Classify by bug / feature / question, identify missing information, and suggest
+the smallest actionable next step.
+```
+
+Use a unique inline skill name per workflow file. The name can be arbitrary, but it must start with a lowercase letter and then use only lowercase letters, digits, `_`, or `-`.
+These constraints keep extracted skill paths predictable and engine-compatible.
+Avoid naming collisions with repository file-based skills (for example `.github/skills/<name>/SKILL.md`), because inline extraction writes to the same engine skill paths.
 
 ---
 
