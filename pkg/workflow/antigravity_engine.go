@@ -164,8 +164,9 @@ func (e *AntigravityEngine) GetExecutionSteps(workflowData *WorkflowData, logFil
 	// The conversion script (convert_gateway_config_antigravity.sh) writes settings.json
 	// during the MCP setup step, so no --mcp-config flag is needed here.
 
-	// Auto-approve all tool executions.
+	// Auto-approve all tool executions so non-interactive CI runs don't block on permission prompts.
 	// agy does not support the Gemini-style --yolo/--skip-trust flags.
+	// This flag grants broad tool permission inside the workflow sandbox, so it is only used in AWF-managed runs.
 	agyArgs = append(agyArgs, "--dangerously-skip-permissions")
 
 	// Note: the --prompt argument is appended raw after shellJoinArgs below because it contains
