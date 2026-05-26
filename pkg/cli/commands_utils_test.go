@@ -307,6 +307,16 @@ More content.
 	}
 }
 
+func TestFindIncludesInContent_EmptyContentReturnsNonNilSlice(t *testing.T) {
+	result, err := findIncludesInContent("")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("Expected non-nil empty slice for empty content")
+	}
+}
+
 // Benchmark tests
 func BenchmarkExtractWorkflowNameFromFile(b *testing.B) {
 	// Create temporary test file

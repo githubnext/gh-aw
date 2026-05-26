@@ -400,12 +400,20 @@ func findIncludesInContent(content string) ([]string, error) {
 			remaining = ""
 		}
 		if path := parseIncludePath(line); path != "" {
+			if includes == nil {
+				includes = make([]string, 0, 4)
+			}
 			includes = append(includes, path)
 		}
 	}
 
+	if includes == nil {
+		return emptyIncludes, nil
+	}
 	return includes, nil
 }
+
+var emptyIncludes = []string{}
 
 // parseIncludePath extracts the file path from @include/@import/{{#import}} directive lines
 // without allocating a regex submatch slice or a directive struct.
