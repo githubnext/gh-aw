@@ -4,12 +4,14 @@ const path = require("path");
 const fs = require("fs");
 const {
   computeFrontmatterHash,
+  computeBodyHash,
   extractFrontmatterAndBody,
   extractImportsFromText,
   extractRelevantTemplateExpressions,
   marshalCanonicalJSON,
   marshalSorted,
   extractHashFromLockFile,
+  extractBodyHashFromLockFile,
   normalizeFrontmatterText,
   parseBoolFromFrontmatter,
   defaultFileReader,
@@ -433,6 +435,150 @@ name: "Test Workflow"`;
 
         // Body changes should not affect hash when inlined-imports is not set
         expect(hashA).toBe(hashB);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe("extractBodyHashFromLockFile", () => {
+    it("should return empty string when no body hash is present", () => {
+      const content = `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"abc123"}
+name: "Test Workflow"`;
+      expect(extractBodyHashFromLockFile(content)).toBe("");
+    });
+
+    it("should extract body hash from JSON metadata format", () => {
+      const content = `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"abc123","body_hash":"def456"}
+name: "Test Workflow"`;
+      expect(extractBodyHashFromLockFile(content)).toBe("def456");
+    });
+
+    it("should return empty string when no gh-aw-metadata comment is present", () => {
+      const content = `# frontmatter-hash: abc123
+name: "Test Workflow"`;
+      expect(extractBodyHashFromLockFile(content)).toBe("");
+    });
+
+    it("should return empty string when metadata JSON is invalid", () => {
+      const content = `# gh-aw-metadata: {invalid}
+name: "Test Workflow"`;
+      expect(extractBodyHashFromLockFile(content)).toBe("");
+    });
+  });
+
+  describe("computeBodyHash", () => {
+    it("should compute a 64-char hex SHA-256 hash", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(require("os").tmpdir(), "body-hash-test-"));
+      const testFile = path.join(tmpDir, "test.md");
+      const content = "---\nengine: copilot\n---\n\n# My Workflow\n\nDo some stuff.";
+      const makeReader = () => async () => content;
+
+      try {
+        const hash = await computeBodyHash(testFile, { fileReader: makeReader() });
+        expect(hash).toMatch(/^[a-f0-9]{64}$/);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should produce the same hash for identical body content", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(require("os").tmpdir(), "body-hash-test-"));
+      const testFile = path.join(tmpDir, "test.md");
+      const content = "---\nengine: copilot\n---\n\n# My Workflow\n\nDo some stuff.";
+      const makeReader = () => async () => content;
+
+      try {
+        const hash1 = await computeBodyHash(testFile, { fileReader: makeReader() });
+        const hash2 = await computeBodyHash(testFile, { fileReader: makeReader() });
+        expect(hash1).toBe(hash2);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should produce different hashes when body content differs", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(require("os").tmpdir(), "body-hash-test-"));
+      const testFile = path.join(tmpDir, "test.md");
+      const contentA = "---\nengine: copilot\n---\n\n# Body A";
+      const contentB = "---\nengine: copilot\n---\n\n# Body B";
+
+      try {
+        const hashA = await computeBodyHash(testFile, { fileReader: async () => contentA });
+        const hashB = await computeBodyHash(testFile, { fileReader: async () => contentB });
+        expect(hashA).not.toBe(hashB);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should produce the same hash when only frontmatter changes", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(require("os").tmpdir(), "body-hash-test-"));
+      const testFile = path.join(tmpDir, "test.md");
+      const contentA = "---\nengine: copilot\ndescription: version 1\n---\n\nSame body";
+      const contentB = "---\nengine: copilot\ndescription: version 2\n---\n\nSame body";
+
+      try {
+        const hashA = await computeBodyHash(testFile, { fileReader: async () => contentA });
+        const hashB = await computeBodyHash(testFile, { fileReader: async () => contentB });
+        expect(hashA).toBe(hashB);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should include imported file bodies in the hash", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(require("os").tmpdir(), "body-hash-test-"));
+      const mainFile = path.join(tmpDir, "main.md");
+      const importedFile = path.join(tmpDir, "shared", "imported.md");
+
+      const fileSystemBase = {
+        [mainFile]: "---\nengine: copilot\nimports:\n  - shared/imported.md\n---\n\nMain body",
+        [importedFile]: "---\ntools:\n  bash: true\n---\n\nImported body v1",
+      };
+      const fileSystemChanged = {
+        [mainFile]: "---\nengine: copilot\nimports:\n  - shared/imported.md\n---\n\nMain body",
+        [importedFile]: "---\ntools:\n  bash: true\n---\n\nImported body v2 (changed)",
+      };
+
+      const makeReader = fs_map => async filePath => {
+        if (fs_map[filePath]) return fs_map[filePath];
+        throw new Error(`File not found: ${filePath}`);
+      };
+
+      try {
+        const hashBase = await computeBodyHash(mainFile, { fileReader: makeReader(fileSystemBase) });
+        const hashChanged = await computeBodyHash(mainFile, { fileReader: makeReader(fileSystemChanged) });
+        expect(hashBase).not.toBe(hashChanged);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should not be affected by changes to imported file frontmatter only", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(require("os").tmpdir(), "body-hash-test-"));
+      const mainFile = path.join(tmpDir, "main.md");
+      const importedFile = path.join(tmpDir, "shared", "imported.md");
+
+      const fileSystemBase = {
+        [mainFile]: "---\nengine: copilot\nimports:\n  - shared/imported.md\n---\n\nMain body",
+        [importedFile]: "---\ntools:\n  bash: true\n---\n\nImported body",
+      };
+      const fileSystemFrontmatterChanged = {
+        [mainFile]: "---\nengine: copilot\nimports:\n  - shared/imported.md\n---\n\nMain body",
+        [importedFile]: "---\ntools:\n  bash: true\ndescription: changed frontmatter\n---\n\nImported body",
+      };
+
+      const makeReader = fs_map => async filePath => {
+        if (fs_map[filePath]) return fs_map[filePath];
+        throw new Error(`File not found: ${filePath}`);
+      };
+
+      try {
+        const hashBase = await computeBodyHash(mainFile, { fileReader: makeReader(fileSystemBase) });
+        const hashFrontmatterChanged = await computeBodyHash(mainFile, { fileReader: makeReader(fileSystemFrontmatterChanged) });
+        // Only imported frontmatter changed, body is the same → hashes should match
+        expect(hashBase).toBe(hashFrontmatterChanged);
       } finally {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }

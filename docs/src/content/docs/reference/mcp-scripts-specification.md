@@ -490,8 +490,24 @@ plus retries) permitted for a single invocation.
    (initial attempt + up to 2 retries) unless workflow-specific reliability requirements justify
    a higher budget.
 5. Because tool invocations may be non-idempotent, callers **MUST** treat retry safety as a
-   caller responsibility and **MUST** apply idempotency safeguards (e.g., idempotency keys or
-   side-effect checks) before retrying state-changing tools.
+   caller responsibility and **SHOULD** apply idempotency safeguards before retrying
+   state-changing tools. Callers SHOULD use one of the following techniques:
+   - **Idempotency key**: include a unique, stable identifier (e.g., a UUID derived from the
+     original request) in the tool input so the tool or downstream service can detect and
+     deduplicate re-submissions.
+   - **Side-effect check**: before retrying, query the external system to confirm the
+     prior attempt did not produce the intended effect (e.g., verify the resource does not
+     already exist before attempting creation again).
+   Example (idempotency key pattern):
+   ```json
+   {
+     "tool": "create-github-issue",
+     "input": {
+       "title": "Deploy failed",
+       "idempotency_key": "deploy-fail-2026-05-26-abc123"
+     }
+   }
+   ```
 6. Each retry **MUST** begin from a fresh invocation attempt: callers and servers **MUST NOT** reuse
    partially emitted stdout, partially written large-output files, or partially initialized runtime
    state from a previous failed attempt as the result for the retry.
@@ -825,6 +841,39 @@ Implementations MUST:
 3. Send SIGTERM, wait for grace period (5 seconds), then SIGKILL
 4. Return timeout error to agent
 5. Clean up container resources after timeout
+
+### 7.6 Norms
+
+This subsection establishes normative security norms for secret lifecycle management and
+secret scope that are not fully captured by §7.1–§7.5.
+
+#### 7.6.1 Secret Rotation Norms
+
+- **SN-ROT-01**: Workflows that use long-lived secrets (e.g., API tokens, service account
+  credentials) SHOULD define an explicit rotation policy. The rotation period SHOULD be
+  documented in the workflow's frontmatter `description` field or an adjacent README.
+- **SN-ROT-02**: Implementations SHOULD NOT cache secret values across tool invocations beyond
+  the lifetime of a single workflow run. Any in-process cache of a resolved secret MUST be
+  cleared at the end of the run.
+- **SN-ROT-03**: When a secret rotation event is detected (e.g., a new version of a GitHub
+  secret is deployed), implementations MUST NOT reuse a previously resolved secret value that
+  was cached before the rotation. Callers SHOULD re-resolve secrets at the start of each
+  workflow run.
+
+#### 7.6.2 Secret Scope Norms
+
+- **SN-SCOPE-01**: Secrets declared in the workflow `env:` block MUST be scoped to the
+  minimum required access level. Workflows SHOULD NOT declare secrets with broader permissions
+  than necessary for the tools they invoke.
+- **SN-SCOPE-02**: Implementations MUST NOT propagate a tool's declared secrets to child
+  processes or containers that are not part of that tool's execution scope (as defined in §7.1
+  and §7.2).
+- **SN-SCOPE-03**: When a workflow declares the same secret for multiple tools, implementations
+  MUST ensure each tool receives only its own environment variable binding and MUST NOT expose
+  one tool's secrets to another tool's execution context.
+- **SN-SCOPE-04**: Secrets MUST NOT be included in tool result objects, log lines, or any
+  output forwarded to the MCP client. See §7.4 (SM-01 through SM-03) for the output
+  sanitization requirements that enforce this norm at runtime.
 
 ---
 

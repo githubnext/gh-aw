@@ -1010,11 +1010,16 @@ Sync follow-up tasks:
 - **[Resolved]** Expand forecast fixtures to cover invalid/non-finite `λ` derivation paths and
   zero-projection fallback behavior. Resolved in `pkg/cli/forecast_montecarlo_test.go` via
   `TestRunMonteCarloNonFiniteLambda` and `TestRunMonteCarloZeroLambdaFallback`.
-- Add an implementation-level assertion that verbose diagnostics and JSON output are derived from the
-  same `λ` value used by the Monte Carlo engine. Track in
+- **[Resolved]** Add an implementation-level assertion that verbose diagnostics and JSON output are
+  derived from the same `λ` value used by the Monte Carlo engine. Resolved in
+  `pkg/cli/forecast_test.go` via `TestForecastWorkflow_LambdaConsistencyAcrossOutputFormats` and
+  the existing `TestObservedRunsPerPeriodConsistency`. Closes
   [#31984](https://github.com/github/gh-aw/issues/31984).
-- Re-review Appendix B whenever the Poisson branch threshold or `observed_runs_per_period`
-  calculation changes. Track in [#31985](https://github.com/github/gh-aw/issues/31985).
+- **[Resolved]** Re-review Appendix B whenever the Poisson branch threshold or
+  `observed_runs_per_period` calculation changes. Resolved by adding a spec-cross-reference
+  comment on `poissonNormalApproximationThreshold` in `pkg/cli/forecast_montecarlo.go` directing
+  maintainers to Appendix B and R-FC-060. Closes
+  [#31985](https://github.com/github/gh-aw/issues/31985).
 
 ---
 

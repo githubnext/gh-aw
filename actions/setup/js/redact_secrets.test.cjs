@@ -178,7 +178,7 @@ describe("redact_secrets.cjs", () => {
             `sig_${"A".repeat(40)}`,
           ];
           const ghToken = `${["gh", "s_"].join("")}${tokenSegments.join(".")}`;
-          expect(ghToken).toMatch(/^ghs_[0-9A-Za-z_-]{10,}(?:\.[0-9A-Za-z_-]{10,}){2,}$/);
+          expect(ghToken).toMatch(/^ghs_[0-9A-Za-z._-]{36,}$/);
           fs.writeFileSync(testFile, `Long server token: ${ghToken}`);
           process.env.GH_AW_SECRET_NAMES = "";
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
@@ -190,14 +190,32 @@ describe("redact_secrets.cjs", () => {
 
         it("should redact boundary-length JWT-like GitHub Server-to-Server Token (ghs_)", async () => {
           const testFile = path.join(tempDir, "test.txt");
-          const ghToken = `${["gh", "s_"].join("")}${["abcdefghij", "klmnopqrst", "uvwxyzABCD"].join(".")}`;
-          expect(ghToken).toMatch(/^ghs_[0-9A-Za-z_-]{10,}(?:\.[0-9A-Za-z_-]{10,}){2,}$/);
+          const ghToken = "ghs_abcdefghijk.lmnopqrstuv.wxyzABCDEFGH";
+          expect(ghToken.slice(4)).toHaveLength(36);
+          expect(ghToken).toMatch(/^ghs_[0-9A-Za-z._-]{36,}$/);
           fs.writeFileSync(testFile, `Boundary server token: ${ghToken}`);
           process.env.GH_AW_SECRET_NAMES = "";
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Boundary server token: ***REDACTED***");
+          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Server-to-Server Token"));
+        });
+
+        it("should redact dash-containing GitHub Server-to-Server Token (ghs_)", async () => {
+          const testFile = path.join(tempDir, "test.txt");
+          const ghToken = "ghs_abcd-efghij.klmn_opqr.stuvwxyz012345";
+          expect(ghToken.slice(4)).toHaveLength(36);
+          expect(ghToken).toContain("-");
+          expect(ghToken).toContain(".");
+          expect(ghToken).toContain("_");
+          expect(ghToken).toMatch(/^ghs_[0-9A-Za-z._-]{36,}$/);
+          fs.writeFileSync(testFile, `Dashed server token: ${ghToken}`);
+          process.env.GH_AW_SECRET_NAMES = "";
+          const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
+          await eval(`(async () => { ${modifiedScript}; await main(); })()`);
+          const redacted = fs.readFileSync(testFile, "utf8");
+          expect(redacted).toBe("Dashed server token: ***REDACTED***");
           expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Server-to-Server Token"));
         });
 
@@ -462,13 +480,13 @@ describe("redact_secrets.cjs", () => {
         it("should not redact partial matches", async () => {
           const testFile = path.join(tempDir, "test.txt");
           // These should NOT be redacted (not valid token formats)
-          fs.writeFileSync(testFile, "ghp_short ghs_toolong_this_is_not_a_valid_token_because_its_way_too_long ghs_short.segment.other ghs_abcdefghij.klmnopqrst");
+          fs.writeFileSync(testFile, "ghp_short ghs_invalid*token_because_it_has_disallowed_characters_and_is_long_enough ghs_short.segment.other ghs_12345678901234567890123456789012345 ghs_abcdefghij.klmnopqrst");
           process.env.GH_AW_SECRET_NAMES = "";
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const content = fs.readFileSync(testFile, "utf8");
-          // These should remain unchanged since they don't match the exact pattern
-          expect(content).toBe("ghp_short ghs_toolong_this_is_not_a_valid_token_because_its_way_too_long ghs_short.segment.other ghs_abcdefghij.klmnopqrst");
+          // Includes a 35-char ghs_ token (below the 36-char minimum) and a short dot-separated variant.
+          expect(content).toBe("ghp_short ghs_invalid*token_because_it_has_disallowed_characters_and_is_long_enough ghs_short.segment.other ghs_12345678901234567890123456789012345 ghs_abcdefghij.klmnopqrst");
         });
 
         it("should handle URLs with secrets", async () => {
