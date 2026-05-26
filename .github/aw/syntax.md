@@ -290,6 +290,9 @@ The YAML frontmatter supports these fields:
 - **`observability:`** - Workflow observability and telemetry configuration (object)
   - **`otlp:`** - Export OpenTelemetry spans to any OTLP-compatible backend (Honeycomb, Grafana Tempo, Sentry, etc.) (object)
     - `endpoint:` - OTLP collector endpoint URL. When a static URL is provided, its hostname is added to the AWF firewall allowlist automatically. Supports GitHub Actions expressions.
+    - `auth:` - Optional runtime auth configuration.
+      - `type:` - `github-oidc` to mint a GitHub Actions OIDC credential before `actions/setup` and use it for OTLP Authorization headers.
+      - `audience:` - Optional OIDC audience passed to `core.getIDToken(audience)`.
     - `headers:` - Comma-separated `key=value` HTTP headers included in every OTLP export request (e.g. `Authorization=Bearer <token>`). Injected as `OTEL_EXPORTER_OTLP_HEADERS`. Supports GitHub Actions expressions.
   - Example:
 
@@ -297,6 +300,9 @@ The YAML frontmatter supports these fields:
     observability:
       otlp:
         endpoint: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
+        auth:
+          type: github-oidc
+          audience: api://AzureADTokenExchange
         headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
     ```
 

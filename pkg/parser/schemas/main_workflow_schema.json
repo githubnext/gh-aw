@@ -9668,6 +9668,23 @@
               "enum": ["error", "warn", "ignore"],
               "default": "error",
               "description": "How to handle missing OTLP endpoint/header values at runtime (for example from unset secrets). 'error' fails workflow startup (default), 'warn' logs a warning and skips MCP gateway OTLP configuration, and 'ignore' skips MCP gateway OTLP configuration without warning. This affects MCP gateway setup only; workflow-level OTEL_* environment variables are still injected."
+            },
+            "auth": {
+              "type": "object",
+              "description": "Optional runtime authentication for OTLP export.",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["github-oidc"],
+                  "description": "Authentication type. 'github-oidc' mints a GitHub Actions OIDC credential before actions/setup and uses it in the OTLP Authorization header."
+                },
+                "audience": {
+                  "type": "string",
+                  "description": "Optional OIDC audience passed to core.getIDToken(audience) when auth.type is github-oidc."
+                }
+              },
+              "required": ["type"],
+              "additionalProperties": false
             }
           },
           "additionalProperties": false

@@ -86,6 +86,18 @@ async function run() {
     process.env.INPUT_PARENT_SPAN_ID = inputParentSpanId;
   }
 
+  const inputOTLPOIDCToken = getActionInput("OTLP_OIDC_TOKEN");
+  if (inputOTLPOIDCToken) {
+    const existingHeaders = process.env.OTEL_EXPORTER_OTLP_HEADERS || "";
+    const hasAuthorizationHeader = /(^|,)\s*authorization\s*=/i.test(existingHeaders);
+    const mergedHeaders = hasAuthorizationHeader
+      ? existingHeaders
+      : (existingHeaders ? `${existingHeaders},` : "") + "Authorization=Bearer " + inputOTLPOIDCToken;
+
+    process.env.OTEL_EXPORTER_OTLP_HEADERS = mergedHeaders;
+    writeEnvLine(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_HEADERS", mergedHeaders, "OTEL_EXPORTER_OTLP_HEADERS", "GITHUB_ENV");
+  }
+
   if (!endpoints) {
     console.log("[otlp] GH_AW_OTLP_ENDPOINTS not set, skipping setup span");
   } else {

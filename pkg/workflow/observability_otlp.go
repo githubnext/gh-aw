@@ -163,6 +163,97 @@ func getOTLPEndpointEnvValue(config *FrontmatterConfig) string {
 	return ""
 }
 
+func normalizeOTLPAuthType(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "github-oidc":
+		return "github-oidc"
+	default:
+		return ""
+	}
+}
+
+// getOTLPGitHubOIDCAudience returns observability.otlp.auth.audience when
+// auth.type is configured as github-oidc. Returns empty string when auth is
+// unset, invalid, or not github-oidc.
+func getOTLPGitHubOIDCAudience(config *FrontmatterConfig, frontmatter map[string]any) string {
+	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.Auth != nil {
+		if normalizeOTLPAuthType(config.Observability.OTLP.Auth.Type) == "github-oidc" {
+			return strings.TrimSpace(config.Observability.OTLP.Auth.Audience)
+		}
+	}
+
+	if frontmatter == nil {
+		return ""
+	}
+	obsAny, ok := frontmatter["observability"]
+	if !ok {
+		return ""
+	}
+	obsMap, ok := obsAny.(map[string]any)
+	if !ok {
+		return ""
+	}
+	otlpAny, ok := obsMap["otlp"]
+	if !ok {
+		return ""
+	}
+	otlpMap, ok := otlpAny.(map[string]any)
+	if !ok {
+		return ""
+	}
+	authAny, ok := otlpMap["auth"]
+	if !ok {
+		return ""
+	}
+	authMap, ok := authAny.(map[string]any)
+	if !ok {
+		return ""
+	}
+	authType, _ := authMap["type"].(string)
+	if normalizeOTLPAuthType(authType) != "github-oidc" {
+		return ""
+	}
+	audience, _ := authMap["audience"].(string)
+	return strings.TrimSpace(audience)
+}
+
+func hasOTLPGitHubOIDCAuth(config *FrontmatterConfig, frontmatter map[string]any) bool {
+	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.Auth != nil {
+		if normalizeOTLPAuthType(config.Observability.OTLP.Auth.Type) == "github-oidc" {
+			return true
+		}
+	}
+	if frontmatter == nil {
+		return false
+	}
+	obsAny, ok := frontmatter["observability"]
+	if !ok {
+		return false
+	}
+	obsMap, ok := obsAny.(map[string]any)
+	if !ok {
+		return false
+	}
+	otlpAny, ok := obsMap["otlp"]
+	if !ok {
+		return false
+	}
+	otlpMap, ok := otlpAny.(map[string]any)
+	if !ok {
+		return false
+	}
+	authAny, ok := otlpMap["auth"]
+	if !ok {
+		return false
+	}
+	authMap, ok := authAny.(map[string]any)
+	if !ok {
+		return false
+	}
+	authType, _ := authMap["type"].(string)
+	return normalizeOTLPAuthType(authType) == "github-oidc"
+}
+
 // normalizeOTLPIfMissingMode returns a validated if-missing mode.
 // Empty string means "unset/default (error)".
 func normalizeOTLPIfMissingMode(mode string) string {

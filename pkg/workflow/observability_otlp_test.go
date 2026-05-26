@@ -222,6 +222,72 @@ func TestGetOTLPIfMissingMode(t *testing.T) {
 	})
 }
 
+func TestGetOTLPGitHubOIDCAudience(t *testing.T) {
+	t.Run("returns parsed audience for github-oidc auth", func(t *testing.T) {
+		got := getOTLPGitHubOIDCAudience(&FrontmatterConfig{
+			Observability: &ObservabilityConfig{
+				OTLP: &OTLPConfig{
+					Auth: &OTLPAuthConfig{
+						Type:     "github-oidc",
+						Audience: "https://collector.example.com",
+					},
+				},
+			},
+		}, nil)
+		assert.Equal(t, "https://collector.example.com", got)
+	})
+
+	t.Run("returns empty for non-github-oidc auth", func(t *testing.T) {
+		got := getOTLPGitHubOIDCAudience(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"auth": map[string]any{
+						"type":     "bearer",
+						"audience": "https://collector.example.com",
+					},
+				},
+			},
+		})
+		assert.Empty(t, got)
+	})
+
+	t.Run("returns raw audience when github-oidc auth is set", func(t *testing.T) {
+		got := getOTLPGitHubOIDCAudience(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"auth": map[string]any{
+						"type":     "github-oidc",
+						"audience": "api://AzureADTokenExchange",
+					},
+				},
+			},
+		})
+		assert.Equal(t, "api://AzureADTokenExchange", got)
+	})
+}
+
+func TestHasOTLPGitHubOIDCAuth(t *testing.T) {
+	assert.True(t, hasOTLPGitHubOIDCAuth(&FrontmatterConfig{
+		Observability: &ObservabilityConfig{
+			OTLP: &OTLPConfig{
+				Auth: &OTLPAuthConfig{
+					Type: "github-oidc",
+				},
+			},
+		},
+	}, nil))
+
+	assert.False(t, hasOTLPGitHubOIDCAuth(nil, map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"auth": map[string]any{
+					"type": "bearer",
+				},
+			},
+		},
+	}))
+}
+
 // TestInjectOTLPConfig verifies that injectOTLPConfig correctly modifies WorkflowData.
 func TestInjectOTLPConfig(t *testing.T) {
 	newCompiler := func() *Compiler { return &Compiler{} }

@@ -205,6 +205,15 @@ type OTLPEndpointConfig struct {
 	Headers any `json:"headers,omitempty"`
 }
 
+// OTLPAuthConfig holds optional runtime auth configuration for OTLP export.
+// Currently supports GitHub Actions OIDC bearer token minting.
+type OTLPAuthConfig struct {
+	// Type is the auth mechanism. Supported value: "github-oidc".
+	Type string `json:"type,omitempty"`
+	// Audience is an optional OIDC audience passed to core.getIDToken(audience).
+	Audience string `json:"audience,omitempty"`
+}
+
 // OTLPConfig holds configuration for OTLP (OpenTelemetry Protocol) trace export.
 type OTLPConfig struct {
 	// Endpoint accepts one of three forms:
@@ -249,6 +258,16 @@ type OTLPConfig struct {
 	//     langfuse.user.id:    "{{ github.actor }}"
 	//     user.id:             "{{ github.actor }}"
 	Attributes map[string]string `json:"attributes,omitempty"`
+
+	// Auth configures runtime OTLP authentication.
+	// Supported values:
+	//   auth:
+	//     type: github-oidc
+	//     audience: "api://AzureADTokenExchange" # optional
+	//
+	// When configured, gh-aw mints an OIDC token before actions/setup and passes
+	// it to setup so OTLP requests can include an Authorization bearer token.
+	Auth *OTLPAuthConfig `json:"auth,omitempty"`
 }
 
 // ObservabilityConfig represents workflow observability options.

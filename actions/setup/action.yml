@@ -22,6 +22,10 @@ inputs:
     description: 'OTLP parent span ID (16-character hexadecimal string) for the setup span. Pass the setup-span-id output of the upstream setup step so job setup spans form a single tree.'
     required: false
     default: ''
+  otlp-oidc-token:
+    description: 'Optional pre-minted OIDC bearer token used for OTLP Authorization headers.'
+    required: false
+    default: ''
 
 outputs:
   files_copied:
