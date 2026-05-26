@@ -61,6 +61,8 @@ tools:
   - yq*
   - find .github/workflows -name "*.lock.yml" -type f
   - cat docs/src/content/docs/reference/glossary.md
+  - cat /tmp/gh-aw/agent/step-alignment-input.json
+  - jq* /tmp/gh-aw/agent/step-alignment-input.json
   - "git log --since=\"24 hours ago\" --oneline --name-only -- \".github/workflows/*.lock.yml\""
   cache-memory: true
   cli-proxy: true
@@ -104,6 +106,8 @@ Check your cache-memory to see:
 
 This ensures consistency across runs and avoids duplicate issues.
 
+Use the **cache-memory tool directly** for this step. Do not inspect `/tmp/gh-aw/cache-memory` with `ls`, `find`, or `cp`.
+
 **Cache file structure:**
 ```json
 {
@@ -142,6 +146,14 @@ A deterministic pre-agent step has already collected step records from all `.loc
 `/tmp/gh-aw/agent/step-alignment-input.json`
 
 Read this manifest first and use it as your primary dataset.
+
+Read it directly with:
+
+```bash
+cat /tmp/gh-aw/agent/step-alignment-input.json | jq .
+```
+
+Do not run exploratory `/tmp` directory scans (`ls`, `find`, `cp`) to discover this file.
 
 The manifest contains records in this shape:
 

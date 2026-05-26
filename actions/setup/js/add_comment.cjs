@@ -397,7 +397,7 @@ async function main(config = {}) {
   core.info(`Add comment configuration: max=${maxCount}, target=${commentTarget}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
-    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+    core.info(`Allowed repos: ${[...allowedRepos].join(", ")}`);
   }
   if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
   if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
@@ -444,9 +444,9 @@ async function main(config = {}) {
     processedCount++;
 
     // Merge resolved temp IDs
-    for (const [tempId, resolved] of Object.entries(resolvedTemporaryIds ?? {})) {
+    Object.entries(resolvedTemporaryIds ?? {}).forEach(([tempId, resolved]) => {
       if (!temporaryIdMap.has(tempId)) temporaryIdMap.set(tempId, resolved);
-    }
+    });
 
     // Resolve and validate target repository
     const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "comment");
@@ -625,10 +625,8 @@ async function main(config = {}) {
     const bodyHeader = getBodyHeader({ workflowName, runUrl });
 
     // Build prefix: caution (if any) → body header (if any) → user content
-    let prefix = "";
-    if (detectionCaution) prefix += detectionCaution + "\n\n";
-    if (bodyHeader) prefix += bodyHeader + "\n\n";
-    if (prefix) processedBody = prefix + processedBody;
+    const prefixParts = [detectionCaution, bodyHeader].filter(Boolean);
+    if (prefixParts.length > 0) processedBody = prefixParts.join("\n\n") + "\n\n" + processedBody;
 
     // Add tracker ID and footer
     const trackerIDComment = getTrackerID("markdown");
