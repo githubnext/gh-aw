@@ -19,308 +19,385 @@ func renderJSON(data AuditData) error {
 	return encoder.Encode(data)
 }
 
-// renderConsole outputs the audit data as formatted console tables
+// renderConsole outputs the audit data in a compact, high-density format optimized
+// for agentic readability. Each line carries maximum information with minimal decoration.
 func renderConsole(data AuditData, logsPath string) {
-	auditReportLog.Print("Rendering audit report to console")
-	fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Workflow Run Audit Report"))
-	fmt.Fprintln(os.Stderr)
+	auditReportLog.Print("Rendering compact audit report to console")
 
-	// Overview Section - use new rendering system
-	fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Overview"))
-	fmt.Fprintln(os.Stderr)
-	renderOverview(data.Overview)
-
-	if data.Comparison != nil {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Comparison To Similar Successful Run"))
-		fmt.Fprintln(os.Stderr)
-		renderAuditComparison(data.Comparison)
+	// Line 1: Identity + outcome
+	statusIcon := "✅"
+	switch data.Overview.Conclusion {
+	case "failure":
+		statusIcon = "❌"
+	case "cancelled":
+		statusIcon = "⚠️"
 	}
+	fmt.Fprintf(os.Stderr, "%s %s | %s | %s | %s\n",
+		statusIcon, data.Overview.WorkflowName, data.Overview.Conclusion,
+		data.Overview.Duration, data.Overview.URL)
 
-	if data.TaskDomain != nil {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Detected Task Domain"))
-		fmt.Fprintln(os.Stderr)
-		renderTaskDomain(data.TaskDomain)
-	}
-
-	if data.BehaviorFingerprint != nil {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Behavioral Fingerprint"))
-		fmt.Fprintln(os.Stderr)
-		renderBehaviorFingerprint(data.BehaviorFingerprint)
-	}
-
-	if len(data.AgenticAssessments) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Agentic Assessment"))
-		fmt.Fprintln(os.Stderr)
-		renderAgenticAssessments(data.AgenticAssessments)
-	}
-
-	// Key Findings Section - NEW
-	if len(data.KeyFindings) > 0 {
-		auditReportLog.Printf("Rendering %d key findings", len(data.KeyFindings))
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Key Findings"))
-		fmt.Fprintln(os.Stderr)
-		renderKeyFindings(data.KeyFindings)
-	}
-
-	// Recommendations Section - NEW
-	if len(data.Recommendations) > 0 {
-		auditReportLog.Printf("Rendering %d recommendations", len(data.Recommendations))
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Recommendations"))
-		fmt.Fprintln(os.Stderr)
-		renderRecommendations(data.Recommendations)
-	}
-
-	if len(data.ObservabilityInsights) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Observability Insights"))
-		fmt.Fprintln(os.Stderr)
-		renderObservabilityInsights(data.ObservabilityInsights)
-	}
-
-	// Performance Metrics Section - NEW
-	if data.PerformanceMetrics != nil {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Performance Metrics"))
-		fmt.Fprintln(os.Stderr)
-		renderPerformanceMetrics(data.PerformanceMetrics)
-	}
-
-	// Token Usage Section (from firewall proxy)
-	if data.FirewallTokenUsage != nil && data.FirewallTokenUsage.TotalRequests > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("📊 Token Usage (Firewall Proxy)"))
-		fmt.Fprintln(os.Stderr)
-		renderTokenUsage(data.FirewallTokenUsage)
-	}
-
-	// GitHub API Rate Limit Usage Section
-	if data.GitHubRateLimitUsage != nil {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("🐙 GitHub API Usage"))
-		fmt.Fprintln(os.Stderr)
-		renderGitHubRateLimitUsage(data.GitHubRateLimitUsage)
-	}
-
-	// Engine Configuration Section
+	// Line 2: Context
+	engineInfo := ""
 	if data.EngineConfig != nil {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Engine Configuration"))
-		fmt.Fprintln(os.Stderr)
-		renderEngineConfig(data.EngineConfig)
+		parts := []string{data.EngineConfig.EngineID}
+		if data.EngineConfig.Model != "" {
+			parts = append(parts, data.EngineConfig.Model)
+		}
+		if data.EngineConfig.Version != "" {
+			parts = append(parts, "v"+data.EngineConfig.Version)
+		}
+		engineInfo = strings.Join(parts, "/")
+	}
+	fmt.Fprintf(os.Stderr, "  run=%d branch=%s event=%s engine=%s\n",
+		data.Overview.RunID, data.Overview.Branch, data.Overview.Event, engineInfo)
+
+	// Line 3: Comparison (if available)
+	if data.Comparison != nil && data.Comparison.BaselineFound {
+		compLine := "  comparison:"
+		if data.Comparison.Classification != nil {
+			compLine += " " + data.Comparison.Classification.Label
+		}
+		if data.Comparison.Baseline != nil {
+			compLine += fmt.Sprintf(" vs baseline %d", data.Comparison.Baseline.RunID)
+		}
+		if data.Comparison.Recommendation != nil && data.Comparison.Recommendation.Action != "" {
+			compLine += " | " + data.Comparison.Recommendation.Action
+		}
+		fmt.Fprintln(os.Stderr, compLine)
 	}
 
-	// Prompt Analysis Section
-	if data.PromptAnalysis != nil {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Prompt Analysis"))
-		fmt.Fprintln(os.Stderr)
-		renderPromptAnalysis(data.PromptAnalysis)
+	// Line 4: Fingerprint (if available)
+	if data.BehaviorFingerprint != nil {
+		fmt.Fprintf(os.Stderr, "  fingerprint: %s/%s/%s/%s/%s\n",
+			data.BehaviorFingerprint.ExecutionStyle,
+			data.BehaviorFingerprint.ToolBreadth,
+			data.BehaviorFingerprint.ActuationStyle,
+			data.BehaviorFingerprint.ResourceProfile,
+			data.BehaviorFingerprint.DispatchMode)
 	}
 
-	// Session Analysis Section
+	// Line 5: Metrics (always present)
+	metricsLine := fmt.Sprintf("  metrics: errors=%d warnings=%d",
+		data.Metrics.ErrorCount, data.Metrics.WarningCount)
+	if data.Metrics.Turns > 0 {
+		metricsLine += fmt.Sprintf(" turns=%d", data.Metrics.Turns)
+	}
+	if data.Metrics.TokenUsage > 0 {
+		metricsLine += " tokens=" + console.FormatNumber(data.Metrics.TokenUsage)
+	}
+	if data.Metrics.EstimatedCost > 0 {
+		metricsLine += fmt.Sprintf(" cost=$%.2f", data.Metrics.EstimatedCost)
+	}
+	if data.Metrics.ActionMinutes > 0 {
+		metricsLine += fmt.Sprintf(" action_min=%.0f", data.Metrics.ActionMinutes)
+	}
+	fmt.Fprintln(os.Stderr, metricsLine)
+
+	// Line 6: Session performance (if present)
 	if data.SessionAnalysis != nil {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Session & Agent Performance"))
-		fmt.Fprintln(os.Stderr)
-		renderSessionAnalysis(data.SessionAnalysis)
+		sessionLine := "  session:"
+		if data.SessionAnalysis.WallTime != "" {
+			sessionLine += " wall=" + data.SessionAnalysis.WallTime
+		}
+		if data.SessionAnalysis.TurnCount > 0 {
+			sessionLine += fmt.Sprintf(" turns=%d", data.SessionAnalysis.TurnCount)
+		}
+		if data.SessionAnalysis.TokensPerMinute > 0 {
+			sessionLine += fmt.Sprintf(" tok/min=%.0f", data.SessionAnalysis.TokensPerMinute)
+		}
+		if data.SessionAnalysis.TimeoutDetected {
+			sessionLine += " TIMEOUT"
+		}
+		if data.SessionAnalysis.NoopCount > 0 {
+			sessionLine += fmt.Sprintf(" noops=%d", data.SessionAnalysis.NoopCount)
+		}
+		fmt.Fprintln(os.Stderr, sessionLine)
 	}
 
-	// MCP Server Health Section
-	if data.MCPServerHealth != nil {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("MCP Server Health"))
-		fmt.Fprintln(os.Stderr)
-		renderMCPServerHealth(data.MCPServerHealth)
+	// Token usage (if firewall data present)
+	if data.FirewallTokenUsage != nil && data.FirewallTokenUsage.TotalRequests > 0 {
+		fmt.Fprintf(os.Stderr, "  tokens: in=%s out=%s cache_read=%s reqs=%d\n",
+			console.FormatNumber(data.FirewallTokenUsage.TotalInputTokens),
+			console.FormatNumber(data.FirewallTokenUsage.TotalOutputTokens),
+			console.FormatNumber(data.FirewallTokenUsage.TotalCacheReadTokens),
+			data.FirewallTokenUsage.TotalRequests)
 	}
 
-	// Safe Output Summary Section
-	if data.SafeOutputSummary != nil {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Safe Output Summary"))
-		fmt.Fprintln(os.Stderr)
-		renderSafeOutputSummary(data.SafeOutputSummary)
+	// GitHub API usage (one line)
+	if data.GitHubRateLimitUsage != nil {
+		fmt.Fprintf(os.Stderr, "  github_api: calls=%s quota=%s/%s\n",
+			console.FormatNumber(data.GitHubRateLimitUsage.TotalRequestsMade),
+			console.FormatNumber(data.GitHubRateLimitUsage.CoreConsumed),
+			console.FormatNumber(data.GitHubRateLimitUsage.CoreLimit))
 	}
 
-	// Experiments Section
-	if data.Experiments != nil {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("🧪 A/B Experiments"))
-		fmt.Fprintln(os.Stderr)
-		renderExperimentData(data.Experiments)
-	}
-
-	// Metrics Section - use new rendering system
-	fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Metrics"))
-	fmt.Fprintln(os.Stderr)
-	renderMetrics(data.Metrics)
-
-	// Jobs Section - use new table rendering
+	// Jobs (compact: one line if all pass, table if failures)
 	if len(data.Jobs) > 0 {
-		auditReportLog.Printf("Rendering jobs table with %d jobs", len(data.Jobs))
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Jobs"))
-		fmt.Fprintln(os.Stderr)
-		renderJobsTable(data.Jobs)
-	}
-
-	// Downloaded Files Section
-	if len(data.DownloadedFiles) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Downloaded Files"))
-		fmt.Fprintln(os.Stderr)
-		for _, file := range data.DownloadedFiles {
-			formattedSize := console.FormatFileSize(file.Size)
-			fmt.Fprintf(os.Stderr, "  • %s (%s)", file.Path, formattedSize)
-			if file.Description != "" {
-				fmt.Fprintf(os.Stderr, " - %s", file.Description)
+		allPassed := true
+		jobParts := make([]string, 0, len(data.Jobs))
+		for _, job := range data.Jobs {
+			if job.Conclusion != "success" && job.Conclusion != "skipped" {
+				allPassed = false
 			}
-			fmt.Fprintln(os.Stderr)
+			jobParts = append(jobParts, fmt.Sprintf("%s:%s", job.Name, job.Duration))
 		}
-		fmt.Fprintln(os.Stderr)
+		if allPassed {
+			fmt.Fprintf(os.Stderr, "  jobs: %d/%d passed [%s]\n", len(data.Jobs), len(data.Jobs), strings.Join(jobParts, " "))
+		} else {
+			fmt.Fprintf(os.Stderr, "  jobs:\n")
+			for _, job := range data.Jobs {
+				icon := "✓"
+				switch job.Conclusion {
+				case "failure":
+					icon = "✗"
+				case "skipped":
+					icon = "○"
+				case "cancelled":
+					icon = "⊘"
+				}
+				fmt.Fprintf(os.Stderr, "    %s %s (%s) %s\n", icon, job.Name, job.Duration, job.Conclusion)
+			}
+		}
 	}
 
-	// Missing Tools Section
+	// Prompt info (one line)
+	if data.PromptAnalysis != nil {
+		promptLine := fmt.Sprintf("  prompt: %s chars", console.FormatNumber(data.PromptAnalysis.PromptSize))
+		if data.PromptAnalysis.PromptFile != "" {
+			promptLine += " file=" + data.PromptAnalysis.PromptFile
+		}
+		fmt.Fprintln(os.Stderr, promptLine)
+	}
+
+	// --- Actionable sections below (only rendered when non-trivial) ---
+
+	// Key Findings: only show non-success findings in compact form
+	actionableFindings := filterActionableFindings(data.KeyFindings)
+	if len(actionableFindings) > 0 {
+		fmt.Fprintln(os.Stderr, "  findings:")
+		for _, f := range actionableFindings {
+			fmt.Fprintf(os.Stderr, "    [%s] %s: %s\n", strings.ToUpper(f.Severity), f.Title, f.Description)
+		}
+	}
+
+	// Agentic Assessments (compact)
+	if len(data.AgenticAssessments) > 0 {
+		fmt.Fprintln(os.Stderr, "  assessments:")
+		for _, a := range data.AgenticAssessments {
+			line := fmt.Sprintf("    [%s] %s", strings.ToUpper(a.Severity), a.Summary)
+			if a.Evidence != "" {
+				line += " | " + a.Evidence
+			}
+			fmt.Fprintln(os.Stderr, line)
+		}
+	}
+
+	// Recommendations: only high/medium
+	actionableRecs := filterActionableRecommendations(data.Recommendations)
+	if len(actionableRecs) > 0 {
+		fmt.Fprintln(os.Stderr, "  recommendations:")
+		for _, r := range actionableRecs {
+			fmt.Fprintf(os.Stderr, "    [%s] %s — %s\n", strings.ToUpper(r.Priority), r.Action, r.Reason)
+		}
+	}
+
+	// Observability Insights: only non-info severity
+	actionableInsights := filterActionableInsights(data.ObservabilityInsights)
+	if len(actionableInsights) > 0 {
+		fmt.Fprintln(os.Stderr, "  insights:")
+		for _, ins := range actionableInsights {
+			line := fmt.Sprintf("    [%s] %s", strings.ToUpper(ins.Severity), ins.Title)
+			if ins.Evidence != "" {
+				line += " | " + ins.Evidence
+			}
+			fmt.Fprintln(os.Stderr, line)
+		}
+	}
+
+	// Errors and Warnings (always show if present)
+	if len(data.Errors) > 0 {
+		fmt.Fprintln(os.Stderr, "  errors:")
+		for _, err := range data.Errors {
+			if err.File != "" && err.Line > 0 {
+				fmt.Fprintf(os.Stderr, "    %s:%d: %s\n", filepath.Base(err.File), err.Line, err.Message)
+			} else {
+				fmt.Fprintf(os.Stderr, "    %s\n", err.Message)
+			}
+		}
+	}
+	if len(data.Warnings) > 0 {
+		fmt.Fprintln(os.Stderr, "  warnings:")
+		for _, w := range data.Warnings {
+			fmt.Fprintf(os.Stderr, "    %s\n", w.Message)
+		}
+	}
+
+	// Missing Tools (actionable)
 	if len(data.MissingTools) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Missing Tools"))
-		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "  missing_tools:")
 		for _, tool := range data.MissingTools {
-			fmt.Fprintf(os.Stderr, "  • %s\n", tool.Tool)
-			fmt.Fprintf(os.Stderr, "    Reason: %s\n", tool.Reason)
+			line := "    " + tool.Tool + ": " + tool.Reason
 			if tool.Alternatives != "" {
-				fmt.Fprintf(os.Stderr, "    Alternatives: %s\n", tool.Alternatives)
+				line += " (alt: " + tool.Alternatives + ")"
 			}
+			fmt.Fprintln(os.Stderr, line)
 		}
-		fmt.Fprintln(os.Stderr)
 	}
 
-	// Created Items Section - items created in GitHub by safe output handlers
-	if len(data.CreatedItems) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Created Items"))
-		fmt.Fprintln(os.Stderr)
-		renderCreatedItemsTable(data.CreatedItems)
-	}
-
-	// MCP Failures Section
+	// MCP Failures (actionable)
 	if len(data.MCPFailures) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("MCP Server Failures"))
-		fmt.Fprintln(os.Stderr)
-		for _, failure := range data.MCPFailures {
-			fmt.Fprintf(os.Stderr, "  • %s: %s\n", failure.ServerName, failure.Status)
+		fmt.Fprintln(os.Stderr, "  mcp_failures:")
+		for _, f := range data.MCPFailures {
+			fmt.Fprintf(os.Stderr, "    %s: %s\n", f.ServerName, f.Status)
 		}
-		fmt.Fprintln(os.Stderr)
 	}
 
-	// Firewall Analysis Section
-	if data.FirewallAnalysis != nil && data.FirewallAnalysis.TotalRequests > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Firewall Analysis"))
-		fmt.Fprintln(os.Stderr)
-		renderFirewallAnalysis(data.FirewallAnalysis)
+	// MCP Server Health (only if issues)
+	if data.MCPServerHealth != nil {
+		renderCompactMCPHealth(data.MCPServerHealth)
 	}
 
-	// Firewall Policy Analysis Section (enriched with rule attribution)
-	if data.PolicyAnalysis != nil && (len(data.PolicyAnalysis.RuleHits) > 0 || data.PolicyAnalysis.PolicySummary != "") {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Firewall Policy Analysis"))
-		fmt.Fprintln(os.Stderr)
-		renderPolicyAnalysis(data.PolicyAnalysis)
+	// Safe Output Summary (compact)
+	if data.SafeOutputSummary != nil && data.SafeOutputSummary.TotalItems > 0 {
+		fmt.Fprintf(os.Stderr, "  safe_outputs: %d items — %s\n",
+			data.SafeOutputSummary.TotalItems, data.SafeOutputSummary.Summary)
 	}
 
-	// Redacted Domains Section
-	if data.RedactedDomainsAnalysis != nil && data.RedactedDomainsAnalysis.TotalDomains > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("🔒 Redacted URL Domains"))
-		fmt.Fprintln(os.Stderr)
-		renderRedactedDomainsAnalysis(data.RedactedDomainsAnalysis)
+	// Created Items (compact)
+	if len(data.CreatedItems) > 0 {
+		fmt.Fprintln(os.Stderr, "  created:")
+		for _, item := range data.CreatedItems {
+			line := "    " + item.Type
+			if item.URL != "" {
+				line += " " + item.URL
+			} else if item.Repo != "" && item.Number > 0 {
+				line += fmt.Sprintf(" %s#%d", item.Repo, item.Number)
+			}
+			fmt.Fprintln(os.Stderr, line)
+		}
 	}
 
-	// Tool Usage Section - use new table rendering
+	// Tool Usage (compact table only when tools were used)
 	if len(data.ToolUsage) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Tool Usage"))
-		fmt.Fprintln(os.Stderr)
-		renderToolUsageTable(data.ToolUsage)
-	}
-
-	// MCP Tool Usage Section - detailed MCP statistics
-	if data.MCPToolUsage != nil && len(data.MCPToolUsage.Summary) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("MCP Tool Usage"))
-		fmt.Fprintln(os.Stderr)
-		renderMCPToolUsageTable(data.MCPToolUsage)
-	}
-
-	// Errors and Warnings Section
-	if len(data.Errors) > 0 || len(data.Warnings) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Errors and Warnings"))
-		fmt.Fprintln(os.Stderr)
-		renderErrorsAndWarnings(data.Errors, data.Warnings)
-	}
-
-	// Location
-	fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Logs Location"))
-	fmt.Fprintln(os.Stderr)
-	absPath, _ := filepath.Abs(logsPath)
-	fmt.Fprintf(os.Stderr, "  %s\n", absPath)
-	fmt.Fprintln(os.Stderr)
-}
-
-func renderExperimentData(exp *ExperimentData) {
-	if exp == nil {
-		return
-	}
-
-	names := make([]string, 0, len(exp.Assignments))
-	for name := range exp.Assignments {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	for _, name := range names {
-		variant := exp.Assignments[name]
-		line := fmt.Sprintf("  • %s = %s", name, variant)
-		if counts, ok := exp.CumulativeCounts[name]; ok && len(counts) > 0 {
-			variants := make([]string, 0, len(counts))
-			for v := range counts {
-				variants = append(variants, v)
+		fmt.Fprintln(os.Stderr, "  tools:")
+		for _, tool := range data.ToolUsage {
+			line := fmt.Sprintf("    %s ×%d", tool.Name, tool.CallCount)
+			if tool.MaxDuration != "" {
+				line += " max=" + tool.MaxDuration
 			}
-			sort.Strings(variants)
-			parts := make([]string, 0, len(variants))
-			for _, v := range variants {
-				parts = append(parts, fmt.Sprintf("%s:%d", v, counts[v]))
-			}
-			line += fmt.Sprintf(" (cumulative: %s)", strings.Join(parts, ", "))
+			fmt.Fprintln(os.Stderr, line)
 		}
-		fmt.Fprintln(os.Stderr, line)
 	}
-	fmt.Fprintln(os.Stderr)
+
+	// MCP Tool Usage (compact)
+	if data.MCPToolUsage != nil && len(data.MCPToolUsage.Summary) > 0 {
+		fmt.Fprintln(os.Stderr, "  mcp_tools:")
+		for _, s := range data.MCPToolUsage.Summary {
+			line := fmt.Sprintf("    %s/%s ×%d", s.ServerName, s.ToolName, s.CallCount)
+			if s.ErrorCount > 0 {
+				line += fmt.Sprintf(" errors=%d", s.ErrorCount)
+			}
+			if s.MaxDuration != "" {
+				line += " max=" + s.MaxDuration
+			}
+			fmt.Fprintln(os.Stderr, line)
+		}
+		// Guard policy (if present)
+		if data.MCPToolUsage.GuardPolicySummary != nil && data.MCPToolUsage.GuardPolicySummary.TotalBlocked > 0 {
+			fmt.Fprintf(os.Stderr, "    guard_blocked: %d\n", data.MCPToolUsage.GuardPolicySummary.TotalBlocked)
+		}
+	}
+
+	// Firewall Analysis (compact)
+	if data.FirewallAnalysis != nil && data.FirewallAnalysis.TotalRequests > 0 {
+		renderCompactFirewall(data.FirewallAnalysis)
+	}
+
+	// Policy Analysis (compact)
+	if data.PolicyAnalysis != nil && len(data.PolicyAnalysis.RuleHits) > 0 {
+		fmt.Fprintf(os.Stderr, "  firewall_policy: %s\n", data.PolicyAnalysis.PolicySummary)
+	}
+
+	// Experiments
+	if data.Experiments != nil && len(data.Experiments.Assignments) > 0 {
+		parts := make([]string, 0, len(data.Experiments.Assignments))
+		for name, variant := range data.Experiments.Assignments {
+			parts = append(parts, name+"="+variant)
+		}
+		sort.Strings(parts)
+		fmt.Fprintf(os.Stderr, "  experiments: %s\n", strings.Join(parts, " "))
+	}
+
+	// Logs path (final line)
+	absPath, _ := filepath.Abs(logsPath)
+	fmt.Fprintf(os.Stderr, "  logs: %s\n", absPath)
 }
 
-func renderAuditComparison(comparison *AuditComparisonData) {
-	if comparison == nil {
+// filterActionableFindings returns findings with severity > info/success
+func filterActionableFindings(findings []Finding) []Finding {
+	var result []Finding
+	for _, f := range findings {
+		if f.Severity == "critical" || f.Severity == "high" || f.Severity == "medium" || f.Severity == "low" {
+			result = append(result, f)
+		}
+	}
+	return result
+}
+
+// filterActionableRecommendations returns high/medium priority recommendations
+func filterActionableRecommendations(recs []Recommendation) []Recommendation {
+	var result []Recommendation
+	for _, r := range recs {
+		if r.Priority == "high" || r.Priority == "medium" {
+			result = append(result, r)
+		}
+	}
+	return result
+}
+
+// filterActionableInsights returns insights with severity > info
+func filterActionableInsights(insights []ObservabilityInsight) []ObservabilityInsight {
+	var result []ObservabilityInsight
+	for _, ins := range insights {
+		if ins.Severity == "critical" || ins.Severity == "high" || ins.Severity == "medium" || ins.Severity == "low" {
+			result = append(result, ins)
+		}
+	}
+	return result
+}
+
+// renderCompactMCPHealth renders MCP health issues in compact form (only problems)
+func renderCompactMCPHealth(health *MCPServerHealth) {
+	if health == nil {
 		return
 	}
-
-	if !comparison.BaselineFound || comparison.Baseline == nil || comparison.Delta == nil || comparison.Classification == nil {
-		fmt.Fprintln(os.Stderr, "  No suitable successful run was available for baseline comparison.")
-		fmt.Fprintln(os.Stderr)
+	// Only render if there are unhealthy servers
+	hasIssues := false
+	for _, server := range health.Servers {
+		if server.Status != "healthy" {
+			hasIssues = true
+			break
+		}
+	}
+	if !hasIssues {
 		return
 	}
+	fmt.Fprintln(os.Stderr, "  mcp_health:")
+	for _, server := range health.Servers {
+		if server.Status != "healthy" {
+			fmt.Fprintf(os.Stderr, "    %s: %s\n", server.ServerName, server.Status)
+		}
+	}
+}
 
-	fmt.Fprintf(os.Stderr, "  Baseline: run %d", comparison.Baseline.RunID)
-	if comparison.Baseline.Conclusion != "" {
-		fmt.Fprintf(os.Stderr, " (%s)", comparison.Baseline.Conclusion)
+// renderCompactFirewall renders firewall analysis in compact form
+func renderCompactFirewall(fa *FirewallAnalysis) {
+	if fa == nil {
+		return
 	}
-	fmt.Fprintln(os.Stderr)
-	if comparison.Baseline.Selection != "" {
-		fmt.Fprintf(os.Stderr, "  Selection: %s\n", strings.ReplaceAll(comparison.Baseline.Selection, "_", " "))
+	line := fmt.Sprintf("  firewall: %d requests", fa.TotalRequests)
+	if len(fa.BlockedDomains) > 0 {
+		line += fmt.Sprintf(" blocked_domains=%d", len(fa.BlockedDomains))
 	}
-	if len(comparison.Baseline.MatchedOn) > 0 {
-		fmt.Fprintf(os.Stderr, "  Matched on: %s\n", strings.Join(comparison.Baseline.MatchedOn, ", "))
-	}
-	fmt.Fprintf(os.Stderr, "  Classification: %s\n", comparison.Classification.Label)
-	fmt.Fprintln(os.Stderr, "  Changes:")
-
-	if comparison.Delta.Turns.Changed {
-		fmt.Fprintf(os.Stderr, "    - Turns: %d -> %d\n", comparison.Delta.Turns.Before, comparison.Delta.Turns.After)
-	}
-	if comparison.Delta.Posture.Changed {
-		fmt.Fprintf(os.Stderr, "    - Posture: %s -> %s\n", comparison.Delta.Posture.Before, comparison.Delta.Posture.After)
-	}
-	if comparison.Delta.BlockedRequests.Changed {
-		fmt.Fprintf(os.Stderr, "    - Blocked requests: %d -> %d\n", comparison.Delta.BlockedRequests.Before, comparison.Delta.BlockedRequests.After)
-	}
-	if comparison.Delta.MCPFailure != nil && comparison.Delta.MCPFailure.NewlyPresent {
-		fmt.Fprintf(os.Stderr, "    - New MCP failure: %s\n", strings.Join(comparison.Delta.MCPFailure.After, ", "))
-	}
-	if len(comparison.Classification.ReasonCodes) == 0 {
-		fmt.Fprintln(os.Stderr, "    - No meaningful behavior change from the selected successful baseline")
-	}
-	if comparison.Recommendation != nil && comparison.Recommendation.Action != "" {
-		fmt.Fprintf(os.Stderr, "  Recommended action: %s\n", comparison.Recommendation.Action)
-	}
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, line)
 }

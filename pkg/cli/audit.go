@@ -844,6 +844,7 @@ func renderAuditCompletion(runOutputDir string, jsonOutput bool) {
 	}
 	absOutputDir, _ := filepath.Abs(runOutputDir)
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Audit complete. Logs saved to "+absOutputDir))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Tip: use --artifacts to select specific artifact sets (agent, firewall, mcp, activation, detection, etc.)"))
 }
 
 // auditJobRunOptions holds parameters for auditJobRun.

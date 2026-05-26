@@ -150,17 +150,15 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 
 		output := buf.String()
 
-		// Verify key sections - now without markdown-style headers
+		// Verify key sections in compact format
 		expectedSections := []string{
-			"Workflow Run Audit Report",
-			"Overview",
-			"Key Findings",
-			"Recommendations",
-			"Performance Metrics",
-			"Metrics",
-			"Jobs",
-			"Firewall Analysis",
-			"Tool Usage",
+			"weekly-research",
+			"success",
+			"fingerprint:",
+			"metrics:",
+			"jobs:",
+			"firewall:",
+			"tools:",
 		}
 
 		for _, section := range expectedSections {
