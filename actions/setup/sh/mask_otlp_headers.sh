@@ -11,13 +11,14 @@ set +o histexpand
 # When GH_AW_OTLP_ALL_HEADERS is set (multi-endpoint configuration), the same
 # masking is applied to all endpoint headers combined in that variable.
 #
-# Three levels of masking are applied to each headers string:
+# Up to three levels of masking are applied to each headers string:
 #   1. The entire comma-separated header pairs string.
 #   2. Each individual header value extracted from the pairs, so that a token
 #      appearing without its header name prefix is also redacted.
 #   3. For Authorization-style "Bearer <token>" credentials, the raw token after
 #      stripping the "Bearer " scheme prefix, so it is masked even when it appears
 #      without the scheme (e.g. in downstream tool logs).
+# Values shorter than MIN_MASK_LENGTH are skipped at all levels.
 #
 # Mixed quoting ('::add-mask::' followed by "$VAR") is used so the directive prefix
 # is treated as a literal string while the variable values are expanded at runtime.
