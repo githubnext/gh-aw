@@ -55,7 +55,7 @@ Run the `deadcode` static analyzer, select a batch of up to 5 unreachable functi
 
 **Target**: Complete the full workflow in ≤ 30 turns.
 
-- **After discovery: if `discover-candidates` outputs `"skip": true`**, call `noop` immediately — skip Phases 3–9.
+- **After discovery: if `discover-candidates` outputs `"skip": true`**, call `noop` immediately — skip remaining phases.
 - Select **up to 5 functions** per run (not 10) — keeps PRs small and turns bounded.
 - Safety check grep: limit output with `grep -m 5` to avoid large result dumps.
 - Build/test output: pipe through `tail -20` to capture only the relevant tail; do not print full output.
@@ -67,6 +67,8 @@ Run the `deadcode` static analyzer, select a batch of up to 5 unreachable functi
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
+
+Inline sub-agent block syntax: `agent` names the sub-agent, `model` selects a smaller model, and `task` is its exact execution brief.
 
 ## agent: discover-candidates
 model: small
@@ -84,8 +86,6 @@ task: |
   Allowed `reason` examples: "no callers", "test-only callers", "unreachable".
   If 0 candidates remain:
   {"skip":true,"candidates":[]}
-
-This is an inline sub-agent block: `agent` names the sub-agent, `model` selects a smaller model, and `task` is its exact execution brief.
 
 **Critical**: Always include `./internal/tools/...` — it covers separate binaries called by the Makefile (e.g. `make actions-build`). Running `./cmd/...` alone gives false positives.
 
@@ -115,12 +115,12 @@ file="pkg/path/file.go"
 echo "=== Caller check ==="
 grep -rn -m 5 "$func" --include="*.go" .
 
-if [[ "$file" == pkg/workflow/* || "$file" == pkg/console/* ]]; then
+if [[ "$file" == "pkg/workflow/"* || "$file" == "pkg/console/"* ]]; then
   echo "=== WASM check ==="
   grep -n "$func" cmd/gh-aw-wasm/main.go || true
 fi
 
-if [[ "$file" == pkg/console/* ]]; then
+if [[ "$file" == "pkg/console/"* ]]; then
   echo "=== console_wasm check ==="
   grep -n "$func" pkg/console/console_wasm.go || true
 fi
