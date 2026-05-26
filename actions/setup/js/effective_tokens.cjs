@@ -2,6 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const fs = require("fs");
+const path = require("path");
+const { TMP_GH_AW_PATH } = require("./constants.cjs");
 
 /**
  * Effective Tokens (ET) computation module.
@@ -21,13 +23,18 @@ const fs = require("fs");
  *   Reasoning      (R):  w_reason     = 4.0
  *   Cache Write    (W):  w_cache_write = 1.0 (implementation extension)
  *
- * The per-model multiplier (m) is loaded from the GH_AW_MODEL_MULTIPLIERS
- * environment variable, which contains the JSON content of model_multipliers.json.
+ * The per-model multiplier (m) is loaded from model_multipliers.json data.
+ * Lookup order:
+ *   1. /tmp/gh-aw/model_multipliers.json (merged in activation job)
+ *   2. GH_AW_MODEL_MULTIPLIERS env var (compatibility fallback)
+ *   3. Built-in model_multipliers.json in the setup action folder
  * Falls back to m=1.0 (reference baseline) for unknown models.
  */
 
 /** @type {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null | undefined} */
 let _parsedMultipliers = undefined; // undefined = not yet parsed; null = parsed but unavailable
+const MERGED_MULTIPLIERS_PATH = `${TMP_GH_AW_PATH}/model_multipliers.json`;
+const BUILTIN_MULTIPLIERS_PATH = path.join(__dirname, "model_multipliers.json");
 
 /**
  * Default token class weights from the ET specification (Section 4.2).
@@ -44,7 +51,7 @@ function defaultTokenClassWeights() {
 }
 
 /**
- * Loads and parses the model multipliers from the GH_AW_MODEL_MULTIPLIERS env var.
+ * Loads and parses model multipliers from file-based sources or env fallback.
  * Caches the result after first parse (including null when unavailable). Returns null if not available or invalid.
  * @returns {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null | undefined}
  */
@@ -53,23 +60,69 @@ function getMultipliersData() {
     return _parsedMultipliers;
   }
 
-  const raw = process.env.GH_AW_MODEL_MULTIPLIERS;
-  if (!raw || !raw.trim()) {
+  const parsedFromMergedFile = parseMultipliersFile(MERGED_MULTIPLIERS_PATH);
+  if (parsedFromMergedFile) {
+    _parsedMultipliers = parsedFromMergedFile;
+    return _parsedMultipliers;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(process.env, "GH_AW_MODEL_MULTIPLIERS")) {
+    const raw = process.env.GH_AW_MODEL_MULTIPLIERS;
+    if (raw && raw.trim()) {
+      const parsedFromEnv = parseMultipliersJSON(raw);
+      if (parsedFromEnv) {
+        _parsedMultipliers = parsedFromEnv;
+        return _parsedMultipliers;
+      }
+    }
     _parsedMultipliers = null;
     return null;
   }
 
+  const parsedFromBuiltinFile = parseMultipliersFile(BUILTIN_MULTIPLIERS_PATH);
+  if (parsedFromBuiltinFile) {
+    _parsedMultipliers = parsedFromBuiltinFile;
+    return _parsedMultipliers;
+  }
+
+  _parsedMultipliers = null;
+  return null;
+}
+
+/**
+ * @param {string} filePath
+ * @returns {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null}
+ */
+function parseMultipliersFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+    const raw = fs.readFileSync(filePath, "utf8");
+    return parseMultipliersJSON(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {string} raw
+ * @returns {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null}
+ */
+function parseMultipliersJSON(raw) {
   try {
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") {
-      _parsedMultipliers = null;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return null;
     }
 
     const defaults = defaultTokenClassWeights();
-    const weights = { ...defaults, ...(parsed.token_class_weights || {}) };
+    const rawWeights =
+      parsed.token_class_weights && typeof parsed.token_class_weights === "object" && !Array.isArray(parsed.token_class_weights)
+        ? parsed.token_class_weights
+        : {};
+    const weights = { ...defaults, ...rawWeights };
 
-    // Ensure missing or invalid weights fall back to defaults, but preserve explicit 0 overrides
     for (const key of Object.keys(defaults)) {
       const value = weights[key];
       if (value == null || !Number.isFinite(value)) {
@@ -79,21 +132,22 @@ function getMultipliersData() {
 
     /** @type {Record<string, number>} */
     const multipliers = {};
-    for (const [model, mult] of Object.entries(parsed.multipliers || {})) {
-      multipliers[model.toLowerCase()] = Number(mult);
+    if (parsed.multipliers && typeof parsed.multipliers === "object" && !Array.isArray(parsed.multipliers)) {
+      for (const [model, mult] of Object.entries(parsed.multipliers)) {
+        multipliers[model.toLowerCase()] = Number(mult);
+      }
     }
 
-    _parsedMultipliers = { token_class_weights: weights, multipliers };
-    return _parsedMultipliers;
+    return { token_class_weights: weights, multipliers };
   } catch {
-    _parsedMultipliers = null;
     return null;
   }
 }
 
 /**
  * Returns the token class weights in use.
- * Uses values from GH_AW_MODEL_MULTIPLIERS if available, otherwise defaults.
+ * Uses values from merged/built-in model_multipliers.json when available,
+ * otherwise falls back to defaults.
  * @returns {{ input: number, cached_input: number, output: number, reasoning: number, cache_write: number }}
  */
 function getTokenClassWeights() {
@@ -105,7 +159,7 @@ function getTokenClassWeights() {
  * Returns the per-model cost multiplier for the given model name.
  *
  * Lookup order:
- * 1. Exact case-insensitive match in GH_AW_MODEL_MULTIPLIERS
+ * 1. Exact case-insensitive match in loaded model multipliers
  * 2. Longest prefix match (e.g. "claude-sonnet-4.6-preview" → "claude-sonnet-4.6")
  * 3. Default: 1.0 (unknown model treated as reference baseline)
  *

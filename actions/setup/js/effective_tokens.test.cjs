@@ -122,10 +122,10 @@ describe("effective_tokens", () => {
       expect(getModelMultiplier("")).toBe(1.0);
     });
 
-    test("returns 1.0 when env var is not set", () => {
+    test("falls back to built-in multipliers when env var is not set", () => {
       _resetCache();
       delete process.env.GH_AW_MODEL_MULTIPLIERS;
-      expect(getModelMultiplier("claude-opus-4.5")).toBe(1.0);
+      expect(getModelMultiplier("claude-opus-4.5")).toBeGreaterThan(1.0);
     });
 
     test("matches claude-haiku-4.5 with multiplier 0.1", () => {
