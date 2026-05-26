@@ -825,9 +825,16 @@ async function main(config = {}) {
       return recordComment(comment, isDiscussion);
     } catch (error) {
       const errorMessage = getErrorMessage(error);
+      const normalizedErrorMessage = errorMessage.toLowerCase();
 
       // Check if this is a 404 error (discussion/issue was deleted or wrong type)
-      const is404 = error?.status === 404 || errorMessage.includes("404") || errorMessage.toLowerCase().includes("not found");
+      const is404 = error?.status === 404 || errorMessage.includes("404") || normalizedErrorMessage.includes("not found");
+      const isLocked =
+        error?.status === 423 ||
+        normalizedErrorMessage.includes("issue is locked") ||
+        normalizedErrorMessage.includes("conversation is locked") ||
+        normalizedErrorMessage.includes("resource is locked") ||
+        normalizedErrorMessage.includes("resource locked");
 
       // If 404 and item_number was explicitly provided and we tried as issue/PR,
       // retry as a discussion (the user may have provided a discussion number)
@@ -875,6 +882,16 @@ async function main(config = {}) {
         return {
           success: true,
           warning: `Target not found: ${errorMessage}`,
+          skipped: true,
+        };
+      }
+
+      if (isLocked) {
+        // Treat locked targets as warnings - locked PRs/issues are a valid repository state
+        core.warning(`Target is locked, skipping comment: ${errorMessage}`);
+        return {
+          success: true,
+          warning: `Target is locked: ${errorMessage}`,
           skipped: true,
         };
       }
