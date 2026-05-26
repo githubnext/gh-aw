@@ -62,7 +62,8 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` view 1234567890 --repo owner/repo
   ` + string(constants.CLIExtensionPrefix) + ` view 1234567890 -o ./my-logs
   ` + string(constants.CLIExtensionPrefix) + ` view 1234567890 -v`,
-		Args: cobra.ExactArgs(1),
+		Args:   cobra.ExactArgs(1),
+		Hidden: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			outputDir, _ := cmd.Flags().GetString("output")
