@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,11 +66,11 @@ func buildReplayRunDir(t *testing.T) string {
 	}
 
 	// Write a minimal events.jsonl so the agent timeline source is populated.
-	ts := time.Now().UTC().Add(-time.Minute).Format(time.RFC3339Nano)
+	timestamp := time.Now().UTC().Add(-time.Minute).Format(time.RFC3339Nano)
 	eventsContent := strings.Join([]string{
-		`{"type":"user.message","id":"id1","timestamp":"` + ts + `","data":{}}`,
-		`{"type":"tool.execution_start","id":"id2","timestamp":"` + ts + `","data":{"toolCallId":"c1","toolName":"search","mcpServerName":"github"}}`,
-		`{"type":"tool.execution_complete","id":"id3","timestamp":"` + ts + `","data":{"toolCallId":"c1","toolName":"search","mcpServerName":"github","success":true}}`,
+		`{"type":"user.message","id":"id1","timestamp":"` + timestamp + `","data":{}}`,
+		`{"type":"tool.execution_start","id":"id2","timestamp":"` + timestamp + `","data":{"toolCallId":"c1","toolName":"search","mcpServerName":"github"}}`,
+		`{"type":"tool.execution_complete","id":"id3","timestamp":"` + timestamp + `","data":{"toolCallId":"c1","toolName":"search","mcpServerName":"github","success":true}}`,
 	}, "\n") + "\n"
 	if err := os.WriteFile(filepath.Join(runDir, "events.jsonl"), []byte(eventsContent), 0600); err != nil {
 		t.Fatalf("WriteFile events.jsonl: %v", err)
@@ -88,10 +89,35 @@ func TestReplayWorkflowRun_LocalCache_NoError(t *testing.T) {
 		OutputDir: logsDir,
 		Verbose:   false,
 	}
-	// Should succeed: it reads from the pre-populated local directory.
-	// We provide a non-zero runID that matches the directory created above.
-	if err := ReplayWorkflowRun(context.Background(), 9999, opts); err != nil {
-		t.Errorf("ReplayWorkflowRun returned unexpected error: %v", err)
+	// Capture stdout so we can assert on the rendered timeline output.
+	origStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	os.Stdout = w
+
+	runErr := ReplayWorkflowRun(context.Background(), 9999, opts)
+
+	// Restore stdout and read captured output.
+	w.Close()
+	os.Stdout = origStdout
+	outBytes, readErr := io.ReadAll(r)
+	if readErr != nil {
+		t.Fatalf("reading captured output: %v", readErr)
+	}
+	output := string(outBytes)
+
+	if runErr != nil {
+		t.Errorf("ReplayWorkflowRun returned unexpected error: %v", runErr)
+	}
+
+	// Verify that BuildUnifiedTimeline processed the events and that
+	// renderUnifiedTimeline produced meaningful output.
+	for _, want := range []string{"agent_turn", "tool_start", "tool_done", "github/search"} {
+		if !strings.Contains(output, want) {
+			t.Errorf("output missing %q; got:\n%s", want, output)
+		}
 	}
 }
 
