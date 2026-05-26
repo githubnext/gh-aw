@@ -216,20 +216,11 @@ async function main(core, ctx) {
       core.warning(`Built-in model_multipliers.json not found at ${builtInPath}`);
     }
 
-    const builtInTokenClassWeights =
-      builtIn.token_class_weights && typeof builtIn.token_class_weights === "object" && !Array.isArray(builtIn.token_class_weights)
-        ? builtIn.token_class_weights
-        : {};
+    const builtInTokenClassWeights = builtIn.token_class_weights && typeof builtIn.token_class_weights === "object" && !Array.isArray(builtIn.token_class_weights) ? builtIn.token_class_weights : {};
     const builtInMultipliers = builtIn.multipliers && typeof builtIn.multipliers === "object" && !Array.isArray(builtIn.multipliers) ? builtIn.multipliers : {};
 
-    const customTokenClassWeights =
-      tokenWeights && tokenWeights.token_class_weights && typeof tokenWeights.token_class_weights === "object" && !Array.isArray(tokenWeights.token_class_weights)
-        ? tokenWeights.token_class_weights
-        : {};
-    const customMultipliers =
-      tokenWeights && tokenWeights.multipliers && typeof tokenWeights.multipliers === "object" && !Array.isArray(tokenWeights.multipliers)
-        ? tokenWeights.multipliers
-        : {};
+    const customTokenClassWeights = tokenWeights && tokenWeights.token_class_weights && typeof tokenWeights.token_class_weights === "object" && !Array.isArray(tokenWeights.token_class_weights) ? tokenWeights.token_class_weights : {};
+    const customMultipliers = tokenWeights && tokenWeights.multipliers && typeof tokenWeights.multipliers === "object" && !Array.isArray(tokenWeights.multipliers) ? tokenWeights.multipliers : {};
 
     const merged = {
       ...builtIn,

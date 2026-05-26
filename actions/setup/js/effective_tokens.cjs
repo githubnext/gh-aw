@@ -117,10 +117,7 @@ function parseMultipliersJSON(raw) {
     }
 
     const defaults = defaultTokenClassWeights();
-    const rawWeights =
-      parsed.token_class_weights && typeof parsed.token_class_weights === "object" && !Array.isArray(parsed.token_class_weights)
-        ? parsed.token_class_weights
-        : {};
+    const rawWeights = parsed.token_class_weights && typeof parsed.token_class_weights === "object" && !Array.isArray(parsed.token_class_weights) ? parsed.token_class_weights : {};
     const weights = { ...defaults, ...rawWeights };
 
     for (const key of Object.keys(defaults)) {

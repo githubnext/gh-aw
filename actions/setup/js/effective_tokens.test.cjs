@@ -19,6 +19,8 @@ const {
   _resetCache,
 } = require("./effective_tokens.cjs");
 
+const MERGED_MULTIPLIERS_PATH = "/tmp/gh-aw/model_multipliers.json";
+
 // Model multipliers JSON used in tests (matches pkg/cli/data/model_multipliers.json)
 const TEST_MULTIPLIERS_JSON = JSON.stringify({
   version: "1",
@@ -46,11 +48,17 @@ const TEST_MULTIPLIERS_JSON = JSON.stringify({
 describe("effective_tokens", () => {
   beforeEach(() => {
     _resetCache();
+    if (fs.existsSync(MERGED_MULTIPLIERS_PATH)) {
+      fs.unlinkSync(MERGED_MULTIPLIERS_PATH);
+    }
     process.env.GH_AW_MODEL_MULTIPLIERS = TEST_MULTIPLIERS_JSON;
   });
 
   afterEach(() => {
     _resetCache();
+    if (fs.existsSync(MERGED_MULTIPLIERS_PATH)) {
+      fs.unlinkSync(MERGED_MULTIPLIERS_PATH);
+    }
     delete process.env.GH_AW_MODEL_MULTIPLIERS;
   });
 
