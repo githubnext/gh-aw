@@ -30,6 +30,7 @@ const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { renderTemplateFromFile, renderFilesList, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, linearizeRangeAsCommit } = require("./git_helpers.cjs");
@@ -83,21 +84,9 @@ async function createCopilotAssignmentClient(config) {
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request";
-const GIT_COMMIT_SHA_PATTERN = /^[0-9a-fA-F]{7,40}$/;
 
 // NOTE: MANAGED_FALLBACK_ISSUE_LABEL, createBundleTempRef, and summarizeListForLog
 // are imported from create_pull_request_helpers.cjs above.
-
-/**
- * Normalize and validate a git commit SHA.
- *
- * @param {unknown} value
- * @returns {string}
- */
-function normalizeCommitSHA(value) {
-  const normalized = String(value ?? "").trim();
-  return GIT_COMMIT_SHA_PATTERN.test(normalized) ? normalized : "";
-}
 
 /**
  * Attempt automatic recovery for git am add/add conflicts by preferring the patch version.

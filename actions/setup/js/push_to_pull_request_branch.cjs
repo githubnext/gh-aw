@@ -18,6 +18,7 @@ const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { ensureFullHistoryForBundle, getGitAuthEnv, extractBundlePrerequisiteCommits, linearizeRangeAsCommit } = require("./git_helpers.cjs");
+const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { getThreatDetectedMarker } = require("./threat_detection_warning.cjs");
 
@@ -37,8 +38,6 @@ const MISSING_REMOTE_REF_PATTERNS = [
   "fatal: couldn't find remote ref",
   "exit code 128",
 ];
-const GIT_COMMIT_SHA_PATTERN = /^[0-9a-fA-F]{7,40}$/;
-
 /**
  * @param {unknown} value
  * @returns {boolean}
@@ -46,17 +45,6 @@ const GIT_COMMIT_SHA_PATTERN = /^[0-9a-fA-F]{7,40}$/;
 function looksLikeMissingRemoteBranchError(value) {
   const text = String(value ?? "").toLowerCase();
   return MISSING_REMOTE_REF_PATTERNS.some(pattern => text.includes(pattern));
-}
-
-/**
- * Normalize and validate a git commit SHA.
- *
- * @param {unknown} value
- * @returns {string}
- */
-function normalizeCommitSHA(value) {
-  const normalized = String(value ?? "").trim();
-  return GIT_COMMIT_SHA_PATTERN.test(normalized) ? normalized : "";
 }
 
 /**

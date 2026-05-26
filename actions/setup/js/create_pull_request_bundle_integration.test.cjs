@@ -177,4 +177,47 @@ describe("create_pull_request bundle integration", () => {
     expect(execGit(["show-ref", "--verify", bundleTempRef], { cwd: targetRepo, allowFailure: true }).status).not.toBe(0);
     expect(execGit(["rev-parse", `refs/heads/${branchName}`], { cwd: targetRepo }).stdout.trim()).toBe(originalHead);
   });
+
+  it("applies bundle route with merge-commit history intact", async () => {
+    const branchName = "autoloop/merge-bundle";
+    const sourceRepo = createRepo("create-pr-bundle-merge-source-");
+    const targetRepo = createRepo("create-pr-bundle-merge-target-");
+    tempDirs.push(sourceRepo, targetRepo);
+
+    fs.writeFileSync(path.join(sourceRepo, "file.txt"), "base\n");
+    execGit(["add", "file.txt"], { cwd: sourceRepo });
+    execGit(["commit", "-m", "base"], { cwd: sourceRepo });
+    execGit(["branch", "-M", "main"], { cwd: sourceRepo });
+
+    execGit(["checkout", "-b", "feature"], { cwd: sourceRepo });
+    fs.writeFileSync(path.join(sourceRepo, "feature.txt"), "feature branch commit\n");
+    execGit(["add", "feature.txt"], { cwd: sourceRepo });
+    execGit(["commit", "-m", "feature commit"], { cwd: sourceRepo });
+
+    execGit(["checkout", "main"], { cwd: sourceRepo });
+    fs.writeFileSync(path.join(sourceRepo, "main.txt"), "main branch commit\n");
+    execGit(["add", "main.txt"], { cwd: sourceRepo });
+    execGit(["commit", "-m", "main commit"], { cwd: sourceRepo });
+    execGit(["merge", "--no-ff", "feature", "-m", "merge feature"], { cwd: sourceRepo });
+    execGit(["checkout", "-b", branchName], { cwd: sourceRepo });
+
+    const expectedHead = execGit(["rev-parse", "HEAD"], { cwd: sourceRepo }).stdout.trim();
+    const bundlePath = path.join(sourceRepo, "merge.bundle");
+    execGit(["bundle", "create", bundlePath, `refs/heads/${branchName}`], { cwd: sourceRepo });
+
+    fs.writeFileSync(path.join(targetRepo, "file.txt"), "target divergent history\n");
+    execGit(["add", "file.txt"], { cwd: targetRepo });
+    execGit(["commit", "-m", "target state"], { cwd: targetRepo });
+    execGit(["checkout", "-b", branchName], { cwd: targetRepo });
+
+    const { applyBundleToBranch } = require("./create_pull_request.cjs");
+    await applyBundleToBranch(bundlePath, branchName, "", createExecApi(targetRepo));
+
+    const actualHead = execGit(["rev-parse", "HEAD"], { cwd: targetRepo }).stdout.trim();
+    const mergeCount = Number(execGit(["rev-list", "--count", "--merges", "HEAD"], { cwd: targetRepo }).stdout.trim());
+    expect(actualHead).toBe(expectedHead);
+    expect(mergeCount).toBeGreaterThanOrEqual(1);
+    expect(fs.readFileSync(path.join(targetRepo, "feature.txt"), "utf8")).toBe("feature branch commit\n");
+    expect(fs.readFileSync(path.join(targetRepo, "main.txt"), "utf8")).toBe("main branch commit\n");
+  });
 });
