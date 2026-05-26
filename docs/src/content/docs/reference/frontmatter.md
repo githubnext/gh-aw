@@ -470,38 +470,21 @@ The `redirect` field uses the same `owner/repo/path@ref` format as `source:`. Re
 
 ### Tracker ID (`tracker-id:`)
 
-Embeds a stable identifier into the body of every asset (issues, pull requests, discussions, comments) created by the workflow. This ties all output to a single searchable token, making it easy to find and manage everything a workflow has ever created — even across repositories or over time.
+Tags every asset (issues, pull requests, discussions, comments) the workflow creates with a hidden HTML comment — `<!-- gh-aw-tracker-id: … -->` — enabling GitHub search to find all items associated with this workflow.
 
 ```yaml wrap
 tracker-id: code-simplifier
 ```
 
-The identifier is inserted as a hidden HTML comment in every created body:
+Accepts 8–128 alphanumeric characters, hyphens, and underscores. Most workflows use their filename as the tracker ID.
 
-```html
-<!-- gh-aw-tracker-id: code-simplifier -->
-```
-
-Use it in GitHub search to find all assets created by a specific workflow:
+Search for all assets created by a specific workflow:
 
 ```
 repo:owner/repo "gh-aw-tracker-id: code-simplifier" in:body
 ```
 
-**Constraints:**
-
-- 8–128 characters
-- Alphanumeric characters, hyphens (`-`), and underscores (`_`) only
-- Leading and trailing whitespace is stripped automatically
-
-Most workflows use their own filename as the tracker ID for clarity:
-
-```yaml wrap
-tracker-id: daily-compiler-quality
-```
-
-> [!NOTE]
-> The `tracker-id` field controls the search marker embedded in created assets. The `gh-aw-workflow-id` marker (derived from the workflow filename) is always included regardless of this field. See [Footers](/gh-aw/reference/footers/) for details on both markers and how to control footer visibility.
+See [Footers](/gh-aw/reference/footers/) for marker details and footer visibility control.
 
 ### Private Workflows (`private:`)
 
