@@ -86,6 +86,34 @@ func TestFindClosestMatches(t *testing.T) {
 			maxResults: 3,
 			want:       nil,
 		},
+		{
+			name:       "nil candidates returns nil",
+			target:     "copilot",
+			candidates: nil,
+			maxResults: 3,
+			want:       nil,
+		},
+		{
+			name:       "maxResults zero returns nil",
+			target:     "copiliot",
+			candidates: []string{"copilot", "claude"},
+			maxResults: 0,
+			want:       nil,
+		},
+		{
+			name:       "distance four candidate excluded",
+			target:     "abc",
+			candidates: []string{"abx", "abcdefg"},
+			maxResults: 3,
+			want:       []string{"abx"},
+		},
+		{
+			name:       "alphabetical tie breaking for equal distances",
+			target:     "zzzz",
+			candidates: []string{"zzzb", "zzza"},
+			maxResults: 2,
+			want:       []string{"zzza", "zzzb"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -112,6 +140,8 @@ func TestLevenshteinDistance(t *testing.T) {
 		{name: "push vs pus", a: "push", b: "pus", want: 1},
 		{name: "contents vs scope typo", a: "contents", b: "cntents", want: 1},
 		{name: "completely different", a: "xyz", b: "abc", want: 3},
+		// LevenshteinDistance operates on bytes, not runes: "é" is two bytes in UTF-8.
+		{name: "multibyte utf8 compares bytes", a: "é", b: "e", want: 2},
 	}
 
 	for _, tt := range tests {
