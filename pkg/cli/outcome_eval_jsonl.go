@@ -49,8 +49,14 @@ func writeOutcomeJSONL(dir string, runID int64, reports []OutcomeReport) {
 		if err != nil {
 			continue
 		}
-		f.Write(line)
-		f.WriteString("\n")
+		if _, err := f.Write(line); err != nil {
+			outcomeEvalLog.Printf("Failed to write outcome entry to %s: %v", filePath, err)
+			return
+		}
+		if _, err := f.WriteString("\n"); err != nil {
+			outcomeEvalLog.Printf("Failed to write newline to %s: %v", filePath, err)
+			return
+		}
 	}
 
 	outcomeEvalLog.Printf("Wrote %d outcome entries to %s", len(reports), filePath)

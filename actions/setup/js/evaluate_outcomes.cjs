@@ -180,7 +180,9 @@ function secondsBetween(from, to) {
  * @returns {{ outcome_status: "accepted"|"rejected"|"pending"|"ignored"|"skipped"|"unknown", evidence_strength: "strong"|"medium"|"weak", signal: string }}
  */
 function normalizeOutcome(result, detail) {
-  const normalizedDetail = String(detail || "").toLowerCase().trim();
+  const normalizedDetail = String(detail || "")
+    .toLowerCase()
+    .trim();
 
   if (result === "noop") {
     return { outcome_status: "skipped", evidence_strength: "weak", signal: "noop" };
