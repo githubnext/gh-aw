@@ -301,7 +301,8 @@ func TestRenderCrossRunReportMarkdown(t *testing.T) {
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(r)
+	_, err := buf.ReadFrom(r)
+	require.NoError(t, err, "should read captured stdout")
 	output := buf.String()
 
 	assert.Contains(t, output, "# Audit Report", "Should have markdown header")
@@ -348,7 +349,8 @@ func TestRenderPrettyMetricsTrend_IncludesDurationWithoutTokens(t *testing.T) {
 	os.Stderr = oldStderr
 
 	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(r)
+	_, err := buf.ReadFrom(r)
+	require.NoError(t, err, "should read captured stderr")
 	output := buf.String()
 
 	assert.Contains(t, output, "Metrics Trends", "Should render metrics section when duration metrics exist")
