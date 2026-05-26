@@ -580,7 +580,6 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 			Duration:      5 * time.Minute,
 			LogsPath:      tmpDir,
 			TokenUsage:    5000,
-			EstimatedCost: 0.05,
 			Turns:         10,
 		},
 		MCPFailures: []MCPFailureReport{
@@ -590,7 +589,6 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 
 	metrics := LogMetrics{
 		TokenUsage:    5000,
-		EstimatedCost: 0.05,
 		Turns:         10,
 	}
 

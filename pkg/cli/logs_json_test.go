@@ -28,7 +28,6 @@ func TestBuildLogsData(t *testing.T) {
 				Conclusion:       "success",
 				Duration:         5 * time.Minute,
 				TokenUsage:       1000,
-				EstimatedCost:    0.05,
 				Turns:            3,
 				ErrorCount:       0,
 				WarningCount:     1,
@@ -70,7 +69,6 @@ func TestBuildLogsData(t *testing.T) {
 				Conclusion:       "failure",
 				Duration:         3 * time.Minute,
 				TokenUsage:       500,
-				EstimatedCost:    0.025,
 				Turns:            2,
 				ErrorCount:       1,
 				WarningCount:     0,
@@ -113,10 +111,6 @@ func TestBuildLogsData(t *testing.T) {
 	}
 	if logsData.Summary.TotalTokens != 1500 {
 		t.Errorf("Expected TotalTokens to be 1500, got %d", logsData.Summary.TotalTokens)
-	}
-	// Use approximate comparison for float
-	if logsData.Summary.TotalCost < 0.074 || logsData.Summary.TotalCost > 0.076 {
-		t.Errorf("Expected TotalCost to be ~0.075, got %f", logsData.Summary.TotalCost)
 	}
 	if logsData.Summary.TotalTurns != 5 {
 		t.Errorf("Expected TotalTurns to be 5, got %d", logsData.Summary.TotalTurns)
@@ -200,7 +194,6 @@ func TestRenderLogsJSON(t *testing.T) {
 			TotalRuns:              2,
 			TotalDuration:          "8m0s",
 			TotalTokens:            1500,
-			TotalCost:              0.075,
 			TotalTurns:             5,
 			TotalErrors:            1,
 			TotalWarnings:          1,
@@ -217,7 +210,6 @@ func TestRenderLogsJSON(t *testing.T) {
 				Conclusion:    "success",
 				Duration:      "5m0s",
 				TokenUsage:    1000,
-				EstimatedCost: 0.05,
 				Turns:         3,
 				ErrorCount:    0,
 				WarningCount:  1,
@@ -246,7 +238,6 @@ func TestRenderLogsJSON(t *testing.T) {
 				PrimaryWorkflow:    "Test Workflow",
 				TotalRuns:          1,
 				TotalTokens:        1000,
-				TotalEstimatedCost: 0.05,
 				SuggestedRoute:     "workflow:Test Workflow",
 			},
 		},
@@ -326,7 +317,6 @@ func TestBuildLogsDataAggregatesDispatchEpisode(t *testing.T) {
 				Conclusion:    "success",
 				Duration:      2 * time.Minute,
 				TokenUsage:    300,
-				EstimatedCost: 0.01,
 				CreatedAt:     time.Date(2024, 2, 1, 12, 0, 0, 0, time.UTC),
 				StartedAt:     time.Date(2024, 2, 1, 12, 0, 0, 0, time.UTC),
 				UpdatedAt:     time.Date(2024, 2, 1, 12, 2, 0, 0, time.UTC),
@@ -343,7 +333,6 @@ func TestBuildLogsDataAggregatesDispatchEpisode(t *testing.T) {
 				Conclusion:       "success",
 				Duration:         4 * time.Minute,
 				TokenUsage:       700,
-				EstimatedCost:    0.03,
 				MissingToolCount: 1,
 				CreatedAt:        time.Date(2024, 2, 1, 12, 3, 0, 0, time.UTC),
 				StartedAt:        time.Date(2024, 2, 1, 12, 3, 0, 0, time.UTC),

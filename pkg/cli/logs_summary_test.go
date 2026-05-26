@@ -41,7 +41,6 @@ func TestSaveAndLoadRunSummary(t *testing.T) {
 		},
 		Metrics: workflow.LogMetrics{
 			TokenUsage:    1000,
-			EstimatedCost: 0.05,
 			Turns:         5,
 		},
 		TaskDomain: &TaskDomainInfo{
@@ -274,7 +273,6 @@ func TestRunSummaryJSONStructure(t *testing.T) {
 			DisplayTitle:  "Test Run",
 			Duration:      40 * time.Minute,
 			TokenUsage:    1000,
-			EstimatedCost: 0.05,
 			Turns:         5,
 			ErrorCount:    0,
 			WarningCount:  1,
@@ -282,7 +280,6 @@ func TestRunSummaryJSONStructure(t *testing.T) {
 		},
 		Metrics: workflow.LogMetrics{
 			TokenUsage:    1000,
-			EstimatedCost: 0.05,
 			Turns:         5,
 		},
 		AccessAnalysis: &DomainAnalysis{

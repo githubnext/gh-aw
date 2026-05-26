@@ -380,7 +380,6 @@ func TestGeneratedSchemasValidateRealOutput(t *testing.T) {
 				TotalRuns:     5,
 				TotalDuration: "10m30s",
 				TotalTokens:   15000,
-				TotalCost:     0.45,
 				TotalTurns:    25,
 			},
 			Runs: []RunData{
@@ -393,7 +392,6 @@ func TestGeneratedSchemasValidateRealOutput(t *testing.T) {
 					Conclusion:    "success",
 					Duration:      "2m5s",
 					TokenUsage:    3000,
-					EstimatedCost: 0.09,
 					Turns:         5,
 				},
 			},
@@ -442,7 +440,6 @@ func TestGeneratedSchemasValidateRealOutput(t *testing.T) {
 			},
 			Metrics: MetricsData{
 				TokenUsage:    5000,
-				EstimatedCost: 0.15,
 				Turns:         10,
 				ErrorCount:    0,
 				WarningCount:  2,

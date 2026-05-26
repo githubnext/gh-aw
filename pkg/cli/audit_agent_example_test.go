@@ -31,7 +31,6 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 		HeadBranch:    "main",
 		URL:           "https://github.com/org/repo/actions/runs/987654",
 		TokenUsage:    45000,
-		EstimatedCost: 0.18,
 		Turns:         12,
 		ErrorCount:    0,
 		WarningCount:  2,
@@ -40,7 +39,6 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 
 	metrics := LogMetrics{
 		TokenUsage:    45000,
-		EstimatedCost: 0.18,
 		Turns:         12,
 		ToolCalls: []workflow.ToolCallInfo{
 			{
@@ -231,10 +229,6 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 			t.Error("Expected tokens per minute to be calculated")
 		}
 
-		if pm.CostEfficiency == "" {
-			t.Error("Expected cost efficiency to be set")
-		}
-
 		if pm.MostUsedTool == "" {
 			t.Error("Expected most used tool to be identified")
 		}
@@ -243,11 +237,6 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 			t.Errorf("Expected 42 network requests, got %d", pm.NetworkRequests)
 		}
 
-		// Verify cost efficiency calculation
-		// Cost: $0.18, Duration: 14.5 minutes = $0.0124/min → "good"
-		if pm.CostEfficiency != "good" {
-			t.Errorf("Expected 'good' cost efficiency, got '%s'", pm.CostEfficiency)
-		}
 	})
 }
 
@@ -265,7 +254,6 @@ func TestAgentFriendlyOutputFailureScenario(t *testing.T) {
 		HeadBranch:    "feature-branch",
 		URL:           "https://github.com/org/repo/actions/runs/111222",
 		TokenUsage:    8000,
-		EstimatedCost: 0.03,
 		Turns:         4,
 		ErrorCount:    3,
 		WarningCount:  1,
@@ -274,7 +262,6 @@ func TestAgentFriendlyOutputFailureScenario(t *testing.T) {
 
 	metrics := LogMetrics{
 		TokenUsage:    8000,
-		EstimatedCost: 0.03,
 		Turns:         4,
 	}
 

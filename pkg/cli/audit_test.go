@@ -142,7 +142,6 @@ func TestBuildAuditData(t *testing.T) {
 		HeadBranch:    "main",
 		URL:           "https://github.com/org/repo/actions/runs/123456",
 		TokenUsage:    1500,
-		EstimatedCost: 0.025,
 		Turns:         5,
 		ErrorCount:    2,
 		WarningCount:  1,
@@ -151,7 +150,6 @@ func TestBuildAuditData(t *testing.T) {
 
 	metrics := LogMetrics{
 		TokenUsage:    1500,
-		EstimatedCost: 0.025,
 		Turns:         5,
 		ToolCalls: []workflow.ToolCallInfo{
 			{
@@ -213,9 +211,6 @@ func TestBuildAuditData(t *testing.T) {
 	// Verify metrics
 	if auditData.Metrics.TokenUsage != 1500 {
 		t.Errorf("Expected token usage 1500, got %d", auditData.Metrics.TokenUsage)
-	}
-	if auditData.Metrics.EstimatedCost != 0.025 {
-		t.Errorf("Expected estimated cost 0.025, got %f", auditData.Metrics.EstimatedCost)
 	}
 	if auditData.Metrics.ErrorCount != 2 {
 		t.Errorf("Expected error count 2, got %d", auditData.Metrics.ErrorCount)
@@ -317,7 +312,6 @@ func TestRenderJSON(t *testing.T) {
 		},
 		Metrics: MetricsData{
 			TokenUsage:    1500,
-			EstimatedCost: 0.025,
 			Turns:         5,
 			ErrorCount:    1,
 			WarningCount:  1,
@@ -436,7 +430,6 @@ func TestAuditCachingBehavior(t *testing.T) {
 		HeadBranch:    "main",
 		URL:           "https://github.com/org/repo/actions/runs/12345",
 		TokenUsage:    1000,
-		EstimatedCost: 0.01,
 		Turns:         3,
 		ErrorCount:    0,
 		WarningCount:  0,
@@ -445,7 +438,6 @@ func TestAuditCachingBehavior(t *testing.T) {
 
 	metrics := LogMetrics{
 		TokenUsage:    1000,
-		EstimatedCost: 0.01,
 		Turns:         3,
 	}
 
@@ -659,7 +651,6 @@ func TestBuildAuditDataWithFirewall(t *testing.T) {
 		HeadBranch:    "main",
 		URL:           "https://github.com/org/repo/actions/runs/123456",
 		TokenUsage:    1500,
-		EstimatedCost: 0.025,
 		Turns:         5,
 		ErrorCount:    0,
 		WarningCount:  0,
@@ -668,7 +659,6 @@ func TestBuildAuditDataWithFirewall(t *testing.T) {
 
 	metrics := LogMetrics{
 		TokenUsage:    1500,
-		EstimatedCost: 0.025,
 		Turns:         5,
 	}
 
@@ -748,7 +738,6 @@ func TestRenderJSONWithFirewall(t *testing.T) {
 		},
 		Metrics: MetricsData{
 			TokenUsage:    1500,
-			EstimatedCost: 0.025,
 			Turns:         5,
 			ErrorCount:    0,
 			WarningCount:  0,

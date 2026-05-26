@@ -110,7 +110,6 @@ func BenchmarkAggregateWorkflowStats(b *testing.B) {
 			Status:        "completed",
 			Conclusion:    "success",
 			TokenUsage:    1500,
-			EstimatedCost: 0.015,
 			Turns:         3,
 			ErrorCount:    0,
 			WarningCount:  1,
@@ -121,7 +120,6 @@ func BenchmarkAggregateWorkflowStats(b *testing.B) {
 			Status:        "completed",
 			Conclusion:    "failure",
 			TokenUsage:    2500,
-			EstimatedCost: 0.025,
 			Turns:         5,
 			ErrorCount:    2,
 			WarningCount:  3,
@@ -132,7 +130,6 @@ func BenchmarkAggregateWorkflowStats(b *testing.B) {
 			Status:        "completed",
 			Conclusion:    "success",
 			TokenUsage:    1800,
-			EstimatedCost: 0.018,
 			Turns:         4,
 			ErrorCount:    0,
 			WarningCount:  0,
@@ -149,7 +146,7 @@ func BenchmarkAggregateWorkflowStats(b *testing.B) {
 
 		for _, run := range runs {
 			totalTokens += run.TokenUsage
-			totalCost += run.EstimatedCost
+			// totalCost removed: estimated cost no longer tracked
 			totalTurns += run.Turns
 			totalErrors += run.ErrorCount
 			totalWarnings += run.WarningCount
@@ -174,7 +171,6 @@ func BenchmarkAggregateWorkflowStats_Large(b *testing.B) {
 			Status:        "completed",
 			Conclusion:    "success",
 			TokenUsage:    1500 + i*10,
-			EstimatedCost: 0.015 + float64(i)*0.001,
 			Turns:         3 + i%5,
 			ErrorCount:    i % 3,
 			WarningCount:  i % 2,
@@ -190,7 +186,7 @@ func BenchmarkAggregateWorkflowStats_Large(b *testing.B) {
 
 		for _, run := range runs {
 			totalTokens += run.TokenUsage
-			totalCost += run.EstimatedCost
+			// totalCost removed: estimated cost no longer tracked
 			totalTurns += run.Turns
 			totalErrors += run.ErrorCount
 			totalWarnings += run.WarningCount

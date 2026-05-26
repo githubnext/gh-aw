@@ -57,7 +57,6 @@ type OutcomeSummary struct {
 	WasteRate              float64 `json:"waste_rate" console:"header:Waste Rate"`
 	ZeroTouchRate          float64 `json:"zero_touch_rate" console:"header:Zero-touch Rate"`
 	MedianTimeToOutcome    float64 `json:"median_time_to_outcome_hours,omitempty"`
-	CostPerAcceptedOutcome float64 `json:"cost_per_accepted_outcome,omitempty"`
 }
 
 // outcomeEvaluator is a function that evaluates one safe output item.
@@ -119,7 +118,7 @@ func EvaluateOutcomes(items []CreatedItemReport, repoOverride string) []OutcomeR
 }
 
 // ComputeOutcomeSummary aggregates outcome reports into a summary.
-func ComputeOutcomeSummary(reports []OutcomeReport, totalCost float64) OutcomeSummary {
+func ComputeOutcomeSummary(reports []OutcomeReport) OutcomeSummary {
 	s := OutcomeSummary{Total: len(reports)}
 	var times []float64
 	for _, r := range reports {
@@ -153,9 +152,6 @@ func ComputeOutcomeSummary(reports []OutcomeReport, totalCost float64) OutcomeSu
 	}
 	if s.Accepted > 0 {
 		s.ZeroTouchRate = float64(s.ZeroTouch) / float64(s.Accepted)
-		if totalCost > 0 {
-			s.CostPerAcceptedOutcome = totalCost / float64(s.Accepted)
-		}
 	}
 	if len(times) > 0 {
 		s.MedianTimeToOutcome = medianFloat(times)

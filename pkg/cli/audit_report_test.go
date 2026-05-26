@@ -33,7 +33,6 @@ func createTestProcessedRun(opts ...func(*ProcessedRun)) ProcessedRun {
 		HeadBranch:    "main",
 		URL:           "https://github.com/org/repo/actions/runs/123456",
 		TokenUsage:    1500,
-		EstimatedCost: 0.025,
 		Turns:         5,
 		ErrorCount:    0,
 		WarningCount:  0,
@@ -112,7 +111,6 @@ func TestGenerateFindings(t *testing.T) {
 			}(),
 			metrics: MetricsData{
 				TokenUsage:    1000,
-				EstimatedCost: 0.01,
 				Turns:         3,
 				ErrorCount:    0,
 				WarningCount:  0,
@@ -133,7 +131,6 @@ func TestGenerateFindings(t *testing.T) {
 			}(),
 			metrics: MetricsData{
 				TokenUsage:    1000,
-				EstimatedCost: 0.01,
 				Turns:         3,
 				ErrorCount:    2,
 				WarningCount:  0,
@@ -249,38 +246,6 @@ func TestGenerateFindings(t *testing.T) {
 			checkFindings: func(t *testing.T, findings []Finding) {
 				assertFindingContains(t, findings, "performance", "Timeout",
 					"Timed out workflow should generate a timeout finding")
-			},
-		},
-		{
-			name: "high cost workflow",
-			processedRun: func() ProcessedRun {
-				return createTestProcessedRun()
-			}(),
-			metrics: MetricsData{
-				EstimatedCost: 1.50, // > 1.0 threshold
-				Turns:         5,
-			},
-			errors:        []ErrorInfo{},
-			expectedCount: 1, // High cost finding
-			checkFindings: func(t *testing.T, findings []Finding) {
-				assertFindingExists(t, findings, "cost", "high",
-					"High cost workflow should generate a high cost finding")
-			},
-		},
-		{
-			name: "moderate cost workflow",
-			processedRun: func() ProcessedRun {
-				return createTestProcessedRun()
-			}(),
-			metrics: MetricsData{
-				EstimatedCost: 0.75, // Between 0.5 and 1.0
-				Turns:         5,
-			},
-			errors:        []ErrorInfo{},
-			expectedCount: 1, // Moderate cost finding
-			checkFindings: func(t *testing.T, findings []Finding) {
-				assertFindingExists(t, findings, "cost", "medium",
-					"Moderate cost workflow should generate a medium cost finding")
 			},
 		},
 		{
@@ -447,25 +412,6 @@ func TestGenerateRecommendations(t *testing.T) {
 			},
 		},
 		{
-			name:         "high cost findings generate optimization recommendation",
-			processedRun: createTestProcessedRun(),
-			metrics:      MetricsData{EstimatedCost: 1.5},
-			findings: []Finding{
-				{Category: "cost", Severity: "high", Title: "High Cost"},
-			},
-			expectedMinCount: 1,
-			checkRecommendations: func(t *testing.T, recs []Recommendation) {
-				found := false
-				for _, r := range recs {
-					if strings.Contains(r.Action, "Optimize") || strings.Contains(r.Action, "prompt") {
-						found = true
-						break
-					}
-				}
-				assert.True(t, found, "High cost findings should generate optimization recommendation")
-			},
-		},
-		{
 			name: "missing tools generate add tools recommendation",
 			processedRun: func() ProcessedRun {
 				pr := createTestProcessedRun()
@@ -590,70 +536,6 @@ func TestGeneratePerformanceMetrics(t *testing.T) {
 			},
 		},
 		{
-			name: "cost efficiency - excellent",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Duration = 10 * time.Minute
-				return pr
-			}(),
-			metrics: MetricsData{
-				EstimatedCost: 0.05, // $0.005/min < $0.01 threshold
-			},
-			toolUsage: []ToolUsageInfo{},
-			checkMetrics: func(t *testing.T, pm *PerformanceMetrics) {
-				assert.Equal(t, "excellent", pm.CostEfficiency,
-					"Cost efficiency should be excellent for low cost per minute")
-			},
-		},
-		{
-			name: "cost efficiency - good",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Duration = 10 * time.Minute
-				return pr
-			}(),
-			metrics: MetricsData{
-				EstimatedCost: 0.25, // $0.025/min
-			},
-			toolUsage: []ToolUsageInfo{},
-			checkMetrics: func(t *testing.T, pm *PerformanceMetrics) {
-				assert.Equal(t, "good", pm.CostEfficiency,
-					"Cost efficiency should be good for moderate cost per minute")
-			},
-		},
-		{
-			name: "cost efficiency - moderate",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Duration = 10 * time.Minute
-				return pr
-			}(),
-			metrics: MetricsData{
-				EstimatedCost: 0.75, // $0.075/min
-			},
-			toolUsage: []ToolUsageInfo{},
-			checkMetrics: func(t *testing.T, pm *PerformanceMetrics) {
-				assert.Equal(t, "moderate", pm.CostEfficiency,
-					"Cost efficiency should be moderate for higher cost per minute")
-			},
-		},
-		{
-			name: "cost efficiency - poor",
-			processedRun: func() ProcessedRun {
-				pr := createTestProcessedRun()
-				pr.Run.Duration = 10 * time.Minute
-				return pr
-			}(),
-			metrics: MetricsData{
-				EstimatedCost: 1.50, // $0.15/min
-			},
-			toolUsage: []ToolUsageInfo{},
-			checkMetrics: func(t *testing.T, pm *PerformanceMetrics) {
-				assert.Equal(t, "poor", pm.CostEfficiency,
-					"Cost efficiency should be poor for high cost per minute")
-			},
-		},
-		{
 			name:         "most used tool",
 			processedRun: createTestProcessedRun(),
 			metrics:      MetricsData{},
@@ -757,7 +639,6 @@ func TestBuildAuditDataComplete(t *testing.T) {
 			HeadBranch:    "feature-branch",
 			URL:           "https://github.com/test/repo/actions/runs/12345",
 			TokenUsage:    25000,
-			EstimatedCost: 0.75,
 			Turns:         8,
 			ErrorCount:    3,
 			WarningCount:  2,
@@ -794,7 +675,6 @@ func TestBuildAuditDataComplete(t *testing.T) {
 
 	metrics := workflow.LogMetrics{
 		TokenUsage:    25000,
-		EstimatedCost: 0.75,
 		Turns:         8,
 		ToolCalls: []workflow.ToolCallInfo{
 			{Name: "bash", CallCount: 15, MaxInputSize: 500, MaxOutputSize: 2000, MaxDuration: 5 * time.Second},
@@ -963,7 +843,6 @@ func TestRenderJSONComplete(t *testing.T) {
 		},
 		Metrics: MetricsData{
 			TokenUsage:    5000,
-			EstimatedCost: 0.10,
 			Turns:         4,
 			ErrorCount:    1,
 			WarningCount:  2,
@@ -1100,7 +979,6 @@ func TestFindingSeverityOrdering(t *testing.T) {
 
 	metrics := MetricsData{
 		ErrorCount:    5,
-		EstimatedCost: 2.0, // High cost
 		Turns:         15,  // Many turns
 	}
 
@@ -1148,7 +1026,6 @@ func TestRecommendationPriorityOrdering(t *testing.T) {
 	}
 
 	metrics := MetricsData{
-		EstimatedCost: 1.5,
 	}
 
 	findings := []Finding{

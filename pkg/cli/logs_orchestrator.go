@@ -424,7 +424,6 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 				// Update run with metrics and path
 				run := result.Run
 				run.TokenUsage = result.Metrics.TokenUsage
-				run.EstimatedCost = result.Metrics.EstimatedCost
 				run.Turns = result.Metrics.Turns
 				run.AvgTimeBetweenTurns = result.Metrics.AvgTimeBetweenTurns
 				run.ErrorCount = 0
@@ -671,9 +670,8 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 				Duration:         pr.Run.Duration,
 				FirewallAnalysis: pr.FirewallAnalysis,
 				Metrics: LogMetrics{
-					TokenUsage:    pr.Run.TokenUsage,
-					EstimatedCost: pr.Run.EstimatedCost,
-					Turns:         pr.Run.Turns,
+					TokenUsage: pr.Run.TokenUsage,
+					Turns:      pr.Run.Turns,
 				},
 				MCPToolUsage: pr.MCPToolUsage,
 				MCPFailures:  pr.MCPFailures,
@@ -984,7 +982,6 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 
 		run := result.Run
 		run.TokenUsage = result.Metrics.TokenUsage
-		run.EstimatedCost = result.Metrics.EstimatedCost
 		run.Turns = result.Metrics.Turns
 		run.AvgTimeBetweenTurns = result.Metrics.AvgTimeBetweenTurns
 		run.ErrorCount = 0

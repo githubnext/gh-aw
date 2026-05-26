@@ -197,7 +197,6 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				// Update run with metrics so fingerprint computation uses the same data
 				// as the audit tool, which also derives these fields from extracted log metrics.
 				result.Run.TokenUsage = metrics.TokenUsage
-				result.Run.EstimatedCost = metrics.EstimatedCost
 				result.Run.Turns = metrics.Turns
 				result.Run.AvgTimeBetweenTurns = metrics.AvgTimeBetweenTurns
 				result.Run.LogsPath = runOutputDir
