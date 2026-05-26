@@ -61,7 +61,7 @@ Run the `deadcode` static analyzer, select a batch of up to 5 unreachable functi
 - Build/test output: pipe through `tail -20` to capture only the relevant tail; do not print full output.
 - PR body: use only the provided template structure — no extra analysis paragraphs.
 - Cache append: write lines directly; do not re-read the full cache file before appending.
-- **Turn circuit breaker**: keep a **soft target** of ≤30 turns. After Phase 5, if turn count is already >35 (**hard stop**; use current session turn count), skip `go test` in Phase 6 (run only `go build ./... && go vet ./...`) and proceed to Phase 7.
+- **Turn circuit breaker**: keep a **soft target** of ≤30 turns. After Phase 5, if the run is already >35 turns (**hard stop**), skip `go test` in Phase 6 (run only `go build ./... && go vet ./...`) and proceed to Phase 7.
 
 ## Context
 
@@ -84,6 +84,8 @@ task: |
   Allowed `reason` examples: "no callers", "test-only callers", "unreachable".
   If 0 candidates remain:
   {"skip":true,"candidates":[]}
+
+This is an inline sub-agent block: `agent` names the sub-agent, `model` selects a smaller model, and `task` is its exact execution brief.
 
 **Critical**: Always include `./internal/tools/...` — it covers separate binaries called by the Makefile (e.g. `make actions-build`). Running `./cmd/...` alone gives false positives.
 
@@ -124,7 +126,8 @@ if [[ "$file" == pkg/console/* ]]; then
 fi
 
 echo "=== Constant/embed check ==="
-grep -n "//go:embed\\|^[[:space:]]*const " "$file" || true
+grep -n "//go:embed" "$file" || true
+grep -n "^[[:space:]]*const " "$file" || true
 ```
 
 - Caller matches **only in `*_test.go` files** → proceed with deletion and mark exclusive tests for removal.
@@ -162,7 +165,7 @@ echo "Exit: $?"
 
 The `&&` chain intentionally short-circuits on first failure.
 
-If turn count is already >35 after Phase 5, use the circuit-breaker verification instead:
+If the run is already >35 turns after Phase 5, use the circuit-breaker verification instead:
 
 ```bash
 go build ./... && go vet ./...
