@@ -37,6 +37,7 @@ var awfHelpersLog = logger.New("workflow:awf_helpers")
 const (
 	awfArcDindPrefixArgsVarName = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
 	awfConfigRuntimePathExpr    = "${RUNNER_TEMP}/gh-aw/awf-config.json"
+	awfModelMultipliersFilePath = "/tmp/gh-aw/model_multipliers.json"
 	// Bash regex used in [[ ... =~ ... ]] to detect TCP Docker hosts (ARC/DinD).
 	// Any tcp:// DOCKER_HOST indicates the Docker daemon runs on a separate filesystem,
 	// requiring --docker-host-path-prefix so AWF bind-mounts resolve against the daemon.
@@ -85,6 +86,67 @@ func shouldUseWorkflowCallNetworkAllowedInput(data *WorkflowData) bool {
 		data.NetworkPermissions != nil &&
 		data.NetworkPermissions.AllowedInput &&
 		hasWorkflowCallTrigger(data.On)
+}
+
+func cloneWorkflowDataWithoutModelMultipliers(data *WorkflowData) *WorkflowData {
+	if data == nil || data.EngineConfig == nil || data.EngineConfig.TokenWeights == nil || len(data.EngineConfig.TokenWeights.Multipliers) == 0 {
+		return data
+	}
+
+	workflowCopy := *data
+	engineCopy := *data.EngineConfig
+	tokenWeightsCopy := *data.EngineConfig.TokenWeights
+	tokenWeightsCopy.Multipliers = nil
+	engineCopy.TokenWeights = &tokenWeightsCopy
+	workflowCopy.EngineConfig = &engineCopy
+	return &workflowCopy
+}
+
+func buildModelMultipliersFromFileScript() string {
+	return fmt.Sprintf(`python - <<'PY'
+import json
+import os
+from pathlib import Path
+
+runner_temp = os.environ.get("RUNNER_TEMP")
+if not runner_temp:
+  raise SystemExit("RUNNER_TEMP is required")
+
+config_path = Path(runner_temp) / "gh-aw" / "awf-config.json"
+if not config_path.exists():
+  raise SystemExit(0)
+
+multipliers_path = Path(%q)
+if not multipliers_path.exists():
+  raise SystemExit(0)
+
+try:
+  multipliers_doc = json.loads(multipliers_path.read_text(encoding="utf-8"))
+except Exception:
+  raise SystemExit(0)
+
+raw_multipliers = multipliers_doc.get("multipliers")
+if not isinstance(raw_multipliers, dict):
+  raise SystemExit(0)
+
+normalized = {}
+for key, value in raw_multipliers.items():
+  if isinstance(value, (int, float)) and not isinstance(value, bool):
+    normalized[key] = float(value)
+
+try:
+  config_doc = json.loads(config_path.read_text(encoding="utf-8"))
+except Exception:
+  raise SystemExit(0)
+
+api_proxy = config_doc.setdefault("apiProxy", {})
+if normalized:
+  api_proxy["modelMultipliers"] = normalized
+else:
+  api_proxy.pop("modelMultipliers", None)
+
+config_path.write_text(json.dumps(config_doc, separators=(",", ":")), encoding="utf-8")
+PY`, awfModelMultipliersFilePath)
 }
 
 func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
@@ -196,7 +258,9 @@ fi`,
 	// invocation, using printf to a fixed path inside the pre-existing ${RUNNER_TEMP}/gh-aw/
 	// directory that is already set up by actions/setup.
 	var configFileSetup string
-	awfConfigJSON, err := BuildAWFConfigJSON(config)
+	configForFile := config
+	configForFile.WorkflowData = cloneWorkflowDataWithoutModelMultipliers(config.WorkflowData)
+	awfConfigJSON, err := BuildAWFConfigJSON(configForFile)
 	if err != nil {
 		awfHelpersLog.Printf("Warning: failed to build AWF config JSON: %v", err)
 	} else {
@@ -221,6 +285,7 @@ fi`,
 				configFileSetup += "\n" + updateScript
 			}
 		}
+		configFileSetup += "\n" + buildModelMultipliersFromFileScript()
 		configFileSetup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
 		// Add --config as the first expandable arg so it appears before --container-workdir.
 		expandableArgs = fmt.Sprintf("--config %q ", awfConfigRuntimePathExpr) + expandableArgs
