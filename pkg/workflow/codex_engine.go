@@ -270,11 +270,11 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Harness-wrapped execution: the harness reads --prompt-file and passes its content
 		// as the last positional arg.  The harness also provides retry logic.
 		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
 			execPrefix, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	} else {
 		// Without harness: use shell expansion for the prompt (no retry logic).
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s\"$INSTRUCTION\"",
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s \"$INSTRUCTION\"",
 			commandName, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	}
 

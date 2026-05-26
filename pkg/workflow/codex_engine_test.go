@@ -520,6 +520,9 @@ func TestCodexEngineDetectionRunUsesStructuredOutputSchema(t *testing.T) {
 				if !hasSchemaWrite {
 					t.Errorf("Detection run: expected schema file path %q in command, got:\n%s", detectionSchemaFilePath, stepContent)
 				}
+				if !strings.Contains(stepContent, fmt.Sprintf("%s --prompt-file", detectionResultFilePath)) {
+					t.Errorf("Detection run: expected space separator between -o result file and --prompt-file, got:\n%s", stepContent)
+				}
 			} else {
 				if hasOutputSchema {
 					t.Errorf("Agent run: expected no --output-schema in command, got:\n%s", stepContent)
