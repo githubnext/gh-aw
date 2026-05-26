@@ -401,6 +401,7 @@ jobs:
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/base
             /tmp/gh-aw/.claude/agents
+            /tmp/gh-aw/.claude/skills
           if-no-files-found: ignore
           retention-days: 1
 
@@ -565,6 +566,10 @@ jobs:
           GH_AW_SUB_AGENT_DIR: ".claude/agents"
           GH_AW_SUB_AGENT_EXT: ".md"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh"
+      - name: Restore inline skills from activation artifact
+        env:
+          GH_AW_SKILL_DIR: ".claude/skills"
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Pre-flight checks
         run: "mkdir -p /tmp/gh-aw/agent\n\n# Check 1: verify docs directory structure exists\nDIR_COUNT=$(find docs/src/content/docs -maxdepth 1 -type d 2>/dev/null | wc -l)\nif [ \"$DIR_COUNT\" -eq 0 ]; then\n  echo '{\"pass\":false,\"reason\":\"Pre-flight failed: docs/src/content/docs directory not found — documentation structure is missing or repository is not set up correctly.\"}' \\\n    > /tmp/gh-aw/agent/preflight.json\n  exit 0\nfi\n\n# Check 2: count editable markdown files\nTOTAL=$(find docs/src/content/docs -path '*/blog*' -prune \\\n  -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print \\\n  | xargs grep -rL 'disable-agentic-editing: true' 2>/dev/null \\\n  | wc -l)\nif [ \"$TOTAL\" -eq 0 ]; then\n  echo '{\"pass\":false,\"reason\":\"Pre-flight failed: no editable markdown files found in docs/src/content/docs (all files may be protected or excluded).\"}' \\\n    > /tmp/gh-aw/agent/preflight.json\n  exit 0\nfi\n\n# Check 3: count uncleaned candidates (not cleaned in the past 7 days)\nRECENT_CUTOFF=$(date -d '7 days ago' '+%Y-%m-%d' 2>/dev/null \\\n  || date -v-7d '+%Y-%m-%d' 2>/dev/null \\\n  || echo \"0000-00-00\")\nCLEANED=$(awk -v cutoff=\"$RECENT_CUTOFF\" \\\n  'NF>0 && $1>=cutoff{count++} END{print count+0}' \\\n  /tmp/gh-aw/cache-memory/cleaned-files.txt 2>/dev/null || echo \"0\")\nUNCLEANED=$(( TOTAL - CLEANED ))\nif [ \"$UNCLEANED\" -le 0 ]; then\n  echo '{\"pass\":false,\"reason\":\"Pre-flight check: all eligible documentation files were cleaned recently — nothing to do this run.\"}' \\\n    > /tmp/gh-aw/agent/preflight.json\n  exit 0\nfi\n\n# All checks passed — write candidate file list and preflight result\nfind docs/src/content/docs -path '*/blog*' -prune \\\n  -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print \\\n  | xargs grep -rL 'disable-agentic-editing: true' 2>/dev/null \\\n  > /tmp/gh-aw/agent/candidate-files.txt\nprintf '{\"pass\":true,\"reason\":\"All pre-flight checks passed. %d uncleaned candidates available.\",\"uncleaned\":%d,\"total\":%d}\\n' \\\n  \"$UNCLEANED\" \"$UNCLEANED\" \"$TOTAL\" \\\n  > /tmp/gh-aw/agent/preflight.json\n\necho \"Pre-flight passed: $UNCLEANED uncleaned candidates out of $TOTAL eligible files\"\necho \"Candidate files written to /tmp/gh-aw/agent/candidate-files.txt\"\n"
 
