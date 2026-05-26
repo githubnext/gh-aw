@@ -1059,6 +1059,26 @@ A conforming implementation MUST pass all Level 1 tests. Implementations claimin
 - **T-CRON-005**: Month and day-of-month are valid
 - **T-CRON-006**: Interval expressions use valid `*/N` syntax
 
+#### 10.2.8 Level 3 Compliance Group Tests
+
+These test IDs group Level 3 requirements for implementations claiming Level 3 conformance.
+Each T-FZ-L3-* ID represents a consolidated compliance requirement that maps to one or more
+existing test cases in §10.2.4 and §10.2.5.
+
+- **T-FZ-L3-001**: Timezone conversion correctness — maps to T-TZ-004, T-TZ-005. Verify
+  that `14:00 utc+9` converts to `05:00` UTC and `3pm utc-5` converts to `20:00` UTC.
+- **T-FZ-L3-002**: Timezone day-boundary wrap — maps to T-TZ-006, T-TZ-007. Verify that
+  negative UTC conversion wraps to the previous day and UTC conversion >24:00 wraps to the
+  next day.
+- **T-FZ-L3-003**: Reject out-of-range UTC offsets — maps to T-TZ-008. Verify that offsets
+  beyond ±14 (e.g., `utc+25`) are rejected with an error.
+- **T-FZ-L3-004**: Bi-weekly parse and scatter — maps to T-INTERVAL-004, T-SCATTER-016.
+  Verify `bi-weekly` parses to `FUZZY:BI-WEEKLY * * *` and that scatter resolves to a
+  time in the weighted daily slot pool (BEST/GOOD/OK windows).
+- **T-FZ-L3-005**: Tri-weekly parse and scatter — maps to T-INTERVAL-005, T-SCATTER-016.
+  Verify `tri-weekly` parses to `FUZZY:TRI-WEEKLY * * *` and that scatter resolves to a
+  time in the weighted daily slot pool (BEST/GOOD/OK windows).
+
 ### 10.3 Compliance Checklist
 
 | Requirement | Test ID | Level | Status |
@@ -1080,8 +1100,11 @@ A conforming implementation MUST pass all Level 1 tests. Implementations claimin
 | Parse UTC offsets | T-TZ-001, 002, 003 | 3 | Required |
 | Convert timezones correctly | T-TZ-004, 005 | 3 | Required |
 | Handle timezone day wrap | T-TZ-006, 007 | 3 | Required |
+| Reject invalid UTC offsets | T-TZ-008 | 3 | Required |
 | Parse hourly schedules | T-HOURLY-001, 002, 003 | 2 | Required |
 | Parse interval schedules | T-INTERVAL-001, 002 | 3 | Required |
+| Parse bi-weekly expression | T-INTERVAL-004 | 3 | Required |
+| Parse tri-weekly expression | T-INTERVAL-005 | 3 | Required |
 | Hash determinism | T-SCATTER-001, 002 | 1 | Required |
 | Scattering distribution | T-SCATTER-004-009 | 1-3 | Required |
 | Weighted daily pool | T-SCATTER-011, 015, 016 | 1-3 | Required |
@@ -1089,6 +1112,11 @@ A conforming implementation MUST pass all Level 1 tests. Implementations claimin
 | Peak avoidance (EU morning peak) | T-SCATTER-013 | 2-3 | Required |
 | Peak avoidance (US business hours) | T-SCATTER-014 | 2-3 | Required |
 | Generate valid cron | T-CRON-001-006 | 1-3 | Required |
+| **Timezone conversion (Level 3 group)** | **T-FZ-L3-001** | **3** | **Required** |
+| **Timezone day-boundary wrap (Level 3 group)** | **T-FZ-L3-002** | **3** | **Required** |
+| **Reject out-of-range UTC offsets (Level 3 group)** | **T-FZ-L3-003** | **3** | **Required** |
+| **Bi-weekly parse and scatter (Level 3 group)** | **T-FZ-L3-004** | **3** | **Required** |
+| **Tri-weekly parse and scatter (Level 3 group)** | **T-FZ-L3-005** | **3** | **Required** |
 
 ### 10.4 Test Execution
 
@@ -1271,6 +1299,11 @@ Integration coverage notes:
 - Changes that affect calendar rendering or weighted slot selection SHOULD include integration
   assertions against `pkg/cli/compile_schedule_calendar.go` output, not only unit assertions against
   parser helpers.
+
+**§12 Audit (2026-05-26)**: Section 12 (Calendar Output Schema) is confirmed complete and
+non-stub. It defines normative MUST/SHOULD requirements for output stream, emission condition,
+title line, hour header, day rows, cells, legend, and file output. The implementation reference
+(`pkg/cli/compile_schedule_calendar.go`) is mapped in the sync table above.
 
 ---
 

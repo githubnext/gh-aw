@@ -462,6 +462,68 @@ func TestCodexEngineExecutionAddsMountedMCPCLIPathSetup(t *testing.T) {
 	}
 }
 
+func TestCodexEngineDetectionRunUsesStructuredOutputSchema(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name                     string
+		isDetectionRun           bool
+		expectResponseSchemaFlag bool
+	}{
+		{
+			name:                     "detection run includes response_schema flag",
+			isDetectionRun:           true,
+			expectResponseSchemaFlag: true,
+		},
+		{
+			name:                     "agent run does not include response_schema flag",
+			isDetectionRun:           false,
+			expectResponseSchemaFlag: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:           "test-workflow",
+				IsDetectionRun: tt.isDetectionRun,
+				NetworkPermissions: &NetworkPermissions{
+					Allowed: []string{"defaults"},
+					Firewall: &FirewallConfig{
+						Enabled: true,
+					},
+				},
+				Tools: map[string]any{
+					"bash": []any{"*"},
+				},
+			}
+
+			steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+			if len(steps) == 0 {
+				t.Fatal("Expected execution step")
+			}
+
+			stepContent := strings.Join([]string(steps[0]), "\n")
+			hasResponseSchema := strings.Contains(stepContent, "response_schema")
+			if tt.expectResponseSchemaFlag && !hasResponseSchema {
+				t.Errorf("Detection run: expected response_schema in command, got:\n%s", stepContent)
+			}
+			if !tt.expectResponseSchemaFlag && hasResponseSchema {
+				t.Errorf("Agent run: expected no response_schema in command, got:\n%s", stepContent)
+			}
+
+			// Verify the schema includes the required threat detection fields
+			if tt.expectResponseSchemaFlag {
+				for _, field := range []string{"prompt_injection", "secret_leak", "malicious_patch", "reasons"} {
+					if !strings.Contains(stepContent, field) {
+						t.Errorf("Detection run: expected schema to contain field %q, got:\n%s", field, stepContent)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestCodexEngineExecutionPassesModelEnvVarIntoAWFStep(t *testing.T) {
 	engine := NewCodexEngine()
 

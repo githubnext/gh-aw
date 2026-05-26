@@ -13,6 +13,11 @@ import (
 
 var codexEngineLog = logger.New("workflow:codex_engine")
 
+// detectionResponseSchema is the JSON Schema enforced via response_schema for Codex
+// detection runs. It constrains the model output to exactly the threat detection result
+// fields, removing the need for the THREAT_DETECTION_RESULT: prefix in that mode.
+const detectionResponseSchema = `{"type":"object","properties":{"prompt_injection":{"type":"boolean"},"secret_leak":{"type":"boolean"},"malicious_patch":{"type":"boolean"},"reasons":{"type":"array","items":{"type":"string"}}},"required":["prompt_injection","secret_leak","malicious_patch","reasons"],"additionalProperties":false}`
+
 // Pre-compiled regexes for Codex log parsing (performance optimization)
 var (
 	codexToolCallOldFormat    = regexp.MustCompile(`\] tool ([^(]+)\(`)
@@ -200,6 +205,16 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		customArgsParam += customArgsParamSb.String()
 	}
 
+	// Build structured output parameter for detection runs.
+	// Enforcing the JSON schema via -c response_schema makes Codex output the verdict object
+	// directly (no THREAT_DETECTION_RESULT: prefix), which the parser handles via
+	// extractStructuredOutput in parse_threat_detection_results.cjs.
+	var structuredOutputParam string
+	if workflowData.IsDetectionRun {
+		structuredOutputParam = fmt.Sprintf(` -c response_schema='%s'`, detectionResponseSchema)
+		codexEngineLog.Printf("Enabling structured outputs for Codex detection run")
+	}
+
 	// Build the Codex command
 	// Determine which command to use
 	var commandName string
@@ -229,12 +244,12 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Harness-wrapped execution: the harness reads --prompt-file and passes its content
 		// as the last positional arg.  The harness also provides retry logic.
 		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
-			execPrefix, modelParam, webSearchParam, webFetchParam, executionPolicyParam, customArgsParam)
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
+			execPrefix, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	} else {
 		// Without harness: use shell expansion for the prompt (no retry logic).
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s\"$INSTRUCTION\"",
-			commandName, modelParam, webSearchParam, webFetchParam, executionPolicyParam, customArgsParam)
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s\"$INSTRUCTION\"",
+			commandName, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	}
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
@@ -333,7 +348,8 @@ mkdir -p "$CODEX_HOME/logs"
 		// Keep Codex runtime state in /tmp/gh-aw because ${RUNNER_TEMP}/gh-aw is
 		// mounted read-only inside the AWF chroot sandbox.
 		"CODEX_HOME":                   "/tmp/gh-aw/mcp-config",
-		"RUST_LOG":                     "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
+		// Enable verbose RUST_LOG only in debug mode (runner.debug == 1); default to warn to avoid noisy output.
+		"RUST_LOG": "${{ runner.debug == 1 && 'trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug' || 'warn' }}",
 		"GH_AW_GITHUB_TOKEN":           effectiveGitHubToken,
 		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,                                     // Used by GitHub MCP server via env_vars
 		"OPENAI_API_KEY":               "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}", // Fallback for CODEX_API_KEY
