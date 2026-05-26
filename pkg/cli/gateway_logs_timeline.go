@@ -430,13 +430,9 @@ func parseEventsJSONL(path string) ([]copilotEventsJSONLEntry, error) {
 // tool.execution_start, tool.execution_complete) are converted; all other types are
 // silently skipped (ok == false).
 func agentEntryToTimelineEvent(entry copilotEventsJSONLEntry, turnIndex int) (UnifiedTimelineEvent, bool) {
-	t, err := time.Parse(time.RFC3339Nano, entry.Timestamp)
-	if err != nil {
-		t2, err2 := time.Parse(time.RFC3339, entry.Timestamp)
-		if err2 != nil {
-			return UnifiedTimelineEvent{}, false
-		}
-		t = t2
+	t, ok := gatewayTimestampToTime(entry.Timestamp)
+	if !ok {
+		return UnifiedTimelineEvent{}, false
 	}
 
 	switch entry.Type {
