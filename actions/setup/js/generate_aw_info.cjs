@@ -251,8 +251,16 @@ module.exports = { main };
  * @returns {Record<string, unknown>}
  */
 function getPlainObjectOrEmpty(value) {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    return /** @type {Record<string, unknown>} */ value;
+  if (isPlainObject(value)) {
+    return value;
   }
   return {};
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
