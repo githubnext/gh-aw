@@ -342,7 +342,7 @@ describe("safe_outputs_tools_loader", () => {
         unknown_field_b: "extra-b",
       });
 
-      expect(logger.debug).toHaveBeenCalledWith("Stripped unknown keys for strict schema tool 'create_issue': unknown_field_a, unknown_field_b");
+      expect(logger.debug).toHaveBeenCalledWith('Stripped unknown keys for strict schema tool \'create_issue\': ["unknown_field_a","unknown_field_b"]');
     });
 
     it("should drop unknown keys before wrapping dispatch_workflow inputs", () => {
@@ -415,7 +415,44 @@ describe("safe_outputs_tools_loader", () => {
         unknown_input: "extra",
       });
 
-      expect(logger.debug).toHaveBeenCalledWith("Stripped unknown keys for strict schema tool 'dispatch_ci': unknown_input");
+      expect(logger.debug).toHaveBeenCalledWith("Stripped unknown keys for strict schema tool 'dispatch_ci': [\"unknown_input\"]");
+    });
+
+    it("should sanitize strict-schema args for tools using defaultHandler fallback", () => {
+      const mockHandlerFunction = vi.fn();
+      const defaultHandler = vi.fn(() => mockHandlerFunction);
+      const tools = [
+        {
+          name: "some_tool",
+          description: "Some tool",
+          inputSchema: {
+            type: "object",
+            properties: {
+              allowed: { type: "string" },
+            },
+            additionalProperties: false,
+          },
+        },
+      ];
+      const handlers = {
+        defaultHandler,
+      };
+
+      const result = attachHandlers(tools, handlers);
+      result[0].handler({
+        allowed: "value",
+        unknown_input: "extra",
+      });
+
+      expect(defaultHandler).toHaveBeenCalledWith("some_tool");
+      expect(mockHandlerFunction).toHaveBeenCalledWith({
+        allowed: "value",
+      });
+      expect(mockHandlerFunction).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          unknown_input: expect.anything(),
+        })
+      );
     });
 
     it("should attach create_pull_request_review_comment handler", () => {

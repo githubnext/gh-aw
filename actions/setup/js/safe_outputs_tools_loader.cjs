@@ -115,7 +115,7 @@ function loadTools(server) {
  * Attach handlers to tools
  * @param {Array} tools - Array of tool definitions
  * @param {Object} handlers - Object containing handler functions
- * @param {{ debug?: (message: string) => void }} [logger] - Optional logger
+ * @param {{ debug?: Function }} [logger] - Optional logger
  * @returns {Array} Tools with handlers attached
  */
 function attachHandlers(tools, handlers, logger) {
@@ -137,6 +137,8 @@ function attachHandlers(tools, handlers, logger) {
     const handler = handlerMap[tool.name];
     if (handler) {
       tool.handler = handler;
+    } else if (typeof handlers.defaultHandler === "function") {
+      tool.handler = handlers.defaultHandler(tool.name);
     }
 
     // Check if this is a dispatch_workflow tool (dynamic tool with workflow metadata)
@@ -181,7 +183,7 @@ function attachHandlers(tools, handlers, logger) {
       tool.handler = args =>
         originalHandler(
           sanitizeArgsBySchema(args, tool.inputSchema, strippedKeys => {
-            logger?.debug?.(`Stripped unknown keys for strict schema tool '${tool.name}': ${strippedKeys.join(", ")}`);
+            logger?.debug?.(`Stripped unknown keys for strict schema tool '${tool.name}': ${JSON.stringify(strippedKeys)}`);
           })
         );
     }
@@ -216,6 +218,9 @@ function registerPredefinedTools(server, tools, config, registerTool, normalizeT
       // Enrich create_pull_request tool description when target-repo is configured
       if (safetyWarning || isCreatePullRequestTool) {
         toolToRegister = JSON.parse(JSON.stringify(tool));
+        if (tool.handler) {
+          toolToRegister.handler = tool.handler;
+        }
         if (safetyWarning) {
           toolToRegister.description += safetyWarning;
         }
