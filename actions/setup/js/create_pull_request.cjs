@@ -83,9 +83,21 @@ async function createCopilotAssignmentClient(config) {
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request";
+const GIT_COMMIT_SHA_PATTERN = /^[0-9a-fA-F]{7,40}$/;
 
 // NOTE: MANAGED_FALLBACK_ISSUE_LABEL, createBundleTempRef, and summarizeListForLog
 // are imported from create_pull_request_helpers.cjs above.
+
+/**
+ * Normalize and validate a git commit SHA.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+function normalizeCommitSHA(value) {
+  const normalized = String(value ?? "").trim();
+  return GIT_COMMIT_SHA_PATTERN.test(normalized) ? normalized : "";
+}
 
 /**
  * Attempt automatic recovery for git am add/add conflicts by preferring the patch version.
@@ -1502,7 +1514,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 
       // Handle branch creation/checkout
       let branchBaseRef = baseBranch;
-      const recordedBaseCommit = pullRequestItem.base_commit;
+      const recordedBaseCommit = normalizeCommitSHA(pullRequestItem.base_commit);
       if (recordedBaseCommit) {
         core.info(`Using base_commit from safe output entry for patch apply: ${recordedBaseCommit}`);
         try {
@@ -1516,6 +1528,8 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
         } catch (baseCommitError) {
           core.warning(`Recorded base_commit ${recordedBaseCommit} is not available in this checkout (${baseCommitError instanceof Error ? baseCommitError.message : String(baseCommitError)}); falling back to ${baseBranch}`);
         }
+      } else if (String(pullRequestItem.base_commit ?? "").trim()) {
+        core.warning(`Ignoring invalid base_commit value for patch apply: ${String(pullRequestItem.base_commit).trim()}`);
       }
       core.info(`Branch should not exist locally, creating new branch from base: ${branchName} (${branchBaseRef})`);
       await exec.exec("git", ["checkout", "-b", branchName, branchBaseRef]);
@@ -1595,7 +1609,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
               // Use the base commit recorded at patch generation time.
               // The From <sha> header in format-patch output contains the agent's new commit SHA
               // which does not exist in this checkout, so we cannot derive the base from it.
-              const originalBaseCommit = pullRequestItem.base_commit;
+              const originalBaseCommit = normalizeCommitSHA(pullRequestItem.base_commit);
               if (!originalBaseCommit) {
                 core.warning("No base_commit recorded in safe output entry - fallback not possible");
               } else {

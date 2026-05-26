@@ -37,6 +37,7 @@ const MISSING_REMOTE_REF_PATTERNS = [
   "fatal: couldn't find remote ref",
   "exit code 128",
 ];
+const GIT_COMMIT_SHA_PATTERN = /^[0-9a-fA-F]{7,40}$/;
 
 /**
  * @param {unknown} value
@@ -45,6 +46,17 @@ const MISSING_REMOTE_REF_PATTERNS = [
 function looksLikeMissingRemoteBranchError(value) {
   const text = String(value ?? "").toLowerCase();
   return MISSING_REMOTE_REF_PATTERNS.some(pattern => text.includes(pattern));
+}
+
+/**
+ * Normalize and validate a git commit SHA.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+function normalizeCommitSHA(value) {
+  const normalized = String(value ?? "").trim();
+  return GIT_COMMIT_SHA_PATTERN.test(normalized) ? normalized : "";
 }
 
 /**
@@ -650,11 +662,15 @@ async function main(config = {}) {
     let newCommitCount = 0;
     let remoteHeadBeforePatch = "";
     let pushedCommitSha = "";
+    let rangeBaseRef = `origin/${branchName}`;
     if (hasChanges) {
       // Capture HEAD before applying changes to compute new-commit count later
       try {
         const { stdout } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], baseGitOpts);
         remoteHeadBeforePatch = stdout.trim();
+        if (remoteHeadBeforePatch) {
+          rangeBaseRef = remoteHeadBeforePatch;
+        }
       } catch {
         // Non-fatal - extra empty commit will be skipped
       }
@@ -663,7 +679,7 @@ async function main(config = {}) {
       // This avoids applying a patch generated from an older branch tip onto a newer remote tip.
       // If the commit is unavailable (e.g. cross-repo/missing object), continue with current HEAD.
       if (!hasBundleFile && message.base_commit) {
-        const recordedBaseCommit = String(message.base_commit).trim();
+        const recordedBaseCommit = normalizeCommitSHA(message.base_commit);
         if (recordedBaseCommit) {
           try {
             try {
@@ -679,10 +695,13 @@ async function main(config = {}) {
               core.warning(`Remote PR branch advanced since patch generation (remote HEAD ${remoteHeadBeforePatch}, patch base ${recordedBaseCommit}); applying patch from recorded base commit`);
             }
             await exec.exec("git", ["reset", "--hard", recordedBaseCommit], baseGitOpts);
+            rangeBaseRef = recordedBaseCommit;
             core.info(`Reset branch to recorded base_commit before patch apply: ${recordedBaseCommit}`);
           } catch (baseCommitError) {
             core.warning(`Unable to use recorded base_commit ${recordedBaseCommit}; applying patch on current branch HEAD: ${getErrorMessage(baseCommitError)}`);
           }
+        } else if (String(message.base_commit).trim()) {
+          core.warning(`Ignoring invalid base_commit value for patch apply: ${String(message.base_commit).trim()}`);
         }
       }
 
@@ -946,7 +965,7 @@ async function main(config = {}) {
       // be signed.  A warning is emitted so workflow authors and agents know that rebase
       // should be preferred over merge in future runs.
       if (signedCommits && hasChanges) {
-        const squashBase = remoteHeadBeforePatch || `origin/${branchName}`;
+        const squashBase = rangeBaseRef;
         try {
           const { stdout: mergeCountOut } = await exec.getExecOutput("git", ["rev-list", "--merges", "--count", `${squashBase}..HEAD`], baseGitOpts);
           const mergeCount = parseInt(mergeCountOut.trim(), 10);
@@ -981,7 +1000,7 @@ async function main(config = {}) {
           owner: repoParts.owner,
           repo: repoParts.repo,
           branch: branchName,
-          baseRef: remoteHeadBeforePatch || `origin/${branchName}`,
+          baseRef: rangeBaseRef,
           cwd: repoCwd || process.cwd(),
           gitAuthEnv,
           signedCommits,
