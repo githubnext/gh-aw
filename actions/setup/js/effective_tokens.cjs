@@ -112,12 +112,12 @@ function parseMultipliersFile(filePath) {
 function parseMultipliersJSON(raw) {
   try {
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    if (!isPlainObject(parsed)) {
       return null;
     }
 
     const defaults = defaultTokenClassWeights();
-    const rawWeights = parsed.token_class_weights && typeof parsed.token_class_weights === "object" && !Array.isArray(parsed.token_class_weights) ? parsed.token_class_weights : {};
+    const rawWeights = isPlainObject(parsed.token_class_weights) ? parsed.token_class_weights : {};
     const weights = { ...defaults, ...rawWeights };
 
     for (const key of Object.keys(defaults)) {
@@ -129,7 +129,7 @@ function parseMultipliersJSON(raw) {
 
     /** @type {Record<string, number>} */
     const multipliers = {};
-    if (parsed.multipliers && typeof parsed.multipliers === "object" && !Array.isArray(parsed.multipliers)) {
+    if (isPlainObject(parsed.multipliers)) {
       for (const [model, mult] of Object.entries(parsed.multipliers)) {
         multipliers[model.toLowerCase()] = Number(mult);
       }
@@ -139,6 +139,14 @@ function parseMultipliersJSON(raw) {
   } catch {
     return null;
   }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /**

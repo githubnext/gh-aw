@@ -216,11 +216,11 @@ async function main(core, ctx) {
       core.warning(`Built-in model_multipliers.json not found at ${builtInPath}`);
     }
 
-    const builtInTokenClassWeights = builtIn.token_class_weights && typeof builtIn.token_class_weights === "object" && !Array.isArray(builtIn.token_class_weights) ? builtIn.token_class_weights : {};
-    const builtInMultipliers = builtIn.multipliers && typeof builtIn.multipliers === "object" && !Array.isArray(builtIn.multipliers) ? builtIn.multipliers : {};
+    const builtInTokenClassWeights = getPlainObjectOrEmpty(builtIn.token_class_weights);
+    const builtInMultipliers = getPlainObjectOrEmpty(builtIn.multipliers);
 
-    const customTokenClassWeights = tokenWeights && tokenWeights.token_class_weights && typeof tokenWeights.token_class_weights === "object" && !Array.isArray(tokenWeights.token_class_weights) ? tokenWeights.token_class_weights : {};
-    const customMultipliers = tokenWeights && tokenWeights.multipliers && typeof tokenWeights.multipliers === "object" && !Array.isArray(tokenWeights.multipliers) ? tokenWeights.multipliers : {};
+    const customTokenClassWeights = getPlainObjectOrEmpty(tokenWeights?.token_class_weights);
+    const customMultipliers = getPlainObjectOrEmpty(tokenWeights?.multipliers);
 
     const merged = {
       ...builtIn,
@@ -245,3 +245,14 @@ async function main(core, ctx) {
 }
 
 module.exports = { main };
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, unknown>}
+ */
+function getPlainObjectOrEmpty(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return /** @type {Record<string, unknown>} */ value;
+  }
+  return {};
+}
