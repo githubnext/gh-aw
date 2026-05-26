@@ -392,7 +392,7 @@ function parseStructuredResultFile(resultFilePath) {
       },
     };
   } catch (/** @type {any} */ parseError) {
-    return { error: `Failed to parse JSON from structured result file: ${getErrorMessage(parseError)}\nContent: ${trimmed.slice(0, 200)}` };
+    return { error: `Failed to parse JSON from structured result file: ${getErrorMessage(parseError)}` };
   }
 }
 
