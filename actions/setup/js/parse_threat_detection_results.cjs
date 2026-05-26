@@ -79,6 +79,9 @@ function extractResultFromText(text) {
   return RESULT_PREFIX + text.substring(jsonStartPos, jsonEndPos + 1);
 }
 
+/** Required fields that must be present for a valid structured threat detection object. */
+const STRUCTURED_OUTPUT_REQUIRED_FIELDS = ["prompt_injection", "secret_leak", "malicious_patch"];
+
 /**
  * Try to extract a threat detection verdict from Codex structured output.
  * When Codex runs with -c response_schema enabled for detection jobs, it outputs the
@@ -97,7 +100,7 @@ function extractStructuredOutput(text) {
   try {
     const parsed = JSON.parse(trimmed);
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    if (!("prompt_injection" in parsed) || !("secret_leak" in parsed) || !("malicious_patch" in parsed)) return null;
+    if (!STRUCTURED_OUTPUT_REQUIRED_FIELDS.every(field => field in parsed)) return null;
     return RESULT_PREFIX + trimmed;
   } catch {
     return null;

@@ -213,14 +213,14 @@ describe("extractFromStreamJson", () => {
 
   it("should extract structured output from item.completed when no prefix present", () => {
     const line =
-      '{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"{\\"prompt_injection\\":false,\\"secret_leak\\":true,\\"malicious_patch\\":false,\\"reasons\\":[\\"secret found\\"]}"}}'
+      '{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"{\\"prompt_injection\\":false,\\"secret_leak\\":true,\\"malicious_patch\\":false,\\"reasons\\":[\\"secret found\\"]}"}}';
     const result = extractFromStreamJson(line);
     expect(result).toBe('THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":true,"malicious_patch":false,"reasons":["secret found"]}');
   });
 
   it("should extract structured output from response.content_part.done when no prefix present", () => {
     const line =
-      '{"type":"response.content_part.done","part":{"type":"output_text","text":"{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":true,\\"reasons\\":[\\"malicious dependency\\"]}"}}'
+      '{"type":"response.content_part.done","part":{"type":"output_text","text":"{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":true,\\"reasons\\":[\\"malicious dependency\\"]}"}}';
     const result = extractFromStreamJson(line);
     expect(result).toBe('THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":true,"reasons":["malicious dependency"]}');
   });
