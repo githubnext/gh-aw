@@ -325,6 +325,124 @@ func renderTimelineEventRow(evt UnifiedTimelineEvent) []string {
 	}
 }
 
+// ─── Stream renderer ─────────────────────────────────────────────────────────
+
+// renderUnifiedTimelineStream renders a merged slice of UnifiedTimelineEvents as a
+// flowing, line-by-line stream that simulates watching a live agentic session.
+// Agent turns become section headers; tool and network events are indented beneath
+// them. No summary statistics or table are produced.
+// Returns an empty string when events is empty.
+func renderUnifiedTimelineStream(events []UnifiedTimelineEvent) string {
+	if len(events) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	inTurn := false
+
+	for _, evt := range events {
+		ts := formatTimelineTime(evt)
+
+		switch evt.Kind {
+		case TimelineKindAgentTurn:
+			if inTurn {
+				sb.WriteString("\n")
+			}
+			inTurn = true
+			fmt.Fprintf(&sb, "> Turn %d  [%s]\n", evt.TurnIndex, ts)
+
+		case TimelineKindAgentToolStart:
+			detail := evt.ToolName
+			if evt.ServerName != "" {
+				detail = evt.ServerName + "/" + evt.ToolName
+			}
+			fmt.Fprintf(&sb, "  %s %s\n", timelineEventIcon(TimelineKindAgentToolStart), detail)
+
+		case TimelineKindAgentToolDone:
+			detail := evt.ToolName
+			if evt.ServerName != "" {
+				detail = evt.ServerName + "/" + evt.ToolName
+			}
+			status := evt.Status
+			if status == "" {
+				if evt.Success {
+					status = "success"
+				} else {
+					status = "error"
+				}
+			}
+			fmt.Fprintf(&sb, "  %s %s  %s\n", timelineEventIcon(TimelineKindAgentToolDone), detail, status)
+
+		case TimelineKindToolCall:
+			detail := evt.ToolName
+			if evt.ServerName != "" && evt.ToolName != "" {
+				detail = evt.ServerName + "/" + evt.ToolName
+			} else if evt.ServerName != "" {
+				detail = evt.ServerName
+			}
+			suffix := ""
+			if evt.Duration > 0 {
+				suffix = fmt.Sprintf("  %.0fms", evt.Duration)
+			} else if evt.Error != "" {
+				suffix = "  error: " + stringutil.Truncate(evt.Error, 40)
+			}
+			fmt.Fprintf(&sb, "    %s %s%s\n", timelineEventIcon(TimelineKindToolCall), detail, suffix)
+
+		case TimelineKindNetworkAllowed:
+			method := ""
+			if evt.HTTPMethod != "" {
+				method = "  " + evt.HTTPMethod
+			}
+			fmt.Fprintf(&sb, "    %s %s%s\n", timelineEventIcon(TimelineKindNetworkAllowed), evt.Host, method)
+
+		case TimelineKindNetworkBlocked:
+			method := ""
+			if evt.HTTPMethod != "" {
+				method = "  " + evt.HTTPMethod
+			}
+			fmt.Fprintf(&sb, "    %s %s%s  [blocked]\n", timelineEventIcon(TimelineKindNetworkBlocked), evt.Host, method)
+
+		case TimelineKindDIFCFiltered:
+			detail := evt.ToolName
+			if evt.ServerName != "" && evt.ToolName != "" {
+				detail = evt.ServerName + "/" + evt.ToolName
+			} else if evt.ServerName != "" {
+				detail = evt.ServerName
+			}
+			reason := ""
+			if evt.Reason != "" {
+				reason = "  " + stringutil.Truncate(evt.Reason, 40)
+			}
+			fmt.Fprintf(&sb, "    %s %s%s\n", timelineEventIcon(TimelineKindDIFCFiltered), detail, reason)
+
+		case TimelineKindGuardPolicyBlocked:
+			detail := evt.ToolName
+			if evt.ServerName != "" && evt.ToolName != "" {
+				detail = evt.ServerName + "/" + evt.ToolName
+			} else if evt.ServerName != "" {
+				detail = evt.ServerName
+			}
+			reason := evt.Reason
+			if reason == "" {
+				reason = evt.Error
+			}
+			if reason != "" {
+				reason = "  " + stringutil.Truncate(reason, 40)
+			}
+			fmt.Fprintf(&sb, "    %s %s%s\n", timelineEventIcon(TimelineKindGuardPolicyBlocked), detail, reason)
+
+		default:
+			fmt.Fprintf(&sb, "  · [%s] %s  %s\n", ts, string(evt.Kind), timelineSourceLabel(evt.Source))
+		}
+	}
+
+	if inTurn {
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
 // ─── Top-level renderer ───────────────────────────────────────────────────────
 
 // renderUnifiedTimeline renders a merged slice of UnifiedTimelineEvents as a single

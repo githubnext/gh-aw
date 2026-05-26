@@ -112,11 +112,17 @@ func TestReplayWorkflowRun_LocalCache_NoError(t *testing.T) {
 		t.Errorf("ReplayWorkflowRun returned unexpected error: %v", runErr)
 	}
 
-	// Verify that BuildUnifiedTimeline processed the events and that
-	// renderUnifiedTimeline produced meaningful output.
-	for _, want := range []string{"agent_turn", "tool_start", "tool_done", "github/search"} {
+	// Verify that renderUnifiedTimelineStream produced streaming output:
+	// agent turns as "> Turn N" headers, tool events with icons, no stats or table.
+	for _, want := range []string{"> Turn", "github/search"} {
 		if !strings.Contains(output, want) {
 			t.Errorf("output missing %q; got:\n%s", want, output)
+		}
+	}
+	// Confirm there are no stats or table headers in the stream output.
+	for _, notWant := range []string{"Total Events", "Event Timeline", "Gateway", "Firewall"} {
+		if strings.Contains(output, notWant) {
+			t.Errorf("stream output should not contain %q; got:\n%s", notWant, output)
 		}
 	}
 }

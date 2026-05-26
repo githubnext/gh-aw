@@ -164,7 +164,7 @@ func ReplayWorkflowRun(ctx context.Context, runID int64, opts ReplayOptions) err
 		return nil
 	}
 
-	output := renderUnifiedTimeline(events)
+	output := renderUnifiedTimelineStream(events)
 	if output != "" {
 		fmt.Print(output)
 	}
