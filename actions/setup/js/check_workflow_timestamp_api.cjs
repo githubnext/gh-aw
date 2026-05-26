@@ -18,7 +18,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { extractHashFromLockFile, computeFrontmatterHash, createGitHubFileReader } = require("./frontmatter_hash_pure.cjs");
+const { extractHashFromLockFile, extractBodyHashFromLockFile, computeFrontmatterHash, computeBodyHash, createGitHubFileReader } = require("./frontmatter_hash_pure.cjs");
 const { getFileContent } = require("./github_api_helpers.cjs");
 const { ERR_CONFIG } = require("./error_codes.cjs");
 
@@ -34,12 +34,15 @@ async function main() {
     return;
   }
 
+  // Determine if full stale check mode is enabled (checks both frontmatter and body hashes).
+  const fullCheckMode = process.env.GH_AW_STALE_CHECK_FULL === "true";
+
   // Construct file paths
   const workflowBasename = workflowFile.replace(".lock.yml", "");
   const workflowMdPath = `.github/workflows/${workflowBasename}.md`;
   const lockFilePath = `.github/workflows/${workflowFile}`;
 
-  core.info(`Checking for stale lock file using frontmatter hash:`);
+  core.info(`Checking for stale lock file using ${fullCheckMode ? "frontmatter + body" : "frontmatter"} hash:`);
   core.info(`  Source: ${workflowMdPath}`);
   core.info(`  Lock file: ${lockFilePath}`);
 
@@ -227,12 +230,27 @@ async function main() {
       // computeFrontmatterHash uses the local filesystem reader by default
       const recomputedHash = await computeFrontmatterHash(localMdFilePath);
 
-      const match = storedHash === recomputedHash;
+      let match = storedHash === recomputedHash;
 
       core.info(`Frontmatter hash comparison (local filesystem fallback):`);
       core.info(`  Lock file hash:    ${storedHash}`);
       core.info(`  Recomputed hash:   ${recomputedHash}`);
       core.info(`  Status: ${match ? "✅ Hashes match" : "⚠️  Hashes differ"}`);
+
+      // When full check mode is enabled, also compare body hashes.
+      if (match && fullCheckMode) {
+        const storedBodyHash = extractBodyHashFromLockFile(localLockContent);
+        if (storedBodyHash) {
+          const recomputedBodyHash = await computeBodyHash(localMdFilePath);
+          match = storedBodyHash === recomputedBodyHash;
+          core.info(`Body hash comparison (local filesystem fallback):`);
+          core.info(`  Lock file body hash:    ${storedBodyHash}`);
+          core.info(`  Recomputed body hash:   ${recomputedBodyHash}`);
+          core.info(`  Status: ${match ? "✅ Body hashes match" : "⚠️  Body hashes differ"}`);
+        } else {
+          core.info("No body hash found in local lock file; skipping body hash check (lock file may predate body hash support)");
+        }
+      }
 
       return { match, storedHash, recomputedHash };
     } catch (error) {
@@ -280,13 +298,28 @@ async function main() {
       const fileReader = createGitHubFileReader(github, owner, repo, ref);
       const recomputedHash = await computeFrontmatterHash(workflowMdPath, { fileReader });
 
-      const match = storedHash === recomputedHash;
+      let match = storedHash === recomputedHash;
 
       // Log hash comparison
       core.info(`Frontmatter hash comparison:`);
       core.info(`  Lock file hash:    ${storedHash}`);
       core.info(`  Recomputed hash:   ${recomputedHash}`);
       core.info(`  Status: ${match ? "✅ Hashes match" : "⚠️  Hashes differ"}`);
+
+      // When full check mode is enabled, also compare body hashes.
+      if (match && fullCheckMode) {
+        const storedBodyHash = extractBodyHashFromLockFile(lockFileContent);
+        if (storedBodyHash) {
+          const recomputedBodyHash = await computeBodyHash(workflowMdPath, { fileReader });
+          match = storedBodyHash === recomputedBodyHash;
+          core.info(`Body hash comparison:`);
+          core.info(`  Lock file body hash:    ${storedBodyHash}`);
+          core.info(`  Recomputed body hash:   ${recomputedBodyHash}`);
+          core.info(`  Status: ${match ? "✅ Body hashes match" : "⚠️  Body hashes differ"}`);
+        } else {
+          core.info("No body hash found in lock file; skipping body hash check (lock file may predate body hash support)");
+        }
+      }
 
       return { result: { match, storedHash, recomputedHash }, crossRepoAuthFailure: null };
     } catch (error) {

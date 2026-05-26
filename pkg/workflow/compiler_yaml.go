@@ -80,7 +80,7 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 // for description, source, imports/includes, frontmatter-hash, stop-time, and manual-approval.
 // All ANSI escape codes are stripped from the output.
 // The gh-aw-metadata line is placed first for easy machine parsing.
-func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, secrets []string, actions []string) {
+func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, bodyHash string, secrets []string, actions []string) {
 	// Skip the ASCII art banner in wasm/editor mode — it takes up too much space
 	if c.skipHeader {
 		return
@@ -105,7 +105,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 			agentInfo.DetectionAgentID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
 			agentInfo.DetectionAgentModel = data.SafeOutputs.ThreatDetection.EngineConfig.Model
 		}
-		metadata := GenerateLockMetadata(frontmatterHash, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter), agentInfo)
+		metadata := GenerateLockMetadata(frontmatterHash, bodyHash, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter), agentInfo)
 		metadataJSON, err := metadata.ToJSON()
 		if err != nil {
 			// Fallback to legacy format if JSON serialization fails
@@ -309,6 +309,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Using the hex-encoded SHA-256 frontmatter hash string as an HMAC key keeps
 	// the compiled lock file identical across repeated compilations of the same workflow.
 	var frontmatterHash string
+	var bodyHash string
 	if markdownPath != "" {
 		baseDir := filepath.Dir(markdownPath)
 		cache := parser.NewImportCache(baseDir)
@@ -328,6 +329,22 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		}
 		frontmatterHash = hash
 		compilerYamlLog.Printf("Computed frontmatter hash: %s", hash)
+
+		// Compute body hash to cover changes to the markdown body that are not captured
+		// by the frontmatter hash. This enables stale-check: full detection.
+		var bHash string
+		if data.RawMarkdown != "" {
+			bHash, err = parser.ComputeBodyHashFromParsedContent(data.RawMarkdown, data.FrontmatterYAML, baseDir, parser.DefaultFileReader)
+		} else {
+			bHash, err = parser.ComputeBodyHashFromFile(markdownPath)
+		}
+		if err != nil {
+			compilerYamlLog.Printf("Warning: could not compute body hash for %q: %v", markdownPath, err)
+			// Non-fatal: continue without body hash
+		} else {
+			bodyHash = bHash
+			compilerYamlLog.Printf("Computed body hash: %s", bHash)
+		}
 	}
 	// Store hash on WorkflowData so job-building helpers (MCP renderers, prompt
 	// step generators, etc.) can derive stable heredoc delimiters from it.
@@ -378,7 +395,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	}
 
 	// Generate workflow header comments (including metadata as first line, plus secrets/actions lists)
-	c.generateWorkflowHeader(&yaml, data, frontmatterHash, secrets, actions)
+	c.generateWorkflowHeader(&yaml, data, frontmatterHash, bodyHash, secrets, actions)
 
 	// Append the workflow body
 	yaml.WriteString(bodyContent)
