@@ -22,8 +22,6 @@
 // Supported frontmatter fields (all others are stripped with a warning)
 // ─────────────────────────────────────────────────────────────────────
 //   description   Human-readable description of the skill's role.
-//   model         AI model to use.  Default is "inherited" (uses the parent
-//                 workflow's model when not set).
 //
 // If no ## skill: markers are present the content is returned unchanged and no
 // files are written.
@@ -33,7 +31,7 @@ const path = require("path");
 
 // Supported frontmatter fields for inline skills.
 // Any other field is stripped with a warning.
-const SUPPORTED_FRONTMATTER_FIELDS = ["description", "model"];
+const SUPPORTED_FRONTMATTER_FIELDS = ["description"];
 
 // Regex for the start marker: ## skill: `name` (lowercase identifier)
 const START_MARKER_RE = /^##[ \t]+skill:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$/gm;
@@ -45,11 +43,8 @@ const H2_HEADING_RE = /^##[ \t]/gm;
 /**
  * Filters skill frontmatter to only retain supported fields.
  *
- * Only `description` and `model` are valid fields in a skill frontmatter
- * block.  Any other top-level key is stripped and a warning is emitted.
- * If `model` is not present its implicit default is "inherited" (the skill
- * uses the parent workflow's model), but the key is NOT written unless the
- * workflow author explicitly sets it.
+ * Only `description` is valid in a skill frontmatter block. Any other
+ * top-level key is stripped and a warning is emitted.
  *
  * When no YAML frontmatter delimiter (`---`) is found at the start of the
  * content, the content is returned unchanged.
@@ -82,7 +77,7 @@ function filterInlineSkillFrontmatter(content, skillName) {
 
   for (const line of fmLines) {
     // Match a simple scalar YAML key at the start of the line.
-    // YAML keys for description and model are plain identifiers (no hyphens).
+    // YAML keys are plain identifiers (no hyphens).
     const keyMatch = line.match(/^([a-z_][a-z0-9_]*)[ \t]*:/);
     if (keyMatch) {
       const key = keyMatch[1];
@@ -102,7 +97,7 @@ function filterInlineSkillFrontmatter(content, skillName) {
   }
 
   if (stripped.length > 0) {
-    core.warning(`[extractInlineSkills] skill "${skillName}": unsupported frontmatter field(s) stripped: ${stripped.join(", ")} (only "description" and "model" are supported)`);
+    core.warning(`[extractInlineSkills] skill "${skillName}": unsupported frontmatter field(s) stripped: ${stripped.join(", ")} (only "description" is supported)`);
   }
 
   // If no supported fields remain, omit the frontmatter block entirely.

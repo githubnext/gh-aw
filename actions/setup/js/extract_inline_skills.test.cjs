@@ -151,7 +151,7 @@ describe("writeInlineSkills", () => {
   });
 
   it("writes a single skill file and returns main content", () => {
-    const content = ["# Workflow", "", "Main prompt.", "", skillMarker("helper"), "---", "model: claude-haiku-4.5", "---", "You are a helper."].join("\n");
+    const content = ["# Workflow", "", "Main prompt.", "", skillMarker("helper"), "---", "description: A helper skill", "---", "You are a helper."].join("\n");
 
     const result = writeInlineSkills(content, tmpDir);
 
@@ -161,7 +161,7 @@ describe("writeInlineSkills", () => {
     expect(fs.existsSync(skillPath)).toBe(true);
     const written = fs.readFileSync(skillPath, "utf8");
     expect(written).toContain("You are a helper.");
-    expect(written).toContain("model: claude-haiku-4.5");
+    expect(written).toContain("description: A helper skill");
   });
 
   it("writes multiple skill files", () => {
@@ -200,25 +200,24 @@ describe("writeInlineSkills", () => {
   });
 
   it("strips unsupported frontmatter fields when writing skill file", () => {
-    const content = ["Main.", "", skillMarker("a"), "---", "engine: copilot", "model: claude-haiku-4.5", "tools:", "  github:", "    toolsets: [issues]", "---", "Skill prompt."].join("\n");
+    const content = ["Main.", "", skillMarker("a"), "---", "engine: copilot", "description: A helper", "tools:", "  github:", "    toolsets: [issues]", "---", "Skill prompt."].join("\n");
 
     writeInlineSkills(content, tmpDir);
 
     const written = fs.readFileSync(path.join(tmpDir, ".github", "skills", "a/SKILL.md"), "utf8");
-    expect(written).toContain("model: claude-haiku-4.5");
+    expect(written).toContain("description: A helper");
     expect(written).not.toContain("engine:");
     expect(written).not.toContain("tools:");
     expect(written).toContain("Skill prompt.");
   });
 
-  it("writes only description and model when both present", () => {
-    const content = ["Main.", "", skillMarker("a"), "---", "description: A helpful skill", "model: gpt-4", "engine: openai", "---", "Prompt."].join("\n");
+  it("writes only description when mixed with unsupported fields", () => {
+    const content = ["Main.", "", skillMarker("a"), "---", "description: A helpful skill", "engine: openai", "---", "Prompt."].join("\n");
 
     writeInlineSkills(content, tmpDir);
 
     const written = fs.readFileSync(path.join(tmpDir, ".github", "skills", "a/SKILL.md"), "utf8");
     expect(written).toContain("description: A helpful skill");
-    expect(written).toContain("model: gpt-4");
     expect(written).not.toContain("engine:");
   });
 });
@@ -233,18 +232,16 @@ describe("filterInlineSkillFrontmatter", () => {
     expect(filterInlineSkillFrontmatter(content, "skill")).toBe(content);
   });
 
-  it("keeps description and model fields", () => {
-    const content = "---\ndescription: A planner\nmodel: claude-haiku-4.5\n---\nPrompt.";
+  it("keeps description field", () => {
+    const content = "---\ndescription: A planner\n---\nPrompt.";
     const result = filterInlineSkillFrontmatter(content, "skill");
     expect(result).toContain("description: A planner");
-    expect(result).toContain("model: claude-haiku-4.5");
     expect(result).toContain("Prompt.");
   });
 
   it("strips unsupported fields and keeps supported ones", () => {
-    const content = "---\nengine: copilot\nmodel: claude-haiku-4.5\ndescription: Helper\n---\nPrompt.";
+    const content = "---\nengine: copilot\ndescription: Helper\n---\nPrompt.";
     const result = filterInlineSkillFrontmatter(content, "skill");
-    expect(result).toContain("model: claude-haiku-4.5");
     expect(result).toContain("description: Helper");
     expect(result).not.toContain("engine:");
   });
@@ -261,10 +258,10 @@ describe("filterInlineSkillFrontmatter", () => {
     expect(filterInlineSkillFrontmatter(content, "skill")).toBe(content);
   });
 
-  it("handles content with only model field", () => {
+  it("drops frontmatter when only unsupported fields are present", () => {
     const content = "---\nmodel: gpt-4o\n---\nYou are a summarizer.";
     const result = filterInlineSkillFrontmatter(content, "agent");
-    expect(result).toBe("---\nmodel: gpt-4o\n---\nYou are a summarizer.");
+    expect(result).toBe("You are a summarizer.");
   });
 
   it("handles content with only description field", () => {

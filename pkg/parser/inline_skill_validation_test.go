@@ -25,7 +25,7 @@ Do some work.
 }
 
 // TestValidateInlineSkillsFrontmatter_ValidFields verifies that known fields
-// (description and model) produce no warnings.
+// (description) produce no warnings.
 func TestValidateInlineSkillsFrontmatter_ValidFields(t *testing.T) {
 	markdown := strings.Join([]string{
 		"---",
@@ -38,7 +38,6 @@ func TestValidateInlineSkillsFrontmatter_ValidFields(t *testing.T) {
 		skillLine("helper"),
 		"---",
 		"description: A helpful skill",
-		"model: claude-haiku-4.5",
 		"---",
 		"You are a helpful assistant.",
 	}, "\n")
@@ -70,7 +69,7 @@ func TestValidateInlineSkillsFrontmatter_UnknownField(t *testing.T) {
 	assert.Len(t, warnings, 1, "one unknown field should produce one warning")
 	assert.Contains(t, warnings[0], `skill "helper"`, "warning should include skill name")
 	assert.Contains(t, warnings[0], "engine", "warning should name the unknown field")
-	assert.Contains(t, warnings[0], "description, model", "warning should list valid fields")
+	assert.Contains(t, warnings[0], "description", "warning should list valid fields")
 }
 
 // TestValidateInlineSkillsFrontmatter_MultipleUnknownFields verifies that
@@ -110,7 +109,7 @@ func TestValidateInlineSkillsFrontmatter_MultipleSkills(t *testing.T) {
 		"",
 		skillLine("executor"),
 		"---",
-		"model: claude-haiku-4.5",
+		"description: The executor",
 		"also-bad: yes",
 		"---",
 		"Execute things.",

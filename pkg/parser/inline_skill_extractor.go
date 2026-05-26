@@ -13,7 +13,6 @@ var inlineSkillLog = logger.New("parser:inline_skill_extractor")
 
 var validInlineSkillFrontmatterFields = map[string]bool{
 	"description": true,
-	"model":       true,
 }
 
 func ValidateInlineSkillsFrontmatter(markdown string) []string {
@@ -63,7 +62,7 @@ func validateInlineSkillFrontmatterFields(skill InlineSkill) []string {
 
 	sort.Strings(unknown)
 	return []string{fmt.Sprintf(
-		"skill %q: unknown frontmatter field(s): %s (valid fields: description, model)",
+		"skill %q: unknown frontmatter field(s): %s (valid fields: description)",
 		skill.Name, strings.Join(unknown, ", "),
 	)}
 }
