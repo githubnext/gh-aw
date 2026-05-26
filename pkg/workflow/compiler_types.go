@@ -509,6 +509,8 @@ type WorkflowData struct {
 	LabelCommandDecentralized      bool                            // when true, label_command uses decentralized dispatch routing via agentic_commands.yml
 	LabelCommandOtherEvents        map[string]any                  // for merging label-command with other events
 	LabelCommandRemoveLabel        bool                            // whether to automatically remove the triggering label (default: true)
+	LabelDispatch                  *LabelDispatchConfig            // for cross-repo label dispatch trigger support
+	LabelDispatchOtherEvents       map[string]any                  // for merging label_dispatch with other events
 	AIReaction                     string                          // AI reaction type like "eyes", "heart", etc.
 	ReactionIssues                 *bool                           // whether reactions are allowed on issues/issue_comment triggers (default: true)
 	ReactionPullRequests           *bool                           // whether reactions are allowed on pull_request/pull_request_review_comment triggers (default: true)
@@ -580,6 +582,13 @@ type WorkflowData struct {
 	CachedAllowedDomainsComputed   bool                            // true once CachedAllowedDomainsStr has been set; distinguishes "computed empty" from "not yet computed"
 	KnownActionCredentialEnvVars   map[string]bool                 // env vars for clean_known_action_credentials.sh; keyed by GH_AW_CLEAN_* names; nil when no known credential-leaking actions are detected
 	ModelMappings                  map[string][]string             // merged model alias map (builtins + imported workflow aliases + main frontmatter overrides, in priority order); NOT yet emitted to AWF config JSON — pending AWF firewall support (config.models)
+}
+
+// LabelDispatchConfig configures a label-based bridge trigger that dispatches
+// repository_dispatch events to this compiled workflow from a generated remote workflow.
+type LabelDispatchConfig struct {
+	Label        string
+	AllowedRepos []string
 }
 
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.

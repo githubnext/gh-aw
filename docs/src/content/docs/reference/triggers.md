@@ -427,6 +427,18 @@ The `remove_label` field (boolean, default `true`) controls whether the label is
 
 `label_command` can be combined with `slash_command:` — the workflow activates when either condition is met. See [LabelOps](/gh-aw/patterns/label-ops/) for patterns and examples.
 
+### Label Dispatch Trigger (`label_dispatch:`)
+
+Use `label_dispatch` for CentralRepoOps bridge scenarios. The main compiled workflow listens on `repository_dispatch`, and the compiler also emits a companion `<workflow-id>.remote.yml` bridge workflow (for deployment in another repository) that listens to pull request label events and dispatches typed payload fields back to the central repository.
+
+```yaml wrap
+on:
+  label_dispatch:
+    label: ns-pattern-review
+    allowed-repos:
+      - my-org/*
+```
+
 ## Trigger Filtering
 
 Triggers can be filtered by label names, and more. These filters compile into guarded `if:` conditions that ensure the workflow only runs when the specified criteria are met, while allowing other events to pass through unaffected.

@@ -130,6 +130,25 @@ func generateCentralSlashCommandWorkflowWrapper(
 	return nil
 }
 
+// generateLabelDispatchRemoteWorkflowsWrapper generates .remote.yml label-dispatch bridge workflows.
+func generateLabelDispatchRemoteWorkflowsWrapper(
+	workflowDataList []*workflow.WorkflowData,
+	workflowsDir string,
+	centralRepo string,
+	strict bool,
+) error {
+	compilePostProcessingLog.Print("Generating label-dispatch remote workflows")
+
+	if err := workflow.GenerateLabelDispatchRemoteWorkflows(workflowDataList, workflowsDir, centralRepo); err != nil {
+		if strict {
+			return fmt.Errorf("failed to generate label-dispatch remote workflows: %w", err)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate label-dispatch remote workflows: %v", err)))
+	}
+
+	return nil
+}
+
 // purgeOrphanedLockFiles removes orphaned .lock.yml files
 // These are lock files that exist but don't have a corresponding .md file
 func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, verbose bool) error {

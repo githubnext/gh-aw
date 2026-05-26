@@ -600,6 +600,11 @@ func runPostProcessingForDirectory(
 				return err
 			}
 		}
+		if err := generateLabelDispatchRemoteWorkflowsWrapper(workflowDataList, absWorkflowDir, compiler.GetRepositorySlug(), config.Strict); err != nil {
+			if config.Strict {
+				return err
+			}
+		}
 	}
 
 	// Prune stale gh-aw-actions entries before saving

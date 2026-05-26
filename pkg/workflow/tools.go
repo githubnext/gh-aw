@@ -48,6 +48,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	// Check if this is a command trigger workflow (by checking if user specified "on.command")
 	isCommandTrigger := false
 	isLabelCommandTrigger := false
+	isLabelDispatchTrigger := false
 	if data.On == "" {
 		// parseOnSection may have already detected the command trigger and populated data.Command
 		// (this covers slash_command map format, slash_command shorthand "on: /name", and deprecated "command:")
@@ -55,6 +56,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 			isCommandTrigger = true
 		} else if len(data.LabelCommand) > 0 {
 			isLabelCommandTrigger = true
+		} else if data.LabelDispatch != nil && strings.TrimSpace(data.LabelDispatch.Label) != "" {
+			isLabelDispatchTrigger = true
 		} else {
 			// Check the original frontmatter for command trigger
 			content, err := os.ReadFile(markdownPath)
@@ -70,6 +73,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 								isCommandTrigger = true
 							} else if _, hasLabelCommand := onMap["label_command"]; hasLabelCommand {
 								isLabelCommandTrigger = true
+							} else if _, hasLabelDispatch := onMap["label_dispatch"]; hasLabelDispatch {
+								isLabelDispatchTrigger = true
 							}
 						}
 					}
@@ -280,6 +285,28 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 				}
 				data.If = RenderCondition(labelConditionTree)
 			}
+		} else if isLabelDispatchTrigger {
+			toolsLog.Print("Workflow is label-dispatch trigger, configuring repository_dispatch events")
+			labelDispatchEventsMap := map[string]any{
+				"repository_dispatch": map[string]any{
+					"types": []any{buildLabelDispatchEventType(data.WorkflowID)},
+				},
+				"workflow_dispatch": nil,
+			}
+			if len(data.LabelDispatchOtherEvents) > 0 {
+				maps.Copy(labelDispatchEventsMap, data.LabelDispatchOtherEvents)
+			}
+			mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": labelDispatchEventsMap})
+			if err != nil {
+				return fmt.Errorf("failed to marshal label-dispatch events: %w", err)
+			}
+			yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
+			yamlStr = parser.QuoteCronExpressions(yamlStr)
+			yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
+			data.On = yamlStr
+			if data.If == "" {
+				data.If = buildLabelDispatchCondition(data.LabelDispatch)
+			}
 		} else {
 			data.On = `on:
   # Start either every 10 minutes, or when some kind of human event occurs.
@@ -307,7 +334,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	}
 
 	// Generate concurrency configuration using the dedicated concurrency module
-	data.Concurrency = GenerateConcurrencyConfig(data, isCommandTrigger || isLabelCommandTrigger)
+	data.Concurrency = GenerateConcurrencyConfig(data, isCommandTrigger || isLabelCommandTrigger || isLabelDispatchTrigger)
 
 	if data.RunName == "" {
 		data.RunName = fmt.Sprintf(`run-name: "%s"`, data.Name)
@@ -418,6 +445,50 @@ func ensureWorkflowDispatchItemNumberInput(eventsMap map[string]any) bool {
 		}
 	}
 	return true
+}
+
+func buildLabelDispatchEventType(workflowID string) string {
+	workflowID = strings.TrimSpace(workflowID)
+	if workflowID == "" {
+		return "gh_aw_label_dispatch"
+	}
+	return "gh_aw_label_dispatch__" + workflowID
+}
+
+func buildLabelDispatchCondition(cfg *LabelDispatchConfig) string {
+	if cfg == nil || strings.TrimSpace(cfg.Label) == "" {
+		return ""
+	}
+	labelExpr := "github.event.client_payload.trigger_label == " + githubActionsStringLiteral(strings.TrimSpace(cfg.Label))
+	if len(cfg.AllowedRepos) == 0 {
+		return "github.event_name != 'repository_dispatch' || (" + labelExpr + ")"
+	}
+
+	var repoChecks []string
+	for _, pattern := range cfg.AllowedRepos {
+		pattern = strings.TrimSpace(pattern)
+		if pattern == "" {
+			continue
+		}
+		if pattern == "*" {
+			repoChecks = append(repoChecks, "true")
+			continue
+		}
+		if strings.HasSuffix(pattern, "/*") {
+			prefix := strings.TrimSuffix(pattern, "/*") + "/"
+			repoChecks = append(repoChecks, "startsWith(github.event.client_payload.target_repo, "+githubActionsStringLiteral(prefix)+")")
+			continue
+		}
+		repoChecks = append(repoChecks, "github.event.client_payload.target_repo == "+githubActionsStringLiteral(pattern))
+	}
+	if len(repoChecks) == 0 {
+		return "github.event_name != 'repository_dispatch' || (" + labelExpr + ")"
+	}
+	return "github.event_name != 'repository_dispatch' || (" + labelExpr + " && (" + strings.Join(repoChecks, " || ") + "))"
+}
+
+func githubActionsStringLiteral(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
 // mergeToolsAndMCPServers merges tools, mcp-servers, and included tools

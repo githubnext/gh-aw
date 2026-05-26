@@ -364,6 +364,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	// Extract and process mcp-scripts and safe-outputs
 	workflowData.Command, workflowData.CommandEvents, workflowData.CommandCentralized = c.extractCommandConfig(frontmatter)
 	workflowData.LabelCommand, workflowData.LabelCommandEvents, workflowData.LabelCommandDecentralized, workflowData.LabelCommandRemoveLabel = c.extractLabelCommandConfig(frontmatter)
+	workflowData.LabelDispatch = c.extractLabelDispatchConfig(frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(frontmatter)
 
 	// Merge jobs from imported YAML workflows

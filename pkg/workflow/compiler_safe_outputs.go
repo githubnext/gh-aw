@@ -93,6 +93,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	// Also extract "reaction" from the "on" section
 	var hasCommand bool
 	var hasLabelCommand bool
+	var hasLabelDispatch bool
 	var hasReaction bool
 	var hasStopAfter bool
 	var hasStatusComment bool
@@ -290,8 +291,20 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				workflowData.On = ""
 			}
 
-			// Extract other (non-conflicting) events excluding slash_command, command, label_command, reaction, status-comment, and stop-after
-			otherEvents = excludeMapKeys(onMap, "slash_command", "command", "label_command", "reaction", "status-comment", "stop-after", "github-token", "github-app", "needs")
+			// Detect label_dispatch trigger
+			if _, hasLabelDispatchKey := onMap["label_dispatch"]; hasLabelDispatchKey {
+				hasLabelDispatch = true
+				if workflowData.LabelDispatch == nil {
+					workflowData.LabelDispatch = c.extractLabelDispatchConfig(frontmatter)
+				}
+				if workflowData.LabelDispatch == nil || strings.TrimSpace(workflowData.LabelDispatch.Label) == "" {
+					return errors.New("label_dispatch requires a non-empty label")
+				}
+				workflowData.On = ""
+			}
+
+			// Extract other (non-conflicting) events excluding pseudo triggers and internal control fields.
+			otherEvents = excludeMapKeys(onMap, "slash_command", "command", "label_command", "label_dispatch", "reaction", "status-comment", "stop-after", "github-token", "github-app", "needs")
 		}
 	}
 
@@ -305,6 +318,10 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		workflowData.LabelCommand = nil
 		workflowData.LabelCommandEvents = nil
 		workflowData.LabelCommandDecentralized = false
+	}
+	if !hasLabelDispatch {
+		workflowData.LabelDispatch = nil
+		workflowData.LabelDispatchOtherEvents = nil
 	}
 	// Auto-enable "eyes" reaction for slash_command/label_command (and deprecated command) triggers if no explicit reaction was specified
 	if (hasCommand || hasLabelCommand) && !hasReaction && workflowData.AIReaction == "" {
@@ -326,6 +343,10 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		// Store other events for label-command merging in applyDefaults
 		workflowData.On = "" // This will trigger label-command handling in applyDefaults
 		workflowData.LabelCommandOtherEvents = otherEvents
+	} else if hasLabelDispatch && len(otherEvents) > 0 {
+		// Store other events for label-dispatch merging in applyDefaults
+		workflowData.On = ""
+		workflowData.LabelDispatchOtherEvents = otherEvents
 	} else if (hasReaction || hasStopAfter || hasStatusComment) && len(otherEvents) > 0 {
 		// Only re-marshal the "on" if we have to
 		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})

@@ -630,6 +630,44 @@
                 }
               ]
             },
+            "label_dispatch": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Single label name that should trigger remote pull_request label bridge dispatch."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Label name that triggers cross-repository dispatch."
+                    },
+                    "allowed-repos": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "minItems": 1
+                        }
+                      ],
+                      "description": "Optional repository allowlist patterns used by generated .remote.yml bridge workflows."
+                    }
+                  },
+                  "required": ["label"],
+                  "additionalProperties": false
+                }
+              ]
+            },
             "push": {
               "description": "Push event trigger that runs the workflow when code is pushed to the repository",
               "type": "object",

@@ -1071,6 +1071,7 @@ func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelN
 	if !exists {
 		return nil, nil, false, true
 	}
+
 	onMap, ok := onValue.(map[string]any)
 	if !ok {
 		return nil, nil, false, true
@@ -1137,6 +1138,74 @@ func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelN
 	}
 
 	return nil, nil, false, true
+}
+
+// extractLabelDispatchConfig extracts the label_dispatch bridge trigger configuration from frontmatter.
+// Supported forms:
+//   - on.label_dispatch: "<label-name>"
+//   - on.label_dispatch:
+//     label: "<label-name>"
+//     allowed-repos: ["owner/repo", "owner/*"]
+func (c *Compiler) extractLabelDispatchConfig(frontmatter map[string]any) *LabelDispatchConfig {
+	frontmatterLog.Print("Extracting label-dispatch configuration from frontmatter")
+	onValue, exists := frontmatter["on"]
+	if !exists {
+		return nil
+	}
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	labelDispatchValue, hasLabelDispatch := onMap["label_dispatch"]
+	if !hasLabelDispatch {
+		return nil
+	}
+
+	// Shorthand form: label_dispatch: "my-label"
+	if labelStr, ok := labelDispatchValue.(string); ok {
+		labelStr = strings.TrimSpace(labelStr)
+		if labelStr == "" {
+			return nil
+		}
+		return &LabelDispatchConfig{Label: labelStr}
+	}
+
+	cfgMap, ok := labelDispatchValue.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	label, _ := cfgMap["label"].(string)
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return nil
+	}
+
+	cfg := &LabelDispatchConfig{Label: label}
+	allowedReposValue, hasAllowedRepos := cfgMap["allowed-repos"]
+	if !hasAllowedRepos {
+		return cfg
+	}
+
+	switch typed := allowedReposValue.(type) {
+	case []any:
+		for _, item := range typed {
+			if repo, ok := item.(string); ok {
+				repo = strings.TrimSpace(repo)
+				if repo != "" {
+					cfg.AllowedRepos = append(cfg.AllowedRepos, repo)
+				}
+			}
+		}
+	case string:
+		repo := strings.TrimSpace(typed)
+		if repo != "" {
+			cfg.AllowedRepos = []string{repo}
+		}
+	}
+
+	return cfg
 }
 
 // isGitHubAppNestedField returns true if the trimmed YAML line represents a known
