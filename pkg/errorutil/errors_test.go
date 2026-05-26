@@ -1,3 +1,5 @@
+//go:build !integration
+
 package errorutil_test
 
 import (

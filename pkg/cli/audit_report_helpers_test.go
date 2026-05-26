@@ -171,8 +171,8 @@ func TestDownloadedFilesInAuditData(t *testing.T) {
 	// Extract downloaded files
 	files := extractDownloadedFiles(tmpDir)
 
-	// Verify we got all files (directories are now excluded)
-	expectedCount := len(testFiles)
+	// Verify we got all files including subdirectory contents
+	expectedCount := len(testFiles) + 1 // +1 for result.json in agent_output/
 	if len(files) != expectedCount {
 		t.Errorf("Expected %d files, got %d", expectedCount, len(files))
 	}
@@ -320,8 +320,8 @@ func TestAuditReportFileListingIntegration(t *testing.T) {
 	// Extract downloaded files (simulates what audit command does)
 	files := extractDownloadedFiles(tmpDir)
 
-	// Verify we got all expected files (directories are now excluded)
-	expectedCount := len(artifacts)
+	// Verify we got all expected files including subdirectory contents
+	expectedCount := len(artifacts) + len(dirs) // +3 for file.txt in each subdir
 	if len(files) != expectedCount {
 		t.Errorf("Expected %d items, got %d", expectedCount, len(files))
 		t.Logf("Files found: %v", files)

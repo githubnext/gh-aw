@@ -444,43 +444,53 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	return auditData
 }
 
-// extractDownloadedFiles scans the logs directory and returns file information
+// extractDownloadedFiles scans the logs directory recursively and returns file information.
+// It walks subdirectories (aw-prompts/, base/, etc.) so the JSON output enumerates every
+// file available for inspection. Baseline directories are excluded to keep output focused.
 func extractDownloadedFiles(logsPath string) []FileInfo {
 	auditReportLog.Printf("Extracting downloaded files from: %s", logsPath)
 	var files []FileInfo
 
-	entries, err := os.ReadDir(logsPath)
+	absLogsPath, err := filepath.Abs(logsPath)
 	if err != nil {
-		auditReportLog.Printf("Failed to read logs directory: %v", err)
-		return files
+		auditReportLog.Printf("Failed to resolve absolute logs path: %v", err)
+		absLogsPath = logsPath
 	}
 
-	for _, entry := range entries {
-		// Skip directories
-		if entry.IsDir() {
-			continue
+	err = filepath.WalkDir(absLogsPath, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil // skip unreadable entries
 		}
 
-		name := entry.Name()
-		fullPath := filepath.Join(logsPath, name)
+		// Skip baseline directories — they belong to comparison runs, not the audited run
+		if d.IsDir() && strings.HasPrefix(d.Name(), "baseline-") {
+			return filepath.SkipDir
+		}
 
-		// Use absolute path so callers get a directly usable path
-		absPath, err := filepath.Abs(fullPath)
-		if err != nil {
-			auditReportLog.Printf("Failed to resolve absolute path for %s: %v", fullPath, err)
-			absPath = fullPath
+		// Skip the base/ directory — it's the full cloned repo, not a log artifact
+		if d.IsDir() && d.Name() == "base" && path == filepath.Join(absLogsPath, "base") {
+			return filepath.SkipDir
+		}
+
+		// Skip directories themselves (we only list files)
+		if d.IsDir() {
+			return nil
 		}
 
 		fileInfo := FileInfo{
-			Path:        absPath,
-			Description: describeFile(name),
+			Path:        path,
+			Description: describeFile(d.Name()),
 		}
 
-		if info, err := os.Stat(fullPath); err == nil {
+		if info, statErr := os.Stat(path); statErr == nil {
 			fileInfo.Size = info.Size()
 		}
 
 		files = append(files, fileInfo)
+		return nil
+	})
+	if err != nil {
+		auditReportLog.Printf("Failed to walk logs directory: %v", err)
 	}
 
 	auditReportLog.Printf("Extracted %d files from logs directory", len(files))
