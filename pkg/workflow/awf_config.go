@@ -166,7 +166,7 @@ type AWFAPIProxyConfig struct {
 	ModelMultipliers map[string]float64 `json:"modelMultipliers,omitempty"`
 
 	// Targets holds per-provider API target overrides.
-	// Supported keys: "openai", "anthropic", "copilot", "antigravity", "gemini" (deprecated, use "antigravity")
+	// Supported keys: "openai", "anthropic", "copilot", "gemini"
 	Targets map[string]*AWFAPITargetConfig `json:"targets,omitempty"`
 
 	// Models contains model alias and fallback policy definitions.
@@ -300,11 +300,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		targets["copilot"] = &AWFAPITargetConfig{Host: copilotTarget}
 		awfConfigLog.Printf("API proxy: custom copilot target=%s", copilotTarget)
 	}
+	geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName)
 	if antigravityTarget := GetAntigravityAPITarget(config.WorkflowData, config.EngineName); antigravityTarget != "" {
-		targets["antigravity"] = &AWFAPITargetConfig{Host: antigravityTarget}
-		awfConfigLog.Printf("API proxy: custom antigravity target=%s", antigravityTarget)
+		// Antigravity CLI now uses the Gemini provider/endpoint in AWS. Route the
+		// Antigravity-resolved API target through the "gemini" provider key to match
+		// AWF's supported target providers.
+		geminiTarget = antigravityTarget
+		awfConfigLog.Printf("API proxy: mapped antigravity target to gemini provider target=%s", antigravityTarget)
 	}
-	if geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName); geminiTarget != "" {
+	if geminiTarget != "" {
 		targets["gemini"] = &AWFAPITargetConfig{Host: geminiTarget}
 		awfConfigLog.Printf("API proxy: custom gemini target=%s", geminiTarget)
 	}
