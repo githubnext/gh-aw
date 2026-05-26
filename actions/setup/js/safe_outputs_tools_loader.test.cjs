@@ -301,13 +301,18 @@ describe("safe_outputs_tools_loader", () => {
       result[0].handler({
         title: "hello",
         body: "world",
-        integrity: "high",
+        unknown_field: "extra",
       });
 
       expect(createIssueHandler).toHaveBeenCalledWith({
         title: "hello",
         body: "world",
       });
+      expect(createIssueHandler).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          unknown_field: expect.anything(),
+        })
+      );
     });
 
     it("should drop unknown keys before wrapping dispatch_workflow inputs", () => {
@@ -334,7 +339,7 @@ describe("safe_outputs_tools_loader", () => {
       const result = attachHandlers(tools, handlers);
       result[0].handler({
         issue_number: "123",
-        secrecy: "medium",
+        unknown_input: "extra",
       });
 
       expect(mockHandlerFunction).toHaveBeenCalledWith({
@@ -343,6 +348,13 @@ describe("safe_outputs_tools_loader", () => {
           issue_number: "123",
         },
       });
+      expect(mockHandlerFunction).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          inputs: expect.objectContaining({
+            unknown_input: expect.anything(),
+          }),
+        })
+      );
     });
 
     it("should attach create_pull_request_review_comment handler", () => {
