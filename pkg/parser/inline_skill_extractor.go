@@ -80,15 +80,6 @@ func GetEngineSkillDir(engineID string) string {
 	}
 }
 
-func GetEngineSkillExt(engineID string) string {
-	switch strings.ToLower(engineID) {
-	case "claude", "codex", "gemini":
-		return ".md"
-	default:
-		return "/SKILL.md"
-	}
-}
-
 type InlineSkill struct {
 	Name    string
 	Content string

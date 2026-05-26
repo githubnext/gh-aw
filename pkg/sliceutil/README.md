@@ -50,6 +50,14 @@ filtered := sliceutil.Exclude([]string{"a", "b", "c"}, "b")
 // filtered = ["a", "c"]
 ```
 
+## Dependencies
+
+**Internal**:
+- `pkg/logger` — package-scoped logging used by `Deduplicate` and `MergeUnique`.
+
+**External**:
+- None beyond the Go standard library (`slices`).
+
 ## Design Notes
 
 - `Any` is implemented via `slices.ContainsFunc` from the standard library.

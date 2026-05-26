@@ -11,13 +11,14 @@ set +o histexpand
 # When GH_AW_OTLP_ALL_HEADERS is set (multi-endpoint configuration), the same
 # masking is applied to all endpoint headers combined in that variable.
 #
-# Three levels of masking are applied to each headers string:
+# Up to three levels of masking are applied to each headers string:
 #   1. The entire comma-separated header pairs string.
 #   2. Each individual header value extracted from the pairs, so that a token
 #      appearing without its header name prefix is also redacted.
 #   3. For Authorization-style "Bearer <token>" credentials, the raw token after
 #      stripping the "Bearer " scheme prefix, so it is masked even when it appears
 #      without the scheme (e.g. in downstream tool logs).
+# Values shorter than MIN_MASK_LENGTH are skipped at all levels.
 #
 # Mixed quoting ('::add-mask::' followed by "$VAR") is used so the directive prefix
 # is treated as a literal string while the variable values are expanded at runtime.
@@ -27,6 +28,18 @@ set +o histexpand
 
 set -euo pipefail
 
+# Ignore mask values shorter than 4 characters because GHES may over-mask
+# subsequent logs when receiving very short ::add-mask:: entries.
+MIN_MASK_LENGTH=4
+
+# emit_mask emits ::add-mask:: only for non-empty values at or above MIN_MASK_LENGTH.
+emit_mask() {
+  local _value="${1:-}"
+  [ -z "$_value" ] && return
+  [ "${#_value}" -lt "$MIN_MASK_LENGTH" ] && return
+  echo '::add-mask::'"$_value"
+}
+
 # mask_headers masks all values in a comma-separated key=value headers string.
 mask_headers() {
   local _headers="$1"
@@ -35,7 +48,7 @@ mask_headers() {
   [ -z "$_headers" ] && return
 
   # Level 1: mask the entire comma-separated headers string.
-  echo '::add-mask::'"$_headers"
+  emit_mask "$_headers"
 
   # Levels 2 & 3: split on commas, extract each value, and mask it individually.
   # For "Bearer <token>" values, also mask the raw token without the scheme prefix.
@@ -43,10 +56,10 @@ mask_headers() {
   mapfile -t _pairs < <(printf '%s' "$_headers" | tr ',' '\n')
   for _pair in "${_pairs[@]}"; do
     _val="${_pair#*=}"
-    [ -n "$_val" ] && echo '::add-mask::'"$_val"
+    emit_mask "$_val"
     _no_bearer="${_val#Bearer }"
     if [ "$_no_bearer" != "$_val" ]; then
-      echo '::add-mask::'"$_no_bearer"
+      emit_mask "$_no_bearer"
     fi
   done
 }

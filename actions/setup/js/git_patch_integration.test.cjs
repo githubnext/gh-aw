@@ -452,6 +452,40 @@ describe("git patch integration tests", () => {
       const errorOutput = pushResult.stderr.toLowerCase();
       expect(errorOutput.includes("rejected") || errorOutput.includes("failed") || errorOutput.includes("non-fast-forward")).toBe(true);
     });
+
+    it("should succeed when patch apply is re-anchored to the recorded base commit", () => {
+      const baseCommit = execGit(["rev-parse", "HEAD"], { cwd: repoDir }).stdout.trim();
+
+      // Simulate remote branch advancing after patch generation.
+      execGit(["checkout", "-b", "pr-branch"], { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, "drift.txt"), "remote-head-change\n");
+      execGit(["add", "drift.txt"], { cwd: repoDir });
+      execGit(["commit", "-m", "Remote branch advanced"], { cwd: repoDir });
+
+      // Simulate patch generated from the earlier base commit.
+      execGit(["checkout", "-b", "patch-generated-from-base", baseCommit], { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, "drift.txt"), "patch-change\n");
+      execGit(["add", "drift.txt"], { cwd: repoDir });
+      execGit(["commit", "-m", "Patch commit from recorded base"], { cwd: repoDir });
+
+      const patchPath = path.join(patchDir, "recorded-base.patch");
+      const patchResult = execGit(["format-patch", `${baseCommit}..patch-generated-from-base`, "--stdout"], { cwd: repoDir });
+      fs.writeFileSync(patchPath, patchResult.stdout);
+
+      // Applying directly on the advanced head fails.
+      execGit(["checkout", "pr-branch"], { cwd: repoDir });
+      const applyOnAdvancedHead = execGit(["am", "--3way", patchPath], { cwd: repoDir, allowFailure: true });
+      expect(applyOnAdvancedHead.status).not.toBe(0);
+      const conflictOutput = applyOnAdvancedHead.stderr.toLowerCase();
+      expect(conflictOutput.includes("patch does not apply") || conflictOutput.includes("conflict") || conflictOutput.includes("failed to merge")).toBe(true);
+      execGit(["am", "--abort"], { cwd: repoDir, allowFailure: true });
+
+      // Re-anchor to the recorded base commit first, then apply.
+      execGit(["reset", "--hard", baseCommit], { cwd: repoDir });
+      const applyAfterReanchor = execGit(["am", "--3way", patchPath], { cwd: repoDir });
+      expect(applyAfterReanchor.status).toBe(0);
+      expect(fs.readFileSync(path.join(repoDir, "drift.txt"), "utf8")).toBe("patch-change\n");
+    });
   });
 
   // ──────────────────────────────────────────────────────

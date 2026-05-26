@@ -1070,39 +1070,6 @@ func TestToolUsageAggregation(t *testing.T) {
 		"Bash should be present in tool usage")
 }
 
-func TestRenderTokenUsageDisplaysRawCountsOnly(t *testing.T) {
-	summary := &TokenUsageSummary{
-		TotalInputTokens:      100,
-		TotalOutputTokens:     200,
-		TotalCacheReadTokens:  5000,
-		TotalCacheWriteTokens: 3000,
-		TotalRequests:         2,
-		TotalDurationMs:       3000,
-		ByModel:               map[string]*ModelTokenUsage{},
-	}
-
-	oldStderr := os.Stderr
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
-	os.Stderr = w
-
-	renderTokenUsage(summary)
-	require.NoError(t, w.Close())
-	os.Stderr = oldStderr
-
-	var buf bytes.Buffer
-	_, copyErr := io.Copy(&buf, r)
-	require.NoError(t, copyErr)
-
-	output := buf.String()
-	assert.Contains(t, output, "Tokens:")
-	assert.Contains(t, output, "100 input")
-	assert.Contains(t, output, "cache read")
-	assert.Contains(t, output, "cache write")
-	assert.NotContains(t, output, "Total:")
-	assert.NotContains(t, output, "Cache hit:")
-}
-
 func TestExtractDownloadedFilesEmpty(t *testing.T) {
 	// Test with nonexistent directory
 	files := extractDownloadedFiles("/nonexistent/path")

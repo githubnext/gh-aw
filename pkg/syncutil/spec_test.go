@@ -120,60 +120,6 @@ func TestSpec_PublicAPI_OnceLoader_Get(t *testing.T) {
 	})
 }
 
-// TestSpec_PublicAPI_OnceLoader_Reset validates the documented behavior of
-// the OnceLoader.Reset method as described in the syncutil README.md.
-//
-// Specification:
-//   - Clears the cached result and error so that the next Get call re-invokes
-//     loader.
-func TestSpec_PublicAPI_OnceLoader_Reset(t *testing.T) {
-	t.Run("documented: next Get after Reset re-invokes loader", func(t *testing.T) {
-		var loader syncutil.OnceLoader[string]
-		var calls atomic.Int32
-
-		load := func() (string, error) {
-			n := calls.Add(1)
-			if n == 1 {
-				return "first", nil
-			}
-			return "second", nil
-		}
-
-		v1, err1 := loader.Get(load)
-		require.NoError(t, err1, "first Get should succeed")
-		assert.Equal(t, "first", v1, "first Get returns initial loader result")
-
-		loader.Reset()
-
-		v2, err2 := loader.Get(load)
-		require.NoError(t, err2, "Get after Reset should succeed")
-		assert.Equal(t, "second", v2, "documented: next Get after Reset re-invokes loader")
-		assert.Equal(t, int32(2), calls.Load(), "loader must be invoked again after Reset")
-	})
-
-	t.Run("documented: Reset clears cached error", func(t *testing.T) {
-		var loader syncutil.OnceLoader[string]
-		var calls atomic.Int32
-
-		load := func() (string, error) {
-			n := calls.Add(1)
-			if n == 1 {
-				return "", errors.New("first failure")
-			}
-			return "recovered", nil
-		}
-
-		_, err1 := loader.Get(load)
-		require.Error(t, err1, "first Get should return loader error")
-
-		loader.Reset()
-
-		v2, err2 := loader.Get(load)
-		require.NoError(t, err2, "documented: Reset clears cached error")
-		assert.Equal(t, "recovered", v2, "documented: loader is re-invoked after Reset")
-	})
-}
-
 // TestSpec_PublicAPI_OnceLoader_Override validates the documented behavior of
 // the OnceLoader.Override method as described in the syncutil README.md.
 //
@@ -221,8 +167,6 @@ func TestSpec_PublicAPI_OnceLoader_Override(t *testing.T) {
 //   - OnceLoader[T] is safe for concurrent use.
 //   - The internal mutex ensures loader is invoked at most once, even when
 //     multiple goroutines call Get concurrently.
-//   - Reset acquires the same mutex, making it safe to call concurrently
-//     with Get.
 func TestSpec_ThreadSafety_OnceLoader(t *testing.T) {
 	t.Run("documented: loader invoked at most once under concurrent Get", func(t *testing.T) {
 		var loader syncutil.OnceLoader[string]
@@ -248,70 +192,4 @@ func TestSpec_ThreadSafety_OnceLoader(t *testing.T) {
 
 		assert.Equal(t, int32(1), calls.Load(), "documented: loader invoked at most once under concurrency")
 	})
-
-	t.Run("documented: Reset is safe to call concurrently with Get", func(t *testing.T) {
-		var loader syncutil.OnceLoader[string]
-		const workers = 32
-
-		load := func() (string, error) {
-			return "v", nil
-		}
-
-		var wg sync.WaitGroup
-		wg.Add(workers * 2)
-		for range workers {
-			go func() {
-				defer wg.Done()
-				_, _ = loader.Get(load)
-			}()
-			go func() {
-				defer wg.Done()
-				loader.Reset()
-			}()
-		}
-		wg.Wait()
-		// Test passes if the race detector (-race) reports no data races.
-	})
-}
-
-// TestSpec_UsageExample_OnceLoader validates that the documented usage
-// example pattern compiles and runs as described in the README.md.
-//
-// Specification (Usage Examples):
-//
-//	var cache syncutil.OnceLoader[string]
-//	value, err := cache.Get(func() (string, error) {
-//	    return expensiveOperation()
-//	})
-//	cache.Reset()
-func TestSpec_UsageExample_OnceLoader(t *testing.T) {
-	var cache syncutil.OnceLoader[string]
-	var calls atomic.Int32
-
-	expensiveOperation := func() (string, error) {
-		calls.Add(1)
-		return "result", nil
-	}
-
-	value, err := cache.Get(func() (string, error) {
-		return expensiveOperation()
-	})
-	require.NoError(t, err, "usage example: Get should succeed")
-	assert.Equal(t, "result", value, "usage example: Get should return loader result")
-
-	value2, err2 := cache.Get(func() (string, error) {
-		return expensiveOperation()
-	})
-	require.NoError(t, err2, "usage example: subsequent Get should succeed")
-	assert.Equal(t, "result", value2, "usage example: subsequent Get returns cached value")
-	assert.Equal(t, int32(1), calls.Load(), "usage example: loader called only once before Reset")
-
-	cache.Reset()
-
-	value3, err3 := cache.Get(func() (string, error) {
-		return expensiveOperation()
-	})
-	require.NoError(t, err3, "usage example: Get after Reset should succeed")
-	assert.Equal(t, "result", value3, "usage example: Get after Reset returns fresh loader result")
-	assert.Equal(t, int32(2), calls.Load(), "usage example: Reset allows re-fetching on the next Get call")
 }

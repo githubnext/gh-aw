@@ -4,7 +4,6 @@ package syncutil
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -86,37 +85,6 @@ func TestOnceLoaderGetConcurrentSingleInvoke(t *testing.T) {
 
 	if calls.Load() != 1 {
 		t.Fatalf("expected loader to be called once under concurrency, got %d", calls.Load())
-	}
-}
-
-func TestOnceLoaderReset(t *testing.T) {
-	var loader OnceLoader[string]
-	var calls atomic.Int32
-
-	load := func() (string, error) {
-		n := calls.Add(1)
-		return fmt.Sprintf("v%d", n), nil
-	}
-
-	got1, err1 := loader.Get(load)
-	if err1 != nil {
-		t.Fatalf("unexpected error: %v", err1)
-	}
-	if got1 != "v1" {
-		t.Fatalf("expected first value v1, got %q", got1)
-	}
-
-	loader.Reset()
-
-	got2, err2 := loader.Get(load)
-	if err2 != nil {
-		t.Fatalf("unexpected error after reset: %v", err2)
-	}
-	if got2 != "v2" {
-		t.Fatalf("expected second value v2 after reset, got %q", got2)
-	}
-	if calls.Load() != 2 {
-		t.Fatalf("expected loader to run twice with reset, got %d", calls.Load())
 	}
 }
 
