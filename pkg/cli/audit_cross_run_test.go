@@ -327,7 +327,8 @@ func TestRenderMarkdownMetricsTrend_IncludesTurnsWithoutTokens(t *testing.T) {
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(r)
+	_, err := buf.ReadFrom(r)
+	require.NoError(t, err, "should read captured stdout")
 	output := buf.String()
 
 	assert.Contains(t, output, "## Metrics Trends", "Should render metrics section when turn metrics exist")
