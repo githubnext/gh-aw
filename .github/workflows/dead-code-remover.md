@@ -61,7 +61,7 @@ Run the `deadcode` static analyzer, select a batch of up to 5 unreachable functi
 - Build/test output: pipe through `tail -20` to capture only the relevant tail; do not print full output.
 - PR body: use only the provided template structure — no extra analysis paragraphs.
 - Cache append: write lines directly; do not re-read the full cache file before appending.
-- **Turn circuit breaker**: after Phase 5, if turn count is already >35 (leaves headroom for outcome + PR/cache steps), skip `go test` in Phase 6 (run only `go build ./... && go vet ./...`) and proceed to Phase 7.
+- **Turn circuit breaker**: target is still ≤30 turns, but after Phase 5, if turn count is already >35 (hard-stop overrun threshold), skip `go test` in Phase 6 (run only `go build ./... && go vet ./...`) and proceed to Phase 7.
 
 ## Context
 
@@ -82,8 +82,6 @@ task: |
 **Critical**: Always include `./internal/tools/...` — it covers separate binaries called by the Makefile (e.g. `make actions-build`). Running `./cmd/...` alone gives false positives.
 
 Ignore any "cannot load package" warnings for WASM-gated files (`//go:build js && wasm`) — those are expected build-constraint noise.
-
-Use the standard gh-aw `## agent:` block semantics for this sub-agent section.
 
 ## Phase 3: Select a Batch
 
@@ -165,7 +163,9 @@ go build ./... && go vet ./...
 echo "Exit: $?"
 ```
 
-If verification fails, investigate. If the failure is caused by your deletions and cannot be resolved quickly, revert those specific deletions (or revert all changes with `git checkout -- .`) and proceed to Phase 7 with `noop`.
+In circuit-breaker mode, `go vet -tags=integration` and `make fmt` are intentionally skipped to reduce turns; CI still runs full checks.
+
+If verification fails on obvious quick fixes (e.g., unused imports or simple compile errors), fix and re-run once. Otherwise, revert deletions tied to the failure (or revert all changes with `git checkout -- .`) and proceed to Phase 7 with `noop`.
 
 ## Phase 7: Determine Outcome
 
