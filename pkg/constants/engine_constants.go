@@ -286,7 +286,7 @@ const (
 	// CodexDefaultModel is the default model for the Codex agentic engine.
 	// Used as the fallback when no explicit model is configured and the
 	// GH_AW_MODEL_AGENT_CODEX / GH_AW_MODEL_DETECTION_CODEX variable is unset.
-	CodexDefaultModel = "gpt-5.3-codex"
+	CodexDefaultModel = "gpt-5.4"
 
 	// ClaudeCLIModelEnvVar is the native environment variable name supported by the Claude Code CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
