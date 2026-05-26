@@ -60,6 +60,10 @@ const (
 	// TimelineKindAgentToolDone marks the completion of an agent-initiated tool execution
 	// (tool.execution_complete event).
 	TimelineKindAgentToolDone TimelineEventKind = "agent_tool_done"
+	// TimelineKindAssistantMessage is an assistant response message (assistant.message event).
+	TimelineKindAssistantMessage TimelineEventKind = "assistant_message"
+	// TimelineKindReasoning is a model reasoning/thinking trace (reasoning or assistant.reasoning event).
+	TimelineKindReasoning TimelineEventKind = "reasoning"
 )
 
 // UnifiedTimelineEvent represents a single event from the MCP Gateway, the AWF
@@ -94,6 +98,10 @@ type UnifiedTimelineEvent struct {
 	TurnIndex  int    // 1-based conversation turn number (agent_turn events)
 	ToolCallID string // Opaque call ID that pairs start/done events
 	Success    bool   // True when tool execution succeeded (agent_tool_done events)
+
+	// Message content fields (agent_turn, assistant_message, reasoning)
+	// MessageContent holds the first portion of the message text for display.
+	MessageContent string
 
 	// Shared fields
 	Reason string // Human-readable reason or description
@@ -418,8 +426,9 @@ func parseEventsJSONL(path string) ([]copilotEventsJSONLEntry, error) {
 
 // agentEntryToTimelineEvent converts a single agent copilotEventsJSONLEntry into a
 // UnifiedTimelineEvent.  Only event types that are meaningful at the timeline level
-// (user.message, tool.execution_start, tool.execution_complete) are converted; all
-// other types are silently skipped (ok == false).
+// (user.message, assistant.message, reasoning, assistant.reasoning,
+// tool.execution_start, tool.execution_complete) are converted; all other types are
+// silently skipped (ok == false).
 func agentEntryToTimelineEvent(entry copilotEventsJSONLEntry, turnIndex int) (UnifiedTimelineEvent, bool) {
 	t, err := time.Parse(time.RFC3339Nano, entry.Timestamp)
 	if err != nil {
@@ -433,10 +442,27 @@ func agentEntryToTimelineEvent(entry copilotEventsJSONLEntry, turnIndex int) (Un
 	switch entry.Type {
 	case "user.message":
 		return UnifiedTimelineEvent{
-			Time:      t,
-			Source:    TimelineSourceAgent,
-			Kind:      TimelineKindAgentTurn,
-			TurnIndex: turnIndex,
+			Time:           t,
+			Source:         TimelineSourceAgent,
+			Kind:           TimelineKindAgentTurn,
+			TurnIndex:      turnIndex,
+			MessageContent: entry.Data.Content,
+		}, true
+
+	case "assistant.message":
+		return UnifiedTimelineEvent{
+			Time:           t,
+			Source:         TimelineSourceAgent,
+			Kind:           TimelineKindAssistantMessage,
+			MessageContent: entry.Data.Content,
+		}, true
+
+	case "reasoning", "assistant.reasoning":
+		return UnifiedTimelineEvent{
+			Time:           t,
+			Source:         TimelineSourceAgent,
+			Kind:           TimelineKindReasoning,
+			MessageContent: entry.Data.Content,
 		}, true
 
 	case "tool.execution_start":

@@ -66,11 +66,14 @@ func buildReplayRunDir(t *testing.T) string {
 	}
 
 	// Write a minimal events.jsonl so the agent timeline source is populated.
+	// Include content in user/assistant/reasoning messages to test snippet rendering.
 	timestamp := time.Now().UTC().Add(-time.Minute).Format(time.RFC3339Nano)
 	eventsContent := strings.Join([]string{
-		`{"type":"user.message","id":"id1","timestamp":"` + timestamp + `","data":{}}`,
+		`{"type":"user.message","id":"id1","timestamp":"` + timestamp + `","data":{"content":"What files are in the repo?"}}`,
 		`{"type":"tool.execution_start","id":"id2","timestamp":"` + timestamp + `","data":{"toolCallId":"c1","toolName":"search","mcpServerName":"github"}}`,
 		`{"type":"tool.execution_complete","id":"id3","timestamp":"` + timestamp + `","data":{"toolCallId":"c1","toolName":"search","mcpServerName":"github","success":true}}`,
+		`{"type":"assistant.message","id":"id4","timestamp":"` + timestamp + `","data":{"content":"I found the following files in the repo."}}`,
+		`{"type":"reasoning","id":"id5","timestamp":"` + timestamp + `","data":{"content":"The user wants a list of files."}}`,
 	}, "\n") + "\n"
 	if err := os.WriteFile(filepath.Join(runDir, "events.jsonl"), []byte(eventsContent), 0600); err != nil {
 		t.Fatalf("WriteFile events.jsonl: %v", err)
@@ -117,6 +120,16 @@ func TestReplayWorkflowRun_LocalCache_NoError(t *testing.T) {
 	for _, want := range []string{"> Turn 1", "github/search"} {
 		if !strings.Contains(output, want) {
 			t.Errorf("output missing %q; got:\n%s", want, output)
+		}
+	}
+	// Verify user/assistant/reasoning message content snippets are rendered.
+	for _, want := range []string{
+		"What files are in the repo?",
+		"I found the following files in the repo.",
+		"The user wants a list of files.",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("output missing message snippet %q; got:\n%s", want, output)
 		}
 	}
 	// Confirm there are no stats or table headers in the stream output.

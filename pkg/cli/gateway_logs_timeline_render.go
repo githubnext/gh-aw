@@ -49,6 +49,10 @@ func timelineEventIcon(kind TimelineEventKind) string {
 		return "▶"
 	case TimelineKindAgentToolDone:
 		return "■"
+	case TimelineKindAssistantMessage:
+		return "🤖"
+	case TimelineKindReasoning:
+		return "💭"
 	default:
 		return "·"
 	}
@@ -73,6 +77,10 @@ func timelineEventKindLabel(kind TimelineEventKind) string {
 		return "tool_start"
 	case TimelineKindAgentToolDone:
 		return "tool_done"
+	case TimelineKindAssistantMessage:
+		return "assistant_message"
+	case TimelineKindReasoning:
+		return "reasoning"
 	default:
 		return string(kind)
 	}
@@ -333,6 +341,10 @@ func renderTimelineEventRow(evt UnifiedTimelineEvent) []string {
 // and reason annotations in the stream renderer.
 const streamMaxAnnotationLen = 40
 
+// streamMaxMessageLines is the maximum number of lines of message content shown
+// in the stream renderer for user/assistant/reasoning messages.
+const streamMaxMessageLines = 3
+
 // formatStreamToolDetail returns "server/tool" when both are non-empty, "tool"
 // when only the tool name is set, and "server" as a last resort.
 func formatStreamToolDetail(serverName, toolName string) string {
@@ -343,6 +355,36 @@ func formatStreamToolDetail(serverName, toolName string) string {
 		return toolName
 	}
 	return serverName
+}
+
+// renderMessageSnippet returns up to streamMaxMessageLines non-empty lines of text,
+// each indented with prefix and styled using the provided renderer.
+// A trailing "…" line (styled muted) is appended when content is truncated.
+// Returns an empty string when content is blank.
+func renderMessageSnippet(content, indent string, lineStyle, truncStyle func(string) string) string {
+	if content == "" {
+		return ""
+	}
+	var sb strings.Builder
+	lines := strings.Split(content, "\n")
+	shown := 0
+	for _, line := range lines {
+		line = strings.TrimRight(line, " \t\r")
+		if line == "" {
+			continue
+		}
+		if shown >= streamMaxMessageLines {
+			sb.WriteString(indent)
+			sb.WriteString(truncStyle("…"))
+			sb.WriteString("\n")
+			break
+		}
+		sb.WriteString(indent)
+		sb.WriteString(lineStyle(stringutil.Truncate(line, 80)))
+		sb.WriteString("\n")
+		shown++
+	}
+	return sb.String()
 }
 
 // renderUnifiedTimelineStream renders a merged slice of UnifiedTimelineEvents as a
@@ -367,6 +409,14 @@ func renderUnifiedTimelineStream(events []UnifiedTimelineEvent) string {
 		return text
 	}
 
+	// coloredMessageSnippet renders the first few lines of message content.
+	// lineStyle and truncStyle are called only when isTerminal is true.
+	coloredMessageSnippet := func(content, indent string, lineStyle, truncStyle styleRenderer) string {
+		ls := func(s string) string { return streamColor(lineStyle, s) }
+		ts := func(s string) string { return streamColor(truncStyle, s) }
+		return renderMessageSnippet(content, indent, ls, ts)
+	}
+
 	var sb strings.Builder
 	inTurn := false
 
@@ -383,6 +433,20 @@ func renderUnifiedTimelineStream(events []UnifiedTimelineEvent) string {
 			turnLabel := streamColor(styles.Command, fmt.Sprintf("> Turn %d", evt.TurnIndex))
 			tsLabel := streamColor(styles.LineNumber, "["+ts+"]")
 			fmt.Fprintf(&sb, "%s %s\n", turnLabel, tsLabel)
+			// Show the first few lines of the user's message in muted style.
+			sb.WriteString(coloredMessageSnippet(evt.MessageContent, "  ", styles.ContextLine, styles.LineNumber))
+
+		case TimelineKindAssistantMessage:
+			icon := streamColor(styles.Info, timelineEventIcon(TimelineKindAssistantMessage))
+			fmt.Fprintf(&sb, "  %s\n", icon)
+			// Show assistant response snippet in standard foreground, muted truncation.
+			sb.WriteString(coloredMessageSnippet(evt.MessageContent, "  ", styles.ContextLine, styles.LineNumber))
+
+		case TimelineKindReasoning:
+			icon := streamColor(styles.Verbose, timelineEventIcon(TimelineKindReasoning))
+			fmt.Fprintf(&sb, "  %s\n", icon)
+			// Show reasoning snippet in muted/verbose style.
+			sb.WriteString(coloredMessageSnippet(evt.MessageContent, "  ", styles.Verbose, styles.LineNumber))
 
 		case TimelineKindAgentToolStart:
 			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
