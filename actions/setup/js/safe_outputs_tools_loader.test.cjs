@@ -315,6 +315,36 @@ describe("safe_outputs_tools_loader", () => {
       );
     });
 
+    it("should log stripped key names for strict schema tools", () => {
+      const createIssueHandler = vi.fn();
+      const logger = { debug: vi.fn() };
+      const tools = [
+        {
+          name: "create_issue",
+          description: "Create issue",
+          inputSchema: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+            },
+            additionalProperties: false,
+          },
+        },
+      ];
+      const handlers = {
+        createIssueHandler,
+      };
+
+      const result = attachHandlers(tools, handlers, logger);
+      result[0].handler({
+        title: "hello",
+        unknown_field_a: "extra-a",
+        unknown_field_b: "extra-b",
+      });
+
+      expect(logger.debug).toHaveBeenCalledWith("Stripped unknown keys for strict schema tool 'create_issue': unknown_field_a, unknown_field_b");
+    });
+
     it("should drop unknown keys before wrapping dispatch_workflow inputs", () => {
       const mockHandlerFunction = vi.fn();
       const defaultHandler = vi.fn(() => mockHandlerFunction);
@@ -355,6 +385,37 @@ describe("safe_outputs_tools_loader", () => {
           }),
         })
       );
+    });
+
+    it("should log stripped key names before wrapping dispatch_workflow inputs", () => {
+      const mockHandlerFunction = vi.fn();
+      const defaultHandler = vi.fn(() => mockHandlerFunction);
+      const logger = { debug: vi.fn() };
+      const tools = [
+        {
+          name: "dispatch_ci",
+          description: "Dispatch CI",
+          _workflow_name: "ci",
+          inputSchema: {
+            type: "object",
+            properties: {
+              issue_number: { type: "string" },
+            },
+            additionalProperties: false,
+          },
+        },
+      ];
+      const handlers = {
+        defaultHandler,
+      };
+
+      const result = attachHandlers(tools, handlers, logger);
+      result[0].handler({
+        issue_number: "123",
+        unknown_input: "extra",
+      });
+
+      expect(logger.debug).toHaveBeenCalledWith("Stripped unknown keys for strict schema tool 'dispatch_ci': unknown_input");
     });
 
     it("should attach create_pull_request_review_comment handler", () => {

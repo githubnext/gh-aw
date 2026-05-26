@@ -25,9 +25,10 @@ function isStrictSchema(inputSchema) {
  * Strip unknown keys from tool arguments when schema is strict.
  * @param {any} args - Tool call arguments
  * @param {any} inputSchema - Tool input schema
+ * @param {(keys: string[]) => void} [onUnknownKeysStripped] - Optional callback for stripped keys
  * @returns {any} Sanitized args
  */
-function sanitizeArgsBySchema(args, inputSchema) {
+function sanitizeArgsBySchema(args, inputSchema, onUnknownKeysStripped) {
   if (!args || typeof args !== "object" || Array.isArray(args)) {
     return args;
   }
@@ -37,10 +38,16 @@ function sanitizeArgsBySchema(args, inputSchema) {
 
   const allowedKeys = new Set(Object.keys(inputSchema.properties));
   const sanitizedArgs = {};
+  const strippedKeys = [];
   for (const [key, value] of Object.entries(args)) {
     if (allowedKeys.has(key)) {
       sanitizedArgs[key] = value;
+    } else {
+      strippedKeys.push(key);
     }
+  }
+  if (strippedKeys.length > 0 && typeof onUnknownKeysStripped === "function") {
+    onUnknownKeysStripped(strippedKeys);
   }
   return sanitizedArgs;
 }
@@ -108,9 +115,10 @@ function loadTools(server) {
  * Attach handlers to tools
  * @param {Array} tools - Array of tool definitions
  * @param {Object} handlers - Object containing handler functions
+ * @param {{ debug?: (message: string) => void }} [logger] - Optional logger
  * @returns {Array} Tools with handlers attached
  */
-function attachHandlers(tools, handlers) {
+function attachHandlers(tools, handlers, logger) {
   const handlerMap = {
     create_issue: handlers.createIssueHandler,
     create_pull_request: handlers.createPullRequestHandler,
@@ -170,7 +178,12 @@ function attachHandlers(tools, handlers) {
 
     if (typeof tool.handler === "function" && isStrictSchema(tool.inputSchema)) {
       const originalHandler = tool.handler;
-      tool.handler = args => originalHandler(sanitizeArgsBySchema(args, tool.inputSchema));
+      tool.handler = args =>
+        originalHandler(
+          sanitizeArgsBySchema(args, tool.inputSchema, strippedKeys => {
+            logger?.debug?.(`Stripped unknown keys for strict schema tool '${tool.name}': ${strippedKeys.join(", ")}`);
+          })
+        );
     }
   });
 

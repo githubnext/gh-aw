@@ -45,7 +45,7 @@ function startSafeOutputsServer(options = {}) {
   const { defaultHandler } = handlers;
 
   // Attach handlers to tools
-  const toolsWithHandlers = attachHandlers(ALL_TOOLS, handlers);
+  const toolsWithHandlers = attachHandlers(ALL_TOOLS, handlers, server);
 
   server.debug(`  output file: ${outputFile}`);
   server.debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);

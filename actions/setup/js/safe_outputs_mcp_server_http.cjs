@@ -92,7 +92,7 @@ function createMCPServer(options = {}) {
   const { defaultHandler } = handlers;
 
   // Attach handlers to tools
-  const toolsWithHandlers = attachHandlers(ALL_TOOLS, handlers);
+  const toolsWithHandlers = attachHandlers(ALL_TOOLS, handlers, logger);
 
   // Register predefined tools that are enabled in configuration
   logger.debug(`Registering predefined tools...`);
