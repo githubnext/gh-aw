@@ -19,7 +19,7 @@ const {
   _resetCache,
 } = require("./effective_tokens.cjs");
 
-const MERGED_MULTIPLIERS_PATH = "/tmp/gh-aw/model_multipliers.json";
+let testTmpDir = "";
 
 // Model multipliers JSON used in tests (matches pkg/cli/data/model_multipliers.json)
 const TEST_MULTIPLIERS_JSON = JSON.stringify({
@@ -48,18 +48,17 @@ const TEST_MULTIPLIERS_JSON = JSON.stringify({
 describe("effective_tokens", () => {
   beforeEach(() => {
     _resetCache();
-    if (fs.existsSync(MERGED_MULTIPLIERS_PATH)) {
-      fs.unlinkSync(MERGED_MULTIPLIERS_PATH);
-    }
+    testTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "effective-tokens-test-"));
+    process.env.GH_AW_MERGED_MODEL_MULTIPLIERS_PATH = path.join(testTmpDir, "model_multipliers.json");
     process.env.GH_AW_MODEL_MULTIPLIERS = TEST_MULTIPLIERS_JSON;
   });
 
   afterEach(() => {
     _resetCache();
-    if (fs.existsSync(MERGED_MULTIPLIERS_PATH)) {
-      fs.unlinkSync(MERGED_MULTIPLIERS_PATH);
-    }
+    fs.rmSync(testTmpDir, { recursive: true, force: true });
+    testTmpDir = "";
     delete process.env.GH_AW_MODEL_MULTIPLIERS;
+    delete process.env.GH_AW_MERGED_MODEL_MULTIPLIERS_PATH;
   });
 
   describe("defaultTokenClassWeights", () => {
@@ -324,10 +323,22 @@ describe("effective_tokens", () => {
       expect(getModelMultiplier("any-model")).toBe(1.0);
     });
 
+    test("falls back to built-in multipliers when env var is malformed", () => {
+      _resetCache();
+      process.env.GH_AW_MODEL_MULTIPLIERS = "{ not valid json }";
+      expect(getModelMultiplier("claude-opus-4.5")).toBeGreaterThan(1.0);
+    });
+
     test("handles empty env var gracefully", () => {
       _resetCache();
       process.env.GH_AW_MODEL_MULTIPLIERS = "";
       expect(getModelMultiplier("any-model")).toBe(1.0);
+    });
+
+    test("falls back to built-in multipliers when env var is empty", () => {
+      _resetCache();
+      process.env.GH_AW_MODEL_MULTIPLIERS = "";
+      expect(getModelMultiplier("claude-opus-4.5")).toBeGreaterThan(1.0);
     });
 
     test("handles missing multipliers key gracefully", () => {

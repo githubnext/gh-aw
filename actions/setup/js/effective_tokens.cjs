@@ -33,8 +33,16 @@ const { TMP_GH_AW_PATH } = require("./constants.cjs");
 
 /** @type {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null | undefined} */
 let _parsedMultipliers = undefined; // undefined = not yet parsed; null = parsed but unavailable
-const MERGED_MULTIPLIERS_PATH = `${TMP_GH_AW_PATH}/model_multipliers.json`;
+const DEFAULT_MERGED_MULTIPLIERS_PATH = `${TMP_GH_AW_PATH}/model_multipliers.json`;
 const BUILTIN_MULTIPLIERS_PATH = path.join(__dirname, "model_multipliers.json");
+
+/**
+ * @returns {string}
+ */
+function getMergedMultipliersPath() {
+  const override = process.env.GH_AW_MERGED_MODEL_MULTIPLIERS_PATH;
+  return override && override.trim() ? override : DEFAULT_MERGED_MULTIPLIERS_PATH;
+}
 
 /**
  * Default token class weights from the ET specification (Section 4.2).
@@ -60,7 +68,7 @@ function getMultipliersData() {
     return _parsedMultipliers;
   }
 
-  const parsedFromMergedFile = parseMultipliersFile(MERGED_MULTIPLIERS_PATH);
+  const parsedFromMergedFile = parseMultipliersFile(getMergedMultipliersPath());
   if (parsedFromMergedFile) {
     _parsedMultipliers = parsedFromMergedFile;
     return _parsedMultipliers;
@@ -75,8 +83,6 @@ function getMultipliersData() {
         return _parsedMultipliers;
       }
     }
-    _parsedMultipliers = null;
-    return null;
   }
 
   const parsedFromBuiltinFile = parseMultipliersFile(BUILTIN_MULTIPLIERS_PATH);
