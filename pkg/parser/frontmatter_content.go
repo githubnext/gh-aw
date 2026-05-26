@@ -128,19 +128,6 @@ func frontmatterLineBounds(content string, cursor int) (int, int, int) {
 	return lineStart, lineEnd, nextCursor
 }
 
-func splitFrontmatterLines(frontmatterYAML string) []string {
-	if frontmatterYAML == "" {
-		return []string{}
-	}
-	lines := strings.Split(frontmatterYAML, "\n")
-	// Preserve previous behavior from lines[1:endIndex]: a trailing newline before
-	// the closing delimiter does not create an additional empty frontmatter line.
-	if strings.HasSuffix(frontmatterYAML, "\n") {
-		lines = lines[:len(lines)-1]
-	}
-	return lines
-}
-
 func extractFrontmatterMetadata(frontmatterYAML string, frontmatterStart int) ([]string, map[string]int) {
 	if frontmatterYAML == "" {
 		return []string{}, map[string]int{}
