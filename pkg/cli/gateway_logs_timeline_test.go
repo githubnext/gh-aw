@@ -599,14 +599,16 @@ func TestTimelineSourceLabel_Agent(t *testing.T) {
 // ─── renderMessageSnippet ─────────────────────────────────────────────────────
 
 func TestRenderMessageSnippet_Empty(t *testing.T) {
-	out := renderMessageSnippet("", "  ", func(s string) string { return s }, func(s string) string { return s })
+	noop := noopStyleRenderer{}
+	out := renderMessageSnippet("", "  ", noop, noop)
 	if out != "" {
 		t.Errorf("renderMessageSnippet(\"\") = %q; want empty string", out)
 	}
 }
 
 func TestRenderMessageSnippet_SingleLine(t *testing.T) {
-	out := renderMessageSnippet("hello world", "  ", func(s string) string { return s }, func(s string) string { return s })
+	noop := noopStyleRenderer{}
+	out := renderMessageSnippet("hello world", "  ", noop, noop)
 	if !strings.Contains(out, "hello world") {
 		t.Errorf("renderMessageSnippet single line = %q; want to contain 'hello world'", out)
 	}
@@ -616,8 +618,9 @@ func TestRenderMessageSnippet_SingleLine(t *testing.T) {
 }
 
 func TestRenderMessageSnippet_TruncatesAfterMaxLines(t *testing.T) {
+	noop := noopStyleRenderer{}
 	content := "line1\nline2\nline3\nline4\nline5"
-	out := renderMessageSnippet(content, "  ", func(s string) string { return s }, func(s string) string { return s })
+	out := renderMessageSnippet(content, "  ", noop, noop)
 	if !strings.Contains(out, "line1") || !strings.Contains(out, "line2") || !strings.Contains(out, "line3") {
 		t.Errorf("renderMessageSnippet = %q; want first 3 lines present", out)
 	}
@@ -630,8 +633,9 @@ func TestRenderMessageSnippet_TruncatesAfterMaxLines(t *testing.T) {
 }
 
 func TestRenderMessageSnippet_SkipsBlankLines(t *testing.T) {
+	noop := noopStyleRenderer{}
 	content := "\n\nfirst line\n\nsecond line\n"
-	out := renderMessageSnippet(content, "  ", func(s string) string { return s }, func(s string) string { return s })
+	out := renderMessageSnippet(content, "  ", noop, noop)
 	if !strings.Contains(out, "first line") || !strings.Contains(out, "second line") {
 		t.Errorf("renderMessageSnippet = %q; want non-blank lines shown", out)
 	}

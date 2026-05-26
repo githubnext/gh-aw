@@ -337,6 +337,22 @@ func renderTimelineEventRow(evt UnifiedTimelineEvent) []string {
 
 // ─── Stream renderer ─────────────────────────────────────────────────────────
 
+// streamStyleRenderer is an interface satisfied by lipgloss style objects (and
+// any other type with a Render method).  It is used to pass style objects to
+// helper functions without importing lipgloss directly in those helpers.
+type streamStyleRenderer interface{ Render(strs ...string) string }
+
+// noopStyleRenderer is a streamStyleRenderer that returns its input unchanged.
+// It is used in place of a real lipgloss style when output is not a TTY.
+type noopStyleRenderer struct{}
+
+func (noopStyleRenderer) Render(strs ...string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+	return strs[0]
+}
+
 // streamMaxAnnotationLen is the maximum number of runes shown for inline error
 // and reason annotations in the stream renderer.
 const streamMaxAnnotationLen = 40
@@ -344,6 +360,10 @@ const streamMaxAnnotationLen = 40
 // streamMaxMessageLines is the maximum number of lines of message content shown
 // in the stream renderer for user/assistant/reasoning messages.
 const streamMaxMessageLines = 3
+
+// streamMaxLineLength is the maximum number of runes per line of message content
+// shown in the stream renderer.
+const streamMaxLineLength = 80
 
 // formatStreamToolDetail returns "server/tool" when both are non-empty, "tool"
 // when only the tool name is set, and "server" as a last resort.
@@ -361,7 +381,7 @@ func formatStreamToolDetail(serverName, toolName string) string {
 // each indented with prefix and styled using the provided renderer.
 // A trailing "…" line (styled muted) is appended when content is truncated.
 // Returns an empty string when content is blank.
-func renderMessageSnippet(content, indent string, lineStyle, truncStyle func(string) string) string {
+func renderMessageSnippet(content, indent string, lineStyle, truncStyle streamStyleRenderer) string {
 	if content == "" {
 		return ""
 	}
@@ -375,12 +395,12 @@ func renderMessageSnippet(content, indent string, lineStyle, truncStyle func(str
 		}
 		if shown >= streamMaxMessageLines {
 			sb.WriteString(indent)
-			sb.WriteString(truncStyle("…"))
+			sb.WriteString(truncStyle.Render("…"))
 			sb.WriteString("\n")
 			break
 		}
 		sb.WriteString(indent)
-		sb.WriteString(lineStyle(stringutil.Truncate(line, 80)))
+		sb.WriteString(lineStyle.Render(stringutil.Truncate(line, streamMaxLineLength)))
 		sb.WriteString("\n")
 		shown++
 	}
@@ -399,10 +419,9 @@ func renderUnifiedTimelineStream(events []UnifiedTimelineEvent) string {
 
 	isTerminal := tty.IsStdoutTerminal()
 
-	// streamColor wraps text with a lipgloss/WasmStyle only when output is a TTY so
+	// streamColor wraps text with a lipgloss style only when output is a TTY so
 	// that piped output stays clean of ANSI escape codes.
-	type styleRenderer interface{ Render(strs ...string) string }
-	streamColor := func(s styleRenderer, text string) string {
+	streamColor := func(s streamStyleRenderer, text string) string {
 		if isTerminal {
 			return s.Render(text)
 		}
@@ -410,10 +429,12 @@ func renderUnifiedTimelineStream(events []UnifiedTimelineEvent) string {
 	}
 
 	// coloredMessageSnippet renders the first few lines of message content.
-	// lineStyle and truncStyle are called only when isTerminal is true.
-	coloredMessageSnippet := func(content, indent string, lineStyle, truncStyle styleRenderer) string {
-		ls := func(s string) string { return streamColor(lineStyle, s) }
-		ts := func(s string) string { return streamColor(truncStyle, s) }
+	// lineStyle and truncStyle are applied only when output is a TTY.
+	coloredMessageSnippet := func(content, indent string, lineStyle, truncStyle streamStyleRenderer) string {
+		ls, ts := streamStyleRenderer(noopStyleRenderer{}), streamStyleRenderer(noopStyleRenderer{})
+		if isTerminal {
+			ls, ts = lineStyle, truncStyle
+		}
 		return renderMessageSnippet(content, indent, ls, ts)
 	}
 
