@@ -293,7 +293,7 @@ func TestGenerateLockMetadata(t *testing.T) {
 	SetVersion("dev")
 	hash := "abcd1234"
 	stopTime := "2026-02-17 20:00:00"
-	metadata := GenerateLockMetadata(hash, "", stopTime, false, AgentMetadataInfo{})
+	metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: hash}, stopTime, false, AgentMetadataInfo{})
 
 	assert.NotNil(t, metadata, "Metadata should be created")
 	assert.Equal(t, LockSchemaV4, metadata.SchemaVersion, "Should use current schema version")
@@ -306,7 +306,7 @@ func TestGenerateLockMetadata(t *testing.T) {
 func TestGenerateLockMetadataStrict(t *testing.T) {
 	hash := "abcd1234"
 	stopTime := "2026-02-17 20:00:00"
-	metadata := GenerateLockMetadata(hash, "", stopTime, true, AgentMetadataInfo{})
+	metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: hash}, stopTime, true, AgentMetadataInfo{})
 
 	assert.NotNil(t, metadata, "Metadata should be created")
 	assert.Equal(t, LockSchemaV4, metadata.SchemaVersion, "Should use v4 schema version")
@@ -329,7 +329,7 @@ func TestGenerateLockMetadataReleaseBuild(t *testing.T) {
 	SetVersion("v0.1.2")
 	hash := "abcd1234"
 	stopTime := "2026-02-17 20:00:00"
-	metadata := GenerateLockMetadata(hash, "", stopTime, false, AgentMetadataInfo{})
+	metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: hash}, stopTime, false, AgentMetadataInfo{})
 
 	assert.NotNil(t, metadata, "Metadata should be created")
 	assert.Equal(t, LockSchemaV4, metadata.SchemaVersion, "Should use current schema version")
@@ -340,7 +340,7 @@ func TestGenerateLockMetadataReleaseBuild(t *testing.T) {
 
 func TestGenerateLockMetadataWithoutStopTime(t *testing.T) {
 	hash := "abcd1234"
-	metadata := GenerateLockMetadata(hash, "", "", false, AgentMetadataInfo{})
+	metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: hash}, "", false, AgentMetadataInfo{})
 
 	assert.NotNil(t, metadata, "Metadata should be created")
 	assert.Equal(t, LockSchemaV4, metadata.SchemaVersion, "Should use current schema version")
@@ -630,7 +630,7 @@ func TestGenerateLockMetadataWithAgentInfo(t *testing.T) {
 		DetectionAgentID:    "copilot",
 		DetectionAgentModel: "gpt-5.1-codex-mini",
 	}
-	metadata := GenerateLockMetadata(hash, "", "", false, agentInfo)
+	metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: hash}, "", false, agentInfo)
 
 	assert.NotNil(t, metadata, "Metadata should be created")
 	assert.Equal(t, LockSchemaV4, metadata.SchemaVersion, "Should use v4 schema version")
@@ -642,7 +642,7 @@ func TestGenerateLockMetadataWithAgentInfo(t *testing.T) {
 
 func TestGenerateLockMetadataAgentFieldsOmittedWhenEmpty(t *testing.T) {
 	hash := "abcd1234"
-	metadata := GenerateLockMetadata(hash, "", "", false, AgentMetadataInfo{})
+	metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: hash}, "", false, AgentMetadataInfo{})
 
 	json, err := metadata.ToJSON()
 	require.NoError(t, err)

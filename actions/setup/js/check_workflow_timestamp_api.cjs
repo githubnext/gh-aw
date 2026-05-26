@@ -194,7 +194,7 @@ async function main() {
    * @param {string} [label] - Optional label appended to log lines for context (e.g. "local filesystem fallback")
    * @returns {Promise<boolean>} true if match or no body hash present, false if mismatch
    */
-  async function checkBodyHashIfFullMode(lockFileContent, mdPath, options, label) {
+  async function compareBodyHashes(lockFileContent, mdPath, options, label) {
     const suffix = label ? ` (${label})` : "";
     const storedBodyHash = extractBodyHashFromLockFile(lockFileContent);
     if (!storedBodyHash) {
@@ -267,7 +267,7 @@ async function main() {
 
       // When full check mode is enabled, also compare body hashes.
       if (match && fullCheckMode) {
-        match = await checkBodyHashIfFullMode(localLockContent, localMdFilePath, undefined, "local filesystem fallback");
+        match = await compareBodyHashes(localLockContent, localMdFilePath, undefined, "local filesystem fallback");
       }
 
       return { match, storedHash, recomputedHash };
@@ -326,7 +326,7 @@ async function main() {
 
       // When full check mode is enabled, also compare body hashes.
       if (match && fullCheckMode) {
-        match = await checkBodyHashIfFullMode(lockFileContent, workflowMdPath, { fileReader });
+        match = await compareBodyHashes(lockFileContent, workflowMdPath, { fileReader });
       }
 
       return { result: { match, storedHash, recomputedHash }, crossRepoAuthFailure: null };

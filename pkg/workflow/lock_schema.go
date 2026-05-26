@@ -103,15 +103,23 @@ func formatSupportedVersions() string {
 	return strings.Join(versions, ", ")
 }
 
+// LockHashInfo groups the hash fields written into lock metadata.
+// Passing a struct rather than individual string args makes the signature
+// stable against future hash additions.
+type LockHashInfo struct {
+	FrontmatterHash string
+	BodyHash        string
+}
+
 // GenerateLockMetadata creates a LockMetadata struct for embedding in lock files
 // For release builds, the compiler version is included in the metadata
-func GenerateLockMetadata(frontmatterHash string, bodyHash string, stopTime string, strict bool, agentInfo AgentMetadataInfo) *LockMetadata {
-	lockSchemaLog.Printf("Generating lock metadata: schema=%s, strict=%t, hasStopTime=%t, hasBodyHash=%t", LockSchemaV4, strict, stopTime != "", bodyHash != "")
+func GenerateLockMetadata(hashes LockHashInfo, stopTime string, strict bool, agentInfo AgentMetadataInfo) *LockMetadata {
+	lockSchemaLog.Printf("Generating lock metadata: schema=%s, strict=%t, hasStopTime=%t, hasBodyHash=%t", LockSchemaV4, strict, stopTime != "", hashes.BodyHash != "")
 
 	metadata := &LockMetadata{
 		SchemaVersion:       LockSchemaV4,
-		FrontmatterHash:     frontmatterHash,
-		BodyHash:            bodyHash,
+		FrontmatterHash:     hashes.FrontmatterHash,
+		BodyHash:            hashes.BodyHash,
 		StopTime:            stopTime,
 		Strict:              strict,
 		AgentID:             agentInfo.AgentID,
