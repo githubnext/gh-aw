@@ -327,6 +327,22 @@ func renderTimelineEventRow(evt UnifiedTimelineEvent) []string {
 
 // ─── Stream renderer ─────────────────────────────────────────────────────────
 
+// streamMaxAnnotationLen is the maximum number of runes shown for inline error
+// and reason annotations in the stream renderer.
+const streamMaxAnnotationLen = 40
+
+// formatStreamToolDetail returns "server/tool" when both are non-empty, "tool"
+// when only the tool name is set, and "server" as a last resort.
+func formatStreamToolDetail(serverName, toolName string) string {
+	if serverName != "" && toolName != "" {
+		return serverName + "/" + toolName
+	}
+	if toolName != "" {
+		return toolName
+	}
+	return serverName
+}
+
 // renderUnifiedTimelineStream renders a merged slice of UnifiedTimelineEvents as a
 // flowing, line-by-line stream that simulates watching a live agentic session.
 // Agent turns become section headers; tool and network events are indented beneath
@@ -349,20 +365,14 @@ func renderUnifiedTimelineStream(events []UnifiedTimelineEvent) string {
 				sb.WriteString("\n")
 			}
 			inTurn = true
-			fmt.Fprintf(&sb, "> Turn %d  [%s]\n", evt.TurnIndex, ts)
+			fmt.Fprintf(&sb, "> Turn %d [%s]\n", evt.TurnIndex, ts)
 
 		case TimelineKindAgentToolStart:
-			detail := evt.ToolName
-			if evt.ServerName != "" {
-				detail = evt.ServerName + "/" + evt.ToolName
-			}
+			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
 			fmt.Fprintf(&sb, "  %s %s\n", timelineEventIcon(TimelineKindAgentToolStart), detail)
 
 		case TimelineKindAgentToolDone:
-			detail := evt.ToolName
-			if evt.ServerName != "" {
-				detail = evt.ServerName + "/" + evt.ToolName
-			}
+			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
 			status := evt.Status
 			if status == "" {
 				if evt.Success {
@@ -374,17 +384,12 @@ func renderUnifiedTimelineStream(events []UnifiedTimelineEvent) string {
 			fmt.Fprintf(&sb, "  %s %s  %s\n", timelineEventIcon(TimelineKindAgentToolDone), detail, status)
 
 		case TimelineKindToolCall:
-			detail := evt.ToolName
-			if evt.ServerName != "" && evt.ToolName != "" {
-				detail = evt.ServerName + "/" + evt.ToolName
-			} else if evt.ServerName != "" {
-				detail = evt.ServerName
-			}
+			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
 			suffix := ""
 			if evt.Duration > 0 {
 				suffix = fmt.Sprintf("  %.0fms", evt.Duration)
 			} else if evt.Error != "" {
-				suffix = "  error: " + stringutil.Truncate(evt.Error, 40)
+				suffix = "  error: " + stringutil.Truncate(evt.Error, streamMaxAnnotationLen)
 			}
 			fmt.Fprintf(&sb, "    %s %s%s\n", timelineEventIcon(TimelineKindToolCall), detail, suffix)
 
@@ -403,33 +408,23 @@ func renderUnifiedTimelineStream(events []UnifiedTimelineEvent) string {
 			fmt.Fprintf(&sb, "    %s %s%s  [blocked]\n", timelineEventIcon(TimelineKindNetworkBlocked), evt.Host, method)
 
 		case TimelineKindDIFCFiltered:
-			detail := evt.ToolName
-			if evt.ServerName != "" && evt.ToolName != "" {
-				detail = evt.ServerName + "/" + evt.ToolName
-			} else if evt.ServerName != "" {
-				detail = evt.ServerName
-			}
+			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
 			reason := ""
 			if evt.Reason != "" {
-				reason = "  " + stringutil.Truncate(evt.Reason, 40)
+				reason = "  " + stringutil.Truncate(evt.Reason, streamMaxAnnotationLen)
 			}
 			fmt.Fprintf(&sb, "    %s %s%s\n", timelineEventIcon(TimelineKindDIFCFiltered), detail, reason)
 
 		case TimelineKindGuardPolicyBlocked:
-			detail := evt.ToolName
-			if evt.ServerName != "" && evt.ToolName != "" {
-				detail = evt.ServerName + "/" + evt.ToolName
-			} else if evt.ServerName != "" {
-				detail = evt.ServerName
+			detail := formatStreamToolDetail(evt.ServerName, evt.ToolName)
+			annotation := evt.Reason
+			if annotation == "" {
+				annotation = evt.Error
 			}
-			reason := evt.Reason
-			if reason == "" {
-				reason = evt.Error
+			if annotation != "" {
+				annotation = "  " + stringutil.Truncate(annotation, streamMaxAnnotationLen)
 			}
-			if reason != "" {
-				reason = "  " + stringutil.Truncate(reason, 40)
-			}
-			fmt.Fprintf(&sb, "    %s %s%s\n", timelineEventIcon(TimelineKindGuardPolicyBlocked), detail, reason)
+			fmt.Fprintf(&sb, "    %s %s%s\n", timelineEventIcon(TimelineKindGuardPolicyBlocked), detail, annotation)
 
 		default:
 			fmt.Fprintf(&sb, "  · [%s] %s  %s\n", ts, string(evt.Kind), timelineSourceLabel(evt.Source))

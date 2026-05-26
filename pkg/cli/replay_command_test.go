@@ -113,8 +113,8 @@ func TestReplayWorkflowRun_LocalCache_NoError(t *testing.T) {
 	}
 
 	// Verify that renderUnifiedTimelineStream produced streaming output:
-	// agent turns as "> Turn N" headers, tool events with icons, no stats or table.
-	for _, want := range []string{"> Turn", "github/search"} {
+	// agent turns as "> Turn N [time]" headers, tool events with icons, no stats or table.
+	for _, want := range []string{"> Turn 1", "github/search"} {
 		if !strings.Contains(output, want) {
 			t.Errorf("output missing %q; got:\n%s", want, output)
 		}
