@@ -55,13 +55,13 @@ Run the `deadcode` static analyzer, select a batch of up to 5 unreachable functi
 
 **Target**: Complete the full workflow in ≤ 30 turns.
 
-- **After discovery: if `discover-candidates` outputs `{"skip":true}`**, call `noop` immediately — skip Phases 3–9.
+- **After discovery: if `discover-candidates` outputs `"skip": true`**, call `noop` immediately — skip Phases 3–9.
 - Select **up to 5 functions** per run (not 10) — keeps PRs small and turns bounded.
 - Safety check grep: limit output with `grep -m 5` to avoid large result dumps.
 - Build/test output: pipe through `tail -20` to capture only the relevant tail; do not print full output.
 - PR body: use only the provided template structure — no extra analysis paragraphs.
 - Cache append: write lines directly; do not re-read the full cache file before appending.
-- **Turn circuit breaker**: target is still ≤30 turns, but after Phase 5, if turn count is already >35 (hard-stop overrun threshold), skip `go test` in Phase 6 (run only `go build ./... && go vet ./...`) and proceed to Phase 7.
+- **Turn circuit breaker**: target is still ≤30 turns, but after Phase 5, if turn count is already >35 (hard-stop overrun threshold; use current session turn count), skip `go test` in Phase 6 (run only `go build ./... && go vet ./...`) and proceed to Phase 7.
 
 ## Context
 
@@ -74,10 +74,11 @@ task: |
   Run: deadcode ./cmd/... ./internal/tools/...
   Read: /tmp/gh-aw/cache-memory/dead-code-processed.jsonl (if present)
   Exclude functions whose "file:FuncName" key appears in the cache.
-  Always skip: containsInNonCommentLines, indexInNonCommentLines, extractJobSection (shared test infrastructure helpers)
-  Output: JSON array of up to 5 unprocessed candidates:
-  [{"function":"Name","file":"pkg/...","reason":"no callers"}]
-  If 0 candidates remain, output: {"skip":true}
+  Always skip: containsInNonCommentLines, indexInNonCommentLines, extractJobSection (shared test infrastructure helpers; review this list periodically)
+  Output JSON to stdout in this exact shape:
+  {"skip":false,"candidates":[{"function":"Name","file":"pkg/...","reason":"no callers"}]}
+  If 0 candidates remain:
+  {"skip":true,"candidates":[]}
 
 **Critical**: Always include `./internal/tools/...` — it covers separate binaries called by the Makefile (e.g. `make actions-build`). Running `./cmd/...` alone gives false positives.
 
@@ -85,7 +86,7 @@ Ignore any "cannot load package" warnings for WASM-gated files (`//go:build js &
 
 ## Phase 3: Select a Batch
 
-From `discover-candidates` output, select **up to 5** functions to remove this run. Prioritise:
+From `discover-candidates.candidates`, select **up to 5** functions to remove this run. Prioritise:
 
 1. Functions where `grep` confirms callers exist only in `*_test.go` files
 2. Fully standalone functions with no callers at all
@@ -118,7 +119,7 @@ if [[ "$file" == pkg/console/* ]]; then
 fi
 
 echo "=== Constant/embed check ==="
-grep -n "//go:embed\\|^[[:space:]]*const " "$file" || true
+grep -n "//go:embed\\|^[[:space:]]*const " "$file" || true  # POSIX class for grep portability
 ```
 
 - Caller matches **only in `*_test.go` files** → proceed with deletion and mark exclusive tests for removal.
@@ -163,7 +164,7 @@ go build ./... && go vet ./...
 echo "Exit: $?"
 ```
 
-In circuit-breaker mode, `go vet -tags=integration` and `make fmt` are intentionally skipped to reduce turns; CI still runs full checks.
+In circuit-breaker mode, `go vet -tags=integration` and `make fmt` are intentionally skipped to reduce turns.
 
 If verification fails on obvious quick fixes (e.g., unused imports or simple compile errors), fix and re-run once. Otherwise, revert deletions tied to the failure (or revert all changes with `git checkout -- .`) and proceed to Phase 7 with `noop`.
 
