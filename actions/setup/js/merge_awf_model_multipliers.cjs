@@ -23,7 +23,7 @@ function normalizeMultipliers(rawMultipliers) {
   /** @type {Record<string, number>} */
   const normalized = {};
   for (const [key, value] of Object.entries(rawMultipliers)) {
-    if (typeof value === "number" && Number.isFinite(value)) {
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
       normalized[key] = value;
     }
   }

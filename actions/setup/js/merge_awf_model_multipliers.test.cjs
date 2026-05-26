@@ -42,6 +42,7 @@ describe("merge_awf_model_multipliers.cjs", () => {
       JSON.stringify({
         multipliers: {
           "claude-sonnet-4.6": 1.5,
+          "gpt-3.5-turbo": 0,
           "copilot-fast": "2.0",
           bool: true,
         },
