@@ -28,6 +28,11 @@ func injectCurrentCheckoutPatchWorkspacePath(handlerName string, handlerCfg map[
 	if targetRepo == "*" {
 		return
 	}
+	// If handler targets an explicit repository but current checkout resolved to
+	// workflow repo (empty repository slug), do not inject a workspace override.
+	if targetRepo != "" && currentRepo == "" {
+		return
+	}
 	if targetRepo != "" && currentRepo != "" && targetRepo != currentRepo {
 		return
 	}

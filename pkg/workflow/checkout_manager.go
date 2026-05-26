@@ -333,9 +333,10 @@ func (cm *CheckoutManager) GetCurrentRepository() string {
 	return ""
 }
 
-// GetCurrentCheckoutPath returns the normalized (workspace-relative) path for
-// the checkout marked current:true. Returns an empty string when no current
-// checkout is configured or when the current checkout is at workspace root.
+// GetCurrentCheckoutPath returns the current checkout path after trimming
+// leading "./" and surrounding whitespace. Returns an empty string when no
+// current checkout is configured or when the current checkout is at workspace
+// root.
 func (cm *CheckoutManager) GetCurrentCheckoutPath() string {
 	for _, entry := range cm.ordered {
 		if !entry.current {
