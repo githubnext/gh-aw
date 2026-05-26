@@ -195,9 +195,10 @@ async function main(config = {}) {
     // Check if bundle or patch file exists
     const hasBundleFile = !!(bundleFilePath && fs.existsSync(bundleFilePath));
     const hasPatchFile = !!(patchFilePath && fs.existsSync(patchFilePath));
-    core.info(`Transport mode: ${hasBundleFile ? "bundle" : "patch"} (patch file present: ${hasPatchFile}, bundle file present: ${hasBundleFile})`);
+    const applyTransport = hasBundleFile ? "bundle" : "patch";
+    core.info(`Apply transport mode: ${applyTransport} (patch file present: ${hasPatchFile}, bundle file present: ${hasBundleFile})`);
     if (bundleFilePath && !hasBundleFile) {
-      core.warning(`Bundle file path was provided but file is not present on disk: ${bundleFilePath}`);
+      core.warning(`Bundle file path was provided but file is not present on disk: ${bundleFilePath}; falling back to patch transport`);
     }
 
     // Always require a patch file for policy enforcement. Bundle is used for apply-time
@@ -672,9 +673,9 @@ async function main(config = {}) {
       // This avoids applying a patch generated from an older branch tip onto a newer remote tip.
       // If the commit is unavailable (e.g. cross-repo/missing object), continue with current HEAD.
       if (!hasBundleFile && message.base_commit) {
-        core.info(`Patch route base_commit received: ${String(message.base_commit).trim()}`);
         const recordedBaseCommit = normalizeCommitSHA(message.base_commit);
         if (recordedBaseCommit) {
+          core.info(`Patch route base_commit resolved: ${recordedBaseCommit}`);
           try {
             try {
               await exec.exec("git", ["fetch", "origin", recordedBaseCommit, "--depth=1"], {
