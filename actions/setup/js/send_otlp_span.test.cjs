@@ -1153,6 +1153,7 @@ describe("sendJobSetupSpan", () => {
     "GITHUB_RUN_ATTEMPT",
     "GITHUB_ACTOR",
     "GITHUB_REPOSITORY",
+    "GITHUB_SERVER_URL",
     "GITHUB_EVENT_NAME",
     "GITHUB_REF",
     "GITHUB_REF_NAME",
