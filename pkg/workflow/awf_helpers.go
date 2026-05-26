@@ -106,6 +106,7 @@ func buildModelMultipliersFromFileScript() string {
 	return fmt.Sprintf(`python - <<'PY'
 import json
 import os
+import sys
 from pathlib import Path
 
 runner_temp = os.environ.get("RUNNER_TEMP")
@@ -122,7 +123,8 @@ if not multipliers_path.exists():
 
 try:
   multipliers_doc = json.loads(multipliers_path.read_text(encoding="utf-8"))
-except Exception:
+except json.JSONDecodeError as err:
+  print(f"warning: failed to parse model multipliers file: {err}", file=sys.stderr)
   raise SystemExit(0)
 
 raw_multipliers = multipliers_doc.get("multipliers")
@@ -136,7 +138,8 @@ for key, value in raw_multipliers.items():
 
 try:
   config_doc = json.loads(config_path.read_text(encoding="utf-8"))
-except Exception:
+except json.JSONDecodeError as err:
+  print(f"warning: failed to parse awf-config.json before model multiplier merge: {err}", file=sys.stderr)
   raise SystemExit(0)
 
 api_proxy = config_doc.setdefault("apiProxy", {})
@@ -258,9 +261,9 @@ fi`,
 	// invocation, using printf to a fixed path inside the pre-existing ${RUNNER_TEMP}/gh-aw/
 	// directory that is already set up by actions/setup.
 	var configFileSetup string
-	configForFile := config
-	configForFile.WorkflowData = cloneWorkflowDataWithoutModelMultipliers(config.WorkflowData)
-	awfConfigJSON, err := BuildAWFConfigJSON(configForFile)
+	configWithoutInlineMultipliers := config
+	configWithoutInlineMultipliers.WorkflowData = cloneWorkflowDataWithoutModelMultipliers(config.WorkflowData)
+	awfConfigJSON, err := BuildAWFConfigJSON(configWithoutInlineMultipliers)
 	if err != nil {
 		awfHelpersLog.Printf("Warning: failed to build AWF config JSON: %v", err)
 	} else {
