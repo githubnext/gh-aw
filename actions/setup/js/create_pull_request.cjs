@@ -32,7 +32,7 @@ const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./const
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
-const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits } = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, linearizeRangeAsCommit } = require("./git_helpers.cjs");
 const { parseDiffGitHeader: parseDiffGitHeaderPaths, extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 const {
@@ -268,11 +268,6 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
  */
 async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi) {
   const baseRef = `origin/${baseBranch}`;
-  const { stdout: originalHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"]);
-  const originalHead = originalHeadOut.trim();
-  if (!originalHead) {
-    throw new Error("Could not resolve current HEAD before bundle rewrite");
-  }
 
   let commitHeadline = "Apply bundled create_pull_request changes";
   try {
@@ -285,27 +280,8 @@ async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi) {
   }
 
   core.warning(`Rewriting bundled commits to a single linear commit for signed push compatibility (base: ${baseRef})`);
-  try {
-    await execApi.exec("git", ["reset", "--soft", baseRef]);
-    const { stdout: stagedFilesOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only"]);
-    if (!stagedFilesOut.trim()) {
-      throw new Error(`No staged changes found after soft reset to ${baseRef}`);
-    }
-    await execApi.exec("git", ["commit", "-m", commitHeadline]);
-    const { stdout: rewrittenHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"]);
-    const rewrittenHead = rewrittenHeadOut.trim();
-    core.info(`Bundle rewrite completed (old HEAD: ${originalHead}, new HEAD: ${rewrittenHead})`);
-  } catch (rewriteError) {
-    try {
-      await execApi.exec("git", ["reset", "--hard", originalHead]);
-      core.warning(`Bundle rewrite failed; restored original HEAD ${originalHead}`);
-    } catch (restoreError) {
-      core.warning(`Bundle rewrite rollback failed: ${restoreError instanceof Error ? restoreError.message : String(restoreError)}`);
-    }
-    throw new Error(`Failed to rewrite bundled commits for signed push retry: ${rewriteError instanceof Error ? rewriteError.message : String(rewriteError)}`, {
-      cause: rewriteError,
-    });
-  }
+  const newHead = await linearizeRangeAsCommit(baseRef, commitHeadline, execApi);
+  core.info(`Bundle rewrite completed (new HEAD: ${newHead})`);
 }
 
 // NOTE: isLabelTransientError, LABEL_MAX_RETRIES, LABEL_INITIAL_DELAY_MS, LABEL_MAX_DELAY_MS,
