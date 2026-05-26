@@ -408,12 +408,10 @@ func findIncludesInContent(content string) ([]string, error) {
 	}
 
 	if includes == nil {
-		return emptyIncludes, nil
+		return []string{}, nil
 	}
 	return includes, nil
 }
-
-var emptyIncludes = []string{}
 
 // parseIncludePath extracts the file path from @include/@import/{{#import}} directive lines
 // without allocating a regex submatch slice or a directive struct.

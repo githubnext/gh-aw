@@ -315,6 +315,9 @@ func TestFindIncludesInContent_EmptyContentReturnsNonNilSlice(t *testing.T) {
 	if result == nil {
 		t.Fatal("Expected non-nil empty slice for empty content")
 	}
+	if len(result) != 0 {
+		t.Fatalf("Expected empty slice, got %v", result)
+	}
 }
 
 // Benchmark tests
