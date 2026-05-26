@@ -611,9 +611,7 @@ describe("parseStructuredResultFile", () => {
   describe.skip("with structured result file present (CJS fs mock limitation)", () => {
     it("should return verdict for valid clean JSON", () => {
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(
-        '{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}'
-      );
+      mockReadFileSync.mockReturnValue('{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}');
       const result = parseStructuredResultFile("/tmp/gh-aw/threat-detection/detection_result.json");
       expect(result).not.toBeNull();
       expect(result.error).toBeUndefined();
@@ -627,9 +625,7 @@ describe("parseStructuredResultFile", () => {
 
     it("should return verdict with reasons populated", () => {
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(
-        '{"prompt_injection":true,"secret_leak":false,"malicious_patch":false,"reasons":["Injection detected in prompt"]}'
-      );
+      mockReadFileSync.mockReturnValue('{"prompt_injection":true,"secret_leak":false,"malicious_patch":false,"reasons":["Injection detected in prompt"]}');
       const result = parseStructuredResultFile("/tmp/gh-aw/threat-detection/detection_result.json");
       expect(result).not.toBeNull();
       expect(result.error).toBeUndefined();
@@ -656,9 +652,7 @@ describe("parseStructuredResultFile", () => {
 
     it("should return error when required boolean fields are missing", () => {
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(
-        '{"prompt_injection":false,"secret_leak":false}'
-      );
+      mockReadFileSync.mockReturnValue('{"prompt_injection":false,"secret_leak":false}');
       const result = parseStructuredResultFile("/tmp/gh-aw/threat-detection/detection_result.json");
       expect(result).not.toBeNull();
       expect(result.error).toBeDefined();
@@ -667,9 +661,7 @@ describe("parseStructuredResultFile", () => {
 
     it("should return error when a boolean field has wrong type", () => {
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(
-        '{"prompt_injection":"false","secret_leak":false,"malicious_patch":false,"reasons":[]}'
-      );
+      mockReadFileSync.mockReturnValue('{"prompt_injection":"false","secret_leak":false,"malicious_patch":false,"reasons":[]}');
       const result = parseStructuredResultFile("/tmp/gh-aw/threat-detection/detection_result.json");
       expect(result).not.toBeNull();
       expect(result.error).toBeDefined();
@@ -698,9 +690,7 @@ describe("parseStructuredResultFile", () => {
 
     it("should treat missing reasons field as empty array", () => {
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(
-        '{"prompt_injection":false,"secret_leak":false,"malicious_patch":false}'
-      );
+      mockReadFileSync.mockReturnValue('{"prompt_injection":false,"secret_leak":false,"malicious_patch":false}');
       const result = parseStructuredResultFile("/tmp/gh-aw/threat-detection/detection_result.json");
       expect(result).not.toBeNull();
       expect(result.error).toBeUndefined();

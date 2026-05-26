@@ -440,6 +440,48 @@ async function main() {
     }
   }
 
+  /**
+   * Log and evaluate a parsed verdict, then set step outputs/failure state.
+   * @param {{ prompt_injection: boolean, secret_leak: boolean, malicious_patch: boolean, reasons: string[] }} verdict
+   * @param {string} sourceLabel
+   */
+  function evaluateAndReportVerdict(verdict, sourceLabel) {
+    core.info(`📋 Threat detection verdict${sourceLabel ? ` (${sourceLabel})` : ""}:`);
+    core.info(`   prompt_injection : ${verdict.prompt_injection}`);
+    core.info(`   secret_leak      : ${verdict.secret_leak}`);
+    core.info(`   malicious_patch  : ${verdict.malicious_patch}`);
+    const hasReasons = verdict.reasons.length > 0;
+    if (hasReasons) {
+      core.info(`   reasons (${verdict.reasons.length}):`);
+      verdict.reasons.forEach((reason, i) => core.info(`     [${i + 1}] ${reason}`));
+    } else {
+      core.info("   reasons          : (none)");
+    }
+
+    const threatsDetected = verdict.prompt_injection || verdict.secret_leak || verdict.malicious_patch;
+    if (threatsDetected) {
+      const threats = [];
+      if (verdict.prompt_injection) threats.push("prompt injection");
+      if (verdict.secret_leak) threats.push("secret leak");
+      if (verdict.malicious_patch) threats.push("malicious patch");
+      const reasonsText = hasReasons ? "\nReasons: " + verdict.reasons.join("; ") : "";
+      core.error("🚨 Security threats detected: " + threats.join(", "));
+      if (hasReasons) {
+        core.error("   Reasons: " + verdict.reasons.join("; "));
+      }
+      setDetectionFailure("threat_detected", `${ERR_VALIDATION}: ❌ Security threats detected: ${threats.join(", ")}${reasonsText}`);
+    } else {
+      core.info("✅ No security threats detected. Safe outputs may proceed.");
+      core.setOutput("conclusion", "success");
+      core.setOutput("success", "true");
+      core.setOutput("reason", "");
+    }
+
+    core.info("════════════════════════════════════════════════════════");
+    core.info("🛡️  Threat detection conclusion complete.");
+    core.info("════════════════════════════════════════════════════════");
+  }
+
   // Top-level try/catch ensures outputs are always set and the step never throws
   // unexpectedly. Any unanticipated runtime error (e.g. I/O error outside the guarded
   // paths) is caught here and surfaced as a parse_error warning (in warn mode) or
@@ -495,44 +537,11 @@ async function main() {
       if (structuredResult.error) {
         core.warning(`⚠️  Structured result file exists but could not be parsed: ${structuredResult.error}`);
         core.info("   Falling back to detection log parsing...");
+      } else if (!structuredResult.verdict) {
+        core.warning("⚠️  Structured result parsed but verdict was missing. Falling back to detection log parsing...");
       } else {
         core.info("✔️  Structured result file found and parsed successfully.");
-        // Jump directly to verdict evaluation — no log parsing needed.
-        const verdict = structuredResult.verdict;
-        core.info("📋 Threat detection verdict (from structured result file):");
-        core.info(`   prompt_injection : ${verdict.prompt_injection}`);
-        core.info(`   secret_leak      : ${verdict.secret_leak}`);
-        core.info(`   malicious_patch  : ${verdict.malicious_patch}`);
-        if (verdict.reasons && verdict.reasons.length > 0) {
-          core.info(`   reasons (${verdict.reasons.length}):`);
-          verdict.reasons.forEach((reason, i) => core.info(`     [${i + 1}] ${reason}`));
-        } else {
-          core.info("   reasons          : (none)");
-        }
-
-        // ── Evaluate verdict and set conclusion ───────────────────────────
-        const threatsDetected = verdict.prompt_injection || verdict.secret_leak || verdict.malicious_patch;
-        if (threatsDetected) {
-          const threats = [];
-          if (verdict.prompt_injection) threats.push("prompt injection");
-          if (verdict.secret_leak) threats.push("secret leak");
-          if (verdict.malicious_patch) threats.push("malicious patch");
-          const reasonsText = verdict.reasons && verdict.reasons.length > 0 ? "\nReasons: " + verdict.reasons.join("; ") : "";
-          core.error("🚨 Security threats detected: " + threats.join(", "));
-          if (verdict.reasons && verdict.reasons.length > 0) {
-            core.error("   Reasons: " + verdict.reasons.join("; "));
-          }
-          setDetectionFailure("threat_detected", `${ERR_VALIDATION}: ❌ Security threats detected: ${threats.join(", ")}${reasonsText}`);
-        } else {
-          core.info("✅ No security threats detected. Safe outputs may proceed.");
-          core.setOutput("conclusion", "success");
-          core.setOutput("success", "true");
-          core.setOutput("reason", "");
-        }
-
-        core.info("════════════════════════════════════════════════════════");
-        core.info("🛡️  Threat detection conclusion complete.");
-        core.info("════════════════════════════════════════════════════════");
+        evaluateAndReportVerdict(structuredResult.verdict, "from structured result file");
         return;
       }
     } else {
@@ -595,45 +604,8 @@ async function main() {
       return;
     }
 
-    // ── Step 6: Log the full verdict ─────────────────────────────────────────
-    core.info("📋 Threat detection verdict:");
-    core.info(`   prompt_injection : ${verdict.prompt_injection}`);
-    core.info(`   secret_leak      : ${verdict.secret_leak}`);
-    core.info(`   malicious_patch  : ${verdict.malicious_patch}`);
-    if (verdict.reasons && verdict.reasons.length > 0) {
-      core.info(`   reasons (${verdict.reasons.length}):`);
-      verdict.reasons.forEach((reason, i) => core.info(`     [${i + 1}] ${reason}`));
-    } else {
-      core.info("   reasons          : (none)");
-    }
-
-    // ── Step 7: Evaluate verdict and set conclusion ───────────────────────────
-    const threatsDetected = verdict.prompt_injection || verdict.secret_leak || verdict.malicious_patch;
-
-    if (threatsDetected) {
-      const threats = [];
-      if (verdict.prompt_injection) threats.push("prompt injection");
-      if (verdict.secret_leak) threats.push("secret leak");
-      if (verdict.malicious_patch) threats.push("malicious patch");
-
-      const reasonsText = verdict.reasons && verdict.reasons.length > 0 ? "\nReasons: " + verdict.reasons.join("; ") : "";
-
-      core.error("🚨 Security threats detected: " + threats.join(", "));
-      if (verdict.reasons && verdict.reasons.length > 0) {
-        core.error("   Reasons: " + verdict.reasons.join("; "));
-      }
-
-      setDetectionFailure("threat_detected", `${ERR_VALIDATION}: ❌ Security threats detected: ${threats.join(", ")}${reasonsText}`);
-    } else {
-      core.info("✅ No security threats detected. Safe outputs may proceed.");
-      core.setOutput("conclusion", "success");
-      core.setOutput("success", "true");
-      core.setOutput("reason", "");
-    }
-
-    core.info("════════════════════════════════════════════════════════");
-    core.info("🛡️  Threat detection conclusion complete.");
-    core.info("════════════════════════════════════════════════════════");
+    // ── Step 6: Log and evaluate verdict ─────────────────────────────────────
+    evaluateAndReportVerdict(verdict, "");
   } // end runMain
 }
 

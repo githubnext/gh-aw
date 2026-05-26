@@ -546,6 +546,34 @@ func TestCodexEngineDetectionRunUsesStructuredOutputSchema(t *testing.T) {
 	}
 }
 
+func TestCodexEngineDetectionRunChainsSchemaWriteBeforeCodexWithoutAWF(t *testing.T) {
+	engine := NewCodexEngine()
+
+	workflowData := &WorkflowData{
+		Name:           "test-workflow",
+		IsDetectionRun: true,
+		NetworkPermissions: &NetworkPermissions{
+			Allowed: []string{"defaults"},
+			Firewall: &FirewallConfig{
+				Enabled: false,
+			},
+		},
+		Tools: map[string]any{
+			"bash": []any{"*"},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	if len(steps) == 0 {
+		t.Fatal("Expected execution step")
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, fmt.Sprintf("> %s && ", detectionSchemaFilePath)) {
+		t.Errorf("Expected non-AWF detection command to chain schema write with && before codex, got:\n%s", stepContent)
+	}
+}
+
 func TestCodexEngineExecutionPassesModelEnvVarIntoAWFStep(t *testing.T) {
 	engine := NewCodexEngine()
 

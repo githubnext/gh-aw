@@ -347,10 +347,11 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// the compiler prepends the agent file content to prompt.txt so no special
 		// shell variable juggling is needed here.
 
-		// Optionally prepend the detection schema write command for detection runs.
-		schemaWriteLine := ""
+		// Optionally prefix the detection schema write command for detection runs.
+		// Keep it chained with "&&" so a schema write failure stops before codex runs.
+		schemaWritePrefix := ""
 		if workflowData.IsDetectionRun {
-			schemaWriteLine = detectionSchemaWriteCmd + "\n"
+			schemaWritePrefix = detectionSchemaWriteCmd + " && "
 		}
 
 		if harnessScriptName != "" {
@@ -360,7 +361,7 @@ printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
 mkdir -p "$CODEX_HOME/logs"
-%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, schemaWriteLine, codexCommand, logFile)
+%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, schemaWritePrefix, codexCommand, logFile)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
@@ -368,7 +369,7 @@ touch %s
 (umask 177 && touch %s)
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
-%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, schemaWriteLine, codexCommand, logFile)
+%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, schemaWritePrefix, codexCommand, logFile)
 		}
 	}
 
