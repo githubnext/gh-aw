@@ -324,7 +324,7 @@ touch %s
 	}
 
 	// Filter environment variables for security
-	allowedSecrets := append(e.GetRequiredSecretNames(workflowData), "GEMINI_API_KEY")
+	allowedSecrets := append([]string{"GEMINI_API_KEY"}, e.GetRequiredSecretNames(workflowData)...)
 	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
 
 	// Inject GH_TOKEN for CLI proxy (added after filtering since it uses a special
