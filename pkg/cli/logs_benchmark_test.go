@@ -139,21 +139,18 @@ func BenchmarkAggregateWorkflowStats(b *testing.B) {
 	for b.Loop() {
 		// Simulate aggregation logic
 		totalTokens := 0
-		totalCost := 0.0
 		totalTurns := 0
 		totalErrors := 0
 		totalWarnings := 0
 
 		for _, run := range runs {
 			totalTokens += run.TokenUsage
-			// totalCost removed: estimated cost no longer tracked
 			totalTurns += run.Turns
 			totalErrors += run.ErrorCount
 			totalWarnings += run.WarningCount
 		}
 
 		_ = totalTokens
-		_ = totalCost
 		_ = totalTurns
 		_ = totalErrors
 		_ = totalWarnings
@@ -179,21 +176,18 @@ func BenchmarkAggregateWorkflowStats_Large(b *testing.B) {
 
 	for b.Loop() {
 		totalTokens := 0
-		totalCost := 0.0
 		totalTurns := 0
 		totalErrors := 0
 		totalWarnings := 0
 
 		for _, run := range runs {
 			totalTokens += run.TokenUsage
-			// totalCost removed: estimated cost no longer tracked
 			totalTurns += run.Turns
 			totalErrors += run.ErrorCount
 			totalWarnings += run.WarningCount
 		}
 
 		_ = totalTokens
-		_ = totalCost
 		_ = totalTurns
 		_ = totalErrors
 		_ = totalWarnings
