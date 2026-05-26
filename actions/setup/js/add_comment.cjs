@@ -832,10 +832,7 @@ async function main(config = {}) {
       const isLocked =
         error?.status === 423 ||
         (error?.status === 403 && normalizedErrorMessage.includes("locked")) ||
-        normalizedErrorMessage.includes("issue is locked") ||
-        normalizedErrorMessage.includes("conversation is locked") ||
-        normalizedErrorMessage.includes("resource is locked") ||
-        normalizedErrorMessage.includes("resource locked");
+        (!error?.status && normalizedErrorMessage.includes("locked"));
 
       // If 404 and item_number was explicitly provided and we tried as issue/PR,
       // retry as a discussion (the user may have provided a discussion number)

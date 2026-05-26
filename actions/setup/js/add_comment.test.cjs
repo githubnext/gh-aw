@@ -1667,6 +1667,16 @@ describe("add_comment", () => {
     it("should treat conversation locked errors as non-fatal warnings", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
+      let warningCalls = [];
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+
+      let errorCalls = [];
+      mockCore.error = msg => {
+        errorCalls.push(msg);
+      };
+
       mockGithub.rest.issues.createComment = async () => {
         const error = new Error("Conversation is locked");
         // @ts-ignore
@@ -1681,6 +1691,8 @@ describe("add_comment", () => {
       expect(result.success).toBe(true);
       expect(result.warning).toContain("locked");
       expect(result.skipped).toBe(true);
+      expect(warningCalls.length).toBeGreaterThan(0);
+      expect(errorCalls.length).toBe(0);
     });
 
     it("should still fail for non-404 errors", async () => {
