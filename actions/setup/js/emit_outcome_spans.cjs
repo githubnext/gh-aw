@@ -39,6 +39,9 @@ const {
 const AW_INFO_PATH = "/tmp/gh-aw/aw_info.json";
 const EVALUATIONS_PATH = "/tmp/gh-aw/outcome-evaluations.jsonl";
 const SUMMARY_PATH = "/tmp/gh-aw/outcome-summary.json";
+const OTLP_STATUS_UNSET = 0;
+const OTLP_STATUS_OK = 1;
+const OTLP_STATUS_ERROR = 2;
 
 /**
  * Read a JSONL file, returning an array of parsed objects.
@@ -189,7 +192,7 @@ async function main() {
     if (zeroTouch) attributes.push(buildAttr("gh-aw.outcome.zero_touch", true));
 
     // Map normalized outcome_status to OTLP status: accepted=OK, rejected=ERROR, all others=UNSET
-    const statusCode = outcomeStatus === "rejected" ? 2 : outcomeStatus === "accepted" ? 1 : 0;
+    const statusCode = outcomeStatus === "rejected" ? OTLP_STATUS_ERROR : outcomeStatus === "accepted" ? OTLP_STATUS_OK : OTLP_STATUS_UNSET;
 
     itemSpans.push(
       buildOTLPSpan({

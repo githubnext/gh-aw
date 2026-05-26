@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -290,7 +291,7 @@ func TestWriteOutcomeJSONLEmitsNormalizedFields(t *testing.T) {
 	require.NoError(t, err)
 
 	var entry map[string]any
-	require.NoError(t, json.Unmarshal(data[:len(data)-1], &entry))
+	require.NoError(t, json.Unmarshal(bytes.TrimSpace(data), &entry))
 	assert.Equal(t, "unknown", entry["outcome_status"])
 	assert.Equal(t, "weak", entry["evidence_strength"])
 	assert.Equal(t, "target_exists_only", entry["signal"])

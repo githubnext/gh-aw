@@ -338,10 +338,8 @@ function evaluateItem(item, defaultRepo) {
 
   // Comments, labels, etc. — if URL exists, the item was created
   out.result = "unknown";
-  out.outcome_status = "unknown";
-  out.evidence_strength = "weak";
-  out.signal = "target_exists_only";
   out.detail = "object still exists";
+  Object.assign(out, normalizeOutcome(out.result, out.detail));
   return out;
 }
 
