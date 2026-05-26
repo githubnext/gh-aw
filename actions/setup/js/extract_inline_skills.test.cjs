@@ -31,13 +31,13 @@ describe("extractInlineSkills", () => {
     expect(skills).toHaveLength(0);
   });
 
-  it("returns empty main content and no agents for empty string", () => {
+  it("returns empty main content and no skills for empty string", () => {
     const { mainContent, skills } = extractInlineSkills("");
     expect(mainContent).toBe("");
     expect(skills).toHaveLength(0);
   });
 
-  it("extracts a single agent block", () => {
+  it("extracts a single skill block", () => {
     const content = ["# Main workflow", "", "Handle the issue.", "", skillMarker("planner"), "---", "engine: copilot", "---", "You are a planning assistant."].join("\n");
 
     const { mainContent, skills } = extractInlineSkills(content);
@@ -49,7 +49,7 @@ describe("extractInlineSkills", () => {
     expect(skills[0].content).toContain("engine: copilot");
   });
 
-  it("extracts multiple agent blocks", () => {
+  it("extracts multiple skill blocks", () => {
     const content = ["Main prompt.", "", skillMarker("planner"), "Planner prompt.", "", skillMarker("executor"), "Executor prompt."].join("\n");
 
     const { mainContent, skills } = extractInlineSkills(content);
@@ -62,8 +62,8 @@ describe("extractInlineSkills", () => {
     expect(skills[1].content).toBe("Executor prompt.");
   });
 
-  it("agent block ends at next H2 heading", () => {
-    const content = ["Main prompt.", "", skillMarker("planner"), "Planner content.", "", "## Summary", "This content is outside the agent block."].join("\n");
+  it("skill block ends at next H2 heading", () => {
+    const content = ["Main prompt.", "", skillMarker("planner"), "Planner content.", "", "## Summary", "This content is outside the skill block."].join("\n");
 
     const { mainContent, skills } = extractInlineSkills(content);
 
@@ -72,10 +72,10 @@ describe("extractInlineSkills", () => {
     expect(skills[0].name).toBe("planner");
     expect(skills[0].content).toBe("Planner content.");
     expect(skills[0].content).not.toContain("Summary");
-    expect(skills[0].content).not.toContain("outside the agent block");
+    expect(skills[0].content).not.toContain("outside the skill block");
   });
 
-  it("next agent marker (H2) ends the previous agent block", () => {
+  it("next skill marker (H2) ends the previous skill block", () => {
     const content = ["Main.", "", skillMarker("planner"), "Planner.", "", skillMarker("executor"), "Executor."].join("\n");
 
     const { skills } = extractInlineSkills(content);
@@ -85,15 +85,15 @@ describe("extractInlineSkills", () => {
     expect(skills[1].content).toBe("Executor.");
   });
 
-  it("agent at start of file produces empty main content", () => {
-    const content = skillMarker("only") + "\nAgent content.";
+  it("skill at start of file produces empty main content", () => {
+    const content = skillMarker("only") + "\nSkill content.";
     const { mainContent, skills } = extractInlineSkills(content);
     expect(mainContent).toBe("");
     expect(skills).toHaveLength(1);
     expect(skills[0].name).toBe("only");
   });
 
-  it("agent content is trimmed", () => {
+  it("skill content is trimmed", () => {
     const content = "Main.\n\n" + skillMarker("a") + "\n\n\n  Trimmed.  \n\n";
     const { skills } = extractInlineSkills(content);
     expect(skills[0].content).toBe("Trimmed.");
@@ -106,7 +106,7 @@ describe("extractInlineSkills", () => {
   });
 
   it("accepts valid lowercase name variants", () => {
-    const cases = [{ name: "my-agent" }, { name: "my_agent" }, { name: "agent1" }, { name: "a" }, { name: "planner-v2" }];
+    const cases = [{ name: "my-skill" }, { name: "my_skill" }, { name: "skill1" }, { name: "a" }, { name: "planner-v2" }];
     for (const { name } of cases) {
       const { skills } = extractInlineSkills("Main.\n\n" + skillMarker(name) + "\nContent.");
       expect(skills).toHaveLength(1);
@@ -115,7 +115,7 @@ describe("extractInlineSkills", () => {
   });
 
   it("does not recognize invalid separator forms", () => {
-    const invalids = ["## skill: `1agent`", "## skill: `my agent`", "## skill: `my/agent`", "## skill:", "## skill: myagent", "## skill: `MyAgent`", "# skill: `myagent`", "### skill: `myagent`"];
+    const invalids = ["## skill: `1skill`", "## skill: `my skill`", "## skill: `my/skill`", "## skill:", "## skill: myskill", "## skill: `MySkill`", "# skill: `myskill`", "### skill: `myskill`"];
     for (const sep of invalids) {
       const content = `Main.\n\n${sep}\nContent.`;
       const { mainContent, skills } = extractInlineSkills(content);
@@ -133,7 +133,7 @@ describe("writeInlineSkills", () => {
   let tmpDir;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "inline-agents-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "inline-skills-test-"));
   });
 
   afterEach(() => {
@@ -189,13 +189,13 @@ describe("writeInlineSkills", () => {
   });
 
   it("skill block ends at H2 — content after is not written to skill file", () => {
-    const content = ["Main.", "", skillMarker("a"), "Agent body.", "", "## Notes", "Footer content that should not appear in the agent file."].join("\n");
+    const content = ["Main.", "", skillMarker("a"), "Skill body.", "", "## Notes", "Footer content that should not appear in the skill file."].join("\n");
 
     const result = writeInlineSkills(content, tmpDir);
 
     expect(result).toBe("Main.");
     const written = fs.readFileSync(path.join(tmpDir, ".github", "skills", "a/SKILL.md"), "utf8");
-    expect(written).toContain("Agent body.");
+    expect(written).toContain("Skill body.");
     expect(written).not.toContain("Footer content");
   });
 

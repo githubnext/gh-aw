@@ -5,7 +5,6 @@
 //
 // Parses ## skill: `name` markers from workflow markdown and writes each skill
 // block to the engine-appropriate skills folder.
-// engine-appropriate directory.
 //
 // This step runs AFTER {{#runtime-import}} macros have been fully inlined by
 // processRuntimeImports() in interpolate_prompt.cjs, ensuring that any imports
