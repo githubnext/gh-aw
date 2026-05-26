@@ -96,7 +96,7 @@ type InlineSkill struct {
 }
 
 var inlineSkillSeparatorRegex = regexp.MustCompile("(?m)^##[ \t]+skill:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$")
-var h2HeadingRegexInlineSkill = regexp.MustCompile(`(?m)^##[ \t]`)
+var inlineSkillH2HeadingRegex = regexp.MustCompile(`(?m)^##[ \t]`)
 
 func ExtractInlineSkills(markdown string) (mainMarkdown string, skills []InlineSkill, err error) {
 	inlineSkillLog.Printf("Extracting inline skills from markdown (length: %d)", len(markdown))
@@ -138,7 +138,7 @@ func validateUniqueInlineSkillNames(markdown string, allStarts [][]int) error {
 
 func collectInlineSkillH2Positions(markdown string) []int {
 	var h2Positions []int
-	for _, m := range h2HeadingRegexInlineSkill.FindAllStringIndex(markdown, -1) {
+	for _, m := range inlineSkillH2HeadingRegex.FindAllStringIndex(markdown, -1) {
 		h2Positions = append(h2Positions, m[0])
 	}
 	return h2Positions

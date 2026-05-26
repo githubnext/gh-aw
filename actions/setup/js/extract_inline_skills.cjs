@@ -83,7 +83,7 @@ function filterInlineSkillFrontmatter(content, skillName) {
   for (const line of fmLines) {
     // Match a simple scalar YAML key at the start of the line.
     // YAML keys for description and model are plain identifiers (no hyphens).
-    const keyMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)[ \t]*:/);
+    const keyMatch = line.match(/^([a-z_][a-z0-9_]*)[ \t]*:/);
     if (keyMatch) {
       const key = keyMatch[1];
       if (SUPPORTED_FRONTMATTER_FIELDS.includes(key)) {
