@@ -818,9 +818,15 @@ To keep specification and implementation synchronized:
 4. Verify loading and fallback behavior in `pkg/cli/effective_tokens_test.go` (`TestModelMultipliersJSONEmbedded`, `TestResolveEffectiveWeightsDefault`, and inventory checks).
 5. Run `make build` so the embedded registry is rebuilt into the `gh-aw` binary.
 6. Re-run registry validation coverage after any registry edit so malformed multiplier entries fail
-   before ET computation paths are exercised.
+   before ET computation paths are exercised. Use `make validate-registry` to run the R-REG-007
+   staleness check (`TestModelMultipliersNoPlaceholders`) independently of the full test suite.
 
 Conforming releases SHOULD include a test assertion for newly added model multipliers to ensure implementation-registry parity.
+
+**R-REG-007 automation (2026-05-26)**: The `TestModelMultipliersNoPlaceholders` test in
+`pkg/cli/effective_tokens_test.go` and the `make validate-registry` target provide machine-verified
+enforcement of R-REG-007. These run as part of CI and reject null, string "TBD", empty-string-keyed,
+NaN, or Inf multiplier values before any release.
 
 ---
 

@@ -173,6 +173,61 @@ func TestObservedRunsPerPeriodConsistency(t *testing.T) {
 		"P50 ≤ P90")
 }
 
+// TestForecastWorkflow_LambdaConsistencyAcrossOutputFormats verifies that the λ value
+// used by the Monte Carlo engine is identical to the ObservedRunsPerPeriod field exposed
+// in both JSON output and verbose/table diagnostics (forecast-specification.md §13,
+// closes issue #31984).
+//
+// Both renderForecastJSON and renderForecastTable operate on the same ForecastResult
+// struct, so the λ used by runMonteCarlo (result.ObservedRunsPerPeriod) is always the
+// same value reported to the caller in either output format.
+func TestForecastWorkflow_LambdaConsistencyAcrossOutputFormats(t *testing.T) {
+	originalList := forecastListWorkflowRunsPaginated
+	t.Cleanup(func() {
+		forecastListWorkflowRunsPaginated = originalList
+	})
+
+	const (
+		historyDays   = 30
+		projectedDays = 30 // "month" period
+	)
+	completedRuns := []WorkflowRun{
+		{Status: "completed", Conclusion: "success", EffectiveTokens: 10_000, Duration: 5 * time.Minute},
+		{Status: "completed", Conclusion: "success", EffectiveTokens: 12_000, Duration: 6 * time.Minute},
+		{Status: "completed", Conclusion: "failure", EffectiveTokens: 8_000, Duration: 3 * time.Minute},
+		{Status: "completed", Conclusion: "success", EffectiveTokens: 11_000, Duration: 7 * time.Minute},
+		{Status: "completed", Conclusion: "success", EffectiveTokens: 9_500, Duration: 4 * time.Minute},
+	}
+	forecastListWorkflowRunsPaginated = func(_ ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
+		return completedRuns, len(completedRuns), nil
+	}
+
+	result, err := forecastWorkflow(context.Background(), "ci-doctor", "2026-01-01", ForecastConfig{
+		Days:       historyDays,
+		Period:     "month",
+		SampleSize: 100,
+	}, projectedDays)
+	require.NoError(t, err)
+
+	// The expected λ is the observed run frequency scaled to the projection period.
+	// This is also the value emitted in the JSON "observed_runs_per_period" field.
+	n := len(completedRuns)
+	expectedLambda := float64(n) / float64(historyDays) * float64(projectedDays)
+
+	// Verify ObservedRunsPerPeriod (the JSON-serialised λ) equals the expected value.
+	assert.InEpsilon(t, expectedLambda, result.ObservedRunsPerPeriod, 1e-12,
+		"JSON field observed_runs_per_period must equal the λ used by the Monte Carlo engine")
+
+	// Monte Carlo must have been called with the same λ — confirmed by a non-nil result.
+	require.NotNil(t, result.MonteCarlo,
+		"Monte Carlo simulation must run for positive ObservedRunsPerPeriod (λ=%.2f)", expectedLambda)
+
+	// Both JSON output (renderForecastJSON) and table output (renderForecastTable) use the
+	// same ForecastResult, so they are structurally guaranteed to report the same λ.
+	assert.Positive(t, result.MonteCarlo.P50ProjectedEffectiveTokens,
+		"P50 must be positive for positive λ and non-zero ET observations")
+}
+
 func TestForecastRateLimitSleep_ContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

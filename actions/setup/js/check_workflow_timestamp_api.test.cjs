@@ -58,6 +58,7 @@ describe("check_workflow_timestamp_api.cjs", () => {
     delete process.env.GITHUB_WORKSPACE;
     delete process.env.GITHUB_EVENT_NAME;
     delete process.env.GITHUB_RUN_ID;
+    delete process.env.GH_AW_STALE_CHECK_FULL;
 
     // Dynamically import the module to get fresh instance
     const module = await import("./check_workflow_timestamp_api.cjs");
@@ -1447,6 +1448,200 @@ engine: copilot
       const infoMessages = mockCore.info.mock.calls.map(c => c[0]);
       expect(infoMessages.some(m => m.includes("Debug hash recomputation"))).toBe(false);
       expect(infoMessages.some(m => m.includes("[hash-debug]"))).toBe(false);
+    });
+  });
+
+  describe("GH_AW_STALE_CHECK_FULL mode (full stale check)", () => {
+    // Pre-computed hash values for test content:
+    // MD content: "---\nengine: copilot\n---\n# Test Workflow"
+    // frontmatter hash for "engine: copilot": c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3
+    // body hash for "# Test Workflow": SHA-256 of normalized body text (single opaque string)
+    const copilotFrontmatterHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+    const testWorkflowBodyHash = "e03b2c4b02859c4998bba6f73a568dcc2d10a948de44959c8e0f89e3038adea9";
+    const differentBodyHash = "794cb937d6acca63bce48910fce81475e29ba05b3928a457f16a9ec73c40a6eb";
+    const mdFileContent = "---\nengine: copilot\n---\n# Test Workflow";
+    const differentBodyMdFileContent = "---\nengine: copilot\n---\n# Different Body";
+
+    beforeEach(() => {
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
+      process.env.GH_AW_STALE_CHECK_FULL = "true";
+    });
+
+    it("should pass when both frontmatter and body hashes match", async () => {
+      const lockFileContent = `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"${copilotFrontmatterHash}","body_hash":"${testWorkflowBodyHash}"}
+name: Test Workflow
+on: push`;
+
+      mockGithub.rest.repos.getContent
+        // lock file fetch
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        // md file fetch for frontmatter hash
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        })
+        // md file fetch for body hash
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date (hashes match)"));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should log that it is checking both frontmatter and body hashes", async () => {
+      const lockFileContent = `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"${copilotFrontmatterHash}","body_hash":"${testWorkflowBodyHash}"}
+name: Test Workflow
+on: push`;
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("frontmatter + body"));
+    });
+
+    it("should fail when frontmatter matches but body hash differs", async () => {
+      // Lock stores body hash for "# Test Workflow", but md body is "# Different Body"
+      const lockFileContent = `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"${copilotFrontmatterHash}","body_hash":"${testWorkflowBodyHash}"}
+name: Test Workflow
+on: push`;
+
+      mockGithub.rest.repos.getContent
+        // lock file fetch
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        // md file fetch for frontmatter hash
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(differentBodyMdFileContent).toString("base64") },
+        })
+        // md file fetch for body hash
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(differentBodyMdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("⚠️  Body hashes differ"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
+    });
+
+    it("should skip body hash check when lock file has no body hash (backward compat)", async () => {
+      // Old lock file format (pre-v4) without body_hash — should still pass when frontmatter matches
+      const lockFileContent = `# frontmatter-hash: ${copilotFrontmatterHash}
+name: Test Workflow
+on: push`;
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("skipping body hash check"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date (hashes match)"));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should not perform body hash check when GH_AW_STALE_CHECK_FULL is not set", async () => {
+      delete process.env.GH_AW_STALE_CHECK_FULL;
+
+      // Lock file has body_hash but stale-check full mode is off — body hash should be ignored
+      const lockFileContent = `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"${copilotFrontmatterHash}","body_hash":"${differentBodyHash}"}
+name: Test Workflow
+on: push`;
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      // Body hashes would differ if checked, but full mode is off — should pass
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date (hashes match)"));
+    });
+
+    it("should check body hash via local filesystem fallback when API is unavailable", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-full-test-"));
+      const workflowsDir = path.join(tmpDir, ".github", "workflows");
+      fs.mkdirSync(workflowsDir, { recursive: true });
+
+      process.env.GITHUB_WORKFLOW_REF = "source-org/source-repo/.github/workflows/test.lock.yml@v1";
+      process.env.GITHUB_REPOSITORY = "target-org/target-repo";
+
+      const lockFileContent = `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"${copilotFrontmatterHash}","body_hash":"${testWorkflowBodyHash}"}
+name: Test Workflow
+on: push`;
+
+      fs.writeFileSync(path.join(workflowsDir, "test.lock.yml"), lockFileContent);
+      fs.writeFileSync(path.join(workflowsDir, "test.md"), mdFileContent);
+      process.env.GITHUB_WORKSPACE = tmpDir;
+
+      // Simulate cross-org API permission error
+      mockGithub.rest.repos.getContent.mockRejectedValue(new Error("Resource not accessible by integration"));
+
+      try {
+        await main();
+
+        expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("local filesystem fallback"));
+        expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date (hashes match)"));
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+        delete process.env.GITHUB_WORKSPACE;
+      }
+    });
+
+    it("should fail body hash check via local filesystem fallback when body has changed", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-full-test-"));
+      const workflowsDir = path.join(tmpDir, ".github", "workflows");
+      fs.mkdirSync(workflowsDir, { recursive: true });
+
+      process.env.GITHUB_WORKFLOW_REF = "source-org/source-repo/.github/workflows/test.lock.yml@v1";
+      process.env.GITHUB_REPOSITORY = "target-org/target-repo";
+
+      // Lock file has body hash for "# Test Workflow", but local .md has "# Different Body"
+      const lockFileContent = `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"${copilotFrontmatterHash}","body_hash":"${testWorkflowBodyHash}"}
+name: Test Workflow
+on: push`;
+
+      fs.writeFileSync(path.join(workflowsDir, "test.lock.yml"), lockFileContent);
+      fs.writeFileSync(path.join(workflowsDir, "test.md"), differentBodyMdFileContent);
+      process.env.GITHUB_WORKSPACE = tmpDir;
+
+      mockGithub.rest.repos.getContent.mockRejectedValue(new Error("Resource not accessible by integration"));
+
+      try {
+        await main();
+
+        expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("⚠️  Body hashes differ"));
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+        delete process.env.GITHUB_WORKSPACE;
+      }
     });
   });
 });

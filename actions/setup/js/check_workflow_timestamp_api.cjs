@@ -18,7 +18,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { extractHashFromLockFile, computeFrontmatterHash, createGitHubFileReader } = require("./frontmatter_hash_pure.cjs");
+const { extractHashFromLockFile, extractBodyHashFromLockFile, computeFrontmatterHash, computeBodyHash, createGitHubFileReader } = require("./frontmatter_hash_pure.cjs");
 const { getFileContent } = require("./github_api_helpers.cjs");
 const { ERR_CONFIG } = require("./error_codes.cjs");
 
@@ -34,12 +34,15 @@ async function main() {
     return;
   }
 
+  // Determine if full stale check mode is enabled (checks both frontmatter and body hashes).
+  const fullCheckMode = process.env.GH_AW_STALE_CHECK_FULL === "true";
+
   // Construct file paths
   const workflowBasename = workflowFile.replace(".lock.yml", "");
   const workflowMdPath = `.github/workflows/${workflowBasename}.md`;
   const lockFilePath = `.github/workflows/${workflowFile}`;
 
-  core.info(`Checking for stale lock file using frontmatter hash:`);
+  core.info(`Checking for stale lock file using ${fullCheckMode ? "frontmatter + body" : "frontmatter"} hash:`);
   core.info(`  Source: ${workflowMdPath}`);
   core.info(`  Lock file: ${lockFilePath}`);
 
@@ -179,6 +182,34 @@ async function main() {
   // The activation job's "Checkout .github and .agents folders" step always runs before
   // this check and places the workflow source files in $GITHUB_WORKSPACE, so the local
   // files are always available at this point.
+
+  /**
+   * Compares the stored body hash in the lock file content against the body hash
+   * recomputed from the workflow source. Returns true if they match (or if the lock
+   * file predates body hash support), false if they differ.
+   * @param {string} lockFileContent - Content of the .lock.yml file
+   * @param {string} mdPath - Path to the .md file to compute the body hash from
+   * @param {Object} [options] - Options forwarded to computeBodyHash
+   * @param {Function} [options.fileReader] - Custom file reader (defaults to local filesystem)
+   * @param {string} [label] - Optional label appended to log lines for context (e.g. "local filesystem fallback")
+   * @returns {Promise<boolean>} true if match or no body hash present, false if mismatch
+   */
+  async function compareBodyHashes(lockFileContent, mdPath, { fileReader } = {}, label) {
+    const suffix = label ? ` (${label})` : "";
+    const storedBodyHash = extractBodyHashFromLockFile(lockFileContent);
+    if (!storedBodyHash) {
+      core.info(`No body hash found in lock file; skipping body hash check${suffix} (lock file may predate body hash support)`);
+      return true;
+    }
+    const recomputedBodyHash = await computeBodyHash(mdPath, { fileReader });
+    const match = storedBodyHash === recomputedBodyHash;
+    core.info(`Body hash comparison${suffix}:`);
+    core.info(`  Lock file body hash:    ${storedBodyHash}`);
+    core.info(`  Recomputed body hash:   ${recomputedBodyHash}`);
+    core.info(`  Status: ${match ? "✅ Body hashes match" : "⚠️  Body hashes differ"}`);
+    return match;
+  }
+
   async function compareFrontmatterHashesFromLocalFiles() {
     const workspace = process.env.GITHUB_WORKSPACE;
     if (!workspace) {
@@ -227,12 +258,17 @@ async function main() {
       // computeFrontmatterHash uses the local filesystem reader by default
       const recomputedHash = await computeFrontmatterHash(localMdFilePath);
 
-      const match = storedHash === recomputedHash;
+      let match = storedHash === recomputedHash;
 
       core.info(`Frontmatter hash comparison (local filesystem fallback):`);
       core.info(`  Lock file hash:    ${storedHash}`);
       core.info(`  Recomputed hash:   ${recomputedHash}`);
       core.info(`  Status: ${match ? "✅ Hashes match" : "⚠️  Hashes differ"}`);
+
+      // When full check mode is enabled, also compare body hashes.
+      if (match && fullCheckMode) {
+        match = await compareBodyHashes(localLockContent, localMdFilePath, undefined, "local filesystem fallback");
+      }
 
       return { match, storedHash, recomputedHash };
     } catch (error) {
@@ -280,13 +316,18 @@ async function main() {
       const fileReader = createGitHubFileReader(github, owner, repo, ref);
       const recomputedHash = await computeFrontmatterHash(workflowMdPath, { fileReader });
 
-      const match = storedHash === recomputedHash;
+      let match = storedHash === recomputedHash;
 
       // Log hash comparison
       core.info(`Frontmatter hash comparison:`);
       core.info(`  Lock file hash:    ${storedHash}`);
       core.info(`  Recomputed hash:   ${recomputedHash}`);
       core.info(`  Status: ${match ? "✅ Hashes match" : "⚠️  Hashes differ"}`);
+
+      // When full check mode is enabled, also compare body hashes.
+      if (match && fullCheckMode) {
+        match = await compareBodyHashes(lockFileContent, workflowMdPath, { fileReader });
+      }
 
       return { result: { match, storedHash, recomputedHash }, crossRepoAuthFailure: null };
     } catch (error) {
