@@ -1316,6 +1316,57 @@ index 0000000..abc1234
       }
     });
 
+    it("should use sanitized branch name (not agent-supplied message.branch) in bundle fetch refspec", async () => {
+      // The agent may supply a message.branch value; the bundle fetch must use the
+      // sanitized branchName from the GitHub API — never the raw agent input.
+      const bundlePath = path.join(tempDir, "sanitized-branch.bundle");
+      const patchPath = createPatchFile("small patch content");
+      fs.writeFileSync(bundlePath, "bundle content");
+
+      const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("bundle-tip");
+
+      try {
+        mockExec.getExecOutput.mockImplementation((cmd, args, options) => {
+          if (cmd === "git" && args[0] === "ls-remote") {
+            return Promise.resolve({ exitCode: 0, stdout: "remote-head\trefs/heads/feature-branch\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-parse" && args[1] === "HEAD") {
+            return Promise.resolve({ exitCode: 0, stdout: "remote-head\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ exitCode: 0, stdout: "false\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-list") {
+            return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
+          }
+          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+        });
+
+        const module = await loadModule();
+        const handler = await module.main({});
+        // message.branch contains shell metacharacters; branchName from the GitHub API is "feature-branch"
+        const result = await handler(
+          { branch: "feature-branch; rm -rf /", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 },
+          {},
+        );
+
+        expect(result.success).toBe(true);
+
+        // Bundle fetch must use the sanitized API branch name, not the agent-supplied message.branch
+        const bundleFetchCall = mockExec.getExecOutput.mock.calls.find(
+          ([, args, opts]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && opts && opts.ignoreReturnCode,
+        );
+        expect(bundleFetchCall).toBeDefined();
+        // Refspec must use the sanitized name "feature-branch", not "feature-branch; rm -rf /"
+        expect(bundleFetchCall[1][2]).toMatch(/^refs\/heads\/feature-branch:/);
+        expect(bundleFetchCall[1][2]).not.toContain(";");
+        expect(bundleFetchCall[1][2]).not.toContain("rm");
+      } finally {
+        pushSignedSpy.mockRestore();
+      }
+    });
+
     it("should fetch prerequisite commits and retry bundle fetch when bundle lacks prerequisites", async () => {
       const bundlePath = path.join(tempDir, "test.bundle");
       const patchPath = createPatchFile("small patch content");

@@ -674,7 +674,7 @@ async function main(config = {}) {
           // Use getExecOutput with ignoreReturnCode so we can read the actual stderr from git —
           // exec() only throws "The process '...' failed with exit code 1" which loses the
           // "lacks these prerequisite commits" text needed for the recovery path below.
-          const bundleFetchRef = `refs/heads/${message.branch}:${bundleRef}`;
+          const bundleFetchRef = `refs/heads/${branchName}:${bundleRef}`;
           const initialBundleFetch = await exec.getExecOutput("git", ["fetch", bundleFilePath, bundleFetchRef], { ...baseGitOpts, ignoreReturnCode: true });
           if (initialBundleFetch.exitCode !== 0) {
             const initialFetchErrorOutput = initialBundleFetch.stderr || `exit code ${initialBundleFetch.exitCode}`;
