@@ -159,6 +159,7 @@ func TestAntigravityEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, `--prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "Should include prompt argument with correct shell quoting")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
 		assert.Contains(t, stepContent, "ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}", "Should set ANTIGRAVITY_API_KEY env var")
+		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}", "Should map GEMINI_API_KEY to the Antigravity secret for proxy auth")
 	})
 
 	t.Run("with model", func(t *testing.T) {
@@ -227,6 +228,7 @@ func TestAntigravityEngineExecution(t *testing.T) {
 		stepContent := strings.Join(steps[1], "\n")
 
 		assert.Contains(t, stepContent, "ANTIGRAVITY_API_KEY:", "Should include ANTIGRAVITY_API_KEY")
+		assert.Contains(t, stepContent, "GEMINI_API_KEY:", "Should include GEMINI_API_KEY alias for proxy auth")
 		assert.Contains(t, stepContent, "GH_AW_PROMPT:", "Should include GH_AW_PROMPT")
 		assert.Contains(t, stepContent, "GITHUB_WORKSPACE:", "Should include GITHUB_WORKSPACE")
 		assert.Contains(t, stepContent, "DEBUG: antigravity-cli:*", "Should include DEBUG env var for verbose diagnostics")
@@ -279,6 +281,7 @@ func TestAntigravityEngineExecution(t *testing.T) {
 		// The user-provided value should override the default token expression
 		assert.Contains(t, stepContent, "ANTIGRAVITY_API_KEY: ${{ secrets.MY_ORG_ANTIGRAVITY_KEY }}", "engine.env should override the default ANTIGRAVITY_API_KEY expression")
 		assert.NotContains(t, stepContent, "ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}", "Default ANTIGRAVITY_API_KEY expression should be replaced by engine.env")
+		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.MY_ORG_ANTIGRAVITY_KEY }}", "GEMINI_API_KEY alias should track the effective Antigravity key expression")
 	})
 
 	t.Run("validates ANTIGRAVITY_API_KEY secret", func(t *testing.T) {
@@ -351,6 +354,7 @@ func TestAntigravityEngineFirewallIntegration(t *testing.T) {
 		// With config file support, domains and apiProxy are in the JSON config
 		assert.Contains(t, stepContent, "allowDomains", "Should include allowDomains in config JSON")
 		assert.Contains(t, stepContent, `"enabled":true`, "Should include apiProxy enabled in config JSON")
+		assert.Contains(t, stepContent, "--exclude-env GEMINI_API_KEY", "Should exclude GEMINI_API_KEY from sandbox env")
 		assert.Contains(t, stepContent, "ANTIGRAVITY_API_BASE_URL: http://host.docker.internal:10003", "Should set ANTIGRAVITY_API_BASE_URL to LLM gateway URL")
 	})
 

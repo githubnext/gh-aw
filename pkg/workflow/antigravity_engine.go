@@ -223,7 +223,7 @@ func (e *AntigravityEngine) GetExecutionSteps(workflowData *WorkflowData, logFil
 			PathSetup: "touch " + AgentStepSummaryPath,
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"ANTIGRAVITY_API_KEY"}),
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"ANTIGRAVITY_API_KEY", "GEMINI_API_KEY"}),
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
@@ -310,6 +310,12 @@ touch %s
 		maps.Copy(env, agentConfig.Env)
 		antigravityLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
+	// The Antigravity CLI and AWF's Gemini API proxy both rely on a Gemini provider key.
+	// Keep GEMINI_API_KEY aligned with the effective ANTIGRAVITY_API_KEY by default so the
+	// workflow can authenticate non-interactively without requiring users to duplicate secrets.
+	if _, hasGeminiKey := env["GEMINI_API_KEY"]; !hasGeminiKey {
+		env["GEMINI_API_KEY"] = env["ANTIGRAVITY_API_KEY"]
+	}
 
 	// Generate the execution step
 	stepLines := []string{
@@ -318,7 +324,7 @@ touch %s
 	}
 
 	// Filter environment variables for security
-	allowedSecrets := e.GetRequiredSecretNames(workflowData)
+	allowedSecrets := append(e.GetRequiredSecretNames(workflowData), "GEMINI_API_KEY")
 	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
 
 	// Inject GH_TOKEN for CLI proxy (added after filtering since it uses a special
