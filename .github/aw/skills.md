@@ -24,7 +24,7 @@ List available skills and their locations before deciding which strategy to appl
 
 **Use when**: You want to keep the main prompt compact while still shipping task-specific skill guidance with the workflow.
 
-Inline skills let a workflow embed a complete skill or a partial skill fragment under `## skill: \`name\``. Extraction happens in the setup/interpolation runtime step of workflow execution (not at `.md` → `.lock.yml` compile time): gh-aw writes each block into engine-specific skill locations and removes those blocks from the main prompt body. This keeps the main prompt slim and flexible while still making the fused guidance available as skills.
+Inline skills let a workflow embed a complete skill or a partial skill fragment under `## skill: \`name\``. Extraction happens in the setup/interpolation runtime step of workflow execution, not at `.md` → `.lock.yml` compile time. gh-aw writes each block into engine-specific skill locations and removes those blocks from the main prompt body. This keeps the main prompt slim and flexible while still making the fused guidance available as skills.
 
 Use this to fuse:
 
@@ -49,7 +49,7 @@ Classify by bug / feature / question, identify missing information, and suggest
 the smallest actionable next step.
 ```
 
-Use a unique inline skill name per workflow file. The name can be arbitrary as long as it follows inline marker rules (lowercase start, then lowercase letters, digits, `_`, or `-`).
+Use a unique inline skill name per workflow file. The name can be arbitrary, but it must start with a lowercase letter and then use only lowercase letters, digits, `_`, or `-`.
 
 ---
 
