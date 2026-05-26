@@ -159,7 +159,18 @@ function getFooterInstallMessage(ctx) {
   const defaultInstallTemplatePath = getPromptPath("workflow_install_note.md");
 
   // Use custom installation message if configured
-  return messages?.footerInstall ? renderTemplate(messages.footerInstall, templateContext) : renderTemplateFromFile(defaultInstallTemplatePath, templateContext);
+  if (messages?.footerInstall) {
+    return renderTemplate(messages.footerInstall, templateContext);
+  }
+
+  try {
+    return renderTemplateFromFile(defaultInstallTemplatePath, templateContext);
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+      return "";
+    }
+    throw error;
+  }
 }
 
 /**

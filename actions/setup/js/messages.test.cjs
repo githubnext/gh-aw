@@ -10,6 +10,8 @@
  * - Run status messages (started, success, failure)
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import fs from "fs";
+import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -502,6 +504,20 @@ describe("messages.cjs", () => {
       });
 
       expect(result).toBe("> Install: `gh aw add owner/repo/workflow.md@main`");
+    });
+
+    it("should gracefully skip install message when default template file is missing", async () => {
+      process.env.GH_AW_PROMPTS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-missing-prompts-"));
+      const { getFooterInstallMessage } = await import("./messages.cjs");
+
+      const result = getFooterInstallMessage({
+        workflowName: "Test",
+        runUrl: "https://example.com",
+        workflowSource: "owner/repo/workflow.md@main",
+        workflowSourceUrl: "https://github.com/owner/repo",
+      });
+
+      expect(result).toBe("");
     });
   });
 
