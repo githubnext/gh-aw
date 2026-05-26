@@ -16,3 +16,13 @@ func BadUnsetenv() {
 func OkGetenv() string {
 	return os.Getenv("KEY")
 }
+
+type fakeOS struct{}
+
+func (fakeOS) Setenv(_, _ string) error { return nil }
+
+// LocalVarNamedOS should not be flagged just because the variable is named os.
+func LocalVarNamedOS() {
+	os := fakeOS{}
+	os.Setenv("KEY", "val")
+}

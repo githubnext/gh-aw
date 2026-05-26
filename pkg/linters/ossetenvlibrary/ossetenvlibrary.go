@@ -4,6 +4,8 @@ package ossetenvlibrary
 
 import (
 	"go/ast"
+	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -22,7 +24,8 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	if pass.Pkg.Name() == "main" {
+	pkgPath := pass.Pkg.Path()
+	if pass.Pkg.Name() == "main" || strings.HasSuffix(pkgPath, "/main") || strings.Contains(pkgPath, "/cmd/") {
 		return nil, nil
 	}
 
@@ -35,22 +38,15 @@ func run(pass *analysis.Pass) (any, error) {
 	insp.Preorder(nodeFilter, func(n ast.Node) {
 		call := n.(*ast.CallExpr)
 
-		if filecheck.IsTestFile(pass.Fset.PositionFor(call.Pos(), false).Filename) {
+		if strings.HasSuffix(pkgPath, ".test") || filecheck.IsTestFile(pass.Fset.PositionFor(call.Pos(), false).Filename) {
 			return
 		}
 
-		sel, ok := call.Fun.(*ast.SelectorExpr)
+		fn, ok := calledOSFunc(pass, call)
 		if !ok {
 			return
 		}
-		ident, ok := sel.X.(*ast.Ident)
-		if !ok {
-			return
-		}
-		if ident.Name != "os" {
-			return
-		}
-		switch sel.Sel.Name {
+		switch fn.Name() {
 		case "Setenv":
 			pass.ReportRangef(call, "os.Setenv mutates the process environment; pass configuration explicitly instead")
 		case "Unsetenv":
@@ -59,4 +55,25 @@ func run(pass *analysis.Pass) (any, error) {
 	})
 
 	return nil, nil
+}
+
+func calledOSFunc(pass *analysis.Pass, call *ast.CallExpr) (*types.Func, bool) {
+	var obj types.Object
+	switch fun := call.Fun.(type) {
+	case *ast.SelectorExpr:
+		obj = pass.TypesInfo.Uses[fun.Sel]
+	case *ast.Ident:
+		obj = pass.TypesInfo.Uses[fun]
+	default:
+		return nil, false
+	}
+
+	fn, ok := obj.(*types.Func)
+	if !ok || fn.Pkg() == nil || fn.Pkg().Path() != "os" {
+		return nil, false
+	}
+	if fn.Name() != "Setenv" && fn.Name() != "Unsetenv" {
+		return nil, false
+	}
+	return fn, true
 }
