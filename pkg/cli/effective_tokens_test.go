@@ -150,6 +150,17 @@ func TestModelMultipliersInventoryUpdate20260525(t *testing.T) {
 	assert.InDelta(t, 0.0, loadedMultipliers["gpt-3.5-turbo-0613"], 1e-9, "gpt-3.5-turbo-0613 should be present with zero multiplier")
 }
 
+func TestModelMultipliersInventoryUpdate20260526(t *testing.T) {
+	loadedMultipliers = nil
+	initMultipliers()
+
+	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
+	assert.InDelta(t, 1.0, loadedMultipliers["gpt-4.1-mini-2025-04-14"], 1e-9, "gpt-4.1-mini-2025-04-14 should match gpt-4.1-mini multiplier")
+	assert.InDelta(t, 1.0, loadedMultipliers["gpt-4.1-nano-2025-04-14"], 1e-9, "gpt-4.1-nano-2025-04-14 should match gpt-4.1-nano multiplier")
+	assert.InDelta(t, 0.2, loadedMultipliers["antigravity-preview-05-2026"], 1e-9, "antigravity-preview-05-2026 should use flash-tier multiplier")
+	assert.InDelta(t, 6.0, loadedMultipliers["nano-banana-pro-preview"], 1e-9, "nano-banana-pro-preview should match gemini-3-pro-image-preview tier")
+}
+
 func TestPopulateEffectiveTokensWithCustomWeights(t *testing.T) {
 	loadedMultipliers = nil
 
