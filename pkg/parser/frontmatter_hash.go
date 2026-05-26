@@ -532,8 +532,7 @@ func ComputeBodyHashFromParsedContent(markdownBody, frontmatterText, baseDir str
 		return "", fmt.Errorf("failed to process imports for body hash: %w", err)
 	}
 
-	canonical := make(map[string]any)
-	canonical["body-text"] = normalizedBody
+	allParts := []string{normalizedBody}
 
 	if len(importedBodies) > 0 {
 		normalizedBodies := make([]string, len(importedBodies))
@@ -541,13 +540,13 @@ func ComputeBodyHashFromParsedContent(markdownBody, frontmatterText, baseDir str
 			normalizedBodies[i] = normalizeFrontmatterText(b)
 		}
 		sort.Strings(normalizedBodies)
-		canonical["imported-bodies"] = strings.Join(normalizedBodies, "\n---\n")
+		allParts = append(allParts, normalizedBodies...)
 	}
 
-	canonicalJSON := marshalSorted(canonical)
-	frontmatterHashLog.Printf("Body hash canonical JSON length: %d bytes", len(canonicalJSON))
+	combined := strings.Join(allParts, "\n---\n")
+	frontmatterHashLog.Printf("Body hash combined length: %d bytes", len(combined))
 
-	hash := sha256.Sum256([]byte(canonicalJSON))
+	hash := sha256.Sum256([]byte(combined))
 	hashHex := hex.EncodeToString(hash[:])
 	frontmatterHashLog.Printf("Computed body hash: %s", hashHex)
 	return hashHex, nil

@@ -411,16 +411,15 @@ async function computeBodyHash(workflowPath, options = {}) {
 
   const importedBodies = await collectImportedBodies(frontmatterText, baseDir, undefined, fileReader);
 
-  const canonical = {};
-  canonical["body-text"] = normalizeFrontmatterText(markdown);
+  const allParts = [normalizeFrontmatterText(markdown)];
 
   if (importedBodies.length > 0) {
     const sortedBodies = importedBodies.map(b => normalizeFrontmatterText(b)).sort();
-    canonical["imported-bodies"] = sortedBodies.join("\n---\n");
+    allParts.push(...sortedBodies);
   }
 
-  const canonicalJSON = marshalCanonicalJSON(canonical);
-  const hash = crypto.createHash("sha256").update(canonicalJSON, "utf8").digest("hex");
+  const combined = allParts.join("\n---\n");
+  const hash = crypto.createHash("sha256").update(combined, "utf8").digest("hex");
   return hash;
 }
 

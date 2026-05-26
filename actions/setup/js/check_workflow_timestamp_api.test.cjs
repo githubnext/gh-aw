@@ -1455,10 +1455,10 @@ engine: copilot
     // Pre-computed hash values for test content:
     // MD content: "---\nengine: copilot\n---\n# Test Workflow"
     // frontmatter hash for "engine: copilot": c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3
-    // body hash for "# Test Workflow": 4eefe9c7477b89385c178fefbb4f693914c627677c512b01cb92e271a94f5734
+    // body hash for "# Test Workflow": SHA-256 of normalized body text (single opaque string)
     const copilotFrontmatterHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
-    const testWorkflowBodyHash = "4eefe9c7477b89385c178fefbb4f693914c627677c512b01cb92e271a94f5734";
-    const differentBodyHash = "fafc3d8768903da9546b6b5049ef9f08bf7c394be1a8924bf5e897eb54ce8392";
+    const testWorkflowBodyHash = "e03b2c4b02859c4998bba6f73a568dcc2d10a948de44959c8e0f89e3038adea9";
+    const differentBodyHash = "794cb937d6acca63bce48910fce81475e29ba05b3928a457f16a9ec73c40a6eb";
     const mdFileContent = "---\nengine: copilot\n---\n# Test Workflow";
     const differentBodyMdFileContent = "---\nengine: copilot\n---\n# Different Body";
 
