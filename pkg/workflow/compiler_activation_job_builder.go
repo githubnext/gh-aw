@@ -520,7 +520,9 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 			engineID = ctx.data.EngineConfig.ID
 		}
 		subAgentDir := parser.GetEngineSubAgentDir(engineID)
+		skillDir := parser.GetEngineSkillDir(engineID)
 		ctx.steps = append(ctx.steps, fmt.Sprintf("            /tmp/gh-aw/%s\n", subAgentDir))
+		ctx.steps = append(ctx.steps, fmt.Sprintf("            /tmp/gh-aw/%s\n", skillDir))
 	}
 	ctx.steps = append(ctx.steps, "          if-no-files-found: ignore\n")
 	ctx.steps = append(ctx.steps, "          retention-days: 1\n")
