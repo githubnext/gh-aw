@@ -14,7 +14,7 @@ Compiled `.lock.yml` files previously embedded a `frontmatter_hash` in their `gh
 
 ### Decision
 
-We will add a `body_hash` field to lock metadata under a new schema version `v4`, covering the SHA-256 of a canonical JSON envelope `{"body-text": <normalized body>, "imported-bodies": <sorted+joined import bodies>}`, and introduce a workflow-level `stale-check: full` frontmatter option that injects `GH_AW_STALE_CHECK_FULL=true` into the activation step to enable runtime body-hash verification on both the GitHub API and local filesystem fallback paths. The body hash is computed alongside the existing frontmatter hash at compile time via a shared `computeWorkflowHash` closure; failure to compute the body hash is non-fatal (we record the frontmatter hash and continue). Pre-v4 lock files without `body_hash` remain valid because the field is `omitempty` and the runtime comparator skips body comparison when the lock metadata does not carry one. The lock schema version is bumped to `v4` and `GenerateLockMetadata` now takes a `LockHashInfo` struct instead of positional hash parameters.
+We will add a `body_hash` field to lock metadata under a new schema version `v4`, covering the SHA-256 of the normalized body texts (main body and all transitively imported bodies, sorted and joined with `\n---\n` delimiter) as a single opaque hash string, and introduce a workflow-level `on.stale-check: full` frontmatter option that injects `GH_AW_STALE_CHECK_FULL=true` into the activation step to enable runtime body-hash verification on both the GitHub API and local filesystem fallback paths. The body hash is computed alongside the existing frontmatter hash at compile time via a shared `computeWorkflowHash` closure; failure to compute the body hash is non-fatal (we record the frontmatter hash and continue). Pre-v4 lock files without `body_hash` remain valid because the field is `omitempty` and the runtime comparator skips body comparison when the lock metadata does not carry one. The lock schema version is bumped to `v4` and `GenerateLockMetadata` now takes a `LockHashInfo` struct instead of positional hash parameters.
 
 ### Alternatives Considered
 
@@ -34,7 +34,7 @@ We could have stopped at recording the body hash in metadata, relying on develop
 
 #### Positive
 - Body-only edits to a workflow or any of its imported files now produce a different lock file (body hash changes), so the compiler's skip-write optimization correctly triggers a rewrite. The new `TestCompilerWritesWhenBodyContentChanged` test pins this behavior.
-- Workflows can opt into full drift detection at runtime by adding `stale-check: full` to their frontmatter, fail-closing if the lock body hash diverges from the live source's body hash on either the GitHub API path or the local filesystem fallback path.
+- Workflows can opt into full drift detection at runtime by adding `on.stale-check: full` to their frontmatter (under the `on:` section), fail-closing if the lock body hash diverges from the live source's body hash on either the GitHub API path or the local filesystem fallback path.
 - Backwards compatible: pre-v4 lock files without `body_hash` continue to validate (the field is `omitempty` on the Go side; the JS runtime gracefully skips body comparison when the field is absent).
 - The lock metadata schema is now explicitly versioned at `v4`, giving us a clean discriminator for future metadata extensions.
 
@@ -46,9 +46,9 @@ We could have stopped at recording the body hash in metadata, relying on develop
 
 #### Neutral
 - The body-hash failure mode at compile time is non-fatal: if body-hash computation fails (e.g., a transient I/O error on an imported file), the compile continues with only the frontmatter hash recorded. This is a deliberate "best-effort" choice; downstream code must tolerate a v4 lock with no `body_hash`.
-- The `body_hash` field uses a canonical JSON envelope (`{body-text, imported-bodies}`) rather than concatenating raw bodies, so future additions (e.g., a third source) can extend the envelope without changing existing hashes' meaning. Authors and reviewers should treat the envelope structure as part of the API.
+- The `body_hash` is a single opaque SHA-256 hex string computed by concatenating the normalized body text and all normalized imported body texts (sorted, joined with `\n---\n`) and hashing the result directly — no JSON envelope wrapper.
 - The `computeWorkflowHash` closure deduplicates the parsed-content-first-with-file-fallback pattern shared between frontmatter and body hashing; future hash computations (if added) should reuse this helper rather than reimplementing the fallback.
-- Imported file bodies are sorted before being joined into the `imported-bodies` field, so the body hash is independent of the order in which imports were resolved.
+- Imported file bodies are sorted before being joined, so the body hash is independent of the order in which imports were resolved.
 
 ---
 
@@ -60,7 +60,7 @@ We could have stopped at recording the body hash in metadata, relying on develop
 
 1. The lock metadata header **MUST** declare `schema_version: "v4"` when a `body_hash` field is present.
 2. When the compiler successfully computes a body hash, it **MUST** include the `body_hash` field in the lock metadata.
-3. The `body_hash` field, when present, **MUST** be the lowercase hex SHA-256 of a canonical JSON envelope with exactly the keys `body-text` (the normalized main body text) and `imported-bodies` (the sorted-and-joined bodies of all transitively imported files).
+3. The `body_hash` field, when present, **MUST** be the lowercase hex SHA-256 of the concatenation of the normalized main body text and the normalized bodies of all transitively imported files (sorted, joined with `\n---\n` delimiter), treated as a single opaque string.
 4. The lock metadata header **MUST** retain the existing `frontmatter_hash` field independently of `body_hash`.
 5. Consumers of lock metadata **MUST** treat the absence of `body_hash` as a valid pre-v4 lock and **MUST NOT** fail validation solely because the field is missing.
 6. The compiler **MUST NOT** abort lock generation if body-hash computation fails; it **MUST** instead omit `body_hash` and continue with the frontmatter hash alone.
@@ -68,20 +68,20 @@ We could have stopped at recording the body hash in metadata, relying on develop
 ### Compile-Time Body Hash Computation
 
 1. The compiler **MUST** include the bodies of all transitively imported files when computing the body hash.
-2. Imported file bodies **MUST** be sorted before being joined into the `imported-bodies` field, so that ordering of imports does not affect the hash.
+2. Imported file bodies **MUST** be sorted before being joined, so that ordering of imports does not affect the hash.
 3. Body-hash computation **SHOULD** prefer already-parsed in-memory content over re-reading from disk when both are available; the shared `computeWorkflowHash` helper **MUST** implement the parsed-content-first, file-fallback pattern.
 4. The internal `GenerateLockMetadata` function **MUST** accept hash inputs as a `LockHashInfo` struct rather than as positional parameters.
 
 ### `stale-check` Frontmatter
 
-1. The `stale-check` frontmatter field **MUST** accept the values `true`, `false`, and the literal string `"full"` (per `main_workflow_schema.json`).
-2. When `stale-check: full` is set on a workflow, the compiler **MUST** set the internal `StaleCheckFull` flag and **MUST** inject `GH_AW_STALE_CHECK_FULL=true` into the environment of the activation job's "Check workflow lock file" step.
-3. The compiler **MUST NOT** inject `GH_AW_STALE_CHECK_FULL` when `stale-check` is unset, `false`, or `true` (the boolean form continues to behave as before).
+1. The `on.stale-check` frontmatter field (nested under the `on:` section) **MUST** accept the values `true`, `false`, and the literal string `"full"` (per `main_workflow_schema.json`).
+2. When `on.stale-check: full` is set on a workflow, the compiler **MUST** set the internal `StaleCheckFull` flag and **MUST** inject `GH_AW_STALE_CHECK_FULL=true` into the environment of the activation job's "Check workflow lock file" step.
+3. The compiler **MUST NOT** inject `GH_AW_STALE_CHECK_FULL` when `on.stale-check` is unset, `false`, or `true` (the boolean form continues to behave as before).
 
 ### Runtime Body Hash Verification
 
 1. When `GH_AW_STALE_CHECK_FULL=true`, the runtime checker **MUST** verify the body hash in addition to the existing frontmatter hash, on both the GitHub API path and the local filesystem fallback path.
-2. The runtime **MUST** compute the live body hash using the same canonical-JSON envelope and sorting rules used at compile time, so that compile-time and runtime hashes are byte-identical for matching content.
+2. The runtime **MUST** compute the live body hash using the same concatenation and sorting rules used at compile time, so that compile-time and runtime hashes are byte-identical for matching content.
 3. The runtime **MUST** perform body hash verification only after the frontmatter hash check passes; it **MUST NOT** report a body-hash mismatch when the frontmatter hash already mismatches.
 4. The runtime **MUST** gracefully skip body comparison when the lock file is pre-v4 or otherwise does not contain a `body_hash` field, even if `GH_AW_STALE_CHECK_FULL=true`.
 5. The runtime body-hash comparison helper **MUST** receive its file-reading dependency by destructured injection (e.g. `{ fileReader }`) rather than by global reference, so the comparator remains testable in isolation.
