@@ -103,4 +103,13 @@ func TestFrontmatterResultFieldLines(t *testing.T) {
 		// FieldLines is nil when there is no frontmatter
 		assert.Nil(t, result.FieldLines, "FieldLines should be nil when there is no frontmatter")
 	})
+
+	t.Run("preserves blank frontmatter lines while tracking top level fields", func(t *testing.T) {
+		content := "---\nengine: copilot\n\n# comment\non: push\n---\n# Workflow\n"
+		result, err := ExtractFrontmatterFromContent(content)
+		require.NoError(t, err, "Should parse frontmatter without error")
+
+		assert.Equal(t, []string{"engine: copilot", "", "# comment", "on: push"}, result.FrontmatterLines)
+		assert.Equal(t, map[string]int{"engine": 2, "on": 5}, result.FieldLines)
+	})
 }
