@@ -61,7 +61,7 @@ Run the `deadcode` static analyzer, select a batch of up to 5 unreachable functi
 - Build/test output: pipe through `tail -20` to capture only the relevant tail; do not print full output.
 - PR body: use only the provided template structure — no extra analysis paragraphs.
 - Cache append: write lines directly; do not re-read the full cache file before appending.
-- **Turn circuit breaker**: after Phase 5, if turn count is already >35, skip `go test` in Phase 6 (run only `go build ./... && go vet ./...`) and proceed to Phase 7.
+- **Turn circuit breaker**: after Phase 5, if turn count is already >35 (leaves headroom for outcome + PR/cache steps), skip `go test` in Phase 6 (run only `go build ./... && go vet ./...`) and proceed to Phase 7.
 
 ## Context
 
@@ -74,7 +74,7 @@ task: |
   Run: deadcode ./cmd/... ./internal/tools/...
   Read: /tmp/gh-aw/cache-memory/dead-code-processed.jsonl (if present)
   Exclude functions whose "file:FuncName" key appears in the cache.
-  Always skip: containsInNonCommentLines, indexInNonCommentLines, extractJobSection
+  Always skip: containsInNonCommentLines, indexInNonCommentLines, extractJobSection (shared test infrastructure helpers)
   Output: JSON array of up to 5 unprocessed candidates:
   [{"function":"Name","file":"pkg/...","reason":"no callers"}]
   If 0 candidates remain, output: {"skip":true}
@@ -82,6 +82,8 @@ task: |
 **Critical**: Always include `./internal/tools/...` — it covers separate binaries called by the Makefile (e.g. `make actions-build`). Running `./cmd/...` alone gives false positives.
 
 Ignore any "cannot load package" warnings for WASM-gated files (`//go:build js && wasm`) — those are expected build-constraint noise.
+
+Use the standard gh-aw `## agent:` block semantics for this sub-agent section.
 
 ## Phase 3: Select a Batch
 
@@ -118,7 +120,7 @@ if [[ "$file" == pkg/console/* ]]; then
 fi
 
 echo "=== Constant/embed check ==="
-grep -n "//go:embed\\|^\\s*const " "$file" || true
+grep -n "//go:embed\\|^[[:space:]]*const " "$file" || true
 ```
 
 - Caller matches **only in `*_test.go` files** → proceed with deletion and mark exclusive tests for removal.
@@ -153,6 +155,8 @@ make fmt && \
 go test ./pkg/... 2>&1 | tail -20
 echo "Exit: $?"
 ```
+
+The `&&` chain intentionally short-circuits on first failure.
 
 If turn count is already >35 after Phase 5, use the circuit-breaker verification instead:
 
