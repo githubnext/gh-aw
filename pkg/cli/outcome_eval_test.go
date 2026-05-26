@@ -239,7 +239,7 @@ func TestEvalGenericStickyTargetExistsOnlyFallback(t *testing.T) {
 	assert.Equal(t, "target_exists_only", report.Signal)
 }
 
-func TestComputeOutcomeSummaryDoesNotCountExistsOnlyFallbackAsAccepted(t *testing.T) {
+func TestOutcomeSummaryExcludesExistsOnlyFromAccepted(t *testing.T) {
 	reports := []OutcomeReport{
 		{
 			Type:   "add_labels",

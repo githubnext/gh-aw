@@ -136,6 +136,8 @@ async function main() {
   for (const eval_ of evaluations) {
     const type = typeof eval_.type === "string" ? eval_.type : "";
     const result = typeof eval_.result === "string" ? eval_.result : "unknown";
+    // Fall back to the legacy result field so older JSONL artifacts still render
+    // useful spans while newer artifacts carry explicit normalized fields.
     const outcomeStatus = typeof eval_.outcome_status === "string" ? eval_.outcome_status : result;
     const evidenceStrength = typeof eval_.evidence_strength === "string" ? eval_.evidence_strength : "weak";
     const signal = typeof eval_.signal === "string" ? eval_.signal : "";

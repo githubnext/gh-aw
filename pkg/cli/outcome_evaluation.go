@@ -31,7 +31,7 @@ type OutcomeEvaluation struct {
 }
 
 func normalizeOutcomeEvaluation(report OutcomeReport) OutcomeEvaluation {
-	if report.OutcomeStatus != "" {
+	if report.OutcomeStatus != "" && report.EvidenceStrength != "" {
 		return report.OutcomeEvaluation
 	}
 

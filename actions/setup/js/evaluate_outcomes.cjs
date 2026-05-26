@@ -187,7 +187,7 @@ function normalizeOutcome(result, detail) {
   if (result === "noop") {
     return { outcome_status: "skipped", evidence_strength: "weak", signal: "noop" };
   }
-  if (normalizedDetail === "object exists") {
+  if (normalizedDetail === "object still exists") {
     return { outcome_status: "unknown", evidence_strength: "weak", signal: "target_exists_only" };
   }
   if (result === "accepted" && normalizedDetail === "merged") {
@@ -341,7 +341,7 @@ function evaluateItem(item, defaultRepo) {
   out.outcome_status = "unknown";
   out.evidence_strength = "weak";
   out.signal = "target_exists_only";
-  out.detail = "object exists";
+  out.detail = "object still exists";
   return out;
 }
 
@@ -616,4 +616,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { main, evaluateItem, readJSONL, secondsBetween, isoToEpoch };
+module.exports = { main, evaluateItem, normalizeOutcome, readJSONL, secondsBetween, isoToEpoch };
