@@ -198,29 +198,24 @@ describe("extractFromStreamJson", () => {
     const line =
       '2026-05-26T03:17:17.7671911Z TRACE codex_api::sse::responses: SSE event: {"type":"response.output_text.done","text":"{\\"prompt_injection\\":true,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[\\"prompt injection detected\\"]}"}';
     const result = extractFromStreamJson(line);
-    expect(result).toBe(
-      'THREAT_DETECTION_RESULT:{"prompt_injection":true,"secret_leak":false,"malicious_patch":false,"reasons":["prompt injection detected"]}',
-    );
+    expect(result).toBe('THREAT_DETECTION_RESULT:{"prompt_injection":true,"secret_leak":false,"malicious_patch":false,"reasons":["prompt injection detected"]}');
   });
 
   it("should still prefer prefixed format over structured output in response.output_text.done", () => {
     // If both THREAT_DETECTION_RESULT: prefix and valid JSON fields coexist, prefixed wins
-    const line =
-      '{"type":"response.output_text.done","text":"THREAT_DETECTION_RESULT:{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[]}"}';
+    const line = '{"type":"response.output_text.done","text":"THREAT_DETECTION_RESULT:{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[]}"}';
     const result = extractFromStreamJson(line);
     expect(result).toBe('THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}');
   });
 
   it("should extract structured output from item.completed when no prefix present", () => {
-    const line =
-      '{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"{\\"prompt_injection\\":false,\\"secret_leak\\":true,\\"malicious_patch\\":false,\\"reasons\\":[\\"secret found\\"]}"}}';
+    const line = '{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"{\\"prompt_injection\\":false,\\"secret_leak\\":true,\\"malicious_patch\\":false,\\"reasons\\":[\\"secret found\\"]}"}}';
     const result = extractFromStreamJson(line);
     expect(result).toBe('THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":true,"malicious_patch":false,"reasons":["secret found"]}');
   });
 
   it("should extract structured output from response.content_part.done when no prefix present", () => {
-    const line =
-      '{"type":"response.content_part.done","part":{"type":"output_text","text":"{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":true,\\"reasons\\":[\\"malicious dependency\\"]}"}}';
+    const line = '{"type":"response.content_part.done","part":{"type":"output_text","text":"{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":true,\\"reasons\\":[\\"malicious dependency\\"]}"}}';
     const result = extractFromStreamJson(line);
     expect(result).toBe('THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":true,"reasons":["malicious dependency"]}');
   });
@@ -271,8 +266,7 @@ describe("extractStructuredOutput", () => {
 
   it("should round-trip through parseDetectionLog", () => {
     // A full structured-output log line as emitted by Codex with response_schema
-    const logLine =
-      '2026-05-26T12:00:00Z TRACE codex_api::sse: {"type":"response.output_text.done","text":"{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[]}"}';
+    const logLine = '2026-05-26T12:00:00Z TRACE codex_api::sse: {"type":"response.output_text.done","text":"{\\"prompt_injection\\":false,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[]}"}';
     const { verdict, error } = parseDetectionLog(logLine);
     expect(error).toBeUndefined();
     expect(verdict).toEqual({
@@ -284,8 +278,7 @@ describe("extractStructuredOutput", () => {
   });
 
   it("should round-trip a threat detection through parseDetectionLog", () => {
-    const logLine =
-      '{"type":"response.output_text.done","text":"{\\"prompt_injection\\":true,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[\\"injected payload\\"]}"}';
+    const logLine = '{"type":"response.output_text.done","text":"{\\"prompt_injection\\":true,\\"secret_leak\\":false,\\"malicious_patch\\":false,\\"reasons\\":[\\"injected payload\\"]}"}';
     const { verdict, error } = parseDetectionLog(logLine);
     expect(error).toBeUndefined();
     expect(verdict).toEqual({
@@ -296,7 +289,6 @@ describe("extractStructuredOutput", () => {
     });
   });
 });
-
 
 describe("parseDetectionLog", () => {
   describe("valid results", () => {
