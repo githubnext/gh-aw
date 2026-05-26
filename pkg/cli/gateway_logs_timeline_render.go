@@ -31,28 +31,30 @@ import (
 )
 
 // timelineEventIcon returns a single Unicode icon for each event kind.
+// All icons are cross-compatible Unicode symbols that render correctly in all modern terminals.
+// Reasoning uses ◐ (half-filled circle) to match the step summary convention for thinking content.
 func timelineEventIcon(kind TimelineEventKind) string {
 	switch kind {
 	case TimelineKindToolCall:
-		return "🔧"
+		return "⚙"
 	case TimelineKindDIFCFiltered:
-		return "🚫"
+		return "⊖"
 	case TimelineKindGuardPolicyBlocked:
-		return "🛡"
+		return "⊗"
 	case TimelineKindNetworkAllowed:
 		return "✓"
 	case TimelineKindNetworkBlocked:
 		return "✗"
 	case TimelineKindAgentTurn:
-		return "💬"
+		return "○"
 	case TimelineKindAgentToolStart:
 		return "▶"
 	case TimelineKindAgentToolDone:
 		return "■"
 	case TimelineKindAssistantMessage:
-		return "🤖"
+		return "●"
 	case TimelineKindReasoning:
-		return "💭"
+		return "◐"
 	default:
 		return "·"
 	}
