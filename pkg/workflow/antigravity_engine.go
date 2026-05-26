@@ -164,20 +164,9 @@ func (e *AntigravityEngine) GetExecutionSteps(workflowData *WorkflowData, logFil
 	// The conversion script (convert_gateway_config_antigravity.sh) writes settings.json
 	// during the MCP setup step, so no --mcp-config flag is needed here.
 
-	// Auto-approve all tool executions (equivalent to Codex's --dangerously-bypass-approvals-and-sandbox)
-	// Without this, Antigravity CLI's default approval mode rejects tool calls with "Tool execution denied by policy"
-	agyArgs = append(agyArgs, "--yolo")
-
-	// Skip the workspace trust check so --yolo is not overridden to "default" approval mode.
-	// Antigravity CLI v1.x checks whether the working directory is trusted and overrides --yolo
-	// with "default" approval mode (exit code 55) when the folder is untrusted.
-	// ANTIGRAVITY_CLI_TRUST_WORKSPACE=true (also set in the step env) handles the same case via
-	// environment variable, but --skip-trust is more reliable when AWF's sandbox does not
-	// forward all host environment variables into the container.
-	agyArgs = append(agyArgs, "--skip-trust")
-
-	// Add streaming JSON output (JSONL format, compatible with the log parser)
-	agyArgs = append(agyArgs, "--output-format", "stream-json")
+	// Auto-approve all tool executions.
+	// agy does not support the Gemini-style --yolo/--skip-trust flags.
+	agyArgs = append(agyArgs, "--dangerously-skip-permissions")
 
 	// Note: the --prompt argument is appended raw after shellJoinArgs below because it contains
 	// a shell command substitution ("$(cat ...)") that must NOT go through shellEscapeArg —
