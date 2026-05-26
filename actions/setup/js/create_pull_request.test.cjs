@@ -2399,7 +2399,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
   it("should fall back to base branch when base_commit is unavailable", async () => {
     global.exec = {
       exec: vi.fn().mockImplementation(async (cmd, args) => {
-        if (cmd === "git" && Array.isArray(args) && args[0] === "cat-file") {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "cat-file" && args[1] === "-e" && args[2] === MOCK_BASE_COMMIT_SHA) {
           throw new Error("not in object store");
         }
         return 0;
@@ -2412,6 +2412,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "test-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
 
     expect(result.success).toBe(true);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["cat-file", "-e", MOCK_BASE_COMMIT_SHA]);
     const checkoutWithBaseBranch = global.exec.exec.mock.calls.find(([cmd, args]) => cmd === "git" && Array.isArray(args) && args[0] === "checkout" && args[1] === "-b" && args[3] === "main");
     expect(checkoutWithBaseBranch).toBeTruthy();
   });

@@ -730,7 +730,7 @@ index 0000000..abc1234
       const recordedBaseCommit = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
       mockExec.exec.mockImplementation(async (cmd, args) => {
-        if (cmd === "git" && Array.isArray(args) && args[0] === "cat-file" && args[2] === recordedBaseCommit) {
+        if (cmd === "git" && Array.isArray(args) && args[0] === "cat-file" && args[1] === "-e" && args[2] === recordedBaseCommit) {
           throw new Error("not in object store");
         }
         return 0;
