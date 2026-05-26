@@ -311,6 +311,50 @@ func TestRenderCrossRunReportMarkdown(t *testing.T) {
 	assert.Contains(t, output, "api.github.com:443", "Should contain the domain")
 }
 
+func TestRenderMarkdownMetricsTrend_IncludesTurnsWithoutTokens(t *testing.T) {
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	renderMarkdownMetricsTrend(MetricsTrendData{
+		TotalTurns: 9,
+		AvgTurns:   4.5,
+		MaxTurns:   6,
+	})
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	output := buf.String()
+
+	assert.Contains(t, output, "## Metrics Trends", "Should render metrics section when turn metrics exist")
+	assert.Contains(t, output, "| Turns | 9 | 4.5 | — | 6 | — |", "Should render turns row without tokens")
+}
+
+func TestRenderPrettyMetricsTrend_IncludesDurationWithoutTokens(t *testing.T) {
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	renderPrettyMetricsTrend(MetricsTrendData{
+		AvgDurationNs: 2_000_000_000,
+		MinDurationNs: 1_000_000_000,
+		MaxDurationNs: 3_000_000_000,
+	})
+
+	w.Close()
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	output := buf.String()
+
+	assert.Contains(t, output, "Metrics Trends", "Should render metrics section when duration metrics exist")
+	assert.Contains(t, output, "Duration:", "Should render duration row without tokens")
+}
+
 func TestNewLogsCommand_HasFormatFlag(t *testing.T) {
 	cmd := NewLogsCommand()
 

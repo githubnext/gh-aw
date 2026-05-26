@@ -55,7 +55,7 @@ func renderMarkdownExecutiveSummary(report *CrossRunAuditReport) {
 }
 
 func renderMarkdownMetricsTrend(mt MetricsTrendData) {
-	if mt.TotalTokens == 0 {
+	if mt.TotalTokens == 0 && mt.TotalTurns == 0 && mt.AvgDurationNs == 0 {
 		return
 	}
 
@@ -231,7 +231,7 @@ func renderPrettyExecutiveSummary(report *CrossRunAuditReport) {
 }
 
 func renderPrettyMetricsTrend(mt MetricsTrendData) {
-	if mt.TotalTokens == 0 {
+	if mt.TotalTokens == 0 && mt.TotalTurns == 0 && mt.AvgDurationNs == 0 {
 		return
 	}
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Metrics Trends"))
