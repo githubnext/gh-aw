@@ -542,6 +542,9 @@ func TestTokenWeightsSingleQuoteEscapingInYAML(t *testing.T) {
 
 	// The generated YAML must not contain an un-escaped single quote inside a single-quoted value.
 	// In YAML, a single quote inside a single-quoted scalar is represented as ”.
+	if !strings.Contains(output, "GH_AW_INFO_TOKEN_WEIGHTS") {
+		t.Errorf("Expected GH_AW_INFO_TOKEN_WEIGHTS in YAML output when multipliers are configured, got:\n%s", output)
+	}
 	if !strings.Contains(output, "bob''s-model") {
 		t.Errorf("Expected single quote to be escaped as '' in YAML output, got:\n%s", output)
 	}
