@@ -1390,6 +1390,10 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "log" && args.includes("--no-merges")) {
             return Promise.resolve({ exitCode: 0, stdout: "Fix typo in README\n", stderr: "" });
           }
+          // Staged-changes validation after soft reset
+          if (cmd === "git" && args[0] === "diff" && args[1] === "--cached" && args[2] === "--name-only") {
+            return Promise.resolve({ exitCode: 0, stdout: "README.md\n", stderr: "" });
+          }
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
           }
@@ -1459,6 +1463,10 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "log" && args[1] === "-1" && args[2] === "--format=%B") {
             return Promise.resolve({ exitCode: 0, stdout: "Merge branch 'main' into feature-branch\n", stderr: "" });
           }
+          // Staged-changes validation after soft reset
+          if (cmd === "git" && args[0] === "diff" && args[1] === "--cached" && args[2] === "--name-only") {
+            return Promise.resolve({ exitCode: 0, stdout: "src/index.js\n", stderr: "" });
+          }
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
           }
@@ -1524,6 +1532,68 @@ index 0000000..abc1234
         expect(pushSignedSpy).toHaveBeenCalled();
       } finally {
         pushSignedSpy.mockRestore();
+      }
+    });
+
+    it("should roll back to original HEAD and emit warning when staged-changes validation fails after soft reset", async () => {
+      // Scenario: merge commit detected, soft reset succeeds, but no staged changes are
+      // found afterwards (e.g. the range was already empty / only no-op commits).
+      // The handler should roll back to the originalHead and warn, then let
+      // pushSignedCommits proceed (and potentially surface its own error).
+      const bundlePath = path.join(tempDir, "empty-range.bundle");
+      const patchPath = createPatchFile("small patch content");
+      fs.writeFileSync(bundlePath, "bundle content");
+
+      const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("tip-sha");
+      const warningSpy = vi.spyOn(core, "warning");
+
+      try {
+        mockExec.getExecOutput.mockImplementation((cmd, args, options) => {
+          if (cmd === "git" && args[0] === "ls-remote") {
+            return Promise.resolve({ exitCode: 0, stdout: "remote-head\trefs/heads/feature-branch\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-parse" && args[1] === "HEAD") {
+            return Promise.resolve({ exitCode: 0, stdout: "original-sha\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ exitCode: 0, stdout: "false\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-list" && args[1] === "--merges" && args[2] === "--count") {
+            return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "log" && args.includes("--no-merges")) {
+            return Promise.resolve({ exitCode: 0, stdout: "Fix something\n", stderr: "" });
+          }
+          // No staged changes after soft reset → triggers validation error
+          if (cmd === "git" && args[0] === "diff" && args[1] === "--cached" && args[2] === "--name-only") {
+            return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-list") {
+            return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
+          }
+          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+        });
+
+        const module = await loadModule();
+        const handler = await module.main({});
+        const result = await handler({ branch: "feature-branch", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
+
+        // The overall push should still succeed (warning path, not fatal error)
+        expect(result.success).toBe(true);
+
+        // Should have attempted rollback to originalHead
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--hard", "original-sha"], expect.any(Object));
+
+        // Should have emitted the outer warning mentioning linearization failure
+        const outerWarning = warningSpy.mock.calls.find(([msg]) => typeof msg === "string" && msg.includes("failed to linearize merge commits"));
+        expect(outerWarning).toBeDefined();
+
+        // pushSignedCommits should still be called after the failed linearization
+        expect(pushSignedSpy).toHaveBeenCalled();
+      } finally {
+        pushSignedSpy.mockRestore();
+        warningSpy.mockRestore();
       }
     });
   });

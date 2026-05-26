@@ -929,23 +929,49 @@ async function main(config = {}) {
                 `Merge commits cannot be pushed as signed commits. Squashing the range into a single regular commit to preserve content. ` +
                 `To avoid this, use 'git rebase' instead of 'git merge' when updating the PR branch.`,
             );
-            // Prefer the message from the first non-merge commit in the range — it carries
-            // the most meaningful description of the actual work.  Fall back to the last
-            // commit's message (which may be the merge commit itself) if no regular commit
-            // exists, and finally to a generic label.
-            const { stdout: firstNonMergeOut } = await exec.getExecOutput(
-              "git",
-              ["log", "--no-merges", "--format=%B", "--reverse", `${squashBase}..HEAD`],
-              baseGitOpts,
-            );
-            let squashMessage = firstNonMergeOut.trim();
-            if (!squashMessage) {
-              const { stdout: lastMsgOut } = await exec.getExecOutput("git", ["log", "-1", "--format=%B"], baseGitOpts);
-              squashMessage = lastMsgOut.trim() || "Merge changes";
+            // Save HEAD so we can roll back if the rewrite fails.
+            const { stdout: originalHeadOut } = await exec.getExecOutput("git", ["rev-parse", "HEAD"], baseGitOpts);
+            const originalHead = originalHeadOut.trim();
+            try {
+              // Prefer the message from the first non-merge commit in the range — it carries
+              // the most meaningful description of the actual work.  Fall back to the last
+              // commit's message (which may be the merge commit itself) if no regular commit
+              // exists, and finally to a generic label.
+              const { stdout: firstNonMergeOut } = await exec.getExecOutput(
+                "git",
+                ["log", "--no-merges", "--format=%B", "--reverse", `${squashBase}..HEAD`],
+                baseGitOpts,
+              );
+              let squashMessage = firstNonMergeOut.trim();
+              if (!squashMessage) {
+                const { stdout: lastMsgOut } = await exec.getExecOutput("git", ["log", "-1", "--format=%B"], baseGitOpts);
+                squashMessage = lastMsgOut.trim() || "Merge changes";
+              }
+              await exec.exec("git", ["reset", "--soft", squashBase], baseGitOpts);
+              // Validate that the soft reset staged some changes — if the range was
+              // empty after squashing (e.g. all commits were no-ops) the subsequent
+              // push would be a no-op, but an empty recommit would be misleading.
+              const { stdout: stagedOut } = await exec.getExecOutput("git", ["diff", "--cached", "--name-only"], baseGitOpts);
+              if (!stagedOut.trim()) {
+                throw new Error(
+                  `No staged changes found after soft reset to ${squashBase}. ` +
+                    `The commit range may contain only no-op or empty commits. ` +
+                    `Ensure your commits contain actual file changes before pushing.`,
+                );
+              }
+              await exec.exec("git", ["commit", "--allow-empty", "--no-verify", "-m", squashMessage], baseGitOpts);
+              core.info(`push_to_pull_request_branch: merge commits linearized into single regular commit for signed-commit push`);
+            } catch (rewriteErr) {
+              // Attempt to restore the original HEAD so pushSignedCommits can surface
+              // its own actionable error rather than leaving HEAD in a partially-reset state.
+              try {
+                await exec.exec("git", ["reset", "--hard", originalHead], baseGitOpts);
+                core.warning(`push_to_pull_request_branch: linearization failed; restored original HEAD ${originalHead}`);
+              } catch (restoreErr) {
+                core.warning(`push_to_pull_request_branch: linearization rollback also failed: ${getErrorMessage(restoreErr)}`);
+              }
+              throw new Error(`Failed to linearize merge commits for signed push: ${getErrorMessage(rewriteErr)}`, { cause: rewriteErr });
             }
-            await exec.exec("git", ["reset", "--soft", squashBase], baseGitOpts);
-            await exec.exec("git", ["commit", "--allow-empty", "--no-verify", "-m", squashMessage], baseGitOpts);
-            core.info(`push_to_pull_request_branch: merge commits linearized into single regular commit for signed-commit push`);
           }
         } catch (squashErr) {
           core.warning(`push_to_pull_request_branch: failed to linearize merge commits: ${getErrorMessage(squashErr)}; push may fail`);
