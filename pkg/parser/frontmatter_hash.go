@@ -473,9 +473,9 @@ func processImportsTextBased(frontmatterText, baseDir string, visited map[string
 	return importedFiles, importedFrontmatterTexts, nil
 }
 
-// processImportsBodyTextBased processes imports from frontmatter and returns the body texts of all
+// collectImportedBodies processes imports from frontmatter and returns the body texts of all
 // transitively imported files. Used to include imported file bodies in the body hash.
-func processImportsBodyTextBased(frontmatterText, baseDir string, visited map[string]bool, fileReader FileReader) ([]string, error) {
+func collectImportedBodies(frontmatterText, baseDir string, visited map[string]bool, fileReader FileReader) ([]string, error) {
 	var importedBodyTexts []string
 
 	imports := extractImportsFromText(frontmatterText)
@@ -506,7 +506,7 @@ func processImportsBodyTextBased(frontmatterText, baseDir string, visited map[st
 		importedBodyTexts = append(importedBodyTexts, importBody)
 
 		importBaseDir := filepath.Dir(fullPath)
-		nestedBodies, err := processImportsBodyTextBased(importFrontmatterText, importBaseDir, visited, fileReader)
+		nestedBodies, err := collectImportedBodies(importFrontmatterText, importBaseDir, visited, fileReader)
 		if err != nil {
 			continue
 		}
@@ -527,7 +527,7 @@ func ComputeBodyHashFromParsedContent(markdownBody, frontmatterText, baseDir str
 	normalizedBody := normalizeFrontmatterText(markdownBody)
 
 	visited := make(map[string]bool)
-	importedBodies, err := processImportsBodyTextBased(frontmatterText, baseDir, visited, fileReader)
+	importedBodies, err := collectImportedBodies(frontmatterText, baseDir, visited, fileReader)
 	if err != nil {
 		return "", fmt.Errorf("failed to process imports for body hash: %w", err)
 	}

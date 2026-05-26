@@ -113,13 +113,13 @@ type LockHashInfo struct {
 
 // GenerateLockMetadata creates a LockMetadata struct for embedding in lock files
 // For release builds, the compiler version is included in the metadata
-func GenerateLockMetadata(hashes LockHashInfo, stopTime string, strict bool, agentInfo AgentMetadataInfo) *LockMetadata {
-	lockSchemaLog.Printf("Generating lock metadata: schema=%s, strict=%t, hasStopTime=%t, hasBodyHash=%t", LockSchemaV4, strict, stopTime != "", hashes.BodyHash != "")
+func GenerateLockMetadata(hashInfo LockHashInfo, stopTime string, strict bool, agentInfo AgentMetadataInfo) *LockMetadata {
+	lockSchemaLog.Printf("Generating lock metadata: schema=%s, strict=%t, hasStopTime=%t, hasBodyHash=%t", LockSchemaV4, strict, stopTime != "", hashInfo.BodyHash != "")
 
 	metadata := &LockMetadata{
 		SchemaVersion:       LockSchemaV4,
-		FrontmatterHash:     hashes.FrontmatterHash,
-		BodyHash:            hashes.BodyHash,
+		FrontmatterHash:     hashInfo.FrontmatterHash,
+		BodyHash:            hashInfo.BodyHash,
 		StopTime:            stopTime,
 		Strict:              strict,
 		AgentID:             agentInfo.AgentID,

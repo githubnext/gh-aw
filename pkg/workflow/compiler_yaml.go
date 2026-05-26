@@ -313,17 +313,28 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	if markdownPath != "" {
 		baseDir := filepath.Dir(markdownPath)
 		cache := parser.NewImportCache(baseDir)
-		var hash string
-		var err error
-		if data.RawMarkdown != "" {
-			// Fast path: use pre-parsed content from WorkflowData to avoid re-reading the file.
-			hash, err = parser.ComputeFrontmatterHashFromParsedContent(data.FrontmatterYAML, data.RawMarkdown, data.RawFrontmatter, baseDir, cache, parser.DefaultFileReader)
-		} else {
-			// Fallback: read file from disk (used when WorkflowData was constructed without RawMarkdown,
-			// e.g. via CompileWorkflowData called directly with externally constructed WorkflowData).
+
+		// computeWorkflowHash calls the parsed-content path when RawMarkdown is
+		// available (fast path), falling back to a disk read otherwise.
+		computeWorkflowHash := func(
+			fromParsed func() (string, error),
+			fromFile func() (string, error),
+		) (string, error) {
+			if data.RawMarkdown != "" {
+				return fromParsed()
+			}
 			compilerYamlLog.Printf("RawMarkdown not set; falling back to reading file from disk: %s", markdownPath)
-			hash, err = parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, data.RawFrontmatter, cache, parser.DefaultFileReader)
+			return fromFile()
 		}
+
+		hash, err := computeWorkflowHash(
+			func() (string, error) {
+				return parser.ComputeFrontmatterHashFromParsedContent(data.FrontmatterYAML, data.RawMarkdown, data.RawFrontmatter, baseDir, cache, parser.DefaultFileReader)
+			},
+			func() (string, error) {
+				return parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, data.RawFrontmatter, cache, parser.DefaultFileReader)
+			},
+		)
 		if err != nil {
 			return "", nil, nil, fmt.Errorf("failed to generate workflow YAML: could not compute stable frontmatter hash for %q: %w", markdownPath, err)
 		}
@@ -332,16 +343,19 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 		// Compute body hash to cover changes to the markdown body that are not captured
 		// by the frontmatter hash. This enables stale-check: full detection.
-		if data.RawMarkdown != "" {
-			bodyHash, err = parser.ComputeBodyHashFromParsedContent(data.RawMarkdown, data.FrontmatterYAML, baseDir, parser.DefaultFileReader)
-		} else {
-			bodyHash, err = parser.ComputeBodyHashFromFile(markdownPath)
-		}
-		if err != nil {
-			compilerYamlLog.Printf("Warning: could not compute body hash for %q: %v", markdownPath, err)
+		bHash, bErr := computeWorkflowHash(
+			func() (string, error) {
+				return parser.ComputeBodyHashFromParsedContent(data.RawMarkdown, data.FrontmatterYAML, baseDir, parser.DefaultFileReader)
+			},
+			func() (string, error) {
+				return parser.ComputeBodyHashFromFile(markdownPath)
+			},
+		)
+		if bErr != nil {
+			compilerYamlLog.Printf("Warning: could not compute body hash for %q: %v", markdownPath, bErr)
 			// Non-fatal: continue without body hash
-			bodyHash = ""
 		} else {
+			bodyHash = bHash
 			compilerYamlLog.Printf("Computed body hash: %s", bodyHash)
 		}
 	}

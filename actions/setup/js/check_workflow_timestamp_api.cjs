@@ -184,24 +184,24 @@ async function main() {
   // files are always available at this point.
 
   /**
-   * When full check mode is enabled, compares the stored body hash in the lock file content
-   * against the body hash computed from the workflow source using the given file reader.
-   * Returns true if the body hashes match (or if the lock file predates body hash support),
-   * false if they differ.
+   * Compares the stored body hash in the lock file content against the body hash
+   * recomputed from the workflow source. Returns true if they match (or if the lock
+   * file predates body hash support), false if they differ.
    * @param {string} lockFileContent - Content of the .lock.yml file
    * @param {string} mdPath - Path to the .md file to compute the body hash from
-   * @param {Object} [options] - Options forwarded to computeBodyHash (e.g. { fileReader })
+   * @param {Object} [options] - Options forwarded to computeBodyHash
+   * @param {Function} [options.fileReader] - Custom file reader (defaults to local filesystem)
    * @param {string} [label] - Optional label appended to log lines for context (e.g. "local filesystem fallback")
    * @returns {Promise<boolean>} true if match or no body hash present, false if mismatch
    */
-  async function compareBodyHashes(lockFileContent, mdPath, options, label) {
+  async function compareBodyHashes(lockFileContent, mdPath, { fileReader } = {}, label) {
     const suffix = label ? ` (${label})` : "";
     const storedBodyHash = extractBodyHashFromLockFile(lockFileContent);
     if (!storedBodyHash) {
       core.info(`No body hash found in lock file; skipping body hash check${suffix} (lock file may predate body hash support)`);
       return true;
     }
-    const recomputedBodyHash = await computeBodyHash(mdPath, options);
+    const recomputedBodyHash = await computeBodyHash(mdPath, { fileReader });
     const match = storedBodyHash === recomputedBodyHash;
     core.info(`Body hash comparison${suffix}:`);
     core.info(`  Lock file body hash:    ${storedBodyHash}`);

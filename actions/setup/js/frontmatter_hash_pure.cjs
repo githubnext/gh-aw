@@ -358,7 +358,7 @@ function marshalSorted(data) {
  * @param {Function} fileReader - File reader function (async (filePath) => content)
  * @returns {Promise<string[]>} Array of imported body texts
  */
-async function processImportsBodyTextBased(frontmatterText, baseDir, visited = new Set(), fileReader = defaultFileReader) {
+async function collectImportedBodies(frontmatterText, baseDir, visited = new Set(), fileReader = defaultFileReader) {
   const importedBodyTexts = [];
 
   const imports = extractImportsFromText(frontmatterText);
@@ -381,7 +381,7 @@ async function processImportsBodyTextBased(frontmatterText, baseDir, visited = n
       importedBodyTexts.push(importBody);
 
       const importBaseDir = path.dirname(fullPath);
-      const nestedBodies = await processImportsBodyTextBased(importFrontmatterText, importBaseDir, visited, fileReader);
+      const nestedBodies = await collectImportedBodies(importFrontmatterText, importBaseDir, visited, fileReader);
       importedBodyTexts.push(...nestedBodies);
     } catch (err) {
       continue;
@@ -409,7 +409,7 @@ async function computeBodyHash(workflowPath, options = {}) {
 
   const baseDir = path.dirname(workflowPath);
 
-  const importedBodies = await processImportsBodyTextBased(frontmatterText, baseDir, undefined, fileReader);
+  const importedBodies = await collectImportedBodies(frontmatterText, baseDir, undefined, fileReader);
 
   const canonical = {};
   canonical["body-text"] = normalizeFrontmatterText(markdown);
@@ -524,7 +524,7 @@ module.exports = {
   normalizeFrontmatterText,
   parseBoolFromFrontmatter,
   processImportsTextBased,
-  processImportsBodyTextBased,
+  collectImportedBodies,
   defaultFileReader,
   createGitHubFileReader,
 };
