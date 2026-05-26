@@ -982,6 +982,31 @@ describe("safe_outputs_handlers", () => {
       expect(patchContent).toContain("release tracked commit");
       expect(patchContent).not.toContain("MAIN_ONLY.md");
     });
+
+    it("should use patch_workspace_path when target repo resolves from GH_AW_TARGET_REPO_SLUG", async () => {
+      createSideRepoOnReleaseBranchWithLocalCommit();
+      process.env.GH_AW_TARGET_REPO_SLUG = "test-owner/test-repo";
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          patch_workspace_path: "target-repo",
+          current_checkout_repo: "test-owner/test-repo",
+          patch_format: "am",
+        },
+      });
+
+      try {
+        const result = await handlers.createPullRequestHandler({
+          branch: "release-1.12.x",
+          title: "Release fix",
+          body: "Prepare release branch fix",
+        });
+
+        expect(result.isError).toBeUndefined();
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Using configured patch_workspace_path for create_pull_request"));
+      } finally {
+        delete process.env.GH_AW_TARGET_REPO_SLUG;
+      }
+    });
   });
 
   describe("pushToPullRequestBranchHandler", () => {
@@ -1107,6 +1132,31 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.error).toContain("Repository 'test-owner/test-repo' not found in workspace");
       expect(responseData.error).toContain("actions/checkout");
       expect(responseData.error).toContain("'path' input");
+    });
+
+    it("should use patch_workspace_path when target repo resolves from GH_AW_TARGET_REPO_SLUG", async () => {
+      createSideRepoWithTrackedAndLocalCommits();
+      process.env.GH_AW_TARGET_REPO_SLUG = "test-owner/test-repo";
+      const handlersWithPatchWorkspace = createHandlers(mockServer, mockAppendSafeOutput, {
+        push_to_pull_request_branch: {
+          patch_workspace_path: "target-repo",
+          current_checkout_repo: "test-owner/test-repo",
+          patch_format: "am",
+        },
+      });
+
+      process.env.GITHUB_BASE_REF = "main";
+      try {
+        const result = await handlersWithPatchWorkspace.pushToPullRequestBranchHandler({
+          branch: "feature/test-change",
+        });
+
+        expect(result.isError).toBeFalsy();
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Using configured patch_workspace_path for push_to_pull_request_branch"));
+      } finally {
+        delete process.env.GH_AW_TARGET_REPO_SLUG;
+        delete process.env.GITHUB_BASE_REF;
+      }
     });
 
     it("should reject push_to_pull_request_branch when branch still equals base_branch after detection", async () => {

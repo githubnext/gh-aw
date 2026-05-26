@@ -1091,6 +1091,29 @@ func TestHasExternalRootCheckout(t *testing.T) {
 	})
 }
 
+func TestGetCurrentCheckoutPath(t *testing.T) {
+	t.Run("returns empty when no current checkout is configured", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "owner/repo", Path: "repo"},
+		})
+		assert.Empty(t, cm.GetCurrentCheckoutPath())
+	})
+
+	t.Run("returns empty when current checkout is workspace root", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Current: true, Path: "."},
+		})
+		assert.Empty(t, cm.GetCurrentCheckoutPath())
+	})
+
+	t.Run("returns normalized subdirectory when current checkout is non-root", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Repository: "caido/proxy-frontend", Current: true, Path: "./proxy-frontend"},
+		})
+		assert.Equal(t, "proxy-frontend", cm.GetCurrentCheckoutPath())
+	})
+}
+
 // TestWikiCheckout verifies wiki: true support across parsing, deduplication, and step generation.
 func TestWikiCheckout(t *testing.T) {
 	getPin := func(action string) string { return action + "@v4" }

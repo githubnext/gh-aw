@@ -282,6 +282,77 @@ describe("generateGitPatch - cross-repo checkout scenarios", () => {
   });
 });
 
+describe("generateGitPatch - workspacePath option", () => {
+  let workspaceDir;
+  let repoDir;
+  let remoteDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE, GITHUB_SHA: process.env.GITHUB_SHA };
+    global.core = { debug: () => {}, info: () => {}, warning: () => {}, error: () => {} };
+    workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-workspace-"));
+    repoDir = path.join(workspaceDir, "proxy-frontend");
+    fs.mkdirSync(repoDir, { recursive: true });
+
+    execSync("git init -b main", { cwd: repoDir, stdio: "pipe" });
+    execSync('git config user.email "test@example.com"', { cwd: repoDir, stdio: "pipe" });
+    execSync('git config user.name "Test"', { cwd: repoDir, stdio: "pipe" });
+
+    fs.writeFileSync(path.join(repoDir, "README.md"), "# Repo\n");
+    execSync("git add README.md", { cwd: repoDir, stdio: "pipe" });
+    execSync('git commit -m "init"', { cwd: repoDir, stdio: "pipe" });
+
+    execSync("git checkout -b feature/workspace-path", { cwd: repoDir, stdio: "pipe" });
+    fs.writeFileSync(path.join(repoDir, "feature.txt"), "new change\n");
+    execSync("git add feature.txt", { cwd: repoDir, stdio: "pipe" });
+    execSync('git commit -m "feature"', { cwd: repoDir, stdio: "pipe" });
+
+    remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-workspace-remote-"));
+    execSync("git init --bare -b main", { cwd: remoteDir, stdio: "pipe" });
+    execSync(`git remote add origin ${remoteDir}`, { cwd: repoDir, stdio: "pipe" });
+    execSync("git checkout main", { cwd: repoDir, stdio: "pipe" });
+    execSync("git push origin main", { cwd: repoDir, stdio: "pipe" });
+    execSync("git checkout feature/workspace-path", { cwd: repoDir, stdio: "pipe" });
+
+    process.env.GITHUB_WORKSPACE = workspaceDir;
+    delete process.env.GITHUB_SHA;
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+  });
+
+  afterEach(() => {
+    Object.entries(originalEnv).forEach(([key, value]) => {
+      if (value !== undefined) process.env[key] = value;
+      else delete process.env[key];
+    });
+    if (workspaceDir && fs.existsSync(workspaceDir)) {
+      fs.rmSync(workspaceDir, { recursive: true, force: true });
+    }
+    if (remoteDir && fs.existsSync(remoteDir)) {
+      fs.rmSync(remoteDir, { recursive: true, force: true });
+    }
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+    delete global.core;
+  });
+
+  it("should generate the patch from workspacePath when provided", async () => {
+    const { generateGitPatch } = require("./generate_git_patch.cjs");
+    const result = await generateGitPatch("feature/workspace-path", "main", { workspacePath: "proxy-frontend" });
+
+    expect(result.success).toBe(true);
+    const patch = fs.readFileSync(result.patchPath, "utf8");
+    expect(patch).toContain("feature.txt");
+  });
+
+  it("should reject workspacePath that escapes GITHUB_WORKSPACE", async () => {
+    const { generateGitPatch } = require("./generate_git_patch.cjs");
+    const result = await generateGitPatch("feature/workspace-path", "main", { workspacePath: "../outside" });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Invalid workspacePath");
+  });
+});
+
 describe("sanitizeBranchNameForPatch", () => {
   it("should sanitize branch names with path separators", async () => {
     const { sanitizeBranchNameForPatch } = await import("./generate_git_patch.cjs");

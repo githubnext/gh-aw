@@ -97,6 +97,31 @@ function isAllowedBranch(branch, allowedPatterns) {
 }
 
 /**
+ * Resolve and validate a workspace-relative patch path.
+ * @param {string|undefined} workspacePath
+ * @returns {{success: true, absolutePath: string} | {success: false, error: string}}
+ */
+function resolvePatchWorkspacePath(workspacePath) {
+  const candidatePath = typeof workspacePath === "string" ? workspacePath.trim() : "";
+  if (!candidatePath) {
+    return { success: false, error: "patch_workspace_path is empty" };
+  }
+  const workspaceRoot = path.resolve(process.env.GITHUB_WORKSPACE || process.cwd());
+  const resolved = path.resolve(workspaceRoot, candidatePath);
+  const relative = path.relative(workspaceRoot, resolved);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return { success: false, error: `Invalid patch_workspace_path '${candidatePath}': path must stay under GITHUB_WORKSPACE` };
+  }
+  if (!fs.existsSync(resolved)) {
+    return { success: false, error: `Invalid patch_workspace_path '${candidatePath}': directory does not exist` };
+  }
+  if (!fs.statSync(resolved).isDirectory()) {
+    return { success: false, error: `Invalid patch_workspace_path '${candidatePath}': path is not a directory` };
+  }
+  return { success: true, absolutePath: resolved };
+}
+
+/**
  * Create handlers for safe output tools
  * @param {Object} server - The MCP server instance for logging
  * @param {Function} appendSafeOutput - Function to append entries to the output file
@@ -341,8 +366,32 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // If repo is specified or configured, find where it's checked out
     let repoCwd = null;
     let repoSlug = null;
+    const patchWorkspacePath = typeof prConfig.patch_workspace_path === "string" ? prConfig.patch_workspace_path.trim() : "";
+    const currentCheckoutRepo = typeof prConfig.current_checkout_repo === "string" ? prConfig.current_checkout_repo.trim() : "";
+    const patchWorkspaceMatchesTargetRepo = patchWorkspacePath && (!currentCheckoutRepo || currentCheckoutRepo === repoResult.repo);
 
-    if ((entry.repo && entry.repo.trim()) || prConfig["target-repo"]) {
+    if (patchWorkspaceMatchesTargetRepo) {
+      const patchWorkspaceResult = resolvePatchWorkspacePath(patchWorkspacePath);
+      if (!patchWorkspaceResult.success) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error: patchWorkspaceResult.error,
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+      repoCwd = patchWorkspaceResult.absolutePath;
+      repoSlug = repoResult.repo;
+      server.debug(`Using configured patch_workspace_path for create_pull_request: ${patchWorkspacePath} -> ${repoCwd}`);
+    }
+
+    if (((entry.repo && entry.repo.trim()) || prConfig["target-repo"]) && !repoCwd) {
       // Use the validated/qualified repo slug from repoResult to avoid divergence
       // between the raw user input and the normalized/qualified repo name
       repoSlug = repoResult.repo;
@@ -510,6 +559,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     server.debug(`Generating patch for create_pull_request with branch: ${entry.branch}${repoCwd ? ` in ${repoCwd} baseBranch: ${baseBranch}` : ""}`);
     /** @type {Record<string, any>} */
     const patchOptions = { ...transportOptions };
+    if (patchWorkspaceMatchesTargetRepo) {
+      patchOptions.workspacePath = patchWorkspacePath;
+    }
     // Pass excluded_files so git excludes them via :(exclude) pathspecs at generation time.
     if (Array.isArray(prConfig.excluded_files) && prConfig.excluded_files.length > 0) {
       patchOptions.excludedFiles = prConfig.excluded_files;
@@ -668,7 +720,32 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // generation runs from the correct directory when the target repo is checked out in a subdirectory.
     let repoCwd = null;
     const itemRepo = repoResult.repo;
-    if ((entry.repo && entry.repo.trim()) || pushConfig["target-repo"]) {
+    const pushPatchWorkspacePath = typeof pushConfig.patch_workspace_path === "string" ? pushConfig.patch_workspace_path.trim() : "";
+    const pushCurrentCheckoutRepo = typeof pushConfig.current_checkout_repo === "string" ? pushConfig.current_checkout_repo.trim() : "";
+    const pushPatchWorkspaceMatchesTargetRepo = pushPatchWorkspacePath && (!pushCurrentCheckoutRepo || pushCurrentCheckoutRepo === itemRepo);
+
+    if (pushPatchWorkspaceMatchesTargetRepo) {
+      const patchWorkspaceResult = resolvePatchWorkspacePath(pushPatchWorkspacePath);
+      if (!patchWorkspaceResult.success) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error: patchWorkspaceResult.error,
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+      repoCwd = patchWorkspaceResult.absolutePath;
+      entry.repo_cwd = repoCwd;
+      server.debug(`Using configured patch_workspace_path for push_to_pull_request_branch: ${pushPatchWorkspacePath} -> ${repoCwd}`);
+    }
+
+    if (((entry.repo && entry.repo.trim()) || pushConfig["target-repo"]) && !repoCwd) {
       server.debug(`Looking for checkout of target repo: ${itemRepo}`);
       const checkoutResult = findRepoCheckout(itemRepo);
       if (!checkoutResult.success) {
@@ -804,6 +881,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     server.debug(`Generating incremental patch for push_to_pull_request_branch with branch: ${entry.branch}, baseBranch: ${baseBranch}`);
     /** @type {Record<string, any>} */
     const pushPatchOptions = { ...pushTransportOptions };
+    if (pushPatchWorkspaceMatchesTargetRepo) {
+      pushPatchOptions.workspacePath = pushPatchWorkspacePath;
+    }
     // Pass excluded_files so git excludes them via :(exclude) pathspecs at generation time.
     if (Array.isArray(pushConfig.excluded_files) && pushConfig.excluded_files.length > 0) {
       pushPatchOptions.excludedFiles = pushConfig.excluded_files;

@@ -939,6 +939,8 @@ safe-outputs:
 
 When `push-to-pull-request-branch` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 
+For multi-checkout workflows, if one checkout is marked `current: true` and the PR tool targets that repository, patch generation for both `create-pull-request` and `push-to-pull-request-branch` uses that checkout directory.
+
 ### Release Updates (`update-release:`)
 
 Updates GitHub release descriptions: replace (complete replacement), append (add to end), or prepend (add to start).

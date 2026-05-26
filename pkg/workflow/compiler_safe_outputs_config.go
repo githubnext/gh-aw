@@ -67,6 +67,7 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		// 1. It returns a non-nil config (explicitly enabled, even if empty)
 		// 2. For auto-enabled handlers, include even with empty config
 		if handlerConfig != nil {
+			injectCurrentCheckoutPatchWorkspacePath(handlerName, handlerConfig, data)
 			// Augment protected-files protection with engine-specific files for handlers that use it.
 			if _, hasProtected := handlerConfig["protected_files"]; hasProtected {
 				// Extract per-handler exclusions set by the handler builder (sentinel key).
