@@ -1414,6 +1414,13 @@ index 0000000..abc1234
         // Verify the range parameter: squashBase (= remoteHeadBeforePatch = "remote-head") to HEAD
         expect(mergeCountCall[1]).toEqual(["rev-list", "--merges", "--count", "remote-head..HEAD"]);
 
+        // Verify only the first non-merge commit message is fetched (--max-count=1)
+        const firstNonMergeCall = mockExec.getExecOutput.mock.calls.find(
+          ([, args]) => Array.isArray(args) && args[0] === "log" && args.includes("--no-merges"),
+        );
+        expect(firstNonMergeCall).toBeDefined();
+        expect(firstNonMergeCall[1]).toContain("--max-count=1");
+
         // Should have performed the soft-reset to squash the merge commit
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--soft", "remote-head"], expect.any(Object));
 

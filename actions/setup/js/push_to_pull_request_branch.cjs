@@ -935,7 +935,7 @@ async function main(config = {}) {
             // exists, and finally to a generic label.
             const { stdout: firstNonMergeOut } = await exec.getExecOutput(
               "git",
-              ["log", "--no-merges", "--format=%B", "--reverse", `${squashBase}..HEAD`],
+              ["log", "--no-merges", "--max-count=1", "--format=%B", "--reverse", `${squashBase}..HEAD`],
               baseGitOpts,
             );
             let squashMessage = firstNonMergeOut.trim();
