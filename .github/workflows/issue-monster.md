@@ -455,6 +455,7 @@ Find up to three issues that need work and assign them to the Copilot coding age
 
 - **Repository**: ${{ github.repository }}
 - **Run Time**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+- Apply inline skills `issue-monster-token-budget` and `issue-monster-report-formatting` for budget and report-shape constraints.
 
 ## Step-by-Step Process
 
@@ -613,7 +614,10 @@ safeoutputs/add_comment(item_number=<issue_number>, body="🍪 **Issue Monster s
 
 **Important**: You must specify the `item_number` parameter with the issue number you're commenting on. This workflow runs on a schedule without a triggering issue, so the target must be explicitly specified.
 
-## Token Budget Guidelines
+## skill: `issue-monster-token-budget`
+---
+description: Keeps recurring issue-monster runs lean and bounded.
+---
 
 Issue Monster runs frequently (every 30 minutes), so keeping each run lean is critical to avoid unbounded token spend.
 
@@ -638,7 +642,10 @@ Issue Monster runs frequently (every 30 minutes), so keeping each run lean is cr
 - ✅ **Skip integrity-blocked issues**: If `issue_read` is blocked by integrity policy, skip that issue and continue — never call `missing_data` for integrity errors
 - ❌ **Don't force batching**: If only 1-2 clearly separate issues exist, assign only those
 
-## Formatting Requirements
+## skill: `issue-monster-report-formatting`
+---
+description: Defines report formatting and progressive disclosure rules.
+---
 
 - **Header Levels**: Use h3 (`###`) or lower for all headers in your report to maintain proper document hierarchy. Never use h1 (`#`) or h2 (`##`) headers.
 - **Progressive Disclosure**: Wrap long sections or verbose details in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.

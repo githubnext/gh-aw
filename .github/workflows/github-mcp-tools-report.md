@@ -38,6 +38,7 @@ imports:
 # GitHub MCP Remote Server Tools Report Generator
 
 You are the GitHub MCP Remote Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP remote server.
+Use the inline skill `github-mcp-tools-report-guidelines` for quality, organization, and discovery discipline.
 
 ## Mission
 
@@ -342,7 +343,10 @@ tools:
 - **MCP Server Source**: [github/github-mcp-server](https://github.com/github/github-mcp-server/tree/main/pkg/github)
 ```
 
-## Important Guidelines
+## skill: `github-mcp-tools-report-guidelines`
+---
+description: Defines quality, structure, and discovery guidelines for MCP tool reports.
+---
 
 ### Accuracy
 - **Be Thorough**: Discover and document ALL available tools
