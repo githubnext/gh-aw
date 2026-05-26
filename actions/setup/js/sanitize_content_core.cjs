@@ -15,6 +15,26 @@ const { execFileSync } = require("child_process");
  */
 const redactedDomains = [];
 const reputationDecisionCache = new Map();
+const MAX_REPUTATION_CACHE_SIZE = 1000;
+const SAFE_BROWSING_API_ENDPOINT = "https://safebrowsing.googleapis.com/v4/threatMatches:find";
+const SAFE_BROWSING_THREAT_TYPES = ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"];
+const SAFE_BROWSING_PLATFORM_TYPES = ["ANY_PLATFORM"];
+const SAFE_BROWSING_THREAT_ENTRY_TYPES = ["URL"];
+
+/**
+ * Cache a reputation decision with bounded FIFO eviction.
+ * JavaScript Map preserves insertion order, so evicting the first iterator key
+ * removes the oldest inserted entry.
+ * @param {string} url
+ * @param {boolean} value
+ */
+function cacheReputationDecision(url, value) {
+  if (reputationDecisionCache.size >= MAX_REPUTATION_CACHE_SIZE) {
+    const oldestKey = reputationDecisionCache.keys().next().value;
+    reputationDecisionCache.delete(oldestKey);
+  }
+  reputationDecisionCache.set(url, value);
+}
 
 /**
  * Gets the list of redacted URL domains collected during sanitization.
@@ -173,34 +193,42 @@ function isMaliciousByReputation(url) {
     core.warning("reputation url-policy enabled but GH_AW_URL_REPUTATION_API_KEY is not set; allowing URL");
     return false;
   }
+  if (/[\r\n]/.test(apiKey)) {
+    core.warning("reputation url-policy API key contains invalid newline characters; allowing URL");
+    return false;
+  }
 
   if (reputationDecisionCache.has(url)) {
     return reputationDecisionCache.get(url) === true;
   }
 
-  const endpoint = `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${encodeURIComponent(apiKey)}`;
+  const endpoint = SAFE_BROWSING_API_ENDPOINT;
   const payload = JSON.stringify({
     client: {
       clientId: "gh-aw",
       clientVersion: "1.0",
     },
     threatInfo: {
-      threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
-      platformTypes: ["ANY_PLATFORM"],
-      threatEntryTypes: ["URL"],
+      threatTypes: SAFE_BROWSING_THREAT_TYPES,
+      platformTypes: SAFE_BROWSING_PLATFORM_TYPES,
+      threatEntryTypes: SAFE_BROWSING_THREAT_ENTRY_TYPES,
       threatEntries: [{ url }],
     },
   });
 
   try {
-    const output = execFileSync("curl", ["--silent", "--show-error", "--fail", "--max-time", "2", "--connect-timeout", "2", "-X", "POST", "-H", "Content-Type: application/json", "-d", payload, endpoint], { encoding: "utf8" });
+    const escapedAPIKey = apiKey.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const output = execFileSync("curl", ["--silent", "--show-error", "--fail", "--max-time", "5", "--connect-timeout", "5", "-X", "POST", "-H", "Content-Type: application/json", "-K", "-", "-d", payload, endpoint], {
+      encoding: "utf8",
+      input: `header = "X-Goog-Api-Key: ${escapedAPIKey}"\n`,
+    });
     const parsed = output ? JSON.parse(output) : {};
     const malicious = Boolean(parsed && Array.isArray(parsed.matches) && parsed.matches.length > 0);
-    reputationDecisionCache.set(url, malicious);
+    cacheReputationDecision(url, malicious);
     return malicious;
   } catch (error) {
     core.warning(`reputation check failed; allowing URL (${error && error.message ? error.message : "unknown error"})`);
-    reputationDecisionCache.set(url, false);
+    cacheReputationDecision(url, false);
     return false;
   }
 }

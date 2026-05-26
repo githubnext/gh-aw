@@ -54,19 +54,23 @@ func validateSafeOutputsURLPolicy(config *SafeOutputsConfig) error {
 	policy := strings.ToLower(strings.TrimSpace(config.URLPolicy))
 	switch policy {
 	case "allowlist", "audit", "reputation":
-		// valid
 	default:
-		return fmt.Errorf("safe-outputs.url-policy: invalid value %q (expected one of: allowlist, audit, reputation)", config.URLPolicy)
+		return fmt.Errorf("safe-outputs.url-policy: invalid value %q (expected one of: allowlist, audit, reputation)", policy)
 	}
 
-	if policy == "reputation" && (config.Reputation == nil || config.Reputation.Provider == "") {
-		return fmt.Errorf("safe-outputs.url-policy: reputation mode requires safe-outputs.reputation.provider")
+	if policy == "reputation" {
+		if config.Reputation == nil || strings.TrimSpace(config.Reputation.Provider) == "" {
+			return fmt.Errorf("safe-outputs.url-policy: reputation mode requires safe-outputs.reputation.provider")
+		}
+		if strings.TrimSpace(config.Reputation.APIKeySecret) == "" {
+			return fmt.Errorf("safe-outputs.url-policy: reputation mode requires safe-outputs.reputation.api-key-secret")
+		}
 	}
 
 	if config.Reputation != nil {
 		provider := strings.ToLower(strings.TrimSpace(config.Reputation.Provider))
 		if provider != "" && provider != "google-safe-browsing" {
-			return fmt.Errorf("safe-outputs.reputation.provider: invalid value %q (expected: google-safe-browsing)", config.Reputation.Provider)
+			return fmt.Errorf("safe-outputs.reputation.provider: invalid value %q (expected: google-safe-browsing)", provider)
 		}
 	}
 

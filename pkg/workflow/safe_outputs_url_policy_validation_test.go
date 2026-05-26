@@ -44,7 +44,8 @@ func TestValidateSafeOutputsURLPolicy(t *testing.T) {
 			config: &SafeOutputsConfig{
 				URLPolicy: "reputation",
 				Reputation: &SafeOutputsReputationConfig{
-					Provider: "google-safe-browsing",
+					Provider:     "google-safe-browsing",
+					APIKeySecret: "SB_API_KEY",
 				},
 			},
 			wantErr: false,
@@ -70,11 +71,23 @@ func TestValidateSafeOutputsURLPolicy(t *testing.T) {
 			config: &SafeOutputsConfig{
 				URLPolicy: "reputation",
 				Reputation: &SafeOutputsReputationConfig{
-					Provider: "virustotal",
+					Provider:     "virustotal",
+					APIKeySecret: "SB_API_KEY",
 				},
 			},
 			wantErr: true,
 			errText: "safe-outputs.reputation.provider: invalid value",
+		},
+		{
+			name: "reputation policy requires api key secret",
+			config: &SafeOutputsConfig{
+				URLPolicy: "reputation",
+				Reputation: &SafeOutputsReputationConfig{
+					Provider: "google-safe-browsing",
+				},
+			},
+			wantErr: true,
+			errText: "safe-outputs.url-policy: reputation mode requires safe-outputs.reputation.api-key-secret",
 		},
 	}
 

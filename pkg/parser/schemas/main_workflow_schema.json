@@ -4838,6 +4838,7 @@
               "description": "GitHub Actions secret name containing the provider API key (for example, 'SB_API_KEY')."
             }
           },
+          "required": ["provider", "api-key-secret"],
           "additionalProperties": false
         },
         "allowed-github-references": {

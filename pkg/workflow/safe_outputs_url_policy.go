@@ -17,13 +17,16 @@ func resolveSafeOutputsURLPolicy(config *SafeOutputsConfig) string {
 	return policy
 }
 
-func resolveReputationAPIKeyValue(secretOrExpression string) string {
+func formatReputationAPIKeyExpression(secretOrExpression string) string {
 	value := strings.TrimSpace(secretOrExpression)
 	if value == "" {
 		return ""
 	}
 	if isGitHubActionsExpression(value) {
 		return value
+	}
+	if strings.HasPrefix(value, "secrets.") {
+		return wrapGitHubExpression(value)
 	}
 	return wrapGitHubExpression("secrets." + value)
 }
@@ -46,7 +49,7 @@ func appendSafeOutputsURLPolicyEnvLines(lines *[]string, indent string, data *Wo
 	if provider := strings.TrimSpace(data.SafeOutputs.Reputation.Provider); provider != "" {
 		*lines = append(*lines, formatYAMLEnv(indent, "GH_AW_URL_REPUTATION_PROVIDER", strings.ToLower(provider)))
 	}
-	if apiKeyValue := resolveReputationAPIKeyValue(data.SafeOutputs.Reputation.APIKeySecret); apiKeyValue != "" {
+	if apiKeyValue := formatReputationAPIKeyExpression(data.SafeOutputs.Reputation.APIKeySecret); apiKeyValue != "" {
 		*lines = append(*lines, formatYAMLEnv(indent, "GH_AW_URL_REPUTATION_API_KEY", apiKeyValue))
 	}
 }
