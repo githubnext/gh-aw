@@ -211,7 +211,7 @@ describe("handle_agent_failure", () => {
       );
     }
 
-    function buildLegacyIssueBody({ expires = "2099-01-01T00:00:00.000Z", workflowName = "Test Workflow", workflowId = "test-workflow" } = {}) {
+    function buildWorkflowMarkerOnlyIssueBody({ expires = "2099-01-01T00:00:00.000Z", workflowName = "Test Workflow", workflowId = "test-workflow" } = {}) {
       return (
         `> Generated from [${workflowName}](https://github.com/owner/repo/actions/runs/123456)\n` +
         `> - [x] expires <!-- gh-aw-expires: ${expires} --> on Jan 1, 2099, 12:00 AM UTC\n\n` +
@@ -335,8 +335,8 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).not.toHaveBeenCalled();
     });
 
-    it("adds a comment when an open issue has matching workflow XML metadata even without reusable failure metadata", async () => {
-      const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
+    it("creates a new issue when an open issue only has workflow XML metadata without failure metadata", async () => {
+      const createCommentMock = vi.fn();
       const createIssueMock = vi.fn();
       const searchMock = vi.fn(async ({ q }) => {
         if (q.includes("is:pr")) {
@@ -350,7 +350,7 @@ describe("handle_agent_failure", () => {
                 number: 42,
                 title: "[aw] Test Workflow failed",
                 html_url: "https://github.com/owner/repo/issues/42",
-                body: buildLegacyIssueBody(),
+                body: buildWorkflowMarkerOnlyIssueBody(),
               },
             ],
           },
@@ -373,8 +373,8 @@ describe("handle_agent_failure", () => {
 
       await main();
 
-      expect(createCommentMock).toHaveBeenCalledOnce();
-      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(createCommentMock).not.toHaveBeenCalled();
+      expect(createIssueMock).toHaveBeenCalledOnce();
       expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"gh-aw-agentic-workflow:"') }));
       expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"workflow_id: test-workflow" in:body') }));
     });
@@ -395,7 +395,11 @@ describe("handle_agent_failure", () => {
                 number: 42,
                 title: "[aw] Test Workflow failed",
                 html_url: "https://github.com/owner/repo/issues/42",
-                body: buildLegacyIssueBody({ workflowId }),
+                body: buildExistingIssueBody({
+                  workflowId,
+                  branch: "feature/current",
+                  categories: ["missing_safe_outputs"],
+                }),
               },
             ],
           },
