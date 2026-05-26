@@ -1929,8 +1929,11 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 		if !strings.Contains(stepContent, "copilot_harness.cjs") {
 			t.Errorf("Expected copilot_harness.cjs in execution step, got:\n%s", stepContent)
 		}
-		if !strings.Contains(stepContent, nodeRuntimeResolutionCommand) {
-			t.Errorf("Expected runtime node resolution logic in execution step, got:\n%s", stepContent)
+		if !strings.Contains(stepContent, `GH_AW_NODE_BIN="$(command -v node 2>/dev/null || true)"`) {
+			t.Errorf("Expected runtime node path setup in execution step, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, `"$GH_AW_NODE_BIN"`) {
+			t.Errorf("Expected harness invocation to use resolved node path, got:\n%s", stepContent)
 		}
 
 		// Driver should appear before the copilot args

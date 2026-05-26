@@ -35,7 +35,14 @@ import (
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 
 const customEngineCommandScriptPath = "/tmp/gh-aw/engine-command.sh"
-const nodeRuntimeResolutionCommand = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; "$GH_AW_NODE_EXEC"`
+const nodeRuntimeMissingMessage = "node runtime missing on this runner — check runtimes.node in workflow YAML"
+const nodeRuntimeResolutionCommand = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "` + nodeRuntimeMissingMessage + `" >&2; exit 127; fi; "$GH_AW_NODE_EXEC"`
+const nodeRuntimePathSetupCommand = `GH_AW_NODE_BIN="$(command -v node 2>/dev/null || true)"
+if [ -z "$GH_AW_NODE_BIN" ] || [ ! -x "$GH_AW_NODE_BIN" ]; then
+  echo "` + nodeRuntimeMissingMessage + `" >&2
+  exit 127
+fi
+export GH_AW_NODE_BIN`
 
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
@@ -181,10 +188,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// When a harness script is provided (GetHarnessScriptName), wrap the copilot invocation with
 	// `node <harness> <commandName> <args>` to enable retry logic for transient CAPIError 400 errors.
 	//
-	// Resolve node dynamically at runtime:
-	// - Prefer GH_AW_NODE_BIN when set and executable.
-	// - Fall back to `command -v node` if GH_AW_NODE_BIN points to a non-mounted toolcache path.
-	// This prevents agent startup failures when host toolcache paths are not present in the AWF container.
+	// Resolve node once in the step setup and invoke the harness with that explicit path.
+	// This avoids relying on per-invocation PATH lookup when launching the harness process.
 	harnessScriptName := e.GetHarnessScriptName()
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.HarnessScript != "" {
 		harnessScriptName = workflowData.EngineConfig.HarnessScript
@@ -192,7 +197,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	var execPrefix string
 	if harnessScriptName != "" {
 		// Harness wraps the copilot subprocess; ${RUNNER_TEMP} and ${GH_AW_NODE_BIN} expand in the shell context.
-		execPrefix = fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
+		execPrefix = fmt.Sprintf(`"$GH_AW_NODE_BIN" %s/%s %s`, SetupActionDestinationShell, harnessScriptName, commandName)
 	} else {
 		execPrefix = commandName
 	}
@@ -261,8 +266,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			engineCommand = fmt.Sprintf("%s && %s", mcpCLIPath, engineCommand)
 		}
 		pathSetup := "touch " + AgentStepSummaryPath + "\n" +
-			"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
-			"export GH_AW_NODE_BIN\n" +
+			nodeRuntimePathSetupCommand + "\n" +
 			// Export COPILOT_API_KEY via shell variable expansion so the sentinel
 			// value is never written as a literal next to a *_API_KEY key in the
 			// generated YAML env: block. GitHub Actions env: values are not
@@ -298,11 +302,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		})
 	} else {
 		// Run copilot command without AWF wrapper.
-		// Prepend a touch command to create the agent step summary file before copilot runs.
+		// Prepend setup commands to create needed directories/files and resolve node path before copilot runs.
 		preCommandSetup := mkdirCommands.String()
 		if customCommandScriptSetup != "" {
 			preCommandSetup = customCommandScriptSetup + "\n" + preCommandSetup
 		}
+		preCommandSetup += nodeRuntimePathSetupCommand + "\n"
 		command = fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
