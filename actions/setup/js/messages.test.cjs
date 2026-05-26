@@ -507,17 +507,22 @@ describe("messages.cjs", () => {
     });
 
     it("should gracefully skip install message when default template file is missing", async () => {
-      process.env.GH_AW_PROMPTS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-missing-prompts-"));
-      const { getFooterInstallMessage } = await import("./messages.cjs");
+      const missingPromptsDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-missing-prompts-"));
+      try {
+        process.env.GH_AW_PROMPTS_DIR = missingPromptsDir;
+        const { getFooterInstallMessage } = await import("./messages.cjs");
 
-      const result = getFooterInstallMessage({
-        workflowName: "Test",
-        runUrl: "https://example.com",
-        workflowSource: "owner/repo/workflow.md@main",
-        workflowSourceUrl: "https://github.com/owner/repo",
-      });
+        const result = getFooterInstallMessage({
+          workflowName: "Test",
+          runUrl: "https://example.com",
+          workflowSource: "owner/repo/workflow.md@main",
+          workflowSourceUrl: "https://github.com/owner/repo",
+        });
 
-      expect(result).toBe("");
+        expect(result).toBe("");
+      } finally {
+        fs.rmSync(missingPromptsDir, { recursive: true, force: true });
+      }
     });
   });
 
