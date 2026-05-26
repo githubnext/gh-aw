@@ -314,7 +314,8 @@ func TestRenderCrossRunReportMarkdown(t *testing.T) {
 
 func TestRenderMarkdownMetricsTrend_IncludesTurnsWithoutTokens(t *testing.T) {
 	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "should create stdout pipe")
 	os.Stdout = w
 
 	renderMarkdownMetricsTrend(MetricsTrendData{
@@ -327,7 +328,7 @@ func TestRenderMarkdownMetricsTrend_IncludesTurnsWithoutTokens(t *testing.T) {
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	_, err := buf.ReadFrom(r)
+	_, err = buf.ReadFrom(r)
 	require.NoError(t, err, "should read captured stdout")
 	output := buf.String()
 
@@ -337,7 +338,8 @@ func TestRenderMarkdownMetricsTrend_IncludesTurnsWithoutTokens(t *testing.T) {
 
 func TestRenderPrettyMetricsTrend_IncludesDurationWithoutTokens(t *testing.T) {
 	oldStderr := os.Stderr
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "should create stderr pipe")
 	os.Stderr = w
 
 	renderPrettyMetricsTrend(MetricsTrendData{
@@ -350,7 +352,7 @@ func TestRenderPrettyMetricsTrend_IncludesDurationWithoutTokens(t *testing.T) {
 	os.Stderr = oldStderr
 
 	var buf bytes.Buffer
-	_, err := buf.ReadFrom(r)
+	_, err = buf.ReadFrom(r)
 	require.NoError(t, err, "should read captured stderr")
 	output := buf.String()
 
