@@ -201,21 +201,21 @@ describe("handle_agent_failure", () => {
     /** @type {string} */
     let promptsDir;
 
-    function buildExistingIssueBody({ branch, categories, expires = "2099-01-01T00:00:00.000Z", pullRequestNumber, workflowName = "Test Workflow" } = {}) {
+    function buildExistingIssueBody({ branch, categories, expires = "2099-01-01T00:00:00.000Z", pullRequestNumber, workflowName = "Test Workflow", workflowId = "test-workflow" } = {}) {
       const prPart = pullRequestNumber ? `, pull_request: ${pullRequestNumber}` : "";
       return (
         `> Generated from [${workflowName}](https://github.com/owner/repo/actions/runs/123456)\n` +
         `> - [x] expires <!-- gh-aw-expires: ${expires} --> on Jan 1, 2099, 12:00 AM UTC\n\n` +
-        `<!-- gh-aw-agentic-workflow: ${workflowName}, workflow_id: test-workflow, run: https://github.com/owner/repo/actions/runs/123456 -->\n` +
-        `<!-- gh-aw-failure-issue: true, workflow_id: test-workflow, branch: ${branch || ""}, failure_categories: ${categories.join("|")}${prPart} -->`
+        `<!-- gh-aw-agentic-workflow: ${workflowName}, workflow_id: ${workflowId}, run: https://github.com/owner/repo/actions/runs/123456 -->\n` +
+        `<!-- gh-aw-failure-issue: true, workflow_id: ${workflowId}, branch: ${branch || ""}, failure_categories: ${categories.join("|")}${prPart} -->`
       );
     }
 
-    function buildLegacyIssueBody({ expires = "2099-01-01T00:00:00.000Z", workflowName = "Test Workflow" } = {}) {
+    function buildLegacyIssueBody({ expires = "2099-01-01T00:00:00.000Z", workflowName = "Test Workflow", workflowId = "test-workflow" } = {}) {
       return (
         `> Generated from [${workflowName}](https://github.com/owner/repo/actions/runs/123456)\n` +
         `> - [x] expires <!-- gh-aw-expires: ${expires} --> on Jan 1, 2099, 12:00 AM UTC\n\n` +
-        `<!-- gh-aw-agentic-workflow: ${workflowName}, workflow_id: test-workflow, run: https://github.com/owner/repo/actions/runs/123456 -->`
+        `<!-- gh-aw-agentic-workflow: ${workflowName}, workflow_id: ${workflowId}, run: https://github.com/owner/repo/actions/runs/123456 -->`
       );
     }
 
@@ -377,6 +377,52 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).not.toHaveBeenCalled();
       expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"gh-aw-agentic-workflow:"') }));
       expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"workflow_id: test-workflow" in:body') }));
+    });
+
+    it("escapes workflow IDs before searching for legacy XML marker matches", async () => {
+      const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
+      const createIssueMock = vi.fn();
+      const workflowId = 'test"workflow\\path';
+      const searchMock = vi.fn(async ({ q }) => {
+        if (q.includes("is:pr")) {
+          return { data: { total_count: 0, items: [] } };
+        }
+        return {
+          data: {
+            total_count: 1,
+            items: [
+              {
+                number: 42,
+                title: "[aw] Test Workflow failed",
+                html_url: "https://github.com/owner/repo/issues/42",
+                body: buildLegacyIssueBody({ workflowId }),
+              },
+            ],
+          },
+        };
+      });
+
+      process.env.GH_AW_WORKFLOW_ID = workflowId;
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: searchMock,
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(createCommentMock).toHaveBeenCalledOnce();
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"workflow_id: test\\"workflow\\\\path" in:body') }));
     });
 
     it("creates a new issue when only mismatched precise failure metadata exists", async () => {

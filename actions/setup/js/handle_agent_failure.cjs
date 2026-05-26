@@ -268,6 +268,18 @@ function isLegacyReusableFailureIssue(body, workflowId) {
 }
 
 /**
+ * Escape a GitHub search phrase for safe inclusion inside double quotes.
+ * @param {string} value - Raw phrase value
+ * @returns {string} Escaped phrase
+ */
+function escapeGitHubSearchPhrase(value) {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\r?\n|\r/g, " ");
+}
+
+/**
  * Find an existing open failure issue that exactly matches the current failure metadata,
  * or a legacy issue for the same workflow that lacks the precise failure marker.
  * @param {Object} options - Search options
@@ -282,7 +294,7 @@ function isLegacyReusableFailureIssue(body, workflowId) {
  */
 async function findExistingFailureIssue(options) {
   const { owner, repo, issueTitle, workflowId, branch, pullRequestNumber, failureCategories } = options;
-  const escapedWorkflowId = workflowId.replace(/"/g, '\\"');
+  const escapedWorkflowId = escapeGitHubSearchPhrase(workflowId);
   const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows ` + `"gh-aw-agentic-workflow:" "workflow_id: ${escapedWorkflowId}" in:body`;
   const perPage = 100;
   /** @type {{number: number, html_url: string} | null} */
