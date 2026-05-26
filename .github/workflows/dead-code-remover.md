@@ -61,7 +61,7 @@ Run the `deadcode` static analyzer, select a batch of up to 5 unreachable functi
 - Build/test output: pipe through `tail -20` to capture only the relevant tail; do not print full output.
 - PR body: use only the provided template structure — no extra analysis paragraphs.
 - Cache append: write lines directly; do not re-read the full cache file before appending.
-- **Turn circuit breaker**: target is still ≤30 turns, but after Phase 5, if turn count is already >35 (hard-stop overrun threshold; use current session turn count), skip `go test` in Phase 6 (run only `go build ./... && go vet ./...`) and proceed to Phase 7.
+- **Turn circuit breaker**: keep a **soft target** of ≤30 turns. After Phase 5, if turn count is already >35 (**hard stop**; use current session turn count), skip `go test` in Phase 6 (run only `go build ./... && go vet ./...`) and proceed to Phase 7.
 
 ## Context
 
@@ -74,9 +74,14 @@ task: |
   Run: deadcode ./cmd/... ./internal/tools/...
   Read: /tmp/gh-aw/cache-memory/dead-code-processed.jsonl (if present)
   Exclude functions whose "file:FuncName" key appears in the cache.
-  Always skip: containsInNonCommentLines, indexInNonCommentLines, extractJobSection (shared test infrastructure helpers; review this list periodically)
+  Always skip:
+  - containsInNonCommentLines (shared helper used across many compiler tests)
+  - indexInNonCommentLines (shared helper used across many compiler tests)
+  - extractJobSection (shared helper used across many compiler tests)
+  Review this skip list periodically.
   Output JSON to stdout in this exact shape:
   {"skip":false,"candidates":[{"function":"Name","file":"pkg/...","reason":"no callers"}]}
+  Allowed `reason` examples: "no callers", "test-only callers", "unreachable".
   If 0 candidates remain:
   {"skip":true,"candidates":[]}
 
@@ -119,7 +124,7 @@ if [[ "$file" == pkg/console/* ]]; then
 fi
 
 echo "=== Constant/embed check ==="
-grep -n "//go:embed\\|^[[:space:]]*const " "$file" || true  # POSIX class for grep portability
+grep -n "//go:embed\\|^[[:space:]]*const " "$file" || true
 ```
 
 - Caller matches **only in `*_test.go` files** → proceed with deletion and mark exclusive tests for removal.
@@ -164,7 +169,7 @@ go build ./... && go vet ./...
 echo "Exit: $?"
 ```
 
-In circuit-breaker mode, `go vet -tags=integration` and `make fmt` are intentionally skipped to reduce turns.
+In circuit-breaker mode, `go vet -tags=integration` and `make fmt` are intentionally skipped to reduce turns; full formatting/check coverage is expected in CI.
 
 If verification fails on obvious quick fixes (e.g., unused imports or simple compile errors), fix and re-run once. Otherwise, revert deletions tied to the failure (or revert all changes with `git checkout -- .`) and proceed to Phase 7 with `noop`.
 
