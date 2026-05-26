@@ -68,7 +68,7 @@ func renderMarkdownMetricsTrend(mt MetricsTrendData) {
 		if len(mt.CostSpikes) > 0 {
 			spikes = "⚠ " + formatRunIDs(mt.CostSpikes)
 		}
-		fmt.Fprintf(os.Stdout, "| Cost | $%.4f | $%.4f | $%.4f | $%.4f | %s |\n",
+		fmt.Fprintf(os.Stdout, "| Cost Trend | $%.4f | $%.4f | $%.4f | $%.4f | %s |\n",
 			mt.TotalCost, mt.AvgCost, mt.MinCost, mt.MaxCost, spikes)
 	}
 	if mt.TotalTokens > 0 {
@@ -76,7 +76,7 @@ func renderMarkdownMetricsTrend(mt MetricsTrendData) {
 		if len(mt.TokenSpikes) > 0 {
 			spikes = "⚠ " + formatRunIDs(mt.TokenSpikes)
 		}
-		fmt.Fprintf(os.Stdout, "| Tokens | %d | %d | %d | %d | %s |\n",
+		fmt.Fprintf(os.Stdout, "| Token Trend | %d | %d | %d | %d | %s |\n",
 			mt.TotalTokens, mt.AvgTokens, mt.MinTokens, mt.MaxTokens, spikes)
 	}
 	if mt.TotalTurns > 0 {
