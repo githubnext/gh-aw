@@ -575,19 +575,22 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		}
 	}
 
-	// Determine which engine to use - threat detection engine if specified in frontmatter,
+	// Determine which engine to use: threat detection engine from frontmatter,
 	// then enterprise default detection engine, otherwise main engine.
 	engineSetting := c.getThreatDetectionEngineID(data)
 
 	engineConfig := data.EngineConfig
+	enterpriseDetectionEngine := compilerenv.ResolveDefaultDetectionEngine("")
 	hasThreatDetectionEngineConfig := data.SafeOutputs != nil &&
 		data.SafeOutputs.ThreatDetection != nil &&
 		data.SafeOutputs.ThreatDetection.EngineConfig != nil
 	if hasThreatDetectionEngineConfig {
 		engineConfig = data.SafeOutputs.ThreatDetection.EngineConfig
-	} else if compilerenv.ResolveDefaultDetectionEngine("") != "" {
+	} else if enterpriseDetectionEngine != "" {
 		// If enterprise detection engine override is set and frontmatter did not provide
 		// threat-detection.engine, do not reuse the main engine config object.
+		// This avoids leaking engine-specific fields (model, args, harness script, etc.)
+		// from the main engine into a different detection engine runtime.
 		engineConfig = &EngineConfig{ID: engineSetting}
 	}
 
@@ -732,22 +735,26 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 // getThreatDetectionEngineID returns the effective engine ID for the detection job.
 // It mirrors threat-detection engine resolution: threat-detection.engine overrides main engine.
 func (c *Compiler) getThreatDetectionEngineID(data *WorkflowData) string {
-	engineID := ""
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
 		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
 		data.SafeOutputs.ThreatDetection.EngineConfig.ID != "" {
-		engineID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
-	} else {
-		engineID = data.AI
-		if engineID == "" && data.EngineConfig != nil && data.EngineConfig.ID != "" {
-			engineID = data.EngineConfig.ID
-		}
-		engineID = compilerenv.ResolveDefaultDetectionEngine(engineID)
+		return data.SafeOutputs.ThreatDetection.EngineConfig.ID
 	}
-	if engineID == "" {
-		engineID = "claude"
+
+	mainEngineID := data.AI
+	if mainEngineID == "" && data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		mainEngineID = data.EngineConfig.ID
 	}
-	return engineID
+
+	if enterpriseEngineID := compilerenv.ResolveDefaultDetectionEngine(""); enterpriseEngineID != "" {
+		return enterpriseEngineID
+	}
+
+	if mainEngineID != "" {
+		return mainEngineID
+	}
+
+	return "claude"
 }
 
 // buildWorkflowContextEnvVars creates environment variables for workflow context
