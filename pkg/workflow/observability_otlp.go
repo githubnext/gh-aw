@@ -176,9 +176,9 @@ func normalizeOTLPAuthType(value string) string {
 // github-app.type is configured as github-oidc. Returns empty string when github-app is
 // unset, invalid, or not github-oidc.
 func getOTLPGitHubOIDCAudience(config *FrontmatterConfig, frontmatter map[string]any) string {
-	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.Auth != nil {
-		if normalizeOTLPAuthType(config.Observability.OTLP.Auth.Type) == "github-oidc" {
-			return strings.TrimSpace(config.Observability.OTLP.Auth.Audience)
+	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.GitHubApp != nil {
+		if normalizeOTLPAuthType(config.Observability.OTLP.GitHubApp.Type) == "github-oidc" {
+			return strings.TrimSpace(config.Observability.OTLP.GitHubApp.Audience)
 		}
 	}
 
@@ -218,8 +218,8 @@ func getOTLPGitHubOIDCAudience(config *FrontmatterConfig, frontmatter map[string
 }
 
 func hasOTLPGitHubOIDCAuth(config *FrontmatterConfig, frontmatter map[string]any) bool {
-	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.Auth != nil {
-		if normalizeOTLPAuthType(config.Observability.OTLP.Auth.Type) == "github-oidc" {
+	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.GitHubApp != nil {
+		if normalizeOTLPAuthType(config.Observability.OTLP.GitHubApp.Type) == "github-oidc" {
 			return true
 		}
 	}

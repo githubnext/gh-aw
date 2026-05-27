@@ -259,7 +259,7 @@ type OTLPConfig struct {
 	//     user.id:             "{{ github.actor }}"
 	Attributes map[string]string `json:"attributes,omitempty"`
 
-	// Auth configures runtime OTLP authentication via the `github-app` key.
+	// GitHubApp configures runtime OTLP authentication via the `github-app` key.
 	// Supported values:
 	//   github-app:
 	//     type: github-oidc
@@ -267,7 +267,7 @@ type OTLPConfig struct {
 	//
 	// When configured, gh-aw mints an OIDC token before actions/setup and passes
 	// it to setup so OTLP requests can include an Authorization bearer token.
-	Auth *OTLPAuthConfig `json:"github-app,omitempty"`
+	GitHubApp *OTLPAuthConfig `json:"github-app,omitempty"`
 }
 
 // ObservabilityConfig represents workflow observability options.

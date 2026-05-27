@@ -227,7 +227,7 @@ func TestGetOTLPGitHubOIDCAudience(t *testing.T) {
 		got := getOTLPGitHubOIDCAudience(&FrontmatterConfig{
 			Observability: &ObservabilityConfig{
 				OTLP: &OTLPConfig{
-					Auth: &OTLPAuthConfig{
+					GitHubApp: &OTLPAuthConfig{
 						Type:     "github-oidc",
 						Audience: "https://collector.example.com",
 					},
@@ -270,7 +270,7 @@ func TestHasOTLPGitHubOIDCAuth(t *testing.T) {
 	assert.True(t, hasOTLPGitHubOIDCAuth(&FrontmatterConfig{
 		Observability: &ObservabilityConfig{
 			OTLP: &OTLPConfig{
-				Auth: &OTLPAuthConfig{
+				GitHubApp: &OTLPAuthConfig{
 					Type: "github-oidc",
 				},
 			},
