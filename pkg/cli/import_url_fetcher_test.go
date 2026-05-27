@@ -149,7 +149,7 @@ func TestAttachImportAuthHeader_GitHub(t *testing.T) {
 	assert.Equal(t, "Bearer gh-token-xyz", req.Header.Get("Authorization"))
 }
 
-func TestAttachImportAuthHeader_GitHubCopilot(t *testing.T) {
+func TestAttachImportAuthHeader_GitHubCopilotNonAutomation(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "gh-token-xyz")
 	t.Setenv("GH_TOKEN", "")
 

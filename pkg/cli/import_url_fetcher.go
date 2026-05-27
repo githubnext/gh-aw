@@ -241,7 +241,7 @@ func isCopilotAutomationImportURL(u *url.URL) bool {
 	if u == nil || !strings.EqualFold(u.Hostname(), constants.GitHubCopilotMCPDomain) {
 		return false
 	}
-	segments := strings.Split(strings.Trim(u.EscapedPath(), "/"), "/")
+	segments := strings.Split(strings.Trim(u.Path, "/"), "/")
 	return len(segments) == 6 &&
 		segments[0] == "agents" &&
 		segments[1] == "repos" &&
