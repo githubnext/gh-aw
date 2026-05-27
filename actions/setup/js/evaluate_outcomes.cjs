@@ -474,9 +474,9 @@ function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out, ghAPIFn = g
   const currentHead = normalizeCommitSHA(data?.head?.sha);
 
   const pushedStillHead = currentHead ? pushedShas.some(sha => sha === currentHead) : false;
-  const commitRetentionChecks = currentHead && pushedShas.length > 0 ? pushedShas.map(sha => isCommitInBranchHistory(itemRepo, sha, currentHead, ghAPIFn)) : [];
-  const pushedIncluded = commitRetentionChecks.some(inHistory => inHistory === true);
-  const pushedDefinitivelyNotRetained = commitRetentionChecks.length > 0 && commitRetentionChecks.every(inHistory => inHistory === false);
+  const commitRetentionResults = currentHead && pushedShas.length > 0 ? pushedShas.map(sha => isCommitInBranchHistory(itemRepo, sha, currentHead, ghAPIFn)) : [];
+  const pushedIncluded = commitRetentionResults.some(inHistory => inHistory === true);
+  const allPushedCommitsMissingFromHistory = commitRetentionResults.length > 0 && commitRetentionResults.every(inHistory => inHistory === false);
 
   if (data.merged === true) {
     out.result = "accepted";
@@ -511,7 +511,7 @@ function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out, ghAPIFn = g
 
   // A strong rejection requires before-head metadata from execution time so we
   // can distinguish "commit not retained" from "insufficient history context".
-  if (pushedShas.length > 0 && pushedDefinitivelyNotRetained && beforeHead) {
+  if (pushedShas.length > 0 && allPushedCommitsMissingFromHistory && beforeHead) {
     out.result = "rejected";
     out.detail = "pushed commits were force-pushed away or branch reset";
     return out;
