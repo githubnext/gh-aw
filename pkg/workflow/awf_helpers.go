@@ -196,7 +196,7 @@ func buildArcDindPrefixSettings(firewallConfig *FirewallConfig) (string, string)
 	if !awfSupportsDockerHostPathPrefix(firewallConfig) {
 		return "", ""
 	}
-	probe := fmt.Sprintf(`%s=""
+	arcDindPrefixProbeScript := fmt.Sprintf(`%s=""
 if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
   %s="%s"
 fi`,
@@ -204,7 +204,7 @@ fi`,
 		awfArcDindDockerHostRegex,
 		awfArcDindPrefixArgsVarName,
 		awfArcDindHostPathPrefixFlag)
-	return probe, fmt.Sprintf("${%s}", awfArcDindPrefixArgsVarName)
+	return arcDindPrefixProbeScript, fmt.Sprintf("${%s}", awfArcDindPrefixArgsVarName)
 }
 
 func buildAWFExpandableArgs(config AWFCommandConfig) (string, string) {
@@ -239,18 +239,18 @@ func buildAWFConfigFileSetup(config AWFCommandConfig) string {
 		return ""
 	}
 
-	setup := fmt.Sprintf("printf '%%s\\n' %s > %q", shellEscapeArg(awfConfigJSON), awfConfigRuntimePathExpr)
+	configFileSetup := fmt.Sprintf("printf '%%s\\n' %s > %q", shellEscapeArg(awfConfigJSON), awfConfigRuntimePathExpr)
 	if shouldUseWorkflowCallNetworkAllowedInput(config.WorkflowData) {
 		updateScript, updateErr := buildWorkflowCallNetworkAllowedUpdateScript()
 		if updateErr != nil {
 			awfHelpersLog.Printf("Warning: failed to build workflow_call network_allowed updater: %v", updateErr)
 		} else {
-			setup += "\n" + updateScript
+			configFileSetup += "\n" + updateScript
 		}
 	}
-	setup += "\n" + buildModelMultipliersFromFileScript()
-	setup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
-	return setup
+	configFileSetup += "\n" + buildModelMultipliersFromFileScript()
+	configFileSetup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
+	return configFileSetup
 }
 
 type awfCommandScriptParts struct {
