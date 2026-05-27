@@ -4,6 +4,8 @@ import os from "os";
 import path from "path";
 import { spawnSync } from "child_process";
 
+const MERGE_BRANCH_COUNT = 12;
+
 function execGit(args, cwd) {
   const result = spawnSync("git", args, {
     cwd,
@@ -29,7 +31,7 @@ function createMergeHeavyRepo() {
   execGit(["commit", "-m", "initial commit"], repoDir);
   execGit(["branch", "-M", "main"], repoDir);
 
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < MERGE_BRANCH_COUNT; i++) {
     execGit(["checkout", "-b", `feature-${i}`], repoDir);
     fs.writeFileSync(path.join(repoDir, `feature-${i}.txt`), `feature ${i}\n`);
     execGit(["add", `feature-${i}.txt`], repoDir);
@@ -135,7 +137,7 @@ describe("extra_empty_commit git integration", () => {
 
     const detailLog = mockCore.info.mock.calls.find(call => call[0].startsWith("Cycle check details:"));
     expect(detailLog).toBeDefined();
-    expect(detailLog[0]).toMatch(/ignored [1-9]\d* merge commit\(s\)/);
+    expect(detailLog[0]).toContain(`ignored ${MERGE_BRANCH_COUNT} merge commit(s)`);
     expect(detailLog[0]).toContain("counted 0 empty non-merge commit(s)");
   });
 });
