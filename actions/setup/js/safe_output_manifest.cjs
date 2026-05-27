@@ -47,6 +47,7 @@ const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data", "repor
  * @property {number} [number] - Issue/PR/discussion number if applicable
  * @property {string} [repo] - Repository slug (owner/repo) if applicable
  * @property {string} [temporaryId] - Temporary ID assigned to this item, if any
+ * @property {Record<string, any>} [metadata] - Persisted outcome metadata captured at execution time
  * @property {Object} [before_state] - Execution-time state snapshot captured before mutation
  * @property {Object} [after_state] - Execution-time state snapshot captured after mutation
  * @property {string[]} [labelsAdded] - Labels added by add_labels handler
@@ -60,7 +61,7 @@ const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data", "repor
  * It is designed to be easily testable by accepting the file path as a parameter.
  *
  * @param {string} [manifestFile] - Path to the manifest file (defaults to MANIFEST_FILE_PATH)
- * @returns {(item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string, before_state?: Object, after_state?: Object, labelsAdded?: string[]}) => void} Logger function
+ * @returns {(item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string, metadata?: Record<string, any>, before_state?: Object, after_state?: Object, labelsAdded?: string[], labelsBefore?: string[]}) => void} Logger function
  */
 function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
   // Touch the file immediately so it exists for artifact upload
@@ -70,7 +71,7 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
   /**
    * Log an executed safe output item to the manifest file.
    *
-   * @param {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, before_state?: Object, after_state?: Object, labelsAdded?: string[]}} item - Executed item details
+   * @param {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, metadata?: Record<string, any>, before_state?: Object, after_state?: Object, labelsAdded?: string[], labelsBefore?: string[]}} item - Executed item details
    */
   return function logCreatedItem(item) {
     if (!item) return;
@@ -82,9 +83,11 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
       ...(item.number != null ? { number: item.number } : {}),
       ...(item.repo ? { repo: item.repo } : {}),
       ...(item.temporaryId ? { temporaryId: item.temporaryId } : {}),
+      ...(item.metadata && Object.keys(item.metadata).length > 0 ? { metadata: item.metadata } : {}),
       ...(item.before_state ? { before_state: item.before_state } : {}),
       ...(item.after_state ? { after_state: item.after_state } : {}),
       ...(Array.isArray(item.labelsAdded) ? { labelsAdded: item.labelsAdded } : {}),
+      ...(Array.isArray(item.labelsBefore) ? { labelsBefore: item.labelsBefore } : {}),
       timestamp: new Date().toISOString(),
     };
 
@@ -126,7 +129,7 @@ function ensureManifestExists(manifestFile = MANIFEST_FILE_PATH) {
  *
  * @param {string} type - The handler type (e.g., "create_issue")
  * @param {any} result - The handler result object
- * @returns {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, before_state?: Object, after_state?: Object}|null}
+ * @returns {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, metadata?: Record<string, any>, before_state?: Object, after_state?: Object, labelsAdded?: string[], labelsBefore?: string[]}|null}
  */
 function extractCreatedItemFromResult(type, result) {
   if (!result || NOT_LOGGED_TYPES.has(type)) return null;
@@ -138,7 +141,7 @@ function extractCreatedItemFromResult(type, result) {
   }
 
   // In staged mode (🎭 Staged Mode Preview), no item was actually modified in GitHub — skip logging
-  if (result.staged === true) return null;
+  if (result.staged === true || result.skipped === true || result.deferred_manifest === true) return null;
 
   // Normalize URL from different result shapes (present for creation types)
   const url = result.url || result.projectUrl || result.html_url || result.pull_request_url || result.review_url || result.issue_url;
@@ -150,8 +153,11 @@ function extractCreatedItemFromResult(type, result) {
     ...(number != null ? { number } : {}),
     ...(result.repo ? { repo: result.repo } : {}),
     ...(result.temporaryId ? { temporaryId: result.temporaryId } : {}),
+    ...(result.metadata && Object.keys(result.metadata).length > 0 ? { metadata: result.metadata } : {}),
     ...(result.before_state ? { before_state: result.before_state } : {}),
     ...(result.after_state ? { after_state: result.after_state } : {}),
+    ...(Array.isArray(result.labelsAdded) ? { labelsAdded: result.labelsAdded } : {}),
+    ...(Array.isArray(result.labelsBefore) ? { labelsBefore: result.labelsBefore } : {}),
   };
 }
 

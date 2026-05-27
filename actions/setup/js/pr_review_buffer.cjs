@@ -513,12 +513,19 @@ function createReviewBuffer() {
       return attachExecutionState(
         {
           success: true,
+          url: review.html_url,
+          number: pullRequestNumber,
           review_id: review.id,
           review_url: review.html_url,
           pull_request_number: pullRequestNumber,
           repo: repo,
           event: event,
           comment_count: comments.length,
+          metadata: {
+            review_id: review.id,
+            review_event: event,
+            ...(review.state ? { review_state: review.state } : {}),
+          },
         },
         beforeState,
         await fetchPullRequestReviewState(github, repoParts, pullRequestNumber)
@@ -540,12 +547,19 @@ function createReviewBuffer() {
           return attachExecutionState(
             {
               success: true,
+              url: review.html_url,
+              number: pullRequestNumber,
               review_id: review.id,
               review_url: review.html_url,
               pull_request_number: pullRequestNumber,
               repo: repo,
               event: "COMMENT",
               comment_count: comments.length,
+              metadata: {
+                review_id: review.id,
+                review_event: "COMMENT",
+                ...(review.state ? { review_state: review.state } : {}),
+              },
             },
             beforeState,
             await fetchPullRequestReviewState(github, repoParts, pullRequestNumber)
@@ -574,12 +588,19 @@ function createReviewBuffer() {
           return attachExecutionState(
             {
               success: true,
+              url: review.html_url,
+              number: pullRequestNumber,
               review_id: review.id,
               review_url: review.html_url,
               pull_request_number: pullRequestNumber,
               repo: repo,
               event: event,
               comment_count: 0,
+              metadata: {
+                review_id: review.id,
+                review_event: event,
+                ...(review.state ? { review_state: review.state } : {}),
+              },
             },
             beforeState,
             await fetchPullRequestReviewState(github, repoParts, pullRequestNumber)

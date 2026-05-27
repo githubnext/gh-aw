@@ -82,7 +82,13 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
 
     expect(result.success).toBe(true);
     expect(result.prNumber).toBe(123);
+    expect(result.number).toBe(123);
+    expect(result.repo).toBe("testowner/testrepo");
     expect(result.reviewersAdded).toEqual(["user1", "user2"]);
+    expect(result.metadata).toEqual({
+      requested_reviewers: ["user1", "user2"],
+      requested_team_reviewers: [],
+    });
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
@@ -352,6 +358,7 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
     const result = await handler(message, {});
 
     expect(result.success).toBe(true);
+    expect(result.skipped).toBe(true);
     expect(result.reviewersAdded).toEqual([]);
     expect(result.message).toContain("No valid reviewers found");
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
