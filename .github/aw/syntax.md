@@ -293,6 +293,7 @@ The YAML frontmatter supports these fields:
     - `github-app:` - Optional runtime auth configuration.
       - `type:` - `github-oidc` to mint a GitHub Actions OIDC credential before `actions/setup` and use it for OTLP Authorization headers.
       - `audience:` - Optional OIDC audience passed to `core.getIDToken(audience)`.
+      - Requires `permissions.id-token: write` on the workflow/job.
     - `headers:` - Comma-separated `key=value` HTTP headers included in every OTLP export request (e.g. `Authorization=Bearer <token>`). Injected as `OTEL_EXPORTER_OTLP_HEADERS`. Supports GitHub Actions expressions.
   - Example:
 

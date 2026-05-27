@@ -213,6 +213,47 @@ func TestValidatePermissions(t *testing.T) {
 			shouldError:     false,
 			wantPermissions: true,
 		},
+		{
+			name: "observability otlp github-app github-oidc requires id-token write",
+			workflowData: &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: "# Test",
+				AI:              "copilot",
+				Permissions:     "permissions:\n  contents: read\n",
+				RawFrontmatter: map[string]any{
+					"observability": map[string]any{
+						"otlp": map[string]any{
+							"github-app": map[string]any{
+								"type": "github-oidc",
+							},
+						},
+					},
+				},
+			},
+			shouldError:     true,
+			errorContains:   "observability.otlp.github-app.type: github-oidc requires permissions.id-token: write",
+			wantPermissions: false,
+		},
+		{
+			name: "observability otlp github-app github-oidc with id-token write succeeds",
+			workflowData: &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: "# Test",
+				AI:              "copilot",
+				Permissions:     "permissions:\n  contents: read\n  id-token: write\n",
+				RawFrontmatter: map[string]any{
+					"observability": map[string]any{
+						"otlp": map[string]any{
+							"github-app": map[string]any{
+								"type": "github-oidc",
+							},
+						},
+					},
+				},
+			},
+			shouldError:     false,
+			wantPermissions: true,
+		},
 	}
 
 	for _, tt := range tests {

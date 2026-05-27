@@ -64,6 +64,7 @@ describe("action_setup_otlp.cjs", () => {
       INPUT_PARENT_SPAN_ID: process.env.INPUT_PARENT_SPAN_ID,
       "INPUT_PARENT-SPAN-ID": process.env["INPUT_PARENT-SPAN-ID"],
       INPUT_OTLP_OIDC_TOKEN: process.env.INPUT_OTLP_OIDC_TOKEN,
+      GH_AW_OTLP_ENDPOINTS: process.env.GH_AW_OTLP_ENDPOINTS,
       OTEL_EXPORTER_OTLP_HEADERS: process.env.OTEL_EXPORTER_OTLP_HEADERS,
     };
 
@@ -171,6 +172,25 @@ describe("action_setup_otlp.cjs", () => {
       await run();
 
       expect(process.env.OTEL_EXPORTER_OTLP_HEADERS).toBe("Authorization=******");
+    });
+
+    it("merges Authorization into each GH_AW_OTLP_ENDPOINTS endpoint and exports it", async () => {
+      const minted = "oidc" + "-endpoint" + "-value";
+      process.env.INPUT_OTLP_OIDC_TOKEN = minted;
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://otlp-a.example.com", headers: "X-Tenant=acme" }, { url: "https://otlp-b.example.com" }, { url: "https://otlp-c.example.com", headers: "Authorization=******" }]);
+
+      await run();
+
+      const endpoints = JSON.parse(process.env.GH_AW_OTLP_ENDPOINTS || "[]");
+      expect(endpoints[0].headers).toContain("X-Tenant=acme");
+      expect(endpoints[0].headers).toContain("Authorization=");
+      expect(endpoints[0].headers).toContain(minted);
+      expect(endpoints[1].headers).toContain("Authorization=");
+      expect(endpoints[1].headers).toContain(minted);
+      expect(endpoints[2].headers).toBe("Authorization=******");
+      expect(readFileSync(envFile, "utf8")).toContain("GH_AW_OTLP_ENDPOINTS=");
+      expect(readFileSync(envFile, "utf8")).toContain("Authorization=");
+      expect(readFileSync(envFile, "utf8")).toContain(minted);
     });
   });
 
