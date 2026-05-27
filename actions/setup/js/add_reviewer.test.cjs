@@ -16,6 +16,7 @@ const mockCore = {
 };
 
 const mockGithub = {
+  graphql: vi.fn().mockResolvedValue({}),
   rest: {
     pulls: {
       get: vi.fn().mockResolvedValue({
@@ -122,6 +123,8 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
   });
 
   it("should add copilot reviewer separately", async () => {
+    mockGithub.graphql.mockResolvedValueOnce({ repository: { pullRequest: { id: "PR_NODE_ID" } } }).mockResolvedValueOnce({ requestReviews: { pullRequest: { id: "PR_NODE_ID" } } });
+
     const message = {
       type: "add_reviewer",
       reviewers: ["user1", "copilot"],
@@ -131,23 +134,20 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
 
     expect(result.success).toBe(true);
     expect(result.reviewersAdded).toEqual(["user1", "copilot"]);
-    // Should be called twice - once for regular reviewers, once for copilot
-    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledTimes(2);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledTimes(1);
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
       pull_number: 123,
       reviewers: ["user1"],
     });
-    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
-      owner: "testowner",
-      repo: "testrepo",
-      pull_number: 123,
-      reviewers: ["copilot-pull-request-reviewer[bot]"],
-    });
+    expect(mockGithub.graphql).toHaveBeenNthCalledWith(1, expect.stringContaining("pullRequest(number: $number)"), expect.objectContaining({ owner: "testowner", repo: "testrepo", number: 123 }));
+    expect(mockGithub.graphql).toHaveBeenNthCalledWith(2, expect.stringContaining("requestReviews(input"), expect.objectContaining({ pullRequestId: "PR_NODE_ID", botIds: ["BOT_kgDOCnlnWA"] }));
   });
 
   it("should keep team reviewers with non-copilot reviewers when copilot is requested", async () => {
+    mockGithub.graphql.mockResolvedValueOnce({ repository: { pullRequest: { id: "PR_NODE_ID" } } }).mockResolvedValueOnce({ requestReviews: { pullRequest: { id: "PR_NODE_ID" } } });
+
     const message = {
       type: "add_reviewer",
       reviewers: ["user1", "copilot"],
@@ -166,12 +166,7 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
       reviewers: ["user1"],
       team_reviewers: ["platform-team"],
     });
-    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenNthCalledWith(2, {
-      owner: "testowner",
-      repo: "testrepo",
-      pull_number: 123,
-      reviewers: ["copilot-pull-request-reviewer[bot]"],
-    });
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
   });
 
   it("should filter by allowed reviewers", async () => {
@@ -390,9 +385,8 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
   });
 
   it("should handle copilot reviewer failure gracefully", async () => {
-    mockGithub.rest.pulls.requestReviewers
-      .mockResolvedValueOnce({}) // regular reviewers succeed
-      .mockRejectedValueOnce(new Error("Copilot not available")); // copilot fails
+    mockGithub.rest.pulls.requestReviewers.mockResolvedValueOnce({});
+    mockGithub.graphql.mockResolvedValueOnce({ repository: { pullRequest: { id: "PR_NODE_ID" } } }).mockRejectedValueOnce(new Error("Copilot not available"));
 
     const message = {
       type: "add_reviewer",
@@ -422,6 +416,8 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
   });
 
   it("should add only copilot when copilot is the only reviewer", async () => {
+    mockGithub.graphql.mockResolvedValueOnce({ repository: { pullRequest: { id: "PR_NODE_ID" } } }).mockResolvedValueOnce({ requestReviews: { pullRequest: { id: "PR_NODE_ID" } } });
+
     const message = {
       type: "add_reviewer",
       reviewers: ["copilot"],
@@ -431,13 +427,28 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
 
     expect(result.success).toBe(true);
     expect(result.reviewersAdded).toEqual(["copilot"]);
-    // Only called once for copilot, not for other reviewers
-    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
+  });
+
+  it("should honor target-repo for cross-repository reviewer requests", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    const crossRepoHandler = await main({ max: 10, allowed: ["user1"], "target-repo": "microsoft/vscode", allowed_repos: ["microsoft/vscode"] });
+
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1"],
+    };
+
+    const result = await crossRepoHandler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.repo).toBe("microsoft/vscode");
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
-      owner: "testowner",
-      repo: "testrepo",
+      owner: "microsoft",
+      repo: "vscode",
       pull_number: 123,
-      reviewers: ["copilot-pull-request-reviewer[bot]"],
+      reviewers: ["user1"],
     });
   });
 

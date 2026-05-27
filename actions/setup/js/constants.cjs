@@ -31,6 +31,12 @@ const TMP_GH_AW_PATH = "/tmp/gh-aw";
  */
 const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
 
+/**
+ * GraphQL node ID for the Copilot pull request reviewer bot
+ * @type {string}
+ */
+const COPILOT_REVIEWER_BOT_ID = "BOT_kgDOCnlnWA";
+
 // ---------------------------------------------------------------------------
 // Documentation URLs
 // ---------------------------------------------------------------------------
@@ -125,6 +131,7 @@ module.exports = {
   AGENT_OUTPUT_FILENAME,
   TMP_GH_AW_PATH,
   COPILOT_REVIEWER_BOT,
+  COPILOT_REVIEWER_BOT_ID,
   FAQ_CREATE_PR_PERMISSIONS_URL,
   MAX_LABELS,
   MAX_ASSIGNEES,

@@ -9,7 +9,7 @@
  */
 
 /**
- * @typedef {{ reviewers?: Array<string|null|undefined|false>, team_reviewers?: Array<string|null|undefined|false>, pull_request_number?: number|string }} AddReviewerMessage
+ * @typedef {{ reviewers?: Array<string|null|undefined|false>, team_reviewers?: Array<string|null|undefined|false>, pull_request_number?: number|string, repo?: string }} AddReviewerMessage
  */
 
 /** @type {string} Safe output type handled by this module */
@@ -22,7 +22,8 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { attachExecutionState, extractReviewStateFromData, fetchPullRequestReviewState } = require("./safe_output_execution_metadata.cjs");
-const { COPILOT_REVIEWER_BOT } = require("./constants.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { COPILOT_REVIEWER_BOT, COPILOT_REVIEWER_BOT_ID } = require("./constants.cjs");
 
 /**
  * Main handler factory for add_reviewer
@@ -33,6 +34,7 @@ async function main(config = {}) {
   const allowedReviewers = config.allowed ?? [];
   const allowedTeamReviewers = config.allowed_team_reviewers ?? [];
   const maxCount = config.max ?? 10;
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
   const isStaged = isStagedMode(config);
 
@@ -42,6 +44,10 @@ async function main(config = {}) {
   if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
 
   core.info(`Add reviewer configuration: max=${maxCount}`);
+  core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (allowedRepos.size > 0) {
+    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+  }
   if (allowedReviewers.length > 0) {
     core.info(`Allowed reviewers: ${allowedReviewers.join(", ")}`);
   }
@@ -83,8 +89,17 @@ async function main(config = {}) {
       };
     }
 
-    const repoParts = { owner: context.repo.owner, repo: context.repo.repo };
-    const itemRepo = `${repoParts.owner}/${repoParts.repo}`;
+    const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "pull request reviewer");
+    if (!repoResult.success) {
+      core.warning(`Skipping add_reviewer: ${repoResult.error}`);
+      return {
+        success: false,
+        error: repoResult.error,
+      };
+    }
+    const { repo: itemRepo, repoParts } = repoResult;
+    core.info(`Target repository: ${itemRepo}`);
+
     const filterResult = await checkRequiredFilter(githubClient, repoParts, prNumber, requiredLabels, requiredTitlePrefix, HANDLER_TYPE);
     if (filterResult) return filterResult;
 
@@ -138,8 +153,8 @@ async function main(config = {}) {
       if (otherReviewers.length > 0 || uniqueTeamReviewers.length > 0) {
         /** @type {{ owner: string, repo: string, pull_number: number, reviewers: string[], team_reviewers?: string[] }} */
         const reviewerRequest = {
-          owner: context.repo.owner,
-          repo: context.repo.repo,
+          owner: repoParts.owner,
+          repo: repoParts.repo,
           pull_number: prNumber,
           reviewers: otherReviewers,
         };
@@ -154,11 +169,43 @@ async function main(config = {}) {
       // Add copilot reviewer separately if requested
       if (hasCopilot) {
         try {
-          const response = await githubClient.rest.pulls.requestReviewers({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
+          const pullRequestQuery = `
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  id
+                }
+              }
+            }
+          `;
+          const pullRequestResponse = await githubClient.graphql(pullRequestQuery, {
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            number: prNumber,
+          });
+          const pullRequestId = pullRequestResponse?.repository?.pullRequest?.id;
+          if (!pullRequestId) {
+            throw new Error(`Could not resolve pull request node ID for ${repoParts.owner}/${repoParts.repo}#${prNumber}`);
+          }
+
+          const requestReviewsMutation = `
+            mutation($pullRequestId: ID!, $botIds: [ID!]!) {
+              requestReviews(input: { pullRequestId: $pullRequestId, botIds: $botIds, union: true }) {
+                pullRequest {
+                  id
+                }
+              }
+            }
+          `;
+          await githubClient.graphql(requestReviewsMutation, {
+            pullRequestId,
+            botIds: [COPILOT_REVIEWER_BOT_ID],
+          });
+
+          const response = await githubClient.rest.pulls.get({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
             pull_number: prNumber,
-            reviewers: [COPILOT_REVIEWER_BOT],
           });
           latestPullRequest = response?.data || latestPullRequest;
           core.info(`Successfully added copilot as reviewer to PR #${prNumber}`);
