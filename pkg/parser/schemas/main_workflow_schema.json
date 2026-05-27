@@ -9691,11 +9691,11 @@
                 },
                 "owner": {
                   "type": "string",
-                  "description": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)"
+                  "description": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)."
                 },
                 "repositories": {
                   "type": "array",
-                  "description": "Optional list of repositories to grant access to (defaults to current repository if not specified)",
+                  "description": "Optional list of repositories to grant access to (defaults to current repository if not specified).",
                   "items": {
                     "type": "string"
                   }

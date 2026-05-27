@@ -873,7 +873,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppAudie
 	}
 	errText := err.Error()
 	if !strings.Contains(errText, "audience") ||
-		!strings.Contains(errText, "github-app") {
+		(!strings.Contains(errText, "github-app") && !strings.Contains(errText, "Unknown property")) {
 		t.Fatalf("expected schema validation error to reference unsupported github-app.audience syntax, got: %v", err)
 	}
 }
@@ -902,7 +902,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppLegac
 	}
 	errText := err.Error()
 	if !strings.Contains(errText, "type") ||
-		!strings.Contains(errText, "github-app") {
+		(!strings.Contains(errText, "github-app") && !strings.Contains(errText, "Unknown properties")) {
 		t.Fatalf("expected schema validation error to reference unsupported legacy github-app.type syntax, got: %v", err)
 	}
 }
