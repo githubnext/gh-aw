@@ -130,29 +130,27 @@ func TestIsPermissionErrorStr(t *testing.T) {
 func TestBuildAuditData(t *testing.T) {
 	// Create test data
 	run := WorkflowRun{
-		DatabaseID:    123456,
-		WorkflowName:  "Test Workflow",
-		Status:        "completed",
-		Conclusion:    "success",
-		CreatedAt:     time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
-		StartedAt:     time.Date(2024, 1, 1, 10, 0, 30, 0, time.UTC),
-		UpdatedAt:     time.Date(2024, 1, 1, 10, 5, 0, 0, time.UTC),
-		Duration:      4*time.Minute + 30*time.Second,
-		Event:         "push",
-		HeadBranch:    "main",
-		URL:           "https://github.com/org/repo/actions/runs/123456",
-		TokenUsage:    1500,
-		EstimatedCost: 0.025,
-		Turns:         5,
-		ErrorCount:    2,
-		WarningCount:  1,
-		LogsPath:      testutil.TempDir(t, "test-*"),
+		DatabaseID:   123456,
+		WorkflowName: "Test Workflow",
+		Status:       "completed",
+		Conclusion:   "success",
+		CreatedAt:    time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
+		StartedAt:    time.Date(2024, 1, 1, 10, 0, 30, 0, time.UTC),
+		UpdatedAt:    time.Date(2024, 1, 1, 10, 5, 0, 0, time.UTC),
+		Duration:     4*time.Minute + 30*time.Second,
+		Event:        "push",
+		HeadBranch:   "main",
+		URL:          "https://github.com/org/repo/actions/runs/123456",
+		TokenUsage:   1500,
+		Turns:        5,
+		ErrorCount:   2,
+		WarningCount: 1,
+		LogsPath:     testutil.TempDir(t, "test-*"),
 	}
 
 	metrics := LogMetrics{
-		TokenUsage:    1500,
-		EstimatedCost: 0.025,
-		Turns:         5,
+		TokenUsage: 1500,
+		Turns:      5,
 		ToolCalls: []workflow.ToolCallInfo{
 			{
 				Name:          "github_issue_read",
@@ -213,9 +211,6 @@ func TestBuildAuditData(t *testing.T) {
 	// Verify metrics
 	if auditData.Metrics.TokenUsage != 1500 {
 		t.Errorf("Expected token usage 1500, got %d", auditData.Metrics.TokenUsage)
-	}
-	if auditData.Metrics.EstimatedCost != 0.025 {
-		t.Errorf("Expected estimated cost 0.025, got %f", auditData.Metrics.EstimatedCost)
 	}
 	if auditData.Metrics.ErrorCount != 2 {
 		t.Errorf("Expected error count 2, got %d", auditData.Metrics.ErrorCount)
@@ -316,11 +311,10 @@ func TestRenderJSON(t *testing.T) {
 			URL:          "https://github.com/org/repo/actions/runs/123456",
 		},
 		Metrics: MetricsData{
-			TokenUsage:    1500,
-			EstimatedCost: 0.025,
-			Turns:         5,
-			ErrorCount:    1,
-			WarningCount:  1,
+			TokenUsage:   1500,
+			Turns:        5,
+			ErrorCount:   1,
+			WarningCount: 1,
 		},
 		Jobs: []JobData{
 			{
@@ -427,26 +421,24 @@ func TestAuditCachingBehavior(t *testing.T) {
 
 	// Create a test run
 	run := WorkflowRun{
-		DatabaseID:    12345,
-		WorkflowName:  "Test Workflow",
-		Status:        "completed",
-		Conclusion:    "success",
-		CreatedAt:     time.Now(),
-		Event:         "push",
-		HeadBranch:    "main",
-		URL:           "https://github.com/org/repo/actions/runs/12345",
-		TokenUsage:    1000,
-		EstimatedCost: 0.01,
-		Turns:         3,
-		ErrorCount:    0,
-		WarningCount:  0,
-		LogsPath:      runOutputDir,
+		DatabaseID:   12345,
+		WorkflowName: "Test Workflow",
+		Status:       "completed",
+		Conclusion:   "success",
+		CreatedAt:    time.Now(),
+		Event:        "push",
+		HeadBranch:   "main",
+		URL:          "https://github.com/org/repo/actions/runs/12345",
+		TokenUsage:   1000,
+		Turns:        3,
+		ErrorCount:   0,
+		WarningCount: 0,
+		LogsPath:     runOutputDir,
 	}
 
 	metrics := LogMetrics{
-		TokenUsage:    1000,
-		EstimatedCost: 0.01,
-		Turns:         3,
+		TokenUsage: 1000,
+		Turns:      3,
 	}
 
 	// Create and save a run summary
@@ -650,26 +642,24 @@ func TestRenderAuditReportUsesProvidedMetrics(t *testing.T) {
 func TestBuildAuditDataWithFirewall(t *testing.T) {
 	// Create test data with firewall analysis
 	run := WorkflowRun{
-		DatabaseID:    123456,
-		WorkflowName:  "Test Workflow",
-		Status:        "completed",
-		Conclusion:    "success",
-		CreatedAt:     time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
-		Event:         "push",
-		HeadBranch:    "main",
-		URL:           "https://github.com/org/repo/actions/runs/123456",
-		TokenUsage:    1500,
-		EstimatedCost: 0.025,
-		Turns:         5,
-		ErrorCount:    0,
-		WarningCount:  0,
-		LogsPath:      testutil.TempDir(t, "test-*"),
+		DatabaseID:   123456,
+		WorkflowName: "Test Workflow",
+		Status:       "completed",
+		Conclusion:   "success",
+		CreatedAt:    time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
+		Event:        "push",
+		HeadBranch:   "main",
+		URL:          "https://github.com/org/repo/actions/runs/123456",
+		TokenUsage:   1500,
+		Turns:        5,
+		ErrorCount:   0,
+		WarningCount: 0,
+		LogsPath:     testutil.TempDir(t, "test-*"),
 	}
 
 	metrics := LogMetrics{
-		TokenUsage:    1500,
-		EstimatedCost: 0.025,
-		Turns:         5,
+		TokenUsage: 1500,
+		Turns:      5,
 	}
 
 	firewallAnalysis := &FirewallAnalysis{
@@ -747,11 +737,10 @@ func TestRenderJSONWithFirewall(t *testing.T) {
 			URL:          "https://github.com/org/repo/actions/runs/123456",
 		},
 		Metrics: MetricsData{
-			TokenUsage:    1500,
-			EstimatedCost: 0.025,
-			Turns:         5,
-			ErrorCount:    0,
-			WarningCount:  0,
+			TokenUsage:   1500,
+			Turns:        5,
+			ErrorCount:   0,
+			WarningCount: 0,
 		},
 		FirewallAnalysis: firewallAnalysis,
 		DownloadedFiles:  []FileInfo{},

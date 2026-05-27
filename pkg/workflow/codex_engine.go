@@ -13,6 +13,23 @@ import (
 
 var codexEngineLog = logger.New("workflow:codex_engine")
 
+// detectionResponseSchema is the JSON Schema for Codex detection runs.
+// It constrains the model output to exactly the threat detection result fields.
+// The schema is written to detectionSchemaFilePath before Codex runs and passed
+// via --output-schema; the structured result is written to detectionResultFilePath
+// via --output-last-message for direct parsing without log scraping.
+const detectionResponseSchema = `{"type":"object","properties":{"prompt_injection":{"type":"boolean"},"secret_leak":{"type":"boolean"},"malicious_patch":{"type":"boolean"},"reasons":{"type":"array","items":{"type":"string"}}},"required":["prompt_injection","secret_leak","malicious_patch","reasons"],"additionalProperties":false}`
+
+// detectionSchemaFilePath is the path where the detection JSON schema is written
+// before Codex runs. It is referenced by --output-schema.
+const detectionSchemaFilePath = "/tmp/gh-aw/threat-detection/detection_schema.json"
+
+// detectionResultFilePath is the path where Codex writes the final structured
+// verdict via --output-last-message. The parser reads this file directly instead
+// of scraping the log stream, eliminating false parse_error warnings from noisy
+// SSE/tracing output.
+const detectionResultFilePath = "/tmp/gh-aw/threat-detection/detection_result.json"
+
 // Pre-compiled regexes for Codex log parsing (performance optimization)
 var (
 	codexToolCallOldFormat    = regexp.MustCompile(`\] tool ([^(]+)\(`)
@@ -200,6 +217,30 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		customArgsParam += customArgsParamSb.String()
 	}
 
+	// Build structured output parameter for detection runs.
+	// Use --output-schema to constrain Codex output to the threat detection JSON schema,
+	// and -o (--output-last-message) to write the final structured verdict directly to a
+	// file. The parser (parse_threat_detection_results.cjs) reads detection_result.json
+	// first, bypassing the noisy log stream that caused false parse_error warnings.
+	//
+	// The schema file is written to detectionSchemaFilePath before Codex runs:
+	//   - AWF mode: in PathSetup (runs on host before the AWF container starts)
+	//   - Non-AWF mode: in the command preamble (inline shell command)
+	// Because /tmp/gh-aw/ is the read-write runtime tree mounted in both the host and
+	// the AWF container, the schema file is accessible inside the container and the
+	// result file written inside the container is accessible on the host after exit.
+	var structuredOutputParam string
+	var detectionSchemaWriteCmd string
+	if workflowData.IsDetectionRun {
+		// --output-schema <file>: constrain model output to the threat detection schema
+		// -o <file>: write the final structured verdict to a file for direct parsing
+		structuredOutputParam = fmt.Sprintf(` --output-schema %s -o %s`, detectionSchemaFilePath, detectionResultFilePath)
+		// Shell command to write the schema file before Codex runs.
+		// printf '%s' avoids the need to escape the JSON (no single quotes in schema).
+		detectionSchemaWriteCmd = fmt.Sprintf("mkdir -p /tmp/gh-aw/threat-detection && printf '%%s' '%s' > %s", detectionResponseSchema, detectionSchemaFilePath)
+		codexEngineLog.Printf("Enabling structured outputs for Codex detection run")
+	}
+
 	// Build the Codex command
 	// Determine which command to use
 	var commandName string
@@ -229,12 +270,12 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Harness-wrapped execution: the harness reads --prompt-file and passes its content
 		// as the last positional arg.  The harness also provides retry logic.
 		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
-			execPrefix, modelParam, webSearchParam, webFetchParam, executionPolicyParam, customArgsParam)
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
+			execPrefix, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	} else {
 		// Without harness: use shell expansion for the prompt (no retry logic).
-		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s\"$INSTRUCTION\"",
-			commandName, modelParam, webSearchParam, webFetchParam, executionPolicyParam, customArgsParam)
+		codexCommand = fmt.Sprintf("%s exec%s%s%s%s%s%s \"$INSTRUCTION\"",
+			commandName, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	}
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
@@ -284,9 +325,17 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			UsesTTY:        false, // Codex is not a TUI, outputs to stdout/stderr
 			AllowedDomains: allowedDomains,
 			// Create logs directory and agent step summary file before AWF.
-			// The agent writes its step summary content to AgentStepSummaryPath, which is
-			// appended to $GITHUB_STEP_SUMMARY after secret redaction.
-			PathSetup: "mkdir -p \"$CODEX_HOME/logs\" && touch " + AgentStepSummaryPath,
+			// For detection runs, also write the JSON schema file that --output-schema
+			// references. PathSetup runs on the host before the AWF container starts;
+			// /tmp/gh-aw/ is the read-write runtime tree mounted in both environments,
+			// so the schema file is accessible inside the container.
+			PathSetup: func() string {
+				base := "mkdir -p \"$CODEX_HOME/logs\" && touch " + AgentStepSummaryPath
+				if workflowData.IsDetectionRun {
+					return base + " && " + detectionSchemaWriteCmd
+				}
+				return base
+			}(),
 			// Exclude Codex/OpenAI API key env vars from the AWF container.
 			// AWF's API proxy handles auth, so raw token values should not be
 			// visible to in-container tools (e.g., env/printenv).
@@ -297,6 +346,14 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// For engines that do not support native agent-file handling (including Codex),
 		// the compiler prepends the agent file content to prompt.txt so no special
 		// shell variable juggling is needed here.
+
+		// Optionally prefix the detection schema write command for detection runs.
+		// Keep it chained with "&&" so a schema write failure stops before codex runs.
+		schemaWritePrefix := ""
+		if workflowData.IsDetectionRun {
+			schemaWritePrefix = detectionSchemaWriteCmd + " && "
+		}
+
 		if harnessScriptName != "" {
 			// Harness handles prompt reading via --prompt-file; no INSTRUCTION variable needed.
 			command = fmt.Sprintf(`set -o pipefail
@@ -304,7 +361,7 @@ printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
 mkdir -p "$CODEX_HOME/logs"
-%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, codexCommand, logFile)
+%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, schemaWritePrefix, codexCommand, logFile)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
@@ -312,7 +369,7 @@ touch %s
 (umask 177 && touch %s)
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
-%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, codexCommand, logFile)
+%s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, schemaWritePrefix, codexCommand, logFile)
 		}
 	}
 
@@ -332,8 +389,9 @@ mkdir -p "$CODEX_HOME/logs"
 		"GH_AW_MCP_CONFIG": "${{ runner.temp }}/gh-aw/mcp-config/config.toml",
 		// Keep Codex runtime state in /tmp/gh-aw because ${RUNNER_TEMP}/gh-aw is
 		// mounted read-only inside the AWF chroot sandbox.
-		"CODEX_HOME":                   "/tmp/gh-aw/mcp-config",
-		"RUST_LOG":                     "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
+		"CODEX_HOME": "/tmp/gh-aw/mcp-config",
+		// Enable verbose RUST_LOG only in debug mode (runner.debug == 1); default to warn to avoid noisy output.
+		"RUST_LOG":                     "${{ runner.debug == 1 && 'trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug' || 'warn' }}",
 		"GH_AW_GITHUB_TOKEN":           effectiveGitHubToken,
 		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,                                     // Used by GitHub MCP server via env_vars
 		"OPENAI_API_KEY":               "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}", // Fallback for CODEX_API_KEY

@@ -105,58 +105,52 @@ func BenchmarkAggregateWorkflowStats(b *testing.B) {
 	// Create sample workflow runs
 	runs := []WorkflowRun{
 		{
-			DatabaseID:    12345,
-			WorkflowName:  "test-workflow-1",
-			Status:        "completed",
-			Conclusion:    "success",
-			TokenUsage:    1500,
-			EstimatedCost: 0.015,
-			Turns:         3,
-			ErrorCount:    0,
-			WarningCount:  1,
+			DatabaseID:   12345,
+			WorkflowName: "test-workflow-1",
+			Status:       "completed",
+			Conclusion:   "success",
+			TokenUsage:   1500,
+			Turns:        3,
+			ErrorCount:   0,
+			WarningCount: 1,
 		},
 		{
-			DatabaseID:    12346,
-			WorkflowName:  "test-workflow-2",
-			Status:        "completed",
-			Conclusion:    "failure",
-			TokenUsage:    2500,
-			EstimatedCost: 0.025,
-			Turns:         5,
-			ErrorCount:    2,
-			WarningCount:  3,
+			DatabaseID:   12346,
+			WorkflowName: "test-workflow-2",
+			Status:       "completed",
+			Conclusion:   "failure",
+			TokenUsage:   2500,
+			Turns:        5,
+			ErrorCount:   2,
+			WarningCount: 3,
 		},
 		{
-			DatabaseID:    12347,
-			WorkflowName:  "test-workflow-1",
-			Status:        "completed",
-			Conclusion:    "success",
-			TokenUsage:    1800,
-			EstimatedCost: 0.018,
-			Turns:         4,
-			ErrorCount:    0,
-			WarningCount:  0,
+			DatabaseID:   12347,
+			WorkflowName: "test-workflow-1",
+			Status:       "completed",
+			Conclusion:   "success",
+			TokenUsage:   1800,
+			Turns:        4,
+			ErrorCount:   0,
+			WarningCount: 0,
 		},
 	}
 
 	for b.Loop() {
 		// Simulate aggregation logic
 		totalTokens := 0
-		totalCost := 0.0
 		totalTurns := 0
 		totalErrors := 0
 		totalWarnings := 0
 
 		for _, run := range runs {
 			totalTokens += run.TokenUsage
-			totalCost += run.EstimatedCost
 			totalTurns += run.Turns
 			totalErrors += run.ErrorCount
 			totalWarnings += run.WarningCount
 		}
 
 		_ = totalTokens
-		_ = totalCost
 		_ = totalTurns
 		_ = totalErrors
 		_ = totalWarnings
@@ -169,35 +163,31 @@ func BenchmarkAggregateWorkflowStats_Large(b *testing.B) {
 	runs := make([]WorkflowRun, 100)
 	for i := range 100 {
 		runs[i] = WorkflowRun{
-			DatabaseID:    int64(12345 + i),
-			WorkflowName:  "test-workflow",
-			Status:        "completed",
-			Conclusion:    "success",
-			TokenUsage:    1500 + i*10,
-			EstimatedCost: 0.015 + float64(i)*0.001,
-			Turns:         3 + i%5,
-			ErrorCount:    i % 3,
-			WarningCount:  i % 2,
+			DatabaseID:   int64(12345 + i),
+			WorkflowName: "test-workflow",
+			Status:       "completed",
+			Conclusion:   "success",
+			TokenUsage:   1500 + i*10,
+			Turns:        3 + i%5,
+			ErrorCount:   i % 3,
+			WarningCount: i % 2,
 		}
 	}
 
 	for b.Loop() {
 		totalTokens := 0
-		totalCost := 0.0
 		totalTurns := 0
 		totalErrors := 0
 		totalWarnings := 0
 
 		for _, run := range runs {
 			totalTokens += run.TokenUsage
-			totalCost += run.EstimatedCost
 			totalTurns += run.Turns
 			totalErrors += run.ErrorCount
 			totalWarnings += run.WarningCount
 		}
 
 		_ = totalTokens
-		_ = totalCost
 		_ = totalTurns
 		_ = totalErrors
 		_ = totalWarnings

@@ -72,6 +72,8 @@ This will take you through an interactive process to:
 4. **Add the workflow** - Adds the workflow file (`.md`) and its generated GitHub Actions lock file (`.lock.yml`) to `.github/workflows/`.
 5. **Optionally trigger an initial run** - Starts the workflow immediately.
 
+The `.lock.yml` file is the compiled GitHub Actions workflow generated from the `.md` source file. Keep editing the `.md` file; the lock file exists so GitHub Actions has a deterministic, runnable workflow definition. Do not edit `.lock.yml` directly — regenerate it with `gh aw compile` after making workflow changes. See [Lock File Header](/gh-aw/reference/workflow-structure/#lock-file-header).
+
 > [!NOTE]
 > **Setting up `COPILOT_GITHUB_TOKEN`?**
 > 1. [Create a fine-grained PAT](https://github.com/settings/personal-access-tokens/new) under your user account.

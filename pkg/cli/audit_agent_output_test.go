@@ -35,7 +35,6 @@ func TestKeyFindingsGeneration(t *testing.T) {
 		missingTools  []MissingToolReport
 		expectedCount int
 		hasFailure    bool
-		hasCost       bool
 		hasTooling    bool
 	}{
 		{
@@ -59,7 +58,7 @@ func TestKeyFindingsGeneration(t *testing.T) {
 			hasFailure:    true,
 		},
 		{
-			name: "High cost workflow",
+			name: "High token workflow",
 			run: WorkflowRun{
 				DatabaseID:   124,
 				WorkflowName: "Expensive",
@@ -67,11 +66,9 @@ func TestKeyFindingsGeneration(t *testing.T) {
 				Duration:     10 * time.Minute,
 			},
 			metrics: MetricsData{
-				EstimatedCost: 1.5,
-				TokenUsage:    100000,
+				TokenUsage: 100000,
 			},
-			expectedCount: 3, // high cost + high tokens + success
-			hasCost:       true,
+			expectedCount: 2, // high tokens + success
 		},
 		{
 			name: "MCP failures",
@@ -130,11 +127,6 @@ func TestKeyFindingsGeneration(t *testing.T) {
 					"Expected critical severity for failure finding in scenario %q", tt.name)
 			}
 
-			if tt.hasCost {
-				assert.True(t, hasFindingByCategory(findings, "cost"),
-					"Expected at least one cost finding for scenario %q", tt.name)
-			}
-
 			if tt.hasTooling {
 				assert.True(t, hasFindingByCategory(findings, "tooling"),
 					"Expected at least one tooling finding for scenario %q", tt.name)
@@ -172,8 +164,7 @@ func TestRecommendationsGeneration(t *testing.T) {
 				Conclusion: "success",
 			},
 			metrics: MetricsData{
-				EstimatedCost: 1.0,
-				Turns:         15,
+				Turns: 15,
 			},
 			findings: []Finding{
 				{Severity: "high", Category: "cost", Title: "High Cost"},
@@ -245,39 +236,34 @@ func TestRecommendationsGeneration(t *testing.T) {
 // TestPerformanceMetricsGeneration verifies performance metrics are calculated correctly
 func TestPerformanceMetricsGeneration(t *testing.T) {
 	tests := []struct {
-		name                   string
-		run                    WorkflowRun
-		metrics                MetricsData
-		toolUsage              []ToolUsageInfo
-		firewallAnalysis       *FirewallAnalysis
-		expectedCostEfficiency string
-		expectTokensPerMin     bool
-		expectMostUsedTool     bool
-		expectNetworkRequests  bool
+		name                  string
+		run                   WorkflowRun
+		metrics               MetricsData
+		toolUsage             []ToolUsageInfo
+		firewallAnalysis      *FirewallAnalysis
+		expectTokensPerMin    bool
+		expectMostUsedTool    bool
+		expectNetworkRequests bool
 	}{
 		{
-			name: "Excellent cost efficiency",
+			name: "Basic tokens per minute",
 			run: WorkflowRun{
 				Duration: 10 * time.Minute,
 			},
 			metrics: MetricsData{
-				EstimatedCost: 0.05,
-				TokenUsage:    5000,
+				TokenUsage: 5000,
 			},
-			expectedCostEfficiency: "excellent",
-			expectTokensPerMin:     true,
+			expectTokensPerMin: true,
 		},
 		{
-			name: "Poor cost efficiency",
+			name: "Tokens per minute with short run",
 			run: WorkflowRun{
 				Duration: 5 * time.Minute,
 			},
 			metrics: MetricsData{
-				EstimatedCost: 1.0,
-				TokenUsage:    10000,
+				TokenUsage: 10000,
 			},
-			expectedCostEfficiency: "poor",
-			expectTokensPerMin:     true,
+			expectTokensPerMin: true,
 		},
 		{
 			name: "With tool usage",
@@ -313,11 +299,6 @@ func TestPerformanceMetricsGeneration(t *testing.T) {
 
 			require.NotNil(t, pm, "Expected performance metrics to be generated for scenario %q", tt.name)
 
-			if tt.expectedCostEfficiency != "" {
-				assert.Equal(t, tt.expectedCostEfficiency, pm.CostEfficiency,
-					"Expected cost efficiency to match for scenario %q", tt.name)
-			}
-
 			if tt.expectTokensPerMin {
 				assert.Positive(t, pm.TokensPerMinute,
 					"Expected positive tokens per minute for scenario %q", tt.name)
@@ -340,26 +321,24 @@ func TestPerformanceMetricsGeneration(t *testing.T) {
 func TestAuditDataJSONStructure(t *testing.T) {
 	// Create comprehensive audit data
 	run := WorkflowRun{
-		DatabaseID:    123456,
-		WorkflowName:  "Test Workflow",
-		Status:        "completed",
-		Conclusion:    "failure",
-		CreatedAt:     time.Now(),
-		Event:         "push",
-		HeadBranch:    "main",
-		URL:           "https://github.com/org/repo/actions/runs/123456",
-		TokenUsage:    5000,
-		EstimatedCost: 0.5,
-		Turns:         8,
-		ErrorCount:    2,
-		WarningCount:  1,
-		Duration:      5 * time.Minute,
+		DatabaseID:   123456,
+		WorkflowName: "Test Workflow",
+		Status:       "completed",
+		Conclusion:   "failure",
+		CreatedAt:    time.Now(),
+		Event:        "push",
+		HeadBranch:   "main",
+		URL:          "https://github.com/org/repo/actions/runs/123456",
+		TokenUsage:   5000,
+		Turns:        8,
+		ErrorCount:   2,
+		WarningCount: 1,
+		Duration:     5 * time.Minute,
 	}
 
 	metrics := LogMetrics{
-		TokenUsage:    5000,
-		EstimatedCost: 0.5,
-		Turns:         8,
+		TokenUsage: 5000,
+		Turns:      8,
 		ToolCalls: []workflow.ToolCallInfo{
 			{Name: "bash", CallCount: 5, MaxDuration: 2 * time.Second},
 		},
@@ -415,9 +394,6 @@ func TestAuditDataJSONStructure(t *testing.T) {
 	// Verify recommendations structure
 	assert.Contains(t, jsonStr, `"priority"`, "Recommendations should include priority field")
 	assert.Contains(t, jsonStr, `"action"`, "Recommendations should include action field")
-
-	// Verify performance metrics structure
-	assert.Contains(t, jsonStr, `"cost_efficiency"`, "Performance metrics should include cost_efficiency field")
 
 	// Parse back to verify structure
 	var parsed AuditData

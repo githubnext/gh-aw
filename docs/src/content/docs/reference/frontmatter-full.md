@@ -1364,10 +1364,10 @@ on:
     # (optional)
     statuses: "read"
 
-  # When set to false, disables the frontmatter hash check step in the activation
-  # job. Default is true (check is enabled). Useful when the workflow source files
-  # are managed outside the default GitHub repo context (e.g. cross-repo org
-  # rulesets) and the stale check is not needed.
+  # Controls the stale lock file check in the activation job. Set to false to
+  # disable the check, true (default) to enable frontmatter hash checking, or
+  # "full" to check both frontmatter and body hashes. Use "full" when prompt-body
+  # edits should also trigger recompilation detection.
   # (optional)
   stale-check: true
 

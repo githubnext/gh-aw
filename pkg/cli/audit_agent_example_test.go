@@ -19,29 +19,27 @@ import (
 func TestAgentFriendlyOutputExample(t *testing.T) {
 	// Create a realistic workflow run scenario
 	run := WorkflowRun{
-		DatabaseID:    987654,
-		WorkflowName:  "weekly-research",
-		Status:        "completed",
-		Conclusion:    "success",
-		CreatedAt:     time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
-		StartedAt:     time.Date(2024, 1, 15, 10, 1, 0, 0, time.UTC),
-		UpdatedAt:     time.Date(2024, 1, 15, 10, 15, 30, 0, time.UTC),
-		Duration:      14*time.Minute + 30*time.Second,
-		Event:         "schedule",
-		HeadBranch:    "main",
-		URL:           "https://github.com/org/repo/actions/runs/987654",
-		TokenUsage:    45000,
-		EstimatedCost: 0.18,
-		Turns:         12,
-		ErrorCount:    0,
-		WarningCount:  2,
-		LogsPath:      testutil.TempDir(t, "test-*"),
+		DatabaseID:   987654,
+		WorkflowName: "weekly-research",
+		Status:       "completed",
+		Conclusion:   "success",
+		CreatedAt:    time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
+		StartedAt:    time.Date(2024, 1, 15, 10, 1, 0, 0, time.UTC),
+		UpdatedAt:    time.Date(2024, 1, 15, 10, 15, 30, 0, time.UTC),
+		Duration:     14*time.Minute + 30*time.Second,
+		Event:        "schedule",
+		HeadBranch:   "main",
+		URL:          "https://github.com/org/repo/actions/runs/987654",
+		TokenUsage:   45000,
+		Turns:        12,
+		ErrorCount:   0,
+		WarningCount: 2,
+		LogsPath:     testutil.TempDir(t, "test-*"),
 	}
 
 	metrics := LogMetrics{
-		TokenUsage:    45000,
-		EstimatedCost: 0.18,
-		Turns:         12,
+		TokenUsage: 45000,
+		Turns:      12,
 		ToolCalls: []workflow.ToolCallInfo{
 			{
 				Name:          "github_search_repositories",
@@ -231,10 +229,6 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 			t.Error("Expected tokens per minute to be calculated")
 		}
 
-		if pm.CostEfficiency == "" {
-			t.Error("Expected cost efficiency to be set")
-		}
-
 		if pm.MostUsedTool == "" {
 			t.Error("Expected most used tool to be identified")
 		}
@@ -243,11 +237,6 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 			t.Errorf("Expected 42 network requests, got %d", pm.NetworkRequests)
 		}
 
-		// Verify cost efficiency calculation
-		// Cost: $0.18, Duration: 14.5 minutes = $0.0124/min → "good"
-		if pm.CostEfficiency != "good" {
-			t.Errorf("Expected 'good' cost efficiency, got '%s'", pm.CostEfficiency)
-		}
 	})
 }
 
@@ -255,27 +244,25 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 func TestAgentFriendlyOutputFailureScenario(t *testing.T) {
 	// Create a failed workflow scenario
 	run := WorkflowRun{
-		DatabaseID:    111222,
-		WorkflowName:  "ci-build",
-		Status:        "completed",
-		Conclusion:    "failure",
-		CreatedAt:     time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC),
-		Duration:      3*time.Minute + 45*time.Second,
-		Event:         "push",
-		HeadBranch:    "feature-branch",
-		URL:           "https://github.com/org/repo/actions/runs/111222",
-		TokenUsage:    8000,
-		EstimatedCost: 0.03,
-		Turns:         4,
-		ErrorCount:    3,
-		WarningCount:  1,
-		LogsPath:      testutil.TempDir(t, "test-*"),
+		DatabaseID:   111222,
+		WorkflowName: "ci-build",
+		Status:       "completed",
+		Conclusion:   "failure",
+		CreatedAt:    time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC),
+		Duration:     3*time.Minute + 45*time.Second,
+		Event:        "push",
+		HeadBranch:   "feature-branch",
+		URL:          "https://github.com/org/repo/actions/runs/111222",
+		TokenUsage:   8000,
+		Turns:        4,
+		ErrorCount:   3,
+		WarningCount: 1,
+		LogsPath:     testutil.TempDir(t, "test-*"),
 	}
 
 	metrics := LogMetrics{
-		TokenUsage:    8000,
-		EstimatedCost: 0.03,
-		Turns:         4,
+		TokenUsage: 8000,
+		Turns:      4,
 	}
 
 	processedRun := ProcessedRun{

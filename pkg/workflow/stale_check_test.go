@@ -44,11 +44,21 @@ on:
 ---
 Test workflow for stale check step explicitly enabled.
 `
+	fullStaleCheckWorkflowMD := `---
+engine: copilot
+on:
+  issues:
+    types: [opened]
+  stale-check: full
+---
+Test workflow for full stale check step.
+`
 
 	tests := []struct {
-		name       string
-		workflowMD string
-		wantStep   bool
+		name              string
+		workflowMD        string
+		wantStep          bool
+		wantFullCheckMode bool
 	}{
 		{
 			name:       "step present when stale-check not set (default)",
@@ -64,6 +74,12 @@ Test workflow for stale check step explicitly enabled.
 			name:       "step present when stale-check: true explicitly",
 			workflowMD: enabledExplicitWorkflowMD,
 			wantStep:   true,
+		},
+		{
+			name:              "full mode when stale-check: full",
+			workflowMD:        fullStaleCheckWorkflowMD,
+			wantStep:          true,
+			wantFullCheckMode: true,
 		},
 	}
 
@@ -89,6 +105,15 @@ Test workflow for stale check step explicitly enabled.
 			} else {
 				assert.False(t, hasStep,
 					"Expected no 'Check workflow lock file' step in activation job but it was found")
+			}
+
+			// Verify GH_AW_STALE_CHECK_FULL env var is present when full mode is enabled
+			if tt.wantFullCheckMode {
+				assert.Contains(t, lockStr, "GH_AW_STALE_CHECK_FULL",
+					"Expected GH_AW_STALE_CHECK_FULL env var in lock file for stale-check: full")
+			} else {
+				assert.NotContains(t, lockStr, "GH_AW_STALE_CHECK_FULL",
+					"Expected no GH_AW_STALE_CHECK_FULL env var in lock file when not full mode")
 			}
 
 			// Verify stale-check is commented out in the generated lock file when present
@@ -151,4 +176,107 @@ Hash parity regression coverage.
 				"Frontmatter hash in lock metadata should match markdown source hash")
 		})
 	}
+}
+
+// TestBodyHashStoredInLockMetadata verifies that the body hash is computed and stored in the
+// lock metadata when a workflow is compiled.
+func TestBodyHashStoredInLockMetadata(t *testing.T) {
+	workflowMD := `---
+engine: copilot
+on:
+  issues:
+    types: [opened]
+---
+This is the body of the workflow. It contains the agent instructions.
+
+## Steps
+
+1. Do something
+2. Do something else
+`
+
+	tmpDir := testutil.TempDir(t, "body-hash-test")
+	workflowPath := filepath.Join(tmpDir, "body-hash.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(workflowMD), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "Workflow should compile without errors")
+
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "Lock file should be readable")
+
+	metadata, _, err := ExtractMetadataFromLockFile(string(lockContent))
+	require.NoError(t, err, "Lock metadata should be parseable")
+	require.NotNil(t, metadata, "Lock metadata should exist")
+
+	assert.Equal(t, LockSchemaV4, metadata.SchemaVersion, "Should use v4 schema with body hash")
+	assert.NotEmpty(t, metadata.BodyHash, "Body hash should be stored in lock metadata")
+	assert.Len(t, metadata.BodyHash, 64, "Body hash should be a 64-character hex string")
+
+	// Verify the body hash is recomputable
+	currentBodyHash, err := parser.ComputeBodyHashFromFile(workflowPath)
+	require.NoError(t, err, "Body hash should be recomputable from workflow file")
+
+	assert.Equal(t, currentBodyHash, metadata.BodyHash,
+		"Body hash in lock metadata should match recomputed hash")
+}
+
+// TestBodyHashChangesWhenBodyChanges verifies that modifying the body text produces a different hash.
+func TestBodyHashChangesWhenBodyChanges(t *testing.T) {
+	originalMD := `---
+engine: copilot
+on:
+  issues:
+    types: [opened]
+---
+Original body content.
+`
+	modifiedMD := `---
+engine: copilot
+on:
+  issues:
+    types: [opened]
+---
+Modified body content with different instructions.
+`
+
+	tmpDir := testutil.TempDir(t, "body-hash-change-test")
+	workflowPath := filepath.Join(tmpDir, "test.md")
+
+	// Compile original
+	require.NoError(t, os.WriteFile(workflowPath, []byte(originalMD), 0644))
+	originalHash, err := parser.ComputeBodyHashFromFile(workflowPath)
+	require.NoError(t, err)
+
+	// Compile modified
+	require.NoError(t, os.WriteFile(workflowPath, []byte(modifiedMD), 0644))
+	modifiedHash, err := parser.ComputeBodyHashFromFile(workflowPath)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, originalHash, modifiedHash,
+		"Body hash should change when body content changes")
+}
+
+// TestBodyHashStableWhenFrontmatterChanges verifies the body hash does not change when only
+// the frontmatter changes (and the body stays the same).
+func TestBodyHashStableWhenFrontmatterChanges(t *testing.T) {
+	body := "\nThis is the body content that should stay the same.\n"
+	originalMD := "---\nengine: copilot\non:\n  issues:\n    types: [opened]\n---" + body
+	modifiedFrontmatterMD := "---\nengine: copilot\non:\n  issues:\n    types: [opened, edited]\n---" + body
+
+	tmpDir := testutil.TempDir(t, "body-hash-stable-test")
+	workflowPath := filepath.Join(tmpDir, "test.md")
+
+	require.NoError(t, os.WriteFile(workflowPath, []byte(originalMD), 0644))
+	originalHash, err := parser.ComputeBodyHashFromFile(workflowPath)
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(workflowPath, []byte(modifiedFrontmatterMD), 0644))
+	modifiedHash, err := parser.ComputeBodyHashFromFile(workflowPath)
+	require.NoError(t, err)
+
+	assert.Equal(t, originalHash, modifiedHash,
+		"Body hash should not change when only frontmatter changes")
 }

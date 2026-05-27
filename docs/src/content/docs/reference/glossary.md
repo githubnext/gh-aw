@@ -633,7 +633,7 @@ A CLI command that orchestrates full workflow rollout to a target repository in 
 
 ### Effective Tokens
 
-A weighted token count that normalizes raw API token usage into a single comparable value for cost estimation and monitoring. Computed by applying cache and output multipliers to each token category (input, output, cache read, cache write) and summing the results. Appears in audit reports, `gh aw logs` output, and safe-output message footers (as `{effective_tokens}` and `{effective_tokens_formatted}`). For episode-level aggregation, `total_estimated_cost` uses effective tokens as its basis. See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/).
+A weighted token count that normalizes raw API token usage into a single comparable value for usage monitoring. Computed by applying cache and output multipliers to each token category (input, output, cache read, cache write) and summing the results. Appears in audit reports, `gh aw logs` output, and safe-output message footers (as `{effective_tokens}` and `{effective_tokens_formatted}`). See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/).
 
 ### Forecast (`gh aw forecast`)
 
@@ -688,7 +688,7 @@ The causal graph of edges between workflow runs computed by `gh aw logs --json`.
 
 ### Episode
 
-A deterministic rollup of related workflow runs that belong to a single logical execution. When an orchestrator dispatches workers, all participating runs are grouped into one episode with aggregate metrics including `total_runs`, `total_tokens`, `total_effective_tokens`, `total_estimated_cost`, and `risky_node_count`. Available under `.episodes[]` in `gh aw logs --json` output. Episodes are more useful than per-run metrics when one logical job spans multiple workflow runs. For Copilot cost analysis, prefer `total_effective_tokens`; `total_estimated_cost` is only a heuristic and is not reliable billing data.
+A deterministic rollup of related workflow runs that belong to a single logical execution. When an orchestrator dispatches workers, all participating runs are grouped into one episode with aggregate metrics including `total_runs`, `total_tokens`, `total_effective_tokens`, and `risky_node_count`. Available under `.episodes[]` in `gh aw logs --json` output. Episodes are more useful than per-run metrics when one logical job spans multiple workflow runs. For Copilot usage analysis, prefer `total_effective_tokens`.
 
 ```bash
 gh aw logs --start-date -30d --json | \

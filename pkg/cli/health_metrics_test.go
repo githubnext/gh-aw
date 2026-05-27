@@ -256,39 +256,3 @@ func TestFormatTokens(t *testing.T) {
 		})
 	}
 }
-
-func TestFormatCost(t *testing.T) {
-	tests := []struct {
-		name     string
-		cost     float64
-		expected string
-	}{
-		{
-			name:     "zero cost",
-			cost:     0.0,
-			expected: "-",
-		},
-		{
-			name:     "very small cost",
-			cost:     0.0001,
-			expected: "< 0.001",
-		},
-		{
-			name:     "small cost",
-			cost:     0.123,
-			expected: "0.123",
-		},
-		{
-			name:     "large cost",
-			cost:     5.678,
-			expected: "5.678",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatCost(tt.cost)
-			assert.Equal(t, tt.expected, result, "Formatted cost should match")
-		})
-	}
-}

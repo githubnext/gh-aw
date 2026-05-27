@@ -537,32 +537,3 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 
 	return nil
 }
-
-// ParseWorkflowFile parses a markdown workflow file and extracts all necessary data
-
-// extractTopLevelYAMLSection extracts a top-level YAML section from the frontmatter map
-// This ensures we only extract keys at the root level, avoiding nested keys with the same name
-// parseOnSection parses the "on" section from frontmatter to extract command triggers, reactions, and other events
-
-// generateYAML generates the complete GitHub Actions YAML content
-
-// isActivationJobNeeded determines if the activation job is required
-// generateMainJobSteps generates the steps section for the main job
-
-// The original JavaScript code will use the pattern as-is with "g" flags
-
-// validateMarkdownSizeForGitHubActions is no longer used - content is now split into multiple steps
-// to handle GitHub Actions script size limits automatically
-// func (c *Compiler) validateMarkdownSizeForGitHubActions(content string) error { ... }
-
-// splitContentIntoChunks splits markdown content into chunks that fit within GitHub Actions script size limits
-
-// generatePostSteps generates the post-steps section that runs after AI execution
-
-// generateEngineExecutionSteps uses the new GetExecutionSteps interface method
-
-// generateAgentVersionCapture generates a step that captures the agent version if the engine supports it
-
-// generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
-
-// generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
