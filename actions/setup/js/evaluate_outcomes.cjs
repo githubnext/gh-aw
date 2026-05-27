@@ -391,7 +391,7 @@ function evaluateAddComment(item, itemRepo, timestamp, out, apiGet, nowMs) {
   const comment = apiGet(`repos/${itemRepo}/issues/comments/${commentID}`);
   if (!comment || !comment.id) {
     out.result = "unknown";
-    out.detail = "unknown: comment api error";
+    out.detail = "unknown: failed to fetch comment from API (may be deleted or inaccessible)";
     setPendingAge(out, timestamp, nowMs);
     return out;
   }
@@ -468,9 +468,16 @@ function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
   const fallbackLabels = normalizeLabels(item.labels);
   const effectiveLabelsAdded = labelsAdded.length > 0 ? labelsAdded : fallbackLabels;
 
-  if (!hasLabelsBefore || effectiveLabelsAdded.length === 0) {
+  if (!hasLabelsBefore) {
     out.result = "unknown";
     out.detail = "unknown: missing persisted label before-state";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  if (effectiveLabelsAdded.length === 0) {
+    out.result = "unknown";
+    out.detail = "unknown: no labels added";
     setPendingAge(out, timestamp, nowMs);
     return out;
   }
