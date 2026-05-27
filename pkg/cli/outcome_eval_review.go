@@ -109,7 +109,7 @@ func evalAddReviewer(item CreatedItemReport, repoOverride string) OutcomeReport 
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusPending,
 			EvidenceStrength: EvidenceMedium,
-			Signal:           "review_request_pending",
+			Signal:           "awaiting_review",
 		}
 		return report
 	}
@@ -201,7 +201,7 @@ func evalSubmitPullRequestReview(item CreatedItemReport, repoOverride string) Ou
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusAccepted,
 			EvidenceStrength: EvidenceStrong,
-			Signal:           "review_approved_merged",
+			Signal:           "review_approved",
 		}
 		return report
 	case prMerged && reviewState == "CHANGES_REQUESTED":
@@ -376,7 +376,7 @@ func findReviewByID(reviews []map[string]any, reviewID int) map[string]any {
 		return nil
 	}
 	for _, review := range reviews {
-		if metadataInt(review, "id") == reviewID {
+		if metadataInt(review, "id") == reviewID && isSubmittedReview(review) {
 			return review
 		}
 	}
@@ -386,6 +386,9 @@ func findReviewByID(reviews []map[string]any, reviewID int) map[string]any {
 func latestReviewAfterTimestamp(reviews []map[string]any, threshold string) map[string]any {
 	var latest map[string]any
 	for _, review := range reviews {
+		if !isSubmittedReview(review) {
+			continue
+		}
 		if !timestampOnOrAfter(outcomeString(review["submitted_at"]), threshold) {
 			continue
 		}
@@ -394,6 +397,14 @@ func latestReviewAfterTimestamp(reviews []map[string]any, threshold string) map[
 		}
 	}
 	return latest
+}
+
+func isSubmittedReview(review map[string]any) bool {
+	if strings.TrimSpace(outcomeString(review["submitted_at"])) == "" {
+		return false
+	}
+	state := strings.ToUpper(outcomeString(review["state"]))
+	return state != "" && state != "PENDING"
 }
 
 func isLatestReview(reviews []map[string]any, review map[string]any) bool {

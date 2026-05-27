@@ -354,8 +354,10 @@ jobs:
         run: npm install -g @playwright/cli@0.1.13
         env:
           NPM_CONFIG_MIN_RELEASE_AGE: '3'
+        timeout-minutes: 10
       - name: Install Playwright CLI skills
         run: playwright-cli install --skills
+        timeout-minutes: 10
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)

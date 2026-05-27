@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import { createRequire } from "module";
-import { loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles, rollbackReviewResults } from "./safe_output_handler_manager.cjs";
+import { loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles, rollbackReviewResults, logCreatedItemFromResult } from "./safe_output_handler_manager.cjs";
 
 const require = createRequire(import.meta.url);
 
@@ -45,6 +45,33 @@ describe("Safe Output Handler Manager", () => {
       expect(result).toHaveProperty("add_comment");
       expect(result.create_issue).toEqual({ max: 5 });
       expect(result.add_comment).toEqual({ max: 1 });
+    });
+
+    describe("logCreatedItemFromResult", () => {
+      it("should log finalized review results and skip buffered review metadata", () => {
+        const onItemCreated = vi.fn();
+
+        logCreatedItemFromResult(onItemCreated, "submit_pull_request_review", { success: true, event: "COMMENT", body_length: 12 });
+        expect(onItemCreated).not.toHaveBeenCalled();
+
+        logCreatedItemFromResult(onItemCreated, "submit_pull_request_review", {
+          success: true,
+          review_url: "https://github.com/owner/repo/pull/1#pullrequestreview-2",
+          pull_request_number: 1,
+          repo: "owner/repo",
+          before_state: { reviews: [] },
+          after_state: { reviews: [{ id: 2, state: "COMMENTED" }] },
+        });
+
+        expect(onItemCreated).toHaveBeenCalledWith({
+          type: "submit_pull_request_review",
+          url: "https://github.com/owner/repo/pull/1#pullrequestreview-2",
+          number: 1,
+          repo: "owner/repo",
+          before_state: { reviews: [] },
+          after_state: { reviews: [{ id: 2, state: "COMMENTED" }] },
+        });
+      });
     });
 
     it("should throw error if environment variable is not set", () => {

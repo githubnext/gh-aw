@@ -42,22 +42,13 @@ var effectiveTokensLog = logger.New("cli:effective_tokens")
 //go:embed data/model_multipliers.json
 var modelMultipliersJSON []byte
 
-// tokenClassWeights holds the per-token-class weight values from the specification.
-type tokenClassWeights struct {
-	Input       float64 `json:"input"`
-	CachedInput float64 `json:"cached_input"`
-	Output      float64 `json:"output"`
-	Reasoning   float64 `json:"reasoning"`
-	CacheWrite  float64 `json:"cache_write"`
-}
-
 // modelMultipliersData is the top-level structure of model_multipliers.json.
 type modelMultipliersData struct {
-	Version           string             `json:"version"`
-	Description       string             `json:"description"`
-	ReferenceModel    string             `json:"reference_model"`
-	TokenClassWeights tokenClassWeights  `json:"token_class_weights"`
-	Multipliers       map[string]float64 `json:"multipliers"`
+	Version           string                  `json:"version"`
+	Description       string                  `json:"description"`
+	ReferenceModel    string                  `json:"reference_model"`
+	TokenClassWeights types.TokenClassWeights `json:"token_class_weights"`
+	Multipliers       map[string]float64      `json:"multipliers"`
 }
 
 // loadedMultipliers is the parsed multiplier table, keyed by lowercase model name.
@@ -66,7 +57,7 @@ var loadedMultipliers map[string]float64
 
 // loadedTokenWeights holds the token class weights from the JSON file.
 // Initialized once on first call to initMultipliers.
-var loadedTokenWeights tokenClassWeights
+var loadedTokenWeights types.TokenClassWeights
 
 // initMultipliers parses the embedded JSON and populates loadedMultipliers and
 // loadedTokenWeights. Safe to call multiple times; only initializes once.
@@ -113,8 +104,8 @@ func initMultipliers() {
 }
 
 // defaultTokenClassWeights returns the specification-mandated default weights.
-func defaultTokenClassWeights() tokenClassWeights {
-	return tokenClassWeights{
+func defaultTokenClassWeights() types.TokenClassWeights {
+	return types.TokenClassWeights{
 		Input:       1.0,
 		CachedInput: 0.1,
 		Output:      4.0,
@@ -153,7 +144,7 @@ func populateEffectiveTokensWithCustomWeights(summary *TokenUsageSummary, custom
 
 // resolveEffectiveWeights merges optional custom weights with the built-in defaults.
 // The returned multipliers map is a copy so callers may not modify loadedMultipliers.
-func resolveEffectiveWeights(custom *types.TokenWeights) (map[string]float64, tokenClassWeights) {
+func resolveEffectiveWeights(custom *types.TokenWeights) (map[string]float64, types.TokenClassWeights) {
 	initMultipliers()
 
 	// Copy the base multipliers to avoid mutating the shared global
@@ -194,7 +185,7 @@ func resolveEffectiveWeights(custom *types.TokenWeights) (map[string]float64, to
 
 // computeModelEffectiveTokensWithWeights computes effective tokens using caller-provided
 // multiplier table and token class weights instead of the global defaults.
-func computeModelEffectiveTokensWithWeights(model string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int, multipliers map[string]float64, w tokenClassWeights) int {
+func computeModelEffectiveTokensWithWeights(model string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int, multipliers map[string]float64, w types.TokenClassWeights) int {
 	base := w.Input*float64(inputTokens) +
 		w.CachedInput*float64(cacheReadTokens) +
 		w.Output*float64(outputTokens) +

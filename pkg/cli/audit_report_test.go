@@ -1105,6 +1105,21 @@ func TestExtractCreatedItemsFromManifest(t *testing.T) {
 		assert.Equal(t, "https://github.com/owner/repo/issues/2", items[1].URL)
 	})
 
+	t.Run("parses execution metadata snapshots", func(t *testing.T) {
+		dir := t.TempDir()
+		content := `{"type":"update_issue","number":7,"repo":"owner/repo","before_state":{"title":"Before","labels":["triage"]},"after_state":{"title":"After","labels":["triage","done"]},"timestamp":"2024-01-01T00:00:00Z"}
+`
+		require.NoError(t, os.WriteFile(filepath.Join(dir, safeOutputItemsManifestFilename), []byte(content), 0600))
+
+		items := extractCreatedItemsFromManifest(dir)
+		require.Len(t, items, 1)
+		require.Equal(t, "update_issue", items[0].Type)
+		require.Equal(t, "Before", items[0].BeforeState["title"])
+		require.Equal(t, "After", items[0].AfterState["title"])
+		require.Equal(t, []any{"triage"}, items[0].BeforeState["labels"])
+		require.Equal(t, []any{"triage", "done"}, items[0].AfterState["labels"])
+	})
+
 	t.Run("skips entries without type field", func(t *testing.T) {
 		dir := t.TempDir()
 		content := `{"url":"https://github.com/owner/repo/issues/1","timestamp":"2024-01-01T00:00:00Z"}

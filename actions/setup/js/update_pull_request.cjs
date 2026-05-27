@@ -16,6 +16,7 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { fetchIssueState, mergeIssueState } = require("./safe_output_execution_metadata.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 
 /**
@@ -259,6 +260,10 @@ const main = createUpdateHandlerFactory({
   buildUpdateData: buildPRUpdateData,
   executeUpdate: executePRUpdate,
   formatSuccessResult: formatPRSuccessResult,
+  captureExecutionMetadata: {
+    captureBefore: async (githubClient, effectiveContext, prNumber) => fetchIssueState(githubClient, effectiveContext.repo, prNumber),
+    captureAfter: async (updatedPullRequest, beforeState) => mergeIssueState(beforeState, updatedPullRequest),
+  },
   additionalConfig: {
     allow_title: true,
     allow_body: true,
