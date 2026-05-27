@@ -429,7 +429,7 @@ func TestResolveWorkflows_RepositoryPackageWithRef(t *testing.T) {
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
 	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
-		t.Fatalf("default branch lookup should not be used when ref is explicitly provided")
+		t.Fatalf("default branch lookup should not be used when ref is explicitly provided (repoSlug=%q host=%q)", repoSlug, host)
 		return "", nil
 	}
 
@@ -448,7 +448,7 @@ files:
 		return nil, createRepositoryPackageNotFoundError(path)
 	}
 	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
-		t.Fatalf("unexpected scan of %s", workflowPath)
+		t.Fatalf("unexpected scan of %q (owner=%q repo=%q ref=%q host=%q)", workflowPath, owner, repo, ref, host)
 		return nil, nil
 	}
 	fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
