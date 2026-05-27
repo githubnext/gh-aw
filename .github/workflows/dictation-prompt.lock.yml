@@ -1431,10 +1431,12 @@ jobs:
             BASE_BRANCH=$("$GH_AW_NODE" -e "
               try {
                 const data = JSON.parse(require('fs').readFileSync('/tmp/gh-aw/agent_output.json', 'utf8'));
-                const item = (data.items || []).find(i =>
-                  (i.type === 'create_pull_request' || i.type === 'push_to_pull_request_branch') &&
-                  i.base_branch
-                );
+                const workflowRepo = (process.env.GITHUB_REPOSITORY || '').trim();
+                const item = (data.items || []).find(i => {
+                  const itemRepo = (i.repo || '').trim();
+                  const sameRepo = !itemRepo || (workflowRepo && (itemRepo === workflowRepo || (!itemRepo.includes('/') && workflowRepo.endsWith('/' + itemRepo))));
+                  return (i.type === 'create_pull_request' || i.type === 'push_to_pull_request_branch') && i.base_branch && sameRepo;
+                });
                 if (item) process.stdout.write(item.base_branch);
               } catch(e) {}
             " 2>/dev/null || true)
