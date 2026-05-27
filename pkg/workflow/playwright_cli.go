@@ -83,11 +83,15 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 		true,           // Allow install scripts for browser setup
 		resolveRuntimeCooldown(workflowData, "node"),
 	)
+	if len(steps) > 0 {
+		steps[0] = append(steps[0], "        timeout-minutes: 10")
+	}
 
 	// Install playwright-cli skills so the coding agent can discover available commands.
 	installSkillsStep := GitHubActionStep{
 		"      - name: Install Playwright CLI skills",
 		"        run: playwright-cli install --skills",
+		"        timeout-minutes: 10",
 	}
 	steps = append(steps, installSkillsStep)
 
