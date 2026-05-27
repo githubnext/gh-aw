@@ -172,8 +172,8 @@ func normalizeOTLPAuthType(value string) string {
 	}
 }
 
-// getOTLPGitHubOIDCAudience returns observability.otlp.auth.audience when
-// auth.type is configured as github-oidc. Returns empty string when auth is
+// getOTLPGitHubOIDCAudience returns observability.otlp.github-app.audience when
+// github-app.type is configured as github-oidc. Returns empty string when github-app is
 // unset, invalid, or not github-oidc.
 func getOTLPGitHubOIDCAudience(config *FrontmatterConfig, frontmatter map[string]any) string {
 	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.Auth != nil {
@@ -201,7 +201,7 @@ func getOTLPGitHubOIDCAudience(config *FrontmatterConfig, frontmatter map[string
 	if !ok {
 		return ""
 	}
-	authAny, ok := otlpMap["auth"]
+	authAny, ok := otlpMap["github-app"]
 	if !ok {
 		return ""
 	}
@@ -242,7 +242,7 @@ func hasOTLPGitHubOIDCAuth(config *FrontmatterConfig, frontmatter map[string]any
 	if !ok {
 		return false
 	}
-	authAny, ok := otlpMap["auth"]
+	authAny, ok := otlpMap["github-app"]
 	if !ok {
 		return false
 	}

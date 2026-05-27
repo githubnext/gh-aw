@@ -241,7 +241,7 @@ func TestGetOTLPGitHubOIDCAudience(t *testing.T) {
 		got := getOTLPGitHubOIDCAudience(nil, map[string]any{
 			"observability": map[string]any{
 				"otlp": map[string]any{
-					"auth": map[string]any{
+					"github-app": map[string]any{
 						"type":     "bearer",
 						"audience": "https://collector.example.com",
 					},
@@ -255,7 +255,7 @@ func TestGetOTLPGitHubOIDCAudience(t *testing.T) {
 		got := getOTLPGitHubOIDCAudience(nil, map[string]any{
 			"observability": map[string]any{
 				"otlp": map[string]any{
-					"auth": map[string]any{
+					"github-app": map[string]any{
 						"type":     "github-oidc",
 						"audience": "api://AzureADTokenExchange",
 					},
@@ -280,7 +280,7 @@ func TestHasOTLPGitHubOIDCAuth(t *testing.T) {
 	assert.False(t, hasOTLPGitHubOIDCAuth(nil, map[string]any{
 		"observability": map[string]any{
 			"otlp": map[string]any{
-				"auth": map[string]any{
+				"github-app": map[string]any{
 					"type": "bearer",
 				},
 			},

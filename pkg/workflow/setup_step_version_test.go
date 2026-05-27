@@ -277,7 +277,7 @@ func TestGenerateSetupStepIncludesOTLPOIDCMintingBeforeSetup(t *testing.T) {
 		RawFrontmatter: map[string]any{
 			"observability": map[string]any{
 				"otlp": map[string]any{
-					"auth": map[string]any{
+					"github-app": map[string]any{
 						"type":     "github-oidc",
 						"audience": "https://example.com/collector",
 					},
@@ -311,7 +311,7 @@ func TestGenerateSetupStepIncludesOTLPOIDCTokenInScriptMode(t *testing.T) {
 		RawFrontmatter: map[string]any{
 			"observability": map[string]any{
 				"otlp": map[string]any{
-					"auth": map[string]any{
+					"github-app": map[string]any{
 						"type": "github-oidc",
 					},
 				},
