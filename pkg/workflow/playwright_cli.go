@@ -93,8 +93,23 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 	// Install playwright-cli skills so the coding agent can discover available commands.
 	installSkillsStep := GitHubActionStep{
 		"      - name: Install Playwright CLI skills",
-		"        run: playwright-cli install --skills",
-		"        timeout-minutes: 10",
+		"        run: |",
+		"          max_attempts=3",
+		"          attempt=1",
+		"          while [ \"$attempt\" -le \"$max_attempts\" ]; do",
+		"            if playwright-cli install --skills; then",
+		"              echo \"Successfully installed Playwright CLI skills on attempt ${attempt}/${max_attempts}\"",
+		"              exit 0",
+		"            fi",
+		"            if [ \"$attempt\" -eq \"$max_attempts\" ]; then",
+		"              echo \"Playwright CLI skills installation failed after ${max_attempts} attempts\"",
+		"              exit 1",
+		"            fi",
+		"            echo \"Playwright CLI skills installation timed out or failed on attempt ${attempt}/${max_attempts}; retrying in 10 seconds...\"",
+		"            attempt=$((attempt + 1))",
+		"            sleep 10",
+		"          done",
+		"        timeout-minutes: 15",
 	}
 	steps = append(steps, installSkillsStep)
 
