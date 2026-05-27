@@ -80,7 +80,7 @@ function mergeAuthorizationIntoOTLPEndpoints(endpointsRaw, token) {
     if (!entry || typeof entry !== "object") return entry;
     const currentHeaders = typeof entry.headers === "string" ? entry.headers : "";
     const mergedHeaders = mergeAuthorizationHeader(currentHeaders, token);
-    return mergedHeaders ? { ...entry, headers: mergedHeaders } : entry;
+    return { ...entry, headers: mergedHeaders };
   });
   return JSON.stringify(updated);
 }
