@@ -103,6 +103,40 @@ files:
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
 	})
 
+	t.Run("uses slash branch ref from manifest route", func(t *testing.T) {
+		previousDefaultBranch := getRepositoryPackageDefaultBranch
+		t.Cleanup(func() {
+			getRepositoryPackageDefaultBranch = previousDefaultBranch
+		})
+		getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+			t.Fatalf("default branch lookup should not be called when version is provided")
+			return "", nil
+		}
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			assert.Equal(t, "feature/github-agentic-workflow", ref)
+			switch path {
+			case "agentic-workflows/aw.yml":
+				return []byte("name: Repo Assist\nfiles:\n  - workflows/review.md\n"), nil
+			case "agentic-workflows/README.md":
+				return []byte("# Repo Assist\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected scan of %s", workflowPath)
+			return nil, nil
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{
+			RepoSlug:    "owner/repo",
+			PackagePath: "agentic-workflows",
+			Version:     "feature/github-agentic-workflow",
+		}, "github.com")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"agentic-workflows/workflows/review.md"}, pkg.InstallationSource)
+	})
+
 	t.Run("falls back to scanning supported workflow directories", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
 			switch path {
@@ -502,6 +536,7 @@ func TestParseRepositoryPackageSpec(t *testing.T) {
 		wantErr         string
 		wantRepoSlug    string
 		wantPackagePath string
+		wantVersion     string
 	}{
 		{
 			name:         "repo only package",
@@ -510,11 +545,26 @@ func TestParseRepositoryPackageSpec(t *testing.T) {
 			wantRepoSlug: "owner/repo",
 		},
 		{
+			name:         "repo only package with slash branch ref",
+			spec:         "owner/repo@feature/github-agentic-workflow",
+			wantOK:       true,
+			wantRepoSlug: "owner/repo",
+			wantVersion:  "feature/github-agentic-workflow",
+		},
+		{
 			name:            "nested package path",
 			spec:            "owner/repo/packages/repo-assist",
 			wantOK:          true,
 			wantRepoSlug:    "owner/repo",
 			wantPackagePath: "packages/repo-assist",
+		},
+		{
+			name:            "nested package path with slash branch ref",
+			spec:            "owner/repo/agentic-workflows@feature/github-agentic-workflow",
+			wantOK:          true,
+			wantRepoSlug:    "owner/repo",
+			wantPackagePath: "agentic-workflows",
+			wantVersion:     "feature/github-agentic-workflow",
 		},
 		{
 			name:   "workflow path is not package",
@@ -556,6 +606,7 @@ func TestParseRepositoryPackageSpec(t *testing.T) {
 			require.NotNil(t, repoSpec)
 			assert.Equal(t, tt.wantRepoSlug, repoSpec.RepoSlug)
 			assert.Equal(t, tt.wantPackagePath, repoSpec.PackagePath)
+			assert.Equal(t, tt.wantVersion, repoSpec.Version)
 		})
 	}
 }
