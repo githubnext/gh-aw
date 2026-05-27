@@ -26,10 +26,14 @@ func writeOutcomeJSONL(dir string, runID int64, reports []OutcomeReport) {
 	defer f.Close()
 
 	for _, r := range reports {
+		eval := normalizeOutcomeEvaluation(r)
 		entry := map[string]any{
 			"run_id":                runID,
 			"type":                  r.Type,
 			"result":                r.Result,
+			"outcome_status":        eval.OutcomeStatus,
+			"evidence_strength":     eval.EvidenceStrength,
+			"signal":                eval.Signal,
 			"detail":                r.Detail,
 			"object_url":            r.ObjectURL,
 			"object_number":         r.ObjectNumber,
@@ -45,8 +49,14 @@ func writeOutcomeJSONL(dir string, runID int64, reports []OutcomeReport) {
 		if err != nil {
 			continue
 		}
-		f.Write(line)
-		f.WriteString("\n")
+		if _, err := f.Write(line); err != nil {
+			outcomeEvalLog.Printf("Failed to write outcome entry to %s: %v", filePath, err)
+			return
+		}
+		if _, err := f.WriteString("\n"); err != nil {
+			outcomeEvalLog.Printf("Failed to write newline to %s: %v", filePath, err)
+			return
+		}
 	}
 
 	outcomeEvalLog.Printf("Wrote %d outcome entries to %s", len(reports), filePath)
