@@ -14,8 +14,8 @@ const { isTruthy } = require("./is_truthy.cjs");
 const { selectBranch } = require("./template_branch.cjs");
 
 // Closing tag: {{#endif}} (primary) or {{/if}} (alternate)
-const BLOCK_CONDITIONAL_REGEX = /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*(?:{{#endif}}|{{\/if}})[ \t]*)(\n?)/g;
-const INLINE_CONDITIONAL_REGEX = /{{#if\s+([^}]*)}}([\s\S]*?)(?:{{#endif}}|{{\/if}})/g;
+const BLOCK_CONDITIONAL_REGEX = /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*(?:{{#endif}}|{{\/if}})[ \t]*)(\n?)/;
+const INLINE_CONDITIONAL_REGEX = /{{#if\s+([^}]*)}}([\s\S]*?)(?:{{#endif}}|{{\/if}})/;
 
 // Max characters shown in body preview log lines
 const BLOCK_BODY_PREVIEW_LENGTH = 60;
@@ -45,8 +45,8 @@ function renderMarkdownTemplate(markdown) {
   }
 
   // Count conditionals before processing
-  const blockConditionals = (_stripped.match(BLOCK_CONDITIONAL_REGEX) || []).length;
-  const inlineConditionals = (_stripped.match(INLINE_CONDITIONAL_REGEX) || []).length - blockConditionals;
+  const blockConditionals = (_stripped.match(new RegExp(BLOCK_CONDITIONAL_REGEX.source, "g")) || []).length;
+  const inlineConditionals = (_stripped.match(new RegExp(INLINE_CONDITIONAL_REGEX.source, "g")) || []).length - blockConditionals;
 
   core.info(`[renderMarkdownTemplate] Found ${blockConditionals} block conditional(s) and ${inlineConditionals} inline conditional(s)`);
 
