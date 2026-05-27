@@ -15,7 +15,7 @@ permissions:
   issues: read
 engine:
   id: codex
-  model: gpt-5.3-codex
+  model: gpt-5.4
 strict: true
 safe-outputs:
   push-to-pull-request-branch:
