@@ -462,7 +462,7 @@ function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
     return out;
   }
 
-  const hasLabelsBefore = Object.prototype.hasOwnProperty.call(item, "labelsBefore") && Array.isArray(item.labelsBefore);
+  const hasLabelsBefore = Object.hasOwn(item, "labelsBefore") && Array.isArray(item.labelsBefore);
   const labelsBefore = hasLabelsBefore ? normalizeLabels(item.labelsBefore) : [];
   const labelsAdded = normalizeLabels(item.labelsAdded);
   const fallbackLabels = normalizeLabels(item.labels);
@@ -470,7 +470,7 @@ function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
 
   if (!hasLabelsBefore) {
     out.result = "unknown";
-    out.detail = "unknown: missing persisted label before-state";
+    out.detail = "unknown: missing persisted label before state";
     setPendingAge(out, timestamp, nowMs);
     return out;
   }
