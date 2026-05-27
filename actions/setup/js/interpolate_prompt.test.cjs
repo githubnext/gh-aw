@@ -11,12 +11,10 @@ global.core = core;
 const { isTruthy } = require("./is_truthy.cjs"),
   { selectBranch } = require("./template_branch.cjs"),
   interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8"),
-  interpolateVariablesMatch = interpolatePromptScript.match(/function interpolateVariables\(content, variables\)\s*{[\s\S]*?return result;[\s\S]*?}/),
-  renderMarkdownTemplateMatch = interpolatePromptScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
+  interpolateVariablesMatch = interpolatePromptScript.match(/function interpolateVariables\(content, variables\)\s*{[\s\S]*?return result;[\s\S]*?}/);
 if (!interpolateVariablesMatch) throw new Error("Could not extract interpolateVariables function from interpolate_prompt.cjs");
-if (!renderMarkdownTemplateMatch) throw new Error("Could not extract renderMarkdownTemplate function from interpolate_prompt.cjs");
 const interpolateVariables = eval(`(${interpolateVariablesMatch[0]})`),
-  renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
+  { renderMarkdownTemplate } = require("./render_template.cjs");
 describe("interpolate_prompt", () => {
   (describe("interpolateVariables", () => {
     (it("should interpolate single variable", () => {

@@ -8,10 +8,7 @@ const __filename = fileURLToPath(import.meta.url),
 global.core = core;
 const { isTruthy } = require("./is_truthy.cjs"),
   { selectBranch } = require("./template_branch.cjs"),
-  interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8"),
-  renderMarkdownTemplateMatch = interpolatePromptScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
-if (!renderMarkdownTemplateMatch) throw new Error("Could not extract renderMarkdownTemplate function from interpolate_prompt.cjs");
-const renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
+  { renderMarkdownTemplate } = require("./render_template.cjs");
 describe("renderMarkdownTemplate - Additional Edge Cases", () => {
   (describe("inline conditionals (tags not on their own lines)", () => {
     (it("should handle inline conditional at start of line", () => {
