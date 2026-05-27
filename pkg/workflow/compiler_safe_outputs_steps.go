@@ -41,7 +41,7 @@ func buildExtractBaseBranchStep() []string {
 		"                const item = (data.items || []).find(i =>\n",
 		"                  (i.type === 'create_pull_request' || i.type === 'push_to_pull_request_branch') &&\n",
 		"                  i.base_branch &&\n",
-		"                  (!i.repo || i.repo === workflowRepo)\n",
+		"                  (!i.repo || (workflowRepo && i.repo === workflowRepo))\n",
 		"                );\n",
 		"                if (item) process.stdout.write(item.base_branch);\n",
 		"              } catch(e) {}\n",
