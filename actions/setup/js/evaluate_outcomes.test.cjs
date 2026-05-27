@@ -30,6 +30,20 @@ describe("evaluate_outcomes type-specific evaluators", () => {
     expect(evaluateItem(item, "acme/repo", { ghAPI: noEngagement, nowMs }).result).toBe("pending");
   });
 
+  it("handles missing create_issue reaction/comment fields without existence-only acceptance", () => {
+    const item = {
+      type: "create_issue",
+      url: "https://github.com/acme/repo/issues/12",
+      timestamp: "2026-05-26T04:00:00Z",
+    };
+    const ghAPI = createAPIStub({
+      "repos/acme/repo/issues/12": { state: "open", user: { login: "author" }, comments: "unknown", reactions: null },
+      "repos/acme/repo/issues/12/comments": [],
+      "repos/acme/repo/issues/12/timeline": [],
+    });
+    expect(evaluateItem(item, "acme/repo", { ghAPI, nowMs: Date.parse("2026-05-27T04:00:00Z") }).result).toBe("pending");
+  });
+
   it("classifies create_issue immediate close and close-without-activity as rejected", () => {
     const item = {
       type: "create_issue",

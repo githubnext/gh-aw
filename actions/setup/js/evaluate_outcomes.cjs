@@ -45,20 +45,23 @@ const NOOP_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_inco
 const DEFAULT_ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC = 60 * 60;
 const DEFAULT_LABEL_RETENTION_WINDOW_SEC = 24 * 60 * 60;
 
+const POSITIVE_REACTIONS = ["+1", "heart", "hooray", "rocket"];
+const NEGATIVE_REACTIONS = ["-1", "confused"];
+
 /**
  * Read a positive integer from env with fallback.
  * @param {string} key
  * @param {number} fallback
  * @returns {number}
  */
-function getEnvPositiveInt(key, fallback) {
+function getEnvPositiveIntOrDefault(key, fallback) {
   const raw = process.env[key];
   const parsed = Number.parseInt(raw || "", 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-const ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC = getEnvPositiveInt("OUTCOME_ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC", DEFAULT_ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC);
-const LABEL_RETENTION_WINDOW_SEC = getEnvPositiveInt("OUTCOME_LABEL_RETENTION_WINDOW_SEC", DEFAULT_LABEL_RETENTION_WINDOW_SEC);
+const ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC = getEnvPositiveIntOrDefault("OUTCOME_ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC", DEFAULT_ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC);
+const LABEL_RETENTION_WINDOW_SEC = getEnvPositiveIntOrDefault("OUTCOME_LABEL_RETENTION_WINDOW_SEC", DEFAULT_LABEL_RETENTION_WINDOW_SEC);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -203,10 +206,19 @@ function summarizeReactions(reactions) {
   if (!reactions || typeof reactions !== "object") {
     return { total: null, positive: null, negative: null };
   }
-  const positive = (reactions["+1"] || 0) + (reactions.heart || 0) + (reactions.hooray || 0) + (reactions.rocket || 0);
-  const negative = (reactions["-1"] || 0) + (reactions.confused || 0);
+  const positive = POSITIVE_REACTIONS.reduce((sum, key) => sum + Number(reactions[key] || 0), 0);
+  const negative = NEGATIVE_REACTIONS.reduce((sum, key) => sum + Number(reactions[key] || 0), 0);
   const total = reactions.total_count != null ? reactions.total_count : positive + negative + (reactions.laugh || 0) + (reactions.eyes || 0);
   return { total, positive, negative };
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+function normalizeLabels(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map(l => String(l || "").trim()).filter(Boolean);
 }
 
 /**
@@ -318,7 +330,8 @@ function evaluateCreateIssue(item, itemRepo, timestamp, out, apiGet, nowMs) {
 
   if (issue.state === "closed" && issue.created_at && issue.closed_at) {
     out.resolution_sec = secondsBetween(issue.created_at, issue.closed_at);
-    if (typeof out.resolution_sec === "number" && out.resolution_sec <= ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC && closeActor && closeActor !== authorLogin) {
+    const closedByDifferentUser = closeActor !== "" && closeActor !== authorLogin;
+    if (typeof out.resolution_sec === "number" && out.resolution_sec <= ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC && closedByDifferentUser) {
       out.result = "rejected";
       out.detail = "rejected:strong";
       return out;
@@ -443,10 +456,12 @@ function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
     return out;
   }
 
-  const labelsBefore = Array.isArray(item.labelsBefore) ? item.labelsBefore.map(l => String(l || "").trim()).filter(Boolean) : [];
-  const labelsAdded = Array.isArray(item.labelsAdded) ? item.labelsAdded.map(l => String(l || "").trim()).filter(Boolean) : Array.isArray(item.labels) ? item.labels.map(l => String(l || "").trim()).filter(Boolean) : [];
+  const labelsBefore = normalizeLabels(item.labelsBefore);
+  const labelsAdded = normalizeLabels(item.labelsAdded);
+  const fallbackLabels = normalizeLabels(item.labels);
+  const effectiveLabelsAdded = labelsAdded.length > 0 ? labelsAdded : fallbackLabels;
 
-  if (labelsBefore.length === 0 || labelsAdded.length === 0) {
+  if (labelsBefore.length === 0 || effectiveLabelsAdded.length === 0) {
     out.result = "unknown";
     out.detail = "unknown: missing persisted label before-state";
     setPendingAge(out, timestamp, nowMs);
@@ -462,7 +477,7 @@ function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
   }
 
   const currentLabels = new Set(labels.map(l => (l && typeof l.name === "string" ? l.name : "")).filter(Boolean));
-  const trackedAdded = labelsAdded.filter(l => !labelsBefore.includes(l));
+  const trackedAdded = effectiveLabelsAdded.filter(l => !labelsBefore.includes(l));
   const removed = trackedAdded.filter(l => !currentLabels.has(l));
 
   const nowEpoch = Math.floor(nowMs / 1000);
