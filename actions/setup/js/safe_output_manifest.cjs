@@ -49,6 +49,7 @@ const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data", "repor
  * @property {string} [temporaryId] - Temporary ID assigned to this item, if any
  * @property {Object} [before_state] - Execution-time state snapshot captured before mutation
  * @property {Object} [after_state] - Execution-time state snapshot captured after mutation
+ * @property {string[]} [labelsAdded] - Labels added by add_labels handler
  * @property {string} timestamp - ISO 8601 timestamp of creation
  */
 
@@ -59,7 +60,7 @@ const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data", "repor
  * It is designed to be easily testable by accepting the file path as a parameter.
  *
  * @param {string} [manifestFile] - Path to the manifest file (defaults to MANIFEST_FILE_PATH)
- * @returns {(item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string, before_state?: Object, after_state?: Object}) => void} Logger function
+ * @returns {(item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string, before_state?: Object, after_state?: Object, labelsAdded?: string[]}) => void} Logger function
  */
 function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
   // Touch the file immediately so it exists for artifact upload
@@ -69,7 +70,7 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
   /**
    * Log an executed safe output item to the manifest file.
    *
-   * @param {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, before_state?: Object, after_state?: Object}} item - Executed item details
+   * @param {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, before_state?: Object, after_state?: Object, labelsAdded?: string[]}} item - Executed item details
    */
   return function logCreatedItem(item) {
     if (!item) return;
@@ -83,6 +84,7 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
       ...(item.temporaryId ? { temporaryId: item.temporaryId } : {}),
       ...(item.before_state ? { before_state: item.before_state } : {}),
       ...(item.after_state ? { after_state: item.after_state } : {}),
+      ...(Array.isArray(item.labelsAdded) ? { labelsAdded: item.labelsAdded } : {}),
       timestamp: new Date().toISOString(),
     };
 

@@ -147,8 +147,8 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 		}
 	}
 
-	// Enforce required id-token: write permission for engine.auth.type=github-oidc.
-	if err := validateEngineAuthPermissions(workflowData, workflowPermissions); err != nil {
+	// Enforce required id-token: write permission for OIDC auth users.
+	if err := validateOIDCPermissions(workflowData, workflowPermissions); err != nil {
 		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
@@ -165,21 +165,34 @@ Ensure proper audience validation and trust policies are configured.`
 	return workflowPermissions, nil
 }
 
-func validateEngineAuthPermissions(workflowData *WorkflowData, workflowPermissions *Permissions) error {
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Auth == nil {
+func validateOIDCPermissions(workflowData *WorkflowData, workflowPermissions *Permissions) error {
+	if workflowData == nil {
 		return nil
 	}
 
-	if workflowData.EngineConfig.Auth.Type != "github-oidc" {
+	requiresIDTokenWrite := false
+	errorPrefix := ""
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Auth != nil && workflowData.EngineConfig.Auth.Type == "github-oidc" {
+		requiresIDTokenWrite = true
+		errorPrefix = "engine.auth.type: github-oidc"
+	}
+
+	if !requiresIDTokenWrite && hasOTLPGitHubOIDCAuth(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter) {
+		requiresIDTokenWrite = true
+		errorPrefix = "observability.otlp.github-app"
+	}
+
+	if !requiresIDTokenWrite {
 		return nil
 	}
 
 	if workflowPermissions == nil {
-		return errors.New("engine.auth.type: github-oidc requires permissions.id-token: write")
+		return errors.New(errorPrefix + " requires permissions.id-token: write")
 	}
 
 	if level, exists := workflowPermissions.Get(PermissionIdToken); !exists || level != PermissionWrite {
-		return errors.New("engine.auth.type: github-oidc requires permissions.id-token: write")
+		return errors.New(errorPrefix + " requires permissions.id-token: write")
 	}
 
 	return nil

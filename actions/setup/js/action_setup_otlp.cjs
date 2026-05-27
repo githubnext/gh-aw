@@ -45,6 +45,47 @@ function writeEnvLine(filePath, key, value, logLabel, fileLabel) {
 }
 
 /**
+ * @param {string} headers
+ * @returns {boolean}
+ */
+function hasAuthorizationHeader(headers) {
+  return /(^|,)\s*authorization\s*=/i.test(headers);
+}
+
+/**
+ * @param {string} headers
+ * @param {string} token
+ * @returns {string}
+ */
+function mergeAuthorizationHeader(headers, token) {
+  if (hasAuthorizationHeader(headers)) return headers;
+  return (headers ? `${headers},` : "") + "Authorization=Bearer " + token;
+}
+
+/**
+ * @param {string} endpointsRaw
+ * @param {string} token
+ * @returns {string}
+ */
+function mergeAuthorizationIntoOTLPEndpoints(endpointsRaw, token) {
+  if (!endpointsRaw) return endpointsRaw;
+  let parsed;
+  try {
+    parsed = JSON.parse(endpointsRaw);
+  } catch {
+    return endpointsRaw;
+  }
+  if (!Array.isArray(parsed)) return endpointsRaw;
+  const updated = parsed.map(entry => {
+    if (!entry || typeof entry !== "object") return entry;
+    const currentHeaders = typeof entry.headers === "string" ? entry.headers : "";
+    const mergedHeaders = mergeAuthorizationHeader(currentHeaders, token);
+    return { ...entry, headers: mergedHeaders };
+  });
+  return JSON.stringify(updated);
+}
+
+/**
  * Send the OTLP job-setup span and propagate trace context via GITHUB_OUTPUT /
  * GITHUB_ENV.  Non-fatal: all errors are silently swallowed.
  *
@@ -84,6 +125,22 @@ async function run() {
   }
   if (inputParentSpanId) {
     process.env.INPUT_PARENT_SPAN_ID = inputParentSpanId;
+  }
+
+  const inputOTLPOIDCToken = getActionInput("OTLP_OIDC_TOKEN");
+  if (inputOTLPOIDCToken) {
+    const existingHeaders = process.env.OTEL_EXPORTER_OTLP_HEADERS || "";
+    const mergedHeaders = mergeAuthorizationHeader(existingHeaders, inputOTLPOIDCToken);
+
+    process.env.OTEL_EXPORTER_OTLP_HEADERS = mergedHeaders;
+    writeEnvLine(process.env.GITHUB_ENV, "OTEL_EXPORTER_OTLP_HEADERS", mergedHeaders, "OTEL_EXPORTER_OTLP_HEADERS", "GITHUB_ENV");
+
+    const existingEndpoints = process.env.GH_AW_OTLP_ENDPOINTS || "";
+    const mergedEndpoints = mergeAuthorizationIntoOTLPEndpoints(existingEndpoints, inputOTLPOIDCToken);
+    if (mergedEndpoints && mergedEndpoints !== existingEndpoints) {
+      process.env.GH_AW_OTLP_ENDPOINTS = mergedEndpoints;
+      writeEnvLine(process.env.GITHUB_ENV, "GH_AW_OTLP_ENDPOINTS", mergedEndpoints, "GH_AW_OTLP_ENDPOINTS", "GITHUB_ENV");
+    }
   }
 
   if (!endpoints) {

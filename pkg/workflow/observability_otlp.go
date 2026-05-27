@@ -163,6 +163,90 @@ func getOTLPEndpointEnvValue(config *FrontmatterConfig) string {
 	return ""
 }
 
+func getOTLPGitHubApp(config *FrontmatterConfig, frontmatter map[string]any) *OTLPGitHubAppConfig {
+	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.GitHubApp != nil {
+		return config.Observability.OTLP.GitHubApp
+	}
+	if frontmatter == nil {
+		return nil
+	}
+	obsAny, ok := frontmatter["observability"]
+	if !ok {
+		return nil
+	}
+	obsMap, ok := obsAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	otlpAny, ok := obsMap["otlp"]
+	if !ok {
+		return nil
+	}
+	otlpMap, ok := otlpAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	authAny, ok := otlpMap["github-app"]
+	if !ok {
+		return nil
+	}
+	authMap, ok := authAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	audience, _ := authMap["audience"].(string)
+	return &OTLPGitHubAppConfig{
+		Audience: audience,
+	}
+}
+
+func getOTLPGitHubAppTokenConfig(frontmatter map[string]any) *GitHubAppConfig {
+	if frontmatter == nil {
+		return nil
+	}
+
+	obsAny, ok := frontmatter["observability"]
+	if !ok {
+		return nil
+	}
+
+	obsMap, ok := obsAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	githubAppMap := extractRawOTLPGitHubAppMap(obsMap)
+	if githubAppMap == nil {
+		return nil
+	}
+
+	app := parseAppConfig(githubAppMap)
+	if !app.hasRequiredCredentials() {
+		return nil
+	}
+
+	return app
+}
+
+// getOTLPGitHubOIDCAudience returns observability.otlp.github-app.audience.
+// Returns empty string when github-app is unset or invalid.
+func getOTLPGitHubOIDCAudience(config *FrontmatterConfig, frontmatter map[string]any) string {
+	githubApp := getOTLPGitHubApp(config, frontmatter)
+	if githubApp == nil {
+		return ""
+	}
+
+	return strings.TrimSpace(githubApp.Audience)
+}
+
+func hasOTLPGitHubOIDCAuth(config *FrontmatterConfig, frontmatter map[string]any) bool {
+	if getOTLPGitHubAppTokenConfig(frontmatter) != nil {
+		return false
+	}
+
+	return getOTLPGitHubApp(config, frontmatter) != nil
+}
+
 // normalizeOTLPIfMissingMode returns a validated if-missing mode.
 // Empty string means "unset/default (error)".
 func normalizeOTLPIfMissingMode(mode string) string {
@@ -507,6 +591,33 @@ func extractRawOTLPEndpointMaps(obs map[string]any) []map[string]any {
 		}
 	}
 	return result
+}
+
+// extractRawOTLPGitHubAppMap returns observability.otlp.github-app as a
+// shallow-copied map when present and valid.
+func extractRawOTLPGitHubAppMap(obs map[string]any) map[string]any {
+	if obs == nil {
+		return nil
+	}
+	otlpAny, ok := obs["otlp"]
+	if !ok {
+		return nil
+	}
+	otlpMap, ok := otlpAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	githubAppAny, ok := otlpMap["github-app"]
+	if !ok {
+		return nil
+	}
+	githubAppMap, ok := githubAppAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	copied := make(map[string]any, len(githubAppMap))
+	maps.Copy(copied, githubAppMap)
+	return copied
 }
 
 // endpoint entry.  Duplicate pairs are included as-is; the result is used only

@@ -296,6 +296,36 @@ name: "Test Workflow"`;
   });
 
   describe("computeFrontmatterHash", () => {
+    it.each([
+      {
+        id: "FH-TV-001",
+        content: "---\n---\n\n# Empty Workflow\n",
+        expectedHash: "4c8309afbcf816cd80c0824dce2b50047834b29e14b34b96953e88ae81048c46",
+      },
+      {
+        id: "FH-TV-002",
+        content: "---\nengine: copilot\ndescription: Test workflow\non:\n  schedule: daily\n---\n\n# Test Workflow\n",
+        expectedHash: "b9def9907e3328e2e03e8c47c315723df39788f251627313b1a984bb61b9cbce",
+      },
+      {
+        id: "FH-TV-003",
+        content:
+          "---\nengine: claude\ndescription: Complex workflow\ntracker-id: complex-test\ntimeout-minutes: 30\non:\n  schedule: daily\n  workflow_dispatch: true\npermissions:\n  contents: read\n  actions: read\ntools:\n  playwright:\n    version: v1.41.0\nlabels:\n  - test\n  - complex\nbots:\n  - copilot\n---\n\n# Complex Workflow\n",
+        expectedHash: "8c63a05ef42cbfaff9be87a06257282cb4dcb952f71481d9d65ec3037003dbe8",
+      },
+    ])("should match Appendix A vector $id", async ({ content, expectedHash }) => {
+      const testFile = path.join(__dirname, `test-workflow-${expectedHash}.md`);
+      fs.writeFileSync(testFile, content, "utf8");
+      try {
+        const hash = await computeFrontmatterHash(testFile);
+        expect(hash).toBe(expectedHash);
+      } finally {
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
+      }
+    });
+
     it("should compute hash for simple frontmatter", async () => {
       // Create a temporary test file
       const testFile = path.join(__dirname, "test-workflow-hash-simple.md");
@@ -437,6 +467,22 @@ name: "Test Workflow"`;
         expect(hashA).toBe(hashB);
       } finally {
         fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should reject oversized normalized frontmatter input (FH-TV-NEG-001)", async () => {
+      const testFile = path.join(__dirname, "test-workflow-hash-oversized.md");
+      const oversizedValue = "a".repeat(1_048_577);
+      const content = `---\ndescription: ${oversizedValue}\n---\n\n# Oversized Workflow`;
+
+      fs.writeFileSync(testFile, content, "utf8");
+
+      try {
+        await expect(computeFrontmatterHash(testFile)).rejects.toThrow("frontmatter hash input exceeds 1048576 bytes after normalization");
+      } finally {
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
       }
     });
   });

@@ -9668,6 +9668,29 @@
               "enum": ["error", "warn", "ignore"],
               "default": "error",
               "description": "How to handle missing OTLP endpoint/header values at runtime (for example from unset secrets). 'error' fails workflow startup (default), 'warn' logs a warning and skips MCP gateway OTLP configuration, and 'ignore' skips MCP gateway OTLP configuration without warning. This affects MCP gateway setup only; workflow-level OTEL_* environment variables are still injected."
+            },
+            "github-app": {
+              "description": "Optional runtime authentication for OTLP export. Supports GitHub App credentials (client-id/app-id + private-key) for token minting, or implicit GitHub OIDC mode when the github-app object is present without credentials.",
+              "type": "object",
+              "properties": {
+                "app-id": {
+                  "type": "string",
+                  "description": "Deprecated alias for client-id. GitHub App ID/client ID (e.g., '${{ vars.APP_ID }}')."
+                },
+                "client-id": {
+                  "type": "string",
+                  "description": "GitHub App client ID (e.g., '${{ vars.APP_ID }}')."
+                },
+                "private-key": {
+                  "type": "string",
+                  "description": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}')."
+                },
+                "ignore-if-missing": {
+                  "type": "boolean",
+                  "description": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime. Defaults to false."
+                }
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false

@@ -18,6 +18,11 @@ var consolidatedSafeOutputsStepsLog = logger.New("workflow:compiler_safe_outputs
 // events on PRs targeting non-default branches: the checkout step can now use the
 // correct base branch regardless of event type.
 //
+// Cross-repo items (where the entry's `repo` field is set and differs from the
+// workflow repository) are skipped. Their base_branch belongs to a different
+// repository and must not be used to checkout the workflow repo, as that branch
+// will not exist there and the checkout step would fail.
+//
 // The step writes the extracted branch to GITHUB_OUTPUT as "base-branch" so the
 // checkout step can reference it via ${{ steps.extract-base-branch.outputs.base-branch }}.
 func buildExtractBaseBranchStep() []string {
@@ -25,26 +30,13 @@ func buildExtractBaseBranchStep() []string {
 		"      - name: Extract base branch from agent output\n",
 		"        id: extract-base-branch\n",
 		"        if: steps.download-agent-output.outcome == 'success'\n",
-		"        shell: bash\n",
-		"        run: |\n",
-		"          if [ -f \"/tmp/gh-aw/agent_output.json\" ]; then\n",
-		"            GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)\n",
-		"            BASE_BRANCH=$(\"$GH_AW_NODE\" -e \"\n",
-		"              try {\n",
-		"                const data = JSON.parse(require('fs').readFileSync('/tmp/gh-aw/agent_output.json', 'utf8'));\n",
-		"                const item = (data.items || []).find(i =>\n",
-		"                  (i.type === 'create_pull_request' || i.type === 'push_to_pull_request_branch') &&\n",
-		"                  i.base_branch\n",
-		"                );\n",
-		"                if (item) process.stdout.write(item.base_branch);\n",
-		"              } catch(e) {}\n",
-		"            \" 2>/dev/null || true)\n",
-		"            # Validate: only allow safe git branch name characters\n",
-		"            if [[ \"$BASE_BRANCH\" =~ ^[a-zA-Z0-9/_.-]+$ ]] && [ ${#BASE_BRANCH} -le 255 ]; then\n",
-		"              printf 'base-branch=%s\\n' \"$BASE_BRANCH\" >> \"$GITHUB_OUTPUT\"\n",
-		"              echo \"Extracted base branch from safe output: $BASE_BRANCH\"\n",
-		"            fi\n",
-		"          fi\n",
+		fmt.Sprintf("        uses: %s\n", getActionPin("actions/github-script")),
+		"        with:\n",
+		"          script: |\n",
+		fmt.Sprintf("            const { setupGlobals } = require('%s/setup_globals.cjs');\n", SetupActionDestination),
+		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		fmt.Sprintf("            const { main } = require('%s/extract_base_branch_from_agent_output.cjs');\n", SetupActionDestination),
+		"            await main();\n",
 	}
 }
 
