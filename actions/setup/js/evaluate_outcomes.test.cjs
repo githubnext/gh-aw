@@ -404,7 +404,7 @@ describe("evaluate_outcomes.cjs", () => {
     });
   });
 
-  it("does not treat missing commit dates as post-review pushes", () => {
+  it("returns unknown outcome when commit dates are missing", () => {
     const api = endpoint => {
       if (endpoint.endsWith("/pulls/42")) {
         return { state: "closed", merged: true, merged_at: "2026-05-12T05:00:00Z" };

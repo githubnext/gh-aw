@@ -543,6 +543,9 @@ func TestEvalAddReviewerUsesLatestReviewerState(t *testing.T) {
 func TestTimestampOnOrAfterMalformedReturnsFalse(t *testing.T) {
 	assert.False(t, timestampOnOrAfter("invalid", "2026-05-12T00:00:00Z"))
 	assert.False(t, timestampOnOrAfter("2026-05-12T00:00:00Z", "invalid"))
+}
+
+func TestTimestampOnOrAfterEmptyCandidateAndThresholdHandling(t *testing.T) {
 	assert.False(t, timestampOnOrAfter("", "2026-05-12T00:00:00Z"))
 	assert.True(t, timestampOnOrAfter("2026-05-12T00:00:00Z", ""))
 }
