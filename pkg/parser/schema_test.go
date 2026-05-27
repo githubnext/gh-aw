@@ -829,9 +829,30 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_GitHubAppClientID(
 	}
 }
 
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppAudienceOnly(t *testing.T) {
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppImplicitOIDC(t *testing.T) {
 	frontmatter := map[string]any{
-		"name": "OTLP audience-only github-app config",
+		"name": "OTLP implicit OIDC github-app config",
+		"on": map[string]any{
+			"issues": map[string]any{
+				"types": []any{"opened"},
+			},
+		},
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-github-app-implicit-oidc-schema-test.md")
+	if err != nil {
+		t.Fatalf("expected empty observability.otlp.github-app to pass schema validation for implicit OIDC, got: %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppAudienceRejected(t *testing.T) {
+	frontmatter := map[string]any{
+		"name": "OTLP github-app audience rejection",
 		"on": map[string]any{
 			"issues": map[string]any{
 				"types": []any{"opened"},
@@ -846,9 +867,14 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppAudie
 		},
 	}
 
-	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-github-app-audience-only-schema-test.md")
-	if err != nil {
-		t.Fatalf("expected audience-only observability.otlp.github-app to pass schema validation, got: %v", err)
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-github-app-audience-reject-schema-test.md")
+	if err == nil {
+		t.Fatal("expected observability.otlp.github-app.audience to fail schema validation")
+	}
+	errText := err.Error()
+	if !strings.Contains(errText, "audience") ||
+		!strings.Contains(errText, "github-app") {
+		t.Fatalf("expected schema validation error to reference unsupported github-app.audience syntax, got: %v", err)
 	}
 }
 
@@ -875,9 +901,8 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppLegac
 		t.Fatal("expected legacy observability.otlp.github-app.type: github-oidc to fail schema validation")
 	}
 	errText := err.Error()
-	if !strings.Contains(errText, "Unknown properties") ||
-		!strings.Contains(errText, "type") ||
-		!strings.Contains(errText, "observability/otlp/github-app") {
+	if !strings.Contains(errText, "type") ||
+		!strings.Contains(errText, "github-app") {
 		t.Fatalf("expected schema validation error to reference unsupported legacy github-app.type syntax, got: %v", err)
 	}
 }

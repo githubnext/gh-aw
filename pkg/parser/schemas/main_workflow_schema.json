@@ -9670,22 +9670,42 @@
               "description": "How to handle missing OTLP endpoint/header values at runtime (for example from unset secrets). 'error' fails workflow startup (default), 'warn' logs a warning and skips MCP gateway OTLP configuration, and 'ignore' skips MCP gateway OTLP configuration without warning. This affects MCP gateway setup only; workflow-level OTEL_* environment variables are still injected."
             },
             "github-app": {
-              "description": "Optional runtime authentication for OTLP export. Supports GitHub App credentials (client-id/app-id + private-key) for token minting, or GitHub OIDC mode when the github-app object is present without credentials (optionally with audience).",
-              "oneOf": [
-                {
-                  "$ref": "#/$defs/github_app"
+              "description": "Optional runtime authentication for OTLP export. Supports GitHub App credentials (client-id/app-id + private-key) for token minting, or implicit GitHub OIDC mode when the github-app object is present without credentials.",
+              "type": "object",
+              "properties": {
+                "app-id": {
+                  "type": "string",
+                  "description": "Deprecated alias for client-id. GitHub App ID/client ID (e.g., '${{ vars.APP_ID }}')."
                 },
-                {
-                  "type": "object",
-                  "properties": {
-                    "audience": {
-                      "type": "string",
-                      "description": "Optional OIDC audience passed to core.getIDToken(audience)."
-                    }
-                  },
-                  "additionalProperties": false
+                "client-id": {
+                  "type": "string",
+                  "description": "GitHub App client ID (e.g., '${{ vars.APP_ID }}')."
+                },
+                "private-key": {
+                  "type": "string",
+                  "description": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}')."
+                },
+                "ignore-if-missing": {
+                  "type": "boolean",
+                  "description": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime. Defaults to false."
+                },
+                "owner": {
+                  "type": "string",
+                  "description": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)"
+                },
+                "repositories": {
+                  "type": "array",
+                  "description": "Optional list of repositories to grant access to (defaults to current repository if not specified)",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "permissions": {
+                  "$ref": "#/$defs/github_app_permissions",
+                  "description": "Optional extra GitHub App-only permissions to merge into the minted token. Takes effect for tools.github.github-app and safe-outputs.github-app; ignored in on.github-app and the top-level github-app fallback. Use to add GitHub App-only scopes (e.g. members, organization-administration) not expressible via standard handler declarations."
                 }
-              ]
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false
