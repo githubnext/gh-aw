@@ -159,15 +159,24 @@ function renderMarkdownTemplate(markdown) {
     core.info(`[renderMarkdownTemplate] Cleaned up ${excessiveLines} excessive blank line sequence(s)`);
     core.info(`[renderMarkdownTemplate] Length change from cleanup: ${beforeCleanup} -> ${result.length} characters`);
   }
+
+  // Count which placeholders survived to detect code blocks removed in false conditional branches
+  const _survivedIndices = new Set([...result.matchAll(/\x00FENCE\x00(\d+)\x00FENCE\x00/g)].map(m => +m[1]));
+  const _removedFenceMarkerCount = _codeBlocks.reduce(
+    (sum, block, i) => (_survivedIndices.has(i) ? sum : sum + (block.match(/`{3,}/g) || []).length),
+    0
+  );
+
   // Restore fenced code blocks
   if (_codeBlocks.length > 0) {
     result = result.replace(/\x00FENCE\x00(\d+)\x00FENCE\x00/g, (_, i) => _codeBlocks[+i]);
   }
 
-  // Runtime assertion: number of fence markers must be the same before and after processing
+  // Runtime assertion: number of fence markers must be the same before and after processing,
+  // accounting for any fenced code blocks intentionally removed inside false conditional branches.
   const _inputFenceCount = (markdown.match(/`{3,}/g) || []).length;
   const _outputFenceCount = (result.match(/`{3,}/g) || []).length;
-  if (_inputFenceCount !== _outputFenceCount) {
+  if (_inputFenceCount - _removedFenceMarkerCount !== _outputFenceCount) {
     core.warning(`[renderMarkdownTemplate] Fence count mismatch: input had ${_inputFenceCount} fence marker(s), output has ${_outputFenceCount}`);
   }
 
