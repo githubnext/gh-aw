@@ -4,6 +4,7 @@ name: "Contribution Check"
 on:
   schedule: "every 4 hours"
   workflow_dispatch:
+timeout-minutes: 30
 
 permissions:
   contents: read

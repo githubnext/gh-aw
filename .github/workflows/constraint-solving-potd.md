@@ -3,6 +3,7 @@ emoji: "🧩"
 on:
   schedule: daily
   workflow_dispatch:
+timeout-minutes: 30
 
 permissions:
   models: read

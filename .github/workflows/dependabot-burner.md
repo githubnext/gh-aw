@@ -1,6 +1,7 @@
 ---
 emoji: "🔥"
 on: weekly
+timeout-minutes: 20
 permissions:
   contents: read
   issues: read

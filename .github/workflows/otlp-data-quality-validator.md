@@ -5,6 +5,7 @@ description: Validates gh-aw OTLP trace data quality across local JSONL mirror, 
 on:
   schedule: daily on weekdays
   workflow_dispatch:
+timeout-minutes: 30
 permissions:
   contents: read
   actions: read
