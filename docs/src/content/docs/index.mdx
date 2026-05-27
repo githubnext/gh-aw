@@ -81,6 +81,24 @@ Before any output is applied, a dedicated [threat detection job](/gh-aw/referenc
 
 See the [Security Architecture](/gh-aw/introduction/architecture/) for a full breakdown of the layered defense-in-depth model.
 
+## Manage Cost and Capacity
+
+Cost control starts with visibility. Use `gh aw logs` and `gh aw audit` to find runs consuming the most time, tokens, and effective tokens, then tighten prompts, triggers, and model choices before spend drifts upward.
+
+`max-effective-tokens` gives each run a hard budget, while [OpenTelemetry](/gh-aw/reference/open-telemetry/) exports traces and token data to OTLP backends for dashboards, alerting, and cost analysis. For optimization over time, compare cost with [outcomes](/gh-aw/reference/outcomes/) so lower spend still produces useful accepted results.
+
+<FeatureGrid columns={3}>
+  <FeatureCard icon="pulse" title="Cost Management" href="/gh-aw/reference/cost-management/">
+    Track Actions minutes, inference spend, and the heaviest runs before deciding what to optimize
+  </FeatureCard>
+  <FeatureCard icon="workflow" title="OpenTelemetry" href="/gh-aw/reference/open-telemetry/">
+    Export workflow traces to OTLP backends for dashboards, alerts, and spend analysis
+  </FeatureCard>
+  <FeatureCard icon="tools" title="Effective Token Budgets" href="/gh-aw/reference/frontmatter/#effective-token-budget-max-effective-tokens">
+    Cap runaway runs with max-effective-tokens and optimize around effective-token usage
+  </FeatureCard>
+</FeatureGrid>
+
 ## Example: Daily Issues Report
 
 Here's a simple workflow that runs daily to create an upbeat status report:
