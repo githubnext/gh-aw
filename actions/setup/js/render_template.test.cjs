@@ -118,7 +118,7 @@ describe("renderMarkdownTemplate", () => {
       core.warning.mockClear();
       const input = "{{#if false}}\n```js\ncode1\n```\n\n```py\ncode2\n```\n{{/if}}\nOther content";
       renderMarkdownTemplate(input);
-      expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("Fence Count mismatch"));
+      expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("Fence count mismatch"));
     });
     it("should not warn when kept block contains fenced code but removed block also contained fenced code", () => {
       core.warning.mockClear();
