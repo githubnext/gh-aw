@@ -88,6 +88,7 @@ func isRepositoryOnlyWorkflowSpec(spec string) bool {
 		return false
 	}
 
+	// Strip optional @version suffix so owner/repo@v1 is treated as repository-only.
 	specWithoutVersion := strings.SplitN(spec, "@", 2)[0]
 	slashParts := strings.Split(specWithoutVersion, "/")
 	return len(slashParts) == 2 && slashParts[0] != "" && slashParts[1] != ""
