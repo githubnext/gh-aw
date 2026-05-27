@@ -18,6 +18,13 @@ const mockCore = {
 const mockGithub = {
   rest: {
     pulls: {
+      get: vi.fn().mockResolvedValue({
+        data: {
+          requested_reviewers: [{ login: "existing-reviewer" }],
+          requested_teams: [],
+        },
+      }),
+      listReviews: vi.fn().mockResolvedValue({ data: [{ id: 1, user: { login: "reviewer-a" }, state: "COMMENTED" }] }),
       requestReviewers: vi.fn().mockResolvedValue({}),
     },
   },
@@ -81,6 +88,11 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
       repo: "testrepo",
       pull_number: 123,
       reviewers: ["user1", "user2"],
+    });
+    expect(result.before_state).toEqual({
+      requested_reviewers: ["existing-reviewer"],
+      requested_team_reviewers: [],
+      reviews: [{ id: 1, user: "reviewer-a", state: "COMMENTED" }],
     });
   });
 
@@ -278,6 +290,39 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("API Error");
+  });
+
+  it("should persist before and after reviewer metadata", async () => {
+    mockGithub.rest.pulls.requestReviewers.mockResolvedValueOnce({
+      data: {
+        requested_reviewers: [{ login: "existing-reviewer" }, { login: "user1" }],
+        requested_teams: [{ slug: "platform-team" }],
+      },
+    });
+
+    const result = await handler(
+      {
+        type: "add_reviewer",
+        reviewers: ["user1"],
+        team_reviewers: ["platform-team"],
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.repo).toBe("testowner/testrepo");
+    expect(result.pull_request_number).toBe(123);
+    expect(result.pull_request_url).toBe("https://github.com/testowner/testrepo/pull/123");
+    expect(result.before_state).toEqual({
+      requested_reviewers: ["existing-reviewer"],
+      requested_team_reviewers: [],
+      reviews: [{ id: 1, user: "reviewer-a", state: "COMMENTED" }],
+    });
+    expect(result.after_state).toEqual({
+      requested_reviewers: ["existing-reviewer", "user1"],
+      requested_team_reviewers: ["platform-team"],
+      reviews: [{ id: 1, user: "reviewer-a", state: "COMMENTED" }],
+    });
   });
 
   it("should deduplicate reviewers", async () => {

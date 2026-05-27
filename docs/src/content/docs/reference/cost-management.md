@@ -98,6 +98,36 @@ gh aw logs --start-date -30d --json | \
       | sort_by(.effective_tokens) | reverse | .[:10]'
 ```
 
+## Track Costs at Scale with OpenTelemetry
+
+Use `observability.otlp` to stream run telemetry into a central
+OpenTelemetry backend when one repository or one `gh aw logs`
+report is no longer enough. This is the best fit for
+organization-wide dashboards, alerting, and cross-repository cost
+analysis.
+
+```aw wrap
+observability:
+  otlp:
+    endpoint: ${{ secrets.OTLP_ENDPOINT }}
+    headers:
+      Authorization: ${{ secrets.OTLP_TOKEN }}
+```
+
+The exported spans include workflow and model metadata such as
+`gh-aw.engine.id`, `gen_ai.request.model`,
+`gen_ai.usage.input_tokens`, and
+`gen_ai.usage.output_tokens`. Use these attributes to group usage
+by workflow, engine, model, repository, or team in the backend of
+your choice.
+
+OpenTelemetry is most useful for answering questions such as:
+"Which repositories are driving the most token usage?",
+"Which model change caused a cost spike?", and
+"Which workflows should be moved to a smaller model or stricter
+trigger policy?" See [OpenTelemetry](/gh-aw/reference/open-telemetry/)
+for the full attribute reference and collector configuration.
+
 ## Trigger Frequency and Cost Risk
 
 The primary cost lever for most workflows is how often they run. Some events are inherently high-frequency:
@@ -158,6 +188,23 @@ Reserve frontier models (GPT-5, Claude Sonnet, etc.) for complex tasks. Use ligh
 ### Limit Context Size
 
 Inference cost scales with prompt size. Write focused prompts, avoid whole-file reads when only a few lines matter, cap result counts in tool calls, and use `imports` to compose a smaller subset of prompt sections at runtime.
+
+### Cap Effective Tokens per Run
+
+Use the top-level `max-effective-tokens` frontmatter field to cap
+the effective-token budget for a single workflow run. This provides
+a hard stop for unusually expensive runs and a consistent cost
+guardrail across all supported engines.
+
+```aw wrap
+max-effective-tokens: 5000000
+```
+
+Effective tokens are the normalized usage metric described in the
+[Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/).
+When the budget is approached, gh-aw emits steering warnings before
+the run reaches the limit. Set a negative value only when budget
+enforcement must be disabled explicitly.
 
 ### Rate Limiting and Concurrency
 
@@ -226,6 +273,7 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 - [Audit Commands](/gh-aw/reference/audit/) - Single-run analysis, diff, and cross-run reporting
 - [Artifacts](/gh-aw/reference/artifacts/) - Artifact names, directory structures, and token usage file locations
 - [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) - How effective token counts are computed
+- [OpenTelemetry](/gh-aw/reference/open-telemetry/) - Exporting workflow telemetry to centralized observability backends
 - [Triggers](/gh-aw/reference/triggers/) - Configuring workflow triggers and skip conditions
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) - Preventing runaway workflows
 - [Concurrency](/gh-aw/reference/concurrency/) - Serializing workflow execution

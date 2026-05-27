@@ -21,6 +21,7 @@ const { getPullRequestNumber } = require("./pr_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { attachExecutionState, extractReviewStateFromData, fetchPullRequestReviewState } = require("./safe_output_execution_metadata.cjs");
 const { COPILOT_REVIEWER_BOT } = require("./constants.cjs");
 
 /**
@@ -83,6 +84,7 @@ async function main(config = {}) {
     }
 
     const repoParts = { owner: context.repo.owner, repo: context.repo.repo };
+    const itemRepo = `${repoParts.owner}/${repoParts.repo}`;
     const filterResult = await checkRequiredFilter(githubClient, repoParts, prNumber, requiredLabels, requiredTitlePrefix, HANDLER_TYPE);
     if (filterResult) return filterResult;
 
@@ -124,6 +126,9 @@ async function main(config = {}) {
     }
 
     try {
+      const beforeState = await fetchPullRequestReviewState(githubClient, repoParts, prNumber);
+      let latestPullRequest = null;
+
       // Special handling for "copilot" reviewer - separate it from other reviewers
       const hasCopilot = uniqueReviewers.includes("copilot");
       const otherReviewers = uniqueReviewers.filter(r => r !== "copilot");
@@ -140,19 +145,21 @@ async function main(config = {}) {
         if (uniqueTeamReviewers.length > 0) {
           reviewerRequest.team_reviewers = uniqueTeamReviewers;
         }
-        await githubClient.rest.pulls.requestReviewers(reviewerRequest);
+        const response = await githubClient.rest.pulls.requestReviewers(reviewerRequest);
+        latestPullRequest = response?.data || latestPullRequest;
         core.info(`Successfully added reviewers to PR #${prNumber}: reviewers=${JSON.stringify(otherReviewers)}, team_reviewers=${JSON.stringify(uniqueTeamReviewers)}`);
       }
 
       // Add copilot reviewer separately if requested
       if (hasCopilot) {
         try {
-          await githubClient.rest.pulls.requestReviewers({
+          const response = await githubClient.rest.pulls.requestReviewers({
             owner: context.repo.owner,
             repo: context.repo.repo,
             pull_number: prNumber,
             reviewers: [COPILOT_REVIEWER_BOT],
           });
+          latestPullRequest = response?.data || latestPullRequest;
           core.info(`Successfully added copilot as reviewer to PR #${prNumber}`);
         } catch (copilotError) {
           core.warning(`Failed to add copilot as reviewer: ${getErrorMessage(copilotError)}`);
@@ -160,12 +167,26 @@ async function main(config = {}) {
         }
       }
 
-      return {
-        success: true,
-        prNumber,
-        reviewersAdded: uniqueReviewers,
-        teamReviewersAdded: uniqueTeamReviewers,
-      };
+      const afterState = latestPullRequest
+        ? {
+            ...extractReviewStateFromData(latestPullRequest, []),
+            reviews: beforeState.reviews,
+          }
+        : await fetchPullRequestReviewState(githubClient, repoParts, prNumber);
+
+      return attachExecutionState(
+        {
+          success: true,
+          prNumber,
+          repo: itemRepo,
+          pull_request_number: prNumber,
+          pull_request_url: `https://github.com/${repoParts.owner}/${repoParts.repo}/pull/${prNumber}`,
+          reviewersAdded: uniqueReviewers,
+          teamReviewersAdded: uniqueTeamReviewers,
+        },
+        beforeState,
+        afterState
+      );
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.error(`Failed to add reviewers: ${errorMessage}`);

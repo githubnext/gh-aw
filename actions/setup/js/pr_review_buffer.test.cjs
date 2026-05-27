@@ -14,6 +14,7 @@ const mockCore = {
 const mockGithub = {
   rest: {
     pulls: {
+      get: vi.fn(),
       createReview: vi.fn(),
       listFiles: vi.fn(),
       listReviews: vi.fn(),
@@ -46,7 +47,14 @@ describe("pr_review_buffer (factory pattern)", () => {
     process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
 
     // Default: return empty file list so path filtering is skipped unless explicitly mocked
+    mockGithub.rest.pulls.get.mockResolvedValue({
+      data: {
+        requested_reviewers: [{ login: "existing-reviewer" }],
+        requested_teams: [],
+      },
+    });
     mockGithub.rest.pulls.listFiles.mockResolvedValue({ data: [] });
+    mockGithub.rest.pulls.listReviews.mockResolvedValue({ data: [] });
 
     // Create a fresh buffer instance for each test (no shared global state)
     buffer = createReviewBuffer();
@@ -246,6 +254,47 @@ describe("pr_review_buffer (factory pattern)", () => {
         commit_id: "abc123",
         event: "COMMENT",
         comments: [{ path: "src/index.js", line: 10, body: "Fix this" }],
+      });
+    });
+
+    it("should capture before and after review state metadata", async () => {
+      buffer.setReviewMetadata("Looks good", "COMMENT");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      mockGithub.rest.pulls.listReviews.mockResolvedValueOnce({ data: [{ id: 1, user: { login: "existing-reviewer" }, state: "COMMENTED" }] });
+      mockGithub.rest.pulls.listReviews.mockResolvedValueOnce({
+        data: [
+          { id: 1, user: { login: "existing-reviewer" }, state: "COMMENTED" },
+          { id: 2, user: { login: "github-actions[bot]" }, state: "COMMENTED" },
+        ],
+      });
+      mockGithub.rest.pulls.createReview.mockResolvedValue({
+        data: {
+          id: 2,
+          html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-2",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      expect(result.before_state).toEqual({
+        requested_reviewers: ["existing-reviewer"],
+        requested_team_reviewers: [],
+        reviews: [{ id: 1, user: "existing-reviewer", state: "COMMENTED" }],
+      });
+      expect(result.after_state).toEqual({
+        requested_reviewers: ["existing-reviewer"],
+        requested_team_reviewers: [],
+        reviews: [
+          { id: 1, user: "existing-reviewer", state: "COMMENTED" },
+          { id: 2, user: "github-actions[bot]", state: "COMMENTED" },
+        ],
       });
     });
 
@@ -670,7 +719,9 @@ describe("pr_review_buffer (factory pattern)", () => {
         const result = await buffer.submitReview();
 
         expect(result.success).toBe(true);
-        expect(mockGithub.rest.pulls.listReviews).toHaveBeenCalledTimes(1);
+        // submitReview() reads reviews before superseding, during supersede
+        // candidate selection, and again after review creation for after-state.
+        expect(mockGithub.rest.pulls.listReviews).toHaveBeenCalledTimes(3);
         expect(mockGithub.rest.pulls.dismissReview).toHaveBeenCalledTimes(1);
         expect(mockGithub.rest.pulls.dismissReview).toHaveBeenCalledWith({
           owner: "owner",
@@ -749,7 +800,7 @@ describe("pr_review_buffer (factory pattern)", () => {
             html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-902",
           },
         });
-        mockGithub.rest.pulls.listReviews.mockRejectedValue(new Error("rate limited"));
+        mockGithub.rest.pulls.listReviews.mockResolvedValueOnce({ data: [] }).mockRejectedValueOnce(new Error("rate limited")).mockResolvedValueOnce({ data: [] });
 
         const result = await buffer.submitReview();
 

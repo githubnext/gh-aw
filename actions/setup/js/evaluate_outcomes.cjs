@@ -44,6 +44,27 @@ const NOOP_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_inco
 const CLOSING_LABEL_KEYWORDS = ["not planned", "not_planned", "wontfix", "won't fix", "duplicate", "invalid", "declined", "rejected"];
 const CLOSING_COMMENT_KEYWORDS = ["not planned", "won't fix", "wontfix", "duplicate", "invalid", "declined", "rejected", "closing as", "closed as", "closing this"];
 
+const DEFAULT_ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC = 60 * 60;
+const DEFAULT_LABEL_RETENTION_WINDOW_SEC = 24 * 60 * 60;
+
+const POSITIVE_REACTIONS = ["+1", "heart", "hooray", "rocket"];
+const NEGATIVE_REACTIONS = ["-1", "confused"];
+
+/**
+ * Read a positive integer from env with fallback.
+ * @param {string} key
+ * @param {number} fallback
+ * @returns {number}
+ */
+function getEnvPositiveIntOrDefault(key, fallback) {
+  const raw = process.env[key];
+  const parsed = Number.parseInt(raw || "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC = getEnvPositiveIntOrDefault("OUTCOME_ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC", DEFAULT_ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC);
+const LABEL_RETENTION_WINDOW_SEC = getEnvPositiveIntOrDefault("OUTCOME_LABEL_RETENTION_WINDOW_SEC", DEFAULT_LABEL_RETENTION_WINDOW_SEC);
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -176,6 +197,343 @@ function secondsBetween(from, to) {
  */
 
 /**
+ * @typedef {object} EvaluateDeps
+ * @property {(endpoint: string) => any} [ghAPI]
+ * @property {number} [nowMs]
+ */
+
+/**
+ * Convert issue/PR reaction summary into aggregate counts.
+ * @param {any} reactions
+ * @returns {{total: number|null, positive: number|null, negative: number|null}}
+ */
+function summarizeReactions(reactions) {
+  if (!reactions || typeof reactions !== "object") {
+    return { total: null, positive: null, negative: null };
+  }
+  const positive = POSITIVE_REACTIONS.reduce((sum, key) => sum + Number(reactions[key] || 0), 0);
+  const negative = NEGATIVE_REACTIONS.reduce((sum, key) => sum + Number(reactions[key] || 0), 0);
+  const total = reactions.total_count != null ? reactions.total_count : positive + negative + (reactions.laugh || 0) + (reactions.eyes || 0);
+  return { total, positive, negative };
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+function normalizeLabels(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map(l => String(l || "").trim()).filter(Boolean);
+}
+
+/**
+ * @param {string} url
+ * @returns {number|null}
+ */
+function parseIssueNumberFromURL(url) {
+  const match = String(url || "").match(/\/(?:issues|pull)\/(\d+)/);
+  if (!match) return null;
+  const num = Number.parseInt(match[1], 10);
+  return Number.isInteger(num) && num > 0 ? num : null;
+}
+
+/**
+ * @param {string} url
+ * @returns {string}
+ */
+function parseCommentIDFromURL(url) {
+  const text = String(url || "");
+  const issueCommentMatch = text.match(/#issuecomment-(\d+)/);
+  if (issueCommentMatch) return issueCommentMatch[1];
+  const pathMatch = text.match(/\/comments\/(\d+)/);
+  return pathMatch ? pathMatch[1] : "";
+}
+
+/**
+ * @param {any} issue
+ * @returns {boolean}
+ */
+function hasIssueReactions(issue) {
+  const summary = summarizeReactions(issue?.reactions);
+  return typeof summary.total === "number" && summary.total > 0;
+}
+
+/**
+ * Evaluate `create_issue`.
+ * @param {object} item
+ * @param {string} itemRepo
+ * @param {string} timestamp
+ * @param {EvalResult} out
+ * @param {(endpoint: string) => any} apiGet
+ * @param {number} nowMs
+ * @returns {EvalResult}
+ */
+function evaluateCreateIssue(item, itemRepo, timestamp, out, apiGet, nowMs) {
+  const num = parseIssueNumberFromURL(item.url || "");
+  if (!num) {
+    out.result = "unknown";
+    out.detail = "unknown: issue number not found";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+  const issue = apiGet(`repos/${itemRepo}/issues/${num}`);
+  if (!issue || !issue.state) {
+    out.result = "unknown";
+    out.detail = "unknown: issue api error";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  out.comments = typeof issue.comments === "number" ? issue.comments : null;
+  const reactionSummary = summarizeReactions(issue.reactions);
+  out.reactions_total = reactionSummary.total;
+  out.reactions_positive = reactionSummary.positive;
+  out.reactions_negative = reactionSummary.negative;
+
+  const authorLogin = issue.user && typeof issue.user.login === "string" ? issue.user.login : "";
+  const comments = apiGet(`repos/${itemRepo}/issues/${num}/comments`);
+  const hasNonAuthorComment = Array.isArray(comments) && comments.some(c => c && c.user && typeof c.user.login === "string" && c.user.login !== authorLogin && c.user.login !== "");
+
+  const timeline = apiGet(`repos/${itemRepo}/issues/${num}/timeline`);
+  const timelineEvents = Array.isArray(timeline) ? timeline : [];
+  let hasMergedPRReference = false;
+  let hasCommitReference = false;
+  let hasClosingActionReference = false;
+  let closeActor = "";
+  for (const event of timelineEvents) {
+    if (!event || typeof event !== "object") continue;
+    const eventType = typeof event.event === "string" ? event.event : "";
+    if (eventType === "closed") {
+      hasClosingActionReference = true;
+      const actorLogin = event.actor && typeof event.actor.login === "string" ? event.actor.login : "";
+      if (actorLogin) closeActor = actorLogin;
+    }
+    if (eventType === "referenced" && event.commit_id) {
+      hasCommitReference = true;
+    }
+    if (eventType !== "cross-referenced") continue;
+    const sourceIssue = event.source && event.source.issue;
+    const prNumber = sourceIssue && typeof sourceIssue.number === "number" ? sourceIssue.number : null;
+    if (!prNumber) continue;
+    const pr = apiGet(`repos/${itemRepo}/pulls/${prNumber}`);
+    if (pr && pr.merged === true) {
+      hasMergedPRReference = true;
+    }
+  }
+
+  if (issue.state === "open" && (hasMergedPRReference || hasCommitReference)) {
+    out.result = "accepted";
+    out.detail = "accepted:strong";
+    return out;
+  }
+
+  if (issue.state === "open" && (hasNonAuthorComment || hasIssueReactions(issue))) {
+    out.result = "accepted";
+    out.detail = "accepted:medium";
+    return out;
+  }
+
+  if (issue.state === "closed" && issue.created_at && issue.closed_at) {
+    out.resolution_sec = secondsBetween(issue.created_at, issue.closed_at);
+    const closedByDifferentUser = closeActor !== "" && closeActor !== authorLogin;
+    if (typeof out.resolution_sec === "number" && out.resolution_sec <= ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC && closedByDifferentUser) {
+      out.result = "rejected";
+      out.detail = "rejected:strong";
+      return out;
+    }
+  }
+
+  if (issue.state === "closed") {
+    const hasActivity = (typeof issue.comments === "number" && issue.comments > 0) || hasIssueReactions(issue) || hasMergedPRReference || hasCommitReference;
+    if (!hasActivity) {
+      out.result = "rejected";
+      out.detail = "rejected:medium";
+      return out;
+    }
+    out.result = "unknown";
+    out.detail = "unknown: closed with activity";
+    return out;
+  }
+
+  if (issue.state === "open") {
+    out.result = "pending";
+    out.detail = "pending: open with no engagement";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  out.result = "unknown";
+  out.detail = "unknown: unsupported issue state";
+  setPendingAge(out, timestamp, nowMs);
+  return out;
+}
+
+/**
+ * Evaluate `add_comment`.
+ * @param {object} item
+ * @param {string} itemRepo
+ * @param {string} timestamp
+ * @param {EvalResult} out
+ * @param {(endpoint: string) => any} apiGet
+ * @param {number} nowMs
+ * @returns {EvalResult}
+ */
+function evaluateAddComment(item, itemRepo, timestamp, out, apiGet, nowMs) {
+  const commentID = parseCommentIDFromURL(item.url || "");
+  const issueNum = parseIssueNumberFromURL(item.url || "");
+  if (!commentID || !issueNum) {
+    out.result = "unknown";
+    out.detail = "unknown: missing comment or issue id";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  const comment = apiGet(`repos/${itemRepo}/issues/comments/${commentID}`);
+  if (!comment || !comment.id) {
+    out.result = "unknown";
+    out.detail = "unknown: failed to fetch comment from API (may be deleted or inaccessible)";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  const commentAuthor = comment.user && typeof comment.user.login === "string" ? comment.user.login : "";
+  const commentCreatedAt = typeof comment.created_at === "string" ? comment.created_at : "";
+  const reactionSummary = summarizeReactions(comment.reactions);
+  out.reactions_total = reactionSummary.total;
+  out.reactions_positive = reactionSummary.positive;
+  out.reactions_negative = reactionSummary.negative;
+
+  const issueComments = apiGet(`repos/${itemRepo}/issues/${issueNum}/comments`);
+  const commentURL = String(item.url || "");
+  let hasReply = false;
+  let hasQuote = false;
+  let threadActedOn = false;
+  if (Array.isArray(issueComments)) {
+    for (const c of issueComments) {
+      if (!c || typeof c !== "object") continue;
+      if (typeof c.created_at === "string" && commentCreatedAt && c.created_at > commentCreatedAt) {
+        threadActedOn = true;
+      }
+      const body = typeof c.body === "string" ? c.body : "";
+      const cAuthor = c.user && typeof c.user.login === "string" ? c.user.login : "";
+      if (cAuthor && cAuthor !== commentAuthor && typeof c.created_at === "string" && commentCreatedAt && c.created_at > commentCreatedAt) {
+        hasReply = true;
+      }
+      if (body.includes(`#issuecomment-${commentID}`) || (commentURL && body.includes(commentURL))) {
+        hasQuote = true;
+      }
+    }
+  }
+
+  if ((typeof reactionSummary.total === "number" && reactionSummary.total > 0) || hasReply || hasQuote) {
+    out.result = "accepted";
+    out.detail = "accepted:strong";
+    return out;
+  }
+
+  if (threadActedOn) {
+    out.result = "accepted";
+    out.detail = "accepted:medium";
+    return out;
+  }
+
+  out.result = "pending";
+  out.detail = "pending: no follow-up";
+  setPendingAge(out, timestamp, nowMs);
+  return out;
+}
+
+/**
+ * Evaluate `add_labels`.
+ * @param {object} item
+ * @param {string} itemRepo
+ * @param {string} timestamp
+ * @param {EvalResult} out
+ * @param {(endpoint: string) => any} apiGet
+ * @param {number} nowMs
+ * @returns {EvalResult}
+ */
+function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
+  const num = parseIssueNumberFromURL(item.url || "");
+  if (!num) {
+    out.result = "unknown";
+    out.detail = "unknown: issue number not found";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  const hasLabelsBefore = Object.hasOwn(item, "labelsBefore") && Array.isArray(item.labelsBefore);
+  const labelsBefore = hasLabelsBefore ? normalizeLabels(item.labelsBefore) : [];
+  const labelsAdded = normalizeLabels(item.labelsAdded);
+  const fallbackLabels = normalizeLabels(item.labels);
+  const effectiveLabelsAdded = labelsAdded.length > 0 ? labelsAdded : fallbackLabels;
+
+  if (!hasLabelsBefore) {
+    out.result = "unknown";
+    out.detail = "unknown: missing persisted label before state";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  if (effectiveLabelsAdded.length === 0) {
+    out.result = "unknown";
+    out.detail = "unknown: no labels added";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  const labels = apiGet(`repos/${itemRepo}/issues/${num}/labels`);
+  if (!Array.isArray(labels)) {
+    out.result = "unknown";
+    out.detail = "unknown: labels api error";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  const currentLabels = new Set(labels.map(l => (l && typeof l.name === "string" ? l.name : "")).filter(Boolean));
+  const trackedAdded = effectiveLabelsAdded.filter(l => !labelsBefore.includes(l));
+  const removed = trackedAdded.filter(l => !currentLabels.has(l));
+
+  const nowEpoch = Math.floor(nowMs / 1000);
+  const createdEpoch = isoToEpoch(timestamp || "");
+  const elapsedSec = createdEpoch === null ? null : nowEpoch - createdEpoch;
+  if (elapsedSec === null || elapsedSec < LABEL_RETENTION_WINDOW_SEC) {
+    out.result = "pending";
+    out.detail = "pending: retention window not elapsed";
+    setPendingAge(out, timestamp, nowMs);
+    return out;
+  }
+
+  if (removed.length === 0) {
+    out.result = "accepted";
+    out.detail = "accepted:strong";
+    return out;
+  }
+
+  const issue = apiGet(`repos/${itemRepo}/issues/${num}`);
+  const issueAuthor = issue && issue.user && typeof issue.user.login === "string" ? issue.user.login : "";
+  const events = apiGet(`repos/${itemRepo}/issues/${num}/events`);
+  const eventList = Array.isArray(events) ? events : [];
+  const removedByNonAuthor = eventList.some(event => {
+    if (!event || event.event !== "unlabeled") return false;
+    const removedLabel = event.label && typeof event.label.name === "string" ? event.label.name : "";
+    if (!removed.includes(removedLabel)) return false;
+    const actor = event.actor && typeof event.actor.login === "string" ? event.actor.login : "";
+    return actor !== "" && actor !== issueAuthor;
+  });
+
+  if (removedByNonAuthor) {
+    out.result = "rejected";
+    out.detail = "rejected:strong";
+    return out;
+  }
+
+  out.result = "unknown";
+  out.detail = "unknown: labels removed with ambiguous actor";
+  return out;
+}
+
+/**
  * Normalize legacy result/detail pairs into the shared outcome model.
  * @param {string} result
  * @param {string} detail
@@ -219,7 +577,7 @@ function normalizeOutcome(result, detail) {
  * Evaluate a single safe-output item against the GitHub API.
  * @param {object} item
  * @param {string} defaultRepo
- * @param {{ ghAPI?: (endpoint: string) => object | null }} [options]
+ * @param {EvaluateDeps} [options]
  * @returns {EvalResult}
  */
 function evaluateItem(item, defaultRepo, options = {}) {
@@ -228,6 +586,7 @@ function evaluateItem(item, defaultRepo, options = {}) {
   const timestamp = item.timestamp || "";
   const type = item.type || "";
   const ghAPIFn = typeof options.ghAPI === "function" ? options.ghAPI : ghAPI;
+  const nowMs = typeof options.nowMs === "number" ? options.nowMs : Date.now();
 
   /** @type {EvalResult} */
   const out = {
@@ -258,8 +617,18 @@ function evaluateItem(item, defaultRepo, options = {}) {
 
   if (!url) {
     out.detail = "no url";
-    setPendingAge(out, timestamp);
+    setPendingAge(out, timestamp, nowMs);
     return out;
+  }
+
+  if (item.type === "create_issue") {
+    return evaluateCreateIssue(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
+  }
+  if (item.type === "add_comment") {
+    return evaluateAddComment(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
+  }
+  if (item.type === "add_labels") {
+    return evaluateAddLabels(item, itemRepo, timestamp, out, ghAPIFn, nowMs);
   }
 
   // Issues / issue-comments
@@ -269,7 +638,7 @@ function evaluateItem(item, defaultRepo, options = {}) {
     const data = ghAPIFn(`repos/${itemRepo}/issues/${num}`);
     if (!data || !data.state) {
       out.detail = "api error";
-      setPendingAge(out, timestamp);
+      setPendingAge(out, timestamp, nowMs);
       return out;
     }
     out.result = "accepted";
@@ -278,12 +647,10 @@ function evaluateItem(item, defaultRepo, options = {}) {
 
     // Reactions on issues
     if (data.reactions && typeof data.reactions === "object") {
-      const r = data.reactions;
-      const positive = (r["+1"] || 0) + (r.heart || 0) + (r.hooray || 0) + (r.rocket || 0);
-      const negative = (r["-1"] || 0) + (r.confused || 0);
-      out.reactions_total = r.total_count != null ? r.total_count : positive + negative + (r.laugh || 0) + (r.eyes || 0);
-      out.reactions_positive = positive;
-      out.reactions_negative = negative;
+      const summary = summarizeReactions(data.reactions);
+      out.reactions_total = summary.total;
+      out.reactions_positive = summary.positive;
+      out.reactions_negative = summary.negative;
     }
 
     if (data.state === "closed" && data.created_at && data.closed_at) {
@@ -299,7 +666,7 @@ function evaluateItem(item, defaultRepo, options = {}) {
     const data = ghAPIFn(`repos/${itemRepo}/pulls/${num}`);
     if (!data || !data.state) {
       out.detail = "api error";
-      setPendingAge(out, timestamp);
+      setPendingAge(out, timestamp, nowMs);
       return out;
     }
 
@@ -312,12 +679,10 @@ function evaluateItem(item, defaultRepo, options = {}) {
 
     // Reactions
     if (data.reactions && typeof data.reactions === "object") {
-      const r = data.reactions;
-      const positive = (r["+1"] || 0) + (r.heart || 0) + (r.hooray || 0) + (r.rocket || 0);
-      const negative = (r["-1"] || 0) + (r.confused || 0);
-      out.reactions_total = r.total_count != null ? r.total_count : positive + negative + (r.laugh || 0) + (r.eyes || 0);
-      out.reactions_positive = positive;
-      out.reactions_negative = negative;
+      const summary = summarizeReactions(data.reactions);
+      out.reactions_total = summary.total;
+      out.reactions_positive = summary.positive;
+      out.reactions_negative = summary.negative;
     }
 
     // Zero-touch: merged with no human review comments and no issue-level comments
@@ -340,10 +705,10 @@ function evaluateItem(item, defaultRepo, options = {}) {
     } else if (data.state === "open") {
       out.result = "pending";
       out.detail = "open";
-      setPendingAge(out, timestamp);
+      setPendingAge(out, timestamp, nowMs);
     } else {
       out.detail = "api error";
-      setPendingAge(out, timestamp);
+      setPendingAge(out, timestamp, nowMs);
     }
     return out;
   }
@@ -714,12 +1079,13 @@ function isStalePending(pendingAgeSec) {
  * Set pending_age_sec on the result if the item has a timestamp.
  * @param {EvalResult} out
  * @param {string} timestamp
+ * @param {number} [nowMs]
  */
-function setPendingAge(out, timestamp) {
+function setPendingAge(out, timestamp, nowMs = Date.now()) {
   if (!timestamp) return;
   const itemEpoch = isoToEpoch(timestamp);
   if (itemEpoch === null) return;
-  out.pending_age_sec = Math.floor(Date.now() / 1000) - itemEpoch;
+  out.pending_age_sec = Math.floor(nowMs / 1000) - itemEpoch;
 }
 
 // ---------------------------------------------------------------------------
@@ -984,6 +1350,9 @@ if (require.main === module) {
 module.exports = {
   main,
   evaluateItem,
+  evaluateCreateIssue,
+  evaluateAddComment,
+  evaluateAddLabels,
   evaluateCreatePullRequestOutcome,
   evaluatePushToPullRequestBranchOutcome,
   normalizeOutcome,

@@ -318,6 +318,39 @@ describe("update_handler_factory.cjs", () => {
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to update test item"));
     });
 
+    it("should attach execution metadata when capture hooks are configured", async () => {
+      const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 42 });
+      const mockBuildUpdateData = vi.fn().mockReturnValue({ success: true, data: { title: "Test" } });
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com/issues/42", title: "Updated title" });
+      const mockFormatSuccessResult = vi.fn().mockReturnValue({ success: true, number: 42, url: "https://example.com/issues/42" });
+      const captureBefore = vi.fn().mockResolvedValue({ title: "Before title" });
+      const captureAfter = vi.fn().mockResolvedValue({ title: "After title" });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_test",
+        itemTypeName: "test item",
+        supportsPR: false,
+        resolveItemNumber: mockResolveItemNumber,
+        buildUpdateData: mockBuildUpdateData,
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: mockFormatSuccessResult,
+        captureExecutionMetadata: {
+          captureBefore,
+          captureAfter,
+        },
+      });
+
+      const handler = await handlerFactory({});
+      const result = await handler({ title: "Test" });
+
+      expect(result.success).toBe(true);
+      expect(result.before_state).toEqual({ title: "Before title" });
+      expect(result.after_state).toEqual({ title: "After title" });
+      expect(result.repo).toBe("testowner/testrepo");
+      expect(captureBefore).toHaveBeenCalled();
+      expect(captureAfter).toHaveBeenCalledWith({ html_url: "https://example.com/issues/42", title: "Updated title" }, { title: "Before title" }, expect.objectContaining({ title: "Test" }));
+    });
+
     it("should pass additional config to log message", async () => {
       const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 42 });
       const mockBuildUpdateData = vi.fn().mockReturnValue({ success: true, data: { title: "Test" } });

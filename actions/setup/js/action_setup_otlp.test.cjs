@@ -63,6 +63,9 @@ describe("action_setup_otlp.cjs", () => {
       "INPUT_JOB-NAME": process.env["INPUT_JOB-NAME"],
       INPUT_PARENT_SPAN_ID: process.env.INPUT_PARENT_SPAN_ID,
       "INPUT_PARENT-SPAN-ID": process.env["INPUT_PARENT-SPAN-ID"],
+      INPUT_OTLP_OIDC_TOKEN: process.env.INPUT_OTLP_OIDC_TOKEN,
+      GH_AW_OTLP_ENDPOINTS: process.env.GH_AW_OTLP_ENDPOINTS,
+      OTEL_EXPORTER_OTLP_HEADERS: process.env.OTEL_EXPORTER_OTLP_HEADERS,
     };
 
     delete process.env.GH_AW_OTLP_ENDPOINTS;
@@ -73,6 +76,9 @@ describe("action_setup_otlp.cjs", () => {
     delete process.env["INPUT_JOB-NAME"];
     delete process.env.INPUT_PARENT_SPAN_ID;
     delete process.env["INPUT_PARENT-SPAN-ID"];
+    delete process.env.INPUT_OTLP_OIDC_TOKEN;
+    delete process.env["INPUT_OTLP_OIDC_TOKEN"];
+    delete process.env.OTEL_EXPORTER_OTLP_HEADERS;
     process.env.GITHUB_OUTPUT = outputFile;
     process.env.GITHUB_ENV = envFile;
   });
@@ -144,6 +150,47 @@ describe("action_setup_otlp.cjs", () => {
       await run();
 
       expect(console.log).toHaveBeenCalledWith(expect.stringContaining(`trace-id=${VALID_TRACE_ID}`));
+    });
+  });
+
+  describe("OTLP OIDC token header injection", () => {
+    it("injects Authorization header and exports it to GITHUB_ENV when INPUT_OTLP_OIDC_TOKEN is set", async () => {
+      const minted = "oidc" + "-" + "token" + "-" + "value";
+      process.env.INPUT_OTLP_OIDC_TOKEN = minted;
+
+      await run();
+
+      expect(process.env.OTEL_EXPORTER_OTLP_HEADERS).toContain("Authorization=Bearer ");
+      expect(process.env.OTEL_EXPORTER_OTLP_HEADERS).toContain(minted);
+      expect(readFileSync(envFile, "utf8")).toContain("OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer ");
+    });
+
+    it("does not override existing Authorization header", async () => {
+      process.env.INPUT_OTLP_OIDC_TOKEN = "oidc" + "-second" + "-value";
+      process.env.OTEL_EXPORTER_OTLP_HEADERS = "Authorization=******";
+
+      await run();
+
+      expect(process.env.OTEL_EXPORTER_OTLP_HEADERS).toBe("Authorization=******");
+    });
+
+    it("merges Authorization into each GH_AW_OTLP_ENDPOINTS endpoint and exports it", async () => {
+      const minted = "oidc" + "-endpoint" + "-value";
+      process.env.INPUT_OTLP_OIDC_TOKEN = minted;
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://otlp-a.example.com", headers: "X-Tenant=acme" }, { url: "https://otlp-b.example.com" }, { url: "https://otlp-c.example.com", headers: "Authorization=******" }]);
+
+      await run();
+
+      const endpoints = JSON.parse(process.env.GH_AW_OTLP_ENDPOINTS || "[]");
+      expect(endpoints[0].headers).toContain("X-Tenant=acme");
+      expect(endpoints[0].headers).toContain("Authorization=");
+      expect(endpoints[0].headers).toContain(minted);
+      expect(endpoints[1].headers).toContain("Authorization=");
+      expect(endpoints[1].headers).toContain(minted);
+      expect(endpoints[2].headers).toBe("Authorization=******");
+      expect(readFileSync(envFile, "utf8")).toContain("GH_AW_OTLP_ENDPOINTS=");
+      expect(readFileSync(envFile, "utf8")).toContain("Authorization=");
+      expect(readFileSync(envFile, "utf8")).toContain(minted);
     });
   });
 
