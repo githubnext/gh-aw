@@ -41,6 +41,7 @@ if [ -n "$POLICY" ]; then
 fi
 
 docker run -d --name awmg-cli-proxy --network host \
+  --user "$(id -u):$(id -g)" \
   -e GH_TOKEN \
   -e GITHUB_SERVER_URL \
   -e DEBUG='*' \

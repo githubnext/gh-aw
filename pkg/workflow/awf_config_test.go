@@ -654,6 +654,33 @@ func TestBuildAWFCommand_UsesConfigFile(t *testing.T) {
 	assert.Contains(t, command, `"enabled":true`, "config JSON should have apiProxy enabled")
 }
 
+func TestBuildAWFCommand_ModelMultipliersLoadedFromFile(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:    "copilot",
+		EngineCommand: "copilot --prompt-file /tmp/prompt.txt",
+		LogFile:       "/tmp/gh-aw/agent-stdio.log",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+				TokenWeights: &types.TokenWeights{
+					Multipliers: map[string]float64{
+						"my-custom-model": 2.5,
+					},
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+
+	assert.Contains(t, command, awfModelMultipliersFilePath, "expected model multipliers artifact path in runtime updater script")
+	assert.Contains(t, command, `node "${RUNNER_TEMP}/gh-aw/actions/merge_awf_model_multipliers.cjs"`, "expected runtime updater script to invoke JS model multiplier merger")
+	assert.NotContains(t, command, "my-custom-model", "expected custom model multipliers to be omitted from inline AWF config JSON")
+}
+
 func TestBuildAWFCommand_PreservesGitHubExpressionOperatorsInConfigJSON(t *testing.T) {
 	config := AWFCommandConfig{
 		EngineName:     "copilot",

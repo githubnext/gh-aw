@@ -170,7 +170,13 @@ func UnquoteYAMLKey(yamlStr string, key string) string {
 	// Use cached compiled regex to avoid recompiling on every call
 	var re *regexp.Regexp
 	if cached, ok := unquoteYAMLKeyCache.Load(key); ok {
-		re = cached.(*regexp.Regexp)
+		var typeOK bool
+		re, typeOK = cached.(*regexp.Regexp)
+		if !typeOK {
+			unquoteYAMLKeyCache.Delete(key)
+			re = regexp.MustCompile(pattern)
+			unquoteYAMLKeyCache.Store(key, re)
+		}
 	} else {
 		re = regexp.MustCompile(pattern)
 		unquoteYAMLKeyCache.Store(key, re)
