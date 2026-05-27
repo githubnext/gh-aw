@@ -42,7 +42,7 @@ const SUMMARY_PATH = "/tmp/gh-aw/outcome-summary.json";
 // ---------------------------------------------------------------------------
 const NOOP_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
 const CLOSING_LABEL_KEYWORDS = ["not planned", "not_planned", "wontfix", "won't fix", "duplicate", "invalid", "declined", "rejected"];
-const CLOSING_COMMENT_KEYWORDS = ["not planned", "won't", "wontfix", "duplicate", "invalid", "declin", "reject", "closing"];
+const CLOSING_COMMENT_KEYWORDS = ["not planned", "won't fix", "wontfix", "duplicate", "invalid", "declin", "reject", "closing as", "closed as", "closing this"];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -399,11 +399,6 @@ function evaluateCreatePullRequestOutcome(item, itemRepo, out, ghAPIFn = ghAPI) 
     return out;
   }
 
-  const reviewsRaw = ghAPIFn(`repos/${itemRepo}/pulls/${num}/reviews`);
-  const reviews = Array.isArray(reviewsRaw) ? reviewsRaw : [];
-  const hasApproved = reviews.some(r => (r?.state || "").toUpperCase() === "APPROVED");
-  const hasChangesRequested = reviews.some(r => (r?.state || "").toUpperCase() === "CHANGES_REQUESTED");
-
   if (data.state === "closed") {
     const closingSignal = hasClosingSignal(itemRepo, num, data, ghAPIFn);
     out.result = "rejected";
@@ -415,9 +410,26 @@ function evaluateCreatePullRequestOutcome(item, itemRepo, out, ghAPIFn = ghAPI) 
   }
 
   if (data.state === "open") {
+    const reviewsRaw = ghAPIFn(`repos/${itemRepo}/pulls/${num}/reviews`);
+    if (reviewsRaw === null) {
+      out.result = "unknown";
+      out.detail = "reviews api error";
+      setPendingAge(out, timestamp);
+      return out;
+    }
+    const reviews = Array.isArray(reviewsRaw) ? reviewsRaw : [];
+    const hasApproved = reviews.some(r => (r?.state || "").toUpperCase() === "APPROVED");
+    const hasChangesRequested = reviews.some(r => (r?.state || "").toUpperCase() === "CHANGES_REQUESTED");
+
     if (hasApproved && !hasChangesRequested) {
       out.result = "accepted";
       out.detail = "approved without requested changes";
+      return out;
+    }
+    if (hasChangesRequested && !hasApproved) {
+      out.result = "pending";
+      out.detail = "open with changes requested";
+      setPendingAge(out, timestamp);
       return out;
     }
     if (reviews.length === 0) {
@@ -473,7 +485,7 @@ function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out, ghAPIFn = g
 
   const currentHead = normalizeCommitSHA(data?.head?.sha);
 
-  const pushedStillHead = currentHead ? pushedShas.some(sha => sha === currentHead) : false;
+  const pushedStillHead = currentHead ? pushedShas.some(sha => shaMatches(sha, currentHead)) : false;
   const commitRetentionResults = currentHead && pushedShas.length > 0 ? pushedShas.map(sha => isCommitInBranchHistory(itemRepo, sha, currentHead, ghAPIFn)) : [];
   const pushedIncluded = commitRetentionResults.some(inHistory => inHistory === true);
   const allPushedCommitsMissingFromHistory = commitRetentionResults.length > 0 && commitRetentionResults.every(inHistory => inHistory === false);
@@ -518,13 +530,29 @@ function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out, ghAPIFn = g
   }
 
   const reviewsRaw = ghAPIFn(`repos/${itemRepo}/pulls/${num}/reviews`);
+  if (reviewsRaw === null) {
+    out.result = "unknown";
+    out.detail = "reviews api error";
+    setPendingAge(out, timestamp);
+    return out;
+  }
   const reviews = Array.isArray(reviewsRaw) ? reviewsRaw : [];
-  const hasReviewOnPushedCommit = pushedShas.length > 0 && reviews.some(r => pushedShas.includes(normalizeCommitSHA(r?.commit_id)));
+  const hasReviewOnPushedCommit =
+    pushedShas.length > 0 &&
+    reviews.some(r => {
+      const reviewCommit = normalizeCommitSHA(r?.commit_id);
+      return reviewCommit ? pushedShas.some(sha => shaMatches(sha, reviewCommit)) : false;
+    });
 
   if (!hasReviewOnPushedCommit) {
-    out.result = "pending";
-    out.detail = "open with no review on pushed commits";
     setPendingAge(out, timestamp);
+    if (isStalePending(out.pending_age_sec)) {
+      out.result = "ignored";
+      out.detail = "open and stale with no review on pushed commits";
+    } else {
+      out.result = "pending";
+      out.detail = "open with no review on pushed commits";
+    }
     return out;
   }
 
@@ -563,13 +591,28 @@ function normalizeCommitSHA(sha) {
 }
 
 /**
+ * @param {string} a
+ * @param {string} b
+ * @returns {boolean}
+ */
+function shaMatches(a, b) {
+  const left = normalizeCommitSHA(a);
+  const right = normalizeCommitSHA(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const shorter = left.length <= right.length ? left : right;
+  const longer = left.length <= right.length ? right : left;
+  return shorter.length >= 7 && longer.startsWith(shorter);
+}
+
+/**
  * @param {object} item
  * @returns {string[]}
  */
 function extractPushedCommitSHAs(item) {
   /** @type {string[]} */
   const shas = [];
-  const candidates = [item.commit_sha, item.pushed_commit_sha, item.head_sha, item?.metadata?.commit_sha, item?.metadata?.pushed_commit_sha];
+  const candidates = [item.commit_sha, item.pushed_commit_sha, item?.metadata?.commit_sha, item?.metadata?.pushed_commit_sha];
   for (const candidate of candidates) {
     const normalized = normalizeCommitSHA(candidate);
     if (normalized) shas.push(normalized);
@@ -630,13 +673,14 @@ function hasClosingSignal(repo, number, prData, ghAPIFn) {
  */
 function isCommitInBranchHistory(repo, commitSHA, branchHeadSHA, ghAPIFn) {
   if (!commitSHA || !branchHeadSHA) return null;
-  if (commitSHA === branchHeadSHA) return true;
+  if (shaMatches(commitSHA, branchHeadSHA)) return true;
   const compareData = ghAPIFn(`repos/${repo}/compare/${commitSHA}...${branchHeadSHA}`);
   if (!compareData || typeof compareData.status !== "string") return null;
   const status = compareData.status.toLowerCase();
   // compare base...head semantics:
   // - ahead/identical => base commit is in head history
-  // - behind/diverged => base commit is not retained on the evaluated branch tip
+  // - behind => evaluated head is behind base, so base is not retained at this tip
+  // - diverged => evaluated head diverged from base, so base is not retained
   if (status === "ahead" || status === "identical") return true;
   if (status === "behind" || status === "diverged") return false;
   return null;

@@ -125,14 +125,37 @@ describe("evaluate_outcomes create_pull_request evaluator", () => {
     expect(result.detail).toContain("stale");
   });
 
-  it("classifies open PR with mixed review state as unknown", () => {
+  it("classifies open PR with only CHANGES_REQUESTED as pending", () => {
     const ghAPI = mockAPI({
       "repos/owner/repo/pulls/18": { state: "open", merged: false },
       "repos/owner/repo/pulls/18/reviews": [{ state: "CHANGES_REQUESTED" }],
     });
 
     const result = evaluateItem({ type: "create_pull_request", repo: "owner/repo", url: "https://github.com/owner/repo/pull/18", timestamp: "2026-05-20T00:00:00Z" }, "owner/repo", { ghAPI });
+    expect(result.result).toBe("pending");
+    expect(result.detail).toContain("changes requested");
+  });
+
+  it("classifies open PR with mixed APPROVED and CHANGES_REQUESTED as unknown", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/pulls/19": { state: "open", merged: false },
+      "repos/owner/repo/pulls/19/reviews": [{ state: "APPROVED" }, { state: "CHANGES_REQUESTED" }],
+    });
+
+    const result = evaluateItem({ type: "create_pull_request", repo: "owner/repo", url: "https://github.com/owner/repo/pull/19", timestamp: "2026-05-20T00:00:00Z" }, "owner/repo", { ghAPI });
     expect(result.result).toBe("unknown");
+    expect(result.detail).toContain("mixed");
+  });
+
+  it("classifies open PR as unknown when reviews API fails", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/pulls/20": { state: "open", merged: false },
+      "repos/owner/repo/pulls/20/reviews": null,
+    });
+
+    const result = evaluateItem({ type: "create_pull_request", repo: "owner/repo", url: "https://github.com/owner/repo/pull/20", timestamp: "2026-05-20T00:00:00Z" }, "owner/repo", { ghAPI });
+    expect(result.result).toBe("unknown");
+    expect(result.detail).toContain("reviews api error");
   });
 });
 
@@ -140,10 +163,12 @@ describe("evaluate_outcomes push_to_pull_request_branch evaluator", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-27T00:00:00Z"));
+    delete process.env.GH_AW_OUTCOME_STALE_AFTER_SECONDS;
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    delete process.env.GH_AW_OUTCOME_STALE_AFTER_SECONDS;
   });
 
   it("classifies merged PR with pushed commit included as accepted (strong)", () => {
@@ -193,6 +218,26 @@ describe("evaluate_outcomes push_to_pull_request_branch evaluator", () => {
     expect(result.detail).toContain("head");
   });
 
+  it("matches short pushed SHA against full current HEAD SHA", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/pulls/30": { state: "open", merged: false, head: { sha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
+    });
+
+    const result = evaluateItem(
+      {
+        type: "push_to_pull_request_branch",
+        repo: "owner/repo",
+        pull_request_number: 30,
+        commit_sha: "aaaaaaa",
+        timestamp: "2026-05-26T23:50:00Z",
+      },
+      "owner/repo",
+      { ghAPI }
+    );
+    expect(result.result).toBe("accepted");
+    expect(result.detail).toContain("head");
+  });
+
   it("classifies force-pushed-away commits as rejected (strong)", () => {
     const ghAPI = mockAPI({
       "repos/owner/repo/pulls/23": { state: "open", merged: false, head: { sha: "bbbbbbb" } },
@@ -229,7 +274,7 @@ describe("evaluate_outcomes push_to_pull_request_branch evaluator", () => {
         pull_request_number: 29,
         commit_sha: "aaaaaaa",
         before_head_sha: "ccccccc",
-        timestamp: "2026-05-20T00:00:00Z",
+        timestamp: "2026-05-26T23:50:00Z",
       },
       "owner/repo",
       { ghAPI }
@@ -273,13 +318,36 @@ describe("evaluate_outcomes push_to_pull_request_branch evaluator", () => {
         repo: "owner/repo",
         pull_request_number: 25,
         commit_sha: "aaaaaaa",
-        timestamp: "2026-05-20T00:00:00Z",
+        timestamp: "2026-05-26T23:50:00Z",
       },
       "owner/repo",
       { ghAPI }
     );
     expect(result.result).toBe("pending");
     expect(result.detail).toContain("no review");
+  });
+
+  it("classifies stale open PR with no reviews on pushed commits as ignored", () => {
+    process.env.GH_AW_OUTCOME_STALE_AFTER_SECONDS = "60";
+    const ghAPI = mockAPI({
+      "repos/owner/repo/pulls/33": { state: "open", merged: false, head: { sha: "bbbbbbb" } },
+      "repos/owner/repo/compare/aaaaaaa...bbbbbbb": { status: "ahead" },
+      "repos/owner/repo/pulls/33/reviews": [],
+    });
+
+    const result = evaluateItem(
+      {
+        type: "push_to_pull_request_branch",
+        repo: "owner/repo",
+        pull_request_number: 33,
+        commit_sha: "aaaaaaa",
+        timestamp: "2026-05-20T00:00:00Z",
+      },
+      "owner/repo",
+      { ghAPI }
+    );
+    expect(result.result).toBe("ignored");
+    expect(result.detail).toContain("stale");
   });
 
   it("falls back to unknown when pushed commits are reviewed but not head/merged", () => {
@@ -301,6 +369,67 @@ describe("evaluate_outcomes push_to_pull_request_branch evaluator", () => {
       { ghAPI }
     );
     expect(result.result).toBe("unknown");
+  });
+
+  it("classifies as unknown when push evaluator reviews API fails", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/pulls/34": { state: "open", merged: false, head: { sha: "bbbbbbb" } },
+      "repos/owner/repo/compare/aaaaaaa...bbbbbbb": { status: "ahead" },
+      "repos/owner/repo/pulls/34/reviews": null,
+    });
+
+    const result = evaluateItem(
+      {
+        type: "push_to_pull_request_branch",
+        repo: "owner/repo",
+        pull_request_number: 34,
+        commit_sha: "aaaaaaa",
+        timestamp: "2026-05-20T00:00:00Z",
+      },
+      "owner/repo",
+      { ghAPI }
+    );
+    expect(result.result).toBe("unknown");
+    expect(result.detail).toContain("reviews api error");
+  });
+
+  it("falls back to pending when push item has no commit SHA", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/pulls/27": { state: "open", merged: false, head: { sha: "bbbbbbb" } },
+      "repos/owner/repo/pulls/27/reviews": [],
+    });
+
+    const result = evaluateItem(
+      {
+        type: "push_to_pull_request_branch",
+        repo: "owner/repo",
+        pull_request_number: 27,
+        timestamp: "2026-05-26T23:50:00Z",
+      },
+      "owner/repo",
+      { ghAPI }
+    );
+    expect(result.result).toBe("pending");
+  });
+
+  it("does not treat item.head_sha as pushed commit evidence", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/pulls/35": { state: "open", merged: false, head: { sha: "aaaaaaa" } },
+      "repos/owner/repo/pulls/35/reviews": [],
+    });
+
+    const result = evaluateItem(
+      {
+        type: "push_to_pull_request_branch",
+        repo: "owner/repo",
+        pull_request_number: 35,
+        head_sha: "aaaaaaa",
+        timestamp: "2026-05-26T23:50:00Z",
+      },
+      "owner/repo",
+      { ghAPI }
+    );
+    expect(result.result).toBe("pending");
   });
 });
 
