@@ -664,4 +664,10 @@ func TestBuildExtractBaseBranchStep(t *testing.T) {
 	assert.Contains(t, stepsContent, "GITHUB_OUTPUT")
 	// Validate branch name characters restriction for security
 	assert.Contains(t, stepsContent, "^[a-zA-Z0-9/_.-]+$")
+	// Cross-repo items must be skipped: only extract base_branch from items
+	// targeting the workflow repo (i.repo unset or matching GITHUB_REPOSITORY).
+	// This prevents a cross-repo base_branch (e.g. feature/FOO-123 in another repo)
+	// from being used to checkout the workflow repo where that branch doesn't exist.
+	assert.Contains(t, stepsContent, "GITHUB_REPOSITORY", "must read workflow repo from GITHUB_REPOSITORY to filter cross-repo items")
+	assert.Contains(t, stepsContent, "!i.repo || i.repo === workflowRepo", "must skip items whose repo differs from the workflow repo")
 }

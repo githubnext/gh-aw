@@ -18,6 +18,11 @@ var consolidatedSafeOutputsStepsLog = logger.New("workflow:compiler_safe_outputs
 // events on PRs targeting non-default branches: the checkout step can now use the
 // correct base branch regardless of event type.
 //
+// Cross-repo items (where the entry's `repo` field is set and differs from the
+// workflow repository) are skipped. Their base_branch belongs to a different
+// repository and must not be used to checkout the workflow repo, as that branch
+// will not exist there and the checkout step would fail.
+//
 // The step writes the extracted branch to GITHUB_OUTPUT as "base-branch" so the
 // checkout step can reference it via ${{ steps.extract-base-branch.outputs.base-branch }}.
 func buildExtractBaseBranchStep() []string {
@@ -32,9 +37,11 @@ func buildExtractBaseBranchStep() []string {
 		"            BASE_BRANCH=$(\"$GH_AW_NODE\" -e \"\n",
 		"              try {\n",
 		"                const data = JSON.parse(require('fs').readFileSync('/tmp/gh-aw/agent_output.json', 'utf8'));\n",
+		"                const workflowRepo = process.env.GITHUB_REPOSITORY || '';\n",
 		"                const item = (data.items || []).find(i =>\n",
 		"                  (i.type === 'create_pull_request' || i.type === 'push_to_pull_request_branch') &&\n",
-		"                  i.base_branch\n",
+		"                  i.base_branch &&\n",
+		"                  (!i.repo || i.repo === workflowRepo)\n",
 		"                );\n",
 		"                if (item) process.stdout.write(item.base_branch);\n",
 		"              } catch(e) {}\n",
