@@ -252,7 +252,7 @@ func TestValidatePermissions(t *testing.T) {
 			wantPermissions: true,
 		},
 		{
-			name: "observability otlp github-app credentials do not require id-token write",
+			name: "observability otlp GitHub App credentials do not require id-token write",
 			workflowData: &WorkflowData{
 				Name:            "Test",
 				MarkdownContent: "# Test",
