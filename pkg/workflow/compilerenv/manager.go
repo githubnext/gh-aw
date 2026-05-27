@@ -110,6 +110,9 @@ func ResolveDefaultEngine(fallback string) string {
 	return raw
 }
 
+// parsePositiveIntEnvVar parses an environment variable as a base-10 positive int64.
+// It returns (value, true) when the variable is set to a valid value > 0.
+// For unset, empty, non-numeric, or non-positive values, it returns (0, false).
 func parsePositiveIntEnvVar(name string) (int64, bool) {
 	raw := strings.TrimSpace(os.Getenv(name))
 	if raw == "" {
