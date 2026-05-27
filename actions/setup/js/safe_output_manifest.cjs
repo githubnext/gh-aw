@@ -129,6 +129,8 @@ function ensureManifestExists(manifestFile = MANIFEST_FILE_PATH) {
 function extractCreatedItemFromResult(type, result) {
   if (!result || NOT_LOGGED_TYPES.has(type)) return null;
 
+  // PR reviews are buffered first and only gain durable identity fields after the
+  // final submitReview() call, so skip logging placeholder buffer results here.
   if (type === "submit_pull_request_review" && !result.review_url && !result.pull_request_number && !result.repo) {
     return null;
   }

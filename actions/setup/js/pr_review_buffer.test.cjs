@@ -719,6 +719,8 @@ describe("pr_review_buffer (factory pattern)", () => {
         const result = await buffer.submitReview();
 
         expect(result.success).toBe(true);
+        // submitReview() reads reviews before superseding, during supersede
+        // candidate selection, and again after review creation for after-state.
         expect(mockGithub.rest.pulls.listReviews).toHaveBeenCalledTimes(3);
         expect(mockGithub.rest.pulls.dismissReview).toHaveBeenCalledTimes(1);
         expect(mockGithub.rest.pulls.dismissReview).toHaveBeenCalledWith({
