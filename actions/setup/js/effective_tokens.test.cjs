@@ -19,6 +19,8 @@ const {
   _resetCache,
 } = require("./effective_tokens.cjs");
 
+let testTmpDir = "";
+
 // Model multipliers JSON used in tests (matches pkg/cli/data/model_multipliers.json)
 const TEST_MULTIPLIERS_JSON = JSON.stringify({
   version: "1",
@@ -46,12 +48,17 @@ const TEST_MULTIPLIERS_JSON = JSON.stringify({
 describe("effective_tokens", () => {
   beforeEach(() => {
     _resetCache();
+    testTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "effective-tokens-test-"));
+    process.env.GH_AW_MERGED_MODEL_MULTIPLIERS_PATH = path.join(testTmpDir, "model_multipliers.json");
     process.env.GH_AW_MODEL_MULTIPLIERS = TEST_MULTIPLIERS_JSON;
   });
 
   afterEach(() => {
     _resetCache();
+    fs.rmSync(testTmpDir, { recursive: true, force: true });
+    testTmpDir = "";
     delete process.env.GH_AW_MODEL_MULTIPLIERS;
+    delete process.env.GH_AW_MERGED_MODEL_MULTIPLIERS_PATH;
   });
 
   describe("defaultTokenClassWeights", () => {
@@ -122,10 +129,10 @@ describe("effective_tokens", () => {
       expect(getModelMultiplier("")).toBe(1.0);
     });
 
-    test("returns 1.0 when env var is not set", () => {
+    test("falls back to built-in multipliers when env var is not set", () => {
       _resetCache();
       delete process.env.GH_AW_MODEL_MULTIPLIERS;
-      expect(getModelMultiplier("claude-opus-4.5")).toBe(1.0);
+      expect(getModelMultiplier("claude-opus-4.5")).toBeGreaterThan(1.0);
     });
 
     test("matches claude-haiku-4.5 with multiplier 0.1", () => {
@@ -316,10 +323,22 @@ describe("effective_tokens", () => {
       expect(getModelMultiplier("any-model")).toBe(1.0);
     });
 
+    test("falls back to built-in multipliers when env var is malformed", () => {
+      _resetCache();
+      process.env.GH_AW_MODEL_MULTIPLIERS = "{ not valid json }";
+      expect(getModelMultiplier("claude-opus-4.5")).toBeGreaterThan(1.0);
+    });
+
     test("handles empty env var gracefully", () => {
       _resetCache();
       process.env.GH_AW_MODEL_MULTIPLIERS = "";
       expect(getModelMultiplier("any-model")).toBe(1.0);
+    });
+
+    test("falls back to built-in multipliers when env var is empty", () => {
+      _resetCache();
+      process.env.GH_AW_MODEL_MULTIPLIERS = "";
+      expect(getModelMultiplier("claude-opus-4.5")).toBeGreaterThan(1.0);
     });
 
     test("handles missing multipliers key gracefully", () => {

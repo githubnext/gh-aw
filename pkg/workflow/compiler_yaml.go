@@ -887,8 +887,10 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			fmt.Fprintf(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", customToken)
 		}
 	}
-	// Embed custom token weights when specified in engine.token-weights
-	if data.EngineConfig != nil && data.EngineConfig.TokenWeights != nil {
+	// Embed custom token weights only when custom model multipliers are configured.
+	// This avoids emitting large model payload env values when workflows only customize
+	// token-class weights.
+	if data.EngineConfig != nil && data.EngineConfig.TokenWeights != nil && len(data.EngineConfig.TokenWeights.Multipliers) > 0 {
 		if tokenWeightsJSON, err := json.Marshal(data.EngineConfig.TokenWeights); err == nil {
 			// Escape single quotes for YAML single-quoted scalar safety
 			escapedTokenWeightsJSON := strings.ReplaceAll(string(tokenWeightsJSON), "'", "''")
