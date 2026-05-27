@@ -689,8 +689,9 @@ describe("update_issue.cjs - title_prefix configuration", () => {
   });
 
   it("should validate title prefix and succeed when issue title starts with prefix", async () => {
-    // Set up mocks for the full handler flow
-    mockGithub.rest.issues.get.mockResolvedValueOnce({
+    // The same issue snapshot is used for both before-state capture and the
+    // executeIssueUpdate title/body fetch in this path.
+    mockGithub.rest.issues.get.mockResolvedValue({
       data: {
         number: 100,
         title: "[bot] Fix something",
@@ -718,8 +719,9 @@ describe("update_issue.cjs - title_prefix configuration", () => {
   });
 
   it("should reject update when issue title does not start with required prefix", async () => {
-    // Set up mock to return issue with wrong title prefix
-    mockGithub.rest.issues.get.mockResolvedValueOnce({
+    // The handler may read the issue more than once; returning the same
+    // mismatched title keeps the prefix-validation failure deterministic.
+    mockGithub.rest.issues.get.mockResolvedValue({
       data: {
         number: 100,
         title: "Some other issue",

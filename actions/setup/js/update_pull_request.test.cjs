@@ -20,6 +20,9 @@ const mockCore = {
 
 const mockGithub = {
   rest: {
+    issues: {
+      get: vi.fn(),
+    },
     pulls: {
       get: vi.fn(),
       update: vi.fn(),
@@ -70,6 +73,17 @@ describe("update_pull_request.cjs - executePRUpdate function", () => {
         number: 100,
         title: "Test PR",
         body: "Original body content",
+        html_url: "https://github.com/testowner/testrepo/pull/100",
+      },
+    });
+    mockGithub.rest.issues.get.mockResolvedValue({
+      data: {
+        number: 100,
+        title: "Test PR",
+        body: "Original body content",
+        state: "open",
+        labels: [],
+        assignees: [],
         html_url: "https://github.com/testowner/testrepo/pull/100",
       },
     });

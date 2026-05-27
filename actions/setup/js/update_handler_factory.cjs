@@ -11,6 +11,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { attachExecutionState } = require("./safe_output_execution_metadata.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 
@@ -25,6 +26,7 @@ const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./te
  * @property {Function} formatSuccessResult - Function to format success result
  * @property {Object} [additionalConfig] - Additional configuration options specific to the handler
  * @property {Function} [itemFilter] - Optional async filter function called before update; returns null to proceed or a result object to skip
+ * @property {{captureBefore?: Function, captureAfter?: Function}} [captureExecutionMetadata] - Optional execution metadata hooks
  */
 
 /**
@@ -114,7 +116,7 @@ function createStandardFormatResult(fieldMapping) {
  * @returns {HandlerFactoryFunction} Handler factory function
  */
 function createUpdateHandlerFactory(handlerConfig) {
-  const { itemType, itemTypeName, supportsPR, resolveItemNumber, buildUpdateData, executeUpdate, formatSuccessResult, additionalConfig = {}, itemFilter = null } = handlerConfig;
+  const { itemType, itemTypeName, supportsPR, resolveItemNumber, buildUpdateData, executeUpdate, formatSuccessResult, additionalConfig = {}, itemFilter = null, captureExecutionMetadata = null } = handlerConfig;
 
   /**
    * Main handler factory
@@ -285,11 +287,17 @@ function createUpdateHandlerFactory(handlerConfig) {
       // effectiveContext.repo contains the target repo owner/name for cross-repo routing.
       // Retry on transient errors (e.g. GitHub API returning HTML instead of JSON on 500 crashes).
       try {
+        const beforeState = captureExecutionMetadata?.captureBefore ? await captureExecutionMetadata.captureBefore(githubClient, effectiveContext, itemNumber, updateData) : null;
         const updatedItem = await withRetry(() => executeUpdate(githubClient, effectiveContext, itemNumber, updateData), { maxRetries: 1, initialDelayMs: 2000, shouldRetry: isTransientError }, `update ${itemTypeName} #${itemNumber}`);
         core.info(`Successfully updated ${itemTypeName} #${itemNumber}: ${updatedItem.html_url || updatedItem.url}`);
 
         // Format and return success result
-        return formatSuccessResult(itemNumber, updatedItem);
+        const result = {
+          ...formatSuccessResult(itemNumber, updatedItem),
+          repo: `${effectiveContext.repo.owner}/${effectiveContext.repo.repo}`,
+        };
+        const afterState = captureExecutionMetadata?.captureAfter ? await captureExecutionMetadata.captureAfter(updatedItem, beforeState, updateData) : null;
+        return attachExecutionState(result, beforeState, afterState);
       } catch (error) {
         const errorMessage = getErrorMessage(error);
         core.error(`Failed to update ${itemTypeName} #${itemNumber}: ${errorMessage}`);

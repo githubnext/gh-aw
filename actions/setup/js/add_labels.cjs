@@ -28,6 +28,7 @@ const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
+const { attachExecutionState, fetchIssueState, normalizeLabelNames } = require("./safe_output_execution_metadata.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
@@ -177,22 +178,9 @@ const main = createCountGatedHandler({
         };
       }
 
-      /** @type {string[]} */
-      let labelsBefore = [];
       try {
-        const { data: existingItem } = await githubClient.rest.issues.get({
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          issue_number: itemNumber,
-        });
-        const existingLabels = Array.isArray(existingItem?.labels) ? existingItem.labels : [];
-        labelsBefore = existingLabels.map(label => (typeof label === "string" ? label : label?.name)).filter(name => typeof name === "string" && name.trim() !== "");
-      } catch (error) {
-        core.info(`Unable to capture labels-before snapshot for ${contextType} #${itemNumber}: ${getErrorMessage(error)}`);
-      }
-
-      try {
-        await withRetry(
+        const beforeState = await fetchIssueState(githubClient, repoParts, itemNumber);
+        const { data: labels } = await withRetry(
           () =>
             githubClient.rest.issues.addLabels({
               owner: repoParts.owner,
@@ -205,13 +193,20 @@ const main = createCountGatedHandler({
         );
 
         core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
-        return {
-          success: true,
-          number: itemNumber,
-          labelsAdded: uniqueLabels,
-          labelsBefore,
-          contextType,
-        };
+        return attachExecutionState(
+          {
+            success: true,
+            number: itemNumber,
+            repo: itemRepo,
+            labelsAdded: uniqueLabels,
+            contextType,
+          },
+          beforeState,
+          {
+            ...beforeState,
+            labels: normalizeLabelNames(labels),
+          }
+        );
       } catch (error) {
         const errorMessage = getErrorMessage(error);
         core.error(`Failed to add labels: ${errorMessage}`);
