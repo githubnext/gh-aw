@@ -112,7 +112,9 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 			workflowDir, _ := cmd.Flags().GetString("dir")
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
-			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
+			noSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
+			disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
+			disableSecurityScanner := noSecurityScanner || disableSecurityScannerLegacy
 
 			if nameFlag != "" && len(workflows) > 1 {
 				return errors.New("--name flag cannot be used when adding multiple workflows at once")
@@ -178,6 +180,9 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 
 	// Add no-security-scanner flag to add command
 	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
+	cmd.Flags().Bool("disable-security-scanner", false, "Alias for --no-security-scanner")
+	_ = cmd.Flags().MarkHidden("disable-security-scanner")
+	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
 
 	// Register completions for add command
 	RegisterEngineFlagCompletion(cmd)

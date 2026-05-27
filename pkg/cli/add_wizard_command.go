@@ -69,7 +69,9 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			workflowDir, _ := cmd.Flags().GetString("dir")
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
-			skipSecret, _ := cmd.Flags().GetBool("no-secret-prompt")
+			noSecretPrompt, _ := cmd.Flags().GetBool("no-secret-prompt")
+			skipSecretLegacy, _ := cmd.Flags().GetBool("skip-secret")
+			skipSecret := noSecretPrompt || skipSecretLegacy
 
 			addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
 
@@ -115,6 +117,9 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 
 	// Add no-secret-prompt flag
 	cmd.Flags().Bool("no-secret-prompt", false, "Skip the API secret prompt (use when the secret is already set at the org or repo level)")
+	cmd.Flags().Bool("skip-secret", false, "Alias for --no-secret-prompt")
+	_ = cmd.Flags().MarkHidden("skip-secret")
+	_ = cmd.Flags().MarkDeprecated("skip-secret", "use --no-secret-prompt instead")
 
 	// Register completions
 	RegisterEngineFlagCompletion(cmd)

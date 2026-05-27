@@ -66,7 +66,9 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` fix --list-codemods     # List available codemods`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listCodemods, _ := cmd.Flags().GetBool("list-codemods")
-			write, _ := cmd.Flags().GetBool("apply")
+			applyFlag, _ := cmd.Flags().GetBool("apply")
+			writeLegacy, _ := cmd.Flags().GetBool("write")
+			write := applyFlag || writeLegacy
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			dir, _ := cmd.Flags().GetString("dir")
 
@@ -79,6 +81,9 @@ Examples:
 	}
 
 	cmd.Flags().Bool("apply", false, "Apply changes to files (without this flag, no changes are made)")
+	cmd.Flags().Bool("write", false, "Alias for --apply")
+	_ = cmd.Flags().MarkHidden("write")
+	_ = cmd.Flags().MarkDeprecated("write", "use --apply instead")
 	cmd.Flags().Bool("list-codemods", false, "List all available codemods and exit")
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 
