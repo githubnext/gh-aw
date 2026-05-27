@@ -1,3 +1,5 @@
+//go:build !integration
+
 package cli
 
 import "testing"
@@ -44,7 +46,7 @@ func TestIsRepositoryOnlyWorkflowSpec(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := isRepositoryOnlyWorkflowSpec(tt.spec)
 			if got != tt.want {
-				t.Fatalf("isRepositoryOnlyWorkflowSpec(%q) = %v, want %v", tt.spec, got, tt.want)
+				t.Errorf("isRepositoryOnlyWorkflowSpec(%q) = %v, want %v", tt.spec, got, tt.want)
 			}
 		})
 	}
