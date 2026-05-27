@@ -42,7 +42,7 @@ const SUMMARY_PATH = "/tmp/gh-aw/outcome-summary.json";
 // ---------------------------------------------------------------------------
 const NOOP_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
 const CLOSING_LABEL_KEYWORDS = ["not planned", "not_planned", "wontfix", "won't fix", "duplicate", "invalid", "declined", "rejected"];
-const CLOSING_COMMENT_KEYWORDS = ["not planned", "won't fix", "wontfix", "duplicate", "invalid", "declin", "reject", "closing as", "closed as", "closing this"];
+const CLOSING_COMMENT_KEYWORDS = ["not planned", "won't fix", "wontfix", "duplicate", "invalid", "declined", "rejected", "closing as", "closed as", "closing this"];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -591,6 +591,10 @@ function normalizeCommitSHA(sha) {
 }
 
 /**
+ * Match SHAs across short/full representations (7-40 hex chars).
+ * Returns true for exact matches and when the longer SHA starts with the
+ * shorter SHA prefix (minimum 7 chars).
+ *
  * @param {string} a
  * @param {string} b
  * @returns {boolean}
