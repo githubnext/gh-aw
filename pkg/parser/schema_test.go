@@ -878,6 +878,36 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppAudie
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppPermissionsRejected(t *testing.T) {
+	frontmatter := map[string]any{
+		"name": "OTLP github-app permissions rejection",
+		"on": map[string]any{
+			"issues": map[string]any{
+				"types": []any{"opened"},
+			},
+		},
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{
+					"permissions": map[string]any{
+						"contents": "read",
+					},
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-github-app-permissions-reject-schema-test.md")
+	if err == nil {
+		t.Fatal("expected observability.otlp.github-app.permissions to fail schema validation")
+	}
+	errText := err.Error()
+	if !strings.Contains(errText, "permissions") ||
+		(!strings.Contains(errText, "github-app") && !strings.Contains(errText, "Unknown property")) {
+		t.Fatalf("expected schema validation error to reference unsupported github-app.permissions syntax, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppLegacyTypeRejected(t *testing.T) {
 	frontmatter := map[string]any{
 		"name": "OTLP legacy github-oidc type rejection",

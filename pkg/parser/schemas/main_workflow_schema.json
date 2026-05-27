@@ -9688,21 +9688,6 @@
                 "ignore-if-missing": {
                   "type": "boolean",
                   "description": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime. Defaults to false."
-                },
-                "owner": {
-                  "type": "string",
-                  "description": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)."
-                },
-                "repositories": {
-                  "type": "array",
-                  "description": "Optional list of repositories to grant access to (defaults to current repository if not specified).",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "permissions": {
-                  "$ref": "#/$defs/github_app_permissions",
-                  "description": "Optional extra GitHub App-only permissions to merge into the minted token. Takes effect for tools.github.github-app and safe-outputs.github-app; ignored in on.github-app and the top-level github-app fallback. Use to add GitHub App-only scopes (e.g. members, organization-administration) not expressible via standard handler declarations."
                 }
               },
               "additionalProperties": false
