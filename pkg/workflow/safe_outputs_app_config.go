@@ -110,6 +110,13 @@ func (app *GitHubAppConfig) shouldIgnoreMissingKey() bool {
 	return app.IgnoreIfMissing
 }
 
+func (app *GitHubAppConfig) hasRequiredCredentials() bool {
+	if app == nil {
+		return false
+	}
+	return strings.TrimSpace(app.AppID) != "" && strings.TrimSpace(app.PrivateKey) != ""
+}
+
 // extractWrappedGitHubExpression returns the inner text for values wrapped as
 // `${{ ... }}` (for example, `${{ secrets.APP_ID }}` -> `secrets.APP_ID`).
 // It returns false for literals and malformed/empty wrappers.
@@ -203,11 +210,15 @@ func (c *Compiler) mergeAppFromIncludedConfigs(topSafeOutputs *SafeOutputsConfig
 // workflow_call relay workflows so the token is scoped to the platform repo's NAME, not the full
 // owner/repo slug — actions/create-github-app-token expects repo names only when owner is also set).
 func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions *Permissions, fallbackRepoExpr string) []string {
+	return c.buildGitHubAppTokenMintStepWithMeta(app, permissions, fallbackRepoExpr, "Generate GitHub App token", "safe-outputs-app-token")
+}
+
+func (c *Compiler) buildGitHubAppTokenMintStepWithMeta(app *GitHubAppConfig, permissions *Permissions, fallbackRepoExpr string, stepName string, stepID string) []string {
 	safeOutputsAppLog.Printf("Building GitHub App token mint step: owner=%s, repos=%d", app.Owner, len(app.Repositories))
 	var steps []string
 
-	steps = append(steps, "      - name: Generate GitHub App token\n")
-	steps = append(steps, "        id: safe-outputs-app-token\n")
+	steps = append(steps, fmt.Sprintf("      - name: %s\n", stepName))
+	steps = append(steps, fmt.Sprintf("        id: %s\n", stepID))
 	if app.shouldIgnoreMissingKey() {
 		steps = append(steps, fmt.Sprintf("        if: %s\n", buildIgnoreIfMissingCondition(app)))
 	}

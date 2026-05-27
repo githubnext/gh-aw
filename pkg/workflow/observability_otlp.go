@@ -225,7 +225,7 @@ func getOTLPGitHubAppTokenConfig(frontmatter map[string]any) *GitHubAppConfig {
 		return nil
 	}
 
-	if strings.TrimSpace(app.AppID) == "" || strings.TrimSpace(app.PrivateKey) == "" {
+	if !app.hasRequiredCredentials() {
 		return nil
 	}
 

@@ -351,6 +351,22 @@ func TestHasOTLPGitHubOIDCAuth(t *testing.T) {
 	}))
 }
 
+func TestGetOTLPGitHubAppTokenConfig(t *testing.T) {
+	got := getOTLPGitHubAppTokenConfig(map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{
+					"app-id":      "${{ vars.APP_ID }}",
+					"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+				},
+			},
+		},
+	})
+	require.NotNil(t, got)
+	assert.Equal(t, "${{ vars.APP_ID }}", got.AppID)
+	assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", got.PrivateKey)
+}
+
 // TestInjectOTLPConfig verifies that injectOTLPConfig correctly modifies WorkflowData.
 func TestInjectOTLPConfig(t *testing.T) {
 	newCompiler := func() *Compiler { return &Compiler{} }
