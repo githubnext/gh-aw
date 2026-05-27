@@ -496,7 +496,7 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
         env:
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
@@ -554,7 +554,7 @@ jobs:
           echo "Issues data available at: /tmp/gh-aw/agent/issues-data/issues.json"
           echo "Schema available at: /tmp/gh-aw/agent/issues-data/issues-schema.json"
         env:
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_API_URL: https://localhost:18443/api/v3
@@ -575,7 +575,7 @@ jobs:
           echo "Charts directory: /tmp/gh-aw/python/charts"
           echo "Artifacts directory: /tmp/gh-aw/python/artifacts"
         env:
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
@@ -598,7 +598,7 @@ jobs:
 
           echo "All scientific libraries installed successfully"
         env:
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
@@ -607,7 +607,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         env:
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
@@ -639,7 +639,7 @@ jobs:
 
           /tmp/gh-aw/agent/venv/bin/python3 -c "import sklearn; print(f'scikit-learn {sklearn.__version__}')"
         env:
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql

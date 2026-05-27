@@ -16,6 +16,7 @@ package main
 import (
 	"golang.org/x/tools/go/analysis/multichecker"
 
+	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
 	"github.com/github/gh-aw/pkg/linters/errormessage"
 	"github.com/github/gh-aw/pkg/linters/errstringmatch"
@@ -35,6 +36,7 @@ import (
 
 func main() {
 	multichecker.Main(
+		contextcancelnotdeferred.Analyzer,
 		ctxbackground.Analyzer,
 		errormessage.Analyzer,
 		fprintlnsprintf.Analyzer,

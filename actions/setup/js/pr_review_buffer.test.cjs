@@ -871,6 +871,59 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Line could not be resolved"));
     });
 
+    it("should retry as body-only review when Path could not be resolved error occurs", async () => {
+      buffer.addComment({ path: ".changeset/some-file.md", line: 1, body: "Review comment on line 1" });
+      buffer.addComment({ path: "src/new_file.js", line: 42, body: "A second inline comment" });
+      buffer.setReviewMetadata("Reviewed with comments.", "COMMENT");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 21946,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error('Unprocessable Entity: "Path could not be resolved"')).mockResolvedValueOnce({
+        data: {
+          id: 801,
+          html_url: "https://github.com/owner/repo/pull/21946#pullrequestreview-801",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      expect(result.review_id).toBe(801);
+      expect(result.comment_count).toBe(0);
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+      // Second call should have no comments array
+      const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
+      expect(retryArgs.comments).toBeUndefined();
+      expect(retryArgs.body).toContain("### Comments that could not be inline-anchored");
+      expect(retryArgs.body).toContain("<details><summary>.changeset/some-file.md:1</summary>");
+      expect(retryArgs.body).toContain("Review comment on line 1");
+      expect(retryArgs.body).toContain("<details><summary>src/new_file.js:42</summary>");
+      expect(retryArgs.body).toContain("A second inline comment");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Path could not be resolved"));
+    });
+
+    it("should return failure when body-only retry also fails after Path could not be resolved", async () => {
+      buffer.addComment({ path: "some-file.md", line: 1, body: "Review comment" });
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error("Path could not be resolved")).mockRejectedValueOnce(new Error("Some other error on retry"));
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Some other error on retry");
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+    });
+
     it("should return failure when body-only retry also fails after Line could not be resolved", async () => {
       buffer.addComment({ path: "some-file.md", line: 1, body: "Review comment" });
       buffer.setReviewContext({

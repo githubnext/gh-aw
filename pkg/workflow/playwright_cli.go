@@ -91,9 +91,13 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 	}
 
 	// Install playwright-cli skills so the coding agent can discover available commands.
+	// PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD keeps this step focused on skills installation;
+	// browser binaries can still be installed lazily when the agent runs browser commands.
 	installSkillsStep := GitHubActionStep{
 		"      - name: Install Playwright CLI skills",
 		"        run: playwright-cli install --skills",
+		"        env:",
+		"          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'",
 		"        timeout-minutes: 10",
 	}
 	steps = append(steps, installSkillsStep)

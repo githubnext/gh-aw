@@ -666,6 +666,8 @@ jobs:
         timeout-minutes: 10
       - name: Install Playwright CLI skills
         run: playwright-cli install --skills
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
         timeout-minutes: 10
       - name: Parse integrity filter lists
         id: parse-guard-vars

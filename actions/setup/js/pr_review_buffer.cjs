@@ -559,9 +559,10 @@ function createReviewBuffer() {
         }
       }
 
-      // When the API cannot resolve a line reference in an inline comment, retry as a body-only
-      // review so that the overall review (and its footer body) is still submitted successfully.
-      if (errorMessage.includes("Line could not be resolved") && comments.length > 0) {
+      // When the API cannot resolve a line or path reference in an inline comment, retry as a
+      // body-only review so that the overall review (and its footer body) is still submitted
+      // successfully. Matches both "Line could not be resolved" and "Path could not be resolved".
+      if ((errorMessage.includes("Line could not be resolved") || errorMessage.includes("Path could not be resolved")) && comments.length > 0) {
         core.warning(`PR review submission failed due to unresolvable comment line(s): ${errorMessage}. Retrying as body-only review.`);
         try {
           const bodyOnlyParams = { ...requestParams };

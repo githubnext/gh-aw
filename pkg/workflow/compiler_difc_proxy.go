@@ -27,10 +27,11 @@ package workflow
 // Proxy lifecycle within the main job:
 //  1. Start proxy — after "Configure gh CLI" step, before custom steps
 //  2. Custom steps run with step-level env blocks containing GH_HOST, GH_REPO,
-//     GITHUB_API_URL, GITHUB_GRAPHQL_URL, and NODE_EXTRA_CA_CERTS. These are
-//     injected by the compiler as step-level env (not via $GITHUB_ENV), so they
-//     take precedence over job-level env without mutating global state. GHE host
-//     values set by configure_gh_for_ghe.sh are preserved for non-proxied steps.
+//     GITHUB_API_URL, GITHUB_GRAPHQL_URL, and NODE_EXTRA_CA_CERTS. GH_HOST is
+//     set to the identity host from configure_gh_for_ghe.sh (github.com on
+//     public GitHub, the real GHES/GHEC hostname on enterprise deployments) so
+//     the gh CLI skips spurious version checks against the proxy.  API traffic
+//     always routes through the proxy via GITHUB_API_URL / GITHUB_GRAPHQL_URL.
 //  3. Stop proxy — before MCP gateway starts (generateMCPSetup); always runs
 //     even if earlier steps failed (if: always(), continue-on-error: true)
 //
@@ -280,12 +281,42 @@ func (c *Compiler) generateStartDIFCProxyStep(yaml *strings.Builder, data *Workf
 // proxyEnvVars returns the env vars to inject as step-level env on each custom step
 // when the DIFC proxy is running.
 //
-// These override $GITHUB_ENV values (such as GH_HOST=myorg.ghe.com on GHE runners)
-// without mutating global state. Steps that do not need the proxy (e.g., after
-// stop_difc_proxy.sh) continue to see the original job-level env values.
+// # GH_HOST value rationale
+//
+// GH_HOST must NOT be set to the proxy address (localhost:18443) because the gh
+// CLI treats any host that is not github.com or *.ghe.com as GitHub Enterprise
+// Server (GHES) and performs a version check by calling GET /api/v3/meta before
+// every API request made with --repo. The DIFC proxy does not return the
+// installed_version field that GHES instances include in /meta; the upstream
+// github.com /meta response omits it, so gh rejects the response as
+// "malformed version: " and aborts — crashing every gh --repo call in
+// user-defined steps.
+//
+// The correct value for GH_HOST depends on the GitHub deployment type:
+//
+//   - github.com (public GitHub): configure_gh_for_ghe.sh either leaves GH_HOST
+//     unset or sets it to "github.com".  gh treats "github.com" as public GitHub
+//     and skips the GHES version check entirely.  All API traffic is still routed
+//     through the proxy via GITHUB_API_URL.
+//
+//   - GHEC (*.ghe.com): configure_gh_for_ghe.sh sets GH_HOST to the tenant
+//     hostname (e.g. myorg.ghe.com).  gh treats *.ghe.com the same as github.com
+//     (no GHES version check), so the same "no broken version check" property
+//     holds.
+//
+//   - GHES (any other hostname): configure_gh_for_ghe.sh sets GH_HOST to the real
+//     GHES hostname (e.g. ghes.example.com).  gh performs the GHES version check
+//     using GITHUB_API_URL (the proxy), which forwards GET /meta to the real GHES
+//     upstream.  The real GHES returns installed_version, so the check passes.
+//
+// Using `${{ env.GH_HOST || 'github.com' }}` therefore selects the correct
+// identity host for every deployment type while keeping all API traffic flowing
+// through the proxy via GITHUB_API_URL / GITHUB_GRAPHQL_URL.
 func proxyEnvVars() map[string]string {
 	return map[string]string{
-		"GH_HOST":             "localhost:18443",
+		// Identity host from configure_gh_for_ghe.sh, not the proxy address.
+		// See function-level comment for full rationale.
+		"GH_HOST":             "${{ env.GH_HOST || 'github.com' }}",
 		"GH_REPO":             "${{ github.repository }}",
 		"GITHUB_API_URL":      "https://localhost:18443/api/v3",
 		"GITHUB_GRAPHQL_URL":  "https://localhost:18443/api/graphql",
@@ -299,11 +330,14 @@ func proxyEnvVars() map[string]string {
 // configure_gh_for_ghe.sh are preserved for steps that do not need the proxy.
 //
 // The proxy env vars injected are:
-//   - GH_HOST=localhost:18443
+//   - GH_HOST=${{ env.GH_HOST || 'github.com' }}  (correct identity host, not proxy addr)
 //   - GH_REPO=${{ github.repository }}
 //   - GITHUB_API_URL=https://localhost:18443/api/v3
 //   - GITHUB_GRAPHQL_URL=https://localhost:18443/api/graphql
 //   - NODE_EXTRA_CA_CERTS=/tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+//
+// GH_HOST is intentionally NOT set to the proxy address; see proxyEnvVars() for
+// the full rationale.
 //
 // If a step already has an env: block, the proxy vars are merged into it (existing
 // vars like GH_TOKEN are preserved). If parsing or serialization fails, the original

@@ -456,7 +456,7 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
         env:
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
@@ -596,7 +596,7 @@ jobs:
           echo "Discussions data available at: /tmp/gh-aw/agent/discussions-data/discussions.json"
           echo "Schema available at: /tmp/gh-aw/agent/discussions-data/discussions-schema.json"
         env:
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_API_URL: https://localhost:18443/api/v3
@@ -619,7 +619,7 @@ jobs:
           "
           mkdir -p /tmp/gh-aw/agent/dataflow/{input,output,pipeline,reports}
         env:
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
@@ -638,7 +638,7 @@ jobs:
 
           echo "Fetched $(jq 'length' /tmp/gh-aw/agent/dataflow/input/prs.json) merged PRs"
         env:
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_API_URL: https://localhost:18443/api/v3
