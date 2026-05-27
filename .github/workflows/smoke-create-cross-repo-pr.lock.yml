@@ -1625,26 +1625,13 @@ jobs:
       - name: Extract base branch from agent output
         id: extract-base-branch
         if: steps.download-agent-output.outcome == 'success'
-        shell: bash
-        run: |
-          if [ -f "/tmp/gh-aw/agent_output.json" ]; then
-            GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-            BASE_BRANCH=$("$GH_AW_NODE" -e "
-              try {
-                const data = JSON.parse(require('fs').readFileSync('/tmp/gh-aw/agent_output.json', 'utf8'));
-                const item = (data.items || []).find(i =>
-                  (i.type === 'create_pull_request' || i.type === 'push_to_pull_request_branch') &&
-                  i.base_branch
-                );
-                if (item) process.stdout.write(item.base_branch);
-              } catch(e) {}
-            " 2>/dev/null || true)
-            # Validate: only allow safe git branch name characters
-            if [[ "$BASE_BRANCH" =~ ^[a-zA-Z0-9/_.-]+$ ]] && [ ${#BASE_BRANCH} -le 255 ]; then
-              printf 'base-branch=%s\n' "$BASE_BRANCH" >> "$GITHUB_OUTPUT"
-              echo "Extracted base branch from safe output: $BASE_BRANCH"
-            fi
-          fi
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/extract_base_branch_from_agent_output.cjs');
+            await main();
       - name: Checkout repository
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

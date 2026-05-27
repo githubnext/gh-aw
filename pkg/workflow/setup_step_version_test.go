@@ -269,3 +269,89 @@ func TestGenerateSetupStepIncludesEngineIDInScriptModeFromAIField(t *testing.T) 
 		t.Fatalf("expected setup script step to include GH_AW_INFO_ENGINE_ID from AI field, got:\n%s", combined)
 	}
 }
+
+func TestGenerateSetupStepIncludesOTLPOIDCMintingBeforeSetup(t *testing.T) {
+	c := NewCompiler()
+	data := &WorkflowData{
+		Name: "my-workflow",
+		RawFrontmatter: map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"github-app": map[string]any{
+						"audience": "https://example.com/collector",
+					},
+				},
+			},
+		},
+	}
+
+	lines := c.generateSetupStep(data, "github/gh-aw/actions/setup@abc123", "${{ runner.temp }}/gh-aw", false, "", "")
+	combined := strings.Join(lines, "")
+
+	if !strings.Contains(combined, "id: mint-otlp-oidc-token") {
+		t.Fatalf("expected setup step to include OTLP OIDC mint step, got:\n%s", combined)
+	}
+	if !strings.Contains(combined, "otlp-oidc-token: ${{ steps.mint-otlp-oidc-token.outputs.token }}") {
+		t.Fatalf("expected setup action input to include minted OTLP OIDC token, got:\n%s", combined)
+	}
+
+	mintPos := strings.Index(combined, "id: mint-otlp-oidc-token")
+	setupPos := strings.Index(combined, "id: setup")
+	if mintPos < 0 || setupPos < 0 || mintPos > setupPos {
+		t.Fatalf("expected OTLP OIDC mint step to appear before setup step, got:\n%s", combined)
+	}
+}
+
+func TestGenerateSetupStepIncludesOTLPOIDCMintingFromParsedFrontmatter(t *testing.T) {
+	c := NewCompiler()
+	data := &WorkflowData{
+		Name: "my-workflow",
+		ParsedFrontmatter: &FrontmatterConfig{
+			Observability: &ObservabilityConfig{
+				OTLP: &OTLPConfig{
+					GitHubApp: &OTLPGitHubAppConfig{
+						Audience: "https://example.com/collector",
+					},
+				},
+			},
+		},
+	}
+
+	lines := c.generateSetupStep(data, "github/gh-aw/actions/setup@abc123", "${{ runner.temp }}/gh-aw", false, "", "")
+	combined := strings.Join(lines, "")
+
+	if !strings.Contains(combined, "id: mint-otlp-oidc-token") {
+		t.Fatalf("expected setup step to include OTLP OIDC mint step from parsed frontmatter, got:\n%s", combined)
+	}
+	if !strings.Contains(combined, "GH_AW_OTLP_OIDC_AUDIENCE") {
+		t.Fatalf("expected mint step to include OTLP OIDC audience env from parsed frontmatter, got:\n%s", combined)
+	}
+	if !strings.Contains(combined, "https://example.com/collector") {
+		t.Fatalf("expected mint step to include parsed frontmatter OTLP OIDC audience value, got:\n%s", combined)
+	}
+}
+
+func TestGenerateSetupStepIncludesOTLPOIDCTokenInScriptMode(t *testing.T) {
+	c := NewCompiler()
+	c.SetActionMode(ActionModeScript)
+	data := &WorkflowData{
+		Name: "my-workflow",
+		RawFrontmatter: map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"github-app": map[string]any{},
+				},
+			},
+		},
+	}
+
+	lines := c.generateSetupStep(data, "github/gh-aw/actions/setup@abc123", "${{ runner.temp }}/gh-aw", false, "", "")
+	combined := strings.Join(lines, "")
+
+	if !strings.Contains(combined, "id: mint-otlp-oidc-token") {
+		t.Fatalf("expected script mode to include OTLP OIDC mint step, got:\n%s", combined)
+	}
+	if !strings.Contains(combined, "INPUT_OTLP_OIDC_TOKEN: ${{ steps.mint-otlp-oidc-token.outputs.token }}") {
+		t.Fatalf("expected setup.sh env to include minted OTLP OIDC token, got:\n%s", combined)
+	}
+}
