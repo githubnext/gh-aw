@@ -368,3 +368,35 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 		})
 	}
 }
+
+func TestTopLevelGitHubAppOTLPImportWorkflowFile(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "top-level-github-app-otlp-import-workflow-file-test")
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "shared"), 0700))
+
+	mainSrc := "../cli/workflows/test-top-level-github-app-otlp-import.md"
+	sharedSrc := "../cli/workflows/shared/otlp-github-app-import.md"
+
+	mainContent, err := os.ReadFile(mainSrc)
+	require.NoError(t, err)
+	sharedContent, err := os.ReadFile(sharedSrc)
+	require.NoError(t, err)
+
+	mainDst := filepath.Join(tmpDir, "test-top-level-github-app-otlp-import.md")
+	sharedDst := filepath.Join(tmpDir, "shared", "otlp-github-app-import.md")
+	require.NoError(t, os.WriteFile(mainDst, mainContent, 0600))
+	require.NoError(t, os.WriteFile(sharedDst, sharedContent, 0600))
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(mainDst)
+	require.NoError(t, err, "Workflow file with imported OTLP github-app should compile successfully")
+
+	lockPath := filepath.Join(tmpDir, "test-top-level-github-app-otlp-import.lock.yml")
+	compiledBytes, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+	compiled := string(compiledBytes)
+
+	assert.Contains(t, compiled, "id: mint-otlp-oidc-token")
+	assert.Contains(t, compiled, "uses: actions/create-github-app-token")
+	assert.Contains(t, compiled, "client-id: ${{ vars.APP_ID }}")
+	assert.Contains(t, compiled, "private-key: ${{ secrets.APP_PRIVATE_KEY }}")
+}
