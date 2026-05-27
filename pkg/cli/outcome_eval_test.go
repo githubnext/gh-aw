@@ -259,7 +259,7 @@ func TestOutcomeSummaryExcludesExistsOnlyFromAccepted(t *testing.T) {
 		},
 	}
 
-	s := ComputeOutcomeSummary(reports, 0)
+	s := ComputeOutcomeSummary(reports)
 	assert.Equal(t, 1, s.Accepted)
 	assert.Equal(t, 1, s.AcceptedStrong)
 	assert.Equal(t, 0, s.AcceptedWeak)
