@@ -15,8 +15,6 @@ func TestEnterpriseVariables(t *testing.T) {
 	assert.Contains(t, names, DefaultMaxEffectiveTokens)
 	assert.Contains(t, names, DefaultMaxTurns)
 	assert.Contains(t, names, DefaultTimeoutMinutes)
-	assert.Contains(t, names, DefaultEngine)
-	assert.Contains(t, names, DefaultDetectionEngine)
 	assert.Contains(t, names, DefaultDetectionModel)
 	assert.Contains(t, names, DefaultModelCopilot)
 	assert.Contains(t, names, DefaultModelClaude)
@@ -97,34 +95,10 @@ func TestResolveDefaultTimeoutMinutes(t *testing.T) {
 	})
 }
 
-func TestResolveDefaultEngine(t *testing.T) {
-	t.Run("unset uses fallback", func(t *testing.T) {
-		t.Setenv(DefaultEngine, "")
-		assert.Equal(t, "copilot", ResolveDefaultEngine("copilot"))
-	})
-
-	t.Run("set value overrides fallback", func(t *testing.T) {
-		t.Setenv(DefaultEngine, "claude")
-		assert.Equal(t, "claude", ResolveDefaultEngine("copilot"))
-	})
-}
-
-func TestResolveDefaultDetectionEngine(t *testing.T) {
-	t.Run("unset uses fallback", func(t *testing.T) {
-		t.Setenv(DefaultDetectionEngine, "")
-		assert.Equal(t, "copilot", ResolveDefaultDetectionEngine("copilot"))
-	})
-
-	t.Run("set value overrides fallback", func(t *testing.T) {
-		t.Setenv(DefaultDetectionEngine, "codex")
-		assert.Equal(t, "codex", ResolveDefaultDetectionEngine("copilot"))
-	})
-}
-
 func TestResolveDefaultDetectionModel(t *testing.T) {
 	t.Run("unset uses fallback", func(t *testing.T) {
 		t.Setenv(DefaultDetectionModel, "")
-		assert.Equal(t, "", ResolveDefaultDetectionModel(""))
+		assert.Empty(t, ResolveDefaultDetectionModel(""))
 	})
 
 	t.Run("set value overrides fallback", func(t *testing.T) {

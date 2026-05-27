@@ -14,8 +14,6 @@ Use these variables to set organization- or repository-wide defaults without edi
 | `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS` | Default AWF `apiProxy.maxEffectiveTokens` budget | `max-effective-tokens` is not set in frontmatter |
 | `GH_AW_DEFAULT_MAX_TURNS` | Default `engine.max-turns` | `engine.max-turns` is not set in frontmatter and the selected engine supports max-turns |
 | `GH_AW_DEFAULT_TIMEOUT_MINUTES` | Default top-level `timeout-minutes` | `timeout-minutes` is not set in frontmatter |
-| `GH_AW_DEFAULT_ENGINE` | Default engine ID | `engine` is not set in frontmatter |
-| `GH_AW_DEFAULT_DETECTION_ENGINE` | Default threat-detection engine ID | `safe-outputs.threat-detection.engine` is not set |
 | `GH_AW_DEFAULT_DETECTION_MODEL` | Default threat-detection model | `safe-outputs.threat-detection.engine.model` is not set |
 | `GH_AW_DEFAULT_MODEL_COPILOT` | Default fallback model for Copilot | `GH_AW_MODEL_AGENT_COPILOT` / `GH_AW_MODEL_DETECTION_COPILOT` is unset |
 | `GH_AW_DEFAULT_MODEL_CLAUDE` | Default fallback model for Claude | `GH_AW_MODEL_AGENT_CLAUDE` / `GH_AW_MODEL_DETECTION_CLAUDE` is unset |
@@ -42,18 +40,11 @@ For default timeout-minutes, precedence is:
 2. `GH_AW_DEFAULT_TIMEOUT_MINUTES`
 3. Built-in compiler default
 
-For default engine selection, precedence is:
-
-1. `engine` in workflow frontmatter
-2. `GH_AW_DEFAULT_ENGINE`
-3. Built-in compiler default
-
 For detection engine selection, precedence is:
 
 1. `safe-outputs.threat-detection.engine` in workflow frontmatter
-2. `GH_AW_DEFAULT_DETECTION_ENGINE`
-3. Main workflow engine (`engine`)
-4. Built-in compiler default
+2. Main workflow engine (`engine`)
+3. Built-in compiler default
 
 For detection model selection, precedence is:
 
@@ -75,12 +66,10 @@ Set an org-wide default max-effective-tokens guardrail:
 gh variable set GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS --org my-org --body "15000000"
 ```
 
-Set compiler process defaults for timeout, max-turns, and default engine:
+Set compiler process defaults for timeout and max-turns:
 
 ```bash
 export GH_AW_DEFAULT_TIMEOUT_MINUTES=30
 export GH_AW_DEFAULT_MAX_TURNS=12
-export GH_AW_DEFAULT_ENGINE=claude
-export GH_AW_DEFAULT_DETECTION_ENGINE=codex
 export GH_AW_DEFAULT_DETECTION_MODEL=gpt-5.5-mini
 ```

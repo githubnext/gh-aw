@@ -17,12 +17,6 @@ const (
 	// DefaultTimeoutMinutes is the enterprise override for top-level timeout-minutes
 	// when it is not explicitly configured in workflow frontmatter.
 	DefaultTimeoutMinutes = "GH_AW_DEFAULT_TIMEOUT_MINUTES"
-	// DefaultEngine is the enterprise override for selecting the default engine when
-	// frontmatter does not specify one.
-	DefaultEngine = "GH_AW_DEFAULT_ENGINE"
-	// DefaultDetectionEngine is the enterprise override for selecting the detection
-	// job engine when threat-detection.engine is not set.
-	DefaultDetectionEngine = "GH_AW_DEFAULT_DETECTION_ENGINE"
 	// DefaultDetectionModel is the enterprise override for selecting the detection
 	// job model when threat-detection.engine.model is not set.
 	DefaultDetectionModel = "GH_AW_DEFAULT_DETECTION_MODEL"
@@ -54,14 +48,6 @@ func EnterpriseVariables() []Variable {
 		{
 			Name:        DefaultTimeoutMinutes,
 			Description: "Default timeout-minutes used when workflow frontmatter does not set one",
-		},
-		{
-			Name:        DefaultEngine,
-			Description: "Default engine ID used when workflow frontmatter does not set one",
-		},
-		{
-			Name:        DefaultDetectionEngine,
-			Description: "Default detection job engine ID used when threat-detection.engine is not set",
 		},
 		{
 			Name:        DefaultDetectionModel,
@@ -112,26 +98,6 @@ func ResolveDefaultTimeoutMinutes(fallback int) int {
 		return int(parsed)
 	}
 	return fallback
-}
-
-// ResolveDefaultEngine returns fallback when the env var is unset, otherwise
-// returns the trimmed override value.
-func ResolveDefaultEngine(fallback string) string {
-	raw := strings.TrimSpace(os.Getenv(DefaultEngine))
-	if raw == "" {
-		return fallback
-	}
-	return raw
-}
-
-// ResolveDefaultDetectionEngine returns fallback when the env var is unset,
-// otherwise returns the trimmed override value.
-func ResolveDefaultDetectionEngine(fallback string) string {
-	raw := strings.TrimSpace(os.Getenv(DefaultDetectionEngine))
-	if raw == "" {
-		return fallback
-	}
-	return raw
 }
 
 // ResolveDefaultDetectionModel returns fallback when the env var is unset,

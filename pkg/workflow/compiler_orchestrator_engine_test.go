@@ -113,30 +113,6 @@ on: push
 	assert.Equal(t, "copilot", result.engineSetting)
 }
 
-func TestSetupEngineAndImports_DefaultEngineFromEnv(t *testing.T) {
-	t.Setenv(compilerenv.DefaultEngine, "claude")
-
-	tmpDir := testutil.TempDir(t, "engine-default-env")
-	testContent := `---
-on: push
----
-
-# Test Workflow
-`
-	testFile := filepath.Join(tmpDir, "test.md")
-	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
-
-	compiler := NewCompiler()
-	content := []byte(testContent)
-	frontmatterResult, err := parser.ExtractFrontmatterFromContent(string(content))
-	require.NoError(t, err)
-
-	result, err := compiler.setupEngineAndImports(frontmatterResult, testFile, content, tmpDir)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Equal(t, "claude", result.engineSetting)
-}
-
 func TestSetupEngineAndImports_DefaultMaxTurnsFromEnv(t *testing.T) {
 	t.Setenv(compilerenv.DefaultMaxTurns, "9")
 

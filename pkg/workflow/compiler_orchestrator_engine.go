@@ -264,7 +264,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// Apply the default AI engine setting if not specified
 	if engineSetting == "" {
 		defaultEngine := c.engineRegistry.GetDefaultEngine()
-		engineSetting = compilerenv.ResolveDefaultEngine(defaultEngine.GetID())
+		engineSetting = defaultEngine.GetID()
 		workflowLog.Printf("No 'engine:' setting found, defaulting to: %s", engineSetting)
 		// Create a default EngineConfig with the default engine ID if not already set
 		if engineConfig == nil {

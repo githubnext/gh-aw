@@ -576,22 +576,15 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	}
 
 	// Determine which engine to use: threat detection engine from frontmatter,
-	// then enterprise default detection engine, otherwise main engine.
+	// otherwise main engine.
 	engineSetting := c.getThreatDetectionEngineID(data)
 
 	engineConfig := data.EngineConfig
-	enterpriseDetectionEngine := compilerenv.ResolveDefaultDetectionEngine("")
 	hasThreatDetectionEngineConfig := data.SafeOutputs != nil &&
 		data.SafeOutputs.ThreatDetection != nil &&
 		data.SafeOutputs.ThreatDetection.EngineConfig != nil
 	if hasThreatDetectionEngineConfig {
 		engineConfig = data.SafeOutputs.ThreatDetection.EngineConfig
-	} else if enterpriseDetectionEngine != "" {
-		// If enterprise detection engine override is set and frontmatter did not provide
-		// threat-detection.engine, do not reuse the main engine config object.
-		// This avoids leaking engine-specific fields (model, args, harness script, etc.)
-		// from the main engine into a different detection engine runtime.
-		engineConfig = &EngineConfig{ID: engineSetting}
 	}
 
 	// Get the engine instance
@@ -744,10 +737,6 @@ func (c *Compiler) getThreatDetectionEngineID(data *WorkflowData) string {
 	mainEngineID := data.AI
 	if mainEngineID == "" && data.EngineConfig != nil && data.EngineConfig.ID != "" {
 		mainEngineID = data.EngineConfig.ID
-	}
-
-	if enterpriseEngineID := compilerenv.ResolveDefaultDetectionEngine(""); enterpriseEngineID != "" {
-		return enterpriseEngineID
 	}
 
 	if mainEngineID != "" {

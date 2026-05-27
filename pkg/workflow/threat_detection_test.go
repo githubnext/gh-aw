@@ -653,19 +653,6 @@ func TestBuildDetectionEngineExecutionStepWithThreatDetectionEngine(t *testing.T
 			expectContains: "claude", // Should use main engine
 		},
 		{
-			name: "uses enterprise default detection engine when configured",
-			data: &WorkflowData{
-				AI: "claude",
-				SafeOutputs: &SafeOutputsConfig{
-					ThreatDetection: &ThreatDetectionConfig{},
-				},
-			},
-			env: map[string]string{
-				compilerenv.DefaultDetectionEngine: "codex",
-			},
-			expectContains: "codex",
-		},
-		{
 			name: "uses threat detection engine when specified as string",
 			data: &WorkflowData{
 				AI: "claude",
