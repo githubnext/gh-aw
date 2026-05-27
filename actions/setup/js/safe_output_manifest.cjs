@@ -86,10 +86,8 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
       ...(item.metadata && Object.keys(item.metadata).length > 0 ? { metadata: item.metadata } : {}),
       ...(item.before_state ? { before_state: item.before_state } : {}),
       ...(item.after_state ? { after_state: item.after_state } : {}),
-      ...(item.metadata && Object.keys(item.metadata).length > 0 ? { metadata: item.metadata } : {}),
-      ...(item.before_state ? { before_state: item.before_state } : {}),
-      ...(item.after_state ? { after_state: item.after_state } : {}),
       ...(Array.isArray(item.labelsAdded) ? { labelsAdded: item.labelsAdded } : {}),
+      ...(Array.isArray(item.labelsBefore) ? { labelsBefore: item.labelsBefore } : {}),
       timestamp: new Date().toISOString(),
     };
 
@@ -155,14 +153,11 @@ function extractCreatedItemFromResult(type, result) {
     ...(number != null ? { number } : {}),
     ...(result.repo ? { repo: result.repo } : {}),
     ...(result.temporaryId ? { temporaryId: result.temporaryId } : {}),
-      ...(result.metadata && Object.keys(result.metadata).length > 0 ? { metadata: result.metadata } : {}),
-      ...(result.before_state ? { before_state: result.before_state } : {}),
-      ...(result.after_state ? { after_state: result.after_state } : {}),
-      ...(result.metadata && Object.keys(result.metadata).length > 0 ? { metadata: result.metadata } : {}),
-      ...(result.before_state ? { before_state: result.before_state } : {}),
-      ...(result.after_state ? { after_state: result.after_state } : {}),
-      ...(Array.isArray(result.labelsAdded) ? { labelsAdded: result.labelsAdded } : {}),
-      ...(Array.isArray(result.labelsBefore) ? { labelsBefore: result.labelsBefore } : {}),
+    ...(result.metadata && Object.keys(result.metadata).length > 0 ? { metadata: result.metadata } : {}),
+    ...(result.before_state ? { before_state: result.before_state } : {}),
+    ...(result.after_state ? { after_state: result.after_state } : {}),
+    ...(Array.isArray(result.labelsAdded) ? { labelsAdded: result.labelsAdded } : {}),
+    ...(Array.isArray(result.labelsBefore) ? { labelsBefore: result.labelsBefore } : {}),
   };
 }
 
