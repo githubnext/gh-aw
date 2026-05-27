@@ -41,6 +41,8 @@ const SUMMARY_PATH = "/tmp/gh-aw/outcome-summary.json";
 // Noop types that are tracked but not counted as actionable
 // ---------------------------------------------------------------------------
 const NOOP_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
+const CLOSING_LABEL_KEYWORDS = ["not planned", "not_planned", "wontfix", "won't fix", "duplicate", "invalid", "declined", "rejected"];
+const CLOSING_COMMENT_KEYWORDS = ["not planned", "won't", "wontfix", "duplicate", "invalid", "declin", "reject", "closing"];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -74,25 +76,6 @@ function ghAPI(endpoint) {
   } catch {
     return null;
   }
-}
-
-/** @type {(endpoint: string) => object | null} */
-let ghAPIImpl = ghAPI;
-
-/**
- * @param {string} endpoint
- * @returns {object | null}
- */
-function callGHAPI(endpoint) {
-  return ghAPIImpl(endpoint);
-}
-
-/**
- * Test-only override for GitHub API calls.
- * @param {((endpoint: string) => object | null) | null} fn
- */
-function __setGHAPIForTest(fn) {
-  ghAPIImpl = typeof fn === "function" ? fn : ghAPI;
 }
 
 /**
@@ -193,13 +176,15 @@ function secondsBetween(from, to) {
  * Evaluate a single safe-output item against the GitHub API.
  * @param {object} item
  * @param {string} defaultRepo
+ * @param {{ ghAPI?: (endpoint: string) => object | null }} [options]
  * @returns {EvalResult}
  */
-function evaluateItem(item, defaultRepo) {
+function evaluateItem(item, defaultRepo, options = {}) {
   const url = item.url || "";
   const itemRepo = item.repo || defaultRepo;
   const timestamp = item.timestamp || "";
   const type = item.type || "";
+  const ghAPIFn = typeof options.ghAPI === "function" ? options.ghAPI : ghAPI;
 
   /** @type {EvalResult} */
   const out = {
@@ -219,10 +204,10 @@ function evaluateItem(item, defaultRepo) {
   };
 
   if (type === "create_pull_request") {
-    return evaluateCreatePullRequestOutcome(item, itemRepo, out);
+    return evaluateCreatePullRequestOutcome(item, itemRepo, out, ghAPIFn);
   }
   if (type === "push_to_pull_request_branch") {
-    return evaluatePushToPullRequestBranchOutcome(item, itemRepo, out);
+    return evaluatePushToPullRequestBranchOutcome(item, itemRepo, out, ghAPIFn);
   }
 
   if (!url) {
@@ -235,7 +220,7 @@ function evaluateItem(item, defaultRepo) {
   const issueMatch = url.match(/\/(?:issues|pull)\/(\d+)/);
   if (/\/issues\/\d+|\/issuecomment-/.test(url) && issueMatch) {
     const num = issueMatch[1];
-    const data = callGHAPI(`repos/${itemRepo}/issues/${num}`);
+    const data = ghAPIFn(`repos/${itemRepo}/issues/${num}`);
     if (!data || !data.state) {
       out.detail = "api error";
       setPendingAge(out, timestamp);
@@ -265,7 +250,7 @@ function evaluateItem(item, defaultRepo) {
   const prMatch = url.match(/\/pull\/(\d+)/);
   if (prMatch) {
     const num = prMatch[1];
-    const data = callGHAPI(`repos/${itemRepo}/pulls/${num}`);
+    const data = ghAPIFn(`repos/${itemRepo}/pulls/${num}`);
     if (!data || !data.state) {
       out.detail = "api error";
       setPendingAge(out, timestamp);
@@ -330,7 +315,7 @@ function evaluateItem(item, defaultRepo) {
  * @param {EvalResult} out
  * @returns {EvalResult}
  */
-function evaluateCreatePullRequestOutcome(item, itemRepo, out) {
+function evaluateCreatePullRequestOutcome(item, itemRepo, out, ghAPIFn = ghAPI) {
   const num = resolvePRNumber(item);
   const timestamp = item.timestamp || "";
 
@@ -341,7 +326,7 @@ function evaluateCreatePullRequestOutcome(item, itemRepo, out) {
     return out;
   }
 
-  const data = callGHAPI(`repos/${itemRepo}/pulls/${num}`);
+  const data = ghAPIFn(`repos/${itemRepo}/pulls/${num}`);
   if (!data || !data.state) {
     out.result = "unknown";
     out.detail = "api error";
@@ -367,13 +352,13 @@ function evaluateCreatePullRequestOutcome(item, itemRepo, out) {
     return out;
   }
 
-  const reviewsRaw = callGHAPI(`repos/${itemRepo}/pulls/${num}/reviews`);
+  const reviewsRaw = ghAPIFn(`repos/${itemRepo}/pulls/${num}/reviews`);
   const reviews = Array.isArray(reviewsRaw) ? reviewsRaw : [];
   const hasApproved = reviews.some(r => (r?.state || "").toUpperCase() === "APPROVED");
   const hasChangesRequested = reviews.some(r => (r?.state || "").toUpperCase() === "CHANGES_REQUESTED");
 
   if (data.state === "closed") {
-    const closingSignal = hasClosingSignal(itemRepo, num, data);
+    const closingSignal = hasClosingSignal(itemRepo, num, data, ghAPIFn);
     out.result = "rejected";
     out.detail = closingSignal ? "closed without merge (strong)" : "closed without merge";
     if (data.created_at && data.closed_at) {
@@ -418,7 +403,7 @@ function evaluateCreatePullRequestOutcome(item, itemRepo, out) {
  * @param {EvalResult} out
  * @returns {EvalResult}
  */
-function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out) {
+function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out, ghAPIFn = ghAPI) {
   const num = resolvePRNumber(item);
   const timestamp = item.timestamp || "";
   const pushedShas = extractPushedCommitSHAs(item);
@@ -431,7 +416,7 @@ function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out) {
     return out;
   }
 
-  const data = callGHAPI(`repos/${itemRepo}/pulls/${num}`);
+  const data = ghAPIFn(`repos/${itemRepo}/pulls/${num}`);
   if (!data || !data.state) {
     out.result = "unknown";
     out.detail = "api error";
@@ -445,7 +430,7 @@ function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out) {
   const pushedIncluded =
     currentHead && pushedShas.length > 0
       ? pushedShas.some(sha => {
-          const inHistory = isCommitInBranchHistory(itemRepo, sha, currentHead);
+          const inHistory = isCommitInBranchHistory(itemRepo, sha, currentHead, ghAPIFn);
           return inHistory === true;
         })
       : false;
@@ -481,13 +466,15 @@ function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out) {
     return out;
   }
 
+  // A strong rejection requires before-head metadata from execution time so we
+  // can distinguish "commit not retained" from "insufficient history context".
   if (pushedShas.length > 0 && !pushedIncluded && beforeHead) {
     out.result = "rejected";
     out.detail = "pushed commits were force-pushed away or branch reset";
     return out;
   }
 
-  const reviewsRaw = callGHAPI(`repos/${itemRepo}/pulls/${num}/reviews`);
+  const reviewsRaw = ghAPIFn(`repos/${itemRepo}/pulls/${num}/reviews`);
   const reviews = Array.isArray(reviewsRaw) ? reviewsRaw : [];
   const hasReviewOnPushedCommit = pushedShas.length > 0 && reviews.some(r => pushedShas.includes(normalizeCommitSHA(r?.commit_id)));
 
@@ -574,21 +561,19 @@ function extractBeforeHeadSHA(item) {
  * @param {any} prData
  * @returns {boolean}
  */
-function hasClosingSignal(repo, number, prData) {
+function hasClosingSignal(repo, number, prData, ghAPIFn) {
   const labels = Array.isArray(prData?.labels) ? prData.labels : [];
-  const labelKeywords = ["not planned", "not_planned", "wontfix", "won't fix", "duplicate", "invalid", "declined", "rejected"];
   const hasClosingLabel = labels.some(label => {
     const name = String(label?.name || "").toLowerCase();
-    return labelKeywords.some(keyword => name.includes(keyword));
+    return CLOSING_LABEL_KEYWORDS.some(keyword => name.includes(keyword));
   });
   if (hasClosingLabel) return true;
 
-  const commentsRaw = callGHAPI(`repos/${repo}/issues/${number}/comments`);
+  const commentsRaw = ghAPIFn(`repos/${repo}/issues/${number}/comments`);
   if (!Array.isArray(commentsRaw)) return false;
-  const commentKeywords = ["not planned", "won't", "wontfix", "duplicate", "invalid", "declin", "reject", "closing"];
   return commentsRaw.some(comment => {
     const body = String(comment?.body || "").toLowerCase();
-    return commentKeywords.some(keyword => body.includes(keyword));
+    return CLOSING_COMMENT_KEYWORDS.some(keyword => body.includes(keyword));
   });
 }
 
@@ -598,12 +583,15 @@ function hasClosingSignal(repo, number, prData) {
  * @param {string} branchHeadSHA
  * @returns {boolean | null}
  */
-function isCommitInBranchHistory(repo, commitSHA, branchHeadSHA) {
+function isCommitInBranchHistory(repo, commitSHA, branchHeadSHA, ghAPIFn) {
   if (!commitSHA || !branchHeadSHA) return null;
   if (commitSHA === branchHeadSHA) return true;
-  const compareData = callGHAPI(`repos/${repo}/compare/${commitSHA}...${branchHeadSHA}`);
+  const compareData = ghAPIFn(`repos/${repo}/compare/${commitSHA}...${branchHeadSHA}`);
   if (!compareData || typeof compareData.status !== "string") return null;
   const status = compareData.status.toLowerCase();
+  // compare base...head semantics:
+  // - ahead/identical => base commit is in head history
+  // - behind/diverged => base commit is not retained on the evaluated branch tip
   if (status === "ahead" || status === "identical") return true;
   if (status === "behind" || status === "diverged") return false;
   return null;
@@ -864,4 +852,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { main, evaluateItem, evaluateCreatePullRequestOutcome, evaluatePushToPullRequestBranchOutcome, readJSONL, secondsBetween, isoToEpoch, __setGHAPIForTest };
+module.exports = { main, evaluateItem, evaluateCreatePullRequestOutcome, evaluatePushToPullRequestBranchOutcome, readJSONL, secondsBetween, isoToEpoch };
