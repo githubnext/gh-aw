@@ -156,7 +156,7 @@ func TestAttachImportAuthHeader_GitHubCopilot(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "https://api.githubcopilot.com/workflow.md", nil)
 	attachImportAuthHeader(req, "https://api.githubcopilot.com/workflow.md")
 	assert.Equal(t, "Bearer gh-token-xyz", req.Header.Get("Authorization"))
-	assert.Empty(t, req.Header.Get("Copilot-Integration-Id"))
+	assert.Empty(t, req.Header.Get("Copilot-Integration-Id"), "Copilot-Integration-Id should not be set for non-automation URLs")
 }
 
 func TestAttachImportAuthHeader_GitHubCopilotAutomation(t *testing.T) {
@@ -218,7 +218,7 @@ func TestIsCopilotAutomationImportURL(t *testing.T) {
 func mustParseURL(t *testing.T, raw string) *url.URL {
 	t.Helper()
 	u, err := url.Parse(raw)
-	require.NoError(t, err)
+	require.NoError(t, err, "Failed to parse URL: %s", raw)
 	return u
 }
 
