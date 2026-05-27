@@ -13,7 +13,7 @@ require (
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/jsonschema-go v0.4.3
-	github.com/modelcontextprotocol/go-sdk v1.6.0
+	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/rhysd/actionlint v1.7.12
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/securego/gosec/v2 v2.26.1

@@ -108,6 +108,8 @@ This ensures consistency across runs and avoids duplicate issues.
 
 Use the **cache-memory tool directly** for this step. Do not inspect `/tmp/gh-aw/cache-memory` with `ls`, `find`, or `cp`.
 
+**First run (empty cache):** If no cache file exists yet, that is expected and normal. Do **not** call `missing_data`. Simply proceed as if no previous history is available, then save a new cache entry at the end of your run.
+
 **Cache file structure:**
 ```json
 {

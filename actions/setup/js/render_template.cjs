@@ -13,6 +13,14 @@ const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 const { isTruthy } = require("./is_truthy.cjs");
 const { selectBranch } = require("./template_branch.cjs");
 
+// Closing tag: {{#endif}} (primary) or {{/if}} (alternate)
+const BLOCK_CONDITIONAL_REGEX = /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*(?:{{#endif}}|{{\/if}})[ \t]*)(\n?)/;
+const INLINE_CONDITIONAL_REGEX = /{{#if\s+([^}]*)}}([\s\S]*?)(?:{{#endif}}|{{\/if}})/;
+
+// Max characters shown in body preview log lines
+const BLOCK_BODY_PREVIEW_LENGTH = 60;
+const INLINE_BODY_PREVIEW_LENGTH = 40;
+
 /**
  * Renders a Markdown template by processing {{#if}} conditional blocks.
  * When a conditional block is removed (falsy condition) and the template tags
@@ -37,8 +45,8 @@ function renderMarkdownTemplate(markdown) {
   }
 
   // Count conditionals before processing
-  const blockConditionals = (_stripped.match(/(\n?)([ \t]*{{#if\s+(.*?)\s*}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g) || []).length;
-  const inlineConditionals = (_stripped.match(/{{#if\s+(.*?)\s*}}([\s\S]*?){{\/if}}/g) || []).length - blockConditionals;
+  const blockConditionals = (_stripped.match(new RegExp(BLOCK_CONDITIONAL_REGEX.source, "g")) || []).length;
+  const inlineConditionals = (_stripped.match(new RegExp(INLINE_CONDITIONAL_REGEX.source, "g")) || []).length - blockConditionals;
 
   core.info(`[renderMarkdownTemplate] Found ${blockConditionals} block conditional(s) and ${inlineConditionals} inline conditional(s)`);
 
@@ -48,19 +56,23 @@ function renderMarkdownTemplate(markdown) {
 
   // First pass: Handle blocks where tags are on their own lines
   // Captures: (leading newline)(opening tag line)(condition)(body)(closing tag line)(trailing newline)
-  // Uses .*? (non-greedy) with \s* to handle expressions with or without trailing spaces
-  let result = _stripped.replace(/(\n?)([ \t]*{{#if\s+(.*?)\s*}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body) => {
+  let result = _stripped.replace(new RegExp(BLOCK_CONDITIONAL_REGEX.source, "g"), (match, leadNL, openLine, cond, body) => {
     blockCount++;
+    const condTrimmed = cond.trim();
+    const bodyPreview = body.substring(0, BLOCK_BODY_PREVIEW_LENGTH).replace(/\n/g, "\\n");
 
-    core.info(`[renderMarkdownTemplate] Block ${blockCount}: condition="${cond.trim()}" -> evaluating branches`);
+    core.info(`[renderMarkdownTemplate] Block ${blockCount}: condition="${condTrimmed}" -> evaluating branches`);
+    core.info(`[renderMarkdownTemplate]   Body preview: "${bodyPreview}${body.length > BLOCK_BODY_PREVIEW_LENGTH ? "..." : ""}"`);
 
     const selectedContent = selectBranch(cond, body);
 
     if (selectedContent !== null) {
       keptBlocks++;
+      core.info(`[renderMarkdownTemplate]   Action: Keeping selected branch with leading newline=${!!leadNL}`);
       return leadNL + selectedContent;
     } else {
       removedBlocks++;
+      core.info(`[renderMarkdownTemplate]   Action: Removing entire block`);
       return "";
     }
   });
@@ -72,12 +84,14 @@ function renderMarkdownTemplate(markdown) {
   let removedInline = 0;
 
   // Second pass: Handle inline conditionals (tags not on their own lines)
-  // Uses .*? (non-greedy) with \s* to handle expressions with or without trailing spaces
-  result = result.replace(/{{#if\s+(.*?)\s*}}([\s\S]*?){{\/if}}/g, (_, cond, body) => {
+  result = result.replace(new RegExp(INLINE_CONDITIONAL_REGEX.source, "g"), (_, cond, body) => {
     inlineCount++;
+    const condTrimmed = cond.trim();
+    const bodyPreview = body.substring(0, INLINE_BODY_PREVIEW_LENGTH).replace(/\n/g, "\\n");
     const selectedContent = selectBranch(cond, body);
 
-    core.info(`[renderMarkdownTemplate] Inline ${inlineCount}: condition="${cond.trim()}" -> ${selectedContent !== null ? "KEEP" : "REMOVE"}`);
+    core.info(`[renderMarkdownTemplate] Inline ${inlineCount}: condition="${condTrimmed}" -> ${selectedContent !== null ? "KEEP" : "REMOVE"}`);
+    core.info(`[renderMarkdownTemplate]   Body preview: "${bodyPreview}${body.length > INLINE_BODY_PREVIEW_LENGTH ? "..." : ""}"`);
 
     if (selectedContent !== null) {
       keptInline++;
@@ -91,17 +105,28 @@ function renderMarkdownTemplate(markdown) {
   core.info(`[renderMarkdownTemplate] Second pass complete: ${keptInline} kept, ${removedInline} removed`);
 
   // Clean up excessive blank lines (more than one blank line = 2 newlines)
+  const beforeCleanup = result.length;
+  const excessiveLines = (result.match(/\n{3,}/g) || []).length;
   result = result.replace(/\n{3,}/g, "\n\n");
+  if (excessiveLines > 0) {
+    core.info(`[renderMarkdownTemplate] Cleaned up ${excessiveLines} excessive blank line sequence(s)`);
+    core.info(`[renderMarkdownTemplate] Length change from cleanup: ${beforeCleanup} -> ${result.length} characters`);
+  }
+
+  // Count which placeholders survived to detect code blocks removed in false conditional branches
+  const _survivedIndices = new Set([...result.matchAll(/\x00FENCE\x00(\d+)\x00FENCE\x00/g)].map(m => +m[1]));
+  const _removedFenceMarkerCount = _codeBlocks.reduce((sum, block, i) => (_survivedIndices.has(i) ? sum : sum + (block.match(/`{3,}/g) || []).length), 0);
 
   // Restore fenced code blocks
   if (_codeBlocks.length > 0) {
     result = result.replace(/\x00FENCE\x00(\d+)\x00FENCE\x00/g, (_, i) => _codeBlocks[+i]);
   }
 
-  // Runtime assertion: number of fence markers must be the same before and after processing
+  // Runtime assertion: number of fence markers must be the same before and after processing,
+  // accounting for any fenced code blocks intentionally removed inside false conditional branches.
   const _inputFenceCount = (markdown.match(/`{3,}/g) || []).length;
   const _outputFenceCount = (result.match(/`{3,}/g) || []).length;
-  if (_inputFenceCount !== _outputFenceCount) {
+  if (_inputFenceCount - _removedFenceMarkerCount !== _outputFenceCount) {
     core.warning(`[renderMarkdownTemplate] Fence count mismatch: input had ${_inputFenceCount} fence marker(s), output has ${_outputFenceCount}`);
   }
 

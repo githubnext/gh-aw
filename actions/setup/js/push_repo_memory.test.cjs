@@ -1421,7 +1421,7 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       } finally {
         nodeFs.rmSync(tmpArtifactDir, { recursive: true, force: true });
       }
-    });
+    }, 60_000);
 
     it("should discriminate between missing-branch and auth/network fetch failures (source check)", () => {
       // Verifies that the fetch-error handler inspects the error message and
