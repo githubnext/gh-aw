@@ -42,7 +42,7 @@ We could have added the new lifecycle logic inline in the existing `evaluateItem
 #### Negative
 - The classification matrix and metadata-extraction helpers are duplicated across Go (`outcome_eval_review.go`, ~412 lines) and JS (`evaluate_outcomes.cjs`, ~326 added lines). Any future change to a branch must be made twice and tested twice; drift is a real risk over time.
 - The manifest schema grows a new optional field (`metadata`) that must be carried through `CreatedItemReport` in `pkg/cli/audit_report.go`, every manifest log site, and the `extractCreatedItemFromResult` normalization path. Older manifest files predate this field and will produce `unknown` outcomes when re-evaluated.
-- The classification depends on a narrow time-window heuristic (`isOnOrAfter` / `timestampOnOrAfter`) to scope reviews/commits relative to the safe-output timestamp; clock skew or missing timestamps fall through to a permissive default, which can over-attribute reviews to a request.
+- The classification depends on a narrow time-window heuristic (`isOnOrAfter` / `timestampOnOrAfter`) to scope reviews/commits relative to the safe-output timestamp; malformed or missing candidate timestamps are conservatively excluded, which can under-attribute some real activity.
 - `evaluateItem` now has two new early dispatch paths (one for items without a URL, one for items with a URL) that duplicate the per-type routing — the dispatch table grew rather than getting consolidated.
 
 #### Neutral
@@ -71,9 +71,9 @@ We could have added the new lifecycle logic inline in the existing `evaluateItem
 3. `evalAddReviewer` **MUST** classify as `accepted / strong / review_approved` when a requested reviewer submitted an `APPROVED` review on or after the item timestamp.
 4. `evalAddReviewer` **MUST** classify as `accepted / medium / review_submitted` when a requested reviewer submitted any non-pending review on or after the item timestamp, or when a team review request received any non-pending review after the item timestamp.
 5. `evalAddReviewer` **MUST** classify as `rejected / strong / review_request_removed` when the requested reviewers and teams have all been removed from the pending set and no review was submitted by them.
-6. `evalAddReviewer` **MUST** classify as `pending / medium` (signal `review_request_pending` in Go, `awaiting_review` in JS) when the requested reviewers or teams remain in the PR's pending-reviewers list.
+6. `evalAddReviewer` **MUST** classify as `pending / medium / awaiting_review` when the requested reviewers or teams remain in the PR's pending-reviewers list.
 7. `evalSubmitPullRequestReview` **MUST** classify as `rejected / strong / review_dismissed` when the persisted review's state is `DISMISSED`.
-8. `evalSubmitPullRequestReview` **MUST** classify as `accepted / strong` (signal `review_approved` in JS, `review_approved_merged` in Go) when the PR is merged and the persisted review state is `APPROVED`.
+8. `evalSubmitPullRequestReview` **MUST** classify as `accepted / strong / review_approved` when the PR is merged and the persisted review state is `APPROVED`.
 9. `evalSubmitPullRequestReview` **MUST** classify as `accepted / medium / changes_requested_addressed` when the PR is merged, the persisted review state is `CHANGES_REQUESTED`, and at least one commit was pushed after the review submission.
 10. `evalSubmitPullRequestReview` **MUST** classify as `rejected / medium / closed_without_merge_after_review` when the PR is closed and not merged.
 11. `evalSubmitPullRequestReview` **MUST** classify as `pending / medium / latest_review_pending` when the PR is open and the persisted review is the most recent review on the PR.
@@ -83,7 +83,7 @@ We could have added the new lifecycle logic inline in the existing `evaluateItem
 ### Cross-Language Parity
 
 1. The JavaScript collector in `evaluate_outcomes.cjs` and the Go evaluator in `pkg/cli/outcome_eval_review.go` **MUST** classify the same input state into the same `outcome_status` and `evidence_strength` tuple.
-2. The `signal` vocabulary used by both implementations **SHOULD** match; where Go and JS diverge in signal naming (e.g. `awaiting_review` vs. `review_request_pending`), the divergence **MUST** be documented in `normalizeOutcome`.
+2. The `signal` vocabulary used by both implementations **SHOULD** match, and this implementation uses a shared signal set (for example, both Go and JS emit `awaiting_review` for pending reviewer requests and `review_approved` for approved+merged reviews).
 3. Any new lifecycle branch added to one implementation **MUST** be added to the other in the same change set, and **MUST** be covered by tests in both languages.
 
 ### Conformance

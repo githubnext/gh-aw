@@ -543,6 +543,53 @@ func TestEvalAddReviewerUsesLatestReviewerState(t *testing.T) {
 func TestTimestampOnOrAfterMalformedReturnsFalse(t *testing.T) {
 	assert.False(t, timestampOnOrAfter("invalid", "2026-05-12T00:00:00Z"))
 	assert.False(t, timestampOnOrAfter("2026-05-12T00:00:00Z", "invalid"))
+	assert.False(t, timestampOnOrAfter("", "2026-05-12T00:00:00Z"))
+	assert.True(t, timestampOnOrAfter("2026-05-12T00:00:00Z", ""))
+}
+
+func TestEvalSubmitPullRequestReviewChangesRequestedMissingCommitDatesStaysUnknown(t *testing.T) {
+	oldGet := outcomeReviewGHAPIGet
+	oldGetArray := outcomeReviewGHAPIGetArray
+	t.Cleanup(func() {
+		outcomeReviewGHAPIGet = oldGet
+		outcomeReviewGHAPIGetArray = oldGetArray
+	})
+
+	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+		return map[string]any{
+			"state":     "closed",
+			"merged":    true,
+			"merged_at": "2026-05-12T05:00:00Z",
+		}, nil
+	}
+	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+		switch endpoint {
+		case "pulls/42/reviews":
+			return []map[string]any{
+				{"id": float64(101), "state": "CHANGES_REQUESTED", "submitted_at": "2026-05-12T02:00:00Z"},
+			}, nil
+		case "pulls/42/commits":
+			return []map[string]any{
+				{"commit": map[string]any{"committer": map[string]any{"date": ""}, "author": map[string]any{"date": ""}}},
+			}, nil
+		default:
+			return []map[string]any{}, nil
+		}
+	}
+
+	report := evalSubmitPullRequestReview(CreatedItemReport{
+		Type:      "submit_pull_request_review",
+		URL:       "https://github.com/owner/repo/pull/42#pullrequestreview-101",
+		Number:    42,
+		Repo:      "owner/repo",
+		Timestamp: "2026-05-12T02:00:00Z",
+		Metadata:  map[string]any{"review_id": float64(101)},
+	}, "owner/repo")
+
+	assert.Equal(t, OutcomeUnknown, report.Result)
+	assert.Equal(t, OutcomeStatusUnknown, report.OutcomeStatus)
+	assert.Equal(t, EvidenceWeak, report.EvidenceStrength)
+	assert.Equal(t, "unknown", report.Signal)
 }
 
 func TestEvalSubmitPullRequestReviewApprovedMergedUsesSharedSignal(t *testing.T) {

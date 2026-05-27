@@ -357,7 +357,10 @@ func intersectsFold(a []string, b []string) bool {
 }
 
 func timestampOnOrAfter(candidate string, threshold string) bool {
-	if candidate == "" || threshold == "" {
+	if candidate == "" {
+		return false
+	}
+	if threshold == "" {
 		return true
 	}
 	candidateTime, err := time.Parse(time.RFC3339, candidate)

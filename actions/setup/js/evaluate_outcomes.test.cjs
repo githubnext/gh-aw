@@ -404,6 +404,39 @@ describe("evaluate_outcomes.cjs", () => {
     });
   });
 
+  it("does not treat missing commit dates as post-review pushes", () => {
+    const api = endpoint => {
+      if (endpoint.endsWith("/pulls/42")) {
+        return { state: "closed", merged: true, merged_at: "2026-05-12T05:00:00Z" };
+      }
+      if (endpoint.endsWith("/reviews")) {
+        return [{ id: 101, state: "CHANGES_REQUESTED", submitted_at: "2026-05-12T02:00:00Z" }];
+      }
+      if (endpoint.endsWith("/commits")) {
+        return [{ commit: { committer: { date: "" }, author: { date: "" } } }];
+      }
+      throw new Error(`unexpected endpoint: ${endpoint}`);
+    };
+
+    const result = evaluateItem(
+      {
+        type: "submit_pull_request_review",
+        repo: "owner/repo",
+        number: 42,
+        timestamp: "2026-05-12T02:00:00Z",
+        metadata: { review_id: 101 },
+      },
+      "owner/repo",
+      api
+    );
+
+    expect(normalizeOutcome(result.result, result.detail)).toMatchObject({
+      outcome_status: "unknown",
+      evidence_strength: "weak",
+      signal: "unknown",
+    });
+  });
+
   it("classifies latest review on open PR as pending", () => {
     const api = endpoint => {
       if (endpoint.endsWith("/pulls/42")) {

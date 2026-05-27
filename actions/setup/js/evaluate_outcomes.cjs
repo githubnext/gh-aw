@@ -653,7 +653,8 @@ function getMetadataNumber(item, key) {
  * @returns {boolean}
  */
 function isOnOrAfter(timestamp, threshold) {
-  if (!timestamp || !threshold) return true;
+  if (!timestamp) return false;
+  if (!threshold) return true;
   const a = Date.parse(timestamp);
   const b = Date.parse(threshold);
   if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
