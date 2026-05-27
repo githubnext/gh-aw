@@ -330,6 +330,15 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 				"client-id: ${{ vars.APP_ID }}",
 			},
 		},
+		{
+			name:         "otlp github-app workflow file",
+			workflowFile: "../cli/workflows/test-top-level-github-app-otlp.md",
+			expectContains: []string{
+				"id: mint-otlp-oidc-token",
+				"id: github-mcp-app-token",
+				"uses: actions/create-github-app-token",
+			},
+		},
 	}
 
 	for _, tt := range tests {
