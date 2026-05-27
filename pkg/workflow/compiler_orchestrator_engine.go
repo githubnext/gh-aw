@@ -344,8 +344,8 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	agenticEngine := resolvedEngine.Runtime
 
 	if engineConfig != nil && engineConfig.MaxTurns == "" && agenticEngine.GetCapabilities().MaxTurns {
-		// No built-in default is applied for engine.max-turns; keep it unset unless
-		// an enterprise default override is configured.
+		// No built-in default is applied for engine.max-turns. Passing an empty
+		// fallback keeps it unset unless the enterprise env override is configured.
 		engineConfig.MaxTurns = compilerenv.ResolveDefaultMaxTurns("")
 	}
 
