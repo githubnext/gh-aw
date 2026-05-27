@@ -186,27 +186,32 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 				depGraph.RemoveWorkflow(event.Name)
 			case event.Has(fsnotify.Write) || event.Has(fsnotify.Create):
 				// Handle file modification or creation - add to debounced compilation
-				debounceMu.Lock()
-				modifiedFiles[event.Name] = struct{}{}
-
-				// Reset debounce timer
-				if debounceTimer != nil {
-					debounceTimer.Stop()
-				}
-				debounceTimer = time.AfterFunc(debounceDelay, func() {
+				func() {
 					debounceMu.Lock()
-					filesToCompile := make([]string, 0, len(modifiedFiles))
-					for file := range modifiedFiles {
-						filesToCompile = append(filesToCompile, file)
-					}
-					// Clear the modifiedFiles map
-					modifiedFiles = make(map[string]struct{})
-					debounceMu.Unlock()
+					defer debounceMu.Unlock()
+					modifiedFiles[event.Name] = struct{}{}
 
-					// Compile the modified files using dependency graph
-					compileModifiedFilesWithDependencies(ctx, compiler, depGraph, filesToCompile, verbose)
-				})
-				debounceMu.Unlock()
+					// Reset debounce timer
+					if debounceTimer != nil {
+						debounceTimer.Stop()
+					}
+					debounceTimer = time.AfterFunc(debounceDelay, func() {
+						filesToCompile := func() []string {
+							debounceMu.Lock()
+							defer debounceMu.Unlock()
+							files := make([]string, 0, len(modifiedFiles))
+							for file := range modifiedFiles {
+								files = append(files, file)
+							}
+							// Clear the modifiedFiles map
+							modifiedFiles = make(map[string]struct{})
+							return files
+						}()
+
+						// Compile the modified files using dependency graph
+						compileModifiedFilesWithDependencies(ctx, compiler, depGraph, filesToCompile, verbose)
+					})
+				}()
 			}
 
 		case err, ok := <-watcher.Errors:

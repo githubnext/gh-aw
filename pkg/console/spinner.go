@@ -127,22 +127,27 @@ func NewSpinner(message string) *SpinnerWrapper {
 
 func (s *SpinnerWrapper) Start() {
 	if s.enabled && s.program != nil {
-		s.mu.Lock()
-		if s.running {
-			s.mu.Unlock()
+		shouldStart := func() bool {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			if s.running {
+				return false
+			}
+			s.running = true
+			s.wg.Add(1)
+			return true
+		}()
+		if !shouldStart {
 			spinnerLog.Print("Spinner already running, skipping Start")
 			return
 		}
-		s.running = true
-		s.wg.Add(1)
-		s.mu.Unlock()
 		spinnerLog.Print("Starting spinner")
 		go func() {
 			defer s.wg.Done()
 			defer func() {
 				s.mu.Lock()
+				defer s.mu.Unlock()
 				s.running = false
-				s.mu.Unlock()
 			}()
 			defer func() {
 				if r := recover(); r != nil {
@@ -156,31 +161,40 @@ func (s *SpinnerWrapper) Start() {
 
 func (s *SpinnerWrapper) Stop() {
 	if s.enabled && s.program != nil {
-		s.mu.Lock()
-		if s.running {
+		wasRunning := func() bool {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			if !s.running {
+				return false
+			}
 			s.running = false
-			s.mu.Unlock()
+			return true
+		}()
+		if wasRunning {
 			spinnerLog.Print("Stopping spinner")
 			s.program.Quit()
 			s.wg.Wait() // Wait for the goroutine to complete
 			fmt.Fprintf(os.Stderr, "%s%s", ansiCarriageReturn, ansiClearLine)
-		} else {
-			s.mu.Unlock()
 		}
 	}
 }
 
 func (s *SpinnerWrapper) StopWithMessage(msg string) {
 	if s.enabled && s.program != nil {
-		s.mu.Lock()
-		if s.running {
+		wasRunning := func() bool {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			if !s.running {
+				return false
+			}
 			s.running = false
-			s.mu.Unlock()
+			return true
+		}()
+		if wasRunning {
 			s.program.Quit()
 			s.wg.Wait() // Wait for the goroutine to complete
 			fmt.Fprintf(os.Stderr, "%s%s%s\n", ansiCarriageReturn, ansiClearLine, msg)
 		} else {
-			s.mu.Unlock()
 			// Still print the message even if spinner wasn't running
 			fmt.Fprintf(os.Stderr, "%s\n", msg)
 		}
@@ -192,9 +206,11 @@ func (s *SpinnerWrapper) StopWithMessage(msg string) {
 
 func (s *SpinnerWrapper) UpdateMessage(message string) {
 	if s.enabled && s.program != nil {
-		s.mu.Lock()
-		running := s.running
-		s.mu.Unlock()
+		running := func() bool {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			return s.running
+		}()
 		if running {
 			s.program.Send(updateMessageMsg(message))
 		}
