@@ -112,8 +112,9 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
         const lines = chunk.split("\n").filter(l => l.trim());
         // First line is hash + parent SHAs, remaining lines are changed files.
         // Ignore merge commits (2+ parents) so they aren't mistaken for CI-trigger empty commits.
-        const metadataParts = (lines[0] || "").trim().split(" ").filter(Boolean);
-        const parentCount = Math.max(0, metadataParts.length - 1);
+        // git log format is "COMMIT:<hash> <parent1> <parent2>..."
+        const hashAndParents = (lines[0] || "").trim().split(" ").filter(Boolean);
+        const parentCount = Math.max(0, hashAndParents.length - 1);
         if (parentCount >= 2) {
           continue;
         }
