@@ -208,27 +208,22 @@ See [GitHub MCP Server Documentation](skills/github-mcp-server/SKILL.md) for com
 
 **When instructed to "merge main", follow these steps WITHOUT asking for confirmation:**
 
-1. **Start the merge from origin/main:**
+1. **Run the mechanical merge command first:**
    ```bash
-   git fetch origin main
-   git merge origin/main
+   make merge-main
    ```
 
-2. **Fix merge conflicts in .go and .cjs files:**
+2. **If merge conflicts occur in .go or .cjs files:**
    - Manually resolve conflicts in Go files (`.go`)
    - Manually resolve conflicts in CommonJS files (`.cjs`)
    - Stage resolved files with `git add <file>`
-
-3. **Build and recompile lock files:**
-   ```bash
-   make build        # Rebuild the binary
-   make recompile    # Recompile all workflow lock files
-   ```
-
-4. **Finish the merge:**
-   ```bash
-   git commit        # Complete the merge (accept default merge message)
-   ```
+   - Run:
+     ```bash
+     make build        # Rebuild the binary
+     make recompile    # Recompile all workflow lock files
+     git commit        # Complete the merge (accept default merge message)
+     make fmt          # Re-run formatting
+     ```
 
 **Important**: Do NOT ask for confirmation when performing a merge - execute all steps automatically.
 

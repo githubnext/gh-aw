@@ -21,12 +21,14 @@ const (
 	OutcomeRejected  OutcomeResult = "rejected"
 	OutcomeIgnored   OutcomeResult = "ignored"
 	OutcomePending   OutcomeResult = "pending"
+	OutcomeUnknown   OutcomeResult = "unknown"
 	OutcomeLifecycle OutcomeResult = "lifecycle"
 	OutcomeError     OutcomeResult = "error"
 )
 
 // OutcomeReport is the result of evaluating one safe output item.
 type OutcomeReport struct {
+	OutcomeEvaluation
 	Type               string        `json:"type" console:"header:Type"`
 	ObjectURL          string        `json:"object_url,omitempty" console:"header:URL,omitempty"`
 	ObjectNumber       int           `json:"object_number,omitempty" console:"header:#,omitempty"`
@@ -45,18 +47,23 @@ type OutcomeReport struct {
 
 // OutcomeSummary aggregates outcomes across multiple safe output items.
 type OutcomeSummary struct {
-	Total               int     `json:"total" console:"header:Total"`
-	Accepted            int     `json:"accepted" console:"header:Accepted"`
-	Rejected            int     `json:"rejected" console:"header:Rejected"`
-	Ignored             int     `json:"ignored" console:"header:Ignored"`
-	Pending             int     `json:"pending" console:"header:Pending"`
-	Lifecycle           int     `json:"lifecycle" console:"header:Lifecycle"`
-	Errors              int     `json:"errors" console:"header:Errors"`
-	ZeroTouch           int     `json:"zero_touch" console:"header:Zero-touch"`
-	AcceptanceRate      float64 `json:"acceptance_rate" console:"header:Acceptance Rate"`
-	WasteRate           float64 `json:"waste_rate" console:"header:Waste Rate"`
-	ZeroTouchRate       float64 `json:"zero_touch_rate" console:"header:Zero-touch Rate"`
-	MedianTimeToOutcome float64 `json:"median_time_to_outcome_hours,omitempty"`
+	Total                   int     `json:"total" console:"header:Total"`
+	Accepted                int     `json:"accepted" console:"header:Accepted"`
+	Rejected                int     `json:"rejected" console:"header:Rejected"`
+	Ignored                 int     `json:"ignored" console:"header:Ignored"`
+	Pending                 int     `json:"pending" console:"header:Pending"`
+	AcceptedStrong          int     `json:"accepted_strong,omitempty"`
+	AcceptedMedium          int     `json:"accepted_medium,omitempty"`
+	AcceptedWeak            int     `json:"accepted_weak,omitempty"`
+	FallbackExistsOnlyCount int     `json:"fallback_exists_only_count,omitempty"`
+	Lifecycle               int     `json:"lifecycle" console:"header:Lifecycle"`
+	Errors                  int     `json:"errors" console:"header:Errors"`
+	ZeroTouch               int     `json:"zero_touch" console:"header:Zero-touch"`
+	AcceptanceRate          float64 `json:"acceptance_rate" console:"header:Acceptance Rate"`
+	WasteRate               float64 `json:"waste_rate" console:"header:Waste Rate"`
+	ZeroTouchRate           float64 `json:"zero_touch_rate" console:"header:Zero-touch Rate"`
+	MedianTimeToOutcome     float64 `json:"median_time_to_outcome_hours,omitempty"`
+	CostPerAcceptedOutcome  float64 `json:"cost_per_accepted_outcome,omitempty"`
 }
 
 // outcomeEvaluator is a function that evaluates one safe output item.
@@ -111,6 +118,7 @@ func EvaluateOutcomes(items []CreatedItemReport, repoOverride string) []OutcomeR
 		report := eval(item, repo)
 		report.CreatedAt = item.Timestamp
 		report.CheckedAt = time.Now().UTC().Format(time.RFC3339)
+		report.OutcomeEvaluation = normalizeOutcomeEvaluation(report)
 		reports = append(reports, report)
 	}
 	outcomeEvalLog.Printf("Outcome evaluation complete: reports=%d, skipped=%d", len(reports), skipped)
@@ -122,18 +130,32 @@ func ComputeOutcomeSummary(reports []OutcomeReport) OutcomeSummary {
 	s := OutcomeSummary{Total: len(reports)}
 	var times []float64
 	for _, r := range reports {
-		switch r.Result {
-		case OutcomeAccepted:
+		eval := normalizeOutcomeEvaluation(r)
+		switch eval.OutcomeStatus {
+		case OutcomeStatusAccepted:
 			s.Accepted++
+			switch eval.EvidenceStrength {
+			case EvidenceStrong:
+				s.AcceptedStrong++
+			case EvidenceMedium:
+				s.AcceptedMedium++
+			case EvidenceWeak:
+				s.AcceptedWeak++
+			}
 			if r.ZeroTouch {
 				s.ZeroTouch++
 			}
-		case OutcomeRejected:
+		case OutcomeStatusRejected:
 			s.Rejected++
-		case OutcomeIgnored:
+		case OutcomeStatusIgnored:
 			s.Ignored++
-		case OutcomePending:
+		case OutcomeStatusPending:
 			s.Pending++
+		}
+		if eval.Signal == "target_exists_only" {
+			s.FallbackExistsOnlyCount++
+		}
+		switch r.Result {
 		case OutcomeLifecycle:
 			s.Lifecycle++
 		case OutcomeError:
