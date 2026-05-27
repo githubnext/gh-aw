@@ -149,21 +149,21 @@ func generateDispatchRepositoryTool(toolKey string, toolConfig *DispatchReposito
 		return "Input parameter '" + inputName + "'"
 	})
 
+	inputSchema := map[string]any{
+		"type":                 "object",
+		"properties":           properties,
+		"additionalProperties": false,
+	}
+
+	if len(required) > 0 {
+		inputSchema["required"] = required
+	}
+
 	tool := map[string]any{
 		"name":                      toolName,
 		"description":               description,
 		"_dispatch_repository_tool": toolKey, // Internal metadata for handler routing
-		"inputSchema": map[string]any{
-			"type":                 "object",
-			"properties":           properties,
-			"additionalProperties": false,
-		},
-	}
-
-	if len(required) > 0 {
-		if inputSchema, ok := tool["inputSchema"].(map[string]any); ok {
-			inputSchema["required"] = required
-		}
+		"inputSchema":               inputSchema,
 	}
 
 	dispatchRepositoryLog.Printf("Generated dispatch_repository tool: name=%s, properties=%d", toolName, len(properties))
