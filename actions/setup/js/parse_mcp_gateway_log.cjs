@@ -49,7 +49,7 @@ function formatDurationMs(ms) {
 
 /**
  * Parses token-usage.jsonl content and returns an aggregated summary.
- * Computes effective tokens (ET) per model using the GH_AW_MODEL_MULTIPLIERS env var.
+ * Computes effective tokens (ET) per model using merged multipliers, env fallback, then built-in multipliers.
  * @param {string} jsonlContent - The token-usage.jsonl file content
  * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalEffectiveTokens: number, byModel: Object, entries: Array} | null}
  */

@@ -160,6 +160,20 @@ func TestThreatDetectionTemplate_UsesFilePathPlaceholder(t *testing.T) {
 	}
 }
 
+func TestThreatDetectionTemplate_IncludesNpmValidationGuidance(t *testing.T) {
+	templatePath := "../../actions/setup/md/threat_detection.md"
+	data, err := os.ReadFile(templatePath)
+	require.NoError(t, err, "should read threat detection template file")
+
+	templateContent := string(data)
+	assert.Contains(t, templateContent, "npm Lockfile Validation", "template should include npm lockfile validation guidance")
+	assert.Contains(t, templateContent, "npm view <package>@<version> --json", "template should document how to fetch current npm metadata")
+	assert.Contains(t, templateContent, "Confirm the package version exists in the npm registry", "template should require verifying npm package existence")
+	assert.Contains(t, templateContent, "Confirm `resolved` matches npm's official tarball URL for that exact version", "template should require validating resolved tarball URL")
+	assert.Contains(t, templateContent, "Confirm `integrity` matches npm's official integrity hash for that exact version", "template should require validating integrity hash")
+	assert.Contains(t, templateContent, "Treat stale-version claims as false positives", "template should avoid stale metadata false positives")
+}
+
 // TestBuildThreatDetectionAnalysisStep_ConfiguresEnvironment tests threat analysis step generation
 func TestBuildThreatDetectionAnalysisStep_ConfiguresEnvironment(t *testing.T) {
 	tests := []struct {

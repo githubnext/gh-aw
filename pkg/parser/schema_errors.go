@@ -5,7 +5,11 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var schemaErrorsLog = logger.New("parser:schema_errors")
 
 // atPathPattern matches "- at '/path': " or "at '/path': " prefixes in error messages
 var atPathPattern = regexp.MustCompile(`^-?\s*at '([^']*)': (.+)$`)
@@ -23,11 +27,11 @@ var maxConstraintPattern = regexp.MustCompile(`^maximum: got (-?\d+(?:\.\d+)?), 
 //   - "maximum: got 120, want 60" → "must be at most 60 (got 120)"
 func translateSchemaConstraintMessage(message string) string {
 	if m := minConstraintPattern.FindStringSubmatch(message); len(m) == 3 {
-		parserLog.Printf("Translating minimum constraint message: got=%s want=%s", m[1], m[2])
+		schemaErrorsLog.Printf("Translating minimum constraint message: got=%s want=%s", m[1], m[2])
 		return fmt.Sprintf("must be at least %s (got %s)", m[2], m[1])
 	}
 	if m := maxConstraintPattern.FindStringSubmatch(message); len(m) == 3 {
-		parserLog.Printf("Translating maximum constraint message: got=%s want=%s", m[1], m[2])
+		schemaErrorsLog.Printf("Translating maximum constraint message: got=%s want=%s", m[1], m[2])
 		return fmt.Sprintf("must be at most %s (got %s)", m[2], m[1])
 	}
 	return message
@@ -35,7 +39,7 @@ func translateSchemaConstraintMessage(message string) string {
 
 // cleanJSONSchemaErrorMessage removes unhelpful prefixes from jsonschema validation errors
 func cleanJSONSchemaErrorMessage(errorMsg string) string {
-	parserLog.Printf("Cleaning JSON schema error message (%d chars)", len(errorMsg))
+	schemaErrorsLog.Printf("Cleaning JSON schema error message (%d chars)", len(errorMsg))
 	// Split the error message into lines
 	lines := strings.Split(errorMsg, "\n")
 
@@ -86,7 +90,7 @@ func cleanOneOfMessage(message string) string {
 		return message
 	}
 
-	parserLog.Printf("Simplifying oneOf error message (%d lines)", len(strings.Split(message, "\n")))
+	schemaErrorsLog.Printf("Simplifying oneOf error message (%d lines)", len(strings.Split(message, "\n")))
 	lines := strings.Split(message, "\n")
 	var meaningful []string
 
@@ -250,7 +254,7 @@ func stripAtPathPrefix(line string) string {
 // findFrontmatterBounds finds the start and end indices of frontmatter in file lines
 // Returns: startIdx (-1 if not found), endIdx (-1 if not found), frontmatterContent
 func findFrontmatterBounds(lines []string) (startIdx int, endIdx int, frontmatterContent string) {
-	parserLog.Printf("Finding frontmatter bounds in %d lines", len(lines))
+	schemaErrorsLog.Printf("Finding frontmatter bounds in %d lines", len(lines))
 	startIdx = -1
 	endIdx = -1
 
@@ -269,7 +273,7 @@ func findFrontmatterBounds(lines []string) (startIdx int, endIdx int, frontmatte
 	}
 
 	if startIdx == -1 {
-		parserLog.Print("No frontmatter opening delimiter found")
+		schemaErrorsLog.Print("No frontmatter opening delimiter found")
 		return -1, -1, ""
 	}
 
@@ -284,10 +288,10 @@ func findFrontmatterBounds(lines []string) (startIdx int, endIdx int, frontmatte
 
 	if endIdx == -1 {
 		// No closing "---" found
-		parserLog.Print("No frontmatter closing delimiter found")
+		schemaErrorsLog.Print("No frontmatter closing delimiter found")
 		return -1, -1, ""
 	}
-	parserLog.Printf("Found frontmatter bounds: start=%d end=%d", startIdx, endIdx)
+	schemaErrorsLog.Printf("Found frontmatter bounds: start=%d end=%d", startIdx, endIdx)
 
 	// Extract frontmatter content between the markers
 	frontmatterLines := lines[startIdx+1 : endIdx]
@@ -341,7 +345,7 @@ func appendKnownFieldValidValuesHint(message string, jsonPath string) (string, b
 	if !strings.Contains(strings.ToLower(message), "unknown propert") {
 		return message, false
 	}
-	parserLog.Printf("Appending known field hint for path: %s", jsonPath)
+	schemaErrorsLog.Printf("Appending known field hint for path: %s", jsonPath)
 
 	hint, scopes, docsURL, hintOK := knownFieldHintForPath(jsonPath)
 	if !hintOK {
@@ -435,7 +439,7 @@ func rewriteAdditionalPropertiesError(message string) string {
 
 		if len(match) >= 2 {
 			properties := normalizeAdditionalPropertyList(match[1])
-			parserLog.Printf("Rewriting additional properties error: %s", properties)
+			schemaErrorsLog.Printf("Rewriting additional properties error: %s", properties)
 
 			if strings.Contains(properties, ",") {
 				return "Unknown properties: " + properties

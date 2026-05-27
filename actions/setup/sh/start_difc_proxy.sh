@@ -40,6 +40,7 @@ mkdir -p "$PROXY_LOG_DIR" "$MCP_LOG_DIR"
 echo "Starting DIFC proxy container: $CONTAINER_IMAGE"
 
 docker run -d --name awmg-proxy --network host \
+  --user "$(id -u):$(id -g)" \
   -e GH_TOKEN \
   -e GITHUB_SERVER_URL \
   -e DEBUG='*' \

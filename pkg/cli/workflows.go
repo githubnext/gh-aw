@@ -354,7 +354,12 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 	scanner := bufio.NewScanner(r)
 	// Reuse the small initial scanner buffer across calls while still allowing
 	// growth up to 1 MB for large frontmatter values or long base64-encoded lines.
-	scannerBufferPtr := workflowTitleScannerBufferPool.Get().(*[]byte)
+	pooled := workflowTitleScannerBufferPool.Get()
+	scannerBufferPtr, ok := pooled.(*[]byte)
+	if !ok || scannerBufferPtr == nil {
+		fallback := make([]byte, workflowTitleScannerBufferSize)
+		scannerBufferPtr = &fallback
+	}
 	scannerBuffer := *scannerBufferPtr
 	if cap(scannerBuffer) != workflowTitleScannerBufferSize {
 		scannerBuffer = make([]byte, workflowTitleScannerBufferSize)
@@ -399,15 +404,19 @@ func fastParseTitleFromReader(r io.Reader) (string, error) {
 }
 
 // extractWorkflowNameFromFile extracts the workflow name from a file's H1 header
-func extractWorkflowNameFromFile(filePath string) (string, error) {
+func extractWorkflowNameFromFile(filePath string) (title string, err error) {
 	fd, err := os.Open(filePath)
 	if err != nil {
 		return "", err
 	}
+	defer func() {
+		if closeErr := fd.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close workflow file %s: %w", filePath, closeErr)
+		}
+	}()
 
-	title, err := fastParseTitleFromReader(fd)
+	title, err = fastParseTitleFromReader(fd)
 	if err != nil {
-		_ = fd.Close()
 		return "", err
 	}
 
@@ -425,10 +434,6 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 			}
 		}
 		title = strings.Join(words, " ")
-	}
-
-	if closeErr := fd.Close(); closeErr != nil {
-		return title, fmt.Errorf("failed to close workflow file %s: %w", filePath, closeErr)
 	}
 
 	return title, nil
