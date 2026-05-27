@@ -464,7 +464,7 @@ jobs:
           echo "/tmp/gh-aw/agent/venv/bin" >> "$GITHUB_PATH"
           /tmp/gh-aw/agent/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
         env:
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
@@ -473,7 +473,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         env:
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
@@ -491,7 +491,7 @@ jobs:
         env:
           ADDITIONAL_METRICS: release,pr
           EXEMPT_TOPICS: keep,template
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_API_URL: https://localhost:18443/api/v3
@@ -506,7 +506,7 @@ jobs:
           echo "Stale repositories data saved"
           echo "Total stale repositories: $(jq 'length' /tmp/gh-aw/agent/stale-repos-data/inactive-repos.json)"
         env:
-          GH_HOST: localhost:18443
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
