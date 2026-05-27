@@ -552,6 +552,13 @@ func TestParseRepositoryPackageSpec(t *testing.T) {
 			wantVersion:  "feature/github-agentic-workflow",
 		},
 		{
+			name:         "repo only package with sanitized branch characters",
+			spec:         "owner/repo@release/2026.05.27-rc_1",
+			wantOK:       true,
+			wantRepoSlug: "owner/repo",
+			wantVersion:  "release/2026.05.27-rc_1",
+		},
+		{
 			name:            "nested package path",
 			spec:            "owner/repo/packages/repo-assist",
 			wantOK:          true,
@@ -565,6 +572,14 @@ func TestParseRepositoryPackageSpec(t *testing.T) {
 			wantRepoSlug:    "owner/repo",
 			wantPackagePath: "agentic-workflows",
 			wantVersion:     "feature/github-agentic-workflow",
+		},
+		{
+			name:            "nested package path with sanitized branch characters",
+			spec:            "owner/repo/agentic-workflows@hotfix/github-aw_fix-1.2.3",
+			wantOK:          true,
+			wantRepoSlug:    "owner/repo",
+			wantPackagePath: "agentic-workflows",
+			wantVersion:     "hotfix/github-aw_fix-1.2.3",
 		},
 		{
 			name:   "workflow path is not package",
