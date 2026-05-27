@@ -3,6 +3,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -47,5 +48,5 @@ func TestApplyDefaults_DefaultTimeoutMinutesFallback(t *testing.T) {
 	compiler := NewCompiler()
 	require.NoError(t, compiler.applyDefaults(data, markdownPath))
 	assert.Equal(t, "timeout-minutes: 20", data.TimeoutMinutes)
-	assert.Equal(t, int(constants.DefaultAgenticWorkflowTimeout/time.Minute), 20)
+	assert.Equal(t, "timeout-minutes: "+strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout/time.Minute)), data.TimeoutMinutes)
 }
