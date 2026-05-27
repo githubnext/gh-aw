@@ -163,7 +163,6 @@ describe("evaluate_outcomes push_to_pull_request_branch evaluator", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-27T00:00:00Z"));
-    delete process.env.GH_AW_OUTCOME_STALE_AFTER_SECONDS;
   });
 
   afterEach(() => {

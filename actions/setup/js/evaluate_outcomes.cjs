@@ -604,8 +604,9 @@ function shaMatches(a, b) {
   const right = normalizeCommitSHA(b);
   if (!left || !right) return false;
   if (left === right) return true;
-  const shorter = left.length <= right.length ? left : right;
-  const longer = left.length <= right.length ? right : left;
+  const leftIsShorterOrEqual = left.length <= right.length;
+  const shorter = leftIsShorterOrEqual ? left : right;
+  const longer = leftIsShorterOrEqual ? right : left;
   return shorter.length >= 7 && longer.startsWith(shorter);
 }
 
@@ -616,6 +617,8 @@ function shaMatches(a, b) {
 function extractPushedCommitSHAs(item) {
   /** @type {string[]} */
   const shas = [];
+  // Intentionally exclude `item.head_sha`: it is ambiguous (tip-at-observation)
+  // and not a reliable indicator of what commit(s) were pushed in this action.
   const candidates = [item.commit_sha, item.pushed_commit_sha, item?.metadata?.commit_sha, item?.metadata?.pushed_commit_sha];
   for (const candidate of candidates) {
     const normalized = normalizeCommitSHA(candidate);
