@@ -83,8 +83,13 @@ describe("extra_empty_commit git integration", () => {
           throw new Error(`unexpected command: ${cmd}`);
         }
         commandLog.push(args.join(" "));
+        const gitSubcommand = args[0];
+        const allowedSubcommands = new Set(["log", "remote", "fetch", "reset", "commit", "push"]);
+        if (!allowedSubcommands.has(gitSubcommand)) {
+          throw new Error(`unexpected git subcommand: ${gitSubcommand}`);
+        }
 
-        if (args[0] === "log") {
+        if (gitSubcommand === "log") {
           const result = execGit(args, repoDir);
           if (options.listeners && options.listeners.stdout) {
             options.listeners.stdout(Buffer.from(result.stdout));
@@ -137,7 +142,10 @@ describe("extra_empty_commit git integration", () => {
 
     const detailLog = mockCore.info.mock.calls.find(call => call[0].startsWith("Cycle check details:"));
     expect(detailLog).toBeDefined();
-    expect(detailLog[0]).toContain(`ignored ${MERGE_BRANCH_COUNT} merge commit(s)`);
-    expect(detailLog[0]).toContain("counted 0 empty non-merge commit(s)");
+    const parsedDetail = detailLog[0].match(/analyzed (\d+) commit\(s\), ignored (\d+) merge commit\(s\), counted (\d+) empty non-merge commit\(s\)/);
+    expect(parsedDetail).toBeDefined();
+    expect(Number(parsedDetail[1])).toBeGreaterThan(0);
+    expect(Number(parsedDetail[2])).toBe(MERGE_BRANCH_COUNT);
+    expect(Number(parsedDetail[3])).toBe(0);
   });
 });
