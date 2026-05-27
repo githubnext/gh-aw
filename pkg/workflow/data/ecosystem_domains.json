@@ -263,6 +263,7 @@
     "api.individual.githubcopilot.com",
     "github.com",
     "host.docker.internal",
+    "registry.npmjs.org",
     "telemetry.enterprise.githubcopilot.com"
   ],
   "zig": ["ziglang.org", "pkg.machengine.org", "deps.files.ghostty.org"]
