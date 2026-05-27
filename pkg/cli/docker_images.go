@@ -101,14 +101,18 @@ func IsDockerImageDownloading(image string) bool {
 func IsDockerAvailable(ctx context.Context) bool {
 	ctx = normalizeDockerContext(ctx)
 
-	pullState.mu.RLock()
-	if pullState.mockAvailableInUse {
-		available := pullState.mockDockerAvailable
-		pullState.mu.RUnlock()
-		dockerImagesLog.Printf("Mock: Docker available: %v", available)
-		return available
+	mockEnabled, mockAvailable := func() (bool, bool) {
+		pullState.mu.RLock()
+		defer pullState.mu.RUnlock()
+		if pullState.mockAvailableInUse {
+			return true, pullState.mockDockerAvailable
+		}
+		return false, false
+	}()
+	if mockEnabled {
+		dockerImagesLog.Printf("Mock: Docker available: %v", mockAvailable)
+		return mockAvailable
 	}
-	pullState.mu.RUnlock()
 
 	cmd := exec.CommandContext(ctx, "docker", "info")
 	cmd.Stdout = nil
@@ -146,9 +150,11 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 	// Start the download in a goroutine with retry logic
 	go func() {
 		defer func() {
-			pullState.mu.Lock()
-			delete(pullState.downloading, image)
-			pullState.mu.Unlock()
+			func() {
+				pullState.mu.Lock()
+				defer pullState.mu.Unlock()
+				delete(pullState.downloading, image)
+			}()
 			if r := recover(); r != nil {
 				dockerImagesLog.Printf("Panic in docker image download for %s (recovered): %v", image, r)
 			}

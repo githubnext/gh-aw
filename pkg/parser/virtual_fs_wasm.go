@@ -35,8 +35,8 @@ func init() {
 	readFileFunc = func(path string) ([]byte, error) {
 		// Check builtin virtual files first (embedded engine .md files etc.)
 		builtinVirtualFilesMu.RLock()
+		defer builtinVirtualFilesMu.RUnlock()
 		builtinContent, builtinOK := builtinVirtualFiles[path]
-		builtinVirtualFilesMu.RUnlock()
 		if builtinOK {
 			return builtinContent, nil
 		}

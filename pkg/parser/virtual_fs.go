@@ -112,8 +112,8 @@ const BuiltinPathPrefix = "@builtin:"
 // In native builds, builtin virtual files are checked first, then os.ReadFile.
 var readFileFunc = func(path string) ([]byte, error) {
 	builtinVirtualFilesMu.RLock()
+	defer builtinVirtualFilesMu.RUnlock()
 	content, ok := builtinVirtualFiles[path]
-	builtinVirtualFilesMu.RUnlock()
 	if ok {
 		return content, nil
 	}

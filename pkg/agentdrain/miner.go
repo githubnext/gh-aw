@@ -116,10 +116,10 @@ func (m *Miner) TrainEvent(evt AgentEvent) (*MatchResult, error) {
 	result.Stage = evt.Stage
 	// Propagate stage to cluster.
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	if c, ok := m.store.get(result.ClusterID); ok && c.Stage == "" {
 		c.Stage = evt.Stage
 	}
-	m.mu.Unlock()
 	return result, nil
 }
 
@@ -134,9 +134,12 @@ func (m *Miner) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, erro
 		return nil, nil, errors.New("agentdrain: AnalyzeEvent: empty event after masking")
 	}
 
-	m.mu.RLock()
-	inferResult, _ := m.findBestMatchingCluster(tokens)
-	m.mu.RUnlock()
+	inferResult := func() *MatchResult {
+		m.mu.RLock()
+		defer m.mu.RUnlock()
+		result, _ := m.findBestMatchingCluster(tokens)
+		return result
+	}()
 
 	isNew := inferResult == nil
 	result, err := m.TrainEvent(evt)
@@ -144,10 +147,12 @@ func (m *Miner) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, erro
 		return nil, nil, err
 	}
 
-	var cluster *Cluster
-	m.mu.RLock()
-	cluster, _ = m.store.get(result.ClusterID)
-	m.mu.RUnlock()
+	cluster := func() *Cluster {
+		m.mu.RLock()
+		defer m.mu.RUnlock()
+		c, _ := m.store.get(result.ClusterID)
+		return c
+	}()
 
 	detector, err := NewAnomalyDetector(m.cfg.SimThreshold, m.cfg.RareClusterThreshold)
 	if err != nil {
