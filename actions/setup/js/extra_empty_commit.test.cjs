@@ -397,6 +397,28 @@ describe("extra_empty_commit.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Cycle check passed: 0 empty commit"));
     });
 
+    it("should ignore merge commits with no file list during cycle detection", async () => {
+      const commits = [];
+      for (let i = 0; i < 40; i++) {
+        commits.push(`COMMIT:merge${i.toString().padStart(3, "0")} parentA parentB`);
+        commits.push("");
+      }
+      commits.push("COMMIT:real001 parentC");
+      commits.push("src/file.go");
+      commits.push("");
+      mockGitLogOutput(commits.join("\n"));
+
+      const result = await pushExtraEmptyCommit({
+        branchName: "feature-branch",
+        repoOwner: "test-owner",
+        repoName: "test-repo",
+      });
+
+      expect(result).toEqual({ success: true });
+      expect(mockCore.warning).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Cycle check passed: 0 empty commit"));
+    });
+
     it("should allow push if git log fails (defaults to 0 empty commits)", async () => {
       // Make git log throw an error
       mockExec.exec.mockImplementation(async (cmd, args, options) => {

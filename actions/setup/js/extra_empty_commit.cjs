@@ -96,9 +96,9 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
 
     try {
       let logOutput = "";
-      // List last N commits: for each, output "COMMIT:<hash>" then changed file names.
+      // List last N commits: for each, output "COMMIT:<hash> <parents>" then changed file names.
       // Empty commits will have no files listed after the hash line.
-      await exec.exec("git", ["log", `--max-count=${COMMITS_TO_CHECK}`, "--format=COMMIT:%H", "--name-only", "HEAD"], {
+      await exec.exec("git", ["log", `--max-count=${COMMITS_TO_CHECK}`, "--format=COMMIT:%H %P", "--name-only", "HEAD"], {
         listeners: {
           stdout: data => {
             logOutput += data.toString();
@@ -110,7 +110,15 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       const chunks = logOutput.split("COMMIT:").filter(c => c.trim());
       for (const chunk of chunks) {
         const lines = chunk.split("\n").filter(l => l.trim());
-        // First line is the hash, remaining lines are changed files
+        // First line is hash + parent SHAs, remaining lines are changed files.
+        // Ignore merge commits (2+ parents) so they aren't mistaken for CI-trigger empty commits.
+        const metadataParts = (lines[0] || "").trim().split(" ").filter(Boolean);
+        const parentCount = Math.max(0, metadataParts.length - 1);
+        if (parentCount >= 2) {
+          continue;
+        }
+
+        // Non-merge commit with no changed files -> empty commit
         if (lines.length <= 1) {
           emptyCommitCount++;
         }
