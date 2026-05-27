@@ -9670,7 +9670,7 @@
               "description": "How to handle missing OTLP endpoint/header values at runtime (for example from unset secrets). 'error' fails workflow startup (default), 'warn' logs a warning and skips MCP gateway OTLP configuration, and 'ignore' skips MCP gateway OTLP configuration without warning. This affects MCP gateway setup only; workflow-level OTEL_* environment variables are still injected."
             },
             "github-app": {
-              "description": "Optional runtime authentication for OTLP export. Supports GitHub App credentials (client-id/app-id + private-key) or implicit GitHub OIDC settings.",
+              "description": "Optional runtime authentication for OTLP export. Supports GitHub App credentials (client-id/app-id + private-key) for token minting, or GitHub OIDC mode when the github-app object is present without credentials (optionally with audience).",
               "oneOf": [
                 {
                   "$ref": "#/$defs/github_app"
