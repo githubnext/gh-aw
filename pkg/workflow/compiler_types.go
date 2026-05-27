@@ -570,6 +570,8 @@ type WorkflowData struct {
 	ServicePortExpressions         string                          // comma-separated ${{ job.services['<id>'].ports['<port>'] }} expressions for AWF --allow-host-service-ports
 	RunInstallScripts              bool                            // true when run-install-scripts: true is set (globally or per node runtime); disables --ignore-scripts on generated npm install steps
 	CachedPermissions              *Permissions                    // cached parsed Permissions object (for performance optimization); populated by applyDefaults after all permission mutations
+	CachedPermissionScopeNamesErr  error                           // cached result of ValidatePermissionScopeNames(Permissions); nil = valid; populated by applyDefaults
+	CachedPermissionScopeNamesSet  bool                            // true once CachedPermissionScopeNamesErr has been populated; distinguishes "valid (nil)" from "not yet computed"
 	ConcurrencyGroupExpr           string                          // cached concurrency group expression extracted from Concurrency YAML (for performance optimization); populated by applyDefaults
 	CachedConcurrencyGroupExprErr  error                           // cached result of validateConcurrencyGroupExpression(ConcurrencyGroupExpr); nil = valid; populated by applyDefaults
 	Experiments                    map[string][]string             // A/B testing experiments: maps experiment name to variant list (from frontmatter)

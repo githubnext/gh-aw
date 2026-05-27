@@ -17,7 +17,7 @@ const mcpErrorRateThreshold = 0.10
 // before it is flagged as unreliable due to low connectivity.
 const mcpConnectionRateThreshold = 0.75
 
-// spikeDetectionMultiplier is the ratio above which a run's cost or token usage is
+// spikeDetectionMultiplier is the ratio above which a run's token usage is
 // flagged as a spike relative to the cross-run average (e.g., 2.0 → >2x avg).
 const spikeDetectionMultiplier = 2.0
 
@@ -45,7 +45,7 @@ type CrossRunSummary struct {
 	UniqueDomains   int     `json:"unique_domains"`
 }
 
-// MetricsTrendData contains aggregated cost, token, turn, and duration statistics
+// MetricsTrendData contains aggregated token, turn, and duration statistics
 // across multiple runs, with spike detection for anomalous runs.
 //
 // Token counts (MinTokens, MaxTokens, AvgTokens) are stored as int to preserve
@@ -53,15 +53,9 @@ type CrossRunSummary struct {
 // use float64 because statistical measures of integer quantities can be fractional.
 //
 // Duration fields only aggregate runs where timing data was recorded (duration > 0),
-// so the duration statistics may cover fewer runs than the cost/token/turn statistics.
+// so the duration statistics may cover fewer runs than the token/turn statistics.
 // All stddev fields use the sample standard deviation (Bessel's correction).
 type MetricsTrendData struct {
-	TotalCost    float64 `json:"total_cost"`
-	AvgCost      float64 `json:"avg_cost"`
-	MedianCost   float64 `json:"median_cost"`
-	StdDevCost   float64 `json:"stddev_cost"`
-	MinCost      float64 `json:"min_cost"`
-	MaxCost      float64 `json:"max_cost"`
 	TotalTokens  int     `json:"total_tokens"`
 	AvgTokens    int     `json:"avg_tokens"`
 	MedianTokens float64 `json:"median_tokens"` // float64: median of integer counts can be fractional
@@ -80,9 +74,7 @@ type MetricsTrendData struct {
 	StdDevDurationNs int64   `json:"stddev_duration_ns"`
 	MinDurationNs    int64   `json:"min_duration_ns"`
 	MaxDurationNs    int64   `json:"max_duration_ns"`
-	CostSpikes       []int64 `json:"cost_spikes,omitempty"`  // Run IDs with cost > 2x avg
 	TokenSpikes      []int64 `json:"token_spikes,omitempty"` // Run IDs with tokens > 2x avg
-	RunsWithCost     int     `json:"runs_with_cost"`         // Runs that reported non-zero cost
 }
 
 // MCPServerCrossRunHealth describes the health of a single MCP server across runs.
@@ -124,7 +116,7 @@ type DomainRunStatus struct {
 }
 
 // PerRunFirewallBreakdown is a summary row for a single run within the cross-run report.
-// It extends the firewall view with cost, token, turn, and MCP error information.
+// It extends the firewall view with token, turn, and MCP error information.
 type PerRunFirewallBreakdown struct {
 	RunID         int64         `json:"run_id"`
 	WorkflowName  string        `json:"workflow_name"`
@@ -135,13 +127,11 @@ type PerRunFirewallBreakdown struct {
 	Blocked       int           `json:"blocked"`
 	DenyRate      float64       `json:"deny_rate"` // 0.0–1.0
 	UniqueDomains int           `json:"unique_domains"`
-	Cost          float64       `json:"cost"`
 	Tokens        int           `json:"tokens"`
 	Turns         int           `json:"turns"`
 	MCPErrors     int           `json:"mcp_errors"`
 	ErrorCount    int           `json:"error_count"`
 	HasData       bool          `json:"has_data"`
-	CostSpike     bool          `json:"cost_spike,omitempty"`  // True if cost > 2x avg
 	TokenSpike    bool          `json:"token_spike,omitempty"` // True if tokens > 2x avg
 }
 
@@ -214,7 +204,6 @@ func collectCrossRunInputs(
 		applyCrossRunFirewallData(report, &breakdown, in, domainMap)
 		metricsRows = append(metricsRows, metricsRawRow{
 			runID:    in.RunID,
-			cost:     in.Metrics.EstimatedCost,
 			tokens:   in.Metrics.TokenUsage,
 			turns:    in.Metrics.Turns,
 			duration: in.Duration,
@@ -232,7 +221,6 @@ func newPerRunFirewallBreakdown(in crossRunInput) PerRunFirewallBreakdown {
 		WorkflowName: in.WorkflowName,
 		Conclusion:   in.Conclusion,
 		Duration:     in.Duration,
-		Cost:         in.Metrics.EstimatedCost,
 		Tokens:       in.Metrics.TokenUsage,
 		Turns:        in.Metrics.Turns,
 		ErrorCount:   in.ErrorCount,
@@ -321,10 +309,6 @@ func finalizeCrossRunSummary(report *CrossRunAuditReport) {
 func applyCrossRunMetricsTrend(report *CrossRunAuditReport, metricsRows []metricsRawRow) {
 	report.MetricsTrend = buildMetricsTrend(metricsRows)
 
-	costSpikes := make(map[int64]bool, len(report.MetricsTrend.CostSpikes))
-	for _, rid := range report.MetricsTrend.CostSpikes {
-		costSpikes[rid] = true
-	}
 	tokenSpikes := make(map[int64]bool, len(report.MetricsTrend.TokenSpikes))
 	for _, rid := range report.MetricsTrend.TokenSpikes {
 		tokenSpikes[rid] = true
@@ -332,7 +316,6 @@ func applyCrossRunMetricsTrend(report *CrossRunAuditReport, metricsRows []metric
 
 	for i := range report.PerRunBreakdown {
 		run := &report.PerRunBreakdown[i]
-		run.CostSpike = costSpikes[run.RunID]
 		run.TokenSpike = tokenSpikes[run.RunID]
 	}
 }
@@ -425,7 +408,6 @@ func buildCrossRunDomainEntry(domain string, agg *crossRunDomainAgg, runIDs []in
 // metricsRawRow holds per-run raw metric values for aggregation.
 type metricsRawRow struct {
 	runID    int64
-	cost     float64
 	tokens   int
 	turns    int
 	duration time.Duration
@@ -440,38 +422,32 @@ func buildMetricsTrend(rows []metricsRawRow) MetricsTrendData {
 		return MetricsTrendData{}
 	}
 
-	var costStats, tokenStats, turnStats, durationStats stats.StatVar
+	var tokenStats, turnStats, durationStats stats.StatVar
 	trend := MetricsTrendData{}
 	for _, row := range rows {
-		accumulateMetricsTrendRow(&trend, &costStats, &tokenStats, &turnStats, &durationStats, row)
+		accumulateMetricsTrendRow(&trend, &tokenStats, &turnStats, &durationStats, row)
 	}
 
-	applyMetricsTrendStats(&trend, costStats, tokenStats, turnStats, durationStats)
+	applyMetricsTrendStats(&trend, tokenStats, turnStats, durationStats)
 	applyMetricsTrendSpikes(&trend, rows)
-	auditCrossRunLog.Printf("Metrics trend computed: avg_cost=%.4f, avg_tokens=%d, avg_turns=%.1f, cost_spikes=%d, token_spikes=%d",
-		trend.AvgCost, trend.AvgTokens, trend.AvgTurns, len(trend.CostSpikes), len(trend.TokenSpikes))
+	auditCrossRunLog.Printf("Metrics trend computed: avg_tokens=%d, avg_turns=%.1f, token_spikes=%d",
+		trend.AvgTokens, trend.AvgTurns, len(trend.TokenSpikes))
 	return trend
 }
 
 func accumulateMetricsTrendRow(
 	trend *MetricsTrendData,
-	costStats *stats.StatVar,
 	tokenStats *stats.StatVar,
 	turnStats *stats.StatVar,
 	durationStats *stats.StatVar,
 	row metricsRawRow,
 ) {
-	trend.TotalCost += row.cost
 	trend.TotalTokens += row.tokens
 	trend.TotalTurns += row.turns
-	if row.cost > 0 {
-		trend.RunsWithCost++
-	}
 	if row.turns > trend.MaxTurns {
 		trend.MaxTurns = row.turns
 	}
 
-	costStats.Add(row.cost)
 	tokenStats.Add(float64(row.tokens))
 	turnStats.Add(float64(row.turns))
 	if row.duration > 0 {
@@ -481,18 +457,10 @@ func accumulateMetricsTrendRow(
 
 func applyMetricsTrendStats(
 	trend *MetricsTrendData,
-	costStats stats.StatVar,
 	tokenStats stats.StatVar,
 	turnStats stats.StatVar,
 	durationStats stats.StatVar,
 ) {
-	if costStats.Count() > 0 {
-		trend.AvgCost = costStats.Mean()
-		trend.MedianCost = costStats.Median()
-		trend.StdDevCost = costStats.SampleStdDev()
-		trend.MinCost = costStats.Min()
-		trend.MaxCost = costStats.Max()
-	}
 	if tokenStats.Count() > 0 {
 		trend.AvgTokens = int(tokenStats.Mean())
 		trend.MedianTokens = tokenStats.Median()
@@ -515,13 +483,6 @@ func applyMetricsTrendStats(
 }
 
 func applyMetricsTrendSpikes(trend *MetricsTrendData, rows []metricsRawRow) {
-	if trend.AvgCost > 0 {
-		for _, row := range rows {
-			if row.cost > spikeDetectionMultiplier*trend.AvgCost {
-				trend.CostSpikes = append(trend.CostSpikes, row.runID)
-			}
-		}
-	}
 	if trend.AvgTokens > 0 {
 		for _, row := range rows {
 			if row.tokens > int(spikeDetectionMultiplier*float64(trend.AvgTokens)) {
@@ -542,14 +503,13 @@ func buildDrain3InsightsFromCrossRunInputs(inputs []crossRunInput) []Observabili
 	for _, in := range inputs {
 		pr := ProcessedRun{
 			Run: WorkflowRun{
-				DatabaseID:    in.RunID,
-				WorkflowName:  in.WorkflowName,
-				Conclusion:    in.Conclusion,
-				Duration:      in.Duration,
-				Turns:         in.Metrics.Turns,
-				TokenUsage:    in.Metrics.TokenUsage,
-				EstimatedCost: in.Metrics.EstimatedCost,
-				ErrorCount:    in.ErrorCount,
+				DatabaseID:   in.RunID,
+				WorkflowName: in.WorkflowName,
+				Conclusion:   in.Conclusion,
+				Duration:     in.Duration,
+				Turns:        in.Metrics.Turns,
+				TokenUsage:   in.Metrics.TokenUsage,
+				ErrorCount:   in.ErrorCount,
 			},
 			MCPFailures: in.MCPFailures,
 		}

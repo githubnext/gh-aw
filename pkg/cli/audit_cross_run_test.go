@@ -301,7 +301,8 @@ func TestRenderCrossRunReportMarkdown(t *testing.T) {
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(r)
+	_, err := buf.ReadFrom(r)
+	require.NoError(t, err, "should read captured stdout")
 	output := buf.String()
 
 	assert.Contains(t, output, "# Audit Report", "Should have markdown header")
@@ -309,6 +310,54 @@ func TestRenderCrossRunReportMarkdown(t *testing.T) {
 	assert.Contains(t, output, "Domain Inventory", "Should have domain inventory")
 	assert.Contains(t, output, "Per-Run Breakdown", "Should have per-run breakdown")
 	assert.Contains(t, output, "api.github.com:443", "Should contain the domain")
+}
+
+func TestRenderMarkdownMetricsTrend_IncludesTurnsWithoutTokens(t *testing.T) {
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "should create stdout pipe")
+	os.Stdout = w
+
+	renderMarkdownMetricsTrend(MetricsTrendData{
+		TotalTurns: 9,
+		AvgTurns:   4.5,
+		MaxTurns:   6,
+	})
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(r)
+	require.NoError(t, err, "should read captured stdout")
+	output := buf.String()
+
+	assert.Contains(t, output, "## Metrics Trends", "Should render metrics section when turn metrics exist")
+	assert.Contains(t, output, "| Turns | 9 | 4.5 | — | 6 | — |", "Should render turns row without tokens")
+}
+
+func TestRenderPrettyMetricsTrend_IncludesDurationWithoutTokens(t *testing.T) {
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "should create stderr pipe")
+	os.Stderr = w
+
+	renderPrettyMetricsTrend(MetricsTrendData{
+		AvgDurationNs: 2_000_000_000,
+		MinDurationNs: 1_000_000_000,
+		MaxDurationNs: 3_000_000_000,
+	})
+
+	w.Close()
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(r)
+	require.NoError(t, err, "should read captured stderr")
+	output := buf.String()
+
+	assert.Contains(t, output, "Metrics Trends", "Should render metrics section when duration metrics exist")
+	assert.Contains(t, output, "Duration:", "Should render duration row without tokens")
 }
 
 func TestNewLogsCommand_HasFormatFlag(t *testing.T) {
@@ -486,11 +535,6 @@ func TestBuildCrossRunAuditReport_MetricsTrend(t *testing.T) {
 	report := buildCrossRunAuditReport(inputs)
 
 	mt := report.MetricsTrend
-	assert.Equal(t, 3, mt.RunsWithCost, "All runs have cost")
-	assert.InDelta(t, 13.50, mt.TotalCost, 0.001, "Total cost should be 13.50")
-	assert.InDelta(t, 4.50, mt.AvgCost, 0.001, "Avg cost should be 4.50")
-	assert.InDelta(t, 1.00, mt.MinCost, 0.001, "Min cost should be 1.00")
-	assert.InDelta(t, 10.50, mt.MaxCost, 0.001, "Max cost should be 10.50")
 
 	assert.Equal(t, 90000, mt.TotalTokens, "Total tokens should be 90000")
 	assert.Equal(t, 30000, mt.AvgTokens, "Avg tokens should be 30000")
@@ -499,10 +543,6 @@ func TestBuildCrossRunAuditReport_MetricsTrend(t *testing.T) {
 
 	assert.Equal(t, 35, mt.TotalTurns, "Total turns should be 35")
 	assert.Equal(t, 20, mt.MaxTurns, "Max turns should be 20")
-
-	// Spike detection: run 300 has cost=10.50, avg=4.50 → 10.50 > 2*4.50=9.0 → spike
-	require.Len(t, mt.CostSpikes, 1, "Should detect 1 cost spike")
-	assert.Equal(t, int64(300), mt.CostSpikes[0], "Cost spike should be in run 300")
 
 	// Token spike: run 300 has 60000, avg=30000 → 60000 is not strictly greater than 2*30000=60000
 	assert.Empty(t, mt.TokenSpikes, "Should detect no token spikes (60000 is not strictly greater than 2*30000)")
@@ -576,21 +616,17 @@ func TestBuildCrossRunAuditReport_MCPHealth(t *testing.T) {
 
 func TestBuildMetricsTrend_Empty(t *testing.T) {
 	trend := buildMetricsTrend(nil)
-	assert.InDelta(t, 0.0, trend.TotalCost, 0.001, "Empty rows should produce zero total cost")
 	assert.Equal(t, 0, trend.TotalTokens, "Empty rows should produce zero total tokens")
-	assert.Empty(t, trend.CostSpikes, "Empty rows should produce no cost spikes")
 }
 
 func TestBuildMetricsTrend_NoSpikes(t *testing.T) {
 	rows := []metricsRawRow{
-		{runID: 1, cost: 1.0, tokens: 100, turns: 3},
-		{runID: 2, cost: 1.1, tokens: 110, turns: 4},
-		{runID: 3, cost: 0.9, tokens: 90, turns: 2},
+		{runID: 1, tokens: 100, turns: 3},
+		{runID: 2, tokens: 110, turns: 4},
+		{runID: 3, tokens: 90, turns: 2},
 	}
 	trend := buildMetricsTrend(rows)
-	assert.Empty(t, trend.CostSpikes, "No spikes when all costs are similar")
 	assert.Empty(t, trend.TokenSpikes, "No spikes when all tokens are similar")
-	assert.Equal(t, 3, trend.RunsWithCost, "All runs have cost")
 }
 
 func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
@@ -606,19 +642,14 @@ func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
 			UniqueDomains:   1,
 		},
 		MetricsTrend: MetricsTrendData{
-			TotalCost:    3.0,
-			AvgCost:      1.5,
-			MinCost:      1.0,
-			MaxCost:      2.0,
-			TotalTokens:  30000,
-			AvgTokens:    15000,
-			MinTokens:    10000,
-			MaxTokens:    20000,
-			TotalTurns:   15,
-			MaxTurns:     10,
-			AvgTurns:     7.5,
-			RunsWithCost: 2,
-			CostSpikes:   []int64{200},
+			TotalTokens: 30000,
+			AvgTokens:   15000,
+			MinTokens:   10000,
+			MaxTokens:   20000,
+			TotalTurns:  15,
+			MaxTurns:    10,
+			AvgTurns:    7.5,
+			TokenSpikes: []int64{200},
 		},
 		MCPHealth: []MCPServerCrossRunHealth{
 			{
@@ -655,7 +686,6 @@ func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
 				Blocked:       0,
 				DenyRate:      0.0,
 				UniqueDomains: 1,
-				Cost:          1.0,
 				Tokens:        10000,
 				Turns:         5,
 				MCPErrors:     0,
@@ -668,12 +698,11 @@ func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
 				TotalRequests: 2,
 				Allowed:       2,
 				Blocked:       0,
-				Cost:          2.0,
 				Tokens:        20000,
 				Turns:         10,
 				MCPErrors:     1,
 				HasData:       true,
-				CostSpike:     true,
+				TokenSpike:    true,
 			},
 		},
 	}
@@ -695,7 +724,6 @@ func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
 	assert.Contains(t, output, "# Audit Report", "Should have markdown header")
 	assert.Contains(t, output, "Executive Summary", "Should have executive summary")
 	assert.Contains(t, output, "Metrics Trends", "Should have metrics trends section")
-	assert.Contains(t, output, "Cost Trend", "Should have cost trend")
 	assert.Contains(t, output, "Token Trend", "Should have token trend")
 	assert.Contains(t, output, "MCP Server Health", "Should have MCP health section")
 	assert.Contains(t, output, "Error Trend", "Should have error trend section")
@@ -719,9 +747,8 @@ func TestBuildDrain3InsightsFromCrossRunInputs_WithInputs(t *testing.T) {
 			WorkflowName: "test-workflow",
 			Conclusion:   "success",
 			Metrics: LogMetrics{
-				Turns:         5,
-				TokenUsage:    1000,
-				EstimatedCost: 0.05,
+				Turns:      5,
+				TokenUsage: 1000,
 			},
 			ErrorCount: 0,
 		},
@@ -730,9 +757,8 @@ func TestBuildDrain3InsightsFromCrossRunInputs_WithInputs(t *testing.T) {
 			WorkflowName: "test-workflow",
 			Conclusion:   "failure",
 			Metrics: LogMetrics{
-				Turns:         8,
-				TokenUsage:    2000,
-				EstimatedCost: 0.1,
+				Turns:      8,
+				TokenUsage: 2000,
 			},
 			ErrorCount: 2,
 			MCPFailures: []MCPFailureReport{
@@ -746,13 +772,12 @@ func TestBuildDrain3InsightsFromCrossRunInputs_WithInputs(t *testing.T) {
 	for _, in := range inputs {
 		runs = append(runs, ProcessedRun{
 			Run: WorkflowRun{
-				DatabaseID:    in.RunID,
-				WorkflowName:  in.WorkflowName,
-				Conclusion:    in.Conclusion,
-				Turns:         in.Metrics.Turns,
-				TokenUsage:    in.Metrics.TokenUsage,
-				EstimatedCost: in.Metrics.EstimatedCost,
-				ErrorCount:    in.ErrorCount,
+				DatabaseID:   in.RunID,
+				WorkflowName: in.WorkflowName,
+				Conclusion:   in.Conclusion,
+				Turns:        in.Metrics.Turns,
+				TokenUsage:   in.Metrics.TokenUsage,
+				ErrorCount:   in.ErrorCount,
 			},
 			MCPFailures: in.MCPFailures,
 		})

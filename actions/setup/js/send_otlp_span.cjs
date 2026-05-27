@@ -1542,7 +1542,6 @@ function getErrorMessage(errorEntry) {
 /**
  * @typedef {Object} AgentRuntimeMetrics
  * @property {number | undefined} turns
- * @property {number | undefined} estimatedCostUsd
  * @property {string | undefined} stopReason
  * @property {string | undefined} resolvedModel
  * @property {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number} | undefined} tokenUsage
@@ -1595,13 +1594,13 @@ function normalizeRuntimeTokenUsage(rawUsage) {
 }
 
 /**
- * Read turns, estimated cost, token usage, and warning volume from agent-stdio.log.
+ * Read turns, token usage, and warning volume from agent-stdio.log.
  *
  * @returns {AgentRuntimeMetrics}
  */
 function readAgentRuntimeMetrics() {
   /** @type {AgentRuntimeMetrics} */
-  const metrics = { turns: undefined, estimatedCostUsd: undefined, stopReason: undefined, resolvedModel: undefined, tokenUsage: undefined, warningCount: 0 };
+  const metrics = { turns: undefined, stopReason: undefined, resolvedModel: undefined, tokenUsage: undefined, warningCount: 0 };
 
   try {
     const content = fs.readFileSync(AGENT_STDIO_LOG_PATH, "utf8");
@@ -1627,9 +1626,6 @@ function readAgentRuntimeMetrics() {
 
       if (typeof parsed.num_turns === "number" && parsed.num_turns >= 0) {
         metrics.turns = parsed.num_turns;
-      }
-      if (typeof parsed.total_cost_usd === "number" && Number.isFinite(parsed.total_cost_usd) && parsed.total_cost_usd >= 0) {
-        metrics.estimatedCostUsd = parsed.total_cost_usd;
       }
       if (typeof parsed.stop_reason === "string" && parsed.stop_reason) {
         metrics.stopReason = parsed.stop_reason;
@@ -1911,9 +1907,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
   if (typeof runtimeMetrics.turns === "number") {
     attributes.push(buildAttr("gh-aw.turns", runtimeMetrics.turns));
-  }
-  if (typeof runtimeMetrics.estimatedCostUsd === "number") {
-    attributes.push(buildAttr("gh-aw.estimated_cost_usd", runtimeMetrics.estimatedCostUsd));
   }
   if (jobName === "agent") {
     // Emit OTel GenAI semantic attributes on agent conclusion spans even when the
