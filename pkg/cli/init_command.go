@@ -25,7 +25,7 @@ This command:
 - Creates the dispatcher agent at .github/agents/agentic-workflows.agent.md
 - Removes old prompt files from .github/prompts/ if they exist
 - Configures VSCode settings (.vscode/settings.json)
-- Generates/updates .github/workflows/agentics-maintenance.yml if any workflows use expires field for discussions or issues
+- Generates/updates .github/workflows/agentics-maintenance.yml if any workflows use the expires field for discussions or issues
 
 By default (without --no-mcp):
 - Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
@@ -36,8 +36,8 @@ With --no-mcp flag:
 
 With --codespaces flag:
 - Updates existing .devcontainer/devcontainer.json if present, otherwise creates new file at default location
-- Configures permissions for current repo: actions:write, contents:write, discussions:read, issues:read, pull-requests:write, workflows:write
-- Configures permissions for additional repos (in same org): actions:read, contents:read, discussions:read, issues:read, pull-requests:read, workflows:read
+- Configures permissions for the current repo: actions:write, contents:write, discussions:read, issues:read, pull-requests:write, workflows:write
+- Configures permissions for additional repos (in the same org): actions:read, contents:read, discussions:read, issues:read, pull-requests:read, workflows:read
 - Adds GitHub Copilot extensions and gh aw CLI installation
 - Use with an empty value (--codespaces "") for current repo only, or with comma-separated repos (--codespaces repo1,repo2)
 
@@ -48,7 +48,7 @@ With --completions flag:
 
 After running this command, you can:
 - Use GitHub Copilot Chat: type /agent and select agentic-workflows to get started with workflow tasks
-- The dispatcher will route your request to the appropriate specialized prompt
+- Use the dispatcher to route your requests to the appropriate specialized prompt
 - Add workflows from the catalog with: ` + string(constants.CLIExtensionPrefix) + ` add <workflow-name>
 - Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>
 

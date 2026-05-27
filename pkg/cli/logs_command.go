@@ -77,7 +77,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref main                # Filter logs by branch or tag
   ` + string(constants.CLIExtensionPrefix) + ` logs --ref feature-xyz         # Filter logs by feature branch
   ` + string(constants.CLIExtensionPrefix) + ` logs --filtered-integrity      # Filter logs containing items that were filtered by gateway integrity checks
-  ` + string(constants.CLIExtensionPrefix) + ` logs --no-staged               # Exclude staged workflow runs from results
+  ` + string(constants.CLIExtensionPrefix) + ` logs --exclude-staged          # Exclude staged workflow runs from results
 
   # Run ID range filtering
   ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000       # Filter runs after run ID 1000
@@ -131,7 +131,7 @@ Examples:
 				repoOverride, _ := cmd.Flags().GetString("repo")
 				verbose, _ := cmd.Flags().GetBool("verbose")
 				toolGraph, _ := cmd.Flags().GetBool("tool-graph")
-				noStaged, _ := cmd.Flags().GetBool("no-staged")
+				noStaged, _ := cmd.Flags().GetBool("exclude-staged")
 				firewallOnly, _ := cmd.Flags().GetBool("firewall")
 				noFirewall, _ := cmd.Flags().GetBool("no-firewall")
 				parse, _ := cmd.Flags().GetBool("parse")
@@ -245,7 +245,7 @@ Examples:
 			afterRunID, _ := cmd.Flags().GetInt64("after-run-id")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
-			noStaged, _ := cmd.Flags().GetBool("no-staged")
+			noStaged, _ := cmd.Flags().GetBool("exclude-staged")
 			firewallOnly, _ := cmd.Flags().GetBool("firewall")
 			noFirewall, _ := cmd.Flags().GetBool("no-firewall")
 			parse, _ := cmd.Flags().GetBool("parse")
@@ -339,7 +339,7 @@ Examples:
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
 	addRepoFlag(logsCmd)
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
-	logsCmd.Flags().Bool("no-staged", false, "Exclude workflow runs that executed in staged mode (safe outputs previewed but not applied)")
+	logsCmd.Flags().Bool("exclude-staged", false, "Exclude workflow runs that executed in staged mode (safe outputs previewed but not applied)")
 	logsCmd.Flags().Bool("firewall", false, "Filter to only runs with firewall enabled")
 	logsCmd.Flags().Bool("no-firewall", false, "Filter to only runs without firewall enabled")
 	logsCmd.Flags().String("safe-output", "", "Filter to runs containing a specific safe output type (e.g., create-issue, missing-tool, missing-data, noop, report-incomplete)")
@@ -351,6 +351,7 @@ Examples:
 	logsCmd.Flags().Bool("train", false, "Analyze log patterns across downloaded runs and save pattern weights to drain3_weights.json in the output directory")
 	logsCmd.Flags().String("format", "", "Output format: console (decorated tables), tsv (tab-separated), pretty (cross-run report), markdown (cross-run Markdown). Default: compact agent-optimized output")
 	logsCmd.Flags().Int("last", 0, "Alias for --count: number of recent runs to download")
+	_ = logsCmd.Flags().MarkHidden("last")
 	logsCmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
 	logsCmd.Flags().String("cache-before", "", "(Cache eviction) Evict locally cached run folders for runs before this date, prior to downloading. Accepts deltas like -1d, -1w, -1mo (or explicit day counts like -30d), or an absolute date YYYY-MM-DD. Unlike --start-date, this only clears local cache and does not filter which runs are fetched.")
 	logsCmd.Flags().String("after", "", "Alias for --cache-before")

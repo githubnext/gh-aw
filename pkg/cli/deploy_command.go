@@ -56,7 +56,7 @@ Examples:
 			workflowDir, _ := cmd.Flags().GetString("dir")
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
-			disableSecurityScanner, _ := cmd.Flags().GetBool("disable-security-scanner")
+			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
 			coolDownStr, _ := cmd.Flags().GetString("cool-down")
 
 			if nameFlag != "" && len(workflows) > 1 {
@@ -98,7 +98,7 @@ Examples:
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
-	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
+	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
 	cmd.Flags().String("cool-down", defaultDeployCooldown, coolDownFlagUsage)
 
 	RegisterEngineFlagCompletion(cmd)

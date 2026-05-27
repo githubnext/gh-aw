@@ -179,7 +179,7 @@ func startMCPScriptsServer(mcpScriptsConfig *workflow.MCPScriptsConfig, verbose 
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("MCP Scripts HTTP server started successfully"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("mcp-scripts HTTP server started successfully"))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Server running on: http://localhost:%d", port)))
 	}
 

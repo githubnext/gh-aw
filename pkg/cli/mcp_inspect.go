@@ -121,7 +121,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 			mcpScriptsTmpDir = tmpDir
 			// Add mcp-scripts config to the list of MCP servers to inspect
 			mcpConfigs = append(mcpConfigs, *config)
-			mcpInspectLog.Print("MCP Scripts server started successfully")
+			mcpInspectLog.Print("mcp-scripts server started successfully")
 		}
 	}
 
@@ -250,7 +250,7 @@ func NewMCPInspectSubcommand() *cobra.Command {
 This command starts each MCP server configured in the workflow, queries its capabilities,
 and displays the results in a formatted table. It supports stdio, Docker, and HTTP MCP servers.
 
-MCP Scripts servers are automatically detected and inspected when present in the workflow.
+mcp-scripts servers are automatically detected and inspected when present in the workflow.
 
 The workflow-id-or-file can be:
 - A workflow ID (basename without .md extension, e.g., "weekly-research")

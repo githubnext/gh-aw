@@ -112,7 +112,7 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 			workflowDir, _ := cmd.Flags().GetString("dir")
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
-			disableSecurityScanner, _ := cmd.Flags().GetBool("disable-security-scanner")
+			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
 
 			if nameFlag != "" && len(workflows) > 1 {
 				return errors.New("--name flag cannot be used when adding multiple workflows at once")
@@ -176,8 +176,8 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 	// Add stop-after flag to add command
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
-	// Add disable-security-scanner flag to add command
-	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
+	// Add no-security-scanner flag to add command
+	cmd.Flags().Bool("no-security-scanner", false, "Disable security scanning of workflow markdown content")
 
 	// Register completions for add command
 	RegisterEngineFlagCompletion(cmd)

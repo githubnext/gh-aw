@@ -41,7 +41,7 @@ func TestNewDeployCommand_RegistersCoreFlags(t *testing.T) {
 		"dir",
 		"no-stop-after",
 		"stop-after",
-		"disable-security-scanner",
+		"no-security-scanner",
 		"cool-down",
 	}
 

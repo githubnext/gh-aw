@@ -48,7 +48,7 @@ The command will:
   2. Apply relevant codemods to fix issues
   3. Report what was changed in each file
 
-Without --write (dry-run mode), no files are modified. With --write, the command performs
+Without --apply (dry-run mode), no files are modified. With --apply, the command performs
 all steps and additionally:
   4. Write updated files back to disk
   5. Delete deprecated .github/aw/schemas/agentic-workflow.json file if it exists
@@ -58,15 +58,15 @@ all steps and additionally:
 ` + WorkflowIDExplanation + `
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` fix                     # Check all workflows (dry-run)
-  ` + string(constants.CLIExtensionPrefix) + ` fix --write             # Fix all workflows
-  ` + string(constants.CLIExtensionPrefix) + ` fix my-workflow         # Check specific workflow
-  ` + string(constants.CLIExtensionPrefix) + ` fix my-workflow --write # Fix specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` fix                      # Check all workflows (dry-run)
+  ` + string(constants.CLIExtensionPrefix) + ` fix --apply              # Fix all workflows
+  ` + string(constants.CLIExtensionPrefix) + ` fix my-workflow          # Check specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` fix my-workflow --apply  # Fix specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` fix --dir custom/workflows # Fix workflows in custom directory
   ` + string(constants.CLIExtensionPrefix) + ` fix --list-codemods     # List available codemods`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listCodemods, _ := cmd.Flags().GetBool("list-codemods")
-			write, _ := cmd.Flags().GetBool("write")
+			write, _ := cmd.Flags().GetBool("apply")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			dir, _ := cmd.Flags().GetString("dir")
 
@@ -78,7 +78,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().Bool("write", false, "Write changes to files (without this flag, no changes are made)")
+	cmd.Flags().Bool("apply", false, "Apply changes to files (without this flag, no changes are made)")
 	cmd.Flags().Bool("list-codemods", false, "List all available codemods and exit")
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 
@@ -188,7 +188,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update dispatcher agent: %v", err)))
 	}
 
-	// Delete old template files from pkg/cli/templates/ (only with --write)
+	// Delete old template files from pkg/cli/templates/ (only with --apply)
 	if write {
 		fixLog.Print("Cleaning up old template files")
 		if err := deleteOldTemplateFiles(verbose); err != nil {
@@ -241,12 +241,12 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 			// Output as agent prompt
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To fix these issues, run:"))
 			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, "  gh aw fix --write")
+			fmt.Fprintln(os.Stderr, "  gh aw fix --apply")
 			fmt.Fprintln(os.Stderr, "")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or fix them individually:"))
 			fmt.Fprintln(os.Stderr, "")
 			for _, wf := range workflowsNeedingFixes {
-				fmt.Fprintf(os.Stderr, "  gh aw fix %s --write\n", strings.TrimSuffix(wf.File, ".md"))
+				fmt.Fprintf(os.Stderr, "  gh aw fix %s --apply\n", strings.TrimSuffix(wf.File, ".md"))
 			}
 		} else {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("✓ No fixes needed"))

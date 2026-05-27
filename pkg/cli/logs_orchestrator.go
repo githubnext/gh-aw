@@ -348,7 +348,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 					}
 				}
 
-				// Apply staged filtering if --no-staged flag is specified
+				// Apply staged filtering if --exclude-staged flag is specified
 				if noStaged {
 					var isStaged bool
 					if awInfoErr == nil && awInfo != nil {
@@ -356,9 +356,9 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 					}
 
 					if isStaged {
-						logsOrchestratorLog.Printf("Skipping run %d: staged workflow filtered by --no-staged", result.Run.DatabaseID)
+						logsOrchestratorLog.Printf("Skipping run %d: staged workflow filtered by --exclude-staged", result.Run.DatabaseID)
 						if verbose {
-							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --no-staged)", result.Run.DatabaseID)))
+							fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --exclude-staged)", result.Run.DatabaseID)))
 						}
 						continue
 					}
@@ -923,9 +923,9 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 				isStaged = awInfo.Staged
 			}
 			if isStaged {
-				logsOrchestratorLog.Printf("Skipping run %d: staged workflow filtered by --no-staged", result.Run.DatabaseID)
+				logsOrchestratorLog.Printf("Skipping run %d: staged workflow filtered by --exclude-staged", result.Run.DatabaseID)
 				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered by --no-staged)", result.Run.DatabaseID)))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered by --exclude-staged)", result.Run.DatabaseID)))
 				}
 				continue
 			}

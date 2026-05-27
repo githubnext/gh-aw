@@ -268,7 +268,9 @@ Examples:
 		watch, _ := cmd.Flags().GetBool("watch")
 		dir, _ := cmd.Flags().GetString("dir")
 		workflowsDir, _ := cmd.Flags().GetString("workflows-dir")
-		noEmit, _ := cmd.Flags().GetBool("no-emit")
+		dryRunFlag, _ := cmd.Flags().GetBool("dry-run")
+		noEmitFlag, _ := cmd.Flags().GetBool("no-emit")
+		noEmit := dryRunFlag || noEmitFlag
 		purge, _ := cmd.Flags().GetBool("purge")
 		strict, _ := cmd.Flags().GetBool("strict")
 		trial, _ := cmd.Flags().GetBool("trial")
@@ -302,7 +304,7 @@ Examples:
 		finishCompileUpdateCheck := cli.StartCompileUpdateCheck(cmd.Context(), noCheckUpdate, verbose)
 		defer finishCompileUpdateCheck()
 
-		// If --fix is specified, run fix --write first
+		// If --fix is specified, run fix --apply first
 		if fix {
 			fixConfig := cli.FixConfig{
 				WorkflowIDs: args,
@@ -687,13 +689,16 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	compileCmd.Flags().String("workflows-dir", "", "Deprecated: use --dir instead")
 	_ = compileCmd.Flags().MarkDeprecated("workflows-dir", "use --dir instead")
-	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
+	compileCmd.Flags().Bool("dry-run", false, "Validate workflow without generating lock files")
+	compileCmd.Flags().Bool("no-emit", false, "Alias for --dry-run")
+	_ = compileCmd.Flags().MarkHidden("no-emit")
+	_ = compileCmd.Flags().MarkDeprecated("no-emit", "use --dry-run instead")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
 	compileCmd.Flags().Bool("strict", false, "Override frontmatter to enforce strict mode validation for all workflows (enforces action pinning, network config, safe-outputs, refuses write permissions and deprecated fields). Note: Workflows default to strict mode unless frontmatter sets strict: false")
 	compileCmd.Flags().Bool("trial", false, "Enable trial mode compilation (modifies workflows for trial execution)")
-	compileCmd.Flags().String("logical-repo", "", "Repository to simulate workflow execution against (for trial mode)")
+	compileCmd.Flags().StringP("logical-repo", "l", "", "Repository to simulate workflow execution against (for trial mode)")
 	compileCmd.Flags().Bool("dependabot", false, "Generate dependency manifests (package.json, requirements.txt, go.mod) and Dependabot config when dependencies are detected")
-	compileCmd.Flags().Bool("force", false, "Force overwrite of existing dependency files (e.g., dependabot.yml)")
+	compileCmd.Flags().BoolP("force", "f", false, "Force overwrite of existing dependency files (e.g., dependabot.yml)")
 	compileCmd.Flags().Bool("refresh-stop-time", false, "Force regeneration of stop-after times instead of preserving existing values from lock files")
 	compileCmd.Flags().Bool("force-refresh-action-pins", false, "Force refresh of action pins by clearing the cache and resolving all action SHAs from GitHub API")
 	compileCmd.Flags().Bool("allow-action-refs", false, "Allow unresolved action refs and emit warnings instead of failing compilation")
@@ -709,7 +714,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
 	compileCmd.Flags().String("schedule-seed", "", "Override the repository slug (owner/repo) used as seed for fuzzy schedule scattering (e.g. \"github/gh-aw\"). Bypasses git remote detection entirely. Use this when your git remote is not named \"origin\" and you have multiple remotes configured")
 	compileCmd.Flags().Bool("staged", false, "Force all safe-outputs into staged mode")
-	compileCmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
+	compileCmd.Flags().BoolP("approve", "y", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	compileCmd.Flags().Bool("validate-images", false, "Require Docker to be available for container image validation. Without this flag, container image validation is silently skipped when Docker is not installed or the daemon is not running")
 	compileCmd.Flags().String("prior-manifest-file", "", "Path to a JSON file containing pre-cached gh-aw-manifests (map[lockFile]*GHAWManifest); used by the MCP server to supply a tamper-proof manifest baseline captured at startup")
 	compileCmd.Flags().Bool("ghes", false, "Enable GitHub Enterprise Server (GHES) compatibility mode: emit upload-artifact@v3 and download-artifact@v3 instead of the latest v7/v8 which are not supported on GHES. Overrides the aw.json ghes field")
@@ -751,7 +756,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
 	runCmd.Flags().Bool("dry-run", false, "Validate workflow without actually triggering execution on GitHub Actions")
 	runCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
-	runCmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
+	runCmd.Flags().BoolP("approve", "y", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	// Register completions for run command
 	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterEngineFlagCompletion(runCmd)

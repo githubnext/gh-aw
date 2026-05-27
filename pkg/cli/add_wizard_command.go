@@ -36,7 +36,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://example.com/my-workflow.md       # Guided setup from any HTTPS URL
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://example.com/workflow.json        # Import JSON workflow definition with guided setup
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --engine copilot   # Pre-select engine
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --skip-secret      # Skip secret prompt
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-secret-prompt  # Skip secret prompt
 
 Workflow specifications:
   - Two parts: "owner/repo[@version]" (loads repository-root aw.yml package)
@@ -69,7 +69,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			workflowDir, _ := cmd.Flags().GetString("dir")
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
-			skipSecret, _ := cmd.Flags().GetBool("skip-secret")
+			skipSecret, _ := cmd.Flags().GetBool("no-secret-prompt")
 
 			addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
 
@@ -113,8 +113,8 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	// Add stop-after flag
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
-	// Add skip-secret flag
-	cmd.Flags().Bool("skip-secret", false, "Skip the API secret prompt (use when the secret is already set at the org or repo level)")
+	// Add no-secret-prompt flag
+	cmd.Flags().Bool("no-secret-prompt", false, "Skip the API secret prompt (use when the secret is already set at the org or repo level)")
 
 	// Register completions
 	RegisterEngineFlagCompletion(cmd)

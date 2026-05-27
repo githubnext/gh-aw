@@ -152,10 +152,10 @@ Add a workflow with interactive guided setup. Checks requirements, adds the mark
 gh aw add-wizard githubnext/agentics/ci-doctor           # Interactive setup
 gh aw add-wizard https://github.com/org/repo/blob/main/workflows/my-workflow.md
 gh aw add-wizard https://example.com/workflows/my-workflow.json   # Arbitrary URL (JSON workflow)
-gh aw add-wizard githubnext/agentics/ci-doctor --skip-secret  # Skip secret prompt
+gh aw add-wizard githubnext/agentics/ci-doctor --no-secret-prompt  # Skip secret prompt
 ```
 
-**Options:** `--skip-secret`, `--dir/-d`, `--engine/-e`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`
+**Options:** `--no-secret-prompt`, `--dir/-d`, `--engine/-e`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`
 
 #### `add`
 
@@ -170,7 +170,7 @@ gh aw add https://example.com/workflows/my-workflow.md               # Arbitrary
 gh aw add https://example.com/workflows/my-workflow.json             # Arbitrary HTTPS URL (JSON workflow definition)
 ```
 
-**Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--disable-security-scanner`, `--engine/-e`, `--force/-f`, `--name/-n`, `--no-stop-after`, `--stop-after`
+**Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--no-security-scanner`, `--engine/-e`, `--force/-f`, `--name/-n`, `--no-stop-after`, `--stop-after`
 
 Repository-level packages can declare an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/) at the repository root or in a nested package folder to define installable files, package `README.md`, schema compatibility, and minimum supported CLI versions.
 
@@ -250,16 +250,16 @@ See [Authentication](/gh-aw/reference/auth/) for details.
 
 #### `fix`
 
-Auto-fix deprecated workflow fields using codemods. Runs in dry-run mode by default; use `--write` to apply changes.
+Auto-fix deprecated workflow fields using codemods. Runs in dry-run mode by default; use `--apply` to apply changes.
 
 ```bash wrap
 gh aw fix                              # Check all workflows (dry-run)
-gh aw fix --write                      # Fix all workflows
-gh aw fix my-workflow --write          # Fix specific workflow
+gh aw fix --apply                      # Fix all workflows
+gh aw fix my-workflow --apply          # Fix specific workflow
 gh aw fix --list-codemods              # List available codemods
 ```
 
-**Options:** `--dir/-d`, `--list-codemods`, `--write`
+**Options:** `--dir/-d`, `--list-codemods`, `--apply`
 
 Available codemods include:
 
@@ -287,13 +287,13 @@ gh aw compile --purge                      # Remove orphaned .lock.yml files
 
 If the repository root contains an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/), `gh aw compile` validates it before compiling workflows.
 
-**Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve`, `--dependabot`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--fix`, `--force`, `--force-refresh-action-pins`, `--json/-j`, `--logical-repo`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--runner-guard`, `--schedule-seed`, `--stats`, `--strict`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--zizmor`
+**Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--approve/-y`, `--dependabot`, `--dir/-d`, `--dry-run`, `--engine/-e`, `--fail-fast`, `--fix`, `--force/-f`, `--force-refresh-action-pins`, `--ghes`, `--json/-j`, `--logical-repo/-l`, `--no-check-update`, `--poutine`, `--purge`, `--refresh-stop-time`, `--runner-guard`, `--schedule-seed`, `--show-all`, `--staged`, `--stats`, `--strict`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--zizmor`
 
 **`--approve` flag:** When compiling a workflow that already has a lock file, the compiler enforces *safe update mode* — any newly added secrets or custom actions not present in the previous manifest require explicit approval. Pass `--approve` to accept these changes and regenerate the manifest baseline. On first compile (no existing lock file), enforcement is skipped automatically and `--approve` is not needed.
 
 **Error Reporting:** Displays detailed error messages with file paths, line numbers, column positions, and contextual code snippets.
 
-**JSON Output (`--json`):** Emits an array of `ValidationResult` objects. Each result includes a `labels` field listing all repository labels referenced in safe-outputs (`create-issue.labels`, `create-discussion.labels`, `create-pull-request.labels`, `add-labels.allowed`). Use `--json --no-emit` to collect label references without writing compiled files.
+**JSON Output (`--json`):** Emits an array of `ValidationResult` objects. Each result includes a `labels` field listing all repository labels referenced in safe-outputs (`create-issue.labels`, `create-discussion.labels`, `create-pull-request.labels`, `add-labels.allowed`). Use `--json --dry-run` to collect label references without writing compiled files.
 
 **Dependabot Integration (`--dependabot`):** Generates dependency manifests and `.github/dependabot.yml` by analyzing runtime tools across all workflows. See [Dependabot Support reference](/gh-aw/reference/dependabot/).
 
@@ -303,7 +303,7 @@ If the repository root contains an [`aw.yml` manifest](/gh-aw/reference/aw-yml-p
 
 #### `validate`
 
-Validate agentic workflows by running the compiler with all linters enabled, without generating lock files. Equivalent to `gh aw compile --validate --no-emit --zizmor --actionlint --poutine`.
+Validate agentic workflows by running the compiler with all linters enabled, without generating lock files. Equivalent to `gh aw compile --validate --dry-run --zizmor --actionlint --poutine`.
 
 ```bash wrap
 gh aw validate                              # Validate all workflows
@@ -318,7 +318,7 @@ gh aw validate --engine copilot             # Override AI engine
 
 **Options:** `--allow-action-refs`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--json/-j`, `--no-check-update`, `--stats`, `--strict`, `--validate-images`
 
-All linters (`zizmor`, `actionlint`, `poutine`), `--validate`, and `--no-emit` are always-on defaults and cannot be disabled. Accepts the same workflow ID format as `compile`.
+All linters (`zizmor`, `actionlint`, `poutine`), `--validate`, and `--dry-run` are always-on defaults and cannot be disabled. Accepts the same workflow ID format as `compile`.
 
 #### `lint`
 
@@ -348,7 +348,7 @@ gh aw trial ./workflow.md --host-repo owner/repo   # Run directly in repository
 gh aw trial ./workflow.md --dry-run                # Preview without executing
 ```
 
-**Options:** `-e/--engine`, `--repeat`, `--delete-host-repo-after`, `--logical-repo/-l`, `--clone-repo`, `--trigger-context`, `--host-repo`, `--dry-run`, `--append`, `--auto-merge-prs`, `--disable-security-scanner`, `--force-delete-host-repo-before`, `--timeout`, `--yes/-y`
+**Options:** `-e/--engine`, `--repeat`, `--delete-host-repo-after`, `--logical-repo/-l`, `--clone-repo`, `--trigger-context`, `--host-repo`, `--dry-run`, `--append`, `--auto-merge-prs`, `--no-security-scanner`, `--force-delete-host-repo-before`, `--timeout`, `--yes/-y`, `--json/-j`
 
 **Secret Handling:** API keys required for the selected engine are automatically checked. If missing from the target repository, they are prompted for interactively and uploaded.
 
@@ -432,13 +432,13 @@ gh aw logs "CI Failure Doctor"             # Display name
 gh aw logs "ci failure doctor"             # Case-insensitive display name
 ```
 
-**`--after` flag (cache cleanup):** Deletes cached run folders in the output directory whose run creation date is older than the specified cutoff. Accepts the same date/time delta formats as `--start-date` and `--end-date` (e.g. `-1d`, `-1w`, `-1mo`) as well as absolute dates (`YYYY-MM-DD`). Cleanup runs before the download step to free disk space first; failures are non-fatal and logged as warnings.
+**`--cache-before` flag (cache cleanup):** Evicts locally cached run folders for runs before this date, prior to downloading. Accepts delta formats like `-1d`, `-1w`, `-1mo` (or explicit day counts like `-30d`), or an absolute date `YYYY-MM-DD`. Unlike `--start-date`, this only clears local cache and does not filter which runs are fetched. Cleanup runs before the download step to free disk space first; failures are non-fatal and logged as warnings.
 
 ```bash wrap
-gh aw logs --after -1w                        # Clean folders older than 1 week, then download latest runs
-gh aw logs --after -30d                       # Clean folders older than 30 days
-gh aw logs --after 2024-01-01                 # Clean folders from before a specific date
-gh aw logs my-workflow --after -1mo -c 20     # Clean up, then download 20 runs of a specific workflow
+gh aw logs --cache-before -1w                        # Evict cache older than 1 week, then download latest runs
+gh aw logs --cache-before -30d                       # Evict cache older than 30 days
+gh aw logs --cache-before 2024-01-01                 # Evict cache from before a specific date
+gh aw logs my-workflow --cache-before -1mo -c 20     # Evict cache, then download 20 runs of a specific workflow
 ```
 
 Only directories matching the `run-{ID}` naming pattern inside the output directory are considered. The run's creation timestamp is read from `run_summary.json` inside each folder; if that file is absent (e.g., incomplete download), the directory's modification time is used as a fallback.
@@ -458,7 +458,7 @@ echo "1234567890" | gh aw logs --stdin --engine claude
 cat run-ids.txt | gh aw logs --stdin --repo owner/repo   # required for bare numeric IDs
 ```
 
-**Options:** `--after`, `--after-run-id`, `--artifacts`, `--before-run-id`, `--count/-c`, `--end-date`, `--engine/-e`, `--filtered-integrity`, `--firewall`, `--format`, `--json/-j`, `--last`, `--no-firewall`, `--no-staged`, `--output/-o`, `--parse`, `--ref`, `--repo/-r`, `--safe-output`, `--start-date`, `--stdin`, `--summary-file`, `--timeout`, `--tool-graph`, `--train`
+**Options:** `--after-run-id`, `--artifacts`, `--before-run-id`, `--cache-before`, `--count/-c`, `--end-date`, `--engine/-e`, `--exclude-staged`, `--filtered-integrity`, `--firewall`, `--format`, `--json/-j`, `--no-firewall`, `--output/-o`, `--parse`, `--ref`, `--repo/-r`, `--safe-output`, `--start-date`, `--stdin`, `--summary-file`, `--timeout`, `--tool-graph`, `--train`
 
 #### `audit`
 
@@ -485,7 +485,7 @@ echo -e "1234567890\n9876543210" | gh aw audit --stdin   # diff mode: first is b
 cat run-ids.txt | gh aw audit --stdin --repo owner/repo
 ```
 
-**Options:** `--parse`, `--json`, `--repo/-r`, `--stdin`
+**Options:** `--artifacts`, `--output/-o`, `--parse`, `--json`, `--repo/-r`, `--stdin`
 
 The `--repo` flag accepts `owner/repo` format and is required when passing a bare numeric run ID without a full URL, allowing the command to locate the correct repository.
 
@@ -521,7 +521,7 @@ gh aw audit 12345 12346 --repo owner/repo   # Specify repository
 
 The diff output shows: new or removed network domains, status changes (allowed ↔ denied), volume changes (>100% threshold), MCP tool invocation changes, run metric comparisons (token usage, duration, turns), tokens-per-turn changes, and per-tool and per-bash-command call breakdowns.
 
-**Options:** `--format` (pretty, markdown; default: pretty), `--json`, `--repo/-r`
+**Options:** `--experiment`, `--format` (pretty, markdown; default: pretty), `--json`, `--repo/-r`, `--variant`
 
 :::note[Cross-run security reports (`audit report` removed in v0.66.1)]
 Cross-run security and performance reports are now generated by `gh aw logs --format`. Use `--count` or `--last` to control the number of runs analyzed.
@@ -566,6 +566,22 @@ gh aw health issue-monster --days 90  # 90-day metrics for workflow
 **Options:** `--days`, `--threshold`, `--repo`, `--json`
 
 Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and warnings when success rate drops below threshold.
+
+#### `forecast`
+
+[EXPERIMENTAL] Forecast effective token usage for agentic workflows by sampling recent run history and projecting forward on a per-week or per-month basis.
+
+```bash wrap
+gh aw forecast                              # Forecast token usage for all workflows
+gh aw forecast my-workflow                  # Forecast for specific workflow
+gh aw forecast --days 30                    # Sample last 30 days of history
+gh aw forecast --period month               # Project on a monthly basis
+gh aw forecast --sample 20                  # Sample up to 20 runs
+gh aw forecast --json                       # Output results in JSON format
+gh aw forecast --repo owner/repo            # Forecast for a specific repository
+```
+
+**Options:** `--days`, `--eval`, `--json/-j`, `--period`, `--repo/-r`, `--sample`
 
 #### `checks`
 
@@ -625,7 +641,7 @@ gh aw remove my-workflow --keep-orphans  # Remove but keep orphaned include file
 
 Update workflows based on `source` field (`owner/repo/path@ref`). By default, performs a 3-way merge to preserve local changes; use `--no-merge` to override with upstream. Semantic versions update within same major version.
 
-By default, `update` also force-updates all GitHub Actions referenced in your workflows (both in `actions-lock.json` and workflow files) to their latest major version. Use `--disable-release-bump` to restrict force-updates to core `actions/*` actions only.
+By default, `update` also force-updates all GitHub Actions referenced in your workflows (both in `actions-lock.json` and workflow files) to their latest major version. Use `--no-release-bump` to restrict force-updates to core `actions/*` actions only.
 
 If no workflows in the repository contain a `source` field, the command exits gracefully with an informational message rather than an error. This is expected behavior for repositories that have not yet added updatable workflows.
 
@@ -634,12 +650,12 @@ gh aw update                              # Update all with source field
 gh aw update ci-doctor                    # Update specific workflow (3-way merge)
 gh aw update ci-doctor --no-merge         # Override local changes with upstream
 gh aw update ci-doctor --major --force    # Allow major version updates
-gh aw update --disable-release-bump       # Update workflows; only force-update core actions/*
+gh aw update --no-release-bump            # Update workflows; only force-update core actions/*
 gh aw update --repo owner/repo            # Update workflows in another repository
 gh aw update --create-pull-request        # Update and open a pull request
 ```
 
-**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`, `--disable-release-bump`, `--create-pull-request`, `--no-compile`, `--no-redirect`, `--cool-down`, `--repo/-r`
+**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`, `--no-release-bump`, `--no-security-scanner`, `--create-pull-request`, `--no-compile`, `--no-redirect`, `--cool-down`, `--repo/-r`
 
 The `--no-redirect` flag causes `update` to fail when the source workflow has a [`redirect`](/gh-aw/reference/frontmatter/) field, rather than following the redirect to its new location. Use this when you want explicit control over redirect handling.
 
@@ -655,7 +671,7 @@ gh aw deploy githubnext/agentics/repo-assist githubnext/agentics/ci-doctor --rep
 gh aw deploy ./my-workflow.md --repo owner/repo
 ```
 
-**Options:** `--repo/-r` (required), `--name/-n`, `--engine/-e`, `--force/-f`, `--append`, `--no-gitattributes`, `--dir/-d`, `--no-stop-after`, `--stop-after`, `--disable-security-scanner`, `--cool-down`
+**Options:** `--repo/-r` (required), `--name/-n`, `--engine/-e`, `--force/-f`, `--append`, `--no-gitattributes`, `--dir/-d`, `--no-stop-after`, `--stop-after`, `--no-security-scanner`, `--cool-down`
 
 The `--repo` flag is required and accepts `owner/repo` form. The target repository is checked out under `.github/aw/updates/<sanitized-repo-id>` inside the current working tree, so the command must be run from inside a git repository. Workflows already present in the target with a `source` frontmatter field are refreshed through the update phase and skipped by the add phase to avoid duplicate-add errors. The pull request commit title is `chore: deploy agentic workflows`. The default `--cool-down` value is `7d`.
 
@@ -671,7 +687,7 @@ gh aw upgrade --audit                      # Run dependency health audit
 gh aw upgrade --audit --json               # Dependency audit in JSON format
 ```
 
-**Options:** `--dir/-d`, `--no-fix`, `--no-actions`, `--no-compile`, `--create-pull-request`, `--audit`, `--json/-j`, `--approve`
+**Options:** `--dir/-d`, `--no-fix`, `--no-actions`, `--no-compile`, `--create-pull-request`, `--audit`, `--json/-j`, `--approve/-y`, `--pre-releases`
 
 ### Advanced
 

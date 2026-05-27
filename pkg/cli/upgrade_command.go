@@ -38,7 +38,7 @@ func NewUpgradeCommand() *cobra.Command {
 
 This command:
   1. Updates the dispatcher agent file to the latest template (like 'init' command)
-  2. Applies automatic codemods to fix deprecated fields in all workflows (like 'fix --write')
+  2. Applies automatic codemods to fix deprecated fields in all workflows (like 'fix --apply')
   3. Updates GitHub Actions versions in .github/aw/actions-lock.json (unless --no-actions is set)
   4. Compiles all workflows to generate lock files (like 'compile' command)
 
@@ -66,7 +66,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows  # Upgrade workflows in custom directory
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit           # Check dependency health without upgrading
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit --json    # Output audit results in JSON format
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade --pre-releases    # Include prerelease versions when self-upgrading the extension (stable releases are the default)`,
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --pre-releases    # Include pre-release versions when self-upgrading the extension (stable releases are the default)`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -127,8 +127,8 @@ Examples:
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing upgrades")
-	cmd.Flags().Bool("pre-releases", false, "Include pre-release versions when checking for extension upgrades; prereleases are installed by exact tag")
-	cmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
+	cmd.Flags().Bool("pre-releases", false, "Include pre-release versions when checking for extension upgrades; pre-releases are installed by exact tag")
+	cmd.Flags().BoolP("approve", "y", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	cmd.Flags().Bool("skip-extension-upgrade", false, "Skip automatic extension upgrade (used internally to prevent recursion after upgrade)")
 	_ = cmd.Flags().MarkHidden("skip-extension-upgrade")
 	addJSONFlag(cmd)

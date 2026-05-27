@@ -227,7 +227,7 @@ Returns formatted text output showing:
 
 		// Add optional flags
 		if args.Write {
-			cmdArgs = append(cmdArgs, "--write")
+			cmdArgs = append(cmdArgs, "--apply")
 		}
 		if args.ListCodemods {
 			cmdArgs = append(cmdArgs, "--list-codemods")
