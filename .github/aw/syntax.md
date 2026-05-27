@@ -94,8 +94,9 @@ The YAML frontmatter supports these fields:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
       ```
 
-  - **`stale-check:`** - Control whether the activation job verifies the frontmatter hash matches the compiled workflow (boolean, default: `true`)
+  - **`stale-check:`** - Control whether the activation job verifies hashes against the compiled workflow (boolean or `"full"`, default: `true`)
     - When `false`, disables the hash check step; useful when workflow files are managed outside the default repository context (e.g., cross-repo org rulesets)
+    - When `"full"`, checks both the frontmatter hash and body hash; use when prompt-body edits should also trigger recompilation detection
 
 - **`permissions:`** - GitHub token permissions
   - Object with permission levels: `read`, `none`

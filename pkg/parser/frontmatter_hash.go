@@ -473,6 +473,101 @@ func processImportsTextBased(frontmatterText, baseDir string, visited map[string
 	return importedFiles, importedFrontmatterTexts, nil
 }
 
+// collectImportedBodies processes imports from frontmatter and returns the body texts of all
+// transitively imported files. Used to include imported file bodies in the body hash.
+func collectImportedBodies(frontmatterText, baseDir string, visited map[string]bool, fileReader FileReader) ([]string, error) {
+	var importedBodyTexts []string
+
+	imports := extractImportsFromText(frontmatterText)
+	if len(imports) == 0 {
+		return importedBodyTexts, nil
+	}
+
+	sort.Strings(imports)
+
+	for _, importPath := range imports {
+		fullPath := filepath.Join(baseDir, importPath)
+
+		if visited[fullPath] {
+			continue
+		}
+		visited[fullPath] = true
+
+		content, err := fileReader(fullPath)
+		if err != nil {
+			continue
+		}
+
+		importFrontmatterText, importBody, err := extractFrontmatterAndBodyText(string(content))
+		if err != nil {
+			continue
+		}
+
+		importedBodyTexts = append(importedBodyTexts, importBody)
+
+		importBaseDir := filepath.Dir(fullPath)
+		nestedBodies, err := collectImportedBodies(importFrontmatterText, importBaseDir, visited, fileReader)
+		if err != nil {
+			continue
+		}
+		importedBodyTexts = append(importedBodyTexts, nestedBodies...)
+	}
+
+	return importedBodyTexts, nil
+}
+
+// ComputeBodyHashFromParsedContent computes a SHA-256 hash of the markdown body (after frontmatter)
+// including the bodies of all transitively imported files. This hash covers changes to the prompt
+// body that are not captured by the frontmatter hash.
+// markdownBody is the raw markdown body (after the frontmatter --- delimiter).
+// frontmatterText is the raw frontmatter text, used to resolve imports.
+func ComputeBodyHashFromParsedContent(markdownBody, frontmatterText, baseDir string, fileReader FileReader) (string, error) {
+	frontmatterHashLog.Printf("Computing body hash from parsed content (baseDir=%s)", baseDir)
+
+	normalizedBody := normalizeFrontmatterText(markdownBody)
+
+	visited := make(map[string]bool)
+	importedBodies, err := collectImportedBodies(frontmatterText, baseDir, visited, fileReader)
+	if err != nil {
+		return "", fmt.Errorf("failed to process imports for body hash: %w", err)
+	}
+
+	allParts := []string{normalizedBody}
+
+	if len(importedBodies) > 0 {
+		normalizedBodies := make([]string, len(importedBodies))
+		for i, b := range importedBodies {
+			normalizedBodies[i] = normalizeFrontmatterText(b)
+		}
+		sort.Strings(normalizedBodies)
+		allParts = append(allParts, normalizedBodies...)
+	}
+
+	combined := strings.Join(allParts, "\n---\n")
+	frontmatterHashLog.Printf("Body hash combined length: %d bytes", len(combined))
+
+	hash := sha256.Sum256([]byte(combined))
+	hashHex := hex.EncodeToString(hash[:])
+	frontmatterHashLog.Printf("Computed body hash: %s", hashHex)
+	return hashHex, nil
+}
+
+// ComputeBodyHashFromFile computes the body hash for a workflow file from disk.
+func ComputeBodyHashFromFile(filePath string) (string, error) {
+	content, err := DefaultFileReader(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+
+	frontmatterText, markdownBody, err := extractFrontmatterAndBodyText(string(content))
+	if err != nil {
+		return "", fmt.Errorf("failed to extract frontmatter: %w", err)
+	}
+
+	baseDir := filepath.Dir(filePath)
+	return ComputeBodyHashFromParsedContent(markdownBody, frontmatterText, baseDir, DefaultFileReader)
+}
+
 // computeFrontmatterHashTextBasedWithReader computes the hash using text-based approach with custom file reader.
 // When markdown is non-empty, it is included as the full body text in the canonical data (used for
 // inlined-imports mode where the entire body is compiled into the lock file).

@@ -18,7 +18,8 @@ const timestampDifferentiationDelay = 100 * time.Millisecond
 
 // TestCompilerSkipsWriteWhenContentUnchanged verifies that the compiler skips writing
 // the lock file when the content hasn't changed, preserving the timestamp.
-// This prevents unnecessary git diffs when only markdown content (not frontmatter) changes.
+// Since body hash is now included in the lock metadata, any change to frontmatter OR
+// body will cause a rewrite. This test verifies the no-change case.
 func TestCompilerSkipsWriteWhenContentUnchanged(t *testing.T) {
 	// Create temporary directory for test
 	tmpDir := t.TempDir()
@@ -57,7 +58,60 @@ This is the initial markdown content.
 	// Wait a bit to ensure timestamp would be different if file is written
 	time.Sleep(timestampDifferentiationDelay)
 
-	// Change ONLY the markdown content (not frontmatter)
+	// Recompile the SAME workflow content without any changes
+	compiler2 := NewCompiler()
+	compiler2.SetQuiet(true)
+	err = compiler2.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "Recompilation failed")
+
+	// Check lock file timestamp - should be UNCHANGED because neither frontmatter nor body changed
+	afterInfo, err := os.Stat(lockPath)
+	require.NoError(t, err, "Failed to stat lock file after recompilation")
+	afterModTime := afterInfo.ModTime()
+
+	assert.Equal(t, initialModTime, afterModTime,
+		"Lock file timestamp should be preserved when content is unchanged")
+}
+
+// TestCompilerWritesWhenBodyContentChanged verifies that the compiler DOES write
+// the lock file when the markdown body changes, since the body hash is now part
+// of the lock metadata (enabled by stale-check: full support).
+func TestCompilerWritesWhenBodyContentChanged(t *testing.T) {
+	// Create temporary directory for test
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+	lockPath := filepath.Join(tmpDir, "test-workflow.lock.yml")
+
+	// Create initial workflow
+	workflowContent := `---
+engine: copilot
+on: issues
+permissions:
+  issues: read
+---
+
+# Test Workflow
+
+This is the initial markdown content.
+`
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "Failed to create workflow file")
+
+	// Compile initial workflow
+	compiler := NewCompiler()
+	compiler.SetQuiet(true)
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "Initial compilation failed")
+
+	require.FileExists(t, lockPath, "Lock file should exist after initial compilation")
+
+	initialInfo, err := os.Stat(lockPath)
+	require.NoError(t, err, "Failed to stat lock file")
+	initialModTime := initialInfo.ModTime()
+
+	time.Sleep(timestampDifferentiationDelay)
+
+	// Change ONLY the markdown body (frontmatter is unchanged)
 	workflowContentV2 := `---
 engine: copilot
 on: issues
@@ -67,7 +121,7 @@ permissions:
 
 # Test Workflow
 
-This is DIFFERENT markdown content that should not affect the lock file.
+This is DIFFERENT markdown content — body hash has changed.
 `
 	err = os.WriteFile(workflowPath, []byte(workflowContentV2), 0644)
 	require.NoError(t, err, "Failed to update workflow file")
@@ -78,13 +132,13 @@ This is DIFFERENT markdown content that should not affect the lock file.
 	err = compiler2.CompileWorkflow(workflowPath)
 	require.NoError(t, err, "Recompilation failed")
 
-	// Check lock file timestamp - should be UNCHANGED
+	// Lock file should be rewritten because the body hash changed
 	afterInfo, err := os.Stat(lockPath)
 	require.NoError(t, err, "Failed to stat lock file after recompilation")
 	afterModTime := afterInfo.ModTime()
 
-	assert.Equal(t, initialModTime, afterModTime,
-		"Lock file timestamp should be preserved when content is unchanged")
+	assert.True(t, afterModTime.After(initialModTime),
+		"Lock file timestamp should be updated when markdown body changes")
 }
 
 // TestCompilerWritesWhenContentChanged verifies that the compiler DOES write

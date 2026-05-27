@@ -182,7 +182,11 @@ func getCurrentRepositoryUncached() (string, error) {
 func getRepositoryFeatures(repo string, verbose bool) (*RepositoryFeatures, error) {
 	// Check cache first using sync.Map
 	if cached, exists := repositoryFeaturesCache.Load(repo); exists {
-		features := cached.(*RepositoryFeatures)
+		features, ok := cached.(*RepositoryFeatures)
+		if !ok {
+			repositoryFeaturesCache.Delete(repo)
+			return nil, fmt.Errorf("invalid repository feature cache entry for %s: expected *RepositoryFeatures, got %T", repo, cached)
+		}
 		repositoryFeaturesLog.Printf("Using cached repository features for: %s", repo)
 		return features, nil
 	}
@@ -209,7 +213,11 @@ func getRepositoryFeatures(repo string, verbose bool) (*RepositoryFeatures, erro
 	// Cache the result using sync.Map's LoadOrStore for atomic caching
 	// This handles the race condition where multiple goroutines might fetch the same repo
 	actual, loaded := repositoryFeaturesCache.LoadOrStore(repo, features)
-	actualFeatures := actual.(*RepositoryFeatures)
+	actualFeatures, ok := actual.(*RepositoryFeatures)
+	if !ok {
+		repositoryFeaturesCache.Delete(repo)
+		return nil, fmt.Errorf("invalid repository feature cache entry for %s: expected *RepositoryFeatures, got %T", repo, actual)
+	}
 
 	repositoryFeaturesLog.Printf("Cached repository features for: %s (discussions: %v, issues: %v)", repo, actualFeatures.HasDiscussions, actualFeatures.HasIssues)
 

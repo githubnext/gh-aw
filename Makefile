@@ -615,6 +615,13 @@ validate-model-alias-chains:
 	@echo "Validating built-in model alias resolution chains..."
 	@node scripts/validate-model-alias-chains.js
 
+# Validate model_multipliers.json has no placeholder or null multipliers (R-REG-007)
+# See docs/src/content/docs/reference/effective-tokens-specification.md §Model Multiplier Registry
+.PHONY: validate-registry
+validate-registry:
+	@echo "Validating model_multipliers.json (R-REG-007: no placeholder or null multipliers)..."
+	@go test ./pkg/cli/... -run TestModelMultipliersNoPlaceholders -count=1
+
 # Check file sizes and function counts
 .PHONY: check-file-sizes
 check-file-sizes:

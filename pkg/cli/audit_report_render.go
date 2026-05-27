@@ -85,9 +85,6 @@ func renderConsole(data AuditData, logsPath string) {
 	if data.Metrics.TokenUsage > 0 {
 		metricsLine += " tokens=" + console.FormatNumber(data.Metrics.TokenUsage)
 	}
-	if data.Metrics.EstimatedCost > 0 {
-		metricsLine += fmt.Sprintf(" cost=$%.2f", data.Metrics.EstimatedCost)
-	}
 	if data.Metrics.ActionMinutes > 0 {
 		metricsLine += fmt.Sprintf(" action_min=%.0f", data.Metrics.ActionMinutes)
 	}

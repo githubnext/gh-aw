@@ -250,7 +250,7 @@ func TestGenerateWorkflowHeader(t *testing.T) {
 			compiler := NewCompiler()
 			var yaml strings.Builder
 
-			compiler.generateWorkflowHeader(&yaml, tt.data, "", nil, nil)
+			compiler.generateWorkflowHeader(&yaml, tt.data, "", "", nil, nil)
 			result := yaml.String()
 
 			for _, expected := range tt.expectInStr {

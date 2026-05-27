@@ -1,6 +1,6 @@
 ---
 on:
-  schedule: daily
+  schedule: weekly on monday around 03:00
   workflow_dispatch: null
 permissions:
   contents: read

@@ -38,6 +38,11 @@ const monteCarloIterations = 10_000
 // poissonNormalApproximationThreshold is the normative λ crossover threshold:
 // Knuth's exact algorithm is used for λ ≤ threshold, and Normal approximation
 // is used only for λ > threshold.
+//
+// Specification reference: forecast-specification.md Appendix B ("Poisson Algorithm
+// Selection Rationale") documents the error analysis justifying λ = 15 as the crossover
+// point. Re-review Appendix B whenever this threshold is changed, per R-FC-060 and
+// open issue #31985.
 const poissonNormalApproximationThreshold = 15.0
 
 // minObservationsForReliableForecast is the minimum number of completed run

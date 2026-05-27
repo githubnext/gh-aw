@@ -228,7 +228,6 @@ func renderLogsCompactVerbose(data LogsData) {
 		"duration=" + s.TotalDuration,
 		"tokens=" + strconv.Itoa(s.TotalTokens),
 		"eff_tokens=" + strconv.Itoa(s.TotalEffectiveTokens),
-		"cost=$" + fmt.Sprintf("%.2f", s.TotalCost),
 		"action_min=" + fmt.Sprintf("%.1f", s.TotalActionMinutes),
 		"turns=" + strconv.Itoa(s.TotalTurns),
 		"errors=" + strconv.Itoa(s.TotalErrors),
@@ -257,9 +256,6 @@ func renderLogsCompactVerbose(data LogsData) {
 		if s.OutcomeWasteRate > 0 {
 			summaryParts = append(summaryParts, "waste="+fmt.Sprintf("%.0f%%", s.OutcomeWasteRate*100))
 		}
-		if s.OutcomeCostPerAccepted > 0 {
-			summaryParts = append(summaryParts, "cost_per_accepted=$"+fmt.Sprintf("%.2f", s.OutcomeCostPerAccepted))
-		}
 	}
 	fmt.Fprintf(os.Stdout, "[summary] %s\n", strings.Join(summaryParts, " "))
 
@@ -270,7 +266,7 @@ func renderLogsCompactVerbose(data LogsData) {
 	// [runs] verbose aligned table
 	fmt.Fprintln(os.Stdout, "[runs]")
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "RUNID\tWORKFLOW\tENGINE\tSTATUS\tDUR\tTOKENS\tEFF_TOK\tCOST\tTURNS\tERR\tWARN\tEVENT\tACTOR\tTBT\tCLASS\tCREATED\tBRANCH")
+	fmt.Fprintln(w, "RUNID\tWORKFLOW\tENGINE\tSTATUS\tDUR\tTOKENS\tEFF_TOK\tTURNS\tERR\tWARN\tEVENT\tACTOR\tTBT\tCLASS\tCREATED\tBRANCH")
 
 	for _, r := range data.Runs {
 		status := r.Conclusion
@@ -283,10 +279,6 @@ func renderLogsCompactVerbose(data LogsData) {
 		dur := r.Duration
 		if dur == "" {
 			dur = "-"
-		}
-		cost := "-"
-		if r.EstimatedCost > 0 {
-			cost = fmt.Sprintf("%.2f", r.EstimatedCost)
 		}
 		tbt := r.AvgTimeBetweenTurns
 		if tbt == "" {
@@ -302,9 +294,9 @@ func renderLogsCompactVerbose(data LogsData) {
 		}
 		wfID := workflowIDFromRun(r.WorkflowPath, r.WorkflowName)
 
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%d\t%d\t%s\t%d\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			r.RunID, wfID, r.EngineID, status, dur,
-			r.TokenUsage, r.EffectiveTokens, cost,
+			r.TokenUsage, r.EffectiveTokens,
 			r.Turns, r.ErrorCount, r.WarningCount,
 			r.Event, actor, tbt, classification,
 			r.CreatedAt.Format("01-02 15:04"), r.Branch)

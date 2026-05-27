@@ -126,7 +126,7 @@ func EvaluateOutcomes(items []CreatedItemReport, repoOverride string) []OutcomeR
 }
 
 // ComputeOutcomeSummary aggregates outcome reports into a summary.
-func ComputeOutcomeSummary(reports []OutcomeReport, totalCost float64) OutcomeSummary {
+func ComputeOutcomeSummary(reports []OutcomeReport) OutcomeSummary {
 	s := OutcomeSummary{Total: len(reports)}
 	var times []float64
 	for _, r := range reports {
@@ -174,9 +174,6 @@ func ComputeOutcomeSummary(reports []OutcomeReport, totalCost float64) OutcomeSu
 	}
 	if s.Accepted > 0 {
 		s.ZeroTouchRate = float64(s.ZeroTouch) / float64(s.Accepted)
-		if totalCost > 0 {
-			s.CostPerAcceptedOutcome = totalCost / float64(s.Accepted)
-		}
 	}
 	if len(times) > 0 {
 		s.MedianTimeToOutcome = medianFloat(times)

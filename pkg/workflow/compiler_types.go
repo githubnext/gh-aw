@@ -565,10 +565,13 @@ type WorkflowData struct {
 	IsDetectionRun                 bool                            // true when this WorkflowData is used for inline threat detection (not the main agent run)
 	UpdateCheckDisabled            bool                            // true when check-for-updates: false is set in frontmatter (disables version check step in activation job)
 	StaleCheckDisabled             bool                            // true when on.stale-check: false is set in frontmatter (disables frontmatter hash check step in activation job)
+	StaleCheckFull                 bool                            // true when on.stale-check: full is set in frontmatter (enables body hash check alongside frontmatter hash check)
 	EngineConfigSteps              []map[string]any                // steps returned by engine.RenderConfig — prepended before execution steps
 	ServicePortExpressions         string                          // comma-separated ${{ job.services['<id>'].ports['<port>'] }} expressions for AWF --allow-host-service-ports
 	RunInstallScripts              bool                            // true when run-install-scripts: true is set (globally or per node runtime); disables --ignore-scripts on generated npm install steps
 	CachedPermissions              *Permissions                    // cached parsed Permissions object (for performance optimization); populated by applyDefaults after all permission mutations
+	CachedPermissionScopeNamesErr  error                           // cached result of ValidatePermissionScopeNames(Permissions); nil = valid; populated by applyDefaults
+	CachedPermissionScopeNamesSet  bool                            // true once CachedPermissionScopeNamesErr has been populated; distinguishes "valid (nil)" from "not yet computed"
 	ConcurrencyGroupExpr           string                          // cached concurrency group expression extracted from Concurrency YAML (for performance optimization); populated by applyDefaults
 	CachedConcurrencyGroupExprErr  error                           // cached result of validateConcurrencyGroupExpression(ConcurrencyGroupExpr); nil = valid; populated by applyDefaults
 	Experiments                    map[string][]string             // A/B testing experiments: maps experiment name to variant list (from frontmatter)

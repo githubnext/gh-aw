@@ -3,6 +3,8 @@
 package cli
 
 import (
+	"encoding/json"
+	"math"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/types"
@@ -148,6 +150,45 @@ func TestModelMultipliersInventoryUpdate20260525(t *testing.T) {
 	assert.InDelta(t, 1.0, loadedMultipliers["gpt-4-0613"], 1e-9, "gpt-4-0613 should be present with legacy gpt-4 tier multiplier")
 	assert.InDelta(t, 0.0, loadedMultipliers["gpt-3.5-turbo"], 1e-9, "gpt-3.5-turbo should be present with zero multiplier")
 	assert.InDelta(t, 0.0, loadedMultipliers["gpt-3.5-turbo-0613"], 1e-9, "gpt-3.5-turbo-0613 should be present with zero multiplier")
+}
+
+// TestModelMultipliersNoPlaceholders verifies R-REG-007: the registry MUST NOT contain
+// placeholder values such as null, "TBD", or empty strings for any model multiplier entry.
+// Each declared model key MUST map to a finite numeric multiplier value.
+// See effective-tokens-specification.md §Model Multiplier Registry.
+func TestModelMultipliersNoPlaceholders(t *testing.T) {
+	// Parse the raw JSON to detect null or non-numeric values that map[string]float64
+	// would silently discard or coerce.
+	var raw struct {
+		Multipliers map[string]json.RawMessage `json:"multipliers"`
+	}
+	require.NoError(t, json.Unmarshal(modelMultipliersJSON, &raw),
+		"model_multipliers.json must be valid JSON")
+	require.NotEmpty(t, raw.Multipliers, "multipliers map must not be empty")
+
+	for model, rawVal := range raw.Multipliers {
+		assert.NotEmpty(t, model, "multiplier key must not be an empty string")
+
+		// Reject null values.
+		assert.NotEqual(t, "null", string(rawVal),
+			"R-REG-007: multiplier for %q must not be null", model)
+
+		// Reject string values such as "TBD".
+		var asString string
+		if json.Unmarshal(rawVal, &asString) == nil {
+			t.Errorf("R-REG-007: multiplier for %q must be a number, got string %q", model, asString)
+			continue
+		}
+
+		// Value must be a valid finite float64.
+		var asFloat float64
+		require.NoError(t, json.Unmarshal(rawVal, &asFloat),
+			"R-REG-007: multiplier for %q must be a numeric value", model)
+		assert.False(t, math.IsNaN(asFloat),
+			"R-REG-007: multiplier for %q must not be NaN", model)
+		assert.False(t, math.IsInf(asFloat, 0),
+			"R-REG-007: multiplier for %q must not be Inf", model)
+	}
 }
 
 func TestPopulateEffectiveTokensWithCustomWeights(t *testing.T) {

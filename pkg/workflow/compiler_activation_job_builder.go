@@ -268,6 +268,9 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 		ctx.steps = append(ctx.steps, "        env:\n")
 		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", ctx.lockFilename))
 		ctx.steps = append(ctx.steps, "          GH_AW_CONTEXT_WORKFLOW_REF: \"${{ github.workflow_ref }}\"\n")
+		if data.StaleCheckFull {
+			ctx.steps = append(ctx.steps, "          GH_AW_STALE_CHECK_FULL: \"true\"\n")
+		}
 		ctx.steps = append(ctx.steps, "        with:\n")
 		hashToken := c.resolveActivationToken(data)
 		if hashToken != "${{ secrets.GITHUB_TOKEN }}" {
@@ -508,6 +511,7 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	ctx.steps = append(ctx.steps, "          include-hidden-files: true\n")
 	ctx.steps = append(ctx.steps, "          path: |\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw_info.json\n")
+	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/model_multipliers.json\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt-template.txt\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt-import-tree.json\n")

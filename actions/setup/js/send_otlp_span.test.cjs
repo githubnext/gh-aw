@@ -3461,7 +3461,6 @@ describe("sendJobConclusionSpan", () => {
     const attrs = Object.fromEntries(conclusionSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue ?? a.value.boolValue]));
 
     expect(attrs["gh-aw.effective_tokens"]).toBe(5000);
-    expect(attrs["gh-aw.estimated_cost_usd"]).toBe(1.75);
     expect(attrs["gh-aw.action_minutes"]).toBeGreaterThan(0);
     expect(attrs["gh-aw.turns"]).toBe(7);
     expect(attrs["gh-aw.error_count"]).toBe(2);
