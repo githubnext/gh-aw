@@ -693,7 +693,11 @@ index 0000000..abc1234
   describe("repository state scenarios", () => {
     it("should handle successful normal push", async () => {
       const patchPath = createPatchFile();
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+      mockExec.getExecOutput
+        .mockResolvedValueOnce({ exitCode: 0, stdout: "preflight-sha\trefs/heads/feature-branch\n", stderr: "" })
+        .mockResolvedValueOnce({ exitCode: 0, stdout: "remote-head-before\n", stderr: "" })
+        .mockResolvedValueOnce({ exitCode: 0, stdout: "abc123\n", stderr: "" })
+        .mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
       const module = await loadModule();
       const handler = await module.main({});
@@ -702,6 +706,8 @@ index 0000000..abc1234
       expect(result.success).toBe(true);
       expect(result.branch_name).toBe("feature-branch");
       expect(result.commit_url).toContain("test-owner/test-repo/commit/");
+      expect(result.before_state).toEqual({ head_sha: "remote-head-before" });
+      expect(result.after_state).toEqual({ head_sha: "abc123" });
     });
 
     it("should reset to message.base_commit before applying patch transport", async () => {

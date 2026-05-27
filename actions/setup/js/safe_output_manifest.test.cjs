@@ -78,7 +78,15 @@ describe("safe_output_manifest", () => {
   describe("createManifestLogger", () => {
     it("should append a JSONL entry when called with a url", () => {
       const log = createManifestLogger(testManifestFile);
-      log({ type: "create_issue", url: "https://github.com/owner/repo/issues/1", number: 1, repo: "owner/repo", temporaryId: "aw_abc123" });
+      log({
+        type: "create_issue",
+        url: "https://github.com/owner/repo/issues/1",
+        number: 1,
+        repo: "owner/repo",
+        temporaryId: "aw_abc123",
+        before_state: { title: "Before" },
+        after_state: { title: "After" },
+      });
 
       const content = fs.readFileSync(testManifestFile, "utf8");
       const lines = content.trim().split("\n");
@@ -90,6 +98,8 @@ describe("safe_output_manifest", () => {
       expect(entry.number).toBe(1);
       expect(entry.repo).toBe("owner/repo");
       expect(entry.temporaryId).toBe("aw_abc123");
+      expect(entry.before_state).toEqual({ title: "Before" });
+      expect(entry.after_state).toEqual({ title: "After" });
       expect(entry.timestamp).toBeDefined();
       // timestamp should be a valid ISO 8601 string (Date.parse returns NaN for invalid dates)
       expect(Date.parse(entry.timestamp)).not.toBeNaN();
@@ -245,12 +255,45 @@ describe("safe_output_manifest", () => {
     });
 
     it("should extract item from add_labels result (modification type without url)", () => {
-      const result = { success: true, number: 20875, labelsAdded: ["bug", "cli"], contextType: "issue" };
+      const result = {
+        success: true,
+        number: 20875,
+        repo: "owner/repo",
+        labelsAdded: ["bug", "cli"],
+        contextType: "issue",
+        before_state: { labels: ["triage"] },
+        after_state: { labels: ["triage", "bug", "cli"] },
+      };
       const item = extractCreatedItemFromResult("add_labels", result);
       expect(item).not.toBeNull();
       expect(item.type).toBe("add_labels");
       expect(item.url).toBeUndefined();
       expect(item.number).toBe(20875);
+      expect(item.repo).toBe("owner/repo");
+      expect(item.before_state).toEqual({ labels: ["triage"] });
+      expect(item.after_state).toEqual({ labels: ["triage", "bug", "cli"] });
+    });
+
+    it("should defer submit_pull_request_review manifest logging until final review result is available", () => {
+      const bufferedResult = { success: true, event: "COMMENT", body_length: 12 };
+      expect(extractCreatedItemFromResult("submit_pull_request_review", bufferedResult)).toBeNull();
+
+      const finalizedResult = {
+        success: true,
+        review_url: "https://github.com/owner/repo/pull/1#pullrequestreview-2",
+        pull_request_number: 1,
+        repo: "owner/repo",
+        before_state: { reviews: [] },
+        after_state: { reviews: [{ id: 2, state: "COMMENTED" }] },
+      };
+      expect(extractCreatedItemFromResult("submit_pull_request_review", finalizedResult)).toEqual({
+        type: "submit_pull_request_review",
+        url: "https://github.com/owner/repo/pull/1#pullrequestreview-2",
+        number: 1,
+        repo: "owner/repo",
+        before_state: { reviews: [] },
+        after_state: { reviews: [{ id: 2, state: "COMMENTED" }] },
+      });
     });
 
     it("should extract item from close_issue result (modification type with url)", () => {

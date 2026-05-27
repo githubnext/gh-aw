@@ -21,6 +21,7 @@ const { ensureFullHistoryForBundle, getGitAuthEnv, extractBundlePrerequisiteComm
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { getThreatDetectedMarker } = require("./threat_detection_warning.cjs");
+const { attachExecutionState } = require("./safe_output_execution_metadata.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -402,6 +403,7 @@ async function main(config = {}) {
     let branchName;
     let prTitle = "";
     let prLabels = [];
+    let branchStateBefore = null;
 
     if (!pullNumber) {
       return { success: false, error: "Pull request number is required but not found" };
@@ -450,6 +452,9 @@ async function main(config = {}) {
       branchName = pullRequest.head.ref;
       prTitle = pullRequest.title || "";
       prLabels = pullRequest.labels.map(label => label.name);
+      if (typeof pullRequest.head?.sha === "string" && pullRequest.head.sha) {
+        branchStateBefore = { head_sha: pullRequest.head.sha };
+      }
     } catch (error) {
       core.info(`Warning: Could not fetch PR ${pullNumber} from ${itemRepo}: ${getErrorMessage(error)}`);
       return { success: false, error: `Failed to determine branch name for PR ${pullNumber} in ${itemRepo}` };
@@ -557,12 +562,16 @@ async function main(config = {}) {
         );
         core.info(`Created manifest-protection review issue #${issue.number}: ${issue.html_url}`);
         await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
-        return {
-          success: true,
-          fallback_used: true,
-          issue_number: issue.number,
-          issue_url: issue.html_url,
-        };
+        return attachExecutionState(
+          {
+            success: true,
+            fallback_used: true,
+            issue_number: issue.number,
+            issue_url: issue.html_url,
+          },
+          branchStateBefore,
+          branchStateBefore
+        );
       } catch (issueError) {
         const error = `Manifest file protection: failed to create review issue. Error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
         core.error(error);
@@ -1186,12 +1195,19 @@ async function main(config = {}) {
       }
     }
 
-    return {
-      success: true,
-      branch_name: branchName,
-      commit_sha: commitSha,
-      commit_url: commitUrl,
-    };
+    return attachExecutionState(
+      {
+        success: true,
+        number: pullNumber,
+        repo: itemRepo,
+        url: `${repoUrl}/pull/${pullNumber}`,
+        branch_name: branchName,
+        commit_sha: commitSha,
+        commit_url: commitUrl,
+      },
+      branchStateBefore || (remoteHeadBeforePatch ? { head_sha: remoteHeadBeforePatch } : null),
+      commitSha ? { head_sha: commitSha } : null
+    );
   };
 }
 

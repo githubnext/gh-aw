@@ -47,6 +47,8 @@ const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data", "repor
  * @property {number} [number] - Issue/PR/discussion number if applicable
  * @property {string} [repo] - Repository slug (owner/repo) if applicable
  * @property {string} [temporaryId] - Temporary ID assigned to this item, if any
+ * @property {Object} [before_state] - Execution-time state snapshot captured before mutation
+ * @property {Object} [after_state] - Execution-time state snapshot captured after mutation
  * @property {string} timestamp - ISO 8601 timestamp of creation
  */
 
@@ -57,7 +59,7 @@ const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data", "repor
  * It is designed to be easily testable by accepting the file path as a parameter.
  *
  * @param {string} [manifestFile] - Path to the manifest file (defaults to MANIFEST_FILE_PATH)
- * @returns {(item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string}) => void} Logger function
+ * @returns {(item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string, before_state?: Object, after_state?: Object}) => void} Logger function
  */
 function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
   // Touch the file immediately so it exists for artifact upload
@@ -67,7 +69,7 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
   /**
    * Log an executed safe output item to the manifest file.
    *
-   * @param {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string}} item - Executed item details
+   * @param {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, before_state?: Object, after_state?: Object}} item - Executed item details
    */
   return function logCreatedItem(item) {
     if (!item) return;
@@ -79,6 +81,8 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
       ...(item.number != null ? { number: item.number } : {}),
       ...(item.repo ? { repo: item.repo } : {}),
       ...(item.temporaryId ? { temporaryId: item.temporaryId } : {}),
+      ...(item.before_state ? { before_state: item.before_state } : {}),
+      ...(item.after_state ? { after_state: item.after_state } : {}),
       timestamp: new Date().toISOString(),
     };
 
@@ -120,23 +124,30 @@ function ensureManifestExists(manifestFile = MANIFEST_FILE_PATH) {
  *
  * @param {string} type - The handler type (e.g., "create_issue")
  * @param {any} result - The handler result object
- * @returns {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string}|null}
+ * @returns {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, before_state?: Object, after_state?: Object}|null}
  */
 function extractCreatedItemFromResult(type, result) {
   if (!result || NOT_LOGGED_TYPES.has(type)) return null;
+
+  if (type === "submit_pull_request_review" && !result.review_url && !result.pull_request_number && !result.repo) {
+    return null;
+  }
 
   // In staged mode (🎭 Staged Mode Preview), no item was actually modified in GitHub — skip logging
   if (result.staged === true) return null;
 
   // Normalize URL from different result shapes (present for creation types)
-  const url = result.url || result.projectUrl || result.html_url;
+  const url = result.url || result.projectUrl || result.html_url || result.pull_request_url || result.review_url || result.issue_url;
+  const number = result.number ?? result.pull_request_number ?? result.prNumber ?? result.issue_number ?? result.itemNumber;
 
   return {
     type,
     ...(url ? { url } : {}),
-    ...(result.number != null ? { number: result.number } : {}),
+    ...(number != null ? { number } : {}),
     ...(result.repo ? { repo: result.repo } : {}),
     ...(result.temporaryId ? { temporaryId: result.temporaryId } : {}),
+    ...(result.before_state ? { before_state: result.before_state } : {}),
+    ...(result.after_state ? { after_state: result.after_state } : {}),
   };
 }
 

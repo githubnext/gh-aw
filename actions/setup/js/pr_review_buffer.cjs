@@ -23,6 +23,7 @@ const { generateFooterWithMessages, getDetectionCautionAlert } = require("./mess
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
+const { attachExecutionState, fetchPullRequestReviewState } = require("./safe_output_execution_metadata.cjs");
 
 const SUPERSEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflow.";
 const MAX_SUPERSEDE_REVIEW_PAGES = 10;
@@ -244,6 +245,7 @@ function createReviewBuffer() {
     }
 
     const { repo, repoParts, pullRequestNumber, pullRequest } = reviewContext;
+    const beforeState = await fetchPullRequestReviewState(github, repoParts, pullRequestNumber);
 
     if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
       core.warning("Pull request head SHA not available - cannot submit review");
@@ -508,15 +510,19 @@ function createReviewBuffer() {
 
       core.info(`Created PR review #${review.id}: ${review.html_url}`);
 
-      return {
-        success: true,
-        review_id: review.id,
-        review_url: review.html_url,
-        pull_request_number: pullRequestNumber,
-        repo: repo,
-        event: event,
-        comment_count: comments.length,
-      };
+      return attachExecutionState(
+        {
+          success: true,
+          review_id: review.id,
+          review_url: review.html_url,
+          pull_request_number: pullRequestNumber,
+          repo: repo,
+          event: event,
+          comment_count: comments.length,
+        },
+        beforeState,
+        await fetchPullRequestReviewState(github, repoParts, pullRequestNumber)
+      );
     } catch (error) {
       const errorMessage = getErrorMessage(error);
 
@@ -531,15 +537,19 @@ function createReviewBuffer() {
           const { data: review } = await github.rest.pulls.createReview(requestParams);
           await maybeSupersedeOlderReviews(review.id);
           core.info(`Created PR review #${review.id}: ${review.html_url}`);
-          return {
-            success: true,
-            review_id: review.id,
-            review_url: review.html_url,
-            pull_request_number: pullRequestNumber,
-            repo: repo,
-            event: "COMMENT",
-            comment_count: comments.length,
-          };
+          return attachExecutionState(
+            {
+              success: true,
+              review_id: review.id,
+              review_url: review.html_url,
+              pull_request_number: pullRequestNumber,
+              repo: repo,
+              event: "COMMENT",
+              comment_count: comments.length,
+            },
+            beforeState,
+            await fetchPullRequestReviewState(github, repoParts, pullRequestNumber)
+          );
         } catch (retryError) {
           core.error(`Failed to submit PR review on retry: ${getErrorMessage(retryError)}`);
           return {
@@ -560,15 +570,19 @@ function createReviewBuffer() {
           const { data: review } = await github.rest.pulls.createReview(bodyOnlyParams);
           await maybeSupersedeOlderReviews(review.id);
           core.info(`Created PR review #${review.id} (body-only fallback): ${review.html_url}`);
-          return {
-            success: true,
-            review_id: review.id,
-            review_url: review.html_url,
-            pull_request_number: pullRequestNumber,
-            repo: repo,
-            event: event,
-            comment_count: 0,
-          };
+          return attachExecutionState(
+            {
+              success: true,
+              review_id: review.id,
+              review_url: review.html_url,
+              pull_request_number: pullRequestNumber,
+              repo: repo,
+              event: event,
+              comment_count: 0,
+            },
+            beforeState,
+            await fetchPullRequestReviewState(github, repoParts, pullRequestNumber)
+          );
         } catch (retryError) {
           core.error(`Failed to submit body-only PR review: ${getErrorMessage(retryError)}`);
           return {
