@@ -229,6 +229,16 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				if len(mergedAttrs) > 0 {
 					newOTLP["attributes"] = mergedAttrs
 				}
+				// Preserve OTLP github-app auth config so the compiler can emit the
+				// pre-setup OIDC mint step and validate id-token permissions.
+				// Main workflow takes precedence over imported defaults.
+				githubApp := extractRawOTLPGitHubAppMap(mainObs)
+				if githubApp == nil {
+					githubApp = extractRawOTLPGitHubAppMap(importedObs)
+				}
+				if githubApp != nil {
+					newOTLP["github-app"] = githubApp
+				}
 				workflowData.RawFrontmatter["observability"] = map[string]any{
 					"otlp": newOTLP,
 				}

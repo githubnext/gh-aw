@@ -129,7 +129,12 @@ func setupParentSpanNeedsExpr(upstreamJob constants.JobName) string {
 }
 
 func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
-	if data == nil || !hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
+	if data == nil {
+		return nil
+	}
+
+	githubApp := getOTLPGitHubApp(data.ParsedFrontmatter, data.RawFrontmatter)
+	if githubApp == nil {
 		return nil
 	}
 
@@ -146,7 +151,7 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 		"            core.setOutput('token', token);\n",
 	}
 
-	if audience := getOTLPGitHubOIDCAudience(data.ParsedFrontmatter, data.RawFrontmatter); audience != "" {
+	if audience := strings.TrimSpace(githubApp.Audience); audience != "" {
 		lines = append(lines, "        env:\n")
 		lines = append(lines, formatYAMLEnv("          ", "GH_AW_OTLP_OIDC_AUDIENCE", audience))
 	}

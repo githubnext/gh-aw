@@ -561,6 +561,33 @@ func extractRawOTLPEndpointMaps(obs map[string]any) []map[string]any {
 	return result
 }
 
+// extractRawOTLPGitHubAppMap returns observability.otlp.github-app as a
+// shallow-copied map when present and valid.
+func extractRawOTLPGitHubAppMap(obs map[string]any) map[string]any {
+	if obs == nil {
+		return nil
+	}
+	otlpAny, ok := obs["otlp"]
+	if !ok {
+		return nil
+	}
+	otlpMap, ok := otlpAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	githubAppAny, ok := otlpMap["github-app"]
+	if !ok {
+		return nil
+	}
+	githubAppMap, ok := githubAppAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	copied := make(map[string]any, len(githubAppMap))
+	maps.Copy(copied, githubAppMap)
+	return copied
+}
+
 // endpoint entry.  Duplicate pairs are included as-is; the result is used only
 // for secret-masking and contains no sensitive data itself after runtime
 // expression substitution by GitHub Actions.

@@ -239,8 +239,7 @@ func TestGetOTLPGitHubOIDCAudience(t *testing.T) {
 	t.Run("returns empty when github-app is missing", func(t *testing.T) {
 		got := getOTLPGitHubOIDCAudience(nil, map[string]any{
 			"observability": map[string]any{
-				"otlp": map[string]any{
-				},
+				"otlp": map[string]any{},
 			},
 		})
 		assert.Empty(t, got)
@@ -329,8 +328,7 @@ func TestHasOTLPGitHubOIDCAuth(t *testing.T) {
 	assert.True(t, hasOTLPGitHubOIDCAuth(nil, map[string]any{
 		"observability": map[string]any{
 			"otlp": map[string]any{
-				"github-app": map[string]any{
-				},
+				"github-app": map[string]any{},
 			},
 		},
 	}))
@@ -1803,6 +1801,36 @@ func TestExtractRawOTLPEndpointMaps(t *testing.T) {
 			assert.Equal(t, tt.want, got, "extractRawOTLPEndpointMaps")
 		})
 	}
+}
+
+func TestExtractRawOTLPGitHubAppMap(t *testing.T) {
+	t.Run("returns shallow copy when github-app exists", func(t *testing.T) {
+		obs := map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{
+					"audience": "api://AzureADTokenExchange",
+				},
+			},
+		}
+
+		got := extractRawOTLPGitHubAppMap(obs)
+		require.NotNil(t, got)
+		assert.Equal(t, "api://AzureADTokenExchange", got["audience"])
+
+		got["audience"] = "changed"
+		original := obs["otlp"].(map[string]any)["github-app"].(map[string]any)["audience"]
+		assert.Equal(t, "api://AzureADTokenExchange", original)
+	})
+
+	t.Run("returns nil for invalid values", func(t *testing.T) {
+		assert.Nil(t, extractRawOTLPGitHubAppMap(nil))
+		assert.Nil(t, extractRawOTLPGitHubAppMap(map[string]any{}))
+		assert.Nil(t, extractRawOTLPGitHubAppMap(map[string]any{
+			"otlp": map[string]any{
+				"github-app": "invalid",
+			},
+		}))
+	})
 }
 
 // TestCollectOTLPCustomAttributes verifies that custom attributes are read from the

@@ -302,6 +302,32 @@ func TestGenerateSetupStepIncludesOTLPOIDCMintingBeforeSetup(t *testing.T) {
 	}
 }
 
+func TestGenerateSetupStepIncludesOTLPOIDCMintingFromParsedFrontmatter(t *testing.T) {
+	c := NewCompiler()
+	data := &WorkflowData{
+		Name: "my-workflow",
+		ParsedFrontmatter: &FrontmatterConfig{
+			Observability: &ObservabilityConfig{
+				OTLP: &OTLPConfig{
+					GitHubApp: &OTLPGitHubAppConfig{
+						Audience: "https://example.com/collector",
+					},
+				},
+			},
+		},
+	}
+
+	lines := c.generateSetupStep(data, "github/gh-aw/actions/setup@abc123", "${{ runner.temp }}/gh-aw", false, "", "")
+	combined := strings.Join(lines, "")
+
+	if !strings.Contains(combined, "id: mint-otlp-oidc-token") {
+		t.Fatalf("expected setup step to include OTLP OIDC mint step from parsed frontmatter, got:\n%s", combined)
+	}
+	if !strings.Contains(combined, "GH_AW_OTLP_OIDC_AUDIENCE") {
+		t.Fatalf("expected mint step to include OTLP OIDC audience env from parsed frontmatter, got:\n%s", combined)
+	}
+}
+
 func TestGenerateSetupStepIncludesOTLPOIDCTokenInScriptMode(t *testing.T) {
 	c := NewCompiler()
 	c.SetActionMode(ActionModeScript)
@@ -310,8 +336,7 @@ func TestGenerateSetupStepIncludesOTLPOIDCTokenInScriptMode(t *testing.T) {
 		RawFrontmatter: map[string]any{
 			"observability": map[string]any{
 				"otlp": map[string]any{
-					"github-app": map[string]any{
-					},
+					"github-app": map[string]any{},
 				},
 			},
 		},
