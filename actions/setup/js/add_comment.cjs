@@ -825,9 +825,17 @@ async function main(config = {}) {
       return recordComment(comment, isDiscussion);
     } catch (error) {
       const errorMessage = getErrorMessage(error);
+      const normalizedErrorMessage = errorMessage.toLowerCase();
+      // Known GitHub lock-related message fragments observed from REST/GraphQL comment APIs.
+      const lockPhrases = ["issue is locked", "conversation is locked", "resource is locked", "resource locked"];
+      const hasKnownLockPhrase = lockPhrases.some(phrase => normalizedErrorMessage.includes(phrase));
 
       // Check if this is a 404 error (discussion/issue was deleted or wrong type)
-      const is404 = error?.status === 404 || errorMessage.includes("404") || errorMessage.toLowerCase().includes("not found");
+      const is404 = error?.status === 404 || errorMessage.includes("404") || normalizedErrorMessage.includes("not found");
+      const isHttp423Locked = error?.status === 423;
+      const isHttp403WithLockedMessage = error?.status === 403 && normalizedErrorMessage.includes("locked");
+      const isLockedByKnownMessageWithoutStatus = error?.status == null && hasKnownLockPhrase;
+      const isLocked = isHttp423Locked || isHttp403WithLockedMessage || isLockedByKnownMessageWithoutStatus;
 
       // If 404 and item_number was explicitly provided and we tried as issue/PR,
       // retry as a discussion (the user may have provided a discussion number)
@@ -879,7 +887,17 @@ async function main(config = {}) {
         };
       }
 
-      // For non-404 errors, fail as before
+      if (isLocked) {
+        // Treat locked targets as warnings - locked PRs/issues are a valid repository state
+        core.warning(`Target is locked, skipping comment: ${errorMessage}`);
+        return {
+          success: true,
+          warning: `Target is locked: ${errorMessage}`,
+          skipped: true,
+        };
+      }
+
+      // For all other errors, propagate the failure
       core.error(`Failed to add comment: ${errorMessage}`);
       return {
         success: false,

@@ -49,9 +49,10 @@ function findFiles(dir, extensions) {
 const BUILT_IN_PATTERNS = [
   // GitHub tokens
   { name: "GitHub Personal Access Token (classic)", pattern: /ghp_[0-9a-zA-Z]{36}/g },
-  // Match both legacy 36-character installation tokens and the newer long
-  // JWT-like stateless tokens with 3+ dot-separated base64url-ish segments.
-  { name: "GitHub Server-to-Server Token", pattern: /ghs_(?:[0-9a-zA-Z]{36}(?![0-9A-Za-z._-])|[0-9A-Za-z_-]{10,}(?:\.[0-9A-Za-z_-]{10,}){2,})/g },
+  // New stateless ghs_ token format allows dots, underscores, and dashes
+  // and uses variable length (minimum 36 chars after prefix).
+  // https://github.blog/changelog/2026-05-15-github-app-installation-tokens-per-request-override-header/
+  { name: "GitHub Server-to-Server Token", pattern: /ghs_[0-9A-Za-z._-]{36,}/g },
   { name: "GitHub OAuth Access Token", pattern: /gho_[0-9a-zA-Z]{36}/g },
   { name: "GitHub User Access Token", pattern: /ghu_[0-9a-zA-Z]{36}/g },
   { name: "GitHub Fine-grained PAT", pattern: /github_pat_[0-9a-zA-Z_]{82}/g },

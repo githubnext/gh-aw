@@ -573,15 +573,14 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
-			DatabaseID:    12345,
-			WorkflowName:  "Test Workflow",
-			Status:        "completed",
-			Conclusion:    "success",
-			Duration:      5 * time.Minute,
-			LogsPath:      tmpDir,
-			TokenUsage:    5000,
-			EstimatedCost: 0.05,
-			Turns:         10,
+			DatabaseID:   12345,
+			WorkflowName: "Test Workflow",
+			Status:       "completed",
+			Conclusion:   "success",
+			Duration:     5 * time.Minute,
+			LogsPath:     tmpDir,
+			TokenUsage:   5000,
+			Turns:        10,
 		},
 		MCPFailures: []MCPFailureReport{
 			{ServerName: "broken-server", Status: "timeout"},
@@ -589,9 +588,8 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 	}
 
 	metrics := LogMetrics{
-		TokenUsage:    5000,
-		EstimatedCost: 0.05,
-		Turns:         10,
+		TokenUsage: 5000,
+		Turns:      10,
 	}
 
 	mcpToolUsage := &MCPToolUsageData{

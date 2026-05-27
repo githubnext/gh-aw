@@ -1628,6 +1628,104 @@ describe("add_comment", () => {
       expect(warningCalls.length).toBeGreaterThan(0);
     });
 
+    it("should treat locked issue/PR errors as non-fatal warnings", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let warningCalls = [];
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+
+      let errorCalls = [];
+      mockCore.error = msg => {
+        errorCalls.push(msg);
+      };
+
+      mockGithub.rest.issues.createComment = async () => {
+        const error = new Error("Unable to create comment because issue is locked.");
+        // @ts-ignore
+        error.status = 403;
+        throw error;
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "Test comment",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.warning).toContain("locked");
+      expect(result.skipped).toBe(true);
+      expect(warningCalls.length).toBeGreaterThan(0);
+      expect(errorCalls.length).toBe(0);
+    });
+
+    it("should treat conversation locked errors as non-fatal warnings", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let warningCalls = [];
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+
+      let errorCalls = [];
+      mockCore.error = msg => {
+        errorCalls.push(msg);
+      };
+
+      mockGithub.rest.issues.createComment = async () => {
+        const error = new Error("Conversation is locked");
+        // @ts-ignore
+        error.status = 403;
+        throw error;
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const result = await handler({ type: "add_comment", body: "Test comment" }, {});
+
+      expect(result.success).toBe(true);
+      expect(result.warning).toContain("locked");
+      expect(result.skipped).toBe(true);
+      expect(warningCalls.length).toBeGreaterThan(0);
+      expect(errorCalls.length).toBe(0);
+    });
+
+    it("should treat HTTP 423 locked errors as non-fatal warnings", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let warningCalls = [];
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+
+      let errorCalls = [];
+      mockCore.error = msg => {
+        errorCalls.push(msg);
+      };
+
+      mockGithub.rest.issues.createComment = async () => {
+        const error = new Error("Locked");
+        // @ts-ignore
+        error.status = 423;
+        throw error;
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const result = await handler({ type: "add_comment", body: "Test comment" }, {});
+
+      expect(result.success).toBe(true);
+      expect(result.warning).toContain("locked");
+      expect(result.skipped).toBe(true);
+      expect(warningCalls.length).toBeGreaterThan(0);
+      expect(errorCalls.length).toBe(0);
+    });
+
     it("should still fail for non-404 errors", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 

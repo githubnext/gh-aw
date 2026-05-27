@@ -181,7 +181,6 @@ func loadAuditComparisonCandidate(run WorkflowRun, logsPath string, verbose bool
 	metrics, metricsErr := extractLogMetrics(logsPath, verbose, run.WorkflowPath)
 	if metricsErr == nil {
 		processedRun.Run.TokenUsage = metrics.TokenUsage
-		processedRun.Run.EstimatedCost = metrics.EstimatedCost
 		processedRun.Run.Turns = metrics.Turns
 	}
 	if firewallAnalysis, firewallErr := analyzeFirewallLogs(logsPath, verbose); firewallErr == nil {

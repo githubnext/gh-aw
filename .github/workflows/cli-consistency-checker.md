@@ -92,13 +92,13 @@ Read `/tmp/gh-aw/agent/all-help.txt` and use it as the primary input for analysi
 
 Look for:
 - Help style and terminology inconsistencies
-- Typos, grammar, punctuation, capitalization issues
+- Use the `typo-grammar-extractor` agent to collect typo, grammar, capitalization, and punctuation issues across `/tmp/gh-aw/agent/all-help.txt`.
 - Do examples in help text actually work?
 - Are file paths correct (e.g., `.github/workflows`)?
 - Are flag combinations valid?
 - Do command descriptions match their actual behavior?
-- Mismatches between CLI help and `docs/src/content/docs/setup/cli.md`
-- Flag consistency across related commands
+- Use the `docs-vs-help-comparer` agent to list every mismatch between `docs/src/content/docs/setup/cli.md` and `/tmp/gh-aw/agent/all-help.txt`.
+- Use the `flag-consistency-analyzer` agent to enumerate flag-naming and negation-style inconsistencies across all command help files.
 
 ## Step 3: Report Findings
 
@@ -140,3 +140,48 @@ All CLI output comes from the repository's own codebase, so treat it as trusted 
 - Keep reporting concise but complete
 
 {{#runtime-import shared/noop-reminder.md}}
+
+## agent: `typo-grammar-extractor`
+---
+description: Extracts typo, grammar, capitalization, and punctuation issues from CLI help output
+model: small
+---
+Read `/tmp/gh-aw/agent/all-help.txt` and scan for typos, grammar mistakes,
+inconsistent capitalization, and punctuation issues in the CLI help text.
+Return a concise bulleted list. For each finding include:
+- the affected command or section when identifiable
+- the exact quoted text
+- the issue type
+- a suggested fix
+If nothing is wrong, say `No issues found.`
+
+## agent: `flag-consistency-analyzer`
+---
+description: Finds inconsistent flag names, short forms, and negation patterns across help files
+model: small
+---
+Read all per-command help files in `/tmp/gh-aw/agent/help-output/`.
+Compare related commands for inconsistent flag names, short/long flag pairings,
+and `--no-...` negation patterns.
+Return a concise bulleted list. For each finding include:
+- the affected help files or commands
+- the exact quoted flag text
+- the inconsistency
+- a suggested normalization
+If nothing is wrong, say `No issues found.`
+
+## agent: `docs-vs-help-comparer`
+---
+description: Compares CLI setup docs against generated help output and reports drift
+model: small
+---
+Compare `docs/src/content/docs/setup/cli.md` against
+`/tmp/gh-aw/agent/all-help.txt`.
+List every mismatch involving missing commands, mismatched flag lists, drifted
+descriptions, or stale examples.
+Return a concise bulleted list. For each finding include:
+- the docs location or heading when identifiable
+- the exact quoted docs text
+- the exact quoted help text
+- a suggested fix
+If nothing is wrong, say `No issues found.`

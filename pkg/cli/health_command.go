@@ -294,8 +294,6 @@ func displayDetailedHealth(runs []WorkflowRun, config HealthConfig) error {
 		{"Trend", health.Trend},
 		{"Avg Duration", health.DisplayDur},
 		{"Avg Tokens", health.DisplayTokens},
-		{"Avg Cost", "$" + health.DisplayCost},
-		{"Total Cost", fmt.Sprintf("$%.3f", health.TotalCost)},
 	}
 
 	fmt.Fprint(os.Stderr, console.RenderStruct(details))

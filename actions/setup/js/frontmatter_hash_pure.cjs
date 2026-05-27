@@ -350,6 +350,104 @@ function marshalSorted(data) {
 }
 
 /**
+ * Process imports from frontmatter to collect body texts of all transitively imported files.
+ * Used to include imported file bodies in the body hash.
+ * @param {string} frontmatterText - The frontmatter text (used to find imports)
+ * @param {string} baseDir - Base directory for resolving imports
+ * @param {Set<string>} visited - Set of visited files for cycle detection
+ * @param {Function} fileReader - File reader function (async (filePath) => content)
+ * @returns {Promise<string[]>} Array of imported body texts
+ */
+async function collectImportedBodies(frontmatterText, baseDir, visited = new Set(), fileReader = defaultFileReader) {
+  const importedBodyTexts = [];
+
+  const imports = extractImportsFromText(frontmatterText);
+  if (imports.length === 0) {
+    return importedBodyTexts;
+  }
+
+  const sortedImports = [...imports].sort();
+
+  for (const importPath of sortedImports) {
+    const fullPath = path.join(baseDir, importPath);
+
+    if (visited.has(fullPath)) continue;
+    visited.add(fullPath);
+
+    try {
+      const importContent = await fileReader(fullPath);
+      const { frontmatterText: importFrontmatterText, markdown: importBody } = extractFrontmatterAndBody(importContent);
+
+      importedBodyTexts.push(importBody);
+
+      const importBaseDir = path.dirname(fullPath);
+      const nestedBodies = await collectImportedBodies(importFrontmatterText, importBaseDir, visited, fileReader);
+      importedBodyTexts.push(...nestedBodies);
+    } catch (err) {
+      continue;
+    }
+  }
+
+  return importedBodyTexts;
+}
+
+/**
+ * Computes a SHA-256 hash of the markdown body (after frontmatter) including the bodies
+ * of all transitively imported files. This hash covers changes to the prompt body that are
+ * not captured by the frontmatter hash.
+ *
+ * @param {string} workflowPath - Path to the workflow file
+ * @param {Object} [options] - Optional configuration
+ * @param {Function} [options.fileReader] - Custom file reader function (async (filePath) => content)
+ * @returns {Promise<string>} The SHA-256 hash as a lowercase hexadecimal string (64 characters)
+ */
+async function computeBodyHash(workflowPath, options = {}) {
+  const fileReader = options.fileReader || defaultFileReader;
+
+  const content = await fileReader(workflowPath);
+  const { frontmatterText, markdown } = extractFrontmatterAndBody(content);
+
+  const baseDir = path.dirname(workflowPath);
+
+  const importedBodies = await collectImportedBodies(frontmatterText, baseDir, undefined, fileReader);
+
+  const allParts = [normalizeFrontmatterText(markdown)];
+
+  if (importedBodies.length > 0) {
+    const sortedBodies = importedBodies.map(b => normalizeFrontmatterText(b)).sort();
+    allParts.push(...sortedBodies);
+  }
+
+  const combined = allParts.join("\n---\n");
+  const hash = crypto.createHash("sha256").update(combined, "utf8").digest("hex");
+  return hash;
+}
+
+/**
+ * Extract body hash from lock file content.
+ * Only the new JSON metadata format (# gh-aw-metadata: {...}) contains the body hash.
+ * @param {string} lockFileContent - Content of the .lock.yml file
+ * @returns {string} The extracted body hash or empty string if not found
+ */
+function extractBodyHashFromLockFile(lockFileContent) {
+  const lines = lockFileContent.split("\n");
+  for (const line of lines) {
+    const metadataMatch = line.match(/^#\s*gh-aw-metadata:\s*(\{.+\})/);
+    if (metadataMatch) {
+      try {
+        const metadata = JSON.parse(metadataMatch[1]);
+        if (metadata.body_hash) {
+          return metadata.body_hash;
+        }
+      } catch (err) {
+        // Invalid JSON
+      }
+    }
+  }
+  return "";
+}
+
+/**
  * Extract hash from lock file content
  * Supports both formats:
  * - New JSON format: # gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"..."}
@@ -414,15 +512,18 @@ function createGitHubFileReader(github, owner, repo, ref) {
 
 module.exports = {
   computeFrontmatterHash,
+  computeBodyHash,
   extractFrontmatterAndBody,
   extractImportsFromText,
   extractRelevantTemplateExpressions,
   marshalCanonicalJSON,
   marshalSorted,
   extractHashFromLockFile,
+  extractBodyHashFromLockFile,
   normalizeFrontmatterText,
   parseBoolFromFrontmatter,
   processImportsTextBased,
+  collectImportedBodies,
   defaultFileReader,
   createGitHubFileReader,
 };

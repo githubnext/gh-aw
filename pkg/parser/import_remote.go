@@ -6,7 +6,11 @@ package parser
 import (
 	"path"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var importRemoteLog = logger.New("parser:import_remote")
 
 // remoteImportOrigin tracks the remote repository context for an imported file.
 // When a file is fetched from a remote GitHub repository via workflowspec,
@@ -35,6 +39,7 @@ type importQueueItem struct {
 // For example, "elastic/ai-github-actions/gh-agent-workflows/gh-aw-workflows/file.md@main"
 // produces BasePath="gh-agent-workflows" so nested imports resolve relative to that directory.
 func parseRemoteOrigin(spec string) *remoteImportOrigin {
+	importRemoteLog.Printf("Parsing remote import origin from spec: %q", spec)
 	// Remove section reference if present
 	cleanSpec := spec
 	if before, _, ok := strings.Cut(spec, "#"); ok {
@@ -52,6 +57,7 @@ func parseRemoteOrigin(spec string) *remoteImportOrigin {
 	// Parse path: owner/repo/path/to/file.md
 	slashParts := strings.Split(pathPart, "/")
 	if len(slashParts) < 3 {
+		importRemoteLog.Printf("Spec %q has fewer than 3 path components; not a valid workflowspec", spec)
 		return nil
 	}
 
@@ -70,11 +76,11 @@ func parseRemoteOrigin(spec string) *remoteImportOrigin {
 		if len(baseDirParts) > 0 {
 			// Clean the path to normalize it (remove ./ and resolve ..)
 			basePath = path.Clean(strings.Join(baseDirParts, "/"))
-			importLog.Printf("Derived BasePath=%q from spec=%q (owner=%s, repo=%s, ref=%s)",
+			importRemoteLog.Printf("Derived BasePath=%q from spec=%q (owner=%s, repo=%s, ref=%s)",
 				basePath, spec, slashParts[0], slashParts[1], ref)
 		}
 	} else {
-		importLog.Printf("No BasePath derived from spec=%q (file at repo root)", spec)
+		importRemoteLog.Printf("No BasePath derived from spec=%q (file at repo root)", spec)
 	}
 
 	return &remoteImportOrigin{

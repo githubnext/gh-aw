@@ -362,8 +362,12 @@ This section maps the frontmatter hash specification to the source files that im
 **Runtime behavior**: text-based approach is authoritative (see Implementation Notes § Resolution).
 
 **Resolution log (2026-05-08, authoritative)**: Text-based canonicalization is the resolved,
-runtime-authoritative algorithm. Section 2 field-selection remains future-state design intent only
-until an explicit migration milestone is approved.
+runtime-authoritative algorithm. **Formal deferral (2026-05-26)**: Section 2 ("Field
+Selection") is formally deferred pending completion of the v2.0.0 migration prerequisites
+tracked in [#31983](https://github.com/github/gh-aw/issues/31983). Rationale: no concrete
+selective field-exclusion use case has been identified, and the text-based approach has proven
+sufficient for all current requirements. Section 2 remains non-normative design intent until
+those prerequisites are met and the migration milestone is approved.
 
 **Sync verification (2026-05-12)**: SPDD review reconfirmed that the 2026-05-08 text-based
 resolution remains in force.

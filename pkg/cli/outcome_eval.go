@@ -45,19 +45,18 @@ type OutcomeReport struct {
 
 // OutcomeSummary aggregates outcomes across multiple safe output items.
 type OutcomeSummary struct {
-	Total                  int     `json:"total" console:"header:Total"`
-	Accepted               int     `json:"accepted" console:"header:Accepted"`
-	Rejected               int     `json:"rejected" console:"header:Rejected"`
-	Ignored                int     `json:"ignored" console:"header:Ignored"`
-	Pending                int     `json:"pending" console:"header:Pending"`
-	Lifecycle              int     `json:"lifecycle" console:"header:Lifecycle"`
-	Errors                 int     `json:"errors" console:"header:Errors"`
-	ZeroTouch              int     `json:"zero_touch" console:"header:Zero-touch"`
-	AcceptanceRate         float64 `json:"acceptance_rate" console:"header:Acceptance Rate"`
-	WasteRate              float64 `json:"waste_rate" console:"header:Waste Rate"`
-	ZeroTouchRate          float64 `json:"zero_touch_rate" console:"header:Zero-touch Rate"`
-	MedianTimeToOutcome    float64 `json:"median_time_to_outcome_hours,omitempty"`
-	CostPerAcceptedOutcome float64 `json:"cost_per_accepted_outcome,omitempty"`
+	Total               int     `json:"total" console:"header:Total"`
+	Accepted            int     `json:"accepted" console:"header:Accepted"`
+	Rejected            int     `json:"rejected" console:"header:Rejected"`
+	Ignored             int     `json:"ignored" console:"header:Ignored"`
+	Pending             int     `json:"pending" console:"header:Pending"`
+	Lifecycle           int     `json:"lifecycle" console:"header:Lifecycle"`
+	Errors              int     `json:"errors" console:"header:Errors"`
+	ZeroTouch           int     `json:"zero_touch" console:"header:Zero-touch"`
+	AcceptanceRate      float64 `json:"acceptance_rate" console:"header:Acceptance Rate"`
+	WasteRate           float64 `json:"waste_rate" console:"header:Waste Rate"`
+	ZeroTouchRate       float64 `json:"zero_touch_rate" console:"header:Zero-touch Rate"`
+	MedianTimeToOutcome float64 `json:"median_time_to_outcome_hours,omitempty"`
 }
 
 // outcomeEvaluator is a function that evaluates one safe output item.
@@ -119,7 +118,7 @@ func EvaluateOutcomes(items []CreatedItemReport, repoOverride string) []OutcomeR
 }
 
 // ComputeOutcomeSummary aggregates outcome reports into a summary.
-func ComputeOutcomeSummary(reports []OutcomeReport, totalCost float64) OutcomeSummary {
+func ComputeOutcomeSummary(reports []OutcomeReport) OutcomeSummary {
 	s := OutcomeSummary{Total: len(reports)}
 	var times []float64
 	for _, r := range reports {
@@ -153,9 +152,6 @@ func ComputeOutcomeSummary(reports []OutcomeReport, totalCost float64) OutcomeSu
 	}
 	if s.Accepted > 0 {
 		s.ZeroTouchRate = float64(s.ZeroTouch) / float64(s.Accepted)
-		if totalCost > 0 {
-			s.CostPerAcceptedOutcome = totalCost / float64(s.Accepted)
-		}
 	}
 	if len(times) > 0 {
 		s.MedianTimeToOutcome = medianFloat(times)

@@ -4,8 +4,6 @@ description: Guide for reducing token consumption in agentic workflows — DataO
 
 # Token Consumption Optimization
 
-Tokens are the primary cost driver for agentic workflows. Apply the techniques below to reduce effective token consumption while preserving output quality.
-
 ## Quick-Reference Checklist
 
 Apply these in order — each check can halve costs:
@@ -39,11 +37,7 @@ Key fields in the output:
 - `agent_usage.input_tokens` / `agent_usage.output_tokens` — raw token counts
 - `agent_usage.cache_read_tokens` / `agent_usage.cache_write_tokens` — tokens served from the prompt cache
 
-Or via MCP tool:
-
-```
-Use the audit tool with run_id: <run-id>
-```
+Equivalent via MCP: `audit` tool with `run_id: <run-id>`.
 
 ### Comparing two runs (regression detection)
 
@@ -53,13 +47,7 @@ gh aw audit <base-run-id> <optimized-run-id> --json
 gh aw audit <base-run-id> <variant-a-run-id> <variant-b-run-id> --json
 ```
 
-Or via MCP tool:
-
-```
-Use the audit tool with run_ids_or_urls: ["<base-run-id>", "<optimized-run-id>"]
-```
-
-The diff highlights changes in effective tokens, tool calls, and safe outputs between runs.
+The diff highlights changes in effective tokens, tool calls, and safe outputs between runs. Equivalent via MCP: `audit` tool with `run_ids_or_urls: ["<base-run-id>", "<optimized-run-id>"]`.
 
 ### Per-request token detail
 
@@ -131,7 +119,7 @@ Read the pre-computed stats at `/tmp/gh-aw/data/stats.json` and `/tmp/gh-aw/data
 Create a concise weekly PR summary discussion.
 ```
 
-**Why this saves tokens:** API calls run in shell (zero AI tokens), the agent receives compact aggregated JSON instead of raw API responses, and its context window stays small.
+Shell steps run outside the AI sandbox (zero tokens); the agent only reads compact aggregated JSON.
 
 **Best practices:**
 
@@ -154,9 +142,7 @@ tools:
     toolsets: [default]
 ```
 
-`gh-proxy` makes a pre-authenticated `gh` CLI available in bash. The agent reads GitHub data with `gh issue list`, `gh pr view`, etc. — no Docker container, no MCP server initialization, and output the agent can pipe through `jq` before reading.
-
-The alternative (`mode: local`) starts a Docker-based GitHub MCP Server, which adds startup latency, registers extra tool descriptions, and returns verbose JSON the agent must process in full.
+The agent reads GitHub data with `gh issue list`, `gh pr view`, etc., and can pipe through `jq` before the data enters context. The alternative `mode: local` starts a Docker-based MCP server with startup latency and verbose tool results.
 
 ### `cli-proxy: true` (other MCP servers as CLIs)
 
@@ -274,13 +260,6 @@ List open issues by priority. Top 5 critical items. Be brief.
 
 Measure `effective_tokens` in each variant's run summary or via `gh aw audit`. If the `minimal` variant uses fewer tokens at acceptable quality, promote it as the baseline.
 
-**What to minimize:**
-
-- Remove redundant instructions (the model already knows common conventions)
-- Replace prose explanations with bullet constraints
-- Cut examples that don't constrain behavior
-- Remove hedging language and pleasantries
-
 ---
 
 ## Technique 5 — Use Experiments to Measure Impact
@@ -338,16 +317,7 @@ The cheapest run is the one you don't execute. If a workflow doesn't need near-r
 
 ### Prefer scheduled batches over reactive triggers
 
-Reactive triggers (`issues:`, `pull_request:`, comment commands) suit immediate feedback. Otherwise prefer `schedule:` and batch work:
-
-```yaml
-on:
-  schedule: daily on weekdays
-```
-
-Typical batch-friendly tasks: triage summaries, stale backlog review, token audits, repository-wide quality or security digests.
-
-Combine batching with `cache-memory` or `repo-memory` to track processed items so each run only handles new ones.
+Reactive triggers (`issues:`, `pull_request:`, comment commands) suit immediate feedback. Otherwise prefer `schedule: daily on weekdays` and batch work. Typical batch-friendly tasks: triage summaries, stale backlog review, token audits, security digests. Combine with `cache-memory` or `repo-memory` to track processed items so each run only handles new ones.
 
 ---
 
@@ -366,20 +336,14 @@ observability:
     headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
 ```
 
-`gh-aw` emits setup, agent, and conclusion spans with token usage attributes — letting you compare workflows over time, identify expensive phases before opening logs, and validate that an optimization reduced cost after rollout.
-
-See also: [Frontmatter syntax](syntax.md#observability)
+Setup, agent, and conclusion spans carry token usage attributes — compare runs over time and validate optimizations post-rollout. See [Frontmatter syntax](syntax.md#observability).
 
 ### Add AgenticOps token workflows
-
-Use the token-focused workflows from the AgenticOps pattern to optimize continuously at the repository level:
 
 - `copilot-token-audit` — scheduled audit of token usage across workflows
 - `copilot-token-optimizer` — scheduled follow-up that identifies one expensive workflow and proposes concrete savings
 
-Loop: export OTEL → summarize repository-wide usage → open optimization issues for highest-value fixes → re-measure after changes land.
-
-See `.github/workflows/` in the `gh-aw` repository for derived `copilot-token-audit` and `copilot-token-optimizer` examples.
+Loop: export OTEL → summarize usage → open optimization issues → re-measure. See `.github/workflows/` for examples.
 
 ---
 

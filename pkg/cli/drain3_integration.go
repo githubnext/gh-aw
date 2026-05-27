@@ -91,11 +91,10 @@ func buildDrain3InsightsMultiRun(processedRuns []ProcessedRun) []ObservabilityIn
 
 	for _, pr := range processedRuns {
 		events := buildAgentEventsFromProcessedRun(pr, MetricsData{
-			Turns:         pr.Run.Turns,
-			TokenUsage:    pr.Run.TokenUsage,
-			EstimatedCost: pr.Run.EstimatedCost,
-			ErrorCount:    pr.Run.ErrorCount,
-			WarningCount:  pr.Run.WarningCount,
+			Turns:        pr.Run.Turns,
+			TokenUsage:   pr.Run.TokenUsage,
+			ErrorCount:   pr.Run.ErrorCount,
+			WarningCount: pr.Run.WarningCount,
 		}, nil)
 		totalEvents += len(events)
 

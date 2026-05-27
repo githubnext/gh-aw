@@ -386,41 +386,8 @@ func cleanupAllIncludes(verbose bool) error {
 	return err
 }
 
-// hasDirectiveMarker reports whether content contains any @include, @import, or {{#import
-// directive marker using a single forward scan of the content.
-func hasDirectiveMarker(content string) bool {
-	for i := 0; i < len(content); {
-		// A single IndexAny call locates the next '@' or '{' in one pass, so
-		// the content is traversed at most once regardless of which byte appears first.
-		idx := strings.IndexAny(content[i:], "@{")
-		if idx < 0 {
-			return false
-		}
-		pos := i + idx
-		rest := content[pos:]
-		switch rest[0] {
-		case '@':
-			if strings.HasPrefix(rest, "@include") || strings.HasPrefix(rest, "@import") {
-				return true
-			}
-		case '{':
-			if strings.HasPrefix(rest, "{{#import") {
-				return true
-			}
-		}
-		i = pos + 1
-	}
-	return false
-}
-
 // findIncludesInContent finds all import references in content
 func findIncludesInContent(content string) ([]string, error) {
-
-	// Fast path: skip the line scan entirely when no directive markers are present.
-	if !hasDirectiveMarker(content) {
-		return []string{}, nil
-	}
-
 	var includes []string
 	// Manual index-based scan avoids the iter.Seq yield overhead of strings.Lines.
 	for remaining := content; remaining != ""; {
@@ -433,10 +400,16 @@ func findIncludesInContent(content string) ([]string, error) {
 			remaining = ""
 		}
 		if path := parseIncludePath(line); path != "" {
+			if includes == nil {
+				includes = make([]string, 0, 4)
+			}
 			includes = append(includes, path)
 		}
 	}
 
+	if includes == nil {
+		return []string{}, nil
+	}
 	return includes, nil
 }
 

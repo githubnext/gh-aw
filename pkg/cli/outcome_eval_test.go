@@ -18,7 +18,7 @@ func TestComputeOutcomeSummary(t *testing.T) {
 		{Type: "close_issue", Result: OutcomeLifecycle},
 	}
 
-	s := ComputeOutcomeSummary(reports, 10.0)
+	s := ComputeOutcomeSummary(reports)
 
 	assert.Equal(t, 6, s.Total, "total should count all reports")
 	assert.Equal(t, 2, s.Accepted, "accepted count")
@@ -37,15 +37,12 @@ func TestComputeOutcomeSummary(t *testing.T) {
 	// ZeroTouchRate = zero_touch / accepted = 1/2
 	assert.InDelta(t, 0.5, s.ZeroTouchRate, 0.01, "zero-touch rate")
 
-	// CostPerAcceptedOutcome = 10.0 / 2 = 5.0
-	assert.InDelta(t, 5.0, s.CostPerAcceptedOutcome, 0.01, "cost per accepted outcome")
-
 	// MedianTimeToOutcome of [2.0, 8.0, 24.0] = 8.0
 	assert.InDelta(t, 8.0, s.MedianTimeToOutcome, 0.01, "median time to outcome")
 }
 
 func TestComputeOutcomeSummaryEmpty(t *testing.T) {
-	s := ComputeOutcomeSummary(nil, 0)
+	s := ComputeOutcomeSummary(nil)
 
 	assert.Equal(t, 0, s.Total, "empty total")
 	assert.InDelta(t, 0.0, s.AcceptanceRate, 1e-12, "empty acceptance rate")

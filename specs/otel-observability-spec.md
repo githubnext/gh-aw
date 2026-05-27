@@ -456,7 +456,6 @@ This section defines the attributes each span type MUST or MAY carry.
 | `gh-aw.frontmatter.*` | string | Frontmatter metadata (same fields as setup span) |
 | `gh-aw.effective_tokens` | int | Effective token count |
 | `gh-aw.turns` | int | Number of agent turns |
-| `gh-aw.estimated_cost_usd` | double | Estimated cost |
 | `gh-aw.agent.conclusion` | string | Agent job outcome |
 | `gh-aw.detection.conclusion` | string | Threat detection outcome |
 | `gh-aw.detection.reason` | string | Detection reasoning |

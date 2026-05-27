@@ -25,14 +25,17 @@ const (
 	LockSchemaV1 LockSchemaVersion = "v1"
 	// LockSchemaV2 is the lock file schema version that adds the strict field
 	LockSchemaV2 LockSchemaVersion = "v2"
-	// LockSchemaV3 is the current lock file schema version (adds agent id/model and detection agent id/model fields)
+	// LockSchemaV3 is the lock file schema version that adds agent id/model and detection agent id/model fields
 	LockSchemaV3 LockSchemaVersion = "v3"
+	// LockSchemaV4 is the current lock file schema version (adds body_hash for full stale-check coverage)
+	LockSchemaV4 LockSchemaVersion = "v4"
 )
 
 // LockMetadata represents the structured metadata embedded in lock files
 type LockMetadata struct {
 	SchemaVersion       LockSchemaVersion `json:"schema_version"`
 	FrontmatterHash     string            `json:"frontmatter_hash,omitempty"`
+	BodyHash            string            `json:"body_hash,omitempty"`
 	StopTime            string            `json:"stop_time,omitempty"`
 	CompilerVersion     string            `json:"compiler_version,omitempty"`
 	Strict              bool              `json:"strict,omitempty"`
@@ -55,6 +58,7 @@ var SupportedSchemaVersions = []LockSchemaVersion{
 	LockSchemaV1,
 	LockSchemaV2,
 	LockSchemaV3,
+	LockSchemaV4,
 }
 
 // IsSchemaVersionSupported checks if a schema version is supported
@@ -99,14 +103,23 @@ func formatSupportedVersions() string {
 	return strings.Join(versions, ", ")
 }
 
+// LockHashInfo groups the hash fields written into lock metadata.
+// Passing a struct rather than individual string args makes the signature
+// stable against future hash additions.
+type LockHashInfo struct {
+	FrontmatterHash string
+	BodyHash        string
+}
+
 // GenerateLockMetadata creates a LockMetadata struct for embedding in lock files
 // For release builds, the compiler version is included in the metadata
-func GenerateLockMetadata(frontmatterHash string, stopTime string, strict bool, agentInfo AgentMetadataInfo) *LockMetadata {
-	lockSchemaLog.Printf("Generating lock metadata: schema=%s, strict=%t, hasStopTime=%t", LockSchemaV3, strict, stopTime != "")
+func GenerateLockMetadata(hashInfo LockHashInfo, stopTime string, strict bool, agentInfo AgentMetadataInfo) *LockMetadata {
+	lockSchemaLog.Printf("Generating lock metadata: schema=%s, strict=%t, hasStopTime=%t, hasBodyHash=%t", LockSchemaV4, strict, stopTime != "", hashInfo.BodyHash != "")
 
 	metadata := &LockMetadata{
-		SchemaVersion:       LockSchemaV3,
-		FrontmatterHash:     frontmatterHash,
+		SchemaVersion:       LockSchemaV4,
+		FrontmatterHash:     hashInfo.FrontmatterHash,
+		BodyHash:            hashInfo.BodyHash,
 		StopTime:            stopTime,
 		Strict:              strict,
 		AgentID:             agentInfo.AgentID,

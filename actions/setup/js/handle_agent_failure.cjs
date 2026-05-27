@@ -242,11 +242,25 @@ function isReusableFailureIssue(body, options) {
 }
 
 /**
+ * Escape a GitHub search phrase for safe inclusion inside double quotes.
+ * GitHub search phrases are wrapped in double quotes, so embedded backslashes and
+ * quotes must be escaped, and newlines are normalized to spaces to keep the query
+ * on a single line.
+ * @param {string} value - Raw phrase value
+ * @returns {string} Escaped phrase
+ */
+function escapeGitHubSearchPhrase(value) {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\r?\n|\r/g, " ");
+}
+
+/**
  * Find an existing open failure issue that exactly matches the current failure metadata.
  * @param {Object} options - Search options
  * @param {string} options.owner - Repository owner
  * @param {string} options.repo - Repository name
- * @param {string} options.issueTitle - Failure issue title
  * @param {string} options.workflowId - Workflow identifier
  * @param {string} options.branch - Triggering branch
  * @param {number|undefined} options.pullRequestNumber - Triggering pull request number
@@ -254,10 +268,10 @@ function isReusableFailureIssue(body, options) {
  * @returns {Promise<{number: number, html_url: string} | null>} Matching issue or null
  */
 async function findExistingFailureIssue(options) {
-  const { owner, repo, issueTitle, workflowId, branch, pullRequestNumber, failureCategories } = options;
-  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows in:title "${issueTitle}"`;
+  const { owner, repo, workflowId, branch, pullRequestNumber, failureCategories } = options;
+  const escapedWorkflowId = escapeGitHubSearchPhrase(workflowId);
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows ` + `"gh-aw-agentic-workflow:" "workflow_id: ${escapedWorkflowId}" in:body`;
   const perPage = 100;
-
   for (let page = 1; ; page += 1) {
     const searchResult = await github.rest.search.issuesAndPullRequests({
       q: searchQuery,
@@ -2239,13 +2253,12 @@ async function main() {
       hasStaleLockFileFailed,
     });
 
-    core.info(`Checking for existing issue with precise metadata match for title: "${issueTitle}"`);
+    core.info(`Checking for existing issue with precise failure metadata for title: "${issueTitle}"`);
 
     try {
       const existingIssue = await findExistingFailureIssue({
         owner,
         repo,
-        issueTitle,
         workflowId: workflowID,
         branch: currentBranch,
         pullRequestNumber: pullRequest?.number,

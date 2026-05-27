@@ -268,6 +268,9 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 		ctx.steps = append(ctx.steps, "        env:\n")
 		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", ctx.lockFilename))
 		ctx.steps = append(ctx.steps, "          GH_AW_CONTEXT_WORKFLOW_REF: \"${{ github.workflow_ref }}\"\n")
+		if data.StaleCheckFull {
+			ctx.steps = append(ctx.steps, "          GH_AW_STALE_CHECK_FULL: \"true\"\n")
+		}
 		ctx.steps = append(ctx.steps, "        with:\n")
 		hashToken := c.resolveActivationToken(data)
 		if hashToken != "${{ secrets.GITHUB_TOKEN }}" {

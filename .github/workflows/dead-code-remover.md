@@ -55,43 +55,46 @@ Run the `deadcode` static analyzer, select a batch of up to 5 unreachable functi
 
 **Target**: Complete the full workflow in ≤ 30 turns.
 
-- **After Phase 2: if deadcode finds 0 unprocessed functions**, call `noop` immediately — skip Phases 3–9.
+- **After discovery: if `discover-candidates` outputs `"skip": true`**, call `noop` immediately — skip remaining phases.
 - Select **up to 5 functions** per run (not 10) — keeps PRs small and turns bounded.
 - Safety check grep: limit output with `grep -m 5` to avoid large result dumps.
 - Build/test output: pipe through `tail -20` to capture only the relevant tail; do not print full output.
 - PR body: use only the provided template structure — no extra analysis paragraphs.
 - Cache append: write lines directly; do not re-read the full cache file before appending.
+- **Turn circuit breaker**: keep a **soft target** of ≤30 turns. After Phase 5, if the run is already >35 turns (**hard stop**), skip `go test` in Phase 6 (run only `go build ./... && go vet ./...`) and proceed to Phase 7.
 
 ## Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 
-## Phase 1: Discover Dead Functions
+Inline sub-agent block syntax: `agent` names the sub-agent, `model` selects a smaller model, and `task` is its exact execution brief.
+After it runs, parse its stdout JSON and use `skip` / `candidates` as inputs for later phases.
 
-Run the analyzer:
-
-```bash
-deadcode ./cmd/... ./internal/tools/...
-```
+## agent: discover-candidates
+model: small
+task: |
+  Run: deadcode ./cmd/... ./internal/tools/...
+  Read: /tmp/gh-aw/cache-memory/dead-code-processed.jsonl (if present)
+  Exclude functions whose "file:FuncName" key appears in the cache.
+  Always skip:
+  - containsInNonCommentLines (shared helper used across many compiler tests)
+  - indexInNonCommentLines (shared helper used across many compiler tests)
+  - extractJobSection (shared helper used across many compiler tests)
+  Review this skip list periodically.
+  Output JSON to stdout in this exact shape:
+  {"skip":false,"candidates":[{"function":"Name","file":"pkg/workflow/compiler.go","reason":"no callers"}]}
+  Allowed `reason` examples: "no callers", "test-only callers", "unreachable".
+  If 0 candidates remain:
+  {"skip":true,"candidates":[]}
 
 **Critical**: Always include `./internal/tools/...` — it covers separate binaries called by the Makefile (e.g. `make actions-build`). Running `./cmd/...` alone gives false positives.
 
-The output lists functions that are unreachable from any production binary entry point. Note the total count. Ignore any "cannot load package" warnings for WASM-gated files (`//go:build js && wasm`) — those are expected build-constraint noise.
-
-## Phase 2: Check Cache for Previously Processed Functions
-
-Read `/tmp/gh-aw/cache-memory/dead-code-processed.jsonl` to find functions already processed in previous runs. Each line has the form:
-
-```json
-{"function": "FuncName", "file": "pkg/workflow/foo.go", "processed_at": "2026-03-01", "action": "deleted"}
-```
-
-Build a set of `"file:FuncName"` keys to skip — this ensures each function is only processed once.
+Ignore any "cannot load package" warnings for WASM-gated files (`//go:build js && wasm`) — those are expected build-constraint noise.
 
 ## Phase 3: Select a Batch
 
-From the unprocessed dead functions, select **up to 5** to remove this run. Prioritise:
+From `discover-candidates.candidates`, select **up to 5** functions to remove this run. Prioritise:
 
 1. Functions where `grep` confirms callers exist only in `*_test.go` files
 2. Fully standalone functions with no callers at all
@@ -104,42 +107,36 @@ From the unprocessed dead functions, select **up to 5** to remove this run. Prio
 
 ## Phase 4: Safety Checks for Each Selected Function
 
-For every function in the batch, run all of the following checks before deleting:
-
-### 4.1 Caller grep
+For every function in the batch, run this **single consolidated bash block** before deleting:
 
 ```bash
-grep -rn -m 5 "FunctionName" --include="*.go" .
+func="FunctionName"
+file="pkg/path/file.go"   # normalize by stripping leading "./" before checks
+file="${file#./}"
+
+echo "=== Caller check ==="
+grep -rn -m 5 "$func" --include="*.go" .
+
+if [[ "$file" == "pkg/workflow/"* || "$file" == "pkg/console/"* ]]; then
+  echo "=== WASM check ==="
+  grep -n "$func" cmd/gh-aw-wasm/main.go || true
+fi
+
+if [[ "$file" == "pkg/console/"* ]]; then
+  echo "=== console_wasm check ==="
+  grep -n "$func" pkg/console/console_wasm.go || true
+fi
+
+echo "=== Constant/embed check ==="
+grep -n "//go:embed" "$file" || true
+grep -n "^[[:space:]]*const " "$file" || true
 ```
 
-- Callers **only in `*_test.go` files** → function is dead. Proceed with deletion AND mark its exclusive test functions for removal.
-- Callers in **any non-test file** → **skip** (possible false positive from `deadcode`).
-
-### 4.2 WASM binary check (functions in `pkg/workflow/` or `pkg/console/`)
-
-```bash
-grep -n "FunctionName" cmd/gh-aw-wasm/main.go
-```
-
-Currently confirmed live in WASM: `ParseWorkflowString`, `CompileToYAML`. If the function is referenced, **skip it**.
-
-### 4.3 console_wasm stub check (functions in `pkg/console/` only)
-
-```bash
-grep -n "FunctionName" pkg/console/console_wasm.go
-```
-
-If found: either inline the stub logic in `console_wasm.go` first, or **skip** the function.
-
-### 4.4 Constant / embed rescue (before deleting an entire file)
-
-Before removing a file that becomes empty after deletions:
-
-```bash
-grep -n "//go:embed\|^\s*const " <file>
-```
-
-If live constants or `//go:embed` directives are present, extract them to an appropriate existing file first.
+- Caller matches **only in `*_test.go` files** → proceed with deletion and mark exclusive tests for removal.
+- Caller matches in **any non-test file** → **skip** (possible false positive).
+- WASM hit in `cmd/gh-aw-wasm/main.go` (e.g. `ParseWorkflowString`, `CompileToYAML`) → **skip**.
+- `console_wasm.go` hit for `pkg/console/*` function → inline stub first or **skip**.
+- Before removing an entire file, preserve any live constants/`//go:embed` directives in another file.
 
 ## Phase 5: Delete Dead Code
 
@@ -160,25 +157,26 @@ Remove any unused imports reported with `edit`.
 After all deletions:
 
 ```bash
-go build ./...
-```
-
-If the build fails, investigate. If the problem cannot be resolved quickly, **revert all changes** (using `git checkout -- .`) and proceed to Phase 7 with `noop`.
-
-```bash
-go vet ./...
-go vet -tags=integration ./...
-make fmt
-```
-
-Run targeted package tests for every package you modified:
-
-```bash
+go build ./... && \
+go vet ./... && \
+go vet -tags=integration ./... && \
+make fmt && \
 go test ./pkg/... 2>&1 | tail -20
-echo "Test exit code: $?"
+echo "Exit: $?"
 ```
 
-If any tests fail, investigate. If the failure is caused by your deletions, revert those specific deletions.
+The `&&` chain intentionally short-circuits on first failure.
+
+If the run is already >35 turns after Phase 5 (or clearly over budget), use the circuit-breaker verification instead:
+
+```bash
+go build ./... && go vet ./...
+echo "Exit: $?"
+```
+
+In circuit-breaker mode, `go vet -tags=integration` and `make fmt` are intentionally skipped to reduce turns; full formatting/check coverage is expected in CI.
+
+If verification fails on obvious quick fixes (e.g., unused imports or simple compile errors), fix and re-run once. Otherwise, revert deletions tied to the failure (or revert all changes with `git checkout -- .`) and proceed to Phase 7 with `noop`.
 
 ## Phase 7: Determine Outcome
 
@@ -192,39 +190,16 @@ Create a PR with this structure:
 
 **Title**: `chore: remove dead functions — N functions removed`
 
-**Body**:
-
-```markdown
-## Dead Code Removal
-
-This PR removes unreachable Go functions identified by the `deadcode` static analyzer.
-
-### Functions Removed
-
-| Function | File |
-|----------|------|
-| `FuncName` | `pkg/workflow/foo.go` |
-
-### Tests Removed
-
-[List any test functions removed because they exclusively tested deleted functions, or "None" if no tests were removed.]
-
-### Verification
-
-- ✅ `go build ./...` — passes
-- ✅ `go vet ./...` — passes
-- ✅ `go vet -tags=integration ./...` — passes
-- ✅ `make fmt` — no changes needed
-
-### Dead Function Count
-
-- **Before this batch**: ~N functions
-- **Removed in this PR**: M functions
-- **Remaining**: ~(N - M) functions
-
----
-*Automated by Dead Code Removal workflow — ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}*
-```
+**Body**: Use a compact markdown format with:
+- A `Functions Removed` table: `Function | File`
+- A `Tests Removed` section (list removed tests or `None`)
+- A `Verification` checklist for:
+  - `go build ./...`
+  - `go vet ./...`
+  - `go vet -tags=integration ./...`
+  - `make fmt`
+- Run URL footer:
+  `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
 
 ## Phase 9: Update Cache
 

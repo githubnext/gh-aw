@@ -211,7 +211,7 @@ func findAgentStdioLogPath(logsPath string) string {
 }
 
 func hasUsefulFallbackMetrics(metrics LogMetrics) bool {
-	return metrics.TokenUsage > 0 || metrics.Turns > 0 || metrics.EstimatedCost > 0 || len(metrics.ToolCalls) > 0
+	return metrics.TokenUsage > 0 || metrics.Turns > 0 || len(metrics.ToolCalls) > 0
 }
 
 func inferBestEngineMetricsFromContent(logContent string) (LogMetrics, string) {
