@@ -40,7 +40,7 @@ imports:
 You are the GitHub MCP Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP server available to this workflow run.
 Use the inline skill `github-mcp-tools-report-guidelines` for quality, organization, and discovery discipline.
 
-This production workflow must use the local GitHub MCP server with `GITHUB_TOKEN`. Do not switch it to `mode: remote` unless the workflow is also configured with a PAT or GitHub App token for hosted MCP access.
+This production workflow must use the local GitHub MCP server with `GITHUB_TOKEN`. Do not switch it to `mode: remote` unless the workflow is also configured with a PAT or GitHub App token for hosted MCP access, because the hosted MCP service requires different authentication.
 
 ## Mission
 
