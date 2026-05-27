@@ -48,8 +48,12 @@ func TestParseManifestSourceSpec(t *testing.T) {
 		wantVersion  string
 	}{
 		{source: "owner/repo@v1.0.0", wantManifest: true, wantRepo: "owner/repo", wantVersion: "v1.0.0"},
+		{source: "owner/repo@feature/github-agentic-workflow", wantManifest: true, wantRepo: "owner/repo", wantVersion: "feature/github-agentic-workflow"},
+		{source: "owner/repo@release/2026.05.27-rc_1", wantManifest: true, wantRepo: "owner/repo", wantVersion: "release/2026.05.27-rc_1"},
 		{source: "owner/repo/packages/repo-assist@main", wantManifest: true, wantRepo: "owner/repo", wantPackage: "packages/repo-assist", wantVersion: "main"},
+		{source: "owner/repo/agentic-workflows@hotfix/github-aw_fix-1.2.3", wantManifest: true, wantRepo: "owner/repo", wantPackage: "agentic-workflows", wantVersion: "hotfix/github-aw_fix-1.2.3"},
 		{source: "owner/repo/workflows/triage.md@v1.0.0", wantManifest: false},
+		{source: "owner/repo/workflows/triage.md@release/2026.05.27-rc_1", wantManifest: false},
 	}
 
 	for _, tt := range tests {

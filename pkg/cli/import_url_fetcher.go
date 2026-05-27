@@ -199,6 +199,15 @@ var defaultImportAuthHosts = map[string]struct{}{
 	constants.GitHubCopilotMCPDomain: {},
 }
 
+const copilotIntegrationHeaderValue = "agentic-workflows"
+
+const (
+	copilotAutomationSegmentCount    = 6
+	copilotAutomationAgentsSegment   = "agents"
+	copilotAutomationReposSegment    = "repos"
+	copilotAutomationResourceSegment = "automations"
+)
+
 func attachImportAuthHeader(req *http.Request, rawURL string) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Host == "" {
@@ -227,6 +236,27 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 
 	importURLFetcherLog.Printf("Attaching auth header for host: %s", host)
 	req.Header.Set("Authorization", "Bearer "+token)
+	if isCopilotAutomationImportURL(parsed) {
+		req.Header.Set("Copilot-Integration-Id", copilotIntegrationHeaderValue)
+	}
+}
+
+// isCopilotAutomationImportURL reports whether u targets a Copilot automation API route
+// with exactly six path segments: /agents/repos/{owner}/{repo}/automations/{id}.
+// It returns false when u is nil, the host is not api.githubcopilot.com, or the
+// path does not match that automation pattern.
+func isCopilotAutomationImportURL(u *url.URL) bool {
+	if u == nil || !strings.EqualFold(u.Hostname(), constants.GitHubCopilotMCPDomain) {
+		return false
+	}
+	segments := strings.Split(strings.Trim(u.Path, "/"), "/")
+	return len(segments) == copilotAutomationSegmentCount &&
+		segments[0] == copilotAutomationAgentsSegment &&
+		segments[1] == copilotAutomationReposSegment &&
+		segments[2] != "" &&
+		segments[3] != "" &&
+		segments[4] == copilotAutomationResourceSegment &&
+		segments[5] != ""
 }
 
 // buildRequestLogString formats req in HTTP/1.1 wire format with the Authorization

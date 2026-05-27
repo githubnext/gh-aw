@@ -14,7 +14,7 @@ permissions:
 tracker-id: daily-fact-thread
 engine:
   id: codex
-  model: gpt-5.4-mini
+  model: gpt-5.3-codex
   bare: true
 strict: true
 experiments:
@@ -37,7 +37,7 @@ timeout-minutes: 15
 runs-on: aw-gpu-runner-T4
 runtimes:
   node:
-    version: "24"
+    version: "22"
 inlined-imports: true
 network:
   allowed:

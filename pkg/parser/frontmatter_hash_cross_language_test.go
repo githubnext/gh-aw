@@ -5,6 +5,7 @@ package parser
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,18 +26,19 @@ func TestCrossLanguageHashCompatibility(t *testing.T) {
 	testCases := []struct {
 		name     string
 		content  string
-		expected string // Will be computed by Go implementation
+		expected string
 	}{
 		{
-			name: "empty frontmatter",
+			name: "FH-TV-001 empty frontmatter",
 			content: `---
 ---
 
 # Empty Workflow
 `,
+			expected: "4c8309afbcf816cd80c0824dce2b50047834b29e14b34b96953e88ae81048c46",
 		},
 		{
-			name: "simple frontmatter",
+			name: "FH-TV-002 simple frontmatter",
 			content: `---
 engine: copilot
 description: Test workflow
@@ -46,9 +48,10 @@ on:
 
 # Test Workflow
 `,
+			expected: "b9def9907e3328e2e03e8c47c315723df39788f251627313b1a984bb61b9cbce",
 		},
 		{
-			name: "complex frontmatter",
+			name: "FH-TV-003 complex frontmatter",
 			content: `---
 engine: claude
 description: Complex workflow
@@ -72,6 +75,7 @@ bots:
 
 # Complex Workflow
 `,
+			expected: "8c63a05ef42cbfaff9be87a06257282cb4dcb952f71481d9d65ec3037003dbe8",
 		},
 	}
 
@@ -88,6 +92,7 @@ bots:
 			require.NoError(t, err, "Should compute hash")
 			assert.Len(t, hash, 64, "Hash should be 64 characters")
 			assert.Regexp(t, "^[a-f0-9]{64}$", hash, "Hash should be lowercase hex")
+			assert.Equal(t, tc.expected, hash, "Hash should match specification vector")
 
 			// For now, we just verify the Go implementation works
 			// The JavaScript implementation will be tested separately
@@ -102,6 +107,25 @@ bots:
 			assert.Equal(t, hash, hash2, "Hash should be deterministic")
 		})
 	}
+}
+
+// TestFrontmatterHashVectorFH_TV_NEG_001 validates the oversized input rejection vector.
+func TestFrontmatterHashVectorFH_TV_NEG_001(t *testing.T) {
+	tempDir := t.TempDir()
+	workflowFile := filepath.Join(tempDir, "oversized-workflow.md")
+	oversizedDescription := strings.Repeat("a", maxFrontmatterHashInputBytes+1)
+
+	require.NoError(t, os.WriteFile(workflowFile, []byte(`---
+description: `+oversizedDescription+`
+---
+
+# Oversized Workflow
+`), 0o644), "Should write oversized workflow file")
+
+	cache := NewImportCache(tempDir)
+	_, err := ComputeFrontmatterHashFromFile(workflowFile, cache)
+	require.Error(t, err, "Should reject oversized normalized frontmatter input")
+	require.EqualError(t, err, "frontmatter hash input exceeds 1048576 bytes after normalization")
 }
 
 // TestHashWithRealWorkflow tests hash computation with an actual workflow from the repository

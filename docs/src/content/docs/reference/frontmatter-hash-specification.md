@@ -397,6 +397,10 @@ Version changes will be documented and backward compatibility maintained where p
 Per the **Resolution (2026-05-08)** in Implementation Notes, the text-based algorithm remains
 authoritative until a dedicated migration milestone is approved.
 
+**Decision entry (2026-05-27)**: v2.0.0 field-selection alignment is formally **deferred**. The
+project will revisit scheduling only after the acceptance criteria below are met and reviewed in
+[#31983](https://github.com/github/gh-aw/issues/31983).
+
 Tracking issue: [#31983](https://github.com/github/gh-aw/issues/31983)
 
 The project **MUST NOT** schedule a v2.0.0 migration to the field-selection model until all of
