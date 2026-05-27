@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -42,6 +43,24 @@ type defaultsTarget struct {
 	repoName   string
 	org        string
 	enterprise string
+}
+
+type defaultsGHError struct {
+	command  string
+	exitCode int
+	output   string
+	cause    error
+}
+
+func (e *defaultsGHError) Error() string {
+	if strings.TrimSpace(e.output) == "" {
+		return fmt.Sprintf("%s failed (exit %d): %v", e.command, e.exitCode, e.cause)
+	}
+	return fmt.Sprintf("%s failed (exit %d): %s", e.command, e.exitCode, strings.TrimSpace(e.output))
+}
+
+func (e *defaultsGHError) Unwrap() error {
+	return e.cause
 }
 
 var defaultsBindings = []defaultsBinding{
@@ -252,7 +271,17 @@ func runDefaultsGH(args ...string) ([]byte, error) {
 	cmd := defaultsExecGH(args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return out, fmt.Errorf("gh %s: %w", strings.Join(args, " "), err)
+		command := "gh " + strings.Join(args, " ")
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return out, &defaultsGHError{
+				command:  command,
+				exitCode: exitErr.ExitCode(),
+				output:   string(out),
+				cause:    err,
+			}
+		}
+		return out, fmt.Errorf("%s: %w", command, err)
 	}
 	return out, nil
 }
@@ -296,8 +325,11 @@ func isDefaultsNotFoundError(err error, out []byte) bool {
 	if err == nil {
 		return false
 	}
-	msg := strings.ToLower(err.Error() + " " + string(out))
-	return strings.Contains(msg, "404") || strings.Contains(msg, "not found")
+	var ghErr *defaultsGHError
+	if errors.As(err, &ghErr) {
+		return strings.Contains(strings.ToLower(ghErr.output), "http 404")
+	}
+	return strings.Contains(strings.ToLower(string(out)), "http 404")
 }
 
 func errWithOutput(err error, out []byte) error {
