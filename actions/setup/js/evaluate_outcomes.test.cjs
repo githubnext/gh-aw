@@ -98,10 +98,10 @@ describe("evaluate_outcomes type-specific evaluators", () => {
       timestamp: "2026-05-26T00:00:00Z",
     };
 
-    const deleted = createAPIStub({
+    const commentApiError = createAPIStub({
       "repos/acme/repo/issues/comments/1001": null,
     });
-    expect(evaluateItem(base, "acme/repo", { ghAPI: deleted }).detail).toContain("rejected:strong");
+    expect(evaluateItem(base, "acme/repo", { ghAPI: commentApiError }).result).toBe("unknown");
 
     const reacted = createAPIStub({
       "repos/acme/repo/issues/comments/1001": { id: 1001, created_at: "2026-05-26T00:00:00Z", user: { login: "copilot" }, reactions: { total_count: 2 } },
@@ -146,7 +146,7 @@ describe("evaluate_outcomes type-specific evaluators", () => {
     expect(evaluateItem(item, "acme/repo", { ghAPI: removedByNonAuthor, nowMs: Date.parse("2026-05-27T00:00:00Z") }).detail).toBe("rejected:strong");
 
     expect(evaluateItem(item, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-25T00:01:00Z") }).result).toBe("pending");
-    expect(evaluateItem({ ...item, labelsBefore: [] }, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-27T00:00:00Z") }).result).toBe("unknown");
+    expect(evaluateItem({ ...item, labelsBefore: [] }, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-27T00:00:00Z") }).detail).toBe("accepted:strong");
   });
 });
 

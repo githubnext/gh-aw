@@ -110,6 +110,15 @@ describe("safe_output_manifest", () => {
       expect(entry.timestamp).toBeDefined();
     });
 
+    it("should persist labelsAdded even when empty", () => {
+      const log = createManifestLogger(testManifestFile);
+      log({ type: "add_labels", number: 20875, labelsAdded: [] });
+
+      const content = fs.readFileSync(testManifestFile, "utf8");
+      const entry = JSON.parse(content.trim());
+      expect(entry.labelsAdded).toEqual([]);
+    });
+
     it("should skip null/undefined items", () => {
       const log = createManifestLogger(testManifestFile);
       log(null);

@@ -81,7 +81,7 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
       ...(item.number != null ? { number: item.number } : {}),
       ...(item.repo ? { repo: item.repo } : {}),
       ...(item.temporaryId ? { temporaryId: item.temporaryId } : {}),
-      ...(Array.isArray(item.labelsAdded) && item.labelsAdded.length > 0 ? { labelsAdded: item.labelsAdded } : {}),
+      ...(Array.isArray(item.labelsAdded) ? { labelsAdded: item.labelsAdded } : {}),
       ...(Array.isArray(item.labelsBefore) ? { labelsBefore: item.labelsBefore } : {}),
       timestamp: new Date().toISOString(),
     };

@@ -186,9 +186,7 @@ const main = createCountGatedHandler({
           issue_number: itemNumber,
         });
         const existingLabels = Array.isArray(existingItem?.labels) ? existingItem.labels : [];
-        labelsBefore = existingLabels
-          .map(label => (typeof label === "string" ? label : label?.name))
-          .filter(name => typeof name === "string" && name.trim() !== "");
+        labelsBefore = existingLabels.map(label => (typeof label === "string" ? label : label?.name)).filter(name => typeof name === "string" && name.trim() !== "");
       } catch (error) {
         core.info(`Unable to capture labels-before snapshot for ${contextType} #${itemNumber}: ${getErrorMessage(error)}`);
       }

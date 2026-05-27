@@ -321,7 +321,7 @@ function evaluateCreateIssue(item, itemRepo, timestamp, out, apiGet, nowMs) {
     }
   }
 
-  if (issue.state === "open" && (hasMergedPRReference || hasCommitReference || hasClosingActionReference)) {
+  if (issue.state === "open" && (hasMergedPRReference || hasCommitReference)) {
     out.result = "accepted";
     out.detail = "accepted:strong";
     return out;
@@ -390,8 +390,9 @@ function evaluateAddComment(item, itemRepo, timestamp, out, apiGet, nowMs) {
 
   const comment = apiGet(`repos/${itemRepo}/issues/comments/${commentID}`);
   if (!comment || !comment.id) {
-    out.result = "rejected";
-    out.detail = "rejected:strong deleted";
+    out.result = "unknown";
+    out.detail = "unknown: comment api error";
+    setPendingAge(out, timestamp, nowMs);
     return out;
   }
 
@@ -461,12 +462,13 @@ function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
     return out;
   }
 
-  const labelsBefore = normalizeLabels(item.labelsBefore);
+  const hasLabelsBefore = Object.prototype.hasOwnProperty.call(item, "labelsBefore") && Array.isArray(item.labelsBefore);
+  const labelsBefore = hasLabelsBefore ? normalizeLabels(item.labelsBefore) : [];
   const labelsAdded = normalizeLabels(item.labelsAdded);
   const fallbackLabels = normalizeLabels(item.labels);
   const effectiveLabelsAdded = labelsAdded.length > 0 ? labelsAdded : fallbackLabels;
 
-  if (labelsBefore.length === 0 || effectiveLabelsAdded.length === 0) {
+  if (!hasLabelsBefore || effectiveLabelsAdded.length === 0) {
     out.result = "unknown";
     out.detail = "unknown: missing persisted label before-state";
     setPendingAge(out, timestamp, nowMs);
