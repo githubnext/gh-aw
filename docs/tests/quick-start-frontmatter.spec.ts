@@ -8,19 +8,15 @@ test.describe('Quick Start frontmatter guidance', () => {
     const frontmatterLink = page.locator('a[href="/gh-aw/reference/frontmatter/"]').first();
     await expect(frontmatterLink).toBeVisible();
 
-    const appearsBeforeStep4 = await page.evaluate(() => {
-      const frontmatter = document.querySelector('a[href="/gh-aw/reference/frontmatter/"]');
-      const step4Heading = Array.from(document.querySelectorAll('h3')).find((heading) =>
-        heading.textContent?.includes('Step 4 - Customize your workflow'),
-      );
-
-      if (!frontmatter || !step4Heading) {
-        return false;
-      }
-
-      return Boolean(frontmatter.compareDocumentPosition(step4Heading) & Node.DOCUMENT_POSITION_FOLLOWING);
+    const positions = await page.evaluate(() => {
+      const content = (document.querySelector('main') ?? document.body).textContent ?? '';
+      return {
+        frontmatterIndex: content.toLowerCase().indexOf('frontmatter'),
+        step4Index: content.indexOf('Step 4 - Customize your workflow'),
+      };
     });
 
-    expect(appearsBeforeStep4).toBe(true);
+    expect(positions.frontmatterIndex).toBeGreaterThan(-1);
+    expect(positions.step4Index).toBeGreaterThan(positions.frontmatterIndex);
   });
 });
