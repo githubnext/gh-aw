@@ -435,6 +435,7 @@ describe("extra_empty_commit.cjs", () => {
       });
 
       expect(result).toEqual({ success: true });
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Cycle check unavailable"));
     });
 
     it("should skip at exactly 30 empty commits (boundary)", async () => {

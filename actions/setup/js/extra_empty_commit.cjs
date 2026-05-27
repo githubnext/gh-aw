@@ -93,6 +93,9 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     const MAX_EMPTY_COMMITS = 30;
     const COMMITS_TO_CHECK = 60;
     let emptyCommitCount = 0;
+    let mergeCommitCount = 0;
+    let analyzedCommitCount = 0;
+    core.info(`Cycle check: analyzing up to ${COMMITS_TO_CHECK} recent commits on ${branchName}`);
 
     try {
       let logOutput = "";
@@ -109,6 +112,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       // Split by COMMIT: markers; each chunk starts with the hash, followed by filenames
       const chunks = logOutput.split("COMMIT:").filter(c => c.trim());
       for (const chunk of chunks) {
+        analyzedCommitCount++;
         const lines = chunk.split("\n").filter(l => l.trim());
         // First line is hash + parent SHAs, remaining lines are changed files.
         // Ignore merge commits (2+ parents) so they aren't mistaken for CI-trigger empty commits.
@@ -116,6 +120,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
         const hashAndParents = (lines[0] || "").trim().split(" ").filter(Boolean);
         const parentCount = Math.max(0, hashAndParents.length - 1);
         if (parentCount >= 2) {
+          mergeCommitCount++;
           continue;
         }
 
@@ -127,6 +132,9 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     } catch {
       // If we can't check, default to allowing the push
       emptyCommitCount = 0;
+      mergeCommitCount = 0;
+      analyzedCommitCount = 0;
+      core.warning(`Cycle check unavailable: failed to inspect git history for ${branchName}. Continuing with empty commit count set to 0.`);
     }
 
     if (emptyCommitCount >= MAX_EMPTY_COMMITS) {
@@ -134,6 +142,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       return { success: true, skipped: true };
     }
 
+    core.info(`Cycle check details: analyzed ${analyzedCommitCount} commit(s), ignored ${mergeCommitCount} merge commit(s), counted ${emptyCommitCount} empty non-merge commit(s)`);
     core.info(`Cycle check passed: ${emptyCommitCount} empty commit(s) in last ${COMMITS_TO_CHECK} (limit: ${MAX_EMPTY_COMMITS})`);
 
     // Configure git remote with the token for authentication
