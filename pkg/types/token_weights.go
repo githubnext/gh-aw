@@ -2,7 +2,7 @@ package types
 
 // TokenClassWeights holds per-token-class weights for effective token computation.
 // Each field corresponds to one token class; a zero value means "use default".
-// The JSON keys use underscores to match the data file format.
+// The JSON keys use underscores to match pkg/cli/data/model_multipliers.json format.
 type TokenClassWeights struct {
 	Input       float64 `json:"input,omitempty"`
 	CachedInput float64 `json:"cached_input,omitempty"`
