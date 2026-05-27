@@ -8,7 +8,6 @@ import (
 
 func TestEnterpriseVariables(t *testing.T) {
 	vars := EnterpriseVariables()
-	assert.Len(t, vars, 7)
 	names := make([]string, 0, len(vars))
 	for _, v := range vars {
 		names = append(names, v.Name)

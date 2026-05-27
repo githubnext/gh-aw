@@ -47,5 +47,6 @@ func TestApplyDefaults_DefaultTimeoutMinutesFallback(t *testing.T) {
 
 	compiler := NewCompiler()
 	require.NoError(t, compiler.applyDefaults(data, markdownPath))
-	assert.Equal(t, "timeout-minutes: "+strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout/time.Minute)), data.TimeoutMinutes)
+	expectedDefaultTimeout := "timeout-minutes: " + strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout/time.Minute))
+	assert.Equal(t, expectedDefaultTimeout, data.TimeoutMinutes)
 }
