@@ -770,6 +770,17 @@ pull-main:
 	@echo "Pulling latest changes..."
 	@git pull
 
+.PHONY: merge-main
+merge-main:
+	@echo "Formatting before merge..."
+	@$(MAKE) fmt
+	@echo "Merging main..."
+	@git merge main
+	@echo "Recompiling workflows..."
+	@$(MAKE) recompile
+	@echo "Formatting after merge..."
+	@$(MAKE) fmt
+
 # Generate Software Bill of Materials (SBOM)
 .PHONY: sbom
 sbom:
@@ -868,6 +879,7 @@ help:
 	@echo "  update           - Update GitHub Actions and workflows, sync action pins, and rebuild binary"
 	@echo "  fix              - Apply automatic codemod-style fixes to workflow files (depends on build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
+	@echo "  merge-main       - Format, merge main, recompile workflows, and format again"
 	@echo "  compile-cli-workflows - Compile workflows in pkg/cli/workflows (builds binary if missing)"
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
