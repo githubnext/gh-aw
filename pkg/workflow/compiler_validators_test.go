@@ -214,6 +214,64 @@ func TestValidatePermissions(t *testing.T) {
 			shouldError:     false,
 			wantPermissions: true,
 		},
+		{
+			name: "observability otlp github-app requires id-token write",
+			workflowData: &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: "# Test",
+				AI:              "copilot",
+				Permissions:     "permissions:\n  contents: read\n",
+				RawFrontmatter: map[string]any{
+					"observability": map[string]any{
+						"otlp": map[string]any{
+							"github-app": map[string]any{},
+						},
+					},
+				},
+			},
+			shouldError:     true,
+			errorContains:   "observability.otlp.github-app requires permissions.id-token: write",
+			wantPermissions: false,
+		},
+		{
+			name: "observability otlp github-app with id-token write succeeds",
+			workflowData: &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: "# Test",
+				AI:              "copilot",
+				Permissions:     "permissions:\n  contents: read\n  id-token: write\n",
+				RawFrontmatter: map[string]any{
+					"observability": map[string]any{
+						"otlp": map[string]any{
+							"github-app": map[string]any{},
+						},
+					},
+				},
+			},
+			shouldError:     false,
+			wantPermissions: true,
+		},
+		{
+			name: "observability otlp GitHub App credentials do not require id-token write",
+			workflowData: &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: "# Test",
+				AI:              "copilot",
+				Permissions:     "permissions:\n  contents: read\n",
+				RawFrontmatter: map[string]any{
+					"observability": map[string]any{
+						"otlp": map[string]any{
+							"github-app": map[string]any{
+								"app-id":      "${{ vars.APP_ID }}",
+								"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+							},
+						},
+					},
+				},
+			},
+			shouldError:     false,
+			wantPermissions: true,
+		},
 	}
 
 	for _, tt := range tests {

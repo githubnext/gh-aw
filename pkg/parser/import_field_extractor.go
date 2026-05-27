@@ -821,6 +821,7 @@ func mergeObservabilityConfigs(configs []string) string {
 	seen := make(map[string]bool)
 	var allEndpoints []observabilityImportEndpoint
 	mergedAttrs := make(map[string]string)
+	var mergedGitHubApp map[string]any
 
 	for i, cfgJSON := range configs {
 		if cfgJSON == "" {
@@ -842,9 +843,12 @@ func mergeObservabilityConfigs(configs []string) string {
 				mergedAttrs[k] = v
 			}
 		}
+		if mergedGitHubApp == nil {
+			mergedGitHubApp = extractOTLPGitHubAppFromObsMap(obs)
+		}
 	}
 
-	if len(allEndpoints) == 0 && len(mergedAttrs) == 0 {
+	if len(allEndpoints) == 0 && len(mergedAttrs) == 0 && mergedGitHubApp == nil {
 		return ""
 	}
 
@@ -858,6 +862,9 @@ func mergeObservabilityConfigs(configs []string) string {
 	if len(mergedAttrs) > 0 {
 		otlpMap["attributes"] = mergedAttrs
 	}
+	if mergedGitHubApp != nil {
+		otlpMap["github-app"] = mergedGitHubApp
+	}
 	merged := map[string]any{"otlp": otlpMap}
 	b, err := json.Marshal(merged)
 	if err != nil {
@@ -865,6 +872,33 @@ func mergeObservabilityConfigs(configs []string) string {
 		return ""
 	}
 	return string(b)
+}
+
+func extractOTLPGitHubAppFromObsMap(obs map[string]any) map[string]any {
+	if obs == nil {
+		return nil
+	}
+	otlpAny, ok := obs["otlp"]
+	if !ok {
+		return nil
+	}
+	otlpMap, ok := otlpAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	githubAppAny, ok := otlpMap["github-app"]
+	if !ok {
+		return nil
+	}
+	githubAppMap, ok := githubAppAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+	copyMap := make(map[string]any, len(githubAppMap))
+	for k, v := range githubAppMap {
+		copyMap[k] = v
+	}
+	return copyMap
 }
 
 // extractOTLPAttributesFromObsMap reads the custom OTLP attributes map from a

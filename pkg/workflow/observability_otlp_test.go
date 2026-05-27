@@ -222,6 +222,151 @@ func TestGetOTLPIfMissingMode(t *testing.T) {
 	})
 }
 
+func TestGetOTLPGitHubOIDCAudience(t *testing.T) {
+	t.Run("returns parsed audience when github-app is configured", func(t *testing.T) {
+		got := getOTLPGitHubOIDCAudience(&FrontmatterConfig{
+			Observability: &ObservabilityConfig{
+				OTLP: &OTLPConfig{
+					GitHubApp: &OTLPGitHubAppConfig{
+						Audience: "https://collector.example.com",
+					},
+				},
+			},
+		}, nil)
+		assert.Equal(t, "https://collector.example.com", got)
+	})
+
+	t.Run("returns empty when github-app is missing", func(t *testing.T) {
+		got := getOTLPGitHubOIDCAudience(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{},
+			},
+		})
+		assert.Empty(t, got)
+	})
+
+	t.Run("returns raw audience when github-app is set", func(t *testing.T) {
+		got := getOTLPGitHubOIDCAudience(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"github-app": map[string]any{
+						"audience": "api://AzureADTokenExchange",
+					},
+				},
+			},
+		})
+		assert.Equal(t, "api://AzureADTokenExchange", got)
+	})
+}
+
+func TestGetOTLPGitHubApp(t *testing.T) {
+	t.Run("returns parsed github-app config", func(t *testing.T) {
+		got := getOTLPGitHubApp(&FrontmatterConfig{
+			Observability: &ObservabilityConfig{
+				OTLP: &OTLPConfig{
+					GitHubApp: &OTLPGitHubAppConfig{
+						Audience: "https://collector.example.com",
+					},
+				},
+			},
+		}, nil)
+		require.NotNil(t, got)
+		assert.Equal(t, "https://collector.example.com", got.Audience)
+	})
+
+	t.Run("returns raw github-app config", func(t *testing.T) {
+		got := getOTLPGitHubApp(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"github-app": map[string]any{
+						"audience": "api://AzureADTokenExchange",
+					},
+				},
+			},
+		})
+		require.NotNil(t, got)
+		assert.Equal(t, "api://AzureADTokenExchange", got.Audience)
+	})
+
+	t.Run("returns nil when github-app is missing", func(t *testing.T) {
+		got := getOTLPGitHubApp(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{},
+			},
+		})
+		assert.Nil(t, got)
+	})
+
+	t.Run("returns nil for invalid raw structure", func(t *testing.T) {
+		assert.Nil(t, getOTLPGitHubApp(nil, map[string]any{
+			"observability": "invalid",
+		}))
+		assert.Nil(t, getOTLPGitHubApp(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": "invalid",
+			},
+		}))
+		assert.Nil(t, getOTLPGitHubApp(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"github-app": "invalid",
+				},
+			},
+		}))
+	})
+}
+
+func TestHasOTLPGitHubOIDCAuth(t *testing.T) {
+	assert.True(t, hasOTLPGitHubOIDCAuth(&FrontmatterConfig{
+		Observability: &ObservabilityConfig{
+			OTLP: &OTLPConfig{
+				GitHubApp: &OTLPGitHubAppConfig{},
+			},
+		},
+	}, nil))
+
+	assert.True(t, hasOTLPGitHubOIDCAuth(nil, map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{},
+			},
+		},
+	}))
+
+	assert.False(t, hasOTLPGitHubOIDCAuth(nil, map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{},
+		},
+	}))
+
+	assert.False(t, hasOTLPGitHubOIDCAuth(nil, map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{
+					"app-id":      "${{ vars.APP_ID }}",
+					"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+				},
+			},
+		},
+	}))
+}
+
+func TestGetOTLPGitHubAppTokenConfig(t *testing.T) {
+	got := getOTLPGitHubAppTokenConfig(map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{
+					"app-id":      "${{ vars.APP_ID }}",
+					"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+				},
+			},
+		},
+	})
+	require.NotNil(t, got)
+	assert.Equal(t, "${{ vars.APP_ID }}", got.AppID)
+	assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", got.PrivateKey)
+}
+
 // TestInjectOTLPConfig verifies that injectOTLPConfig correctly modifies WorkflowData.
 func TestInjectOTLPConfig(t *testing.T) {
 	newCompiler := func() *Compiler { return &Compiler{} }
@@ -1683,6 +1828,36 @@ func TestExtractRawOTLPEndpointMaps(t *testing.T) {
 			assert.Equal(t, tt.want, got, "extractRawOTLPEndpointMaps")
 		})
 	}
+}
+
+func TestExtractRawOTLPGitHubAppMap(t *testing.T) {
+	t.Run("returns shallow copy when github-app exists", func(t *testing.T) {
+		obs := map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{
+					"audience": "api://AzureADTokenExchange",
+				},
+			},
+		}
+
+		got := extractRawOTLPGitHubAppMap(obs)
+		require.NotNil(t, got)
+		assert.Equal(t, "api://AzureADTokenExchange", got["audience"])
+
+		got["audience"] = "changed"
+		original := obs["otlp"].(map[string]any)["github-app"].(map[string]any)["audience"]
+		assert.Equal(t, "api://AzureADTokenExchange", original)
+	})
+
+	t.Run("returns nil for invalid values", func(t *testing.T) {
+		assert.Nil(t, extractRawOTLPGitHubAppMap(nil))
+		assert.Nil(t, extractRawOTLPGitHubAppMap(map[string]any{}))
+		assert.Nil(t, extractRawOTLPGitHubAppMap(map[string]any{
+			"otlp": map[string]any{
+				"github-app": "invalid",
+			},
+		}))
+	})
 }
 
 // TestCollectOTLPCustomAttributes verifies that custom attributes are read from the
