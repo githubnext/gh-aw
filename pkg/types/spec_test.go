@@ -199,11 +199,11 @@ func TestSpec_Types_TokenClassWeights(t *testing.T) {
 	assert.InDelta(t, 0.0, zero.Input, 1e-9, "zero value of Input must be 0 (use default)")
 	assert.InDelta(t, 0.0, zero.CachedInput, 1e-9, "zero value of CachedInput must be 0 (use default)")
 
-	// Verify JSON field names from struct tags (hyphens, matching frontmatter schema)
+	// Verify JSON field names from struct tags (underscores, matching pkg/cli/data/model_multipliers.json)
 	data, err := json.Marshal(w)
 	require.NoError(t, err, "TokenClassWeights must serialize to JSON")
-	assert.Contains(t, string(data), `"cached-input"`, "JSON must use hyphenated field name 'cached-input'")
-	assert.Contains(t, string(data), `"cache-write"`, "JSON must use hyphenated field name 'cache-write'")
+	assert.Contains(t, string(data), `"cached_input"`, "JSON must use underscore field name 'cached_input'")
+	assert.Contains(t, string(data), `"cache_write"`, "JSON must use underscore field name 'cache_write'")
 }
 
 // TestSpec_Types_ZeroValueSafety validates that all types have sensible zero values

@@ -134,6 +134,7 @@ type CreatedItemReport struct {
 	Number      int            `json:"number,omitempty" console:"header:Number,omitempty"`
 	Repo        string         `json:"repo,omitempty" console:"header:Repo,omitempty"`
 	TemporaryID string         `json:"temporaryId,omitempty" console:"header:Temp ID,omitempty"`
+	Metadata    map[string]any `json:"metadata,omitempty" console:"-"`
 	BeforeState map[string]any `json:"before_state,omitempty" console:"-"`
 	AfterState  map[string]any `json:"after_state,omitempty" console:"-"`
 	Timestamp   string         `json:"timestamp" console:"header:Timestamp"`

@@ -320,6 +320,12 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(result.success).toBe(true);
       expect(result.event).toBe("REQUEST_CHANGES");
       expect(result.review_id).toBe(200);
+      expect(result.url).toBe("https://github.com/owner/repo/pull/42#pullrequestreview-200");
+      expect(result.number).toBe(42);
+      expect(result.metadata).toEqual({
+        review_id: 200,
+        review_event: "REQUEST_CHANGES",
+      });
 
       const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
       expect(callArgs.event).toBe("REQUEST_CHANGES");

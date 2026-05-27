@@ -205,6 +205,7 @@ async function main(config = {}) {
       success: true,
       event: event,
       body_length: body.length,
+      deferred_manifest: true,
     };
   };
 }

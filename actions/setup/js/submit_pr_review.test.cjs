@@ -121,6 +121,7 @@ describe("submit_pr_review (Handler Factory Architecture)", () => {
     expect(result.success).toBe(true);
     expect(result.event).toBe("APPROVE");
     expect(result.body_length).toBe(20);
+    expect(result.deferred_manifest).toBe(true);
     expect(buffer.hasReviewMetadata()).toBe(true);
   });
 
