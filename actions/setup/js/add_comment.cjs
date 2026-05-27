@@ -834,7 +834,7 @@ async function main(config = {}) {
       const is404 = error?.status === 404 || errorMessage.includes("404") || normalizedErrorMessage.includes("not found");
       const isHttp423Locked = error?.status === 423;
       const isHttp403WithLockedMessage = error?.status === 403 && normalizedErrorMessage.includes("locked");
-      const isLockedByKnownMessageWithoutStatus = (error?.status === undefined || error?.status === null) && hasKnownLockPhrase;
+      const isLockedByKnownMessageWithoutStatus = error?.status == null && hasKnownLockPhrase;
       const isLocked = isHttp423Locked || isHttp403WithLockedMessage || isLockedByKnownMessageWithoutStatus;
 
       // If 404 and item_number was explicitly provided and we tried as issue/PR,
@@ -897,7 +897,7 @@ async function main(config = {}) {
         };
       }
 
-      // For non-404 errors, fail as before
+      // For all other errors, propagate the failure
       core.error(`Failed to add comment: ${errorMessage}`);
       return {
         success: false,
