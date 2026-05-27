@@ -539,13 +539,7 @@ function normalizeCommitSHA(sha) {
 function extractPushedCommitSHAs(item) {
   /** @type {string[]} */
   const shas = [];
-  const candidates = [
-    item.commit_sha,
-    item.pushed_commit_sha,
-    item.head_sha,
-    item?.metadata?.commit_sha,
-    item?.metadata?.pushed_commit_sha,
-  ];
+  const candidates = [item.commit_sha, item.pushed_commit_sha, item.head_sha, item?.metadata?.commit_sha, item?.metadata?.pushed_commit_sha];
   for (const candidate of candidates) {
     const normalized = normalizeCommitSHA(candidate);
     if (normalized) shas.push(normalized);
@@ -566,16 +560,7 @@ function extractPushedCommitSHAs(item) {
  * @returns {string}
  */
 function extractBeforeHeadSHA(item) {
-  const candidates = [
-    item.before_head_sha,
-    item.previous_head_sha,
-    item.head_sha_before,
-    item.branch_head_before,
-    item.pre_push_head_sha,
-    item?.metadata?.before_head_sha,
-    item?.metadata?.previous_head_sha,
-    item?.metadata?.head_sha_before,
-  ];
+  const candidates = [item.before_head_sha, item.previous_head_sha, item.head_sha_before, item.branch_head_before, item.pre_push_head_sha, item?.metadata?.before_head_sha, item?.metadata?.previous_head_sha, item?.metadata?.head_sha_before];
   for (const candidate of candidates) {
     const normalized = normalizeCommitSHA(candidate);
     if (normalized) return normalized;
