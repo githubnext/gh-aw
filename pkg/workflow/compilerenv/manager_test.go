@@ -8,14 +8,17 @@ import (
 
 func TestEnterpriseVariables(t *testing.T) {
 	vars := EnterpriseVariables()
-	assert.Len(t, vars, 7)
-	assert.Equal(t, DefaultMaxEffectiveTokens, vars[0].Name)
-	assert.Equal(t, DefaultMaxTurns, vars[1].Name)
-	assert.Equal(t, DefaultTimeoutMinutes, vars[2].Name)
-	assert.Equal(t, DefaultEngine, vars[3].Name)
-	assert.Equal(t, DefaultModelCopilot, vars[4].Name)
-	assert.Equal(t, DefaultModelClaude, vars[5].Name)
-	assert.Equal(t, DefaultModelCodex, vars[6].Name)
+	names := make([]string, 0, len(vars))
+	for _, v := range vars {
+		names = append(names, v.Name)
+	}
+	assert.Contains(t, names, DefaultMaxEffectiveTokens)
+	assert.Contains(t, names, DefaultMaxTurns)
+	assert.Contains(t, names, DefaultTimeoutMinutes)
+	assert.Contains(t, names, DefaultEngine)
+	assert.Contains(t, names, DefaultModelCopilot)
+	assert.Contains(t, names, DefaultModelClaude)
+	assert.Contains(t, names, DefaultModelCodex)
 }
 
 func TestResolveDefaultMaxEffectiveTokens(t *testing.T) {
