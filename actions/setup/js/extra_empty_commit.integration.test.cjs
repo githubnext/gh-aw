@@ -146,9 +146,12 @@ describe("extra_empty_commit git integration", () => {
     expect(commandLog.some(command => command.includes("--format=COMMIT:%H %P"))).toBe(true);
     expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Cycle prevention"));
 
-    const detailLog = mockCore.info.mock.calls.find(call => call[0].startsWith("Cycle check details:"));
-    expect(detailLog).toBeDefined();
-    const parsedDetail = detailLog[0].match(/analyzed (\d+).*ignored (\d+).*counted (\d+)/);
+    const detailLogCall = mockCore.info.mock.calls.find(call => call[0].startsWith("Cycle check details:"));
+    if (!detailLogCall || typeof detailLogCall[0] !== "string") {
+      throw new Error("missing cycle-check detail log");
+    }
+    // Intentionally verify the named counters emitted by cycle-check diagnostics.
+    const parsedDetail = detailLogCall[0].match(/analyzed (\d+).*ignored (\d+).*counted (\d+)/);
     expect(parsedDetail).toBeDefined();
     expect(Number(parsedDetail[1])).toBeGreaterThan(0);
     expect(Number(parsedDetail[2])).toBe(MERGE_BRANCH_COUNT);
