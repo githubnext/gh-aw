@@ -924,6 +924,15 @@ Error: 'daily at <time>' syntax is not supported
 Use 'daily around <time>' for fuzzy scheduling within ±1 hour window
 ```
 
+#### 9.2.3 Duplicate or Conflicting Schedule Expressions
+
+Implementations MUST reject duplicate or conflicting schedule declarations for the same workflow
+definition scope (for example, both `schedule: daily around 09:00` and `schedule: weekly on monday
+around 09:00`, or repeated `schedule:` entries after merge/templating).
+
+Conforming implementations MUST emit the stable error code `ERR-CONFLICT-001` and MUST fail
+compilation rather than selecting one expression implicitly.
+
 ### 9.3 Warning Messages
 
 An implementation SHOULD issue warnings for valid but suboptimal patterns:
@@ -1233,6 +1242,7 @@ schedule: daily around 9:30am utc+05:30
 | ERR-TZ-002 | Malformed offset syntax | `utc9` (missing +/-) |
 | ERR-INTERVAL-001 | Invalid interval value | `every 0h` (must be >0) |
 | ERR-INTERVAL-002 | Unsupported interval | `every 5h` (not factor of 24) |
+| ERR-CONFLICT-001 | Duplicate/conflicting schedule expressions | Two `schedule:` expressions in one workflow scope |
 
 ### Appendix C: Security Considerations
 

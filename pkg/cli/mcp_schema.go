@@ -57,8 +57,7 @@ func AddSchemaDefault(schema *jsonschema.Schema, propertyName string, value any)
 
 	prop, ok := schema.Properties[propertyName]
 	if !ok {
-		mcpSchemaLog.Printf("Schema property not found, skipping default: %s", propertyName)
-		return nil // Property doesn't exist, nothing to do
+		return fmt.Errorf("schema property %q not found", propertyName)
 	}
 
 	// Marshal the value to JSON

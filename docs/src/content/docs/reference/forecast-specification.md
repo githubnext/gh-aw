@@ -26,6 +26,12 @@ This specification defines the `gh aw forecast` command for the GitHub Agentic W
 
 This section describes the status of this document at the time of publication. This is an **Experimental Draft** specification and may be updated, replaced, or made obsolete by other documents at any time. The feature it describes is experimental and not yet subject to the stability guarantees that apply to other gh-aw commands.
 
+Promotion from **Experimental Draft** to **Draft** requires all of the following criteria:
+
+1. At least **3 successful production uses** of `gh aw forecast` documented in repository issue or PR history.
+2. A **stable command/API surface** for one full release cycle with no breaking flag or JSON-schema changes.
+3. Sustained conformance evidence that all required tests in §12.1 pass in CI for both local and remote discovery paths.
+
 This document is governed by the GitHub Agentic Workflows project specifications process.
 
 Feedback should be filed as GitHub issues against the `github/gh-aw` repository.

@@ -5,6 +5,8 @@ const path = require("path");
 const crypto = require("crypto");
 const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
 
+const MAX_FRONTMATTER_HASH_INPUT_BYTES = 1 << 20; // 1 MiB
+
 /**
  * Default file reader using Node.js fs module
  * @param {string} filePath - Path to the file
@@ -86,6 +88,8 @@ async function computeFrontmatterHash(workflowPath, options = {}) {
 
   // Add the main frontmatter text as-is (trimmed and normalized)
   const normalizedFrontmatter = normalizeFrontmatterText(frontmatterText);
+  const normalizedImportedFrontmatterTexts = importedFrontmatterTexts.map(t => normalizeFrontmatterText(t));
+  validateNormalizedFrontmatterHashInputSize(normalizedFrontmatter, normalizedImportedFrontmatterTexts);
   canonical["frontmatter-text"] = normalizedFrontmatter;
 
   log(`Normalized frontmatter-text:\n${normalizedFrontmatter}`);
@@ -98,7 +102,7 @@ async function computeFrontmatterHash(workflowPath, options = {}) {
 
   // Add sorted imported frontmatter texts (concatenated with delimiter)
   if (importedFrontmatterTexts.length > 0) {
-    const sortedTexts = importedFrontmatterTexts.map(t => normalizeFrontmatterText(t)).sort();
+    const sortedTexts = normalizedImportedFrontmatterTexts.sort();
     canonical["imported-frontmatters"] = sortedTexts.join("\n---\n");
     log(`canonical.imported-frontmatters:\n${canonical["imported-frontmatters"]}`);
   }
@@ -278,6 +282,24 @@ function extractImportsFromText(frontmatterText) {
  */
 function normalizeFrontmatterText(text) {
   return text.trim().replace(/\r\n/g, "\n");
+}
+
+/**
+ * Validates combined normalized frontmatter input size for hash computation.
+ * Enforces the 1 MiB ceiling used by FH-TV-NEG-001 across main and imported frontmatter text.
+ * @param {string} normalizedFrontmatterText
+ * @param {string[]} normalizedImportedFrontmatterTexts
+ * @throws {Error} When total normalized input exceeds MAX_FRONTMATTER_HASH_INPUT_BYTES.
+ */
+function validateNormalizedFrontmatterHashInputSize(normalizedFrontmatterText, normalizedImportedFrontmatterTexts) {
+  let totalBytes = Buffer.byteLength(normalizedFrontmatterText, "utf8");
+  for (const text of normalizedImportedFrontmatterTexts) {
+    totalBytes += Buffer.byteLength(text, "utf8");
+  }
+
+  if (totalBytes > MAX_FRONTMATTER_HASH_INPUT_BYTES) {
+    throw new Error(`frontmatter hash input exceeds ${MAX_FRONTMATTER_HASH_INPUT_BYTES} bytes after normalization`);
+  }
 }
 
 /**
