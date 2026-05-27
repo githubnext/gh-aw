@@ -9670,21 +9670,27 @@
               "description": "How to handle missing OTLP endpoint/header values at runtime (for example from unset secrets). 'error' fails workflow startup (default), 'warn' logs a warning and skips MCP gateway OTLP configuration, and 'ignore' skips MCP gateway OTLP configuration without warning. This affects MCP gateway setup only; workflow-level OTEL_* environment variables are still injected."
             },
             "github-app": {
-              "type": "object",
-              "description": "Optional runtime authentication for OTLP export.",
-              "properties": {
-                "type": {
-                  "type": "string",
-                  "enum": ["github-oidc"],
-                  "description": "Authentication type. 'github-oidc' mints a GitHub Actions OIDC credential before actions/setup and uses it in the OTLP Authorization header."
+              "description": "Optional runtime authentication for OTLP export. Supports either GitHub App credentials (client-id/app-id + private-key) or legacy GitHub OIDC settings.",
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/github_app"
                 },
-                "audience": {
-                  "type": "string",
-                  "description": "Optional OIDC audience passed to core.getIDToken(audience) when github-app.type is github-oidc."
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["github-oidc"],
+                      "description": "Authentication type. 'github-oidc' mints a GitHub Actions OIDC credential before actions/setup and uses it in the OTLP Authorization header."
+                    },
+                    "audience": {
+                      "type": "string",
+                      "description": "Optional OIDC audience passed to core.getIDToken(audience)."
+                    }
+                  },
+                  "additionalProperties": false
                 }
-              },
-              "required": ["type"],
-              "additionalProperties": false
+              ]
             }
           },
           "additionalProperties": false

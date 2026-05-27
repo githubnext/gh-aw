@@ -291,9 +291,9 @@ The YAML frontmatter supports these fields:
   - **`otlp:`** - Export OpenTelemetry spans to any OTLP-compatible backend (Honeycomb, Grafana Tempo, Sentry, etc.) (object)
     - `endpoint:` - OTLP collector endpoint URL. When a static URL is provided, its hostname is added to the AWF firewall allowlist automatically. Supports GitHub Actions expressions.
     - `github-app:` - Optional runtime auth configuration.
-      - When configured, gh-aw mints a GitHub Actions OIDC credential before `actions/setup` and uses it for OTLP Authorization headers.
-      - `audience:` - Optional OIDC audience passed to `core.getIDToken(audience)`.
-      - Requires `permissions.id-token: write` on the workflow/job.
+      - Preferred: provide GitHub App credentials (`app-id`/`client-id` + `private-key`) to mint a token with `actions/create-github-app-token` before `actions/setup`.
+      - Legacy OIDC mode is also supported with `type: github-oidc` and optional `audience`.
+      - OIDC mode requires `permissions.id-token: write` on the workflow/job.
     - `headers:` - Comma-separated `key=value` HTTP headers included in every OTLP export request (e.g. `Authorization=Bearer <token>`). Injected as `OTEL_EXPORTER_OTLP_HEADERS`. Supports GitHub Actions expressions.
   - Example:
 
@@ -302,7 +302,8 @@ The YAML frontmatter supports these fields:
       otlp:
         endpoint: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
         github-app:
-          audience: api://AzureADTokenExchange
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
         headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
     ```
 

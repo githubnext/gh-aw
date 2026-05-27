@@ -338,6 +338,17 @@ func TestHasOTLPGitHubOIDCAuth(t *testing.T) {
 			"otlp": map[string]any{},
 		},
 	}))
+
+	assert.False(t, hasOTLPGitHubOIDCAuth(nil, map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{
+					"app-id":      "${{ vars.APP_ID }}",
+					"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+				},
+			},
+		},
+	}))
 }
 
 // TestInjectOTLPConfig verifies that injectOTLPConfig correctly modifies WorkflowData.

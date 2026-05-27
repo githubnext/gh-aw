@@ -200,6 +200,38 @@ func getOTLPGitHubApp(config *FrontmatterConfig, frontmatter map[string]any) *OT
 	}
 }
 
+func getOTLPGitHubAppTokenConfig(frontmatter map[string]any) *GitHubAppConfig {
+	if frontmatter == nil {
+		return nil
+	}
+
+	obsAny, ok := frontmatter["observability"]
+	if !ok {
+		return nil
+	}
+
+	obsMap, ok := obsAny.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	githubAppMap := extractRawOTLPGitHubAppMap(obsMap)
+	if githubAppMap == nil {
+		return nil
+	}
+
+	app := parseAppConfig(githubAppMap)
+	if app == nil {
+		return nil
+	}
+
+	if strings.TrimSpace(app.AppID) == "" || strings.TrimSpace(app.PrivateKey) == "" {
+		return nil
+	}
+
+	return app
+}
+
 // getOTLPGitHubOIDCAudience returns observability.otlp.github-app.audience.
 // Returns empty string when github-app is unset or invalid.
 func getOTLPGitHubOIDCAudience(config *FrontmatterConfig, frontmatter map[string]any) string {
@@ -212,6 +244,10 @@ func getOTLPGitHubOIDCAudience(config *FrontmatterConfig, frontmatter map[string
 }
 
 func hasOTLPGitHubOIDCAuth(config *FrontmatterConfig, frontmatter map[string]any) bool {
+	if getOTLPGitHubAppTokenConfig(frontmatter) != nil {
+		return false
+	}
+
 	return getOTLPGitHubApp(config, frontmatter) != nil
 }
 

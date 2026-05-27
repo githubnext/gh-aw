@@ -6,16 +6,12 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-  id-token: write
-
-github-app:
-  app-id: ${{ vars.APP_ID }}
-  private-key: ${{ secrets.APP_PRIVATE_KEY }}
 observability:
   otlp:
     endpoint: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
     github-app:
-      type: github-oidc
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
 tools:
   github:
     mode: remote
@@ -26,7 +22,7 @@ safe-outputs:
 engine: copilot
 ---
 
-# Top-Level GitHub App with OTLP OIDC + GitHub MCP
+# OTLP GitHub App token minting with GitHub MCP
 
 This workflow exercises `observability.otlp.github-app` token minting together with
-top-level `github-app` fallback used by `tools.github`.
+`tools.github`.
