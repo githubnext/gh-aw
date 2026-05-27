@@ -314,11 +314,8 @@ func (c *Compiler) generateStartDIFCProxyStep(yaml *strings.Builder, data *Workf
 // through the proxy via GITHUB_API_URL / GITHUB_GRAPHQL_URL.
 func proxyEnvVars() map[string]string {
 	return map[string]string{
-		// Use the GH_HOST set by configure_gh_for_ghe.sh (github.com, *.ghe.com, or
-		// real GHES hostname) rather than the proxy address.  Setting GH_HOST to
-		// localhost:18443 causes the gh CLI to treat the proxy as a GHES instance and
-		// perform a /meta version check that always fails because the proxy does not
-		// return installed_version.  See the function-level comment for full details.
+		// Identity host from configure_gh_for_ghe.sh, not the proxy address.
+		// See function-level comment for full rationale.
 		"GH_HOST":             "${{ env.GH_HOST || 'github.com' }}",
 		"GH_REPO":             "${{ github.repository }}",
 		"GITHUB_API_URL":      "https://localhost:18443/api/v3",

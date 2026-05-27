@@ -659,9 +659,7 @@ func TestProxyEnvVars(t *testing.T) {
 	vars := proxyEnvVars()
 
 	require.NotEmpty(t, vars, "proxyEnvVars should return a non-empty map")
-	// GH_HOST must use the job-level identity host (set by configure_gh_for_ghe.sh),
-	// NOT the proxy address.  Setting it to localhost:18443 causes the gh CLI to treat
-	// the proxy as a GHES instance and perform a /meta version check that always fails.
+	// GH_HOST should use the identity host expression, not the proxy address.
 	assert.Equal(t, "${{ env.GH_HOST || 'github.com' }}", vars["GH_HOST"], "GH_HOST should use the identity host from configure_gh_for_ghe.sh, not the proxy address")
 	assert.Equal(t, "${{ github.repository }}", vars["GH_REPO"], "GH_REPO should reference github.repository")
 	assert.Equal(t, "https://localhost:18443/api/v3", vars["GITHUB_API_URL"], "GITHUB_API_URL should point to proxy")
