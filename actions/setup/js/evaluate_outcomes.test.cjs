@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
 
 const req = createRequire(import.meta.url);
-const { evaluateItem } = req("./evaluate_outcomes.cjs");
+const { evaluateItem, normalizeOutcome } = req("./evaluate_outcomes.cjs");
 
 /**
  * @param {Record<string, any>} apiResponses
@@ -15,6 +15,24 @@ function mockAPI(apiResponses) {
     return apiResponses[endpoint];
   };
 }
+
+describe("evaluate_outcomes.cjs", () => {
+  it("maps existence-only fallback to weak unknown evidence", () => {
+    expect(normalizeOutcome("unknown", "object still exists")).toEqual({
+      outcome_status: "unknown",
+      evidence_strength: "weak",
+      signal: "target_exists_only",
+    });
+  });
+
+  it("maps merged outcomes to strong accepted evidence", () => {
+    expect(normalizeOutcome("accepted", "merged")).toEqual({
+      outcome_status: "accepted",
+      evidence_strength: "strong",
+      signal: "merged",
+    });
+  });
+});
 
 describe("evaluate_outcomes create_pull_request evaluator", () => {
   beforeEach(() => {

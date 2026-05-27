@@ -25,21 +25,23 @@ func generateWorkflowToolDefinition(opts workflowToolDefinitionOptions) map[stri
 		return fmt.Sprintf("Input parameter '%s' for workflow %s", inputName, opts.workflowName)
 	})
 
-	tool := map[string]any{
-		"name":           toolName,
-		"description":    description,
-		opts.metadataKey: opts.workflowName,
-		"inputSchema": map[string]any{
-			"type":                 "object",
-			"properties":           properties,
-			"additionalProperties": false,
-		},
+	inputSchema := map[string]any{
+		"type":                 "object",
+		"properties":           properties,
+		"additionalProperties": false,
 	}
 
 	if len(required) > 0 {
 		sort.Strings(required)
-		tool["inputSchema"].(map[string]any)["required"] = required
+		inputSchema["required"] = required
 		safeOutputsWorkflowHelpersLog.Printf("Workflow tool %s has %d required inputs", toolName, len(required))
+	}
+
+	tool := map[string]any{
+		"name":           toolName,
+		"description":    description,
+		opts.metadataKey: opts.workflowName,
+		"inputSchema":    inputSchema,
 	}
 
 	return tool
