@@ -310,6 +310,7 @@ function evaluateAddReviewer(item, defaultRepo, api = ghAPI) {
   const repo = getItemRepo(item, defaultRepo);
   const number = getItemNumber(item);
   const timestamp = item.timestamp || "";
+  /** @type {EvalResult} */
   const out = {
     result: "unknown",
     outcome_status: "unknown",
@@ -376,8 +377,7 @@ function evaluateAddReviewer(item, defaultRepo, api = ghAPI) {
 
   const pendingUsers = new Set((requested.users || []).map(user => String(user?.login || "").toLowerCase()));
   const pendingTeams = new Set((requested.teams || []).map(team => String(team?.slug || team?.name || "").toLowerCase()));
-  const stillPending =
-    Array.from(requestedReviewers).some(login => pendingUsers.has(login)) || Array.from(requestedTeams).some(team => pendingTeams.has(team));
+  const stillPending = Array.from(requestedReviewers).some(login => pendingUsers.has(login)) || Array.from(requestedTeams).some(team => pendingTeams.has(team));
 
   if (stillPending) {
     out.result = "pending";
@@ -406,6 +406,7 @@ function evaluateSubmitPullRequestReview(item, defaultRepo, api = ghAPI) {
   const repo = getItemRepo(item, defaultRepo);
   const number = getItemNumber(item);
   const timestamp = item.timestamp || "";
+  /** @type {EvalResult} */
   const out = {
     result: "unknown",
     outcome_status: "unknown",
@@ -440,11 +441,7 @@ function evaluateSubmitPullRequestReview(item, defaultRepo, api = ghAPI) {
     return out;
   }
 
-  const review =
-    reviews.find(candidate => Number(candidate?.id) === reviewId) ||
-    reviews
-      .filter(candidate => isOnOrAfter(candidate?.submitted_at, timestamp))
-      .slice(-1)[0];
+  const review = reviews.find(candidate => Number(candidate?.id) === reviewId) || reviews.filter(candidate => isOnOrAfter(candidate?.submitted_at, timestamp)).slice(-1)[0];
 
   if (!review) {
     out.detail = "review not found";
@@ -482,9 +479,7 @@ function evaluateSubmitPullRequestReview(item, defaultRepo, api = ghAPI) {
 
     if (reviewState === "CHANGES_REQUESTED") {
       const commits = api(`repos/${repo}/pulls/${number}/commits`);
-      const hasPushAfterReview = Array.isArray(commits)
-        ? commits.some(commit => isOnOrAfter(commit?.commit?.committer?.date || commit?.commit?.author?.date, reviewSubmittedAt))
-        : false;
+      const hasPushAfterReview = Array.isArray(commits) ? commits.some(commit => isOnOrAfter(commit?.commit?.committer?.date || commit?.commit?.author?.date, reviewSubmittedAt)) : false;
       if (hasPushAfterReview) {
         out.result = "accepted";
         out.detail = "changes requested addressed and merged";
