@@ -201,6 +201,13 @@ var defaultImportAuthHosts = map[string]struct{}{
 
 const copilotIntegrationHeaderValue = "agentic-workflows"
 
+const (
+	copilotAutomationSegmentCount    = 6
+	copilotAutomationAgentsSegment   = "agents"
+	copilotAutomationReposSegment    = "repos"
+	copilotAutomationResourceSegment = "automations"
+)
+
 func attachImportAuthHeader(req *http.Request, rawURL string) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Host == "" {
@@ -243,12 +250,12 @@ func isCopilotAutomationImportURL(u *url.URL) bool {
 		return false
 	}
 	segments := strings.Split(strings.Trim(u.Path, "/"), "/")
-	return len(segments) == 6 &&
-		segments[0] == "agents" &&
-		segments[1] == "repos" &&
+	return len(segments) == copilotAutomationSegmentCount &&
+		segments[0] == copilotAutomationAgentsSegment &&
+		segments[1] == copilotAutomationReposSegment &&
 		segments[2] != "" &&
 		segments[3] != "" &&
-		segments[4] == "automations" &&
+		segments[4] == copilotAutomationResourceSegment &&
 		segments[5] != ""
 }
 

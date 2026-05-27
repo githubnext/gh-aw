@@ -215,6 +215,7 @@ func TestIsCopilotAutomationImportURL(t *testing.T) {
 	}
 }
 
+// mustParseURL is for valid table-driven test inputs in this file.
 func mustParseURL(t *testing.T, raw string) *url.URL {
 	t.Helper()
 	u, err := url.Parse(raw)
