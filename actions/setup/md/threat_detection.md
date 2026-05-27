@@ -69,6 +69,7 @@ Analyze the above content for the following security threats, using the workflow
    - **Encoded Strings**: Base64, hex, or other encoded strings that appear to hide secrets, commands, or malicious payloads without legitimate purpose
    - **Suspicious Dependencies**: Addition of unknown packages, dependencies from untrusted sources, or libraries with known vulnerabilities
    - **npm Lockfile Validation** (for `package-lock.json` changes): Before flagging an npm dependency update as malicious, verify against current npm metadata:
+     - Fetch current npm metadata using `npm view <package>@<version> --json` (or the corresponding `registry.npmjs.org` version endpoint)
      - Confirm the package version exists in the npm registry
      - Confirm `resolved` matches npm's official tarball URL for that exact version
      - Confirm `integrity` matches npm's official integrity hash for that exact version
