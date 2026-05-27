@@ -189,14 +189,16 @@ Using the type definitions from Phase 1 and the untyped usages from Phase 2:
 
 Create a comprehensive discussion with your findings.
 
+**Report Formatting**: Use h3 (`###`) or lower for all headers in the discussion to maintain proper document hierarchy. Wrap verbose tables and long sections in `<details><summary>Section Name</summary>` blocks.
+
 **Discussion Structure**:
 
 ```markdown
-# 🔤 Typist - Go Type Consistency Analysis
+### 🔤 Typist - Go Type Consistency Analysis
 
 *Analysis of repository: ${{ github.repository }}*
 
-## Executive Summary
+#### Executive Summary
 
 {{#if experiments.tone_style == 'formal'}}
 [1-2 paragraphs summarizing:
@@ -216,7 +218,7 @@ Create a comprehensive discussion with your findings.
 <details>
 <summary>Full Analysis Report</summary>
 
-## Duplicated Type Definitions
+#### Duplicated Type Definitions
 
 ### Summary Statistics
 
@@ -262,7 +264,7 @@ type Config struct {
 
 ---
 
-## Untyped Usages
+#### Untyped Usages
 
 ### Summary Statistics
 
@@ -364,12 +366,12 @@ type Cache struct {
 ---
 
 {{#if experiments.tone_style == 'conversational'}}
-## 🎯 What Should We Do About This?
+#### 🎯 What Should We Do About This?
 
 Here's my suggested action plan, prioritized by impact. Let's start with the biggest wins!
 {{/if}}
 {{#if experiments.tone_style == 'formal'}}
-## Refactoring Recommendations
+#### Refactoring Recommendations
 {{/if}}
 
 ### Priority 1: Critical - Duplicated Core Types
@@ -417,7 +419,7 @@ Here's my suggested action plan, prioritized by impact. Let's start with the big
 
 ---
 
-## Implementation Checklist
+#### Implementation Checklist
 
 - [ ] Review all identified duplicates and prioritize
 - [ ] Create shared types package (if needed)
@@ -428,7 +430,7 @@ Here's my suggested action plan, prioritized by impact. Let's start with the big
 - [ ] Run full test suite
 - [ ] Document new type structure
 
-## Analysis Metadata
+#### Analysis Metadata
 
 - **Total Go Files Analyzed**: [count]
 - **Total Type Definitions**: [count]
