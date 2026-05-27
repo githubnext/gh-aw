@@ -326,6 +326,9 @@ func TestGenerateSetupStepIncludesOTLPOIDCMintingFromParsedFrontmatter(t *testin
 	if !strings.Contains(combined, "GH_AW_OTLP_OIDC_AUDIENCE") {
 		t.Fatalf("expected mint step to include OTLP OIDC audience env from parsed frontmatter, got:\n%s", combined)
 	}
+	if !strings.Contains(combined, "https://example.com/collector") {
+		t.Fatalf("expected mint step to include parsed frontmatter OTLP OIDC audience value, got:\n%s", combined)
+	}
 }
 
 func TestGenerateSetupStepIncludesOTLPOIDCTokenInScriptMode(t *testing.T) {
