@@ -10,7 +10,7 @@ The package is organized around three major subsystems:
 
 1. **Compiler** (`compiler*.go`, `compiler_types.go`): The `Compiler` struct drives the main compilation pipeline. It accepts a markdown file path (or pre-parsed `WorkflowData`), builds the full GitHub Actions workflow YAML, and writes the `.lock.yml` file only when the content has changed.
 
-2. **Engine registry** (`agentic_engine.go`, `*_engine.go`): A pluggable engine architecture where each AI engine (`copilot`, `claude`, `codex`, `gemini`, `crush`, `custom`) implements a set of focused interfaces (`Engine`, `CapabilityProvider`, `WorkflowExecutor`, `MCPConfigProvider`, etc.). Engines are registered in a global `EngineRegistry` and looked up by name at compile time.
+2. **Engine registry** (`agentic_engine.go`, `*_engine.go`): A pluggable engine architecture where each AI engine (`copilot`, `claude`, `codex`, `gemini`, `crush`, `opencode`, `pi`, `antigravity`, `custom`) implements a set of focused interfaces (`Engine`, `CapabilityProvider`, `WorkflowExecutor`, `MCPConfigProvider`, etc.). Engines are registered in a global `EngineRegistry` and looked up by name at compile time.
 
 3. **Validation** (`validation.go`, `strict_mode_*.go`, `*_validation.go`): A layered validation system organized by domain. Each validator is a focused file under 300 lines. Validation runs both at compile time and optionally in strict mode for production deployments.
 
@@ -71,6 +71,7 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `CrushEngine` | struct | Crush coding agent engine |
 | `OpenCodeEngine` | struct | OpenCode coding agent engine |
 | `PiEngine` | struct | Pi coding agent engine |
+| `AntigravityEngine` | struct | Antigravity coding agent engine |
 | `UniversalLLMBackend` | string alias | Universal LLM backend identifier (`claude`, `codex`) |
 | `UniversalLLMConsumerEngine` | struct | Shared implementation for universal LLM backends |
 | `EngineCatalog` | struct | Catalog of engine definitions with lookup and resolution helpers |
@@ -88,6 +89,7 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `NewCrushEngine` | `func() *CrushEngine` | Creates the Crush engine |
 | `NewOpenCodeEngine` | `func() *OpenCodeEngine` | Creates the OpenCode engine |
 | `NewPiEngine` | `func() *PiEngine` | Creates the Pi engine |
+| `NewAntigravityEngine` | `func() *AntigravityEngine` | Creates the Antigravity engine |
 | `NewEngineCatalog` | `func(registry *EngineRegistry) *EngineCatalog` | Creates an engine catalog from an engine registry |
 
 ### Frontmatter Configuration Types

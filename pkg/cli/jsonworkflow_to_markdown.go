@@ -445,14 +445,24 @@ func convertTriggersToOn(t *JSONWorkflowTriggers) (any, []string) {
 	// Single interval trigger → use the string shorthand directly.
 	intervalType, hasInterval := parts["_interval"]
 	if hasInterval && len(parts) == 1 {
-		return intervalType.(string), warnings
+		interval, ok := intervalType.(string)
+		if !ok {
+			warnings = append(warnings, "triggers.interval must resolve to a string value; skipped")
+			return nil, warnings
+		}
+		return interval, warnings
 	}
 
 	// Multiple triggers or non-interval: build a map.
 	// Convert interval shorthand to a schedule cron entry.
 	if hasInterval {
 		delete(parts, "_interval")
-		parts["schedule"] = []any{map[string]any{"cron": intervalToFuzzySchedule(intervalType.(string))}}
+		interval, ok := intervalType.(string)
+		if !ok {
+			warnings = append(warnings, "triggers.interval must resolve to a string value; schedule trigger skipped")
+		} else {
+			parts["schedule"] = []any{map[string]any{"cron": intervalToFuzzySchedule(interval)}}
+		}
 	}
 
 	return parts, warnings
