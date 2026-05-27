@@ -86,6 +86,8 @@ var outcomeEvaluators = map[string]outcomeEvaluator{
 	"resolve_pull_request_review_thread":    evalResolveThread,
 	"mark_pull_request_as_ready_for_review": evalMarkReady,
 	"push_to_pull_request_branch":           evalPushToPRBranch,
+	"add_reviewer":                          evalAddReviewer,
+	"submit_pull_request_review":            evalSubmitPullRequestReview,
 }
 
 // EvaluateOutcomes checks the current state of all safe output items from a run.

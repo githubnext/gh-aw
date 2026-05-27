@@ -100,6 +100,7 @@ async function main(config = {}) {
       core.info("No reviewers to add");
       return {
         success: true,
+        skipped: true,
         prNumber,
         reviewersAdded: [],
         teamReviewersAdded: [],
@@ -127,6 +128,8 @@ async function main(config = {}) {
       // Special handling for "copilot" reviewer - separate it from other reviewers
       const hasCopilot = uniqueReviewers.includes("copilot");
       const otherReviewers = uniqueReviewers.filter(r => r !== "copilot");
+      const manifestReviewers = hasCopilot ? [...otherReviewers, COPILOT_REVIEWER_BOT] : otherReviewers;
+      const repo = `${context.repo.owner}/${context.repo.repo}`;
 
       // Add non-copilot reviewers first
       if (otherReviewers.length > 0 || uniqueTeamReviewers.length > 0) {
@@ -163,8 +166,14 @@ async function main(config = {}) {
       return {
         success: true,
         prNumber,
+        number: prNumber,
+        repo,
         reviewersAdded: uniqueReviewers,
         teamReviewersAdded: uniqueTeamReviewers,
+        metadata: {
+          requested_reviewers: manifestReviewers,
+          requested_team_reviewers: uniqueTeamReviewers,
+        },
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);

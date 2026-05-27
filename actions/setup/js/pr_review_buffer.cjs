@@ -510,12 +510,19 @@ function createReviewBuffer() {
 
       return {
         success: true,
+        url: review.html_url,
+        number: pullRequestNumber,
         review_id: review.id,
         review_url: review.html_url,
         pull_request_number: pullRequestNumber,
         repo: repo,
         event: event,
         comment_count: comments.length,
+        metadata: {
+          review_id: review.id,
+          review_event: event,
+          ...(review.state ? { review_state: review.state } : {}),
+        },
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
@@ -533,12 +540,19 @@ function createReviewBuffer() {
           core.info(`Created PR review #${review.id}: ${review.html_url}`);
           return {
             success: true,
+            url: review.html_url,
+            number: pullRequestNumber,
             review_id: review.id,
             review_url: review.html_url,
             pull_request_number: pullRequestNumber,
             repo: repo,
             event: "COMMENT",
             comment_count: comments.length,
+            metadata: {
+              review_id: review.id,
+              review_event: "COMMENT",
+              ...(review.state ? { review_state: review.state } : {}),
+            },
           };
         } catch (retryError) {
           core.error(`Failed to submit PR review on retry: ${getErrorMessage(retryError)}`);
@@ -562,12 +576,19 @@ function createReviewBuffer() {
           core.info(`Created PR review #${review.id} (body-only fallback): ${review.html_url}`);
           return {
             success: true,
+            url: review.html_url,
+            number: pullRequestNumber,
             review_id: review.id,
             review_url: review.html_url,
             pull_request_number: pullRequestNumber,
             repo: repo,
             event: event,
             comment_count: 0,
+            metadata: {
+              review_id: review.id,
+              review_event: event,
+              ...(review.state ? { review_state: review.state } : {}),
+            },
           };
         } catch (retryError) {
           core.error(`Failed to submit body-only PR review: ${getErrorMessage(retryError)}`);

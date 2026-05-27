@@ -190,6 +190,30 @@ function normalizeOutcome(result, detail) {
   if (normalizedDetail === "object still exists") {
     return { outcome_status: "unknown", evidence_strength: "weak", signal: "target_exists_only" };
   }
+  if (normalizedDetail === "review approved") {
+    return { outcome_status: "accepted", evidence_strength: "strong", signal: "review_approved" };
+  }
+  if (normalizedDetail === "review submitted") {
+    return { outcome_status: "accepted", evidence_strength: "medium", signal: "review_submitted" };
+  }
+  if (normalizedDetail === "review request removed") {
+    return { outcome_status: "rejected", evidence_strength: "strong", signal: "review_request_removed" };
+  }
+  if (normalizedDetail === "review dismissed") {
+    return { outcome_status: "rejected", evidence_strength: "strong", signal: "review_dismissed" };
+  }
+  if (normalizedDetail === "changes requested addressed and merged") {
+    return { outcome_status: "accepted", evidence_strength: "medium", signal: "changes_requested_addressed" };
+  }
+  if (normalizedDetail === "closed without merge after review") {
+    return { outcome_status: "rejected", evidence_strength: "medium", signal: "closed_without_merge_after_review" };
+  }
+  if (normalizedDetail === "latest review awaiting outcome") {
+    return { outcome_status: "pending", evidence_strength: "medium", signal: "latest_review_pending" };
+  }
+  if (normalizedDetail === "awaiting review") {
+    return { outcome_status: "pending", evidence_strength: "medium", signal: "awaiting_review" };
+  }
   if (result === "accepted" && normalizedDetail === "merged") {
     return { outcome_status: "accepted", evidence_strength: "strong", signal: "merged" };
   }
@@ -214,12 +238,292 @@ function normalizeOutcome(result, detail) {
 }
 
 /**
+ * @param {object} item
+ * @returns {number | null}
+ */
+function getItemNumber(item) {
+  if (typeof item.number === "number" && Number.isFinite(item.number)) return item.number;
+  const url = item.url || "";
+  const issueMatch = url.match(/\/(?:issues|pull)\/(\d+)/);
+  if (issueMatch) return Number(issueMatch[1]);
+  return null;
+}
+
+/**
+ * @param {object} item
+ * @param {string} defaultRepo
+ * @returns {string}
+ */
+function getItemRepo(item, defaultRepo) {
+  if (item.repo) return item.repo;
+  const url = item.url || "";
+  const match = url.match(/github\.com\/([^/]+\/[^/]+)/);
+  return match ? match[1] : defaultRepo;
+}
+
+/**
+ * @param {object} item
+ * @param {string} key
+ * @returns {string[]}
+ */
+function getMetadataStringArray(item, key) {
+  const raw = item?.metadata?.[key];
+  if (!Array.isArray(raw)) return [];
+  return raw.map(value => String(value || "").trim()).filter(Boolean);
+}
+
+/**
+ * @param {object} item
+ * @param {string} key
+ * @returns {number | null}
+ */
+function getMetadataNumber(item, key) {
+  const raw = item?.metadata?.[key];
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string" && raw.trim() !== "") {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+/**
+ * @param {string | undefined} timestamp
+ * @param {string | undefined} threshold
+ * @returns {boolean}
+ */
+function isOnOrAfter(timestamp, threshold) {
+  if (!timestamp || !threshold) return true;
+  const a = Date.parse(timestamp);
+  const b = Date.parse(threshold);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return true;
+  return a >= b;
+}
+
+/**
+ * @param {object} item
+ * @param {string} defaultRepo
+ * @param {(endpoint: string) => any} api
+ * @returns {EvalResult}
+ */
+function evaluateAddReviewer(item, defaultRepo, api = ghAPI) {
+  const repo = getItemRepo(item, defaultRepo);
+  const number = getItemNumber(item);
+  const timestamp = item.timestamp || "";
+  const out = {
+    result: "unknown",
+    outcome_status: "unknown",
+    evidence_strength: "weak",
+    signal: "unknown",
+    detail: "",
+    resolution_sec: null,
+    pending_age_sec: null,
+    review_comments: null,
+    changed_files: null,
+    additions: null,
+    deletions: null,
+    reactions_total: null,
+    reactions_positive: null,
+    reactions_negative: null,
+    comments: null,
+    zero_touch: false,
+  };
+
+  if (!repo || !number) {
+    out.detail = "missing review request reference";
+    return out;
+  }
+
+  const requestedReviewers = new Set(getMetadataStringArray(item, "requested_reviewers").map(login => login.toLowerCase()));
+  const requestedTeams = new Set(getMetadataStringArray(item, "requested_team_reviewers").map(team => team.toLowerCase()));
+  const reviews = api(`repos/${repo}/pulls/${number}/reviews`);
+  const requested = api(`repos/${repo}/pulls/${number}/requested_reviewers`);
+
+  if (!Array.isArray(reviews) || !requested) {
+    out.detail = "api error";
+    setPendingAge(out, timestamp);
+    return out;
+  }
+
+  const relevantReviews = reviews.filter(review => {
+    const state = String(review?.state || "").toUpperCase();
+    if (!state || state === "PENDING" || !isOnOrAfter(review?.submitted_at, timestamp)) return false;
+    const login = String(review?.user?.login || "").toLowerCase();
+    return requestedReviewers.has(login);
+  });
+
+  if (relevantReviews.some(review => String(review?.state || "").toUpperCase() === "APPROVED")) {
+    out.result = "accepted";
+    out.detail = "review approved";
+    return out;
+  }
+
+  if (relevantReviews.length > 0) {
+    out.result = "accepted";
+    out.detail = "review submitted";
+    return out;
+  }
+
+  const anyReviewAfterRequest = reviews.some(review => {
+    const state = String(review?.state || "").toUpperCase();
+    return state && state !== "PENDING" && isOnOrAfter(review?.submitted_at, timestamp);
+  });
+  if (requestedTeams.size > 0 && anyReviewAfterRequest) {
+    out.result = "accepted";
+    out.detail = "review submitted";
+    return out;
+  }
+
+  const pendingUsers = new Set((requested.users || []).map(user => String(user?.login || "").toLowerCase()));
+  const pendingTeams = new Set((requested.teams || []).map(team => String(team?.slug || team?.name || "").toLowerCase()));
+  const stillPending =
+    Array.from(requestedReviewers).some(login => pendingUsers.has(login)) || Array.from(requestedTeams).some(team => pendingTeams.has(team));
+
+  if (stillPending) {
+    out.result = "pending";
+    out.detail = "awaiting review";
+    setPendingAge(out, timestamp);
+    return out;
+  }
+
+  if (requestedReviewers.size > 0 || requestedTeams.size > 0) {
+    out.result = "rejected";
+    out.detail = "review request removed";
+    return out;
+  }
+
+  out.detail = "unknown review request state";
+  return out;
+}
+
+/**
+ * @param {object} item
+ * @param {string} defaultRepo
+ * @param {(endpoint: string) => any} api
+ * @returns {EvalResult}
+ */
+function evaluateSubmitPullRequestReview(item, defaultRepo, api = ghAPI) {
+  const repo = getItemRepo(item, defaultRepo);
+  const number = getItemNumber(item);
+  const timestamp = item.timestamp || "";
+  const out = {
+    result: "unknown",
+    outcome_status: "unknown",
+    evidence_strength: "weak",
+    signal: "unknown",
+    detail: "",
+    resolution_sec: null,
+    pending_age_sec: null,
+    review_comments: null,
+    changed_files: null,
+    additions: null,
+    deletions: null,
+    reactions_total: null,
+    reactions_positive: null,
+    reactions_negative: null,
+    comments: null,
+    zero_touch: false,
+  };
+
+  if (!repo || !number) {
+    out.detail = "missing review reference";
+    return out;
+  }
+
+  const reviewId = getMetadataNumber(item, "review_id");
+  const pr = api(`repos/${repo}/pulls/${number}`);
+  const reviews = api(`repos/${repo}/pulls/${number}/reviews`);
+
+  if (!pr || !Array.isArray(reviews) || !pr.state) {
+    out.detail = "api error";
+    setPendingAge(out, timestamp);
+    return out;
+  }
+
+  const review =
+    reviews.find(candidate => Number(candidate?.id) === reviewId) ||
+    reviews
+      .filter(candidate => isOnOrAfter(candidate?.submitted_at, timestamp))
+      .slice(-1)[0];
+
+  if (!review) {
+    out.detail = "review not found";
+    return out;
+  }
+
+  const reviewState = String(review?.state || item?.metadata?.review_state || "").toUpperCase();
+  const reviewSubmittedAt = review?.submitted_at || timestamp;
+  const latestReview = reviews
+    .filter(candidate => candidate?.submitted_at)
+    .sort((a, b) => Date.parse(a.submitted_at) - Date.parse(b.submitted_at))
+    .slice(-1)[0];
+
+  out.review_comments = typeof pr.review_comments === "number" ? pr.review_comments : null;
+  out.changed_files = typeof pr.changed_files === "number" ? pr.changed_files : null;
+  out.additions = typeof pr.additions === "number" ? pr.additions : null;
+  out.deletions = typeof pr.deletions === "number" ? pr.deletions : null;
+  out.comments = typeof pr.comments === "number" ? pr.comments : null;
+
+  if (reviewState === "DISMISSED") {
+    out.result = "rejected";
+    out.detail = "review dismissed";
+    return out;
+  }
+
+  if (pr.merged === true) {
+    if (reviewState === "APPROVED") {
+      out.result = "accepted";
+      out.detail = "review approved";
+      if (pr.created_at && pr.merged_at) {
+        out.resolution_sec = secondsBetween(pr.created_at, pr.merged_at);
+      }
+      return out;
+    }
+
+    if (reviewState === "CHANGES_REQUESTED") {
+      const commits = api(`repos/${repo}/pulls/${number}/commits`);
+      const hasPushAfterReview = Array.isArray(commits)
+        ? commits.some(commit => isOnOrAfter(commit?.commit?.committer?.date || commit?.commit?.author?.date, reviewSubmittedAt))
+        : false;
+      if (hasPushAfterReview) {
+        out.result = "accepted";
+        out.detail = "changes requested addressed and merged";
+        if (pr.created_at && pr.merged_at) {
+          out.resolution_sec = secondsBetween(pr.created_at, pr.merged_at);
+        }
+        return out;
+      }
+    }
+  }
+
+  if (pr.state === "closed") {
+    out.result = "rejected";
+    out.detail = "closed without merge after review";
+    if (pr.created_at && pr.closed_at) {
+      out.resolution_sec = secondsBetween(pr.created_at, pr.closed_at);
+    }
+    return out;
+  }
+
+  if (pr.state === "open" && latestReview && Number(latestReview.id) === Number(review.id)) {
+    out.result = "pending";
+    out.detail = "latest review awaiting outcome";
+    setPendingAge(out, timestamp);
+    return out;
+  }
+
+  out.detail = "unknown review lifecycle";
+  return out;
+}
+
+/**
  * Evaluate a single safe-output item against the GitHub API.
  * @param {object} item
  * @param {string} defaultRepo
+ * @param {(endpoint: string) => any} [api]
  * @returns {EvalResult}
  */
-function evaluateItem(item, defaultRepo) {
+function evaluateItem(item, defaultRepo, api = ghAPI) {
   const url = item.url || "";
   const itemRepo = item.repo || defaultRepo;
   const timestamp = item.timestamp || "";
@@ -245,16 +549,29 @@ function evaluateItem(item, defaultRepo) {
   };
 
   if (!url) {
+    if (item.type === "add_reviewer") {
+      return evaluateAddReviewer(item, defaultRepo, api);
+    }
+    if (item.type === "submit_pull_request_review") {
+      return evaluateSubmitPullRequestReview(item, defaultRepo, api);
+    }
     out.detail = "no url";
     setPendingAge(out, timestamp);
     return out;
+  }
+
+  if (item.type === "add_reviewer") {
+    return evaluateAddReviewer(item, defaultRepo, api);
+  }
+  if (item.type === "submit_pull_request_review") {
+    return evaluateSubmitPullRequestReview(item, defaultRepo, api);
   }
 
   // Issues / issue-comments
   const issueMatch = url.match(/\/(?:issues|pull)\/(\d+)/);
   if (/\/issues\/\d+|\/issuecomment-/.test(url) && issueMatch) {
     const num = issueMatch[1];
-    const data = ghAPI(`repos/${itemRepo}/issues/${num}`);
+    const data = api(`repos/${itemRepo}/issues/${num}`);
     if (!data || !data.state) {
       out.detail = "api error";
       setPendingAge(out, timestamp);
@@ -284,7 +601,7 @@ function evaluateItem(item, defaultRepo) {
   const prMatch = url.match(/\/pull\/(\d+)/);
   if (prMatch) {
     const num = prMatch[1];
-    const data = ghAPI(`repos/${itemRepo}/pulls/${num}`);
+    const data = api(`repos/${itemRepo}/pulls/${num}`);
     if (!data || !data.state) {
       out.detail = "api error";
       setPendingAge(out, timestamp);
@@ -614,4 +931,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { main, evaluateItem, normalizeOutcome, readJSONL, secondsBetween, isoToEpoch };
+module.exports = { main, evaluateItem, evaluateAddReviewer, evaluateSubmitPullRequestReview, normalizeOutcome, readJSONL, secondsBetween, isoToEpoch };

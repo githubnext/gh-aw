@@ -1377,6 +1377,13 @@ async function main() {
         const reviewResult = await prReviewBuffer.submitReview();
         if (reviewResult.success && !reviewResult.skipped) {
           core.info(`✓ PR review submitted successfully: ${reviewResult.review_url}`);
+          if (logCreatedItem) {
+            const createdItem = extractCreatedItemFromResult("submit_pull_request_review", reviewResult);
+            if (createdItem) {
+              core.info(formatManifestLogMessage(createdItem));
+              logCreatedItem(createdItem);
+            }
+          }
         } else if (!reviewResult.success) {
           reviewFailureError = reviewResult.error || "PR review finalization failed";
           core.error(`✗ Failed to submit PR review: ${reviewFailureError}`);

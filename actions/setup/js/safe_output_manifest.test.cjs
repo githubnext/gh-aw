@@ -110,6 +110,20 @@ describe("safe_output_manifest", () => {
       expect(entry.timestamp).toBeDefined();
     });
 
+    it("should append metadata when provided", () => {
+      const log = createManifestLogger(testManifestFile);
+      log({
+        type: "submit_pull_request_review",
+        url: "https://github.com/owner/repo/pull/1#pullrequestreview-10",
+        number: 1,
+        repo: "owner/repo",
+        metadata: { review_id: 10, review_event: "APPROVE" },
+      });
+
+      const entry = JSON.parse(fs.readFileSync(testManifestFile, "utf8").trim());
+      expect(entry.metadata).toEqual({ review_id: 10, review_event: "APPROVE" });
+    });
+
     it("should skip null/undefined items", () => {
       const log = createManifestLogger(testManifestFile);
       log(null);
@@ -212,6 +226,27 @@ describe("safe_output_manifest", () => {
       });
     });
 
+    it("should persist metadata for review lifecycle items", () => {
+      const item = extractCreatedItemFromResult("add_reviewer", {
+        success: true,
+        repo: "owner/repo",
+        number: 42,
+        metadata: {
+          requested_reviewers: ["reviewer1"],
+          requested_team_reviewers: ["platform-team"],
+        },
+      });
+      expect(item).toEqual({
+        type: "add_reviewer",
+        number: 42,
+        repo: "owner/repo",
+        metadata: {
+          requested_reviewers: ["reviewer1"],
+          requested_team_reviewers: ["platform-team"],
+        },
+      });
+    });
+
     it("should extract item from create_project result using projectUrl", () => {
       const result = { success: true, projectUrl: "https://github.com/orgs/owner/projects/5", temporaryId: "aw_proj01" };
       const item = extractCreatedItemFromResult("create_project", result);
@@ -274,6 +309,11 @@ describe("safe_output_manifest", () => {
       // Defensive: staged flag takes precedence over any URL
       const stagedResultWithUrl = { success: true, staged: true, url: "https://github.com/owner/repo/issues/1" };
       expect(extractCreatedItemFromResult("create_issue", stagedResultWithUrl)).toBeNull();
+    });
+
+    it("should return null for deferred manifest results", () => {
+      expect(extractCreatedItemFromResult("submit_pull_request_review", { success: true, deferred_manifest: true })).toBeNull();
+      expect(extractCreatedItemFromResult("add_reviewer", { success: true, skipped: true, repo: "owner/repo", number: 42 })).toBeNull();
     });
 
     it("should return item without url when result has no URL (for logged types)", () => {
