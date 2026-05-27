@@ -669,5 +669,7 @@ func TestBuildExtractBaseBranchStep(t *testing.T) {
 	// This prevents a cross-repo base_branch (e.g. feature/FOO-123 in another repo)
 	// from being used to checkout the workflow repo where that branch doesn't exist.
 	assert.Contains(t, stepsContent, "GITHUB_REPOSITORY", "must read workflow repo from GITHUB_REPOSITORY to filter cross-repo items")
-	assert.Contains(t, stepsContent, "!i.repo || (workflowRepo && i.repo === workflowRepo)", "must skip items whose repo differs from the workflow repo")
+	assert.Contains(t, stepsContent, "const itemRepo = (i.repo || '').trim()", "must normalize repo values before comparing")
+	assert.Contains(t, stepsContent, "itemRepo === workflowRepo", "must match fully qualified repo slug")
+	assert.Contains(t, stepsContent, "workflowRepo.endsWith('/' + itemRepo)", "must also match bare repo names against the workflow repo name")
 }
