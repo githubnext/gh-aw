@@ -260,6 +260,63 @@ func TestGetOTLPGitHubOIDCAudience(t *testing.T) {
 	})
 }
 
+func TestGetOTLPGitHubApp(t *testing.T) {
+	t.Run("returns parsed github-app config", func(t *testing.T) {
+		got := getOTLPGitHubApp(&FrontmatterConfig{
+			Observability: &ObservabilityConfig{
+				OTLP: &OTLPConfig{
+					GitHubApp: &OTLPGitHubAppConfig{
+						Audience: "https://collector.example.com",
+					},
+				},
+			},
+		}, nil)
+		require.NotNil(t, got)
+		assert.Equal(t, "https://collector.example.com", got.Audience)
+	})
+
+	t.Run("returns raw github-app config", func(t *testing.T) {
+		got := getOTLPGitHubApp(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"github-app": map[string]any{
+						"audience": "api://AzureADTokenExchange",
+					},
+				},
+			},
+		})
+		require.NotNil(t, got)
+		assert.Equal(t, "api://AzureADTokenExchange", got.Audience)
+	})
+
+	t.Run("returns nil when github-app is missing", func(t *testing.T) {
+		got := getOTLPGitHubApp(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{},
+			},
+		})
+		assert.Nil(t, got)
+	})
+
+	t.Run("returns nil for invalid raw structure", func(t *testing.T) {
+		assert.Nil(t, getOTLPGitHubApp(nil, map[string]any{
+			"observability": "invalid",
+		}))
+		assert.Nil(t, getOTLPGitHubApp(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": "invalid",
+			},
+		}))
+		assert.Nil(t, getOTLPGitHubApp(nil, map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"github-app": "invalid",
+				},
+			},
+		}))
+	})
+}
+
 func TestHasOTLPGitHubOIDCAuth(t *testing.T) {
 	assert.True(t, hasOTLPGitHubOIDCAuth(&FrontmatterConfig{
 		Observability: &ObservabilityConfig{
@@ -275,6 +332,12 @@ func TestHasOTLPGitHubOIDCAuth(t *testing.T) {
 				"github-app": map[string]any{
 				},
 			},
+		},
+	}))
+
+	assert.False(t, hasOTLPGitHubOIDCAuth(nil, map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{},
 		},
 	}))
 }
