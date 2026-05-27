@@ -171,205 +171,119 @@ PY`, string(WorkflowCallNetworkAllowedEnvVar), string(ecosystemJSON)), nil
 //   - string: Complete AWF command with arguments and wrapped engine command
 func BuildAWFCommand(config AWFCommandConfig) string {
 	awfHelpersLog.Printf("Building AWF command for engine: %s", config.EngineName)
-
-	// Get AWF command prefix (custom or standard)
 	awfCommand := GetAWFCommandPrefix(config.WorkflowData)
-
-	// Build AWF arguments. The returned list contains only args that are safe to pass
-	// through shellJoinArgs. Expandable-var args (--container-workdir "${GITHUB_WORKSPACE}"
-	// and --mount "${RUNNER_TEMP}/...") are appended raw below so that shell variable
-	// expansion is not suppressed by single-quoting.
 	awfArgs := BuildAWFArgs(config)
 	firewallConfig := getFirewallConfig(config.WorkflowData)
+	arcDindPrefixProbe, arcDindPrefixArgsRef := buildArcDindPrefixSettings(firewallConfig)
+	expandableArgs, configFileSetup := buildAWFExpandableArgs(config)
+	command := buildAWFCommandScript(awfCommandScriptParts{
+		awfCommand:          awfCommand,
+		expandableArgs:      expandableArgs,
+		arcDindPrefixArgsRef: arcDindPrefixArgsRef,
+		awfArgs:             shellJoinArgs(awfArgs),
+		shellWrappedCommand: WrapCommandInShell(config.EngineCommand),
+		escapedLogFile:      shellEscapeArg(config.LogFile),
+		pathSetup:           config.PathSetup,
+		configFileSetup:     configFileSetup,
+		arcDindPrefixProbe:  arcDindPrefixProbe,
+	})
 
-	// Auto-detect ARC/DinD split daemon topology at runtime and emit
-	// --docker-host-path-prefix when supported by the selected AWF version.
-	// This avoids requiring workflow-authored sandbox.agent.args for standard ARC DinD setups.
-	arcDindPrefixProbe := ""
-	arcDindPrefixArgsRef := ""
-	if awfSupportsDockerHostPathPrefix(firewallConfig) {
-		arcDindPrefixProbe = fmt.Sprintf(`%s=""
+	awfHelpersLog.Print("Successfully built AWF command")
+	return command
+}
+
+func buildArcDindPrefixSettings(firewallConfig *FirewallConfig) (string, string) {
+	if !awfSupportsDockerHostPathPrefix(firewallConfig) {
+		return "", ""
+	}
+	probe := fmt.Sprintf(`%s=""
 if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
   %s="%s"
 fi`,
-			awfArcDindPrefixArgsVarName,
-			awfArcDindDockerHostRegex,
-			awfArcDindPrefixArgsVarName,
-			awfArcDindHostPathPrefixFlag)
-		arcDindPrefixArgsRef = fmt.Sprintf("${%s}", awfArcDindPrefixArgsVarName)
-	}
+		awfArcDindPrefixArgsVarName,
+		awfArcDindDockerHostRegex,
+		awfArcDindPrefixArgsVarName,
+		awfArcDindHostPathPrefixFlag)
+	return probe, fmt.Sprintf("${%s}", awfArcDindPrefixArgsVarName)
+}
 
-	// Build the expandable args string for args that need shell variable expansion.
-	// These MUST be appended as raw (unescaped) strings because single-quoting would
-	// prevent the runner's shell from expanding ${GITHUB_WORKSPACE} and ${RUNNER_TEMP}.
+func buildAWFExpandableArgs(config AWFCommandConfig) (string, string) {
 	ghAwDir := "${RUNNER_TEMP}/gh-aw"
 	expandableArgs := fmt.Sprintf(
 		`--container-workdir "${GITHUB_WORKSPACE}" --mount "%s:%s:ro" --mount "%s:/host%s:ro"`,
 		ghAwDir, ghAwDir, ghAwDir, ghAwDir,
 	)
-
-	// Generate a JSON config file and reference it via --config "${RUNNER_TEMP}/gh-aw/awf-config.json".
-	// This replaces several verbose CLI flags (--allow-domains, --enable-api-proxy, --image-tag,
-	// API targets) with a structured JSON file that is easier to audit and extend.
-	//
-	// The config file is written at runtime (inside the run: step) immediately before the AWF
-	// invocation, using printf to a fixed path inside the pre-existing ${RUNNER_TEMP}/gh-aw/
-	// directory that is already set up by actions/setup.
-	var configFileSetup string
-	configWithoutInlineMultipliers := config
-	configWithoutInlineMultipliers.WorkflowData = cloneWorkflowDataWithoutModelMultipliers(config.WorkflowData)
-	awfConfigJSON, err := BuildAWFConfigJSON(configWithoutInlineMultipliers)
-	if err != nil {
-		awfHelpersLog.Printf("Warning: failed to build AWF config JSON: %v", err)
-	} else {
-		// Write the config JSON to ${RUNNER_TEMP}/gh-aw/awf-config.json before AWF runs.
-		// printf '%s\n' '...' is safe here because JSON uses only double quotes (never
-		// single quotes), so single-quoting the JSON string requires no further escaping
-		// in practice. shellEscapeArg handles the edge case where a domain value might
-		// somehow contain a single quote.
-		// Write the config to ${RUNNER_TEMP}/gh-aw/awf-config.json (host path read by AWF at
-		// startup) and also copy it to /tmp/gh-aw/awf-config.json so the unified agent artifact
-		// upload can include it alongside the other /tmp/gh-aw/ files.
-		configFileSetup = fmt.Sprintf(
-			"printf '%%s\\n' %s > %q",
-			shellEscapeArg(awfConfigJSON),
-			awfConfigRuntimePathExpr,
-		)
-		if shouldUseWorkflowCallNetworkAllowedInput(config.WorkflowData) {
-			updateScript, updateErr := buildWorkflowCallNetworkAllowedUpdateScript()
-			if updateErr != nil {
-				awfHelpersLog.Printf("Warning: failed to build workflow_call network_allowed updater: %v", updateErr)
-			} else {
-				configFileSetup += "\n" + updateScript
-			}
-		}
-		configFileSetup += "\n" + buildModelMultipliersFromFileScript()
-		configFileSetup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
-		// Add --config as the first expandable arg so it appears before --container-workdir.
+	configFileSetup := buildAWFConfigFileSetup(config)
+	if configFileSetup != "" {
 		expandableArgs = fmt.Sprintf("--config %q ", awfConfigRuntimePathExpr) + expandableArgs
 		awfHelpersLog.Print("Using AWF config file (--config flag)")
 	}
-
-	// When upload_artifact is configured, add a read-write mount for the staging directory
-	// so the model can copy files there from inside the container. The parent ${RUNNER_TEMP}/gh-aw
-	// is mounted :ro above; this child mount overrides access for the staging subdirectory only.
-	// The staging directory must already exist on the host (created in Generate Safe Outputs Config step).
 	if config.WorkflowData != nil && config.WorkflowData.SafeOutputs != nil && config.WorkflowData.SafeOutputs.UploadArtifact != nil {
 		stagingDir := "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts"
 		expandableArgs += fmt.Sprintf(` --mount "%s:%s:rw"`, stagingDir, stagingDir)
 		awfHelpersLog.Print("Added read-write mount for upload_artifact staging directory")
 	}
-
-	// Add --allow-host-service-ports for services with port mappings.
-	// This is appended as a raw (expandable) arg because the value contains
-	// ${{ job.services.<id>.ports['<port>'] }} expressions that include single quotes.
-	// These expressions are resolved by the GitHub Actions runner before shell execution,
-	// so they must not be shell-escaped.
 	if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" {
 		expandableArgs += fmt.Sprintf(` --allow-host-service-ports "%s"`, config.WorkflowData.ServicePortExpressions)
 		awfHelpersLog.Printf("Added --allow-host-service-ports with %s", config.WorkflowData.ServicePortExpressions)
 	}
+	return expandableArgs, configFileSetup
+}
 
-	// Wrap engine command in shell (command already includes any internal setup like npm PATH)
-	shellWrappedCommand := WrapCommandInShell(config.EngineCommand)
-
-	// Pre-create the agent stdio log file with restrictive permissions (0600) before
-	// starting the AWF container.  tee would otherwise create it with the default
-	// umask (0644), leaving secrets (e.g. MCP gateway tokens) world-readable on the
-	// runner host until the secret-redaction step runs.
-	preCreateLog := fmt.Sprintf("(umask 177 && touch %s)", shellEscapeArg(config.LogFile))
-
-	// Capture the epoch-millisecond timestamp at the very start of the Execute Agent CLI
-	// step on the host, before the AWF container launches.  sendJobConclusionSpan reads
-	// this file to set the dedicated gh-aw.<job>.agent span start time, which excludes
-	// pre-agent overhead such as workspace audit and CLI proxy startup.
-	writeAgentCLIStartMs := "printf '%s' \"$(date +%s%3N)\" > " + shellEscapeArg(AgentCLIStartMsPath)
-
-	// Build the complete command with proper formatting.
-	// configFileSetup (if non-empty) writes the AWF config JSON immediately before the
-	// AWF invocation so the file is present when AWF parses --config.
-	var command string
-	if config.PathSetup != "" && configFileSetup != "" {
-		command = fmt.Sprintf(`set -o pipefail
-%s
-%s
-%s
-%s
-%s
-# shellcheck disable=SC1003
-%s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
-			writeAgentCLIStartMs,
-			config.PathSetup,
-			preCreateLog,
-			configFileSetup,
-			arcDindPrefixProbe,
-			awfCommand,
-			expandableArgs,
-			arcDindPrefixArgsRef,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
-	} else if config.PathSetup != "" {
-		// Include path setup before AWF command (runs on host before AWF)
-		command = fmt.Sprintf(`set -o pipefail
-%s
-%s
-%s
-%s
-# shellcheck disable=SC1003
-%s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
-			writeAgentCLIStartMs,
-			config.PathSetup,
-			preCreateLog,
-			arcDindPrefixProbe,
-			awfCommand,
-			expandableArgs,
-			arcDindPrefixArgsRef,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
-	} else if configFileSetup != "" {
-		command = fmt.Sprintf(`set -o pipefail
-%s
-%s
-%s
-%s
-# shellcheck disable=SC1003
-%s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
-			writeAgentCLIStartMs,
-			preCreateLog,
-			configFileSetup,
-			arcDindPrefixProbe,
-			awfCommand,
-			expandableArgs,
-			arcDindPrefixArgsRef,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
-	} else {
-		command = fmt.Sprintf(`set -o pipefail
-%s
-%s
-%s
-# shellcheck disable=SC1003
-%s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
-			writeAgentCLIStartMs,
-			preCreateLog,
-			arcDindPrefixProbe,
-			awfCommand,
-			expandableArgs,
-			arcDindPrefixArgsRef,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
+func buildAWFConfigFileSetup(config AWFCommandConfig) string {
+	configWithoutInlineMultipliers := config
+	configWithoutInlineMultipliers.WorkflowData = cloneWorkflowDataWithoutModelMultipliers(config.WorkflowData)
+	awfConfigJSON, err := BuildAWFConfigJSON(configWithoutInlineMultipliers)
+	if err != nil {
+		awfHelpersLog.Printf("Warning: failed to build AWF config JSON: %v", err)
+		return ""
 	}
 
-	awfHelpersLog.Print("Successfully built AWF command")
-	return command
+	setup := fmt.Sprintf("printf '%%s\\n' %s > %q", shellEscapeArg(awfConfigJSON), awfConfigRuntimePathExpr)
+	if shouldUseWorkflowCallNetworkAllowedInput(config.WorkflowData) {
+		updateScript, updateErr := buildWorkflowCallNetworkAllowedUpdateScript()
+		if updateErr != nil {
+			awfHelpersLog.Printf("Warning: failed to build workflow_call network_allowed updater: %v", updateErr)
+		} else {
+			setup += "\n" + updateScript
+		}
+	}
+	setup += "\n" + buildModelMultipliersFromFileScript()
+	setup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
+	return setup
+}
+
+type awfCommandScriptParts struct {
+	awfCommand           string
+	expandableArgs       string
+	arcDindPrefixArgsRef string
+	awfArgs              string
+	shellWrappedCommand  string
+	escapedLogFile       string
+	pathSetup            string
+	configFileSetup      string
+	arcDindPrefixProbe   string
+}
+
+func buildAWFCommandScript(parts awfCommandScriptParts) string {
+	preamble := []string{
+		"set -o pipefail",
+		"printf '%s' \"$(date +%s%3N)\" > " + shellEscapeArg(AgentCLIStartMsPath),
+		fmt.Sprintf("(umask 177 && touch %s)", parts.escapedLogFile),
+	}
+	if parts.pathSetup != "" {
+		preamble = append(preamble, parts.pathSetup)
+	}
+	if parts.configFileSetup != "" {
+		preamble = append(preamble, parts.configFileSetup)
+	}
+	if parts.arcDindPrefixProbe != "" {
+		preamble = append(preamble, parts.arcDindPrefixProbe)
+	}
+	commandLine := fmt.Sprintf(`# shellcheck disable=SC1003
+%s %s %s %s \
+  -- %s 2>&1 | tee -a %s`, parts.awfCommand, parts.expandableArgs, parts.arcDindPrefixArgsRef, parts.awfArgs, parts.shellWrappedCommand, parts.escapedLogFile)
+	return strings.Join(append(preamble, commandLine), "\n")
 }
 
 // BuildAWFArgs constructs common AWF arguments from configuration.
