@@ -153,6 +153,11 @@ MCP Scripts operates with the following execution model:
 6. **Response**: Result is returned via JSON-RPC response
 7. **Cleanup**: Ephemeral resources are cleaned up after invocation
 
+### 3.2.1 Operations Ordering (Normative Cross-Link)
+
+Implementations MUST preserve the invocation operation ordering defined in §5.1.1. Architecture
+changes in this section MUST NOT weaken or reorder the §5.1.1 sequence.
+
 ### 3.3 Transport Model
 
 MCP Scripts MUST use HTTP transport for MCP communication. The transport architecture is:
@@ -342,6 +347,9 @@ Implementations MUST validate:
 5. **Environment Variables**: Environment variable names are valid identifiers (uppercase alphanumeric with underscores)
 6. **Tool Names**: Tool names match pattern `^[a-zA-Z][a-zA-Z0-9_-]*$`
 7. **Dependencies**: Dependency names are valid for target package manager
+8. **Per-string length limits**: Each string-typed input parameter MUST enforce a maximum accepted
+   length of at least 10KB and MUST reject oversized values before tool execution (SM-IS-01);
+   follow-up implementation tracking is recorded in [#35257](https://github.com/github/gh-aw/issues/35257).
 
 Implementations SHOULD validate:
 
@@ -351,11 +359,11 @@ Implementations SHOULD validate:
 4. **Description Length**: Tool descriptions are clear and concise (recommended 10-200 characters)
 5. **Timeout Reasonableness**: Timeout values are reasonable for tool purpose (warn if >600 seconds)
 
-**Sync note (2026-05-25)**: SM-IS-01 enforcement was reviewed against the current runtime path.
+**Sync note (2026-05-27)**: SM-IS-01 enforcement was reviewed against the current runtime path.
 `actions/setup/js/mcp_scripts_mcp_server_http.cjs` calls
 `validateRequiredFields` in `actions/setup/js/mcp_scripts_validation.cjs`, which validates required
-presence but does not yet enforce a per-string 10KB limit. A follow-up implementation issue SHOULD
-be opened before treating SM-IS-01 as fully implemented.
+presence but does not yet enforce a per-string 10KB limit. Follow-up implementation tracking issue:
+[#35257](https://github.com/github/gh-aw/issues/35257).
 
 ---
 
@@ -1546,7 +1554,7 @@ and run `go test ./pkg/workflow/...` to verify conformance.
 | Marker | Implementation File(s) | Enforcement Path |
 |---|---|---|
 | SM-JS-01 | `pkg/workflow/mcp_scripts_generator.go`, `actions/setup/js/mcp_server_core.cjs` | `GenerateMCPScriptJavaScriptToolScript` emits per-tool JS handlers; `loadToolHandlers` in `mcp_server_core.cjs` executes handlers in isolated subprocesses |
-| SM-IS-01 | `actions/setup/js/mcp_scripts_mcp_server_http.cjs`, `actions/setup/js/mcp_scripts_validation.cjs` | `createMCPServer` → `validateRequiredFields` (presence checks only; 10KB string-length enforcement not currently implemented) |
+| SM-IS-01 | `actions/setup/js/mcp_scripts_mcp_server_http.cjs`, `actions/setup/js/mcp_scripts_validation.cjs` | `createMCPServer` → `validateRequiredFields` (presence checks only; 10KB string-length enforcement not currently implemented). Tracking issue: [#35257](https://github.com/github/gh-aw/issues/35257). |
 | SM-03 | `actions/setup/js/mcp_server_core.cjs`, `actions/setup/js/mcp_scripts_mcp_server_http.cjs` | Tool-call response path serializes handler output before returning MCP `content`; raw passthrough handling is centralized in server transport/handler pipeline |
 
 ### Implementation Notes
