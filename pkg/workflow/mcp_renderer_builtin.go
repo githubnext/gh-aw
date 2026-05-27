@@ -234,3 +234,193 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 
 	yaml.WriteString("          env_vars = [\"DEBUG\", \"GH_TOKEN\", \"GITHUB_TOKEN\", \"GITHUB_ACTOR\", \"GITHUB_REPOSITORY\"]\n")
 }
+
+// renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options
+// Now uses HTTP transport instead of stdio, similar to mcp-scripts
+// The server is started in a separate step before the agent job
+func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
+	mcpRendererBuiltinLog.Printf("Rendering Safe Outputs MCP config with options: isLast=%v, includeCopilotFields=%v", isLast, includeCopilotFields)
+	yaml.WriteString("              \"" + constants.SafeOutputsMCPServerID.String() + "\": {\n")
+
+	// HTTP transport configuration - server started in separate step
+	// Add type field for HTTP (required by MCP specification for HTTP transport)
+	yaml.WriteString("                \"type\": \"http\",\n")
+
+	// Determine host based on whether agent is disabled
+	host := "host.docker.internal"
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
+		host = "localhost"
+		mcpRendererBuiltinLog.Print("Agent firewall disabled, using localhost instead of host.docker.internal")
+	}
+	mcpRendererBuiltinLog.Printf("Using host: %s", host)
+
+	// HTTP URL using environment variable - NOT escaped so shell expands it before awmg validation
+	// Use host.docker.internal to allow access from firewall container (or localhost if agent disabled)
+	// Note: awmg validates URL format before variable resolution, so we must expand the port variable
+	yaml.WriteString("                \"url\": \"http://" + host + ":$GH_AW_SAFE_OUTPUTS_PORT\",\n")
+
+	// Add Authorization header with API key
+	yaml.WriteString("                \"headers\": {\n")
+	if includeCopilotFields {
+		// Copilot format: backslash-escaped shell variable reference
+		yaml.WriteString("                  \"Authorization\": \"\\${GH_AW_SAFE_OUTPUTS_API_KEY}\"\n")
+	} else {
+		// Claude/Custom format: direct shell variable reference
+		yaml.WriteString("                  \"Authorization\": \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
+	}
+	yaml.WriteString("                }")
+
+	// Check if GitHub tool has guard-policies configured (or auto-lockdown will run)
+	// If so, generate a linked write-sink guard-policy for safeoutputs
+	guardPolicies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
+
+	// Add guard-policies if configured
+	if len(guardPolicies) > 0 {
+		mcpRendererBuiltinLog.Print("Adding guard-policies to safeoutputs (derived from GitHub guard-policy or auto-lockdown detection)")
+		yaml.WriteString(",\n")
+		renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
+	} else {
+		yaml.WriteString("\n")
+	}
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}
+
+// renderAgenticWorkflowsMCPConfigWithOptions generates the Agentic Workflows MCP server configuration with engine-specific options
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
+func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, actionMode ActionMode, guardPolicies map[string]any) {
+	mcpRendererBuiltinLog.Printf("Rendering Agentic Workflows MCP config: isLast=%v, includeCopilotFields=%v, actionMode=%v", isLast, includeCopilotFields, actionMode)
+
+	// Environment variables: map of env var name to value (literal) or source variable (reference)
+	envVars := []struct {
+		name      string
+		value     string
+		isLiteral bool
+	}{
+		{"DEBUG", "*", true},                              // Literal value "*"
+		{"GITHUB_TOKEN", "GITHUB_TOKEN", false},           // Variable reference (gh CLI auto-sets GH_TOKEN from GITHUB_TOKEN if needed)
+		{"GITHUB_ACTOR", "GITHUB_ACTOR", false},           // Variable reference for actor-based access control
+		{"GITHUB_REPOSITORY", "GITHUB_REPOSITORY", false}, // Variable reference for repository context
+	}
+
+	// Use MCP Gateway spec format with container, entrypoint, entrypointArgs, and mounts
+	yaml.WriteString("              \"" + constants.AgenticWorkflowsMCPServerID.String() + "\": {\n")
+
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
+	if includeCopilotFields {
+		yaml.WriteString("                \"type\": \"stdio\",\n")
+	}
+
+	// MCP Gateway spec fields for containerized stdio servers
+	containerImage := constants.DefaultAlpineImage
+	var entrypoint string
+	var entrypointArgs []string
+	var mounts []string
+
+	if actionMode.IsDev() {
+		mcpRendererBuiltinLog.Print("Using dev mode configuration with locally built Docker image")
+		// Dev mode: Use locally built Docker image which includes gh-aw binary and gh CLI
+		// The Dockerfile sets ENTRYPOINT ["gh-aw"] and CMD ["mcp-server", "--validate-actor"]
+		// Binary path is automatically detected via os.Executable()
+		// So we don't need to specify entrypoint or entrypointArgs
+		containerImage = constants.DevModeGhAwImage
+		entrypoint = ""      // Use container's default entrypoint
+		entrypointArgs = nil // Use container's default CMD
+		// Only mount workspace and temp directory - binary and gh CLI are in the image
+		mounts = []string{constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}
+	} else {
+		// Release mode: Use minimal Alpine image with mounted binaries
+		// The gh-aw binary is mounted from ${RUNNER_TEMP}/gh-aw and executed directly
+		// Pass --validate-actor flag to enable role-based access control
+		entrypoint = "${RUNNER_TEMP}/gh-aw/gh-aw"
+		entrypointArgs = []string{"mcp-server", "--validate-actor"}
+		// Mount gh-aw binary, gh CLI binary, workspace, and temp directory
+		mounts = []string{constants.DefaultGhAwMount, constants.DefaultGhBinaryMount, constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}
+	}
+
+	yaml.WriteString("                \"container\": \"" + containerImage + "\",\n")
+
+	// Only write entrypoint if it's specified (release mode)
+	// In dev mode, use the container's default ENTRYPOINT
+	if entrypoint != "" {
+		yaml.WriteString("                \"entrypoint\": \"" + entrypoint + "\",\n")
+	}
+
+	// Only write entrypointArgs if specified (release mode)
+	// In dev mode, use the container's default CMD
+	if entrypointArgs != nil {
+		yaml.WriteString("                \"entrypointArgs\": [")
+		for i, arg := range entrypointArgs {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + arg + "\"")
+		}
+		yaml.WriteString("],\n")
+	}
+
+	// Write mounts
+	yaml.WriteString("                \"mounts\": [")
+	for i, mount := range mounts {
+		if i > 0 {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("\"" + mount + "\"")
+	}
+	yaml.WriteString("],\n")
+
+	// Add Docker runtime args:
+	// - --network host: Enables network access for GitHub API calls (gh CLI needs api.github.com)
+	// - -w: Sets working directory to workspace for .github/workflows folder resolution
+	// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
+	yaml.WriteString("                \"args\": [\"--network\", \"host\", \"-w\", \"\\${GITHUB_WORKSPACE}\"],\n")
+
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot. This keeps the gateway config compatible with the schema.
+
+	// Write environment variables
+	yaml.WriteString("                \"env\": {\n")
+	for i, envVar := range envVars {
+		isLastEnvVar := i == len(envVars)-1
+		comma := ""
+		if !isLastEnvVar {
+			comma = ","
+		}
+
+		var valueStr string
+		if envVar.isLiteral {
+			// Literal value (e.g., DEBUG = "*")
+			valueStr = envVar.value
+		} else {
+			// Variable reference
+			if includeCopilotFields {
+				// Copilot format: backslash-escaped shell variable reference
+				valueStr = "\\${" + envVar.value + "}"
+			} else {
+				// Claude/Custom format: direct shell variable reference
+				valueStr = "$" + envVar.value
+			}
+		}
+
+		yaml.WriteString("                  \"" + envVar.name + "\": \"" + valueStr + "\"" + comma + "\n")
+	}
+	// Close env section - with or without trailing comma depending on whether guard policies follow
+	if len(guardPolicies) > 0 {
+		yaml.WriteString("                },\n")
+		renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
+	} else {
+		yaml.WriteString("                }\n")
+	}
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}

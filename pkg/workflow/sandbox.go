@@ -213,3 +213,37 @@ func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig) {
 		defaultAgentWorkspaceWritePath,
 	)
 }
+
+// isSandboxEnabled checks if the sandbox is enabled (either explicitly or auto-enabled)
+// Returns true when:
+// - sandbox.agent is explicitly set to awf
+// - Firewall is auto-enabled (networkPermissions.Firewall is set and enabled)
+// Returns false when:
+// - sandbox.agent is false (explicitly disabled)
+// - No sandbox configuration and no auto-enabled firewall
+func isSandboxEnabled(sandboxConfig *SandboxConfig, networkPermissions *NetworkPermissions) bool {
+	// Check if sandbox.agent is explicitly disabled
+	if sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
+		return false
+	}
+
+	// Check if sandbox.agent is explicitly configured with a type
+	if sandboxConfig != nil && sandboxConfig.Agent != nil {
+		agentType := getAgentType(sandboxConfig.Agent)
+		if isSupportedSandboxType(agentType) {
+			return true
+		}
+	}
+
+	// Check legacy top-level Type field (deprecated but still supported)
+	if sandboxConfig != nil && isSupportedSandboxType(sandboxConfig.Type) {
+		return true
+	}
+
+	// Check if firewall is auto-enabled (AWF)
+	if networkPermissions != nil && networkPermissions.Firewall != nil && networkPermissions.Firewall.Enabled {
+		return true
+	}
+
+	return false
+}
