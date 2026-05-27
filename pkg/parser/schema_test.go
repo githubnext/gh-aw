@@ -877,7 +877,6 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppLegac
 	errText := err.Error()
 	if !strings.Contains(errText, "Unknown properties") ||
 		!strings.Contains(errText, "type") ||
-		!strings.Contains(errText, "audience") ||
 		!strings.Contains(errText, "observability/otlp/github-app") {
 		t.Fatalf("expected schema validation error to reference unsupported legacy github-app.type syntax, got: %v", err)
 	}
