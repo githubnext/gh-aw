@@ -522,6 +522,11 @@ func TestParseRepositoryPackageSpec(t *testing.T) {
 			wantOK: false,
 		},
 		{
+			name:   "workflow path with branch ref is not package",
+			spec:   "owner/repo/agentic-workflows/pr-review.md@feature/github-agentic-workflows",
+			wantOK: false,
+		},
+		{
 			name:   "url is not package",
 			spec:   "https://github.com/owner/repo",
 			wantOK: false,

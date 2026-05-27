@@ -23,6 +23,7 @@ func TestParseWorkflowSpecWithWildcard(t *testing.T) {
 		expectError    bool
 		expectedRepo   string
 		expectedVer    string
+		expectedPath   string
 	}{
 		{
 			name:           "wildcard_without_version",
@@ -55,6 +56,15 @@ func TestParseWorkflowSpecWithWildcard(t *testing.T) {
 			expectError:    false,
 			expectedRepo:   "githubnext/agentics",
 			expectedVer:    "",
+		},
+		{
+			name:           "direct_workflow_path_with_branch_ref_containing_slash",
+			spec:           "owner/repo/agentic-workflows/pr-review.md@feature/github-agentic-workflows",
+			expectWildcard: false,
+			expectError:    false,
+			expectedRepo:   "owner/repo",
+			expectedVer:    "feature/github-agentic-workflows",
+			expectedPath:   "agentic-workflows/pr-review.md",
 		},
 		{
 			name:           "invalid_spec_too_few_parts",
@@ -99,6 +109,10 @@ func TestParseWorkflowSpecWithWildcard(t *testing.T) {
 
 			if result.Version != tt.expectedVer {
 				t.Errorf("parseWorkflowSpec() Version = %v, expected %v", result.Version, tt.expectedVer)
+			}
+
+			if tt.expectedPath != "" && result.WorkflowPath != tt.expectedPath {
+				t.Errorf("parseWorkflowSpec() WorkflowPath = %v, expected %v", result.WorkflowPath, tt.expectedPath)
 			}
 		})
 	}
