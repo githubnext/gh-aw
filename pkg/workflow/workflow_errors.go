@@ -96,30 +96,6 @@ func NewValidationError(field, value, reason, suggestion string) *WorkflowValida
 	}
 }
 
-// NewValidationErrorWithLocation creates a new validation error with file and line context.
-// The location is used by the compiler's error formatter to emit an IDE-compatible
-// "file:line:col: error:" prefix, enabling users to jump directly to the problematic field.
-// Use this constructor when the source location of the invalid field is known.
-func NewValidationErrorWithLocation(field, value, reason, suggestion string, loc FieldLocation) *WorkflowValidationError {
-	if errorHelpersLog.Enabled() {
-		errorHelpersLog.Printf("Creating validation error with location: field=%s, file=%s, line=%d, reason=%s",
-			field, loc.File, loc.Line, reason)
-	}
-	severity, category := classifyValidationSeverity(field, reason)
-	return &WorkflowValidationError{
-		Field:      field,
-		Value:      value,
-		Reason:     reason,
-		Suggestion: suggestion,
-		Severity:   severity,
-		Category:   category,
-		Timestamp:  time.Now(),
-		File:       loc.File,
-		Line:       loc.Line,
-		Column:     loc.Column,
-	}
-}
-
 // OperationError represents an error that occurred during an operation
 type OperationError struct {
 	Operation  string

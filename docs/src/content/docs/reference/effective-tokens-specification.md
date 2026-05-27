@@ -339,6 +339,11 @@ to compute `llm.token.effective_total` for the same span. Implementations MUST N
 specification. Implementations MUST NOT rename or reuse these keys with different semantics
 without a specification revision.
 
+**R-OTL-006**: Implementations MUST reject and MUST NOT export negative values for
+`llm.token.effective_total`. If a negative ET value is encountered, the implementation MUST fail the
+export path (or drop the affected span with an explicit error) rather than emitting a negative
+metric.
+
 ---
 
 ## 8. Implementation Requirements
@@ -375,7 +380,33 @@ flag/error payload.
 
 Normative requirements: **R-SAFE-002**, **R-SAFE-003**, **R-SAFE-003A**, **R-SAFE-004**
 
-#### S-2: Non-Finite Numeric Rejection
+#### S-2: Negative/Zero Multiplier Rejection
+
+**Threat**: Zero or negative model multipliers can collapse ET to zero or invert ET sign, producing
+invalid cross-model comparisons and potentially negative exported ET metrics.
+
+**Mitigation**: Implementations MUST reject zero and negative multipliers during registry validation
+before ET computation begins.
+
+**Residual risk**: Runtime inputs from out-of-band systems may still provide malformed multipliers;
+implementations SHOULD continue validating merged runtime overrides (R-SAFE-010).
+
+Normative requirements: **R-SAFE-008**, **R-SAFE-010**, **R-OTL-006**
+
+#### S-3: Graph Cycle Detection
+
+**Threat**: Cycles in execution-graph parent/child relationships can cause unbounded traversal and
+double counting during ET aggregation.
+
+**Mitigation**: Implementations MUST detect invocation graph cycles and MUST fail deterministically
+before aggregation when a cycle is found.
+
+**Residual risk**: Incomplete telemetry may hide a cycle edge; implementations SHOULD retain stable
+node IDs and parent references to improve cycle diagnosability.
+
+Normative requirements: **R-SAFE-011**
+
+#### S-4: Non-Finite Numeric Rejection
 
 **Threat**: `NaN`, `+Inf`, and `-Inf` values in multipliers or token class weights can silently
 corrupt ET outputs and break downstream serialization/aggregation.
@@ -383,15 +414,21 @@ corrupt ET outputs and break downstream serialization/aggregation.
 **Mitigation**: Implementations MUST reject non-finite or invalid numeric registry values before ET
 computation begins.
 
+**Residual risk**: Numeric coercion bugs in downstream consumers can still mis-handle finite ET
+values if they apply non-spec transforms.
+
 Normative requirements: **R-SAFE-007**, **R-SAFE-008**
 
-#### S-3: Registry Validation Failure Handling
+#### S-5: Registry Validation Failure Handling
 
 **Threat**: Continuing ET computation after registry validation failure can produce inconsistent,
 partially parsed, or non-reproducible outputs.
 
 **Mitigation**: Implementations MUST fail deterministically with field-level diagnostics and MUST NOT
 continue with partially parsed registry data.
+
+**Residual risk**: Operator error can still delay remediation; diagnostics SHOULD identify actionable
+field-level causes to reduce MTTR.
 
 Normative requirements: **R-SAFE-009**, **R-SAFE-010**
 
@@ -441,6 +478,10 @@ invalid registry field or model entry.
 **R-SAFE-010**: When a runtime override or custom multiplier map is merged with the embedded
 registry, implementations **MUST** apply the same validation rules to the merged result before using
 it for ET computation.
+
+**R-SAFE-011**: Aggregation logic **MUST** detect parent/child cycles in the invocation graph before
+post-order traversal. If a cycle is detected, implementations **MUST** fail deterministically with a
+stable error code and **MUST NOT** emit partial ET totals.
 
 ---
 
