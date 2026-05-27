@@ -163,95 +163,56 @@ func getOTLPEndpointEnvValue(config *FrontmatterConfig) string {
 	return ""
 }
 
-func normalizeOTLPAuthType(value string) string {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "github-oidc":
-		return "github-oidc"
-	default:
-		return ""
-	}
-}
-
-// getOTLPGitHubOIDCAudience returns observability.otlp.github-app.audience when
-// github-app.type is configured as github-oidc. Returns empty string when github-app is
-// unset, invalid, or not github-oidc.
-func getOTLPGitHubOIDCAudience(config *FrontmatterConfig, frontmatter map[string]any) string {
+func getOTLPGitHubApp(config *FrontmatterConfig, frontmatter map[string]any) *OTLPGitHubAppConfig {
 	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.GitHubApp != nil {
-		if normalizeOTLPAuthType(config.Observability.OTLP.GitHubApp.Type) == "github-oidc" {
-			return strings.TrimSpace(config.Observability.OTLP.GitHubApp.Audience)
-		}
+		return config.Observability.OTLP.GitHubApp
 	}
-
 	if frontmatter == nil {
-		return ""
+		return nil
 	}
 	obsAny, ok := frontmatter["observability"]
 	if !ok {
-		return ""
+		return nil
 	}
 	obsMap, ok := obsAny.(map[string]any)
 	if !ok {
-		return ""
+		return nil
 	}
 	otlpAny, ok := obsMap["otlp"]
 	if !ok {
-		return ""
+		return nil
 	}
 	otlpMap, ok := otlpAny.(map[string]any)
 	if !ok {
-		return ""
+		return nil
 	}
 	authAny, ok := otlpMap["github-app"]
 	if !ok {
-		return ""
+		return nil
 	}
 	authMap, ok := authAny.(map[string]any)
 	if !ok {
-		return ""
-	}
-	authType, _ := authMap["type"].(string)
-	if normalizeOTLPAuthType(authType) != "github-oidc" {
-		return ""
+		return nil
 	}
 	audience, _ := authMap["audience"].(string)
-	return strings.TrimSpace(audience)
+	return &OTLPGitHubAppConfig{
+		Audience: audience,
+	}
+}
+
+// getOTLPGitHubOIDCAudience returns observability.otlp.github-app.audience.
+// Returns empty string when github-app is unset or invalid.
+func getOTLPGitHubOIDCAudience(config *FrontmatterConfig, frontmatter map[string]any) string {
+	githubApp := getOTLPGitHubApp(config, frontmatter)
+	if githubApp == nil {
+		return ""
+	}
+
+	return strings.TrimSpace(githubApp.Audience)
 }
 
 func hasOTLPGitHubOIDCAuth(config *FrontmatterConfig, frontmatter map[string]any) bool {
-	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.GitHubApp != nil {
-		if normalizeOTLPAuthType(config.Observability.OTLP.GitHubApp.Type) == "github-oidc" {
-			return true
-		}
-	}
-	if frontmatter == nil {
-		return false
-	}
-	obsAny, ok := frontmatter["observability"]
-	if !ok {
-		return false
-	}
-	obsMap, ok := obsAny.(map[string]any)
-	if !ok {
-		return false
-	}
-	otlpAny, ok := obsMap["otlp"]
-	if !ok {
-		return false
-	}
-	otlpMap, ok := otlpAny.(map[string]any)
-	if !ok {
-		return false
-	}
-	authAny, ok := otlpMap["github-app"]
-	if !ok {
-		return false
-	}
-	authMap, ok := authAny.(map[string]any)
-	if !ok {
-		return false
-	}
-	authType, _ := authMap["type"].(string)
-	return normalizeOTLPAuthType(authType) == "github-oidc"
+	return getOTLPGitHubApp(config, frontmatter) != nil
 }
 
 // normalizeOTLPIfMissingMode returns a validated if-missing mode.

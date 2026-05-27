@@ -174,7 +174,7 @@ func validateOIDCPermissions(workflowData *WorkflowData, workflowPermissions *Pe
 
 	if !requiresIDTokenWrite && hasOTLPGitHubOIDCAuth(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter) {
 		requiresIDTokenWrite = true
-		errorPrefix = "observability.otlp.github-app.type: github-oidc"
+		errorPrefix = "observability.otlp.github-app"
 	}
 
 	if !requiresIDTokenWrite {

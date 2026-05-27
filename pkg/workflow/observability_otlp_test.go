@@ -223,12 +223,11 @@ func TestGetOTLPIfMissingMode(t *testing.T) {
 }
 
 func TestGetOTLPGitHubOIDCAudience(t *testing.T) {
-	t.Run("returns parsed audience for github-oidc auth", func(t *testing.T) {
+	t.Run("returns parsed audience when github-app is configured", func(t *testing.T) {
 		got := getOTLPGitHubOIDCAudience(&FrontmatterConfig{
 			Observability: &ObservabilityConfig{
 				OTLP: &OTLPConfig{
-					GitHubApp: &OTLPAuthConfig{
-						Type:     "github-oidc",
+					GitHubApp: &OTLPGitHubAppConfig{
 						Audience: "https://collector.example.com",
 					},
 				},
@@ -237,26 +236,21 @@ func TestGetOTLPGitHubOIDCAudience(t *testing.T) {
 		assert.Equal(t, "https://collector.example.com", got)
 	})
 
-	t.Run("returns empty for non-github-oidc auth", func(t *testing.T) {
+	t.Run("returns empty when github-app is missing", func(t *testing.T) {
 		got := getOTLPGitHubOIDCAudience(nil, map[string]any{
 			"observability": map[string]any{
 				"otlp": map[string]any{
-					"github-app": map[string]any{
-						"type":     "bearer",
-						"audience": "https://collector.example.com",
-					},
 				},
 			},
 		})
 		assert.Empty(t, got)
 	})
 
-	t.Run("returns raw audience when github-oidc auth is set", func(t *testing.T) {
+	t.Run("returns raw audience when github-app is set", func(t *testing.T) {
 		got := getOTLPGitHubOIDCAudience(nil, map[string]any{
 			"observability": map[string]any{
 				"otlp": map[string]any{
 					"github-app": map[string]any{
-						"type":     "github-oidc",
 						"audience": "api://AzureADTokenExchange",
 					},
 				},
@@ -270,18 +264,15 @@ func TestHasOTLPGitHubOIDCAuth(t *testing.T) {
 	assert.True(t, hasOTLPGitHubOIDCAuth(&FrontmatterConfig{
 		Observability: &ObservabilityConfig{
 			OTLP: &OTLPConfig{
-				GitHubApp: &OTLPAuthConfig{
-					Type: "github-oidc",
-				},
+				GitHubApp: &OTLPGitHubAppConfig{},
 			},
 		},
 	}, nil))
 
-	assert.False(t, hasOTLPGitHubOIDCAuth(nil, map[string]any{
+	assert.True(t, hasOTLPGitHubOIDCAuth(nil, map[string]any{
 		"observability": map[string]any{
 			"otlp": map[string]any{
 				"github-app": map[string]any{
-					"type": "bearer",
 				},
 			},
 		},

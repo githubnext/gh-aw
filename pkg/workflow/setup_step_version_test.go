@@ -278,7 +278,6 @@ func TestGenerateSetupStepIncludesOTLPOIDCMintingBeforeSetup(t *testing.T) {
 			"observability": map[string]any{
 				"otlp": map[string]any{
 					"github-app": map[string]any{
-						"type":     "github-oidc",
 						"audience": "https://example.com/collector",
 					},
 				},
@@ -312,7 +311,6 @@ func TestGenerateSetupStepIncludesOTLPOIDCTokenInScriptMode(t *testing.T) {
 			"observability": map[string]any{
 				"otlp": map[string]any{
 					"github-app": map[string]any{
-						"type": "github-oidc",
 					},
 				},
 			},

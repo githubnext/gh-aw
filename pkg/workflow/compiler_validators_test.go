@@ -214,7 +214,7 @@ func TestValidatePermissions(t *testing.T) {
 			wantPermissions: true,
 		},
 		{
-			name: "observability otlp github-app github-oidc requires id-token write",
+			name: "observability otlp github-app requires id-token write",
 			workflowData: &WorkflowData{
 				Name:            "Test",
 				MarkdownContent: "# Test",
@@ -223,19 +223,17 @@ func TestValidatePermissions(t *testing.T) {
 				RawFrontmatter: map[string]any{
 					"observability": map[string]any{
 						"otlp": map[string]any{
-							"github-app": map[string]any{
-								"type": "github-oidc",
-							},
+							"github-app": map[string]any{},
 						},
 					},
 				},
 			},
 			shouldError:     true,
-			errorContains:   "observability.otlp.github-app.type: github-oidc requires permissions.id-token: write",
+			errorContains:   "observability.otlp.github-app requires permissions.id-token: write",
 			wantPermissions: false,
 		},
 		{
-			name: "observability otlp github-app github-oidc with id-token write succeeds",
+			name: "observability otlp github-app with id-token write succeeds",
 			workflowData: &WorkflowData{
 				Name:            "Test",
 				MarkdownContent: "# Test",
@@ -244,9 +242,7 @@ func TestValidatePermissions(t *testing.T) {
 				RawFrontmatter: map[string]any{
 					"observability": map[string]any{
 						"otlp": map[string]any{
-							"github-app": map[string]any{
-								"type": "github-oidc",
-							},
+							"github-app": map[string]any{},
 						},
 					},
 				},
