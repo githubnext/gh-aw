@@ -8,10 +8,7 @@ const __filename = fileURLToPath(import.meta.url),
 global.core = core;
 const { isTruthy } = require("./is_truthy.cjs"),
   { selectBranch } = require("./template_branch.cjs"),
-  renderTemplateScript = fs.readFileSync(path.join(__dirname, "render_template.cjs"), "utf8"),
-  renderMarkdownTemplateMatch = renderTemplateScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
-if (!renderMarkdownTemplateMatch) throw new Error("Could not extract renderMarkdownTemplate function from render_template.cjs");
-const renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
+  { renderMarkdownTemplate } = require("./render_template.cjs");
 describe("renderMarkdownTemplate", () => {
   (it("should keep content in truthy blocks", () => {
     const output = renderMarkdownTemplate("{{#if true}}\nHello\n{{/if}}");
@@ -107,6 +104,24 @@ describe("renderMarkdownTemplate", () => {
       const input = "```js\n{{#if false}}\nHidden\n{{/if}}\n```";
       const output = renderMarkdownTemplate(input);
       expect((output.match(/`{3,}/g) || []).length).toBe((input.match(/`{3,}/g) || []).length);
+    });
+    it("should not warn about fence count when a fenced code block inside a false conditional is removed", () => {
+      core.warning.mockClear();
+      const input = "{{#if false}}\n```js\ncode\n```\n{{/if}}\nOther content";
+      renderMarkdownTemplate(input);
+      expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("Fence count mismatch"));
+    });
+    it("should not warn about fence count when multiple fenced blocks inside a false conditional are removed", () => {
+      core.warning.mockClear();
+      const input = "{{#if false}}\n```js\ncode1\n```\n\n```py\ncode2\n```\n{{/if}}\nOther content";
+      renderMarkdownTemplate(input);
+      expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("Fence count mismatch"));
+    });
+    it("should not warn when kept block contains fenced code but removed block also contained fenced code", () => {
+      core.warning.mockClear();
+      const input = "{{#if false}}\n```js\nremoved\n```\n{{/if}}\n```py\nkept\n```";
+      renderMarkdownTemplate(input);
+      expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("Fence count mismatch"));
     });
     it("should preserve multiple fenced code blocks unchanged", () => {
       const input = "```js\ncode 1\n```\n\n```py\ncode 2\n```";
