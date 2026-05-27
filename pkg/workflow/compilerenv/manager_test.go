@@ -101,6 +101,11 @@ func TestResolveDefaultDetectionModel(t *testing.T) {
 		assert.Empty(t, ResolveDefaultDetectionModel(""))
 	})
 
+	t.Run("unset keeps non-empty fallback", func(t *testing.T) {
+		t.Setenv(DefaultDetectionModel, "")
+		assert.Equal(t, "gpt-5.5-mini", ResolveDefaultDetectionModel("gpt-5.5-mini"))
+	})
+
 	t.Run("set value overrides fallback", func(t *testing.T) {
 		t.Setenv(DefaultDetectionModel, "gpt-5.5-mini")
 		assert.Equal(t, "gpt-5.5-mini", ResolveDefaultDetectionModel(""))
