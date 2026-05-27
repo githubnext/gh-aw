@@ -343,11 +343,12 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	}
 	agenticEngine := resolvedEngine.Runtime
 
+	const noDefaultMaxTurns = ""
 	if engineConfig != nil && engineConfig.MaxTurns == "" && agenticEngine.GetCapabilities().MaxTurns {
 		// No built-in max-turns default exists.
-		// ResolveDefaultMaxTurns("") only injects a value when GH_AW_DEFAULT_MAX_TURNS
+		// ResolveDefaultMaxTurns(noDefaultMaxTurns) only injects a value when GH_AW_DEFAULT_MAX_TURNS
 		// is configured; otherwise MaxTurns stays unset.
-		engineConfig.MaxTurns = compilerenv.ResolveDefaultMaxTurns("")
+		engineConfig.MaxTurns = compilerenv.ResolveDefaultMaxTurns(noDefaultMaxTurns)
 	}
 
 	// Call RenderConfig to allow the runtime adapter to emit config files or metadata.
