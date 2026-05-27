@@ -164,6 +164,7 @@ Add workflows from The Agentics collection or other repositories to `.github/wor
 ```bash wrap
 gh aw add githubnext/agentics/ci-doctor           # Add single workflow
 gh aw add githubnext/agentics/ci-doctor@v1.0.0   # Add specific version
+gh aw add my-org/my-repo/agentic-workflows/pr-review.md@feature/github-agentic-workflows
 gh aw add githubnext/agentics/ci-doctor --dir shared                  # Organize in subdirectory
 gh aw add githubnext/agentics/ci-doctor --create-pull-request        # Create PR instead of commit
 gh aw add https://example.com/workflows/my-workflow.md               # Arbitrary HTTPS URL (markdown)

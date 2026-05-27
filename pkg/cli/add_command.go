@@ -61,6 +61,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/packages/repo-assist     # Add package from nested aw.yml
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor@v1.0.0         # Add with version
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/workflows/ci-doctor.md@main
+  ` + string(constants.CLIExtensionPrefix) + ` add my-org/my-repo/agentic-workflows/pr-review.md@feature/github-agentic-workflows
   ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
   ` + string(constants.CLIExtensionPrefix) + ` add https://example.com/my-workflow.md           # Add workflow from any HTTPS URL
   ` + string(constants.CLIExtensionPrefix) + ` add https://example.com/workflow.json            # Import JSON workflow definition
@@ -80,7 +81,7 @@ Workflow specifications:
     - application/json → converted from a JSON workflow definition
   - Local file: "./path/to/workflow.md" (adds a workflow from local filesystem)
   - Local wildcard: "./*.md" or "./dir/*.md" (adds all .md files matching pattern)
-  - Version can be tag, branch, or SHA (for remote workflows)
+  - Version can be a tag, branch (including branches with slashes like feature/my-branch), or commit SHA (for remote workflows)
 
 The -n flag allows you to specify a custom name for the workflow file (not allowed when adding multiple workflows at once).
 The --dir flag allows you to specify the workflow directory (default: .github/workflows).
