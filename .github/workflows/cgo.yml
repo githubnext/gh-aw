@@ -1034,11 +1034,10 @@ jobs:
     - name: Lint error messages
       run: make lint-errors
 
-      # Enforce the production errstringmatch and panicinlibrarycode analyzers without
-      # blocking on unrelated legacy custom analyzer findings in tests or other analyzer
-      # families.
+      # Enforce selected production custom analyzers without blocking on unrelated
+      # legacy custom analyzer findings in tests or other analyzer families.
     - name: Run custom linters
-      run: make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -test=false"
+      run: make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -manualmutexunlock -osexitinlibrary -rawloginlib -test=false"
 
   actions-build:
     runs-on: ubuntu-latest
