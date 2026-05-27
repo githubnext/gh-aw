@@ -109,7 +109,7 @@ func evalAddReviewer(item CreatedItemReport, repoOverride string) OutcomeReport 
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusPending,
 			EvidenceStrength: EvidenceMedium,
-			Signal:           "review_request_pending",
+			Signal:           "awaiting_review",
 		}
 		return report
 	}
@@ -201,7 +201,7 @@ func evalSubmitPullRequestReview(item CreatedItemReport, repoOverride string) Ou
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusAccepted,
 			EvidenceStrength: EvidenceStrong,
-			Signal:           "review_approved_merged",
+			Signal:           "review_approved",
 		}
 		return report
 	case prMerged && reviewState == "CHANGES_REQUESTED":
@@ -386,10 +386,15 @@ func findReviewByID(reviews []map[string]any, reviewID int) map[string]any {
 func latestReviewAfterTimestamp(reviews []map[string]any, threshold string) map[string]any {
 	var latest map[string]any
 	for _, review := range reviews {
-		if !timestampOnOrAfter(outcomeString(review["submitted_at"]), threshold) {
+		state := strings.ToUpper(outcomeString(review["state"]))
+		submittedAt := outcomeString(review["submitted_at"])
+		if state == "" || state == "PENDING" || submittedAt == "" {
 			continue
 		}
-		if latest == nil || timestampOnOrAfter(outcomeString(review["submitted_at"]), outcomeString(latest["submitted_at"])) {
+		if !timestampOnOrAfter(submittedAt, threshold) {
+			continue
+		}
+		if latest == nil || timestampOnOrAfter(submittedAt, outcomeString(latest["submitted_at"])) {
 			latest = review
 		}
 	}

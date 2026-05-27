@@ -471,3 +471,106 @@ func TestEvalSubmitPullRequestReviewPendingWhenLatestOnOpenPR(t *testing.T) {
 	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
 	assert.Equal(t, "latest_review_pending", report.Signal)
 }
+
+func TestEvalAddReviewerPendingWhenRequestStillOutstanding(t *testing.T) {
+	oldGet := outcomeReviewGHAPIGet
+	oldGetArray := outcomeReviewGHAPIGetArray
+	t.Cleanup(func() {
+		outcomeReviewGHAPIGet = oldGet
+		outcomeReviewGHAPIGetArray = oldGetArray
+	})
+
+	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+		return map[string]any{
+			"users": []any{map[string]any{"login": "reviewer1"}},
+			"teams": []any{},
+		}, nil
+	}
+	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+		return []map[string]any{}, nil
+	}
+
+	report := evalAddReviewer(CreatedItemReport{
+		Type:      "add_reviewer",
+		Number:    42,
+		Repo:      "owner/repo",
+		Timestamp: "2026-05-12T00:00:00Z",
+		Metadata: map[string]any{
+			"requested_reviewers": []any{"reviewer1"},
+		},
+	}, "owner/repo")
+
+	assert.Equal(t, OutcomePending, report.Result)
+	assert.Equal(t, OutcomeStatusPending, report.OutcomeStatus)
+	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
+	assert.Equal(t, "awaiting_review", report.Signal)
+}
+
+func TestEvalSubmitPullRequestReviewApprovedMergedUsesSharedSignal(t *testing.T) {
+	oldGet := outcomeReviewGHAPIGet
+	oldGetArray := outcomeReviewGHAPIGetArray
+	t.Cleanup(func() {
+		outcomeReviewGHAPIGet = oldGet
+		outcomeReviewGHAPIGetArray = oldGetArray
+	})
+
+	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+		return map[string]any{
+			"state":     "closed",
+			"merged":    true,
+			"merged_at": "2026-05-12T05:00:00Z",
+		}, nil
+	}
+	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+		return []map[string]any{
+			{"id": float64(101), "state": "APPROVED", "submitted_at": "2026-05-12T02:00:00Z"},
+		}, nil
+	}
+
+	report := evalSubmitPullRequestReview(CreatedItemReport{
+		Type:      "submit_pull_request_review",
+		URL:       "https://github.com/owner/repo/pull/42#pullrequestreview-101",
+		Number:    42,
+		Repo:      "owner/repo",
+		Timestamp: "2026-05-12T02:00:00Z",
+		Metadata:  map[string]any{"review_id": float64(101)},
+	}, "owner/repo")
+
+	assert.Equal(t, OutcomeAccepted, report.Result)
+	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
+	assert.Equal(t, EvidenceStrong, report.EvidenceStrength)
+	assert.Equal(t, "review_approved", report.Signal)
+}
+
+func TestEvalSubmitPullRequestReviewPendingIgnoresUnsubmittedDrafts(t *testing.T) {
+	oldGet := outcomeReviewGHAPIGet
+	oldGetArray := outcomeReviewGHAPIGetArray
+	t.Cleanup(func() {
+		outcomeReviewGHAPIGet = oldGet
+		outcomeReviewGHAPIGetArray = oldGetArray
+	})
+
+	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+		return map[string]any{"state": "open", "merged": false}, nil
+	}
+	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+		return []map[string]any{
+			{"id": float64(101), "state": "COMMENTED", "submitted_at": "2026-05-12T01:00:00Z"},
+			{"id": float64(102), "state": "PENDING", "submitted_at": ""},
+		}, nil
+	}
+
+	report := evalSubmitPullRequestReview(CreatedItemReport{
+		Type:      "submit_pull_request_review",
+		URL:       "https://github.com/owner/repo/pull/42#pullrequestreview-101",
+		Number:    42,
+		Repo:      "owner/repo",
+		Timestamp: "2026-05-12T01:00:00Z",
+		Metadata:  map[string]any{"review_id": float64(101)},
+	}, "owner/repo")
+
+	assert.Equal(t, OutcomePending, report.Result)
+	assert.Equal(t, OutcomeStatusPending, report.OutcomeStatus)
+	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
+	assert.Equal(t, "latest_review_pending", report.Signal)
+}

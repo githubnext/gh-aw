@@ -137,9 +137,6 @@ type CreatedItemReport struct {
 	Metadata    map[string]any `json:"metadata,omitempty" console:"-"`
 	BeforeState map[string]any `json:"before_state,omitempty" console:"-"`
 	AfterState  map[string]any `json:"after_state,omitempty" console:"-"`
-	Metadata    map[string]any `json:"metadata,omitempty" console:"-"`
-	BeforeState map[string]any `json:"before_state,omitempty" console:"-"`
-	AfterState  map[string]any `json:"after_state,omitempty" console:"-"`
 	Timestamp   string         `json:"timestamp" console:"header:Timestamp"`
 }
 
