@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.12  
+**Version**: 1.0.13  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.13` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
 | `1.0.12` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
 | `1.0.11` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
 | `1.0.10` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), and cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019). |
@@ -264,9 +265,9 @@ The mappings above are pattern-based references and MUST be validated against co
 
 When mappings change, this table MUST be updated in the same change set as the implementation update.
 
-### 7.2 Mapping Audit (2026-05-26)
+### 7.2 Mapping Audit (2026-05-27)
 
-Audit result: ✅ all listed `CTR-001` through `CTR-019` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: commits merged through 2026-05-26 (PR #34841 / commit 34e5154). Three security-related items were evaluated: (1) `pkg/workflow/heredoc_validation.go` (heredoc delimiter injection defense, `patch-fix-heredoc-delimiter-injection`) — already mapped under CTR-006 since version 1.0.2; no change required. (2) MCP server actor validation (`--validate-actor` runtime flag, `patch-add-mcp-actor-validation`) — runtime RBAC enforced by the MCP gateway container; not a compiler threat detection rule and requires no new CTR entry. (3) Cross-repository allowlist validation (`allowed-repos`/`target-repo` field hardening for SEC-005, `patch-cross-repo-allowlist-validation`) — compiler-side configuration parsing hardening for safe-output handlers; strengthens existing CTR-005 and CTR-012 enforcement boundaries but introduces no new threat class requiring a distinct CTR rule. No new uncovered threats were identified in this review cycle.
+Audit result: ✅ all listed `CTR-001` through `CTR-019` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: PRs merged 2026-05-26 through 2026-05-27 (PRs #35005–#35078). Nine security-relevant items were evaluated: (1) Permission-scope validation caching (`permissions_compiler_validator.go`, PR #35076) — performance optimization that caches `ValidatePermissionScopeNames` results; CTR-001 detection behavior is unchanged. (2) `ghs_` installation token redaction regex update (`redact_secrets.cjs`, PR #35063) — runtime secret masking improvement for new stateless `ghs_` token format; outside compiler threat detection scope per Section 1.2. (3) Codex structured outputs for threat detection parsing (`codex_engine.go`, `parse_threat_detection_results.cjs`, PR #35061) — infrastructure change replacing log scraping with structured output files for Codex threat detection results; changes detection result ingestion, not detection rules; no new CTR entry required. (4) `add_comment` locked-target handling (`add_comment.cjs`, PR #35064) — safe-outputs operational fix downgrades HTTP 423/403-lock failures to non-fatal skips; no compiler detection rule change. (5) `github-workflow.json` schema: `code-quality` permission key addition (PR #35025) — expands the JSON schema for generated lock files to recognize the new GitHub Actions `code-quality` permission; CTR-001 compiler validation of the frontmatter input is unaffected since permission scope enforcement is handled in `permissions.go`. (6–9) Remaining PRs (#35005, #35015, #35057, #35060, #35065, #35070, #35072, #35077, #35078) are documentation, UI, or non-security dependency changes with no compiler threat detection impact. No new uncovered threats were identified in this review cycle.
 
 ### 7.3 Sync Protocol for CTR Rule and Manifest Updates
 
@@ -337,6 +338,12 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 ---
 
 ## 10. Change Log
+
+### 1.0.13 (2026-05-27)
+
+- Updated Section 7.2 mapping audit to 2026-05-27 confirming no new uncovered threats in this review cycle
+- Evaluated nine security-relevant items from PRs #35005–#35078: permission-scope validation caching (perf-only, CTR-001 detection unchanged), `ghs_` token redaction regex update (runtime-only, outside compiler scope), Codex structured outputs for threat detection parsing (detection infrastructure, no new rule required), `add_comment` locked-target handling (safe-outputs operational fix), `github-workflow.json` schema `code-quality` key addition (JSON schema only; compiler frontmatter enforcement unaffected), and several documentation/dependency-only PRs with no security impact
+- Updated Section 2 spec-to-implementation sync table with version 1.0.13 entry
 
 ### 1.0.12 (2026-05-26)
 
