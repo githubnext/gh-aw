@@ -73,7 +73,7 @@ func TestExtractUnknownParams(t *testing.T) {
 	}
 }
 
-func TestExtractUnknownParamsWithLiveJSONSchemaError(t *testing.T) {
+func TestExtractUnknownParamsFromSchemaError(t *testing.T) {
 	type sampleArgs struct {
 		Name string `json:"name" jsonschema:"Name field"`
 	}
