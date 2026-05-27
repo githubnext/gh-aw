@@ -132,8 +132,6 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     } catch {
       // If we can't check, default to allowing the push
       emptyCommitCount = 0;
-      mergeCommitCount = 0;
-      analyzedCommitCount = 0;
       core.warning(`Cycle check unavailable: failed to inspect git history for ${branchName}. Continuing with empty commit count set to 0.`);
     }
 
