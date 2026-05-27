@@ -110,6 +110,15 @@ describe("safe_output_manifest", () => {
       expect(entry.timestamp).toBeDefined();
     });
 
+    it("should persist labelsAdded even when empty", () => {
+      const log = createManifestLogger(testManifestFile);
+      log({ type: "add_labels", number: 20875, labelsAdded: [] });
+
+      const content = fs.readFileSync(testManifestFile, "utf8");
+      const entry = JSON.parse(content.trim());
+      expect(entry.labelsAdded).toEqual([]);
+    });
+
     it("should skip null/undefined items", () => {
       const log = createManifestLogger(testManifestFile);
       log(null);
@@ -245,12 +254,14 @@ describe("safe_output_manifest", () => {
     });
 
     it("should extract item from add_labels result (modification type without url)", () => {
-      const result = { success: true, number: 20875, labelsAdded: ["bug", "cli"], contextType: "issue" };
+      const result = { success: true, number: 20875, labelsAdded: ["bug", "cli"], labelsBefore: ["bug"], contextType: "issue" };
       const item = extractCreatedItemFromResult("add_labels", result);
       expect(item).not.toBeNull();
       expect(item.type).toBe("add_labels");
       expect(item.url).toBeUndefined();
       expect(item.number).toBe(20875);
+      expect(item.labelsAdded).toEqual(["bug", "cli"]);
+      expect(item.labelsBefore).toEqual(["bug"]);
     });
 
     it("should extract item from close_issue result (modification type with url)", () => {

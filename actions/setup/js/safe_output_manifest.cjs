@@ -47,6 +47,8 @@ const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data", "repor
  * @property {number} [number] - Issue/PR/discussion number if applicable
  * @property {string} [repo] - Repository slug (owner/repo) if applicable
  * @property {string} [temporaryId] - Temporary ID assigned to this item, if any
+ * @property {string[]} [labelsAdded] - Labels added by add_labels handler
+ * @property {string[]} [labelsBefore] - Labels present before add_labels execution
  * @property {string} timestamp - ISO 8601 timestamp of creation
  */
 
@@ -57,7 +59,7 @@ const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data", "repor
  * It is designed to be easily testable by accepting the file path as a parameter.
  *
  * @param {string} [manifestFile] - Path to the manifest file (defaults to MANIFEST_FILE_PATH)
- * @returns {(item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string}) => void} Logger function
+ * @returns {(item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string, labelsAdded?: string[], labelsBefore?: string[]}) => void} Logger function
  */
 function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
   // Touch the file immediately so it exists for artifact upload
@@ -67,7 +69,7 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
   /**
    * Log an executed safe output item to the manifest file.
    *
-   * @param {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string}} item - Executed item details
+   * @param {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, labelsAdded?: string[], labelsBefore?: string[]}} item - Executed item details
    */
   return function logCreatedItem(item) {
     if (!item) return;
@@ -79,6 +81,8 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
       ...(item.number != null ? { number: item.number } : {}),
       ...(item.repo ? { repo: item.repo } : {}),
       ...(item.temporaryId ? { temporaryId: item.temporaryId } : {}),
+      ...(Array.isArray(item.labelsAdded) ? { labelsAdded: item.labelsAdded } : {}),
+      ...(Array.isArray(item.labelsBefore) ? { labelsBefore: item.labelsBefore } : {}),
       timestamp: new Date().toISOString(),
     };
 
@@ -120,7 +124,7 @@ function ensureManifestExists(manifestFile = MANIFEST_FILE_PATH) {
  *
  * @param {string} type - The handler type (e.g., "create_issue")
  * @param {any} result - The handler result object
- * @returns {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string}|null}
+ * @returns {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, labelsAdded?: string[], labelsBefore?: string[]}|null}
  */
 function extractCreatedItemFromResult(type, result) {
   if (!result || NOT_LOGGED_TYPES.has(type)) return null;
@@ -137,6 +141,8 @@ function extractCreatedItemFromResult(type, result) {
     ...(result.number != null ? { number: result.number } : {}),
     ...(result.repo ? { repo: result.repo } : {}),
     ...(result.temporaryId ? { temporaryId: result.temporaryId } : {}),
+    ...(Array.isArray(result.labelsAdded) ? { labelsAdded: result.labelsAdded } : {}),
+    ...(Array.isArray(result.labelsBefore) ? { labelsBefore: result.labelsBefore } : {}),
   };
 }
 

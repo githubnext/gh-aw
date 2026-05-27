@@ -4,10 +4,10 @@
   "reference_model": "claude-sonnet-4.5",
   "token_class_weights": {
     "input": 1.0,
-    "cached-input": 0.1,
+    "cached_input": 0.1,
     "output": 4.0,
     "reasoning": 4.0,
-    "cache-write": 1.0
+    "cache_write": 1.0
   },
   "multipliers": {
     "claude-haiku-4-5": 0.33,

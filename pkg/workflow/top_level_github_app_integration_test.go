@@ -288,6 +288,7 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			workflowFile: "../cli/workflows/test-top-level-github-app-safe-outputs.md",
 			expectContains: []string{
 				"id: safe-outputs-app-token",
+				"uses: actions/create-github-app-token",
 				"client-id: ${{ vars.APP_ID }}",
 				"private-key: ${{ secrets.APP_PRIVATE_KEY }}",
 			},
@@ -297,6 +298,7 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			workflowFile: "../cli/workflows/test-top-level-github-app-activation.md",
 			expectContains: []string{
 				"id: activation-app-token",
+				"uses: actions/create-github-app-token",
 				"client-id: ${{ vars.APP_ID }}",
 				"github-token: ${{ steps.activation-app-token.outputs.token }}",
 			},
@@ -306,6 +308,7 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			workflowFile: "../cli/workflows/test-top-level-github-app-checkout.md",
 			expectContains: []string{
 				"id: checkout-app-token-0",
+				"uses: actions/create-github-app-token",
 				"client-id: ${{ vars.APP_ID }}",
 			},
 		},
@@ -313,6 +316,7 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			name:         "section-specific override workflow file",
 			workflowFile: "../cli/workflows/test-top-level-github-app-override.md",
 			expectContains: []string{
+				"uses: actions/create-github-app-token",
 				"client-id: ${{ vars.SAFE_OUTPUTS_APP_ID }}",
 				"client-id: ${{ vars.ACTIVATION_APP_ID }}",
 			},
@@ -322,7 +326,18 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			workflowFile: "../cli/workflows/test-top-level-github-app-mcp.md",
 			expectContains: []string{
 				"id: github-mcp-app-token",
+				"uses: actions/create-github-app-token",
 				"client-id: ${{ vars.APP_ID }}",
+			},
+		},
+		{
+			name:         "otlp github-app workflow file",
+			workflowFile: "../cli/workflows/test-top-level-github-app-otlp.md",
+			expectContains: []string{
+				"id: mint-otlp-oidc-token",
+				"uses: actions/create-github-app-token",
+				"client-id: ${{ vars.APP_ID }}",
+				"private-key: ${{ secrets.APP_PRIVATE_KEY }}",
 			},
 		},
 	}
@@ -352,4 +367,36 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTopLevelGitHubAppOTLPImportWorkflowFile(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "top-level-github-app-otlp-import-workflow-file-test")
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "shared"), 0700))
+
+	mainSrc := "../cli/workflows/test-top-level-github-app-otlp-import.md"
+	sharedSrc := "../cli/workflows/shared/otlp-github-app-import.md"
+
+	mainContent, err := os.ReadFile(mainSrc)
+	require.NoError(t, err)
+	sharedContent, err := os.ReadFile(sharedSrc)
+	require.NoError(t, err)
+
+	mainDst := filepath.Join(tmpDir, "test-top-level-github-app-otlp-import.md")
+	sharedDst := filepath.Join(tmpDir, "shared", "otlp-github-app-import.md")
+	require.NoError(t, os.WriteFile(mainDst, mainContent, 0600))
+	require.NoError(t, os.WriteFile(sharedDst, sharedContent, 0600))
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(mainDst)
+	require.NoError(t, err, "Workflow file with imported OTLP github-app should compile successfully")
+
+	lockPath := filepath.Join(tmpDir, "test-top-level-github-app-otlp-import.lock.yml")
+	compiledBytes, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+	compiled := string(compiledBytes)
+
+	assert.Contains(t, compiled, "id: mint-otlp-oidc-token")
+	assert.Contains(t, compiled, "uses: actions/create-github-app-token")
+	assert.Contains(t, compiled, "client-id: ${{ vars.APP_ID }}")
+	assert.Contains(t, compiled, "private-key: ${{ secrets.APP_PRIVATE_KEY }}")
 }
