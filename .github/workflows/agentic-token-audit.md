@@ -34,12 +34,13 @@ steps:
     uses: actions/setup-python@v6.2.0
     with:
       python-version: "3.12"
-  - name: Setup local chart workspace
-    run: |
-      mkdir -p /tmp/gh-aw/agent/token-audit/charts /tmp/gh-aw/agent/token-audit/site-packages
-  - name: Install Python chart dependencies
-    run: |
-      python3 -m pip install --quiet --target /tmp/gh-aw/agent/token-audit/site-packages pandas matplotlib seaborn
+- name: Setup local chart workspace
+  run: |
+    mkdir -p /tmp/gh-aw/agent/token-audit/charts
+    python3 -m venv /tmp/gh-aw/agent/token-audit/.venv
+- name: Install Python chart dependencies
+  run: |
+    /tmp/gh-aw/agent/token-audit/.venv/bin/pip install --quiet pandas matplotlib seaborn
   - name: Download agentic workflow logs
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -192,7 +193,7 @@ Create up to two chart images in `/tmp/gh-aw/agent/token-audit/charts/` using Py
 
 Chart requirements:
 
-- The preinstalled Python packages live in `/tmp/gh-aw/agent/token-audit/site-packages`. Set `PYTHONPATH=/tmp/gh-aw/agent/token-audit/site-packages${PYTHONPATH:+:$PYTHONPATH}` for every Python command that imports `pandas`, `matplotlib`, or `seaborn`, for example: `PYTHONPATH=/tmp/gh-aw/agent/token-audit/site-packages${PYTHONPATH:+:$PYTHONPATH} python3 /tmp/gh-aw/agent/token-audit/process_audit.py`.
+- Python chart dependencies are installed in the virtual environment at `/tmp/gh-aw/agent/token-audit/.venv`. Use `/tmp/gh-aw/agent/token-audit/.venv/bin/python3` for every Python command that imports `pandas`, `matplotlib`, or `seaborn`, for example: `/tmp/gh-aw/agent/token-audit/.venv/bin/python3 /tmp/gh-aw/agent/token-audit/process_audit.py`.
 - Use 300 DPI and a white background.
 - Add clear axis labels and titles.
 - Save only PNG files.

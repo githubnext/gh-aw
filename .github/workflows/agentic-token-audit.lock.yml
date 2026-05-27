@@ -462,10 +462,11 @@ jobs:
           python-version: "3.12"
       - name: Setup local chart workspace
         run: |
-          mkdir -p /tmp/gh-aw/agent/token-audit/charts /tmp/gh-aw/agent/token-audit/site-packages
+          mkdir -p /tmp/gh-aw/agent/token-audit/charts
+          python3 -m venv /tmp/gh-aw/agent/token-audit/.venv
       - name: Install Python chart dependencies
         run: |
-          python3 -m pip install --quiet --target /tmp/gh-aw/agent/token-audit/site-packages pandas matplotlib seaborn
+          /tmp/gh-aw/agent/token-audit/.venv/bin/pip install --quiet pandas matplotlib seaborn
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download agentic workflow logs
@@ -1826,4 +1827,3 @@ jobs:
             actions/setup
           sparse-checkout-cone-mode: true
           persist-credentials: false
-
