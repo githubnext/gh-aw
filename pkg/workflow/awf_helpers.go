@@ -269,11 +269,11 @@ func buildAWFCommandScript(parts awfCommandScriptParts) string {
 	preamble := []string{
 		"set -o pipefail",
 		"printf '%s' \"$(date +%s%3N)\" > " + shellEscapeArg(AgentCLIStartMsPath),
-		fmt.Sprintf("(umask 177 && touch %s)", parts.escapedLogFile),
 	}
 	if parts.pathSetup != "" {
 		preamble = append(preamble, parts.pathSetup)
 	}
+	preamble = append(preamble, fmt.Sprintf("(umask 177 && touch %s)", parts.escapedLogFile))
 	if parts.configFileSetup != "" {
 		preamble = append(preamble, parts.configFileSetup)
 	}

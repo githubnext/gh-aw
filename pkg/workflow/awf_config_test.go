@@ -754,15 +754,18 @@ func TestBuildAWFCommand_ConfigFileWithPathSetup(t *testing.T) {
 
 	// PathSetup, config write, and AWF invocation must all appear in order
 	pathSetupIdx := strings.Index(command, "GH_AW_NODE_BIN")
+	preCreateLogIdx := strings.Index(command, "(umask 177 && touch")
 	configWriteIdx := strings.Index(command, "awf-config.json")
 	awfIdx := strings.Index(command, "sudo -E awf")
 
 	assert.GreaterOrEqual(t, pathSetupIdx, 0, "path setup should appear in command")
+	assert.GreaterOrEqual(t, preCreateLogIdx, 0, "log pre-create should appear in command")
 	assert.GreaterOrEqual(t, configWriteIdx, 0, "config file write should appear in command")
 	assert.GreaterOrEqual(t, awfIdx, 0, "AWF invocation should appear in command")
 
-	// Order must be: path setup → config write → AWF invocation
-	assert.Less(t, pathSetupIdx, configWriteIdx, "path setup must precede config file write")
+	// Order must be: path setup → log pre-create → config write → AWF invocation
+	assert.Less(t, pathSetupIdx, preCreateLogIdx, "path setup must precede log pre-create")
+	assert.Less(t, preCreateLogIdx, configWriteIdx, "log pre-create must precede config file write")
 	assert.Less(t, configWriteIdx, awfIdx, "config file write must precede AWF invocation")
 }
 
