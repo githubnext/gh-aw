@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var compilerYamlLog = logger.New("workflow:compiler_yaml")
@@ -837,8 +838,13 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		// Use the engine's default model as fallback when neither explicit model nor
 		// model variable is configured, so the run details show "agent" rather than "(none)".
 		defaultModel := getDefaultAgentModel(engineID)
-		if defaultModel != "" {
+		defaultModelOverrideVar := getDefaultModelOverrideVar(engineID)
+		if defaultModel != "" && defaultModelOverrideVar != "" {
+			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: %s\n", compilerenv.BuildModelOverrideExpression(modelEnvVar, defaultModelOverrideVar, defaultModel))
+		} else if defaultModel != "" {
 			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '%s' }}\n", modelEnvVar, defaultModel)
+		} else if defaultModelOverrideVar != "" {
+			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: %s\n", compilerenv.BuildModelOverrideExpressionEmptyFallback(modelEnvVar, defaultModelOverrideVar))
 		} else {
 			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '' }}\n", modelEnvVar)
 		}

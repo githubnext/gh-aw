@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var codexEngineLog = logger.New("workflow:codex_engine")
@@ -441,7 +442,7 @@ mkdir -p "$CODEX_HOME/logs"
 		codexEngineLog.Printf("Setting %s env var for model: %s", modelEnvVar, workflowData.EngineConfig.Model)
 		env[modelEnvVar] = workflowData.EngineConfig.Model
 	} else {
-		env[modelEnvVar] = fmt.Sprintf("${{ vars.%s || '%s' }}", modelEnvVar, constants.CodexDefaultModel)
+		env[modelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
 	}
 
 	// Add custom environment variables from engine config

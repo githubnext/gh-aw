@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/types"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -117,6 +118,26 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
 		assert.Contains(t, jsonStr, `"maxEffectiveTokens":424242`, "apiProxy should emit configured maxEffectiveTokens")
+	})
+
+	t.Run("enterprise default max-effective-tokens env var is used when frontmatter is unset", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxEffectiveTokens, "123456")
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"maxEffectiveTokens":123456`, "apiProxy should emit env var default maxEffectiveTokens")
 	})
 
 	t.Run("token steering is enabled by default in apiProxy config", func(t *testing.T) {

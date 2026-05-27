@@ -6,6 +6,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var compilerYamlLookupsLog = logger.New("workflow:compiler_yaml_lookups")
@@ -111,6 +112,21 @@ func getDefaultAgentModel(engineID string) string {
 		return "agent"
 	case "codex":
 		return constants.CodexDefaultModel
+	default:
+		return ""
+	}
+}
+
+// getDefaultModelOverrideVar returns the enterprise override variable used for the engine's
+// default model fallback when the GH_AW_MODEL_AGENT/DETECTION_* variable is unset.
+func getDefaultModelOverrideVar(engineID string) string {
+	switch engineID {
+	case "copilot":
+		return compilerenv.DefaultModelCopilot
+	case "claude":
+		return compilerenv.DefaultModelClaude
+	case "codex":
+		return compilerenv.DefaultModelCodex
 	default:
 		return ""
 	}

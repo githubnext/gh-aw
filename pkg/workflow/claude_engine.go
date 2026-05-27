@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var claudeLog = logger.New("workflow:claude_engine")
@@ -427,9 +428,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// No model configured - use fallback GitHub variable with shell expansion
 		isDetectionJob := workflowData.SafeOutputs == nil
 		if isDetectionJob {
-			env[constants.EnvVarModelDetectionClaude] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionClaude)
+			env[constants.EnvVarModelDetectionClaude] = compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelDetectionClaude, compilerenv.DefaultModelClaude)
 		} else {
-			env[constants.EnvVarModelAgentClaude] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentClaude)
+			env[constants.EnvVarModelAgentClaude] = compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelAgentClaude, compilerenv.DefaultModelClaude)
 		}
 	}
 

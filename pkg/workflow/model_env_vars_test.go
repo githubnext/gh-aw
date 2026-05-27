@@ -7,30 +7,34 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 // TestModelEnvVarInjectionForAgentJob tests that agent jobs get the correct model environment variable
 func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 	tests := []struct {
-		name            string
-		engine          string
-		expectedEnvVar  string
-		expectedCommand string
-		expectedDefault string
+		name                    string
+		engine                  string
+		expectedEnvVar          string
+		expectedCommand         string
+		expectedDefault         string
+		expectedDefaultOverride string
 	}{
 		{
-			name:            "Claude agent uses GH_AW_MODEL_AGENT_CLAUDE",
-			engine:          "claude",
-			expectedEnvVar:  constants.EnvVarModelAgentClaude,
-			expectedCommand: "${" + constants.EnvVarModelAgentClaude + ":+ --model",
-			expectedDefault: "", // Claude has no default model
+			name:                    "Claude agent uses GH_AW_MODEL_AGENT_CLAUDE",
+			engine:                  "claude",
+			expectedEnvVar:          constants.EnvVarModelAgentClaude,
+			expectedCommand:         "${" + constants.EnvVarModelAgentClaude + ":+ --model",
+			expectedDefault:         "", // Claude has no default model
+			expectedDefaultOverride: compilerenv.DefaultModelClaude,
 		},
 		{
-			name:            "Codex agent uses GH_AW_MODEL_AGENT_CODEX",
-			engine:          "codex",
-			expectedEnvVar:  constants.EnvVarModelAgentCodex,
-			expectedCommand: "${" + constants.EnvVarModelAgentCodex + `:+ --model "`,
-			expectedDefault: constants.CodexDefaultModel,
+			name:                    "Codex agent uses GH_AW_MODEL_AGENT_CODEX",
+			engine:                  "codex",
+			expectedEnvVar:          constants.EnvVarModelAgentCodex,
+			expectedCommand:         "${" + constants.EnvVarModelAgentCodex + `:+ --model "`,
+			expectedDefault:         constants.CodexDefaultModel,
+			expectedDefaultOverride: compilerenv.DefaultModelCodex,
 		},
 	}
 
@@ -81,9 +85,9 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 			// Verify env var has the correct fallback value
 			var expectedEnvLine string
 			if tt.expectedDefault != "" {
-				expectedEnvLine = tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || '" + tt.expectedDefault + "' }}"
+				expectedEnvLine = tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || vars." + tt.expectedDefaultOverride + " || '" + tt.expectedDefault + "' }}"
 			} else {
-				expectedEnvLine = tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || '' }}"
+				expectedEnvLine = tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || vars." + tt.expectedDefaultOverride + " || '' }}"
 			}
 			if !strings.Contains(stepsContent, expectedEnvLine) {
 				t.Errorf("Expected env var line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
@@ -95,22 +99,25 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 // TestModelEnvVarInjectionForDetectionJob tests that detection jobs get the correct model environment variable
 func TestModelEnvVarInjectionForDetectionJob(t *testing.T) {
 	tests := []struct {
-		name            string
-		engine          string
-		expectedEnvVar  string
-		expectedDefault string
+		name                    string
+		engine                  string
+		expectedEnvVar          string
+		expectedDefault         string
+		expectedDefaultOverride string
 	}{
 		{
-			name:            "Claude detection uses GH_AW_MODEL_DETECTION_CLAUDE",
-			engine:          "claude",
-			expectedEnvVar:  constants.EnvVarModelDetectionClaude,
-			expectedDefault: "", // Claude has no default detection model
+			name:                    "Claude detection uses GH_AW_MODEL_DETECTION_CLAUDE",
+			engine:                  "claude",
+			expectedEnvVar:          constants.EnvVarModelDetectionClaude,
+			expectedDefault:         "", // Claude has no default detection model
+			expectedDefaultOverride: compilerenv.DefaultModelClaude,
 		},
 		{
-			name:            "Codex detection uses GH_AW_MODEL_DETECTION_CODEX",
-			engine:          "codex",
-			expectedEnvVar:  constants.EnvVarModelDetectionCodex,
-			expectedDefault: constants.CodexDefaultModel,
+			name:                    "Codex detection uses GH_AW_MODEL_DETECTION_CODEX",
+			engine:                  "codex",
+			expectedEnvVar:          constants.EnvVarModelDetectionCodex,
+			expectedDefault:         constants.CodexDefaultModel,
+			expectedDefaultOverride: compilerenv.DefaultModelCodex,
 		},
 	}
 
@@ -152,13 +159,13 @@ func TestModelEnvVarInjectionForDetectionJob(t *testing.T) {
 
 			// For Copilot, verify it has the default detection model as fallback
 			if tt.expectedDefault != "" {
-				expectedEnvLine := tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || '" + tt.expectedDefault + "' }}"
+				expectedEnvLine := tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || vars." + tt.expectedDefaultOverride + " || '" + tt.expectedDefault + "' }}"
 				if !strings.Contains(stepsContent, expectedEnvLine) {
 					t.Errorf("Expected env var line with default '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
 				}
 			} else {
 				// For other engines, verify empty string fallback
-				expectedEnvLine := tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || '' }}"
+				expectedEnvLine := tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || vars." + tt.expectedDefaultOverride + " || '' }}"
 				if !strings.Contains(stepsContent, expectedEnvLine) {
 					t.Errorf("Expected env var line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
 				}
@@ -233,13 +240,13 @@ func TestCopilotFallbackModelMapsToNativeEnvVar(t *testing.T) {
 			name:           "Agent job maps GH_AW_MODEL_AGENT_COPILOT to COPILOT_MODEL",
 			safeOutputs:    &SafeOutputsConfig{},
 			expectedOrgVar: constants.EnvVarModelAgentCopilot,
-			expectedTail:   "'" + constants.CopilotBYOKDefaultModel + "'",
+			expectedTail:   "vars." + compilerenv.DefaultModelCopilot + " || '" + constants.CopilotBYOKDefaultModel + "'",
 		},
 		{
 			name:           "Detection job maps GH_AW_MODEL_DETECTION_COPILOT to COPILOT_MODEL",
 			safeOutputs:    nil,
 			expectedOrgVar: constants.EnvVarModelDetectionCopilot,
-			expectedTail:   "'" + constants.CopilotBYOKDefaultModel + "'",
+			expectedTail:   "vars." + compilerenv.DefaultModelCopilot + " || '" + constants.CopilotBYOKDefaultModel + "'",
 		},
 	}
 
