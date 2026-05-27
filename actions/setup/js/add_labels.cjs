@@ -185,11 +185,7 @@ const main = createCountGatedHandler({
           repo: repoParts.repo,
           issue_number: itemNumber,
         });
-        labelsBefore = Array.isArray(existingItem?.labels)
-          ? existingItem.labels
-              .map(label => (typeof label === "string" ? label : label?.name))
-              .filter(name => typeof name === "string" && name.trim() !== "")
-          : [];
+        labelsBefore = Array.isArray(existingItem?.labels) ? existingItem.labels.map(label => (typeof label === "string" ? label : label?.name)).filter(name => typeof name === "string" && name.trim() !== "") : [];
       } catch (error) {
         core.info(`Unable to capture labels-before snapshot for ${contextType} #${itemNumber}: ${getErrorMessage(error)}`);
       }

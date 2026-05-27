@@ -275,9 +275,7 @@ function evaluateCreateIssue(item, itemRepo, timestamp, out, apiGet, nowMs) {
 
   const authorLogin = issue.user && typeof issue.user.login === "string" ? issue.user.login : "";
   const comments = apiGet(`repos/${itemRepo}/issues/${num}/comments`);
-  const hasNonAuthorComment =
-    Array.isArray(comments) &&
-    comments.some(c => c && c.user && typeof c.user.login === "string" && c.user.login !== authorLogin && c.user.login !== "");
+  const hasNonAuthorComment = Array.isArray(comments) && comments.some(c => c && c.user && typeof c.user.login === "string" && c.user.login !== authorLogin && c.user.login !== "");
 
   const timeline = apiGet(`repos/${itemRepo}/issues/${num}/timeline`);
   const timelineEvents = Array.isArray(timeline) ? timeline : [];
@@ -445,14 +443,8 @@ function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
     return out;
   }
 
-  const labelsBefore = Array.isArray(item.labelsBefore)
-    ? item.labelsBefore.map(l => String(l || "").trim()).filter(Boolean)
-    : [];
-  const labelsAdded = Array.isArray(item.labelsAdded)
-    ? item.labelsAdded.map(l => String(l || "").trim()).filter(Boolean)
-    : Array.isArray(item.labels)
-      ? item.labels.map(l => String(l || "").trim()).filter(Boolean)
-      : [];
+  const labelsBefore = Array.isArray(item.labelsBefore) ? item.labelsBefore.map(l => String(l || "").trim()).filter(Boolean) : [];
+  const labelsAdded = Array.isArray(item.labelsAdded) ? item.labelsAdded.map(l => String(l || "").trim()).filter(Boolean) : Array.isArray(item.labels) ? item.labels.map(l => String(l || "").trim()).filter(Boolean) : [];
 
   if (labelsBefore.length === 0 || labelsAdded.length === 0) {
     out.result = "unknown";
