@@ -31,7 +31,7 @@ import (
 // T-ET-001: Single invocation with all four token classes produces correct base_weighted_tokens.
 // Spec §4.3: base_weighted_tokens = (w_in × I) + (w_cache × C) + (w_out × O) + (w_reason × R)
 func TestETCompliance_T_ET_001_SingleInvocationBaseWeightedTokens(t *testing.T) {
-	weights := tokenClassWeights{
+	weights := types.TokenClassWeights{
 		Input:       1.0,
 		CachedInput: 0.1,
 		Output:      4.0,
@@ -46,7 +46,7 @@ func TestETCompliance_T_ET_001_SingleInvocationBaseWeightedTokens(t *testing.T) 
 // T-ET-002: Single invocation ET equals m × base_weighted_tokens.
 // Spec §4.4: effective_tokens = m × base_weighted_tokens
 func TestETCompliance_T_ET_002_SingleInvocationEffectiveTokens(t *testing.T) {
-	weights := tokenClassWeights{
+	weights := types.TokenClassWeights{
 		Input:       1.0,
 		CachedInput: 0.1,
 		Output:      4.0,
@@ -61,7 +61,7 @@ func TestETCompliance_T_ET_002_SingleInvocationEffectiveTokens(t *testing.T) {
 // T-ET-003: Zero-value token classes do not affect the result.
 // Spec §4.3: zero-valued classes contribute zero to the sum.
 func TestETCompliance_T_ET_003_ZeroValueTokenClasses(t *testing.T) {
-	weights := tokenClassWeights{
+	weights := types.TokenClassWeights{
 		Input:       1.0,
 		CachedInput: 0.1,
 		Output:      4.0,
@@ -75,7 +75,7 @@ func TestETCompliance_T_ET_003_ZeroValueTokenClasses(t *testing.T) {
 // T-ET-004: Custom weights are applied when default weights are overridden.
 // Spec §4.2: implementations MAY override default weights but MUST disclose them.
 func TestETCompliance_T_ET_004_CustomWeightsApplied(t *testing.T) {
-	custom := tokenClassWeights{
+	custom := types.TokenClassWeights{
 		Input:       2.0, // overridden
 		CachedInput: 0.5, // overridden
 		Output:      8.0, // overridden
@@ -93,7 +93,7 @@ func TestETCompliance_T_ET_004_CustomWeightsApplied(t *testing.T) {
 // T-ET-010: Multi-invocation ET_total equals the sum of per-invocation ET values.
 // Spec §5.1: ET_total = Σ (m_i × base_weighted_tokens_i)
 func TestETCompliance_T_ET_010_MultiInvocationETTotal(t *testing.T) {
-	weights := tokenClassWeights{Input: 1.0, CachedInput: 0.1, Output: 4.0, Reasoning: 4.0}
+	weights := types.TokenClassWeights{Input: 1.0, CachedInput: 0.1, Output: 4.0, Reasoning: 4.0}
 
 	// Invocation 1: model-a, m=2.0, I=500, C=200, O=150, R=0 → base=1120, ET=2240
 	base1 := computeBaseWeightedTokens(weights, 500, 200, 150, 0)
@@ -233,7 +233,7 @@ func TestETCompliance_T_ET_030_SummaryObjectPresent(t *testing.T) {
 // T-ET-031: Summary values are consistent with per-invocation data.
 // Spec §7: summary.effective_tokens MUST equal Σ per-invocation effective_tokens.
 func TestETCompliance_T_ET_031_SummaryConsistentWithInvocations(t *testing.T) {
-	weights := tokenClassWeights{Input: 1.0, CachedInput: 0.1, Output: 4.0, Reasoning: 4.0}
+	weights := types.TokenClassWeights{Input: 1.0, CachedInput: 0.1, Output: 4.0, Reasoning: 4.0}
 
 	perInvocationET := []float64{
 		2.0 * computeBaseWeightedTokens(weights, 500, 200, 150, 0), // 2240
@@ -329,7 +329,7 @@ func TestETCompliance_T_ET_032_DeepGraphPostOrderAggregation(t *testing.T) {
 // Extracted formula from §4.3 of the ET specification.
 // ---------------------------------------------------------------------------
 
-func computeBaseWeightedTokens(w tokenClassWeights, input, cachedInput, output, reasoning int) float64 {
+func computeBaseWeightedTokens(w types.TokenClassWeights, input, cachedInput, output, reasoning int) float64 {
 	return (w.Input * float64(input)) +
 		(w.CachedInput * float64(cachedInput)) +
 		(w.Output * float64(output)) +
