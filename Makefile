@@ -774,8 +774,12 @@ pull-main:
 merge-main:
 	@echo "Formatting before merge..."
 	@$(MAKE) fmt
-	@echo "Merging main..."
-	@git merge main
+	@echo "Fetching latest main..."
+	@git fetch origin main
+	@echo "Merging origin/main..."
+	@git merge origin/main || (echo "Merge conflicts detected. Resolve conflicts in .go and .cjs files, stage with git add, then run: make build && make recompile && git commit && make fmt" && exit 1)
+	@echo "Building after merge..."
+	@$(MAKE) build
 	@echo "Recompiling workflows..."
 	@$(MAKE) recompile
 	@echo "Formatting after merge..."
