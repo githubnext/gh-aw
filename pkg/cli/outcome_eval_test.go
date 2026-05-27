@@ -3,9 +3,14 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestComputeOutcomeSummary(t *testing.T) {
@@ -27,6 +32,9 @@ func TestComputeOutcomeSummary(t *testing.T) {
 	assert.Equal(t, 1, s.Pending, "pending count")
 	assert.Equal(t, 1, s.Lifecycle, "lifecycle count")
 	assert.Equal(t, 1, s.ZeroTouch, "zero-touch count")
+	assert.Equal(t, 0, s.AcceptedStrong, "accepted strong count")
+	assert.Equal(t, 2, s.AcceptedMedium, "accepted medium count")
+	assert.Equal(t, 0, s.AcceptedWeak, "accepted weak count")
 
 	// AcceptanceRate = accepted / (accepted + rejected) = 2/3
 	assert.InDelta(t, 0.6667, s.AcceptanceRate, 0.01, "acceptance rate")
@@ -194,4 +202,94 @@ func TestEvaluateOutcomesErrorOnMissingData(t *testing.T) {
 	reports := EvaluateOutcomes(items, "")
 	assert.Len(t, reports, 1, "should produce one report")
 	assert.Equal(t, OutcomeError, reports[0].Result, "should error on missing repo and number")
+}
+
+func TestNormalizeOutcomeEvaluationTargetExistsOnly(t *testing.T) {
+	report := OutcomeReport{
+		Type:   "add_labels",
+		Result: OutcomeUnknown,
+		Detail: "object still exists",
+	}
+
+	eval := normalizeOutcomeEvaluation(report)
+	assert.Equal(t, OutcomeStatusUnknown, eval.OutcomeStatus)
+	assert.Equal(t, EvidenceWeak, eval.EvidenceStrength)
+	assert.Equal(t, "target_exists_only", eval.Signal)
+}
+
+func TestEvalGenericStickyTargetExistsOnlyFallback(t *testing.T) {
+	old := genericOutcomeGHAPIGet
+	t.Cleanup(func() {
+		genericOutcomeGHAPIGet = old
+	})
+	genericOutcomeGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+		return map[string]any{"state": "open"}, nil
+	}
+
+	report := evalGenericSticky(
+		CreatedItemReport{Type: "add_labels", Number: 42, Repo: "owner/repo"},
+		"owner/repo",
+	)
+
+	assert.Equal(t, OutcomeUnknown, report.Result)
+	assert.Equal(t, OutcomeStatusUnknown, report.OutcomeStatus)
+	assert.Equal(t, EvidenceWeak, report.EvidenceStrength)
+	assert.Equal(t, "target_exists_only", report.Signal)
+}
+
+func TestOutcomeSummaryExcludesExistsOnlyFromAccepted(t *testing.T) {
+	reports := []OutcomeReport{
+		{
+			Type:   "add_labels",
+			Result: OutcomeUnknown,
+			OutcomeEvaluation: OutcomeEvaluation{
+				OutcomeStatus:    OutcomeStatusUnknown,
+				EvidenceStrength: EvidenceWeak,
+				Signal:           "target_exists_only",
+			},
+		},
+		{
+			Type:   "create_pull_request",
+			Result: OutcomeAccepted,
+			OutcomeEvaluation: OutcomeEvaluation{
+				OutcomeStatus:    OutcomeStatusAccepted,
+				EvidenceStrength: EvidenceStrong,
+				Signal:           "merged",
+			},
+		},
+	}
+
+	s := ComputeOutcomeSummary(reports)
+	assert.Equal(t, 1, s.Accepted)
+	assert.Equal(t, 1, s.AcceptedStrong)
+	assert.Equal(t, 0, s.AcceptedWeak)
+	assert.Equal(t, 1, s.FallbackExistsOnlyCount)
+}
+
+func TestWriteOutcomeJSONLEmitsNormalizedFields(t *testing.T) {
+	dir := t.TempDir()
+	reports := []OutcomeReport{
+		{
+			Type:   "add_labels",
+			Result: OutcomeUnknown,
+			OutcomeEvaluation: OutcomeEvaluation{
+				OutcomeStatus:    OutcomeStatusUnknown,
+				EvidenceStrength: EvidenceWeak,
+				Signal:           "target_exists_only",
+			},
+			CreatedAt: "2026-05-12T00:00:00Z",
+			CheckedAt: "2026-05-12T01:00:00Z",
+		},
+	}
+
+	writeOutcomeJSONL(dir, 123, reports)
+
+	data, err := os.ReadFile(filepath.Join(dir, "outcomes-123.jsonl"))
+	require.NoError(t, err)
+
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal(bytes.TrimSpace(data), &entry))
+	assert.Equal(t, "unknown", entry["outcome_status"])
+	assert.Equal(t, "weak", entry["evidence_strength"])
+	assert.Equal(t, "target_exists_only", entry["signal"])
 }

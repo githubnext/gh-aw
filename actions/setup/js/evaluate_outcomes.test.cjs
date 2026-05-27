@@ -1,6 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { createRequire } from "module";
 
-const { evaluateItem } = require("./evaluate_outcomes.cjs");
+const req = createRequire(import.meta.url);
+const { evaluateItem, normalizeOutcome } = req("./evaluate_outcomes.cjs");
 
 function createAPIStub(fixtures) {
   return endpoint => fixtures[endpoint] ?? null;
@@ -135,5 +137,23 @@ describe("evaluate_outcomes type-specific evaluators", () => {
 
     expect(evaluateItem(item, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-25T00:01:00Z") }).result).toBe("pending");
     expect(evaluateItem({ ...item, labelsBefore: [] }, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-27T00:00:00Z") }).result).toBe("unknown");
+  });
+});
+
+describe("evaluate_outcomes.cjs", () => {
+  it("maps existence-only fallback to weak unknown evidence", () => {
+    expect(normalizeOutcome("unknown", "object still exists")).toEqual({
+      outcome_status: "unknown",
+      evidence_strength: "weak",
+      signal: "target_exists_only",
+    });
+  });
+
+  it("maps merged outcomes to strong accepted evidence", () => {
+    expect(normalizeOutcome("accepted", "merged")).toEqual({
+      outcome_status: "accepted",
+      evidence_strength: "strong",
+      signal: "merged",
+    });
   });
 });

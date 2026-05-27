@@ -177,6 +177,9 @@ function secondsBetween(from, to) {
 /**
  * @typedef {object} EvalResult
  * @property {string} result
+ * @property {"accepted"|"rejected"|"pending"|"ignored"|"skipped"|"unknown"} outcome_status
+ * @property {"strong"|"medium"|"weak"} evidence_strength
+ * @property {string} signal
  * @property {string} detail
  * @property {number | null} resolution_sec
  * @property {number | null} pending_age_sec
@@ -520,6 +523,46 @@ function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
 }
 
 /**
+ * Normalize legacy result/detail pairs into the shared outcome model.
+ * @param {string} result
+ * @param {string} detail
+ * @returns {{ outcome_status: "accepted"|"rejected"|"pending"|"ignored"|"skipped"|"unknown", evidence_strength: "strong"|"medium"|"weak", signal: string }}
+ */
+function normalizeOutcome(result, detail) {
+  const normalizedDetail = String(detail || "")
+    .toLowerCase()
+    .trim();
+
+  if (result === "noop") {
+    return { outcome_status: "skipped", evidence_strength: "weak", signal: "noop" };
+  }
+  if (normalizedDetail === "object still exists") {
+    return { outcome_status: "unknown", evidence_strength: "weak", signal: "target_exists_only" };
+  }
+  if (result === "accepted" && normalizedDetail === "merged") {
+    return { outcome_status: "accepted", evidence_strength: "strong", signal: "merged" };
+  }
+  if (result === "rejected" && normalizedDetail === "closed") {
+    return { outcome_status: "rejected", evidence_strength: "strong", signal: "closed" };
+  }
+  if (result === "pending" && normalizedDetail === "open") {
+    return { outcome_status: "pending", evidence_strength: "medium", signal: "open" };
+  }
+  switch (result) {
+    case "accepted":
+      return { outcome_status: "accepted", evidence_strength: "medium", signal: "acted_on" };
+    case "rejected":
+      return { outcome_status: "rejected", evidence_strength: "medium", signal: "rejected" };
+    case "ignored":
+      return { outcome_status: "ignored", evidence_strength: "medium", signal: "ignored" };
+    case "pending":
+      return { outcome_status: "pending", evidence_strength: "medium", signal: "pending" };
+    default:
+      return { outcome_status: "unknown", evidence_strength: "weak", signal: "unknown" };
+  }
+}
+
+/**
  * Evaluate a single safe-output item against the GitHub API.
  * @param {object} item
  * @param {string} defaultRepo
@@ -536,6 +579,9 @@ function evaluateItem(item, defaultRepo, deps = {}) {
   /** @type {EvalResult} */
   const out = {
     result: "pending",
+    outcome_status: "pending",
+    evidence_strength: "medium",
+    signal: "pending",
     detail: "",
     resolution_sec: null,
     pending_age_sec: null,
@@ -649,8 +695,9 @@ function evaluateItem(item, defaultRepo, deps = {}) {
   }
 
   // Comments, labels, etc. — if URL exists, the item was created
-  out.result = "accepted";
-  out.detail = "object exists";
+  out.result = "unknown";
+  out.detail = "object still exists";
+  Object.assign(out, normalizeOutcome(out.result, out.detail));
   return out;
 }
 
@@ -708,11 +755,15 @@ function main() {
   let checked = 0;
   let accepted = 0;
   let rejected = 0;
-  const ignored = 0;
+  let ignored = 0;
   let pending = 0;
   let total = 0;
   let noop = 0;
   let zeroTouchCount = 0;
+  let acceptedStrong = 0;
+  let acceptedMedium = 0;
+  let acceptedWeak = 0;
+  let fallbackExistsOnlyCount = 0;
   /** @type {number[]} */
   const resolutionTimes = [];
 
@@ -757,6 +808,7 @@ function main() {
 
     // Write noop entries
     for (const n of noops) {
+      const normalized = normalizeOutcome("noop", n.type || "");
       fs.appendFileSync(
         EVAL_JSONL,
         JSON.stringify({
@@ -764,6 +816,9 @@ function main() {
           url: "",
           repo,
           result: "noop",
+          outcome_status: normalized.outcome_status,
+          evidence_strength: normalized.evidence_strength,
+          signal: normalized.signal,
           detail: n.type,
           workflow,
           run_id: runId,
@@ -789,10 +844,22 @@ function main() {
     // Evaluate each actionable item
     for (const item of actionable) {
       const evalResult = evaluateItem(item, repo);
+      const normalized = normalizeOutcome(evalResult.result, evalResult.detail);
 
-      switch (evalResult.result) {
+      switch (normalized.outcome_status) {
         case "accepted":
           accepted++;
+          switch (normalized.evidence_strength) {
+            case "strong":
+              acceptedStrong++;
+              break;
+            case "medium":
+              acceptedMedium++;
+              break;
+            case "weak":
+              acceptedWeak++;
+              break;
+          }
           if (evalResult.zero_touch === true) {
             zeroTouchCount++;
           }
@@ -800,9 +867,15 @@ function main() {
         case "rejected":
           rejected++;
           break;
-        default:
+        case "ignored":
+          ignored++;
+          break;
+        case "pending":
           pending++;
           break;
+      }
+      if (normalized.signal === "target_exists_only") {
+        fallbackExistsOnlyCount++;
       }
       if (typeof evalResult.resolution_sec === "number" && evalResult.resolution_sec > 0) {
         resolutionTimes.push(evalResult.resolution_sec);
@@ -815,6 +888,9 @@ function main() {
           url: item.url || "",
           repo: item.repo || repo,
           result: evalResult.result,
+          outcome_status: normalized.outcome_status,
+          evidence_strength: normalized.evidence_strength,
+          signal: normalized.signal,
           detail: evalResult.detail,
           workflow,
           run_id: runId,
@@ -870,6 +946,10 @@ function main() {
     ignored,
     pending,
     noop,
+    accepted_strong: acceptedStrong,
+    accepted_medium: acceptedMedium,
+    accepted_weak: acceptedWeak,
+    fallback_exists_only_count: fallbackExistsOnlyCount,
     acceptance_rate: Math.round(acceptanceRate * 10000) / 10000,
     waste_rate: Math.round(wasteRate * 10000) / 10000,
     noop_rate: Math.round(noopRate * 10000) / 10000,
@@ -896,6 +976,7 @@ if (require.main === module) {
 module.exports = {
   main,
   evaluateItem,
+  normalizeOutcome,
   evaluateCreateIssue,
   evaluateAddComment,
   evaluateAddLabels,

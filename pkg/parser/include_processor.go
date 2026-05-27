@@ -346,21 +346,21 @@ func extractIncludedMarkdownContent(filePath, sectionName string, content []byte
 // Validation of such files is deferred to avoid false-positive schema warnings.
 func frontmatterContainsExpressions(m map[string]any) bool {
 	for _, v := range m {
-		if containsExpression(v) {
+		if frontmatterValueContainsExpression(v) {
 			return true
 		}
 	}
 	return false
 }
 
-func containsExpression(v any) bool {
+func frontmatterValueContainsExpression(v any) bool {
 	switch val := v.(type) {
 	case string:
 		return strings.Contains(val, "${{")
 	case map[string]any:
 		return frontmatterContainsExpressions(val)
 	case []any:
-		return slices.ContainsFunc(val, containsExpression)
+		return slices.ContainsFunc(val, frontmatterValueContainsExpression)
 	}
 	return false
 }
