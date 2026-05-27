@@ -113,10 +113,10 @@ bots:
 func TestFrontmatterHashVectorFH_TV_NEG_001(t *testing.T) {
 	tempDir := t.TempDir()
 	workflowFile := filepath.Join(tempDir, "oversized-workflow.md")
-	oversizedValue := strings.Repeat("a", 1_048_577)
+	oversizedDescription := strings.Repeat("a", maxFrontmatterHashInputBytes+1)
 
 	require.NoError(t, os.WriteFile(workflowFile, []byte(`---
-description: `+oversizedValue+`
+description: `+oversizedDescription+`
 ---
 
 # Oversized Workflow
