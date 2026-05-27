@@ -25,10 +25,7 @@ if (!global.core) {
   };
 }
 
-const renderTemplateScript = require("fs").readFileSync(require("path").join(__dirname, "render_template.cjs"), "utf8");
-const renderMarkdownTemplateMatch = renderTemplateScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
-if (!renderMarkdownTemplateMatch) throw new Error("Could not extract renderMarkdownTemplate");
-const renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
+const { renderMarkdownTemplate } = require("./render_template.cjs");
 
 if (require.main === module) {
   let input = "";
