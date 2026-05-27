@@ -661,6 +661,15 @@ function isOnOrAfter(timestamp, threshold) {
 }
 
 /**
+ * @param {any} review
+ * @returns {boolean}
+ */
+function isSubmittedReview(review) {
+  const state = String(review?.state || "").toUpperCase();
+  return Boolean(review?.submitted_at) && state !== "" && state !== "PENDING";
+}
+
+/**
  * @param {object} item
  * @param {string} defaultRepo
  * @param {(endpoint: string) => any} api
@@ -725,10 +734,9 @@ function evaluateAddReviewer(item, defaultRepo, api = ghAPI) {
     return out;
   }
 
-  const anyReviewAfterRequest = reviews.some(review => {
-    const state = String(review?.state || "").toUpperCase();
-    return state && state !== "PENDING" && isOnOrAfter(review?.submitted_at, timestamp);
-  });
+  // We cannot cheaply verify team membership for each reviewer from this endpoint,
+  // so any submitted post-request review counts as medium-evidence team activity.
+  const anyReviewAfterRequest = reviews.some(review => isSubmittedReview(review) && isOnOrAfter(review?.submitted_at, timestamp));
   if (requestedTeams.size > 0 && anyReviewAfterRequest) {
     out.result = "accepted";
     out.detail = "review submitted";
@@ -801,7 +809,10 @@ function evaluateSubmitPullRequestReview(item, defaultRepo, api = ghAPI) {
     return out;
   }
 
-  const review = reviews.find(candidate => Number(candidate?.id) === reviewId) || reviews.filter(candidate => isOnOrAfter(candidate?.submitted_at, timestamp)).slice(-1)[0];
+  const submittedReviews = reviews.filter(candidate => isSubmittedReview(candidate));
+  const review =
+    submittedReviews.find(candidate => Number(candidate?.id) === reviewId) ||
+    submittedReviews.filter(candidate => isOnOrAfter(candidate?.submitted_at, timestamp)).slice(-1)[0];
 
   if (!review) {
     out.detail = "review not found";
@@ -810,8 +821,7 @@ function evaluateSubmitPullRequestReview(item, defaultRepo, api = ghAPI) {
 
   const reviewState = String(review?.state || item?.metadata?.review_state || "").toUpperCase();
   const reviewSubmittedAt = review?.submitted_at || timestamp;
-  const latestReview = reviews
-    .filter(candidate => candidate?.submitted_at)
+  const latestReview = submittedReviews
     .sort((a, b) => Date.parse(a.submitted_at) - Date.parse(b.submitted_at))
     .slice(-1)[0];
 
@@ -851,7 +861,7 @@ function evaluateSubmitPullRequestReview(item, defaultRepo, api = ghAPI) {
     }
   }
 
-  if (pr.state === "closed") {
+  if (pr.state === "closed" && pr.merged !== true) {
     out.result = "rejected";
     out.detail = "closed without merge after review";
     if (pr.created_at && pr.closed_at) {

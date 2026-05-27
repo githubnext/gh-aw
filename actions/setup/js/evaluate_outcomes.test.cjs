@@ -369,6 +369,65 @@ describe("evaluate_outcomes.cjs", () => {
       signal: "latest_review_pending",
     });
   });
+
+  it("does not reject merged CHANGES_REQUESTED reviews without a follow-up push", () => {
+    const api = endpoint => {
+      if (endpoint.endsWith("/pulls/42")) {
+        return { state: "closed", merged: true, merged_at: "2026-05-12T05:00:00Z" };
+      }
+      if (endpoint.endsWith("/reviews")) {
+        return [{ id: 101, state: "CHANGES_REQUESTED", submitted_at: "2026-05-12T02:00:00Z" }];
+      }
+      if (endpoint.endsWith("/commits")) {
+        return [];
+      }
+      throw new Error(`unexpected endpoint: ${endpoint}`);
+    };
+
+    const result = evaluateItem(
+      {
+        type: "submit_pull_request_review",
+        repo: "owner/repo",
+        number: 42,
+        timestamp: "2026-05-12T02:00:00Z",
+        metadata: { review_id: 101 },
+      },
+      "owner/repo",
+      api
+    );
+
+    expect(result.result).toBe("unknown");
+  });
+
+  it("ignores unsubmitted reviews when checking latest open review state", () => {
+    const api = endpoint => {
+      if (endpoint.endsWith("/pulls/42")) {
+        return { state: "open", merged: false };
+      }
+      if (endpoint.endsWith("/reviews")) {
+        return [
+          { id: 100, state: "COMMENTED", submitted_at: "2026-05-12T00:30:00Z" },
+          { id: 101, state: "PENDING" },
+        ];
+      }
+      throw new Error(`unexpected endpoint: ${endpoint}`);
+    };
+
+    const result = evaluateItem(
+      {
+        type: "submit_pull_request_review",
+        repo: "owner/repo",
+        number: 42,
+        timestamp: "2026-05-12T00:30:00Z",
+        metadata: { review_id: 100 },
+      },
+      "owner/repo",
+      api
+    );
+
+    expect(result.result).toBe("pending");
+    expect(result.detail).toBe("latest review awaiting outcome");
+  });
 });
 
 describe("evaluate_outcomes create_pull_request evaluator", () => {

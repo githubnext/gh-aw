@@ -134,8 +134,6 @@ async function main(config = {}) {
       const hasCopilot = uniqueReviewers.includes("copilot");
       const otherReviewers = uniqueReviewers.filter(r => r !== "copilot");
       const manifestReviewers = hasCopilot ? [...otherReviewers, COPILOT_REVIEWER_BOT] : otherReviewers;
-      const repo = `${context.repo.owner}/${context.repo.repo}`;
-
       // Add non-copilot reviewers first
       if (otherReviewers.length > 0 || uniqueTeamReviewers.length > 0) {
         /** @type {{ owner: string, repo: string, pull_number: number, reviewers: string[], team_reviewers?: string[] }} */
