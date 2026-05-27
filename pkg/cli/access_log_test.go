@@ -156,87 +156,95 @@ func TestExtractDomainFromURL(t *testing.T) {
 	}
 }
 
+type parseSquidLogLineTestCase struct {
+	name      string
+	line      string
+	expected  *AccessLogEntry
+	shouldErr bool
+}
+
+var parseSquidLogLineTestCases = []parseSquidLogLineTestCase{
+	{
+		name: "valid squid log line",
+		line: "1701234567.123 180 192.168.1.100 TCP_MISS/200 1234 GET http://example.com/api - HIER_DIRECT/93.184.216.34 text/html",
+		expected: &AccessLogEntry{
+			Timestamp: "1701234567.123",
+			Duration:  "180",
+			ClientIP:  "192.168.1.100",
+			Status:    "TCP_MISS/200",
+			Size:      "1234",
+			Method:    "GET",
+			URL:       "http://example.com/api",
+			User:      "-",
+			Hierarchy: "HIER_DIRECT/93.184.216.34",
+			Type:      "text/html",
+		},
+		shouldErr: false,
+	},
+	{
+		name: "valid denied request",
+		line: "1701234568.456 250 192.168.1.100 TCP_DENIED/403 0 CONNECT github.com:443 - HIER_NONE/- -",
+		expected: &AccessLogEntry{
+			Timestamp: "1701234568.456",
+			Duration:  "250",
+			ClientIP:  "192.168.1.100",
+			Status:    "TCP_DENIED/403",
+			Size:      "0",
+			Method:    "CONNECT",
+			URL:       "github.com:443",
+			User:      "-",
+			Hierarchy: "HIER_NONE/-",
+			Type:      "-",
+		},
+		shouldErr: false,
+	},
+	{
+		name:      "insufficient fields - should error",
+		line:      "1701234567.123 180 192.168.1.100",
+		shouldErr: true,
+	},
+	{
+		name:      "empty line",
+		line:      "",
+		shouldErr: true,
+	},
+	{
+		name:      "exactly 9 fields - should error",
+		line:      "1701234567.123 180 192.168.1.100 TCP_MISS/200 1234 GET http://example.com/api - HIER_DIRECT/93.184.216.34",
+		shouldErr: true,
+	},
+}
+
 func TestParseSquidLogLine(t *testing.T) {
-	tests := []struct {
-		name      string
-		line      string
-		expected  *AccessLogEntry
-		shouldErr bool
-	}{
-		{
-			name: "valid squid log line",
-			line: "1701234567.123 180 192.168.1.100 TCP_MISS/200 1234 GET http://example.com/api - HIER_DIRECT/93.184.216.34 text/html",
-			expected: &AccessLogEntry{
-				Timestamp: "1701234567.123",
-				Duration:  "180",
-				ClientIP:  "192.168.1.100",
-				Status:    "TCP_MISS/200",
-				Size:      "1234",
-				Method:    "GET",
-				URL:       "http://example.com/api",
-				User:      "-",
-				Hierarchy: "HIER_DIRECT/93.184.216.34",
-				Type:      "text/html",
-			},
-			shouldErr: false,
-		},
-		{
-			name: "valid denied request",
-			line: "1701234568.456 250 192.168.1.100 TCP_DENIED/403 0 CONNECT github.com:443 - HIER_NONE/- -",
-			expected: &AccessLogEntry{
-				Timestamp: "1701234568.456",
-				Duration:  "250",
-				ClientIP:  "192.168.1.100",
-				Status:    "TCP_DENIED/403",
-				Size:      "0",
-				Method:    "CONNECT",
-				URL:       "github.com:443",
-				User:      "-",
-				Hierarchy: "HIER_NONE/-",
-				Type:      "-",
-			},
-			shouldErr: false,
-		},
-		{
-			name:      "insufficient fields - should error",
-			line:      "1701234567.123 180 192.168.1.100",
-			shouldErr: true,
-		},
-		{
-			name:      "empty line",
-			line:      "",
-			shouldErr: true,
-		},
-		{
-			name:      "exactly 9 fields - should error",
-			line:      "1701234567.123 180 192.168.1.100 TCP_MISS/200 1234 GET http://example.com/api - HIER_DIRECT/93.184.216.34",
-			shouldErr: true,
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range parseSquidLogLineTestCases {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := parseSquidLogLine(tt.line)
-
-			if tt.shouldErr {
-				require.Error(t, err, "should return error for invalid line")
-				assert.Nil(t, result, "should not return entry on error")
-			} else {
-				require.NoError(t, err, "should parse valid log line")
-				require.NotNil(t, result, "should return parsed entry")
-				assert.Equal(t, tt.expected.Timestamp, result.Timestamp, "timestamp should match")
-				assert.Equal(t, tt.expected.Duration, result.Duration, "duration should match")
-				assert.Equal(t, tt.expected.ClientIP, result.ClientIP, "client IP should match")
-				assert.Equal(t, tt.expected.Status, result.Status, "status should match")
-				assert.Equal(t, tt.expected.Size, result.Size, "size should match")
-				assert.Equal(t, tt.expected.Method, result.Method, "method should match")
-				assert.Equal(t, tt.expected.URL, result.URL, "URL should match")
-				assert.Equal(t, tt.expected.User, result.User, "user should match")
-				assert.Equal(t, tt.expected.Hierarchy, result.Hierarchy, "hierarchy should match")
-				assert.Equal(t, tt.expected.Type, result.Type, "type should match")
-			}
+			assertParseSquidLogLineCase(t, tt)
 		})
 	}
+}
+
+func assertParseSquidLogLineCase(t *testing.T, tt parseSquidLogLineTestCase) {
+	t.Helper()
+
+	result, err := parseSquidLogLine(tt.line)
+	if tt.shouldErr {
+		require.Error(t, err, "should return error for invalid line")
+		assert.Nil(t, result, "should not return entry on error")
+		return
+	}
+
+	require.NoError(t, err, "should parse valid log line")
+	require.NotNil(t, result, "should return parsed entry")
+	assert.Equal(t, tt.expected.Timestamp, result.Timestamp, "timestamp should match")
+	assert.Equal(t, tt.expected.Duration, result.Duration, "duration should match")
+	assert.Equal(t, tt.expected.ClientIP, result.ClientIP, "client IP should match")
+	assert.Equal(t, tt.expected.Status, result.Status, "status should match")
+	assert.Equal(t, tt.expected.Size, result.Size, "size should match")
+	assert.Equal(t, tt.expected.Method, result.Method, "method should match")
+	assert.Equal(t, tt.expected.URL, result.URL, "URL should match")
+	assert.Equal(t, tt.expected.User, result.User, "user should match")
+	assert.Equal(t, tt.expected.Hierarchy, result.Hierarchy, "hierarchy should match")
+	assert.Equal(t, tt.expected.Type, result.Type, "type should match")
 }
 
 func TestAddMetrics(t *testing.T) {
