@@ -60,23 +60,23 @@ Use `--json` to get structured output suitable for scripting or trend analysis:
 # Write JSON to a file for further processing
 gh aw logs --start-date -1w --json > /tmp/logs.json
 
-# List per-run duration, tokens, and cost across all workflows
+# List per-run duration and tokens across all workflows
 gh aw logs --start-date -30d --json | \
-  jq '.runs[] | {workflow: .workflow_name, duration: .duration, cost: .estimated_cost}'
+  jq '.runs[] | {workflow: .workflow_name, duration: .duration, tokens: .token_usage}'
 
-# Total cost grouped by workflow over the past 30 days
+# Token usage grouped by workflow over the past 30 days
 gh aw logs --start-date -30d --json | \
   jq '[.runs[]] | group_by(.workflow_name) |
-  map({workflow: .[0].workflow_name, runs: length, total_cost: (map(.estimated_cost) | add // 0)})'
+  map({workflow: .[0].workflow_name, runs: length, total_tokens: (map(.token_usage) | add // 0)})'
 ```
 
-Each run under `.runs[]` includes `duration`, `token_usage`, `estimated_cost`, `workflow_name`, and `agent`. For orchestrated workflows, the same JSON includes deterministic lineage under `.episodes[]` and `.edges[]` — see the next section.
+Each run under `.runs[]` includes `duration`, `token_usage`, `workflow_name`, and `agent`. For orchestrated workflows, the same JSON includes deterministic lineage under `.episodes[]` and `.edges[]` — see the next section.
 
-### Interpret Episode-Level Cost
+### Interpret Episode-Level Usage
 
-`gh aw logs --json` emits three views of the same data: `.runs[]` (individual workflow runs), `.episodes[]` (related runs grouped into one logical execution — orchestrator, workers, `workflow_call` follow-ups, and reporting passes), and `.edges[]` (the inferred parent-child lineage). Use `.runs[]` to find which specific run was expensive; use `.episodes[]` to answer "what did this job cost end-to-end?". For non-orchestrated workflows, an episode collapses to a single run and the two views are equivalent.
+`gh aw logs --json` emits three views of the same data: `.runs[]` (individual workflow runs), `.episodes[]` (related runs grouped into one logical execution — orchestrator, workers, `workflow_call` follow-ups, and reporting passes), and `.edges[]` (the inferred parent-child lineage). Use `.runs[]` to find which specific run was resource-heavy; use `.episodes[]` to answer "what did this job use end-to-end?". For non-orchestrated workflows, an episode collapses to a single run and the two views are equivalent.
 
-Useful episode fields for cost analysis:
+Useful episode fields for usage analysis:
 
 | Field | Meaning |
 |-------|---------|
@@ -87,7 +87,7 @@ Useful episode fields for cost analysis:
 | `resource_heavy_node_count` | Runs flagged as resource-heavy |
 | `blocked_request_count` | Aggregate blocked-network pressure |
 
-For Copilot runs, treat `total_estimated_cost` as a heuristic — Copilot does not expose billing-grade cost data, so `total_effective_tokens` is the more reliable proxy.
+For Copilot runs, `total_effective_tokens` is the most reliable proxy for resource usage — Copilot does not expose billing-grade cost data.
 
 Safe-output actuation also appears in both `gh aw logs --json` (run- and repo-level) and `gh aw audit <run-id>` (under `safe_output_summary`). The relevant fields — `temporary_id_map_status`, `temporary_id_mappings`, `chained_target_count`, `chained_followup_action_count`, `delegated_temp_target_count`, `closed_temp_target_count`, and their repo-level aggregates — show how often a workflow follows up on its own outputs. When `temporary_id_map_status` is `missing` or `invalid`, chain counts fall back to `0` rather than guessing from incomplete data.
 

@@ -466,19 +466,19 @@ func TestCodexEngineDetectionRunUsesStructuredOutputSchema(t *testing.T) {
 	engine := NewCodexEngine()
 
 	tests := []struct {
-		name                     string
-		isDetectionRun           bool
-		expectResponseSchemaFlag bool
+		name                        string
+		isDetectionRun              bool
+		expectStructuredOutputFlags bool
 	}{
 		{
-			name:                     "detection run includes response_schema flag",
-			isDetectionRun:           true,
-			expectResponseSchemaFlag: true,
+			name:                        "detection run uses --output-schema and -o flags",
+			isDetectionRun:              true,
+			expectStructuredOutputFlags: true,
 		},
 		{
-			name:                     "agent run does not include response_schema flag",
-			isDetectionRun:           false,
-			expectResponseSchemaFlag: false,
+			name:                        "agent run does not include structured output flags",
+			isDetectionRun:              false,
+			expectStructuredOutputFlags: false,
 		},
 	}
 
@@ -504,23 +504,76 @@ func TestCodexEngineDetectionRunUsesStructuredOutputSchema(t *testing.T) {
 			}
 
 			stepContent := strings.Join([]string(steps[0]), "\n")
-			hasResponseSchema := strings.Contains(stepContent, "response_schema")
-			if tt.expectResponseSchemaFlag && !hasResponseSchema {
-				t.Errorf("Detection run: expected response_schema in command, got:\n%s", stepContent)
-			}
-			if !tt.expectResponseSchemaFlag && hasResponseSchema {
-				t.Errorf("Agent run: expected no response_schema in command, got:\n%s", stepContent)
+
+			// Detection runs should use --output-schema and -o flags for structured output
+			hasOutputSchema := strings.Contains(stepContent, "--output-schema")
+			hasOutputFile := strings.Contains(stepContent, detectionResultFilePath)
+			hasSchemaWrite := strings.Contains(stepContent, detectionSchemaFilePath)
+
+			if tt.expectStructuredOutputFlags {
+				if !hasOutputSchema {
+					t.Errorf("Detection run: expected --output-schema in command, got:\n%s", stepContent)
+				}
+				if !hasOutputFile {
+					t.Errorf("Detection run: expected result file path %q in command, got:\n%s", detectionResultFilePath, stepContent)
+				}
+				if !hasSchemaWrite {
+					t.Errorf("Detection run: expected schema file path %q in command, got:\n%s", detectionSchemaFilePath, stepContent)
+				}
+				if !strings.Contains(stepContent, detectionResultFilePath+" --prompt-file") {
+					t.Errorf("Detection run: expected space separator between -o result file and --prompt-file, got:\n%s", stepContent)
+				}
+			} else {
+				if hasOutputSchema {
+					t.Errorf("Agent run: expected no --output-schema in command, got:\n%s", stepContent)
+				}
+				if hasOutputFile {
+					t.Errorf("Agent run: expected no result file path %q in command, got:\n%s", detectionResultFilePath, stepContent)
+				}
 			}
 
-			// Verify the schema includes the required threat detection fields
-			if tt.expectResponseSchemaFlag {
+			// For detection runs, verify the schema includes required threat detection fields
+			if tt.expectStructuredOutputFlags {
 				for _, field := range []string{"prompt_injection", "secret_leak", "malicious_patch", "reasons"} {
 					if !strings.Contains(stepContent, field) {
 						t.Errorf("Detection run: expected schema to contain field %q, got:\n%s", field, stepContent)
 					}
 				}
 			}
+
+			// Ensure response_schema (old config flag) is never used in any mode
+			if strings.Contains(stepContent, "response_schema") {
+				t.Errorf("Expected no legacy response_schema config flag in command, got:\n%s", stepContent)
+			}
 		})
+	}
+}
+
+func TestCodexEngineDetectionRunChainsSchemaWriteBeforeCodexWithoutAWF(t *testing.T) {
+	engine := NewCodexEngine()
+
+	workflowData := &WorkflowData{
+		Name:           "test-workflow",
+		IsDetectionRun: true,
+		NetworkPermissions: &NetworkPermissions{
+			Allowed: []string{"defaults"},
+			Firewall: &FirewallConfig{
+				Enabled: false,
+			},
+		},
+		Tools: map[string]any{
+			"bash": []any{"*"},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	if len(steps) == 0 {
+		t.Fatal("Expected execution step")
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, fmt.Sprintf("> %s && ", detectionSchemaFilePath)) {
+		t.Errorf("Expected non-AWF detection command to chain schema write with && before codex, got:\n%s", stepContent)
 	}
 }
 

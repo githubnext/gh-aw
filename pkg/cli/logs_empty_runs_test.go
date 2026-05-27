@@ -25,9 +25,6 @@ func TestBuildLogsDataEmptyRuns(t *testing.T) {
 	if logsData.Summary.TotalTokens != 0 {
 		t.Errorf("Expected TotalTokens to be 0, got %d", logsData.Summary.TotalTokens)
 	}
-	if logsData.Summary.TotalCost != 0 {
-		t.Errorf("Expected TotalCost to be 0, got %f", logsData.Summary.TotalCost)
-	}
 
 	// Verify runs array is empty
 	if len(logsData.Runs) != 0 {

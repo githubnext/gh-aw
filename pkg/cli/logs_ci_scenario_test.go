@@ -123,7 +123,6 @@ func TestLogsJSONRunDataFields(t *testing.T) {
 			Status:           "completed",
 			Conclusion:       "success",
 			TokenUsage:       1000,
-			EstimatedCost:    0.01,
 			Turns:            5,
 			ErrorCount:       0,
 			WarningCount:     0,
@@ -266,7 +265,7 @@ func TestLogsJSONOutputStructure(t *testing.T) {
 	// Verify summary has all required fields
 	summary := parsed["summary"].(map[string]any)
 	requiredFields := []string{
-		"total_runs", "total_duration", "total_tokens", "total_cost",
+		"total_runs", "total_duration", "total_tokens",
 		"total_turns", "total_errors", "total_warnings", "total_missing_tools",
 		"total_episodes", "high_confidence_episodes",
 	}

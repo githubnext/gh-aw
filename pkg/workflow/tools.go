@@ -28,6 +28,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	// YAML parsing, regex extraction, and expression parsing in the hot validateWorkflowData loop.
 	defer func() {
 		data.CachedPermissions = NewPermissionsParser(data.Permissions).ToPermissions()
+		data.CachedPermissionScopeNamesErr = ValidatePermissionScopeNames(data.Permissions)
+		data.CachedPermissionScopeNamesSet = true
 		data.ConcurrencyGroupExpr = extractConcurrencyGroupFromYAML(data.Concurrency)
 		// Pre-validate and cache the concurrency group expression so validateWorkflowData
 		// can short-circuit without re-running the expensive ExpressionParser on every call.

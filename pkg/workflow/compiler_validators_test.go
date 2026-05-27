@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -308,6 +309,26 @@ func TestValidateToolConfiguration(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidatePermissions_UsesCachedPermissionScopeValidation(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "perms-cache-test")
+	markdownPath := filepath.Join(tmpDir, "test.md")
+
+	cachedErr := errors.New("cached permission scope validation failure")
+	workflowData := &WorkflowData{
+		Name:                          "Test",
+		MarkdownContent:               "# Test",
+		AI:                            "copilot",
+		Permissions:                   "permissions:\n  contents: read\n",
+		CachedPermissionScopeNamesSet: true,
+		CachedPermissionScopeNamesErr: cachedErr,
+	}
+
+	compiler := NewCompiler()
+	_, err := compiler.validatePermissions(workflowData, markdownPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), cachedErr.Error())
 }
 
 // TestWarnPromptTmpPaths tests the /tmp path heuristic used by the compiler.

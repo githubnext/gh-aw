@@ -55,7 +55,7 @@ func renderMarkdownExecutiveSummary(report *CrossRunAuditReport) {
 }
 
 func renderMarkdownMetricsTrend(mt MetricsTrendData) {
-	if mt.RunsWithCost == 0 && mt.TotalTokens == 0 {
+	if mt.TotalTokens == 0 && mt.TotalTurns == 0 && mt.AvgDurationNs == 0 {
 		return
 	}
 
@@ -63,14 +63,6 @@ func renderMarkdownMetricsTrend(mt MetricsTrendData) {
 	fmt.Fprintln(os.Stdout)
 	fmt.Fprintf(os.Stdout, "| Metric | Total | Avg/run | Min | Max | Spikes |\n")
 	fmt.Fprintf(os.Stdout, "|--------|-------|---------|-----|-----|--------|\n")
-	if mt.RunsWithCost > 0 {
-		spikes := "—"
-		if len(mt.CostSpikes) > 0 {
-			spikes = "⚠ " + formatRunIDs(mt.CostSpikes)
-		}
-		fmt.Fprintf(os.Stdout, "| Cost Trend | $%.4f | $%.4f | $%.4f | $%.4f | %s |\n",
-			mt.TotalCost, mt.AvgCost, mt.MinCost, mt.MaxCost, spikes)
-	}
 	if mt.TotalTokens > 0 {
 		spikes := "—"
 		if len(mt.TokenSpikes) > 0 {
@@ -174,29 +166,22 @@ func renderMarkdownPerRunBreakdown(runs []PerRunFirewallBreakdown) {
 	}
 	fmt.Fprintln(os.Stdout, "## Per-Run Breakdown")
 	fmt.Fprintln(os.Stdout)
-	fmt.Fprintf(os.Stdout, "| Run ID | Workflow | Conclusion | Duration | Firewall | Cost | Tokens | Turns | MCP Err | Errors |\n")
-	fmt.Fprintf(os.Stdout, "|--------|----------|------------|----------|----------|------|--------|-------|---------|--------|\n")
+	fmt.Fprintf(os.Stdout, "| Run ID | Workflow | Conclusion | Duration | Firewall | Tokens | Turns | MCP Err | Errors |\n")
+	fmt.Fprintf(os.Stdout, "|--------|----------|------------|----------|----------|--------|-------|---------|--------|\n")
 	for _, run := range runs {
-		firewallCol, costStr, tokenStr, turnsStr, durStr := markdownPerRunFields(run)
-		fmt.Fprintf(os.Stdout, "| %d | %s | %s | %s | %s | %s | %s | %s | %d | %d |\n",
+		firewallCol, tokenStr, turnsStr, durStr := markdownPerRunFields(run)
+		fmt.Fprintf(os.Stdout, "| %d | %s | %s | %s | %s | %s | %s | %d | %d |\n",
 			run.RunID, run.WorkflowName, run.Conclusion, durStr,
-			firewallCol, costStr, tokenStr, turnsStr,
+			firewallCol, tokenStr, turnsStr,
 			run.MCPErrors, run.ErrorCount)
 	}
 	fmt.Fprintln(os.Stdout)
 }
 
-func markdownPerRunFields(run PerRunFirewallBreakdown) (string, string, string, string, string) {
+func markdownPerRunFields(run PerRunFirewallBreakdown) (string, string, string, string) {
 	firewallCol := "—"
 	if run.HasData {
 		firewallCol = fmt.Sprintf("%d/%d", run.Allowed, run.Blocked)
-	}
-	costStr := "—"
-	if run.Cost > 0 {
-		costStr = fmt.Sprintf("$%.4f", run.Cost)
-		if run.CostSpike {
-			costStr += " ⚠"
-		}
 	}
 	tokenStr := "—"
 	if run.Tokens > 0 {
@@ -213,7 +198,7 @@ func markdownPerRunFields(run PerRunFirewallBreakdown) (string, string, string, 
 	if run.Duration > 0 {
 		durStr = timeutil.FormatDurationNs(int64(run.Duration))
 	}
-	return firewallCol, costStr, tokenStr, turnsStr, durStr
+	return firewallCol, tokenStr, turnsStr, durStr
 }
 
 // renderCrossRunReportPretty outputs the cross-run report as formatted console output to stderr.
@@ -246,23 +231,14 @@ func renderPrettyExecutiveSummary(report *CrossRunAuditReport) {
 }
 
 func renderPrettyMetricsTrend(mt MetricsTrendData) {
-	if mt.RunsWithCost == 0 && mt.TotalTokens == 0 {
+	if mt.TotalTokens == 0 && mt.TotalTurns == 0 && mt.AvgDurationNs == 0 {
 		return
 	}
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Metrics Trends"))
-	renderPrettyCostTrend(mt)
 	renderPrettyTokenTrend(mt)
 	renderPrettyTurnTrend(mt)
 	renderPrettyDurationTrend(mt)
 	fmt.Fprintln(os.Stderr)
-}
-
-func renderPrettyCostTrend(mt MetricsTrendData) {
-	if mt.RunsWithCost == 0 {
-		return
-	}
-	fmt.Fprintf(os.Stderr, "  Cost:     total=$%.4f  avg=$%.4f/run  min=$%.4f  max=$%.4f\n%s",
-		mt.TotalCost, mt.AvgCost, mt.MinCost, mt.MaxCost, prettySpikeNote("Cost", mt.CostSpikes))
 }
 
 func renderPrettyTokenTrend(mt MetricsTrendData) {
@@ -398,12 +374,6 @@ func prettyPerRunOptionalFields(run PerRunFirewallBreakdown) string {
 		parts.WriteString("  dur=")
 		parts.WriteString(timeutil.FormatDurationNs(int64(run.Duration)))
 	}
-	if run.Cost > 0 {
-		fmt.Fprintf(&parts, "  cost=$%.4f", run.Cost)
-		if run.CostSpike {
-			parts.WriteString("⚠")
-		}
-	}
 	if run.Tokens > 0 {
 		parts.WriteString("  tokens=")
 		parts.WriteString(formatTokens(run.Tokens))
@@ -425,12 +395,6 @@ func renderPrettyFinalStatus(report *CrossRunAuditReport) {
 	if report.Summary.UniqueDomains > 0 {
 		parts = append(parts, fmt.Sprintf("%d unique domains", report.Summary.UniqueDomains))
 		parts = append(parts, fmt.Sprintf("%.1f%% overall denial rate", report.Summary.OverallDenyRate*100))
-	}
-	if report.MetricsTrend.RunsWithCost > 0 {
-		parts = append(parts, fmt.Sprintf("total cost $%.4f", report.MetricsTrend.TotalCost))
-	}
-	if len(report.MetricsTrend.CostSpikes) > 0 {
-		parts = append(parts, fmt.Sprintf("%d cost spike(s)", len(report.MetricsTrend.CostSpikes)))
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Report complete: "+strings.Join(parts, ", ")))
 }

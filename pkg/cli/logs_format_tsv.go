@@ -17,7 +17,7 @@ var logsTSVLog = logger.New("cli:logs_format_tsv")
 //
 // Output format:
 //
-//	Line 1: Summary line (total_runs, total_duration, total_tokens, total_cost, total_errors)
+//	Line 1: Summary line (total_runs, total_duration, total_tokens, total_errors)
 //	Line 2: Column headers
 //	Lines 3+: One line per run with tab-separated fields
 func renderLogsTSV(data LogsData) {
@@ -25,8 +25,8 @@ func renderLogsTSV(data LogsData) {
 
 	s := data.Summary
 	// Summary line with key aggregates
-	fmt.Fprintf(os.Stdout, "# %d runs | %s duration | %d tokens | $%.2f cost | %d turns | %d errors\n",
-		s.TotalRuns, s.TotalDuration, s.TotalTokens, s.TotalCost, s.TotalTurns, s.TotalErrors)
+	fmt.Fprintf(os.Stdout, "# %d runs | %s duration | %d tokens | %d turns | %d errors\n",
+		s.TotalRuns, s.TotalDuration, s.TotalTokens, s.TotalTurns, s.TotalErrors)
 
 	if len(data.Runs) == 0 {
 		return
@@ -35,7 +35,7 @@ func renderLogsTSV(data LogsData) {
 	// Header
 	headers := []string{
 		"run_id", "workflow", "engine", "status", "duration",
-		"tokens", "eff_tokens", "cost", "turns", "errors",
+		"tokens", "eff_tokens", "turns", "errors",
 		"event", "branch", "created_at", "classification", "url",
 	}
 	fmt.Fprintln(os.Stdout, strings.Join(headers, "\t"))
@@ -49,10 +49,6 @@ func renderLogsTSV(data LogsData) {
 		duration := r.Duration
 		if duration == "" {
 			duration = "-"
-		}
-		cost := "-"
-		if r.EstimatedCost > 0 {
-			cost = fmt.Sprintf("%.2f", r.EstimatedCost)
 		}
 		classification := r.Classification
 		if classification == "" {
@@ -72,7 +68,6 @@ func renderLogsTSV(data LogsData) {
 			duration,
 			strconv.Itoa(r.TokenUsage),
 			strconv.Itoa(r.EffectiveTokens),
-			cost,
 			strconv.Itoa(r.Turns),
 			strconv.Itoa(r.ErrorCount),
 			r.Event,
@@ -113,8 +108,8 @@ func renderLogsTSVVerbose(data LogsData) {
 	logsTSVLog.Printf("Rendering %d runs as verbose TSV", data.Summary.TotalRuns)
 
 	s := data.Summary
-	fmt.Fprintf(os.Stdout, "# %d runs | %s duration | %d tokens | $%.2f cost | %d turns | %d errors | %d missing_tools | %d github_api_calls\n",
-		s.TotalRuns, s.TotalDuration, s.TotalTokens, s.TotalCost, s.TotalTurns, s.TotalErrors, s.TotalMissingTools, s.TotalGitHubAPICalls)
+	fmt.Fprintf(os.Stdout, "# %d runs | %s duration | %d tokens | %d turns | %d errors | %d missing_tools | %d github_api_calls\n",
+		s.TotalRuns, s.TotalDuration, s.TotalTokens, s.TotalTurns, s.TotalErrors, s.TotalMissingTools, s.TotalGitHubAPICalls)
 
 	if len(data.Runs) == 0 {
 		return
@@ -122,7 +117,7 @@ func renderLogsTSVVerbose(data LogsData) {
 
 	headers := []string{
 		"run_id", "workflow", "engine", "status", "duration",
-		"tokens", "eff_tokens", "cost", "turns", "errors",
+		"tokens", "eff_tokens", "turns", "errors",
 		"warnings", "missing_tools", "missing_data", "github_api",
 		"event", "branch", "actor", "created_at", "tbt",
 		"classification", "action_min", "display_title", "url",
@@ -137,10 +132,6 @@ func renderLogsTSVVerbose(data LogsData) {
 		duration := r.Duration
 		if duration == "" {
 			duration = "-"
-		}
-		cost := "-"
-		if r.EstimatedCost > 0 {
-			cost = fmt.Sprintf("%.2f", r.EstimatedCost)
 		}
 		tbt := r.AvgTimeBetweenTurns
 		if tbt == "" {
@@ -163,7 +154,6 @@ func renderLogsTSVVerbose(data LogsData) {
 			duration,
 			strconv.Itoa(r.TokenUsage),
 			strconv.Itoa(r.EffectiveTokens),
-			cost,
 			strconv.Itoa(r.Turns),
 			strconv.Itoa(r.ErrorCount),
 			strconv.Itoa(r.WarningCount),

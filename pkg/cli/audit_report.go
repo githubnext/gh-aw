@@ -76,7 +76,6 @@ type Recommendation struct {
 // PerformanceMetrics provides aggregated performance statistics
 type PerformanceMetrics struct {
 	TokensPerMinute float64 `json:"tokens_per_minute,omitempty"`
-	CostEfficiency  string  `json:"cost_efficiency,omitempty"` // e.g., "good", "poor"
 	AvgToolDuration string  `json:"avg_tool_duration,omitempty"`
 	MostUsedTool    string  `json:"most_used_tool,omitempty"`
 	NetworkRequests int     `json:"network_requests,omitempty"`
@@ -105,7 +104,6 @@ type MetricsData struct {
 	TokenUsage      int                    `json:"token_usage,omitempty" console:"header:Token Usage,format:number,omitempty"`
 	EffectiveTokens int                    `json:"effective_tokens,omitempty" console:"header:Effective Tokens,format:number,omitempty"`
 	AmbientContext  *AmbientContextMetrics `json:"ambient_context,omitempty" console:"title:Ambient Context,omitempty"`
-	EstimatedCost   float64                `json:"estimated_cost,omitempty" console:"header:Estimated Cost,format:cost,omitempty"`
 	ActionMinutes   float64                `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
 	Turns           int                    `json:"turns,omitempty" console:"header:Turns,omitempty"`
 	ErrorCount      int                    `json:"error_count" console:"header:Errors"`
@@ -287,11 +285,10 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 
 	// Build metrics
 	metricsData := MetricsData{
-		TokenUsage:    run.TokenUsage,
-		EstimatedCost: run.EstimatedCost,
-		Turns:         run.Turns,
-		ErrorCount:    run.ErrorCount,
-		WarningCount:  run.WarningCount,
+		TokenUsage:   run.TokenUsage,
+		Turns:        run.Turns,
+		ErrorCount:   run.ErrorCount,
+		WarningCount: run.WarningCount,
 	}
 
 	needsFallbackMetrics := metricsData.TokenUsage == 0 || metricsData.Turns == 0
@@ -437,7 +434,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	if len(createdItems) > 0 {
 		outcomeReports := EvaluateOutcomes(createdItems, "")
 		auditData.Outcomes = outcomeReports
-		outcomeSummary := ComputeOutcomeSummary(outcomeReports, metricsData.EstimatedCost)
+		outcomeSummary := ComputeOutcomeSummary(outcomeReports)
 		auditData.OutcomeSummary = &outcomeSummary
 	}
 
