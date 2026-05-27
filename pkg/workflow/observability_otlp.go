@@ -221,10 +221,6 @@ func getOTLPGitHubAppTokenConfig(frontmatter map[string]any) *GitHubAppConfig {
 	}
 
 	app := parseAppConfig(githubAppMap)
-	if app == nil {
-		return nil
-	}
-
 	if !app.hasRequiredCredentials() {
 		return nil
 	}
