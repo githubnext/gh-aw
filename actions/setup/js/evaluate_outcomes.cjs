@@ -559,6 +559,7 @@ function extractBeforeHeadSHA(item) {
  * @param {string} repo
  * @param {number} number
  * @param {any} prData
+ * @param {(endpoint: string) => object | null} ghAPIFn
  * @returns {boolean}
  */
 function hasClosingSignal(repo, number, prData, ghAPIFn) {
@@ -581,6 +582,7 @@ function hasClosingSignal(repo, number, prData, ghAPIFn) {
  * @param {string} repo
  * @param {string} commitSHA
  * @param {string} branchHeadSHA
+ * @param {(endpoint: string) => object | null} ghAPIFn
  * @returns {boolean | null}
  */
 function isCommitInBranchHistory(repo, commitSHA, branchHeadSHA, ghAPIFn) {
