@@ -583,9 +583,9 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   ```yaml
   safe-outputs:
     upload-artifact:
-      max-uploads: 5                  # Optional: max upload_artifact tool calls (default: 1)
-      default-retention-days: 7       # Optional: default retention period in days (default: 7)
-      max-retention-days: 30          # Optional: maximum retention cap in days (default: 30)
+      max-uploads: 5                  # Optional: max upload_artifact tool calls (default: 1, max: 20)
+      retention-days: 7               # Optional: fixed retention period in days (agent cannot override; 1-90; templatable expression supported)
+      skip-archive: false             # Optional: fixed skip-archive flag (templatable expression supported); single-file only
       max-size-bytes: 104857600       # Optional: max bytes per upload (default: 100 MB)
       allowed-paths:                  # Optional: glob patterns restricting uploadable paths
         - "reports/**"
@@ -595,10 +595,9 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
         exclude: ["*secret*"]
       defaults:                       # Optional: default values injected when agent omits a field
         if-no-files: "ignore"         # "error" or "ignore" when no files match (default: "error")
-      skip-archive: true              # Optional: allow direct file uploads without zipping
   ```
 
-  Uploads files as run-scoped GitHub Actions artifacts. Artifacts are temporary and tied to the workflow run, automatically cleaned up when they expire. Agents call `upload_artifact` with a `name`, `path`, and optional `retention_days`. **Use this for temporary downloadable artifacts and attachment-style arbitrary data** (for example when a comment/issue should link to a generated file bundle). Set `skip-archive: true` when downloads should be served as direct files without uncompressing. Use `upload-asset` instead when you need stable embeddable URLs (images/charts in GitHub content).
+  Uploads files as run-scoped GitHub Actions artifacts. Artifacts are temporary and tied to the workflow run, automatically cleaned up when they expire. Agents call `upload_artifact` with a `name` and `path`. `retention-days` and `skip-archive` are fixed at the workflow level (templatable via expressions); the agent cannot override them. **Use this for temporary downloadable artifacts and attachment-style arbitrary data** (for example when a comment/issue should link to a generated file bundle). Set `skip-archive: true` when downloads should be served as direct files without uncompressing. Use `upload-asset` instead when you need stable embeddable URLs (images/charts in GitHub content).
 - `dispatch-workflow:` - Trigger other workflows with inputs
 
   ```yaml
@@ -654,6 +653,10 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   safe-outputs:
     create-code-scanning-alert:
       max: 50                         # Optional: max findings (default: unlimited)
+      driver: "Custom Scanner"        # Optional: SARIF tool.driver.name (default: "GitHub Agentic Workflows Security Scanner")
+      github-token: ${{ secrets.MY_TOKEN }}  # Optional: override token for security-events:write
+      target-repo: "owner/repo"       # Optional: cross-repository
+      allowed-repos: [owner/other]    # Optional: additional repos the agent may target via `repo` field
   ```
 
   Severity levels: error, warning, info, note.

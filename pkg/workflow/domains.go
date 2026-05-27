@@ -806,9 +806,11 @@ func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPer
 
 // GetThreatDetectionAllowedDomains returns the minimal set of domains allowed for a Copilot
 // detection run. It loads the "threat-detection" ecosystem from ecosystem_domains.json, which
-// includes only the Copilot API endpoints needed for read-only threat analysis. It intentionally
-// excludes registry.npmjs.org and raw.githubusercontent.com (not needed when MCP servers are
-// disabled and the CLI binary is pre-installed).
+// includes the Copilot API endpoints needed for read-only threat analysis plus registry.npmjs.org
+// for read-only npm package validation (e.g. verifying lockfile integrity hashes). It intentionally
+// excludes raw.githubusercontent.com (not needed when MCP servers are disabled and the CLI binary
+// is pre-installed). npm registry access is read-only metadata lookup only — installs are not
+// permitted during detection runs.
 // Any additional user-specified network.allowed entries are merged in (typically empty for detection).
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
 func GetThreatDetectionAllowedDomains(network *NetworkPermissions) string {

@@ -386,6 +386,7 @@ func TestThreatDetectionDomains(t *testing.T) {
 		"api.individual.githubcopilot.com",
 		"github.com",
 		"host.docker.internal",
+		"registry.npmjs.org",
 		"telemetry.enterprise.githubcopilot.com",
 	}
 	detectionMap := make(map[string]bool)
@@ -398,7 +399,6 @@ func TestThreatDetectionDomains(t *testing.T) {
 
 	// Detection domains must NOT include the domains excluded for supply-chain reduction
 	excludedDomains := []string{
-		"registry.npmjs.org",
 		"raw.githubusercontent.com",
 	}
 	for _, excluded := range excludedDomains {
@@ -418,8 +418,10 @@ func TestGetThreatDetectionAllowedDomains(t *testing.T) {
 	// Must include essential Copilot API domain
 	assert.Contains(t, result, "api.githubcopilot.com", "Detection domains must include Copilot API domain")
 
-	// Must NOT include npm registry or raw GitHub downloads
-	assert.NotContains(t, result, "registry.npmjs.org", "Detection domains must not include npm registry")
+	// Must include npm registry for read-only package validation
+	assert.Contains(t, result, "registry.npmjs.org", "Detection domains must include npm registry for read-only package validation")
+
+	// Must NOT include raw GitHub downloads
 	assert.NotContains(t, result, "raw.githubusercontent.com", "Detection domains must not include raw.githubusercontent.com")
 
 	// Must NOT include ecosystem-expansion domains (no tools/runtimes passed for detection)
