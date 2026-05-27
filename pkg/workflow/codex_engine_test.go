@@ -466,9 +466,9 @@ func TestCodexEngineDetectionRunUsesStructuredOutputSchema(t *testing.T) {
 	engine := NewCodexEngine()
 
 	tests := []struct {
-		name                         string
-		isDetectionRun               bool
-		expectStructuredOutputFlags  bool
+		name                        string
+		isDetectionRun              bool
+		expectStructuredOutputFlags bool
 	}{
 		{
 			name:                        "detection run uses --output-schema and -o flags",
@@ -520,7 +520,7 @@ func TestCodexEngineDetectionRunUsesStructuredOutputSchema(t *testing.T) {
 				if !hasSchemaWrite {
 					t.Errorf("Detection run: expected schema file path %q in command, got:\n%s", detectionSchemaFilePath, stepContent)
 				}
-				if !strings.Contains(stepContent, fmt.Sprintf("%s --prompt-file", detectionResultFilePath)) {
+				if !strings.Contains(stepContent, detectionResultFilePath+" --prompt-file") {
 					t.Errorf("Detection run: expected space separator between -o result file and --prompt-file, got:\n%s", stepContent)
 				}
 			} else {
