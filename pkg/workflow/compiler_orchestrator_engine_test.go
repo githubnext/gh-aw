@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -110,6 +111,56 @@ on: push
 
 	// Should default to copilot
 	assert.Equal(t, "copilot", result.engineSetting)
+}
+
+func TestSetupEngineAndImports_DefaultEngineFromEnv(t *testing.T) {
+	t.Setenv(compilerenv.DefaultEngine, "claude")
+
+	tmpDir := testutil.TempDir(t, "engine-default-env")
+	testContent := `---
+on: push
+---
+
+# Test Workflow
+`
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	content := []byte(testContent)
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(string(content))
+	require.NoError(t, err)
+
+	result, err := compiler.setupEngineAndImports(frontmatterResult, testFile, content, tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "claude", result.engineSetting)
+}
+
+func TestSetupEngineAndImports_DefaultMaxTurnsFromEnv(t *testing.T) {
+	t.Setenv(compilerenv.DefaultMaxTurns, "9")
+
+	tmpDir := testutil.TempDir(t, "engine-default-max-turns")
+	testContent := `---
+on: push
+engine: claude
+---
+
+# Test Workflow
+`
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	content := []byte(testContent)
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(string(content))
+	require.NoError(t, err)
+
+	result, err := compiler.setupEngineAndImports(frontmatterResult, testFile, content, tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.engineConfig)
+	assert.Equal(t, "9", result.engineConfig.MaxTurns)
 }
 
 // TestSetupEngineAndImports_EngineOverride tests command-line engine override

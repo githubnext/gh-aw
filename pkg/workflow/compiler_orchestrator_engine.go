@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var orchestratorEngineLog = logger.New("workflow:compiler_orchestrator_engine")
@@ -263,7 +264,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// Apply the default AI engine setting if not specified
 	if engineSetting == "" {
 		defaultEngine := c.engineRegistry.GetDefaultEngine()
-		engineSetting = defaultEngine.GetID()
+		engineSetting = compilerenv.ResolveDefaultEngine(defaultEngine.GetID())
 		workflowLog.Printf("No 'engine:' setting found, defaulting to: %s", engineSetting)
 		// Create a default EngineConfig with the default engine ID if not already set
 		if engineConfig == nil {
@@ -341,6 +342,10 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		return nil, err
 	}
 	agenticEngine := resolvedEngine.Runtime
+
+	if engineConfig != nil && engineConfig.MaxTurns == "" && agenticEngine.GetCapabilities().MaxTurns {
+		engineConfig.MaxTurns = compilerenv.ResolveDefaultMaxTurns("")
+	}
 
 	// Call RenderConfig to allow the runtime adapter to emit config files or metadata.
 	// Most engines return nil, nil here; engines like Crush use this to write

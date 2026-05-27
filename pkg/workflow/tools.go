@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/goccy/go-yaml"
 )
 
@@ -316,7 +317,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	}
 
 	if data.TimeoutMinutes == "" {
-		data.TimeoutMinutes = fmt.Sprintf("timeout-minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute))
+		defaultTimeoutMinutes := compilerenv.ResolveDefaultTimeoutMinutes(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
+		data.TimeoutMinutes = fmt.Sprintf("timeout-minutes: %d", defaultTimeoutMinutes)
 	}
 
 	if data.RunsOn == "" {

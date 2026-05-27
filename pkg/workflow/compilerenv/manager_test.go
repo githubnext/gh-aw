@@ -8,11 +8,14 @@ import (
 
 func TestEnterpriseVariables(t *testing.T) {
 	vars := EnterpriseVariables()
-	assert.Len(t, vars, 4)
+	assert.Len(t, vars, 7)
 	assert.Equal(t, DefaultMaxEffectiveTokens, vars[0].Name)
-	assert.Equal(t, DefaultModelCopilot, vars[1].Name)
-	assert.Equal(t, DefaultModelClaude, vars[2].Name)
-	assert.Equal(t, DefaultModelCodex, vars[3].Name)
+	assert.Equal(t, DefaultMaxTurns, vars[1].Name)
+	assert.Equal(t, DefaultTimeoutMinutes, vars[2].Name)
+	assert.Equal(t, DefaultEngine, vars[3].Name)
+	assert.Equal(t, DefaultModelCopilot, vars[4].Name)
+	assert.Equal(t, DefaultModelClaude, vars[5].Name)
+	assert.Equal(t, DefaultModelCodex, vars[6].Name)
 }
 
 func TestResolveDefaultMaxEffectiveTokens(t *testing.T) {
@@ -43,4 +46,60 @@ func TestBuildModelOverrideExpression(t *testing.T) {
 		"${{ vars.GH_AW_MODEL_AGENT_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || '' }}",
 		BuildModelOverrideExpressionEmptyFallback("GH_AW_MODEL_AGENT_CLAUDE", "GH_AW_DEFAULT_MODEL_CLAUDE"),
 	)
+}
+
+func TestResolveDefaultMaxTurns(t *testing.T) {
+	t.Run("unset uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxTurns, "")
+		assert.Equal(t, "7", ResolveDefaultMaxTurns("7"))
+	})
+
+	t.Run("invalid uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxTurns, "abc")
+		assert.Equal(t, "7", ResolveDefaultMaxTurns("7"))
+	})
+
+	t.Run("zero uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxTurns, "0")
+		assert.Equal(t, "7", ResolveDefaultMaxTurns("7"))
+	})
+
+	t.Run("valid value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxTurns, "15")
+		assert.Equal(t, "15", ResolveDefaultMaxTurns("7"))
+	})
+}
+
+func TestResolveDefaultTimeoutMinutes(t *testing.T) {
+	t.Run("unset uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultTimeoutMinutes, "")
+		assert.Equal(t, 20, ResolveDefaultTimeoutMinutes(20))
+	})
+
+	t.Run("invalid uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultTimeoutMinutes, "abc")
+		assert.Equal(t, 20, ResolveDefaultTimeoutMinutes(20))
+	})
+
+	t.Run("zero uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultTimeoutMinutes, "0")
+		assert.Equal(t, 20, ResolveDefaultTimeoutMinutes(20))
+	})
+
+	t.Run("valid value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultTimeoutMinutes, "45")
+		assert.Equal(t, 45, ResolveDefaultTimeoutMinutes(20))
+	})
+}
+
+func TestResolveDefaultEngine(t *testing.T) {
+	t.Run("unset uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultEngine, "")
+		assert.Equal(t, "copilot", ResolveDefaultEngine("copilot"))
+	})
+
+	t.Run("set value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultEngine, "claude")
+		assert.Equal(t, "claude", ResolveDefaultEngine("copilot"))
+	})
 }

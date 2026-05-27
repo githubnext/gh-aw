@@ -11,6 +11,15 @@ const (
 	// DefaultMaxEffectiveTokens is the enterprise override for AWF apiProxy.maxEffectiveTokens
 	// when max-effective-tokens is not explicitly configured in workflow frontmatter.
 	DefaultMaxEffectiveTokens = "GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS"
+	// DefaultMaxTurns is the enterprise override for engine.max-turns when it is not
+	// explicitly configured in workflow frontmatter.
+	DefaultMaxTurns = "GH_AW_DEFAULT_MAX_TURNS"
+	// DefaultTimeoutMinutes is the enterprise override for top-level timeout-minutes
+	// when it is not explicitly configured in workflow frontmatter.
+	DefaultTimeoutMinutes = "GH_AW_DEFAULT_TIMEOUT_MINUTES"
+	// DefaultEngine is the enterprise override for selecting the default engine when
+	// frontmatter does not specify one.
+	DefaultEngine = "GH_AW_DEFAULT_ENGINE"
 
 	// DefaultModelCopilot is the enterprise override for Copilot fallback model selection.
 	DefaultModelCopilot = "GH_AW_DEFAULT_MODEL_COPILOT"
@@ -31,6 +40,18 @@ func EnterpriseVariables() []Variable {
 		{
 			Name:        DefaultMaxEffectiveTokens,
 			Description: "Default max-effective-tokens used when workflow frontmatter does not set one",
+		},
+		{
+			Name:        DefaultMaxTurns,
+			Description: "Default engine.max-turns used when workflow frontmatter does not set one",
+		},
+		{
+			Name:        DefaultTimeoutMinutes,
+			Description: "Default timeout-minutes used when workflow frontmatter does not set one",
+		},
+		{
+			Name:        DefaultEngine,
+			Description: "Default engine ID used when workflow frontmatter does not set one",
 		},
 		{
 			Name:        DefaultModelCopilot,
@@ -59,6 +80,46 @@ func ResolveDefaultMaxEffectiveTokens(fallback int64) int64 {
 		return fallback
 	}
 	return parsed
+}
+
+// ResolveDefaultMaxTurns returns fallback when the env var is unset/invalid,
+// otherwise returns the parsed override as a string.
+func ResolveDefaultMaxTurns(fallback string) string {
+	if parsed, ok := parsePositiveIntEnvVar(DefaultMaxTurns); ok {
+		return strconv.FormatInt(parsed, 10)
+	}
+	return fallback
+}
+
+// ResolveDefaultTimeoutMinutes returns fallback when the env var is unset/invalid,
+// otherwise returns the parsed override.
+func ResolveDefaultTimeoutMinutes(fallback int) int {
+	if parsed, ok := parsePositiveIntEnvVar(DefaultTimeoutMinutes); ok {
+		return int(parsed)
+	}
+	return fallback
+}
+
+// ResolveDefaultEngine returns fallback when the env var is unset, otherwise
+// returns the trimmed override value.
+func ResolveDefaultEngine(fallback string) string {
+	raw := strings.TrimSpace(os.Getenv(DefaultEngine))
+	if raw == "" {
+		return fallback
+	}
+	return raw
+}
+
+func parsePositiveIntEnvVar(name string) (int64, bool) {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return 0, false
+	}
+	parsed, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || parsed <= 0 {
+		return 0, false
+	}
+	return parsed, true
 }
 
 // BuildModelOverrideExpression builds a vars expression with primary model var, enterprise
