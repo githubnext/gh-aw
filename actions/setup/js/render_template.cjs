@@ -115,10 +115,7 @@ function renderMarkdownTemplate(markdown) {
 
   // Count which placeholders survived to detect code blocks removed in false conditional branches
   const _survivedIndices = new Set([...result.matchAll(/\x00FENCE\x00(\d+)\x00FENCE\x00/g)].map(m => +m[1]));
-  const _removedFenceMarkerCount = _codeBlocks.reduce(
-    (sum, block, i) => (_survivedIndices.has(i) ? sum : sum + (block.match(/`{3,}/g) || []).length),
-    0
-  );
+  const _removedFenceMarkerCount = _codeBlocks.reduce((sum, block, i) => (_survivedIndices.has(i) ? sum : sum + (block.match(/`{3,}/g) || []).length), 0);
 
   // Restore fenced code blocks
   if (_codeBlocks.length > 0) {
