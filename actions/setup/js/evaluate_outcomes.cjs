@@ -76,6 +76,25 @@ function ghAPI(endpoint) {
   }
 }
 
+/** @type {(endpoint: string) => object | null} */
+let ghAPIImpl = ghAPI;
+
+/**
+ * @param {string} endpoint
+ * @returns {object | null}
+ */
+function callGHAPI(endpoint) {
+  return ghAPIImpl(endpoint);
+}
+
+/**
+ * Test-only override for GitHub API calls.
+ * @param {((endpoint: string) => object | null) | null} fn
+ */
+function __setGHAPIForTest(fn) {
+  ghAPIImpl = typeof fn === "function" ? fn : ghAPI;
+}
+
 /**
  * Read a JSON file, returning a default value on failure.
  * @param {string} filePath
@@ -180,6 +199,7 @@ function evaluateItem(item, defaultRepo) {
   const url = item.url || "";
   const itemRepo = item.repo || defaultRepo;
   const timestamp = item.timestamp || "";
+  const type = item.type || "";
 
   /** @type {EvalResult} */
   const out = {
@@ -198,6 +218,13 @@ function evaluateItem(item, defaultRepo) {
     zero_touch: false,
   };
 
+  if (type === "create_pull_request") {
+    return evaluateCreatePullRequestOutcome(item, itemRepo, out);
+  }
+  if (type === "push_to_pull_request_branch") {
+    return evaluatePushToPullRequestBranchOutcome(item, itemRepo, out);
+  }
+
   if (!url) {
     out.detail = "no url";
     setPendingAge(out, timestamp);
@@ -208,7 +235,7 @@ function evaluateItem(item, defaultRepo) {
   const issueMatch = url.match(/\/(?:issues|pull)\/(\d+)/);
   if (/\/issues\/\d+|\/issuecomment-/.test(url) && issueMatch) {
     const num = issueMatch[1];
-    const data = ghAPI(`repos/${itemRepo}/issues/${num}`);
+    const data = callGHAPI(`repos/${itemRepo}/issues/${num}`);
     if (!data || !data.state) {
       out.detail = "api error";
       setPendingAge(out, timestamp);
@@ -238,7 +265,7 @@ function evaluateItem(item, defaultRepo) {
   const prMatch = url.match(/\/pull\/(\d+)/);
   if (prMatch) {
     const num = prMatch[1];
-    const data = ghAPI(`repos/${itemRepo}/pulls/${num}`);
+    const data = callGHAPI(`repos/${itemRepo}/pulls/${num}`);
     if (!data || !data.state) {
       out.detail = "api error";
       setPendingAge(out, timestamp);
@@ -294,6 +321,324 @@ function evaluateItem(item, defaultRepo) {
   out.result = "accepted";
   out.detail = "object exists";
   return out;
+}
+
+/**
+ * Evaluate outcome for create_pull_request.
+ * @param {object} item
+ * @param {string} itemRepo
+ * @param {EvalResult} out
+ * @returns {EvalResult}
+ */
+function evaluateCreatePullRequestOutcome(item, itemRepo, out) {
+  const num = resolvePRNumber(item);
+  const timestamp = item.timestamp || "";
+
+  if (!num || !itemRepo) {
+    out.result = "unknown";
+    out.detail = "missing pull request reference";
+    setPendingAge(out, timestamp);
+    return out;
+  }
+
+  const data = callGHAPI(`repos/${itemRepo}/pulls/${num}`);
+  if (!data || !data.state) {
+    out.result = "unknown";
+    out.detail = "api error";
+    setPendingAge(out, timestamp);
+    return out;
+  }
+
+  out.review_comments = typeof data.review_comments === "number" ? data.review_comments : null;
+  out.changed_files = typeof data.changed_files === "number" ? data.changed_files : null;
+  out.additions = typeof data.additions === "number" ? data.additions : null;
+  out.deletions = typeof data.deletions === "number" ? data.deletions : null;
+  out.comments = typeof data.comments === "number" ? data.comments : null;
+
+  if (data.merged === true) {
+    out.result = "accepted";
+    out.detail = "merged (strong)";
+    if (data.created_at && data.merged_at) {
+      out.resolution_sec = secondsBetween(data.created_at, data.merged_at);
+    }
+    if (out.review_comments === 0 && out.comments === 0) {
+      out.zero_touch = true;
+    }
+    return out;
+  }
+
+  const reviewsRaw = callGHAPI(`repos/${itemRepo}/pulls/${num}/reviews`);
+  const reviews = Array.isArray(reviewsRaw) ? reviewsRaw : [];
+  const hasApproved = reviews.some(r => (r?.state || "").toUpperCase() === "APPROVED");
+  const hasChangesRequested = reviews.some(r => (r?.state || "").toUpperCase() === "CHANGES_REQUESTED");
+
+  if (data.state === "closed") {
+    const closingSignal = hasClosingSignal(itemRepo, num, data);
+    out.result = "rejected";
+    out.detail = closingSignal ? "closed without merge (strong)" : "closed without merge";
+    if (data.created_at && data.closed_at) {
+      out.resolution_sec = secondsBetween(data.created_at, data.closed_at);
+    }
+    return out;
+  }
+
+  if (data.state === "open") {
+    if (hasApproved && !hasChangesRequested) {
+      out.result = "accepted";
+      out.detail = "approved without requested changes";
+      return out;
+    }
+    if (reviews.length === 0) {
+      setPendingAge(out, timestamp);
+      if (isStalePending(out.pending_age_sec)) {
+        out.result = "ignored";
+        out.detail = "open and stale";
+      } else {
+        out.result = "pending";
+        out.detail = "open with no reviews";
+      }
+      return out;
+    }
+    out.result = "unknown";
+    out.detail = "open with mixed review state";
+    setPendingAge(out, timestamp);
+    return out;
+  }
+
+  out.result = "unknown";
+  out.detail = "unknown pull request state";
+  setPendingAge(out, timestamp);
+  return out;
+}
+
+/**
+ * Evaluate outcome for push_to_pull_request_branch.
+ * @param {object} item
+ * @param {string} itemRepo
+ * @param {EvalResult} out
+ * @returns {EvalResult}
+ */
+function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out) {
+  const num = resolvePRNumber(item);
+  const timestamp = item.timestamp || "";
+  const pushedShas = extractPushedCommitSHAs(item);
+  const beforeHead = extractBeforeHeadSHA(item);
+
+  if (!num || !itemRepo) {
+    out.result = "unknown";
+    out.detail = "missing pull request reference";
+    setPendingAge(out, timestamp);
+    return out;
+  }
+
+  const data = callGHAPI(`repos/${itemRepo}/pulls/${num}`);
+  if (!data || !data.state) {
+    out.result = "unknown";
+    out.detail = "api error";
+    setPendingAge(out, timestamp);
+    return out;
+  }
+
+  const currentHead = normalizeCommitSHA(data?.head?.sha);
+
+  const pushedStillHead = currentHead ? pushedShas.some(sha => sha === currentHead) : false;
+  const pushedIncluded =
+    currentHead && pushedShas.length > 0
+      ? pushedShas.some(sha => {
+          const inHistory = isCommitInBranchHistory(itemRepo, sha, currentHead);
+          return inHistory === true;
+        })
+      : false;
+
+  if (data.merged === true) {
+    out.result = "accepted";
+    out.detail = pushedIncluded ? "merged with pushed commit retained (strong)" : "merged";
+    if (data.created_at && data.merged_at) {
+      out.resolution_sec = secondsBetween(data.created_at, data.merged_at);
+    }
+    return out;
+  }
+
+  if (data.state === "closed") {
+    out.result = "rejected";
+    out.detail = "closed without merge";
+    if (data.created_at && data.closed_at) {
+      out.resolution_sec = secondsBetween(data.created_at, data.closed_at);
+    }
+    return out;
+  }
+
+  if (data.state !== "open") {
+    out.result = "unknown";
+    out.detail = "unknown pull request state";
+    setPendingAge(out, timestamp);
+    return out;
+  }
+
+  if (pushedStillHead) {
+    out.result = "accepted";
+    out.detail = "pushed commit is current branch head";
+    return out;
+  }
+
+  if (pushedShas.length > 0 && !pushedIncluded && beforeHead) {
+    out.result = "rejected";
+    out.detail = "pushed commits were force-pushed away or branch reset";
+    return out;
+  }
+
+  const reviewsRaw = callGHAPI(`repos/${itemRepo}/pulls/${num}/reviews`);
+  const reviews = Array.isArray(reviewsRaw) ? reviewsRaw : [];
+  const hasReviewOnPushedCommit = pushedShas.length > 0 && reviews.some(r => pushedShas.includes(normalizeCommitSHA(r?.commit_id)));
+
+  if (!hasReviewOnPushedCommit) {
+    out.result = "pending";
+    out.detail = "open with no review on pushed commits";
+    setPendingAge(out, timestamp);
+    return out;
+  }
+
+  out.result = "unknown";
+  out.detail = "open with reviewed pushed commits";
+  setPendingAge(out, timestamp);
+  return out;
+}
+
+/**
+ * @param {object} item
+ * @returns {number}
+ */
+function resolvePRNumber(item) {
+  if (typeof item.number === "number" && item.number > 0) return item.number;
+  const candidates = [item.pull_request_number, item.pr_number, item.item_number];
+  for (const candidate of candidates) {
+    const n = Number.parseInt(String(candidate || ""), 10);
+    if (Number.isInteger(n) && n > 0) return n;
+  }
+  const url = item.url || "";
+  const prMatch = url.match(/\/pull\/(\d+)/);
+  if (!prMatch) return 0;
+  const n = Number.parseInt(prMatch[1], 10);
+  return Number.isInteger(n) && n > 0 ? n : 0;
+}
+
+/**
+ * @param {string | null | undefined} sha
+ * @returns {string}
+ */
+function normalizeCommitSHA(sha) {
+  if (!sha || typeof sha !== "string") return "";
+  const normalized = sha.trim().toLowerCase();
+  return /^[0-9a-f]{7,40}$/.test(normalized) ? normalized : "";
+}
+
+/**
+ * @param {object} item
+ * @returns {string[]}
+ */
+function extractPushedCommitSHAs(item) {
+  /** @type {string[]} */
+  const shas = [];
+  const candidates = [
+    item.commit_sha,
+    item.pushed_commit_sha,
+    item.head_sha,
+    item?.metadata?.commit_sha,
+    item?.metadata?.pushed_commit_sha,
+  ];
+  for (const candidate of candidates) {
+    const normalized = normalizeCommitSHA(candidate);
+    if (normalized) shas.push(normalized);
+  }
+  const listCandidates = [item.commit_shas, item.pushed_commit_shas, item?.metadata?.commit_shas, item?.metadata?.pushed_commit_shas];
+  for (const list of listCandidates) {
+    if (!Array.isArray(list)) continue;
+    for (const value of list) {
+      const normalized = normalizeCommitSHA(value);
+      if (normalized) shas.push(normalized);
+    }
+  }
+  return [...new Set(shas)];
+}
+
+/**
+ * @param {object} item
+ * @returns {string}
+ */
+function extractBeforeHeadSHA(item) {
+  const candidates = [
+    item.before_head_sha,
+    item.previous_head_sha,
+    item.head_sha_before,
+    item.branch_head_before,
+    item.pre_push_head_sha,
+    item?.metadata?.before_head_sha,
+    item?.metadata?.previous_head_sha,
+    item?.metadata?.head_sha_before,
+  ];
+  for (const candidate of candidates) {
+    const normalized = normalizeCommitSHA(candidate);
+    if (normalized) return normalized;
+  }
+  return "";
+}
+
+/**
+ * @param {string} repo
+ * @param {number} number
+ * @param {any} prData
+ * @returns {boolean}
+ */
+function hasClosingSignal(repo, number, prData) {
+  const labels = Array.isArray(prData?.labels) ? prData.labels : [];
+  const labelKeywords = ["not planned", "not_planned", "wontfix", "won't fix", "duplicate", "invalid", "declined", "rejected"];
+  const hasClosingLabel = labels.some(label => {
+    const name = String(label?.name || "").toLowerCase();
+    return labelKeywords.some(keyword => name.includes(keyword));
+  });
+  if (hasClosingLabel) return true;
+
+  const commentsRaw = callGHAPI(`repos/${repo}/issues/${number}/comments`);
+  if (!Array.isArray(commentsRaw)) return false;
+  const commentKeywords = ["not planned", "won't", "wontfix", "duplicate", "invalid", "declin", "reject", "closing"];
+  return commentsRaw.some(comment => {
+    const body = String(comment?.body || "").toLowerCase();
+    return commentKeywords.some(keyword => body.includes(keyword));
+  });
+}
+
+/**
+ * @param {string} repo
+ * @param {string} commitSHA
+ * @param {string} branchHeadSHA
+ * @returns {boolean | null}
+ */
+function isCommitInBranchHistory(repo, commitSHA, branchHeadSHA) {
+  if (!commitSHA || !branchHeadSHA) return null;
+  if (commitSHA === branchHeadSHA) return true;
+  const compareData = callGHAPI(`repos/${repo}/compare/${commitSHA}...${branchHeadSHA}`);
+  if (!compareData || typeof compareData.status !== "string") return null;
+  const status = compareData.status.toLowerCase();
+  if (status === "ahead" || status === "identical") return true;
+  if (status === "behind" || status === "diverged") return false;
+  return null;
+}
+
+/**
+ * @returns {number}
+ */
+function staleThresholdSec() {
+  const raw = Number.parseInt(String(process.env.GH_AW_OUTCOME_STALE_AFTER_SECONDS || ""), 10);
+  if (Number.isInteger(raw) && raw > 0) return raw;
+  return 7 * 24 * 60 * 60;
+}
+
+/**
+ * @param {number | null} pendingAgeSec
+ * @returns {boolean}
+ */
+function isStalePending(pendingAgeSec) {
+  return typeof pendingAgeSec === "number" && pendingAgeSec >= staleThresholdSec();
 }
 
 /**
@@ -534,4 +879,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { main, evaluateItem, readJSONL, secondsBetween, isoToEpoch };
+module.exports = { main, evaluateItem, evaluateCreatePullRequestOutcome, evaluatePushToPullRequestBranchOutcome, readJSONL, secondsBetween, isoToEpoch, __setGHAPIForTest };
