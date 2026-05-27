@@ -148,13 +148,22 @@ describe("extra_empty_commit git integration", () => {
 
     const detailLogCall = mockCore.info.mock.calls.find(call => call[0].startsWith("Cycle check details:"));
     if (!detailLogCall || typeof detailLogCall[0] !== "string") {
-      throw new Error("missing cycle-check detail log");
+      const infoMessages = mockCore.info.mock.calls.map(call => call[0]).filter(Boolean);
+      throw new Error(`missing cycle-check detail log; captured ${infoMessages.length} info log(s): ${infoMessages.join(" | ")}`);
     }
-    // Intentionally verify the named counters emitted by cycle-check diagnostics.
-    const parsedDetail = detailLogCall[0].match(/analyzed (\d+).*ignored (\d+).*counted (\d+)/);
-    expect(parsedDetail).toBeDefined();
-    expect(Number(parsedDetail[1])).toBeGreaterThan(0);
-    expect(Number(parsedDetail[2])).toBe(MERGE_BRANCH_COUNT);
-    expect(Number(parsedDetail[3])).toBe(0);
+    const detailMessage = detailLogCall[0];
+    const analyzedMatch = detailMessage.match(/analyzed (\d+)/);
+    const ignoredMergeMatch = detailMessage.match(/ignored (\d+) merge commit\(s\)/);
+    const emptyMatch = detailMessage.match(/counted (\d+) empty non-merge commit\(s\)/);
+    expect(analyzedMatch).toBeDefined();
+    expect(ignoredMergeMatch).toBeDefined();
+    expect(emptyMatch).toBeDefined();
+
+    const analyzedCount = Number(analyzedMatch[1]);
+    const ignoredMergeCount = Number(ignoredMergeMatch[1]);
+    const emptyCount = Number(emptyMatch[1]);
+    expect(analyzedCount).toBeGreaterThan(0);
+    expect(ignoredMergeCount).toBe(MERGE_BRANCH_COUNT);
+    expect(emptyCount).toBe(0);
   });
 });
