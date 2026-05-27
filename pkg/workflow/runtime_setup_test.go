@@ -765,6 +765,51 @@ func TestDeduplicatePreservesUserNodeVersion(t *testing.T) {
 	}
 }
 
+// TestDeduplicatePreservesUserNodeVersionFile tests that when a user specifies
+// node-version-file instead of node-version, deduplication preserves the step.
+func TestDeduplicatePreservesUserNodeVersionFile(t *testing.T) {
+	customSteps := `steps:
+  - name: Setup Node
+    uses: actions/setup-node@v6
+    with:
+      node-version-file: '.node-version'
+      cache: yarn
+  - name: Bootstrap
+    run: yarn kbn bootstrap`
+
+	nodeRuntime := findRuntimeByID("node")
+	if nodeRuntime == nil {
+		t.Fatal("Node runtime not found")
+	}
+
+	requirements := []RuntimeRequirement{
+		{
+			Runtime: nodeRuntime,
+			Version: "", // Auto-detected
+		},
+	}
+
+	deduplicatedSteps, filteredRequirements, err := DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps, requirements)
+	if err != nil {
+		t.Fatalf("Deduplication failed: %v", err)
+	}
+
+	// Node runtime should be filtered out (user owns the setup step)
+	if len(filteredRequirements) != 0 {
+		t.Errorf("Expected 0 filtered requirements, got %d", len(filteredRequirements))
+	}
+
+	// User setup step should be preserved with node-version-file.
+	if !strings.Contains(deduplicatedSteps, "node-version-file") {
+		t.Error("Expected deduplicated steps to contain 'node-version-file'")
+	}
+
+	// The engine default node-version should not be added.
+	if strings.Contains(deduplicatedSteps, "node-version: '24'") {
+		t.Error("Expected default node-version not to be injected when user specifies node-version-file")
+	}
+}
+
 func TestGenerateRuntimeSetupStepsWithIfCondition(t *testing.T) {
 	tests := []struct {
 		name         string

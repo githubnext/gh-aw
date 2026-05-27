@@ -142,6 +142,17 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 									hasCustomization = true
 								}
 							}
+							// For Node.js, node-version-file is a version selector and should
+							// be treated as a customization so we preserve the user's setup step.
+							// If we remove it and regenerate a setup step, the generated
+							// node-version value can override this file-based selector.
+							if req.Runtime.ID == "node" {
+								if nodeVersionFile, ok := withMap["node-version-file"]; ok {
+									if nodeVersionFileStr, isStr := nodeVersionFile.(string); isStr && strings.TrimSpace(nodeVersionFileStr) != "" {
+										hasCustomization = true
+									}
+								}
+							}
 						}
 
 						if hasCustomization {
