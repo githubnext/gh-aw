@@ -21,7 +21,7 @@ tools:
 timeout-minutes: 30
 runtimes:
   node:
-    version: "24"
+    version: "22"
 experiments:
   output_format:
     variants: [collapsible, inline]

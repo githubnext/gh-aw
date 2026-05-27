@@ -44,7 +44,7 @@ runs-on: aw-gpu-runner-T4
 
 runtimes:
   node:
-    version: "24"
+    version: "22"
 
 network:
   allowed:
