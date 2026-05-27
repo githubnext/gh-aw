@@ -47,25 +47,36 @@ func evalAddReviewer(item CreatedItemReport, repoOverride string) OutcomeReport 
 		requestedReviewerSet[strings.ToLower(reviewer)] = struct{}{}
 	}
 
-	var approvedReviewer string
-	var submittedReviewer string
+	latestByReviewer := make(map[string]map[string]any, len(requestedReviewerSet))
 	for _, review := range reviews {
 		login := strings.ToLower(outcomeNestedString(review["user"], "login"))
 		if _, ok := requestedReviewerSet[login]; !ok {
 			continue
 		}
-		if !timestampOnOrAfter(outcomeString(review["submitted_at"]), item.Timestamp) {
-			continue
-		}
 		state := strings.ToUpper(outcomeString(review["state"]))
-		if state == "" || state == "PENDING" {
+		submittedAt := outcomeString(review["submitted_at"])
+		if state == "" || state == "PENDING" || submittedAt == "" {
 			continue
 		}
-		if state == "APPROVED" {
+		if !timestampOnOrAfter(submittedAt, item.Timestamp) {
+			continue
+		}
+		prev, ok := latestByReviewer[login]
+		if !ok || timestampOnOrAfter(submittedAt, outcomeString(prev["submitted_at"])) {
+			latestByReviewer[login] = review
+		}
+	}
+
+	var approvedReviewer string
+	var submittedReviewer string
+	for login, review := range latestByReviewer {
+		if strings.ToUpper(outcomeString(review["state"])) == "APPROVED" {
 			approvedReviewer = login
 			break
 		}
-		submittedReviewer = login
+		if submittedReviewer == "" {
+			submittedReviewer = login
+		}
 	}
 
 	switch {
@@ -89,6 +100,8 @@ func evalAddReviewer(item CreatedItemReport, repoOverride string) OutcomeReport 
 		return report
 	}
 
+	// We cannot cheaply verify team membership for each reviewer from this endpoint,
+	// so any submitted post-request review counts as medium-evidence team activity.
 	if len(requestedTeams) > 0 && hasReviewAfterTimestamp(reviews, item.Timestamp) {
 		report.Result = OutcomeAccepted
 		report.Detail = "team review request received a review"
@@ -349,11 +362,11 @@ func timestampOnOrAfter(candidate string, threshold string) bool {
 	}
 	candidateTime, err := time.Parse(time.RFC3339, candidate)
 	if err != nil {
-		return true
+		return false
 	}
 	thresholdTime, err := time.Parse(time.RFC3339, threshold)
 	if err != nil {
-		return true
+		return false
 	}
 	return !candidateTime.Before(thresholdTime)
 }

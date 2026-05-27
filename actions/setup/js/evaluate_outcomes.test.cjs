@@ -274,6 +274,73 @@ describe("evaluate_outcomes.cjs", () => {
     });
   });
 
+  it("uses the latest requested-reviewer state when approval is superseded", () => {
+    const api = endpoint => {
+      if (endpoint.endsWith("/reviews")) {
+        return [
+          { state: "APPROVED", submitted_at: "2026-05-12T01:00:00Z", user: { login: "reviewer1" } },
+          { state: "CHANGES_REQUESTED", submitted_at: "2026-05-12T02:00:00Z", user: { login: "reviewer1" } },
+        ];
+      }
+      if (endpoint.endsWith("/requested_reviewers")) {
+        return { users: [], teams: [] };
+      }
+      throw new Error(`unexpected endpoint: ${endpoint}`);
+    };
+
+    const result = evaluateItem(
+      {
+        type: "add_reviewer",
+        repo: "owner/repo",
+        number: 42,
+        timestamp: "2026-05-12T00:00:00Z",
+        metadata: {
+          requested_reviewers: ["reviewer1"],
+        },
+      },
+      "owner/repo",
+      api
+    );
+
+    expect(normalizeOutcome(result.result, result.detail)).toMatchObject({
+      outcome_status: "accepted",
+      evidence_strength: "medium",
+      signal: "review_submitted",
+    });
+  });
+
+  it("ignores malformed submitted_at values for review-request acceptance", () => {
+    const api = endpoint => {
+      if (endpoint.endsWith("/reviews")) {
+        return [{ state: "APPROVED", submitted_at: "not-a-timestamp", user: { login: "reviewer1" } }];
+      }
+      if (endpoint.endsWith("/requested_reviewers")) {
+        return { users: [], teams: [] };
+      }
+      throw new Error(`unexpected endpoint: ${endpoint}`);
+    };
+
+    const result = evaluateItem(
+      {
+        type: "add_reviewer",
+        repo: "owner/repo",
+        number: 42,
+        timestamp: "2026-05-12T00:00:00Z",
+        metadata: {
+          requested_reviewers: ["reviewer1"],
+        },
+      },
+      "owner/repo",
+      api
+    );
+
+    expect(normalizeOutcome(result.result, result.detail)).toMatchObject({
+      outcome_status: "rejected",
+      evidence_strength: "strong",
+      signal: "review_request_removed",
+    });
+  });
+
   it("classifies dismissed submitted reviews as rejected", () => {
     const api = endpoint => {
       if (endpoint.endsWith("/pulls/42")) {

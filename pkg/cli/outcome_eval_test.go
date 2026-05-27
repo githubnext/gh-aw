@@ -506,6 +506,45 @@ func TestEvalAddReviewerPendingWhenRequestStillOutstanding(t *testing.T) {
 	assert.Equal(t, "awaiting_review", report.Signal)
 }
 
+func TestEvalAddReviewerUsesLatestReviewerState(t *testing.T) {
+	oldGet := outcomeReviewGHAPIGet
+	oldGetArray := outcomeReviewGHAPIGetArray
+	t.Cleanup(func() {
+		outcomeReviewGHAPIGet = oldGet
+		outcomeReviewGHAPIGetArray = oldGetArray
+	})
+
+	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+		return map[string]any{"users": []any{}, "teams": []any{}}, nil
+	}
+	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+		return []map[string]any{
+			{"state": "APPROVED", "submitted_at": "2026-05-12T01:00:00Z", "user": map[string]any{"login": "reviewer1"}},
+			{"state": "CHANGES_REQUESTED", "submitted_at": "2026-05-12T02:00:00Z", "user": map[string]any{"login": "reviewer1"}},
+		}, nil
+	}
+
+	report := evalAddReviewer(CreatedItemReport{
+		Type:      "add_reviewer",
+		Number:    42,
+		Repo:      "owner/repo",
+		Timestamp: "2026-05-12T00:00:00Z",
+		Metadata: map[string]any{
+			"requested_reviewers": []any{"reviewer1"},
+		},
+	}, "owner/repo")
+
+	assert.Equal(t, OutcomeAccepted, report.Result)
+	assert.Equal(t, OutcomeStatusAccepted, report.OutcomeStatus)
+	assert.Equal(t, EvidenceMedium, report.EvidenceStrength)
+	assert.Equal(t, "review_submitted", report.Signal)
+}
+
+func TestTimestampOnOrAfterMalformedReturnsFalse(t *testing.T) {
+	assert.False(t, timestampOnOrAfter("invalid", "2026-05-12T00:00:00Z"))
+	assert.False(t, timestampOnOrAfter("2026-05-12T00:00:00Z", "invalid"))
+}
+
 func TestEvalSubmitPullRequestReviewApprovedMergedUsesSharedSignal(t *testing.T) {
 	oldGet := outcomeReviewGHAPIGet
 	oldGetArray := outcomeReviewGHAPIGetArray

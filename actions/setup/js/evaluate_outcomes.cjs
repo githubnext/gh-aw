@@ -656,7 +656,7 @@ function isOnOrAfter(timestamp, threshold) {
   if (!timestamp || !threshold) return true;
   const a = Date.parse(timestamp);
   const b = Date.parse(threshold);
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return true;
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
   return a >= b;
 }
 
@@ -715,12 +715,19 @@ function evaluateAddReviewer(item, defaultRepo, api = ghAPI) {
     return out;
   }
 
-  const relevantReviews = reviews.filter(review => {
+  const latestReviewByRequestedReviewer = new Map();
+  for (const review of reviews) {
     const state = String(review?.state || "").toUpperCase();
-    if (!state || state === "PENDING" || !isOnOrAfter(review?.submitted_at, timestamp)) return false;
+    const submittedAt = review?.submitted_at;
+    if (!state || state === "PENDING" || !submittedAt || !isOnOrAfter(submittedAt, timestamp)) continue;
     const login = String(review?.user?.login || "").toLowerCase();
-    return requestedReviewers.has(login);
-  });
+    if (!requestedReviewers.has(login)) continue;
+    const previous = latestReviewByRequestedReviewer.get(login);
+    if (!previous || isOnOrAfter(submittedAt, previous?.submitted_at)) {
+      latestReviewByRequestedReviewer.set(login, review);
+    }
+  }
+  const relevantReviews = Array.from(latestReviewByRequestedReviewer.values());
 
   if (relevantReviews.some(review => String(review?.state || "").toUpperCase() === "APPROVED")) {
     out.result = "accepted";
@@ -810,9 +817,7 @@ function evaluateSubmitPullRequestReview(item, defaultRepo, api = ghAPI) {
   }
 
   const submittedReviews = reviews.filter(candidate => isSubmittedReview(candidate));
-  const review =
-    submittedReviews.find(candidate => Number(candidate?.id) === reviewId) ||
-    submittedReviews.filter(candidate => isOnOrAfter(candidate?.submitted_at, timestamp)).slice(-1)[0];
+  const review = submittedReviews.find(candidate => Number(candidate?.id) === reviewId) || submittedReviews.filter(candidate => isOnOrAfter(candidate?.submitted_at, timestamp)).slice(-1)[0];
 
   if (!review) {
     out.detail = "review not found";
@@ -821,9 +826,7 @@ function evaluateSubmitPullRequestReview(item, defaultRepo, api = ghAPI) {
 
   const reviewState = String(review?.state || item?.metadata?.review_state || "").toUpperCase();
   const reviewSubmittedAt = review?.submitted_at || timestamp;
-  const latestReview = submittedReviews
-    .sort((a, b) => Date.parse(a.submitted_at) - Date.parse(b.submitted_at))
-    .slice(-1)[0];
+  const latestReview = submittedReviews.sort((a, b) => Date.parse(a.submitted_at) - Date.parse(b.submitted_at)).slice(-1)[0];
 
   out.review_comments = typeof pr.review_comments === "number" ? pr.review_comments : null;
   out.changed_files = typeof pr.changed_files === "number" ? pr.changed_files : null;
@@ -893,12 +896,7 @@ function evaluateItem(item, defaultRepo, apiOrOptions) {
   const itemRepo = item.repo || defaultRepo;
   const timestamp = item.timestamp || "";
   const type = item.type || "";
-  const ghAPIFn =
-    typeof apiOrOptions === "function"
-      ? apiOrOptions
-      : typeof apiOrOptions?.ghAPI === "function"
-        ? apiOrOptions.ghAPI
-        : ghAPI;
+  const ghAPIFn = typeof apiOrOptions === "function" ? apiOrOptions : typeof apiOrOptions?.ghAPI === "function" ? apiOrOptions.ghAPI : ghAPI;
   const nowMs = typeof apiOrOptions === "object" && typeof apiOrOptions?.nowMs === "number" ? apiOrOptions.nowMs : Date.now();
 
   /** @type {EvalResult} */
