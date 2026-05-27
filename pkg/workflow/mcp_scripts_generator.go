@@ -58,7 +58,11 @@ func GenerateMCPScriptsToolsConfig(mcpScripts *MCPScriptsConfig) string {
 			"properties": make(map[string]any),
 		}
 
-		props := inputSchema["properties"].(map[string]any)
+		props, ok := inputSchema["properties"].(map[string]any)
+		if !ok {
+			props = make(map[string]any)
+			inputSchema["properties"] = props
+		}
 		var required []string
 
 		// Sort input names for stable output

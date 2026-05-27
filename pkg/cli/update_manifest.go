@@ -15,6 +15,16 @@ import (
 
 var updateManifestLog = logger.New("cli:update_manifest")
 
+type manifestManagedWorkflowUpdate struct {
+	wf             *workflowWithSource
+	repo           string
+	currentPath    string
+	latestPath     string
+	currentRef     string
+	latestRef      string
+	manifestSource string
+}
+
 func parseManifestSourceSpec(source string) (*RepoSpec, bool, error) {
 	repoSpec, ok, err := parseRepositoryPackageSpec(strings.TrimSpace(source))
 	if !ok {
@@ -136,7 +146,16 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 		if oldPath == "" {
 			oldPath = latestPath
 		}
-		if err := updateManifestManagedWorkflow(ctx, wf, repoSpec.RepoSlug, oldPath, latestPath, currentRef, latestRef, manifestSource, opts); err != nil {
+		update := manifestManagedWorkflowUpdate{
+			wf:             wf,
+			repo:           repoSpec.RepoSlug,
+			currentPath:    oldPath,
+			latestPath:     latestPath,
+			currentRef:     currentRef,
+			latestRef:      latestRef,
+			manifestSource: manifestSource,
+		}
+		if err := updateManifestManagedWorkflow(ctx, update, opts); err != nil {
 			failures = append(failures, updateFailure{Name: wf.Name, Error: err.Error()})
 			continue
 		}
@@ -171,20 +190,20 @@ func removeManifestManagedWorkflow(workflowPath string) error {
 	return nil
 }
 
-func updateManifestManagedWorkflow(ctx context.Context, wf *workflowWithSource, repo, currentPath, latestPath, currentRef, latestRef, manifestSource string, opts UpdateWorkflowsOptions) error {
-	updateManifestLog.Printf("Updating manifest-managed workflow %s: %s@%s -> %s@%s", wf.Name, currentPath, currentRef, latestPath, latestRef)
-	sourceSpecCurrent := sourceSpecWithRef(&SourceSpec{Repo: repo, Path: currentPath}, currentRef)
-	newContent, err := downloadWorkflowContentFn(ctx, repo, latestPath, latestRef, opts.Verbose)
+func updateManifestManagedWorkflow(ctx context.Context, update manifestManagedWorkflowUpdate, opts UpdateWorkflowsOptions) error {
+	updateManifestLog.Printf("Updating manifest-managed workflow %s: %s@%s -> %s@%s", update.wf.Name, update.currentPath, update.currentRef, update.latestPath, update.latestRef)
+	sourceSpecCurrent := sourceSpecWithRef(&SourceSpec{Repo: update.repo, Path: update.currentPath}, update.currentRef)
+	newContent, err := downloadWorkflowContentFn(ctx, update.repo, update.latestPath, update.latestRef, opts.Verbose)
 	if err != nil {
-		return fmt.Errorf("failed to download workflow %s/%s@%s: %w", repo, latestPath, latestRef, err)
+		return fmt.Errorf("failed to download workflow %s/%s@%s: %w", update.repo, update.latestPath, update.latestRef, err)
 	}
 
-	if !opts.Force && currentRef == latestRef && currentPath == latestPath {
-		sourceContent, err := downloadWorkflowContentFn(ctx, repo, currentPath, currentRef, opts.Verbose)
+	if !opts.Force && update.currentRef == update.latestRef && update.currentPath == update.latestPath {
+		sourceContent, err := downloadWorkflowContentFn(ctx, update.repo, update.currentPath, update.currentRef, opts.Verbose)
 		if err == nil {
-			currentContent, readErr := os.ReadFile(wf.Path)
-			if readErr == nil && !hasLocalModifications(string(sourceContent), string(currentContent), sourceSpecCurrent, filepath.Dir(wf.Path), opts.Verbose) {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, shortRef(currentRef))))
+			currentContent, readErr := os.ReadFile(update.wf.Path)
+			if readErr == nil && !hasLocalModifications(string(sourceContent), string(currentContent), sourceSpecCurrent, filepath.Dir(update.wf.Path), opts.Verbose) {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", update.wf.Name, shortRef(update.currentRef))))
 				return nil
 			}
 		}
@@ -194,17 +213,17 @@ func updateManifestManagedWorkflow(ctx context.Context, wf *workflowWithSource, 
 	var finalContent string
 	var hasConflicts bool
 	if merge {
-		baseContent, err := downloadWorkflowContentFn(ctx, repo, currentPath, currentRef, opts.Verbose)
+		baseContent, err := downloadWorkflowContentFn(ctx, update.repo, update.currentPath, update.currentRef, opts.Verbose)
 		if err != nil {
-			updateManifestLog.Printf("Cannot fetch base for 3-way merge of %s, falling back to overwrite: %v", wf.Name, err)
+			updateManifestLog.Printf("Cannot fetch base for 3-way merge of %s, falling back to overwrite: %v", update.wf.Name, err)
 			merge = false
 		} else {
-			currentContent, err := os.ReadFile(wf.Path)
+			currentContent, err := os.ReadFile(update.wf.Path)
 			if err != nil {
 				return fmt.Errorf("failed to read current workflow: %w", err)
 			}
-			newSourceSpec := sourceSpecWithRef(&SourceSpec{Repo: repo, Path: latestPath}, latestRef)
-			mergedContent, conflicts, mergeErr := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), sourceSpecCurrent, newSourceSpec, wf.Path, opts.Verbose)
+			newSourceSpec := sourceSpecWithRef(&SourceSpec{Repo: update.repo, Path: update.latestPath}, update.latestRef)
+			mergedContent, conflicts, mergeErr := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), sourceSpecCurrent, newSourceSpec, update.wf.Path, opts.Verbose)
 			if mergeErr != nil {
 				return fmt.Errorf("failed to merge workflow content: %w", mergeErr)
 			}
@@ -216,17 +235,17 @@ func updateManifestManagedWorkflow(ctx context.Context, wf *workflowWithSource, 
 		finalContent = string(newContent)
 		processedContent, err := processIncludesInContent(finalContent, &WorkflowSpec{
 			RepoSpec: RepoSpec{
-				RepoSlug: repo,
-				Version:  latestRef,
+				RepoSlug: update.repo,
+				Version:  update.latestRef,
 			},
-			WorkflowPath: latestPath,
-		}, latestRef, filepath.Dir(wf.Path), opts.Verbose)
+			WorkflowPath: update.latestPath,
+		}, update.latestRef, filepath.Dir(update.wf.Path), opts.Verbose)
 		if err == nil {
 			finalContent = processedContent
 		}
 	}
 
-	finalContent, err = UpdateFieldInFrontmatter(finalContent, "source", manifestSource)
+	finalContent, err = UpdateFieldInFrontmatter(finalContent, "source", update.manifestSource)
 	if err != nil {
 		return fmt.Errorf("failed to update source frontmatter: %w", err)
 	}
@@ -245,20 +264,20 @@ func updateManifestManagedWorkflow(ctx context.Context, wf *workflowWithSource, 
 
 	if !opts.DisableSecurityScanner {
 		if findings := workflow.ScanMarkdownSecurity(finalContent); len(findings) > 0 {
-			return fmt.Errorf("workflow '%s' failed security scan: %d issue(s) detected", wf.Name, len(findings))
+			return fmt.Errorf("workflow '%s' failed security scan: %d issue(s) detected", update.wf.Name, len(findings))
 		}
 	}
 
-	if err := os.WriteFile(wf.Path, []byte(finalContent), constants.FilePermPublic); err != nil {
+	if err := os.WriteFile(update.wf.Path, []byte(finalContent), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write updated workflow: %w", err)
 	}
 	if hasConflicts {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Updated %s from %s to %s with CONFLICTS - please review and resolve manually", wf.Name, shortRef(currentRef), shortRef(latestRef))))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Updated %s from %s to %s with CONFLICTS - please review and resolve manually", update.wf.Name, shortRef(update.currentRef), shortRef(update.latestRef))))
 		return nil
 	}
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", wf.Name, shortRef(currentRef), shortRef(latestRef))))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", update.wf.Name, shortRef(update.currentRef), shortRef(update.latestRef))))
 	if !opts.NoCompile {
-		if err := compileWorkflowWithRefresh(ctx, wf.Path, opts.Verbose, false, opts.EngineOverride, true); err != nil {
+		if err := compileWorkflowWithRefresh(ctx, update.wf.Path, opts.Verbose, false, opts.EngineOverride, true); err != nil {
 			return fmt.Errorf("failed to compile updated workflow: %w", err)
 		}
 	}

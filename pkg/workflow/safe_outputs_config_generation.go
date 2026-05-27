@@ -240,7 +240,11 @@ func generateCustomJobToolDefinition(jobName string, jobConfig *SafeJobConfig) m
 	}
 
 	var requiredFields []string
-	properties := inputSchema["properties"].(map[string]any)
+	properties, ok := inputSchema["properties"].(map[string]any)
+	if !ok {
+		properties = make(map[string]any)
+		inputSchema["properties"] = properties
+	}
 
 	for inputName, inputDef := range jobConfig.Inputs {
 		property := map[string]any{}

@@ -408,7 +408,11 @@ func generateActionToolDefinition(actionName string, config *SafeOutputActionCon
 	}
 
 	var requiredFields []string
-	properties := inputSchema["properties"].(map[string]any)
+	properties, ok := inputSchema["properties"].(map[string]any)
+	if !ok {
+		properties = make(map[string]any)
+		inputSchema["properties"] = properties
+	}
 
 	// Sort for deterministic output
 	inputNames := make([]string, 0, len(config.Inputs))

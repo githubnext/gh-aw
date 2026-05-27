@@ -161,7 +161,9 @@ func generateDispatchRepositoryTool(toolKey string, toolConfig *DispatchReposito
 	}
 
 	if len(required) > 0 {
-		tool["inputSchema"].(map[string]any)["required"] = required
+		if inputSchema, ok := tool["inputSchema"].(map[string]any); ok {
+			inputSchema["required"] = required
+		}
 	}
 
 	dispatchRepositoryLog.Printf("Generated dispatch_repository tool: name=%s, properties=%d", toolName, len(properties))

@@ -38,7 +38,9 @@ func generateWorkflowToolDefinition(opts workflowToolDefinitionOptions) map[stri
 
 	if len(required) > 0 {
 		sort.Strings(required)
-		tool["inputSchema"].(map[string]any)["required"] = required
+		if inputSchema, ok := tool["inputSchema"].(map[string]any); ok {
+			inputSchema["required"] = required
+		}
 		safeOutputsWorkflowHelpersLog.Printf("Workflow tool %s has %d required inputs", toolName, len(required))
 	}
 

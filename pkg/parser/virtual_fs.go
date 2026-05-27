@@ -72,8 +72,14 @@ func GetBuiltinFrontmatterCache(path string) (*FrontmatterResult, bool) {
 		virtualFsLog.Printf("Frontmatter cache miss: path=%s", path)
 		return nil, false
 	}
+	result, ok := v.(*FrontmatterResult)
+	if !ok {
+		virtualFsLog.Printf("Frontmatter cache type mismatch for %s: got %T", path, v)
+		builtinFrontmatterCache.Delete(path)
+		return nil, false
+	}
 	virtualFsLog.Printf("Frontmatter cache hit: path=%s", path)
-	return v.(*FrontmatterResult), true
+	return result, true
 }
 
 // SetBuiltinFrontmatterCache stores a FrontmatterResult for a builtin virtual file.
@@ -87,7 +93,13 @@ func SetBuiltinFrontmatterCache(path string, result *FrontmatterResult) *Frontma
 	} else {
 		virtualFsLog.Printf("Frontmatter cache stored: path=%s", path)
 	}
-	return actual.(*FrontmatterResult)
+	cached, ok := actual.(*FrontmatterResult)
+	if !ok {
+		virtualFsLog.Printf("Frontmatter cache type mismatch for %s: got %T", path, actual)
+		builtinFrontmatterCache.Store(path, result)
+		return result
+	}
+	return cached
 }
 
 // BuiltinPathPrefix is the path prefix used for embedded builtin files.
