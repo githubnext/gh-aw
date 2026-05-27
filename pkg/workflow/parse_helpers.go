@@ -18,6 +18,8 @@ package workflow
 
 import "github.com/github/gh-aw/pkg/logger"
 
+var parseHelpersLog = logger.New("workflow:parse_helpers")
+
 // coerceStringOrArrayField converts configData[key] from a string to []string{value}
 // so YAML unmarshaling into []string fields succeeds for single-value shorthand.
 //
@@ -33,6 +35,8 @@ func coerceStringOrArrayField(configData map[string]any, key string, debugLog *l
 			configData[key] = []string{stringValue}
 			if debugLog != nil {
 				debugLog.Printf("Converted single %s string to array before unmarshaling", key)
+			} else {
+				parseHelpersLog.Printf("Coerced %s scalar to single-element array (no caller log provided)", key)
 			}
 		}
 	}
@@ -40,6 +44,9 @@ func coerceStringOrArrayField(configData map[string]any, key string, debugLog *l
 
 // coerceStringOrArrayFields applies coerceStringOrArrayField to multiple keys.
 func coerceStringOrArrayFields(configData map[string]any, keys []string, debugLog *logger.Logger) {
+	if parseHelpersLog.Enabled() && configData != nil {
+		parseHelpersLog.Printf("coerceStringOrArrayFields: keys=%d", len(keys))
+	}
 	for _, key := range keys {
 		coerceStringOrArrayField(configData, key, debugLog)
 	}
@@ -70,17 +77,26 @@ func parseStringSliceAny(raw any, debugLog *logger.Logger) []string {
 		return v
 	case []any:
 		result := make([]string, 0, len(v))
+		skipped := 0
 		for _, item := range v {
 			if s, ok := item.(string); ok {
 				result = append(result, s)
-			} else if debugLog != nil {
-				debugLog.Printf("parseStringSliceAny: skipping non-string item: %T", item)
+			} else {
+				skipped++
+				if debugLog != nil {
+					debugLog.Printf("parseStringSliceAny: skipping non-string item: %T", item)
+				}
 			}
+		}
+		if skipped > 0 && debugLog == nil {
+			parseHelpersLog.Printf("parseStringSliceAny: skipped %d non-string item(s) from []any of length %d", skipped, len(v))
 		}
 		return result
 	default:
 		if debugLog != nil {
 			debugLog.Printf("parseStringSliceAny: unexpected type %T, ignoring", raw)
+		} else {
+			parseHelpersLog.Printf("parseStringSliceAny: unexpected type %T, returning nil", raw)
 		}
 		return nil
 	}

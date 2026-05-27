@@ -3,11 +3,15 @@ package parser
 import (
 	"regexp"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
 
 // This file contains cron expression detection and classification functions.
 // These pure functions analyze cron strings and determine their type without
 // depending on parser state.
+
+var cronDetectionLog = logger.New("parser:schedule_cron_detection")
 
 // cronFieldPattern matches valid cron field syntax (pre-compiled for performance)
 var cronFieldPattern = regexp.MustCompile(`^[\d\*\-/,]+$`)
@@ -42,7 +46,7 @@ func IsDailyCron(cron string) bool {
 
 	result := fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
 	if result {
-		parserLog.Printf("Cron expression classified as daily: %q (minute=%s, hour=%s)", cron, minute, hour)
+		cronDetectionLog.Printf("Cron expression classified as daily: %q (minute=%s, hour=%s)", cron, minute, hour)
 	}
 	return result
 }
@@ -76,7 +80,7 @@ func IsHourlyCron(cron string) bool {
 	// Check remaining fields are wildcards
 	result := fields[2] == "*" && fields[3] == "*" && fields[4] == "*"
 	if result {
-		parserLog.Printf("Cron expression classified as hourly: %q (minute=%s, hour=%s)", cron, minute, hour)
+		cronDetectionLog.Printf("Cron expression classified as hourly: %q (minute=%s, hour=%s)", cron, minute, hour)
 	}
 	return result
 }
@@ -122,7 +126,7 @@ func IsWeeklyCron(cron string) bool {
 		}
 	}
 
-	parserLog.Printf("Cron expression classified as weekly: %q (minute=%s, hour=%s, dow=%s)", cron, minute, hour, dow)
+	cronDetectionLog.Printf("Cron expression classified as weekly: %q (minute=%s, hour=%s, dow=%s)", cron, minute, hour, dow)
 	return true
 }
 
@@ -137,18 +141,18 @@ func IsCronExpression(input string) bool {
 	// A cron expression has exactly 5 fields
 	fields := strings.Fields(input)
 	if len(fields) != 5 {
-		parserLog.Printf("Input is not a cron expression (expected 5 fields, got %d): %q", len(fields), input)
+		cronDetectionLog.Printf("Input is not a cron expression (expected 5 fields, got %d): %q", len(fields), input)
 		return false
 	}
 
 	// Each field should match cron syntax (numbers, *, /, -, ,)
 	for _, field := range fields {
 		if !cronFieldPattern.MatchString(field) {
-			parserLog.Printf("Cron field %q contains invalid characters in expression: %q", field, input)
+			cronDetectionLog.Printf("Cron field %q contains invalid characters in expression: %q", field, input)
 			return false
 		}
 	}
 
-	parserLog.Printf("Input recognized as valid cron expression: %q", input)
+	cronDetectionLog.Printf("Input recognized as valid cron expression: %q", input)
 	return true
 }
