@@ -61,6 +61,11 @@ describe("evaluate_outcomes create_pull_request evaluator", () => {
     const result = evaluateItem({ type: "create_pull_request", repo: "owner/repo", url: "https://github.com/owner/repo/pull/12", timestamp: "2026-05-20T00:00:00Z" }, "owner/repo", { ghAPI });
     expect(result.result).toBe("accepted");
     expect(result.detail).toContain("strong");
+    expect(normalizeOutcome(result.result, result.detail)).toEqual({
+      outcome_status: "accepted",
+      evidence_strength: "strong",
+      signal: "merged",
+    });
   });
 
   it("classifies approved open PR as accepted (medium)", () => {
@@ -161,6 +166,11 @@ describe("evaluate_outcomes push_to_pull_request_branch evaluator", () => {
     );
     expect(result.result).toBe("accepted");
     expect(result.detail).toContain("strong");
+    expect(normalizeOutcome(result.result, result.detail)).toEqual({
+      outcome_status: "accepted",
+      evidence_strength: "strong",
+      signal: "merged",
+    });
   });
 
   it("classifies open PR with pushed commit still at HEAD as accepted (medium)", () => {
@@ -203,6 +213,29 @@ describe("evaluate_outcomes push_to_pull_request_branch evaluator", () => {
     );
     expect(result.result).toBe("rejected");
     expect(result.detail).toContain("force-pushed");
+  });
+
+  it("does not classify unknown retention as force-pushed-away", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/pulls/29": { state: "open", merged: false, head: { sha: "bbbbbbb" } },
+      "repos/owner/repo/compare/aaaaaaa...bbbbbbb": null,
+      "repos/owner/repo/pulls/29/reviews": [],
+    });
+
+    const result = evaluateItem(
+      {
+        type: "push_to_pull_request_branch",
+        repo: "owner/repo",
+        pull_request_number: 29,
+        commit_sha: "aaaaaaa",
+        before_head_sha: "ccccccc",
+        timestamp: "2026-05-20T00:00:00Z",
+      },
+      "owner/repo",
+      { ghAPI }
+    );
+    expect(result.result).toBe("pending");
+    expect(result.detail).toContain("no review");
   });
 
   it("classifies closed-without-merge PR as rejected (medium)", () => {
@@ -268,5 +301,25 @@ describe("evaluate_outcomes push_to_pull_request_branch evaluator", () => {
       { ghAPI }
     );
     expect(result.result).toBe("unknown");
+  });
+});
+
+describe("evaluate_outcomes pull request number aliases", () => {
+  it("resolves PR number from pr alias", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/pulls/31": { state: "open", merged: false },
+      "repos/owner/repo/pulls/31/reviews": [],
+    });
+    const result = evaluateItem({ type: "create_pull_request", repo: "owner/repo", pr: 31 }, "owner/repo", { ghAPI });
+    expect(result.result).toBe("pending");
+  });
+
+  it("resolves PR number from pull_number alias", () => {
+    const ghAPI = mockAPI({
+      "repos/owner/repo/pulls/32": { state: "open", merged: false },
+      "repos/owner/repo/pulls/32/reviews": [],
+    });
+    const result = evaluateItem({ type: "create_pull_request", repo: "owner/repo", pull_number: 32 }, "owner/repo", { ghAPI });
+    expect(result.result).toBe("pending");
   });
 });

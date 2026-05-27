@@ -192,7 +192,7 @@ function normalizeOutcome(result, detail) {
   if (normalizedDetail === "object still exists") {
     return { outcome_status: "unknown", evidence_strength: "weak", signal: "target_exists_only" };
   }
-  if (result === "accepted" && normalizedDetail === "merged") {
+  if (result === "accepted" && normalizedDetail.startsWith("merged")) {
     return { outcome_status: "accepted", evidence_strength: "strong", signal: "merged" };
   }
   if (result === "rejected" && normalizedDetail === "closed") {
@@ -474,13 +474,9 @@ function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out, ghAPIFn = g
   const currentHead = normalizeCommitSHA(data?.head?.sha);
 
   const pushedStillHead = currentHead ? pushedShas.some(sha => sha === currentHead) : false;
-  const pushedIncluded =
-    currentHead && pushedShas.length > 0
-      ? pushedShas.some(sha => {
-          const inHistory = isCommitInBranchHistory(itemRepo, sha, currentHead, ghAPIFn);
-          return inHistory === true;
-        })
-      : false;
+  const commitRetentionChecks = currentHead && pushedShas.length > 0 ? pushedShas.map(sha => isCommitInBranchHistory(itemRepo, sha, currentHead, ghAPIFn)) : [];
+  const pushedIncluded = commitRetentionChecks.some(inHistory => inHistory === true);
+  const pushedDefinitivelyNotRetained = commitRetentionChecks.length > 0 && commitRetentionChecks.every(inHistory => inHistory === false);
 
   if (data.merged === true) {
     out.result = "accepted";
@@ -515,7 +511,7 @@ function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out, ghAPIFn = g
 
   // A strong rejection requires before-head metadata from execution time so we
   // can distinguish "commit not retained" from "insufficient history context".
-  if (pushedShas.length > 0 && !pushedIncluded && beforeHead) {
+  if (pushedShas.length > 0 && pushedDefinitivelyNotRetained && beforeHead) {
     out.result = "rejected";
     out.detail = "pushed commits were force-pushed away or branch reset";
     return out;
@@ -544,7 +540,7 @@ function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out, ghAPIFn = g
  */
 function resolvePRNumber(item) {
   if (typeof item.number === "number" && item.number > 0) return item.number;
-  const candidates = [item.pull_request_number, item.pr_number, item.item_number];
+  const candidates = [item.pull_request_number, item.pr_number, item.pr, item.pull_number, item.item_number];
   for (const candidate of candidates) {
     const n = Number.parseInt(String(candidate || ""), 10);
     if (Number.isInteger(n) && n > 0) return n;
