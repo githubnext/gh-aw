@@ -472,6 +472,8 @@ func resolveRefToSHA(owner, repo, ref, host string) (string, error) {
 	return sha, nil
 }
 
+// buildCommitLookupAPIPath returns the GitHub commits API path for a ref,
+// URL-escaping the ref segment so branch names containing slashes are valid.
 func buildCommitLookupAPIPath(owner, repo, ref string) string {
 	return fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, url.PathEscape(ref))
 }
