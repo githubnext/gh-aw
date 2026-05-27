@@ -235,8 +235,9 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 }
 
 // isCopilotAutomationImportURL reports whether u targets a Copilot automation API route
-// in the form /agents/repos/{owner}/{repo}/automations/{id}. It returns false when u is nil,
-// the host is not api.githubcopilot.com, or the path does not match that automation pattern.
+// with exactly six path segments: /agents/repos/{owner}/{repo}/automations/{id}.
+// It returns false when u is nil, the host is not api.githubcopilot.com, or the
+// path does not match that automation pattern.
 func isCopilotAutomationImportURL(u *url.URL) bool {
 	if u == nil || !strings.EqualFold(u.Hostname(), constants.GitHubCopilotMCPDomain) {
 		return false
