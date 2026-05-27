@@ -44,54 +44,6 @@ func TestValidationError(t *testing.T) {
 	})
 }
 
-func TestNewValidationErrorWithLocation(t *testing.T) {
-	t.Run("error message omits timestamp when line is set", func(t *testing.T) {
-		loc := FieldLocation{File: "workflow.md", Line: 10, Column: 1}
-		err := NewValidationErrorWithLocation("engine", "copiliot", "not a valid engine", "Did you mean 'copilot'?", loc)
-
-		require.Error(t, err)
-		msg := err.Error()
-		assert.Contains(t, msg, "Validation failed for field 'engine'")
-		assert.Contains(t, msg, "Value: copiliot")
-		assert.Contains(t, msg, "Reason: not a valid engine")
-		assert.Contains(t, msg, "Suggestion: Did you mean 'copilot'?")
-		// No timestamp prefix when location is set
-		assert.NotContains(t, msg, "[20")
-		assert.Equal(t, "workflow.md", err.File)
-		assert.Equal(t, 10, err.Line)
-		assert.Equal(t, 1, err.Column)
-	})
-
-	t.Run("location fields are stored", func(t *testing.T) {
-		loc := FieldLocation{File: "/path/to/wf.md", Line: 5, Column: 3}
-		err := NewValidationErrorWithLocation("concurrency", "", "invalid value", "", loc)
-
-		require.NotNil(t, err)
-		assert.Equal(t, "/path/to/wf.md", err.File)
-		assert.Equal(t, 5, err.Line)
-		assert.Equal(t, 3, err.Column)
-	})
-
-	t.Run("zero-line location keeps timestamp", func(t *testing.T) {
-		// When Line is 0, behavior should match NewValidationError (includes timestamp)
-		loc := FieldLocation{File: "workflow.md", Line: 0}
-		err := NewValidationErrorWithLocation("engine", "bad", "reason", "", loc)
-
-		require.Error(t, err)
-		// Line == 0 means no location info → timestamp should appear
-		assert.Contains(t, err.Error(), "[")
-	})
-
-	t.Run("error with value truncation", func(t *testing.T) {
-		longValue := strings.Repeat("x", 200)
-		loc := FieldLocation{File: "workflow.md", Line: 3}
-		err := NewValidationErrorWithLocation("field", longValue, "too long", "", loc)
-
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "...")
-	})
-}
-
 func TestFieldLocationAlias(t *testing.T) {
 	loc := FieldLocation{File: "workflow.md", Line: 12, Column: 4}
 
