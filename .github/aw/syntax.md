@@ -292,7 +292,7 @@ The YAML frontmatter supports these fields:
     - `endpoint:` - OTLP collector endpoint URL. When a static URL is provided, its hostname is added to the AWF firewall allowlist automatically. Supports GitHub Actions expressions.
     - `github-app:` - Optional runtime auth configuration.
       - Preferred: provide GitHub App credentials (`app-id`/`client-id` + `private-key`) to mint a token with `actions/create-github-app-token` before `actions/setup`.
-      - Legacy OIDC mode is also supported with `type: github-oidc` and optional `audience`.
+      - OIDC mode is implicit when GitHub App credentials are not provided; optional `audience` is supported.
       - OIDC mode requires `permissions.id-token: write` on the workflow/job.
     - `headers:` - Comma-separated `key=value` HTTP headers included in every OTLP export request (e.g. `Authorization=Bearer <token>`). Injected as `OTEL_EXPORTER_OTLP_HEADERS`. Supports GitHub Actions expressions.
   - Example:

@@ -829,6 +829,53 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_GitHubAppClientID(
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppAudienceOnly(t *testing.T) {
+	frontmatter := map[string]any{
+		"name": "OTLP audience-only github-app config",
+		"on": map[string]any{
+			"issues": map[string]any{
+				"types": []any{"opened"},
+			},
+		},
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{
+					"audience": "https://collector.example.com",
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-github-app-audience-only-schema-test.md")
+	if err != nil {
+		t.Fatalf("expected audience-only observability.otlp.github-app to pass schema validation, got: %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppLegacyTypeRejected(t *testing.T) {
+	frontmatter := map[string]any{
+		"name": "OTLP legacy github-oidc type rejection",
+		"on": map[string]any{
+			"issues": map[string]any{
+				"types": []any{"opened"},
+			},
+		},
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{
+					"type":     "github-oidc",
+					"audience": "https://collector.example.com",
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-github-app-legacy-type-schema-test.md")
+	if err == nil {
+		t.Fatal("expected legacy observability.otlp.github-app.type: github-oidc to fail schema validation")
+	}
+}
+
 // TestNormalizeForJSONSchema_NestedMap verifies recursive normalization of maps.
 func TestNormalizeForJSONSchema_NestedMap(t *testing.T) {
 	input := map[string]any{
