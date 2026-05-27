@@ -185,7 +185,7 @@ func getRepositoryFeatures(repo string, verbose bool) (*RepositoryFeatures, erro
 		features, ok := cached.(*RepositoryFeatures)
 		if !ok {
 			repositoryFeaturesCache.Delete(repo)
-			return nil, fmt.Errorf("invalid repository feature cache entry for %s: got %T", repo, cached)
+			return nil, fmt.Errorf("invalid repository feature cache entry for %s: expected *RepositoryFeatures, got %T", repo, cached)
 		}
 		repositoryFeaturesLog.Printf("Using cached repository features for: %s", repo)
 		return features, nil
@@ -216,7 +216,7 @@ func getRepositoryFeatures(repo string, verbose bool) (*RepositoryFeatures, erro
 	actualFeatures, ok := actual.(*RepositoryFeatures)
 	if !ok {
 		repositoryFeaturesCache.Delete(repo)
-		return nil, fmt.Errorf("invalid repository feature cache entry for %s: got %T", repo, actual)
+		return nil, fmt.Errorf("invalid repository feature cache entry for %s: expected *RepositoryFeatures, got %T", repo, actual)
 	}
 
 	repositoryFeaturesLog.Printf("Cached repository features for: %s (discussions: %v, issues: %v)", repo, actualFeatures.HasDiscussions, actualFeatures.HasIssues)
