@@ -262,7 +262,7 @@ const main = createUpdateHandlerFactory({
   formatSuccessResult: formatPRSuccessResult,
   captureExecutionMetadata: {
     captureBefore: async (githubClient, effectiveContext, prNumber) => fetchIssueState(githubClient, effectiveContext.repo, prNumber),
-    captureAfter: async (_githubClient, _effectiveContext, _prNumber, _updateData, updatedPullRequest, beforeState) => mergeIssueState(beforeState, updatedPullRequest),
+    captureAfter: async (updatedPullRequest, beforeState) => mergeIssueState(beforeState, updatedPullRequest),
   },
   additionalConfig: {
     allow_title: true,

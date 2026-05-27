@@ -266,7 +266,8 @@ describe("pr_review_buffer (factory pattern)", () => {
         pullRequest: { head: { sha: "abc123" } },
       });
 
-      mockGithub.rest.pulls.listReviews.mockResolvedValueOnce({ data: [{ id: 1, user: { login: "existing-reviewer" }, state: "COMMENTED" }] }).mockResolvedValueOnce({
+      mockGithub.rest.pulls.listReviews.mockResolvedValueOnce({ data: [{ id: 1, user: { login: "existing-reviewer" }, state: "COMMENTED" }] });
+      mockGithub.rest.pulls.listReviews.mockResolvedValueOnce({
         data: [
           { id: 1, user: { login: "existing-reviewer" }, state: "COMMENTED" },
           { id: 2, user: { login: "github-actions[bot]" }, state: "COMMENTED" },

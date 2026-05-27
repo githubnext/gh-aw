@@ -214,7 +214,7 @@ const main = createUpdateHandlerFactory({
   formatSuccessResult: formatIssueSuccessResult,
   captureExecutionMetadata: {
     captureBefore: async (githubClient, effectiveContext, issueNumber) => fetchIssueState(githubClient, effectiveContext.repo, issueNumber),
-    captureAfter: async (_githubClient, _effectiveContext, _issueNumber, _updateData, updatedIssue, beforeState) => mergeIssueState(beforeState, updatedIssue),
+    captureAfter: async (updatedIssue, beforeState) => mergeIssueState(beforeState, updatedIssue),
   },
   itemFilter: async (githubClient, repoParts, issueNumber, config) => {
     const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];

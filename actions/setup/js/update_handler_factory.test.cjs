@@ -348,7 +348,11 @@ describe("update_handler_factory.cjs", () => {
       expect(result.after_state).toEqual({ title: "After title" });
       expect(result.repo).toBe("testowner/testrepo");
       expect(captureBefore).toHaveBeenCalled();
-      expect(captureAfter).toHaveBeenCalledWith(expect.anything(), expect.anything(), 42, expect.anything(), expect.anything(), { title: "Before title" }, { title: "Test" });
+      expect(captureAfter).toHaveBeenCalledWith(
+        { html_url: "https://example.com/issues/42", title: "Updated title" },
+        { title: "Before title" },
+        expect.objectContaining({ title: "Test" })
+      );
     });
 
     it("should pass additional config to log message", async () => {
