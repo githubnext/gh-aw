@@ -13,6 +13,14 @@ const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 const { isTruthy } = require("./is_truthy.cjs");
 const { selectBranch } = require("./template_branch.cjs");
 
+// Closing tag: {{#endif}} (primary) or {{/if}} (alternate)
+const BLOCK_CONDITIONAL_REGEX = /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*(?:{{#endif}}|{{\/if}})[ \t]*)(\n?)/g;
+const INLINE_CONDITIONAL_REGEX = /{{#if\s+([^}]*)}}([\s\S]*?)(?:{{#endif}}|{{\/if}})/g;
+
+// Max characters shown in body preview log lines
+const BLOCK_BODY_PREVIEW_LENGTH = 60;
+const INLINE_BODY_PREVIEW_LENGTH = 40;
+
 /**
  * Renders a Markdown template by processing {{#if}} conditional blocks.
  * When a conditional block is removed (falsy condition) and the template tags
@@ -37,9 +45,8 @@ function renderMarkdownTemplate(markdown) {
   }
 
   // Count conditionals before processing
-  // Closing tag: {{#endif}} (primary) or {{/if}} (alternate)
-  const blockConditionals = (_stripped.match(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*(?:{{#endif}}|{{\/if}})[ \t]*)(\n?)/g) || []).length;
-  const inlineConditionals = (_stripped.match(/{{#if\s+([^}]*)}}([\s\S]*?)(?:{{#endif}}|{{\/if}})/g) || []).length - blockConditionals;
+  const blockConditionals = (_stripped.match(BLOCK_CONDITIONAL_REGEX) || []).length;
+  const inlineConditionals = (_stripped.match(INLINE_CONDITIONAL_REGEX) || []).length - blockConditionals;
 
   core.info(`[renderMarkdownTemplate] Found ${blockConditionals} block conditional(s) and ${inlineConditionals} inline conditional(s)`);
 
@@ -49,14 +56,13 @@ function renderMarkdownTemplate(markdown) {
 
   // First pass: Handle blocks where tags are on their own lines
   // Captures: (leading newline)(opening tag line)(condition)(body)(closing tag line)(trailing newline)
-  // Closing tag: {{#endif}} (primary) or {{/if}} (alternate)
-  let result = _stripped.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*(?:{{#endif}}|{{\/if}})[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body) => {
+  let result = _stripped.replace(new RegExp(BLOCK_CONDITIONAL_REGEX.source, "g"), (match, leadNL, openLine, cond, body) => {
     blockCount++;
     const condTrimmed = cond.trim();
-    const bodyPreview = body.substring(0, 60).replace(/\n/g, "\\n");
+    const bodyPreview = body.substring(0, BLOCK_BODY_PREVIEW_LENGTH).replace(/\n/g, "\\n");
 
     core.info(`[renderMarkdownTemplate] Block ${blockCount}: condition="${condTrimmed}" -> evaluating branches`);
-    core.info(`[renderMarkdownTemplate]   Body preview: "${bodyPreview}${body.length > 60 ? "..." : ""}"`);
+    core.info(`[renderMarkdownTemplate]   Body preview: "${bodyPreview}${body.length > BLOCK_BODY_PREVIEW_LENGTH ? "..." : ""}"`);
 
     const selectedContent = selectBranch(cond, body);
 
@@ -78,15 +84,14 @@ function renderMarkdownTemplate(markdown) {
   let removedInline = 0;
 
   // Second pass: Handle inline conditionals (tags not on their own lines)
-  // Closing tag: {{#endif}} (primary) or {{/if}} (alternate)
-  result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?)(?:{{#endif}}|{{\/if}})/g, (_, cond, body) => {
+  result = result.replace(new RegExp(INLINE_CONDITIONAL_REGEX.source, "g"), (_, cond, body) => {
     inlineCount++;
     const condTrimmed = cond.trim();
-    const bodyPreview = body.substring(0, 40).replace(/\n/g, "\\n");
+    const bodyPreview = body.substring(0, INLINE_BODY_PREVIEW_LENGTH).replace(/\n/g, "\\n");
     const selectedContent = selectBranch(cond, body);
 
     core.info(`[renderMarkdownTemplate] Inline ${inlineCount}: condition="${condTrimmed}" -> ${selectedContent !== null ? "KEEP" : "REMOVE"}`);
-    core.info(`[renderMarkdownTemplate]   Body preview: "${bodyPreview}${body.length > 40 ? "..." : ""}"`);
+    core.info(`[renderMarkdownTemplate]   Body preview: "${bodyPreview}${body.length > INLINE_BODY_PREVIEW_LENGTH ? "..." : ""}"`);
 
     if (selectedContent !== null) {
       keptInline++;

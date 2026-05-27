@@ -8,10 +8,7 @@ const __filename = fileURLToPath(import.meta.url),
 global.core = core;
 const { isTruthy } = require("./is_truthy.cjs"),
   { selectBranch } = require("./template_branch.cjs"),
-  renderTemplateScript = fs.readFileSync(path.join(__dirname, "render_template.cjs"), "utf8"),
-  renderMarkdownTemplateMatch = renderTemplateScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
-if (!renderMarkdownTemplateMatch) throw new Error("Could not extract renderMarkdownTemplate function from render_template.cjs");
-const renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
+  { renderMarkdownTemplate } = require("./render_template.cjs");
 describe("renderMarkdownTemplate", () => {
   (it("should keep content in truthy blocks", () => {
     const output = renderMarkdownTemplate("{{#if true}}\nHello\n{{/if}}");
