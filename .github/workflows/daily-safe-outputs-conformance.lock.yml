@@ -343,6 +343,7 @@ jobs:
       issues: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
+      queue: max
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""

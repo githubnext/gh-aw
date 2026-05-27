@@ -67,8 +67,13 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 		return ""
 	}
 
-	// Build the default concurrency configuration
+	// Build the default concurrency configuration.
+	// For workflow_call workers, github.workflow resolves to the caller workflow
+	// name, so use the compile-time workflow ID to avoid cross-worker collisions.
 	groupValue := fmt.Sprintf("gh-aw-%s-${{ github.workflow }}", engineID)
+	if hasWorkflowCallTrigger(workflowData.On) && workflowData.WorkflowID != "" {
+		groupValue = fmt.Sprintf("gh-aw-%s-%s", engineID, workflowData.WorkflowID)
+	}
 	// If the user specified a job-discriminator, append it so that concurrent
 	// runs with different inputs (fan-out pattern) do not share the same group.
 	if workflowData.ConcurrencyJobDiscriminator != "" {
@@ -76,6 +81,9 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 		groupValue = fmt.Sprintf("%s-%s", groupValue, workflowData.ConcurrencyJobDiscriminator)
 	}
 	concurrencyConfig := fmt.Sprintf("concurrency:\n  group: \"%s\"", groupValue)
+	if isGroupConcurrencyQueueEnabled(workflowData) {
+		concurrencyConfig += "\n  queue: max"
+	}
 
 	return concurrencyConfig
 }
