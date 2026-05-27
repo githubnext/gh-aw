@@ -6,6 +6,7 @@ const { evaluateItem, normalizeOutcome } = req("./evaluate_outcomes.cjs");
 
 /**
  * @param {Record<string, any>} apiResponses
+ * @returns {(endpoint: string) => any}
  */
 function mockAPI(apiResponses) {
   return endpoint => {

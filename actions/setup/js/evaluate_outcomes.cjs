@@ -517,16 +517,20 @@ function evaluateSubmitPullRequestReview(item, defaultRepo, api = ghAPI) {
  * Evaluate a single safe-output item against the GitHub API.
  * @param {object} item
  * @param {string} defaultRepo
- * @param {((endpoint: string) => any) | { ghAPI?: (endpoint: string) => any }} [options]
+ * @param {((endpoint: string) => any) | { ghAPI?: (endpoint: string) => any }} [apiOrOptions]
  * @returns {EvalResult}
  */
-function evaluateItem(item, defaultRepo, options) {
+function evaluateItem(item, defaultRepo, apiOrOptions) {
   const url = item.url || "";
   const itemRepo = item.repo || defaultRepo;
   const timestamp = item.timestamp || "";
   const type = item.type || "";
   const ghAPIFn =
-    typeof options === "function" ? options : typeof options?.ghAPI === "function" ? options.ghAPI : ghAPI;
+    typeof apiOrOptions === "function"
+      ? apiOrOptions
+      : typeof apiOrOptions?.ghAPI === "function"
+        ? apiOrOptions.ghAPI
+        : ghAPI;
 
   /** @type {EvalResult} */
   const out = {
@@ -672,6 +676,7 @@ function evaluateItem(item, defaultRepo, options) {
  * @param {object} item
  * @param {string} itemRepo
  * @param {EvalResult} out
+ * @param {(endpoint: string) => any} [ghAPIFn]
  * @returns {EvalResult}
  */
 function evaluateCreatePullRequestOutcome(item, itemRepo, out, ghAPIFn = ghAPI) {
@@ -772,6 +777,7 @@ function evaluateCreatePullRequestOutcome(item, itemRepo, out, ghAPIFn = ghAPI) 
  * @param {object} item
  * @param {string} itemRepo
  * @param {EvalResult} out
+ * @param {(endpoint: string) => any} [ghAPIFn]
  * @returns {EvalResult}
  */
 function evaluatePushToPullRequestBranchOutcome(item, itemRepo, out, ghAPIFn = ghAPI) {
