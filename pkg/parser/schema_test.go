@@ -874,6 +874,9 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppLegac
 	if err == nil {
 		t.Fatal("expected legacy observability.otlp.github-app.type: github-oidc to fail schema validation")
 	}
+	if !strings.Contains(err.Error(), "github-app") || !strings.Contains(err.Error(), "type") {
+		t.Fatalf("expected schema validation error to reference removed github-app.type field, got: %v", err)
+	}
 }
 
 // TestNormalizeForJSONSchema_NestedMap verifies recursive normalization of maps.
