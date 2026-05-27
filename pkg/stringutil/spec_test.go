@@ -754,3 +754,199 @@ func TestSpec_PublicAPI_GetPATTypeDescription(t *testing.T) {
 		}
 	})
 }
+
+// TestSpec_PublicAPI_NormalizeLeadingWhitespace validates the documented behavior
+// of NormalizeLeadingWhitespace as described in the package README.md.
+//
+// Specification: "Removes shared leading indentation from non-empty lines in a
+// multi-line string. This is useful for normalizing heredoc-like blocks while
+// preserving relative indentation."
+func TestSpec_PublicAPI_NormalizeLeadingWhitespace(t *testing.T) {
+	t.Run("removes shared leading indentation from all non-empty lines", func(t *testing.T) {
+		input := "    first\n    second\n    third"
+		result := NormalizeLeadingWhitespace(input)
+		assert.Equal(t, "first\nsecond\nthird", result,
+			"NormalizeLeadingWhitespace should strip the shared 4-space indent")
+	})
+
+	t.Run("preserves relative indentation between lines", func(t *testing.T) {
+		input := "    outer\n        inner\n    outer"
+		result := NormalizeLeadingWhitespace(input)
+		assert.Equal(t, "outer\n    inner\nouter", result,
+			"NormalizeLeadingWhitespace should preserve relative indentation between non-empty lines")
+	})
+
+	t.Run("ignores empty lines when computing minimum indent", func(t *testing.T) {
+		input := "    line one\n\n    line two"
+		result := NormalizeLeadingWhitespace(input)
+		assert.Contains(t, result, "line one",
+			"NormalizeLeadingWhitespace should still strip indent when empty lines are present")
+		assert.Contains(t, result, "line two",
+			"NormalizeLeadingWhitespace should still strip indent when empty lines are present")
+	})
+}
+
+// TestSpec_PublicAPI_FormatList validates the documented behavior of FormatList
+// as described in the package README.md.
+//
+// Specification: "Formats a slice of strings as a natural-language list with an
+// Oxford comma."
+//
+// Documented example:
+//
+//	stringutil.FormatList([]string{"a", "b", "c"}) // "a, b, and c"
+func TestSpec_PublicAPI_FormatList(t *testing.T) {
+	t.Run("three items formatted with Oxford comma (documented example)", func(t *testing.T) {
+		result := FormatList([]string{"a", "b", "c"})
+		assert.Equal(t, "a, b, and c", result,
+			"FormatList should produce documented Oxford-comma output for three items")
+	})
+}
+
+// TestSpec_PublicAPI_SanitizeName validates the documented behavior of SanitizeName
+// as described in the package README.md.
+//
+// Specification: "Sanitizes a name for identifiers and filenames using configurable
+// behavior (preserved special characters, optional hyphen trimming, and fallback
+// default value)."
+//
+// The README documents the SanitizeOptions type as: "Options for SanitizeName
+// (preserved characters, hyphen trimming, and default value)."
+func TestSpec_PublicAPI_SanitizeName(t *testing.T) {
+	t.Run("uses default value when sanitized result would be empty", func(t *testing.T) {
+		opts := &SanitizeOptions{DefaultValue: "fallback"}
+		result := SanitizeName("!!!", opts)
+		assert.Equal(t, "fallback", result,
+			"SanitizeName should return DefaultValue when sanitization yields an empty string")
+	})
+
+	t.Run("TrimHyphens removes leading and trailing hyphens", func(t *testing.T) {
+		opts := &SanitizeOptions{TrimHyphens: true}
+		result := SanitizeName("---hello---", opts)
+		assert.NotEmpty(t, result,
+			"SanitizeName should return non-empty result")
+		assert.False(t, strings.HasPrefix(result, "-"),
+			"SanitizeName with TrimHyphens=true should not return a result with leading '-'")
+		assert.False(t, strings.HasSuffix(result, "-"),
+			"SanitizeName with TrimHyphens=true should not return a result with trailing '-'")
+	})
+
+	t.Run("PreserveSpecialChars preserves listed characters", func(t *testing.T) {
+		opts := &SanitizeOptions{PreserveSpecialChars: []rune{'.'}}
+		result := SanitizeName("file.name", opts)
+		assert.Contains(t, result, ".",
+			"SanitizeName with '.' in PreserveSpecialChars should preserve '.'")
+	})
+
+	t.Run("nil options is accepted", func(t *testing.T) {
+		result := SanitizeName("hello", nil)
+		assert.NotEmpty(t, result,
+			"SanitizeName should accept nil options and return a non-empty sanitized name")
+	})
+}
+
+// TestSpec_PublicAPI_FindClosestMatches validates the documented behavior of
+// FindClosestMatches as described in the package README.md.
+//
+// Specification: "Finds the closest matching strings using Levenshtein distance.
+// Returns up to maxResults matches that have a distance of 3 or less. Results
+// are sorted by distance (closest first), then alphabetically for ties.
+// Case-insensitive matching. Exact matches are excluded."
+//
+// Documented example:
+//
+//	engines := []string{"copilot", "claude", "codex", "custom"}
+//	matches := stringutil.FindClosestMatches("copiliot", engines, 3)
+//	// → ["copilot"]
+func TestSpec_PublicAPI_FindClosestMatches(t *testing.T) {
+	t.Run("returns closest match for documented example", func(t *testing.T) {
+		engines := []string{"copilot", "claude", "codex", "custom"}
+		matches := FindClosestMatches("copiliot", engines, 3)
+		require.NotEmpty(t, matches,
+			"FindClosestMatches should return at least one result for the documented example")
+		assert.Equal(t, "copilot", matches[0],
+			"FindClosestMatches('copiliot', engines, 3) should return 'copilot' as the closest match (documented)")
+	})
+
+	t.Run("excludes exact matches from results", func(t *testing.T) {
+		matches := FindClosestMatches("copilot", []string{"copilot", "copiliot"}, 3)
+		assert.NotContains(t, matches, "copilot",
+			"FindClosestMatches should exclude exact matches (documented)")
+	})
+
+	t.Run("respects maxResults limit", func(t *testing.T) {
+		matches := FindClosestMatches("ab", []string{"ac", "ad", "ae", "af"}, 2)
+		assert.LessOrEqual(t, len(matches), 2,
+			"FindClosestMatches should return no more than maxResults items")
+	})
+
+	t.Run("returns no matches when distance exceeds 3", func(t *testing.T) {
+		matches := FindClosestMatches("xyz", []string{"completely-different-string"}, 3)
+		assert.Empty(t, matches,
+			"FindClosestMatches should return empty result when no candidate is within distance 3")
+	})
+
+	t.Run("matching is case-insensitive", func(t *testing.T) {
+		matches := FindClosestMatches("CopilOt", []string{"copilot"}, 3)
+		assert.Empty(t, matches,
+			"FindClosestMatches should treat 'CopilOt' as an exact match of 'copilot' (case-insensitive) and exclude it")
+	})
+}
+
+// TestSpec_PublicAPI_LevenshteinDistance validates the documented behavior of
+// LevenshteinDistance as described in the package README.md.
+//
+// Specification: "Computes the Levenshtein distance between two strings — the
+// minimum number of single-character edits (insertions, deletions, or
+// substitutions) required to change one string into the other."
+//
+// Documented example (from Usage Examples section):
+//
+//	distance := stringutil.LevenshteinDistance("copiliot", "copilot")
+//	// → 1
+func TestSpec_PublicAPI_LevenshteinDistance(t *testing.T) {
+	tests := []struct {
+		name     string
+		a        string
+		b        string
+		expected int
+	}{
+		{
+			name:     "documented example: copiliot vs copilot is distance 1",
+			a:        "copiliot",
+			b:        "copilot",
+			expected: 1,
+		},
+		{
+			name:     "identical strings have distance 0",
+			a:        "hello",
+			b:        "hello",
+			expected: 0,
+		},
+		{
+			name:     "empty vs non-empty equals length of the non-empty string",
+			a:        "",
+			b:        "abc",
+			expected: 3,
+		},
+		{
+			name:     "single substitution has distance 1",
+			a:        "cat",
+			b:        "bat",
+			expected: 1,
+		},
+		{
+			name:     "kitten vs sitting has classic distance 3",
+			a:        "kitten",
+			b:        "sitting",
+			expected: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, LevenshteinDistance(tt.a, tt.b),
+				"LevenshteinDistance(%q, %q) should equal %d", tt.a, tt.b, tt.expected)
+		})
+	}
+}
