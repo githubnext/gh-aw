@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	pathpkg "path"
@@ -432,13 +433,14 @@ func resolveRefToSHA(owner, repo, ref, host string) (string, error) {
 	// Use gh CLI to get the commit SHA for the ref
 	// This works for branches, tags, and short SHAs
 	// Using go-gh to properly handle enterprise GitHub instances via GH_HOST
-	apiPath := fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, ref)
+	apiPath := buildCommitLookupAPIPath(owner, repo, ref)
 	var args []string
 	if host != "" {
 		args = []string{"api", "--hostname", host, apiPath, "--jq", ".sha"}
 	} else {
 		args = []string{"api", apiPath, "--jq", ".sha"}
 	}
+
 	stdout, stderr, err := gh.Exec(args...)
 
 	if err != nil {
@@ -453,6 +455,7 @@ func resolveRefToSHA(owner, repo, ref, host string) (string, error) {
 			}
 			return sha, nil
 		}
+
 		return "", fmt.Errorf("failed to resolve ref %s to SHA for %s/%s: %s: %w", ref, owner, repo, strings.TrimSpace(outputStr), err)
 	}
 
@@ -467,6 +470,12 @@ func resolveRefToSHA(owner, repo, ref, host string) (string, error) {
 	}
 
 	return sha, nil
+}
+
+// buildCommitLookupAPIPath returns the GitHub commits API path for a ref,
+// URL-escaping the ref segment so branch names containing slashes are valid.
+func buildCommitLookupAPIPath(owner, repo, ref string) string {
+	return fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, url.PathEscape(ref))
 }
 
 // downloadFileViaGit downloads a file from a Git repository using git commands
