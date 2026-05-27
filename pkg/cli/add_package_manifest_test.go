@@ -417,6 +417,57 @@ files:
 	assert.Equal(t, ".github/workflows/nightly-review.md", resolved.Workflows[1].Spec.WorkflowPath)
 }
 
+func TestResolveWorkflows_RepositoryPackageWithRef(t *testing.T) {
+	originalFetchFn := fetchWorkflowFromSourceWithContextFn
+	originalDownload := downloadPackageFileFromGitHubForHost
+	originalList := listPackageWorkflowFilesForHost
+	originalDefaultBranch := getRepositoryPackageDefaultBranch
+	t.Cleanup(func() {
+		fetchWorkflowFromSourceWithContextFn = originalFetchFn
+		downloadPackageFileFromGitHubForHost = originalDownload
+		listPackageWorkflowFilesForHost = originalList
+		getRepositoryPackageDefaultBranch = originalDefaultBranch
+	})
+	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		t.Fatalf("default branch lookup should not be used when ref is explicitly provided")
+		return "", nil
+	}
+
+	const expectedRef = "feature/github-agentic-workflows"
+	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		assert.Equal(t, expectedRef, ref)
+		switch path {
+		case "aw.yml":
+			return []byte(`name: Repo Assist
+files:
+  - workflows/review.md
+`), nil
+		case "README.md":
+			return []byte("# Repo Assist\n"), nil
+		}
+		return nil, createRepositoryPackageNotFoundError(path)
+	}
+	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+		t.Fatalf("unexpected scan of %s", workflowPath)
+		return nil, nil
+	}
+	fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
+		assert.Equal(t, expectedRef, spec.Version)
+		return &FetchedWorkflow{
+			Content:    []byte("---\nname: Test\non: push\n---\n"),
+			CommitSHA:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			IsLocal:    false,
+			SourcePath: spec.WorkflowPath,
+		}, nil
+	}
+
+	resolved, err := ResolveWorkflows(context.Background(), []string{"owner/repo@" + expectedRef}, false)
+	require.NoError(t, err)
+	require.Len(t, resolved.Workflows, 1)
+	assert.Equal(t, "workflows/review.md", resolved.Workflows[0].Spec.WorkflowPath)
+	assert.Equal(t, expectedRef, resolved.Workflows[0].Spec.Version)
+}
+
 func TestResolveWorkflows_NestedRepositoryPackage(t *testing.T) {
 	originalFetchFn := fetchWorkflowFromSourceWithContextFn
 	originalDownload := downloadPackageFileFromGitHubForHost
@@ -494,6 +545,38 @@ func TestResolveWorkflows_FallsBackToWorkflowWhenNestedManifestMissing(t *testin
 	assert.Equal(t, "workflows/review.md", resolved.Workflows[0].Spec.WorkflowPath)
 }
 
+func TestResolveWorkflows_FallsBackToWorkflowWithRefWhenNestedManifestMissing(t *testing.T) {
+	originalFetchFn := fetchWorkflowFromSourceWithContextFn
+	originalDownload := downloadPackageFileFromGitHubForHost
+	originalDefaultBranch := getRepositoryPackageDefaultBranch
+	t.Cleanup(func() {
+		fetchWorkflowFromSourceWithContextFn = originalFetchFn
+		downloadPackageFileFromGitHubForHost = originalDownload
+		getRepositoryPackageDefaultBranch = originalDefaultBranch
+	})
+	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		return "main", nil
+	}
+
+	downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+		return nil, createRepositoryPackageNotFoundError(path)
+	}
+	fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
+		return &FetchedWorkflow{
+			Content:    []byte("---\nname: Test\non: push\n---\n"),
+			CommitSHA:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			IsLocal:    false,
+			SourcePath: spec.WorkflowPath,
+		}, nil
+	}
+
+	resolved, err := ResolveWorkflows(context.Background(), []string{"owner/repo/review@feature/github-agentic-workflows"}, false)
+	require.NoError(t, err)
+	require.Len(t, resolved.Workflows, 1)
+	assert.Equal(t, "workflows/review.md", resolved.Workflows[0].Spec.WorkflowPath)
+	assert.Equal(t, "feature/github-agentic-workflows", resolved.Workflows[0].Spec.Version)
+}
+
 func TestResolveWorkflows_DirectWorkflowPathWithBranchRef(t *testing.T) {
 	originalFetchFn := fetchWorkflowFromSourceWithContextFn
 	originalDownload := downloadPackageFileFromGitHubForHost
@@ -530,12 +613,20 @@ func TestParseRepositoryPackageSpec(t *testing.T) {
 		wantErr         string
 		wantRepoSlug    string
 		wantPackagePath string
+		wantVersion     string
 	}{
 		{
 			name:         "repo only package",
 			spec:         "owner/repo",
 			wantOK:       true,
 			wantRepoSlug: "owner/repo",
+		},
+		{
+			name:         "repo only package with ref",
+			spec:         "owner/repo@feature/github-agentic-workflows",
+			wantOK:       true,
+			wantRepoSlug: "owner/repo",
+			wantVersion:  "feature/github-agentic-workflows",
 		},
 		{
 			name:            "nested package path",
@@ -584,6 +675,7 @@ func TestParseRepositoryPackageSpec(t *testing.T) {
 			require.NotNil(t, repoSpec)
 			assert.Equal(t, tt.wantRepoSlug, repoSpec.RepoSlug)
 			assert.Equal(t, tt.wantPackagePath, repoSpec.PackagePath)
+			assert.Equal(t, tt.wantVersion, repoSpec.Version)
 		})
 	}
 }
