@@ -1,0 +1,309 @@
+package cli
+
+import (
+	"errors"
+	"fmt"
+	"net/url"
+	"os"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/repoutil"
+	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
+	"github.com/goccy/go-yaml"
+	"github.com/spf13/cobra"
+)
+
+const (
+	defaultsScopeRepo = "repo"
+	defaultsScopeOrg  = "org"
+	defaultsScopeEnt  = "ent"
+)
+
+type defaultsFile struct {
+	DefaultMaxEffectiveTokens string `yaml:"default_max_effective_tokens"`
+	DefaultMaxTurns           string `yaml:"default_max_turns"`
+	DefaultTimeoutMinutes     string `yaml:"default_timeout_minutes"`
+	DefaultDetectionModel     string `yaml:"default_detection_model"`
+	DefaultModelCopilot       string `yaml:"default_model_copilot"`
+	DefaultModelClaude        string `yaml:"default_model_claude"`
+	DefaultModelCodex         string `yaml:"default_model_codex"`
+}
+
+type defaultsBinding struct {
+	envName string
+	get     func(*defaultsFile) *string
+}
+
+type defaultsTarget struct {
+	scope      string
+	repoOwner  string
+	repoName   string
+	org        string
+	enterprise string
+}
+
+var defaultsBindings = []defaultsBinding{
+	{envName: compilerenv.DefaultMaxEffectiveTokens, get: func(f *defaultsFile) *string { return &f.DefaultMaxEffectiveTokens }},
+	{envName: compilerenv.DefaultMaxTurns, get: func(f *defaultsFile) *string { return &f.DefaultMaxTurns }},
+	{envName: compilerenv.DefaultTimeoutMinutes, get: func(f *defaultsFile) *string { return &f.DefaultTimeoutMinutes }},
+	{envName: compilerenv.DefaultDetectionModel, get: func(f *defaultsFile) *string { return &f.DefaultDetectionModel }},
+	{envName: compilerenv.DefaultModelCopilot, get: func(f *defaultsFile) *string { return &f.DefaultModelCopilot }},
+	{envName: compilerenv.DefaultModelClaude, get: func(f *defaultsFile) *string { return &f.DefaultModelClaude }},
+	{envName: compilerenv.DefaultModelCodex, get: func(f *defaultsFile) *string { return &f.DefaultModelCodex }},
+}
+
+var defaultsExecGH = workflow.ExecGH
+var defaultsGetCurrentRepoSlug = GetCurrentRepoSlug
+
+func NewDefaultsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "defaults",
+		Short: "Manage compiler defaults as GitHub variables",
+		Long: `Manage compiler default variables in batch for repository, organization, or enterprise scope.
+
+The YAML file is flat and uses lowercase keys without the GH_AW_ prefix.
+Empty values in update mode delete variables from the selected scope.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(newDefaultsGetCommand())
+	cmd.AddCommand(newDefaultsUpdateCommand())
+	return cmd
+}
+
+func newDefaultsGetCommand() *cobra.Command {
+	var scope, repo, org, enterprise string
+
+	cmd := &cobra.Command{
+		Use:   "get [file]",
+		Short: "Download defaults into a YAML file",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			outputFile := "file.yml"
+			if len(args) == 1 {
+				outputFile = args[0]
+			}
+			target, err := resolveDefaultsTarget(scope, repo, org, enterprise, false)
+			if err != nil {
+				return err
+			}
+			return defaultsGetToFile(target, outputFile)
+		},
+	}
+
+	cmd.Flags().StringVar(&scope, "scope", "", "Variable scope (repo|org|ent). Defaults to repo")
+	cmd.Flags().StringVar(&repo, "repo", "", "Target repository in owner/repo format")
+	cmd.Flags().StringVar(&org, "org", "", "Target organization (required for --scope org unless inferable from --repo/current repo)")
+	cmd.Flags().StringVar(&enterprise, "enterprise", "", "Target enterprise slug (required for --scope ent)")
+	return cmd
+}
+
+func newDefaultsUpdateCommand() *cobra.Command {
+	var scope, repo, org, enterprise string
+
+	cmd := &cobra.Command{
+		Use:   "update [file]",
+		Short: "Upload defaults from a YAML file",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			inputFile := "file.yml"
+			if len(args) == 1 {
+				inputFile = args[0]
+			}
+			target, err := resolveDefaultsTarget(scope, repo, org, enterprise, true)
+			if err != nil {
+				return err
+			}
+			return defaultsUpdateFromFile(target, inputFile)
+		},
+	}
+
+	cmd.Flags().StringVar(&scope, "scope", "", "Variable scope (repo|org|ent)")
+	cmd.Flags().StringVar(&repo, "repo", "", "Target repository in owner/repo format")
+	cmd.Flags().StringVar(&org, "org", "", "Target organization (required for --scope org unless inferable from --repo/current repo)")
+	cmd.Flags().StringVar(&enterprise, "enterprise", "", "Target enterprise slug (required for --scope ent)")
+	_ = cmd.MarkFlagRequired("scope")
+	return cmd
+}
+
+func defaultsGetToFile(target defaultsTarget, outputFile string) error {
+	var file defaultsFile
+
+	for _, binding := range defaultsBindings {
+		value, err := fetchDefaultsVariable(target, binding.envName)
+		if err != nil {
+			return err
+		}
+		*binding.get(&file) = value
+	}
+
+	data, err := yaml.Marshal(&file)
+	if err != nil {
+		return fmt.Errorf("failed to serialize defaults YAML: %w", err)
+	}
+	if err := os.WriteFile(outputFile, data, 0o644); err != nil {
+		return fmt.Errorf("failed to write defaults file %q: %w", outputFile, err)
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Saved defaults to %s", outputFile)))
+	return nil
+}
+
+func defaultsUpdateFromFile(target defaultsTarget, inputFile string) error {
+	data, err := os.ReadFile(inputFile)
+	if err != nil {
+		return fmt.Errorf("failed to read defaults file %q: %w", inputFile, err)
+	}
+
+	var file defaultsFile
+	if err := yaml.Unmarshal(data, &file); err != nil {
+		return fmt.Errorf("failed to parse defaults file %q: %w", inputFile, err)
+	}
+
+	for _, binding := range defaultsBindings {
+		value := strings.TrimSpace(*binding.get(&file))
+		if value == "" {
+			if err := deleteDefaultsVariable(target, binding.envName); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := upsertDefaultsVariable(target, binding.envName, value); err != nil {
+			return err
+		}
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated defaults from %s", inputFile)))
+	return nil
+}
+
+func resolveDefaultsTarget(scope, repo, org, enterprise string, scopeRequired bool) (defaultsTarget, error) {
+	normalizedScope := strings.TrimSpace(scope)
+	if normalizedScope == "" {
+		if scopeRequired {
+			return defaultsTarget{}, errors.New("scope is required; use --scope repo|org|ent")
+		}
+		normalizedScope = defaultsScopeRepo
+	}
+
+	switch normalizedScope {
+	case defaultsScopeRepo:
+		repoSlug := strings.TrimSpace(repo)
+		if repoSlug == "" {
+			var err error
+			repoSlug, err = defaultsGetCurrentRepoSlug()
+			if err != nil {
+				return defaultsTarget{}, fmt.Errorf("failed to detect current repository: %w", err)
+			}
+		}
+		owner, name, err := repoutil.SplitRepoSlug(repoSlug)
+		if err != nil {
+			return defaultsTarget{}, fmt.Errorf("invalid repository slug %q: %w", repoSlug, err)
+		}
+		return defaultsTarget{scope: defaultsScopeRepo, repoOwner: owner, repoName: name}, nil
+	case defaultsScopeOrg:
+		targetOrg := strings.TrimSpace(org)
+		if targetOrg == "" {
+			repoSlug := strings.TrimSpace(repo)
+			if repoSlug == "" {
+				var err error
+				repoSlug, err = defaultsGetCurrentRepoSlug()
+				if err != nil {
+					return defaultsTarget{}, fmt.Errorf("failed to detect current repository: %w", err)
+				}
+			}
+			owner, _, err := repoutil.SplitRepoSlug(repoSlug)
+			if err != nil {
+				return defaultsTarget{}, fmt.Errorf("invalid repository slug %q: %w", repoSlug, err)
+			}
+			targetOrg = owner
+		}
+		return defaultsTarget{scope: defaultsScopeOrg, org: targetOrg}, nil
+	case defaultsScopeEnt:
+		targetEnt := strings.TrimSpace(enterprise)
+		if targetEnt == "" {
+			return defaultsTarget{}, errors.New("enterprise scope requires --enterprise <slug>")
+		}
+		return defaultsTarget{scope: defaultsScopeEnt, enterprise: targetEnt}, nil
+	default:
+		return defaultsTarget{}, fmt.Errorf("invalid scope %q; expected repo, org, or ent", scope)
+	}
+}
+
+func (t defaultsTarget) variablesEndpoint() string {
+	switch t.scope {
+	case defaultsScopeRepo:
+		return fmt.Sprintf("repos/%s/%s/actions/variables", t.repoOwner, t.repoName)
+	case defaultsScopeOrg:
+		return fmt.Sprintf("orgs/%s/actions/variables", t.org)
+	default:
+		return fmt.Sprintf("enterprises/%s/actions/variables", t.enterprise)
+	}
+}
+
+func (t defaultsTarget) variableEndpoint(name string) string {
+	return fmt.Sprintf("%s/%s", t.variablesEndpoint(), url.PathEscape(name))
+}
+
+func runDefaultsGH(args ...string) ([]byte, error) {
+	cmd := defaultsExecGH(args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return out, fmt.Errorf("gh %s: %w", strings.Join(args, " "), err)
+	}
+	return out, nil
+}
+
+func fetchDefaultsVariable(target defaultsTarget, name string) (string, error) {
+	out, err := runDefaultsGH("api", target.variableEndpoint(name), "--jq", ".value")
+	if err != nil {
+		if isDefaultsNotFoundError(err, out) {
+			return "", nil
+		}
+		return "", fmt.Errorf("failed to fetch %s: %w", name, err)
+	}
+	return strings.TrimRight(string(out), "\r\n"), nil
+}
+
+func upsertDefaultsVariable(target defaultsTarget, name, value string) error {
+	patchOut, patchErr := runDefaultsGH("api", "-X", "PATCH", target.variableEndpoint(name), "-f", "name="+name, "-f", "value="+value)
+	if patchErr == nil {
+		return nil
+	}
+	if !isDefaultsNotFoundError(patchErr, patchOut) {
+		return fmt.Errorf("failed to update %s: %w", name, errWithOutput(patchErr, patchOut))
+	}
+
+	out, err := runDefaultsGH("api", "-X", "POST", target.variablesEndpoint(), "-f", "name="+name, "-f", "value="+value)
+	if err != nil {
+		return fmt.Errorf("failed to set %s: %w", name, errWithOutput(err, out))
+	}
+	return nil
+}
+
+func deleteDefaultsVariable(target defaultsTarget, name string) error {
+	out, err := runDefaultsGH("api", "-X", "DELETE", target.variableEndpoint(name))
+	if err != nil && !isDefaultsNotFoundError(err, out) {
+		return fmt.Errorf("failed to delete %s: %w", name, errWithOutput(err, out))
+	}
+	return nil
+}
+
+func isDefaultsNotFoundError(err error, out []byte) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error() + " " + string(out))
+	return strings.Contains(msg, "404") || strings.Contains(msg, "not found")
+}
+
+func errWithOutput(err error, out []byte) error {
+	trimmed := strings.TrimSpace(string(out))
+	if trimmed == "" {
+		return err
+	}
+	return fmt.Errorf("%w: %s", err, trimmed)
+}
