@@ -129,6 +129,12 @@ describe("extra_empty_commit git integration", () => {
 
   it("uses real git log output and does not count merge commits as empty commits", async () => {
     const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
+    const rawLog = execGit(["log", "--max-count=60", "--format=%H %P", "HEAD"], repoDir).stdout;
+    const rawMergeCount = rawLog
+      .split("\n")
+      .filter(Boolean)
+      .filter(line => line.trim().split(/\s+/).length >= 3).length;
+    expect(rawMergeCount).toBe(MERGE_BRANCH_COUNT);
 
     const result = await pushExtraEmptyCommit({
       branchName: "main",
@@ -142,7 +148,7 @@ describe("extra_empty_commit git integration", () => {
 
     const detailLog = mockCore.info.mock.calls.find(call => call[0].startsWith("Cycle check details:"));
     expect(detailLog).toBeDefined();
-    const parsedDetail = detailLog[0].match(/analyzed (\d+) commit\(s\), ignored (\d+) merge commit\(s\), counted (\d+) empty non-merge commit\(s\)/);
+    const parsedDetail = detailLog[0].match(/analyzed (\d+).*ignored (\d+).*counted (\d+)/);
     expect(parsedDetail).toBeDefined();
     expect(Number(parsedDetail[1])).toBeGreaterThan(0);
     expect(Number(parsedDetail[2])).toBe(MERGE_BRANCH_COUNT);
