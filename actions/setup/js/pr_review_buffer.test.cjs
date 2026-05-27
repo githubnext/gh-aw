@@ -266,14 +266,12 @@ describe("pr_review_buffer (factory pattern)", () => {
         pullRequest: { head: { sha: "abc123" } },
       });
 
-      mockGithub.rest.pulls.listReviews
-        .mockResolvedValueOnce({ data: [{ id: 1, user: { login: "existing-reviewer" }, state: "COMMENTED" }] })
-        .mockResolvedValueOnce({
-          data: [
-            { id: 1, user: { login: "existing-reviewer" }, state: "COMMENTED" },
-            { id: 2, user: { login: "github-actions[bot]" }, state: "COMMENTED" },
-          ],
-        });
+      mockGithub.rest.pulls.listReviews.mockResolvedValueOnce({ data: [{ id: 1, user: { login: "existing-reviewer" }, state: "COMMENTED" }] }).mockResolvedValueOnce({
+        data: [
+          { id: 1, user: { login: "existing-reviewer" }, state: "COMMENTED" },
+          { id: 2, user: { login: "github-actions[bot]" }, state: "COMMENTED" },
+        ],
+      });
       mockGithub.rest.pulls.createReview.mockResolvedValue({
         data: {
           id: 2,
@@ -799,10 +797,7 @@ describe("pr_review_buffer (factory pattern)", () => {
             html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-902",
           },
         });
-        mockGithub.rest.pulls.listReviews
-          .mockResolvedValueOnce({ data: [] })
-          .mockRejectedValueOnce(new Error("rate limited"))
-          .mockResolvedValueOnce({ data: [] });
+        mockGithub.rest.pulls.listReviews.mockResolvedValueOnce({ data: [] }).mockRejectedValueOnce(new Error("rate limited")).mockResolvedValueOnce({ data: [] });
 
         const result = await buffer.submitReview();
 

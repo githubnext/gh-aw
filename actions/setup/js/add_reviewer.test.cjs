@@ -300,11 +300,14 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
       },
     });
 
-    const result = await handler({
-      type: "add_reviewer",
-      reviewers: ["user1"],
-      team_reviewers: ["platform-team"],
-    }, {});
+    const result = await handler(
+      {
+        type: "add_reviewer",
+        reviewers: ["user1"],
+        team_reviewers: ["platform-team"],
+      },
+      {}
+    );
 
     expect(result.success).toBe(true);
     expect(result.repo).toBe("testowner/testrepo");

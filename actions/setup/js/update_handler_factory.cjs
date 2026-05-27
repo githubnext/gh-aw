@@ -287,9 +287,7 @@ function createUpdateHandlerFactory(handlerConfig) {
       // effectiveContext.repo contains the target repo owner/name for cross-repo routing.
       // Retry on transient errors (e.g. GitHub API returning HTML instead of JSON on 500 crashes).
       try {
-        const beforeState = captureExecutionMetadata?.captureBefore
-          ? await captureExecutionMetadata.captureBefore(githubClient, effectiveContext, itemNumber, updateData, item)
-          : null;
+        const beforeState = captureExecutionMetadata?.captureBefore ? await captureExecutionMetadata.captureBefore(githubClient, effectiveContext, itemNumber, updateData, item) : null;
         const updatedItem = await withRetry(() => executeUpdate(githubClient, effectiveContext, itemNumber, updateData), { maxRetries: 1, initialDelayMs: 2000, shouldRetry: isTransientError }, `update ${itemTypeName} #${itemNumber}`);
         core.info(`Successfully updated ${itemTypeName} #${itemNumber}: ${updatedItem.html_url || updatedItem.url}`);
 
@@ -298,9 +296,7 @@ function createUpdateHandlerFactory(handlerConfig) {
           ...formatSuccessResult(itemNumber, updatedItem),
           repo: `${effectiveContext.repo.owner}/${effectiveContext.repo.repo}`,
         };
-        const afterState = captureExecutionMetadata?.captureAfter
-          ? await captureExecutionMetadata.captureAfter(githubClient, effectiveContext, itemNumber, updateData, updatedItem, beforeState, item)
-          : null;
+        const afterState = captureExecutionMetadata?.captureAfter ? await captureExecutionMetadata.captureAfter(githubClient, effectiveContext, itemNumber, updateData, updatedItem, beforeState, item) : null;
         return attachExecutionState(result, beforeState, afterState);
       } catch (error) {
         const errorMessage = getErrorMessage(error);
