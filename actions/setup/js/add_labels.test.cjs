@@ -38,6 +38,12 @@ describe("add_labels", () => {
       rest: {
         issues: {
           addLabels: async () => ({}),
+          get: async () => ({
+            data: {
+              title: "Test issue title",
+              labels: [],
+            },
+          }),
         },
       },
     };
@@ -857,6 +863,111 @@ describe("add_labels", () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("No issue/PR number available");
+    });
+
+    it("should skip when item does not have all required_labels", async () => {
+      const handler = await main({ max: 10, required_labels: ["needs-triage"] });
+
+      mockGithub.rest.issues.get = async () => ({
+        data: { title: "Some issue", labels: [{ name: "bug" }] },
+      });
+
+      const result = await handler({ item_number: 100, labels: ["enhancement"] }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("required-labels");
+    });
+
+    it("should add labels when item has all required_labels", async () => {
+      const handler = await main({ max: 10, required_labels: ["needs-triage"] });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.get = async () => ({
+        data: { title: "Some issue", labels: [{ name: "needs-triage" }, { name: "bug" }] },
+      });
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler({ item_number: 100, labels: ["enhancement"] }, {});
+
+      expect(result.success).toBe(true);
+      expect(addLabelsCalls.length).toBe(1);
+    });
+
+    it("should skip when item title does not start with required_title_prefix", async () => {
+      const handler = await main({ max: 10, required_title_prefix: "[Bot]" });
+
+      mockGithub.rest.issues.get = async () => ({
+        data: { title: "Regular issue title", labels: [] },
+      });
+
+      const result = await handler({ item_number: 100, labels: ["bug"] }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("required prefix");
+    });
+
+    it("should add labels when item title starts with required_title_prefix", async () => {
+      const handler = await main({ max: 10, required_title_prefix: "[Bot]" });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.get = async () => ({
+        data: { title: "[Bot] Automated issue", labels: [] },
+      });
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler({ item_number: 100, labels: ["automation"] }, {});
+
+      expect(result.success).toBe(true);
+      expect(addLabelsCalls.length).toBe(1);
+    });
+
+    it("should check both required_labels and required_title_prefix together", async () => {
+      const handler = await main({
+        max: 10,
+        required_labels: ["approved"],
+        required_title_prefix: "[Ready]",
+      });
+
+      // Passes required_labels but fails required_title_prefix
+      mockGithub.rest.issues.get = async () => ({
+        data: { title: "Not ready issue", labels: [{ name: "approved" }] },
+      });
+
+      const result = await handler({ item_number: 100, labels: ["bug"] }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("required prefix");
+    });
+
+    it("should add labels when both required_labels and required_title_prefix match", async () => {
+      const handler = await main({
+        max: 10,
+        required_labels: ["approved"],
+        required_title_prefix: "[Ready]",
+      });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.get = async () => ({
+        data: { title: "[Ready] Ship it", labels: [{ name: "approved" }, { name: "bug" }] },
+      });
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler({ item_number: 100, labels: ["enhancement"] }, {});
+
+      expect(result.success).toBe(true);
+      expect(addLabelsCalls.length).toBe(1);
     });
   });
 });
