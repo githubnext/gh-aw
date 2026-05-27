@@ -6,6 +6,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -154,7 +155,7 @@ func TestAttachImportAuthHeader_GitHubCopilot(t *testing.T) {
 
 	req, _ := http.NewRequest(http.MethodGet, "https://api.githubcopilot.com/workflow.md", nil)
 	attachImportAuthHeader(req, "https://api.githubcopilot.com/workflow.md")
-	assert.Equal(t, "Bearer "+"gh-token-xyz", req.Header.Get("Authorization"))
+	assert.Equal(t, "Bearer gh-token-xyz", req.Header.Get("Authorization"))
 	assert.Empty(t, req.Header.Get("Copilot-Integration-Id"))
 }
 
@@ -164,8 +165,61 @@ func TestAttachImportAuthHeader_GitHubCopilotAutomation(t *testing.T) {
 
 	req, _ := http.NewRequest(http.MethodGet, "https://api.githubcopilot.com/agents/repos/octocat/hello-world/automations/00000000-0000-0000-0000-000000000001", nil)
 	attachImportAuthHeader(req, "https://api.githubcopilot.com/agents/repos/octocat/hello-world/automations/00000000-0000-0000-0000-000000000001")
-	assert.Equal(t, "Bearer "+"gh-token-xyz", req.Header.Get("Authorization"))
+	assert.Equal(t, "Bearer gh-token-xyz", req.Header.Get("Authorization"))
 	assert.Equal(t, "agentic-workflows", req.Header.Get("Copilot-Integration-Id"))
+}
+
+func TestIsCopilotAutomationImportURL(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *url.URL
+		want  bool
+	}{
+		{name: "nil URL", input: nil, want: false},
+		{
+			name:  "valid automation URL",
+			input: mustParseURL(t, "https://api.githubcopilot.com/agents/repos/octocat/hello-world/automations/00000000-0000-0000-0000-000000000001"),
+			want:  true,
+		},
+		{
+			name:  "hostname match is case-insensitive",
+			input: mustParseURL(t, "https://API.GITHUBCOPILOT.COM/agents/repos/octocat/hello-world/automations/00000000-0000-0000-0000-000000000001"),
+			want:  true,
+		},
+		{
+			name:  "non-automation path",
+			input: mustParseURL(t, "https://api.githubcopilot.com/workflow.json"),
+			want:  false,
+		},
+		{
+			name:  "missing repo segment",
+			input: mustParseURL(t, "https://api.githubcopilot.com/agents/repos/octocat//automations/00000000-0000-0000-0000-000000000001"),
+			want:  false,
+		},
+		{
+			name:  "missing automation ID",
+			input: mustParseURL(t, "https://api.githubcopilot.com/agents/repos/octocat/hello-world/automations/"),
+			want:  false,
+		},
+		{
+			name:  "wrong segment count",
+			input: mustParseURL(t, "https://api.githubcopilot.com/agents/repos/octocat/hello-world/automations/00000000-0000-0000-0000-000000000001/extra"),
+			want:  false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, isCopilotAutomationImportURL(tc.input))
+		})
+	}
+}
+
+func mustParseURL(t *testing.T, raw string) *url.URL {
+	t.Helper()
+	u, err := url.Parse(raw)
+	require.NoError(t, err)
+	return u
 }
 
 func TestAttachImportAuthHeader_RawGitHubContent(t *testing.T) {
