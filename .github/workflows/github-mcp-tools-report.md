@@ -15,7 +15,7 @@ engine: claude
 tools:
   cli-proxy: true
   github:
-    mode: "remote"
+    mode: "local"
     toolsets: [all]
   cache-memory: true
   edit:
@@ -35,20 +35,22 @@ imports:
 
   - shared/otlp.md
 ---
-# GitHub MCP Remote Server Tools Report Generator
+# GitHub MCP Server Tools Report Generator
 
-You are the GitHub MCP Remote Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP remote server.
+You are the GitHub MCP Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP server available to this workflow run.
 Use the inline skill `github-mcp-tools-report-guidelines` for quality, organization, and discovery discipline.
+
+This production workflow must use the local GitHub MCP server with `GITHUB_TOKEN`. Do not switch it to `mode: remote` unless the workflow is also configured with a PAT or GitHub App token for hosted MCP access.
 
 ## Mission
 
-Generate a comprehensive report of all tools/functions available in the GitHub MCP remote server by self-inspecting the available tools and creating detailed documentation.
+Generate a comprehensive report of all tools/functions available in the GitHub MCP server by self-inspecting the available tools and creating detailed documentation.
 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Report Date**: Today's date
-- **MCP Server**: GitHub MCP Remote (mode: remote, toolsets: all)
+- **MCP Server**: GitHub MCP Local (mode: local, toolsets: all)
 
 ## Report Generation Process
 
@@ -60,7 +62,7 @@ Generate a comprehensive report of all tools/functions available in the GitHub M
    - This will be used for comparison to detect changes
 
 2. **Systematically Explore All Toolsets**:
-   - You have access to the GitHub MCP server in remote mode with all toolsets enabled
+   - You have access to the local GitHub MCP server with all toolsets enabled
    - **IMPORTANT**: Systematically explore EACH of the following toolsets individually:
      - `context` - GitHub Actions context and environment
      - `repos` - Repository operations
@@ -82,7 +84,7 @@ Generate a comprehensive report of all tools/functions available in the GitHub M
      - `users` - User information
    - For EACH toolset, identify all tools that belong to it
    - Create a comprehensive mapping of tools to their respective toolsets
-   - Note: The tools available to you ARE the tools from the GitHub MCP remote server
+   - Note: The tools available to you ARE the tools from the GitHub MCP server mounted for this workflow run
 
 3. **Detect Inconsistencies Across Toolsets**:
    - Check for duplicate tools across different toolsets
@@ -168,10 +170,10 @@ Create a detailed markdown report with the following structure:
 - Structure the report so brief summary, key metrics/highlights, and recommendations are always visible, while detailed analysis is placed inside `<details>` sections.
 
 ```markdown
-### GitHub MCP Remote Server Tools Report
+### GitHub MCP Server Tools Report
 
 **Generated**: [DATE]
-**MCP Mode**: Remote
+**MCP Mode**: Local
 **Toolsets**: All
 **Previous Report**: [DATE or "None" if first run]
 
@@ -303,7 +305,7 @@ When configuring the GitHub MCP server in agentic workflows, you can enable spec
 ```yaml
 tools:
   github:
-    mode: "remote"  # or "local"
+    mode: "local"  # production default with GITHUB_TOKEN
     toolsets: [all]  # or specific toolsets like [repos, issues, pull_requests]
 ```
 
@@ -334,8 +336,8 @@ tools:
 
 #### Methodology
 
-- **Discovery Method**: Self-inspection of available tools in the GitHub MCP remote server
-- **MCP Configuration**: Remote mode with all toolsets enabled
+- **Discovery Method**: Self-inspection of available tools in the local GitHub MCP server
+- **MCP Configuration**: Local mode with all toolsets enabled
 - **Categorization**: Based on GitHub API domains and functionality
 - **Documentation**: Derived from tool names, descriptions, and usage patterns
 - **JSON Mapping**: [pkg/workflow/data/github_toolsets_permissions.json](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json)
@@ -374,7 +376,7 @@ A successful report:
 - ✅ Loads previous tools list from cache if available
 - ✅ Loads current JSON mapping from `pkg/workflow/data/github_toolsets_permissions.json`
 - ✅ Systematically explores EACH of the 19 individual toolsets (including `search`)
-- ✅ Documents all tools available in the GitHub MCP remote server
+- ✅ Documents all tools available in the GitHub MCP server mounted for this workflow
 - ✅ Detects and reports any inconsistencies across toolsets (duplicates, miscategorization, naming issues)
 - ✅ **Compares MCP server tools with JSON mapping** and identifies discrepancies
 - ✅ **Updates JSON mapping file** if discrepancies are found
@@ -422,7 +424,7 @@ Your output MUST:
 9. **Update `.github/aw/github-mcp-server.md`** with comprehensive documentation:
    - Document all available tools organized by toolset
    - Include tool descriptions, parameters, and usage examples
-   - Provide configuration reference for remote vs local mode
+   - Provide configuration reference for local mode and note that remote mode requires a PAT or GitHub App token
    - Include header authentication details (Bearer token)
    - Document X-MCP-Readonly header for read-only mode
    - **Include recommended default toolsets** based on analysis:
@@ -502,7 +504,7 @@ Begin your tool discovery now. Follow these steps:
    - Determine if these defaults should be updated based on actual tool availability and usage patterns
    - Document your rationale for the recommended defaults
 10. **Create comprehensive documentation file**: Create/update `.github/aw/github-mcp-server.md` with:
-   - Overview of GitHub MCP server (remote vs local mode)
+   - Overview of GitHub MCP server access modes, including the production constraint that remote mode requires a PAT or GitHub App token
    - Complete list of available tools organized by toolset
    - Tool descriptions, parameters, and return values
    - Configuration examples for both modes

@@ -21,7 +21,7 @@ tools:
   bash: ["*"]
   edit:
   github:
-    mode: remote
+    mode: local
     toolsets: [default]
 safe-outputs:
   create-pull-request:
@@ -39,6 +39,8 @@ checkout:
 # Schema Feature Coverage Checker
 
 You are responsible for ensuring **100% coverage** of schema features across the existing agentic workflows in this repository. Every top-level property defined in the main JSON schema should appear in at least one workflow file under `.github/workflows/` (including `shared/` subdirectories) or in the `schema-demos/` directory.
+
+Use the local GitHub MCP server for any GitHub tool calls in this production workflow. Do not switch this workflow to `mode: remote` unless it is also configured with a PAT or GitHub App token; `GITHUB_TOKEN` alone is not sufficient.
 
 ## Step 1: Extract All Schema Fields (Deterministic)
 
