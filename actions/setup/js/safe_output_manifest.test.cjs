@@ -245,12 +245,14 @@ describe("safe_output_manifest", () => {
     });
 
     it("should extract item from add_labels result (modification type without url)", () => {
-      const result = { success: true, number: 20875, labelsAdded: ["bug", "cli"], contextType: "issue" };
+      const result = { success: true, number: 20875, labelsAdded: ["bug", "cli"], labelsBefore: ["bug"], contextType: "issue" };
       const item = extractCreatedItemFromResult("add_labels", result);
       expect(item).not.toBeNull();
       expect(item.type).toBe("add_labels");
       expect(item.url).toBeUndefined();
       expect(item.number).toBe(20875);
+      expect(item.labelsAdded).toEqual(["bug", "cli"]);
+      expect(item.labelsBefore).toEqual(["bug"]);
     });
 
     it("should extract item from close_issue result (modification type with url)", () => {
