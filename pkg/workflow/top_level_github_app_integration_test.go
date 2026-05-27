@@ -288,6 +288,7 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			workflowFile: "../cli/workflows/test-top-level-github-app-safe-outputs.md",
 			expectContains: []string{
 				"id: safe-outputs-app-token",
+				"uses: actions/create-github-app-token",
 				"client-id: ${{ vars.APP_ID }}",
 				"private-key: ${{ secrets.APP_PRIVATE_KEY }}",
 			},
@@ -297,6 +298,7 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			workflowFile: "../cli/workflows/test-top-level-github-app-activation.md",
 			expectContains: []string{
 				"id: activation-app-token",
+				"uses: actions/create-github-app-token",
 				"client-id: ${{ vars.APP_ID }}",
 				"github-token: ${{ steps.activation-app-token.outputs.token }}",
 			},
@@ -306,6 +308,7 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			workflowFile: "../cli/workflows/test-top-level-github-app-checkout.md",
 			expectContains: []string{
 				"id: checkout-app-token-0",
+				"uses: actions/create-github-app-token",
 				"client-id: ${{ vars.APP_ID }}",
 			},
 		},
@@ -313,6 +316,7 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			name:         "section-specific override workflow file",
 			workflowFile: "../cli/workflows/test-top-level-github-app-override.md",
 			expectContains: []string{
+				"uses: actions/create-github-app-token",
 				"client-id: ${{ vars.SAFE_OUTPUTS_APP_ID }}",
 				"client-id: ${{ vars.ACTIVATION_APP_ID }}",
 			},
@@ -322,6 +326,7 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			workflowFile: "../cli/workflows/test-top-level-github-app-mcp.md",
 			expectContains: []string{
 				"id: github-mcp-app-token",
+				"uses: actions/create-github-app-token",
 				"client-id: ${{ vars.APP_ID }}",
 			},
 		},
