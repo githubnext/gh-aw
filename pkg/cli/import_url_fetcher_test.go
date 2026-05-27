@@ -154,7 +154,18 @@ func TestAttachImportAuthHeader_GitHubCopilot(t *testing.T) {
 
 	req, _ := http.NewRequest(http.MethodGet, "https://api.githubcopilot.com/workflow.md", nil)
 	attachImportAuthHeader(req, "https://api.githubcopilot.com/workflow.md")
-	assert.Equal(t, "Bearer gh-token-xyz", req.Header.Get("Authorization"))
+	assert.Equal(t, "Bearer "+"gh-token-xyz", req.Header.Get("Authorization"))
+	assert.Empty(t, req.Header.Get("Copilot-Integration-Id"))
+}
+
+func TestAttachImportAuthHeader_GitHubCopilotAutomation(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "gh-token-xyz")
+	t.Setenv("GH_TOKEN", "")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://api.githubcopilot.com/agents/repos/octocat/hello-world/automations/00000000-0000-0000-0000-000000000001", nil)
+	attachImportAuthHeader(req, "https://api.githubcopilot.com/agents/repos/octocat/hello-world/automations/00000000-0000-0000-0000-000000000001")
+	assert.Equal(t, "Bearer "+"gh-token-xyz", req.Header.Get("Authorization"))
+	assert.Equal(t, "agentic-workflows", req.Header.Get("Copilot-Integration-Id"))
 }
 
 func TestAttachImportAuthHeader_RawGitHubContent(t *testing.T) {

@@ -199,6 +199,8 @@ var defaultImportAuthHosts = map[string]struct{}{
 	constants.GitHubCopilotMCPDomain: {},
 }
 
+const copilotIntegrationHeaderValue = "agentic-workflows"
+
 func attachImportAuthHeader(req *http.Request, rawURL string) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Host == "" {
@@ -227,6 +229,23 @@ func attachImportAuthHeader(req *http.Request, rawURL string) {
 
 	importURLFetcherLog.Printf("Attaching auth header for host: %s", host)
 	req.Header.Set("Authorization", "Bearer "+token)
+	if isCopilotAutomationImportURL(parsed) {
+		req.Header.Set("Copilot-Integration-Id", copilotIntegrationHeaderValue)
+	}
+}
+
+func isCopilotAutomationImportURL(u *url.URL) bool {
+	if u == nil || !strings.EqualFold(u.Hostname(), constants.GitHubCopilotMCPDomain) {
+		return false
+	}
+	segments := strings.Split(strings.Trim(u.EscapedPath(), "/"), "/")
+	return len(segments) == 6 &&
+		segments[0] == "agents" &&
+		segments[1] == "repos" &&
+		segments[2] != "" &&
+		segments[3] != "" &&
+		segments[4] == "automations" &&
+		segments[5] != ""
 }
 
 // buildRequestLogString formats req in HTTP/1.1 wire format with the Authorization
