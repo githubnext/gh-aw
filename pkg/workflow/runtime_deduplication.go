@@ -147,10 +147,8 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 							// If we remove it and regenerate a setup step, the generated
 							// node-version value can override this file-based selector.
 							if req.Runtime.ID == "node" {
-								if nodeVersionFile, ok := withMap["node-version-file"]; ok {
-									if nodeVersionFileStr, isStr := nodeVersionFile.(string); isStr && strings.TrimSpace(nodeVersionFileStr) != "" {
-										hasCustomization = true
-									}
+								if nodeVersionFile, ok := withMap["node-version-file"].(string); ok && strings.TrimSpace(nodeVersionFile) != "" {
+									hasCustomization = true
 								}
 							}
 						}
