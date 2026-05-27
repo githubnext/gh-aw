@@ -2,7 +2,11 @@
 
 package cli
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestIsRepositoryOnlyWorkflowSpec(t *testing.T) {
 	tests := []struct {
@@ -45,9 +49,7 @@ func TestIsRepositoryOnlyWorkflowSpec(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := isRepositoryOnlyWorkflowSpec(tt.spec)
-			if got != tt.want {
-				t.Errorf("isRepositoryOnlyWorkflowSpec(%q) = %v, want %v", tt.spec, got, tt.want)
-			}
+			assert.Equal(t, tt.want, got, "isRepositoryOnlyWorkflowSpec(%q) should return %v", tt.spec, tt.want)
 		})
 	}
 }
