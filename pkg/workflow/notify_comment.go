@@ -382,8 +382,8 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 	// Pass configured ET budget so failure reporting can attribute ET budget exhaustion accurately.
 	maxEffectiveTokens := compilerenv.ResolveDefaultMaxEffectiveTokens(constants.DefaultMaxEffectiveTokens)
-	if data.EngineConfig != nil {
-		maxEffectiveTokens = data.EngineConfig.GetMaxEffectiveTokens()
+	if data.EngineConfig != nil && data.EngineConfig.MaxEffectiveTokens != 0 {
+		maxEffectiveTokens = data.EngineConfig.MaxEffectiveTokens
 	}
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MAX_EFFECTIVE_TOKENS: %q\n", strconv.FormatInt(maxEffectiveTokens, 10)))
 

@@ -44,4 +44,3 @@ func TestBuildModelOverrideExpression(t *testing.T) {
 		BuildModelOverrideExpressionEmptyFallback("GH_AW_MODEL_AGENT_CLAUDE", "GH_AW_DEFAULT_MODEL_CLAUDE"),
 	)
 }
-

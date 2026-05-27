@@ -73,4 +73,3 @@ func BuildModelOverrideExpression(primaryVar, enterpriseDefaultVar, builtinFallb
 func BuildModelOverrideExpressionEmptyFallback(primaryVar, enterpriseDefaultVar string) string {
 	return fmt.Sprintf("${{ vars.%s || vars.%s || '' }}", primaryVar, enterpriseDefaultVar)
 }
-

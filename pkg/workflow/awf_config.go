@@ -258,7 +258,9 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	maxEffectiveTokens := compilerenv.ResolveDefaultMaxEffectiveTokens(constants.DefaultMaxEffectiveTokens)
 	maxRuns := constants.DefaultMaxRuns
 	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
-		maxEffectiveTokens = config.WorkflowData.EngineConfig.GetMaxEffectiveTokens()
+		if config.WorkflowData.EngineConfig.MaxEffectiveTokens != 0 {
+			maxEffectiveTokens = config.WorkflowData.EngineConfig.MaxEffectiveTokens
+		}
 		maxRuns = config.WorkflowData.EngineConfig.GetMaxRuns()
 	}
 
