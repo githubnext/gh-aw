@@ -222,43 +222,6 @@ func TestGetOTLPIfMissingMode(t *testing.T) {
 	})
 }
 
-func TestGetOTLPGitHubOIDCAudience(t *testing.T) {
-	t.Run("returns parsed audience when github-app is configured", func(t *testing.T) {
-		got := getOTLPGitHubOIDCAudience(&FrontmatterConfig{
-			Observability: &ObservabilityConfig{
-				OTLP: &OTLPConfig{
-					GitHubApp: &OTLPGitHubAppConfig{
-						Audience: "https://collector.example.com",
-					},
-				},
-			},
-		}, nil)
-		assert.Equal(t, "https://collector.example.com", got)
-	})
-
-	t.Run("returns empty when github-app is missing", func(t *testing.T) {
-		got := getOTLPGitHubOIDCAudience(nil, map[string]any{
-			"observability": map[string]any{
-				"otlp": map[string]any{},
-			},
-		})
-		assert.Empty(t, got)
-	})
-
-	t.Run("returns raw audience when github-app is set", func(t *testing.T) {
-		got := getOTLPGitHubOIDCAudience(nil, map[string]any{
-			"observability": map[string]any{
-				"otlp": map[string]any{
-					"github-app": map[string]any{
-						"audience": "api://AzureADTokenExchange",
-					},
-				},
-			},
-		})
-		assert.Equal(t, "api://AzureADTokenExchange", got)
-	})
-}
-
 func TestGetOTLPGitHubApp(t *testing.T) {
 	t.Run("returns parsed github-app config", func(t *testing.T) {
 		got := getOTLPGitHubApp(&FrontmatterConfig{

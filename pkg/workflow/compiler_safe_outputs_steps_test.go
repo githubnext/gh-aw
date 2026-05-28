@@ -322,6 +322,90 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"org/push-branch-target",
 			},
 		},
+		{
+			name: "cross-repo with matching checkout fetch refs emits fetch step",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.CROSS_PAT }}",
+					},
+					TargetRepoSlug: "org/target-repo",
+					BaseBranch:     "master",
+				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					Repository: "org/target-repo",
+					FetchDepth: func() *int { d := 1; return &d }(),
+					Fetch:      []string{"master", "my/branch/*"},
+				},
+			},
+			checkContains: []string{
+				"name: Fetch additional refs for org/target-repo",
+				"GH_AW_FETCH_TOKEN: ${{ secrets.CROSS_PAT }}",
+				"+refs/heads/master:refs/remotes/origin/master",
+				"+refs/heads/my/branch/*:refs/remotes/origin/my/branch/*",
+				// Fetch step must carry same condition as the checkout step
+				"contains(needs.agent.outputs.output_types, 'create_pull_request')",
+			},
+		},
+		{
+			name: "cross-repo checkout without fetch refs does not emit fetch step",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					TargetRepoSlug: "org/target-repo",
+				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					Repository: "org/target-repo",
+					FetchDepth: func() *int { d := 1; return &d }(),
+					// No Fetch field
+				},
+			},
+			checkNotContains: []string{
+				"name: Fetch additional refs for org/target-repo",
+				"GH_AW_FETCH_TOKEN",
+			},
+		},
+		{
+			name: "cross-repo target with no matching checkout config does not emit fetch step",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					TargetRepoSlug: "org/target-repo",
+				},
+			},
+			// checkoutConfigs is nil — no matching entry
+			checkNotContains: []string{
+				"name: Fetch additional refs for org/target-repo",
+				"GH_AW_FETCH_TOKEN",
+			},
+		},
+		{
+			name: "push-to-pull-request-branch cross-repo with checkout fetch refs emits fetch step",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.PUSH_PAT }}",
+					},
+					TargetRepoSlug: "org/push-target",
+				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					Repository: "org/push-target",
+					Fetch:      []string{"main", "feature/*"},
+				},
+			},
+			checkContains: []string{
+				"name: Fetch additional refs for org/push-target",
+				"GH_AW_FETCH_TOKEN: ${{ secrets.PUSH_PAT }}",
+				"+refs/heads/main:refs/remotes/origin/main",
+				"+refs/heads/feature/*:refs/remotes/origin/feature/*",
+				// Condition tied to push_to_pull_request_branch
+				"contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')",
+			},
+		},
 	}
 
 	for _, tt := range tests {

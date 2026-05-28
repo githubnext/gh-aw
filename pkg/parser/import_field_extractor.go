@@ -895,9 +895,7 @@ func extractOTLPGitHubAppFromObsMap(obs map[string]any) map[string]any {
 		return nil
 	}
 	copyMap := make(map[string]any, len(githubAppMap))
-	for k, v := range githubAppMap {
-		copyMap[k] = v
-	}
+	maps.Copy(copyMap, githubAppMap)
 	return copyMap
 }
 

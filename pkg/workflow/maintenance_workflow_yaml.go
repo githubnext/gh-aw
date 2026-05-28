@@ -600,6 +600,7 @@ jobs:
             ${{ runner.os }}-forecast-report-logs-
 
       - name: Generate forecast report
+        id: generate_forecast_report
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -611,7 +612,20 @@ jobs:
             echo "::error::Missing run summary cache in .github/aw/logs after gh aw logs warm-up; cannot run forecast."
             exit 1
           fi
-          ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --json 2> >(grep -Fv "forecast is an experimental command and may change without notice" >&2) > ./.cache/gh-aw/forecast/report.json
+          set +e
+          ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --timeout 10 --json 2> >(grep -Fv "forecast is an experimental command and may change without notice" >&2) > ./.cache/gh-aw/forecast/report.json
+          forecast_exit_code=$?
+          set -e
+          if [ "${forecast_exit_code}" -eq 124 ]; then
+            echo '{"outcome":"timeout","message":"Forecast computation timed out after 10 minutes."}' > ./.cache/gh-aw/forecast/error.json
+            echo "::error::Forecast computation timed out after 10 minutes."
+            exit 1
+          fi
+          if [ "${forecast_exit_code}" -ne 0 ]; then
+            echo '{"outcome":"error","message":"Forecast computation failed before producing a report."}' > ./.cache/gh-aw/forecast/error.json
+            echo "::error::Forecast computation failed with exit code ${forecast_exit_code}."
+            exit 1
+          fi
 
       - name: Save forecast report logs cache
         if: ${{ always() }}
@@ -621,7 +635,10 @@ jobs:
           key: ${{ steps.forecast_report_logs_cache.outputs.cache-primary-key }}
 
       - name: Generate forecast issue
+        if: ${{ always() }}
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        env:
+          FORECAST_STEP_OUTCOME: ${{ steps.generate_forecast_report.outcome }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

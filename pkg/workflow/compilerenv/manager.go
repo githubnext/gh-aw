@@ -29,45 +29,6 @@ const (
 	DefaultModelCodex = "GH_AW_DEFAULT_MODEL_CODEX"
 )
 
-type Variable struct {
-	Name        string
-	Description string
-}
-
-// EnterpriseVariables returns all compiler-managed enterprise control variables.
-func EnterpriseVariables() []Variable {
-	return []Variable{
-		{
-			Name:        DefaultMaxEffectiveTokens,
-			Description: "Default max-effective-tokens used when workflow frontmatter does not set one",
-		},
-		{
-			Name:        DefaultMaxTurns,
-			Description: "Default engine.max-turns used when workflow frontmatter does not set one",
-		},
-		{
-			Name:        DefaultTimeoutMinutes,
-			Description: "Default timeout-minutes used when workflow frontmatter does not set one",
-		},
-		{
-			Name:        DefaultDetectionModel,
-			Description: "Default detection job model used when threat-detection.engine.model is not set",
-		},
-		{
-			Name:        DefaultModelCopilot,
-			Description: "Default Copilot model fallback override when GH_AW_MODEL_AGENT/DETECTION_COPILOT is unset",
-		},
-		{
-			Name:        DefaultModelClaude,
-			Description: "Default Claude model fallback override when GH_AW_MODEL_AGENT/DETECTION_CLAUDE is unset",
-		},
-		{
-			Name:        DefaultModelCodex,
-			Description: "Default Codex model fallback override when GH_AW_MODEL_AGENT/DETECTION_CODEX is unset",
-		},
-	}
-}
-
 // ResolveDefaultMaxEffectiveTokens returns fallback when the env var is unset/invalid,
 // otherwise returns the parsed override.
 func ResolveDefaultMaxEffectiveTokens(fallback int64) int64 {

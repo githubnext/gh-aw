@@ -311,6 +311,22 @@ func (cm *CheckoutManager) GetDefaultCheckoutOverride() *resolvedCheckout {
 	return nil
 }
 
+// GetCheckoutForRepository returns the first resolved checkout entry whose repository
+// field matches repoSlug exactly (e.g. "owner/repo"). Returns nil when no entry
+// targets that repository.
+//
+// This is used by the safe_outputs job to retrieve the fetch refs declared in the
+// checkout: frontmatter for a given cross-repo target, so that the safe_outputs
+// checkout can emit the same "Fetch additional refs" step as the agent job.
+func (cm *CheckoutManager) GetCheckoutForRepository(repoSlug string) *resolvedCheckout {
+	for _, entry := range cm.ordered {
+		if entry.key.repository == repoSlug {
+			return entry
+		}
+	}
+	return nil
+}
+
 // HasAppAuth returns true if any checkout entry uses GitHub App authentication.
 func (cm *CheckoutManager) HasAppAuth() bool {
 	for _, entry := range cm.ordered {
