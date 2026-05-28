@@ -183,6 +183,12 @@ Use the `comment-dispatcher` agent on the verdict array (the JSON objects return
 
 For each returned `{issue_number, body}` payload, emit one `add_comment` safe output that includes **both fields verbatim** — `issue_number` is required.
 The safe-output validator rejects `add_comment` items that omit `item_number` / `issue_number` / `pull_request_number` (for example: `Target is "*" but no item_number/...`) and fails the entire `safe_outputs` job.
+When iterating verdict rows, copy `issue_number` directly from the returned payload into the emitted `add_comment` item; do not infer or rename it.
+Never emit `add_comment` without a numeric target field.
+Example:
+```json
+{"type":"add_comment","issue_number":35304,"body":"Thanks for the PR — here are the next changes to make..."}
+```
 Do not specify the repo — `target-repo` is pre-configured.
 
 ## Completion Gate

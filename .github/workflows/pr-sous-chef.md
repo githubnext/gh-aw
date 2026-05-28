@@ -215,6 +215,12 @@ For each PR that is not skipped:
      - `<!-- gh-aw-pr-sous-chef-nudge -->` as a hidden marker line.
      - @copilot review all comments
      - a short sentence asking Copilot to address unresolved review feedback.
+   - Every `add_comment` must include `pr_number` set to the current PR's numeric `number` from the loop item.
+   - Never emit `add_comment` without a numeric target field (`pr_number`/`pull_request_number`/`issue_number`/`item_number`) when `target: "*"` is configured.
+   - Example:
+     ```json
+     {"type":"add_comment","pr_number":12345,"body":"<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot review all comments and address unresolved review feedback."}
+     ```
 
 3. **Apply one additional forward-progress nudge**
    - Choose one concise nudge to unblock progress, e.g. ask Copilot to:
