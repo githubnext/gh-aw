@@ -743,6 +743,13 @@ describe("add_reaction", () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
+    it("should return null without failure for pull_request_review even with empty payload", async () => {
+      const { resolveRestEndpoint } = await importHelpers();
+      expect(resolveRestEndpoint("pull_request_review", "o", "r", {})).toBeNull();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.error).not.toHaveBeenCalled();
+    });
+
     it("should return null for discussion events (handled via GraphQL)", async () => {
       global.context = { eventName: "discussion", repo: { owner: "o", repo: "r" }, payload: { discussion: { number: 3 } } };
       const { resolveRestEndpoint } = await importHelpers();

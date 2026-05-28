@@ -158,13 +158,13 @@ Focus on:
 
 ### 4a: Load Round-Robin State from Cache
 
-The state file is at **`/tmp/gh-aw/cache-memory/slide-deck-maintainer/state.json`**.
+The state file is at **`/tmp/gh-aw/cache-memory/slide-deck-maintainer-state.json`**.
 
 Check whether the file exists, then read it:
 
 ```bash
-if [ -f /tmp/gh-aw/cache-memory/slide-deck-maintainer/state.json ]; then
-  cat /tmp/gh-aw/cache-memory/slide-deck-maintainer/state.json
+if [ -f /tmp/gh-aw/cache-memory/slide-deck-maintainer-state.json ]; then
+  cat /tmp/gh-aw/cache-memory/slide-deck-maintainer-state.json
 else
   echo "NOT_FOUND"
 fi
@@ -212,13 +212,9 @@ Based on the selected category, scan the corresponding sources:
 
 ### 4c: Save Round-Robin State to Cache
 
-After scanning, **always write the updated state file** regardless of whether changes were made:
+After scanning, **always write the updated state file** regardless of whether changes were made. Write directly to `/tmp/gh-aw/cache-memory/slide-deck-maintainer-state.json` (no subdirectory needed — the cache-memory root is already writable):
 
-```bash
-mkdir -p /tmp/gh-aw/cache-memory/slide-deck-maintainer
-```
-
-Write `/tmp/gh-aw/cache-memory/slide-deck-maintainer/state.json` with:
+Write `/tmp/gh-aw/cache-memory/slide-deck-maintainer-state.json` with:
 - `last_category`: the category you just scanned
 - `last_run`: today's date in `YYYY-MM-DD` format (filesystem-safe — no colons or special characters)
 - `run_history`: append this run's entry (keep at most the last 10 entries)

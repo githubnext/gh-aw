@@ -7,6 +7,7 @@ on:
     strategy: centralized
     name: ace
     events: [pull_request_comment]
+timeout-minutes: 10
 strict: false
 permissions:
   pull-requests: read

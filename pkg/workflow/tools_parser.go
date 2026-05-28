@@ -207,12 +207,12 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			ReadOnly: true, // default to read-only for security
 		}
 
-		if allowed, ok := configMap["allowed"].([]any); ok {
-			config.Allowed = make(GitHubAllowedTools, 0, len(allowed))
-			for _, item := range allowed {
-				if str, ok := item.(string); ok {
-					config.Allowed = append(config.Allowed, GitHubToolName(str))
-				}
+		if allowedSetting, ok := configMap["allowed"]; ok {
+			// Tool call limits are enforced by MCP guard policies; parser keeps only tool names.
+			allowedTools, _ := parseGitHubAllowedToolsAndLimits(allowedSetting)
+			config.Allowed = make(GitHubAllowedTools, 0, len(allowedTools))
+			for _, toolName := range allowedTools {
+				config.Allowed = append(config.Allowed, GitHubToolName(toolName))
 			}
 		}
 

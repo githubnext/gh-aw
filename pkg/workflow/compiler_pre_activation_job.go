@@ -229,6 +229,9 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		// Pass commands as JSON array
 		commandsJSON, _ := json.Marshal(data.Command)
 		steps = append(steps, fmt.Sprintf("          GH_AW_COMMANDS: %q\n", string(commandsJSON)))
+		if data.CommandPlaceholder != "" {
+			steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND_PLACEHOLDER: %q\n", data.CommandPlaceholder))
+		}
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("check_command_position.cjs"))

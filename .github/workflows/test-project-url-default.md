@@ -4,6 +4,7 @@ name: Test Project URL Explicit Requirement
 engine: copilot
 on:
   workflow_dispatch:
+timeout-minutes: 10
 
 imports:
   - shared/otlp.md

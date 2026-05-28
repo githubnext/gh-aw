@@ -18,6 +18,7 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
+const { fetchIssueState, mergeIssueState } = require("./safe_output_execution_metadata.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 
 /**
@@ -211,6 +212,10 @@ const main = createUpdateHandlerFactory({
   buildUpdateData: buildIssueUpdateData,
   executeUpdate: executeIssueUpdate,
   formatSuccessResult: formatIssueSuccessResult,
+  captureExecutionMetadata: {
+    captureBefore: async (githubClient, effectiveContext, issueNumber) => fetchIssueState(githubClient, effectiveContext.repo, issueNumber),
+    captureAfter: async (updatedIssue, beforeState) => mergeIssueState(beforeState, updatedIssue),
+  },
   itemFilter: async (githubClient, repoParts, issueNumber, config) => {
     const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
     const requiredTitlePrefix = config.required_title_prefix || "";

@@ -417,7 +417,7 @@ func TestCompilerMergeSafeJobsFromIncludedConfigs(t *testing.T) {
 
 func TestExtractCommandConfig_CentralizedStrategy(t *testing.T) {
 	c := &Compiler{}
-	names, events, centralized := c.extractCommandConfig(map[string]any{
+	names, events, centralized, placeholder := c.extractCommandConfig(map[string]any{
 		"on": map[string]any{
 			"slash_command": map[string]any{
 				"name":     "deploy",
@@ -430,6 +430,24 @@ func TestExtractCommandConfig_CentralizedStrategy(t *testing.T) {
 	assert.Equal(t, []string{"deploy"}, names)
 	assert.Equal(t, []string{"issue_comment"}, events)
 	assert.True(t, centralized)
+	assert.Empty(t, placeholder)
+}
+
+func TestExtractCommandConfig_Placeholder(t *testing.T) {
+	c := &Compiler{}
+	names, events, centralized, placeholder := c.extractCommandConfig(map[string]any{
+		"on": map[string]any{
+			"slash_command": map[string]any{
+				"name":        "review-bot",
+				"placeholder": "to review this PR",
+			},
+		},
+	})
+
+	assert.Equal(t, []string{"review-bot"}, names)
+	assert.Nil(t, events)
+	assert.False(t, centralized)
+	assert.Equal(t, "to review this PR", placeholder)
 }
 
 // TestApplyDefaultTools tests default tool application logic

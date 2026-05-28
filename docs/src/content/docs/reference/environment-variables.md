@@ -158,6 +158,27 @@ These variables override the default AI model used for agent runs and threat det
 > [!NOTE]
 > The `engine.model:` field in workflow frontmatter takes precedence over these variables.
 
+### Compiler-managed default behavior
+
+Model defaults now use two different resolution paths:
+
+- **Compiler process environment (compile time):**
+  `GH_AW_DEFAULT_DETECTION_MODEL`
+- **GitHub `vars.*` expressions (runtime in compiled workflow):**
+  `GH_AW_DEFAULT_MODEL_COPILOT`,
+  `GH_AW_DEFAULT_MODEL_CLAUDE`,
+  `GH_AW_DEFAULT_MODEL_CODEX`
+
+At compile time, gh-aw emits runtime model expressions like:
+
+```yaml
+COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || '<engine default model>' }}
+```
+
+Use `gh aw env get` / `gh aw env update` to batch-manage
+these `GH_AW_DEFAULT_*` variables at repo, org, or enterprise scope with
+`default_`-prefixed YAML keys such as `default_max_effective_tokens` and `default_model_copilot`.
+
 ### Agent runs
 
 | Variable | Engine |
@@ -258,6 +279,8 @@ jobs:
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output environment configuration
 - [Sandbox](/gh-aw/reference/sandbox/) - Sandbox environment variables
+- [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/) - Enterprise defaults for timeout, max-turns, detection model, model fallback, and max-effective-tokens guardrails
+- [Cost Management](/gh-aw/reference/cost-management/) - Practical model and token guardrail rollout guidance
 - [Tools](/gh-aw/reference/tools/) - MCP tool configuration and guard policies
 - [MCP Scripts](/gh-aw/reference/mcp-scripts/) - MCP script tool configuration
 - [Engines](/gh-aw/reference/engines/) - AI engine configuration and model selection

@@ -8,6 +8,7 @@ on:
         description: 'Question from the dispatcher workflow'
         type: string
         required: true
+timeout-minutes: 10
 permissions:
   contents: read
 

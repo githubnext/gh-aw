@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var compilerYamlLog = logger.New("workflow:compiler_yaml")
@@ -837,8 +838,13 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		// Use the engine's default model as fallback when neither explicit model nor
 		// model variable is configured, so the run details show "agent" rather than "(none)".
 		defaultModel := getDefaultAgentModel(engineID)
-		if defaultModel != "" {
+		defaultModelOverrideVar := getDefaultModelOverrideVar(engineID)
+		if defaultModel != "" && defaultModelOverrideVar != "" {
+			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: %s\n", compilerenv.BuildModelOverrideExpression(modelEnvVar, defaultModelOverrideVar, defaultModel))
+		} else if defaultModel != "" {
 			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '%s' }}\n", modelEnvVar, defaultModel)
+		} else if defaultModelOverrideVar != "" {
+			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: %s\n", compilerenv.BuildModelOverrideExpressionEmptyFallback(modelEnvVar, defaultModelOverrideVar))
 		} else {
 			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '' }}\n", modelEnvVar)
 		}
@@ -887,8 +893,10 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			fmt.Fprintf(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", customToken)
 		}
 	}
-	// Embed custom token weights when specified in engine.token-weights
-	if data.EngineConfig != nil && data.EngineConfig.TokenWeights != nil {
+	// Embed custom token weights only when custom model multipliers are configured.
+	// This avoids emitting large model payload env values when workflows only customize
+	// token-class weights.
+	if data.EngineConfig != nil && data.EngineConfig.TokenWeights != nil && len(data.EngineConfig.TokenWeights.Multipliers) > 0 {
 		if tokenWeightsJSON, err := json.Marshal(data.EngineConfig.TokenWeights); err == nil {
 			// Escape single quotes for YAML single-quoted scalar safety
 			escapedTokenWeightsJSON := strings.ReplaceAll(string(tokenWeightsJSON), "'", "''")
@@ -963,6 +971,9 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	if len(data.Command) > 0 {
 		if commandsJSON, err := json.Marshal(data.Command); err == nil {
 			fmt.Fprintf(yaml, "          GH_AW_COMMANDS: %q\n", string(commandsJSON))
+		}
+		if data.CommandPlaceholder != "" {
+			fmt.Fprintf(yaml, "          GH_AW_COMMAND_PLACEHOLDER: %q\n", data.CommandPlaceholder)
 		}
 	}
 

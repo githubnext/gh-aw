@@ -47,7 +47,10 @@ fmt.Println(s.Median()) // 20
 
 ## Dependencies
 
-**Standard library only**:
+**Internal**:
+- `pkg/logger` — debug logging for non-finite observations
+
+**Standard library**:
 - `math` — square root for standard deviation
 - `sort` — sorting copied values for exact median
 

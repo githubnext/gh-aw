@@ -93,12 +93,15 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     const MAX_EMPTY_COMMITS = 30;
     const COMMITS_TO_CHECK = 60;
     let emptyCommitCount = 0;
+    let mergeCommitCount = 0;
+    let analyzedCommitCount = 0;
+    core.info(`Cycle check: analyzing up to ${COMMITS_TO_CHECK} recent commits on ${branchName}`);
 
     try {
       let logOutput = "";
-      // List last N commits: for each, output "COMMIT:<hash>" then changed file names.
+      // List last N commits: for each, output "COMMIT:<hash> <parents>" then changed file names.
       // Empty commits will have no files listed after the hash line.
-      await exec.exec("git", ["log", `--max-count=${COMMITS_TO_CHECK}`, "--format=COMMIT:%H", "--name-only", "HEAD"], {
+      await exec.exec("git", ["log", `--max-count=${COMMITS_TO_CHECK}`, "--format=COMMIT:%H %P", "--name-only", "HEAD"], {
         listeners: {
           stdout: data => {
             logOutput += data.toString();
@@ -109,8 +112,19 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       // Split by COMMIT: markers; each chunk starts with the hash, followed by filenames
       const chunks = logOutput.split("COMMIT:").filter(c => c.trim());
       for (const chunk of chunks) {
+        analyzedCommitCount++;
         const lines = chunk.split("\n").filter(l => l.trim());
-        // First line is the hash, remaining lines are changed files
+        // First line is hash + parent SHAs, remaining lines are changed files.
+        // Ignore merge commits (2+ parents) so they aren't mistaken for CI-trigger empty commits.
+        // git log format is "COMMIT:<hash> <parent1> <parent2>..."
+        const hashAndParents = (lines[0] || "").trim().split(" ").filter(Boolean);
+        const parentCount = Math.max(0, hashAndParents.length - 1);
+        if (parentCount >= 2) {
+          mergeCommitCount++;
+          continue;
+        }
+
+        // Non-merge commit with no changed files -> empty commit
         if (lines.length <= 1) {
           emptyCommitCount++;
         }
@@ -118,6 +132,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
     } catch {
       // If we can't check, default to allowing the push
       emptyCommitCount = 0;
+      core.warning(`Cycle check unavailable: failed to inspect git history for ${branchName}. Continuing with empty commit count set to 0.`);
     }
 
     if (emptyCommitCount >= MAX_EMPTY_COMMITS) {
@@ -125,6 +140,7 @@ async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMes
       return { success: true, skipped: true };
     }
 
+    core.info(`Cycle check details: analyzed ${analyzedCommitCount} commit(s), ignored ${mergeCommitCount} merge commit(s), counted ${emptyCommitCount} empty non-merge commit(s)`);
     core.info(`Cycle check passed: ${emptyCommitCount} empty commit(s) in last ${COMMITS_TO_CHECK} (limit: ${MAX_EMPTY_COMMITS})`);
 
     // Configure git remote with the token for authentication

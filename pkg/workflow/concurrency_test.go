@@ -443,7 +443,8 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 				EngineConfig: &EngineConfig{ID: "codex"},
 			},
 			expected: `concurrency:
-  group: "gh-aw-codex-${{ github.workflow }}"`,
+  group: "gh-aw-codex-${{ github.workflow }}"
+  queue: max`,
 			description: "Codex with schedule should get default concurrency",
 		},
 		{
@@ -453,7 +454,8 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 				EngineConfig: &EngineConfig{ID: "copilot"},
 			},
 			expected: `concurrency:
-  group: "gh-aw-copilot-${{ github.workflow }}"`,
+  group: "gh-aw-copilot-${{ github.workflow }}"
+  queue: max`,
 			description: "workflow_dispatch combined with schedule should still get default concurrency (not workflow_dispatch-only)",
 		},
 		{
@@ -482,7 +484,8 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 				ConcurrencyJobDiscriminator: "${{ inputs.finding_id }}",
 			},
 			expected: `concurrency:
-  group: "gh-aw-copilot-${{ github.workflow }}-${{ inputs.finding_id }}"`,
+  group: "gh-aw-copilot-${{ github.workflow }}-${{ inputs.finding_id }}"
+  queue: max`,
 			description: "job-discriminator should be appended to the default group to prevent fan-out cancellations",
 		},
 		{
@@ -493,7 +496,8 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 				ConcurrencyJobDiscriminator: "${{ inputs.item_id }}",
 			},
 			expected: `concurrency:
-  group: "gh-aw-copilot-${{ github.workflow }}-${{ inputs.item_id }}"`,
+  group: "gh-aw-copilot-${{ github.workflow }}-${{ inputs.item_id }}"
+  queue: max`,
 			description: "job-discriminator should be appended for mixed workflow_dispatch + schedule workflows",
 		},
 		{
@@ -528,7 +532,8 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 				ConcurrencyJobDiscriminator: "${{ github.run_id }}",
 			},
 			expected: `concurrency:
-  group: "gh-aw-copilot-${{ github.workflow }}-${{ github.run_id }}"`,
+  group: "gh-aw-copilot-${{ github.workflow }}-${{ github.run_id }}"
+  queue: max`,
 			description: "github.run_id makes each run unique — useful when fan-out workflows all share the same schedule trigger",
 		},
 		{
@@ -539,8 +544,36 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 				ConcurrencyJobDiscriminator: "${{ inputs.organization || github.run_id }}",
 			},
 			expected: `concurrency:
-  group: "gh-aw-claude-${{ github.workflow }}-${{ inputs.organization || github.run_id }}"`,
+  group: "gh-aw-claude-${{ github.workflow }}-${{ inputs.organization || github.run_id }}"
+  queue: max`,
 			description: "job-discriminator works with any engine; fallback to run_id handles scheduled (no-input) runs",
+		},
+		{
+			name: "workflow_call default group uses workflow id namespace",
+			workflowData: &WorkflowData{
+				On:         "on:\n  workflow_call:\n    inputs:\n      item:\n        required: false\n        type: string\n  schedule:\n    - cron: '0 0 * * *'",
+				WorkflowID: "reviewer-worker",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+			},
+			expected: `concurrency:
+  group: "gh-aw-copilot-reviewer-worker"
+  queue: max`,
+			description: "workflow_call workers should use workflow-id-based concurrency to avoid caller-name collisions",
+		},
+		{
+			name: "generated job concurrency can disable queue max feature",
+			workflowData: &WorkflowData{
+				On:           "on:\n  schedule:\n    - cron: '0 0 * * *'",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				Features: map[string]any{
+					"group-concurrency-queue": false,
+				},
+			},
+			expected: `concurrency:
+  group: "gh-aw-copilot-${{ github.workflow }}"`,
+			description: "feature flag can disable queue:max emission for generated job concurrency",
 		},
 		{
 			name: "Job discriminator ignored when push trigger (special trigger, no default group)",

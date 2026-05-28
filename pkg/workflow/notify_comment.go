@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var notifyCommentLog = logger.New("workflow:notify_comment")
@@ -380,9 +381,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	// Pass configured ET budget so failure reporting can attribute ET budget exhaustion accurately.
-	maxEffectiveTokens := constants.DefaultMaxEffectiveTokens
-	if data.EngineConfig != nil {
-		maxEffectiveTokens = data.EngineConfig.GetMaxEffectiveTokens()
+	maxEffectiveTokens := compilerenv.ResolveDefaultMaxEffectiveTokens(constants.DefaultMaxEffectiveTokens)
+	if data.EngineConfig != nil && data.EngineConfig.MaxEffectiveTokens != 0 {
+		maxEffectiveTokens = data.EngineConfig.MaxEffectiveTokens
 	}
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MAX_EFFECTIVE_TOKENS: %q\n", strconv.FormatInt(maxEffectiveTokens, 10)))
 

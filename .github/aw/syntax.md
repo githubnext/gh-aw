@@ -290,6 +290,10 @@ The YAML frontmatter supports these fields:
 - **`observability:`** - Workflow observability and telemetry configuration (object)
   - **`otlp:`** - Export OpenTelemetry spans to any OTLP-compatible backend (Honeycomb, Grafana Tempo, Sentry, etc.) (object)
     - `endpoint:` - OTLP collector endpoint URL. When a static URL is provided, its hostname is added to the AWF firewall allowlist automatically. Supports GitHub Actions expressions.
+    - `github-app:` - Optional runtime auth configuration.
+      - Preferred: provide GitHub App credentials (`app-id`/`client-id` + `private-key`) to mint a token with `actions/create-github-app-token` before `actions/setup`.
+      - OIDC mode is used when `github-app` is configured without credentials (`app-id`/`client-id` + `private-key`).
+      - OIDC mode requires `permissions.id-token: write` on the workflow/job.
     - `headers:` - Comma-separated `key=value` HTTP headers included in every OTLP export request (e.g. `Authorization=Bearer <token>`). Injected as `OTEL_EXPORTER_OTLP_HEADERS`. Supports GitHub Actions expressions.
   - Example:
 
@@ -297,6 +301,9 @@ The YAML frontmatter supports these fields:
     observability:
       otlp:
         endpoint: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
+        github-app:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
         headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
     ```
 
@@ -480,7 +487,16 @@ The YAML frontmatter supports these fields:
 
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
-    - `allowed:` - Array of allowed GitHub API functions
+    - `allowed:` - Array of allowed GitHub API functions. Each entry is either a string tool name (e.g., `issue_read`) or an object `{ name: <tool>, max-calls: <n> }` to cap how many times that tool may be called per run. Colon shorthand (`"issue_read:1"`) is **not** a call-limit form.
+
+      ```yaml
+      tools:
+        github:
+          allowed:
+            - { name: issue_read, max-calls: 1 }
+            - list_labels
+            - pull_request_read
+      ```
     - `mode:` - GitHub access mode. **Prefer `"gh-proxy"`** — it is faster (no MCP server startup) and lets the agent use `gh` shell commands directly for all GitHub reads (issues, PRs, discussions, commits, etc.):
       - `"gh-proxy"` (**preferred**) — pre-authenticated `gh` CLI available in bash; no GitHub MCP server is registered. Use `gh` commands for all GitHub reads.
       - `"local"` (default) — Docker-based GitHub MCP Server; use GitHub MCP tools for reads, `gh` is not authenticated.

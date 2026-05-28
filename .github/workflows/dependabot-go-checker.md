@@ -46,6 +46,24 @@ imports:
 
 
   - shared/otlp.md
+
+experiments:
+  prompt_style:
+    variants: [concise, detailed, step_by_step]
+    description: "Tests whether the current exhaustive multi-phase prompt can be trimmed without losing categorization accuracy or issue quality."
+    hypothesis: "H0: no change in issue categorization accuracy across prompt styles. H1: concise style reduces token cost by ≥15% with <5% drop in accuracy."
+    metric: issue_categorization_accuracy
+    secondary_metrics: [effective_token_count, run_duration_ms, issues_created_count]
+    guardrail_metrics:
+      - name: empty_output_rate
+        threshold: "<=0.05"
+      - name: run_success_rate
+        threshold: ">=0.85"
+    min_samples: 30
+    weight: [34, 33, 33]
+    start_date: "2026-05-27"
+    analysis_type: mann_whitney
+    tags: [prompt-engineering, cost-optimization, dependabot]
 ---
 # Dependabot Dependency Checker
 
@@ -59,6 +77,124 @@ Close any existing open dependency update issues with the `[deps]` prefix, then 
 - **Go Module File**: `go.mod` in repository root
 - **NPM Packages**: Check for `@playwright/mcp` updates in constants.go
 
+{{#if experiments.prompt_style == 'concise' }}
+## Your Tasks
+
+**Phase 0 — Close Existing Issues**: Search open `[deps]` issues in `${{ github.repository }}` → close each: `close_issue(issue_number=N, body="Closing this issue as a new dependency check is being performed.")` · `close-issue` safe output (max 20, prefix `[deps]`) · Do not proceed until done.
+
+**Phase 1 — Dependabot Alerts**:
+1. Parse `go.mod`; collect lines without `// indirect` → direct deps list.
+2. Query Dependabot toolset; discard alerts not in that list.
+3. Per alert: record current version, proposed version, update type, security info; web-fetch changelog.
+
+**Phase 1.5 — Playwright NPM**: Read `DefaultPlaywrightVersion` from `pkg/constants/constants.go`; fetch `https://registry.npmjs.org/@playwright/mcp` for latest version; determine update type.
+
+**Phase 2 — Categorize** (three-tier):
+
+| Tier | Criteria | Action |
+|------|----------|--------|
+| A — Safe Patch | Single-version patch only · bug fixes only · no new features · no breaking changes · backward-compatible per changelog | ONE consolidated issue |
+| B — Problematic | Minor version · multi-version patch jump · new features · behavior changes · config/code changes needed · safety unclear | Individual issue per dep |
+| C — Skip | Major version · explicit breaking changes · significant refactoring needed · insufficient docs | No issue |
+
+**Phase 2.5 — Repository Detection**:
+
+| Package prefix | Repository URL | Release / history URL |
+|----------------|----------------|-----------------------|
+| `github.com/*` | `https://github.com/{owner}/{repo}` (strip `/v2`+ suffix) | `.../releases/tag/{version}` |
+| `golang.org/x/*` | `https://go.googlesource.com/{pkg}` | `.../+log` (**no** GitHub releases) |
+| Other | `pkg.go.dev/{module-path}` → "Repository" link | Source link from pkg.go.dev |
+
+**Phase 3 — Create Issues**:
+- **Tier A** → ONE consolidated issue. Title: `Update safe patch dependencies (N updates)`. Body: summary + table (Package / Current / Proposed / Key Changes) + safety assessment + combined `go get` + `go mod tidy` command + test notes.
+- **Tier B** → Individual issue per dep. Title: `Update {module} from {old} to {new}`. Body: summary + current/proposed/type + why separate issue + safety assessment + changes + links (repo, release/history, pkg.go.dev) + `go get` command + test notes.
+- **Tier C** → No issue.
+
+**Constraints**: Direct deps only · Max 10 issues/run · Do NOT apply updates · When safety unclear → Tier B or C · `golang.org/x` packages: link commit history, not GitHub releases.
+
+{{#elseif experiments.prompt_style == 'step_by_step' }}
+## Your Tasks
+
+### Step 0: Close Existing Dependency Issues
+
+1. Search for open issues with title starting with `[deps]` in `${{ github.repository }}`.
+2. For each found issue, emit: `close_issue(issue_number=N, body="Closing this issue as a new dependency check is being performed.")`
+3. Use the `close-issue` safe output (`required-title-prefix: "[deps]"`, `max: 20`).
+
+✅ **Done when**: All open `[deps]` issues are closed, or none existed.
+
+---
+
+### Step 1: Gather Dependabot Alerts
+
+1. Read `go.mod`; collect all lines **without** `// indirect` → **direct deps list**.
+2. Query the Dependabot toolset for dependency update alerts.
+3. Discard any alert whose module path is not in the direct deps list.
+4. For each remaining alert: record current version, proposed version, update type (patch/minor/major), security info, and fetch changelog via web-fetch.
+
+✅ **Done when**: You have a filtered list of Dependabot alerts with version info for every direct dependency.
+
+---
+
+### Step 2: Check Playwright NPM Package
+
+1. Read `pkg/constants/constants.go` → find `DefaultPlaywrightVersion` constant.
+2. Fetch `https://registry.npmjs.org/@playwright/mcp` → read `latest` field.
+3. Compare current vs. latest: note patch/minor/major update type and any release notes.
+
+✅ **Done when**: You know the current and latest `@playwright/mcp` version and update type.
+
+---
+
+### Step 3: Categorize Each Update
+
+Apply these rules to every alert (including Playwright):
+
+- **Tier A (safe patch)** — ALL of: single-version patch increment; bug fixes only; no new features; no breaking changes; backward compatible per changelog.
+- **Tier B (individual issue)** — ANY of: minor version; multi-version patch jump; new features; behavior changes; configuration or code changes required; safety unclear.
+- **Tier C (skip)** — ANY of: major version; explicit breaking changes; significant refactoring required; insufficient documentation.
+
+✅ **Done when**: Every dependency has a tier assignment (A, B, or C).
+
+---
+
+### Step 4: Detect Source Repositories
+
+For each Tier A and Tier B dependency:
+
+- `github.com/*` → strip `/v2`+ suffix → `https://github.com/{owner}/{repo}`; release link: `.../releases/tag/{version}`.
+- `golang.org/x/*` → `https://go.googlesource.com/{pkg}`; history: `.../+log`; **do NOT create a GitHub release link**.
+- Other → look up `pkg.go.dev/{module-path}` for the "Repository" or "Source" link.
+
+✅ **Done when**: Every Tier A and Tier B dependency has a correct repository URL.
+
+---
+
+### Step 5: Create Issues
+
+**For Tier A** — create ONE consolidated issue:
+- **Title**: `Update safe patch dependencies (N updates)`
+- **Body**: brief summary · table (Package | Current | Proposed | Key Changes) · safety assessment explaining why all updates are safe · combined `go get` + `go mod tidy` command block · general test notes.
+
+**For Tier B** — create ONE issue per dependency:
+- **Title**: `Update {module} from {old} to {new}`
+- **Body**: summary · current/proposed version + update type · "Why Separate Issue" explanation · safety assessment · changes from changelog · links (repo, release or commit history, pkg.go.dev) · `go get` command block · specific test notes.
+
+**For Tier C** — no issue.
+
+**Limits**: max 10 issues/run (1 Tier A + up to 9 Tier B).
+
+✅ **Done when**: All Tier A and Tier B issues have been created (or skipped if none qualify).
+
+---
+
+**Global Constraints**:
+- Analyze direct dependencies only — skip any `// indirect` entry.
+- Do NOT apply updates — only create tracking issues.
+- Be conservative: when in doubt about safety, assign Tier B or Tier C.
+- `golang.org/x` packages: link to `go.googlesource.com`, never to GitHub release pages.
+
+{{#else}}
 ## Your Tasks
 
 ### Phase 0: Close Existing Dependency Issues (CRITICAL FIRST STEP)
@@ -469,5 +605,7 @@ make test-unit
 - Check that version is correctly used in compiled workflows
 - Test on multiple browsers if possible
 ```
+
+{{#endif}}
 
 {{#runtime-import shared/noop-reminder.md}}

@@ -30,4 +30,6 @@ func TestContributionCheckWorkflowSafeOutputContract(t *testing.T) {
 	assert.Contains(t, text, "aw_summary", "Workflow should provide a concrete temporary_id example")
 	assert.Contains(t, text, "add_labels.item_number", "Workflow must mention add_labels item_number linkage")
 	assert.Contains(t, text, "#<temporary_id>", "Workflow must describe item_number temporary_id reference format")
+	assert.Contains(t, text, "Never emit `add_comment` without a numeric target field", "Workflow must forbid targetless add_comment items")
+	assert.Contains(t, text, "\"issue_number\":35304", "Workflow should include a concrete add_comment issue_number example")
 }

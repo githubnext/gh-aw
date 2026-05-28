@@ -129,12 +129,15 @@ type FileInfo struct {
 // URL is present for creation types (e.g. create_issue, add_comment) but may be empty
 // for modification types (e.g. add_labels, close_issue) that do not return a URL.
 type CreatedItemReport struct {
-	Type        string `json:"type" console:"header:Type"`
-	URL         string `json:"url,omitempty" console:"header:URL,omitempty"`
-	Number      int    `json:"number,omitempty" console:"header:Number,omitempty"`
-	Repo        string `json:"repo,omitempty" console:"header:Repo,omitempty"`
-	TemporaryID string `json:"temporaryId,omitempty" console:"header:Temp ID,omitempty"`
-	Timestamp   string `json:"timestamp" console:"header:Timestamp"`
+	Type        string         `json:"type" console:"header:Type"`
+	URL         string         `json:"url,omitempty" console:"header:URL,omitempty"`
+	Number      int            `json:"number,omitempty" console:"header:Number,omitempty"`
+	Repo        string         `json:"repo,omitempty" console:"header:Repo,omitempty"`
+	TemporaryID string         `json:"temporaryId,omitempty" console:"header:Temp ID,omitempty"`
+	Metadata    map[string]any `json:"metadata,omitempty" console:"-"`
+	BeforeState map[string]any `json:"before_state,omitempty" console:"-"`
+	AfterState  map[string]any `json:"after_state,omitempty" console:"-"`
+	Timestamp   string         `json:"timestamp" console:"header:Timestamp"`
 }
 
 // ErrorInfo contains detailed error information

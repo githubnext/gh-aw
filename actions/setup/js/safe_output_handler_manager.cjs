@@ -492,6 +492,27 @@ function formatManifestLogMessage(item) {
   return `📝 Manifest: logged ${item.type}`;
 }
 
+function logCreatedItemFromResult(onItemCreated, messageType, result) {
+  if (!onItemCreated) {
+    return;
+  }
+  if (Array.isArray(result)) {
+    for (const item of result) {
+      const createdItem = extractCreatedItemFromResult(messageType, item);
+      if (createdItem) {
+        core.info(formatManifestLogMessage(createdItem));
+        onItemCreated(createdItem);
+      }
+    }
+    return;
+  }
+  const createdItem = extractCreatedItemFromResult(messageType, result);
+  if (createdItem) {
+    core.info(formatManifestLogMessage(createdItem));
+    onItemCreated(createdItem);
+  }
+}
+
 /**
  * Retroactively mark buffered review results as failed when the finalization POST fails.
  * Both submit_pull_request_review and create_pull_request_review_comment return
@@ -863,23 +884,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       });
 
       // Log to manifest if this was a create operation
-      if (onItemCreated) {
-        if (Array.isArray(result)) {
-          for (const item of result) {
-            const createdItem = extractCreatedItemFromResult(messageType, item);
-            if (createdItem) {
-              core.info(formatManifestLogMessage(createdItem));
-              onItemCreated(createdItem);
-            }
-          }
-        } else {
-          const createdItem = extractCreatedItemFromResult(messageType, result);
-          if (createdItem) {
-            core.info(formatManifestLogMessage(createdItem));
-            onItemCreated(createdItem);
-          }
-        }
-      }
+      logCreatedItemFromResult(onItemCreated, messageType, result);
 
       core.info(`✓ Message ${i + 1} (${messageType}) completed successfully`);
     } catch (error) {
@@ -981,13 +986,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           }
 
           // Log to manifest after deferred retry success
-          if (onItemCreated) {
-            const createdItem = extractCreatedItemFromResult(deferred.type, result);
-            if (createdItem) {
-              core.info(formatManifestLogMessage(createdItem));
-              onItemCreated(createdItem);
-            }
-          }
+          logCreatedItemFromResult(onItemCreated, deferred.type, result);
         }
       } catch (error) {
         core.error(`✗ Retry of message ${deferred.messageIndex + 1} (${deferred.type}) failed: ${getErrorMessage(error)}`);
@@ -1376,6 +1375,7 @@ async function main() {
       try {
         const reviewResult = await prReviewBuffer.submitReview();
         if (reviewResult.success && !reviewResult.skipped) {
+          logCreatedItemFromResult(logCreatedItem, "submit_pull_request_review", reviewResult);
           core.info(`✓ PR review submitted successfully: ${reviewResult.review_url}`);
         } else if (!reviewResult.success) {
           reviewFailureError = reviewResult.error || "PR review finalization failed";
@@ -1574,4 +1574,4 @@ async function main() {
   }
 }
 
-module.exports = { main, loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles, rollbackReviewResults };
+module.exports = { main, loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles, rollbackReviewResults, logCreatedItemFromResult };

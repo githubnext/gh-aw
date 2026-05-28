@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"strconv"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
@@ -41,6 +42,14 @@ func registerAddTool(server *mcp.Server, execCmd execCmdFunc) {
 		if len(args.Workflows) == 0 {
 			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "missing required parameter: at least one workflow specification is required", nil)
 		}
+		for _, workflowSpec := range args.Workflows {
+			if isRepositoryOnlyWorkflowSpec(workflowSpec) {
+				return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "failed to add workflows", map[string]any{
+					"error": "workflow specification must be in format 'owner/repo/workflow-name[@version]'",
+					"spec":  workflowSpec,
+				})
+			}
+		}
 
 		mcpToolsManagementLog.Printf("add tool invoked: workflows=%d, number=%d, name=%q", len(args.Workflows), args.Number, args.Name)
 
@@ -72,6 +81,17 @@ func registerAddTool(server *mcp.Server, execCmd execCmdFunc) {
 			},
 		}, nil, nil
 	})
+}
+
+func isRepositoryOnlyWorkflowSpec(spec string) bool {
+	if strings.HasPrefix(spec, "http://") || strings.HasPrefix(spec, "https://") || isLocalWorkflowPath(spec) {
+		return false
+	}
+
+	// Strip optional @version suffix so owner/repo@v1 is treated as repository-only.
+	specWithoutVersion := strings.SplitN(spec, "@", 2)[0]
+	slashParts := strings.Split(specWithoutVersion, "/")
+	return len(slashParts) == 2 && slashParts[0] != "" && slashParts[1] != ""
 }
 
 // updateArgs holds the input parameters for the update tool.

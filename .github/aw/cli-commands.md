@@ -234,6 +234,33 @@ gh aw deploy <workflow> --repo owner/repo --force       # Overwrite existing fil
 
 ---
 
+### `gh aw env`
+
+Manage compiler default variables (`GH_AW_DEFAULT_*`) in batch as GitHub Actions variables at repository, organization, or enterprise scope. The YAML file is flat and uses lowercase `default_*` keys (e.g. `default_max_turns`). Set a field to `null` to delete the variable; any non-null string sets it. Empty string `""` is treated as set-to-empty, not delete.
+
+```bash
+gh aw env get [file]                          # Download defaults to file.yml (default name)
+gh aw env get --scope org --org myorg         # Org-scope export
+gh aw env update file.yml --scope repo        # Apply with interactive confirmation
+gh aw env update file.yml --scope ent --enterprise myent --yes  # Skip confirmation
+gh aw env update file.yml --scope repo --dry-run  # Preview without applying
+```
+
+Example file:
+
+```yaml
+default_max_effective_tokens: "5000000"
+default_max_turns: "12"
+default_model_copilot: "gpt-5-mini"
+default_model_codex: null   # delete this variable
+```
+
+Recognized keys include `default_max_effective_tokens`, `default_timeout_minutes`, `default_max_turns`, `default_detection_model`, `default_model_copilot`, `default_model_claude`, `default_model_codex`. The compiler resolves model selection as `GH_AW_MODEL_*` → `GH_AW_DEFAULT_MODEL_*` → built-in engine fallback.
+
+**MCP equivalent**: Not available — run from a local terminal.
+
+---
+
 ### `gh aw mcp inspect`
 
 Inspect and analyze MCP server configurations in workflows.
@@ -265,4 +292,5 @@ gh aw mcp list                                   # List workflows with MCP serve
 | `gh aw fix` | `fix` |
 | `gh aw upgrade` | `upgrade` |
 | `gh aw deploy` | *(local only)* |
+| `gh aw env` | *(local only)* |
 | `gh aw init` | *(local only)* |

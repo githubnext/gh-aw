@@ -59,6 +59,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/jsonutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
@@ -254,10 +255,12 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	// ── API proxy section ─────────────────────────────────────────────────────
-	maxEffectiveTokens := constants.DefaultMaxEffectiveTokens
+	maxEffectiveTokens := compilerenv.ResolveDefaultMaxEffectiveTokens(constants.DefaultMaxEffectiveTokens)
 	maxRuns := constants.DefaultMaxRuns
 	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
-		maxEffectiveTokens = config.WorkflowData.EngineConfig.GetMaxEffectiveTokens()
+		if config.WorkflowData.EngineConfig.MaxEffectiveTokens != 0 {
+			maxEffectiveTokens = config.WorkflowData.EngineConfig.MaxEffectiveTokens
+		}
 		maxRuns = config.WorkflowData.EngineConfig.GetMaxRuns()
 	}
 

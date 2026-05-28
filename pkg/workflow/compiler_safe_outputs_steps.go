@@ -18,6 +18,11 @@ var consolidatedSafeOutputsStepsLog = logger.New("workflow:compiler_safe_outputs
 // events on PRs targeting non-default branches: the checkout step can now use the
 // correct base branch regardless of event type.
 //
+// Cross-repo items (where the entry's `repo` field is set and differs from the
+// workflow repository) are skipped. Their base_branch belongs to a different
+// repository and must not be used to checkout the workflow repo, as that branch
+// will not exist there and the checkout step would fail.
+//
 // The step writes the extracted branch to GITHUB_OUTPUT as "base-branch" so the
 // checkout step can reference it via ${{ steps.extract-base-branch.outputs.base-branch }}.
 func buildExtractBaseBranchStep() []string {
@@ -25,26 +30,13 @@ func buildExtractBaseBranchStep() []string {
 		"      - name: Extract base branch from agent output\n",
 		"        id: extract-base-branch\n",
 		"        if: steps.download-agent-output.outcome == 'success'\n",
-		"        shell: bash\n",
-		"        run: |\n",
-		"          if [ -f \"/tmp/gh-aw/agent_output.json\" ]; then\n",
-		"            GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)\n",
-		"            BASE_BRANCH=$(\"$GH_AW_NODE\" -e \"\n",
-		"              try {\n",
-		"                const data = JSON.parse(require('fs').readFileSync('/tmp/gh-aw/agent_output.json', 'utf8'));\n",
-		"                const item = (data.items || []).find(i =>\n",
-		"                  (i.type === 'create_pull_request' || i.type === 'push_to_pull_request_branch') &&\n",
-		"                  i.base_branch\n",
-		"                );\n",
-		"                if (item) process.stdout.write(item.base_branch);\n",
-		"              } catch(e) {}\n",
-		"            \" 2>/dev/null || true)\n",
-		"            # Validate: only allow safe git branch name characters\n",
-		"            if [[ \"$BASE_BRANCH\" =~ ^[a-zA-Z0-9/_.-]+$ ]] && [ ${#BASE_BRANCH} -le 255 ]; then\n",
-		"              printf 'base-branch=%s\\n' \"$BASE_BRANCH\" >> \"$GITHUB_OUTPUT\"\n",
-		"              echo \"Extracted base branch from safe output: $BASE_BRANCH\"\n",
-		"            fi\n",
-		"          fi\n",
+		fmt.Sprintf("        uses: %s\n", getActionPin("actions/github-script")),
+		"        with:\n",
+		"          script: |\n",
+		fmt.Sprintf("            const { setupGlobals } = require('%s/setup_globals.cjs');\n", SetupActionDestination),
+		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		fmt.Sprintf("            const { main } = require('%s/extract_base_branch_from_agent_output.cjs');\n", SetupActionDestination),
+		"            await main();\n",
 	}
 }
 
@@ -209,8 +201,58 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	}
 	steps = append(steps, gitConfigSteps...)
 
+	// Step 3: Fetch additional refs for cross-repo checkouts when declared in checkout:.
+	// This mirrors what the agent job emits via generateFetchStepLines and ensures the
+	// safe_outputs job has the same remote-tracking refs available when applying bundles.
+	// Without this, applyBundleToBranch must fall back to per-SHA git fetch (prerequisite
+	// recovery), which requires uploadpack.allowReachableSHA1InWant on the server.
+	if targetRepoSlug != "" {
+		checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
+		if matchedEntry := checkoutMgr.GetCheckoutForRepository(targetRepoSlug); matchedEntry != nil && len(matchedEntry.fetchRefs) > 0 {
+			consolidatedSafeOutputsStepsLog.Printf("Adding fetch refs step for cross-repo target %s (%d refs)", targetRepoSlug, len(matchedEntry.fetchRefs))
+			if fetchStep := buildSafeOutputsFetchRefsStep(targetRepoSlug, checkoutToken, matchedEntry.fetchRefs, RenderCondition(condition)); fetchStep != "" {
+				steps = append(steps, fetchStep)
+			}
+		}
+	}
+
 	consolidatedSafeOutputsStepsLog.Printf("Added shared checkout with condition: %s", condition.Render())
 	return steps
+}
+
+// buildSafeOutputsFetchRefsStep generates a conditional "Fetch additional refs" step
+// for the safe_outputs job's cross-repo checkout.
+//
+// Unlike the agent-job fetch step (which targets a subdirectory via -C and runs
+// unconditionally), this step:
+//   - Runs under the same condition as the shared PR checkout step
+//   - Targets the workspace root — safe_outputs checks out the single cross-repo
+//     target to the workspace root (no path: parameter), never to a subdirectory.
+//     NOTE: safe_outputs supports only one cross-repo checkout at a time. If multiple
+//     distinct target repositories were needed, this step would need a -C <path>
+//     argument and the checkout step would need a path: parameter, which is not
+//     currently supported.
+//   - Uses the resolved safe_outputs checkout token (from resolvePRCheckoutToken)
+//     rather than the CheckoutConfig's token
+func buildSafeOutputsFetchRefsStep(repoSlug, token string, fetchRefs []string, condition string) string {
+	if len(fetchRefs) == 0 {
+		return ""
+	}
+	refspecs := make([]string, 0, len(fetchRefs))
+	for _, ref := range fetchRefs {
+		refspecs = append(refspecs, fmt.Sprintf("'%s'", fetchRefToRefspec(ref)))
+	}
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "      - name: Fetch additional refs for %s\n", repoSlug)
+	if condition != "" {
+		fmt.Fprintf(&sb, "        if: %s\n", condition)
+	}
+	sb.WriteString("        env:\n")
+	fmt.Fprintf(&sb, "          GH_AW_FETCH_TOKEN: %s\n", token)
+	sb.WriteString("        run: |\n")
+	sb.WriteString("          header=$(printf \"x-access-token:%s\" \"${GH_AW_FETCH_TOKEN}\" | base64 -w 0)\n")
+	fmt.Fprintf(&sb, "          git -c \"http.extraheader=Authorization: Basic ${header}\" fetch origin %s\n", strings.Join(refspecs, " "))
+	return sb.String()
 }
 
 // buildHandlerManagerStep builds a single step that uses the safe output handler manager

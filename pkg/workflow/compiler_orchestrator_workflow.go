@@ -220,7 +220,15 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 			// mergeOTLPCustomAttributes(base, override) — base wins, so pass main as base.
 			mergedAttrs := mergeOTLPCustomAttributes(mainAttrs, importAttrs)
 
-			if len(mergedEndpoints) > 0 || len(mergedAttrs) > 0 {
+			// Preserve OTLP github-app auth config so the compiler can emit the
+			// pre-setup OIDC mint step and validate id-token permissions.
+			// Main workflow takes precedence over imported defaults.
+			githubApp := extractRawOTLPGitHubAppMap(mainObs)
+			if githubApp == nil {
+				githubApp = extractRawOTLPGitHubAppMap(importedObs)
+			}
+
+			if len(mergedEndpoints) > 0 || len(mergedAttrs) > 0 || githubApp != nil {
 				mainCount := len(mergedEndpoints) - importAdded
 				newOTLP := map[string]any{}
 				if len(mergedEndpoints) > 0 {
@@ -228,6 +236,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				}
 				if len(mergedAttrs) > 0 {
 					newOTLP["attributes"] = mergedAttrs
+				}
+				if githubApp != nil {
+					newOTLP["github-app"] = githubApp
 				}
 				workflowData.RawFrontmatter["observability"] = map[string]any{
 					"otlp": newOTLP,
@@ -362,7 +373,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.RepoMemoryConfig = repoMemoryConfig
 
 	// Extract and process mcp-scripts and safe-outputs
-	workflowData.Command, workflowData.CommandEvents, workflowData.CommandCentralized = c.extractCommandConfig(frontmatter)
+	workflowData.Command, workflowData.CommandEvents, workflowData.CommandCentralized, workflowData.CommandPlaceholder = c.extractCommandConfig(frontmatter)
 	workflowData.LabelCommand, workflowData.LabelCommandEvents, workflowData.LabelCommandDecentralized, workflowData.LabelCommandRemoveLabel = c.extractLabelCommandConfig(frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(frontmatter)
 

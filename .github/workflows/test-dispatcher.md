@@ -2,6 +2,7 @@
 emoji: "🧪"
 on:
   workflow_dispatch:
+timeout-minutes: 10
 permissions:
   contents: read
   issues: read

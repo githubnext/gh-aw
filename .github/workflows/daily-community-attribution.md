@@ -29,6 +29,7 @@ tools:
   repo-memory:
     wiki: true
     description: "All-time Community Contributors list"
+    max-patch-size: 102400  # 100KB; default (10KB) is too small for the full contributors list
   bash:
     - "gh pr list *"
     - "gh issue list *"

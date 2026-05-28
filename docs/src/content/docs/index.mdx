@@ -22,7 +22,7 @@ import FeatureGrid from '../../components/FeatureGrid.astro';
 import Video from '../../components/Video.astro';
 import BlogLinkSection from '../../components/BlogLinkSection.astro';
 
-Imagine a world where improvements to your repositories are automatically delivered each morning, ready for you to review. Issues are automatically triaged, CI failures analyzed, documentation maintained and tests improved. All defined via simple markdown files.
+Wake up to ready-to-review repository improvements—automated triage, CI insights, docs updates, and test enhancements from simple markdown workflows.
 
 GitHub Agentic Workflows deliver this: repository automation, running the coding agents you know and love, in GitHub Actions, with strong guardrails and security-first design principles.
 
@@ -57,29 +57,63 @@ Developed by GitHub and Microsoft, workflows run with added guardrails, using sa
 
 ## Guardrails Built-In
 
-AI agents can be manipulated into taking unintended actions—through malicious repository content, compromised tools, or prompt injection. GitHub Agentic Workflows addresses this with five security layers that work together to contain the impact of a confused or compromised agent.
+AI agents can be manipulated by prompt injection, malicious repository content, or compromised tools. GitHub Agentic Workflows uses layered controls to keep each run contained: sandboxing limits where code can execute, scoped permissions limit what it can request, and gated outputs ensure only approved actions reach GitHub.
 
-### Read-only tokens
+```mermaid
+flowchart LR
+    INPUT["Repository + Prompt Input"] --> TOKENS["Read-only Token"]
+    TOKENS --> SECRETS["No Secrets in Agent"]
+    SECRETS --> SANDBOX["Sandbox + Network Firewall"]
+    SANDBOX --> SAFE["Safe Outputs Gate"]
+    SAFE --> DETECT["Threat Detection Scan"]
+    DETECT --> APPLY["Scoped Write Job"]
+```
 
-The AI agent receives a GitHub token scoped to read-only permissions. Even if the agent attempts to create a pull request, push code, or delete a file, the underlying token simply doesn't allow it. The agent can observe your repository; it cannot change it.
-
-### Zero secrets in the agent
-
-The agent process never receives write tokens, API keys, or other sensitive credentials. Those secrets exist only in separate, isolated jobs that run _after_ the agent has finished and its output has passed review. A compromised agent has nothing to steal and no credentials to misuse.
-
-### Containerized with a network firewall
-
-The agent runs inside an isolated container. A built-in network firewall—the [Agent Workflow Firewall](/gh-aw/introduction/architecture/#agent-workflow-firewall-awf)—routes all outbound traffic through a Squid proxy enforcing an explicit domain allowlist. Traffic to any other destination is dropped at the kernel level, so a compromised agent cannot exfiltrate data or call out to unexpected servers.
-
-### Safe outputs with strong guardrails
-
-The agent cannot write to GitHub directly. Instead, it produces a structured artifact describing its intended actions—for example, "create an issue with this title and body." A separate job with [scoped write permissions](/gh-aw/reference/safe-outputs/) reads that artifact and applies only what your workflow explicitly permits: hard limits per operation (such as a maximum of one issue per run), required title prefixes, and label constraints. The agent requests; a gated job decides.
-
-### Agentic threat detection
-
-Before any output is applied, a dedicated [threat detection job](/gh-aw/reference/threat-detection/) runs an AI-powered scan of the agent's proposed changes. It checks for prompt injection attacks, leaked credentials, and malicious code patterns. If anything looks suspicious, the workflow fails immediately and nothing is written to your repository.
+<CardGrid>
+  <Card title="Read-only token">
+    The agent can read repository state, but it cannot
+    push commits or write to issues directly.
+  </Card>
+  <Card title="No secrets in agent runtime">
+    Sensitive credentials stay in isolated downstream
+    jobs, not inside the agent process.
+  </Card>
+  <Card title="Sandbox + network firewall">
+    The agent runs in a container behind the
+    [Agent Workflow Firewall](/gh-aw/introduction/architecture/#agent-workflow-firewall-awf)
+    and can only reach allowed destinations.
+  </Card>
+  <Card title="Safe outputs gate">
+    Requested actions are validated against your
+    configured [safe outputs](/gh-aw/reference/safe-outputs/)
+    policy before anything is applied.
+  </Card>
+  <Card title="Threat detection">
+    A dedicated
+    [threat detection job](/gh-aw/reference/threat-detection/)
+    scans proposed outputs and blocks suspicious changes.
+  </Card>
+</CardGrid>
 
 See the [Security Architecture](/gh-aw/introduction/architecture/) for a full breakdown of the layered defense-in-depth model.
+
+## Manage Cost and Capacity
+
+Cost control starts with visibility. Use `gh aw logs` and `gh aw audit` to find runs consuming the most time, tokens, and effective tokens, then tighten prompts, triggers, and model choices before spend drifts upward.
+
+`max-effective-tokens` gives each run a hard budget, while [OpenTelemetry](/gh-aw/reference/open-telemetry/) exports traces and token data to OTLP backends for dashboards, alerting, and cost analysis. For optimization over time, compare cost with [outcomes](/gh-aw/reference/outcomes/) so lower spend still produces useful accepted results.
+
+<FeatureGrid columns={3}>
+  <FeatureCard icon="pulse" title="Cost Management" href="/gh-aw/reference/cost-management/">
+    Track Actions minutes, inference spend, and the heaviest runs before deciding what to optimize
+  </FeatureCard>
+  <FeatureCard icon="workflow" title="OpenTelemetry" href="/gh-aw/reference/open-telemetry/">
+    Export workflow traces to OTLP backends for dashboards, alerts, and spend analysis
+  </FeatureCard>
+  <FeatureCard icon="tools" title="Effective Token Budgets" href="/gh-aw/reference/frontmatter/#effective-token-budget-max-effective-tokens">
+    Cap runaway runs with max-effective-tokens and optimize around effective-token usage
+  </FeatureCard>
+</FeatureGrid>
 
 ## Example: Daily Issues Report
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var compilerYamlLookupsLog = logger.New("workflow:compiler_yaml_lookups")
@@ -31,17 +32,17 @@ func getVersionForSetup(data *WorkflowData) string {
 		engineID = data.AI
 	}
 	switch engineID {
-	case "copilot":
+	case string(constants.CopilotEngine):
 		return string(constants.DefaultCopilotVersion)
-	case "claude":
+	case string(constants.ClaudeEngine):
 		return string(constants.DefaultClaudeCodeVersion)
-	case "codex":
+	case string(constants.CodexEngine):
 		return string(constants.DefaultCodexVersion)
-	case "opencode":
+	case string(constants.OpenCodeEngine):
 		return string(constants.DefaultOpenCodeVersion)
-	case "crush":
+	case string(constants.CrushEngine):
 		return string(constants.DefaultCrushVersion)
-	case "pi":
+	case string(constants.PiEngine):
 		return string(constants.DefaultPiVersion)
 	default:
 		return ""
@@ -79,17 +80,17 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 
 	// Otherwise, use the default version for the engine
 	switch engineID {
-	case "copilot":
+	case string(constants.CopilotEngine):
 		return string(constants.DefaultCopilotVersion)
-	case "claude":
+	case string(constants.ClaudeEngine):
 		return string(constants.DefaultClaudeCodeVersion)
-	case "codex":
+	case string(constants.CodexEngine):
 		return string(constants.DefaultCodexVersion)
-	case "opencode":
+	case string(constants.OpenCodeEngine):
 		return string(constants.DefaultOpenCodeVersion)
-	case "crush":
+	case string(constants.CrushEngine):
 		return string(constants.DefaultCrushVersion)
-	case "pi":
+	case string(constants.PiEngine):
 		return string(constants.DefaultPiVersion)
 	default:
 		// Custom or unknown engines don't have a default version
@@ -105,12 +106,27 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 // or empty string for custom/unknown engines.
 func getDefaultAgentModel(engineID string) string {
 	switch engineID {
-	case "copilot":
+	case string(constants.CopilotEngine):
 		return constants.CopilotBYOKDefaultModel
-	case "claude", "gemini", "opencode", "crush", "pi":
+	case string(constants.ClaudeEngine), string(constants.GeminiEngine), string(constants.OpenCodeEngine), string(constants.CrushEngine), string(constants.PiEngine):
 		return "agent"
-	case "codex":
+	case string(constants.CodexEngine):
 		return constants.CodexDefaultModel
+	default:
+		return ""
+	}
+}
+
+// getDefaultModelOverrideVar returns the enterprise override variable used for the engine's
+// default model fallback when the GH_AW_MODEL_AGENT/DETECTION_* variable is unset.
+func getDefaultModelOverrideVar(engineID string) string {
+	switch engineID {
+	case string(constants.CopilotEngine):
+		return compilerenv.DefaultModelCopilot
+	case string(constants.ClaudeEngine):
+		return compilerenv.DefaultModelClaude
+	case string(constants.CodexEngine):
+		return compilerenv.DefaultModelCodex
 	default:
 		return ""
 	}

@@ -283,7 +283,7 @@ describe("git_helpers.cjs", () => {
   });
 
   describe("ensureFullHistoryForBundle", () => {
-    it("should fetch full history when the repository is shallow", async () => {
+    it("should not fetch full history when the repository is shallow", async () => {
       const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
       const execApi = {
         getExecOutput: vi.fn().mockResolvedValue({ stdout: "true\n" }),
@@ -294,7 +294,7 @@ describe("git_helpers.cjs", () => {
       await ensureFullHistoryForBundle(execApi, options);
 
       expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["rev-parse", "--is-shallow-repository"], options);
-      expect(execApi.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], options);
+      expect(execApi.exec).not.toHaveBeenCalled();
     });
 
     it("should not fetch full history when the repository is not shallow", async () => {
@@ -309,7 +309,7 @@ describe("git_helpers.cjs", () => {
       expect(execApi.exec).not.toHaveBeenCalled();
     });
 
-    it("should skip unshallow when shallow status cannot be determined", async () => {
+    it("should skip history probing when shallow status cannot be determined", async () => {
       const { ensureFullHistoryForBundle } = await import("./git_helpers.cjs");
       const warning = mockCoreWarning();
       const execApi = {
@@ -321,7 +321,7 @@ describe("git_helpers.cjs", () => {
 
       expect(execApi.exec).not.toHaveBeenCalled();
       expect(warning).toHaveBeenCalledTimes(1);
-      expect(warning).toHaveBeenCalledWith("Could not determine shallow repository status; skipping unshallow: not a git repository");
+      expect(warning).toHaveBeenCalledWith("Could not determine shallow repository status; skipping full-history fetch probe: not a git repository");
     });
 
     it("should warn with stringified non-error shallow status failures", async () => {
@@ -336,7 +336,7 @@ describe("git_helpers.cjs", () => {
 
       expect(execApi.exec).not.toHaveBeenCalled();
       expect(warning).toHaveBeenCalledTimes(1);
-      expect(warning).toHaveBeenCalledWith("Could not determine shallow repository status; skipping unshallow: unknown failure");
+      expect(warning).toHaveBeenCalledWith("Could not determine shallow repository status; skipping full-history fetch probe: unknown failure");
     });
   });
 

@@ -14,6 +14,7 @@ const mockCore = {
 const mockGithub = {
   rest: {
     pulls: {
+      get: vi.fn(),
       createReview: vi.fn(),
       listFiles: vi.fn(),
       listReviews: vi.fn(),
@@ -46,7 +47,14 @@ describe("pr_review_buffer (factory pattern)", () => {
     process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
 
     // Default: return empty file list so path filtering is skipped unless explicitly mocked
+    mockGithub.rest.pulls.get.mockResolvedValue({
+      data: {
+        requested_reviewers: [{ login: "existing-reviewer" }],
+        requested_teams: [],
+      },
+    });
     mockGithub.rest.pulls.listFiles.mockResolvedValue({ data: [] });
+    mockGithub.rest.pulls.listReviews.mockResolvedValue({ data: [] });
 
     // Create a fresh buffer instance for each test (no shared global state)
     buffer = createReviewBuffer();
@@ -249,6 +257,47 @@ describe("pr_review_buffer (factory pattern)", () => {
       });
     });
 
+    it("should capture before and after review state metadata", async () => {
+      buffer.setReviewMetadata("Looks good", "COMMENT");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      mockGithub.rest.pulls.listReviews.mockResolvedValueOnce({ data: [{ id: 1, user: { login: "existing-reviewer" }, state: "COMMENTED" }] });
+      mockGithub.rest.pulls.listReviews.mockResolvedValueOnce({
+        data: [
+          { id: 1, user: { login: "existing-reviewer" }, state: "COMMENTED" },
+          { id: 2, user: { login: "github-actions[bot]" }, state: "COMMENTED" },
+        ],
+      });
+      mockGithub.rest.pulls.createReview.mockResolvedValue({
+        data: {
+          id: 2,
+          html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-2",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      expect(result.before_state).toEqual({
+        requested_reviewers: ["existing-reviewer"],
+        requested_team_reviewers: [],
+        reviews: [{ id: 1, user: "existing-reviewer", state: "COMMENTED" }],
+      });
+      expect(result.after_state).toEqual({
+        requested_reviewers: ["existing-reviewer"],
+        requested_team_reviewers: [],
+        reviews: [
+          { id: 1, user: "existing-reviewer", state: "COMMENTED" },
+          { id: 2, user: "github-actions[bot]", state: "COMMENTED" },
+        ],
+      });
+    });
+
     it("should submit review with metadata when set", async () => {
       buffer.addComment({ path: "src/index.js", line: 10, body: "Fix this" });
       buffer.setReviewMetadata("Please address these issues.", "REQUEST_CHANGES");
@@ -271,6 +320,12 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(result.success).toBe(true);
       expect(result.event).toBe("REQUEST_CHANGES");
       expect(result.review_id).toBe(200);
+      expect(result.url).toBe("https://github.com/owner/repo/pull/42#pullrequestreview-200");
+      expect(result.number).toBe(42);
+      expect(result.metadata).toEqual({
+        review_id: 200,
+        review_event: "REQUEST_CHANGES",
+      });
 
       const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
       expect(callArgs.event).toBe("REQUEST_CHANGES");
@@ -670,7 +725,9 @@ describe("pr_review_buffer (factory pattern)", () => {
         const result = await buffer.submitReview();
 
         expect(result.success).toBe(true);
-        expect(mockGithub.rest.pulls.listReviews).toHaveBeenCalledTimes(1);
+        // submitReview() reads reviews before superseding, during supersede
+        // candidate selection, and again after review creation for after-state.
+        expect(mockGithub.rest.pulls.listReviews).toHaveBeenCalledTimes(3);
         expect(mockGithub.rest.pulls.dismissReview).toHaveBeenCalledTimes(1);
         expect(mockGithub.rest.pulls.dismissReview).toHaveBeenCalledWith({
           owner: "owner",
@@ -749,7 +806,7 @@ describe("pr_review_buffer (factory pattern)", () => {
             html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-902",
           },
         });
-        mockGithub.rest.pulls.listReviews.mockRejectedValue(new Error("rate limited"));
+        mockGithub.rest.pulls.listReviews.mockResolvedValueOnce({ data: [] }).mockRejectedValueOnce(new Error("rate limited")).mockResolvedValueOnce({ data: [] });
 
         const result = await buffer.submitReview();
 
@@ -818,6 +875,59 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(retryArgs.body).toContain("<details><summary>src/new_file.js:42</summary>");
       expect(retryArgs.body).toContain("A third inline comment that should be preserved in the fallback body");
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Line could not be resolved"));
+    });
+
+    it("should retry as body-only review when Path could not be resolved error occurs", async () => {
+      buffer.addComment({ path: ".changeset/some-file.md", line: 1, body: "Review comment on line 1" });
+      buffer.addComment({ path: "src/new_file.js", line: 42, body: "A second inline comment" });
+      buffer.setReviewMetadata("Reviewed with comments.", "COMMENT");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 21946,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error('Unprocessable Entity: "Path could not be resolved"')).mockResolvedValueOnce({
+        data: {
+          id: 801,
+          html_url: "https://github.com/owner/repo/pull/21946#pullrequestreview-801",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      expect(result.review_id).toBe(801);
+      expect(result.comment_count).toBe(0);
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+      // Second call should have no comments array
+      const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
+      expect(retryArgs.comments).toBeUndefined();
+      expect(retryArgs.body).toContain("### Comments that could not be inline-anchored");
+      expect(retryArgs.body).toContain("<details><summary>.changeset/some-file.md:1</summary>");
+      expect(retryArgs.body).toContain("Review comment on line 1");
+      expect(retryArgs.body).toContain("<details><summary>src/new_file.js:42</summary>");
+      expect(retryArgs.body).toContain("A second inline comment");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Path could not be resolved"));
+    });
+
+    it("should return failure when body-only retry also fails after Path could not be resolved", async () => {
+      buffer.addComment({ path: "some-file.md", line: 1, body: "Review comment" });
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error("Path could not be resolved")).mockRejectedValueOnce(new Error("Some other error on retry"));
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Some other error on retry");
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
     });
 
     it("should return failure when body-only retry also fails after Line could not be resolved", async () => {

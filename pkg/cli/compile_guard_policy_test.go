@@ -470,3 +470,69 @@ This workflow sets trusted-users without min-integrity (should fail).
 	require.Error(t, err, "Expected compilation to fail without min-integrity")
 	assert.Contains(t, err.Error(), "min-integrity", "Error should mention min-integrity requirement")
 }
+
+// TestGuardPolicyToolCallLimitsCompilation verifies that max-calls entries under
+// tools.github.allowed compile successfully in CLI workflow compilation.
+func TestGuardPolicyToolCallLimitsCompilation(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+tools:
+  github:
+    mode: local
+    allowed:
+      - name: issue_read
+        max-calls: 1
+---
+
+# Guard Policy Tool Limits Test
+`
+
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "test-guard-policy-tool-limits.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644)
+	require.NoError(t, err, "Failed to write workflow file")
+
+	compiler := workflow.NewCompiler()
+	err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, CompileValidationOptions{})
+	require.NoError(t, err, "Expected compilation to succeed")
+
+	lockFilePath := filepath.Join(tmpDir, "test-guard-policy-tool-limits.lock.yml")
+	_, err = os.Stat(lockFilePath)
+	require.NoError(t, err, "Compiled lock file must be generated")
+}
+
+// TestGuardPolicyAllowedColonStringDoesNotEmitToolCallLimits verifies that string
+// entries containing colons are not interpreted as per-tool call limits.
+func TestGuardPolicyAllowedColonStringDoesNotEmitToolCallLimits(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+tools:
+  github:
+    allowed:
+      - issue_read:1
+      - list_labels
+---
+
+# Guard Policy Colon Entry Test
+`
+
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "test-guard-policy-colon-entry.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644)
+	require.NoError(t, err, "Failed to write workflow file")
+
+	compiler := workflow.NewCompiler()
+	err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, CompileValidationOptions{})
+	require.Error(t, err, "Expected compilation to fail for unknown tool name")
+	assert.Contains(t, err.Error(), "Unknown GitHub tool(s): issue_read:1", "Compiler must treat colon entry as literal tool name")
+}

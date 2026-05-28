@@ -17,7 +17,10 @@ const {
   hasNumerousPermissionDeniedIssues,
   INFERENCE_ACCESS_ERROR_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
+  isDetectionPhase,
   isAuthenticationFailedError,
+  isModelAvailableInReflectData,
+  isModelAvailableInReflectFile,
   enrichReflectModels,
   extractModelIds,
   fetchAWFReflect,
@@ -894,6 +897,45 @@ describe("copilot_harness.cjs", () => {
     it("returns sorted results", () => {
       const json = { data: [{ id: "z-model" }, { id: "a-model" }, { id: "m-model" }] };
       expect(extractModelIds(json)).toEqual(["a-model", "m-model", "z-model"]);
+    });
+  });
+
+  describe("detection model availability helpers", () => {
+    it("identifies detection phase from GH_AW_PHASE", () => {
+      expect(isDetectionPhase("detection")).toBe(true);
+      expect(isDetectionPhase("DETECTION")).toBe(true);
+      expect(isDetectionPhase("agent")).toBe(false);
+      expect(isDetectionPhase("")).toBe(false);
+    });
+
+    it("checks model availability from reflect endpoint payload", () => {
+      const reflectData = {
+        endpoints: [
+          { provider: "copilot", configured: true, models: ["claude-sonnet-4.6", "gpt-5.4"] },
+          { provider: "openai", configured: false, models: ["gpt-4.1"] },
+        ],
+      };
+      expect(isModelAvailableInReflectData("claude-sonnet-4.6", reflectData)).toBe(true);
+      expect(isModelAvailableInReflectData("gpt-4.1", reflectData)).toBe(false);
+      expect(isModelAvailableInReflectData("missing-model", reflectData)).toBe(false);
+    });
+
+    it("reads reflect file and checks model availability", () => {
+      const reflectFile = path.join(os.tmpdir(), `awf-reflect-${Date.now()}.json`);
+      try {
+        fs.writeFileSync(
+          reflectFile,
+          JSON.stringify({
+            endpoints: [{ provider: "copilot", configured: true, models: ["claude-sonnet-4.6"] }],
+          }),
+          "utf8"
+        );
+        const logs = [];
+        expect(isModelAvailableInReflectFile("claude-sonnet-4.6", { reflectPath: reflectFile, logger: msg => logs.push(msg) })).toBe(true);
+        expect(isModelAvailableInReflectFile("gpt-4.1", { reflectPath: reflectFile, logger: msg => logs.push(msg) })).toBe(false);
+      } finally {
+        fs.unlinkSync(reflectFile);
+      }
     });
   });
 

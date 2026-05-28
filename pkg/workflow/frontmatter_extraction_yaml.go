@@ -982,8 +982,8 @@ func (c *Compiler) extractExpressionFromIfString(ifString string) string {
 }
 
 // extractCommandConfig extracts command configuration from frontmatter including name, events,
-// and centralized routing strategy for slash_command.
-func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandNames []string, commandEvents []string, commandCentralized bool) {
+// centralized routing strategy, and optional footer placeholder for slash_command.
+func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandNames []string, commandEvents []string, commandCentralized bool, commandPlaceholder string) {
 	frontmatterLog.Print("Extracting command configuration from frontmatter")
 	// Check new format: on.slash_command or on.slash_command.name (preferred)
 	// Also check legacy format: on.command or on.command.name (deprecated)
@@ -1015,13 +1015,14 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 				// Check if command is a string (shorthand format)
 				if commandStr, ok := commandValue.(string); ok {
 					frontmatterLog.Printf("Extracted command name (shorthand): %s", commandStr)
-					return []string{commandStr}, nil, false // nil means default (all events)
+					return []string{commandStr}, nil, false, "" // nil means default (all events)
 				}
 				// Check if command is a map with a name key (object format)
 				if commandMap, ok := commandValue.(map[string]any); ok {
 					var names []string
 					var events []string
 					centralized := false
+					placeholder := ""
 
 					if nameValue, hasName := commandMap["name"]; hasName {
 						// Handle string or array of strings
@@ -1047,14 +1048,23 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 						}
 					}
 
-					frontmatterLog.Printf("Extracted command config: names=%v, events=%v, centralized=%v", names, events, centralized)
-					return names, events, centralized
+					// Extract optional placeholder for footer hint text
+					if placeholderRaw, hasPlaceholder := commandMap["placeholder"]; hasPlaceholder {
+						if placeholderStr, ok := placeholderRaw.(string); ok {
+							if trimmed := strings.TrimSpace(placeholderStr); trimmed != "" {
+								placeholder = trimmed
+							}
+						}
+					}
+
+					frontmatterLog.Printf("Extracted command config: names=%v, events=%v, centralized=%v, placeholder=%q", names, events, centralized, placeholder)
+					return names, events, centralized, placeholder
 				}
 			}
 		}
 	}
 
-	return nil, nil, false
+	return nil, nil, false, ""
 }
 
 // extractLabelCommandConfig extracts the label-command configuration from frontmatter

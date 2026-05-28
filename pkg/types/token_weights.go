@@ -2,14 +2,13 @@ package types
 
 // TokenClassWeights holds per-token-class weights for effective token computation.
 // Each field corresponds to one token class; a zero value means "use default".
-// The JSON keys use hyphens to match the frontmatter schema
-// (engine.token-weights.token-class-weights).
+// The JSON keys use underscores to match pkg/cli/data/model_multipliers.json format.
 type TokenClassWeights struct {
 	Input       float64 `json:"input,omitempty"`
-	CachedInput float64 `json:"cached-input,omitempty"`
+	CachedInput float64 `json:"cached_input,omitempty"`
 	Output      float64 `json:"output,omitempty"`
 	Reasoning   float64 `json:"reasoning,omitempty"`
-	CacheWrite  float64 `json:"cache-write,omitempty"`
+	CacheWrite  float64 `json:"cache_write,omitempty"`
 }
 
 // TokenWeights defines custom model cost information for effective token computation.

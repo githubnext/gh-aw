@@ -31,6 +31,15 @@ const TMP_GH_AW_PATH = "/tmp/gh-aw";
  */
 const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
 
+/**
+ * GitHub.com GraphQL node ID for the Copilot pull request reviewer bot.
+ * Used as a fallback when the node ID cannot be resolved at runtime (e.g. network error).
+ * For GHES and other GitHub instances the node ID differs; prefer runtime resolution via
+ * the REST users API ({@link https://docs.github.com/en/rest/users/users#get-a-user}).
+ * @type {string}
+ */
+const COPILOT_REVIEWER_BOT_ID = "BOT_kgDOCnlnWA";
+
 // ---------------------------------------------------------------------------
 // Documentation URLs
 // ---------------------------------------------------------------------------
@@ -125,6 +134,7 @@ module.exports = {
   AGENT_OUTPUT_FILENAME,
   TMP_GH_AW_PATH,
   COPILOT_REVIEWER_BOT,
+  COPILOT_REVIEWER_BOT_ID,
   FAQ_CREATE_PR_PERMISSIONS_URL,
   MAX_LABELS,
   MAX_ASSIGNEES,

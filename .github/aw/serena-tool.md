@@ -22,7 +22,7 @@ Serena is a **language service protocol (LSP) MCP server** for semantic code ana
 
 ## Configuration
 
-Import the shared Serena workflow via the `imports:` field — `tools.serena` has been removed. For multi-language, first entry is the default fallback:
+Configure Serena through the shared workflow import. For multi-language, the first entry is the default fallback:
 
 ```yaml
 imports:

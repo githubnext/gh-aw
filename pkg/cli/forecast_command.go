@@ -26,6 +26,9 @@ type ForecastConfig struct {
 	// one projection period and forecast quality is evaluated against the actual
 	// runs observed in that period.
 	EvalMode bool
+	// TimeoutMinutes gracefully cancels forecast computation after the configured
+	// number of minutes. Zero disables timeout.
+	TimeoutMinutes int
 }
 
 // NewForecastCommand creates the forecast command.
@@ -69,6 +72,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` forecast --period week           # Weekly projections
   ` + string(constants.CLIExtensionPrefix) + ` forecast --days 7               # Use 7-day history window
   ` + string(constants.CLIExtensionPrefix) + ` forecast --sample 50            # Sample up to 50 runs per workflow
+  ` + string(constants.CLIExtensionPrefix) + ` forecast --timeout 10           # Stop gracefully after 10 minutes
   ` + string(constants.CLIExtensionPrefix) + ` forecast --json                 # Machine-readable JSON output
   ` + string(constants.CLIExtensionPrefix) + ` forecast --repo owner/repo      # Forecast in another repository
   ` + string(constants.CLIExtensionPrefix) + ` forecast --eval                 # Backtest: evaluate forecast quality against past data`,
@@ -81,19 +85,21 @@ Examples:
 			repoOverride, _ := cmd.Flags().GetString("repo")
 			sampleSize, _ := cmd.Flags().GetInt("sample")
 			evalMode, _ := cmd.Flags().GetBool("eval")
+			timeoutMinutes, _ := cmd.Flags().GetInt("timeout")
 
-			forecastRunLog.Printf("Forecast command invoked: workflow_count=%d, days=%d, period=%s, sample_size=%d, eval=%v, json=%v, repo=%q",
-				len(args), days, period, sampleSize, evalMode, jsonOutput, repoOverride)
+			forecastRunLog.Printf("Forecast command invoked: workflow_count=%d, days=%d, period=%s, sample_size=%d, eval=%v, timeout_minutes=%d, json=%v, repo=%q",
+				len(args), days, period, sampleSize, evalMode, timeoutMinutes, jsonOutput, repoOverride)
 
 			config := ForecastConfig{
-				WorkflowIDs:  args,
-				Days:         days,
-				Period:       period,
-				JSONOutput:   jsonOutput,
-				Verbose:      verbose,
-				RepoOverride: repoOverride,
-				SampleSize:   sampleSize,
-				EvalMode:     evalMode,
+				WorkflowIDs:    args,
+				Days:           days,
+				Period:         period,
+				JSONOutput:     jsonOutput,
+				Verbose:        verbose,
+				RepoOverride:   repoOverride,
+				SampleSize:     sampleSize,
+				EvalMode:       evalMode,
+				TimeoutMinutes: timeoutMinutes,
 			}
 
 			return RunForecast(config)
@@ -104,6 +110,7 @@ Examples:
 	cmd.Flags().String("period", "month", "Aggregation period for projections: week or month")
 	cmd.Flags().Int("sample", 100, "Maximum number of completed runs to sample per workflow")
 	cmd.Flags().Bool("eval", false, "Evaluate forecast quality against past data (backtesting mode)")
+	cmd.Flags().Int("timeout", 0, "Gracefully stop forecast computation after this many minutes (0 disables timeout)")
 	addRepoFlag(cmd)
 	addJSONFlag(cmd)
 

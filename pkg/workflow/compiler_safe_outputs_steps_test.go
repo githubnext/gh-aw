@@ -322,6 +322,90 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"org/push-branch-target",
 			},
 		},
+		{
+			name: "cross-repo with matching checkout fetch refs emits fetch step",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.CROSS_PAT }}",
+					},
+					TargetRepoSlug: "org/target-repo",
+					BaseBranch:     "master",
+				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					Repository: "org/target-repo",
+					FetchDepth: func() *int { d := 1; return &d }(),
+					Fetch:      []string{"master", "my/branch/*"},
+				},
+			},
+			checkContains: []string{
+				"name: Fetch additional refs for org/target-repo",
+				"GH_AW_FETCH_TOKEN: ${{ secrets.CROSS_PAT }}",
+				"+refs/heads/master:refs/remotes/origin/master",
+				"+refs/heads/my/branch/*:refs/remotes/origin/my/branch/*",
+				// Fetch step must carry same condition as the checkout step
+				"contains(needs.agent.outputs.output_types, 'create_pull_request')",
+			},
+		},
+		{
+			name: "cross-repo checkout without fetch refs does not emit fetch step",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					TargetRepoSlug: "org/target-repo",
+				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					Repository: "org/target-repo",
+					FetchDepth: func() *int { d := 1; return &d }(),
+					// No Fetch field
+				},
+			},
+			checkNotContains: []string{
+				"name: Fetch additional refs for org/target-repo",
+				"GH_AW_FETCH_TOKEN",
+			},
+		},
+		{
+			name: "cross-repo target with no matching checkout config does not emit fetch step",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					TargetRepoSlug: "org/target-repo",
+				},
+			},
+			// checkoutConfigs is nil — no matching entry
+			checkNotContains: []string{
+				"name: Fetch additional refs for org/target-repo",
+				"GH_AW_FETCH_TOKEN",
+			},
+		},
+		{
+			name: "push-to-pull-request-branch cross-repo with checkout fetch refs emits fetch step",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.PUSH_PAT }}",
+					},
+					TargetRepoSlug: "org/push-target",
+				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					Repository: "org/push-target",
+					Fetch:      []string{"main", "feature/*"},
+				},
+			},
+			checkContains: []string{
+				"name: Fetch additional refs for org/push-target",
+				"GH_AW_FETCH_TOKEN: ${{ secrets.PUSH_PAT }}",
+				"+refs/heads/main:refs/remotes/origin/main",
+				"+refs/heads/feature/*:refs/remotes/origin/feature/*",
+				// Condition tied to push_to_pull_request_branch
+				"contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -655,13 +739,8 @@ func TestBuildExtractBaseBranchStep(t *testing.T) {
 	assert.Contains(t, stepsContent, "name: Extract base branch from agent output")
 	assert.Contains(t, stepsContent, "id: extract-base-branch")
 	assert.Contains(t, stepsContent, "steps.download-agent-output.outcome == 'success'")
-	assert.Contains(t, stepsContent, "shell: bash", "step must explicitly set shell to bash for Windows runner compatibility")
-	assert.Contains(t, stepsContent, "which node 2>/dev/null || command -v node 2>/dev/null || echo node", "node must be resolved via PATH, not assumed")
-	assert.Contains(t, stepsContent, "/tmp/gh-aw/agent_output.json")
-	assert.Contains(t, stepsContent, "create_pull_request")
-	assert.Contains(t, stepsContent, "push_to_pull_request_branch")
-	assert.Contains(t, stepsContent, "base_branch")
-	assert.Contains(t, stepsContent, "GITHUB_OUTPUT")
-	// Validate branch name characters restriction for security
-	assert.Contains(t, stepsContent, "^[a-zA-Z0-9/_.-]+$")
+	assert.Contains(t, stepsContent, "uses: "+getActionPin("actions/github-script"))
+	assert.Contains(t, stepsContent, "setup_globals.cjs")
+	assert.Contains(t, stepsContent, "extract_base_branch_from_agent_output.cjs")
+	assert.Contains(t, stepsContent, "await main()")
 }

@@ -28,6 +28,8 @@
 "use strict";
 
 const { fetchAWFReflect, AWF_API_PROXY_REFLECT_URL, AWF_REFLECT_OUTPUT_PATH, AWF_REFLECT_TIMEOUT_MS, AWF_MODELS_URL_TIMEOUT_MS } = require("./awf_reflect.cjs");
+const fs = require("fs");
+const path = require("path");
 
 // Default logger: prefixed with "[gh-aw/pi-provider]" for easy grepping.
 // prettier-ignore
@@ -136,6 +138,51 @@ function formatResponseHeaderNames(headers) {
     .map(name => String(name).toLowerCase())
     .sort();
   return names.length > 0 ? names.join(",") : "none";
+}
+
+/**
+ * Build a structured report_incomplete payload for infrastructure failures.
+ *
+ * @param {string} details
+ * @returns {string}
+ */
+function buildInfrastructureIncompletePayload(details) {
+  return JSON.stringify({
+    type: "report_incomplete",
+    reason: "infrastructure_error",
+    details,
+  });
+}
+
+/**
+ * Append a report_incomplete safe output when provider infrastructure fails
+ * before any safe outputs have been recorded.
+ *
+ * @param {string} details
+ * @param {(msg: string) => void} logger
+ * @returns {void}
+ */
+function emitInfrastructureIncompleteIfNoSafeOutputs(details, logger) {
+  const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
+  if (!safeOutputsPath) {
+    logger("report_incomplete skipped: GH_AW_SAFE_OUTPUTS is not set");
+    return;
+  }
+
+  try {
+    const existing = fs.existsSync(safeOutputsPath) ? fs.readFileSync(safeOutputsPath, "utf8").trim() : "";
+    if (existing) {
+      logger(`report_incomplete skipped: safe outputs already recorded at ${safeOutputsPath}`);
+      return;
+    }
+
+    fs.mkdirSync(path.dirname(safeOutputsPath), { recursive: true });
+    fs.appendFileSync(safeOutputsPath, buildInfrastructureIncompletePayload(details) + "\n", { encoding: "utf8" });
+    logger(`report_incomplete emitted: ${safeOutputsPath}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger(`report_incomplete emission failed: ${message}`);
+  }
 }
 
 /**
@@ -297,6 +344,7 @@ function piProviderExtension(pi) {
     log(
       `provider_error provider=${message.provider || "(unknown provider)"} model=${message.model || "(unknown model)"} api=${request.api} status=${status} method=${request.method} url=${request.url} response_headers=${responseHeaders} error=${JSON.stringify(message.errorMessage)}`
     );
+    emitInfrastructureIncompleteIfNoSafeOutputs(`Pi provider request failed before safe outputs were emitted: ${message.errorMessage}`, log);
   });
 
   pi.on("agent_start", async () => {
@@ -355,4 +403,6 @@ module.exports.resolveGatewayUrl = resolveGatewayUrl;
 module.exports.registerConfiguredProviders = registerConfiguredProviders;
 module.exports.resolveProviderRequestTarget = resolveProviderRequestTarget;
 module.exports.formatResponseHeaderNames = formatResponseHeaderNames;
+module.exports.buildInfrastructureIncompletePayload = buildInfrastructureIncompletePayload;
+module.exports.emitInfrastructureIncompleteIfNoSafeOutputs = emitInfrastructureIncompleteIfNoSafeOutputs;
 module.exports.logReflectFailure = logReflectFailure;

@@ -631,4 +631,13 @@ func TestMergeObservabilityConfigs(t *testing.T) {
 		got := mergeObservabilityConfigs(configs)
 		assert.Empty(t, got, "config without endpoints should return empty string")
 	})
+
+	t.Run("github-app config is preserved even when no endpoints are set", func(t *testing.T) {
+		configs := []string{`{"otlp":{"github-app":{"app-id":"${{ vars.APP_ID }}","private-key":"${{ secrets.APP_PRIVATE_KEY }}"}}}`}
+		got := mergeObservabilityConfigs(configs)
+		require.NotEmpty(t, got, "github-app-only config should still produce merged observability")
+		assert.Contains(t, got, `"github-app"`, "should include github-app block")
+		assert.Contains(t, got, `"app-id":"${{ vars.APP_ID }}"`, "should preserve app-id")
+		assert.Contains(t, got, `"private-key":"${{ secrets.APP_PRIVATE_KEY }}"`, "should preserve private-key")
+	})
 }

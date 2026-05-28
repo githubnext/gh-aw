@@ -829,6 +829,114 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_GitHubAppClientID(
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppImplicitOIDC(t *testing.T) {
+	frontmatter := map[string]any{
+		"name": "OTLP implicit OIDC github-app config",
+		"on": map[string]any{
+			"issues": map[string]any{
+				"types": []any{"opened"},
+			},
+		},
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-github-app-implicit-oidc-schema-test.md")
+	if err != nil {
+		t.Fatalf("expected empty observability.otlp.github-app to pass schema validation for implicit OIDC, got: %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppAudienceRejected(t *testing.T) {
+	frontmatter := map[string]any{
+		"name": "OTLP github-app audience rejection",
+		"on": map[string]any{
+			"issues": map[string]any{
+				"types": []any{"opened"},
+			},
+		},
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{
+					"audience": "https://collector.example.com",
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-github-app-audience-reject-schema-test.md")
+	if err == nil {
+		t.Fatal("expected observability.otlp.github-app.audience to fail schema validation")
+	}
+	errText := err.Error()
+	if !strings.Contains(errText, "audience") ||
+		(!strings.Contains(errText, "github-app") && !strings.Contains(errText, "Unknown property")) {
+		t.Fatalf("expected schema validation error to reference unsupported github-app.audience syntax, got: %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppPermissionsRejected(t *testing.T) {
+	frontmatter := map[string]any{
+		"name": "OTLP github-app permissions rejection",
+		"on": map[string]any{
+			"issues": map[string]any{
+				"types": []any{"opened"},
+			},
+		},
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{
+					"permissions": map[string]any{
+						"contents": "read",
+					},
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-github-app-permissions-reject-schema-test.md")
+	if err == nil {
+		t.Fatal("expected observability.otlp.github-app.permissions to fail schema validation")
+	}
+	errText := err.Error()
+	if !strings.Contains(errText, "permissions") ||
+		(!strings.Contains(errText, "github-app") && !strings.Contains(errText, "Unknown property")) {
+		t.Fatalf("expected schema validation error to reference unsupported github-app.permissions syntax, got: %v", err)
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLPGitHubAppLegacyTypeRejected(t *testing.T) {
+	frontmatter := map[string]any{
+		"name": "OTLP legacy github-oidc type rejection",
+		"on": map[string]any{
+			"issues": map[string]any{
+				"types": []any{"opened"},
+			},
+		},
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{
+					"type":     "github-oidc",
+					"audience": "https://collector.example.com",
+				},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/otlp-github-app-legacy-type-schema-test.md")
+	if err == nil {
+		t.Fatal("expected legacy observability.otlp.github-app.type: github-oidc to fail schema validation")
+	}
+	errText := err.Error()
+	if !strings.Contains(errText, "type") ||
+		(!strings.Contains(errText, "github-app") && !strings.Contains(errText, "Unknown properties")) {
+		t.Fatalf("expected schema validation error to reference unsupported legacy github-app.type syntax, got: %v", err)
+	}
+}
+
 // TestNormalizeForJSONSchema_NestedMap verifies recursive normalization of maps.
 func TestNormalizeForJSONSchema_NestedMap(t *testing.T) {
 	input := map[string]any{
@@ -1257,5 +1365,74 @@ func TestValidateWithSchema_YAMLIntegerTypes(t *testing.T) {
 	err := validateWithSchema(frontmatter, schema, "yaml integer types")
 	if err != nil {
 		t.Errorf("validateWithSchema should accept YAML integer types, got: %v", err)
+	}
+}
+
+func TestMainWorkflowSchema_GitHubAllowedSupportsToolCallLimits(t *testing.T) {
+	t.Parallel()
+
+	schemaContent, err := os.ReadFile("schemas/main_workflow_schema.json")
+	if err != nil {
+		t.Fatalf("failed to read schema: %v", err)
+	}
+
+	var schema map[string]any
+	if err := json.Unmarshal(schemaContent, &schema); err != nil {
+		t.Fatalf("failed to parse schema json: %v", err)
+	}
+
+	properties := schema["properties"].(map[string]any)
+	tools := properties["tools"].(map[string]any)
+	toolsProps := tools["properties"].(map[string]any)
+	github := toolsProps["github"].(map[string]any)
+	githubOneOf := github["oneOf"].([]any)
+
+	var githubObjectSchema map[string]any
+	for _, item := range githubOneOf {
+		candidate, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if candidate["type"] == "object" {
+			githubObjectSchema = candidate
+			break
+		}
+	}
+	if githubObjectSchema == nil {
+		t.Fatal("tools.github object schema not found")
+	}
+
+	allowed := githubObjectSchema["properties"].(map[string]any)["allowed"].(map[string]any)
+	items := allowed["items"].(map[string]any)
+	itemOneOf := items["oneOf"].([]any)
+
+	var objectBranch map[string]any
+	for _, branch := range itemOneOf {
+		candidate, ok := branch.(map[string]any)
+		if !ok {
+			continue
+		}
+		if candidate["type"] == "object" {
+			objectBranch = candidate
+			break
+		}
+	}
+	if objectBranch == nil {
+		t.Fatal("tools.github.allowed object entry schema not found")
+	}
+
+	entryProps := objectBranch["properties"].(map[string]any)
+	maxCalls, hasMaxCalls := entryProps["max-calls"].(map[string]any)
+	if !hasMaxCalls {
+		t.Fatal("tools.github.allowed[].max-calls schema not found")
+	}
+	if maxCalls["type"] != "integer" {
+		t.Fatalf("expected max-calls type integer, got: %v", maxCalls["type"])
+	}
+	if maxCalls["minimum"] != float64(1) {
+		t.Fatalf("expected max-calls minimum 1, got: %v", maxCalls["minimum"])
+	}
+	if _, hasMaxAlias := entryProps["max"]; hasMaxAlias {
+		t.Fatal("tools.github.allowed[].max alias should not be present")
 	}
 }

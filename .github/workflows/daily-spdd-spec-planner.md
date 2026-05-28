@@ -93,7 +93,9 @@ Use cache-memory at `/tmp/gh-aw/cache-memory/spdd-daily/rotation.json` to rotate
 - Track `last_index`, `last_files`, `last_run`
 - Process up to 5 files per run
 - Continue from next file on the next run
-- If cache is missing, initialize from the start of the sorted file list
+- Run a write preflight in `/tmp/gh-aw/cache-memory/spdd-daily/` and treat any permission/write failure as a setup error (do not continue)
+- If reading `rotation.json` returns a miss, confirm the file is truly absent before initializing from index 0
+- If `rotation.json` exists but cannot be read/written, do not reinitialize; report the setup error so existing rotation state is preserved
 - Persist rotation state using the `write` tool at that exact path (do not use shell write commands for cache updates)
 
 ### SPDD Evaluation Rules

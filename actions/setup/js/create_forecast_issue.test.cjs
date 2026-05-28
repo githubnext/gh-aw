@@ -25,6 +25,7 @@ describe("create_forecast_issue", () => {
     vi.clearAllMocks();
     vi.resetModules();
     process.env.GITHUB_RUN_ID = "123456";
+    process.env.GH_AW_PROMPTS_DIR = new URL("../md", import.meta.url).pathname;
     mockFs = {
       existsSync: vi.fn(),
       readFileSync: vi.fn(),
@@ -101,13 +102,32 @@ describe("create_forecast_issue", () => {
     expect(body).toContain("All projected ET values are 0 even after cache warm-up.");
   });
 
-  it("warns and skips when report file is missing", async () => {
+  it("creates an error issue when report file is missing", async () => {
     mockFs.existsSync.mockReturnValue(false);
 
     const module = await import("./create_forecast_issue.cjs");
     await module.main();
 
-    expect(mockCore.warning).toHaveBeenCalledWith("Forecast report JSON not found at ./.cache/gh-aw/forecast/report.json; skipping issue creation.");
-    expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    expect(mockCore.warning).toHaveBeenCalledWith("Forecast report JSON not found at ./.cache/gh-aw/forecast/report.json.");
+    expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: module.FORECAST_ERROR_ISSUE_TITLE,
+      })
+    );
+  });
+
+  it("renders timeout diagnostics in issue body when outcome is timeout", async () => {
+    const module = await import("./create_forecast_issue.cjs");
+    const body = module.buildForecastIssueBody(null, {
+      owner: "octo",
+      repo: "repo",
+      serverUrl: "https://github.com",
+      runID: "123456",
+      outcome: "timeout",
+      errorMessage: "Forecast computation timed out after 10 minutes.",
+      generatedAtISO: "2026-01-01T00:00:00.000Z",
+    });
+    expect(body).toContain("Forecast outcome: timeout.");
+    expect(body).toContain("Forecast computation timed out after 10 minutes.");
   });
 });

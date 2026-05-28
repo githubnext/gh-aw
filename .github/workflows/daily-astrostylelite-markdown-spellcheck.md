@@ -6,6 +6,7 @@ on:
   schedule:
     - cron: daily
   workflow_dispatch:
+timeout-minutes: 30
 
 permissions:
   contents: read

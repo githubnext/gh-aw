@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -54,7 +55,7 @@ func getEngineEnvSecretsCodemod() Codemod {
 				return cleaned, true
 			})
 			if applied {
-				engineEnvSecretsCodemodLog.Printf("Removed unsafe engine.env secret keys: %v", mapKeys(unsafeKeys))
+				engineEnvSecretsCodemodLog.Printf("Removed unsafe engine.env secret keys: %v", sliceutil.MapKeys(unsafeKeys))
 			}
 			return newContent, applied, err
 		},
@@ -237,12 +238,4 @@ func removeEmptyEngineEnvBlock(lines []string) []string {
 		result = append(result, line)
 	}
 	return result
-}
-
-func mapKeys(m map[string]bool) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
 }

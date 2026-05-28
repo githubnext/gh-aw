@@ -5,6 +5,7 @@ package parser
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,18 +26,19 @@ func TestCrossLanguageHashCompatibility(t *testing.T) {
 	testCases := []struct {
 		name     string
 		content  string
-		expected string // Will be computed by Go implementation
+		expected string
 	}{
 		{
-			name: "empty frontmatter",
+			name: "FH-TV-001 empty frontmatter",
 			content: `---
 ---
 
 # Empty Workflow
 `,
+			expected: "4c8309afbcf816cd80c0824dce2b50047834b29e14b34b96953e88ae81048c46",
 		},
 		{
-			name: "simple frontmatter",
+			name: "FH-TV-002 simple frontmatter",
 			content: `---
 engine: copilot
 description: Test workflow
@@ -46,9 +48,10 @@ on:
 
 # Test Workflow
 `,
+			expected: "b9def9907e3328e2e03e8c47c315723df39788f251627313b1a984bb61b9cbce",
 		},
 		{
-			name: "complex frontmatter",
+			name: "FH-TV-003 complex frontmatter",
 			content: `---
 engine: claude
 description: Complex workflow
@@ -72,6 +75,7 @@ bots:
 
 # Complex Workflow
 `,
+			expected: "8c63a05ef42cbfaff9be87a06257282cb4dcb952f71481d9d65ec3037003dbe8",
 		},
 	}
 
@@ -88,6 +92,7 @@ bots:
 			require.NoError(t, err, "Should compute hash")
 			assert.Len(t, hash, 64, "Hash should be 64 characters")
 			assert.Regexp(t, "^[a-f0-9]{64}$", hash, "Hash should be lowercase hex")
+			assert.Equal(t, tc.expected, hash, "Hash should match specification vector")
 
 			// For now, we just verify the Go implementation works
 			// The JavaScript implementation will be tested separately
@@ -102,6 +107,25 @@ bots:
 			assert.Equal(t, hash, hash2, "Hash should be deterministic")
 		})
 	}
+}
+
+// TestFrontmatterHashVectorFH_TV_NEG_001 validates the oversized input rejection vector.
+func TestFrontmatterHashVectorFH_TV_NEG_001(t *testing.T) {
+	tempDir := t.TempDir()
+	workflowFile := filepath.Join(tempDir, "oversized-workflow.md")
+	oversizedDescription := strings.Repeat("a", maxFrontmatterHashInputBytes+1)
+
+	require.NoError(t, os.WriteFile(workflowFile, []byte(`---
+description: `+oversizedDescription+`
+---
+
+# Oversized Workflow
+`), 0o644), "Should write oversized workflow file")
+
+	cache := NewImportCache(tempDir)
+	_, err := ComputeFrontmatterHashFromFile(workflowFile, cache)
+	require.Error(t, err, "Should reject oversized normalized frontmatter input")
+	require.EqualError(t, err, "frontmatter hash input exceeds 1048576 bytes after normalization")
 }
 
 // TestHashWithRealWorkflow tests hash computation with an actual workflow from the repository
@@ -251,6 +275,43 @@ model: gpt-5
 		"701dc12776a417c6ce4c82b16d1fcc9de343130efb554fda27a701386b17d134",
 		hash,
 		"FH-TV-004 hash should match specification vector")
+}
+
+// TestFrontmatterHashVectorFH_BFS_002 validates the FH-BFS-002 single-level import vector
+// from the specification (§5.1 BFS Diamond-Import Test Vectors).
+func TestFrontmatterHashVectorFH_BFS_002(t *testing.T) {
+	tempDir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "root.md"), []byte("---\nengine: copilot\nimports:\n  - ./helper.md\n---\n"), 0o644), "Should write root file")
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "helper.md"), []byte("---\ndescription: Helper agent\n---\n"), 0o644), "Should write helper file")
+
+	cache := NewImportCache(tempDir)
+	hash, err := ComputeFrontmatterHashFromFile(filepath.Join(tempDir, "root.md"), cache)
+	require.NoError(t, err, "Should compute hash for single-level import")
+	assert.Equal(t,
+		"3946bb0dc0698a31e37a1efc7012071939db1be2c8365f12f8a240bc01ba2e9e",
+		hash,
+		"FH-BFS-002 hash should match specification vector")
+}
+
+// TestFrontmatterHashVectorFH_BFS_003 validates the FH-BFS-003 diamond-import deduplication
+// vector from the specification (§5.1 BFS Diamond-Import Test Vectors).
+// shared.md is reachable from both a.md and b.md but must appear only once in the hash input.
+func TestFrontmatterHashVectorFH_BFS_003(t *testing.T) {
+	tempDir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "root.md"), []byte("---\nengine: copilot\nimports:\n  - ./a.md\n  - ./b.md\n---\n"), 0o644), "Should write root file")
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "a.md"), []byte("---\ndescription: Agent A\nimports:\n  - ./shared.md\n---\n"), 0o644), "Should write a.md")
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "b.md"), []byte("---\ndescription: Agent B\nimports:\n  - ./shared.md\n---\n"), 0o644), "Should write b.md")
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "shared.md"), []byte("---\ndescription: Shared helper\n---\n"), 0o644), "Should write shared.md")
+
+	cache := NewImportCache(tempDir)
+	hash, err := ComputeFrontmatterHashFromFile(filepath.Join(tempDir, "root.md"), cache)
+	require.NoError(t, err, "Should compute hash for diamond-import graph")
+	assert.Equal(t,
+		"13f1c69f5761454beac63c7dc259fa212f020d3dab9e0dd04d2e1bdcc242b108",
+		hash,
+		"FH-BFS-003 hash should match specification vector")
 }
 
 // findRepoRoot finds the repository root directory

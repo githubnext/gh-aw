@@ -73,6 +73,8 @@ function buildModelPrefix(modelName) {
  * @property {number} [effectiveTokens] - Total effective token count for the run (shown as N when > 0, in compact format)
  * @property {string} [model] - Model name used for the run, used to build a compact model identifier in ET suffixes
  * @property {string} [emoji] - Optional emoji representing the workflow (from frontmatter)
+ * @property {string} [slashCommand] - Slash command name (without leading slash) for the run-again hint, when applicable
+ * @property {string} [slashCommandPlaceholder] - Custom hint text appended after the command name (replaces default "to run again")
  */
 
 /**
@@ -134,6 +136,11 @@ function getFooterMessage(ctx) {
   // Append history link when available
   if (ctx.historyUrl) {
     defaultFooter += " · [◷]({history_url})";
+  }
+  // Append slash command hint when applicable (workflow has a slash command trigger)
+  if (ctx.slashCommand) {
+    const hintText = ctx.slashCommandPlaceholder || "to run again";
+    defaultFooter += `\n> <sub>Comment <em>/{slash_command}</em> ${hintText}</sub>`;
   }
   return renderTemplate(defaultFooter, templateContext);
 }
@@ -422,6 +429,27 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
   // Read workflow emoji from environment variable if available.
   const emoji = process.env.GH_AW_WORKFLOW_EMOJI || undefined;
 
+  // Read slash command from GH_AW_COMMANDS (JSON array) when available.
+  // Use the first command as the hint. This is only set when the workflow has a slash command trigger.
+  let slashCommand;
+  const commandsJSON = process.env.GH_AW_COMMANDS;
+  if (commandsJSON) {
+    try {
+      const commands = JSON.parse(commandsJSON);
+      if (Array.isArray(commands) && commands.length > 0 && typeof commands[0] === "string") {
+        slashCommand = commands[0];
+      }
+    } catch {
+      // Silently ignore malformed GH_AW_COMMANDS; the hint is a non-critical enhancement
+      // and omitting it is always safe. The value is compiler-generated JSON, so this
+      // path should not occur in practice.
+    }
+  }
+
+  // Read optional footer hint placeholder from GH_AW_COMMAND_PLACEHOLDER.
+  // When set, it replaces the default "to run again" suffix in the slash command hint.
+  const slashCommandPlaceholder = process.env.GH_AW_COMMAND_PLACEHOLDER;
+
   const ctx = {
     workflowName,
     runUrl,
@@ -431,6 +459,8 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
     historyUrl: historyUrl || undefined,
     effectiveTokens,
     emoji,
+    slashCommand,
+    slashCommandPlaceholder,
   };
 
   const { skipDetectionCaution = false } = options || {};

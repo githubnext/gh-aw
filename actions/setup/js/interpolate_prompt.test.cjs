@@ -11,12 +11,10 @@ global.core = core;
 const { isTruthy } = require("./is_truthy.cjs"),
   { selectBranch } = require("./template_branch.cjs"),
   interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8"),
-  interpolateVariablesMatch = interpolatePromptScript.match(/function interpolateVariables\(content, variables\)\s*{[\s\S]*?return result;[\s\S]*?}/),
-  renderMarkdownTemplateMatch = interpolatePromptScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
+  interpolateVariablesMatch = interpolatePromptScript.match(/function interpolateVariables\(content, variables\)\s*{[\s\S]*?return result;[\s\S]*?}/);
 if (!interpolateVariablesMatch) throw new Error("Could not extract interpolateVariables function from interpolate_prompt.cjs");
-if (!renderMarkdownTemplateMatch) throw new Error("Could not extract renderMarkdownTemplate function from interpolate_prompt.cjs");
 const interpolateVariables = eval(`(${interpolateVariablesMatch[0]})`),
-  renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
+  { renderMarkdownTemplate } = require("./render_template.cjs");
 describe("interpolate_prompt", () => {
   (describe("interpolateVariables", () => {
     (it("should interpolate single variable", () => {
@@ -181,6 +179,24 @@ describe("interpolate_prompt", () => {
           expect(output).toContain("Default");
           expect(output).not.toContain("Concise");
           expect(output).not.toContain("Verbose");
+        }),
+        it("should not warn about fence count when a fenced code block inside a false conditional is removed", () => {
+          core.warning.mockClear();
+          const input = "{{#if false}}\n```js\ncode\n```\n{{/if}}\nOther content";
+          renderMarkdownTemplate(input);
+          expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("Fence count mismatch"));
+        }),
+        it("should not warn about fence count when multiple fenced blocks inside a false conditional are removed", () => {
+          core.warning.mockClear();
+          const input = "{{#if false}}\n```js\ncode1\n```\n\n```py\ncode2\n```\n{{/if}}\nOther content";
+          renderMarkdownTemplate(input);
+          expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("Fence count mismatch"));
+        }),
+        it("should not warn when kept block contains fenced code but removed block also contained fenced code", () => {
+          core.warning.mockClear();
+          const input = "{{#if false}}\n```js\nremoved\n```\n{{/if}}\n```py\nkept\n```";
+          renderMarkdownTemplate(input);
+          expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("Fence count mismatch"));
         }));
     }),
     describe("combined interpolation and template rendering", () => {

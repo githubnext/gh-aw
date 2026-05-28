@@ -32,6 +32,8 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: read
+      code-quality: write
+      pull-requests: read
     strategy:
       fail-fast: false
       matrix:
@@ -218,16 +220,17 @@ jobs:
         set -o pipefail
         # Sanitize the test group name for use in filename
         SAFE_NAME=$(echo "${{ matrix.test-group.name }}" | sed 's/[^a-zA-Z0-9]/-/g' | sed 's/--*/-/g')
+        echo "safe_name=${SAFE_NAME}" >> "$GITHUB_OUTPUT"
 
         if [ -z "${{ matrix.test-group.pattern }}" ]; then
           # Catch-all group: run with -skip to exclude tests matched by other groups
           if [ -n "${{ matrix.test-group.skip_pattern || '' }}" ]; then
-            go test -v -parallel=8 -timeout=10m -tags 'integration' -skip '${{ matrix.test-group.skip_pattern }}' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
+            go test -v -parallel=8 -timeout=10m -tags 'integration' -coverprofile="coverage-integration-${SAFE_NAME}.out" -skip '${{ matrix.test-group.skip_pattern }}' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
           else
-            go test -v -parallel=8 -timeout=10m -tags 'integration' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
+            go test -v -parallel=8 -timeout=10m -tags 'integration' -coverprofile="coverage-integration-${SAFE_NAME}.out" -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
           fi
         else
-          go test -v -parallel=8 -timeout=10m -tags 'integration' -run '${{ matrix.test-group.pattern }}' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
+          go test -v -parallel=8 -timeout=10m -tags 'integration' -coverprofile="coverage-integration-${SAFE_NAME}.out" -run '${{ matrix.test-group.pattern }}' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
         fi
 
     - name: Report test failures
@@ -258,6 +261,21 @@ jobs:
         name: test-result-integration-${{ matrix.test-group.name }}
         path: test-result-integration-*.json
         retention-days: 3
+
+    - name: Convert integration coverage to Cobertura
+      if: always() && hashFiles(format('coverage-integration-{0}.out', steps.run-tests.outputs.safe_name)) != ''
+      run: |
+        go install github.com/boumenot/gocover-cobertura@v1.5.0
+        "$(go env GOPATH)/bin/gocover-cobertura" < "coverage-integration-${{ steps.run-tests.outputs.safe_name }}.out" > "coverage-integration-${{ steps.run-tests.outputs.safe_name }}.xml"
+
+    - name: Upload integration coverage to code coverage API
+      if: always() && hashFiles(format('coverage-integration-{0}.xml', steps.run-tests.outputs.safe_name)) != ''
+      uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3   # v1
+      with:
+        file: coverage-integration-${{ steps.run-tests.outputs.safe_name }}.xml
+        language: Go
+        label: code-coverage/ci-integration-${{ steps.run-tests.outputs.safe_name }}
+        fail-on-error: false
 
   update:
     if: ${{ needs.changes.outputs.has_changes == 'true' }}
@@ -1061,6 +1079,8 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      code-quality: write
+      pull-requests: read
     concurrency:
       group: ci-${{ github.ref }}-integration-unauthenticated-add
       cancel-in-progress: true
@@ -1101,7 +1121,7 @@ jobs:
         GH_TOKEN: ""
       run: |
         set -o pipefail
-        go test -v -parallel=4 -timeout=10m -tags 'integration' -json \
+        go test -v -parallel=4 -timeout=10m -tags 'integration' -coverprofile=coverage-integration-unauthenticated.out -json \
           -run 'TestAddPublicWorkflowUnauthenticated|TestDownloadFileFromGitHubUnauthenticated' \
           ./pkg/cli/ ./pkg/parser/ \
           | tee test-result-integration-unauthenticated.json
@@ -1114,6 +1134,21 @@ jobs:
         path: test-result-integration-unauthenticated.json
         retention-days: 3
 
+    - name: Convert unauthenticated coverage to Cobertura
+      if: always() && hashFiles('coverage-integration-unauthenticated.out') != ''
+      run: |
+        go install github.com/boumenot/gocover-cobertura@v1.5.0
+        "$(go env GOPATH)/bin/gocover-cobertura" < coverage-integration-unauthenticated.out > coverage-integration-unauthenticated.xml
+
+    - name: Upload unauthenticated coverage to code coverage API
+      if: always() && hashFiles('coverage-integration-unauthenticated.xml') != ''
+      uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3   # v1
+      with:
+        file: coverage-integration-unauthenticated.xml
+        language: Go
+        label: code-coverage/ci-integration-unauthenticated
+        fail-on-error: false
+
   integration-add-dispatch-workflow:
     name: Integration Add with dispatch-workflow Dependencies
     if: ${{ needs.changes.outputs.has_changes == 'true' }}
@@ -1123,6 +1158,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+      code-quality: write
+      pull-requests: read
     concurrency:
       group: ci-${{ github.ref }}-integration-add-dispatch-workflow
       cancel-in-progress: true
@@ -1159,7 +1196,7 @@ jobs:
         GH_TOKEN: ${{ github.token }}
       run: |
         set -o pipefail
-        go test -v -parallel=4 -timeout=10m -tags 'integration' -json \
+        go test -v -parallel=4 -timeout=10m -tags 'integration' -coverprofile=coverage-integration-add-dispatch-workflow.out -json \
           -run 'TestAddWorkflowWithDispatchWorkflow' \
           ./pkg/cli/ \
           | tee test-result-integration-add-dispatch-workflow.json
@@ -1171,6 +1208,21 @@ jobs:
         name: test-result-integration-add-dispatch-workflow
         path: test-result-integration-add-dispatch-workflow.json
         retention-days: 3
+
+    - name: Convert dispatch-workflow coverage to Cobertura
+      if: always() && hashFiles('coverage-integration-add-dispatch-workflow.out') != ''
+      run: |
+        go install github.com/boumenot/gocover-cobertura@v1.5.0
+        "$(go env GOPATH)/bin/gocover-cobertura" < coverage-integration-add-dispatch-workflow.out > coverage-integration-add-dispatch-workflow.xml
+
+    - name: Upload dispatch-workflow coverage to code coverage API
+      if: always() && hashFiles('coverage-integration-add-dispatch-workflow.xml') != ''
+      uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3   # v1
+      with:
+        file: coverage-integration-add-dispatch-workflow.xml
+        language: Go
+        label: code-coverage/ci-integration-add-dispatch-workflow
+        fail-on-error: false
 
   integration-release-availability:
     name: Integration Release Availability
@@ -1518,6 +1570,8 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      code-quality: write
+      pull-requests: read
     strategy:
       fail-fast: false
       matrix:
@@ -1549,5 +1603,23 @@ jobs:
       run: go mod download
 
     - name: Run redirect resolution tests
-      run: go test -v -run TestResolveAddWorkflowSpecAndContent -timeout 5m ./pkg/cli/...
+      run: go test -v -run TestResolveAddWorkflowSpecAndContent -timeout 5m -coverprofile=coverage-redirect-${{ matrix.os }}.out ./pkg/cli/...
       shell: pwsh
+
+    - name: Convert redirect test coverage to Cobertura
+      if: always() && hashFiles(format('coverage-redirect-{0}.out', matrix.os)) != ''
+      run: |
+        go install github.com/boumenot/gocover-cobertura@v1.5.0
+        $gocover = "$(go env GOPATH)/bin/gocover-cobertura.exe"
+        if (-not (Test-Path $gocover)) { $gocover = "$(go env GOPATH)/bin/gocover-cobertura" }
+        Get-Content "coverage-redirect-${{ matrix.os }}.out" | & $gocover | Out-File "coverage-redirect-${{ matrix.os }}.xml" -Encoding utf8
+      shell: pwsh
+
+    - name: Upload redirect test coverage to code coverage API
+      if: always() && hashFiles(format('coverage-redirect-{0}.xml', matrix.os)) != ''
+      uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3   # v1
+      with:
+        file: coverage-redirect-${{ matrix.os }}.xml
+        language: Go
+        label: code-coverage/ci-redirect-${{ matrix.os }}
+        fail-on-error: false

@@ -16,9 +16,12 @@ tracker-id: daily-observability-report
 tools:
   agentic-workflows: true
 timeout-minutes: 45
-# Raised from the 25M default because this workflow analyzes multi-run logs and OTEL artifacts.
-# Prompt caps below are intended to keep typical runs well under this ceiling.
-max-effective-tokens: 80000000
+# Tuned from 80M after checking recent successful runs:
+# - run 26482328945: 2,674,398 ET
+# - run 26424799100: 7,479,570 ET
+# - run 26197188358: 7,244,916 ET
+# 20M preserves >2.5x headroom over the recent peak while keeping daily budget hygiene.
+max-effective-tokens: 20000000
 imports:
   - uses: shared/meta-analysis-base.md
     with:

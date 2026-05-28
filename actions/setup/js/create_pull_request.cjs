@@ -205,7 +205,7 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
       // commit objects, then retry with the original bundle ref.
       // This handles the race where main advanced between agent-time and safe_outputs-time:
       // the bundle's base commit may not be reachable from a fetch-depth:1 shallow clone
-      // even after --unshallow (e.g. when the commit is on a ref not in the fetch refspec).
+      // (e.g. when the commit is on a ref not in the fetch refspec).
       const prerequisiteCommits = extractBundlePrerequisiteCommits(initialFetchErrorOutput);
       if (prerequisiteCommits.length > 0) {
         core.warning(`Bundle fetch with ${bundleBranchRef} failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);

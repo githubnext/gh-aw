@@ -98,6 +98,36 @@ gh aw logs --start-date -30d --json | \
       | sort_by(.effective_tokens) | reverse | .[:10]'
 ```
 
+## Track Costs at Scale with OpenTelemetry
+
+Use `observability.otlp` to stream run telemetry into a central
+OpenTelemetry backend when one repository or one `gh aw logs`
+report is no longer enough. This is the best fit for
+organization-wide dashboards, alerting, and cross-repository cost
+analysis.
+
+```aw wrap
+observability:
+  otlp:
+    endpoint: ${{ secrets.OTLP_ENDPOINT }}
+    headers:
+      Authorization: ${{ secrets.OTLP_TOKEN }}
+```
+
+The exported spans include workflow and model metadata such as
+`gh-aw.engine.id`, `gen_ai.request.model`,
+`gen_ai.usage.input_tokens`, and
+`gen_ai.usage.output_tokens`. Use these attributes to group usage
+by workflow, engine, model, repository, or team in the backend of
+your choice.
+
+OpenTelemetry is most useful for answering questions such as:
+"Which repositories are driving the most token usage?",
+"Which model change caused a cost spike?", and
+"Which workflows should be moved to a smaller model or stricter
+trigger policy?" See [OpenTelemetry](/gh-aw/reference/open-telemetry/)
+for the full attribute reference and collector configuration.
+
 ## Trigger Frequency and Cost Risk
 
 The primary cost lever for most workflows is how often they run. Some events are inherently high-frequency:
@@ -158,6 +188,67 @@ Reserve frontier models (GPT-5, Claude Sonnet, etc.) for complex tasks. Use ligh
 ### Limit Context Size
 
 Inference cost scales with prompt size. Write focused prompts, avoid whole-file reads when only a few lines matter, cap result counts in tool calls, and use `imports` to compose a smaller subset of prompt sections at runtime.
+
+### Cap Effective Tokens per Run
+
+Use the top-level `max-effective-tokens` frontmatter field to cap
+the effective-token budget for a single workflow run. This provides
+a hard stop for unusually expensive runs and a consistent cost
+guardrail across all supported engines.
+
+```aw wrap
+max-effective-tokens: 5000000
+```
+
+Effective tokens are the normalized usage metric described in the
+[Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/).
+When the budget is approached, gh-aw emits steering warnings before
+the run reaches the limit. Set a negative value only when budget
+enforcement must be disabled explicitly.
+
+### Roll out org/repo defaults with enterprise controls
+
+For large installations, set baseline model and token guardrails
+once, then let individual workflows override only when needed:
+
+1. Export current defaults:
+
+```bash
+gh aw env get defaults.yml --scope org --org MY_ORG
+```
+
+2. Update and apply shared defaults in batch:
+
+```yaml
+default_max_effective_tokens: "5000000"
+default_model_copilot: "gpt-5-mini"
+default_model_claude: "claude-haiku-4-5"
+default_model_codex: "gpt-5.4-mini"
+```
+
+```bash
+gh aw env update defaults.yml --scope org --org MY_ORG
+```
+
+`gh aw env update` shows a confirmation preview before applying changes.
+Pass `--yes` to skip the prompt in automation, or `--dry-run` to preview
+without changing any variables. Set a field to `null` to delete the
+corresponding variable from the target scope. Unknown YAML keys are rejected,
+`default_max_turns` / `default_timeout_minutes` must be positive integers, and
+`default_max_effective_tokens` must be a non-zero integer (negative values
+disable token steering and budget enforcement).
+
+3. If you compile workflows in CI, pass compiler-read defaults into
+the compiler process environment (for example via `${{ vars.* }}`):
+`GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS`,
+`GH_AW_DEFAULT_MAX_TURNS`,
+`GH_AW_DEFAULT_TIMEOUT_MINUTES`,
+`GH_AW_DEFAULT_DETECTION_MODEL`.
+
+> [!TIP]
+> `GH_AW_DEFAULT_MODEL_*` values are resolved at workflow runtime via
+> `${{ vars.* }}` in compiled YAML, while timeout/max-turns/token
+> defaults are read by the compiler process at compile time.
 
 ### Rate Limiting and Concurrency
 
@@ -226,10 +317,13 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 - [Audit Commands](/gh-aw/reference/audit/) - Single-run analysis, diff, and cross-run reporting
 - [Artifacts](/gh-aw/reference/artifacts/) - Artifact names, directory structures, and token usage file locations
 - [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) - How effective token counts are computed
+- [OpenTelemetry](/gh-aw/reference/open-telemetry/) - Exporting workflow telemetry to centralized observability backends
 - [Triggers](/gh-aw/reference/triggers/) - Configuring workflow triggers and skip conditions
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) - Preventing runaway workflows
 - [Concurrency](/gh-aw/reference/concurrency/) - Serializing workflow execution
 - [AI Engines](/gh-aw/reference/engines/) - Engine and model configuration
+- [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/) - Default model and guardrail precedence
+- [Environment Variables](/gh-aw/reference/environment-variables/) - Variable scopes and compiler-managed defaults
 - [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Cron schedule format
 - [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) - `agentic-workflows` tool for self-inspection
 - [FAQ](/gh-aw/reference/faq/) - Common questions including cost and billing

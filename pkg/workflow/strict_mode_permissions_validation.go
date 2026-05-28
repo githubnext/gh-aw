@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
@@ -182,7 +183,7 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 	}
 
 	// Only apply firewall validation to copilot and codex engines
-	if engineID != "copilot" && engineID != "codex" {
+	if engineID != string(constants.CopilotEngine) && engineID != string(constants.CodexEngine) {
 		strictModeValidationLog.Printf("Engine '%s' does not support firewall, skipping firewall validation", engineID)
 		return nil
 	}

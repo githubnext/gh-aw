@@ -16,6 +16,7 @@ package main
 import (
 	"golang.org/x/tools/go/analysis/multichecker"
 
+	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
 	"github.com/github/gh-aw/pkg/linters/errormessage"
 	"github.com/github/gh-aw/pkg/linters/errstringmatch"
@@ -30,11 +31,13 @@ import (
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
+	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
 	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
 )
 
 func main() {
 	multichecker.Main(
+		contextcancelnotdeferred.Analyzer,
 		ctxbackground.Analyzer,
 		errormessage.Analyzer,
 		fprintlnsprintf.Analyzer,
@@ -49,6 +52,7 @@ func main() {
 		rawloginlib.Analyzer,
 		regexpcompileinfunction.Analyzer,
 		ssljson.Analyzer,
+		strconvparseignorederror.Analyzer,
 		uncheckedtypeassertion.Analyzer,
 	)
 }

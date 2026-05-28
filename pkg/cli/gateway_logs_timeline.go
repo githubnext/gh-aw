@@ -23,6 +23,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/github/gh-aw/pkg/fileutil"
 )
 
 // TimelineEventSource identifies which system produced a timeline event.
@@ -285,21 +287,15 @@ func auditEntryToTimelineEvent(entry AuditLogEntry) (UnifiedTimelineEvent, bool)
 // Returns an empty string when no file is found.
 func findGatewayJSONLPath(logDir string) string {
 	// Root-level gateway.jsonl (pre-mcp-logs-subdirectory artifact layout)
-	if p := filepath.Join(logDir, "gateway.jsonl"); fileExists(p) {
+	if p := filepath.Join(logDir, "gateway.jsonl"); fileutil.FileExists(p) {
 		return p
 	}
 	// mcp-logs/ subdirectory (standard layout after artifact download)
-	if p := filepath.Join(logDir, "mcp-logs", "gateway.jsonl"); fileExists(p) {
+	if p := filepath.Join(logDir, "mcp-logs", "gateway.jsonl"); fileutil.FileExists(p) {
 		return p
 	}
 	// Fallback: rpc-messages.jsonl
 	return findRPCMessagesPath(logDir)
-}
-
-// fileExists is a small helper that reports whether path exists and is a regular file.
-func fileExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && !info.IsDir()
 }
 
 // collectGatewayTimelineEvents reads the gateway JSONL file in logDir and returns a slice

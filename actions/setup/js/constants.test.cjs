@@ -4,6 +4,7 @@ const {
   AGENT_OUTPUT_FILENAME,
   TMP_GH_AW_PATH,
   COPILOT_REVIEWER_BOT,
+  COPILOT_REVIEWER_BOT_ID,
   FAQ_CREATE_PR_PERMISSIONS_URL,
   MAX_LABELS,
   MAX_ASSIGNEES,
@@ -55,6 +56,10 @@ describe("constants", () => {
     it("should export COPILOT_REVIEWER_BOT", () => {
       expect(COPILOT_REVIEWER_BOT).toBe("copilot-pull-request-reviewer[bot]");
     });
+
+    it("should export COPILOT_REVIEWER_BOT_ID", () => {
+      expect(COPILOT_REVIEWER_BOT_ID).toBe("BOT_kgDOCnlnWA");
+    });
   });
 
   describe("documentation URLs", () => {
@@ -85,6 +90,7 @@ describe("constants", () => {
         "AGENT_OUTPUT_FILENAME",
         "TMP_GH_AW_PATH",
         "COPILOT_REVIEWER_BOT",
+        "COPILOT_REVIEWER_BOT_ID",
         "FAQ_CREATE_PR_PERMISSIONS_URL",
         "MAX_LABELS",
         "MAX_ASSIGNEES",

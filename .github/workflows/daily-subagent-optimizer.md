@@ -36,7 +36,23 @@ safe-outputs:
     max: 1
   noop:
 
-timeout-minutes: 30
+experiments:
+  timeout_setting:
+    variants: [tight, default, relaxed]
+    description: "Tests whether 20 / 30 / 45 minute timeout affects run success rate and issue-filing rate for this dense multi-phase analysis workflow"
+    hypothesis: "H0: no change in run success rate. H1: tight variant increases failure rate ≥15pp; relaxed variant improves issue-filing rate ≥15pp vs default"
+    metric: run_success_rate
+    secondary_metrics: [issue_filed_rate, run_duration_p95]
+    guardrail_metrics:
+      - name: empty_output_rate
+        threshold: "<0.10"
+    min_samples: 30
+    weight: [33, 34, 33]
+    start_date: "2026-05-28"
+    tags: [cost-efficiency, reliability, timeout]
+    analysis_type: proportion_test
+
+timeout-minutes: ${{ (needs.activation.outputs.timeout_setting == 'tight' && 20) || (needs.activation.outputs.timeout_setting == 'relaxed' && 45) || 30 }}
 
 imports:
   - uses: shared/meta-analysis-base.md

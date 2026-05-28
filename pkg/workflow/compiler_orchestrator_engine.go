@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var orchestratorEngineLog = logger.New("workflow:compiler_orchestrator_engine")
@@ -341,6 +342,14 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		return nil, err
 	}
 	agenticEngine := resolvedEngine.Runtime
+
+	const noDefaultMaxTurns = ""
+	if engineConfig != nil && engineConfig.MaxTurns == "" && agenticEngine.GetCapabilities().MaxTurns {
+		// No built-in max-turns default exists.
+		// ResolveDefaultMaxTurns(noDefaultMaxTurns) only injects a value when GH_AW_DEFAULT_MAX_TURNS
+		// is configured; otherwise MaxTurns stays unset.
+		engineConfig.MaxTurns = compilerenv.ResolveDefaultMaxTurns(noDefaultMaxTurns)
+	}
 
 	// Call RenderConfig to allow the runtime adapter to emit config files or metadata.
 	// Most engines return nil, nil here; engines like Crush use this to write

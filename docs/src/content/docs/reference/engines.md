@@ -44,15 +44,7 @@ Not all features are available across all engines. The table below summarizes pe
 | `engine.harness` (custom harness script) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Tools allowlist | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
 
-**Notes:**
-- `max-runs` is a top-level frontmatter field that maps to `apiProxy.maxRuns` and is supported by all engines.
-- `max-runs` defaults to `500` and `max-effective-tokens` defaults to `25000000` when omitted.
-- `max-turns` limits the number of AI chat iterations per run (Claude only).
-- `max-continuations` enables autopilot mode with multiple consecutive runs (Copilot only).
-- `web-search` for Codex is disabled by default; add `tools: web-search:` to enable it. Other engines use a third-party MCP server — see [Using Web Search](/gh-aw/reference/web-search/).
-- `engine.agent` references a `.github/agents/` file for custom Copilot agent behavior. See [Copilot Custom Configuration](#copilot-custom-configuration).
-- `engine.bare` disables automatic context loading (memory files, custom instructions). See [Bare Mode](#bare-mode-bare) below.
-- `engine.harness` allows replacing the built-in Copilot harness script. See [Custom Harness Script](#custom-harness-script-harness) below.
+`max-runs` (default `500`) and `max-effective-tokens` (default `25000000`) are top-level frontmatter fields supported by all engines. `max-turns` limits Claude iterations per run; `max-continuations` enables Copilot autopilot mode. Codex `web-search` is opt-in via `tools: web-search:`; other engines use a third-party MCP server — see [Using Web Search](/gh-aw/reference/web-search/). `engine.agent`, `engine.bare`, and `engine.harness` are described below.
 
 ## Extended Coding Agent Configuration
 
@@ -143,7 +135,7 @@ For a complete setup and debugging walkthrough for GHE Cloud with data residency
 
 The value must be a hostname only — no protocol or path (e.g., `api.acme.ghe.com`, not `https://api.acme.ghe.com/v1`). The field works with any engine.
 
-**GHEC example** — specify your tenant-specific Copilot endpoint:
+**Example** — specify a GHEC or GHES Copilot endpoint (use `api.enterprise.githubcopilot.com` for GHES):
 
 ```yaml wrap
 engine:
@@ -154,19 +146,6 @@ network:
     - defaults
     - acme.ghe.com
     - api.acme.ghe.com
-```
-
-**GHES example** — use the enterprise Copilot endpoint:
-
-```yaml wrap
-engine:
-  id: copilot
-  api-target: api.enterprise.githubcopilot.com
-network:
-  allowed:
-    - defaults
-    - github.company.com
-    - api.enterprise.githubcopilot.com
 ```
 
 The specified hostname must also be listed in `network.allowed` for the firewall to permit outbound requests.
@@ -217,23 +196,16 @@ Set `COPILOT_PROVIDER_BASE_URL` in `engine.env` to activate BYOK mode. The crede
 | `COPILOT_PROVIDER_MAX_PROMPT_TOKENS` | Optional | Override the maximum prompt token limit (otherwise resolved from model catalog) |
 | `COPILOT_PROVIDER_MAX_OUTPUT_TOKENS` | Optional | Override the maximum output token limit |
 
-**Example: OpenAI-compatible provider**
+**Example:**
 
 ```yaml wrap
 engine:
   id: copilot
   env:
-    # REQUIRED — activates BYOK mode
-    COPILOT_PROVIDER_BASE_URL: ${{ secrets.PROVIDER_BASE_URL }}
-
-    # REQUIRED — a model must be specified for most external providers
-    COPILOT_MODEL: claude-sonnet-4
-
-    # OPTIONAL — API key for cloud providers; not needed for local providers
-    COPILOT_PROVIDER_API_KEY: ${{ secrets.PROVIDER_API_KEY }}
-
-    # OPTIONAL — set to "anthropic" or "azure" if needed (default: "openai")
-    # COPILOT_PROVIDER_TYPE: anthropic
+    COPILOT_PROVIDER_BASE_URL: ${{ secrets.PROVIDER_BASE_URL }}   # REQUIRED — activates BYOK
+    COPILOT_MODEL: claude-sonnet-4                                # REQUIRED for most providers
+    COPILOT_PROVIDER_API_KEY: ${{ secrets.PROVIDER_API_KEY }}     # OPTIONAL for local providers
+    COPILOT_PROVIDER_TYPE: anthropic                              # OPTIONAL — default: openai
 
 network:
   allowed:
@@ -241,31 +213,8 @@ network:
     - your-provider-domain.example.com
 ```
 
-**Example: Anthropic provider**
-
-```yaml wrap
-engine:
-  id: copilot
-  env:
-    COPILOT_PROVIDER_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
-    COPILOT_MODEL: claude-sonnet-4
-    COPILOT_PROVIDER_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-    COPILOT_PROVIDER_TYPE: anthropic
-```
-
 > [!NOTE]
-> `COPILOT_PROVIDER_BASE_URL`, `COPILOT_PROVIDER_API_KEY`, and `COPILOT_PROVIDER_BEARER_TOKEN` are
-> recognized as engine credentials and are allowed to carry `${{ secrets.* }}` references in
-> `engine.env` without triggering the strict-mode "secrets in env" warning. Other
-> `COPILOT_PROVIDER_*` variables (type, model, token limits) hold non-sensitive configuration and
-> can be set as plain strings. They may also use `${{ secrets.* }}` syntax if you prefer to keep
-> them private, but this is not required.
-
-> [!NOTE]
-> Credentials passed via `COPILOT_PROVIDER_*` variables are kept out of the agent container. Only
-> the dummy API key that activates the Agentic Workflow Firewall (AWF) BYOK detection path is
-> visible to the agent process; the real credential is isolated in the AWF API proxy sidecar.
-> See the [AWF sandbox architecture](/gh-aw/reference/sandbox/) for details.
+> Credentials are kept out of the agent container — only a dummy API key activating the AWF BYOK detection path is visible to the agent process; the real credential is isolated in the AWF API proxy sidecar. See [AWF sandbox architecture](/gh-aw/reference/sandbox/).
 
 ### Engine Command-Line Arguments
 
@@ -378,71 +327,35 @@ tools:
   timeout: 300   # 5 minutes per tool call
 ```
 
-| Engine | Default tool timeout |
-|--------|----------------------|
-| Copilot | not enforced by gh-aw (engine-managed) |
-| Claude | 60 s |
-| Codex | 120 s |
-| Gemini | not enforced by gh-aw (engine-managed) |
-| Crush | not enforced by gh-aw (engine-managed) |
-
-See [Tool Timeout Configuration](/gh-aw/reference/tools/#tool-timeout-configuration) for full documentation including `tools.startup-timeout`.
+Defaults: Claude `60s`, Codex `120s`. Other engines (Copilot, Gemini, Crush) are engine-managed and not enforced by gh-aw. See [Tool Timeout Configuration](/gh-aw/reference/tools/#tool-timeout-configuration) for full documentation including `tools.startup-timeout`.
 
 ### Per-Engine Timeout Controls
 
-#### Copilot
+| Knob | Copilot | Claude | Codex/Gemini/Crush/OpenCode | Purpose |
+|---|:---:|:---:|:---:|---|
+| `timeout-minutes` | ✅ | ✅ | ✅ | Job-level wall clock |
+| `tools.timeout` | ✅ | ✅ | ✅ | Per tool-call limit (seconds) |
+| `tools.startup-timeout` | ✅ | ✅ | ✅ | MCP server startup limit |
+| `max-turns` | ❌ | ✅ | ❌ | Iteration budget |
+| `max-continuations` | ✅ | ❌ | ❌ | Autopilot run budget |
 
-Copilot does not expose a per-turn wall-clock time limit directly. Use `max-continuations` to control how many sequential agent runs are allowed in autopilot mode, and `timeout-minutes` for the overall job budget:
-
-```yaml wrap
-engine:
-  id: copilot
-max-continuations: 3   # up to 3 consecutive autopilot runs
-timeout-minutes: 60
-```
-
-#### Claude
-
-Claude supports `max-turns` to cap the number of AI iterations per run. Set it together with `tools.timeout` to control both breadth (number of turns) and depth (time per tool call):
+Copilot uses `max-continuations` for autopilot runs; Claude uses `max-turns` to cap iterations. Codex, Gemini, Crush, and OpenCode rely solely on `timeout-minutes` and `tools.timeout`.
 
 ```yaml wrap
+# Claude — combine iteration cap with per-tool timeout
 engine:
   id: claude
-max-turns: 20          # maximum number of agentic iterations
+max-turns: 20
 tools:
-  timeout: 600         # 10 minutes per bash/tool call
+  timeout: 600
 timeout-minutes: 60
 ```
 
-The `CLAUDE_CODE_MAX_TURNS` environment variable is a Claude Code CLI equivalent of `max-turns`. When `max-turns` is set in frontmatter, gh-aw passes it to the Claude CLI automatically — you do not need to set this env var separately.
-
-#### Codex, Gemini, and Crush
-
-These engines do not support `max-turns` or `max-continuations`. Use `timeout-minutes` and `tools.timeout` to bound execution:
-
-```yaml wrap
-tools:
-  timeout: 300
-timeout-minutes: 60
-```
-
-### Summary Table
-
-| Timeout knob | Copilot | Claude | Codex | Gemini | Crush | OpenCode | Notes |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| `timeout-minutes` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Job-level wall clock |
-| `tools.timeout` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Per tool-call limit (seconds) |
-| `tools.startup-timeout` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MCP server startup limit |
-| `max-turns` | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | Iteration budget (Claude only) |
-| `max-continuations` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | Autopilot run budget (Copilot only) |
+When `max-turns` is set in frontmatter, gh-aw passes it to Claude automatically — no need to also set the `CLAUDE_CODE_MAX_TURNS` env var.
 
 ## Claude Tool Enforcement Security Model
 
-Claude Code accepts a `--permission-mode` flag that determines whether the declared `tools:` allowlist is enforced. gh-aw selects the mode using the resolution order below and emits exactly one `--permission-mode` flag in the final Claude CLI invocation.
-
-### Setting permission mode (`engine.permission-mode`)
-
-`engine.permission-mode` is a schema-validated, first-class engine setting. Accepted values are `auto`, `acceptEdits`, `plan`, and `bypassPermissions`:
+Claude Code accepts a `--permission-mode` flag that determines whether the declared `tools:` allowlist is enforced. Set `engine.permission-mode` to one of `auto`, `acceptEdits`, `plan`, or `bypassPermissions`:
 
 ```yaml wrap
 engine:
@@ -450,41 +363,7 @@ engine:
   permission-mode: auto
 ```
 
-When set, `engine.permission-mode` takes precedence over the default and over any `--permission-mode` flag supplied through `engine.args`. Omit the field to fall back to the default.
-
-### Default selection
-
-The default permission mode is `acceptEdits`. When `tools.edit: false` is set explicitly and `engine.permission-mode` is unset, the default becomes `auto` because such workflows do not rely on edit auto-approval.
-
-gh-aw **does not** derive `bypassPermissions` from `bash: "*"`, `bash: [":*"]`, or `bash: null`. To use `bypassPermissions`, set it explicitly with `engine.permission-mode: bypassPermissions`.
-
-### `acceptEdits` mode (default)
-
-In `acceptEdits` mode, Claude honors the `--allowed-tools` flag. The workflow's declared `tools:` and `mcp-servers: allowed:` configuration is compiled into an explicit allowlist and passed to the Claude CLI. Only the tools listed there are accessible to the agent.
-
-### `bypassPermissions` mode
-
-When `engine.permission-mode: bypassPermissions` is set, **Claude Code silently ignores `--allowed-tools`.** Every tool exposed by the MCP gateway is reachable regardless of the workflow's declared tool configuration.
-
-> [!WARNING]
-> Do not rely on `tools:` or `mcp-servers: allowed:` for security guarantees in `bypassPermissions` mode. The agent can already run arbitrary shell commands when unrestricted bash is granted, so `--allowed-tools` provides no meaningful additional boundary.
-
-### Legacy `engine.args` compatibility
-
-Workflows that previously set `engine.args: ["--permission-mode", "<value>"]` continue to work. gh-aw strips legacy `--permission-mode` flags from `engine.args` and substitutes the value into the single emitted flag. If both `engine.permission-mode` and a legacy `engine.args` flag are present, `engine.permission-mode` wins.
-
-### Gateway-side enforcement
-
-The **MCP gateway's `allowed:` filter is the sole effective tool boundary in `bypassPermissions` mode** (and a second layer of enforcement in `acceptEdits` mode). gh-aw compiles the `allowed:` list from each `mcp-servers:` entry into the gateway configuration before the agent starts. The gateway enforces this list server-side, regardless of what the agent requests.
-
-```yaml wrap
-mcp-servers:
-  notion:
-    container: "mcp/notion"
-    allowed: ["search_pages", "get_page"]   # enforced at gateway level
-```
-
-### Summary
+`engine.permission-mode` takes precedence over any `--permission-mode` flag supplied through `engine.args`. When unset, the default is `acceptEdits` (or `auto` when `tools.edit: false`). gh-aw **does not** derive `bypassPermissions` implicitly from unrestricted bash — set it explicitly.
 
 | `engine.permission-mode` | Effective mode | `--allowed-tools` enforced? | Gateway `allowed:` enforced? |
 |---|---|:---:|:---:|
@@ -495,7 +374,19 @@ mcp-servers:
 | `plan` | `plan` | ✅ Yes | ✅ Yes |
 | `bypassPermissions` | `bypassPermissions` | ❌ No | ✅ Yes |
 
-For workflows that must restrict which MCP tools are accessible, always specify `allowed:` on each `mcp-servers:` entry. This applies regardless of the selected permission mode.
+### Gateway-side enforcement
+
+The MCP gateway's `allowed:` filter is the sole effective tool boundary in `bypassPermissions` mode (and a second layer of enforcement otherwise). Always specify `allowed:` on each `mcp-servers:` entry to restrict which MCP tools are reachable:
+
+```yaml wrap
+mcp-servers:
+  notion:
+    container: "mcp/notion"
+    allowed: ["search_pages", "get_page"]   # enforced at gateway level
+```
+
+> [!WARNING]
+> Do not rely on `tools:` or `mcp-servers: allowed:` for security guarantees in `bypassPermissions` mode. The agent can already run arbitrary shell commands when unrestricted bash is granted, so `--allowed-tools` provides no meaningful additional boundary.
 
 ## Related Documentation
 

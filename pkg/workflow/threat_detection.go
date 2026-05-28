@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var threatLog = logger.New("workflow:threat_detection")
@@ -574,23 +575,16 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		}
 	}
 
-	// Determine which engine to use - threat detection engine if specified, otherwise main engine
-	engineSetting := data.AI
+	// Determine which engine to use: threat detection engine from frontmatter,
+	// otherwise main engine.
+	engineSetting := c.getThreatDetectionEngineID(data)
+
 	engineConfig := data.EngineConfig
-
-	// Check if threat detection has its own engine configuration
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		if data.SafeOutputs.ThreatDetection.EngineConfig != nil {
-			engineConfig = data.SafeOutputs.ThreatDetection.EngineConfig
-		}
-	}
-
-	// Use engine config ID if available
-	if engineConfig != nil {
-		engineSetting = engineConfig.ID
-	}
-	if engineSetting == "" {
-		engineSetting = "claude"
+	hasThreatDetectionEngineConfig := data.SafeOutputs != nil &&
+		data.SafeOutputs.ThreatDetection != nil &&
+		data.SafeOutputs.ThreatDetection.EngineConfig != nil
+	if hasThreatDetectionEngineConfig {
+		engineConfig = data.SafeOutputs.ThreatDetection.EngineConfig
 	}
 
 	// Get the engine instance
@@ -619,13 +613,18 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 			HarnessScript:      detectionEngineConfig.HarnessScript,
 		}
 	}
+	if detectionEngineConfig.ID == "" {
+		detectionEngineConfig.ID = engineSetting
+	}
 
-	// Apply the engine's default detection model when no model was explicitly configured.
+	// Apply enterprise and engine default detection models when no model was explicitly configured.
 	// GetDefaultDetectionModel() returns a cost-effective model optimised for detection
 	// (e.g. "gpt-5.1-codex-mini" for Copilot). Other engines return "" (no default).
 	// This was accidentally removed in commit a93e36ea4 while fixing engine.agent propagation.
 	if detectionEngineConfig.Model == "" {
-		if defaultModel := engine.GetDefaultDetectionModel(); defaultModel != "" {
+		if defaultModel := compilerenv.ResolveDefaultDetectionModel(""); defaultModel != "" {
+			detectionEngineConfig.Model = defaultModel
+		} else if defaultModel := engine.GetDefaultDetectionModel(); defaultModel != "" {
 			detectionEngineConfig.Model = defaultModel
 		}
 	}
@@ -729,19 +728,22 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 // getThreatDetectionEngineID returns the effective engine ID for the detection job.
 // It mirrors threat-detection engine resolution: threat-detection.engine overrides main engine.
 func (c *Compiler) getThreatDetectionEngineID(data *WorkflowData) string {
-	engineID := data.AI
-	if engineID == "" && data.EngineConfig != nil && data.EngineConfig.ID != "" {
-		engineID = data.EngineConfig.ID
-	}
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
 		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
 		data.SafeOutputs.ThreatDetection.EngineConfig.ID != "" {
-		engineID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
+		return data.SafeOutputs.ThreatDetection.EngineConfig.ID
 	}
-	if engineID == "" {
-		engineID = "claude"
+
+	mainEngineID := data.AI
+	if mainEngineID == "" && data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		mainEngineID = data.EngineConfig.ID
 	}
-	return engineID
+
+	if mainEngineID != "" {
+		return mainEngineID
+	}
+
+	return "claude"
 }
 
 // buildWorkflowContextEnvVars creates environment variables for workflow context

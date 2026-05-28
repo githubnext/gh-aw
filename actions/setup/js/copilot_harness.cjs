@@ -151,6 +151,74 @@ function isModelNotSupportedError(output) {
 }
 
 /**
+ * Determine whether the current run phase is threat detection.
+ * @param {string | undefined | null} phase
+ * @returns {boolean}
+ */
+function isDetectionPhase(phase) {
+  return (
+    String(phase || "")
+      .trim()
+      .toLowerCase() === "detection"
+  );
+}
+
+/**
+ * Check whether a model is present in AWF /reflect endpoint data.
+ * @param {string} model
+ * @param {unknown} reflectData
+ * @returns {boolean}
+ */
+function isModelAvailableInReflectData(model, reflectData) {
+  const normalizedModel = typeof model === "string" ? model.trim() : "";
+  if (!normalizedModel) return false;
+  if (!reflectData || typeof reflectData !== "object") return false;
+
+  // TypeScript needs explicit 'in' check or cast before property access on narrowed object type
+  const endpoints = "endpoints" in reflectData && Array.isArray(reflectData.endpoints) ? reflectData.endpoints : [];
+  for (const endpoint of endpoints) {
+    if (!endpoint || endpoint.configured !== true || !Array.isArray(endpoint.models)) {
+      continue;
+    }
+    if (endpoint.models.includes(normalizedModel)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Load saved AWF /reflect data and check whether a model is present.
+ * @param {string} model
+ * @param {{
+ *   reflectPath?: string,
+ *   readFileSync?: (path: string, encoding: string) => string,
+ *   logger?: (msg: string) => void,
+ * }} [options]
+ * @returns {boolean}
+ */
+function isModelAvailableInReflectFile(model, options) {
+  const normalizedModel = typeof model === "string" ? model.trim() : "";
+  const reflectPath = (options && options.reflectPath) || AWF_REFLECT_OUTPUT_PATH;
+  const readFile = (options && options.readFileSync) || fs.readFileSync;
+  const logger = (options && options.logger) || log;
+  if (!normalizedModel) {
+    logger("awf-reflect: model availability check skipped (model is empty)");
+    return false;
+  }
+
+  try {
+    const raw = readFile(reflectPath, "utf8");
+    const reflectData = JSON.parse(raw);
+    return isModelAvailableInReflectData(normalizedModel, reflectData);
+  } catch (error) {
+    const err = /** @type {Error} */ error;
+    logger(`awf-reflect: unable to read model availability from ${reflectPath}: ${err.message}`);
+    return false;
+  }
+}
+
+/**
  * Determines if the collected output contains a "No authentication information found" error.
  * This means no auth token (COPILOT_GITHUB_TOKEN, GH_TOKEN, or GITHUB_TOKEN) is available
  * in the environment.  Retrying will not help because the absent token will remain absent.
@@ -470,6 +538,7 @@ async function main() {
   let scheduledExit2Retries = 0;
   let scheduledExit2RetryAttempted = false;
   let useContinueOnRetry = false;
+  let modelNotSupportedReflectRetryAttempted = false;
   // Once set to true, --continue is never re-enabled for the remainder of this run.
   // This prevents a broken --continue recovery from resurrecting --continue on the next attempt.
   let continueDisabledPermanently = false;
@@ -563,6 +632,19 @@ async function main() {
 
     // Model-not-supported errors are persistent — retrying will not help.
     if (isModelNotSupported) {
+      if (!modelNotSupportedReflectRetryAttempted && attempt < MAX_RETRIES && isDetectionPhase(process.env.GH_AW_PHASE) && process.env.AWF_REFLECT_ENABLED === "1") {
+        const configuredModel = process.env.COPILOT_MODEL || "";
+        modelNotSupportedReflectRetryAttempted = true;
+        log(`attempt ${attempt + 1}: model not supported during detection — refreshing awf-reflect to rule out startup registry race`);
+        await fetchAWFReflect({ logger: log });
+        if (isModelAvailableInReflectFile(configuredModel, { logger: log })) {
+          useContinueOnRetry = false;
+          continueDisabledPermanently = true;
+          log(`attempt ${attempt + 1}: refreshed awf-reflect now includes model '${configuredModel}' — retrying once as fresh run`);
+          continue;
+        }
+        log(`attempt ${attempt + 1}: refreshed awf-reflect does not include model '${configuredModel || "(none)"}' — treating as non-retryable`);
+      }
       log(`attempt ${attempt + 1}: model not supported — not retrying (the requested model is unavailable for this subscription tier; specify a supported model in the workflow frontmatter)`);
       break;
     }
@@ -662,6 +744,9 @@ if (typeof module !== "undefined" && module.exports) {
     extractDeniedCommands,
     fetchAWFReflect,
     fetchModelsFromUrl,
+    isDetectionPhase,
+    isModelAvailableInReflectData,
+    isModelAvailableInReflectFile,
     countPermissionDeniedIssues,
     detectCopilotErrors,
     hasNumerousPermissionDeniedIssues,
