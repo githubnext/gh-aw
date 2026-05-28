@@ -263,7 +263,14 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   // Using --parents emits each line as "<sha> <parent1> [<parent2> ...]", which lets us detect merge commits
   // (more than one parent) in a single subprocess call without iterating each SHA individually.
   const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${baseRef}..HEAD`], { cwd });
-  const revListLinesRaw = revListOut.trim().split("\n").filter(Boolean);
+  const revListEntriesRaw = revListOut
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map(line => {
+      const fields = line.split(" ");
+      return { line, fields, sha: fields[0] };
+    });
   /** @type {string | undefined} */
   let baseRefOid;
   try {
@@ -275,11 +282,11 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   } catch (baseRefResolveError) {
     core.warning(`pushSignedCommits: could not resolve baseRef '${baseRef}' to an OID before replay: ${baseRefResolveError instanceof Error ? baseRefResolveError.message : String(baseRefResolveError)}`);
   }
-  const revListLines = baseRefOid !== undefined ? revListLinesRaw.filter(line => line.split(" ")[0] !== baseRefOid) : revListLinesRaw;
-  if (baseRefOid !== undefined && revListLinesRaw.length !== revListLines.length) {
-    core.info(`pushSignedCommits: dropped ${revListLinesRaw.length - revListLines.length} baseRef boundary commit(s) from replay set`);
+  const revListEntries = baseRefOid !== undefined ? revListEntriesRaw.filter(entry => entry.sha !== baseRefOid) : revListEntriesRaw;
+  if (baseRefOid !== undefined && revListEntriesRaw.length !== revListEntries.length) {
+    core.info(`pushSignedCommits: dropped ${revListEntriesRaw.length - revListEntries.length} baseRef boundary commit(s) from replay set`);
   }
-  const shas = revListLines.map(line => line.split(" ")[0]);
+  const shas = revListEntries.map(entry => entry.sha);
 
   if (shas.length === 0) {
     core.info("pushSignedCommits: no new commits to push via GraphQL");
@@ -293,8 +300,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     // A line with 3+ space-separated fields means the commit has 2+ parents (i.e. a merge commit).
     // The GitHub GraphQL createCommitOnBranch mutation does not support multiple parents, so refuse
     // the unsigned push fallback if any merge commit is found.
-    for (const line of revListLines) {
-      const fields = line.split(" ");
+    for (const { fields } of revListEntries) {
       if (fields.length > 2) {
         const sha = fields[0];
         core.warning(`pushSignedCommits: merge commit ${sha} detected, refusing unsigned push fallback`);
