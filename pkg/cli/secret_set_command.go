@@ -224,7 +224,7 @@ func encryptWithPublicKey(publicKeyB64, plaintext string) (string, error) {
 		return "", fmt.Errorf("unexpected public key length: %d, expected %d", len(raw), publicKeySize)
 	}
 
-	// Safe due to explicit length check above.
+	// DecodeString returns a freshly allocated slice; the length check above guarantees this conversion is safe.
 	pk := (*[publicKeySize]byte)(raw)
 	ciphertext, err := box.SealAnonymous(nil, []byte(plaintext), pk, rand.Reader)
 	if err != nil {
