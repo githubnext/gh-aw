@@ -178,19 +178,16 @@ describe("generate_aw_info.cjs", () => {
 
     await main(mockCore, mockContext);
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("Compiler version requirement not met")
-    );
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Compiler version requirement not met"));
   });
 
-  it("should ignore minimum compiler version when configured value is not a release version", async () => {
+  it("should fail when configured minimum compiler version is not supported", async () => {
     process.env.GH_AW_INFO_CLI_VERSION = "1.2.3";
     process.env.GH_AW_INFO_MIN_COMPILER_VERSION = "latest";
 
     await main(mockCore, mockContext);
 
-    expect(mockCore.setFailed).not.toHaveBeenCalled();
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping minimum compiler version check"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Unsupported minimum compiler version"));
   });
 
   it("should ignore minimum compiler version when current compiler version is not a release version", async () => {

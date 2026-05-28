@@ -8,6 +8,7 @@ const { generateWorkflowOverview } = require("./generate_workflow_overview.cjs")
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { validateContextVariables } = require("./validate_context_variables.cjs");
 const validateLockdownRequirements = require("./validate_lockdown_requirements.cjs");
+const { parseVersion, compareVersions } = require("./check_version_updates.cjs");
 
 /**
  * Generate aw_info.json with workflow run metadata.
@@ -251,34 +252,17 @@ async function main(core, ctx) {
 module.exports = { main };
 
 /**
- * Parse a release version string in MAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH format.
- * Returns numeric components or null for non-release versions.
+ * Normalize release version for shared semver helpers.
  *
  * @param {string} version
- * @returns {number[]|null}
+ * @returns {string}
  */
-function parseReleaseVersion(version) {
-  const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(version);
-  if (!match) {
-    return null;
+function normalizeReleaseVersion(version) {
+  const trimmed = version.trim();
+  if (!trimmed) {
+    return "";
   }
-  return [Number(match[1]), Number(match[2]), Number(match[3])];
-}
-
-/**
- * Compare two parsed release versions.
- *
- * @param {number[]} a
- * @param {number[]} b
- * @returns {number}
- */
-function compareReleaseVersions(a, b) {
-  for (let i = 0; i < 3; i++) {
-    if (a[i] !== b[i]) {
-      return a[i] - b[i];
-    }
-  }
-  return 0;
+  return trimmed.startsWith("v") ? trimmed : `v${trimmed}`;
 }
 
 /**
@@ -294,31 +278,30 @@ async function enforceMinimumCompilerVersion(core, currentVersion, minimumVersio
     return true;
   }
 
-  const parsedMinimum = parseReleaseVersion(minimumVersion);
-  if (!parsedMinimum) {
-    core.info(
-      `Skipping minimum compiler version check: '${minimumVersion}' is not an official release version (expected vMAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH)`
-    );
+  const normalizedMinimum = normalizeReleaseVersion(minimumVersion);
+  if (!parseVersion(normalizedMinimum)) {
+    core.summary
+      .addRaw("### ❌ Unsupported minimum compiler version\n\n")
+      .addRaw(`Configured minimum compiler version \`${minimumVersion}\` is not supported. Expected \`vMAJOR.MINOR.PATCH\` or \`MAJOR.MINOR.PATCH\`.\n\n`)
+      .addRaw("**Action required:** Update `GH_AW_DEFAULT_MIN_COMPILER_VERSION` to a supported release version and re-run the workflow.\n");
+    await core.summary.write();
+    core.setFailed(`Unsupported minimum compiler version '${minimumVersion}'. Expected vMAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH in GH_AW_DEFAULT_MIN_COMPILER_VERSION.`);
+    return false;
+  }
+
+  const normalizedCurrent = normalizeReleaseVersion(currentVersion);
+  if (!parseVersion(normalizedCurrent)) {
+    core.info(`Skipping minimum compiler version check: current compiler version '${currentVersion || "(empty)"}' is not an official release version`);
     return true;
   }
 
-  const parsedCurrent = parseReleaseVersion(currentVersion);
-  if (!parsedCurrent) {
-    core.info(
-      `Skipping minimum compiler version check: current compiler version '${currentVersion || "(empty)"}' is not an official release version`
-    );
-    return true;
-  }
-
-  if (compareReleaseVersions(parsedCurrent, parsedMinimum) < 0) {
+  if (compareVersions(normalizedCurrent, normalizedMinimum) < 0) {
     core.summary
       .addRaw("### ❌ Compiler version requirement not met\n\n")
       .addRaw(`Current compiler version \`${currentVersion}\` is below required minimum \`${minimumVersion}\`.\n\n`)
       .addRaw("**Action required:** Upgrade `gh-aw`, recompile the workflow, and run it again.\n");
     await core.summary.write();
-    core.setFailed(
-      `Compiler version requirement not met: current ${currentVersion} is below minimum ${minimumVersion}. Upgrade gh-aw and recompile the workflow.`
-    );
+    core.setFailed(`Compiler version requirement not met: current ${currentVersion} is below minimum ${minimumVersion}. Upgrade gh-aw and recompile the workflow.`);
     return false;
   }
 

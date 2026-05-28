@@ -155,4 +155,4 @@ async function main() {
   core.info(`✅ Version check passed: ${compiledVersion}`);
 }
 
-module.exports = { main };
+module.exports = { main, parseVersion, compareVersions };
