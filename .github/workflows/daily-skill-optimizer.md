@@ -1,7 +1,7 @@
 ---
 emoji: "⚡"
 name: Daily Skill Optimizer Improvements
-description: Runs fastxyz/skill-optimizer daily, packages results as an artifact, and creates one issue with 3 improvements
+description: Runs fastxyz/skill-optimizer daily across all agentic workflows, packages results, and creates one issue with 3 improvements
 on:
   schedule:
     - cron: daily
@@ -35,11 +35,15 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Validate SKILL.md exists
+      - name: Validate SkillOpt config and workflow files
         shell: bash
         run: |
-          if [ ! -f SKILL.md ]; then
-            echo "::error file=SKILL.md::SKILL.md is required by skill-optimizer. See .skill-optimizer/skill-optimizer.json for setup instructions."
+          if [ ! -f .skill-optimizer/skill-optimizer.json ]; then
+            echo "::error file=.skill-optimizer/skill-optimizer.json::.skill-optimizer/skill-optimizer.json is required by skill-optimizer."
+            exit 1
+          fi
+          if ! find .github/workflows -maxdepth 1 -type f -name "*.md" | grep -q .; then
+            echo "::error file=.github/workflows::No workflow .md files found under .github/workflows."
             exit 1
           fi
 
@@ -58,7 +62,9 @@ jobs:
 
           RESULT_DIR="/tmp/gh-aw/agent/skill-optimizer-results"
           TOOL_DIR="$RESULT_DIR/skill-optimizer-src"
-          mkdir -p "$RESULT_DIR"
+          RUNS_DIR="$RESULT_DIR/runs"
+          CONFIG_DIR="$RESULT_DIR/configs"
+          mkdir -p "$RESULT_DIR" "$RUNS_DIR" "$CONFIG_DIR"
 
           git clone --depth 1 https://github.com/fastxyz/skill-optimizer "$TOOL_DIR" >"$RESULT_DIR/clone.log" 2>&1
 
@@ -67,43 +73,81 @@ jobs:
           npm run build >"$RESULT_DIR/npm-build.log" 2>&1
           popd >/dev/null
 
-          SUITE_PATH="$GITHUB_WORKSPACE/.skill-optimizer/suite.yml"
-          RUN_MODE="dry-run"
-          RUN_STATUS=0
+          BASE_CONFIG="$GITHUB_WORKSPACE/.skill-optimizer/skill-optimizer.json"
+          WORKFLOWS_FILE="$RESULT_DIR/workflows.txt"
+          find "$GITHUB_WORKSPACE/.github/workflows" -maxdepth 1 -type f -name "*.md" | sort >"$WORKFLOWS_FILE"
 
-          # skill-optimizer v2 uses run-suite / run-case (Docker workbench).
-          # Attempt to run the suite only when Docker is available.
-          if docker info >/dev/null 2>&1; then
-            if [ -n "${OPENROUTER_API_KEY:-}" ]; then
-              RUN_MODE="benchmark"
-              set +e
-              node "$TOOL_DIR/dist/cli.js" run-suite "$SUITE_PATH" \
-                --out "$RESULT_DIR/suite-results" >"$RESULT_DIR/run.log" 2>&1
-              RUN_STATUS=$?
-              set -e
-            else
-              # Dry-run: validate the suite file parses correctly (no Docker needed for validation)
-              set +e
-              node "$TOOL_DIR/dist/cli.js" run-suite --help >/dev/null 2>&1
-              # Just confirm CLI is functional; suite execution needs OPENROUTER_API_KEY + Docker
-              RUN_STATUS=0
-              set -e
-              echo "dry-run: Docker available but OPENROUTER_API_KEY not set; skipping suite execution" >"$RESULT_DIR/run.log"
-            fi
-          else
-            echo "Docker not available in this runner; skipping workbench suite execution." >"$RESULT_DIR/run.log"
-            echo "To run the suite locally: skill-optimizer run-suite .skill-optimizer/suite.yml" >>"$RESULT_DIR/run.log"
+          TOTAL_WORKFLOWS=$(wc -l <"$WORKFLOWS_FILE" | tr -d ' ')
+          if [ "$TOTAL_WORKFLOWS" -eq 0 ]; then
+            echo "::error::No workflow markdown files found to optimize."
+            exit 1
           fi
+
+          RUN_MODE="dry-run"
+          if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+            RUN_MODE="optimize"
+          fi
+
+          SUCCESS_COUNT=0
+          FAILURE_COUNT=0
+          RUN_STATUS=0
+          echo "[]" >"$RESULT_DIR/results.json"
+
+          while IFS= read -r workflow_file; do
+            rel_workflow="${workflow_file#"$GITHUB_WORKSPACE"/}"
+            rel_workflow="${rel_workflow#/}"
+            workflow_name="$(basename "$rel_workflow" .md)"
+            workflow_slug="$(echo "$workflow_name" | tr -cd '[:alnum:]_-')"
+            workflow_dir="$RUNS_DIR/$workflow_slug"
+            workflow_log="$workflow_dir/run.log"
+            workflow_config="$CONFIG_DIR/$workflow_slug.json"
+            mkdir -p "$workflow_dir"
+
+            jq --arg skill "$rel_workflow" --arg path "$rel_workflow" \
+              '.target.skill = $skill | .optimize.allowedPaths = [$path]' \
+              "$BASE_CONFIG" >"$workflow_config"
+
+            set +e
+            if [ "$RUN_MODE" = "optimize" ]; then
+              node "$TOOL_DIR/dist/cli.js" optimize --config "$workflow_config" >"$workflow_log" 2>&1
+            else
+              node "$TOOL_DIR/dist/cli.js" run --dry-run --config "$workflow_config" >"$workflow_log" 2>&1
+            fi
+            status=$?
+            set -e
+
+            if [ "$status" -eq 0 ]; then
+              SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+            else
+              FAILURE_COUNT=$((FAILURE_COUNT + 1))
+              RUN_STATUS=1
+            fi
+
+            jq \
+              --arg workflow "$rel_workflow" \
+              --arg mode "$RUN_MODE" \
+              --argjson status "$status" \
+              --arg log_file "${workflow_dir#"$RESULT_DIR"/}/run.log" \
+              '. += [{workflow: $workflow, mode: $mode, status: $status, log_file: $log_file}]' \
+              "$RESULT_DIR/results.json" >"$RESULT_DIR/results.tmp.json"
+            mv "$RESULT_DIR/results.tmp.json" "$RESULT_DIR/results.json"
+          done <"$WORKFLOWS_FILE"
 
           jq -n \
             --arg repository "${GITHUB_REPOSITORY}" \
             --arg run_mode "$RUN_MODE" \
             --argjson run_status "$RUN_STATUS" \
+            --argjson total_workflows "$TOTAL_WORKFLOWS" \
+            --argjson success_count "$SUCCESS_COUNT" \
+            --argjson failure_count "$FAILURE_COUNT" \
             --arg run_url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
             '{
               repository: $repository,
               run_mode: $run_mode,
               run_status: $run_status,
+              total_workflows: $total_workflows,
+              success_count: $success_count,
+              failure_count: $failure_count,
               run_url: $run_url
             }' >"$RESULT_DIR/summary.json"
 
@@ -157,26 +201,29 @@ You are a workflow quality analyst for `${{ github.repository }}`.
 
 - Downloaded artifact directory: `/tmp/gh-aw/agent/skill-optimizer-results`
 - Required file: `/tmp/gh-aw/agent/skill-optimizer-results/summary.json`
+- Required file: `/tmp/gh-aw/agent/skill-optimizer-results/results.json`
+- Required file: `/tmp/gh-aw/agent/skill-optimizer-results/workflows.txt`
 - Optional logs:
   - `clone.log`
   - `npm-ci.log`
   - `npm-build.log`
-  - `run.log`
-  - `suite-results/` (benchmark results directory, present when `run_mode=benchmark`)
+  - `runs/<workflow-id>/run.log` (one per workflow)
+  - `configs/<workflow-id>.json` (generated config per workflow)
 
-The separate `skill_optimizer` job already ran `fastxyz/skill-optimizer` and packaged these results.
+The separate `skill_optimizer` job already ran `fastxyz/skill-optimizer` across all workflow markdown files in `.github/workflows` and packaged these results.
 
 ## Task
 
-1. Read `summary.json` and relevant logs from the downloaded artifact.
-2. Identify exactly **3** actionable improvements for this repository's workflow/skill guidance quality.
+1. Read `summary.json`, `results.json`, and relevant logs from the downloaded artifact.
+2. Identify exactly **3** actionable improvements for this repository's agentic workflow quality, prioritizing items that impact multiple workflows.
 3. Create exactly **one** GitHub issue using `create_issue`.
 
 ## Issue Requirements
 
 - Title format: `Daily Skill Optimizer Improvements - YYYY-MM-DD`
 - Include:
-  - Run mode (`dry-run` or `benchmark`) and status from `summary.json`
+  - Run mode (`dry-run` or `optimize`) and status from `summary.json`
+  - Workflow coverage (`total_workflows`, `success_count`, `failure_count`) from `summary.json`
   - A short evidence section with concrete references to artifact files
   - A numbered list with exactly **3** improvements
   - Expected impact for each improvement
@@ -201,7 +248,7 @@ Structure the issue body as follows:
 
 ```markdown
 ### Summary
-- Run mode: dry-run / benchmark
+- Run mode: dry-run / optimize
 - Status: ✅/⚠️/❌
 
 ### Key Findings
