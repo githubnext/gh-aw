@@ -271,4 +271,9 @@ func TestInputDefinitionAliasesSharedType(t *testing.T) {
 	if reflect.TypeOf(InputDefinition{}) != reflect.TypeOf(types.InputDefinition{}) {
 		t.Fatal("InputDefinition should alias types.InputDefinition")
 	}
+
+	input := InputDefinition{Default: 7}
+	if got := input.GetDefaultAsString(); got != "7" {
+		t.Fatalf("GetDefaultAsString() through alias = %q, want %q", got, "7")
+	}
 }

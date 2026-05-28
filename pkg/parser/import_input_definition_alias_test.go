@@ -13,4 +13,9 @@ func TestImportInputDefinitionAliasesSharedType(t *testing.T) {
 	if reflect.TypeOf(ImportInputDefinition{}) != reflect.TypeOf(types.InputDefinition{}) {
 		t.Fatal("ImportInputDefinition should alias types.InputDefinition")
 	}
+
+	input := ImportInputDefinition{Default: true}
+	if got := input.GetDefaultAsString(); got != "true" {
+		t.Fatalf("GetDefaultAsString() through alias = %q, want %q", got, "true")
+	}
 }
