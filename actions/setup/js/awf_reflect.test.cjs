@@ -335,6 +335,42 @@ describe("awf_reflect.cjs", () => {
       }
     });
 
+    it("retries fetch failed when the nested cause is transient and eventually succeeds", async () => {
+      const reflectPayload = {
+        endpoints: [{ provider: "openai", port: 10000, configured: true, models: ["gpt-4o"], models_url: "http://api-proxy:10000/v1/models" }],
+        models_fetch_complete: true,
+      };
+      const fetchFailedWithTransientCause = Object.assign(new Error("fetch failed"), { cause: { code: "ECONNREFUSED" } });
+
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockRejectedValueOnce(fetchFailedWithTransientCause)
+          .mockResolvedValue({ ok: true, status: 200, json: async () => reflectPayload })
+      );
+
+      const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "awf-reflect-retry-fetch-failed-test-"));
+      const outputPath = path.join(outputDir, "awf-reflect.json");
+
+      try {
+        const result = await fetchAWFReflect({
+          reflectUrl: "http://api-proxy:10000/reflect",
+          outputPath,
+          timeoutMs: 1000,
+          maxAttempts: 3,
+          retryBaseMs: 1,
+          retryMaxMs: 2,
+          logger: () => {},
+        });
+
+        expect(result.ok).toBe(true);
+        expect(fs.existsSync(outputPath)).toBe(true);
+      } finally {
+        fs.rmSync(outputDir, { recursive: true, force: true });
+      }
+    });
+
     it("uses the caller-supplied logger for all messages", async () => {
       vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
       const collected = [];

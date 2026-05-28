@@ -63,6 +63,7 @@ const AWF_MODELS_URL_RETRY_MAX_MS = 2000;
 const GEMINI_MODEL_NAME_PREFIX = "models/";
 // HTTP statuses from api-proxy /reflect that are typically transient during startup.
 const RETRYABLE_REFLECT_STATUS_CODES = [502, 503, 504];
+const RETRYABLE_REFLECT_ERROR_CODES = ["ECONNREFUSED", "ECONNRESET", "ENOTFOUND", "ETIMEDOUT", "EAI_AGAIN"];
 
 // Default logger used by fetchAWFReflect when no logger is provided via options.
 // All lines are prefixed with "[awf-reflect]" for easy grepping in combined logs.
@@ -280,7 +281,9 @@ async function fetchAWFReflect(options) {
       const original = error?.originalError || error;
       const status = original?.status ?? original?.response?.status ?? null;
       const shouldRetryStatus = RETRYABLE_REFLECT_STATUS_CODES.includes(status);
-      const shouldRetry = shouldRetryStatus || isTransientError(original);
+      const retryableCode = [original?.code, original?.cause?.code].find(code => RETRYABLE_REFLECT_ERROR_CODES.includes(code));
+      const shouldRetryFetchFailure = (original?.message || "").toLowerCase() === "fetch failed" && Boolean(retryableCode);
+      const shouldRetry = shouldRetryStatus || isTransientError(original) || shouldRetryFetchFailure;
       if (shouldRetry) {
         logger(`awf-reflect: transient failure for ${reflectUrl}; retrying`);
       }
