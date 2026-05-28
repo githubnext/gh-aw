@@ -97,7 +97,6 @@ var defaultsBindings = []defaultsBinding{
 
 var defaultsExecGH = workflow.ExecGH
 var defaultsGetCurrentRepoSlug = GetCurrentRepoSlug
-var defaultsConfirmAction = console.ConfirmAction
 
 func NewDefaultsCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -208,7 +207,7 @@ func defaultsUpdateFromFile(target defaultsTarget, inputFile string, skipConfirm
 	}
 
 	changes := defaultsBuildUpdateChanges(&file)
-	if err := confirmDefaultsUpdate(target, inputFile, changes, skipConfirmation); err != nil {
+	if err := confirmDefaultsUpdate(target, inputFile, changes, skipConfirmation, console.ConfirmAction); err != nil {
 		return err
 	}
 
@@ -242,7 +241,13 @@ func defaultsBuildUpdateChanges(file *defaultsFile) []defaultsUpdateChange {
 	return changes
 }
 
-func confirmDefaultsUpdate(target defaultsTarget, inputFile string, changes []defaultsUpdateChange, skipConfirmation bool) error {
+func confirmDefaultsUpdate(
+	target defaultsTarget,
+	inputFile string,
+	changes []defaultsUpdateChange,
+	skipConfirmation bool,
+	confirmAction func(title, affirmative, negative string) (bool, error),
+) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Defaults update preview:"))
 	fmt.Fprint(os.Stderr, console.RenderStruct(defaultsUpdatePreview{
 		Scope:  target.scope,
@@ -260,7 +265,7 @@ func confirmDefaultsUpdate(target defaultsTarget, inputFile string, changes []de
 		return nil
 	}
 
-	confirmed, err := defaultsConfirmAction(
+	confirmed, err := confirmAction(
 		"Do you want to update these defaults?",
 		"Yes, update",
 		"No, cancel",

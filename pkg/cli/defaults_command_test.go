@@ -140,17 +140,12 @@ func TestDefaultsBuildUpdateChanges(t *testing.T) {
 }
 
 func TestConfirmDefaultsUpdate(t *testing.T) {
-	orig := defaultsConfirmAction
-	t.Cleanup(func() {
-		defaultsConfirmAction = orig
-	})
-
 	target := defaultsTarget{scope: defaultsScopeOrg, org: "github"}
 	changes := []defaultsUpdateChange{{field: "max_turns", value: "42"}}
 
 	t.Run("requests confirmation by default", func(t *testing.T) {
 		called := false
-		defaultsConfirmAction = func(title, affirmative, negative string) (bool, error) {
+		confirmAction := func(title, affirmative, negative string) (bool, error) {
 			called = true
 			assert.Equal(t, "Do you want to update these defaults?", title)
 			assert.Equal(t, "Yes, update", affirmative)
@@ -158,27 +153,27 @@ func TestConfirmDefaultsUpdate(t *testing.T) {
 			return true, nil
 		}
 
-		err := confirmDefaultsUpdate(target, "defaults.yml", changes, false)
+		err := confirmDefaultsUpdate(target, "defaults.yml", changes, false, confirmAction)
 		require.NoError(t, err)
 		assert.True(t, called)
 	})
 
 	t.Run("skips confirmation with yes", func(t *testing.T) {
-		defaultsConfirmAction = func(title, affirmative, negative string) (bool, error) {
+		confirmAction := func(title, affirmative, negative string) (bool, error) {
 			t.Fatal("confirmation should be skipped")
 			return false, nil
 		}
 
-		err := confirmDefaultsUpdate(target, "defaults.yml", changes, true)
+		err := confirmDefaultsUpdate(target, "defaults.yml", changes, true, confirmAction)
 		require.NoError(t, err)
 	})
 
 	t.Run("returns cancellation error", func(t *testing.T) {
-		defaultsConfirmAction = func(title, affirmative, negative string) (bool, error) {
+		confirmAction := func(title, affirmative, negative string) (bool, error) {
 			return false, nil
 		}
 
-		err := confirmDefaultsUpdate(target, "defaults.yml", changes, false)
+		err := confirmDefaultsUpdate(target, "defaults.yml", changes, false, confirmAction)
 		require.ErrorContains(t, err, "defaults update cancelled")
 	})
 }
