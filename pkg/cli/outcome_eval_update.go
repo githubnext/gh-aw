@@ -73,7 +73,7 @@ func evalRetainedUpdate(item CreatedItemReport, repoOverride string, objectKind 
 	case len(comparison.Retained) == len(comparison.Changed):
 		report.Result = OutcomeAccepted
 		if strongOnMerge && merged {
-			report.Detail = fmt.Sprintf("%s update retained and merged", objectKind)
+			report.Detail = objectKind + " update retained and merged"
 			report.OutcomeEvaluation = OutcomeEvaluation{
 				OutcomeStatus:    OutcomeStatusAccepted,
 				EvidenceStrength: EvidenceStrong,
@@ -81,7 +81,7 @@ func evalRetainedUpdate(item CreatedItemReport, repoOverride string, objectKind 
 			}
 			return report
 		}
-		report.Detail = fmt.Sprintf("%s update retained", objectKind)
+		report.Detail = objectKind + " update retained"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusAccepted,
 			EvidenceStrength: EvidenceMedium,
@@ -90,7 +90,7 @@ func evalRetainedUpdate(item CreatedItemReport, repoOverride string, objectKind 
 		return report
 	case len(comparison.Reverted) == len(comparison.Changed):
 		report.Result = OutcomeRejected
-		report.Detail = fmt.Sprintf("%s update reverted", objectKind)
+		report.Detail = objectKind + " update reverted"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusRejected,
 			EvidenceStrength: EvidenceStrong,
@@ -99,7 +99,7 @@ func evalRetainedUpdate(item CreatedItemReport, repoOverride string, objectKind 
 		return report
 	default:
 		report.Result = OutcomeRejected
-		report.Detail = fmt.Sprintf("%s update replaced", objectKind)
+		report.Detail = objectKind + " update replaced"
 		report.OutcomeEvaluation = OutcomeEvaluation{
 			OutcomeStatus:    OutcomeStatusRejected,
 			EvidenceStrength: EvidenceStrong,
