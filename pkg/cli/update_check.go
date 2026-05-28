@@ -27,8 +27,8 @@ type Release struct {
 	Draft      bool   `json:"draft"`
 }
 
-// isRunningAsMCPServer detects if we're running as a subprocess of mcp-server
-// by checking for the GH_AW_MCP_SERVER environment variable set by the server.
+// isRunningAsMCPServer reports whether the process was spawned by an MCP server,
+// detected via the GH_AW_MCP_SERVER environment variable set by the server process.
 func isRunningAsMCPServer() bool {
 	return os.Getenv("GH_AW_MCP_SERVER") != ""
 }
