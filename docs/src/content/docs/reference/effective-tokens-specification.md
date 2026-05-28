@@ -364,32 +364,7 @@ Implementations SHOULD version their token weights and model multipliers so that
 
 When sub-agents are not fully observable, implementations MUST still report aggregate totals. Invocation nodes with incomplete data SHOULD be flagged to indicate missing information.
 
-### 8.5 Precision and Rounding
-
-**R-PREC-001**: The ET formula produces a floating-point intermediate value. Implementations MUST
-round this value to the nearest non-negative integer before serializing
-`derived.effective_tokens`. The reference implementation uses round-half-away-from-zero
-(`math.Round` in Go), which MUST be used to ensure ET values are consistent and comparable
-across reporting periods.
-
-**R-PREC-002**: Intermediate floating-point arithmetic MUST use IEEE 754 double precision (64-bit)
-throughout the ET computation. Single-precision (32-bit) intermediates MUST NOT be used because
-they introduce rounding errors for token counts above ~16 million that diverge from the reference
-implementation.
-
-**R-PREC-003**: The `derived.base_weighted_tokens` field MUST be serialized as a
-floating-point value preserving the pre-rounding intermediate, rounded to at most six decimal
-places. This allows downstream consumers to reproduce the rounding step independently and to
-audit the effect of the model multiplier.
-
-**Reference implementation behavior**: In the Go reference implementation
-(`pkg/cli/effective_tokens.go`), `derived.effective_tokens` is computed as
-`int(math.Round(base_weighted_tokens * model_multiplier))`. The `math.Round` call implements
-round-half-away-from-zero; the result is cast to `int` and stored in a 64-bit integer
-field. Any implementation that produces a different integer value for the same inputs is
-non-conforming.
-
-### 8.6 Safeguards
+### 8.5 Safeguards
 
 Implementations MUST apply the following safeguards to prevent unbounded ET accumulation from
 producing non-finite or non-interoperable outputs.
