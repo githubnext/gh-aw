@@ -175,9 +175,9 @@ At compile time, gh-aw emits runtime model expressions like:
 COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || '<engine default model>' }}
 ```
 
-Use `gh aw defaults get` / `gh aw defaults update` to batch-manage
+Use `gh aw env get` / `gh aw env update` to batch-manage
 these `GH_AW_DEFAULT_*` variables at repo, org, or enterprise scope with
-trimmed YAML keys such as `max_effective_tokens` and `model_copilot`.
+`default_`-prefixed YAML keys such as `default_max_effective_tokens` and `default_model_copilot`.
 
 ### Agent runs
 

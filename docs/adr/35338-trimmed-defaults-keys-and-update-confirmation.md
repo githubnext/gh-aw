@@ -1,4 +1,4 @@
-# ADR-35338: Trimmed Defaults File Keys and Default-On Confirmation for `defaults update`
+# ADR-35338: `env` Command, `default_*` YAML Keys, Null-for-Delete, and Update Confirmation
 
 **Date**: 2026-05-28
 **Status**: Draft
@@ -10,11 +10,11 @@
 
 ### Context
 
-[ADR-35286](35286-compiler-managed-enterprise-env-controls.md) introduced the `gh aw defaults` command pair (`get` / `update`) backed by a flat YAML file whose keys carried a `default_` prefix (e.g. `default_max_effective_tokens`, `default_model_copilot`) that mirrored the `GH_AW_DEFAULT_*` GitHub Actions variable names. In practice the prefix was redundant: the file is already scoped to "defaults," and users were typing `default_` on every line for no informational gain. At the same time, `defaults update` performed a mutating batch operation — upserting or deleting GitHub Actions variables at repo, org, or enterprise scope — with no preview and no confirmation step, so a typo or unintended file content silently overwrote shared org-wide configuration. The original ADR's normative section did not constrain either the file key shape or the update UX, so refining both without superseding the parent ADR is in scope.
+[ADR-35286](35286-compiler-managed-enterprise-env-controls.md) introduced the `gh aw defaults` command pair (`get` / `update`) backed by a flat YAML file whose keys carried a `default_` prefix (e.g. `default_max_effective_tokens`, `default_model_copilot`) that mirrored the `GH_AW_DEFAULT_*` GitHub Actions variable names. At the same time, `defaults update` performed a mutating batch operation — upserting or deleting GitHub Actions variables at repo, org, or enterprise scope — with no preview and no confirmation step, so a typo or unintended file content silently overwrote shared org-wide configuration. The original ADR's normative section did not constrain either the delete semantics or the update UX, so refining both without superseding the parent ADR is in scope.
 
 ### Decision
 
-We will (1) rename the defaults file YAML fields to drop the `default_` prefix — `max_effective_tokens`, `max_turns`, `timeout_minutes`, `detection_model`, `model_copilot`, `model_claude`, `model_codex` — and remove legacy support for reading the old keys, and (2) make `gh aw defaults update` render a structured preview (scope, target, file, per-field action) and require interactive confirmation by default, with `--yes` / `-y` to bypass the prompt in automation. The `GH_AW_DEFAULT_*` GitHub Actions variable names themselves are unchanged; only the on-disk file representation and the update UX change. The confirmation gate is implemented as a small seam (`confirmAction func(...)`) so the path is unit-testable without driving a real TTY.
+We will (1) rename the command from `defaults` to `env`, (2) keep the `default_`-prefixed YAML keys as established in ADR-35286, (3) switch the delete signal from empty string to explicit `null` — a field set to `null` (or absent) deletes the variable while a non-null string value sets it, and (4) make `gh aw env update` render a structured preview (scope, target, file, per-field action) and require interactive confirmation by default, with `--yes` / `-y` to bypass the prompt in automation. The `GH_AW_DEFAULT_*` GitHub Actions variable names themselves are unchanged. The confirmation gate is implemented as a small seam (`confirmAction func(...)`) so the path is unit-testable without driving a real TTY.
 
 ### Alternatives Considered
 

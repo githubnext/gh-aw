@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -25,19 +24,19 @@ const (
 )
 
 type defaultsFile struct {
-	MaxEffectiveTokens string `yaml:"max_effective_tokens"`
-	MaxTurns           string `yaml:"max_turns"`
-	TimeoutMinutes     string `yaml:"timeout_minutes"`
-	DetectionModel     string `yaml:"detection_model"`
-	ModelCopilot       string `yaml:"model_copilot"`
-	ModelClaude        string `yaml:"model_claude"`
-	ModelCodex         string `yaml:"model_codex"`
+	DefaultMaxEffectiveTokens *string `yaml:"default_max_effective_tokens"`
+	DefaultMaxTurns           *string `yaml:"default_max_turns"`
+	DefaultTimeoutMinutes     *string `yaml:"default_timeout_minutes"`
+	DefaultDetectionModel     *string `yaml:"default_detection_model"`
+	DefaultModelCopilot       *string `yaml:"default_model_copilot"`
+	DefaultModelClaude        *string `yaml:"default_model_claude"`
+	DefaultModelCodex         *string `yaml:"default_model_codex"`
 }
 
 type defaultsBinding struct {
 	envName   string
 	fieldName string
-	get       func(*defaultsFile) *string
+	get       func(*defaultsFile) **string
 }
 
 type defaultsTarget struct {
@@ -87,37 +86,26 @@ func (e *defaultsGHError) Unwrap() error {
 }
 
 var defaultsBindings = []defaultsBinding{
-	{envName: compilerenv.DefaultMaxEffectiveTokens, fieldName: "max_effective_tokens", get: func(f *defaultsFile) *string { return &f.MaxEffectiveTokens }},
-	{envName: compilerenv.DefaultMaxTurns, fieldName: "max_turns", get: func(f *defaultsFile) *string { return &f.MaxTurns }},
-	{envName: compilerenv.DefaultTimeoutMinutes, fieldName: "timeout_minutes", get: func(f *defaultsFile) *string { return &f.TimeoutMinutes }},
-	{envName: compilerenv.DefaultDetectionModel, fieldName: "detection_model", get: func(f *defaultsFile) *string { return &f.DetectionModel }},
-	{envName: compilerenv.DefaultModelCopilot, fieldName: "model_copilot", get: func(f *defaultsFile) *string { return &f.ModelCopilot }},
-	{envName: compilerenv.DefaultModelClaude, fieldName: "model_claude", get: func(f *defaultsFile) *string { return &f.ModelClaude }},
-	{envName: compilerenv.DefaultModelCodex, fieldName: "model_codex", get: func(f *defaultsFile) *string { return &f.ModelCodex }},
+	{envName: compilerenv.DefaultMaxEffectiveTokens, fieldName: "default_max_effective_tokens", get: func(f *defaultsFile) **string { return &f.DefaultMaxEffectiveTokens }},
+	{envName: compilerenv.DefaultMaxTurns, fieldName: "default_max_turns", get: func(f *defaultsFile) **string { return &f.DefaultMaxTurns }},
+	{envName: compilerenv.DefaultTimeoutMinutes, fieldName: "default_timeout_minutes", get: func(f *defaultsFile) **string { return &f.DefaultTimeoutMinutes }},
+	{envName: compilerenv.DefaultDetectionModel, fieldName: "default_detection_model", get: func(f *defaultsFile) **string { return &f.DefaultDetectionModel }},
+	{envName: compilerenv.DefaultModelCopilot, fieldName: "default_model_copilot", get: func(f *defaultsFile) **string { return &f.DefaultModelCopilot }},
+	{envName: compilerenv.DefaultModelClaude, fieldName: "default_model_claude", get: func(f *defaultsFile) **string { return &f.DefaultModelClaude }},
+	{envName: compilerenv.DefaultModelCodex, fieldName: "default_model_codex", get: func(f *defaultsFile) **string { return &f.DefaultModelCodex }},
 }
-
-// defaultsKnownFieldNames is the set of recognized trimmed YAML keys derived
-// from defaultsBindings. Computed once at package init to avoid repeated
-// allocation inside validateDefaultsFileFormat.
-var defaultsKnownFieldNames = func() map[string]bool {
-	m := make(map[string]bool, len(defaultsBindings))
-	for _, b := range defaultsBindings {
-		m[b.fieldName] = true
-	}
-	return m
-}()
 
 var defaultsExecGH = workflow.ExecGH
 var defaultsGetCurrentRepoSlug = GetCurrentRepoSlug
 
-func NewDefaultsCommand() *cobra.Command {
+func NewEnvCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "defaults",
+		Use:   "env",
 		Short: "Manage compiler defaults as GitHub variables",
 		Long: `Manage compiler default variables in batch for repository, organization, or enterprise scope.
 
-The YAML file is flat and uses lowercase keys without the GH_AW_ or default_ prefixes.
-Empty values in update mode delete variables from the selected scope.`,
+The YAML file is flat and uses default_-prefixed lowercase keys (e.g. default_max_turns).
+Set a field to null in update mode to delete the variable from the selected scope.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -193,7 +181,11 @@ func defaultsGetToFile(target defaultsTarget, outputFile string) error {
 		if err != nil {
 			return err
 		}
-		*binding.get(&file) = value
+		if value != "" {
+			v := value
+			*binding.get(&file) = &v
+		}
+		// nil (variable not set) serializes as null in YAML
 	}
 
 	data, err := yaml.Marshal(&file)
@@ -211,10 +203,6 @@ func defaultsUpdateFromFile(target defaultsTarget, inputFile string, skipConfirm
 	data, err := os.ReadFile(inputFile)
 	if err != nil {
 		return fmt.Errorf("failed to read defaults file %q: %w", inputFile, err)
-	}
-
-	if err := validateDefaultsFileFormat(data, inputFile); err != nil {
-		return err
 	}
 
 	var file defaultsFile
@@ -246,56 +234,23 @@ func defaultsUpdateFromFile(target defaultsTarget, inputFile string, skipConfirm
 func defaultsBuildUpdateChanges(file *defaultsFile) []defaultsUpdateChange {
 	changes := make([]defaultsUpdateChange, 0, len(defaultsBindings))
 	for _, binding := range defaultsBindings {
-		value := strings.TrimSpace(*binding.get(file))
-		changes = append(changes, defaultsUpdateChange{
-			envName: binding.envName,
-			field:   binding.fieldName,
-			value:   value,
-			delete:  value == "",
-		})
+		ptr := *binding.get(file)
+		if ptr == nil {
+			changes = append(changes, defaultsUpdateChange{
+				envName: binding.envName,
+				field:   binding.fieldName,
+				delete:  true,
+			})
+		} else {
+			changes = append(changes, defaultsUpdateChange{
+				envName: binding.envName,
+				field:   binding.fieldName,
+				value:   *ptr,
+				delete:  false,
+			})
+		}
 	}
 	return changes
-}
-
-// validateDefaultsFileFormat rejects files that contain legacy default_*-prefixed
-// keys or that have no keys matching the expected trimmed format.  Either case
-// would otherwise result in every binding being treated as a delete, causing an
-// accidental mass-wipe of defaults.
-func validateDefaultsFileFormat(data []byte, inputFile string) error {
-	var rawMap map[string]any
-	if err := yaml.Unmarshal(data, &rawMap); err != nil {
-		// Parsing failed for the raw map; return nil so the subsequent typed
-		// unmarshal can report a consistent, well-located error to the caller.
-		return nil
-	}
-	if len(rawMap) == 0 {
-		return nil // intentionally empty file; preview + confirm will catch mass-delete
-	}
-
-	var legacyKeys []string
-	for k := range rawMap {
-		if strings.HasPrefix(k, "default_") {
-			legacyKeys = append(legacyKeys, k)
-		}
-	}
-	if len(legacyKeys) > 0 {
-		sort.Strings(legacyKeys)
-		return fmt.Errorf(
-			"defaults file %q uses legacy default_* keys (%s); rename them to trimmed keys (e.g. max_turns, model_copilot) before updating",
-			inputFile,
-			strings.Join(legacyKeys, ", "),
-		)
-	}
-
-	for k := range rawMap {
-		if defaultsKnownFieldNames[k] {
-			return nil
-		}
-	}
-	return fmt.Errorf(
-		"defaults file %q contains no recognized keys; expected trimmed keys such as max_turns or model_copilot",
-		inputFile,
-	)
 }
 
 func confirmDefaultsUpdate(

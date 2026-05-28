@@ -19,10 +19,10 @@ Use these variables to set organization- or repository-wide defaults without edi
 | `GH_AW_DEFAULT_MODEL_CLAUDE` | GitHub Actions `vars.*` at runtime | Default fallback model for Claude | `GH_AW_MODEL_AGENT_CLAUDE` / `GH_AW_MODEL_DETECTION_CLAUDE` is unset |
 | `GH_AW_DEFAULT_MODEL_CODEX` | GitHub Actions `vars.*` at runtime | Default fallback model for Codex | `GH_AW_MODEL_AGENT_CODEX` / `GH_AW_MODEL_DETECTION_CODEX` is unset |
 
-Use `gh aw defaults get` and `gh aw defaults update` to manage these
+Use `gh aw env get` and `gh aw env update` to manage these
 variables in batch at repo, org, or enterprise scope. The defaults file uses
-trimmed keys such as `max_effective_tokens`, `timeout_minutes`, and
-`model_copilot`.
+`default_`-prefixed keys such as `default_max_effective_tokens`, `default_timeout_minutes`, and
+`default_model_copilot`.
 
 ## Precedence
 

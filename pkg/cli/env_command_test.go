@@ -11,10 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewDefaultsCommand(t *testing.T) {
-	cmd := NewDefaultsCommand()
+func strPtr(s string) *string { return &s }
+
+func TestNewEnvCommand(t *testing.T) {
+	cmd := NewEnvCommand()
 	require.NotNil(t, cmd)
-	assert.Equal(t, "defaults", cmd.Use)
+	assert.Equal(t, "env", cmd.Use)
 
 	var updateCmd *cobra.Command
 	var hasGet, hasUpdate bool
@@ -27,8 +29,8 @@ func TestNewDefaultsCommand(t *testing.T) {
 			updateCmd = sub
 		}
 	}
-	assert.True(t, hasGet, "defaults command should include get subcommand")
-	assert.True(t, hasUpdate, "defaults command should include update subcommand")
+	assert.True(t, hasGet, "env command should include get subcommand")
+	assert.True(t, hasUpdate, "env command should include update subcommand")
 	require.NotNil(t, updateCmd)
 	assert.NotNil(t, updateCmd.Flags().Lookup("yes"))
 }
@@ -70,73 +72,52 @@ func TestResolveDefaultsTarget(t *testing.T) {
 
 func TestDefaultsFileYAMLKeys(t *testing.T) {
 	file := defaultsFile{
-		MaxEffectiveTokens: "10000",
-		MaxTurns:           "42",
-		TimeoutMinutes:     "90",
-		DetectionModel:     "claude-sonnet-4.6",
-		ModelCopilot:       "claude-sonnet-4.7",
-		ModelClaude:        "claude-opus-4.7",
-		ModelCodex:         "gpt-5.5",
+		DefaultMaxEffectiveTokens: strPtr("10000"),
+		DefaultMaxTurns:           strPtr("42"),
+		DefaultTimeoutMinutes:     strPtr("90"),
+		DefaultDetectionModel:     strPtr("claude-sonnet-4.6"),
+		DefaultModelCopilot:       strPtr("claude-sonnet-4.7"),
+		DefaultModelClaude:        strPtr("claude-opus-4.7"),
+		DefaultModelCodex:         strPtr("gpt-5.5"),
 	}
 
 	data, err := yaml.Marshal(&file)
 	require.NoError(t, err)
 
 	yml := string(data)
-	assert.Contains(t, yml, "max_effective_tokens:")
-	assert.Contains(t, yml, "max_turns:")
-	assert.Contains(t, yml, "timeout_minutes:")
-	assert.Contains(t, yml, "detection_model:")
-	assert.Contains(t, yml, "model_copilot:")
-	assert.Contains(t, yml, "model_claude:")
-	assert.Contains(t, yml, "model_codex:")
-	assert.NotContains(t, yml, "default_")
+	assert.Contains(t, yml, "default_max_effective_tokens:")
+	assert.Contains(t, yml, "default_max_turns:")
+	assert.Contains(t, yml, "default_timeout_minutes:")
+	assert.Contains(t, yml, "default_detection_model:")
+	assert.Contains(t, yml, "default_model_copilot:")
+	assert.Contains(t, yml, "default_model_claude:")
+	assert.Contains(t, yml, "default_model_codex:")
 }
 
-func TestDefaultsFileYAMLDoesNotReadLegacyKeys(t *testing.T) {
-	var file defaultsFile
-
-	err := yaml.Unmarshal([]byte("default_max_turns: \"42\"\n"), &file)
-	require.NoError(t, err)
-
-	assert.Empty(t, file.MaxTurns)
-}
-
-func TestValidateDefaultsFileFormat(t *testing.T) {
-	t.Run("accepts trimmed keys", func(t *testing.T) {
-		data := []byte("max_turns: \"42\"\nmodel_copilot: gpt-5-mini\n")
-		require.NoError(t, validateDefaultsFileFormat(data, "file.yml"))
+func TestDefaultsFileYAMLNullDelete(t *testing.T) {
+	t.Run("null value unmarshals to nil pointer", func(t *testing.T) {
+		var file defaultsFile
+		err := yaml.Unmarshal([]byte("default_max_turns: null\n"), &file)
+		require.NoError(t, err)
+		assert.Nil(t, file.DefaultMaxTurns)
 	})
 
-	t.Run("accepts empty file", func(t *testing.T) {
-		require.NoError(t, validateDefaultsFileFormat([]byte{}, "file.yml"))
+	t.Run("string value unmarshals to non-nil pointer", func(t *testing.T) {
+		var file defaultsFile
+		err := yaml.Unmarshal([]byte("default_max_turns: \"42\"\ndefault_model_copilot: gpt-5-mini\n"), &file)
+		require.NoError(t, err)
+		require.NotNil(t, file.DefaultMaxTurns)
+		assert.Equal(t, "42", *file.DefaultMaxTurns)
+		require.NotNil(t, file.DefaultModelCopilot)
+		assert.Equal(t, "gpt-5-mini", *file.DefaultModelCopilot)
 	})
 
-	t.Run("rejects legacy default_* keys", func(t *testing.T) {
-		data := []byte("default_max_turns: \"42\"\ndefault_model_copilot: gpt-5-mini\n")
-		err := validateDefaultsFileFormat(data, "file.yml")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "legacy default_*")
-		assert.Contains(t, err.Error(), "default_max_turns")
-		assert.Contains(t, err.Error(), "default_model_copilot")
+	t.Run("absent key unmarshals to nil pointer", func(t *testing.T) {
+		var file defaultsFile
+		err := yaml.Unmarshal([]byte("default_model_copilot: gpt-5-mini\n"), &file)
+		require.NoError(t, err)
+		assert.Nil(t, file.DefaultMaxTurns)
 	})
-
-	t.Run("rejects file with no recognized keys", func(t *testing.T) {
-		data := []byte("unknown_key: value\nanother_key: value2\n")
-		err := validateDefaultsFileFormat(data, "file.yml")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "no recognized keys")
-	})
-}
-
-func TestDefaultsFileYAMLReadsTrimmedKeys(t *testing.T) {
-	var file defaultsFile
-
-	err := yaml.Unmarshal([]byte("max_turns: \"42\"\nmodel_copilot: gpt-5-mini\n"), &file)
-	require.NoError(t, err)
-
-	assert.Equal(t, "42", file.MaxTurns)
-	assert.Equal(t, "gpt-5-mini", file.ModelCopilot)
 }
 
 func TestDefaultsTargetEndpoints(t *testing.T) {
@@ -152,23 +133,23 @@ func TestDefaultsTargetEndpoints(t *testing.T) {
 
 func TestDefaultsBuildUpdateChanges(t *testing.T) {
 	changes := defaultsBuildUpdateChanges(&defaultsFile{
-		MaxEffectiveTokens: " 10000 ",
-		ModelCodex:         "gpt-5.5",
+		DefaultMaxEffectiveTokens: strPtr("10000"),
+		DefaultModelCodex:         strPtr("gpt-5.5"),
 	})
 
 	require.Len(t, changes, len(defaultsBindings))
-	assert.Equal(t, "max_effective_tokens", changes[0].field)
+	assert.Equal(t, "default_max_effective_tokens", changes[0].field)
 	assert.Equal(t, "10000", changes[0].value)
 	assert.False(t, changes[0].delete)
-	assert.Equal(t, "max_turns", changes[1].field)
+	assert.Equal(t, "default_max_turns", changes[1].field)
 	assert.True(t, changes[1].delete)
-	assert.Equal(t, "model_codex", changes[len(changes)-1].field)
+	assert.Equal(t, "default_model_codex", changes[len(changes)-1].field)
 	assert.Equal(t, "gpt-5.5", changes[len(changes)-1].value)
 }
 
 func TestConfirmDefaultsUpdate(t *testing.T) {
 	target := defaultsTarget{scope: defaultsScopeOrg, org: "github"}
-	changes := []defaultsUpdateChange{{field: "max_turns", value: "42"}}
+	changes := []defaultsUpdateChange{{field: "default_max_turns", value: "42"}}
 
 	t.Run("requests confirmation by default", func(t *testing.T) {
 		called := false
