@@ -80,9 +80,9 @@ To build and test repository custom linters:
 - @alondahari: #21207 _(direct issue)_
 - @anthonymastreanvae: #32481 _(direct issue)_, #32479 _(direct issue)_, #30897 _(direct issue)_, #30841 _(direct issue)_
 - @apenab: #25626 _(direct issue)_
-- @app/github-actions: #31288 _(direct issue)_, #30740 _(direct issue)_, #29561 _(direct issue)_, #29343 _(direct issue)_, #26257 _(direct issue)_, #26256 _(direct issue)_, #26255 _(direct issue)_, #26254 _(direct issue)_, #26253 _(direct issue)_
+- @app/github-actions: #32423 _(direct issue)_, #31288 _(direct issue)_, #31178 _(direct issue)_, #30740 _(direct issue)_, #29561 _(direct issue)_, #29343 _(direct issue)_, #26257 _(direct issue)_, #26256 _(direct issue)_, #26255 _(direct issue)_, #26254 _(direct issue)_, #26253 _(direct issue)_
 - @arezero: #20515 _(direct issue)_, #20514 _(direct issue)_, #20513 _(direct issue)_, #20512 _(direct issue)_, #20511 _(direct issue)_, #20510 _(direct issue)_
-- @arthurfvives: #30356 _(direct issue)_, #30088 _(direct issue)_, #26223 _(direct issue)_, #25993 _(direct issue)_, #25294 _(direct issue)_
+- @arthurfvives: #35157 _(direct issue)_, #32974 _(direct issue)_, #30356 _(direct issue)_, #30088 _(direct issue)_, #26223 _(direct issue)_, #25993 _(direct issue)_, #25294 _(direct issue)_
 - @askpaisa: #29240 _(direct issue)_
 - @b2pacific: #28720 _(direct issue)_
 - @bartul: #29499 _(direct issue)_
@@ -134,9 +134,10 @@ To build and test repository custom linters:
 - @IEvangelist: #34998 _(direct issue)_, #33285 _(direct issue)_, #33069 _(direct issue)_, #33068 _(direct issue)_, #33060 _(direct issue)_, #33043 _(direct issue)_, #32536 _(direct issue)_, #32354 _(direct issue)_, #30848 _(direct issue)_, #26908 _(direct issue)_, #25467 _(direct issue)_
 - @Infinnerty: #21957 _(direct issue)_
 - @insop: #21686 _(direct issue)_
+- @jobayer-4: #32608 _(direct issue)_
 - @j-srodka: #25199 _(direct issue)_, #23485 _(direct issue)_, #23484 _(direct issue)_, #23483 _(direct issue)_, #23482 _(direct issue)_, #23461 _(direct issue)_
 - @jamesadevine: #28957 _(direct issue)_, #26407 _(direct issue)_, #26406 _(direct issue)_
-- @JamesNK: #29310 _(direct issue)_, #28867 _(direct issue)_, #28704 _(direct issue)_
+- @JamesNK: #29310 _(direct issue)_, #28867 _(direct issue)_, #28868 _(direct issue)_, #28704 _(direct issue)_
 - @JanKrivanek: #25656 _(direct issue)_, #25439 _(direct issue)_
 - @jaroslawgajewski: #34917 _(direct issue)_, #33644 _(direct issue)_, #33640 _(direct issue)_, #31678 _(direct issue)_, #31658 _(direct issue)_, #25593 _(direct issue)_, #24373 _(direct issue)_, #24372 _(direct issue)_, #24371 _(direct issue)_, #24259 _(direct issue)_, #24036 _(direct issue)_, #23779 _(direct issue)_, #23558 _(direct issue)_, #22647 _(direct issue)_, #21816 _(direct issue)_, #20813 _(direct issue)_, #20811 _(direct issue)_
 - @JasonYeMSFT: #27424 _(direct issue)_
@@ -229,10 +230,6 @@ To build and test repository custom linters:
 The following community issues were closed during this period but could not be automatically linked to a specific merged PR. Please verify whether they should be credited:
 
 - **@arthurfvives** for [Dry-Run Mode with imports (APM)](https://github.com/github/gh-aw/issues/32974) — closed 2026-05-22, no confirmed PR linkage found
-- **@jobayer-4** for [Poor README](https://github.com/github/gh-aw/issues/32608) — closed 2026-05-16, no confirmed PR linkage found
-- **@app/github-actions** for [[deep-report] Quick Start sample workflow defaults to Copilot — Claude-only users will fail their first run](https://github.com/github/gh-aw/issues/32423) — closed 2026-05-15, no confirmed PR linkage found
-- **@app/github-actions** for [[aw-failures] Claude workflows hit max-turns burning every turn on Bash permission denials (Step Name Alignment, Design Decision Gate)](https://github.com/github/gh-aw/issues/31178) — closed 2026-05-14, no confirmed PR linkage found
-- **@JamesNK** for [Hang and timeout while running workflow](https://github.com/github/gh-aw/issues/28868) — closed 2026-04-30, no confirmed PR linkage found
 
 </details>
 
