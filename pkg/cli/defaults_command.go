@@ -96,6 +96,17 @@ var defaultsBindings = []defaultsBinding{
 	{envName: compilerenv.DefaultModelCodex, fieldName: "model_codex", get: func(f *defaultsFile) *string { return &f.ModelCodex }},
 }
 
+// defaultsKnownFieldNames is the set of recognized trimmed YAML keys derived
+// from defaultsBindings. Computed once at package init to avoid repeated
+// allocation inside validateDefaultsFileFormat.
+var defaultsKnownFieldNames = func() map[string]bool {
+	m := make(map[string]bool, len(defaultsBindings))
+	for _, b := range defaultsBindings {
+		m[b.fieldName] = true
+	}
+	return m
+}()
+
 var defaultsExecGH = workflow.ExecGH
 var defaultsGetCurrentRepoSlug = GetCurrentRepoSlug
 
@@ -253,7 +264,9 @@ func defaultsBuildUpdateChanges(file *defaultsFile) []defaultsUpdateChange {
 func validateDefaultsFileFormat(data []byte, inputFile string) error {
 	var rawMap map[string]any
 	if err := yaml.Unmarshal(data, &rawMap); err != nil {
-		return nil // let the typed unmarshal surface the parse error
+		// Parsing failed for the raw map; return nil so the subsequent typed
+		// unmarshal can report a consistent, well-located error to the caller.
+		return nil
 	}
 	if len(rawMap) == 0 {
 		return nil // intentionally empty file; preview + confirm will catch mass-delete
@@ -274,12 +287,8 @@ func validateDefaultsFileFormat(data []byte, inputFile string) error {
 		)
 	}
 
-	knownKeys := make(map[string]bool, len(defaultsBindings))
-	for _, b := range defaultsBindings {
-		knownKeys[b.fieldName] = true
-	}
 	for k := range rawMap {
-		if knownKeys[k] {
+		if defaultsKnownFieldNames[k] {
 			return nil
 		}
 	}
