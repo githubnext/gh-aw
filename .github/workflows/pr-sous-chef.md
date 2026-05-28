@@ -176,7 +176,7 @@ Move open non-draft PRs toward a state where a maintainer can investigate quickl
 4. Process at most **10 PRs** per run.
 5. Use the `pr-processor` sub-agent for each PR; pass only the PR number and compact context.
 6. Do not fetch full PR diffs or large file lists unless absolutely required for a skip decision.
-7. **Never finish without at least one safe-output tool call.** Right before your final response, verify at least one safe-output call succeeded in this run (`add_comment`, `update_pull_request`, `push_to_pull_request_branch`, or `noop`). If none succeeded yet, call the run-summary `noop` (see **Run summary** below) immediately.
+7. **Never finish without at least one safe-output tool call.** Right before your final response, verify at least one **non-noop** safe-output call succeeded in this run (`add_comment`, `update_pull_request`, or `push_to_pull_request_branch`). If none succeeded yet, call the run-summary `noop` (see **Run summary** below) immediately.
 
 ## Required skip rules per PR
 
