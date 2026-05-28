@@ -697,9 +697,10 @@ describe("push_signed_commits integration tests", () => {
       expect(githubClient.graphql).toHaveBeenCalledTimes(2);
       expect(githubClient.graphql.mock.calls[0][1].input.expectedHeadOid).toBe(baseRefOid);
       expect(githubClient.graphql.mock.calls[1][1].input.expectedHeadOid).toBe("signed-oid-first");
-      expect(githubClient.graphql.mock.calls.map(call => call[1].input.message.headline)).toEqual(["Add boundary-alpha.txt", "Add boundary-beta.txt"]);
+      const committedHeadlines = githubClient.graphql.mock.calls.map(call => call[1].input.message.headline);
+      expect(committedHeadlines).toEqual(["Add boundary-alpha.txt", "Add boundary-beta.txt"]);
 
-      const attemptedBoundaryParentResolution = global.exec.getExecOutput.mock.calls.some(([, args]) => args[0] === "rev-parse" && args[1] === `${baseRefOid}^`);
+      const attemptedBoundaryParentResolution = global.exec.getExecOutput.mock.calls.some(([program, args]) => program === "git" && args[0] === "rev-parse" && args[1] === `${baseRefOid}^`);
       expect(attemptedBoundaryParentResolution).toBe(false);
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("dropped 1 baseRef boundary commit"));
     });
