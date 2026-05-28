@@ -31,28 +31,35 @@ LEVELS=("merged" "approved" "unapproved" "none")
 ensure_writable_dir() {
   local dir="$1"
   local purpose="$2"
-  local probe_file="${dir}/.gh-aw-write-check.$$"
+  local probe_file=""
+  local mkdir_err
+  local chmod_err
+  local write_err
+  mkdir_err="$(mktemp /tmp/gh-aw-cache-mkdir-err.XXXXXX)"
+  chmod_err="$(mktemp /tmp/gh-aw-cache-chmod-err.XXXXXX)"
+  write_err="$(mktemp /tmp/gh-aw-cache-write-err.XXXXXX)"
 
-  if ! mkdir -p "$dir" 2>/tmp/gh-aw-cache-mkdir-err; then
+  if ! mkdir -p "$dir" 2>"$mkdir_err"; then
     echo "ERROR: cache-memory setup error: failed to create ${purpose} (${dir})" >&2
-    cat /tmp/gh-aw-cache-mkdir-err >&2 || true
+    cat "$mkdir_err" >&2 || true
+    rm -f "$mkdir_err" "$chmod_err" "$write_err" 2>/dev/null || true
     exit 1
   fi
-  rm -f /tmp/gh-aw-cache-mkdir-err 2>/dev/null || true
 
-  if ! chmod u+rwx "$dir" 2>/tmp/gh-aw-cache-chmod-err; then
+  if ! chmod u+rwx "$dir" 2>"$chmod_err"; then
     echo "ERROR: cache-memory setup error: ${purpose} is not writable (${dir})" >&2
-    cat /tmp/gh-aw-cache-chmod-err >&2 || true
+    cat "$chmod_err" >&2 || true
+    rm -f "$mkdir_err" "$chmod_err" "$write_err" 2>/dev/null || true
     exit 1
   fi
-  rm -f /tmp/gh-aw-cache-chmod-err 2>/dev/null || true
 
-  if ! (: > "$probe_file") 2>/tmp/gh-aw-cache-write-err; then
+  if ! probe_file="$(mktemp "${dir}/gh-aw-write-check.XXXXXX" 2>"$write_err")"; then
     echo "ERROR: cache-memory setup error: ${purpose} is not writable (${dir})" >&2
-    cat /tmp/gh-aw-cache-write-err >&2 || true
+    cat "$write_err" >&2 || true
+    rm -f "$mkdir_err" "$chmod_err" "$write_err" 2>/dev/null || true
     exit 1
   fi
-  rm -f "$probe_file" /tmp/gh-aw-cache-write-err 2>/dev/null || true
+  rm -f "$probe_file" "$mkdir_err" "$chmod_err" "$write_err" 2>/dev/null || true
 }
 
 initialize_cache_memory_git_repo() {
