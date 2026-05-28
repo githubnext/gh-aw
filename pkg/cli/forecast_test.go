@@ -89,6 +89,38 @@ func TestRunForecast_InvalidTimeout(t *testing.T) {
 	require.Error(t, err, "should error for negative timeout")
 }
 
+// TestRunForecast_R_IMPL_040_ExperimentalWarning verifies that the experimental status
+// warning is emitted to stderr on every non-JSON invocation (R-IMPL-040), and is suppressed
+// when --json is specified.
+func TestRunForecast_R_IMPL_040_ExperimentalWarning(t *testing.T) {
+	captureStderr := func(fn func()) string {
+		r, w, err := os.Pipe()
+		require.NoError(t, err)
+		defer r.Close()
+		orig := os.Stderr
+		os.Stderr = w
+		t.Cleanup(func() { os.Stderr = orig })
+		fn()
+		// Close the write end before reading so io.ReadAll sees EOF.
+		require.NoError(t, w.Close())
+		out, readErr := io.ReadAll(r)
+		require.NoError(t, readErr)
+		return string(out)
+	}
+
+	// Without --json: warning MUST appear on stderr.
+	withoutJSON := captureStderr(func() {
+		_ = RunForecast(ForecastConfig{Days: 30, Period: "quarter", SampleSize: 10})
+	})
+	assert.Contains(t, withoutJSON, "experimental", "R-IMPL-040: warning must appear when --json is not set")
+
+	// With --json: warning MUST NOT appear on stderr.
+	withJSON := captureStderr(func() {
+		_ = RunForecast(ForecastConfig{Days: 30, Period: "quarter", SampleSize: 10, JSONOutput: true})
+	})
+	assert.NotContains(t, withJSON, "experimental", "R-IMPL-040: warning must be suppressed when --json is set")
+}
+
 func TestNewForecastCommand_DaysFlagDocumentsAllowedValues(t *testing.T) {
 	cmd := NewForecastCommand()
 	require.NotNil(t, cmd)

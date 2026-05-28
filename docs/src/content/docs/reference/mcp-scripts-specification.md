@@ -348,8 +348,7 @@ Implementations MUST validate:
 6. **Tool Names**: Tool names match pattern `^[a-zA-Z][a-zA-Z0-9_-]*$`
 7. **Dependencies**: Dependency names are valid for target package manager
 8. **Per-string length limits**: Each string-typed input parameter MUST enforce a maximum accepted
-   length of at least 10KB and MUST reject oversized values before tool execution (SM-IS-01);
-   follow-up implementation tracking is recorded in [#35257](https://github.com/github/gh-aw/issues/35257).
+   length of at least 10KB and MUST reject oversized values before tool execution (SM-IS-01).
 
 Implementations SHOULD validate:
 
@@ -359,10 +358,14 @@ Implementations SHOULD validate:
 4. **Description Length**: Tool descriptions are clear and concise (recommended 10-200 characters)
 5. **Timeout Reasonableness**: Timeout values are reasonable for tool purpose (warn if >600 seconds)
 
-**Sync note (2026-05-27)**: SM-IS-01 enforcement was reviewed against the current runtime path.
-`actions/setup/js/mcp_scripts_mcp_server_http.cjs` calls
-`validateRequiredFields` in `actions/setup/js/mcp_scripts_validation.cjs`, which validates required
-presence but does not yet enforce a per-string 10KB limit. Follow-up implementation tracking issue:
+**Sync note (2026-05-28)**: SM-IS-01 enforcement is now implemented across all MCP transport paths. `validateStringInputLengths`
+has been added to `actions/setup/js/mcp_scripts_validation.cjs` and is called by both the HTTP server
+in `actions/setup/js/mcp_scripts_mcp_server_http.cjs` and the shared stdio/core server in
+`actions/setup/js/mcp_server_core.cjs` immediately after required-field validation.
+Any string-typed input parameter whose UTF-8 byte length exceeds `MAX_STRING_INPUT_BYTES` (10 KB =
+10,240 bytes) causes the tool invocation to be rejected with a descriptive error before the handler
+is called. Implementations MUST NOT silently truncate oversized inputs. Verified by unit tests in
+`actions/setup/js/mcp_scripts_validation.test.cjs`. Closes
 [#35257](https://github.com/github/gh-aw/issues/35257).
 
 ---
@@ -743,7 +746,32 @@ The following imports are automatically included:
 
 Additional imports MAY be added by the user in their code.
 
-#### 6.4.4 Example
+#### 6.4.4 Module and Dependency Requirements
+
+**go.mod requirement**: Go tools that use external (non-standard-library) packages MUST supply a
+`go.mod` file. The `go.mod` content MUST be provided either:
+
+1. **Inline** in the `go:` script body, as a separate section delimited by `// go.mod` comments
+   (implementation-defined syntax); or
+2. **Via the `dependencies` field**, where each entry is a `module@version` string (e.g.,
+   `github.com/some/pkg@v1.2.3`) that the runtime will use to generate a minimal `go.mod`.
+
+Go tools that use only standard library packages MAY omit the `go.mod` declaration; the runtime
+MUST generate a minimal `go.mod` with `go 1.21` (the minimum supported version) in that case.
+
+**Minimum supported Go version**: Implementations MUST support Go **1.21** or later. The Go
+toolchain version used in the containerized environment SHOULD be declared in the tool's
+`dependencies` or documented in the workflow's README. Tools relying on language features
+introduced after 1.21 MUST specify the required version in their `go.mod` `go` directive.
+
+**R-GO-001**: If a `go.mod` is provided and specifies a minimum Go version, the runtime MUST use
+a toolchain that satisfies that requirement and MUST fail with a descriptive error if no
+conforming toolchain is available.
+
+**R-GO-002**: The runtime MUST NOT cache `go.mod` state across tool invocations. Each invocation
+MUST start from a clean module cache to ensure reproducible dependency resolution.
+
+#### 6.4.5 Example
 
 ```yaml
 mcp-scripts:
@@ -806,7 +834,7 @@ Implementations MUST:
 3. Prevent code injection via input validation
 4. Apply length limits to string inputs (MUST enforce a maximum input string length of at least 10KB)
 
-**SM-IS-01**: Implementations MUST enforce a maximum input string length of at least 10KB for each string-typed input parameter. Inputs exceeding the configured maximum MUST be rejected with a validation error before the tool script is invoked. Implementations MUST NOT silently truncate oversized inputs.
+**SM-IS-01**: Implementations MUST enforce a maximum input string length of at least 10KB for each string-typed input parameter. Inputs exceeding the configured maximum MUST be rejected with a validation error before the tool script is invoked. Implementations MUST NOT silently truncate oversized inputs. The limit is enforced via `validateStringInputLengths` in `actions/setup/js/mcp_scripts_validation.cjs` (`MAX_STRING_INPUT_BYTES` = 10,240 bytes). **Status: Implemented 2026-05-28.**
 
 ### 7.4 Output Sanitization
 
@@ -1554,7 +1582,7 @@ and run `go test ./pkg/workflow/...` to verify conformance.
 | Marker | Implementation File(s) | Enforcement Path |
 |---|---|---|
 | SM-JS-01 | `pkg/workflow/mcp_scripts_generator.go`, `actions/setup/js/mcp_server_core.cjs` | `GenerateMCPScriptJavaScriptToolScript` emits per-tool JS handlers; `loadToolHandlers` in `mcp_server_core.cjs` executes handlers in isolated subprocesses |
-| SM-IS-01 | `actions/setup/js/mcp_scripts_mcp_server_http.cjs`, `actions/setup/js/mcp_scripts_validation.cjs` | `createMCPServer` → `validateRequiredFields` (presence checks only; 10KB string-length enforcement not currently implemented). Tracking issue: [#35257](https://github.com/github/gh-aw/issues/35257). |
+| SM-IS-01 | `actions/setup/js/mcp_scripts_mcp_server_http.cjs`, `actions/setup/js/mcp_server_core.cjs`, `actions/setup/js/mcp_scripts_validation.cjs` | `validateStringInputLengths` called after `validateRequiredFields` in both the HTTP server (`createMCPServer`) and the stdio/core server (`handleMessage`); rejects any string-typed input parameter whose UTF-8 byte length exceeds `MAX_STRING_INPUT_BYTES` (10,240 bytes). **Status: Implemented 2026-05-28.** |
 | SM-03 | `actions/setup/js/mcp_server_core.cjs`, `actions/setup/js/mcp_scripts_mcp_server_http.cjs` | Tool-call response path serializes handler output before returning MCP `content`; raw passthrough handling is centralized in server transport/handler pipeline |
 
 ### Implementation Notes
