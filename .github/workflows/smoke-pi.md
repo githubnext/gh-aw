@@ -12,6 +12,10 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+env:
+  AWF_REFLECT_MAX_ATTEMPTS: "7"
+  AWF_REFLECT_RETRY_BASE_MS: "1000"
+  AWF_REFLECT_RETRY_MAX_MS: "10000"
 name: Smoke Pi
 experiments:
   sub_agent_decomposition:

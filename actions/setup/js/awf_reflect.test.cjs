@@ -9,6 +9,9 @@ const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
   AWF_REFLECT_TIMEOUT_MS,
+  AWF_REFLECT_MAX_ATTEMPTS,
+  AWF_REFLECT_RETRY_BASE_MS,
+  AWF_REFLECT_RETRY_MAX_MS,
   AWF_MODELS_URL_TIMEOUT_MS,
   AWF_MODELS_URL_MAX_ATTEMPTS,
   AWF_MODELS_URL_RETRY_BASE_MS,
@@ -26,6 +29,9 @@ describe("awf_reflect.cjs", () => {
       expect(AWF_API_PROXY_REFLECT_URL).toBe("http://api-proxy:10000/reflect");
       expect(AWF_REFLECT_OUTPUT_PATH).toBe("/tmp/gh-aw/sandbox/firewall/awf-reflect.json");
       expect(AWF_REFLECT_TIMEOUT_MS).toBe(60000);
+      expect(AWF_REFLECT_MAX_ATTEMPTS).toBe(5);
+      expect(AWF_REFLECT_RETRY_BASE_MS).toBe(500);
+      expect(AWF_REFLECT_RETRY_MAX_MS).toBe(5000);
       expect(AWF_MODELS_URL_TIMEOUT_MS).toBe(3000);
       expect(AWF_MODELS_URL_MAX_ATTEMPTS).toBe(5);
       expect(AWF_MODELS_URL_RETRY_BASE_MS).toBe(250);
@@ -273,8 +279,8 @@ describe("awf_reflect.cjs", () => {
       expect(logs.some(l => l.includes("request failed"))).toBe(true);
     });
 
-    it("does not throw when the reflect endpoint returns non-ok status", async () => {
-      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+    it("does not throw when the reflect endpoint returns non-retryable non-ok status", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 403 }));
       const logs = [];
       await expect(
         fetchAWFReflect({
@@ -288,9 +294,45 @@ describe("awf_reflect.cjs", () => {
         reflectUrl: "http://api-proxy:10000/reflect",
         outputPath: "/tmp/gh-aw-test-noop.json",
         reason: "unexpected_status",
-        status: 503,
+        status: 403,
       });
-      expect(logs.some(l => l.includes("unexpected status 503"))).toBe(true);
+      expect(logs.some(l => l.includes("unexpected status 403"))).toBe(true);
+    });
+
+    it("retries transient reflect status failures and eventually succeeds", async () => {
+      const reflectPayload = {
+        endpoints: [{ provider: "openai", port: 10000, configured: true, models: ["gpt-4o"], models_url: "http://api-proxy:10000/v1/models" }],
+        models_fetch_complete: true,
+      };
+
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValueOnce({ ok: false, status: 503 })
+          .mockResolvedValueOnce({ ok: false, status: 503 })
+          .mockResolvedValue({ ok: true, status: 200, json: async () => reflectPayload })
+      );
+
+      const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "awf-reflect-retry-test-"));
+      const outputPath = path.join(outputDir, "awf-reflect.json");
+
+      try {
+        const result = await fetchAWFReflect({
+          reflectUrl: "http://api-proxy:10000/reflect",
+          outputPath,
+          timeoutMs: 1000,
+          maxAttempts: 3,
+          retryBaseMs: 1,
+          retryMaxMs: 2,
+          logger: () => {},
+        });
+
+        expect(result.ok).toBe(true);
+        expect(fs.existsSync(outputPath)).toBe(true);
+      } finally {
+        fs.rmSync(outputDir, { recursive: true, force: true });
+      }
     });
 
     it("uses the caller-supplied logger for all messages", async () => {

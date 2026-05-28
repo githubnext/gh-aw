@@ -19,7 +19,21 @@ require("./shim.cjs");
 
 const fs = require("fs");
 const path = require("path");
-const { withRetry } = require("./error_recovery.cjs");
+const { withRetry, isTransientError } = require("./error_recovery.cjs");
+
+/**
+ * Parse a positive integer from an environment variable with fallback.
+ *
+ * @param {string} name
+ * @param {number} fallback
+ * @returns {number}
+ */
+function parsePositiveIntEnv(name, fallback) {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 // AWF API proxy management endpoint for discovering configured LLM providers and available models.
 // The api-proxy sidecar exposes /reflect on its management port (port 10000) inside the AWF
@@ -30,6 +44,12 @@ const AWF_API_PROXY_REFLECT_URL = "http://api-proxy:10000/reflect";
 const AWF_REFLECT_OUTPUT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
 // Milliseconds to wait for the /reflect endpoint before giving up.
 const AWF_REFLECT_TIMEOUT_MS = 60000;
+// Maximum attempts for fetching /reflect when api-proxy startup is still in progress.
+const AWF_REFLECT_MAX_ATTEMPTS = parsePositiveIntEnv("AWF_REFLECT_MAX_ATTEMPTS", 5);
+// Base delay between /reflect retries. Uses exponential backoff.
+const AWF_REFLECT_RETRY_BASE_MS = parsePositiveIntEnv("AWF_REFLECT_RETRY_BASE_MS", 500);
+// Cap for exponential backoff delay between /reflect retries.
+const AWF_REFLECT_RETRY_MAX_MS = parsePositiveIntEnv("AWF_REFLECT_RETRY_MAX_MS", 5000);
 // Milliseconds to wait for each models_url fallback fetch (shorter than the main reflect timeout).
 const AWF_MODELS_URL_TIMEOUT_MS = 3000;
 // Maximum attempts for models_url fallback fetches when the proxy is not yet ready.
@@ -217,6 +237,9 @@ async function enrichReflectModels(reflectData, timeoutMs, logger) {
  *   reflectUrl?: string,
  *   outputPath?: string,
  *   timeoutMs?: number,
+ *   maxAttempts?: number,
+ *   retryBaseMs?: number,
+ *   retryMaxMs?: number,
  *   modelsTimeoutMs?: number,
  *   logger?: (msg: string) => void,
  *   writeFileSync?: (path: string, data: string, options: object) => void,
@@ -235,68 +258,108 @@ async function fetchAWFReflect(options) {
   const reflectUrl = (options && options.reflectUrl) || AWF_API_PROXY_REFLECT_URL;
   const outputPath = (options && options.outputPath) || AWF_REFLECT_OUTPUT_PATH;
   const timeoutMs = options && options.timeoutMs != null ? options.timeoutMs : AWF_REFLECT_TIMEOUT_MS;
+  const maxAttempts = options && options.maxAttempts != null ? options.maxAttempts : AWF_REFLECT_MAX_ATTEMPTS;
+  const retryBaseMs = options && options.retryBaseMs != null ? options.retryBaseMs : AWF_REFLECT_RETRY_BASE_MS;
+  const retryMaxMs = options && options.retryMaxMs != null ? options.retryMaxMs : AWF_REFLECT_RETRY_MAX_MS;
   const modelsTimeoutMs = options && options.modelsTimeoutMs != null ? options.modelsTimeoutMs : AWF_MODELS_URL_TIMEOUT_MS;
   const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
   const writeFile = (options && options.writeFileSync) || fs.writeFileSync;
 
-  logger(`awf-reflect: fetching ${reflectUrl} (timeout=${timeoutMs}ms)`);
-
-  const ac = new AbortController();
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    logger(`awf-reflect: request timed out after ${timeoutMs}ms`);
-    ac.abort();
-  }, timeoutMs);
+  const retryConfig = {
+    maxRetries: Math.max(0, maxAttempts - 1),
+    // withRetry waits before retry attempt, so divide by 2 to preserve first wait.
+    initialDelayMs: Math.ceil(retryBaseMs / 2),
+    maxDelayMs: retryMaxMs,
+    backoffMultiplier: 2,
+    jitterMs: 0,
+    shouldRetry: error => {
+      const original = error?.originalError || error;
+      const status = original?.status ?? original?.response?.status ?? null;
+      const shouldRetryStatus = status === 502 || status === 503 || status === 504;
+      const shouldRetry = shouldRetryStatus || isTransientError(original);
+      if (shouldRetry) {
+        logger(`awf-reflect: transient failure for ${reflectUrl}; retrying`);
+      }
+      return shouldRetry;
+    },
+  };
 
   try {
-    const res = await fetch(reflectUrl, { signal: ac.signal });
-    if (!res.ok) {
-      logger(`awf-reflect: unexpected status ${res.status}, skipping`);
-      return {
-        ok: false,
-        reflectUrl,
-        outputPath,
-        reason: "unexpected_status",
-        status: res.status,
-      };
-    }
-    const reflectData = await res.json();
-    // Attempt to fill in null models for configured providers by fetching directly
-    // from each endpoint's models_url. The api-proxy injects auth headers when
-    // forwarding these requests, so this succeeds without needing the raw API keys.
-    await enrichReflectModels(reflectData, modelsTimeoutMs, logger);
-    const enrichedBody = JSON.stringify(reflectData);
-    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-    writeFile(outputPath, enrichedBody, { encoding: "utf8" });
-    logger(`awf-reflect: saved ${enrichedBody.length}B to ${outputPath}`);
-    return {
-      ok: true,
-      reflectUrl,
-      outputPath,
-      bytesWritten: enrichedBody.length,
-    };
+    logger(`awf-reflect: fetching ${reflectUrl} (timeout=${timeoutMs}ms, max_attempts=${maxAttempts})`);
+    return await withRetry(
+      async () => {
+        const ac = new AbortController();
+        let timedOut = false;
+        const timer = setTimeout(() => {
+          timedOut = true;
+          logger(`awf-reflect: request timed out after ${timeoutMs}ms`);
+          ac.abort();
+        }, timeoutMs);
+        try {
+          const res = await fetch(reflectUrl, { signal: ac.signal });
+          if (!res.ok) {
+            if (res.status === 502 || res.status === 503 || res.status === 504) {
+              const err = Object.assign(new Error(`reflect fetch returned ${res.status} for ${reflectUrl}`), { status: res.status });
+              throw err;
+            }
+            logger(`awf-reflect: unexpected status ${res.status}, skipping`);
+            return {
+              ok: false,
+              reflectUrl,
+              outputPath,
+              reason: "unexpected_status",
+              status: res.status,
+            };
+          }
+          const reflectData = await res.json();
+          // Attempt to fill in null models for configured providers by fetching directly
+          // from each endpoint's models_url. The api-proxy injects auth headers when
+          // forwarding these requests, so this succeeds without needing the raw API keys.
+          await enrichReflectModels(reflectData, modelsTimeoutMs, logger);
+          const enrichedBody = JSON.stringify(reflectData);
+          fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+          writeFile(outputPath, enrichedBody, { encoding: "utf8" });
+          logger(`awf-reflect: saved ${enrichedBody.length}B to ${outputPath}`);
+          return {
+            ok: true,
+            reflectUrl,
+            outputPath,
+            bytesWritten: enrichedBody.length,
+          };
+        } catch (err) {
+          const e = /** @type {Error} */ err;
+          if (e.name === "AbortError") {
+            const timeoutError = Object.assign(new Error(timedOut ? `request timed out after ${timeoutMs}ms` : e.message), { reason: "timeout" });
+            throw timeoutError;
+          }
+          throw e;
+        } finally {
+          clearTimeout(timer);
+        }
+      },
+      retryConfig,
+      `awf-reflect fetch for ${reflectUrl}`
+    );
   } catch (err) {
     const e = /** @type {Error} */ err;
-    if (e.name === "AbortError") {
+    const original = e?.originalError || e;
+    if (original?.reason === "timeout") {
       return {
         ok: false,
         reflectUrl,
         outputPath,
         reason: "timeout",
-        error: timedOut ? `request timed out after ${timeoutMs}ms` : e.message,
+        error: original.message,
       };
     }
-    logger(`awf-reflect: request failed: ${e.message}`);
+    logger(`awf-reflect: request failed: ${original.message || e.message}`);
     return {
       ok: false,
       reflectUrl,
       outputPath,
       reason: "request_failed",
-      error: e.message,
+      error: original.message || e.message,
     };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -305,6 +368,9 @@ if (typeof module !== "undefined" && module.exports) {
     AWF_API_PROXY_REFLECT_URL,
     AWF_REFLECT_OUTPUT_PATH,
     AWF_REFLECT_TIMEOUT_MS,
+    AWF_REFLECT_MAX_ATTEMPTS,
+    AWF_REFLECT_RETRY_BASE_MS,
+    AWF_REFLECT_RETRY_MAX_MS,
     AWF_MODELS_URL_TIMEOUT_MS,
     AWF_MODELS_URL_MAX_ATTEMPTS,
     AWF_MODELS_URL_RETRY_BASE_MS,
