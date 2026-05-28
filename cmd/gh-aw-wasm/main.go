@@ -10,8 +10,18 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+// Build-time variables injected via -X linker flags (mirrors cmd/gh-aw/main.go).
+var (
+	version   = "dev"
+	isRelease = "false"
+)
+
 func main() {
+	workflow.SetVersion(version)
+	workflow.SetIsRelease(isRelease == "true")
+
 	js.Global().Set("compileWorkflow", js.FuncOf(compileWorkflow))
+	js.Global().Set("getVersion", js.FuncOf(getVersionFunc))
 	select {}
 }
 
@@ -120,4 +130,13 @@ func newRejectedPromise(msg string) js.Value {
 		return nil
 	})
 	return js.Global().Get("Promise").New(handler)
+}
+
+// getVersionFunc is the JS-callable function that returns the compiler version string.
+// Usage: getVersion() → string
+//
+// The JavaScript runtime can call this to determine the current compiler version and
+// compare it against the latest GitHub release to show an update notification to users.
+func getVersionFunc(_ js.Value, _ []js.Value) any {
+	return workflow.GetVersion()
 }

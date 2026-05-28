@@ -88,7 +88,14 @@ async function instantiateWasm() {
         "Ensure cmd/gh-aw-wasm/main.go sets js.Global().Set('compileWorkflow', ...)"
     );
   }
-  console.log("Wasm module loaded, compileWorkflow function available");
+  if (typeof globalThis.getVersion !== "function") {
+    throw new Error(
+      "getVersion function not registered by wasm module. " +
+        "Ensure cmd/gh-aw-wasm/main.go sets js.Global().Set('getVersion', ...)"
+    );
+  }
+  const ver = globalThis.getVersion();
+  console.log(`Wasm module loaded (version: ${ver}), compileWorkflow and getVersion available`);
   return globalThis.compileWorkflow;
 }
 

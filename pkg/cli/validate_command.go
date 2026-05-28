@@ -47,7 +47,8 @@ Examples:
 			}
 
 			// Check for updates (non-blocking, runs once per day)
-			CheckForUpdatesAsync(cmd.Context(), noCheckUpdate, verbose)
+			finishUpdateCheck := StartCompileUpdateCheck(cmd.Context(), noCheckUpdate, verbose)
+			defer finishUpdateCheck()
 
 			validateLog.Printf("Running validate command: workflows=%v, dir=%s", args, dir)
 

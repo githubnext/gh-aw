@@ -48,7 +48,7 @@ build-android:
 # Optionally runs wasm-opt (from Binaryen) if available for ~8% size reduction
 .PHONY: build-wasm
 build-wasm:
-	GOOS=js GOARCH=wasm go build -ldflags="-w -s" -o gh-aw.wasm ./cmd/gh-aw-wasm
+	GOOS=js GOARCH=wasm go build -ldflags="-w -s -X main.version=$(VERSION) -X main.isRelease=true" -o gh-aw.wasm ./cmd/gh-aw-wasm
 	@if command -v wasm-opt >/dev/null 2>&1; then \
 		echo "Running wasm-opt -Oz (size optimization)..."; \
 		BEFORE=$$(wc -c < gh-aw.wasm); \
