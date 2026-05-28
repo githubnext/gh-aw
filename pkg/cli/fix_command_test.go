@@ -625,14 +625,14 @@ This is a test workflow with mcp-scripts mode field.
 }
 
 func TestFixCommand_UpdatesPromptAndAgentFiles(t *testing.T) {
-	// Create a temporary directory for test files
-	tmpDir := t.TempDir()
-	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
-
 	if _, err := exec.LookPath("git"); err != nil {
 		// Skip when git isn't available in the test environment.
 		t.Skip("Git not available")
 	}
+
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
 
 	// Save and restore original directory
 	originalDir, err := os.Getwd()
