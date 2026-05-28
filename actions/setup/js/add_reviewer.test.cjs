@@ -154,9 +154,9 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
     mockGithub.graphql.mockResolvedValueOnce({ repository: { pullRequest: { id: "PR_NODE_ID" } } }).mockResolvedValueOnce({ requestReviews: { pullRequest: { id: "PR_NODE_ID" } } });
 
     const { main } = require("./add_reviewer.cjs");
-    const freshHandler = await main({ max: 10, allowed: ["copilot"] });
+    const fallbackHandler = await main({ max: 10, allowed: ["copilot"] });
 
-    const result = await freshHandler({ type: "add_reviewer", reviewers: ["copilot"] }, {});
+    const result = await fallbackHandler({ type: "add_reviewer", reviewers: ["copilot"] }, {});
 
     expect(result.success).toBe(true);
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not resolve Copilot reviewer bot node ID"));

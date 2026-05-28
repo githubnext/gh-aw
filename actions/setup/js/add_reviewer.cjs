@@ -80,7 +80,7 @@ async function main(config = {}) {
       core.warning(`Could not resolve Copilot reviewer bot node ID at runtime (${getErrorMessage(err)}); using built-in fallback`);
     }
     copilotBotNodeIdCache = COPILOT_REVIEWER_BOT_ID;
-    return COPILOT_REVIEWER_BOT_ID;
+    return copilotBotNodeIdCache;
   }
 
   let processedCount = 0;
