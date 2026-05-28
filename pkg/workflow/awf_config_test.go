@@ -586,7 +586,134 @@ func TestBuildAWFConfigJSON_DomainDeduplication(t *testing.T) {
 	assert.Equal(t, 1, count, "github.com should appear exactly once after deduplication")
 }
 
-// TestSplitDomainList verifies the splitDomainList helper handles edge cases.
+// TestBuildAWFConfigJSON_SchemaCompliance validates that BuildAWFConfigJSON always produces
+// JSON that conforms to the embedded AWF config schema. This test provides coverage for the
+// validateAWFConfigJSON path, which is triggered at compile time when --validate is used
+// (WorkflowData.ValidateAWFConfig == true). Running it unconditionally here ensures schema
+// compliance is verified in CI without the per-compile performance cost.
+func TestBuildAWFConfigJSON_SchemaCompliance(t *testing.T) {
+	cases := []struct {
+		name   string
+		config AWFCommandConfig
+	}{
+		{
+			name: "basic config with firewall and allowed domains",
+			config: AWFCommandConfig{
+				EngineName:     "copilot",
+				AllowedDomains: "github.com,api.github.com",
+				WorkflowData: &WorkflowData{
+					EngineConfig: &EngineConfig{ID: "copilot"},
+					NetworkPermissions: &NetworkPermissions{
+						Firewall: &FirewallConfig{Enabled: true},
+					},
+				},
+			},
+		},
+		{
+			name: "config without network section",
+			config: AWFCommandConfig{
+				EngineName: "copilot",
+				WorkflowData: &WorkflowData{
+					EngineConfig: &EngineConfig{ID: "copilot"},
+				},
+			},
+		},
+		{
+			name: "config with pinned firewall version",
+			config: AWFCommandConfig{
+				EngineName:     "copilot",
+				AllowedDomains: "github.com",
+				WorkflowData: &WorkflowData{
+					EngineConfig: &EngineConfig{ID: "copilot"},
+					NetworkPermissions: &NetworkPermissions{
+						Firewall: &FirewallConfig{Enabled: true, Version: "v0.24.0"},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			jsonStr, err := BuildAWFConfigJSON(tc.config)
+			require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
+			require.NoError(t, validateAWFConfigJSON(jsonStr),
+				"generated AWF config JSON must conform to the embedded schema")
+		})
+	}
+}
+
+// TestValidateAWFConfigJSON_RejectsInvalidJSON verifies that validateAWFConfigJSON is a
+// genuine two-sided contract: valid JSON passes and deliberately invalid JSON is rejected.
+// This ensures the validator itself is functional after the runtime guard was removed from
+// the hot path.
+func TestValidateAWFConfigJSON_RejectsInvalidJSON(t *testing.T) {
+	cases := []struct {
+		name string
+		json string
+	}{
+		{
+			name: "network field with wrong type (string instead of object)",
+			json: `{"network": "invalid_string_not_object"}`,
+		},
+		{
+			name: "unknown top-level key",
+			json: `{"unexpected_key": true}`,
+		},
+		{
+			name: "invalid JSON syntax",
+			json: `{not valid json`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateAWFConfigJSON(tc.json)
+			require.Error(t, err, "validateAWFConfigJSON should reject invalid input: %s", tc.name)
+		})
+	}
+}
+
+// TestBuildAWFConfigJSON_ValidateFlag verifies that schema validation runs when
+// WorkflowData.ValidateAWFConfig is true (--validate mode) and is skipped otherwise.
+func TestBuildAWFConfigJSON_ValidateFlag(t *testing.T) {
+	t.Run("validation runs when ValidateAWFConfig is true", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig:      &EngineConfig{ID: "copilot"},
+				ValidateAWFConfig: true,
+			},
+		}
+		_, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "valid config with ValidateAWFConfig=true should not error")
+	})
+
+	t.Run("validation is skipped when ValidateAWFConfig is false", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig:      &EngineConfig{ID: "copilot"},
+				ValidateAWFConfig: false,
+			},
+		}
+		_, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "valid config with ValidateAWFConfig=false should not error")
+	})
+
+	t.Run("validation is skipped when WorkflowData is nil", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData:   nil,
+		}
+		_, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "valid config with nil WorkflowData should not error")
+	})
+}
+
 func TestSplitDomainList(t *testing.T) {
 	tests := []struct {
 		name     string

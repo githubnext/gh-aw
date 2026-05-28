@@ -56,6 +56,10 @@ function validateStringInputLengths(args, inputSchema, maxBytes) {
 
   for (const [field, schema] of Object.entries(properties)) {
     if (schema && schema.type === "string") {
+      // Skip fields with an explicit maxLength — handler-level validation enforces their limit.
+      if (typeof schema.maxLength === "number") {
+        continue;
+      }
       const value = args[field];
       if (typeof value === "string") {
         const byteLength = Buffer.byteLength(value, "utf8");
