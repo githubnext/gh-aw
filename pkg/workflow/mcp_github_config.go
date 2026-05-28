@@ -273,7 +273,7 @@ func getGitHubAllowedTools(githubTool any) []string {
 }
 
 // parseGitHubAllowedToolsAndLimits parses tools.github.allowed entries.
-// Supports string entries, shorthand "tool:max" entries, and object entries:
+// Supports string entries and object entries:
 // {name: "tool_name", max-calls: 1}.
 func parseGitHubAllowedToolsAndLimits(allowedSetting any) ([]string, map[string]int) {
 	allowedItems, ok := allowedSetting.([]any)
@@ -291,12 +291,7 @@ func parseGitHubAllowedToolsAndLimits(allowedSetting any) ([]string, map[string]
 			if toolName == "" {
 				continue
 			}
-			if parsedToolName, limit, hasLimit := parseGitHubAllowedShorthand(toolName); hasLimit {
-				allowedTools = append(allowedTools, parsedToolName)
-				toolCallLimits[parsedToolName] = limit
-			} else {
-				allowedTools = append(allowedTools, toolName)
-			}
+			allowedTools = append(allowedTools, toolName)
 		case map[string]any:
 			toolName, ok := entry["name"].(string)
 			toolName = strings.TrimSpace(toolName)
@@ -316,23 +311,6 @@ func parseGitHubAllowedToolsAndLimits(allowedSetting any) ([]string, map[string]
 		return allowedTools, nil
 	}
 	return allowedTools, toolCallLimits
-}
-
-func parseGitHubAllowedShorthand(entry string) (string, int, bool) {
-	toolName, maxCalls, hasDelimiter := strings.Cut(entry, ":")
-	if !hasDelimiter {
-		return "", 0, false
-	}
-	toolName = strings.TrimSpace(toolName)
-	maxCalls = strings.TrimSpace(maxCalls)
-	if toolName == "" || maxCalls == "" {
-		return "", 0, false
-	}
-	parsedMaxCalls, err := strconv.Atoi(maxCalls)
-	if err != nil || parsedMaxCalls <= 0 {
-		return "", 0, false
-	}
-	return toolName, parsedMaxCalls, true
 }
 
 // getGitHubGuardPolicies extracts guard policies from GitHub tool configuration.

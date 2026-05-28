@@ -14,7 +14,7 @@
 
 ### Decision
 
-We will extend `tools.github.allowed` to accept structured entries that carry a per-tool call cap, in addition to the existing string entries. Three syntaxes are accepted for an entry: a plain string `"tool"` (unchanged, no cap), an object `{name: "tool", max-calls: N}`, and a shorthand string `"tool:N"`. Caps are collected into a `tool-call-limits: { "<tool>": <n> }` map under the existing `allow-only` guard policy, and enforcement is delegated to the MCP gateway/firewall layer — the compiler emits policy only. When a workflow declares call limits but no `allowed-repos`/`repos` or `min-integrity`, the generated `allow-only` policy is still emitted with `repos: "all"` because the gateway requires `repos` to be present on any allow-only block.
+We will extend `tools.github.allowed` to accept structured entries that carry a per-tool call cap, in addition to the existing string entries. Two syntaxes are accepted for an entry: a plain string `"tool"` (unchanged, no cap) and an object `{name: "tool", max-calls: N}`. Caps are collected into a `tool-call-limits: { "<tool>": <n> }` map under the existing `allow-only` guard policy, and enforcement is delegated to the MCP gateway/firewall layer — the compiler emits policy only. When a workflow declares call limits but no `allowed-repos`/`repos` or `min-integrity`, the generated `allow-only` policy is still emitted with `repos: "all"` because the gateway requires `repos` to be present on any allow-only block.
 
 ### Alternatives Considered
 
@@ -26,9 +26,9 @@ Keep `allowed` as a plain string array and add a sibling map `tool-call-limits: 
 
 Emit a wrapper around each MCP tool invocation in the generated workflow that counts calls and refuses past the cap, or have the agent harness track its own call counts. This was rejected because the gateway already evaluates `allow-only` policy (`repos`, `min-integrity`) and is the trust boundary the agent process cannot bypass. Putting enforcement in the agent loop would require the agent to honor a self-imposed limit, which is exactly the failure mode (runaway re-invocation) the cap exists to prevent. Reusing the gateway path also keeps the compiler stateless w.r.t. runtime counts.
 
-#### Alternative 3: Object syntax only — no shorthand `"tool:N"` form
+#### Alternative 3: Colon-delimited shorthand for limits in string entries
 
-Accept only the explicit object form `{name: "tool", max-calls: N}` and reject the shorthand `"tool:N"`. This was rejected because the most common limit is `max-calls: 1` on a small handful of read tools (the motivating use case is issue triage), and forcing every such entry through a three-line YAML object adds friction without adding clarity. The shorthand is unambiguous (a string with a single `:` followed by a positive integer) and the schema accepts both, so authors can pick whichever fits the surrounding YAML.
+Accept a shorthand string like `"tool:N"` and interpret it as a per-tool limit. This was rejected to keep `allowed` string entries unambiguous tool names and avoid overloading free-form strings with parser-specific syntax.
 
 ### Consequences
 
@@ -36,14 +36,14 @@ Accept only the explicit object form `{name: "tool", max-calls: N}` and reject t
 
 - Single-read workflows can now declare an explicit per-tool ceiling and rely on the gateway to enforce it, closing the cross-reference-expansion gap that `allowed` alone could not address.
 - Existing workflows with string-only `allowed` lists keep working unchanged; the new schema is strictly additive, so no migration is required.
-- Co-locating the cap with the tool name (object or shorthand) means a reviewer reading the YAML sees both pieces of information at once, and schema validation catches drift.
+- Co-locating the cap with the tool name (object form) means a reviewer reading the YAML sees both pieces of information at once, and schema validation catches drift.
 - Enforcement lives at the same MCP gateway seam that already handles `repos` and `min-integrity`, so the firewall/gateway team owns one policy surface, not two.
 
 #### Negative
 
-- Two accepted syntaxes for the same concept (object `max-calls`, shorthand `tool:N`) increases the teaching surface; the reference docs must enumerate both and pick one as canonical or risk inconsistent usage across the repo's own workflows.
+- Only the object form can carry limits, so concise one-line string entries cannot express call caps.
 - The `allowed` array schema changes from a plain string array to a `oneOf` of string and object, which is harder for YAML-aware editors (and humans) to autocomplete than a flat string array.
-- Invalid limit values are silently dropped rather than rejected: `parseGitHubAllowedToolsAndLimits` skips `max-calls` values that fail `typeutil.ParseIntValue` or are `<= 0`, and `parseGitHubAllowedShorthand` returns `hasLimit = false` on parse failure. A typo (`max-calls: "one"`) becomes an unlimited tool, not a compile error.
+- Invalid limit values are silently dropped rather than rejected: `parseGitHubAllowedToolsAndLimits` skips `max-calls` values that fail `typeutil.ParseIntValue` or are `<= 0`. A typo (`max-calls: "one"`) becomes an unlimited tool, not a compile error.
 - The emitted `tool-call-limits` field only takes effect against an MCP gateway version that understands it; older gateways will ignore the cap and the workflow will run uncapped. There is no compile-time check that the targeted gateway version supports the field.
 
 #### Neutral
@@ -60,13 +60,12 @@ Accept only the explicit object form `{name: "tool", max-calls: N}` and reject t
 
 ### `tools.github.allowed` Entry Syntax
 
-1. Each entry in `tools.github.allowed` **MUST** be one of: a plain string tool name, a shorthand string of the form `"<tool>:<positive-integer>"`, or an object with a required `name` field and an optional `max-calls` field.
+1. Each entry in `tools.github.allowed` **MUST** be one of: a plain string tool name, or an object with a required `name` field and an optional `max-calls` field.
 2. The schema for entries **MUST** be expressed as a `oneOf` of a `string` branch and an `object` branch with `additionalProperties: false` and `required: ["name"]`.
 3. The object branch **MUST** declare `max-calls` as `type: integer, minimum: 1`.
-4. Plain string entries (without a `:` delimiter) **MUST** be treated as a tool name with no call limit.
-5. Shorthand entries `"<tool>:<n>"` **MUST** be parsed as a tool name and a positive integer limit; the limit **MUST** be discarded when the integer portion fails to parse or is `<= 0`, and the tool name **MUST NOT** be added to the allowed list in that case.
-6. Object entries **MUST** be skipped (neither the tool name nor a limit emitted) when `name` is missing, not a string, or empty after trimming whitespace.
-7. A `max-calls` value that is not a positive integer **MUST** result in the tool name being added to the allowed list without a call limit; the value **MUST NOT** raise a compile error.
+4. Plain string entries **MUST** be treated as tool names with no call limit.
+5. Object entries **MUST** be skipped (neither the tool name nor a limit emitted) when `name` is missing, not a string, or empty after trimming whitespace.
+6. A `max-calls` value that is not a positive integer **MUST** result in the tool name being added to the allowed list without a call limit; the value **MUST NOT** raise a compile error.
 
 ### Parser Behavior
 

@@ -162,11 +162,11 @@ func TestGetGitHubAllowedTools(t *testing.T) {
 			expected: []string{"issue_read", "list_labels"},
 		},
 		{
-			name: "Allowed supports shorthand with max-calls",
+			name: "Allowed string entries with colons are preserved as tool names",
 			githubTool: map[string]any{
 				"allowed": []any{"issue_read:1", "list_labels"},
 			},
-			expected: []string{"issue_read", "list_labels"},
+			expected: []string{"issue_read:1", "list_labels"},
 		},
 		{
 			name:       "Not a map",
