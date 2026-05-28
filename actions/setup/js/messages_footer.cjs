@@ -73,6 +73,7 @@ function buildModelPrefix(modelName) {
  * @property {number} [effectiveTokens] - Total effective token count for the run (shown as N when > 0, in compact format)
  * @property {string} [model] - Model name used for the run, used to build a compact model identifier in ET suffixes
  * @property {string} [emoji] - Optional emoji representing the workflow (from frontmatter)
+ * @property {string} [slashCommand] - Slash command name (without leading slash) for the run-again hint, when applicable
  */
 
 /**
@@ -134,6 +135,10 @@ function getFooterMessage(ctx) {
   // Append history link when available
   if (ctx.historyUrl) {
     defaultFooter += " · [◷]({history_url})";
+  }
+  // Append slash command hint when applicable (workflow has a slash command trigger)
+  if (ctx.slashCommand) {
+    defaultFooter += "\n> <sub>Comment <em>/{slash_command}</em> to run again</sub>";
   }
   return renderTemplate(defaultFooter, templateContext);
 }
@@ -422,6 +427,21 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
   // Read workflow emoji from environment variable if available.
   const emoji = process.env.GH_AW_WORKFLOW_EMOJI || undefined;
 
+  // Read slash command from GH_AW_COMMANDS (JSON array) when available.
+  // Use the first command as the hint. This is only set when the workflow has a slash command trigger.
+  let slashCommand;
+  const commandsJSON = process.env.GH_AW_COMMANDS;
+  if (commandsJSON) {
+    try {
+      const commands = JSON.parse(commandsJSON);
+      if (Array.isArray(commands) && commands.length > 0 && typeof commands[0] === "string") {
+        slashCommand = commands[0];
+      }
+    } catch {
+      // ignore parse errors; hint is omitted
+    }
+  }
+
   const ctx = {
     workflowName,
     runUrl,
@@ -431,6 +451,7 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
     historyUrl: historyUrl || undefined,
     effectiveTokens,
     emoji,
+    slashCommand,
   };
 
   const { skipDetectionCaution = false } = options || {};
