@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"sync"
+
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -208,17 +210,39 @@ var securityConfigFiles = []string{
 	"CODE_OF_CONDUCT.md", // Community conduct policy
 }
 
+// allManifestFilesBaseCache caches the base (no-extra) result of getAllManifestFiles.
+// knownRuntimes and securityConfigFiles are package-level constants, so this slice is
+// identical on every call when no extra files are provided.
+var (
+	allManifestFilesBaseOnce  sync.Once
+	allManifestFilesBaseCache []string
+)
+
+// buildBaseManifestFiles computes the deduplicated union of manifest files from all
+// known runtimes plus the security config files. It is the shared computation used by
+// both the cached (no-extra) and uncached (with-extra) paths of getAllManifestFiles.
+func buildBaseManifestFiles() []string {
+	var files []string
+	for _, runtime := range knownRuntimes {
+		files = append(files, runtime.ManifestFiles...)
+	}
+	return append(files, securityConfigFiles...)
+}
+
 // getAllManifestFiles returns the deduplicated union of all manifest file names
 // across all known runtimes, plus repository security configuration files, plus
 // any additionally-provided filenames.
 // These are matched by basename only (no path comparison).
 func getAllManifestFiles(extra ...string) []string {
-	var files []string
-	for _, runtime := range knownRuntimes {
-		files = append(files, runtime.ManifestFiles...)
+	if len(extra) == 0 {
+		allManifestFilesBaseOnce.Do(func() {
+			allManifestFilesBaseCache = sliceutil.MergeUnique(buildBaseManifestFiles())
+		})
+		result := make([]string, len(allManifestFilesBaseCache))
+		copy(result, allManifestFilesBaseCache)
+		return result
 	}
-	files = append(files, securityConfigFiles...)
-	return sliceutil.MergeUnique(files, extra...)
+	return sliceutil.MergeUnique(buildBaseManifestFiles(), extra...)
 }
 
 // getProtectedPathPrefixes returns non-dot path prefixes (relative to repo root)

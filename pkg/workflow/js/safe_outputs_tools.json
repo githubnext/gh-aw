@@ -118,7 +118,7 @@
         },
         "category": {
           "type": "string",
-          "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository."
+          "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository. NOTE: the field is named category (not categoryId or category_id as in the GitHub GraphQL API) \u2014 alternate spellings are silently stripped."
         },
         "secrecy": {
           "type": "string",
@@ -289,6 +289,7 @@
       "properties": {
         "body": {
           "type": "string",
+          "maxLength": 65536,
           "description": "The comment text in Markdown format. Must be the final intended comment \u2014 not a placeholder or test value. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username), maximum 50 links (http/https URLs). A footer (~200-500 characters) is automatically appended with workflow attribution, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
         },
         "item_number": {
@@ -296,7 +297,7 @@
             "number",
             "string"
           ],
-          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers \u2014 it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error."
+          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers \u2014 it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error. NOTE: this field is named item_number, NOT issue_number \u2014 issue_number is silently stripped."
         },
         "pr_number": {
           "type": [
@@ -466,7 +467,7 @@
   },
   {
     "name": "submit_pull_request_review",
-    "description": "Submit a pull request review with a status decision. REQUIRED: every call must include either a non-empty body or be preceded by at least one create_pull_request_review_comment call; calling with no body and no prior comments is rejected with ERR_VALIDATION. All preceding create_pull_request_review_comment outputs are automatically attached as inline comments. If this tool is not called, buffered review comments are submitted as a COMMENT review at workflow end. Use COMMENT for non-blocking feedback; use REQUEST_CHANGES only for merge-blocking. Example (inline-only review): call create_pull_request_review_comment one or more times, then call this tool with event: COMMENT and no body.",
+    "description": "Submit a pull request review with a status decision. This tool auto-targets the pull request that triggered the workflow \u2014 do NOT pass pull_request_number (unlike create_pull_request_review_comment and reply_to_pull_request_review_comment, which accept it; this tool will silently strip it). REQUIRED: every call must include either a non-empty body or be preceded by at least one create_pull_request_review_comment call; calling with no body and no prior comments is rejected with ERR_VALIDATION. All preceding create_pull_request_review_comment outputs are automatically attached as inline comments. If this tool is not called, buffered review comments are submitted as a COMMENT review at workflow end. Use COMMENT for non-blocking feedback; use REQUEST_CHANGES only for merge-blocking. Example (inline-only review): call create_pull_request_review_comment one or more times, then call this tool with event: COMMENT and no body.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1834,7 +1835,7 @@
   },
   {
     "name": "create_check_run",
-    "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter.",
+    "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter and is NOT accepted as a parameter \u2014 do not pass name, it will be silently stripped.",
     "inputSchema": {
       "type": "object",
       "required": [
