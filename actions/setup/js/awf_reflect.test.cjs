@@ -3,6 +3,7 @@ import { createRequire } from "module";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import childProcess from "child_process";
 
 const require = createRequire(import.meta.url);
 const {
@@ -215,6 +216,7 @@ describe("awf_reflect.cjs", () => {
   describe("fetchAWFReflect", () => {
     afterEach(() => {
       vi.unstubAllGlobals();
+      vi.restoreAllMocks();
     });
 
     it("saves enriched reflect data when api-proxy returns null models for configured provider", async () => {
@@ -381,6 +383,38 @@ describe("awf_reflect.cjs", () => {
         logger: msg => collected.push(msg),
       });
       expect(collected.length).toBeGreaterThan(0);
+    });
+
+    it("runs a curl probe when fetch fails with a Node.js fetch error", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+      const spawnSyncSpy = vi.spyOn(childProcess, "spawnSync").mockReturnValue({
+        status: 0,
+        stdout: "200",
+        stderr: "",
+      });
+      const logs = [];
+
+      await expect(
+        fetchAWFReflect({
+          reflectUrl: "http://api-proxy:10000/reflect",
+          outputPath: "/tmp/gh-aw-test-noop.json",
+          timeoutMs: 500,
+          maxAttempts: 1,
+          logger: msg => logs.push(msg),
+        })
+      ).resolves.toEqual({
+        ok: false,
+        reflectUrl: "http://api-proxy:10000/reflect",
+        outputPath: "/tmp/gh-aw-test-noop.json",
+        reason: "request_failed",
+        error: "fetch failed",
+      });
+
+      expect(spawnSyncSpy).toHaveBeenCalledOnce();
+      expect(spawnSyncSpy.mock.calls[0][0]).toBe("curl");
+      expect(spawnSyncSpy.mock.calls[0][1]).toContain("http://api-proxy:10000/reflect");
+      expect(logs.some(l => l.includes("running curl probe"))).toBe(true);
+      expect(logs.some(l => l.includes("curl probe exit=0 http_status=200"))).toBe(true);
     });
   });
 });

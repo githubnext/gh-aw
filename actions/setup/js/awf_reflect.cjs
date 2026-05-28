@@ -19,6 +19,7 @@ require("./shim.cjs");
 
 const fs = require("fs");
 const path = require("path");
+const childProcess = require("child_process");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 
 /**
@@ -69,6 +70,39 @@ const RETRYABLE_NETWORK_ERROR_CODES = new Set(["ECONNREFUSED", "ECONNRESET", "EN
 // All lines are prefixed with "[awf-reflect]" for easy grepping in combined logs.
 // prettier-ignore
 const DEFAULT_REFLECT_LOGGER = /** @type {(msg: string) => void} */ (msg => process.stderr.write(`[awf-reflect] ${new Date().toISOString()} ${msg}\n`));
+
+/**
+ * Best-effort network probe for /reflect using curl.
+ * This helps distinguish Node.js fetch transport issues from endpoint reachability issues.
+ *
+ * @param {string} reflectUrl
+ * @param {number} timeoutMs
+ * @param {(msg: string) => void} logger
+ * @returns {void}
+ */
+function runReflectCurlProbe(reflectUrl, timeoutMs, logger) {
+  const timeoutSeconds = Math.max(1, Math.ceil(timeoutMs / 1000));
+  const args = ["--silent", "--show-error", "--location", "--output", "/dev/null", "--write-out", "%{http_code}", "--max-time", String(timeoutSeconds), reflectUrl];
+  logger(`awf-reflect: running curl probe for ${reflectUrl}`);
+  try {
+    const result = childProcess.spawnSync("curl", args, {
+      encoding: "utf8",
+      timeout: Math.max(1000, timeoutMs + 1000),
+      maxBuffer: 1024 * 1024,
+    });
+    if (result.error) {
+      logger(`awf-reflect: curl probe failed: ${result.error.message}`);
+      return;
+    }
+    const status = (result.stdout || "").trim() || "n/a";
+    const stderr = (result.stderr || "").trim() || "none";
+    const exitCode = typeof result.status === "number" ? result.status : -1;
+    logger(`awf-reflect: curl probe exit=${exitCode} http_status=${status} stderr=${JSON.stringify(stderr)}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger(`awf-reflect: curl probe threw: ${message}`);
+  }
+}
 
 /**
  * Extract model IDs from a provider API response body.
@@ -360,6 +394,10 @@ async function fetchAWFReflect(options) {
         reason: "timeout",
         error: original.message,
       };
+    }
+    const errorMessage = String(original?.message || e.message || "").toLowerCase();
+    if (original?.name === "TypeError" || errorMessage.includes("fetch failed")) {
+      runReflectCurlProbe(reflectUrl, timeoutMs, logger);
     }
     logger(`awf-reflect: request failed: ${original.message || e.message}`);
     return {
