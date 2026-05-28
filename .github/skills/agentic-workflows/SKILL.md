@@ -10,5 +10,5 @@ Use this skill when a user asks to create, update, debug, or upgrade GitHub Agen
 When the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read `skills/otel-queries/SKILL.md` after loading the matching workflow prompt.
 
 1. Select and read the matching prompt from `.github/aw/*.md`.
-2. If the task is telemetry-driven, also read `.github/skills/otel-queries/SKILL.md` and use its fixed query loop.
+2. If the task is telemetry-driven, also read `skills/otel-queries/SKILL.md` and use its fixed query loop.
 3. Follow the loaded prompt directly and keep responses concise.
