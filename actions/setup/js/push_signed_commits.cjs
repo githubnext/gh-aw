@@ -280,11 +280,14 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       baseRefOid = trimmedBaseRefOid;
     }
   } catch (baseRefResolveError) {
-    core.warning(`pushSignedCommits: could not resolve baseRef '${baseRef}' to an OID before replay: ${baseRefResolveError instanceof Error ? baseRefResolveError.message : String(baseRefResolveError)}`);
+    core.warning(
+      `pushSignedCommits: could not resolve baseRef '${baseRef}' to an OID before replay; continuing with first-commit parent resolution fallback: ${baseRefResolveError instanceof Error ? baseRefResolveError.message : String(baseRefResolveError)}`
+    );
   }
   const revListEntries = baseRefOid !== undefined ? revListEntriesRaw.filter(entry => entry.sha !== baseRefOid) : revListEntriesRaw;
-  if (baseRefOid !== undefined && revListEntriesRaw.length !== revListEntries.length) {
-    core.info(`pushSignedCommits: dropped ${revListEntriesRaw.length - revListEntries.length} baseRef boundary commit(s) from replay set`);
+  const droppedBoundaryCount = revListEntriesRaw.length - revListEntries.length;
+  if (baseRefOid !== undefined && droppedBoundaryCount > 0) {
+    core.info(`pushSignedCommits: dropped ${droppedBoundaryCount} baseRef boundary commit(s) from replay set`);
   }
   const shas = revListEntries.map(entry => entry.sha);
 
