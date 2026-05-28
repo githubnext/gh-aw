@@ -52,7 +52,7 @@ experiments:
     tags: [cost-efficiency, reliability, timeout]
     analysis_type: proportion_test
 
-timeout-minutes: 30
+timeout-minutes: ${{ needs.activation.outputs.timeout_setting == 'tight' && 20 || needs.activation.outputs.timeout_setting == 'relaxed' && 45 || 30 }}
 
 imports:
   - uses: shared/meta-analysis-base.md
