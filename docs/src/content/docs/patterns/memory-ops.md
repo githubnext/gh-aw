@@ -42,7 +42,7 @@ tools:
 
 Use for historical data, trend tracking, permanent state. By default the memory is available at `/tmp/gh-aw/repo-memory/default/`.
 
-[Comment Memory](/gh-aw/reference/frontmatter-full/#comment-memory) gives persistent memory backed by a managed issue or PR comment:
+[Comment Memory](/gh-aw/reference/frontmatter-full/) gives persistent memory backed by a managed issue or PR comment:
 
 ```yaml
 tools:
