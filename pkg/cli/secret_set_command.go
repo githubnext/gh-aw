@@ -224,8 +224,7 @@ func encryptWithPublicKey(publicKeyB64, plaintext string) (string, error) {
 		return "", fmt.Errorf("unexpected public key length: %d, expected %d", len(raw), publicKeySize)
 	}
 
-	// DecodeString returns a freshly allocated slice; the length check above guarantees this conversion is safe.
-	pk := (*[publicKeySize]byte)(raw)
+	pk := (*[publicKeySize]byte)(raw[:publicKeySize])
 	ciphertext, err := box.SealAnonymous(nil, []byte(plaintext), pk, rand.Reader)
 	if err != nil {
 		return "", fmt.Errorf("nacl encryption failed: %w", err)

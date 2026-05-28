@@ -127,9 +127,9 @@ func TestEncryptWithPublicKeyEmptyPlaintext(t *testing.T) {
 	if encrypted == "" {
 		t.Error("expected non-empty ciphertext even for empty plaintext")
 	}
-	emptyPlaintextBase64Len := base64.StdEncoding.EncodedLen(box.AnonymousOverhead)
-	if len(encrypted) < emptyPlaintextBase64Len {
-		t.Errorf("encrypted length = %d, expected at least %d", len(encrypted), emptyPlaintextBase64Len)
+	expectedMinBase64Len := base64.StdEncoding.EncodedLen(box.AnonymousOverhead)
+	if len(encrypted) < expectedMinBase64Len {
+		t.Errorf("encrypted length = %d, expected at least %d", len(encrypted), expectedMinBase64Len)
 	}
 }
 
