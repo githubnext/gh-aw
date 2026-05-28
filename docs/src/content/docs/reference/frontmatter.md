@@ -69,6 +69,16 @@ metadata:
 
 Metadata provides a flexible way to add descriptive information to workflows without affecting execution.
 
+### Interoperability with Copilot custom agents
+
+To support authoring a single markdown file that works as both a gh-aw workflow and a GitHub Copilot custom agent, gh-aw tolerates and strips specific Copilot-only frontmatter fields that are outside the gh-aw schema.
+
+Current ignored fields:
+
+- `user-invokable` — Copilot custom-agent flag indicating whether a user can invoke the agent directly. gh-aw ignores this field because invocation behavior is defined by workflow triggers and permissions.
+
+See [GitHub Copilot custom agent configuration](https://docs.github.com/en/copilot/reference/custom-agents-configuration) for Copilot-specific field behavior.
+
 ### Trigger Events (`on:`)
 
 The `on:` section uses standard GitHub Actions syntax to define workflow triggers, with additional fields for security and approval controls:
