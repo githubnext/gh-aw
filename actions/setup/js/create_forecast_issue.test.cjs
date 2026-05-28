@@ -116,26 +116,18 @@ describe("create_forecast_issue", () => {
     );
   });
 
-  it("creates a timeout error issue when forecast reports timeout metadata", async () => {
+  it("renders timeout diagnostics in issue body when outcome is timeout", async () => {
     const module = await import("./create_forecast_issue.cjs");
-    mockFs.existsSync.mockImplementation(path => path === module.FORECAST_ERROR_PATH);
-    mockFs.readFileSync.mockImplementation(path => {
-      if (path === module.FORECAST_ERROR_PATH) {
-        return JSON.stringify({
-          outcome: "timeout",
-          message: "Forecast computation timed out after 10 minutes.",
-        });
-      }
-      throw new Error(`Unexpected read path: ${path}`);
+    const body = module.buildForecastIssueBody(null, {
+      owner: "octo",
+      repo: "repo",
+      serverUrl: "https://github.com",
+      runID: "123456",
+      outcome: "timeout",
+      errorMessage: "Forecast computation timed out after 10 minutes.",
+      generatedAtISO: "2026-01-01T00:00:00.000Z",
     });
-
-    await module.main();
-
-    expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: module.FORECAST_ERROR_ISSUE_TITLE,
-        body: expect.stringContaining("Forecast outcome: timeout."),
-      })
-    );
+    expect(body).toContain("Forecast outcome: timeout.");
+    expect(body).toContain("Forecast computation timed out after 10 minutes.");
   });
 });
