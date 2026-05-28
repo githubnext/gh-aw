@@ -83,6 +83,12 @@ func TestRunForecast_InvalidDays(t *testing.T) {
 	require.Error(t, err, "should error for days=90 (max is 30)")
 }
 
+func TestRunForecast_InvalidTimeout(t *testing.T) {
+	cfg := ForecastConfig{Days: 30, Period: "month", SampleSize: 10, TimeoutMinutes: -1}
+	err := RunForecast(cfg)
+	require.Error(t, err, "should error for negative timeout")
+}
+
 func TestNewForecastCommand_DaysFlagDocumentsAllowedValues(t *testing.T) {
 	cmd := NewForecastCommand()
 	require.NotNil(t, cmd)
@@ -93,6 +99,16 @@ func TestNewForecastCommand_DaysFlagDocumentsAllowedValues(t *testing.T) {
 	assert.NotContains(t, cmd.Long, ").  When runs have been", "Long description should not contain duplicate spacing")
 	assert.NotContains(t, cmd.Long, "used.  The", "Long description should not contain duplicate spacing")
 	assert.NotContains(t, cmd.Long, "interval.  Use this", "Long description should not contain duplicate spacing")
+}
+
+func TestNewForecastCommand_TimeoutFlag(t *testing.T) {
+	cmd := NewForecastCommand()
+	require.NotNil(t, cmd)
+
+	timeoutFlag := cmd.Flags().Lookup("timeout")
+	require.NotNil(t, timeoutFlag, "forecast command should register --timeout")
+	assert.Equal(t, "Gracefully stop forecast computation after this many minutes (0 disables timeout)", timeoutFlag.Usage)
+	assert.Equal(t, "0", timeoutFlag.DefValue)
 }
 
 // ── Duration enrichment ───────────────────────────────────────────────────────
