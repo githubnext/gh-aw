@@ -32,6 +32,20 @@ Promotion from **Experimental Draft** to **Draft** requires all of the following
 2. A **stable command/API surface** for one full release cycle with no breaking flag or JSON-schema changes.
 3. Sustained conformance evidence that all required tests in §12.1 pass in CI for both local and remote discovery paths.
 
+### Promotion Tracking
+
+The table below tracks documented production uses toward the 3-use requirement (criterion 1 above).
+When a use is documented in a GitHub issue or PR, add a row with the run identifier, repository,
+date, and outcome. Criteria 2 and 3 are evaluated at promotion-review time and are not tracked here.
+
+| `run_id` | `repo` | `date` | `outcome` |
+|---|---|---|---|
+| — | — | — | No production uses documented yet |
+
+Update this table when a production use is confirmed. Each entry MUST reference a GitHub issue or
+PR that documents the use. Once three **Confirmed** entries are present and criteria 2–3 are
+satisfied, initiate the promotion review by opening a specification-update PR.
+
 This document is governed by the GitHub Agentic Workflows project specifications process.
 
 Feedback should be filed as GitHub issues against the `github/gh-aw` repository.
@@ -1026,6 +1040,11 @@ Sync follow-up tasks:
   comment on `poissonNormalApproximationThreshold` in `pkg/cli/forecast_montecarlo.go` directing
   maintainers to Appendix B and R-FC-060. Closes
   [#31985](https://github.com/github/gh-aw/issues/31985).
+- **[Resolved 2026-05-28]** R-IMPL-040 experimental-warning sync: Confirmed that
+  `pkg/cli/forecast.go` (`RunForecast`) emits the experimental-status warning via
+  `console.FormatWarningMessage` on every non-JSON invocation. The warning is now correctly
+  suppressed when `config.JSONOutput` is true (per R-IMPL-040 requirement). Verified by
+  `TestRunForecast_R_IMPL_040_ExperimentalWarning` in `pkg/cli/forecast_test.go`.
 
 ---
 
