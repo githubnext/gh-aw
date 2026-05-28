@@ -3,7 +3,6 @@
 package workflow
 
 import (
-	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -419,112 +418,27 @@ func TestClaudeEngineComputeAllowedToolsDeduplicatesNormalizedBashEntries(t *tes
 func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 	engine := NewClaudeEngine()
 
-	tests := []struct {
-		name        string
-		tools       map[string]any
-		safeOutputs *SafeOutputsConfig
-		expected    string
-	}{
-		{
-			name:  "SafeOutputs with no tools - should add Write permission",
-			tools: map[string]any{
-				// Using neutral tools instead of claude section
-			},
-			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
-			},
-			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__safeoutputs",
-		},
-		{
-			name: "SafeOutputs with general Write permission - should not add specific Write",
-			tools: map[string]any{
-				"edit": nil, // This provides Write capabilities
-			},
-			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
-			},
-			expected: "Edit,ExitPlanMode,Glob,Grep,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__safeoutputs",
-		},
-		{
-			name:  "No SafeOutputs - should not add Write permission",
-			tools: map[string]any{
-				// Using neutral tools instead of claude section
-			},
-			safeOutputs: nil,
-			expected:    "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite",
-		},
-		{
-			name: "SafeOutputs with multiple output types",
-			tools: map[string]any{
-				"bash": nil, // This provides Bash, BashOutput, KillBash
-				"edit": nil,
-			},
-			safeOutputs: &SafeOutputsConfig{
-				CreateIssues:       &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
-				AddComments:        &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
-				CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
-			},
-			expected: "Bash,BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__safeoutputs",
-		},
-		{
-			name: "SafeOutputs with MCP tools",
-			tools: map[string]any{
-				"github": map[string]any{
-					"allowed": []any{"create_issue", "create_pull_request"},
-				},
-			},
-			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
-			},
-			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__create_issue,mcp__github__create_pull_request,mcp__safeoutputs",
-		},
-		{
-			name: "SafeOutputs with neutral tools and create-pull-request",
-			tools: map[string]any{
-				"bash":      []any{"echo", "ls"},
-				"web-fetch": nil,
-				"edit":      nil,
-			},
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
-			},
-			expected: "Bash(echo),Bash(ls),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write,mcp__safeoutputs",
-		},
+	t.Run("basic safe outputs", func(t *testing.T) {
+		testClaudeAllowedToolsCases(t, engine, testClaudeSafeOutputBasicCases())
+	})
+	t.Run("extended safe outputs", func(t *testing.T) {
+		testClaudeAllowedToolsCases(t, engine, testClaudeSafeOutputExtendedCases())
+	})
+}
+
+func testClaudeSafeOutputBasicCases() []claudeAllowedToolsTestCase {
+	return []claudeAllowedToolsTestCase{
+		{name: "SafeOutputs with no tools - should add Write permission", tools: map[string]any{}, safeOutputs: &SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}}, expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__safeoutputs"},
+		{name: "SafeOutputs with general Write permission - should not add specific Write", tools: map[string]any{"edit": nil}, safeOutputs: &SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}}, expected: "Edit,ExitPlanMode,Glob,Grep,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__safeoutputs"},
+		{name: "No SafeOutputs - should not add Write permission", tools: map[string]any{}, safeOutputs: nil, expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite"},
 	}
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Extract cache-memory config from tools if present
-			compiler := NewCompiler()
-			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tt.tools)
-			result := engine.computeAllowedClaudeToolsString(tt.tools, tt.safeOutputs, cacheMemoryConfig, nil, nil)
-
-			// Split both expected and result into slices and check each tool is present
-			expectedTools := strings.Split(tt.expected, ",")
-			resultTools := strings.Split(result, ",")
-
-			// Check that all expected tools are present
-			for _, expectedTool := range expectedTools {
-				if expectedTool == "" {
-					continue // Skip empty strings
-				}
-				found := slices.Contains(resultTools, expectedTool)
-				if !found {
-					t.Errorf("Expected tool '%s' not found in result '%s'", expectedTool, result)
-				}
-			}
-
-			// Check that no unexpected tools are present
-			for _, actual := range resultTools {
-				if actual == "" {
-					continue // Skip empty strings
-				}
-				found := slices.Contains(expectedTools, actual)
-				if !found {
-					t.Errorf("Unexpected tool '%s' found in result '%s'", actual, result)
-				}
-			}
-		})
+func testClaudeSafeOutputExtendedCases() []claudeAllowedToolsTestCase {
+	return []claudeAllowedToolsTestCase{
+		{name: "SafeOutputs with multiple output types", tools: map[string]any{"bash": nil, "edit": nil}, safeOutputs: &SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}, AddComments: &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}, CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}}, expected: "Bash,BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__safeoutputs"},
+		{name: "SafeOutputs with MCP tools", tools: map[string]any{"github": map[string]any{"allowed": []any{"create_issue", "create_pull_request"}}}, safeOutputs: &SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}}, expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__create_issue,mcp__github__create_pull_request,mcp__safeoutputs"},
+		{name: "SafeOutputs with neutral tools and create-pull-request", tools: map[string]any{"bash": []any{"echo", "ls"}, "web-fetch": nil, "edit": nil}, safeOutputs: &SafeOutputsConfig{CreatePullRequests: &CreatePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}}, expected: "Bash(echo),Bash(ls),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write,mcp__safeoutputs"},
 	}
 }
 

@@ -5,7 +5,6 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"

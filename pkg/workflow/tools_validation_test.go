@@ -161,6 +161,138 @@ func TestNewToolsWithInvalidBash(t *testing.T) {
 // was removed. Git commands are automatically injected by the compiler when safe-outputs
 // needs them (see compiler_safe_outputs.go), so validation was misleading and unnecessary.
 
+type githubToolValidationCase struct {
+	name        string
+	toolsMap    map[string]any
+	shouldError bool
+	errorMsg    string
+}
+
+type mcpgIntegritySupportCase struct {
+	name          string
+	gatewayConfig *MCPGatewayRuntimeConfig
+	want          bool
+}
+
+type integrityReactionsCase struct {
+	name          string
+	tools         *Tools
+	data          *WorkflowData
+	gatewayConfig *MCPGatewayRuntimeConfig
+	shouldError   bool
+	errorContains string
+}
+
+type difcProxyPolicyCase struct {
+	name             string
+	githubTool       any
+	data             *WorkflowData
+	gatewayConfig    *MCPGatewayRuntimeConfig
+	expectedContains []string
+	expectedAbsent   []string
+}
+
+func testGitHubToolValidationCases(t *testing.T, tests []githubToolValidationCase, validate func(*Tools, string) error) {
+	t.Helper()
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			testGitHubToolValidationCase(t, tt, validate)
+		})
+	}
+}
+
+func testGitHubToolValidationCase(t *testing.T, tt githubToolValidationCase, validate func(*Tools, string) error) {
+	t.Helper()
+
+	tools := NewTools(tt.toolsMap)
+	err := validate(tools, "test-workflow")
+	if tt.shouldError {
+		require.Error(t, err, "Expected error for %s", tt.name)
+		if tt.errorMsg != "" {
+			assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain expected text")
+		}
+		return
+	}
+
+	assert.NoError(t, err, "Expected no error for %s", tt.name)
+}
+
+func testMCPGIntegritySupportCases(t *testing.T, tests []mcpgIntegritySupportCase) {
+	t.Helper()
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			got := mcpgSupportsIntegrityReactions(tt.gatewayConfig)
+			assert.Equal(t, tt.want, got, "mcpgSupportsIntegrityReactions result")
+		})
+	}
+}
+
+func testIntegrityReactionData(enabled bool) *WorkflowData {
+	features := map[string]any{}
+	if enabled {
+		features["integrity-reactions"] = true
+	}
+	return &WorkflowData{Features: features}
+}
+
+func testMCPGatewayConfig(version string) *MCPGatewayRuntimeConfig {
+	return &MCPGatewayRuntimeConfig{Container: "ghcr.io/test/mcpg", Version: version}
+}
+
+func testIntegrityReactionCases(t *testing.T, tests []integrityReactionsCase) {
+	t.Helper()
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			testIntegrityReactionCase(t, tt)
+		})
+	}
+}
+
+func testIntegrityReactionCase(t *testing.T, tt integrityReactionsCase) {
+	t.Helper()
+
+	err := validateIntegrityReactions(tt.tools, "test-workflow", tt.data, tt.gatewayConfig)
+	if tt.shouldError {
+		require.Error(t, err, "Expected error for: %s", tt.name)
+		if tt.errorContains != "" {
+			assert.Contains(t, err.Error(), tt.errorContains, "Error should mention: %s", tt.errorContains)
+		}
+		return
+	}
+
+	assert.NoError(t, err, "Expected no error for: %s", tt.name)
+}
+
+func testDIFCProxyPolicyCases(t *testing.T, tests []difcProxyPolicyCase) {
+	t.Helper()
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			testDIFCProxyPolicyCase(t, tt)
+		})
+	}
+}
+
+func testDIFCProxyPolicyCase(t *testing.T, tt difcProxyPolicyCase) {
+	t.Helper()
+
+	got := getDIFCProxyPolicyJSON(tt.githubTool, tt.data, tt.gatewayConfig)
+	require.NotEmpty(t, got, "policy JSON should not be empty")
+	for _, s := range tt.expectedContains {
+		assert.Contains(t, got, s, "policy JSON should contain %q", s)
+	}
+	for _, s := range tt.expectedAbsent {
+		assert.NotContains(t, got, s, "policy JSON should NOT contain %q", s)
+	}
+}
+
 func TestValidateGitHubToolConfig(t *testing.T) {
 	tests := []struct {
 		name        string

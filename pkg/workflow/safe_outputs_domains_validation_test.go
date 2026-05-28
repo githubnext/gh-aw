@@ -10,177 +10,29 @@ import (
 )
 
 func TestValidateSafeOutputsAllowedDomains(t *testing.T) {
-	tests := []struct {
-		name    string
-		config  *SafeOutputsConfig
-		wantErr bool
-		errMsg  string
-	}{
-		{
-			name:    "nil config",
-			config:  nil,
-			wantErr: false,
-		},
-		{
-			name:    "empty allowed domains",
-			config:  &SafeOutputsConfig{AllowedDomains: []string{}},
-			wantErr: false,
-		},
-		{
-			name: "valid plain domains",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{
-					"github.com",
-					"api.github.com",
-					"example.com",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "valid wildcard domains",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{
-					"*.github.com",
-					"*.example.org",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "mixed valid domains",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{
-					"github.com",
-					"*.githubusercontent.com",
-					"api.example.com",
-					"*.test.org",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "invalid - empty domain",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{""},
-			},
-			wantErr: true,
-			errMsg:  "domain cannot be empty",
-		},
-		{
-			name: "invalid - wildcard only",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{"*"},
-			},
-			wantErr: true,
-			errMsg:  "wildcard-only domain '*' is not allowed",
-		},
-		{
-			name: "invalid - multiple wildcards",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{"*.*.github.com"},
-			},
-			wantErr: true,
-			errMsg:  "contains multiple wildcards",
-		},
-		{
-			name: "invalid - wildcard in middle",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{"github.*.com"},
-			},
-			wantErr: true,
-			errMsg:  "wildcard must be at the start followed by a dot",
-		},
-		{
-			name: "invalid - wildcard at end",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{"github.*"},
-			},
-			wantErr: true,
-			errMsg:  "wildcard must be at the start followed by a dot",
-		},
-		{
-			name: "invalid - trailing dot",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{"github.com."},
-			},
-			wantErr: true,
-			errMsg:  "cannot end with a dot",
-		},
-		{
-			name: "invalid - leading dot",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{".github.com"},
-			},
-			wantErr: true,
-			errMsg:  "cannot start with a dot",
-		},
-		{
-			name: "invalid - consecutive dots",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{"github..com"},
-			},
-			wantErr: true,
-			errMsg:  "cannot contain consecutive dots",
-		},
-		{
-			name: "invalid - special characters",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{"github@example.com"},
-			},
-			wantErr: true,
-			errMsg:  "contains invalid character",
-		},
-		{
-			name: "invalid - spaces",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{"github .com"},
-			},
-			wantErr: true,
-			errMsg:  "contains invalid character",
-		},
-		{
-			name: "invalid - wildcard without base domain",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{"*."},
-			},
-			wantErr: true,
-			errMsg:  "must have a domain after",
-		},
-		{
-			name: "invalid - multiple domains in first entry",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{
-					"github.com",
-					"*.example.com",
-					"invalid domain",
-				},
-			},
-			wantErr: true,
-			errMsg:  "safe-outputs.allowed-domains[2]",
-		},
-		{
-			name: "valid - complex subdomain",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{
-					"very.long.subdomain.example.com",
-					"*.multi.level.example.org",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "valid - domains with numbers and hyphens",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{
-					"api-v2.github.com",
-					"test123.example.com",
-					"*.cdn-example.org",
-				},
-			},
-			wantErr: false,
-		},
-	}
+	t.Run("basic cases", func(t *testing.T) {
+		testValidateSafeOutputsAllowedDomainsCases(t, testSafeOutputsAllowedDomainsBasicCases())
+	})
+	t.Run("invalid wildcard cases", func(t *testing.T) {
+		testValidateSafeOutputsAllowedDomainsCases(t, testSafeOutputsAllowedDomainsWildcardCases())
+	})
+	t.Run("invalid formatting cases", func(t *testing.T) {
+		testValidateSafeOutputsAllowedDomainsCases(t, testSafeOutputsAllowedDomainsFormattingCases())
+	})
+	t.Run("extended valid cases", func(t *testing.T) {
+		testValidateSafeOutputsAllowedDomainsCases(t, testSafeOutputsAllowedDomainsExtendedCases())
+	})
+}
+
+type safeOutputsAllowedDomainsTestCase struct {
+	name    string
+	config  *SafeOutputsConfig
+	wantErr bool
+	errMsg  string
+}
+
+func testValidateSafeOutputsAllowedDomainsCases(t *testing.T, tests []safeOutputsAllowedDomainsTestCase) {
+	t.Helper()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -198,149 +50,69 @@ func TestValidateSafeOutputsAllowedDomains(t *testing.T) {
 	}
 }
 
-func TestValidateDomainPattern(t *testing.T) {
-	tests := []struct {
-		name    string
-		domain  string
-		wantErr bool
-		errMsg  string
-	}{
-		// Valid plain domains
-		{
-			name:    "valid - simple domain",
-			domain:  "github.com",
-			wantErr: false,
-		},
-		{
-			name:    "valid - subdomain",
-			domain:  "api.github.com",
-			wantErr: false,
-		},
-		{
-			name:    "valid - multiple subdomains",
-			domain:  "api.v2.github.com",
-			wantErr: false,
-		},
-		{
-			name:    "valid - domain with numbers",
-			domain:  "test123.example.com",
-			wantErr: false,
-		},
-		{
-			name:    "valid - domain with hyphens",
-			domain:  "my-api.example-site.com",
-			wantErr: false,
-		},
-
-		// Valid wildcard domains
-		{
-			name:    "valid - wildcard subdomain",
-			domain:  "*.github.com",
-			wantErr: false,
-		},
-		{
-			name:    "valid - wildcard with multiple levels",
-			domain:  "*.api.example.com",
-			wantErr: false,
-		},
-
-		// Invalid patterns
-		{
-			name:    "invalid - empty",
-			domain:  "",
-			wantErr: true,
-			errMsg:  "cannot be empty",
-		},
-		{
-			name:    "invalid - wildcard only",
-			domain:  "*",
-			wantErr: true,
-			errMsg:  "wildcard-only",
-		},
-		{
-			name:    "invalid - multiple wildcards",
-			domain:  "*.*.github.com",
-			wantErr: true,
-			errMsg:  "multiple wildcards",
-		},
-		{
-			name:    "invalid - wildcard in middle",
-			domain:  "api.*.github.com",
-			wantErr: true,
-			errMsg:  "wildcard must be at the start followed by a dot",
-		},
-		{
-			name:    "invalid - wildcard at end",
-			domain:  "github.*",
-			wantErr: true,
-			errMsg:  "wildcard must be at the start followed by a dot",
-		},
-		{
-			name:    "invalid - trailing dot",
-			domain:  "github.com.",
-			wantErr: true,
-			errMsg:  "cannot end with a dot",
-		},
-		{
-			name:    "invalid - leading dot",
-			domain:  ".github.com",
-			wantErr: true,
-			errMsg:  "cannot start with a dot",
-		},
-		{
-			name:    "invalid - consecutive dots",
-			domain:  "github..com",
-			wantErr: true,
-			errMsg:  "consecutive dots",
-		},
-		{
-			name:    "invalid - underscore",
-			domain:  "github_api.com",
-			wantErr: true,
-			errMsg:  "invalid character",
-		},
-		{
-			name:    "invalid - special character @",
-			domain:  "user@github.com",
-			wantErr: true,
-			errMsg:  "invalid character",
-		},
-		{
-			name:    "invalid - space",
-			domain:  "github .com",
-			wantErr: true,
-			errMsg:  "invalid character",
-		},
-		{
-			name:    "invalid - wildcard without domain",
-			domain:  "*.",
-			wantErr: true,
-			errMsg:  "must have a domain after",
-		},
-		{
-			name:    "invalid - wildcard with dot after",
-			domain:  "*..",
-			wantErr: true,
-			errMsg:  "invalid format",
-		},
-
-		// Edge cases
-		{
-			name:    "valid - single character domain (theoretical)",
-			domain:  "a.b",
-			wantErr: false,
-		},
-		{
-			name:    "valid - long subdomain",
-			domain:  "very-long-subdomain-name-with-many-hyphens.example.com",
-			wantErr: false,
-		},
-		{
-			name:    "valid - many levels",
-			domain:  "a.b.c.d.e.f.example.com",
-			wantErr: false,
-		},
+func testSafeOutputsAllowedDomainsBasicCases() []safeOutputsAllowedDomainsTestCase {
+	return []safeOutputsAllowedDomainsTestCase{
+		{name: "nil config", config: nil, wantErr: false},
+		{name: "empty allowed domains", config: &SafeOutputsConfig{AllowedDomains: []string{}}, wantErr: false},
+		{name: "valid plain domains", config: &SafeOutputsConfig{AllowedDomains: []string{"github.com", "api.github.com", "example.com"}}, wantErr: false},
+		{name: "valid wildcard domains", config: &SafeOutputsConfig{AllowedDomains: []string{"*.github.com", "*.example.org"}}, wantErr: false},
+		{name: "mixed valid domains", config: &SafeOutputsConfig{AllowedDomains: []string{"github.com", "*.githubusercontent.com", "api.example.com", "*.test.org"}}, wantErr: false},
 	}
+}
+
+func testSafeOutputsAllowedDomainsWildcardCases() []safeOutputsAllowedDomainsTestCase {
+	return []safeOutputsAllowedDomainsTestCase{
+		{name: "invalid - empty domain", config: &SafeOutputsConfig{AllowedDomains: []string{""}}, wantErr: true, errMsg: "domain cannot be empty"},
+		{name: "invalid - wildcard only", config: &SafeOutputsConfig{AllowedDomains: []string{"*"}}, wantErr: true, errMsg: "wildcard-only domain '*' is not allowed"},
+		{name: "invalid - multiple wildcards", config: &SafeOutputsConfig{AllowedDomains: []string{"*.*.github.com"}}, wantErr: true, errMsg: "contains multiple wildcards"},
+		{name: "invalid - wildcard in middle", config: &SafeOutputsConfig{AllowedDomains: []string{"github.*.com"}}, wantErr: true, errMsg: "wildcard must be at the start followed by a dot"},
+		{name: "invalid - wildcard at end", config: &SafeOutputsConfig{AllowedDomains: []string{"github.*"}}, wantErr: true, errMsg: "wildcard must be at the start followed by a dot"},
+		{name: "invalid - wildcard without base domain", config: &SafeOutputsConfig{AllowedDomains: []string{"*."}}, wantErr: true, errMsg: "must have a domain after"},
+	}
+}
+
+func testSafeOutputsAllowedDomainsFormattingCases() []safeOutputsAllowedDomainsTestCase {
+	return []safeOutputsAllowedDomainsTestCase{
+		{name: "invalid - trailing dot", config: &SafeOutputsConfig{AllowedDomains: []string{"github.com."}}, wantErr: true, errMsg: "cannot end with a dot"},
+		{name: "invalid - leading dot", config: &SafeOutputsConfig{AllowedDomains: []string{".github.com"}}, wantErr: true, errMsg: "cannot start with a dot"},
+		{name: "invalid - consecutive dots", config: &SafeOutputsConfig{AllowedDomains: []string{"github..com"}}, wantErr: true, errMsg: "cannot contain consecutive dots"},
+		{name: "invalid - special characters", config: &SafeOutputsConfig{AllowedDomains: []string{"github@example.com"}}, wantErr: true, errMsg: "contains invalid character"},
+		{name: "invalid - spaces", config: &SafeOutputsConfig{AllowedDomains: []string{"github .com"}}, wantErr: true, errMsg: "contains invalid character"},
+		{name: "invalid - multiple domains in first entry", config: &SafeOutputsConfig{AllowedDomains: []string{"github.com", "*.example.com", "invalid domain"}}, wantErr: true, errMsg: "safe-outputs.allowed-domains[2]"},
+	}
+}
+
+func testSafeOutputsAllowedDomainsExtendedCases() []safeOutputsAllowedDomainsTestCase {
+	return []safeOutputsAllowedDomainsTestCase{
+		{name: "valid - complex subdomain", config: &SafeOutputsConfig{AllowedDomains: []string{"very.long.subdomain.example.com", "*.multi.level.example.org"}}, wantErr: false},
+		{name: "valid - domains with numbers and hyphens", config: &SafeOutputsConfig{AllowedDomains: []string{"api-v2.github.com", "test123.example.com", "*.cdn-example.org"}}, wantErr: false},
+	}
+}
+
+func TestValidateDomainPattern(t *testing.T) {
+	t.Run("valid plain domains", func(t *testing.T) {
+		testValidateDomainPatternCases(t, testValidateDomainPatternPlainCases())
+	})
+	t.Run("valid wildcard and edge cases", func(t *testing.T) {
+		testValidateDomainPatternCases(t, testValidateDomainPatternValidWildcardCases())
+	})
+	t.Run("invalid wildcard cases", func(t *testing.T) {
+		testValidateDomainPatternCases(t, testValidateDomainPatternInvalidWildcardCases())
+	})
+	t.Run("invalid formatting cases", func(t *testing.T) {
+		testValidateDomainPatternCases(t, testValidateDomainPatternInvalidFormattingCases())
+	})
+}
+
+type domainPatternValidationTestCase struct {
+	name    string
+	domain  string
+	wantErr bool
+	errMsg  string
+}
+
+func testValidateDomainPatternCases(t *testing.T, tests []domainPatternValidationTestCase) {
+	t.Helper()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -354,6 +126,49 @@ func TestValidateDomainPattern(t *testing.T) {
 				assert.NoError(t, err, "Expected no error for domain: %s, but got: %v", tt.domain, err)
 			}
 		})
+	}
+}
+
+func testValidateDomainPatternPlainCases() []domainPatternValidationTestCase {
+	return []domainPatternValidationTestCase{
+		{name: "valid - simple domain", domain: "github.com", wantErr: false},
+		{name: "valid - subdomain", domain: "api.github.com", wantErr: false},
+		{name: "valid - multiple subdomains", domain: "api.v2.github.com", wantErr: false},
+		{name: "valid - domain with numbers", domain: "test123.example.com", wantErr: false},
+		{name: "valid - domain with hyphens", domain: "my-api.example-site.com", wantErr: false},
+	}
+}
+
+func testValidateDomainPatternValidWildcardCases() []domainPatternValidationTestCase {
+	return []domainPatternValidationTestCase{
+		{name: "valid - wildcard subdomain", domain: "*.github.com", wantErr: false},
+		{name: "valid - wildcard with multiple levels", domain: "*.api.example.com", wantErr: false},
+		{name: "valid - single character domain (theoretical)", domain: "a.b", wantErr: false},
+		{name: "valid - long subdomain", domain: "very-long-subdomain-name-with-many-hyphens.example.com", wantErr: false},
+		{name: "valid - many levels", domain: "a.b.c.d.e.f.example.com", wantErr: false},
+	}
+}
+
+func testValidateDomainPatternInvalidWildcardCases() []domainPatternValidationTestCase {
+	return []domainPatternValidationTestCase{
+		{name: "invalid - empty", domain: "", wantErr: true, errMsg: "cannot be empty"},
+		{name: "invalid - wildcard only", domain: "*", wantErr: true, errMsg: "wildcard-only"},
+		{name: "invalid - multiple wildcards", domain: "*.*.github.com", wantErr: true, errMsg: "multiple wildcards"},
+		{name: "invalid - wildcard in middle", domain: "api.*.github.com", wantErr: true, errMsg: "wildcard must be at the start followed by a dot"},
+		{name: "invalid - wildcard at end", domain: "github.*", wantErr: true, errMsg: "wildcard must be at the start followed by a dot"},
+		{name: "invalid - wildcard without domain", domain: "*.", wantErr: true, errMsg: "must have a domain after"},
+		{name: "invalid - wildcard with dot after", domain: "*..", wantErr: true, errMsg: "invalid format"},
+	}
+}
+
+func testValidateDomainPatternInvalidFormattingCases() []domainPatternValidationTestCase {
+	return []domainPatternValidationTestCase{
+		{name: "invalid - trailing dot", domain: "github.com.", wantErr: true, errMsg: "cannot end with a dot"},
+		{name: "invalid - leading dot", domain: ".github.com", wantErr: true, errMsg: "cannot start with a dot"},
+		{name: "invalid - consecutive dots", domain: "github..com", wantErr: true, errMsg: "consecutive dots"},
+		{name: "invalid - underscore", domain: "github_api.com", wantErr: true, errMsg: "invalid character"},
+		{name: "invalid - special character @", domain: "user@github.com", wantErr: true, errMsg: "invalid character"},
+		{name: "invalid - space", domain: "github .com", wantErr: true, errMsg: "invalid character"},
 	}
 }
 
@@ -563,58 +378,7 @@ func testDomainPatternRegexEdgeCases() []domainPatternRegexTestCase {
 
 // TestValidateSafeOutputsAllowedDomainsIntegration tests validation with realistic workflow configurations
 func TestValidateSafeOutputsAllowedDomainsIntegration(t *testing.T) {
-	tests := []struct {
-		name    string
-		config  *SafeOutputsConfig
-		wantErr bool
-	}{
-		{
-			name: "typical configuration",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{
-					"api.github.com",
-					"*.githubusercontent.com",
-					"raw.githubusercontent.com",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "multi-repository configuration",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{
-					"*.github.com",
-					"*.gitlab.com",
-					"api.bitbucket.org",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "CDN and API domains",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{
-					"cdn.example.com",
-					"*.cdn.example.com",
-					"api-v2.example.com",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "configuration with error in list",
-			config: &SafeOutputsConfig{
-				AllowedDomains: []string{
-					"api.github.com",
-					"*.invalid..com", // Double dot
-					"valid.example.com",
-				},
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range testValidateSafeOutputsAllowedDomainsIntegrationCases() {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewCompiler()
 			err := c.validateSafeOutputsAllowedDomains(tt.config)
@@ -624,5 +388,14 @@ func TestValidateSafeOutputsAllowedDomainsIntegration(t *testing.T) {
 				assert.NoError(t, err)
 			}
 		})
+	}
+}
+
+func testValidateSafeOutputsAllowedDomainsIntegrationCases() []safeOutputsAllowedDomainsTestCase {
+	return []safeOutputsAllowedDomainsTestCase{
+		{name: "typical configuration", config: &SafeOutputsConfig{AllowedDomains: []string{"api.github.com", "*.githubusercontent.com", "raw.githubusercontent.com"}}, wantErr: false},
+		{name: "multi-repository configuration", config: &SafeOutputsConfig{AllowedDomains: []string{"*.github.com", "*.gitlab.com", "api.bitbucket.org"}}, wantErr: false},
+		{name: "CDN and API domains", config: &SafeOutputsConfig{AllowedDomains: []string{"cdn.example.com", "*.cdn.example.com", "api-v2.example.com"}}, wantErr: false},
+		{name: "configuration with error in list", config: &SafeOutputsConfig{AllowedDomains: []string{"api.github.com", "*.invalid..com", "valid.example.com"}}, wantErr: true},
 	}
 }

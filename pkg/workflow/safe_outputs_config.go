@@ -449,7 +449,8 @@ func (c *Compiler) applySafeOutputsMessageConfig(config *SafeOutputsConfig, outp
 	}
 	if err := preprocessBoolFieldAsString(outputMap, "activation-comments", safeOutputsConfigLog); err != nil {
 		safeOutputsConfigLog.Printf("activation-comments: %v", err)
-	} else if activationComments, exists := outputMap["activation-comments"]; exists {
+	}
+	if activationComments, exists := outputMap["activation-comments"]; exists {
 		if activationCommentsStr, ok := activationComments.(string); ok && activationCommentsStr != "" {
 			if config.Messages == nil {
 				config.Messages = &SafeOutputMessagesConfig{}
