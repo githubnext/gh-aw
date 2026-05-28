@@ -630,6 +630,7 @@ func TestFixCommand_UpdatesPromptAndAgentFiles(t *testing.T) {
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
 
 	if _, err := exec.LookPath("git"); err != nil {
+		// Skip when git isn't available in the test environment.
 		t.Skip("Git not available")
 	}
 
@@ -637,7 +638,9 @@ func TestFixCommand_UpdatesPromptAndAgentFiles(t *testing.T) {
 	originalDir, err := os.Getwd()
 	require.NoError(t, err, "Failed to get current directory")
 	t.Cleanup(func() {
-		require.NoError(t, os.Chdir(originalDir), "Failed to restore current directory")
+		if chdirErr := os.Chdir(originalDir); chdirErr != nil {
+			t.Errorf("Failed to restore current directory: %v", chdirErr)
+		}
 	})
 
 	require.NoError(t, os.Chdir(tmpDir), "Failed to change to temp directory")
