@@ -263,7 +263,22 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   // Using --parents emits each line as "<sha> <parent1> [<parent2> ...]", which lets us detect merge commits
   // (more than one parent) in a single subprocess call without iterating each SHA individually.
   const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${baseRef}..HEAD`], { cwd });
-  const revListLines = revListOut.trim().split("\n").filter(Boolean);
+  const revListLinesRaw = revListOut.trim().split("\n").filter(Boolean);
+  /** @type {string | undefined} */
+  let baseRefOid;
+  try {
+    const { stdout: baseRefOut } = await exec.getExecOutput("git", ["rev-parse", baseRef], { cwd });
+    const trimmedBaseRefOid = baseRefOut.trim();
+    if (trimmedBaseRefOid) {
+      baseRefOid = trimmedBaseRefOid;
+    }
+  } catch (baseRefResolveError) {
+    core.warning(`pushSignedCommits: could not resolve baseRef '${baseRef}' to an OID before replay: ${baseRefResolveError instanceof Error ? baseRefResolveError.message : String(baseRefResolveError)}`);
+  }
+  const revListLines = baseRefOid !== undefined ? revListLinesRaw.filter(line => line.split(" ")[0] !== baseRefOid) : revListLinesRaw;
+  if (baseRefOid !== undefined && revListLinesRaw.length !== revListLines.length) {
+    core.info(`pushSignedCommits: dropped ${revListLinesRaw.length - revListLines.length} baseRef boundary commit(s) from replay set`);
+  }
   const shas = revListLines.map(line => line.split(" ")[0]);
 
   if (shas.length === 0) {
@@ -426,8 +441,13 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           // Resolve the parent OID, create the branch on the remote via the REST API,
           // then proceed with the signed-commit mutation as normal.
           core.info(`pushSignedCommits: branch ${branch} not yet on the remote, resolving parent OID for first commit`);
-          const { stdout: parentOut } = await exec.getExecOutput("git", ["rev-parse", `${sha}^`], { cwd });
-          expectedHeadOid = parentOut.trim();
+          if (baseRefOid !== undefined) {
+            expectedHeadOid = baseRefOid;
+            core.info(`pushSignedCommits: using baseRef OID for initial branch creation: ${expectedHeadOid}`);
+          } else {
+            const { stdout: parentOut } = await exec.getExecOutput("git", ["rev-parse", `${sha}^`], { cwd });
+            expectedHeadOid = parentOut.trim();
+          }
           if (!expectedHeadOid) {
             throw new Error(`${ERR_API}: Could not resolve OID for new branch ${branch}`);
           }
