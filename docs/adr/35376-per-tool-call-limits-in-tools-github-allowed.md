@@ -14,7 +14,7 @@
 
 ### Decision
 
-We will extend `tools.github.allowed` to accept structured entries that carry a per-tool call cap, in addition to the existing string entries. Three syntaxes are accepted for an entry: a plain string `"tool"` (unchanged, no cap), an object `{name: "tool", max-calls: N}` (or `{name: "tool", max: N}` as an alias), and a shorthand string `"tool:N"`. Caps are collected into a `tool-call-limits: { "<tool>": <n> }` map under the existing `allow-only` guard policy, and enforcement is delegated to the MCP gateway/firewall layer — the compiler emits policy only. When a workflow declares call limits but no `allowed-repos`/`repos` or `min-integrity`, the generated `allow-only` policy is still emitted with `repos: "all"` because the gateway requires `repos` to be present on any allow-only block.
+We will extend `tools.github.allowed` to accept structured entries that carry a per-tool call cap, in addition to the existing string entries. Three syntaxes are accepted for an entry: a plain string `"tool"` (unchanged, no cap), an object `{name: "tool", max-calls: N}`, and a shorthand string `"tool:N"`. Caps are collected into a `tool-call-limits: { "<tool>": <n> }` map under the existing `allow-only` guard policy, and enforcement is delegated to the MCP gateway/firewall layer — the compiler emits policy only. When a workflow declares call limits but no `allowed-repos`/`repos` or `min-integrity`, the generated `allow-only` policy is still emitted with `repos: "all"` because the gateway requires `repos` to be present on any allow-only block.
 
 ### Alternatives Considered
 
@@ -38,13 +38,12 @@ Accept only the explicit object form `{name: "tool", max-calls: N}` and reject t
 - Existing workflows with string-only `allowed` lists keep working unchanged; the new schema is strictly additive, so no migration is required.
 - Co-locating the cap with the tool name (object or shorthand) means a reviewer reading the YAML sees both pieces of information at once, and schema validation catches drift.
 - Enforcement lives at the same MCP gateway seam that already handles `repos` and `min-integrity`, so the firewall/gateway team owns one policy surface, not two.
-- The `max` alias for `max-calls` keeps the object form concise when authors want to write `{name: ..., max: 1}` inline.
 
 #### Negative
 
-- Three accepted syntaxes for the same concept (object `max-calls`, object `max` alias, shorthand `tool:N`) increases the teaching surface; the reference docs must enumerate all three and pick one as canonical or risk inconsistent usage across the repo's own workflows.
+- Two accepted syntaxes for the same concept (object `max-calls`, shorthand `tool:N`) increases the teaching surface; the reference docs must enumerate both and pick one as canonical or risk inconsistent usage across the repo's own workflows.
 - The `allowed` array schema changes from a plain string array to a `oneOf` of string and object, which is harder for YAML-aware editors (and humans) to autocomplete than a flat string array.
-- Invalid limit values are silently dropped rather than rejected: `parseGitHubAllowedToolsAndLimits` skips `max-calls`/`max` that fail `typeutil.ParseIntValue` or are `<= 0`, and `parseGitHubAllowedShorthand` returns `hasLimit = false` on parse failure. A typo (`max-calls: "one"`) becomes an unlimited tool, not a compile error.
+- Invalid limit values are silently dropped rather than rejected: `parseGitHubAllowedToolsAndLimits` skips `max-calls` values that fail `typeutil.ParseIntValue` or are `<= 0`, and `parseGitHubAllowedShorthand` returns `hasLimit = false` on parse failure. A typo (`max-calls: "one"`) becomes an unlimited tool, not a compile error.
 - The emitted `tool-call-limits` field only takes effect against an MCP gateway version that understands it; older gateways will ignore the cap and the workflow will run uncapped. There is no compile-time check that the targeted gateway version supports the field.
 
 #### Neutral
@@ -61,14 +60,13 @@ Accept only the explicit object form `{name: "tool", max-calls: N}` and reject t
 
 ### `tools.github.allowed` Entry Syntax
 
-1. Each entry in `tools.github.allowed` **MUST** be one of: a plain string tool name, a shorthand string of the form `"<tool>:<positive-integer>"`, or an object with a required `name` field and an optional `max-calls` (or `max`) field.
+1. Each entry in `tools.github.allowed` **MUST** be one of: a plain string tool name, a shorthand string of the form `"<tool>:<positive-integer>"`, or an object with a required `name` field and an optional `max-calls` field.
 2. The schema for entries **MUST** be expressed as a `oneOf` of a `string` branch and an `object` branch with `additionalProperties: false` and `required: ["name"]`.
-3. The object branch **MUST** declare `max-calls` as `type: integer, minimum: 1` and **MUST** declare `max` as `type: integer, minimum: 1`.
+3. The object branch **MUST** declare `max-calls` as `type: integer, minimum: 1`.
 4. Plain string entries (without a `:` delimiter) **MUST** be treated as a tool name with no call limit.
 5. Shorthand entries `"<tool>:<n>"` **MUST** be parsed as a tool name and a positive integer limit; the limit **MUST** be discarded when the integer portion fails to parse or is `<= 0`, and the tool name **MUST NOT** be added to the allowed list in that case.
 6. Object entries **MUST** be skipped (neither the tool name nor a limit emitted) when `name` is missing, not a string, or empty after trimming whitespace.
-7. When both `max-calls` and `max` are present on the same object entry, the implementation **MUST** prefer `max-calls`.
-8. A `max-calls` or `max` value that is not a positive integer **MUST** result in the tool name being added to the allowed list without a call limit; the value **MUST NOT** raise a compile error.
+7. A `max-calls` value that is not a positive integer **MUST** result in the tool name being added to the allowed list without a call limit; the value **MUST NOT** raise a compile error.
 
 ### Parser Behavior
 
@@ -78,7 +76,7 @@ Accept only the explicit object form `{name: "tool", max-calls: N}` and reject t
 
 ### Guard Policy Emission
 
-1. When at least one `allowed` entry carries a positive `max-calls`/`max`, `getGitHubGuardPolicies` **MUST** emit an `allow-only` block containing a `tool-call-limits` map keyed by tool name with integer values.
+1. When at least one `allowed` entry carries a positive `max-calls`, `getGitHubGuardPolicies` **MUST** emit an `allow-only` block containing a `tool-call-limits` map keyed by tool name with integer values.
 2. The `allow-only` block emitted under condition (1) **MUST** also carry a `repos` field; when neither `allowed-repos` nor `repos` is configured on the tool, `repos` **MUST** default to `"all"`.
 3. The `tool-call-limits` map **MUST** only include tools whose limit successfully parsed as a positive integer; tools without limits **MUST NOT** appear as keys with value `0`.
 4. When no `allowed` entry carries a call limit and neither `allowed-repos`/`repos` nor `min-integrity` is configured, `getGitHubGuardPolicies` **MUST NOT** emit an `allow-only` block solely because `allowed` is non-empty.

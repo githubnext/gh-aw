@@ -3827,11 +3827,6 @@
                             "type": "integer",
                             "minimum": 1,
                             "description": "Maximum number of calls allowed for this tool per run"
-                          },
-                          "max": {
-                            "type": "integer",
-                            "minimum": 1,
-                            "description": "Alias for max-calls"
                           }
                         }
                       }

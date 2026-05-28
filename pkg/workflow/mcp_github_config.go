@@ -274,7 +274,7 @@ func getGitHubAllowedTools(githubTool any) []string {
 
 // parseGitHubAllowedToolsAndLimits parses tools.github.allowed entries.
 // Supports string entries, shorthand "tool:max" entries, and object entries:
-// {name: "tool_name", max-calls: 1} (or {name: "tool_name", max: 1} alias).
+// {name: "tool_name", max-calls: 1}.
 func parseGitHubAllowedToolsAndLimits(allowedSetting any) ([]string, map[string]int) {
 	allowedItems, ok := allowedSetting.([]any)
 	if !ok {
@@ -306,10 +306,6 @@ func parseGitHubAllowedToolsAndLimits(allowedSetting any) ([]string, map[string]
 			allowedTools = append(allowedTools, toolName)
 			if maxCalls, hasMax := entry["max-calls"]; hasMax {
 				if max, ok := typeutil.ParseIntValue(maxCalls); ok && max > 0 {
-					toolCallLimits[toolName] = max
-				}
-			} else if maxValue, hasMax := entry["max"]; hasMax {
-				if max, ok := typeutil.ParseIntValue(maxValue); ok && max > 0 {
 					toolCallLimits[toolName] = max
 				}
 			}

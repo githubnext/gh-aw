@@ -1432,4 +1432,7 @@ func TestMainWorkflowSchema_GitHubAllowedSupportsToolCallLimits(t *testing.T) {
 	if maxCalls["minimum"] != float64(1) {
 		t.Fatalf("expected max-calls minimum 1, got: %v", maxCalls["minimum"])
 	}
+	if _, hasMaxAlias := entryProps["max"]; hasMaxAlias {
+		t.Fatal("tools.github.allowed[].max alias should not be present")
+	}
 }

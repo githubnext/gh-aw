@@ -238,7 +238,7 @@ func TestGetGitHubGuardPoliciesToolCallLimits(t *testing.T) {
 				"min-integrity": "approved",
 				"allowed": []any{
 					"list_labels",
-					map[string]any{"name": "issue_read", "max": 2},
+					map[string]any{"name": "issue_read", "max-calls": 2},
 				},
 			},
 			expected: map[string]any{
