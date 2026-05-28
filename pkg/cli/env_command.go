@@ -105,7 +105,8 @@ func NewEnvCommand() *cobra.Command {
 		Long: `Manage compiler default variables in batch for repository, organization, or enterprise scope.
 
 The YAML file is flat and uses default_-prefixed lowercase keys (e.g. default_max_turns).
-Set a field to null in update mode to delete the variable from the selected scope.`,
+Set a field to null (or omit it) in update mode to delete the variable from the selected scope.
+Any field with a non-null string value will be set or updated.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
