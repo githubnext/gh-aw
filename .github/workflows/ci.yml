@@ -1610,8 +1610,8 @@ jobs:
       if: always() && hashFiles(format('coverage-redirect-{0}.out', matrix.os)) != ''
       run: |
         go install github.com/boumenot/gocover-cobertura@v1.5.0
-        $gocover = "$(go env GOPATH)/bin/gocover-cobertura"
-        if (Test-Path "$gocover.exe") { $gocover = "$gocover.exe" }
+        $gocover = "$(go env GOPATH)/bin/gocover-cobertura.exe"
+        if (-not (Test-Path $gocover)) { $gocover = "$(go env GOPATH)/bin/gocover-cobertura" }
         Get-Content "coverage-redirect-${{ matrix.os }}.out" | & $gocover | Out-File "coverage-redirect-${{ matrix.os }}.xml" -Encoding utf8
       shell: pwsh
 
