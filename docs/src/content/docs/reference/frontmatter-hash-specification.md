@@ -215,13 +215,15 @@ Both Go and JavaScript implementations MUST:
 - Special characters and escaping
 - All workflows in the repository
 
-### 5.2 BFS Diamond-Import Test Vectors
+### 5.1 BFS Diamond-Import Test Vectors
 
 The following test vectors are normative and MUST produce the specified SHA-256 hash in both the
 Go and JavaScript implementations. These vectors exercise the three required corpus cases from
 **R-XLANG-001**: empty frontmatter, single-level import, and the diamond-import pattern.
 
-All hashes are verified in CI via `pkg/parser/frontmatter_hash_cross_language_test.go`.
+All hashes are verified in CI via `pkg/parser/frontmatter_hash_cross_language_test.go`
+(`TestFrontmatterHashVectorFH_BFS_002` and `TestFrontmatterHashVectorFH_BFS_003`; FH-BFS-001
+is covered by the existing `FH-TV-001` case).
 
 #### FH-BFS-001 — Empty Frontmatter
 
@@ -321,7 +323,7 @@ alphabetically. The BFS traversal order determines *which* files are included (d
 the canonical JSON representation sorts the collected entries before hashing so the hash is stable
 regardless of the order sibling imports appear in the frontmatter.
 
-### 5.1 Cross-Language Validation Protocol
+### 5.2 Cross-Language Validation Protocol
 
 The project maintains Go and JavaScript implementations of the frontmatter hash algorithm. A
 conforming change to either implementation MUST follow this validation protocol:

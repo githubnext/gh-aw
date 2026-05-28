@@ -364,12 +364,12 @@ Implementations SHOULD version their token weights and model multipliers so that
 
 When sub-agents are not fully observable, implementations MUST still report aggregate totals. Invocation nodes with incomplete data SHOULD be flagged to indicate missing information.
 
-### 8.6 Precision and Rounding
+### 8.5 Precision and Rounding
 
 **R-PREC-001**: The ET formula produces a floating-point intermediate value. Implementations MUST
-truncate (floor toward zero) this value to the nearest non-negative integer before serializing
-`derived.effective_tokens`. Rounding-to-nearest (round-half-up or round-half-even) MUST NOT be
-used for this field, as truncation ensures ET values are consistently conservative and comparable
+round this value to the nearest non-negative integer before serializing
+`derived.effective_tokens`. The reference implementation uses round-half-away-from-zero
+(`math.Round` in Go), which MUST be used to ensure ET values are consistent and comparable
 across reporting periods.
 
 **R-PREC-002**: Intermediate floating-point arithmetic MUST use IEEE 754 double precision (64-bit)
@@ -378,18 +378,18 @@ they introduce rounding errors for token counts above ~16 million that diverge f
 implementation.
 
 **R-PREC-003**: The `derived.base_weighted_tokens` field MUST be serialized as a
-floating-point value preserving the pre-truncation intermediate, rounded to at most six decimal
-places. This allows downstream consumers to reproduce the truncation step independently and to
+floating-point value preserving the pre-rounding intermediate, rounded to at most six decimal
+places. This allows downstream consumers to reproduce the rounding step independently and to
 audit the effect of the model multiplier.
 
 **Reference implementation behavior**: In the Go reference implementation
-(`pkg/parser/effective_tokens.go`), `derived.effective_tokens` is computed as
-`int(math.Floor(base_weighted_tokens * model_multiplier))`. The `math.Floor` call implements
-truncation for non-negative values; the result is cast to `int` and stored in a 64-bit integer
+(`pkg/cli/effective_tokens.go`), `derived.effective_tokens` is computed as
+`int(math.Round(base_weighted_tokens * model_multiplier))`. The `math.Round` call implements
+round-half-away-from-zero; the result is cast to `int` and stored in a 64-bit integer
 field. Any implementation that produces a different integer value for the same inputs is
 non-conforming.
 
-### 8.5 Safeguards
+### 8.6 Safeguards
 
 Implementations MUST apply the following safeguards to prevent unbounded ET accumulation from
 producing non-finite or non-interoperable outputs.
@@ -508,7 +508,9 @@ empty `invocations` array. Implementations MUST NOT fail, return `null`, or omit
 top-level fields when processing empty telemetry. Callers MAY emit a non-fatal warning to indicate
 that no usage data was available, but MUST NOT treat an empty graph as an error.
 
-Normative requirements: **R-SAFE-005** ET aggregation logic **MUST** detect overflow and non-finite arithmetic states
+Normative requirements: **R-SAFE-005**
+
+**R-SAFE-001**: ET aggregation logic **MUST** detect overflow and non-finite arithmetic states
 (`NaN`, `+Inf`, `-Inf`) before serializing output.
 
 **R-SAFE-002**: Implementations **MUST** enforce a maximum ET ceiling of

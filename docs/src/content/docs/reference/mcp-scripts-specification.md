@@ -358,9 +358,10 @@ Implementations SHOULD validate:
 4. **Description Length**: Tool descriptions are clear and concise (recommended 10-200 characters)
 5. **Timeout Reasonableness**: Timeout values are reasonable for tool purpose (warn if >600 seconds)
 
-**Sync note (2026-05-28)**: SM-IS-01 enforcement is now implemented. `validateStringInputLengths`
-has been added to `actions/setup/js/mcp_scripts_validation.cjs` and is called by the HTTP server
-in `actions/setup/js/mcp_scripts_mcp_server_http.cjs` immediately after required-field validation.
+**Sync note (2026-05-28)**: SM-IS-01 enforcement is now implemented across all MCP transport paths. `validateStringInputLengths`
+has been added to `actions/setup/js/mcp_scripts_validation.cjs` and is called by both the HTTP server
+in `actions/setup/js/mcp_scripts_mcp_server_http.cjs` and the shared stdio/core server in
+`actions/setup/js/mcp_server_core.cjs` immediately after required-field validation.
 Any string-typed input parameter whose UTF-8 byte length exceeds `MAX_STRING_INPUT_BYTES` (10 KB =
 10,240 bytes) causes the tool invocation to be rejected with a descriptive error before the handler
 is called. Implementations MUST NOT silently truncate oversized inputs. Verified by unit tests in
@@ -745,7 +746,7 @@ The following imports are automatically included:
 
 Additional imports MAY be added by the user in their code.
 
-#### 6.4.5 Module and Dependency Requirements
+#### 6.4.4 Module and Dependency Requirements
 
 **go.mod requirement**: Go tools that use external (non-standard-library) packages MUST supply a
 `go.mod` file. The `go.mod` content MUST be provided either:
@@ -770,7 +771,7 @@ conforming toolchain is available.
 **R-GO-002**: The runtime MUST NOT cache `go.mod` state across tool invocations. Each invocation
 MUST start from a clean module cache to ensure reproducible dependency resolution.
 
-#### 6.4.4 Example
+#### 6.4.5 Example
 
 ```yaml
 mcp-scripts:
@@ -1581,7 +1582,7 @@ and run `go test ./pkg/workflow/...` to verify conformance.
 | Marker | Implementation File(s) | Enforcement Path |
 |---|---|---|
 | SM-JS-01 | `pkg/workflow/mcp_scripts_generator.go`, `actions/setup/js/mcp_server_core.cjs` | `GenerateMCPScriptJavaScriptToolScript` emits per-tool JS handlers; `loadToolHandlers` in `mcp_server_core.cjs` executes handlers in isolated subprocesses |
-| SM-IS-01 | `actions/setup/js/mcp_scripts_mcp_server_http.cjs`, `actions/setup/js/mcp_scripts_validation.cjs` | `createMCPServer` → `validateRequiredFields` (presence checks only; 10KB string-length enforcement not currently implemented). Tracking issue: [#35257](https://github.com/github/gh-aw/issues/35257). |
+| SM-IS-01 | `actions/setup/js/mcp_scripts_mcp_server_http.cjs`, `actions/setup/js/mcp_server_core.cjs`, `actions/setup/js/mcp_scripts_validation.cjs` | `validateStringInputLengths` called after `validateRequiredFields` in both the HTTP server (`createMCPServer`) and the stdio/core server (`handleMessage`); rejects any string-typed input parameter whose UTF-8 byte length exceeds `MAX_STRING_INPUT_BYTES` (10,240 bytes). **Status: Implemented 2026-05-28.** |
 | SM-03 | `actions/setup/js/mcp_server_core.cjs`, `actions/setup/js/mcp_scripts_mcp_server_http.cjs` | Tool-call response path serializes handler output before returning MCP `content`; raw passthrough handling is centralized in server transport/handler pipeline |
 
 ### Implementation Notes
