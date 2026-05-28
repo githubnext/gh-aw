@@ -686,15 +686,15 @@ function normalizeStateValue(key, value) {
 }
 
 function hashOutcomeBody(body) {
+  const normalized = String(body || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map(line => line.replace(/[ \t]+$/g, ""))
+    .join("\n")
+    .trim();
   return crypto
     .createHash("sha256")
-    .update(
-      String(body || "")
-        .replace(/\r\n/g, "\n")
-        .replace(/[ \t]+\n/g, "\n")
-        .trim(),
-      "utf8"
-    )
+    .update(normalized, "utf8")
     .digest("hex");
 }
 

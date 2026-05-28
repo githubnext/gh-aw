@@ -3,9 +3,11 @@
 const crypto = require("crypto");
 
 function normalizeBodyForHash(body) {
-  return String(body || "")
-    .replace(/\r\n/g, "\n")
-    .replace(/[ \t]+\n/g, "\n")
+  const normalized = String(body || "").replace(/\r\n/g, "\n");
+  return normalized
+    .split("\n")
+    .map(line => line.replace(/[ \t]+$/g, ""))
+    .join("\n")
     .trim();
 }
 

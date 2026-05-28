@@ -147,6 +147,9 @@ async function executePRUpdate(github, context, prNumber, updateData) {
   }
 
   if (Object.keys(apiData).length === 0) {
+    // update_branch-only operations need the authoritative post-update PR state so the
+    // manifest can persist after_state fields such as head_sha/base/draft for later
+    // retained-update evaluation. A synthetic {number, html_url} result is not enough.
     const { data: pullRequest } = await github.rest.pulls.get({
       owner: context.repo.owner,
       repo: context.repo.repo,
