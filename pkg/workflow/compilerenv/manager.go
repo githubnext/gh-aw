@@ -132,6 +132,13 @@ func BuildModelOverrideExpression(primaryVar, enterpriseDefaultVar, builtinFallb
 	return fmt.Sprintf("${{ vars.%s || vars.%s || '%s' }}", primaryVar, enterpriseDefaultVar, escaped)
 }
 
+// BuildModelOverrideExpressionWithSecondary builds a vars expression with primary model var,
+// secondary model var, enterprise default model var, and built-in fallback model.
+func BuildModelOverrideExpressionWithSecondary(primaryVar, secondaryVar, enterpriseDefaultVar, builtinFallback string) string {
+	escaped := strings.ReplaceAll(builtinFallback, "'", "''")
+	return fmt.Sprintf("${{ vars.%s || vars.%s || vars.%s || '%s' }}", primaryVar, secondaryVar, enterpriseDefaultVar, escaped)
+}
+
 // BuildModelOverrideExpressionEmptyFallback builds a vars expression with primary model var,
 // enterprise default model var, and empty string fallback.
 func BuildModelOverrideExpressionEmptyFallback(primaryVar, enterpriseDefaultVar string) string {

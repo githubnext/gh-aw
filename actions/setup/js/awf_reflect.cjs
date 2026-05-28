@@ -38,6 +38,7 @@ const AWF_MODELS_URL_MAX_ATTEMPTS = 5;
 const AWF_MODELS_URL_RETRY_BASE_MS = 250;
 // Cap for exponential backoff delay between retries.
 const AWF_MODELS_URL_RETRY_MAX_MS = 2000;
+const AWF_MODELS_EMPTY_RESPONSE_RETRY_CODE = "awf_models_empty_response";
 // Gemini model name prefix stripped from model IDs in the Gemini models API response.
 // Example: { name: "models/gemini-1.5-pro" } → "gemini-1.5-pro"
 const GEMINI_MODEL_NAME_PREFIX = "models/";
@@ -105,9 +106,13 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
     shouldRetry: error => {
       const original = error?.originalError || error;
       const status = original?.status ?? original?.response?.status ?? null;
-      const shouldRetry = status === 503;
+      const shouldRetry = status === 503 || original?.code === AWF_MODELS_EMPTY_RESPONSE_RETRY_CODE;
       if (shouldRetry && attemptCounter < AWF_MODELS_URL_MAX_ATTEMPTS) {
-        logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}; retrying (attempt ${attemptCounter + 1}/${AWF_MODELS_URL_MAX_ATTEMPTS})`);
+        if (status === 503) {
+          logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}; retrying (attempt ${attemptCounter + 1}/${AWF_MODELS_URL_MAX_ATTEMPTS})`);
+        } else {
+          logger(`awf-reflect: models list was empty for ${modelsUrl}; retrying (attempt ${attemptCounter + 1}/${AWF_MODELS_URL_MAX_ATTEMPTS})`);
+        }
       }
       return shouldRetry;
     },
@@ -134,6 +139,13 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
           }
           const json = await res.json();
           const models = extractModelIds(json);
+          if (!models) {
+            const err = Object.assign(new Error(`models list was empty for ${modelsUrl}`), {
+              status: 200,
+              code: AWF_MODELS_EMPTY_RESPONSE_RETRY_CODE,
+            });
+            throw err;
+          }
           if (models) {
             logger(`awf-reflect: fetched ${models.length} model(s) from ${modelsUrl}`);
           }
@@ -144,7 +156,8 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
             return null; // already logged above
           }
           const status = e?.status ?? e?.response?.status ?? null;
-          if (status === 503) {
+          const code = e?.code ?? e?.originalError?.code ?? null;
+          if (status === 503 || code === AWF_MODELS_EMPTY_RESPONSE_RETRY_CODE) {
             throw e;
           }
           logger(`awf-reflect: models fetch error for ${modelsUrl}: ${e.message}`);
@@ -160,8 +173,13 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
     const e = /** @type {Error} */ err;
     const original = e?.originalError || e;
     const status = original?.status ?? original?.response?.status ?? null;
+    const code = original?.code ?? null;
     if (status === 503) {
       logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}`);
+      return null;
+    }
+    if (code === AWF_MODELS_EMPTY_RESPONSE_RETRY_CODE) {
+      logger(`awf-reflect: models list was empty for ${modelsUrl}`);
       return null;
     }
     logger(`awf-reflect: models fetch error for ${modelsUrl}: ${e.message}`);
@@ -309,6 +327,7 @@ if (typeof module !== "undefined" && module.exports) {
     AWF_MODELS_URL_MAX_ATTEMPTS,
     AWF_MODELS_URL_RETRY_BASE_MS,
     AWF_MODELS_URL_RETRY_MAX_MS,
+    AWF_MODELS_EMPTY_RESPONSE_RETRY_CODE,
     GEMINI_MODEL_NAME_PREFIX,
     enrichReflectModels,
     extractModelIds,

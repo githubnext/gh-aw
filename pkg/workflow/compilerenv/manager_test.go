@@ -46,6 +46,16 @@ func TestBuildModelOverrideExpression(t *testing.T) {
 	)
 	assert.Equal(
 		t,
+		"${{ vars.GH_AW_MODEL_DETECTION_COPILOT || vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'gpt-5.5-mini' }}",
+		BuildModelOverrideExpressionWithSecondary(
+			"GH_AW_MODEL_DETECTION_COPILOT",
+			"GH_AW_MODEL_AGENT_COPILOT",
+			"GH_AW_DEFAULT_MODEL_COPILOT",
+			"gpt-5.5-mini",
+		),
+	)
+	assert.Equal(
+		t,
 		"${{ vars.GH_AW_MODEL_AGENT_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || '' }}",
 		BuildModelOverrideExpressionEmptyFallback("GH_AW_MODEL_AGENT_CLAUDE", "GH_AW_DEFAULT_MODEL_CLAUDE"),
 	)

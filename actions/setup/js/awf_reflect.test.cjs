@@ -13,6 +13,7 @@ const {
   AWF_MODELS_URL_MAX_ATTEMPTS,
   AWF_MODELS_URL_RETRY_BASE_MS,
   AWF_MODELS_URL_RETRY_MAX_MS,
+  AWF_MODELS_EMPTY_RESPONSE_RETRY_CODE,
   GEMINI_MODEL_NAME_PREFIX,
   enrichReflectModels,
   extractModelIds,
@@ -30,6 +31,7 @@ describe("awf_reflect.cjs", () => {
       expect(AWF_MODELS_URL_MAX_ATTEMPTS).toBe(5);
       expect(AWF_MODELS_URL_RETRY_BASE_MS).toBe(250);
       expect(AWF_MODELS_URL_RETRY_MAX_MS).toBe(2000);
+      expect(AWF_MODELS_EMPTY_RESPONSE_RETRY_CODE).toBe("awf_models_empty_response");
       expect(GEMINI_MODEL_NAME_PREFIX).toBe("models/");
     });
   });
@@ -203,6 +205,22 @@ describe("awf_reflect.cjs", () => {
       expect(result).toBeNull();
       expect(logs.filter(l => l.includes("retrying (attempt")).length).toBe(AWF_MODELS_URL_MAX_ATTEMPTS - 1);
       expect(logs.some(l => l.includes("models fetch returned 503"))).toBe(true);
+    });
+
+    it("retries when models endpoint returns empty payload before eventually succeeding", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [] }) })
+          .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [{ id: "gpt-4o" }] }) })
+      );
+
+      const logs = [];
+      const result = await fetchModelsFromUrl("http://api-proxy:10000/v1/models", 1000, msg => logs.push(msg));
+      expect(result).toEqual(["gpt-4o"]);
+      expect(logs.filter(l => l.includes("models list was empty")).length).toBeGreaterThanOrEqual(1);
+      expect(logs.some(l => l.includes("fetched 1 model(s)"))).toBe(true);
     });
   });
 

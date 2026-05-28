@@ -150,11 +150,13 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Build the copilot command
 	var copilotCommand string
 
-	// Determine model org variable name based on job type (used in env block below).
+	// Determine model org variable names based on job type (used in env block below).
 	// The model is always passed via the native COPILOT_MODEL env var - no --model flag needed.
 	var modelEnvVar string
+	var secondaryModelEnvVar string
 	if isDetectionJob {
 		modelEnvVar = constants.EnvVarModelDetectionCopilot
+		secondaryModelEnvVar = constants.EnvVarModelAgentCopilot
 	} else {
 		modelEnvVar = constants.EnvVarModelAgentCopilot
 	}
@@ -434,7 +436,16 @@ touch %s
 		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.EngineConfig.Model)
 		env[constants.CopilotCLIModelEnvVar] = workflowData.EngineConfig.Model
 	} else {
-		env[constants.CopilotCLIModelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
+		if secondaryModelEnvVar != "" {
+			env[constants.CopilotCLIModelEnvVar] = compilerenv.BuildModelOverrideExpressionWithSecondary(
+				modelEnvVar,
+				secondaryModelEnvVar,
+				compilerenv.DefaultModelCopilot,
+				constants.CopilotBYOKDefaultModel,
+			)
+		} else {
+			env[constants.CopilotCLIModelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
+		}
 	}
 
 	// Add custom environment variables from engine config
