@@ -335,8 +335,8 @@ func TestInitRepositoryWithNonCopilotEngineSkipsCopilotArtifacts(t *testing.T) {
 		t.Fatalf("InitRepository with --engine claude failed: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(".github", "agents", "agentic-workflows.agent.md")); err == nil {
-		t.Error("Expected dispatcher agent file to NOT be created for non-Copilot engine")
+	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")); err == nil {
+		t.Error("Expected dispatcher skill file to NOT be created for non-Copilot engine")
 	}
 	if _, err := os.Stat(mcpConfigFilePath); err == nil {
 		t.Error("Expected .github/mcp.json to NOT be created for non-Copilot engine")

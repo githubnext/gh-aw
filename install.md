@@ -43,7 +43,7 @@ gh aw init
 **What this does**:
 
 - Configures `.gitattributes` to mark `.lock.yml` files as generated
-- Creates `.github/agents/agentic-workflows.agent.md` as the dispatcher agent for AI workflows
+- Creates `.github/skills/agentic-workflows/SKILL.md` as the dispatcher skill for AI workflows
 - Configures VSCode settings in `.vscode/settings.json`
 - Creates GH-AW MCP server configuration in `.github/mcp.json`
 - Creates `.github/workflows/copilot-setup-steps.yml` with setup instructions
@@ -61,7 +61,7 @@ git status
 You should see new/modified files including:
 
 - `.gitattributes`
-- `.github/agents/agentic-workflows.agent.md`
+- `.github/skills/agentic-workflows/SKILL.md`
 - `.vscode/settings.json`
 - `.github/mcp.json`
 

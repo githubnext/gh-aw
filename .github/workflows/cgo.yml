@@ -516,11 +516,11 @@ jobs:
 
         echo "✅ All lock files compiled with development build (no version in header)"
 
-    - name: Check agent file URLs use main branch
+    - name: Check skill file URLs use main branch
       run: |
-        echo "🔍 Checking .github/agents/agentic-workflows.agent.md for correct branch URLs..."
+        echo "🔍 Checking .github/skills/agentic-workflows/SKILL.md for correct branch URLs..."
 
-        AGENT_FILE=".github/agents/agentic-workflows.agent.md"
+        AGENT_FILE=".github/skills/agentic-workflows/SKILL.md"
 
         if [ ! -f "$AGENT_FILE" ]; then
           echo "⚠️  WARNING: $AGENT_FILE not found, skipping check"
@@ -538,7 +538,7 @@ jobs:
           echo "Lines with invalid URLs:"
           echo "$INVALID_URLS"
           echo ""
-          echo "💡 All GitHub URLs in agent files must reference the 'main' branch!"
+          echo "💡 All GitHub URLs in skill files must reference the 'main' branch!"
           echo ""
           echo "URLs should use the pattern:"
           echo "  https://github.com/github/gh-aw/blob/main/.github/aw/..."

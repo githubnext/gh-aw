@@ -17,9 +17,9 @@ import (
 
 var agentDownloadLog = logger.New("cli:agent_download")
 
-// downloadAgentFileFromGitHub downloads the agentic-workflows.agent.md file from GitHub
+// downloadAgentFileFromGitHub downloads the agentic-workflows SKILL.md file from GitHub.
 func downloadAgentFileFromGitHub(verbose bool) (string, error) {
-	agentDownloadLog.Print("Downloading agentic-workflows.agent.md from GitHub")
+	agentDownloadLog.Print("Downloading agentic-workflows SKILL.md from GitHub")
 
 	// Determine the ref to use (tag for releases, main for dev builds)
 	ref := "main"
@@ -37,7 +37,7 @@ func downloadAgentFileFromGitHub(verbose bool) (string, error) {
 	}
 
 	// Construct the raw GitHub URL
-	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/github/gh-aw/%s/.github/agents/agentic-workflows.agent.md", ref)
+	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/github/gh-aw/%s/.github/skills/agentic-workflows/SKILL.md", ref)
 	agentDownloadLog.Printf("Downloading from URL: %s", rawURL)
 
 	// Create HTTP client with timeout
@@ -61,20 +61,20 @@ func downloadAgentFileFromGitHub(verbose bool) (string, error) {
 			}
 			if content, ghErr := downloadAgentFileViaGHCLI(ref); ghErr == nil {
 				patchedContent := patchAgentFileURLs(content, ref)
-				agentDownloadLog.Printf("Successfully downloaded agent file via gh CLI (%d bytes)", len(patchedContent))
+				agentDownloadLog.Printf("Successfully downloaded skill file via gh CLI (%d bytes)", len(patchedContent))
 				return patchedContent, nil
 			} else {
 				agentDownloadLog.Printf("gh CLI fallback failed: %v", ghErr)
 			}
 		}
 		_, _ = io.Copy(io.Discard, resp.Body)
-		return "", fmt.Errorf("failed to download agent file: HTTP %d", resp.StatusCode)
+		return "", fmt.Errorf("failed to download skill file: HTTP %d", resp.StatusCode)
 	}
 
 	// Read the content
 	content, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read agent file content: %w", err)
+		return "", fmt.Errorf("failed to read skill file content: %w", err)
 	}
 
 	contentStr := string(content)
@@ -85,7 +85,7 @@ func downloadAgentFileFromGitHub(verbose bool) (string, error) {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Patched URLs to use ref: "+ref))
 	}
 
-	agentDownloadLog.Printf("Successfully downloaded agent file (%d bytes)", len(patchedContent))
+	agentDownloadLog.Printf("Successfully downloaded skill file (%d bytes)", len(patchedContent))
 	return patchedContent, nil
 }
 
@@ -104,12 +104,12 @@ func patchAgentFileURLs(content, ref string) string {
 	return content
 }
 
-// downloadAgentFileViaGHCLI downloads the agent file using the gh CLI with authentication.
+// downloadAgentFileViaGHCLI downloads the skill file using the gh CLI with authentication.
 // This is used as a fallback when the unauthenticated raw.githubusercontent.com download fails
 // (e.g., for private repositories accessed from codespaces).
 func downloadAgentFileViaGHCLI(ref string) (string, error) {
-	output, err := workflow.RunGH("Downloading agent file...", "api",
-		"/repos/github/gh-aw/contents/.github/agents/agentic-workflows.agent.md?ref="+url.QueryEscape(ref),
+	output, err := workflow.RunGH("Downloading skill file...", "api",
+		"/repos/github/gh-aw/contents/.github/skills/agentic-workflows/SKILL.md?ref="+url.QueryEscape(ref),
 		"--header", "Accept: application/vnd.github.raw")
 	if err != nil {
 		return "", fmt.Errorf("gh api download failed: %w", err)

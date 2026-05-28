@@ -19,13 +19,15 @@ func TestDeleteOldAgentFiles(t *testing.T) {
 		expectedDeleted []string // Files that should be deleted
 	}{
 		{
-			name: "deletes old agent files from .github/agents",
+			name: "deletes old agent files from .github/agents including dispatcher",
 			filesToCreate: []string{
+				".github/agents/agentic-workflows.agent.md",
 				".github/agents/create-agentic-workflow.agent.md",
 				".github/agents/debug-agentic-workflow.agent.md",
 				".github/agents/create-shared-agentic-workflow.agent.md",
 			},
 			expectedDeleted: []string{
+				".github/agents/agentic-workflows.agent.md",
 				".github/agents/create-agentic-workflow.agent.md",
 				".github/agents/debug-agentic-workflow.agent.md",
 				".github/agents/create-shared-agentic-workflow.agent.md",
@@ -74,6 +76,7 @@ func TestDeleteOldAgentFiles(t *testing.T) {
 				".github/agents/create-agentic-workflow.agent.md",
 				".github/agents/debug-agentic-workflow.agent.md",
 				".github/agents/create-shared-agentic-workflow.agent.md",
+				".github/agents/agentic-workflows.agent.md",
 				".github/agents/create-agentic-workflow.md",
 				".github/agents/create-shared-agentic-workflow.md",
 				".github/agents/setup-agentic-workflows.md",
@@ -85,6 +88,7 @@ func TestDeleteOldAgentFiles(t *testing.T) {
 				".github/agents/create-agentic-workflow.agent.md",
 				".github/agents/debug-agentic-workflow.agent.md",
 				".github/agents/create-shared-agentic-workflow.agent.md",
+				".github/agents/agentic-workflows.agent.md",
 				".github/agents/create-agentic-workflow.md",
 				".github/agents/create-shared-agentic-workflow.md",
 				".github/agents/setup-agentic-workflows.md",

@@ -36,7 +36,7 @@ Initialize a repository for agentic workflows.
 gh aw init
 ```
 
-Creates `.github/agents/agentic-workflows.agent.md` and supporting files.
+Creates `.github/skills/agentic-workflows/SKILL.md` and supporting files.
 
 **MCP equivalent**: Not available — run from a local terminal or use the `upgrade` tool for updates.
 

@@ -347,12 +347,12 @@ func runUpgradeCommand(opts upgradeOptions) error {
 	return nil
 }
 
-// updateAgentFiles updates the dispatcher agent file to the latest template
+// updateAgentFiles updates the dispatcher skill file to the latest template
 func updateAgentFiles(ctx context.Context, verbose bool) error {
-	// Update dispatcher agent
+	// Update dispatcher skill
 	if err := ensureAgenticWorkflowsDispatcher(verbose, false); err != nil {
-		upgradeLog.Printf("Failed to update dispatcher agent: %v", err)
-		return fmt.Errorf("failed to update dispatcher agent: %w", err)
+		upgradeLog.Printf("Failed to update dispatcher skill: %v", err)
+		return fmt.Errorf("failed to update dispatcher skill: %w", err)
 	}
 
 	// Upgrade copilot-setup-steps.yml version

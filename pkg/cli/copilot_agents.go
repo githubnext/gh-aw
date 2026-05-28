@@ -14,12 +14,12 @@ import (
 
 var copilotAgentsLog = logger.New("cli:copilot_agents")
 
-// ensureAgenticWorkflowsDispatcher ensures that .github/agents/agentic-workflows.agent.md contains the dispatcher agent
+// ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md contains the dispatcher skill
 func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error {
-	copilotAgentsLog.Print("Ensuring agentic workflows dispatcher agent")
+	copilotAgentsLog.Print("Ensuring agentic workflows dispatcher skill")
 
 	if skipInstructions {
-		copilotAgentsLog.Print("Skipping agent creation: instructions disabled")
+		copilotAgentsLog.Print("Skipping skill creation: instructions disabled")
 		return nil
 	}
 
@@ -28,19 +28,19 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 		return err // Not in a git repository, skip
 	}
 
-	targetDir := filepath.Join(gitRoot, ".github", "agents")
-	targetPath := filepath.Join(targetDir, "agentic-workflows.agent.md")
+	targetDir := filepath.Join(gitRoot, ".github", "skills", "agentic-workflows")
+	targetPath := filepath.Join(targetDir, "SKILL.md")
 
 	// Ensure the target directory exists
 	if err := os.MkdirAll(targetDir, constants.DirPermPublic); err != nil {
-		return fmt.Errorf("failed to create .github/agents directory: %w", err)
+		return fmt.Errorf("failed to create .github/skills/agentic-workflows directory: %w", err)
 	}
 
-	// Download the agent file from GitHub
+	// Download the skill file from GitHub
 	agentContent, err := downloadAgentFileFromGitHub(verbose)
 	if err != nil {
-		copilotAgentsLog.Printf("Failed to download agent file from GitHub: %v", err)
-		return fmt.Errorf("failed to download agent file from GitHub: %w", err)
+		copilotAgentsLog.Printf("Failed to download skill file from GitHub: %v", err)
+		return fmt.Errorf("failed to download skill file from GitHub: %w", err)
 	}
 
 	// Check if the file already exists and matches the downloaded content
@@ -52,29 +52,29 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 	// Check if content matches the downloaded template
 	expectedContent := strings.TrimSpace(agentContent)
 	if strings.TrimSpace(existingContent) == expectedContent {
-		copilotAgentsLog.Printf("Dispatcher agent is up-to-date: %s", targetPath)
+		copilotAgentsLog.Printf("Dispatcher skill is up-to-date: %s", targetPath)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dispatcher agent is up-to-date: "+targetPath))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dispatcher skill is up-to-date: "+targetPath))
 		}
 		return nil
 	}
 
 	// Write the file with restrictive permissions (0600) to follow security best practices
-	// Agent files may contain sensitive configuration
+	// Skill files may contain sensitive configuration
 	if err := os.WriteFile(targetPath, []byte(agentContent), constants.FilePermSensitive); err != nil {
-		copilotAgentsLog.Printf("Failed to write dispatcher agent: %s, error: %v", targetPath, err)
-		return fmt.Errorf("failed to write dispatcher agent: %w", err)
+		copilotAgentsLog.Printf("Failed to write dispatcher skill: %s, error: %v", targetPath, err)
+		return fmt.Errorf("failed to write dispatcher skill: %w", err)
 	}
 
 	if existingContent == "" {
-		copilotAgentsLog.Printf("Created dispatcher agent: %s", targetPath)
+		copilotAgentsLog.Printf("Created dispatcher skill: %s", targetPath)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher agent: "+targetPath))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher skill: "+targetPath))
 		}
 	} else {
-		copilotAgentsLog.Printf("Updated dispatcher agent: %s", targetPath)
+		copilotAgentsLog.Printf("Updated dispatcher skill: %s", targetPath)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated dispatcher agent: "+targetPath))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated dispatcher skill: "+targetPath))
 		}
 	}
 
@@ -194,6 +194,7 @@ func deleteOldAgentFiles(verbose bool) error {
 	// Map of subdirectory to list of files to delete
 	filesToDelete := map[string][]string{
 		"agents": {
+			"agentic-workflows.agent.md",
 			"create-agentic-workflow.agent.md",
 			"debug-agentic-workflow.agent.md",
 			"create-shared-agentic-workflow.agent.md",

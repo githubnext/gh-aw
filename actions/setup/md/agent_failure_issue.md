@@ -29,7 +29,7 @@ The failed workflow run is at {run_url}
 Debug this workflow failure using your favorite Agent CLI and the `agentic-workflows` prompt.
 
 - Start your agent
-- Load the `agentic-workflows` prompt from `.github/agents/agentic-workflows.agent.md` or <https://github.com/github/gh-aw/blob/main/.github/agents/agentic-workflows.agent.md>
+- Load the `agentic-workflows` skill from `.github/skills/agentic-workflows/SKILL.md` or <https://github.com/github/gh-aw/blob/main/.github/skills/agentic-workflows/SKILL.md>
 - Type `debug the agentic workflow {workflow_id} failure in {run_url}`
 
 </details>

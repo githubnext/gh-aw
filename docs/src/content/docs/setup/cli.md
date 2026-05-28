@@ -132,7 +132,7 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 
 #### `init`
 
-Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher agent file (`.github/agents/agentic-workflows.agent.md`), and performs non-interactive setup. Enables MCP server integration by default (use `--no-mcp` to skip). Use `--engine` to select a non-Copilot engine and skip Copilot-specific artifacts.
+Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher skill file (`.github/skills/agentic-workflows/SKILL.md`), and performs non-interactive setup. Enables MCP server integration by default (use `--no-mcp` to skip). Use `--engine` to select a non-Copilot engine and skip Copilot-specific artifacts.
 
 ```bash wrap
 gh aw init                              # Initialize repository with defaults (non-interactive)
