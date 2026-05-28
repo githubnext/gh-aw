@@ -347,8 +347,10 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	awfConfigLog.Printf("AWF config JSON generated: %d bytes", len(jsonStr))
 
-	if err := validateAWFConfigJSON(jsonStr); err != nil {
-		return "", fmt.Errorf("generated AWF config failed schema validation: %w", err)
+	if config.WorkflowData != nil && config.WorkflowData.ValidateAWFConfig {
+		if err := validateAWFConfigJSON(jsonStr); err != nil {
+			return "", fmt.Errorf("generated AWF config failed schema validation: %w", err)
+		}
 	}
 
 	return jsonStr, nil

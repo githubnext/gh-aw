@@ -67,6 +67,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		TrialLogicalRepo:      c.trialLogicalRepoSlug,
 		StrictMode:            c.strictMode,
 		AllowActionRefs:       c.allowActionRefs,
+		ValidateAWFConfig:     !c.skipValidation,
 		SecretMasking:         toolsResult.secretMasking,
 		ParsedFrontmatter:     toolsResult.parsedFrontmatter,
 		RawFrontmatter:        result.Frontmatter,

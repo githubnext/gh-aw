@@ -47,10 +47,23 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	consolidatedSafeOutputsStepsLog.Print("Building shared PR checkout steps")
 	var steps []string
 	fetchDepth := 1
+	var sparsePatterns []string
 
-	if defaultCheckout := NewCheckoutManager(data.CheckoutConfigs).GetDefaultCheckoutOverride(); defaultCheckout != nil && defaultCheckout.fetchDepth != nil {
-		fetchDepth = *defaultCheckout.fetchDepth
-		consolidatedSafeOutputsStepsLog.Printf("Using custom checkout fetch-depth for safe_outputs: %d", fetchDepth)
+	// Build a single CheckoutManager so we can query both the default and cross-repo entries.
+	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
+
+	// Same-repo fallback: use the default (workspace-root) checkout's fetch-depth and
+	// sparse-checkout patterns. Both are overridden below for cross-repo targets once
+	// targetRepoSlug is known.
+	if defaultCheckout := checkoutMgr.GetDefaultCheckoutOverride(); defaultCheckout != nil {
+		if defaultCheckout.fetchDepth != nil {
+			fetchDepth = *defaultCheckout.fetchDepth
+			consolidatedSafeOutputsStepsLog.Printf("Using custom checkout fetch-depth for safe_outputs: %d", fetchDepth)
+		}
+		if len(defaultCheckout.sparsePatterns) > 0 {
+			sparsePatterns = defaultCheckout.sparsePatterns
+			consolidatedSafeOutputsStepsLog.Printf("Using %d sparse-checkout pattern(s) from default checkout for safe_outputs", len(sparsePatterns))
+		}
 	}
 
 	// Determine which token to use for checkout
@@ -88,6 +101,24 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	} else if c.trialMode && c.trialLogicalRepoSlug != "" {
 		targetRepoSlug = c.trialLogicalRepoSlug
 		consolidatedSafeOutputsStepsLog.Printf("Using trialLogicalRepoSlug: %s", targetRepoSlug)
+	}
+
+	// For cross-repo targets, override fetch-depth and sparse-checkout patterns
+	// from the checkout: config entry that targets the same repository.  The agent
+	// job already uses these values; the safe_outputs job must mirror them so that
+	// (a) large repos are not checked out in full unnecessarily and (b) the working
+	// tree is consistent with what the agent operated on.
+	if targetRepoSlug != "" {
+		if targetEntry := checkoutMgr.GetCheckoutForRepository(targetRepoSlug); targetEntry != nil {
+			if targetEntry.fetchDepth != nil {
+				fetchDepth = *targetEntry.fetchDepth
+				consolidatedSafeOutputsStepsLog.Printf("Using checkout fetch-depth for cross-repo target %s: %d", targetRepoSlug, fetchDepth)
+			}
+			if len(targetEntry.sparsePatterns) > 0 {
+				sparsePatterns = targetEntry.sparsePatterns
+				consolidatedSafeOutputsStepsLog.Printf("Using %d sparse-checkout pattern(s) for cross-repo target %s", len(sparsePatterns), targetRepoSlug)
+			}
+		}
 	}
 
 	// Determine the ref (branch) to checkout
@@ -149,6 +180,12 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
 		steps = append(steps, "          persist-credentials: false\n")
 		steps = append(steps, fmt.Sprintf("          fetch-depth: %d\n", fetchDepth))
+		if len(sparsePatterns) > 0 {
+			steps = append(steps, "          sparse-checkout: |\n")
+			for _, pattern := range sparsePatterns {
+				steps = append(steps, fmt.Sprintf("            %s\n", strings.TrimSpace(pattern)))
+			}
+		}
 	}
 
 	// Step 1b: Checkout repository with conditional execution
@@ -172,6 +209,12 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
 	steps = append(steps, "          persist-credentials: false\n")
 	steps = append(steps, fmt.Sprintf("          fetch-depth: %d\n", fetchDepth))
+	if len(sparsePatterns) > 0 {
+		steps = append(steps, "          sparse-checkout: |\n")
+		for _, pattern := range sparsePatterns {
+			steps = append(steps, fmt.Sprintf("            %s\n", strings.TrimSpace(pattern)))
+		}
+	}
 
 	// Step 2: Configure Git credentials with conditional execution
 	// Security: Pass GitHub token through environment variable to prevent template injection
@@ -207,7 +250,6 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// Without this, applyBundleToBranch must fall back to per-SHA git fetch (prerequisite
 	// recovery), which requires uploadpack.allowReachableSHA1InWant on the server.
 	if targetRepoSlug != "" {
-		checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
 		if matchedEntry := checkoutMgr.GetCheckoutForRepository(targetRepoSlug); matchedEntry != nil && len(matchedEntry.fetchRefs) > 0 {
 			consolidatedSafeOutputsStepsLog.Printf("Adding fetch refs step for cross-repo target %s (%d refs)", targetRepoSlug, len(matchedEntry.fetchRefs))
 			if fetchStep := buildSafeOutputsFetchRefsStep(targetRepoSlug, checkoutToken, matchedEntry.fetchRefs, RenderCondition(condition)); fetchStep != "" {
