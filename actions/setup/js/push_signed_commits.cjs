@@ -258,11 +258,27 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     }
   }
 
+  /** @type {string | undefined} */
+  let baseRefOid;
+  try {
+    const { stdout: baseRefOut } = await exec.getExecOutput("git", ["rev-parse", `${baseRef}^{commit}`], { cwd });
+    const trimmedBaseRefOid = baseRefOut.trim();
+    if (/^[0-9a-f]{40}$/i.test(trimmedBaseRefOid)) {
+      baseRefOid = trimmedBaseRefOid;
+    } else if (trimmedBaseRefOid) {
+      core.warning(`pushSignedCommits: git rev-parse returned an unexpected baseRef OID value for '${baseRef}'; boundary-commit filter is disabled for this run: ${JSON.stringify(trimmedBaseRefOid)}`);
+    }
+  } catch (baseRefResolveError) {
+    core.warning(
+      `pushSignedCommits: could not resolve baseRef '${baseRef}' to OID; boundary-commit filter is disabled for this run and parent OID resolution may fall back to per-commit rev-parse: ${baseRefResolveError instanceof Error ? baseRefResolveError.message : String(baseRefResolveError)}`
+    );
+  }
   // Collect the commits introduced (oldest-first) using topological order to ensure
   // correct sequencing even when commit dates are out of sync (e.g. after rebase --committer-date-is-author-date).
   // Using --parents emits each line as "<sha> <parent1> [<parent2> ...]", which lets us detect merge commits
   // (more than one parent) in a single subprocess call without iterating each SHA individually.
-  const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${baseRef}..HEAD`], { cwd });
+  const revListBase = baseRefOid ?? baseRef;
+  const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${revListBase}..HEAD`], { cwd });
   const revListEntriesRaw = revListOut
     .trim()
     .split("\n")
@@ -271,19 +287,6 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       const fields = line.split(" ");
       return { line, fields, sha: fields[0] };
     });
-  /** @type {string | undefined} */
-  let baseRefOid;
-  try {
-    const { stdout: baseRefOut } = await exec.getExecOutput("git", ["rev-parse", baseRef], { cwd });
-    const trimmedBaseRefOid = baseRefOut.trim();
-    if (trimmedBaseRefOid) {
-      baseRefOid = trimmedBaseRefOid;
-    }
-  } catch (baseRefResolveError) {
-    core.warning(
-      `pushSignedCommits: could not resolve baseRef '${baseRef}' to OID; will use per-commit parent resolution if branch creation needs it: ${baseRefResolveError instanceof Error ? baseRefResolveError.message : String(baseRefResolveError)}`
-    );
-  }
   const revListEntries = baseRefOid !== undefined ? revListEntriesRaw.filter(entry => entry.sha !== baseRefOid) : revListEntriesRaw;
   const droppedBoundaryCount = revListEntriesRaw.length - revListEntries.length;
   if (baseRefOid !== undefined && droppedBoundaryCount > 0) {
@@ -478,6 +481,12 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
             // GitHub returns 422 "Reference refs/heads/<branch> already exists". Treat that as success and continue.
             if (status === 422 && /reference.*already exists/i.test(message)) {
               core.info(`pushSignedCommits: remote branch ${branch} was created concurrently (422 Reference already exists); continuing with signed commits`);
+              const { stdout: refreshedOidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) } });
+              const refreshedHeadOid = refreshedOidOut.trim().split(/\s+/)[0];
+              if (!refreshedHeadOid) {
+                throw new Error(`${ERR_API}: Could not resolve remote branch OID for ${branch} after concurrent creation`);
+              }
+              expectedHeadOid = refreshedHeadOid;
             } else {
               throw createRefError;
             }
