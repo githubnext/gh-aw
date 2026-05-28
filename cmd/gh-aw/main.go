@@ -670,6 +670,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 
 	// Create and setup init command
 	initCmd := cli.NewInitCommand()
+	cli.RegisterEngineFlagCompletion(initCmd)
 
 	// Add flags to new command
 	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing files without confirmation")
