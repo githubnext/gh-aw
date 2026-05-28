@@ -280,9 +280,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       baseRefOid = trimmedBaseRefOid;
     }
   } catch (baseRefResolveError) {
-    core.warning(
-      `pushSignedCommits: could not resolve baseRef '${baseRef}' to an OID before replay; continuing with first-commit parent resolution fallback: ${baseRefResolveError instanceof Error ? baseRefResolveError.message : String(baseRefResolveError)}`
-    );
+    core.warning(`pushSignedCommits: could not resolve baseRef '${baseRef}' to OID; using first-commit parent fallback: ${baseRefResolveError instanceof Error ? baseRefResolveError.message : String(baseRefResolveError)}`);
   }
   const revListEntries = baseRefOid !== undefined ? revListEntriesRaw.filter(entry => entry.sha !== baseRefOid) : revListEntriesRaw;
   const droppedBoundaryCount = revListEntriesRaw.length - revListEntries.length;
