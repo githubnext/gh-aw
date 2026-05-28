@@ -233,8 +233,10 @@ gh aw env update defaults.yml --scope org --org MY_ORG
 `gh aw env update` shows a confirmation preview before applying changes.
 Pass `--yes` to skip the prompt in automation, or `--dry-run` to preview
 without changing any variables. Set a field to `null` to delete the
-corresponding variable from the target scope. Unknown YAML keys and invalid
-numeric defaults are rejected to prevent accidental misconfiguration.
+corresponding variable from the target scope. Unknown YAML keys are rejected,
+`default_max_turns` / `default_timeout_minutes` must be positive integers, and
+`default_max_effective_tokens` must be a non-zero integer (negative values
+disable token steering and budget enforcement).
 
 3. If you compile workflows in CI, pass compiler-read defaults into
 the compiler process environment (for example via `${{ vars.* }}`):

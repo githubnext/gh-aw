@@ -249,6 +249,24 @@ assert "integrity branch exists after recovery" \
   "git -C '${D}' rev-parse --verify none >/dev/null 2>&1"
 echo ""
 
+# ── Test 14: Daily SPDD rotation directory preflight is created and writable ──
+echo "Test 14: Daily SPDD rotation cache directory is writable"
+D="${WORKSPACE}/test14"
+make_cache_dir "${D}" "data.json"
+set +e
+OUTPUT="$(run_script "${D}" none)"
+EXIT_CODE=$?
+set -e
+assert "preflight exits successfully" \
+  "[ '${EXIT_CODE}' -eq 0 ]"
+assert "spdd-daily directory created" \
+  "[ -d '${D}/spdd-daily' ]"
+assert "spdd-daily directory writable" \
+  "[ -w '${D}/spdd-daily' ]"
+assert "preflight success message logged" \
+  "printf '%s' \"${OUTPUT}\" | grep -q 'Cache memory preflight write checks passed'"
+echo ""
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo "Tests passed: ${TESTS_PASSED}"
 echo "Tests failed: ${TESTS_FAILED}"

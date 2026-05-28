@@ -28,6 +28,40 @@ INTEGRITY="${GH_AW_MIN_INTEGRITY:-none}"
 # All integrity levels in descending order (highest first)
 LEVELS=("merged" "approved" "unapproved" "none")
 
+ensure_writable_dir() {
+  local dir="$1"
+  local purpose="$2"
+  local probe_file=""
+  local mkdir_err
+  local chmod_err
+  local write_err
+  mkdir_err="$(mktemp /tmp/gh-aw-cache-mkdir-err.XXXXXX)"
+  chmod_err="$(mktemp /tmp/gh-aw-cache-chmod-err.XXXXXX)"
+  write_err="$(mktemp /tmp/gh-aw-cache-write-err.XXXXXX)"
+
+  if ! mkdir -p "$dir" 2>"$mkdir_err"; then
+    echo "ERROR: cache-memory setup error: failed to create ${purpose} (${dir})" >&2
+    cat "$mkdir_err" >&2 || true
+    rm -f "$mkdir_err" "$chmod_err" "$write_err" 2>/dev/null || true
+    exit 1
+  fi
+
+  if ! chmod u+rwx "$dir" 2>"$chmod_err"; then
+    echo "ERROR: cache-memory setup error: ${purpose} is not writable (${dir})" >&2
+    cat "$chmod_err" >&2 || true
+    rm -f "$mkdir_err" "$chmod_err" "$write_err" 2>/dev/null || true
+    exit 1
+  fi
+
+  if ! probe_file="$(mktemp "${dir}/gh-aw-write-check.XXXXXX" 2>"$write_err")"; then
+    echo "ERROR: cache-memory setup error: ${purpose} is not writable (${dir})" >&2
+    cat "$write_err" >&2 || true
+    rm -f "$mkdir_err" "$chmod_err" "$write_err" 2>/dev/null || true
+    exit 1
+  fi
+  rm -f "$probe_file" "$mkdir_err" "$chmod_err" "$write_err" 2>/dev/null || true
+}
+
 initialize_cache_memory_git_repo() {
   # No git repo yet — either a fresh cache or a legacy flat-file cache.
   # Initialize a git repository with an empty baseline commit on the highest-trust
@@ -262,3 +296,9 @@ if [ "$IS_CACHE_HIT" = "true" ]; then
     "$_run_id" "$_timestamp" "$_post_file_count" > "cache-hit-history.json"
   echo "Cache hit history updated (run: $_run_id, files: $_post_file_count)"
 fi
+
+# Preflight write checks for known cache-memory paths required by daily planners.
+# Fail fast here so agent runs do not continue after a hidden permission problem.
+ensure_writable_dir "$CACHE_DIR" "cache-memory root directory"
+ensure_writable_dir "${CACHE_DIR}/spdd-daily" "Daily SPDD rotation cache directory"
+echo "Cache memory preflight write checks passed"

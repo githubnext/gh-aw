@@ -130,7 +130,7 @@ func TestDefaultsParseFileDisallowsUnknownFields(t *testing.T) {
 func TestDefaultsValidateFile(t *testing.T) {
 	t.Run("accepts valid values", func(t *testing.T) {
 		err := defaultsValidateFile(&defaultsFile{
-			DefaultMaxEffectiveTokens: strPtr("1000000"),
+			DefaultMaxEffectiveTokens: strPtr("-1"),
 			DefaultMaxTurns:           strPtr("12"),
 			DefaultTimeoutMinutes:     strPtr("30"),
 			DefaultDetectionModel:     strPtr("claude-sonnet-4.6"),
@@ -143,13 +143,13 @@ func TestDefaultsValidateFile(t *testing.T) {
 
 	t.Run("rejects invalid numeric and empty model values", func(t *testing.T) {
 		err := defaultsValidateFile(&defaultsFile{
-			DefaultMaxEffectiveTokens: strPtr("-1"),
+			DefaultMaxEffectiveTokens: strPtr("0"),
 			DefaultMaxTurns:           strPtr("abc"),
 			DefaultTimeoutMinutes:     strPtr("0"),
 			DefaultModelCopilot:       strPtr("   "),
 		})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "default_max_effective_tokens must be a positive integer when set")
+		assert.Contains(t, err.Error(), "default_max_effective_tokens must be a non-zero integer when set")
 		assert.Contains(t, err.Error(), "default_max_turns must be a positive integer when set")
 		assert.Contains(t, err.Error(), "default_timeout_minutes must be a positive integer when set")
 		assert.Contains(t, err.Error(), "default_model_copilot cannot be empty when set")

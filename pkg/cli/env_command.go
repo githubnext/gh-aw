@@ -253,6 +253,16 @@ func defaultsParseFile(inputFile string, data []byte) (defaultsFile, error) {
 func defaultsValidateFile(file *defaultsFile) error {
 	var validationErrors []string
 
+	validateNonZeroInt := func(field string, value *string) {
+		if value == nil {
+			return
+		}
+		trimmed := strings.TrimSpace(*value)
+		parsed, err := strconv.ParseInt(trimmed, 10, 64)
+		if err != nil || parsed == 0 {
+			validationErrors = append(validationErrors, fmt.Sprintf("%s must be a non-zero integer when set", field))
+		}
+	}
 	validatePositiveInt := func(field string, value *string) {
 		if value == nil {
 			return
@@ -272,7 +282,7 @@ func defaultsValidateFile(file *defaultsFile) error {
 		}
 	}
 
-	validatePositiveInt("default_max_effective_tokens", file.DefaultMaxEffectiveTokens)
+	validateNonZeroInt("default_max_effective_tokens", file.DefaultMaxEffectiveTokens)
 	validatePositiveInt("default_max_turns", file.DefaultMaxTurns)
 	validatePositiveInt("default_timeout_minutes", file.DefaultTimeoutMinutes)
 	validateNonEmpty("default_detection_model", file.DefaultDetectionModel)

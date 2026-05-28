@@ -39,6 +39,9 @@ For max effective tokens, precedence is:
 2. `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS`
 3. Built-in compiler default
 
+A negative `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS` disables AWF token steering and
+omits the budget limit when frontmatter does not set `max-effective-tokens`.
+
 For default timeout-minutes, precedence is:
 
 1. `timeout-minutes` in workflow frontmatter

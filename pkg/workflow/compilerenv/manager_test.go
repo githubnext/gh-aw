@@ -36,6 +36,11 @@ func TestResolveDefaultMaxEffectiveTokens(t *testing.T) {
 		t.Setenv(DefaultMaxEffectiveTokens, "424242")
 		assert.Equal(t, int64(424242), ResolveDefaultMaxEffectiveTokens(10))
 	})
+
+	t.Run("negative value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxEffectiveTokens, "-1")
+		assert.Equal(t, int64(-1), ResolveDefaultMaxEffectiveTokens(10))
+	})
 }
 
 func TestBuildModelOverrideExpression(t *testing.T) {
