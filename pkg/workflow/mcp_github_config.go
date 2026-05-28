@@ -308,8 +308,8 @@ func parseGitHubAllowedToolsAndLimits(allowedSetting any) ([]string, map[string]
 				if max, ok := typeutil.ParseIntValue(maxCalls); ok && max > 0 {
 					toolCallLimits[toolName] = max
 				}
-			} else if maxCalls, hasMax := entry["max"]; hasMax {
-				if max, ok := typeutil.ParseIntValue(maxCalls); ok && max > 0 {
+			} else if maxValue, hasMax := entry["max"]; hasMax {
+				if max, ok := typeutil.ParseIntValue(maxValue); ok && max > 0 {
 					toolCallLimits[toolName] = max
 				}
 			}
@@ -352,7 +352,10 @@ func parseGitHubAllowedShorthand(entry string) (string, int, bool) {
 // Returns nil if no guard policies are configured.
 func getGitHubGuardPolicies(githubTool any) map[string]any {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
-		_, toolCallLimits := parseGitHubAllowedToolsAndLimits(toolConfig["allowed"])
+		var toolCallLimits map[string]int
+		if allowedSetting, exists := toolConfig["allowed"]; exists {
+			_, toolCallLimits = parseGitHubAllowedToolsAndLimits(allowedSetting)
+		}
 		hasToolCallLimits := len(toolCallLimits) > 0
 
 		// Support both 'allowed-repos' (preferred) and deprecated 'repos'

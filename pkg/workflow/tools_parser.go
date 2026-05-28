@@ -208,6 +208,7 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		}
 
 		if allowedSetting, ok := configMap["allowed"]; ok {
+			// Tool call limits are enforced by MCP guard policies; parser keeps only tool names.
 			allowedTools, _ := parseGitHubAllowedToolsAndLimits(allowedSetting)
 			config.Allowed = make(GitHubAllowedTools, 0, len(allowedTools))
 			for _, toolName := range allowedTools {
