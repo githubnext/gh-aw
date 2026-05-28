@@ -55,6 +55,34 @@ async function main(config = {}) {
     core.info(`Allowed team reviewers: ${allowedTeamReviewers.join(", ")}`);
   }
 
+  /** @type {string|null} Copilot reviewer bot node ID, resolved once and cached per handler instance */
+  let copilotBotNodeIdCache = null;
+
+  /**
+   * Resolves the Copilot reviewer bot's GraphQL node ID for the current GitHub instance.
+   * Uses the REST users API so the result is correct on GitHub.com and GHES alike.
+   * Caches the resolved ID for the lifetime of this handler to avoid redundant requests.
+   * Falls back to the built-in GitHub.com constant when the API call fails.
+   * @returns {Promise<string>} GraphQL node ID for the Copilot reviewer bot
+   */
+  async function resolveCopilotBotNodeId() {
+    if (copilotBotNodeIdCache !== null) {
+      return copilotBotNodeIdCache;
+    }
+    try {
+      const response = await githubClient.rest.users.getByUsername({ username: COPILOT_REVIEWER_BOT });
+      const nodeId = response?.data?.node_id;
+      if (nodeId) {
+        copilotBotNodeIdCache = nodeId;
+        return nodeId;
+      }
+    } catch (err) {
+      core.warning(`Could not resolve Copilot reviewer bot node ID at runtime (${getErrorMessage(err)}); using built-in fallback`);
+    }
+    copilotBotNodeIdCache = COPILOT_REVIEWER_BOT_ID;
+    return COPILOT_REVIEWER_BOT_ID;
+  }
+
   let processedCount = 0;
 
   /**
@@ -199,7 +227,7 @@ async function main(config = {}) {
           `;
           await githubClient.graphql(requestReviewsMutation, {
             pullRequestId,
-            botIds: [COPILOT_REVIEWER_BOT_ID],
+            botIds: [await resolveCopilotBotNodeId()],
           });
 
           const response = await githubClient.rest.pulls.get({

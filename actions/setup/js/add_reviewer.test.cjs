@@ -28,6 +28,9 @@ const mockGithub = {
       listReviews: vi.fn().mockResolvedValue({ data: [{ id: 1, user: { login: "reviewer-a" }, state: "COMMENTED" }] }),
       requestReviewers: vi.fn().mockResolvedValue({}),
     },
+    users: {
+      getByUsername: vi.fn().mockResolvedValue({ data: { node_id: "BOT_kgDOCnlnWA" } }),
+    },
   },
 };
 
@@ -141,8 +144,40 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
       pull_number: 123,
       reviewers: ["user1"],
     });
+    expect(mockGithub.rest.users.getByUsername).toHaveBeenCalledWith({ username: "copilot-pull-request-reviewer[bot]" });
     expect(mockGithub.graphql).toHaveBeenNthCalledWith(1, expect.stringContaining("pullRequest(number: $number)"), expect.objectContaining({ owner: "testowner", repo: "testrepo", number: 123 }));
     expect(mockGithub.graphql).toHaveBeenNthCalledWith(2, expect.stringContaining("requestReviews(input"), expect.objectContaining({ pullRequestId: "PR_NODE_ID", botIds: ["BOT_kgDOCnlnWA"] }));
+  });
+
+  it("should fall back to built-in node ID when users API fails", async () => {
+    mockGithub.rest.users.getByUsername.mockRejectedValueOnce(new Error("Not Found"));
+    mockGithub.graphql.mockResolvedValueOnce({ repository: { pullRequest: { id: "PR_NODE_ID" } } }).mockResolvedValueOnce({ requestReviews: { pullRequest: { id: "PR_NODE_ID" } } });
+
+    const { main } = require("./add_reviewer.cjs");
+    const freshHandler = await main({ max: 10, allowed: ["copilot"] });
+
+    const result = await freshHandler({ type: "add_reviewer", reviewers: ["copilot"] }, {});
+
+    expect(result.success).toBe(true);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not resolve Copilot reviewer bot node ID"));
+    expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("requestReviews(input"), expect.objectContaining({ botIds: ["BOT_kgDOCnlnWA"] }));
+  });
+
+  it("should cache the resolved bot node ID across calls", async () => {
+    mockGithub.graphql
+      .mockResolvedValueOnce({ repository: { pullRequest: { id: "PR_NODE_ID_1" } } })
+      .mockResolvedValueOnce({ requestReviews: { pullRequest: { id: "PR_NODE_ID_1" } } })
+      .mockResolvedValueOnce({ repository: { pullRequest: { id: "PR_NODE_ID_2" } } })
+      .mockResolvedValueOnce({ requestReviews: { pullRequest: { id: "PR_NODE_ID_2" } } });
+
+    const { main } = require("./add_reviewer.cjs");
+    const cachingHandler = await main({ max: 10, allowed: ["copilot"] });
+
+    await cachingHandler({ type: "add_reviewer", reviewers: ["copilot"] }, {});
+    await cachingHandler({ type: "add_reviewer", reviewers: ["copilot"] }, {});
+
+    // users.getByUsername should only be called once despite two copilot reviewer requests
+    expect(mockGithub.rest.users.getByUsername).toHaveBeenCalledTimes(1);
   });
 
   it("should keep team reviewers with non-copilot reviewers when copilot is requested", async () => {
