@@ -163,6 +163,15 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.cli_version).toBeUndefined();
   });
 
+  it("should skip minimum compiler check when configured minimum is empty", async () => {
+    process.env.GH_AW_INFO_CLI_VERSION = "1.2.3";
+    process.env.GH_AW_INFO_MIN_COMPILER_VERSION = "";
+
+    await main(mockCore, mockContext);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
   it("should fail when configured minimum compiler version is higher than current released compiler version", async () => {
     process.env.GH_AW_INFO_CLI_VERSION = "1.2.3";
     process.env.GH_AW_INFO_MIN_COMPILER_VERSION = "v1.2.4";
