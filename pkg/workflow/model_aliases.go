@@ -31,6 +31,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -43,6 +44,24 @@ var builtinModelAliasesJSON []byte
 // builtinModelAliasesFile mirrors the JSON structure of data/model_aliases.json.
 type builtinModelAliasesFile struct {
 	Aliases map[string][]string `json:"aliases"`
+}
+
+var (
+	builtinModelAliasesOnce sync.Once
+	builtinModelAliasesData map[string][]string
+	builtinModelAliasesErr  error
+)
+
+func loadBuiltinModelAliases() (map[string][]string, error) {
+	builtinModelAliasesOnce.Do(func() {
+		var data builtinModelAliasesFile
+		if err := json.Unmarshal(builtinModelAliasesJSON, &data); err != nil {
+			builtinModelAliasesErr = fmt.Errorf("BUG: workflow: failed to parse embedded model_aliases.json: %w (try 'make build' to rebuild with the latest data)", err)
+			return
+		}
+		builtinModelAliasesData = data.Aliases
+	})
+	return builtinModelAliasesData, builtinModelAliasesErr
 }
 
 // BuiltinModelAliases returns the built-in model alias map that covers the main
@@ -81,13 +100,15 @@ type builtinModelAliasesFile struct {
 //
 // Panics on invalid embedded model_aliases.json data.
 func BuiltinModelAliases() map[string][]string {
-	var data builtinModelAliasesFile
-	if err := json.Unmarshal(builtinModelAliasesJSON, &data); err != nil {
-		panic(fmt.Sprintf("BUG: workflow: failed to parse embedded model_aliases.json: %v (try 'make build' to rebuild with the latest data)", err))
+	data, err := loadBuiltinModelAliases()
+	if err != nil {
+		panic(err)
 	}
-	// Return a fresh copy so callers may freely modify it.
-	result := make(map[string][]string, len(data.Aliases))
-	maps.Copy(result, data.Aliases)
+	// Return a fresh deep copy so callers may freely modify map entries and slices.
+	result := make(map[string][]string, len(data))
+	for alias, entries := range data {
+		result[alias] = append([]string(nil), entries...)
+	}
 	return result
 }
 
