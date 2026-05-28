@@ -631,8 +631,8 @@ async function main() {
 
     // Model-not-supported errors are persistent — retrying will not help.
     if (isModelNotSupported) {
-      const configuredModel = process.env.COPILOT_MODEL || "";
       if (!modelNotSupportedReflectRetryAttempted && attempt < MAX_RETRIES && isDetectionPhase(process.env.GH_AW_PHASE)) {
+        const configuredModel = process.env.COPILOT_MODEL || "";
         modelNotSupportedReflectRetryAttempted = true;
         log(`attempt ${attempt + 1}: model not supported during detection — refreshing awf-reflect to rule out startup registry race`);
         await fetchAWFReflect({ logger: log });
@@ -642,7 +642,7 @@ async function main() {
           log(`attempt ${attempt + 1}: refreshed awf-reflect now includes model '${configuredModel}' — retrying once as fresh run`);
           continue;
         }
-        log(`attempt ${attempt + 1}: refreshed awf-reflect does not include model '${configuredModel || "<empty>"}' — treating as non-retryable`);
+        log(`attempt ${attempt + 1}: refreshed awf-reflect does not include model '${configuredModel || "(none)"}' — treating as non-retryable`);
       }
       log(`attempt ${attempt + 1}: model not supported — not retrying (the requested model is unavailable for this subscription tier; specify a supported model in the workflow frontmatter)`);
       break;
