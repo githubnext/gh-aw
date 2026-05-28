@@ -29,7 +29,7 @@ playwright browser_snapshot                        # capture page accessibility 
 
 **Example** — using the `safeoutputs` CLI (safe outputs) when you are ready to emit the final real action:
 ```bash
-safeoutputs add_comment --issue_number 42 --body "Analysis complete"
+safeoutputs add_comment --item_number 42 --body "Analysis complete"
 ```
 
 **Example** — using the `mcpscripts` CLI (mcp-scripts):
@@ -44,7 +44,7 @@ mcpscripts mcpscripts-gh --args "pr list --repo owner/repo --limit 5"
 
 ```bash
 # Full argument payload as JSON via printf pipe
-printf '{"issue_number":42,"body":"### Title\n\nBody paragraph one.\n\nBody paragraph two."}' \
+printf '{"item_number":42,"body":"### Title\n\nBody paragraph one.\n\nBody paragraph two."}' \
   | safeoutputs add_comment .
 
 # Works with any tool — just match the parameter names from <server> <tool> --help

@@ -252,6 +252,7 @@
       "properties": {
         "body": {
           "type": "string",
+          "maxLength": 65536,
           "description": "The comment text in Markdown format. Must be the final intended comment \u2014 not a placeholder or test value. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation."
         },
         "item_number": {
