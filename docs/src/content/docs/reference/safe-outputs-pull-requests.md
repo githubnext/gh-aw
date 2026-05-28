@@ -123,19 +123,31 @@ By default, PRs created with GitHub Agentic Workflows do not trigger CI. See [Tr
 
 ### How PR creation works
 
-When the coding agent finishes its task, it records the requested changes in a structured output file. A separate, permission-controlled job then reads that output and applies the changes:
+When the coding agent finishes its task, it records the requested changes in a structured output file. A separate, permission-controlled job then reads that output and applies the changes.
 
-1. The agent's commits are exported as a `git format-patch` file covering everything since the original checkout commit.
-2. The safe-output job checks out the target repository and fetches the latest state of the base branch.
-3. The patch is applied to a new branch using `git am --3way`. The `--3way` flag allows the patch to succeed even when the agent's source repository differs from the target (for example, in cross-repository workflows).
-4. The branch is pushed and the GitHub API creates the pull request.
+The default transport is a **git bundle** — a binary snapshot of the exact commits the agent produced, preserving history, merge topology, and per-commit metadata:
+
+1. The agent's commits are packaged as a git bundle file and uploaded as an Actions artifact.
+2. The safe-output job checks out the target repository at the base branch (shallow clone, depth 1). If `checkout:` frontmatter declares additional `fetch:` refs for the target repository, those refs are fetched before the bundle is applied so their commits are locally available.
+3. The bundle is applied directly via `git fetch <bundle-file>`. If prerequisite commits are missing (for example, because the base branch advanced while the agent was running), they are fetched from origin by SHA and the bundle fetch is retried automatically.
+4. The branch is pushed using the GitHub GraphQL API (signed commits) and the pull request is created.
+
+:::note[Single cross-repo target]
+`safe_outputs` supports exactly **one** cross-repo target at a time — the repository named in `target-repo`. The safe-output job checks it out to the workspace root, not a subdirectory. Workflows that need to commit to multiple repositories in a single run are not currently supported.
+:::
+
+An older **patch transport** (`git format-patch` / `git am`) is used when bundle data is unavailable. The behaviour of the patch path is described below.
 
 ### If the target branch has changed
 
-If commits have been pushed to the base branch after the agent started, two outcomes are possible:
+**Bundle transport (default):** The agent's branch is rooted at the commit it originally checked out. If the base branch advances between agent start and safe-output apply, the prerequisite-recovery path fetches the missing commits by SHA and the bundle is applied cleanly. The resulting PR targets the current head of the base branch and is marked as slightly behind — normal behaviour that the PR author can address with a rebase or merge.
 
-- **No conflicts** — `git am --3way` resolves the patch cleanly against the updated base. The PR is created normally and targets the current head of the base branch.
-- **Conflicts** — if `--3way` cannot resolve the conflicts automatically, the safe-output job falls back to applying the patch at the commit the agent originally branched from. The PR is created with the branch based on that earlier commit, and GitHub's pull request UI shows the conflicts for manual resolution.
+If the base branch receives new commits _while_ the safe-output job is running (a narrow race), the push may fail with a non-fast-forward error. In that case the job creates a fallback PR from a temporary branch so the changes are not lost.
+
+**Patch transport (legacy):** `git am --3way` is used to apply the patch. Two outcomes are possible when the base branch has changed:
+
+- **No conflicts** — `--3way` resolves the patch cleanly against the updated base and the PR is created normally.
+- **Conflicts** — if `--3way` cannot resolve automatically, the safe-output job falls back to applying the patch at the commit the agent originally branched from. The PR is created with the branch based on that earlier commit and GitHub's pull request UI shows the conflicts for manual resolution.
 
 ## Pull Request Updates (`update-pull-request:`)
 

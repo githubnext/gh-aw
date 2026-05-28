@@ -226,8 +226,12 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 // Unlike the agent-job fetch step (which targets a subdirectory via -C and runs
 // unconditionally), this step:
 //   - Runs under the same condition as the shared PR checkout step
-//   - Always targets the workspace root (safe_outputs checks out the target repo to
-//     the workspace root, not to a subdirectory)
+//   - Targets the workspace root — safe_outputs checks out the single cross-repo
+//     target to the workspace root (no path: parameter), never to a subdirectory.
+//     NOTE: safe_outputs supports only one cross-repo checkout at a time. If multiple
+//     distinct target repositories were needed, this step would need a -C <path>
+//     argument and the checkout step would need a path: parameter, which is not
+//     currently supported.
 //   - Uses the resolved safe_outputs checkout token (from resolvePRCheckoutToken)
 //     rather than the CheckoutConfig's token
 func buildSafeOutputsFetchRefsStep(repoSlug, token string, fetchRefs []string, condition string) string {
