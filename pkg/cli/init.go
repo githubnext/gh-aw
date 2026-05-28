@@ -23,6 +23,7 @@ var initLog = logger.New("cli:init")
 type InitOptions struct {
 	Ctx              context.Context
 	Verbose          bool
+	Engine           string
 	MCP              bool
 	CodespaceRepos   []string
 	CodespaceEnabled bool
@@ -39,6 +40,7 @@ func InitRepository(opts InitOptions) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	copilotArtifactsEnabled := opts.Engine == "" || opts.Engine == "copilot"
 
 	// Show welcome banner for interactive mode
 	console.ShowWelcomeBanner("This tool will initialize your repository for GitHub Agentic Workflows.")
@@ -76,14 +78,18 @@ func InitRepository(opts InitOptions) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
 	}
 
-	// Write dispatcher agent
-	initLog.Print("Writing agentic workflows dispatcher agent")
-	if err := ensureAgenticWorkflowsDispatcher(opts.Verbose, false); err != nil {
-		initLog.Printf("Failed to write dispatcher agent: %v", err)
-		return fmt.Errorf("failed to write dispatcher agent: %w", err)
-	}
-	if opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher agent"))
+	// Write dispatcher agent for Copilot engine only
+	if copilotArtifactsEnabled {
+		initLog.Print("Writing agentic workflows dispatcher agent")
+		if err := ensureAgenticWorkflowsDispatcher(opts.Verbose, false); err != nil {
+			initLog.Printf("Failed to write dispatcher agent: %v", err)
+			return fmt.Errorf("failed to write dispatcher agent: %w", err)
+		}
+		if opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher agent"))
+		}
+	} else {
+		initLog.Printf("Skipping Copilot dispatcher agent for engine: %s", opts.Engine)
 	}
 
 	// Delete existing setup agentic workflows agent if it exists
@@ -94,7 +100,7 @@ func InitRepository(opts InitOptions) error {
 	}
 
 	// Configure MCP if requested
-	if opts.MCP {
+	if opts.MCP && copilotArtifactsEnabled {
 		initLog.Print("Configuring GitHub Copilot Agent MCP integration")
 
 		// Detect action mode for setup steps generation
