@@ -27,9 +27,8 @@ To support that measurement, every evaluated output is classified into an outcom
 | `rejected` | The result was explicitly undone, closed, removed, or not accepted. |
 | `pending` | The result exists, but has not reached a terminal state yet. |
 | `ignored` | The result received no meaningful follow-up within the evaluation window. |
-| `noop` | The output type is intentionally non-actionable for outcome measurement. |
-
-Some evaluation systems also distinguish lifecycle-oriented states such as bot-driven cleanup or closure. This page keeps the top-level reference to the common states; see the safe-output outcome specification for the extended lifecycle details.
+| `lifecycle` | Closed or removed by the workflow itself as part of its normal operation (for example, a `close-older-issues` workflow) — not a rejection. |
+| `lifecycle_close` | A `close_issue` or `close_pull_request` output where the close actor was a lifecycle bot (for example, a stale bot) and no visible non-bot actor has since reopened it. |
 
 ## Accepted Outcomes
 
@@ -52,16 +51,16 @@ Outcome evaluation is based on visible repository state and visible actor identi
 | `create_issue` | completed/closed | dedicated rule |
 | `add_comment` | reacted to or replied to | dedicated rule |
 | `add_labels` | label retention | limited check |
-| `add_reviewer` | review target exists | fallback rule |
-| `update_issue` | issue still exists | fallback rule |
-| `update_pull_request` | PR still exists | fallback rule |
+| `add_reviewer` | reviewer acted or request remained/was removed | dedicated rule |
+| `update_issue` | intended edit still matches current issue state | dedicated rule |
+| `update_pull_request` | intended edit still matches current PR state | dedicated rule |
 | `close_issue` | still closed | dedicated rule |
 | `close_pull_request` | still closed | dedicated rule |
 | `close_discussion` | none yet | no implemented rule yet |
 | `create_discussion` | none yet | no implemented rule yet |
 | `update_discussion` | discussion target exists | fallback rule |
 | `create_pull_request_review_comment` | none yet | no implemented rule yet |
-| `submit_pull_request_review` | PR still exists | fallback rule |
+| `submit_pull_request_review` | review affected PR lifecycle | dedicated rule |
 | `reply_to_pull_request_review_comment` | review target exists | fallback rule |
 | `resolve_pull_request_review_thread` | none yet | no implemented rule yet |
 | `push_to_pull_request_branch` | merged | dedicated rule |
