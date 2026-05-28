@@ -250,6 +250,43 @@ function isFetchDiagnosticsEnabled() {
  * @returns {Promise<string>}
  */
 async function readBodyPreview(response) {
+  const maxBytes = 4096;
+
+  // Prefer streaming reads to avoid loading large response bodies into memory.
+  if (response?.body && typeof response.body.getReader === "function") {
+    const reader = response.body.getReader();
+    /** @type {Buffer[]} */
+    const chunks = [];
+    let totalBytes = 0;
+
+    try {
+      while (totalBytes < maxBytes) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const chunk = Buffer.from(value);
+        const remaining = maxBytes - totalBytes;
+        if (chunk.length > remaining) {
+          chunks.push(chunk.subarray(0, remaining));
+          totalBytes += remaining;
+          break;
+        }
+        chunks.push(chunk);
+        totalBytes += chunk.length;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return `(body read failed: ${message})`;
+    } finally {
+      try {
+        await reader.cancel();
+      } catch {}
+    }
+
+    const normalized = Buffer.concat(chunks).toString("utf8").replace(/\s+/g, " ").trim();
+    if (!normalized) return "(empty body)";
+    return normalized.slice(0, 200);
+  }
+
   try {
     const text = await response.text();
     const normalized = text.replace(/\s+/g, " ").trim();

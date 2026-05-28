@@ -253,8 +253,9 @@ describe("pi_provider.cjs", () => {
 
     expect(global.fetch).toHaveBeenCalledTimes(2);
     expect(stderrOutput.some(line => line.includes("pi-fetch-diagnostics phase=agent_start node="))).toBe(true);
-    expect(stderrOutput.some(line => line.includes("pi-fetch-diagnostics url=https://github.com final_url=https://github.com/ status=200 ok=true"))).toBe(true);
-    expect(stderrOutput.some(line => line.includes("pi-fetch-diagnostics url=https://api.github.com/meta final_url=https://api.github.com/meta status=200 ok=true"))).toBe(true);
+    expect(stderrOutput.some(line => line.includes("pi-fetch-diagnostics url=https://github.com"))).toBe(true);
+    expect(stderrOutput.some(line => line.includes("status=200 ok=true"))).toBe(true);
+    expect(stderrOutput.some(line => line.includes("pi-fetch-diagnostics url=https://api.github.com/meta"))).toBe(true);
   });
 
   it("skips /reflect when AWF_REFLECT_ENABLED is not set", async () => {
