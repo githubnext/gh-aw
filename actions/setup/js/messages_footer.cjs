@@ -438,7 +438,9 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
         slashCommand = commands[0];
       }
     } catch {
-      // ignore parse errors; hint is omitted
+      // Silently ignore malformed GH_AW_COMMANDS; the hint is a non-critical enhancement
+      // and omitting it is always safe. The value is compiler-generated JSON, so this
+      // path should not occur in practice.
     }
   }
 
