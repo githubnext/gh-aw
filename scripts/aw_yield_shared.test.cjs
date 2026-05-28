@@ -5,7 +5,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { runPythonScript } = require("./aw_yield_shared.cjs");
+const { resolvePythonCommand, runPythonScript } = require("./aw_yield_shared.cjs");
 
 const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "aw-yield-shared-"));
 const scriptsDir = path.join(workspace, "scripts");
@@ -37,5 +37,29 @@ runPythonScript({
 const payload = JSON.parse(fs.readFileSync(out, "utf8"));
 assert.equal(payload.cwd, workspace);
 assert.deepEqual(payload.argv, ["--flag", "value", "--out", out]);
+assert.throws(
+  () => runPythonScript({ workspace, scriptName: "emit_context.py", out }),
+  /workspace, scriptName, args, and out are required/
+);
+
+const originalPath = process.env.PATH;
+const originalPython = process.env.AW_YIELD_PYTHON;
+
+try {
+  process.env.PATH = "";
+  process.env.AW_YIELD_PYTHON = "definitely-not-a-python";
+  assert.throws(() => resolvePythonCommand("emit_context.py"), /Unable to locate a Python interpreter/);
+} finally {
+  if (originalPath === undefined) {
+    delete process.env.PATH;
+  } else {
+    process.env.PATH = originalPath;
+  }
+  if (originalPython === undefined) {
+    delete process.env.AW_YIELD_PYTHON;
+  } else {
+    process.env.AW_YIELD_PYTHON = originalPython;
+  }
+}
 
 console.log("✓ aw_yield_shared.cjs runs Python scripts with the workspace cwd and creates the output directory");

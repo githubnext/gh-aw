@@ -18,6 +18,9 @@ function resolvePythonCommand(scriptName) {
 }
 
 function runPythonScript({ workspace, scriptName, args, out }) {
+  if (!workspace || !scriptName || !Array.isArray(args) || !out) {
+    throw new Error("workspace, scriptName, args, and out are required");
+  }
   fs.mkdirSync(path.dirname(out), { recursive: true });
   execFileSync(resolvePythonCommand(scriptName), [path.join(workspace, "scripts", scriptName), ...args], {
     cwd: workspace,
