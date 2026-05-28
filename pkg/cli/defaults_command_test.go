@@ -102,6 +102,16 @@ func TestDefaultsFileYAMLDoesNotReadLegacyKeys(t *testing.T) {
 	assert.Empty(t, file.MaxTurns)
 }
 
+func TestDefaultsFileYAMLReadsTrimmedKeys(t *testing.T) {
+	var file defaultsFile
+
+	err := yaml.Unmarshal([]byte("max_turns: \"42\"\nmodel_copilot: gpt-5-mini\n"), &file)
+	require.NoError(t, err)
+
+	assert.Equal(t, "42", file.MaxTurns)
+	assert.Equal(t, "gpt-5-mini", file.ModelCopilot)
+}
+
 func TestDefaultsTargetEndpoints(t *testing.T) {
 	repoTarget := defaultsTarget{scope: defaultsScopeRepo, repoOwner: "github", repoName: "gh-aw"}
 	orgTarget := defaultsTarget{scope: defaultsScopeOrg, org: "github"}
