@@ -228,17 +228,6 @@ func getOTLPGitHubAppTokenConfig(frontmatter map[string]any) *GitHubAppConfig {
 	return app
 }
 
-// getOTLPGitHubOIDCAudience returns observability.otlp.github-app.audience.
-// Returns empty string when github-app is unset or invalid.
-func getOTLPGitHubOIDCAudience(config *FrontmatterConfig, frontmatter map[string]any) string {
-	githubApp := getOTLPGitHubApp(config, frontmatter)
-	if githubApp == nil {
-		return ""
-	}
-
-	return strings.TrimSpace(githubApp.Audience)
-}
-
 func hasOTLPGitHubOIDCAuth(config *FrontmatterConfig, frontmatter map[string]any) bool {
 	if getOTLPGitHubAppTokenConfig(frontmatter) != nil {
 		return false
