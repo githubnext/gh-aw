@@ -74,6 +74,11 @@ func TestBuiltinModelAliases(t *testing.T) {
 	aliases["sonnet"] = []string{"custom/model"}
 	aliases2 := BuiltinModelAliases()
 	assert.NotEqual(t, aliases["sonnet"], aliases2["sonnet"], "BuiltinModelAliases should return a fresh copy each time")
+
+	// Mutating an alias slice from one call must not affect the next call either.
+	aliases2["haiku"][0] = "custom/haiku"
+	aliases3 := BuiltinModelAliases()
+	assert.NotEqual(t, aliases2["haiku"][0], aliases3["haiku"][0], "BuiltinModelAliases should return fresh slices each time")
 }
 
 // awfConfigModelsResult is a helper type for parsing the apiProxy.models section
