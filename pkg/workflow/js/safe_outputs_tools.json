@@ -289,6 +289,7 @@
       "properties": {
         "body": {
           "type": "string",
+          "maxLength": 65536,
           "description": "The comment text in Markdown format. Must be the final intended comment \u2014 not a placeholder or test value. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username), maximum 50 links (http/https URLs). A footer (~200-500 characters) is automatically appended with workflow attribution, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
         },
         "item_number": {
