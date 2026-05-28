@@ -9,15 +9,18 @@ Use these variables to set organization- or repository-wide defaults without edi
 
 ## Enterprise Control Variables
 
-| Variable | Purpose | Applies when |
-| --- | --- | --- |
-| `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS` | Default AWF `apiProxy.maxEffectiveTokens` budget | `max-effective-tokens` is not set in frontmatter |
-| `GH_AW_DEFAULT_MAX_TURNS` | Default `engine.max-turns` | `engine.max-turns` is not set in frontmatter and the selected engine supports max-turns |
-| `GH_AW_DEFAULT_TIMEOUT_MINUTES` | Default top-level `timeout-minutes` | `timeout-minutes` is not set in frontmatter |
-| `GH_AW_DEFAULT_DETECTION_MODEL` | Default threat-detection model | `safe-outputs.threat-detection.engine.model` is not set |
-| `GH_AW_DEFAULT_MODEL_COPILOT` | Default fallback model for Copilot | `GH_AW_MODEL_AGENT_COPILOT` / `GH_AW_MODEL_DETECTION_COPILOT` is unset |
-| `GH_AW_DEFAULT_MODEL_CLAUDE` | Default fallback model for Claude | `GH_AW_MODEL_AGENT_CLAUDE` / `GH_AW_MODEL_DETECTION_CLAUDE` is unset |
-| `GH_AW_DEFAULT_MODEL_CODEX` | Default fallback model for Codex | `GH_AW_MODEL_AGENT_CODEX` / `GH_AW_MODEL_DETECTION_CODEX` is unset |
+| Variable | Source | Purpose | Applies when |
+| --- | --- | --- | --- |
+| `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS` | Compiler process environment | Default AWF `apiProxy.maxEffectiveTokens` budget | `max-effective-tokens` is not set in frontmatter |
+| `GH_AW_DEFAULT_MAX_TURNS` | Compiler process environment | Default `engine.max-turns` | `engine.max-turns` is not set in frontmatter and the selected engine supports max-turns |
+| `GH_AW_DEFAULT_TIMEOUT_MINUTES` | Compiler process environment | Default top-level `timeout-minutes` | `timeout-minutes` is not set in frontmatter |
+| `GH_AW_DEFAULT_DETECTION_MODEL` | Compiler process environment | Default threat-detection model | `safe-outputs.threat-detection.engine.model` is not set |
+| `GH_AW_DEFAULT_MODEL_COPILOT` | GitHub Actions `vars.*` at runtime | Default fallback model for Copilot | `GH_AW_MODEL_AGENT_COPILOT` / `GH_AW_MODEL_DETECTION_COPILOT` is unset |
+| `GH_AW_DEFAULT_MODEL_CLAUDE` | GitHub Actions `vars.*` at runtime | Default fallback model for Claude | `GH_AW_MODEL_AGENT_CLAUDE` / `GH_AW_MODEL_DETECTION_CLAUDE` is unset |
+| `GH_AW_DEFAULT_MODEL_CODEX` | GitHub Actions `vars.*` at runtime | Default fallback model for Codex | `GH_AW_MODEL_AGENT_CODEX` / `GH_AW_MODEL_DETECTION_CODEX` is unset |
+
+Use `gh aw defaults get` and `gh aw defaults update` to manage these
+variables in batch at repo, org, or enterprise scope.
 
 ## Precedence
 

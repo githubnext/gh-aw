@@ -206,6 +206,42 @@ When the budget is approached, gh-aw emits steering warnings before
 the run reaches the limit. Set a negative value only when budget
 enforcement must be disabled explicitly.
 
+### Roll out org/repo defaults with enterprise controls
+
+For large installations, set baseline model and token guardrails
+once, then let individual workflows override only when needed:
+
+1. Export current defaults:
+
+```bash
+gh aw defaults get defaults.yml --scope org --org MY_ORG
+```
+
+2. Update and apply shared defaults in batch:
+
+```yaml
+default_max_effective_tokens: "5000000"
+default_model_copilot: "gpt-5-mini"
+default_model_claude: "claude-haiku-4-5"
+default_model_codex: "gpt-5.4-mini"
+```
+
+```bash
+gh aw defaults update defaults.yml --scope org --org MY_ORG
+```
+
+3. If you compile workflows in CI, pass compiler-read defaults into
+the compiler process environment (for example via `${{ vars.* }}`):
+`GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS`,
+`GH_AW_DEFAULT_MAX_TURNS`,
+`GH_AW_DEFAULT_TIMEOUT_MINUTES`,
+`GH_AW_DEFAULT_DETECTION_MODEL`.
+
+> [!TIP]
+> `GH_AW_DEFAULT_MODEL_*` values are resolved at workflow runtime via
+> `${{ vars.* }}` in compiled YAML, while timeout/max-turns/token
+> defaults are read by the compiler process at compile time.
+
 ### Rate Limiting and Concurrency
 
 Use `user-rate-limit` to cap how many times a user can trigger the workflow in a given window, and rely on concurrency controls to serialize runs rather than letting them pile up:
@@ -278,6 +314,8 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) - Preventing runaway workflows
 - [Concurrency](/gh-aw/reference/concurrency/) - Serializing workflow execution
 - [AI Engines](/gh-aw/reference/engines/) - Engine and model configuration
+- [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/) - Default model and guardrail precedence
+- [Environment Variables](/gh-aw/reference/environment-variables/) - Variable scopes and compiler-managed defaults
 - [Schedule Syntax](/gh-aw/reference/schedule-syntax/) - Cron schedule format
 - [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) - `agentic-workflows` tool for self-inspection
 - [FAQ](/gh-aw/reference/faq/) - Common questions including cost and billing
