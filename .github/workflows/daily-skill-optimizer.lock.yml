@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"086925a39c2edc08da3e4533943d1dc7362e4670b772ad0fb3c0535ce3571a46","body_hash":"9d85f4bc4b9eb22b3e568a170d0eb9a292980af127ede37b1756afdae43d2544","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"b1d97785afa356f64fc13e8547f3759b1e08124835763e214703d906645b13a2","body_hash":"45431a7c6eebbf97b8658b9c6852486f48cb41ed2b4e3fc6d769efd6cf968fdc","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN","OPENROUTER_API_KEY"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.56"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.56"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.56"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.20"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4","digest":"sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.4@sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -22,7 +22,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Runs fastxyz/skill-optimizer daily, packages results as an artifact, and creates one issue with 3 improvements
+# Runs fastxyz/skill-optimizer daily across all agentic workflows, packages results, and creates one issue with 3 improvements
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -204,20 +204,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_08c4180c015ae678_EOF'
+          cat << 'GH_AW_PROMPT_45f0450381f81036_EOF'
           <system>
-          GH_AW_PROMPT_08c4180c015ae678_EOF
+          GH_AW_PROMPT_45f0450381f81036_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_08c4180c015ae678_EOF'
+          cat << 'GH_AW_PROMPT_45f0450381f81036_EOF'
           <safe-output-tools>
           Tools: create_issue, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_08c4180c015ae678_EOF
+          GH_AW_PROMPT_45f0450381f81036_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_08c4180c015ae678_EOF'
+          cat << 'GH_AW_PROMPT_45f0450381f81036_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -246,13 +246,13 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_08c4180c015ae678_EOF
+          GH_AW_PROMPT_45f0450381f81036_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_08c4180c015ae678_EOF'
+          cat << 'GH_AW_PROMPT_45f0450381f81036_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/daily-skill-optimizer.md}}
-          GH_AW_PROMPT_08c4180c015ae678_EOF
+          GH_AW_PROMPT_45f0450381f81036_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -482,9 +482,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_6367a073005ed569_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_b3840f1a221a25a1_EOF'
           {"create_issue":{"expires":168,"labels":["automation","documentation","prompt-quality"],"max":1,"title_prefix":"[skill-optimizer] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_6367a073005ed569_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_b3840f1a221a25a1_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -694,7 +694,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_1a244830166063c8_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_73b557f2917131d6_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -740,7 +740,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_1a244830166063c8_EOF
+          GH_AW_MCP_CONFIG_73b557f2917131d6_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1246,7 +1246,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           WORKFLOW_NAME: "Daily Skill Optimizer Improvements"
-          WORKFLOW_DESCRIPTION: "Runs fastxyz/skill-optimizer daily, packages results as an artifact, and creates one issue with 3 improvements"
+          WORKFLOW_DESCRIPTION: "Runs fastxyz/skill-optimizer daily across all agentic workflows, packages results, and creates one issue with 3 improvements"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1490,10 +1490,14 @@ jobs:
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "24"
-      - name: Validate SKILL.md exists
+      - name: Validate SkillOpt config and workflow files
         run: |
-          if [ ! -f SKILL.md ]; then
-            echo "::error file=SKILL.md::SKILL.md is required by skill-optimizer. See .skill-optimizer/skill-optimizer.json for setup instructions."
+          if [ ! -f .skill-optimizer/skill-optimizer.json ]; then
+            echo "::error file=.skill-optimizer/skill-optimizer.json::.skill-optimizer/skill-optimizer.json is required by skill-optimizer."
+            exit 1
+          fi
+          if ! find .github/workflows -maxdepth 1 -type f -name "*.md" | grep -q .; then
+            echo "::error file=.github/workflows::No workflow .md files found under .github/workflows."
             exit 1
           fi
         shell: bash
@@ -1508,7 +1512,9 @@ jobs:
 
           RESULT_DIR="/tmp/gh-aw/agent/skill-optimizer-results"
           TOOL_DIR="$RESULT_DIR/skill-optimizer-src"
-          mkdir -p "$RESULT_DIR"
+          RUNS_DIR="$RESULT_DIR/runs"
+          CONFIG_DIR="$RESULT_DIR/configs"
+          mkdir -p "$RESULT_DIR" "$RUNS_DIR" "$CONFIG_DIR"
 
           git clone --depth 1 https://github.com/fastxyz/skill-optimizer "$TOOL_DIR" >"$RESULT_DIR/clone.log" 2>&1
 
@@ -1517,43 +1523,81 @@ jobs:
           npm run build >"$RESULT_DIR/npm-build.log" 2>&1
           popd >/dev/null
 
-          SUITE_PATH="$GITHUB_WORKSPACE/.skill-optimizer/suite.yml"
-          RUN_MODE="dry-run"
-          RUN_STATUS=0
+          BASE_CONFIG="$GITHUB_WORKSPACE/.skill-optimizer/skill-optimizer.json"
+          WORKFLOWS_FILE="$RESULT_DIR/workflows.txt"
+          find "$GITHUB_WORKSPACE/.github/workflows" -maxdepth 1 -type f -name "*.md" | sort >"$WORKFLOWS_FILE"
 
-          # skill-optimizer v2 uses run-suite / run-case (Docker workbench).
-          # Attempt to run the suite only when Docker is available.
-          if docker info >/dev/null 2>&1; then
-            if [ -n "${OPENROUTER_API_KEY:-}" ]; then
-              RUN_MODE="benchmark"
-              set +e
-              node "$TOOL_DIR/dist/cli.js" run-suite "$SUITE_PATH" \
-                --out "$RESULT_DIR/suite-results" >"$RESULT_DIR/run.log" 2>&1
-              RUN_STATUS=$?
-              set -e
-            else
-              # Dry-run: validate the suite file parses correctly (no Docker needed for validation)
-              set +e
-              node "$TOOL_DIR/dist/cli.js" run-suite --help >/dev/null 2>&1
-              # Just confirm CLI is functional; suite execution needs OPENROUTER_API_KEY + Docker
-              RUN_STATUS=0
-              set -e
-              echo "dry-run: Docker available but OPENROUTER_API_KEY not set; skipping suite execution" >"$RESULT_DIR/run.log"
-            fi
-          else
-            echo "Docker not available in this runner; skipping workbench suite execution." >"$RESULT_DIR/run.log"
-            echo "To run the suite locally: skill-optimizer run-suite .skill-optimizer/suite.yml" >>"$RESULT_DIR/run.log"
+          TOTAL_WORKFLOWS=$(wc -l <"$WORKFLOWS_FILE" | tr -d ' ')
+          if [ "$TOTAL_WORKFLOWS" -eq 0 ]; then
+            echo "::error::No workflow markdown files found to optimize."
+            exit 1
           fi
+
+          RUN_MODE="dry-run"
+          if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+            RUN_MODE="optimize"
+          fi
+
+          SUCCESS_COUNT=0
+          FAILURE_COUNT=0
+          RUN_STATUS=0
+          echo "[]" >"$RESULT_DIR/results.json"
+
+          while IFS= read -r workflow_file; do
+            rel_workflow="${workflow_file#"$GITHUB_WORKSPACE"/}"
+            rel_workflow="${rel_workflow#/}"
+            workflow_name="$(basename "$rel_workflow" .md)"
+            workflow_slug="$(echo "$workflow_name" | tr -cd '[:alnum:]_-')"
+            workflow_dir="$RUNS_DIR/$workflow_slug"
+            workflow_log="$workflow_dir/run.log"
+            workflow_config="$CONFIG_DIR/$workflow_slug.json"
+            mkdir -p "$workflow_dir"
+
+            jq --arg skill "$rel_workflow" --arg path "$rel_workflow" \
+              '.target.skill = $skill | .optimize.allowedPaths = [$path]' \
+              "$BASE_CONFIG" >"$workflow_config"
+
+            set +e
+            if [ "$RUN_MODE" = "optimize" ]; then
+              node "$TOOL_DIR/dist/cli.js" optimize --config "$workflow_config" >"$workflow_log" 2>&1
+            else
+              node "$TOOL_DIR/dist/cli.js" run --dry-run --config "$workflow_config" >"$workflow_log" 2>&1
+            fi
+            status=$?
+            set -e
+
+            if [ "$status" -eq 0 ]; then
+              SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+            else
+              FAILURE_COUNT=$((FAILURE_COUNT + 1))
+              RUN_STATUS=1
+            fi
+
+            jq \
+              --arg workflow "$rel_workflow" \
+              --arg mode "$RUN_MODE" \
+              --argjson status "$status" \
+              --arg log_file "${workflow_dir#"$RESULT_DIR"/}/run.log" \
+              '. += [{workflow: $workflow, mode: $mode, status: $status, log_file: $log_file}]' \
+              "$RESULT_DIR/results.json" >"$RESULT_DIR/results.tmp.json"
+            mv "$RESULT_DIR/results.tmp.json" "$RESULT_DIR/results.json"
+          done <"$WORKFLOWS_FILE"
 
           jq -n \
             --arg repository "${GITHUB_REPOSITORY}" \
             --arg run_mode "$RUN_MODE" \
             --argjson run_status "$RUN_STATUS" \
+            --argjson total_workflows "$TOTAL_WORKFLOWS" \
+            --argjson success_count "$SUCCESS_COUNT" \
+            --argjson failure_count "$FAILURE_COUNT" \
             --arg run_url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
             '{
               repository: $repository,
               run_mode: $run_mode,
               run_status: $run_status,
+              total_workflows: $total_workflows,
+              success_count: $success_count,
+              failure_count: $failure_count,
               run_url: $run_url
             }' >"$RESULT_DIR/summary.json"
 
