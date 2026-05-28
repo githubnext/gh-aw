@@ -68,6 +68,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var githubConfigLog = logger.New("workflow:mcp_github_config")
@@ -264,10 +265,78 @@ func expandDefaultToolset(toolsetsStr string) string {
 func getGitHubAllowedTools(githubTool any) []string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if allowedSetting, exists := toolConfig["allowed"]; exists {
-			return parseStringSliceAny(allowedSetting, nil)
+			allowedTools, _ := parseGitHubAllowedToolsAndLimits(allowedSetting)
+			return allowedTools
 		}
 	}
 	return nil
+}
+
+// parseGitHubAllowedToolsAndLimits parses tools.github.allowed entries.
+// Supports string entries, shorthand "tool:max" entries, and object entries:
+// {name: "tool_name", max-calls: 1} (or {name: "tool_name", max: 1} alias).
+func parseGitHubAllowedToolsAndLimits(allowedSetting any) ([]string, map[string]int) {
+	allowedItems, ok := allowedSetting.([]any)
+	if !ok {
+		return parseStringSliceAny(allowedSetting, nil), nil
+	}
+
+	allowedTools := make([]string, 0, len(allowedItems))
+	toolCallLimits := make(map[string]int)
+
+	for _, item := range allowedItems {
+		switch entry := item.(type) {
+		case string:
+			toolName := strings.TrimSpace(entry)
+			if toolName == "" {
+				continue
+			}
+			if parsedToolName, limit, hasLimit := parseGitHubAllowedShorthand(toolName); hasLimit {
+				allowedTools = append(allowedTools, parsedToolName)
+				toolCallLimits[parsedToolName] = limit
+			} else {
+				allowedTools = append(allowedTools, toolName)
+			}
+		case map[string]any:
+			toolName, ok := entry["name"].(string)
+			toolName = strings.TrimSpace(toolName)
+			if !ok || toolName == "" {
+				continue
+			}
+			allowedTools = append(allowedTools, toolName)
+			if maxCalls, hasMax := entry["max-calls"]; hasMax {
+				if max, ok := typeutil.ParseIntValue(maxCalls); ok && max > 0 {
+					toolCallLimits[toolName] = max
+				}
+			} else if maxCalls, hasMax := entry["max"]; hasMax {
+				if max, ok := typeutil.ParseIntValue(maxCalls); ok && max > 0 {
+					toolCallLimits[toolName] = max
+				}
+			}
+		}
+	}
+
+	if len(toolCallLimits) == 0 {
+		return allowedTools, nil
+	}
+	return allowedTools, toolCallLimits
+}
+
+func parseGitHubAllowedShorthand(entry string) (string, int, bool) {
+	toolName, maxCalls, hasDelimiter := strings.Cut(entry, ":")
+	if !hasDelimiter {
+		return "", 0, false
+	}
+	toolName = strings.TrimSpace(toolName)
+	maxCalls = strings.TrimSpace(maxCalls)
+	if toolName == "" || maxCalls == "" {
+		return "", 0, false
+	}
+	parsedMaxCalls, err := strconv.Atoi(maxCalls)
+	if err != nil || parsedMaxCalls <= 0 {
+		return "", 0, false
+	}
+	return toolName, parsedMaxCalls, true
 }
 
 // getGitHubGuardPolicies extracts guard policies from GitHub tool configuration.
@@ -283,13 +352,16 @@ func getGitHubAllowedTools(githubTool any) []string {
 // Returns nil if no guard policies are configured.
 func getGitHubGuardPolicies(githubTool any) map[string]any {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
+		_, toolCallLimits := parseGitHubAllowedToolsAndLimits(toolConfig["allowed"])
+		hasToolCallLimits := len(toolCallLimits) > 0
+
 		// Support both 'allowed-repos' (preferred) and deprecated 'repos'
 		repos, hasRepos := toolConfig["allowed-repos"]
 		if !hasRepos {
 			repos, hasRepos = toolConfig["repos"]
 		}
 		integrity, hasIntegrity := toolConfig["min-integrity"]
-		if hasRepos || hasIntegrity {
+		if hasRepos || hasIntegrity || hasToolCallLimits {
 			policy := map[string]any{}
 			if hasRepos {
 				policy["repos"] = normalizeGitHubRepositoryInReposScope(repos)
@@ -300,6 +372,9 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 			}
 			if hasIntegrity {
 				policy["min-integrity"] = integrity
+			}
+			if hasToolCallLimits {
+				policy["tool-call-limits"] = toolCallLimits
 			}
 			// blocked-users, trusted-users, and approval-labels are parsed at runtime by the
 			// parse-guard-vars step. The step outputs proper JSON arrays (split on comma/newline,
