@@ -1051,7 +1051,9 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 					// Extract optional placeholder for footer hint text
 					if placeholderRaw, hasPlaceholder := commandMap["placeholder"]; hasPlaceholder {
 						if placeholderStr, ok := placeholderRaw.(string); ok {
-							placeholder = strings.TrimSpace(placeholderStr)
+							if trimmed := strings.TrimSpace(placeholderStr); trimmed != "" {
+								placeholder = trimmed
+							}
 						}
 					}
 

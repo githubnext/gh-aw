@@ -448,7 +448,7 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
 
   // Read optional footer hint placeholder from GH_AW_COMMAND_PLACEHOLDER.
   // When set, it replaces the default "to run again" suffix in the slash command hint.
-  const slashCommandPlaceholder = process.env.GH_AW_COMMAND_PLACEHOLDER || undefined;
+  const slashCommandPlaceholder = process.env.GH_AW_COMMAND_PLACEHOLDER;
 
   const ctx = {
     workflowName,
