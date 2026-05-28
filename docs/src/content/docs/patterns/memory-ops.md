@@ -50,7 +50,7 @@ tools:
     target: triggering  # Use the issue/PR that triggered this workflow run
 ```
 
-Use for issue and PR follow-up context, review history, and iterative updates without creating a separate branch. A managed comment is automatically created and updated by the workflow for the configured memory ID. By default the memory is available at `/tmp/gh-aw/comment-memory/`. Data persists in the managed issue or PR comment until that content is edited or removed.
+Use for issue and PR follow-up context, review history, and iterative updates without creating a separate branch. A managed comment is automatically created and updated by the workflow for the configured memory ID. By default, memory files are available at `/tmp/gh-aw/comment-memory/`. Data persists in the managed issue or PR comment until that content is edited or removed.
 
 ## Pattern 1: Exhaustive Processing
 
@@ -191,7 +191,7 @@ tools:
     memory-id: pr-review-state  # Separate state bucket in the managed comment
 ```
 
-This pattern works well for PRs that need multiple review cycles because state stays attached to the PR itself. Use a stable `memory-id` so repeated runs update the same state file at `/tmp/gh-aw/comment-memory/<memory-id>.md`.
+This pattern works well for PRs that need multiple review cycles because state stays attached to the PR itself. Use a stable `memory-id` so repeated runs update the same state file at `/tmp/gh-aw/comment-memory/<memory-id>.md`. If the `memory-id` changes, the run writes to a different file and previous state is not updated.
 
 ## Best Practices
 
