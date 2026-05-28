@@ -487,6 +487,9 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
               if (!refreshedHeadOid) {
                 throw new Error(`${ERR_API}: Could not resolve remote branch OID for ${branch} after concurrent creation; ` + `ls-remote output was ${JSON.stringify(refreshedOidOut)}`);
               }
+              if (!OID_PATTERN.test(refreshedHeadOid)) {
+                throw new Error(`${ERR_API}: Invalid remote branch OID for ${branch} after concurrent creation; ` + `ls-remote output was ${JSON.stringify(refreshedOidOut)}`);
+              }
               expectedHeadOid = refreshedHeadOid;
             } else {
               throw createRefError;

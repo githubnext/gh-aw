@@ -747,8 +747,8 @@ describe("push_signed_commits integration tests", () => {
       expect(githubClient.graphql.mock.calls[0][1].input.message.headline).toBe("Add fallback-file.txt");
       expect(githubClient.graphql.mock.calls[0][1].input.expectedHeadOid).toBe(expectedParentOid);
 
-      const perCommitParentWasCalled = global.exec.getExecOutput.mock.calls.some(([program, args]) => program === "git" && args[0] === "rev-parse" && args[1] === `${newCommitOid}^`);
-      expect(perCommitParentWasCalled).toBe(true);
+      const wasPerCommitParentCalled = global.exec.getExecOutput.mock.calls.some(([program, args]) => program === "git" && args[0] === "rev-parse" && args[1] === `${newCommitOid}^`);
+      expect(wasPerCommitParentCalled).toBe(true);
     });
 
     it("should create remote branch once then chain GraphQL OIDs for multiple commits on a new branch", async () => {
