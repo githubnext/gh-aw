@@ -9,6 +9,7 @@
 
 const { ERR_API } = require("./error_codes.cjs");
 const { loadTemporaryIdMapFromResolved, replaceTemporaryIdReferencesInPatch, TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN } = require("./temporary_id.cjs");
+const OID_PATTERN = /^[0-9a-f]{40}$/i;
 
 /** Sentinel error class used to signal that the commit range contains a shape
  *  that the GitHub GraphQL `createCommitOnBranch` mutation cannot represent
@@ -263,7 +264,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   try {
     const { stdout: baseRefOut } = await exec.getExecOutput("git", ["rev-parse", `${baseRef}^{commit}`], { cwd });
     const trimmedBaseRefOid = baseRefOut.trim();
-    if (/^[0-9a-f]{40}$/i.test(trimmedBaseRefOid)) {
+    if (OID_PATTERN.test(trimmedBaseRefOid)) {
       baseRefOid = trimmedBaseRefOid;
     } else if (trimmedBaseRefOid) {
       core.warning(`pushSignedCommits: git rev-parse returned an unexpected baseRef OID value for '${baseRef}'; boundary-commit filter is disabled for this run: ${JSON.stringify(trimmedBaseRefOid)}`);
@@ -484,7 +485,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
               const { stdout: refreshedOidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) } });
               const refreshedHeadOid = refreshedOidOut.trim().split(/\s+/)[0];
               if (!refreshedHeadOid) {
-                throw new Error(`${ERR_API}: Could not resolve remote branch OID for ${branch} after concurrent creation`);
+                throw new Error(`${ERR_API}: Could not resolve remote branch OID for ${branch} after concurrent creation; ` + `ls-remote output was ${JSON.stringify(refreshedOidOut)}`);
               }
               expectedHeadOid = refreshedHeadOid;
             } else {
