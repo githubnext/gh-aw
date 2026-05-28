@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/goccy/go-yaml"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,6 +16,7 @@ func TestNewDefaultsCommand(t *testing.T) {
 	require.NotNil(t, cmd)
 	assert.Equal(t, "defaults", cmd.Use)
 
+	var updateCmd *cobra.Command
 	var hasGet, hasUpdate bool
 	for _, sub := range cmd.Commands() {
 		if sub.Name() == "get" {
@@ -22,10 +24,13 @@ func TestNewDefaultsCommand(t *testing.T) {
 		}
 		if sub.Name() == "update" {
 			hasUpdate = true
+			updateCmd = sub
 		}
 	}
 	assert.True(t, hasGet, "defaults command should include get subcommand")
 	assert.True(t, hasUpdate, "defaults command should include update subcommand")
+	require.NotNil(t, updateCmd)
+	assert.NotNil(t, updateCmd.Flags().Lookup("yes"))
 }
 
 func TestResolveDefaultsTarget(t *testing.T) {
@@ -65,26 +70,36 @@ func TestResolveDefaultsTarget(t *testing.T) {
 
 func TestDefaultsFileYAMLKeys(t *testing.T) {
 	file := defaultsFile{
-		DefaultMaxEffectiveTokens: "10000",
-		DefaultMaxTurns:           "42",
-		DefaultTimeoutMinutes:     "90",
-		DefaultDetectionModel:     "claude-sonnet-4.6",
-		DefaultModelCopilot:       "claude-sonnet-4.7",
-		DefaultModelClaude:        "claude-opus-4.7",
-		DefaultModelCodex:         "gpt-5.5",
+		MaxEffectiveTokens: "10000",
+		MaxTurns:           "42",
+		TimeoutMinutes:     "90",
+		DetectionModel:     "claude-sonnet-4.6",
+		ModelCopilot:       "claude-sonnet-4.7",
+		ModelClaude:        "claude-opus-4.7",
+		ModelCodex:         "gpt-5.5",
 	}
 
 	data, err := yaml.Marshal(&file)
 	require.NoError(t, err)
 
 	yml := string(data)
-	assert.Contains(t, yml, "default_max_effective_tokens:")
-	assert.Contains(t, yml, "default_max_turns:")
-	assert.Contains(t, yml, "default_timeout_minutes:")
-	assert.Contains(t, yml, "default_detection_model:")
-	assert.Contains(t, yml, "default_model_copilot:")
-	assert.Contains(t, yml, "default_model_claude:")
-	assert.Contains(t, yml, "default_model_codex:")
+	assert.Contains(t, yml, "max_effective_tokens:")
+	assert.Contains(t, yml, "max_turns:")
+	assert.Contains(t, yml, "timeout_minutes:")
+	assert.Contains(t, yml, "detection_model:")
+	assert.Contains(t, yml, "model_copilot:")
+	assert.Contains(t, yml, "model_claude:")
+	assert.Contains(t, yml, "model_codex:")
+	assert.NotContains(t, yml, "default_")
+}
+
+func TestDefaultsFileYAMLDoesNotReadLegacyKeys(t *testing.T) {
+	var file defaultsFile
+
+	err := yaml.Unmarshal([]byte("default_max_turns: \"42\"\n"), &file)
+	require.NoError(t, err)
+
+	assert.Empty(t, file.MaxTurns)
 }
 
 func TestDefaultsTargetEndpoints(t *testing.T) {
@@ -96,4 +111,64 @@ func TestDefaultsTargetEndpoints(t *testing.T) {
 	assert.Equal(t, "orgs/github/actions/variables", orgTarget.variablesEndpoint())
 	assert.Equal(t, "enterprises/octo-ent/actions/variables", entTarget.variablesEndpoint())
 	assert.Equal(t, "repos/github/gh-aw/actions/variables/GH_AW_DEFAULT_MAX_TURNS", repoTarget.variableEndpoint("GH_AW_DEFAULT_MAX_TURNS"))
+}
+
+func TestDefaultsBuildUpdateChanges(t *testing.T) {
+	changes := defaultsBuildUpdateChanges(&defaultsFile{
+		MaxEffectiveTokens: " 10000 ",
+		ModelCodex:         "gpt-5.5",
+	})
+
+	require.Len(t, changes, len(defaultsBindings))
+	assert.Equal(t, "max_effective_tokens", changes[0].field)
+	assert.Equal(t, "10000", changes[0].value)
+	assert.False(t, changes[0].delete)
+	assert.Equal(t, "max_turns", changes[1].field)
+	assert.True(t, changes[1].delete)
+	assert.Equal(t, "model_codex", changes[len(changes)-1].field)
+	assert.Equal(t, "gpt-5.5", changes[len(changes)-1].value)
+}
+
+func TestConfirmDefaultsUpdate(t *testing.T) {
+	orig := defaultsConfirmAction
+	t.Cleanup(func() {
+		defaultsConfirmAction = orig
+	})
+
+	target := defaultsTarget{scope: defaultsScopeOrg, org: "github"}
+	changes := []defaultsUpdateChange{{field: "max_turns", value: "42"}}
+
+	t.Run("requests confirmation by default", func(t *testing.T) {
+		called := false
+		defaultsConfirmAction = func(title, affirmative, negative string) (bool, error) {
+			called = true
+			assert.Equal(t, "Do you want to update these defaults?", title)
+			assert.Equal(t, "Yes, update", affirmative)
+			assert.Equal(t, "No, cancel", negative)
+			return true, nil
+		}
+
+		err := confirmDefaultsUpdate(target, "defaults.yml", changes, false)
+		require.NoError(t, err)
+		assert.True(t, called)
+	})
+
+	t.Run("skips confirmation with yes", func(t *testing.T) {
+		defaultsConfirmAction = func(title, affirmative, negative string) (bool, error) {
+			t.Fatal("confirmation should be skipped")
+			return false, nil
+		}
+
+		err := confirmDefaultsUpdate(target, "defaults.yml", changes, true)
+		require.NoError(t, err)
+	})
+
+	t.Run("returns cancellation error", func(t *testing.T) {
+		defaultsConfirmAction = func(title, affirmative, negative string) (bool, error) {
+			return false, nil
+		}
+
+		err := confirmDefaultsUpdate(target, "defaults.yml", changes, false)
+		require.ErrorContains(t, err, "defaults update cancelled")
+	})
 }

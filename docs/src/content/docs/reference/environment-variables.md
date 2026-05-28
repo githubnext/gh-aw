@@ -176,7 +176,8 @@ COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_CO
 ```
 
 Use `gh aw defaults get` / `gh aw defaults update` to batch-manage
-these `GH_AW_DEFAULT_*` variables at repo, org, or enterprise scope.
+these `GH_AW_DEFAULT_*` variables at repo, org, or enterprise scope with
+trimmed YAML keys such as `max_effective_tokens` and `model_copilot`.
 
 ### Agent runs
 
