@@ -219,7 +219,7 @@ describe("awf_reflect.cjs", () => {
       const logs = [];
       const result = await fetchModelsFromUrl("http://api-proxy:10000/v1/models", 1000, msg => logs.push(msg));
       expect(result).toEqual(["gpt-4o"]);
-      expect(logs.filter(l => l.includes("models list was empty")).length).toBeGreaterThanOrEqual(1);
+      expect(logs.filter(l => l.includes("models list was empty")).length).toBe(1);
       expect(logs.some(l => l.includes("fetched 1 model(s)"))).toBe(true);
     });
   });

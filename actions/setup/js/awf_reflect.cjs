@@ -146,9 +146,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
             });
             throw err;
           }
-          if (models) {
-            logger(`awf-reflect: fetched ${models.length} model(s) from ${modelsUrl}`);
-          }
+          logger(`awf-reflect: fetched ${models.length} model(s) from ${modelsUrl}`);
           return models;
         } catch (err) {
           const e = /** @type {Error} */ err;
