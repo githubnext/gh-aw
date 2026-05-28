@@ -437,6 +437,21 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 			workflowID:    "test-workflow",
 			checkContains: true,
 		},
+		{
+			name: "with slash command and placeholder",
+			workflowData: &WorkflowData{
+				Name:               "Test Workflow",
+				Command:            []string{"review-bot"},
+				CommandPlaceholder: "to review this PR",
+				SafeOutputs:        &SafeOutputsConfig{},
+			},
+			workflowID: "test-workflow",
+			expectedVars: map[string]string{
+				"GH_AW_COMMANDS":            `"[\"review-bot\"]"`,
+				"GH_AW_COMMAND_PLACEHOLDER": `"to review this PR"`,
+			},
+			checkContains: true,
+		},
 	}
 
 	for _, tt := range tests {

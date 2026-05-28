@@ -179,7 +179,11 @@ Gather all returned JSON objects. If a subagent call fails, record the PR with v
 
 ### Posting comments
 
-Use the `comment-dispatcher` agent on the verdict array (the JSON objects returned by the contribution-checker subagent in Step 1) to get the list of comments to post. For each returned entry, emit one `add_comment` safe output using `issue_number` and `body` (do not specify the repo — `target-repo` is pre-configured).
+Use the `comment-dispatcher` agent on the verdict array (the JSON objects returned by the contribution-checker subagent in Step 1) to get the list of comments to post.
+
+For each returned `{issue_number, body}` payload, emit one `add_comment` safe output that includes **both fields verbatim** — `issue_number` is required.
+The safe-output validator rejects `add_comment` items that omit `item_number` / `issue_number` / `pull_request_number` (for example: `Target is "*" but no item_number/...`) and fails the entire `safe_outputs` job.
+Do not specify the repo — `target-repo` is pre-configured.
 
 ## Completion Gate
 

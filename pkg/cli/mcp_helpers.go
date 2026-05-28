@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var mcpHelpersLog = logger.New("cli:mcp_helpers")
@@ -40,7 +41,7 @@ func GetBinaryPath() (string, error) {
 }
 
 // boolPtr returns a pointer to the given bool value, used for optional *bool fields.
-func boolPtr(b bool) *bool { return new(b) }
+func boolPtr(b bool) *bool { return typeutil.Ptr(b) }
 
 // logAndValidateBinaryPath determines the binary path, logs it, and validates it exists.
 // Returns the detected binary path and an error if the path cannot be determined or if the file doesn't exist.

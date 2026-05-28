@@ -972,6 +972,9 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 		if commandsJSON, err := json.Marshal(data.Command); err == nil {
 			fmt.Fprintf(yaml, "          GH_AW_COMMANDS: %q\n", string(commandsJSON))
 		}
+		if data.CommandPlaceholder != "" {
+			fmt.Fprintf(yaml, "          GH_AW_COMMAND_PLACEHOLDER: %q\n", data.CommandPlaceholder)
+		}
 	}
 
 	yaml.WriteString("        with:\n")

@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import fs from "fs";
+import os from "os";
+import path from "path";
 
 describe("pi_provider.cjs", () => {
   let module;
@@ -115,6 +118,8 @@ describe("pi_provider.cjs", () => {
 
   it("logs assistant inference errors with the last request target", async () => {
     process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-provider-"));
+    process.env.GH_AW_SAFE_OUTPUTS = path.join(tempDir, "outputs.jsonl");
 
     const handlers = {};
     const pi = {
@@ -151,6 +156,19 @@ describe("pi_provider.cjs", () => {
         line.includes('provider_error provider=aw-gateway model=claude-sonnet-4 api=openai-completions status=no-response method=POST url=http://api-proxy:10002/v1/chat/completions response_headers=none error="Connection error."')
       )
     ).toBe(true);
+    expect(fs.readFileSync(process.env.GH_AW_SAFE_OUTPUTS, "utf8")).toContain('"type":"report_incomplete"');
+    expect(fs.readFileSync(process.env.GH_AW_SAFE_OUTPUTS, "utf8")).toContain("Pi provider request failed before safe outputs were emitted");
+  });
+
+  it("skips synthetic report_incomplete emission when safe outputs already exist", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-provider-"));
+    const safeOutputsPath = path.join(tempDir, "outputs.jsonl");
+    process.env.GH_AW_SAFE_OUTPUTS = safeOutputsPath;
+    fs.writeFileSync(safeOutputsPath, '{"type":"add_comment","body":"done"}\n');
+
+    module.emitInfrastructureIncompleteIfNoSafeOutputs("temporary outage", () => {});
+
+    expect(fs.readFileSync(safeOutputsPath, "utf8")).toBe('{"type":"add_comment","body":"done"}\n');
   });
 
   it("calls /reflect on the management port (10000) when AWF_REFLECT_ENABLED is set", async () => {

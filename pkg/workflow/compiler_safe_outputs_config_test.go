@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/typeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1666,10 +1667,10 @@ func TestHandlerConfigPushToPullRequestBranchPatchSizeOverridesGlobal(t *testing
 }
 
 // testBoolPtr is a helper function for bool pointers in config tests
-func testBoolPtr(b bool) *bool { return new(b) }
+func testBoolPtr(b bool) *bool { return typeutil.Ptr(b) }
 
 // testStringPtr is a helper function for string pointers in config tests
-func testStringPtr(s string) *string { return new(s) }
+func testStringPtr(s string) *string { return typeutil.Ptr(s) }
 
 // TestAutoEnabledHandlers tests that missing_tool and missing_data
 // are automatically enabled even when not explicitly configured.
