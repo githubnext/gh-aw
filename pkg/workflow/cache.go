@@ -687,6 +687,27 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 
 		cacheDir := cacheMemoryDirFor(cache.ID)
 
+		// Add a best-effort git integrity check and reseed step before upload.
+		// This prevents upload-artifact from failing on torn/corrupt .git object stores.
+		if useBackwardCompatiblePaths {
+			builder.WriteString("      - name: Check cache-memory git integrity\n")
+		} else {
+			fmt.Fprintf(builder, "      - name: Check cache-memory git integrity (%s)\n", cache.ID)
+		}
+		builder.WriteString("        if: always()\n")
+		builder.WriteString("        continue-on-error: true\n")
+		builder.WriteString("        run: |\n")
+		fmt.Fprintf(builder, "          if [ -d %q/.git ]; then\n", cacheDir)
+		fmt.Fprintf(builder, "            if ! git -C %q fsck --no-dangling >/dev/null 2>&1; then\n", cacheDir)
+		builder.WriteString("              echo \"::warning title=cache-memory git integrity::Detected git corruption; reseeding cache-memory git repository\"\n")
+		fmt.Fprintf(builder, "              rm -rf %q/.git || true\n", cacheDir)
+		fmt.Fprintf(builder, "              git -C %q init >/dev/null 2>&1 || true\n", cacheDir)
+		fmt.Fprintf(builder, "              git -C %q -c user.name=\"github-actions[bot]\" -c user.email=\"41898282+github-actions[bot]@users.noreply.github.com\" commit --allow-empty -m \"chore(cache-memory): reseed after corruption\" >/dev/null 2>&1 || true\n", cacheDir)
+		builder.WriteString("            else\n")
+		fmt.Fprintf(builder, "              git -C %q gc --prune=now >/dev/null 2>&1 || true\n", cacheDir)
+		builder.WriteString("            fi\n")
+		builder.WriteString("          fi\n")
+
 		// Add upload-artifact step for each cache (runs always)
 		if useBackwardCompatiblePaths {
 			builder.WriteString("      - name: Upload cache-memory data as artifact\n")
