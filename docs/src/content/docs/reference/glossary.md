@@ -600,7 +600,7 @@ A token authenticating you to GitHub's APIs with specific permissions. Required 
 
 ### Skill Files
 
-Markdown files with YAML frontmatter stored in `.github/skills/` defining interactive Copilot Chat skills. Created by `gh aw init`, these files can be invoked by calling the skill in Copilot Chat to guide workflow creation, debugging, and updates. The `agentic-workflows` skill is a unified dispatcher routing requests to specialized prompts.
+Markdown files with YAML frontmatter stored in `.github/skills/` for repository-scoped Copilot Chat skills. Created by `gh aw init`, these files can be invoked by calling the skill in Copilot Chat to guide workflow creation, debugging, and updates. The `agentic-workflows` skill is a unified dispatcher routing requests to specialized prompts.
 
 ### Fine-grained Personal Access Token
 
