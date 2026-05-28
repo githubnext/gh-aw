@@ -50,7 +50,7 @@ tools:
     target: triggering
 ```
 
-Use for issue and PR follow-up context, review history, and iterative updates without creating a separate branch. By default the memory is available at `/tmp/gh-aw/comment-memory/`.
+Use for issue and PR follow-up context, review history, and iterative updates without creating a separate branch. By default the memory is available at `/tmp/gh-aw/comment-memory/`. Data persists in the managed issue or PR comment until that content is edited or removed.
 
 ## Pattern 1: Exhaustive Processing
 
