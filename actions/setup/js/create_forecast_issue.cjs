@@ -127,7 +127,9 @@ async function main() {
     } catch (error) {
       core.warning(`Failed to parse forecast error JSON at ${FORECAST_ERROR_PATH}: ${error.message}`);
     }
-  } else if (process.env.FORECAST_STEP_OUTCOME && outcome === "success") {
+  }
+
+  if (process.env.FORECAST_STEP_OUTCOME && outcome === "success") {
     const stepOutcome = process.env.FORECAST_STEP_OUTCOME.toLowerCase();
     if (stepOutcome !== "success") {
       outcome = stepOutcome;
