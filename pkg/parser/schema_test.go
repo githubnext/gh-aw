@@ -1367,3 +1367,72 @@ func TestValidateWithSchema_YAMLIntegerTypes(t *testing.T) {
 		t.Errorf("validateWithSchema should accept YAML integer types, got: %v", err)
 	}
 }
+
+func TestMainWorkflowSchema_GitHubAllowedSupportsToolCallLimits(t *testing.T) {
+	t.Parallel()
+
+	schemaContent, err := os.ReadFile("schemas/main_workflow_schema.json")
+	if err != nil {
+		t.Fatalf("failed to read schema: %v", err)
+	}
+
+	var schema map[string]any
+	if err := json.Unmarshal(schemaContent, &schema); err != nil {
+		t.Fatalf("failed to parse schema json: %v", err)
+	}
+
+	properties := schema["properties"].(map[string]any)
+	tools := properties["tools"].(map[string]any)
+	toolsProps := tools["properties"].(map[string]any)
+	github := toolsProps["github"].(map[string]any)
+	githubOneOf := github["oneOf"].([]any)
+
+	var githubObjectSchema map[string]any
+	for _, item := range githubOneOf {
+		candidate, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if candidate["type"] == "object" {
+			githubObjectSchema = candidate
+			break
+		}
+	}
+	if githubObjectSchema == nil {
+		t.Fatal("tools.github object schema not found")
+	}
+
+	allowed := githubObjectSchema["properties"].(map[string]any)["allowed"].(map[string]any)
+	items := allowed["items"].(map[string]any)
+	itemOneOf := items["oneOf"].([]any)
+
+	var objectBranch map[string]any
+	for _, branch := range itemOneOf {
+		candidate, ok := branch.(map[string]any)
+		if !ok {
+			continue
+		}
+		if candidate["type"] == "object" {
+			objectBranch = candidate
+			break
+		}
+	}
+	if objectBranch == nil {
+		t.Fatal("tools.github.allowed object entry schema not found")
+	}
+
+	entryProps := objectBranch["properties"].(map[string]any)
+	maxCalls, hasMaxCalls := entryProps["max-calls"].(map[string]any)
+	if !hasMaxCalls {
+		t.Fatal("tools.github.allowed[].max-calls schema not found")
+	}
+	if maxCalls["type"] != "integer" {
+		t.Fatalf("expected max-calls type integer, got: %v", maxCalls["type"])
+	}
+	if maxCalls["minimum"] != float64(1) {
+		t.Fatalf("expected max-calls minimum 1, got: %v", maxCalls["minimum"])
+	}
+	if _, hasMaxAlias := entryProps["max"]; hasMaxAlias {
+		t.Fatal("tools.github.allowed[].max alias should not be present")
+	}
+}

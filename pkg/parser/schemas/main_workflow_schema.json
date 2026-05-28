@@ -3807,9 +3807,30 @@
               "properties": {
                 "allowed": {
                   "type": "array",
-                  "description": "List of allowed GitHub API functions (e.g., 'create_issue', 'update_issue', 'add_comment')",
+                  "description": "List of allowed GitHub API functions. Each entry can be a string tool name (e.g., 'issue_read') or an object with per-tool limits (e.g., {name: 'issue_read', max-calls: 1})",
                   "items": {
-                    "type": "string"
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["name"],
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "GitHub MCP tool name"
+                          },
+                          "max-calls": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Maximum number of calls allowed for this tool per run"
+                          }
+                        }
+                      }
+                    ]
                   }
                 },
                 "mode": {
