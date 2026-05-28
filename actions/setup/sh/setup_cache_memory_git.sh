@@ -28,6 +28,33 @@ INTEGRITY="${GH_AW_MIN_INTEGRITY:-none}"
 # All integrity levels in descending order (highest first)
 LEVELS=("merged" "approved" "unapproved" "none")
 
+ensure_writable_dir() {
+  local dir="$1"
+  local purpose="$2"
+  local probe_file="${dir}/.gh-aw-write-check.$$"
+
+  if ! mkdir -p "$dir" 2>/tmp/gh-aw-cache-mkdir-err; then
+    echo "ERROR: cache-memory setup error: failed to create ${purpose} (${dir})" >&2
+    cat /tmp/gh-aw-cache-mkdir-err >&2 || true
+    exit 1
+  fi
+  rm -f /tmp/gh-aw-cache-mkdir-err 2>/dev/null || true
+
+  if ! chmod u+rwx "$dir" 2>/tmp/gh-aw-cache-chmod-err; then
+    echo "ERROR: cache-memory setup error: ${purpose} is not writable (${dir})" >&2
+    cat /tmp/gh-aw-cache-chmod-err >&2 || true
+    exit 1
+  fi
+  rm -f /tmp/gh-aw-cache-chmod-err 2>/dev/null || true
+
+  if ! (: > "$probe_file") 2>/tmp/gh-aw-cache-write-err; then
+    echo "ERROR: cache-memory setup error: ${purpose} is not writable (${dir})" >&2
+    cat /tmp/gh-aw-cache-write-err >&2 || true
+    exit 1
+  fi
+  rm -f "$probe_file" /tmp/gh-aw-cache-write-err 2>/dev/null || true
+}
+
 initialize_cache_memory_git_repo() {
   # No git repo yet — either a fresh cache or a legacy flat-file cache.
   # Initialize a git repository with an empty baseline commit on the highest-trust
@@ -262,3 +289,9 @@ if [ "$IS_CACHE_HIT" = "true" ]; then
     "$_run_id" "$_timestamp" "$_post_file_count" > "cache-hit-history.json"
   echo "Cache hit history updated (run: $_run_id, files: $_post_file_count)"
 fi
+
+# Preflight write checks for known cache-memory paths required by daily planners.
+# Fail fast here so agent runs do not continue after a hidden permission problem.
+ensure_writable_dir "$CACHE_DIR" "cache-memory root directory"
+ensure_writable_dir "${CACHE_DIR}/spdd-daily" "Daily SPDD rotation cache directory"
+echo "Cache memory preflight write checks passed"
