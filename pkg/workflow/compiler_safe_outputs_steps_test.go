@@ -406,6 +406,94 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')",
 			},
 		},
+		{
+			name: "cross-repo with sparse-checkout patterns propagates them to safe_outputs checkout",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.CROSS_PAT }}",
+					},
+					TargetRepoSlug: "org/monorepo",
+					BaseBranch:     "main",
+				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					Repository:     "org/monorepo",
+					SparseCheckout: ".github\nscripts\ntest",
+				},
+			},
+			checkContains: []string{
+				"sparse-checkout: |",
+				"            .github",
+				"            scripts",
+				"            test",
+			},
+		},
+		{
+			name: "cross-repo without sparse-checkout does not emit sparse-checkout block",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					TargetRepoSlug: "org/full-repo",
+				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					Repository: "org/full-repo",
+				},
+			},
+			checkNotContains: []string{
+				"sparse-checkout:",
+			},
+		},
+		{
+			name: "cross-repo fetch-depth is read from checkout config for target repo, not default override",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					TargetRepoSlug: "org/target",
+				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					// The "default" checkout (empty repo/path) has a different fetch-depth.
+					// The cross-repo entry's fetch-depth should win for the safe_outputs checkout.
+					FetchDepth: func() *int { d := 0; return &d }(),
+				},
+				{
+					Repository: "org/target",
+					FetchDepth: func() *int { d := 10; return &d }(),
+				},
+			},
+			checkContains: []string{
+				"fetch-depth: 10",
+			},
+			checkNotContains: []string{
+				"fetch-depth: 0",
+			},
+		},
+		{
+			name: "same-repo sparse-checkout from default checkout override propagates to safe_outputs",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.GITHUB_TOKEN }}",
+					},
+					// No TargetRepoSlug: same-repo operation
+				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					// Default workspace-root checkout with sparse patterns
+					SparseCheckout: ".github\napp\nlib",
+				},
+			},
+			checkContains: []string{
+				"sparse-checkout: |",
+				"            .github",
+				"            app",
+				"            lib",
+			},
+		},
 	}
 
 	for _, tt := range tests {

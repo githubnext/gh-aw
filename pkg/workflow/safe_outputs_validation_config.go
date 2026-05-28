@@ -2,6 +2,10 @@ package workflow
 
 import (
 	"encoding/json"
+	"fmt"
+	"slices"
+	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -425,11 +429,29 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	},
 }
 
+// validationConfigJSONCache caches GetValidationConfigJSON results keyed by the sorted,
+// comma-joined enabledTypes string. ValidationConfig is a package-level constant so
+// the output is deterministic for a given set of types; caching avoids repeated
+// json.MarshalIndent calls on every workflow compilation.
+var validationConfigJSONCache sync.Map // key: string → value: string
+
 // GetValidationConfigJSON returns the validation configuration as indented JSON
 // If enabledTypes is empty or nil, returns all validation configs
 // If enabledTypes is provided, returns only configs for the specified types
 func GetValidationConfigJSON(enabledTypes []string) (string, error) {
 	safeOutputValidationLog.Printf("Getting validation config JSON for %d types", len(enabledTypes))
+
+	// Build a stable cache key from the sorted enabled types.
+	cacheKey := buildValidationConfigCacheKey(enabledTypes)
+	if cached, ok := validationConfigJSONCache.Load(cacheKey); ok {
+		safeOutputValidationLog.Print("Returning cached validation config JSON")
+		result, ok := cached.(string)
+		if !ok {
+			// The cache exclusively stores string values; a non-string indicates a programmer error.
+			return "", fmt.Errorf("validationConfigJSONCache: unexpected type %T for key %s", cached, cacheKey)
+		}
+		return result, nil
+	}
 
 	configToMarshal := ValidationConfig
 	if len(enabledTypes) > 0 {
@@ -449,6 +471,19 @@ func GetValidationConfigJSON(enabledTypes []string) (string, error) {
 		safeOutputValidationLog.Printf("Failed to marshal validation config: %v", err)
 		return "", err
 	}
-	safeOutputValidationLog.Printf("Generated validation config JSON with %d bytes", len(data))
-	return string(data), nil
+	result := string(data)
+	safeOutputValidationLog.Printf("Generated validation config JSON with %d bytes", len(result))
+	validationConfigJSONCache.Store(cacheKey, result)
+	return result, nil
+}
+
+// buildValidationConfigCacheKey returns a stable cache key for GetValidationConfigJSON.
+// For nil/empty enabledTypes the key is "" (full config). Otherwise the sorted type
+// names are joined with commas so the order the caller provides does not affect caching.
+func buildValidationConfigCacheKey(enabledTypes []string) string {
+	if len(enabledTypes) == 0 {
+		return ""
+	}
+	sorted := slices.Sorted(slices.Values(enabledTypes))
+	return strings.Join(sorted, ",")
 }

@@ -292,3 +292,26 @@ func TestCreatePullRequestBaseValidationMaxLength(t *testing.T) {
 		t.Errorf("base field MaxLength = %d, want 128", baseField.MaxLength)
 	}
 }
+
+func TestBuildValidationConfigCacheKey(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected string
+	}{
+		{"nil input", nil, ""},
+		{"empty input", []string{}, ""},
+		{"single type", []string{"comment"}, "comment"},
+		{"already sorted", []string{"comment", "issue"}, "comment,issue"},
+		{"reverse order produces same key", []string{"issue", "comment"}, "comment,issue"},
+		{"multiple types sorted", []string{"z_type", "a_type", "m_type"}, "a_type,m_type,z_type"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildValidationConfigCacheKey(tc.input)
+			if got != tc.expected {
+				t.Errorf("buildValidationConfigCacheKey(%v) = %q, want %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
