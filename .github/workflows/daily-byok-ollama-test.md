@@ -12,6 +12,7 @@ engine:
   bare: true
   env:
     COPILOT_PROVIDER_BASE_URL: "http://host.docker.internal:11434/v1"
+    COPILOT_PROVIDER_API_KEY: "${{ env.OLLAMA_API_KEY }}"
     COPILOT_MODEL: "qwen2.5:0.5b"
 strict: true
 timeout-minutes: 20
@@ -19,6 +20,10 @@ steps:
   - name: Install Ollama
     run: |
       curl -fsSL https://ollama.com/install.sh | sh
+  - name: Generate Ollama API key
+    run: |
+      OLLAMA_API_KEY="$(openssl rand -hex 16)"
+      echo "OLLAMA_API_KEY=$OLLAMA_API_KEY" >> "$GITHUB_ENV"
   - name: Start Ollama service
     run: |
       ollama serve &
