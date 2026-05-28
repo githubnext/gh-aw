@@ -151,8 +151,17 @@ type ForecastResult struct {
 // RunForecast is the entry point for the forecast command.
 func RunForecast(config ForecastConfig) error {
 	forecastRunLog.Printf("Running forecast: workflows=%v, days=%d, period=%s, eval=%v", config.WorkflowIDs, config.Days, config.Period, config.EvalMode)
+	if config.TimeoutMinutes < 0 {
+		return fmt.Errorf("invalid timeout value: %d; must be >= 0", config.TimeoutMinutes)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
+	if config.TimeoutMinutes > 0 {
+		timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(config.TimeoutMinutes)*time.Minute)
+		defer cancel()
+		ctx = timeoutCtx
+	}
 
 	// Emit experimental warning so users know this command is not yet stable.
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("forecast is an experimental command and may change without notice"))
@@ -172,7 +181,7 @@ func RunForecast(config ForecastConfig) error {
 	// Resolve the list of workflow IDs to forecast.
 	workflowIDs, err := resolveForecastWorkflows(ctx, config)
 	if err != nil {
-		return err
+		return normalizeForecastRunError(err, config)
 	}
 	if len(workflowIDs) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No agentic workflows found to forecast"))
@@ -224,7 +233,7 @@ func RunForecast(config ForecastConfig) error {
 			if !config.Verbose {
 				spinner.Stop()
 			}
-			return err
+			return normalizeForecastRunError(err, config)
 		}
 		if !config.Verbose {
 			spinner.UpdateMessage(fmt.Sprintf("Sampling %s…", wfID))
@@ -234,11 +243,13 @@ func RunForecast(config ForecastConfig) error {
 		// anchor so the function knows where the training window ends.
 		result, err := forecastWorkflow(ctx, wfID, startDate, config, periodDays)
 		if err != nil {
-			if errors.Is(err, context.Canceled) {
+			// context.Canceled typically indicates user interruption (Ctrl-C), while
+			// context.DeadlineExceeded indicates the configured forecast timeout.
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				if !config.Verbose {
 					spinner.Stop()
 				}
-				return err
+				return normalizeForecastRunError(err, config)
 			}
 			if !config.Verbose {
 				spinner.Stop()
@@ -287,6 +298,16 @@ func RunForecast(config ForecastConfig) error {
 		return renderForecastJSON(output)
 	}
 	return renderForecastTable(output, config)
+}
+
+func normalizeForecastRunError(err error, config ForecastConfig) error {
+	if config.TimeoutMinutes > 0 && errors.Is(err, context.DeadlineExceeded) {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(
+			fmt.Sprintf("Forecast computation timed out after %d minute(s).", config.TimeoutMinutes),
+		))
+		return &ExitCodeError{Code: 124}
+	}
+	return err
 }
 
 // resolveForecastWorkflows returns the ordered list of workflow IDs to forecast.

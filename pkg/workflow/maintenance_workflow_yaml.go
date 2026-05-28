@@ -613,7 +613,7 @@ jobs:
             exit 1
           fi
           set +e
-          timeout 10m ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --json 2> >(grep -Fv "forecast is an experimental command and may change without notice" >&2) > ./.cache/gh-aw/forecast/report.json
+          ${GH_AW_CMD_PREFIX} forecast --repo "${{ github.repository }}" --timeout 10 --json 2> >(grep -Fv "forecast is an experimental command and may change without notice" >&2) > ./.cache/gh-aw/forecast/report.json
           forecast_exit_code=$?
           set -e
           if [ "${forecast_exit_code}" -eq 124 ]; then
