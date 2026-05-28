@@ -1369,7 +1369,6 @@ index 0000000..abc1234
         const result = await handler({ branch: "feature-branch", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(true);
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], expect.any(Object));
         // Initial bundle fetch is via getExecOutput (with ignoreReturnCode: true), not exec.exec
         const bundleFetchCall = mockExec.getExecOutput.mock.calls.find(([, args, options]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode);
         expect(bundleFetchCall).toBeDefined();
@@ -1378,7 +1377,7 @@ index 0000000..abc1234
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"], expect.any(Object));
         expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["merge", "--ff-only", "refs/bundles/push-feature-branch"], expect.any(Object));
         const unshallowCallIndex = mockExec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === "--unshallow");
-        expect(unshallowCallIndex).toBeGreaterThanOrEqual(0);
+        expect(unshallowCallIndex).toBe(-1);
       } finally {
         pushSignedSpy.mockRestore();
       }
