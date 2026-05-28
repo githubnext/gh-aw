@@ -471,6 +471,29 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"fetch-depth: 0",
 			},
 		},
+		{
+			name: "same-repo sparse-checkout from default checkout override propagates to safe_outputs",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.GITHUB_TOKEN }}",
+					},
+					// No TargetRepoSlug: same-repo operation
+				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					// Default workspace-root checkout with sparse patterns
+					SparseCheckout: ".github\napp\nlib",
+				},
+			},
+			checkContains: []string{
+				"sparse-checkout: |",
+				"            .github",
+				"            app",
+				"            lib",
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -52,11 +52,18 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// Build a single CheckoutManager so we can query both the default and cross-repo entries.
 	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
 
-	// Same-repo fallback: use the default (workspace-root) checkout's fetch-depth.
-	// Overridden below for cross-repo targets once targetRepoSlug is known.
-	if defaultCheckout := checkoutMgr.GetDefaultCheckoutOverride(); defaultCheckout != nil && defaultCheckout.fetchDepth != nil {
-		fetchDepth = *defaultCheckout.fetchDepth
-		consolidatedSafeOutputsStepsLog.Printf("Using custom checkout fetch-depth for safe_outputs: %d", fetchDepth)
+	// Same-repo fallback: use the default (workspace-root) checkout's fetch-depth and
+	// sparse-checkout patterns. Both are overridden below for cross-repo targets once
+	// targetRepoSlug is known.
+	if defaultCheckout := checkoutMgr.GetDefaultCheckoutOverride(); defaultCheckout != nil {
+		if defaultCheckout.fetchDepth != nil {
+			fetchDepth = *defaultCheckout.fetchDepth
+			consolidatedSafeOutputsStepsLog.Printf("Using custom checkout fetch-depth for safe_outputs: %d", fetchDepth)
+		}
+		if len(defaultCheckout.sparsePatterns) > 0 {
+			sparsePatterns = defaultCheckout.sparsePatterns
+			consolidatedSafeOutputsStepsLog.Printf("Using %d sparse-checkout pattern(s) from default checkout for safe_outputs", len(sparsePatterns))
+		}
 	}
 
 	// Determine which token to use for checkout
