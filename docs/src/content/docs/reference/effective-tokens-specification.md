@@ -432,6 +432,59 @@ field-level causes to reduce MTTR.
 
 Normative requirements: **R-SAFE-009**, **R-SAFE-010**
 
+#### S-6: Output NaN/Inf Guards, Large-Count Overflow, and Zero-Invocation Edge Case
+
+This safeguard strengthens the existing S-1/S-4 requirements by specifying three additional
+concrete guards that implementations MUST apply before serializing any ET output.
+
+**S-6a: NaN/Inf guard on computed ET**
+
+**Threat**: Even when all registry values pass S-4 validation, arithmetic on very large token
+counts (e.g., `base_weighted_tokens` near the IEEE 754 double precision representable limit) can
+still produce `NaN` or `±Inf` via floating-point overflow in intermediate computations.
+
+**Mitigation**: Implementations MUST test `derived.effective_tokens` and
+`derived.base_weighted_tokens` for `NaN` and `±Inf` immediately before serialization, after all
+arithmetic has been performed. If either value is non-finite, the implementation MUST:
+1. Clamp `derived.effective_tokens` to the ceiling `9007199254740991` (per R-SAFE-002).
+2. Record `flagged.code = "ET_OVERFLOW"` on the affected node (per R-SAFE-003A).
+3. Log a diagnostic that includes the raw non-finite value so the root cause can be investigated.
+
+Implementations MUST NOT propagate `NaN` or `±Inf` into serialized JSON; doing so is a
+conformance failure even if upstream validation passed.
+
+Normative requirements: **R-SAFE-001**, **R-SAFE-003A**
+
+**S-6b: `base_weighted_tokens` overflow for large token counts**
+
+**Threat**: For invocations with extremely large raw token counts (e.g., reasoning-heavy agents
+with `reasoning_tokens` > 10 billion), the weighted sum
+`w_in * input + w_cache * cached + w_out * output + w_reason * reasoning` can overflow IEEE 754
+double precision (~1.8 × 10¹⁶ for a value representable as an integer). Overflow silently wraps to
+`±Inf`, which then propagates into `effective_tokens`.
+
+**Mitigation**: Implementations MUST compute `base_weighted_tokens` using 64-bit floating-point
+arithmetic and MUST check the intermediate result for finiteness after each token-class
+contribution is added. If the running sum exceeds `9007199254740991` (the JS-safe ceiling), the
+implementation SHOULD short-circuit the computation and apply the S-1 capping logic immediately
+rather than continuing to accumulate tokens.
+
+Normative requirements: **R-SAFE-001**, **R-SAFE-002**, **R-SAFE-004**
+
+**S-6c: Zero-invocation edge case**
+
+**Threat**: An execution graph with zero invocation nodes (empty telemetry or all invocations
+filtered out) can cause division-by-zero or `NaN` in average or aggregate computations that
+downstream consumers depend on.
+
+**Mitigation**: Implementations MUST treat zero-invocation graphs as valid inputs and MUST produce
+a well-formed output with `summary.effective_tokens = 0`, `summary.invocation_count = 0`, and an
+empty `invocations` array. Implementations MUST NOT fail, return `null`, or omit required
+top-level fields when processing empty telemetry. Callers MAY emit a non-fatal warning to indicate
+that no usage data was available, but MUST NOT treat an empty graph as an error.
+
+Normative requirements: **R-SAFE-005**
+
 **R-SAFE-001**: ET aggregation logic **MUST** detect overflow and non-finite arithmetic states
 (`NaN`, `+Inf`, `-Inf`) before serializing output.
 

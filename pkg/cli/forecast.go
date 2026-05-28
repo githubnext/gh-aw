@@ -164,7 +164,11 @@ func RunForecast(config ForecastConfig) error {
 	}
 
 	// Emit experimental warning so users know this command is not yet stable.
-	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("forecast is an experimental command and may change without notice"))
+	// Per R-IMPL-040: the warning MUST NOT be emitted when --json is specified,
+	// as JSON callers are assumed to be automated pipelines that handle warnings separately.
+	if !config.JSONOutput {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("forecast is an experimental command and may change without notice"))
+	}
 
 	// Validate period.
 	periodDays, ok := forecastPeriodDays[config.Period]

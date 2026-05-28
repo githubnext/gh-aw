@@ -5,39 +5,37 @@ sidebar:
   order: 1300
 ---
 
-Control network access for AI engines using the top-level `network` field to specify which domains and services your agentic workflows can access during execution.
+Control network access for AI engines using the top-level `network` field to specify which domains and services your agentic workflows can access during execution. Supported by all four engines (Copilot, Claude, Codex, Gemini) via the AWF firewall.
 
-> **Note**: Network permissions are supported by all four engines: Copilot, Claude, Codex, and Gemini (via the AWF firewall). See the [Implementation](#implementation) section for engine-specific details.
-
-If no `network:` permission is specified, it defaults to `network: defaults` which allows access to basic infrastructure domains (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources).
+If no `network:` permission is specified, it defaults to `network: defaults`, which allows basic infrastructure domains (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources).
 
 > [!TIP]
-> New to Network Configuration?
-> See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for practical examples, common patterns, and troubleshooting tips for package registries and CDNs.
+> New to network configuration? See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for practical examples and troubleshooting tips.
 
 ## Configuration
 
+Network permissions follow the principle of least privilege:
+
+- **Default** (`network: defaults`): Basic infrastructure only
+- **Selective** (`network: { allowed: [...] }`): Only listed domains/ecosystems
+- **No access** (`network: {}`): All network blocked
+
+Listed domains automatically match all subdomains; wildcard patterns (`*.example.com`) are also supported — see [Wildcard Domain Patterns](#wildcard-domain-patterns).
+
 ```yaml wrap
-# Ecosystems + custom domains
 network:
   allowed:
     - defaults              # Basic infrastructure
     - python               # Python/PyPI ecosystem
     - node                 # Node.js/NPM ecosystem
     - "api.example.com"    # Custom domain
-
-# No network access
-network: {}
 ```
-
-See dedicated sections below for [blocking domains](#blocking-domains), [protocol-specific filtering](#protocol-specific-domain-filtering), and [wildcard patterns](#wildcard-domain-patterns).
 
 ## Blocking Domains
 
-Use the `blocked` field to exclude specific domains or ecosystems from the allowed set. Blocked entries take precedence over allowed ones and include all subdomains, useful for privacy (block trackers), security (block known-bad domains), or compliance:
+Use the `blocked` field to exclude specific domains or ecosystems from the allowed set. Blocked entries take precedence over allowed ones and include all subdomains — useful for privacy (block trackers), security (block known-bad domains), or compliance:
 
 ```yaml wrap
-# Combine domain and ecosystem blocking
 network:
   allowed:
     - defaults
@@ -47,16 +45,6 @@ network:
     - python               # Block Python ecosystem
     - "cdn.example.com"    # Block specific CDN
 ```
-
-## Access Levels
-
-Network permissions follow the principle of least privilege with three access levels:
-
-1. **Default Allow List** (`network: defaults`): Basic infrastructure only
-2. **Selective Access** (`network: { allowed: [...] }`): Only listed domains/ecosystems are accessible
-3. **No Access** (`network: {}`): All network access denied
-
-Listed domains automatically match all subdomains, and wildcard patterns (`*.example.com`) are also supported — see [Wildcard Domain Patterns](#wildcard-domain-patterns).
 
 ## Protocol-Specific Domain Filtering
 
@@ -159,41 +147,28 @@ network:
 
 ## Strict Mode Validation
 
-When [strict mode](/gh-aw/reference/frontmatter/#strict-mode-strict) is enabled (default), network configuration is validated to ensure security best practices. Strict mode recommends using ecosystem identifiers instead of individual domains for better maintainability.
-
-### Ecosystem Identifier Recommendation
-
-Strict mode allows but warns about individual ecosystem member domains (e.g., `pypi.org`, `npmjs.org`), recommending ecosystem identifiers (e.g., `python`, `node`) instead. This applies to all engines, including those with LLM gateway support.
+When [strict mode](/gh-aw/reference/frontmatter/#strict-mode-strict) is enabled (default), strict mode warns when you list individual ecosystem member domains (e.g., `pypi.org`, `npmjs.org`) and recommends the ecosystem identifier instead (e.g., `python`, `node`). Custom domains outside known ecosystems are allowed without warnings.
 
 ````yaml wrap
-# ⚠ Allowed with warning in strict mode (all engines)
+# ⚠ Warns: recommend 'python' instead of 'pypi.org'
 strict: true
 network:
   allowed:
     - defaults
-    - "pypi.org"        # Allowed but warns: recommend using 'python'
-    - "npmjs.org"       # Allowed but warns: recommend using 'node'
+    - "pypi.org"
+    - "npmjs.org"
 
-# ✅ Recommended in strict mode (no warnings)
-strict: true
-network:
-  allowed:
-    - defaults
-    - python           # Ecosystem identifier (recommended)
-    - node             # Ecosystem identifier (recommended)
-
-# ✅ Custom domains allowed in strict mode (no warnings)
+# ✅ No warnings
 strict: true
 network:
   allowed:
     - defaults
     - python
-    - "api.example.com"  # Custom domain (not part of known ecosystem)
+    - node
+    - "api.example.com"  # Custom domain
 ````
 
-### Informational Messages
-
-When strict mode encounters an individual ecosystem domain, it emits an informational message suggesting the appropriate ecosystem identifier:
+The emitted message takes the form:
 
 ````text
 recommend using ecosystem identifiers instead of individual domain names for better maintainability: 'pypi.org' → 'python', 'npmjs.org' → 'node'
@@ -201,74 +176,35 @@ recommend using ecosystem identifiers instead of individual domain names for bet
 
 ## Implementation
 
-Network permissions are enforced differently depending on the AI engine:
-
-### Copilot Engine
-
-The Copilot engine supports network permissions through AWF (Agent Workflow Firewall). AWF is a network firewall wrapper sourced from [github.com/github/gh-aw-firewall](https://github.com/github/gh-aw-firewall) that wraps Copilot CLI execution and enforces domain-based access controls.
-
-Enable network permissions in your workflow:
+All engines (Copilot, Claude, Codex, Gemini) enforce network permissions through AWF (Agent Workflow Firewall) — a wrapper sourced from [github.com/github/gh-aw-firewall](https://github.com/github/gh-aw-firewall) that enforces domain-based access controls via `--allow-domains`. AWF automatically includes all subdomains (e.g., `github.com` allows `api.github.com`), supports wildcard patterns, and logs all network activity for audit.
 
 ```yaml wrap
-engine: copilot
-
+engine: copilot          # or claude, codex, gemini
 network:
-  firewall: true           # Enable AWF enforcement
   allowed:
     - defaults             # Basic infrastructure
     - python              # Python ecosystem
     - "api.example.com"   # Custom domain
 ```
 
-When enabled, AWF enforces domain allowlisting via `--allow-domains`, automatically includes all subdomains (e.g., `github.com` allows `api.github.com`), supports wildcard patterns, and logs all network activity for audit purposes.
-
-### Claude, Codex, and Gemini Engines
-
-The Claude, Codex, and Gemini engines use the same AWF firewall as the Copilot engine. Configure network permissions using the same `network.allowed` / `network.blocked` fields:
-
-```yaml wrap
-# Claude
-engine: claude
-network:
-  allowed:
-    - defaults
-    - "api.example.com"
-
-# Codex
-engine: codex
-network:
-  allowed:
-    - defaults
-    - node
-
-# Gemini
-engine: gemini
-network:
-  allowed:
-    - defaults
-    - node
-```
-
-Each engine also has a built-in default domain list for its CLI authentication and operation. See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains.go) for the full lists.
+Each engine has a built-in default domain list for its CLI authentication. See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains.go) for the full lists.
 
 ### Firewall Log Level
 
-Control the verbosity of AWF firewall logs using the `log-level` field:
+Control the verbosity of AWF firewall logs using `log-level`. Options: `debug` (verbose), `info` (default), `warn`, `error`.
 
 ```yaml wrap
 network:
   firewall:
-    log-level: info      # Options: debug, info, warn, error
+    log-level: info
   allowed:
     - defaults
     - python
 ```
 
-Available log levels: `debug` (verbose), `info` (default), `warn`, `error`.
-
 ### SSL Bump for HTTPS Inspection
 
-Enable SSL bump to allow the AWF firewall to inspect HTTPS traffic and filter by URL path patterns:
+Enable SSL bump to filter HTTPS traffic by URL path patterns instead of just domain names — useful when you need to allow specific API endpoints while blocking others on the same domain. Use `allow-urls` to specify the permitted HTTPS patterns.
 
 ```yaml wrap
 network:
@@ -281,13 +217,7 @@ network:
     - defaults
 ```
 
-The `ssl-bump` feature enables deep packet inspection of HTTPS traffic, allowing the firewall to filter based on URL paths instead of just domain names. When SSL bump is enabled, use `allow-urls` to specify HTTPS URL patterns that should be permitted through the firewall.
-
-**Security Considerations**
-
-SSL bump intercepts and decrypts HTTPS traffic as a man-in-the-middle — only enable it when URL-level filtering is necessary, and use `allow-urls` patterns carefully to avoid breaking legitimate connections. This feature requires AWF version 0.9.0 or later and does not apply to Sandbox Runtime (SRT).
-
-Use SSL bump when you need to allow specific API endpoints while blocking others on the same domain. See the [Sandbox Configuration](/gh-aw/reference/sandbox/) documentation for detailed AWF configuration options.
+**Security**: SSL bump intercepts and decrypts HTTPS as a man-in-the-middle — only enable when URL-level filtering is necessary, and craft `allow-urls` patterns carefully to avoid breaking legitimate connections. Requires AWF v0.9.0+ and does not apply to Sandbox Runtime (SRT). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for full AWF options.
 
 ### Effective Token Steering
 
@@ -303,25 +233,13 @@ See [Max Effective Tokens](/gh-aw/reference/glossary/#max-effective-tokens-max-e
 
 ### Disabling the Firewall
 
-The firewall is always enabled via the default `sandbox.agent: awf` configuration:
-
-```yaml wrap
-engine: copilot
-network:
-  allowed:
-    - defaults
-    - python
-    - "api.example.com"
-# sandbox.agent defaults to 'awf' if not specified
-```
-
-When the firewall is disabled, network permissions still apply for content sanitization but the agent can make unrestricted network requests. Only disable during development or when AWF is incompatible with your workflow; keep it enabled in production.
+The firewall is enabled by default via `sandbox.agent: awf`. When disabled, network permissions still apply for content sanitization but the agent can make unrestricted network requests. Only disable during development or when AWF is incompatible with your workflow; keep it enabled in production.
 
 ## Caller-Extensible Allowlist (`network.allowed-input`)
 
-Reusable workflows compiled to `.lock.yml` bake their `network.allowed` list into the lock file. By default a consumer repository cannot extend the allowlist without forking and recompiling the source. Set `network.allowed-input: true` to opt into a `workflow_call` input named `network_allowed` that callers can use to add domains or ecosystems at runtime.
+Reusable workflows compiled to `.lock.yml` bake their `network.allowed` into the lock file, so consumers normally can't extend it without forking. Set `network.allowed-input: true` to expose a `workflow_call` input named `network_allowed` that lets callers add domains or ecosystems at runtime.
 
-The source workflow's compiled `network.allowed` is preserved as the baseline, and the caller's value is unioned in before AWF starts. Ecosystem shorthands (for example `rust`) are expanded to their concrete domain sets before merging, and the result is deduplicated.
+The compiled `network.allowed` remains the baseline; the caller's value is unioned in before AWF starts, with ecosystem shorthands expanded to their concrete domain sets and the result deduplicated.
 
 ```yaml wrap
 # source workflow (compiled to a reusable .lock.yml)
@@ -346,7 +264,7 @@ The `network_allowed` input is a string accepting comma-separated ecosystem iden
 
 ## Wildcard Domain Patterns
 
-Use wildcard patterns (`*.example.com`) to match any subdomain of a domain. Wildcards provide explicit control when you need to allow a family of subdomains.
+Wildcard patterns (`*.example.com`) match the base domain and all subdomains at any depth, making subdomain intent explicit. Only a single leading wildcard is allowed (`*.*.example.com` is invalid), and it must be followed by a dot and domain. Both `example.com` and `*.example.com` match all subdomains.
 
 ```yaml wrap
 network:
@@ -356,29 +274,18 @@ network:
     - "*.storage.example.com" # Matches files.storage.example.com
 ```
 
-Wildcards match the base domain and all subdomains at any depth. Only a single leading wildcard is allowed (e.g., `*.*.example.com` is invalid), and it must be followed by a dot and domain. Both `example.com` and `*.example.com` match all subdomains — use the wildcard form when you want to be explicit about subdomain intent.
-
-## Best Practices
-
-Follow the principle of least privilege by only allowing access to domains and ecosystems actually needed. Prefer ecosystem identifiers over listing individual domains. For custom domains, both base domains (e.g., `trusted.com`) and wildcard patterns (e.g., `*.trusted.com`) work for subdomain matching.
-
 ## Troubleshooting
 
-If you encounter network access blocked errors, verify that required domains or ecosystems are included in the `allowed` list. Start with `network: defaults` and add specific requirements incrementally. Network access violations are logged in workflow execution logs.
+If you encounter network access blocked errors, verify that required domains or ecosystems are in the `allowed` list. Start with `network: defaults` and add specific requirements incrementally. Network access violations are logged in workflow execution logs.
 
-Use `gh aw logs --run-id <run-id>` to view firewall activity and identify blocked domains. See the [Network Configuration Guide](/gh-aw/guides/network-configuration/#troubleshooting-firewall-blocking) for detailed troubleshooting steps and common solutions.
-
-To understand domain allow/block behavior in detail, use `gh aw audit <run-id>` — the **Firewall Analysis** section of the report lists every domain request, its allowed or denied status, request volume, and policy attribution. To compare firewall behavior between two runs and spot new or removed domain accesses, pass both run IDs to `audit`:
+Use `gh aw logs --run-id <run-id>` to view firewall activity and identify blocked domains. For detailed diagnostics, use `gh aw audit <run-id>` — the **Firewall Analysis** section lists every domain request with its allow/deny status, request volume, and policy attribution. Pass two run IDs to compare firewall behavior between runs:
 
 ```bash
-# Inspect firewall activity for a single run
-gh aw audit 12345678
-
-# Compare firewall behavior between two runs
-gh aw audit 12345678 12345679
+gh aw audit 12345678              # Single run
+gh aw audit 12345678 12345679     # Compare two runs
 ```
 
-See [Audit Commands](/gh-aw/reference/audit/) for full documentation.
+See the [Network Configuration Guide](/gh-aw/guides/network-configuration/#troubleshooting-firewall-blocking) and [Audit Commands](/gh-aw/reference/audit/) for more.
 
 ## Related Documentation
 
