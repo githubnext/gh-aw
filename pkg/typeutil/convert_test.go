@@ -8,6 +8,18 @@ import (
 	"testing"
 )
 
+func TestPtr(t *testing.T) {
+	b := Ptr(true)
+	if b == nil || !*b {
+		t.Fatalf("Ptr(true) = %v, want pointer to true", b)
+	}
+
+	s := Ptr("hello")
+	if s == nil || *s != "hello" {
+		t.Fatalf("Ptr(\"hello\") = %v, want pointer to hello", s)
+	}
+}
+
 func TestParseIntValue(t *testing.T) {
 	tests := []struct {
 		name     string
