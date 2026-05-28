@@ -51,7 +51,7 @@ function validateRequiredFields(args, inputSchema) {
  */
 function validateStringInputLengths(args, inputSchema, maxBytes) {
   const limit = typeof maxBytes === "number" ? maxBytes : MAX_STRING_INPUT_BYTES;
-  const properties = (inputSchema && inputSchema.properties) ? inputSchema.properties : {};
+  const properties = inputSchema && inputSchema.properties ? inputSchema.properties : {};
   const violations = [];
 
   for (const [field, schema] of Object.entries(properties)) {
