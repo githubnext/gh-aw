@@ -241,8 +241,45 @@ jobs:
           echo "Sync actions instructions written for release: $RELEASE_TAG"
           echo "Ensure the sync-actions job has been run and the PR merged in github/gh-aw-actions before approving."
 
-  sync_actions:
+  defender:
     needs: ["pre_activation", "activation", "config", "push_tag"]
+    runs-on: windows-latest
+    steps:
+      - name: Download release binaries
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: release-binaries-${{ needs.config.outputs.release_tag }}
+          path: dist/
+
+      - name: Update Microsoft Defender signatures
+        run: |
+          & "C:\Program Files\Windows Defender\MpCmdRun.exe" -SignatureUpdate
+        shell: pwsh
+
+      - name: Run Microsoft Defender scan on Windows binaries
+        run: |
+          $binaries = Get-ChildItem -Path dist\ -Filter "windows-*.exe" -File
+          if ($binaries.Count -eq 0) {
+            Write-Error "No Windows binaries found in dist/"
+            exit 1
+          }
+          $failed = $false
+          foreach ($binary in $binaries) {
+            Write-Host "Scanning $($binary.FullName)..."
+            $output = & "C:\Program Files\Windows Defender\MpCmdRun.exe" -Scan -ScanType 3 -File $binary.FullName 2>&1
+            Write-Host $output
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Defender scan failed for $($binary.Name) with exit code $LASTEXITCODE"
+              $failed = $true
+            } else {
+              Write-Host "✓ Clean: $($binary.Name)"
+            }
+          }
+          if ($failed) { exit 1 }
+        shell: pwsh
+
+  sync_actions:
+    needs: ["pre_activation", "activation", "config", "push_tag", "defender"]
     runs-on: ubuntu-latest
     environment: gh-aw-actions-release
     steps:
