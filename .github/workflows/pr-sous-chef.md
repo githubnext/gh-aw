@@ -176,7 +176,7 @@ Move open non-draft PRs toward a state where a maintainer can investigate quickl
 4. Process at most **10 PRs** per run.
 5. Use the `pr-processor` sub-agent for each PR; pass only the PR number and compact context.
 6. Do not fetch full PR diffs or large file lists unless absolutely required for a skip decision.
-7. **Never finish without at least one safe-output tool call.** If you have not called `add_comment` or `update_pull_request`, you must call the run-summary `noop` (see **Run summary** below) before finishing.
+7. **Never finish without at least one safe-output tool call.** Right before your final response, verify at least one safe-output call succeeded in this run (`add_comment`, `update_pull_request`, `push_to_pull_request_branch`, or `noop`). If none succeeded yet, call the run-summary `noop` (see **Run summary** below) immediately.
 
 ## Required skip rules per PR
 
@@ -226,7 +226,7 @@ For each PR that is not skipped:
 
 ## Run summary
 
-At the end, call **exactly one** `noop` with a compact summary including counts (this final run-summary `noop` is mandatory and counts as the required safe-output call when no other actions were taken):
+If and only if you made **zero** successful non-noop safe-output calls in this run, call **exactly one** run-summary `noop` with a compact summary including counts:
 - processed
 - skipped_checks_running
 - skipped_last_comment_from_sous_chef
@@ -234,6 +234,8 @@ At the end, call **exactly one** `noop` with a compact summary including counts 
 - nudged_other
 - branch_update_attempts
 - formatter_pushes (number of PRs that had formatting fixes committed and pushed)
+
+If you already called `add_comment`, `update_pull_request`, or `push_to_pull_request_branch`, do **not** call `noop`.
 
 ## Formatting Requirements
 
