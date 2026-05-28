@@ -135,14 +135,9 @@ func (r *ActionResolver) resolveFromGitHub(ctx context.Context, repo, version st
 		// caller context (ctx), not from callCtx, so we don't accidentally shrink
 		// the budget for subsequent peels.
 		peelCtx, peelCancel := context.WithTimeout(ctx, 30*time.Second)
-		var output2 []byte
-		peelErr := func() error {
-			defer peelCancel()
-			cmd2 := ExecGHContext(peelCtx, "api", tagPath, "--jq", "[.object.sha, .object.type] | @tsv")
-			var err error
-			output2, err = cmd2.Output()
-			return err
-		}()
+		defer peelCancel()
+		cmd2 := ExecGHContext(peelCtx, "api", tagPath, "--jq", "[.object.sha, .object.type] | @tsv")
+		output2, peelErr := cmd2.Output()
 		if peelErr != nil {
 			return "", fmt.Errorf("failed to peel annotated tag %s@%s: %w", repo, version, peelErr)
 		}
