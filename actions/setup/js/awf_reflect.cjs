@@ -281,8 +281,8 @@ async function fetchAWFReflect(options) {
       const original = error?.originalError || error;
       const status = original?.status ?? original?.response?.status ?? null;
       const shouldRetryStatus = RETRYABLE_REFLECT_STATUS_CODES.includes(status);
-      const retryableCode = RETRYABLE_REFLECT_ERROR_CODES.includes(original?.code) || RETRYABLE_REFLECT_ERROR_CODES.includes(original?.cause?.code);
-      const shouldRetryFetchFailure = (original?.message || "").toLowerCase() === "fetch failed" && retryableCode;
+      const hasRetryableErrorCode = RETRYABLE_REFLECT_ERROR_CODES.includes(original?.code) || RETRYABLE_REFLECT_ERROR_CODES.includes(original?.cause?.code);
+      const shouldRetryFetchFailure = (original?.message || "").toLowerCase().includes("fetch failed") && hasRetryableErrorCode;
       const shouldRetry = shouldRetryStatus || isTransientError(original) || shouldRetryFetchFailure;
       if (shouldRetry) {
         logger(`awf-reflect: transient failure for ${reflectUrl}; retrying`);
