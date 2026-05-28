@@ -61,6 +61,8 @@ const AWF_MODELS_URL_RETRY_MAX_MS = 2000;
 // Gemini model name prefix stripped from model IDs in the Gemini models API response.
 // Example: { name: "models/gemini-1.5-pro" } → "gemini-1.5-pro"
 const GEMINI_MODEL_NAME_PREFIX = "models/";
+// HTTP statuses from api-proxy /reflect that are typically transient during startup.
+const RETRYABLE_REFLECT_STATUS_CODES = [502, 503, 504];
 
 // Default logger used by fetchAWFReflect when no logger is provided via options.
 // All lines are prefixed with "[awf-reflect]" for easy grepping in combined logs.
@@ -258,7 +260,8 @@ async function fetchAWFReflect(options) {
   const reflectUrl = (options && options.reflectUrl) || AWF_API_PROXY_REFLECT_URL;
   const outputPath = (options && options.outputPath) || AWF_REFLECT_OUTPUT_PATH;
   const timeoutMs = options && options.timeoutMs != null ? options.timeoutMs : AWF_REFLECT_TIMEOUT_MS;
-  const maxAttempts = options && options.maxAttempts != null ? options.maxAttempts : AWF_REFLECT_MAX_ATTEMPTS;
+  const configuredAttempts = options && options.maxAttempts != null ? options.maxAttempts : AWF_REFLECT_MAX_ATTEMPTS;
+  const maxAttempts = Math.max(1, configuredAttempts);
   const retryBaseMs = options && options.retryBaseMs != null ? options.retryBaseMs : AWF_REFLECT_RETRY_BASE_MS;
   const retryMaxMs = options && options.retryMaxMs != null ? options.retryMaxMs : AWF_REFLECT_RETRY_MAX_MS;
   const modelsTimeoutMs = options && options.modelsTimeoutMs != null ? options.modelsTimeoutMs : AWF_MODELS_URL_TIMEOUT_MS;
@@ -267,7 +270,8 @@ async function fetchAWFReflect(options) {
 
   const retryConfig = {
     maxRetries: Math.max(0, maxAttempts - 1),
-    // withRetry waits before retry attempt, so divide by 2 to preserve first wait.
+    // withRetry doubles the delay after each failure. We halve the initial value so
+    // the first retry sleep is exactly retryBaseMs (instead of 2x retryBaseMs).
     initialDelayMs: Math.ceil(retryBaseMs / 2),
     maxDelayMs: retryMaxMs,
     backoffMultiplier: 2,
@@ -275,7 +279,7 @@ async function fetchAWFReflect(options) {
     shouldRetry: error => {
       const original = error?.originalError || error;
       const status = original?.status ?? original?.response?.status ?? null;
-      const shouldRetryStatus = status === 502 || status === 503 || status === 504;
+      const shouldRetryStatus = RETRYABLE_REFLECT_STATUS_CODES.includes(status);
       const shouldRetry = shouldRetryStatus || isTransientError(original);
       if (shouldRetry) {
         logger(`awf-reflect: transient failure for ${reflectUrl}; retrying`);
@@ -298,7 +302,7 @@ async function fetchAWFReflect(options) {
         try {
           const res = await fetch(reflectUrl, { signal: ac.signal });
           if (!res.ok) {
-            if (res.status === 502 || res.status === 503 || res.status === 504) {
+            if (RETRYABLE_REFLECT_STATUS_CODES.includes(res.status)) {
               const err = Object.assign(new Error(`reflect fetch returned ${res.status} for ${reflectUrl}`), { status: res.status });
               throw err;
             }
