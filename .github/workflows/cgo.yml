@@ -1647,12 +1647,52 @@ jobs:
           exit 1
         }
 
-        # ScanType 3 = custom scan. Use -File to scan only the generated binary.
-        & $mpCmdRun -Scan -ScanType 3 -File $binaryPath
-        if ($LASTEXITCODE -ne 0) {
-          Write-Error "Microsoft Defender scan failed with exit code $LASTEXITCODE"
-          exit $LASTEXITCODE
+        # Log Defender version and signature information for diagnostics
+        Write-Host "=== Microsoft Defender diagnostic info ==="
+        $mpPreference = Get-MpComputerStatus -ErrorAction SilentlyContinue
+        if ($mpPreference) {
+          Write-Host "AntivirusEnabled:         $($mpPreference.AntivirusEnabled)"
+          Write-Host "RealTimeProtectionEnabled: $($mpPreference.RealTimeProtectionEnabled)"
+          Write-Host "AntivirusSignatureVersion: $($mpPreference.AntivirusSignatureVersion)"
+          Write-Host "AntivirusSignatureLastUpdated: $($mpPreference.AntivirusSignatureLastUpdated)"
+          Write-Host "AMProductVersion:          $($mpPreference.AMProductVersion)"
+          Write-Host "AMEngineVersion:           $($mpPreference.AMEngineVersion)"
+        } else {
+          Write-Host "(Get-MpComputerStatus unavailable)"
         }
+        Write-Host "MpCmdRun.exe path: $mpCmdRun"
+        Write-Host "Binary to scan:    $binaryPath"
+        Write-Host "Binary size:       $((Get-Item $binaryPath).Length) bytes"
+        Write-Host "=========================================="
+
+        # ScanType 3 = custom scan. Use -File to scan only the generated binary.
+        # Capture output so we can detect the "was skipped" case, which exits 0
+        # but means the file was NOT actually scanned.
+        $output = & $mpCmdRun -Scan -ScanType 3 -File $binaryPath 2>&1
+        $scanExitCode = $LASTEXITCODE
+
+        Write-Host "=== MpCmdRun output ==="
+        $output | ForEach-Object { Write-Host $_ }
+        Write-Host "Exit code: $scanExitCode"
+        Write-Host "======================="
+
+        if ($scanExitCode -ne 0) {
+          Write-Error "Microsoft Defender scan failed with exit code $scanExitCode"
+          exit $scanExitCode
+        }
+
+        # MpCmdRun exits 0 even when scanning is skipped (e.g. file excluded,
+        # signatures stale, or real-time protection is disabled). Detect this and
+        # treat it as a hard failure so a skipped scan never silently passes CI.
+        $skipped = $output | Where-Object { $_ -match "was skipped" }
+        if ($skipped) {
+          Write-Error "Microsoft Defender scan was skipped for $binaryPath - the binary was NOT scanned."
+          Write-Error "Possible causes: file/path exclusion, stale signatures, or protection disabled."
+          Write-Error "Skipped output: $($skipped -join '; ')"
+          exit 1
+        }
+
+        Write-Host "✅ Microsoft Defender scan completed successfully for $binaryPath"
 
     - name: Create test workflow
       shell: bash
