@@ -13,6 +13,9 @@ describe("pi_provider.cjs", () => {
     originalEnv = { ...process.env };
     originalFetch = global.fetch;
     stderrOutput = [];
+    process.env.AWF_REFLECT_MAX_ATTEMPTS = "1";
+    process.env.AWF_REFLECT_RETRY_BASE_MS = "1";
+    process.env.AWF_REFLECT_RETRY_MAX_MS = "1";
     vi.spyOn(process.stderr, "write").mockImplementation(msg => {
       stderrOutput.push(String(msg));
       return true;
