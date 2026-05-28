@@ -3,7 +3,10 @@
 package workflow
 
 import (
+	"reflect"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/types"
 )
 
 func TestParseInputDefinition(t *testing.T) {
@@ -261,5 +264,11 @@ func TestInputDefinitionGetDefaultAsString(t *testing.T) {
 				t.Errorf("GetDefaultAsString: got %q, want %q", result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestInputDefinitionAliasesSharedType(t *testing.T) {
+	if reflect.TypeOf(InputDefinition{}) != reflect.TypeOf(types.InputDefinition{}) {
+		t.Fatal("InputDefinition should alias types.InputDefinition")
 	}
 }

@@ -1,10 +1,8 @@
 package workflow
 
 import (
-	"fmt"
-	"strconv"
-
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/types"
 )
 
 var inputsLog = logger.New("workflow:inputs")
@@ -17,13 +15,7 @@ var inputsLog = logger.New("workflow:inputs")
 //
 // The structure follows the workflow_dispatch input schema from GitHub Actions:
 // https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#onworkflow_dispatchinputs
-type InputDefinition struct {
-	Description string   `yaml:"description,omitempty" json:"description,omitempty"`
-	Required    bool     `yaml:"required,omitempty" json:"required,omitempty"`
-	Default     any      `yaml:"default,omitempty" json:"default,omitempty"` // Can be string, number, or boolean
-	Type        string   `yaml:"type,omitempty" json:"type,omitempty"`       // "string", "choice", "boolean", "number", "environment"
-	Options     []string `yaml:"options,omitempty" json:"options,omitempty"` // Options for choice type
-}
+type InputDefinition = types.InputDefinition
 
 // ParseInputDefinition parses an input definition from a map.
 // This is a shared helper function that handles the common parsing logic
@@ -91,34 +83,4 @@ func ParseInputDefinitions(inputsMap map[string]any) map[string]*InputDefinition
 
 	inputsLog.Printf("Parsed %d input definitions", len(result))
 	return result
-}
-
-// GetDefaultAsString returns the default value as a string.
-// Useful for backwards compatibility with code that expects string defaults.
-func (i *InputDefinition) GetDefaultAsString() string {
-	if i.Default == nil {
-		return ""
-	}
-
-	switch v := i.Default.(type) {
-	case string:
-		return v
-	case bool:
-		if v {
-			return "true"
-		}
-		return "false"
-	case int:
-		return strconv.Itoa(v)
-	case int64:
-		return strconv.FormatInt(v, 10)
-	case float64:
-		// Handle both integer and float values
-		if v == float64(int64(v)) {
-			return strconv.FormatInt(int64(v), 10)
-		}
-		return fmt.Sprintf("%g", v)
-	default:
-		return fmt.Sprintf("%v", v)
-	}
 }
