@@ -1693,10 +1693,11 @@ jobs:
         # treat it as a hard failure so a skipped scan never silently passes CI.
         # Use -imatch for case-insensitive matching since the exact casing of
         # MpCmdRun output may vary across Defender versions.
-        $skipped = $output | Where-Object { $_ -imatch "was skipped|cannot be scanned|not performed|excluded" }
+        $skipped = $output | Where-Object { $_ -imatch "\bwas skipped\b|\bcannot be scanned\b|\bnot performed\b|\b(?:file|scan).*\bexcluded\b" }
         if ($skipped) {
           Write-Error "Microsoft Defender scan was skipped for $binaryPath - the binary was NOT scanned."
           Write-Error "Possible causes: file/path exclusion, stale signatures, or protection disabled."
+          # Wrap with @() so a single matched line is joined as one line, not character-by-character.
           Write-Error "Skipped output: $(@($skipped) -join '; ')"
           exit 1
         }
