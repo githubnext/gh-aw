@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -146,7 +147,7 @@ func newDefaultsGetCommand() *cobra.Command {
 
 func newDefaultsUpdateCommand() *cobra.Command {
 	var scope, repo, org, enterprise string
-	var yes bool
+	var yes, dryRun bool
 
 	cmd := &cobra.Command{
 		Use:   "update [file]",
@@ -161,7 +162,7 @@ func newDefaultsUpdateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return defaultsUpdateFromFile(target, inputFile, yes)
+			return defaultsUpdateFromFile(target, inputFile, yes, dryRun)
 		},
 	}
 
@@ -170,6 +171,7 @@ func newDefaultsUpdateCommand() *cobra.Command {
 	cmd.Flags().StringVar(&org, "org", "", "Target organization (required for --scope org unless inferable from --repo/current repo)")
 	cmd.Flags().StringVar(&enterprise, "enterprise", "", "Target enterprise slug (required for --scope ent)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip confirmation prompt")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview updates without applying any changes")
 	_ = cmd.MarkFlagRequired("scope")
 	return cmd
 }
@@ -200,18 +202,26 @@ func defaultsGetToFile(target defaultsTarget, outputFile string) error {
 	return nil
 }
 
-func defaultsUpdateFromFile(target defaultsTarget, inputFile string, skipConfirmation bool) error {
+func defaultsUpdateFromFile(target defaultsTarget, inputFile string, skipConfirmation, dryRun bool) error {
 	data, err := os.ReadFile(inputFile)
 	if err != nil {
 		return fmt.Errorf("failed to read defaults file %q: %w", inputFile, err)
 	}
 
-	var file defaultsFile
-	if err := yaml.Unmarshal(data, &file); err != nil {
-		return fmt.Errorf("failed to parse defaults file %q: %w", inputFile, err)
+	file, err := defaultsParseFile(inputFile, data)
+	if err != nil {
+		return err
+	}
+	if err := defaultsValidateFile(&file); err != nil {
+		return err
 	}
 
 	changes := defaultsBuildUpdateChanges(&file)
+	if dryRun {
+		renderDefaultsUpdatePreview(target, inputFile, changes)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dry-run mode enabled; no variables were changed."))
+		return nil
+	}
 	if err := confirmDefaultsUpdate(target, inputFile, changes, skipConfirmation, console.ConfirmAction); err != nil {
 		return err
 	}
@@ -229,6 +239,50 @@ func defaultsUpdateFromFile(target defaultsTarget, inputFile string, skipConfirm
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated defaults from "+inputFile))
+	return nil
+}
+
+func defaultsParseFile(inputFile string, data []byte) (defaultsFile, error) {
+	var file defaultsFile
+	if err := yaml.UnmarshalWithOptions(data, &file, yaml.DisallowUnknownField()); err != nil {
+		return defaultsFile{}, fmt.Errorf("failed to parse defaults file %q: %w", inputFile, err)
+	}
+	return file, nil
+}
+
+func defaultsValidateFile(file *defaultsFile) error {
+	var validationErrors []string
+
+	validatePositiveInt := func(field string, value *string) {
+		if value == nil {
+			return
+		}
+		trimmed := strings.TrimSpace(*value)
+		parsed, err := strconv.ParseInt(trimmed, 10, 64)
+		if err != nil || parsed <= 0 {
+			validationErrors = append(validationErrors, fmt.Sprintf("%s must be a positive integer when set", field))
+		}
+	}
+	validateNonEmpty := func(field string, value *string) {
+		if value == nil {
+			return
+		}
+		if strings.TrimSpace(*value) == "" {
+			validationErrors = append(validationErrors, fmt.Sprintf("%s cannot be empty when set", field))
+		}
+	}
+
+	validatePositiveInt("default_max_effective_tokens", file.DefaultMaxEffectiveTokens)
+	validatePositiveInt("default_max_turns", file.DefaultMaxTurns)
+	validatePositiveInt("default_timeout_minutes", file.DefaultTimeoutMinutes)
+	validateNonEmpty("default_detection_model", file.DefaultDetectionModel)
+	validateNonEmpty("default_model_copilot", file.DefaultModelCopilot)
+	validateNonEmpty("default_model_claude", file.DefaultModelClaude)
+	validateNonEmpty("default_model_codex", file.DefaultModelCodex)
+
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("invalid defaults file: %s", strings.Join(validationErrors, "; "))
+	}
 	return nil
 }
 
@@ -261,17 +315,7 @@ func confirmDefaultsUpdate(
 	skipConfirmation bool,
 	confirmAction func(title, affirmative, negative string) (bool, error),
 ) error {
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Defaults update preview:"))
-	fmt.Fprint(os.Stderr, console.RenderStruct(defaultsUpdatePreview{
-		Scope:  target.scope,
-		Target: target.displayName(),
-		File:   inputFile,
-		Fields: len(changes),
-	}))
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprint(os.Stderr, console.RenderStruct(defaultsUpdateRows(changes)))
-	fmt.Fprintln(os.Stderr)
+	renderDefaultsUpdatePreview(target, inputFile, changes)
 
 	if skipConfirmation {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping confirmation because --yes was provided."))
@@ -290,6 +334,20 @@ func confirmDefaultsUpdate(
 		return errors.New("defaults update cancelled")
 	}
 	return nil
+}
+
+func renderDefaultsUpdatePreview(target defaultsTarget, inputFile string, changes []defaultsUpdateChange) {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Defaults update preview:"))
+	fmt.Fprint(os.Stderr, console.RenderStruct(defaultsUpdatePreview{
+		Scope:  target.scope,
+		Target: target.displayName(),
+		File:   inputFile,
+		Fields: len(changes),
+	}))
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprint(os.Stderr, console.RenderStruct(defaultsUpdateRows(changes)))
+	fmt.Fprintln(os.Stderr)
 }
 
 func defaultsUpdateRows(changes []defaultsUpdateChange) []defaultsUpdateRow {

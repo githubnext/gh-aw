@@ -33,6 +33,7 @@ func TestNewEnvCommand(t *testing.T) {
 	assert.True(t, hasUpdate, "env command should include update subcommand")
 	require.NotNil(t, updateCmd)
 	assert.NotNil(t, updateCmd.Flags().Lookup("yes"))
+	assert.NotNil(t, updateCmd.Flags().Lookup("dry-run"))
 }
 
 func TestResolveDefaultsTarget(t *testing.T) {
@@ -117,6 +118,41 @@ func TestDefaultsFileYAMLNullDelete(t *testing.T) {
 		err := yaml.Unmarshal([]byte("default_model_copilot: gpt-5-mini\n"), &file)
 		require.NoError(t, err)
 		assert.Nil(t, file.DefaultMaxTurns)
+	})
+}
+
+func TestDefaultsParseFileDisallowsUnknownFields(t *testing.T) {
+	_, err := defaultsParseFile("defaults.yml", []byte("default_max_turns: \"42\"\ndefault_model_copliot: gpt-5-mini\n"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "default_model_copliot")
+}
+
+func TestDefaultsValidateFile(t *testing.T) {
+	t.Run("accepts valid values", func(t *testing.T) {
+		err := defaultsValidateFile(&defaultsFile{
+			DefaultMaxEffectiveTokens: strPtr("1000000"),
+			DefaultMaxTurns:           strPtr("12"),
+			DefaultTimeoutMinutes:     strPtr("30"),
+			DefaultDetectionModel:     strPtr("claude-sonnet-4.6"),
+			DefaultModelCopilot:       strPtr("gpt-5-mini"),
+			DefaultModelClaude:        strPtr("claude-haiku-4.5"),
+			DefaultModelCodex:         strPtr("gpt-5.4-mini"),
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("rejects invalid numeric and empty model values", func(t *testing.T) {
+		err := defaultsValidateFile(&defaultsFile{
+			DefaultMaxEffectiveTokens: strPtr("-1"),
+			DefaultMaxTurns:           strPtr("abc"),
+			DefaultTimeoutMinutes:     strPtr("0"),
+			DefaultModelCopilot:       strPtr("   "),
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "default_max_effective_tokens must be a positive integer when set")
+		assert.Contains(t, err.Error(), "default_max_turns must be a positive integer when set")
+		assert.Contains(t, err.Error(), "default_timeout_minutes must be a positive integer when set")
+		assert.Contains(t, err.Error(), "default_model_copilot cannot be empty when set")
 	})
 }
 
