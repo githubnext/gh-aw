@@ -222,6 +222,41 @@ describe("pi_provider.cjs", () => {
     ).toBe(true);
   });
 
+  it("runs fetch diagnostics with node runtime details when enabled", async () => {
+    process.env.AWF_PI_FETCH_DIAGNOSTICS_ENABLED = "1";
+    process.env.AWF_PI_FETCH_DIAGNOSTIC_URLS = "https://github.com,https://api.github.com/meta";
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        url: "https://github.com/",
+        text: vi.fn().mockResolvedValue("<!doctype html><title>GitHub</title>"),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        url: "https://api.github.com/meta",
+        text: vi.fn().mockResolvedValue('{"verifiable_password_authentication":false}'),
+      });
+
+    const handlers = {};
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn((event, handler) => {
+        handlers[event] = handler;
+      }),
+    };
+
+    module.default(pi);
+    await handlers.agent_start();
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(stderrOutput.some(line => line.includes("pi-fetch-diagnostics phase=agent_start node="))).toBe(true);
+    expect(stderrOutput.some(line => line.includes("pi-fetch-diagnostics url=https://github.com final_url=https://github.com/ status=200 ok=true"))).toBe(true);
+    expect(stderrOutput.some(line => line.includes("pi-fetch-diagnostics url=https://api.github.com/meta final_url=https://api.github.com/meta status=200 ok=true"))).toBe(true);
+  });
+
   it("skips /reflect when AWF_REFLECT_ENABLED is not set", async () => {
     process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
     delete process.env.AWF_REFLECT_ENABLED;

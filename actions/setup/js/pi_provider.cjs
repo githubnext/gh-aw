@@ -30,6 +30,8 @@
 const { fetchAWFReflect, AWF_API_PROXY_REFLECT_URL, AWF_REFLECT_OUTPUT_PATH, AWF_REFLECT_TIMEOUT_MS, AWF_MODELS_URL_TIMEOUT_MS } = require("./awf_reflect.cjs");
 const fs = require("fs");
 const path = require("path");
+const DEFAULT_FETCH_DIAGNOSTIC_URLS = ["http://api-proxy:10000/reflect", "https://github.com", "https://api.github.com/meta"];
+const DEFAULT_FETCH_DIAGNOSTIC_TIMEOUT_MS = 5000;
 
 // Default logger: prefixed with "[gh-aw/pi-provider]" for easy grepping.
 // prettier-ignore
@@ -216,6 +218,82 @@ function logReflectFailure(params) {
 }
 
 /**
+ * Parse comma-separated URL list for Pi fetch diagnostics.
+ *
+ * @returns {string[]}
+ */
+function getFetchDiagnosticUrls() {
+  const raw = process.env.AWF_PI_FETCH_DIAGNOSTIC_URLS;
+  if (!raw) {
+    return DEFAULT_FETCH_DIAGNOSTIC_URLS;
+  }
+  const parsed = raw
+    .split(",")
+    .map(v => v.trim())
+    .filter(Boolean);
+  return parsed.length > 0 ? parsed : DEFAULT_FETCH_DIAGNOSTIC_URLS;
+}
+
+/**
+ * Return true when Pi fetch diagnostics should run.
+ *
+ * @returns {boolean}
+ */
+function isFetchDiagnosticsEnabled() {
+  return process.env.AWF_PI_FETCH_DIAGNOSTICS_ENABLED === "1";
+}
+
+/**
+ * Capture a compact body preview for fetch diagnostics logs.
+ *
+ * @param {Response} response
+ * @returns {Promise<string>}
+ */
+async function readBodyPreview(response) {
+  try {
+    const text = await response.text();
+    const normalized = text.replace(/\s+/g, " ").trim();
+    return normalized.slice(0, 200) || "(empty body)";
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return `(body read failed: ${message})`;
+  }
+}
+
+/**
+ * Log runtime fetch diagnostics for Node 24 transport debugging.
+ *
+ * @param {{
+ *   phase: string,
+ *   logger: (msg: string) => void,
+ *   timeoutMs?: number,
+ *   urls?: string[],
+ * }} params
+ * @returns {Promise<void>}
+ */
+async function runFetchDiagnostics(params) {
+  const { phase, logger } = params;
+  const timeoutMs = typeof params.timeoutMs === "number" && params.timeoutMs > 0 ? params.timeoutMs : DEFAULT_FETCH_DIAGNOSTIC_TIMEOUT_MS;
+  const urls = Array.isArray(params.urls) && params.urls.length > 0 ? params.urls : getFetchDiagnosticUrls();
+  logger(`pi-fetch-diagnostics phase=${phase} node=${process.version} platform=${process.platform} undici=${process.versions?.undici || "unknown"} fetch_type=${typeof fetch}`);
+  for (const probeUrl of urls) {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), timeoutMs);
+    try {
+      const response = await fetch(probeUrl, { signal: ac.signal });
+      const outputPreview = await readBodyPreview(response);
+      logger(`pi-fetch-diagnostics url=${probeUrl} final_url=${response.url || probeUrl} status=${response.status} ok=${response.ok} output=${JSON.stringify(outputPreview)}`);
+    } catch (error) {
+      const err = /** @type {any} */ error;
+      const message = err instanceof Error ? err.message : String(err);
+      logger(`pi-fetch-diagnostics url=${probeUrl} failed error=${JSON.stringify(message)} code=${err?.code || err?.cause?.code || "n/a"}`);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
+/**
  * Register a Pi provider and any aliases.
  *
  * @param {any} pi
@@ -360,6 +438,10 @@ function piProviderExtension(pi) {
       }
     } else {
       log(`model=${model || "(not set)"} (no provider prefix — defaulting to Copilot gateway)`);
+    }
+
+    if (isFetchDiagnosticsEnabled()) {
+      await runFetchDiagnostics({ phase: "agent_start", logger: log });
     }
 
     // Fetch AWF API proxy reflection data before the agent runs to capture initial proxy state.

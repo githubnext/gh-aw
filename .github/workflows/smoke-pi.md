@@ -16,6 +16,8 @@ env:
   AWF_REFLECT_MAX_ATTEMPTS: "7"
   AWF_REFLECT_RETRY_BASE_MS: "1000"
   AWF_REFLECT_RETRY_MAX_MS: "10000"
+  AWF_PI_FETCH_DIAGNOSTICS_ENABLED: "1"
+  AWF_PI_FETCH_DIAGNOSTIC_URLS: "http://api-proxy:10000/reflect,https://github.com,https://api.github.com/meta"
 name: Smoke Pi
 experiments:
   sub_agent_decomposition:
