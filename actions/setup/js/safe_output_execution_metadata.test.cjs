@@ -2,12 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "module";
 
 const req = createRequire(import.meta.url);
-const {
-  extractIssueStateFromData,
-  extractPullRequestStateFromData,
-  mergePullRequestState,
-  hashNormalizedBody,
-} = req("./safe_output_execution_metadata.cjs");
+const { extractIssueStateFromData, extractPullRequestStateFromData, mergePullRequestState, hashNormalizedBody } = req("./safe_output_execution_metadata.cjs");
 
 describe("safe_output_execution_metadata", () => {
   it("captures normalized issue body hashes in execution state", () => {

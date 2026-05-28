@@ -674,7 +674,10 @@ function getMetadataNumber(item, key) {
 function normalizeStateValue(key, value) {
   if (key === "labels" || key === "assignees") {
     if (!Array.isArray(value)) return [];
-    return value.map(entry => String(entry || "").trim()).filter(Boolean).sort();
+    return value
+      .map(entry => String(entry || "").trim())
+      .filter(Boolean)
+      .sort();
   }
   if (key === "draft") {
     return value === true;
@@ -692,10 +695,7 @@ function hashOutcomeBody(body) {
     .map(line => line.replace(/[ \t]+$/g, ""))
     .join("\n")
     .trim();
-  return crypto
-    .createHash("sha256")
-    .update(normalized, "utf8")
-    .digest("hex");
+  return crypto.createHash("sha256").update(normalized, "utf8").digest("hex");
 }
 
 /**
