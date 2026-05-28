@@ -15,866 +15,542 @@ import (
 
 // TestAddHandlerManagerConfigEnvVar tests handler config JSON generation
 func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
-	tests := []struct {
-		name          string
-		safeOutputs   *SafeOutputsConfig
-		checkContains []string
-		checkJSON     bool
-		expectedKeys  []string
-	}{
-		{
-			name: "create issue config",
-			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("5"),
-					},
-					AllowedLabels: []string{"bug", "feature"},
-					Labels:        []string{"ai-generated"},
-					TitlePrefix:   "[AI] ",
-					Assignees:     []string{"user1"},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"create_issue"},
-		},
-		{
-			name: "add comment config",
-			safeOutputs: &SafeOutputsConfig{
-				AddComments: &AddCommentsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("3"),
-					},
-					Target:            "issue",
-					HideOlderComments: testStringPtr("true"),
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"add_comment"},
-		},
-		{
-			name: "create discussion config",
-			safeOutputs: &SafeOutputsConfig{
-				CreateDiscussions: &CreateDiscussionsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("2"),
-					},
-					Category:              "general",
-					TitlePrefix:           "[Discussion] ",
-					Labels:                []string{"ai"},
-					CloseOlderDiscussions: testStringPtr("true"),
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"create_discussion"},
-		},
-		{
-			name: "close issue config",
-			safeOutputs: &SafeOutputsConfig{
-				CloseIssues: &CloseEntityConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("10"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"close_issue"},
-		},
-		{
-			name: "add labels config",
-			safeOutputs: &SafeOutputsConfig{
-				AddLabels: &AddLabelsConfig{
-					Allowed: []string{"bug", "enhancement", "documentation"},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"add_labels"},
-		},
-		{
-			name: "update issue config",
-			safeOutputs: &SafeOutputsConfig{
-				UpdateIssues: &UpdateIssuesConfig{
-					UpdateEntityConfig: UpdateEntityConfig{
-						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: strPtr("5"),
-						},
-					},
-					Status: new(true),
-					Title:  new(true),
-					Body:   new(true),
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"update_issue"},
-		},
-		{
-			name: "create pull request config",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("3"),
-					},
-					TitlePrefix: "[PR] ",
-					Labels:      []string{"automated"},
-					Draft:       testStringPtr("true"),
-					IfNoChanges: "skip",
-					AllowEmpty:  testStringPtr("true"),
-					Expires:     7,
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"create_pull_request"},
-		},
-		{
-			name: "create pull request with reviewers",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-					Reviewers: []string{"user1", "user2"},
-					Labels:    []string{"automated"},
-					Draft:     testStringPtr("false"),
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"create_pull_request"},
-		},
-		{
-			name: "push to PR branch config",
-			safeOutputs: &SafeOutputsConfig{
-				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("5"),
-					},
-					Target:            "pull_request",
-					TitlePrefix:       "[Update] ",
-					Labels:            []string{"update"},
-					IfNoChanges:       "skip",
-					CommitTitleSuffix: " - Auto Update",
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"push_to_pull_request_branch"},
-		},
-		{
-			name: "push to PR branch staged config",
-			safeOutputs: &SafeOutputsConfig{
-				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Staged: true,
-					},
-					Target:      "*",
-					IfNoChanges: "warn",
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"push_to_pull_request_branch"},
-		},
-		{
-			name: "close pull request staged config",
-			safeOutputs: &SafeOutputsConfig{
-				ClosePullRequests: &ClosePullRequestsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max:    strPtr("1"),
-						Staged: true,
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"close_pull_request"},
-		},
-		{
-			name: "multiple safe output types",
-			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{
-					TitlePrefix: "[Issue] ",
-				},
-				AddComments: &AddCommentsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("3"),
-					},
-				},
-				AddLabels: &AddLabelsConfig{
-					Allowed: []string{"bug"},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"create_issue", "add_comment", "add_labels"},
-		},
-		{
-			name: "config with target-repo",
-			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{
-					TargetRepoSlug: "org/repo",
-					TitlePrefix:    "[Test] ",
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"create_issue"},
-		},
-		{
-			name: "config with allowed repos",
-			safeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{
-					AllowedRepos: []string{"org/repo1", "org/repo2"},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"create_issue"},
-		},
-		{
-			name: "call_workflow config",
-			safeOutputs: &SafeOutputsConfig{
-				CallWorkflow: &CallWorkflowConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-					Workflows:     []string{"worker-a", "worker-b"},
-					WorkflowFiles: map[string]string{"worker-a": "./.github/workflows/worker-a.lock.yml", "worker-b": "./.github/workflows/worker-b.lock.yml"},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"call_workflow"},
-		},
-		{
-			name: "submit_pull_request_review config",
-			safeOutputs: &SafeOutputsConfig{
-				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"submit_pull_request_review"},
-		},
-		{
-			name: "reply_to_pull_request_review_comment config",
-			safeOutputs: &SafeOutputsConfig{
-				ReplyToPullRequestReviewComment: &ReplyToPullRequestReviewCommentConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("5"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"reply_to_pull_request_review_comment"},
-		},
-		{
-			name: "resolve_pull_request_review_thread config",
-			safeOutputs: &SafeOutputsConfig{
-				ResolvePullRequestReviewThread: &ResolvePullRequestReviewThreadConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("10"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"resolve_pull_request_review_thread"},
-		},
-		{
-			name: "create_code_scanning_alert config",
-			safeOutputs: &SafeOutputsConfig{
-				CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("3"),
-					},
-					Driver: "Test Scanner",
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"create_code_scanning_alert"},
-		},
-		{
-			name: "remove_labels config",
-			safeOutputs: &SafeOutputsConfig{
-				RemoveLabels: &RemoveLabelsConfig{
-					Allowed: []string{"bug", "wontfix"},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"remove_labels"},
-		},
-		{
-			name: "update_pull_request config",
-			safeOutputs: &SafeOutputsConfig{
-				UpdatePullRequests: &UpdatePullRequestsConfig{
-					UpdateEntityConfig: UpdateEntityConfig{
-						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: strPtr("1"),
-						},
-					},
-					Title: testBoolPtr(true),
-					Body:  testBoolPtr(true),
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"update_pull_request"},
-		},
-		{
-			name: "update_project config",
-			safeOutputs: &SafeOutputsConfig{
-				UpdateProjects: &UpdateProjectConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("5"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"update_project"},
-		},
-		{
-			name: "create_project config",
-			safeOutputs: &SafeOutputsConfig{
-				CreateProjects: &CreateProjectsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"create_project"},
-		},
-		{
-			name: "create_project_status_update config",
-			safeOutputs: &SafeOutputsConfig{
-				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"create_project_status_update"},
-		},
-		{
-			name: "link_sub_issue config",
-			safeOutputs: &SafeOutputsConfig{
-				LinkSubIssue: &LinkSubIssueConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("5"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"link_sub_issue"},
-		},
-		{
-			name: "dispatch_workflow config",
-			safeOutputs: &SafeOutputsConfig{
-				DispatchWorkflow: &DispatchWorkflowConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-					Workflows: []string{"worker-a"},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"dispatch_workflow"},
-		},
-		{
-			name: "dispatch_repository config",
-			safeOutputs: &SafeOutputsConfig{
-				DispatchRepository: &DispatchRepositoryConfig{
-					Tools: map[string]*DispatchRepositoryToolConfig{
-						"example_tool": {
-							Description: "Test dispatch",
-							Workflow:    "test-workflow",
-							EventType:   "test_event",
-							Repository:  "github/example",
-							Max:         strPtr("1"),
-						},
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"dispatch_repository"},
-		},
-		{
-			name: "update_discussion config",
-			safeOutputs: &SafeOutputsConfig{
-				UpdateDiscussions: &UpdateDiscussionsConfig{
-					UpdateEntityConfig: UpdateEntityConfig{
-						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: strPtr("1"),
-						},
-					},
-					Title: testBoolPtr(true),
-					Body:  testBoolPtr(true),
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"update_discussion"},
-		},
-		{
-			name: "close_discussion config",
-			safeOutputs: &SafeOutputsConfig{
-				CloseDiscussions: &CloseEntityConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("5"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"close_discussion"},
-		},
-		{
-			name: "mark_pull_request_as_ready_for_review config",
-			safeOutputs: &SafeOutputsConfig{
-				MarkPullRequestAsReadyForReview: &MarkPullRequestAsReadyForReviewConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"mark_pull_request_as_ready_for_review"},
-		},
-		{
-			name: "create_pull_request_review_comment config",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("10"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"create_pull_request_review_comment"},
-		},
-		{
-			name: "autofix_code_scanning_alert config",
-			safeOutputs: &SafeOutputsConfig{
-				AutofixCodeScanningAlert: &AutofixCodeScanningAlertConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("10"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"autofix_code_scanning_alert"},
-		},
-		{
-			name: "add_reviewer config",
-			safeOutputs: &SafeOutputsConfig{
-				AddReviewer: &AddReviewerConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("3"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"add_reviewer"},
-		},
-		{
-			name: "assign_milestone config",
-			safeOutputs: &SafeOutputsConfig{
-				AssignMilestone: &AssignMilestoneConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"assign_milestone"},
-		},
-		{
-			name: "assign_to_agent config",
-			safeOutputs: &SafeOutputsConfig{
-				AssignToAgent: &AssignToAgentConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-					DefaultAgent: "copilot",
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"assign_to_agent"},
-		},
-		{
-			name: "upload_asset config",
-			safeOutputs: &SafeOutputsConfig{
-				UploadAssets: &UploadAssetsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("5"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"upload_asset"},
-		},
-		{
-			name: "upload_artifact config",
-			safeOutputs: &SafeOutputsConfig{
-				UploadArtifact: &UploadArtifactConfig{
-					MaxUploads:   1,
-					MaxSizeBytes: 104857600,
-					AllowedPaths: []string{"output/**"},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"upload_artifact"},
-		},
-		{
-			name: "update_release config",
-			safeOutputs: &SafeOutputsConfig{
-				UpdateRelease: &UpdateReleaseConfig{
-					UpdateEntityConfig: UpdateEntityConfig{
-						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Max: strPtr("1"),
-						},
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"update_release"},
-		},
-		{
-			name: "create_agent_session config",
-			safeOutputs: &SafeOutputsConfig{
-				CreateAgentSessions: &CreateAgentSessionConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"create_agent_session"},
-		},
-		{
-			name: "hide_comment config",
-			safeOutputs: &SafeOutputsConfig{
-				HideComment: &HideCommentConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("5"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"hide_comment"},
-		},
-		{
-			name: "set_issue_type config",
-			safeOutputs: &SafeOutputsConfig{
-				SetIssueType: &SetIssueTypeConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"set_issue_type"},
-		},
-		{
-			name: "set_issue_field config",
-			safeOutputs: &SafeOutputsConfig{
-				SetIssueField: &SetIssueFieldConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"set_issue_field"},
-		},
-		{
-			name: "noop config",
-			safeOutputs: &SafeOutputsConfig{
-				NoOp: &NoOpConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"noop"},
-		},
-		{
-			name: "assign_to_user config",
-			safeOutputs: &SafeOutputsConfig{
-				AssignToUser: &AssignToUserConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("5"),
-					},
-					Allowed: []string{"user1", "user2"},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"assign_to_user"},
-		},
-		{
-			name: "unassign_from_user config",
-			safeOutputs: &SafeOutputsConfig{
-				UnassignFromUser: &UnassignFromUserConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("5"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"unassign_from_user"},
-		},
-		{
-			name: "missing_tool config",
-			safeOutputs: &SafeOutputsConfig{
-				MissingTool: &MissingToolConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("5"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"missing_tool"},
-		},
-		{
-			name: "missing_data config",
-			safeOutputs: &SafeOutputsConfig{
-				MissingData: &MissingDataConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("5"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"missing_data"},
-		},
-		{
-			name: "report_incomplete config",
-			safeOutputs: &SafeOutputsConfig{
-				ReportIncomplete: &ReportIncompleteConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("5"),
-					},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"report_incomplete"},
-		},
-		{
-			name: "merge_pull_request config",
-			safeOutputs: &SafeOutputsConfig{
-				MergePullRequest: &MergePullRequestConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-					RequiredLabels:  []string{"automerge"},
-					AllowedBranches: []string{"feature/*", "fix/*"},
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"merge_pull_request"},
-		},
-		{
-			name: "comment_memory config",
-			safeOutputs: &SafeOutputsConfig{
-				CommentMemory: &CommentMemoryConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-					MemoryID: "test-memory",
-				},
-			},
-			checkContains: []string{
-				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
-			},
-			checkJSON:    true,
-			expectedKeys: []string{"comment_memory"},
-		},
+	for _, tt := range buildHandlerManagerConfigEnvVarCases() {
+		t.Run(tt.name, func(t *testing.T) {
+			testHandlerManagerConfigEnvVar(t, tt)
+		})
+	}
+}
+
+type handlerManagerConfigEnvVarTestCase struct {
+	name         string
+	safeOutputs  *SafeOutputsConfig
+	expectedKeys []string
+}
+
+func testHandlerManagerConfigEnvVar(t *testing.T, tt handlerManagerConfigEnvVarTestCase) {
+	t.Helper()
+	steps := buildHandlerManagerConfigSteps(t, tt.safeOutputs)
+
+	assert.Contains(t, strings.Join(steps, ""), "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG")
+
+	config := extractHandlerManagerConfig(t, steps)
+	for _, key := range tt.expectedKeys {
+		assert.Contains(t, config, key, "Expected config key: "+key)
+	}
+}
+
+func buildHandlerManagerConfigSteps(t *testing.T, safeOutputs *SafeOutputsConfig) []string {
+	t.Helper()
+	return buildHandlerManagerConfigStepsForWorkflowData(t, &WorkflowData{
+		Name:        "Test Workflow",
+		SafeOutputs: safeOutputs,
+	})
+}
+
+func buildHandlerManagerConfigStepsForWorkflowData(t *testing.T, workflowData *WorkflowData) []string {
+	t.Helper()
+	compiler := NewCompiler()
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	return steps
+}
+
+func extractHandlerManagerConfig(t *testing.T, steps []string) map[string]map[string]any {
+	t.Helper()
+	for _, step := range steps {
+		if !strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			continue
+		}
+
+		parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+		require.Len(t, parts, 2, "Should have two parts")
+
+		jsonStr := strings.TrimSpace(parts[1])
+		jsonStr = strings.Trim(jsonStr, "\"")
+		jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+		var config map[string]map[string]any
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &config), "Config JSON should be valid")
+		return config
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler()
+	t.Fatal("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG step should be present")
+	return nil
+}
 
-			workflowData := &WorkflowData{
-				Name:        "Test Workflow",
-				SafeOutputs: tt.safeOutputs,
-			}
+func extractHandlerManagerConfigForSafeOutputs(t *testing.T, safeOutputs *SafeOutputsConfig) map[string]map[string]any {
+	t.Helper()
+	return extractHandlerManagerConfigForWorkflowData(t, &WorkflowData{
+		Name:        "Test Workflow",
+		SafeOutputs: safeOutputs,
+	})
+}
 
-			var steps []string
-			compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+func extractHandlerManagerConfigForWorkflowData(t *testing.T, workflowData *WorkflowData) map[string]map[string]any {
+	t.Helper()
+	steps := buildHandlerManagerConfigStepsForWorkflowData(t, workflowData)
+	require.NotEmpty(t, steps, "Steps should be generated")
+	return extractHandlerManagerConfig(t, steps)
+}
 
-			require.NotEmpty(t, steps)
+func extractNamedHandlerConfigForSafeOutputs(t *testing.T, safeOutputs *SafeOutputsConfig, handlerKey string) map[string]any {
+	t.Helper()
+	config := extractHandlerManagerConfigForSafeOutputs(t, safeOutputs)
+	handlerConfig, ok := config[handlerKey]
+	require.True(t, ok, "Should have %s handler", handlerKey)
+	return handlerConfig
+}
 
-			stepsContent := strings.Join(steps, "")
+func extractNamedHandlerConfigForWorkflowData(t *testing.T, workflowData *WorkflowData, handlerKey string) map[string]any {
+	t.Helper()
+	config := extractHandlerManagerConfigForWorkflowData(t, workflowData)
+	handlerConfig, ok := config[handlerKey]
+	require.True(t, ok, "Should have %s handler", handlerKey)
+	return handlerConfig
+}
 
-			for _, expected := range tt.checkContains {
-				assert.Contains(t, stepsContent, expected, "Expected to find: "+expected)
-			}
+func extractStringSlice(t *testing.T, raw any, fieldName string) []string {
+	t.Helper()
+	values, ok := raw.([]any)
+	require.True(t, ok, "%s should be an array", fieldName)
 
-			// Extract and validate JSON if requested
-			if tt.checkJSON {
-				// Extract JSON from the env var line
-				for _, step := range steps {
-					if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
-						// Extract the JSON value
-						parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
-						if len(parts) == 2 {
-							jsonStr := strings.TrimSpace(parts[1])
-							jsonStr = strings.Trim(jsonStr, "\"")
-							jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if str, ok := value.(string); ok {
+			result = append(result, str)
+		}
+	}
+	return result
+}
 
-							var config map[string]map[string]any
-							err := json.Unmarshal([]byte(jsonStr), &config)
-							require.NoError(t, err, "Config JSON should be valid")
+func newHandlerManagerConfigEnvVarCase(name string, safeOutputs *SafeOutputsConfig, expectedKeys ...string) handlerManagerConfigEnvVarTestCase {
+	return handlerManagerConfigEnvVarTestCase{
+		name:         name,
+		safeOutputs:  safeOutputs,
+		expectedKeys: expectedKeys,
+	}
+}
 
-							// Check expected keys
-							for _, key := range tt.expectedKeys {
-								assert.Contains(t, config, key, "Expected config key: "+key)
-							}
-						}
-					}
-				}
-			}
-		})
+func buildHandlerManagerConfigEnvVarCases() []handlerManagerConfigEnvVarTestCase {
+	var cases []handlerManagerConfigEnvVarTestCase
+	cases = append(cases, buildHandlerManagerConfigIssueCases()...)
+	cases = append(cases, buildHandlerManagerConfigIssueActionCases()...)
+	cases = append(cases, buildHandlerManagerConfigPullRequestCases()...)
+	cases = append(cases, buildHandlerManagerConfigBranchCases()...)
+	cases = append(cases, buildHandlerManagerConfigRoutingCases()...)
+	cases = append(cases, buildHandlerManagerConfigReviewCases()...)
+	cases = append(cases, buildHandlerManagerConfigProjectCases()...)
+	cases = append(cases, buildHandlerManagerConfigDispatchCases()...)
+	cases = append(cases, buildHandlerManagerConfigDiscussionCases()...)
+	cases = append(cases, buildHandlerManagerConfigReviewerCases()...)
+	cases = append(cases, buildHandlerManagerConfigAssetCases()...)
+	cases = append(cases, buildHandlerManagerConfigArtifactCases()...)
+	cases = append(cases, buildHandlerManagerConfigMiscCases()...)
+	cases = append(cases, buildHandlerManagerConfigUserCases()...)
+	cases = append(cases, buildHandlerManagerConfigAutoCases()...)
+	cases = append(cases, buildHandlerManagerConfigMergeCases()...)
+	return cases
+}
+
+func buildHandlerManagerConfigIssueCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"create issue config",
+			&SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
+				AllowedLabels:        []string{"bug", "feature"},
+				Labels:               []string{"ai-generated"},
+				TitlePrefix:          "[AI] ",
+				Assignees:            []string{"user1"},
+			}},
+			"create_issue",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"add comment config",
+			&SafeOutputsConfig{AddComments: &AddCommentsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
+				Target:               "issue",
+				HideOlderComments:    testStringPtr("true"),
+			}},
+			"add_comment",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"create discussion config",
+			&SafeOutputsConfig{CreateDiscussions: &CreateDiscussionsConfig{
+				BaseSafeOutputConfig:  BaseSafeOutputConfig{Max: strPtr("2")},
+				Category:              "general",
+				TitlePrefix:           "[Discussion] ",
+				Labels:                []string{"ai"},
+				CloseOlderDiscussions: testStringPtr("true"),
+			}},
+			"create_discussion",
+		),
+	}
+}
+
+func buildHandlerManagerConfigIssueActionCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"close issue config",
+			&SafeOutputsConfig{CloseIssues: &CloseEntityConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")}}},
+			"close_issue",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"add labels config",
+			&SafeOutputsConfig{AddLabels: &AddLabelsConfig{Allowed: []string{"bug", "enhancement", "documentation"}}},
+			"add_labels",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"update issue config",
+			&SafeOutputsConfig{UpdateIssues: &UpdateIssuesConfig{
+				UpdateEntityConfig: UpdateEntityConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}},
+				Status:             testBoolPtr(true),
+				Title:              testBoolPtr(true),
+				Body:               testBoolPtr(true),
+			}},
+			"update_issue",
+		),
+	}
+}
+
+func buildHandlerManagerConfigPullRequestCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"create pull request config",
+			&SafeOutputsConfig{CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
+				TitlePrefix:          "[PR] ",
+				Labels:               []string{"automated"},
+				Draft:                testStringPtr("true"),
+				IfNoChanges:          "skip",
+				AllowEmpty:           testStringPtr("true"),
+				Expires:              7,
+			}},
+			"create_pull_request",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"create pull request with reviewers",
+			&SafeOutputsConfig{CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				Reviewers:            []string{"user1", "user2"},
+				Labels:               []string{"automated"},
+				Draft:                testStringPtr("false"),
+			}},
+			"create_pull_request",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"push to PR branch config",
+			&SafeOutputsConfig{PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
+				Target:               "pull_request",
+				TitlePrefix:          "[Update] ",
+				Labels:               []string{"update"},
+				IfNoChanges:          "skip",
+				CommitTitleSuffix:    " - Auto Update",
+			}},
+			"push_to_pull_request_branch",
+		),
+	}
+}
+
+func buildHandlerManagerConfigBranchCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"push to PR branch staged config",
+			&SafeOutputsConfig{PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: true},
+				Target:               "*",
+				IfNoChanges:          "warn",
+			}},
+			"push_to_pull_request_branch",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"close pull request staged config",
+			&SafeOutputsConfig{ClosePullRequests: &ClosePullRequestsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1"), Staged: true}}},
+			"close_pull_request",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"multiple safe output types",
+			&SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{TitlePrefix: "[Issue] "},
+				AddComments:  &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")}},
+				AddLabels:    &AddLabelsConfig{Allowed: []string{"bug"}},
+			},
+			"create_issue", "add_comment", "add_labels",
+		),
+	}
+}
+
+func buildHandlerManagerConfigRoutingCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"config with target-repo",
+			&SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{TargetRepoSlug: "org/repo", TitlePrefix: "[Test] "}},
+			"create_issue",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"config with allowed repos",
+			&SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{AllowedRepos: []string{"org/repo1", "org/repo2"}}},
+			"create_issue",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"call_workflow config",
+			&SafeOutputsConfig{CallWorkflow: &CallWorkflowConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				Workflows:            []string{"worker-a", "worker-b"},
+				WorkflowFiles: map[string]string{
+					"worker-a": "./.github/workflows/worker-a.lock.yml",
+					"worker-b": "./.github/workflows/worker-b.lock.yml",
+				},
+			}},
+			"call_workflow",
+		),
+	}
+}
+
+func buildHandlerManagerConfigReviewCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"submit_pull_request_review config",
+			&SafeOutputsConfig{SubmitPullRequestReview: &SubmitPullRequestReviewConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}},
+			"submit_pull_request_review",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"reply_to_pull_request_review_comment config",
+			&SafeOutputsConfig{ReplyToPullRequestReviewComment: &ReplyToPullRequestReviewCommentConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}}},
+			"reply_to_pull_request_review_comment",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"resolve_pull_request_review_thread config",
+			&SafeOutputsConfig{ResolvePullRequestReviewThread: &ResolvePullRequestReviewThreadConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")}}},
+			"resolve_pull_request_review_thread",
+		),
+	}
+}
+
+func buildHandlerManagerConfigProjectCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"create_code_scanning_alert config",
+			&SafeOutputsConfig{CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")}, Driver: "Test Scanner"}},
+			"create_code_scanning_alert",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"remove_labels config",
+			&SafeOutputsConfig{RemoveLabels: &RemoveLabelsConfig{Allowed: []string{"bug", "wontfix"}}},
+			"remove_labels",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"update_pull_request config",
+			&SafeOutputsConfig{UpdatePullRequests: &UpdatePullRequestsConfig{
+				UpdateEntityConfig: UpdateEntityConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
+				Title:              testBoolPtr(true),
+				Body:               testBoolPtr(true),
+			}},
+			"update_pull_request",
+		),
+	}
+}
+
+func buildHandlerManagerConfigDispatchCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"update_project config",
+			&SafeOutputsConfig{UpdateProjects: &UpdateProjectConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}}},
+			"update_project",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"create_project config",
+			&SafeOutputsConfig{CreateProjects: &CreateProjectsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}},
+			"create_project",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"create_project_status_update config",
+			&SafeOutputsConfig{CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}},
+			"create_project_status_update",
+		),
+	}
+}
+
+func buildHandlerManagerConfigDiscussionCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"link_sub_issue config",
+			&SafeOutputsConfig{LinkSubIssue: &LinkSubIssueConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}}},
+			"link_sub_issue",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"dispatch_workflow config",
+			&SafeOutputsConfig{DispatchWorkflow: &DispatchWorkflowConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}, Workflows: []string{"worker-a"}}},
+			"dispatch_workflow",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"dispatch_repository config",
+			&SafeOutputsConfig{DispatchRepository: &DispatchRepositoryConfig{Tools: map[string]*DispatchRepositoryToolConfig{
+				"example_tool": {Description: "Test dispatch", Workflow: "test-workflow", EventType: "test_event", Repository: "github/example", Max: strPtr("1")},
+			}}},
+			"dispatch_repository",
+		),
+	}
+}
+
+func buildHandlerManagerConfigReviewerCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"update_discussion config",
+			&SafeOutputsConfig{UpdateDiscussions: &UpdateDiscussionsConfig{
+				UpdateEntityConfig: UpdateEntityConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}},
+				Title:              testBoolPtr(true),
+				Body:               testBoolPtr(true),
+			}},
+			"update_discussion",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"close_discussion config",
+			&SafeOutputsConfig{CloseDiscussions: &CloseEntityConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}}},
+			"close_discussion",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"mark_pull_request_as_ready_for_review config",
+			&SafeOutputsConfig{MarkPullRequestAsReadyForReview: &MarkPullRequestAsReadyForReviewConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}},
+			"mark_pull_request_as_ready_for_review",
+		),
+	}
+}
+
+func buildHandlerManagerConfigAssetCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"create_pull_request_review_comment config",
+			&SafeOutputsConfig{CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")}}},
+			"create_pull_request_review_comment",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"autofix_code_scanning_alert config",
+			&SafeOutputsConfig{AutofixCodeScanningAlert: &AutofixCodeScanningAlertConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")}}},
+			"autofix_code_scanning_alert",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"add_reviewer config",
+			&SafeOutputsConfig{AddReviewer: &AddReviewerConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")}}},
+			"add_reviewer",
+		),
+	}
+}
+
+func buildHandlerManagerConfigArtifactCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"assign_milestone config",
+			&SafeOutputsConfig{AssignMilestone: &AssignMilestoneConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}},
+			"assign_milestone",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"assign_to_agent config",
+			&SafeOutputsConfig{AssignToAgent: &AssignToAgentConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}, DefaultAgent: "copilot"}},
+			"assign_to_agent",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"upload_asset config",
+			&SafeOutputsConfig{UploadAssets: &UploadAssetsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}}},
+			"upload_asset",
+		),
+	}
+}
+
+func buildHandlerManagerConfigMiscCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"upload_artifact config",
+			&SafeOutputsConfig{UploadArtifact: &UploadArtifactConfig{MaxUploads: 1, MaxSizeBytes: 104857600, AllowedPaths: []string{"output/**"}}},
+			"upload_artifact",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"update_release config",
+			&SafeOutputsConfig{UpdateRelease: &UpdateReleaseConfig{UpdateEntityConfig: UpdateEntityConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}}},
+			"update_release",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"create_agent_session config",
+			&SafeOutputsConfig{CreateAgentSessions: &CreateAgentSessionConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}},
+			"create_agent_session",
+		),
+	}
+}
+
+func buildHandlerManagerConfigUserCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"hide_comment config",
+			&SafeOutputsConfig{HideComment: &HideCommentConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}}},
+			"hide_comment",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"set_issue_type config",
+			&SafeOutputsConfig{SetIssueType: &SetIssueTypeConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}},
+			"set_issue_type",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"set_issue_field config",
+			&SafeOutputsConfig{SetIssueField: &SetIssueFieldConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}},
+			"set_issue_field",
+		),
+	}
+}
+
+func buildHandlerManagerConfigAutoCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"noop config",
+			&SafeOutputsConfig{NoOp: &NoOpConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}}},
+			"noop",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"assign_to_user config",
+			&SafeOutputsConfig{AssignToUser: &AssignToUserConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}, Allowed: []string{"user1", "user2"}}},
+			"assign_to_user",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"unassign_from_user config",
+			&SafeOutputsConfig{UnassignFromUser: &UnassignFromUserConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}}},
+			"unassign_from_user",
+		),
+	}
+}
+
+func buildHandlerManagerConfigMergeCases() []handlerManagerConfigEnvVarTestCase {
+	return []handlerManagerConfigEnvVarTestCase{
+		newHandlerManagerConfigEnvVarCase(
+			"missing_tool config",
+			&SafeOutputsConfig{MissingTool: &MissingToolConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}}},
+			"missing_tool",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"missing_data config",
+			&SafeOutputsConfig{MissingData: &MissingDataConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}}},
+			"missing_data",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"report_incomplete config",
+			&SafeOutputsConfig{ReportIncomplete: &ReportIncompleteConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")}}},
+			"report_incomplete",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"merge_pull_request config",
+			&SafeOutputsConfig{MergePullRequest: &MergePullRequestConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				RequiredLabels:       []string{"automerge"},
+				AllowedBranches:      []string{"feature/*", "fix/*"},
+			}},
+			"merge_pull_request",
+		),
+		newHandlerManagerConfigEnvVarCase(
+			"comment_memory config",
+			&SafeOutputsConfig{CommentMemory: &CommentMemoryConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")}, MemoryID: "test-memory"}},
+			"comment_memory",
+		),
 	}
 }
 

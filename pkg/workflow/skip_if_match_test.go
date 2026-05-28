@@ -9,18 +9,39 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
-
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
 // TestSkipIfMatchPreActivationJob tests that skip-if-match check is created correctly in pre-activation job
 func TestSkipIfMatchPreActivationJob(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "skip-if-match-test")
-
 	compiler := NewCompiler()
+	cases := []struct {
+		name string
+		run  func(*testing.T, string, *Compiler)
+	}{
+		{"pre_activation_job_created_with_skip_if_match", testSkipIfMatchPreActivation},
+		{"pre_activation_job_with_multiple_checks", testSkipIfMatchMultipleChecks},
+		{"skip_if_match_without_roles", testSkipIfMatchWithoutRoles},
+		{"skip_if_match_object_format_with_max", testSkipIfMatchObjectWithMax},
+		{"skip_if_match_object_format_without_max", testSkipIfMatchObjectWithoutMax},
+		{"skip_if_match_with_scope_none", testSkipIfMatchScopeNone},
+		{"skip_if_match_with_github_token", testSkipIfMatchWithGitHubToken},
+		{"skip_if_match_with_github_app", testSkipIfMatchWithGitHubApp},
+		{"skip_if_match_with_github_app_ignore_if_missing", testSkipIfMatchWithGitHubAppIgnoreIfMissing},
+		{"skip_if_match_imported_from_shared_on_section", testSkipIfMatchImportedFromSharedOnSection},
+	}
 
-	t.Run("pre_activation_job_created_with_skip_if_match", func(t *testing.T) {
-		workflowContent := `---
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			tc.run(t, tmpDir, compiler)
+		})
+	}
+}
+
+func testSkipIfMatchPreActivation(t *testing.T, tmpDir string, compiler *Compiler) {
+	lockContent := testSkipIfMatchWorkflow(t, tmpDir, compiler, "skip-if-match-workflow.md", `---
 on:
   workflow_dispatch:
   skip-if-match: "is:issue is:open label:in-progress"
@@ -30,62 +51,19 @@ engine: claude
 # Skip If Match Workflow
 
 This workflow has a skip-if-match configuration.
-`
-		workflowFile := filepath.Join(tmpDir, "skip-if-match-workflow.md")
-		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+`)
 
-		err := compiler.CompileWorkflow(workflowFile)
-		if err != nil {
-			t.Fatalf("Compilation failed: %v", err)
-		}
+	assertLockContentContains(t, lockContent, "pre_activation:", "Expected pre_activation job to be created")
+	assertLockContentContains(t, lockContent, "Check skip-if-match query", "Expected skip-if-match check to be present")
+	assertLockContentContains(t, lockContent, `GH_AW_SKIP_QUERY: "is:issue is:open label:in-progress"`, "Expected GH_AW_SKIP_QUERY environment variable with correct value")
+	assertLockContentContains(t, lockContent, "id: check_skip_if_match", "Expected check_skip_if_match step ID")
+	assertLockContentContains(t, lockContent, "steps.check_skip_if_match.outputs.skip_check_ok", "Expected activated output to include skip_check_ok condition")
+	assertLockContentContains(t, lockContent, "# skip-if-match:", "Expected skip-if-match to be commented out in lock file")
+	assertLockContentContains(t, lockContent, "Skip-if-match processed as search check in pre-activation job", "Expected comment explaining skip-if-match processing")
+}
 
-		lockFile := stringutil.MarkdownToLockFile(workflowFile)
-		lockContent, err := os.ReadFile(lockFile)
-		if err != nil {
-			t.Fatalf("Failed to read lock file: %v", err)
-		}
-
-		lockContentStr := string(lockContent)
-
-		// Verify pre_activation job exists
-		if !strings.Contains(lockContentStr, "pre_activation:") {
-			t.Error("Expected pre_activation job to be created")
-		}
-
-		// Verify skip-if-match check is present
-		if !strings.Contains(lockContentStr, "Check skip-if-match query") {
-			t.Error("Expected skip-if-match check to be present")
-		}
-
-		// Verify the skip query environment variable is set correctly
-		if !strings.Contains(lockContentStr, `GH_AW_SKIP_QUERY: "is:issue is:open label:in-progress"`) {
-			t.Error("Expected GH_AW_SKIP_QUERY environment variable with correct value")
-		}
-
-		// Verify the check_skip_if_match step ID is present
-		if !strings.Contains(lockContentStr, "id: check_skip_if_match") {
-			t.Error("Expected check_skip_if_match step ID")
-		}
-
-		// Verify the activated output includes skip_check_ok condition
-		if !strings.Contains(lockContentStr, "steps.check_skip_if_match.outputs.skip_check_ok") {
-			t.Error("Expected activated output to include skip_check_ok condition")
-		}
-
-		// Verify skip-if-match is commented out in the frontmatter
-		if !strings.Contains(lockContentStr, "# skip-if-match:") {
-			t.Error("Expected skip-if-match to be commented out in lock file")
-		}
-
-		if !strings.Contains(lockContentStr, "Skip-if-match processed as search check in pre-activation job") {
-			t.Error("Expected comment explaining skip-if-match processing")
-		}
-	})
-
-	t.Run("pre_activation_job_with_multiple_checks", func(t *testing.T) {
-		workflowContent := `---
+func testSkipIfMatchMultipleChecks(t *testing.T, tmpDir string, compiler *Compiler) {
+	lockContent := testSkipIfMatchWorkflow(t, tmpDir, compiler, "multiple-checks-workflow.md", `---
 on:
   workflow_dispatch: null
   stop-after: "+48h"
@@ -97,50 +75,18 @@ engine: claude
 # Multiple Checks Workflow
 
 This workflow has both stop-after and skip-if-match.
-`
-		workflowFile := filepath.Join(tmpDir, "multiple-checks-workflow.md")
-		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+`)
 
-		err := compiler.CompileWorkflow(workflowFile)
-		if err != nil {
-			t.Fatalf("Compilation failed: %v", err)
-		}
+	assertLockContentContains(t, lockContent, "pre_activation:", "Expected pre_activation job to be created")
+	assertLockContentContains(t, lockContent, "Check stop-time limit", "Expected stop-time check to be present")
+	assertLockContentContains(t, lockContent, "Check skip-if-match query", "Expected skip-if-match check to be present")
+	assertLockContentContains(t, lockContent, "steps.check_membership.outputs.is_team_member == 'true'", "Expected activated output to include all three conditions")
+	assertLockContentContains(t, lockContent, "steps.check_stop_time.outputs.stop_time_ok == 'true'", "Expected activated output to include all three conditions")
+	assertLockContentContains(t, lockContent, "steps.check_skip_if_match.outputs.skip_check_ok == 'true'", "Expected activated output to include all three conditions")
+}
 
-		lockFile := stringutil.MarkdownToLockFile(workflowFile)
-		lockContent, err := os.ReadFile(lockFile)
-		if err != nil {
-			t.Fatalf("Failed to read lock file: %v", err)
-		}
-
-		lockContentStr := string(lockContent)
-
-		// Verify pre_activation job exists
-		if !strings.Contains(lockContentStr, "pre_activation:") {
-			t.Error("Expected pre_activation job to be created")
-		}
-
-		// Verify both checks are present
-		if !strings.Contains(lockContentStr, "Check stop-time limit") {
-			t.Error("Expected stop-time check to be present")
-		}
-
-		if !strings.Contains(lockContentStr, "Check skip-if-match query") {
-			t.Error("Expected skip-if-match check to be present")
-		}
-
-		// Verify the activated output includes both conditions
-		// The actual format has nested parentheses: ((a && b) && c)
-		if !strings.Contains(lockContentStr, "steps.check_membership.outputs.is_team_member == 'true'") ||
-			!strings.Contains(lockContentStr, "steps.check_stop_time.outputs.stop_time_ok == 'true'") ||
-			!strings.Contains(lockContentStr, "steps.check_skip_if_match.outputs.skip_check_ok == 'true'") {
-			t.Error("Expected activated output to include all three conditions")
-		}
-	})
-
-	t.Run("skip_if_match_without_roles", func(t *testing.T) {
-		workflowContent := `---
+func testSkipIfMatchWithoutRoles(t *testing.T, tmpDir string, compiler *Compiler) {
+	lockContent := testSkipIfMatchWorkflow(t, tmpDir, compiler, "skip-no-roles-workflow.md", `---
 on:
   workflow_dispatch:
   skip-if-match: "is:issue label:bug"
@@ -150,44 +96,15 @@ engine: claude
 # Skip If Match Without Roles
 
 This workflow has skip-if-match but no role restrictions.
-`
-		workflowFile := filepath.Join(tmpDir, "skip-no-roles-workflow.md")
-		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+`)
 
-		err := compiler.CompileWorkflow(workflowFile)
-		if err != nil {
-			t.Fatalf("Compilation failed: %v", err)
-		}
+	assertLockContentContains(t, lockContent, "pre_activation:", "Expected pre_activation job to be created even without role checks")
+	assertLockContentContains(t, lockContent, "Check skip-if-match query", "Expected skip-if-match check to be present")
+	assertLockContentContains(t, lockContent, "steps.check_skip_if_match.outputs.skip_check_ok", "Expected activated output to include skip_check_ok condition")
+}
 
-		lockFile := stringutil.MarkdownToLockFile(workflowFile)
-		lockContent, err := os.ReadFile(lockFile)
-		if err != nil {
-			t.Fatalf("Failed to read lock file: %v", err)
-		}
-
-		lockContentStr := string(lockContent)
-
-		// Verify pre_activation job exists (created due to skip-if-match)
-		if !strings.Contains(lockContentStr, "pre_activation:") {
-			t.Error("Expected pre_activation job to be created even without role checks")
-		}
-
-		// Verify skip-if-match check is present
-		if !strings.Contains(lockContentStr, "Check skip-if-match query") {
-			t.Error("Expected skip-if-match check to be present")
-		}
-
-		// Since there's no role check, activated should only depend on skip_check_ok
-		// Note: There's still a membership check with default roles, so both will be present
-		if !strings.Contains(lockContentStr, "steps.check_skip_if_match.outputs.skip_check_ok") {
-			t.Error("Expected activated output to include skip_check_ok condition")
-		}
-	})
-
-	t.Run("skip_if_match_object_format_with_max", func(t *testing.T) {
-		workflowContent := `---
+func testSkipIfMatchObjectWithMax(t *testing.T, tmpDir string, compiler *Compiler) {
+	lockContent := testSkipIfMatchWorkflow(t, tmpDir, compiler, "skip-object-format-workflow.md", `---
 on:
   workflow_dispatch:
   skip-if-match:
@@ -199,48 +116,16 @@ engine: claude
 # Skip If Match Object Format
 
 This workflow uses object format with max parameter.
-`
-		workflowFile := filepath.Join(tmpDir, "skip-object-format-workflow.md")
-		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+`)
 
-		err := compiler.CompileWorkflow(workflowFile)
-		if err != nil {
-			t.Fatalf("Compilation failed: %v", err)
-		}
+	assertLockContentContains(t, lockContent, "Check skip-if-match query", "Expected skip-if-match check to be present")
+	assertLockContentContains(t, lockContent, `GH_AW_SKIP_QUERY: "is:pr is:open"`, "Expected GH_AW_SKIP_QUERY environment variable with correct value")
+	assertLockContentContains(t, lockContent, `GH_AW_SKIP_MAX_MATCHES: "3"`, "Expected GH_AW_SKIP_MAX_MATCHES environment variable with value 3")
+	assertLockContentContains(t, lockContent, "steps.check_skip_if_match.outputs.skip_check_ok", "Expected activated output to include skip_check_ok condition")
+}
 
-		lockFile := stringutil.MarkdownToLockFile(workflowFile)
-		lockContent, err := os.ReadFile(lockFile)
-		if err != nil {
-			t.Fatalf("Failed to read lock file: %v", err)
-		}
-
-		lockContentStr := string(lockContent)
-
-		// Verify skip-if-match check is present
-		if !strings.Contains(lockContentStr, "Check skip-if-match query") {
-			t.Error("Expected skip-if-match check to be present")
-		}
-
-		// Verify the skip query environment variable is set correctly
-		if !strings.Contains(lockContentStr, `GH_AW_SKIP_QUERY: "is:pr is:open"`) {
-			t.Error("Expected GH_AW_SKIP_QUERY environment variable with correct value")
-		}
-
-		// Verify the max matches parameter is set
-		if !strings.Contains(lockContentStr, `GH_AW_SKIP_MAX_MATCHES: "3"`) {
-			t.Error("Expected GH_AW_SKIP_MAX_MATCHES environment variable with value 3")
-		}
-
-		// Verify skip_check_ok condition is used
-		if !strings.Contains(lockContentStr, "steps.check_skip_if_match.outputs.skip_check_ok") {
-			t.Error("Expected activated output to include skip_check_ok condition")
-		}
-	})
-
-	t.Run("skip_if_match_object_format_without_max", func(t *testing.T) {
-		workflowContent := `---
+func testSkipIfMatchObjectWithoutMax(t *testing.T, tmpDir string, compiler *Compiler) {
+	lockContent := testSkipIfMatchWorkflow(t, tmpDir, compiler, "skip-object-no-max-workflow.md", `---
 on:
   workflow_dispatch:
   skip-if-match:
@@ -251,43 +136,15 @@ engine: claude
 # Skip If Match Object Format Without Max
 
 This workflow uses object format but omits max (defaults to 1).
-`
-		workflowFile := filepath.Join(tmpDir, "skip-object-no-max-workflow.md")
-		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+`)
 
-		err := compiler.CompileWorkflow(workflowFile)
-		if err != nil {
-			t.Fatalf("Compilation failed: %v", err)
-		}
+	assertLockContentContains(t, lockContent, "Check skip-if-match query", "Expected skip-if-match check to be present")
+	assertLockContentContains(t, lockContent, `GH_AW_SKIP_QUERY: "is:issue is:open label:urgent"`, "Expected GH_AW_SKIP_QUERY environment variable with correct value")
+	assertLockContentContains(t, lockContent, `GH_AW_SKIP_MAX_MATCHES: "1"`, "Expected GH_AW_SKIP_MAX_MATCHES environment variable with default value 1")
+}
 
-		lockFile := stringutil.MarkdownToLockFile(workflowFile)
-		lockContent, err := os.ReadFile(lockFile)
-		if err != nil {
-			t.Fatalf("Failed to read lock file: %v", err)
-		}
-
-		lockContentStr := string(lockContent)
-
-		// Verify skip-if-match check is present
-		if !strings.Contains(lockContentStr, "Check skip-if-match query") {
-			t.Error("Expected skip-if-match check to be present")
-		}
-
-		// Verify the skip query environment variable is set correctly
-		if !strings.Contains(lockContentStr, `GH_AW_SKIP_QUERY: "is:issue is:open label:urgent"`) {
-			t.Error("Expected GH_AW_SKIP_QUERY environment variable with correct value")
-		}
-
-		// Verify the max matches parameter defaults to 1
-		if !strings.Contains(lockContentStr, `GH_AW_SKIP_MAX_MATCHES: "1"`) {
-			t.Error("Expected GH_AW_SKIP_MAX_MATCHES environment variable with default value 1")
-		}
-	})
-
-	t.Run("skip_if_match_with_scope_none", func(t *testing.T) {
-		workflowContent := `---
+func testSkipIfMatchScopeNone(t *testing.T, tmpDir string, compiler *Compiler) {
+	lockContent := testSkipIfMatchWorkflow(t, tmpDir, compiler, "skip-match-scope-none-workflow.md", `---
 on:
   schedule:
     - cron: "*/15 * * * *"
@@ -300,43 +157,15 @@ engine: claude
 # Skip If Match With Scope None
 
 This workflow uses scope:none for org-wide search.
-`
-		workflowFile := filepath.Join(tmpDir, "skip-match-scope-none-workflow.md")
-		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+`)
 
-		err := compiler.CompileWorkflow(workflowFile)
-		if err != nil {
-			t.Fatalf("Compilation failed: %v", err)
-		}
+	assertLockContentContains(t, lockContent, "Check skip-if-match query", "Expected skip-if-match check to be present")
+	assertLockContentContains(t, lockContent, `GH_AW_SKIP_SCOPE: "none"`, "Expected GH_AW_SKIP_SCOPE environment variable set to none")
+	assertLockContentContains(t, lockContent, "# scope:", "Expected scope to be commented out in lock file")
+}
 
-		lockFile := stringutil.MarkdownToLockFile(workflowFile)
-		lockContent, err := os.ReadFile(lockFile)
-		if err != nil {
-			t.Fatalf("Failed to read lock file: %v", err)
-		}
-
-		lockContentStr := string(lockContent)
-
-		// Verify skip-if-match check is present
-		if !strings.Contains(lockContentStr, "Check skip-if-match query") {
-			t.Error("Expected skip-if-match check to be present")
-		}
-
-		// Verify GH_AW_SKIP_SCOPE is set to "none"
-		if !strings.Contains(lockContentStr, `GH_AW_SKIP_SCOPE: "none"`) {
-			t.Error("Expected GH_AW_SKIP_SCOPE environment variable set to none")
-		}
-
-		// Verify scope is commented out in frontmatter
-		if !strings.Contains(lockContentStr, "# scope:") {
-			t.Error("Expected scope to be commented out in lock file")
-		}
-	})
-
-	t.Run("skip_if_match_with_github_token", func(t *testing.T) {
-		workflowContent := `---
+func testSkipIfMatchWithGitHubToken(t *testing.T, tmpDir string, compiler *Compiler) {
+	lockContent := testSkipIfMatchWorkflow(t, tmpDir, compiler, "skip-match-github-token-workflow.md", `---
 on:
   schedule:
     - cron: "*/15 * * * *"
@@ -350,43 +179,15 @@ engine: claude
 # Skip If Match With Custom Token
 
 This workflow uses a custom token for org-wide search.
-`
-		workflowFile := filepath.Join(tmpDir, "skip-match-github-token-workflow.md")
-		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+`)
 
-		err := compiler.CompileWorkflow(workflowFile)
-		if err != nil {
-			t.Fatalf("Compilation failed: %v", err)
-		}
+	assertLockContentContains(t, lockContent, "Check skip-if-match query", "Expected skip-if-match check to be present")
+	assertLockContentContains(t, lockContent, "github-token: ${{ secrets.CROSS_ORG_TOKEN }}", "Expected github-token to be set in with section for skip-if-match step")
+	assertLockContentContains(t, lockContent, `GH_AW_SKIP_SCOPE: "none"`, "Expected GH_AW_SKIP_SCOPE environment variable set to none")
+}
 
-		lockFile := stringutil.MarkdownToLockFile(workflowFile)
-		lockContent, err := os.ReadFile(lockFile)
-		if err != nil {
-			t.Fatalf("Failed to read lock file: %v", err)
-		}
-
-		lockContentStr := string(lockContent)
-
-		// Verify skip-if-match check is present
-		if !strings.Contains(lockContentStr, "Check skip-if-match query") {
-			t.Error("Expected skip-if-match check to be present")
-		}
-
-		// Verify the custom github-token is passed via with.github-token to the skip-if step
-		if !strings.Contains(lockContentStr, "github-token: ${{ secrets.CROSS_ORG_TOKEN }}") {
-			t.Error("Expected github-token to be set in with section for skip-if-match step")
-		}
-
-		// Verify GH_AW_SKIP_SCOPE is set to "none"
-		if !strings.Contains(lockContentStr, `GH_AW_SKIP_SCOPE: "none"`) {
-			t.Error("Expected GH_AW_SKIP_SCOPE environment variable set to none")
-		}
-	})
-
-	t.Run("skip_if_match_with_github_app", func(t *testing.T) {
-		workflowContent := `---
+func testSkipIfMatchWithGitHubApp(t *testing.T, tmpDir string, compiler *Compiler) {
+	lockContent := testSkipIfMatchWorkflow(t, tmpDir, compiler, "skip-match-github-app-workflow.md", `---
 on:
   schedule:
     - cron: "*/15 * * * *"
@@ -403,56 +204,18 @@ engine: claude
 # Skip If Match With GitHub App
 
 This workflow uses a GitHub App token for org-wide search.
-`
-		workflowFile := filepath.Join(tmpDir, "skip-match-github-app-workflow.md")
-		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+`)
 
-		err := compiler.CompileWorkflow(workflowFile)
-		if err != nil {
-			t.Fatalf("Compilation failed: %v", err)
-		}
+	assertLockContentContains(t, lockContent, "Generate GitHub App token for skip-if checks", "Expected unified GitHub App token mint step to be present")
+	assertLockContentContains(t, lockContent, "client-id: ${{ secrets.WORKFLOW_APP_ID }}", "Expected client-id in the GitHub App token mint step")
+	assertLockContentContains(t, lockContent, "private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}", "Expected private-key in the GitHub App token mint step")
+	assertLockContentContains(t, lockContent, "owner: myorg", "Expected owner to be set in GitHub App token mint step")
+	assertLockContentContains(t, lockContent, "github-token: ${{ steps.pre-activation-app-token.outputs.token }}", "Expected minted app token (pre-activation-app-token) to be used in skip-if-match step")
+	assertLockContentContains(t, lockContent, `GH_AW_SKIP_SCOPE: "none"`, "Expected GH_AW_SKIP_SCOPE environment variable set to none")
+}
 
-		lockFile := stringutil.MarkdownToLockFile(workflowFile)
-		lockContent, err := os.ReadFile(lockFile)
-		if err != nil {
-			t.Fatalf("Failed to read lock file: %v", err)
-		}
-
-		lockContentStr := string(lockContent)
-
-		// Verify the unified GitHub App token mint step is generated
-		if !strings.Contains(lockContentStr, "Generate GitHub App token for skip-if checks") {
-			t.Error("Expected unified GitHub App token mint step to be present")
-		}
-
-		// Verify client-id and private-key are in the mint step
-		if !strings.Contains(lockContentStr, "client-id: ${{ secrets.WORKFLOW_APP_ID }}") {
-			t.Error("Expected client-id in the GitHub App token mint step")
-		}
-		if !strings.Contains(lockContentStr, "private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}") {
-			t.Error("Expected private-key in the GitHub App token mint step")
-		}
-
-		// Verify owner is passed
-		if !strings.Contains(lockContentStr, "owner: myorg") {
-			t.Error("Expected owner to be set in GitHub App token mint step")
-		}
-
-		// Verify the minted token is used in the skip-if step via the unified step ID
-		if !strings.Contains(lockContentStr, "github-token: ${{ steps.pre-activation-app-token.outputs.token }}") {
-			t.Error("Expected minted app token (pre-activation-app-token) to be used in skip-if-match step")
-		}
-
-		// Verify GH_AW_SKIP_SCOPE is set to "none"
-		if !strings.Contains(lockContentStr, `GH_AW_SKIP_SCOPE: "none"`) {
-			t.Error("Expected GH_AW_SKIP_SCOPE environment variable set to none")
-		}
-	})
-
-	t.Run("skip_if_match_with_github_app_ignore_if_missing", func(t *testing.T) {
-		workflowContent := `---
+func testSkipIfMatchWithGitHubAppIgnoreIfMissing(t *testing.T, tmpDir string, compiler *Compiler) {
+	lockContent := testSkipIfMatchWorkflow(t, tmpDir, compiler, "skip-match-github-app-ignore-workflow.md", `---
 on:
   schedule:
     - cron: "*/15 * * * *"
@@ -467,50 +230,26 @@ engine: claude
 ---
 
 # Skip If Match With GitHub App (ignore-if-missing)
-`
-		workflowFile := filepath.Join(tmpDir, "skip-match-github-app-ignore-workflow.md")
-		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+`)
 
-		err := compiler.CompileWorkflow(workflowFile)
-		if err != nil {
-			t.Fatalf("Compilation failed: %v", err)
-		}
+	assertLockContentContains(t, lockContent, "if: ${{ secrets.WORKFLOW_APP_ID != '' && secrets.WORKFLOW_APP_PRIVATE_KEY != '' }}", "Expected guard to check app secrets directly when ignore-if-missing is enabled")
+	assertLockContentNotContains(t, lockContent, "GH_AW_APP_CLIENT_ID:", "Did not expect step-local GH_AW_APP_CLIENT_ID env in mint step guard")
+	assertLockContentNotContains(t, lockContent, "GH_AW_APP_PRIVATE_KEY:", "Did not expect step-local GH_AW_APP_PRIVATE_KEY env in mint step guard")
+	assertLockContentContains(t, lockContent, "github-token: ${{ steps.pre-activation-app-token.outputs.token || secrets.GITHUB_TOKEN }}", "Expected skip-if-match to fall back to GITHUB_TOKEN when app minting is skipped")
+}
 
-		lockFile := stringutil.MarkdownToLockFile(workflowFile)
-		lockContent, err := os.ReadFile(lockFile)
-		if err != nil {
-			t.Fatalf("Failed to read lock file: %v", err)
-		}
-
-		lockContentStr := string(lockContent)
-		if !strings.Contains(lockContentStr, "if: ${{ secrets.WORKFLOW_APP_ID != '' && secrets.WORKFLOW_APP_PRIVATE_KEY != '' }}") {
-			t.Error("Expected guard to check app secrets directly when ignore-if-missing is enabled")
-		}
-		if strings.Contains(lockContentStr, "GH_AW_APP_CLIENT_ID:") {
-			t.Error("Did not expect step-local GH_AW_APP_CLIENT_ID env in mint step guard")
-		}
-		if strings.Contains(lockContentStr, "GH_AW_APP_PRIVATE_KEY:") {
-			t.Error("Did not expect step-local GH_AW_APP_PRIVATE_KEY env in mint step guard")
-		}
-		if !strings.Contains(lockContentStr, "github-token: ${{ steps.pre-activation-app-token.outputs.token || secrets.GITHUB_TOKEN }}") {
-			t.Error("Expected skip-if-match to fall back to GITHUB_TOKEN when app minting is skipped")
-		}
-	})
-
-	t.Run("skip_if_match_imported_from_shared_on_section", func(t *testing.T) {
-		sharedContent := `---
+func testSkipIfMatchImportedFromSharedOnSection(t *testing.T, tmpDir string, compiler *Compiler) {
+	sharedFile := filepath.Join(tmpDir, "shared-skip.md")
+	sharedContent := `---
 on:
   skip-if-match: 'is:issue is:open in:title "[dedup]"'
 ---
 `
-		sharedFile := filepath.Join(tmpDir, "shared-skip.md")
-		if err := os.WriteFile(sharedFile, []byte(sharedContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+	if err := os.WriteFile(sharedFile, []byte(sharedContent), 0644); err != nil {
+		t.Fatal(err)
+	}
 
-		workflowContent := `---
+	lockContent := testSkipIfMatchWorkflow(t, tmpDir, compiler, "skip-match-imported-workflow.md", `---
 on:
   schedule:
     - cron: "0 8 * * *"
@@ -520,31 +259,32 @@ imports:
 ---
 
 # Imported skip-if-match
-`
-		workflowFile := filepath.Join(tmpDir, "skip-match-imported-workflow.md")
-		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+`)
 
-		err := compiler.CompileWorkflow(workflowFile)
-		if err != nil {
-			t.Fatalf("Compilation failed: %v", err)
-		}
+	assertLockContentContains(t, lockContent, "Check skip-if-match query", "Expected skip-if-match check to be present from imported on.skip-if-match")
+	assertLockContentContains(t, lockContent, `GH_AW_SKIP_QUERY: "is:issue is:open in:title \"[dedup]\""`, "Expected GH_AW_SKIP_QUERY to use the imported shared skip-if-match query")
+}
 
-		lockFile := stringutil.MarkdownToLockFile(workflowFile)
-		lockContent, err := os.ReadFile(lockFile)
-		if err != nil {
-			t.Fatalf("Failed to read lock file: %v", err)
-		}
+func testSkipIfMatchWorkflow(t *testing.T, tmpDir string, compiler *Compiler, fileName, workflowContent string) string {
+	t.Helper()
+	workflowFile := filepath.Join(tmpDir, fileName)
+	if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("Compilation failed: %v", err)
+	}
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	return string(lockContent)
+}
 
-		lockContentStr := string(lockContent)
-
-		if !strings.Contains(lockContentStr, "Check skip-if-match query") {
-			t.Error("Expected skip-if-match check to be present from imported on.skip-if-match")
-		}
-
-		if !strings.Contains(lockContentStr, `GH_AW_SKIP_QUERY: "is:issue is:open in:title \"[dedup]\""`) {
-			t.Error("Expected GH_AW_SKIP_QUERY to use the imported shared skip-if-match query")
-		}
-	})
+func assertLockContentNotContains(t *testing.T, lockContent, expected, message string) {
+	t.Helper()
+	if strings.Contains(lockContent, expected) {
+		t.Error(message)
+	}
 }

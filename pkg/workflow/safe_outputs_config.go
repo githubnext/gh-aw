@@ -58,648 +58,496 @@ var safeOutputsConfigLog = logger.New("workflow:safe_outputs_config")
 func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig {
 	safeOutputsConfigLog.Print("Extracting safe-outputs configuration from frontmatter")
 
-	var config *SafeOutputsConfig
-
-	if output, exists := frontmatter["safe-outputs"]; exists {
-		if outputMap, ok := output.(map[string]any); ok {
-			safeOutputsConfigLog.Printf("Processing safe-outputs configuration with %d top-level keys", len(outputMap))
-			config = &SafeOutputsConfig{}
-
-			// Handle create-issue
-			issuesConfig := c.parseCreateIssuesConfig(outputMap)
-			if issuesConfig != nil {
-				safeOutputsConfigLog.Print("Configured create-issue output handler")
-				config.CreateIssues = issuesConfig
-			}
-
-			// Handle create-agent-session
-			agentSessionConfig := c.parseAgentSessionConfig(outputMap)
-			if agentSessionConfig != nil {
-				config.CreateAgentSessions = agentSessionConfig
-			}
-
-			// Handle update-project (smart project board management)
-			updateProjectConfig := c.parseUpdateProjectConfig(outputMap)
-			if updateProjectConfig != nil {
-				config.UpdateProjects = updateProjectConfig
-			}
-
-			// Handle create-project
-			createProjectConfig := c.parseCreateProjectsConfig(outputMap)
-			if createProjectConfig != nil {
-				config.CreateProjects = createProjectConfig
-			}
-
-			// Handle create-project-status-update (project status updates)
-			createProjectStatusUpdateConfig := c.parseCreateProjectStatusUpdateConfig(outputMap)
-			if createProjectStatusUpdateConfig != nil {
-				config.CreateProjectStatusUpdates = createProjectStatusUpdateConfig
-			}
-
-			// Handle create-discussion
-			discussionsConfig := c.parseCreateDiscussionsConfig(outputMap)
-			if discussionsConfig != nil {
-				config.CreateDiscussions = discussionsConfig
-			}
-
-			// Handle close-discussion
-			closeDiscussionsConfig := c.parseCloseDiscussionsConfig(outputMap)
-			if closeDiscussionsConfig != nil {
-				config.CloseDiscussions = closeDiscussionsConfig
-			}
-
-			// Handle close-issue
-			closeIssuesConfig := c.parseCloseIssuesConfig(outputMap)
-			if closeIssuesConfig != nil {
-				config.CloseIssues = closeIssuesConfig
-			}
-
-			// Handle close-pull-request
-			closePullRequestsConfig := c.parseClosePullRequestsConfig(outputMap)
-			if closePullRequestsConfig != nil {
-				config.ClosePullRequests = closePullRequestsConfig
-			}
-
-			// Handle mark-pull-request-as-ready-for-review
-			markPRReadyConfig := c.parseMarkPullRequestAsReadyForReviewConfig(outputMap)
-			if markPRReadyConfig != nil {
-				config.MarkPullRequestAsReadyForReview = markPRReadyConfig
-			}
-
-			// Handle add-comment
-			commentsConfig := c.parseCommentsConfig(outputMap)
-			if commentsConfig != nil {
-				config.AddComments = commentsConfig
-			}
-
-			// Handle create-pull-request
-			pullRequestsConfig := c.parseCreatePullRequestsConfig(outputMap)
-			if pullRequestsConfig != nil {
-				safeOutputsConfigLog.Print("Configured create-pull-request output handler")
-				config.CreatePullRequests = pullRequestsConfig
-			}
-
-			// Handle create-pull-request-review-comment
-			prReviewCommentsConfig := c.parsePullRequestReviewCommentsConfig(outputMap)
-			if prReviewCommentsConfig != nil {
-				config.CreatePullRequestReviewComments = prReviewCommentsConfig
-			}
-
-			// Handle submit-pull-request-review
-			submitPRReviewConfig := c.parseSubmitPullRequestReviewConfig(outputMap)
-			if submitPRReviewConfig != nil {
-				config.SubmitPullRequestReview = submitPRReviewConfig
-			}
-
-			// Handle reply-to-pull-request-review-comment
-			replyToPRReviewCommentConfig := c.parseReplyToPullRequestReviewCommentConfig(outputMap)
-			if replyToPRReviewCommentConfig != nil {
-				config.ReplyToPullRequestReviewComment = replyToPRReviewCommentConfig
-			}
-
-			// Handle resolve-pull-request-review-thread
-			resolvePRReviewThreadConfig := c.parseResolvePullRequestReviewThreadConfig(outputMap)
-			if resolvePRReviewThreadConfig != nil {
-				config.ResolvePullRequestReviewThread = resolvePRReviewThreadConfig
-			}
-
-			// Handle create-code-scanning-alert
-			securityReportsConfig := c.parseCodeScanningAlertsConfig(outputMap)
-			if securityReportsConfig != nil {
-				config.CreateCodeScanningAlerts = securityReportsConfig
-			}
-
-			// Handle autofix-code-scanning-alert
-			autofixCodeScanningAlertConfig := c.parseAutofixCodeScanningAlertConfig(outputMap)
-			if autofixCodeScanningAlertConfig != nil {
-				config.AutofixCodeScanningAlert = autofixCodeScanningAlertConfig
-			}
-
-			// Handle create-check-run
-			createCheckRunConfig := c.parseCreateCheckRunConfig(outputMap)
-			if createCheckRunConfig != nil {
-				config.CreateCheckRun = createCheckRunConfig
-			}
-
-			// Parse allowed-domains configuration (additional domains, unioned with network.allowed; supports ecosystem identifiers)
-			if allowedDomains, exists := outputMap["allowed-domains"]; exists {
-				if domainsArray, ok := allowedDomains.([]any); ok {
-					var domainStrings []string
-					for _, domain := range domainsArray {
-						if domainStr, ok := domain.(string); ok {
-							domainStrings = append(domainStrings, domainStr)
-						}
-					}
-					config.AllowedDomains = domainStrings
-					safeOutputsConfigLog.Printf("Configured allowed-domains with %d domain(s)", len(domainStrings))
-				}
-			}
-
-			// Parse allowed-github-references configuration
-			if allowGitHubRefs, exists := outputMap["allowed-github-references"]; exists {
-				if refsArray, ok := allowGitHubRefs.([]any); ok {
-					refStrings := []string{} // Initialize as empty slice, not nil
-					for _, ref := range refsArray {
-						if refStr, ok := ref.(string); ok {
-							refStrings = append(refStrings, refStr)
-						}
-					}
-					config.AllowGitHubReferences = refStrings
-				}
-			}
-
-			// Parse add-labels configuration
-			addLabelsConfig := c.parseAddLabelsConfig(outputMap)
-			if addLabelsConfig != nil {
-				config.AddLabels = addLabelsConfig
-			}
-
-			// Parse remove-labels configuration
-			removeLabelsConfig := c.parseRemoveLabelsConfig(outputMap)
-			if removeLabelsConfig != nil {
-				config.RemoveLabels = removeLabelsConfig
-			}
-
-			// Parse add-reviewer configuration
-			addReviewerConfig := c.parseAddReviewerConfig(outputMap)
-			if addReviewerConfig != nil {
-				config.AddReviewer = addReviewerConfig
-			}
-
-			// Parse assign-milestone configuration
-			assignMilestoneConfig := c.parseAssignMilestoneConfig(outputMap)
-			if assignMilestoneConfig != nil {
-				config.AssignMilestone = assignMilestoneConfig
-			}
-
-			// Handle assign-to-agent
-			assignToAgentConfig := c.parseAssignToAgentConfig(outputMap)
-			if assignToAgentConfig != nil {
-				config.AssignToAgent = assignToAgentConfig
-			}
-
-			// Handle assign-to-user
-			assignToUserConfig := c.parseAssignToUserConfig(outputMap)
-			if assignToUserConfig != nil {
-				config.AssignToUser = assignToUserConfig
-			}
-
-			// Handle unassign-from-user
-			unassignFromUserConfig := c.parseUnassignFromUserConfig(outputMap)
-			if unassignFromUserConfig != nil {
-				config.UnassignFromUser = unassignFromUserConfig
-			}
-
-			// Handle update-issue
-			updateIssuesConfig := c.parseUpdateIssuesConfig(outputMap)
-			if updateIssuesConfig != nil {
-				config.UpdateIssues = updateIssuesConfig
-			}
-
-			// Handle update-discussion
-			updateDiscussionsConfig := c.parseUpdateDiscussionsConfig(outputMap)
-			if updateDiscussionsConfig != nil {
-				config.UpdateDiscussions = updateDiscussionsConfig
-			}
-
-			// Handle update-pull-request
-			updatePullRequestsConfig := c.parseUpdatePullRequestsConfig(outputMap)
-			if updatePullRequestsConfig != nil {
-				config.UpdatePullRequests = updatePullRequestsConfig
-			}
-
-			// Handle merge-pull-request
-			mergePullRequestConfig := c.parseMergePullRequestConfig(outputMap)
-			if mergePullRequestConfig != nil {
-				config.MergePullRequest = mergePullRequestConfig
-			}
-
-			// Handle push-to-pull-request-branch
-			pushToBranchConfig := c.parsePushToPullRequestBranchConfig(outputMap)
-			if pushToBranchConfig != nil {
-				config.PushToPullRequestBranch = pushToBranchConfig
-			}
-
-			// Handle upload-asset
-			uploadAssetsConfig := c.parseUploadAssetConfig(outputMap)
-			if uploadAssetsConfig != nil {
-				config.UploadAssets = uploadAssetsConfig
-			}
-
-			// Handle upload-artifact
-			uploadArtifactConfig := c.parseUploadArtifactConfig(outputMap)
-			if uploadArtifactConfig != nil {
-				config.UploadArtifact = uploadArtifactConfig
-			}
-
-			// Handle update-release
-			updateReleaseConfig := c.parseUpdateReleaseConfig(outputMap)
-			if updateReleaseConfig != nil {
-				config.UpdateRelease = updateReleaseConfig
-			}
-
-			// Handle link-sub-issue
-			linkSubIssueConfig := c.parseLinkSubIssueConfig(outputMap)
-			if linkSubIssueConfig != nil {
-				config.LinkSubIssue = linkSubIssueConfig
-			}
-
-			// Handle hide-comment
-			hideCommentConfig := c.parseHideCommentConfig(outputMap)
-			if hideCommentConfig != nil {
-				config.HideComment = hideCommentConfig
-			}
-
-			// Handle set-issue-type
-			setIssueTypeConfig := c.parseSetIssueTypeConfig(outputMap)
-			if setIssueTypeConfig != nil {
-				config.SetIssueType = setIssueTypeConfig
-			}
-
-			// Handle set-issue-field
-			setIssueFieldConfig := c.parseSetIssueFieldConfig(outputMap)
-			if setIssueFieldConfig != nil {
-				config.SetIssueField = setIssueFieldConfig
-			}
-
-			// Handle dispatch-workflow
-			dispatchWorkflowConfig := c.parseDispatchWorkflowConfig(outputMap)
-			if dispatchWorkflowConfig != nil {
-				config.DispatchWorkflow = dispatchWorkflowConfig
-			}
-
-			// Handle dispatch_repository
-			dispatchRepositoryConfig := c.parseDispatchRepositoryConfig(outputMap)
-			if dispatchRepositoryConfig != nil {
-				config.DispatchRepository = dispatchRepositoryConfig
-			}
-
-			// Handle call-workflow
-			callWorkflowConfig := c.parseCallWorkflowConfig(outputMap)
-			if callWorkflowConfig != nil {
-				config.CallWorkflow = callWorkflowConfig
-			}
-
-			// Handle missing-tool (parse configuration if present, or enable by default)
-			missingToolConfig := c.parseMissingToolConfig(outputMap)
-			if missingToolConfig != nil {
-				config.MissingTool = missingToolConfig
-			} else {
-				// Enable missing-tool by default if safe-outputs exists and it wasn't explicitly disabled
-				if _, exists := outputMap["missing-tool"]; !exists {
-					trueVal := "true"
-					config.MissingTool = &MissingToolConfig{
-						CreateIssue: &trueVal,
-						TitlePrefix: "",
-						Labels:      nil,
-					}
-				}
-			}
-
-			// Handle missing-data (parse configuration if present, or enable by default)
-			missingDataConfig := c.parseMissingDataConfig(outputMap)
-			if missingDataConfig != nil {
-				config.MissingData = missingDataConfig
-			} else {
-				// Enable missing-data by default if safe-outputs exists and it wasn't explicitly disabled
-				if _, exists := outputMap["missing-data"]; !exists {
-					trueVal := "true"
-					config.MissingData = &MissingDataConfig{
-						CreateIssue: &trueVal,
-						TitlePrefix: "",
-						Labels:      nil,
-					}
-				}
-			}
-
-			// Handle noop (parse configuration if present, or enable by default as fallback)
-			noopConfig := c.parseNoOpConfig(outputMap)
-			if noopConfig != nil {
-				config.NoOp = noopConfig
-			} else {
-				// Enable noop by default if safe-outputs exists and it wasn't explicitly disabled
-				// This ensures there's always a fallback for transparency
-				if _, exists := outputMap["noop"]; !exists {
-					config.NoOp = &NoOpConfig{}
-					config.NoOp.Max = defaultIntStr(1) // Default max
-					trueVal := "true"
-					config.NoOp.ReportAsIssue = &trueVal // Default to reporting to issue
-				}
-			}
-
-			// Handle report-incomplete (parse configuration if present, or enable by default)
-			reportIncompleteConfig := c.parseReportIncompleteConfig(outputMap)
-			if reportIncompleteConfig != nil {
-				config.ReportIncomplete = reportIncompleteConfig
-			} else {
-				// Enable report-incomplete by default if safe-outputs exists and it wasn't explicitly disabled.
-				// This ensures agents always have a first-class channel to signal task incompletion.
-				if _, exists := outputMap["report-incomplete"]; !exists {
-					trueVal := "true"
-					config.ReportIncomplete = &ReportIncompleteConfig{
-						CreateIssue: &trueVal,
-						TitlePrefix: "",
-						Labels:      nil,
-					}
-				}
-			}
-
-			// Handle staged flag
-			if staged, exists := outputMap["staged"]; exists {
-				if stagedBool, ok := staged.(bool); ok {
-					config.Staged = stagedBool
-				}
-			}
-			if c.forceStaged {
-				config.Staged = true
-			}
-
-			// Handle env configuration
-			if env, exists := outputMap["env"]; exists {
-				if envMap, ok := env.(map[string]any); ok {
-					config.Env = make(map[string]string)
-					for key, value := range envMap {
-						if valueStr, ok := value.(string); ok {
-							config.Env[key] = valueStr
-						}
-					}
-				}
-			}
-
-			// Handle github-token configuration
-			if githubToken, exists := outputMap["github-token"]; exists {
-				if githubTokenStr, ok := githubToken.(string); ok {
-					config.GitHubToken = githubTokenStr
-				}
-			}
-
-			// Handle max-patch-size configuration
-			if maxPatchSize, exists := outputMap["max-patch-size"]; exists {
-				switch v := maxPatchSize.(type) {
-				case int:
-					if v >= 1 {
-						config.MaximumPatchSize = v
-					}
-				case int64:
-					if v >= 1 {
-						config.MaximumPatchSize = int(v)
-					}
-				case uint64:
-					if v >= 1 {
-						config.MaximumPatchSize = int(v)
-					}
-				case float64:
-					intVal := int(v)
-					// Warn if truncation occurs (value has fractional part)
-					if v != float64(intVal) {
-						safeOutputsConfigLog.Printf("max-patch-size: float value %.2f truncated to integer %d", v, intVal)
-					}
-					if intVal >= 1 {
-						config.MaximumPatchSize = intVal
-					}
-				}
-			}
-
-			// Set default value if not specified or invalid
-			if config.MaximumPatchSize == 0 {
-				config.MaximumPatchSize = 1024 // Default to 1MB = 1024 KB
-			}
-
-			// Handle max-patch-files configuration (maximum unique files allowed in
-			// a create-pull-request patch). Mirrors max-patch-size handling above,
-			// with explicit bounds checks before narrowing to int so that very
-			// large source values can't overflow/wrap into a negative or wrapped
-			// number that would silently fall back to the default.
-			if maxPatchFiles, exists := outputMap["max-patch-files"]; exists {
-				switch v := maxPatchFiles.(type) {
-				case int:
-					if v >= 1 {
-						config.MaximumPatchFiles = v
-					}
-				case int64:
-					if v >= 1 {
-						if v > int64(math.MaxInt) {
-							safeOutputsConfigLog.Printf("max-patch-files: int64 value %d exceeds platform int range, clamping to %d", v, math.MaxInt)
-							config.MaximumPatchFiles = math.MaxInt
-						} else {
-							config.MaximumPatchFiles = int(v)
-						}
-					}
-				case uint64:
-					if v >= 1 {
-						if v > uint64(math.MaxInt) {
-							safeOutputsConfigLog.Printf("max-patch-files: uint64 value %d exceeds platform int range, clamping to %d", v, math.MaxInt)
-							config.MaximumPatchFiles = math.MaxInt
-						} else {
-							config.MaximumPatchFiles = int(v)
-						}
-					}
-				case float64:
-					// Reject NaN/Inf and clamp out-of-range floats before
-					// narrowing — `int(NaN)` and `int(±Inf)` are
-					// implementation-defined and can produce surprising
-					// values (including 0, which would silently fall back
-					// to the default).
-					if v != v || v > float64(math.MaxInt) || v < float64(math.MinInt) {
-						safeOutputsConfigLog.Printf("max-patch-files: float value %.2f is out of range, ignoring", v)
-						break
-					}
-					intVal := int(v)
-					if v != float64(intVal) {
-						safeOutputsConfigLog.Printf("max-patch-files: float value %.2f truncated to integer %d", v, intVal)
-					}
-					if intVal >= 1 {
-						config.MaximumPatchFiles = intVal
-					}
-				}
-			}
-
-			// Set default value if not specified or invalid
-			if config.MaximumPatchFiles == 0 {
-				config.MaximumPatchFiles = 100 // Default to 100 unique files
-			}
-
-			// Handle threat-detection
-			threatDetectionConfig := c.parseThreatDetectionConfig(outputMap)
-			if threatDetectionConfig != nil {
-				config.ThreatDetection = threatDetectionConfig
-			}
-
-			// Handle runs-on configuration
-			if runsOn, exists := outputMap["runs-on"]; exists {
-				if runsOnStr, ok := runsOn.(string); ok {
-					config.RunsOn = runsOnStr
-				}
-			}
-
-			// Handle messages configuration
-			if messages, exists := outputMap["messages"]; exists {
-				if messagesMap, ok := messages.(map[string]any); ok {
-					config.Messages = parseMessagesConfig(messagesMap)
-				}
-			}
-
-			// Handle activation-comments at safe-outputs top level (templatable boolean)
-			if err := preprocessBoolFieldAsString(outputMap, "activation-comments", safeOutputsConfigLog); err != nil {
-				safeOutputsConfigLog.Printf("activation-comments: %v", err)
-			}
-			if activationComments, exists := outputMap["activation-comments"]; exists {
-				if activationCommentsStr, ok := activationComments.(string); ok && activationCommentsStr != "" {
-					if config.Messages == nil {
-						config.Messages = &SafeOutputMessagesConfig{}
-					}
-					config.Messages.ActivationComments = activationCommentsStr
-				}
-			}
-
-			// Handle mentions configuration
-			if mentions, exists := outputMap["mentions"]; exists {
-				config.Mentions = parseMentionsConfig(mentions)
-			}
-
-			// Handle global footer flag
-			if footer, exists := outputMap["footer"]; exists {
-				if footerBool, ok := footer.(bool); ok {
-					config.Footer = &footerBool
-					safeOutputsConfigLog.Printf("Global footer control: %t", footerBool)
-				}
-			}
-
-			// Handle group-reports flag
-			if groupReports, exists := outputMap["group-reports"]; exists {
-				if groupReportsBool, ok := groupReports.(bool); ok {
-					config.GroupReports = groupReportsBool
-					safeOutputsConfigLog.Printf("Group reports control: %t", groupReportsBool)
-				}
-			}
-
-			// Handle report-failure-as-issue flag
-			if reportFailureAsIssue, exists := outputMap["report-failure-as-issue"]; exists {
-				if reportFailureAsIssueBool, ok := reportFailureAsIssue.(bool); ok {
-					config.ReportFailureAsIssue = &reportFailureAsIssueBool
-					safeOutputsConfigLog.Printf("Report failure as issue: %t", reportFailureAsIssueBool)
-				}
-			}
-
-			// Handle failure-issue-repo (repository for failure issues, format: "owner/repo")
-			if failureIssueRepo, exists := outputMap["failure-issue-repo"]; exists {
-				if failureIssueRepoStr, ok := failureIssueRepo.(string); ok && failureIssueRepoStr != "" {
-					config.FailureIssueRepo = failureIssueRepoStr
-					safeOutputsConfigLog.Printf("Failure issue repo: %s", failureIssueRepoStr)
-				}
-			}
-
-			// Handle max-bot-mentions (templatable integer)
-			if err := preprocessIntFieldAsString(outputMap, "max-bot-mentions", safeOutputsConfigLog); err != nil {
-				safeOutputsConfigLog.Printf("max-bot-mentions: %v", err)
-			} else if maxBotMentions, exists := outputMap["max-bot-mentions"]; exists {
-				if maxBotMentionsStr, ok := maxBotMentions.(string); ok {
-					config.MaxBotMentions = &maxBotMentionsStr
-				}
-			}
-
-			// Handle steps (user-provided steps injected after checkout/setup, before safe-output code)
-			if steps, exists := outputMap["steps"]; exists {
-				if stepsList, ok := steps.([]any); ok {
-					config.Steps = stepsList
-					safeOutputsConfigLog.Printf("Configured %d user-provided steps for safe-outputs", len(stepsList))
-				}
-			}
-
-			// Handle id-token permission override ("write" to force-add, "none" to disable auto-detection)
-			if idToken, exists := outputMap["id-token"]; exists {
-				if idTokenStr, ok := idToken.(string); ok {
-					if idTokenStr == "write" || idTokenStr == "none" {
-						config.IDToken = &idTokenStr
-						safeOutputsConfigLog.Printf("Configured id-token permission override: %s", idTokenStr)
-					} else {
-						safeOutputsConfigLog.Printf("Warning: unrecognized safe-outputs id-token value %q (expected \"write\" or \"none\"); ignoring", idTokenStr)
-					}
-				}
-			}
-
-			// Handle concurrency-group configuration
-			if concurrencyGroup, exists := outputMap["concurrency-group"]; exists {
-				if concurrencyGroupStr, ok := concurrencyGroup.(string); ok && concurrencyGroupStr != "" {
-					config.ConcurrencyGroup = concurrencyGroupStr
-					safeOutputsConfigLog.Printf("Configured concurrency-group for safe-outputs job: %s", concurrencyGroupStr)
-				}
-			}
-
-			// Handle needs configuration
-			if needsValue, exists := outputMap["needs"]; exists {
-				if needsArray, ok := needsValue.([]any); ok {
-					for _, need := range needsArray {
-						if needStr, ok := need.(string); ok && needStr != "" {
-							config.Needs = append(config.Needs, needStr)
-						}
-					}
-					if len(config.Needs) > 0 {
-						safeOutputsConfigLog.Printf("Configured %d explicit safe-outputs needs dependency(ies)", len(config.Needs))
-					}
-				}
-			}
-
-			// Handle environment configuration (override for safe-outputs job; falls back to top-level environment)
-			config.Environment = c.extractTopLevelYAMLSection(outputMap, "environment")
-			if config.Environment != "" {
-				safeOutputsConfigLog.Printf("Configured environment override for safe-outputs job: %s", config.Environment)
-			}
-
-			// Handle jobs (safe-jobs must be under safe-outputs)
-			if jobs, exists := outputMap["jobs"]; exists {
-				if jobsMap, ok := jobs.(map[string]any); ok {
-					c := &Compiler{} // Create a temporary compiler instance for parsing
-					config.Jobs = c.parseSafeJobsConfig(jobsMap)
-				}
-			}
-
-			// Handle scripts (inline handlers that run in the safe-output handler loop)
-			if scripts, exists := outputMap["scripts"]; exists {
-				if scriptsMap, ok := scripts.(map[string]any); ok {
-					config.Scripts = parseSafeScriptsConfig(scriptsMap)
-					safeOutputsConfigLog.Printf("Configured %d custom safe-output script(s)", len(config.Scripts))
-				}
-			}
-
-			// Handle actions (custom GitHub Actions mounted as safe output tools)
-			if actions, exists := outputMap["actions"]; exists {
-				if actionsMap, ok := actions.(map[string]any); ok {
-					config.Actions = parseActionsConfig(actionsMap)
-					safeOutputsConfigLog.Printf("Configured %d custom safe-output action(s)", len(config.Actions))
-				}
-			}
-
-			// Handle app configuration for GitHub App token minting
-			if app, exists := outputMap["github-app"]; exists {
-				if appMap, ok := app.(map[string]any); ok {
-					config.GitHubApp = parseAppConfig(appMap)
-				}
-			}
-		}
-	}
-
-	// Apply default threat detection whenever safe-outputs are configured and threat-detection
-	// is not explicitly disabled. Detection is always on unless threat-detection is false.
-	if config != nil && config.ThreatDetection == nil {
-		if output, exists := frontmatter["safe-outputs"]; exists {
-			if outputMap, ok := output.(map[string]any); ok {
-				if _, exists := outputMap["threat-detection"]; !exists {
-					// Only apply default if threat-detection key doesn't exist
-					safeOutputsConfigLog.Print("Applying default threat-detection configuration")
-					config.ThreatDetection = &ThreatDetectionConfig{}
-				}
-			}
-		}
-	}
-
-	if config != nil {
-		safeOutputsConfigLog.Print("Successfully extracted safe-outputs configuration")
-	} else {
+	output, exists := frontmatter["safe-outputs"]
+	if !exists {
 		safeOutputsConfigLog.Print("No safe-outputs configuration found in frontmatter")
+		return nil
 	}
 
+	outputMap, ok := output.(map[string]any)
+	if !ok {
+		safeOutputsConfigLog.Print("No safe-outputs configuration found in frontmatter")
+		return nil
+	}
+
+	safeOutputsConfigLog.Printf("Processing safe-outputs configuration with %d top-level keys", len(outputMap))
+	config := &SafeOutputsConfig{}
+
+	c.applyProjectOutputConfigs(config, outputMap)
+	c.applyIssueOutputConfigs(config, outputMap)
+	c.applyDiscussionOutputConfigs(config, outputMap)
+	c.applyCommentOutputConfigs(config, outputMap)
+	c.applyPullRequestOutputConfigs(config, outputMap)
+	c.applyAssignmentOutputConfigs(config, outputMap)
+	c.applyAutomationOutputConfigs(config, outputMap)
+	c.applySafeOutputsNetworkConfig(config, outputMap)
+	c.applyMissingSignalConfigs(config, outputMap)
+	c.applyFallbackOutputConfigs(config, outputMap)
+	c.applySafeOutputsExecutionConfig(config, outputMap)
+	c.applySafeOutputsPatchConfig(config, outputMap)
+	c.applySafeOutputsMessageConfig(config, outputMap)
+	c.applySafeOutputsExtensionConfig(config, outputMap)
+	c.applySafeOutputsThreatConfig(config, outputMap)
+	c.applyDefaultThreatDetection(config, outputMap)
+
+	safeOutputsConfigLog.Print("Successfully extracted safe-outputs configuration")
 	return config
+}
+
+func (c *Compiler) applyProjectOutputConfigs(config *SafeOutputsConfig, outputMap map[string]any) {
+	if agentSessionConfig := c.parseAgentSessionConfig(outputMap); agentSessionConfig != nil {
+		config.CreateAgentSessions = agentSessionConfig
+	}
+	if updateProjectConfig := c.parseUpdateProjectConfig(outputMap); updateProjectConfig != nil {
+		config.UpdateProjects = updateProjectConfig
+	}
+	if createProjectConfig := c.parseCreateProjectsConfig(outputMap); createProjectConfig != nil {
+		config.CreateProjects = createProjectConfig
+	}
+	if statusUpdateConfig := c.parseCreateProjectStatusUpdateConfig(outputMap); statusUpdateConfig != nil {
+		config.CreateProjectStatusUpdates = statusUpdateConfig
+	}
+}
+
+func (c *Compiler) applyIssueOutputConfigs(config *SafeOutputsConfig, outputMap map[string]any) {
+	if issuesConfig := c.parseCreateIssuesConfig(outputMap); issuesConfig != nil {
+		safeOutputsConfigLog.Print("Configured create-issue output handler")
+		config.CreateIssues = issuesConfig
+	}
+	if closeIssuesConfig := c.parseCloseIssuesConfig(outputMap); closeIssuesConfig != nil {
+		config.CloseIssues = closeIssuesConfig
+	}
+	if updateIssuesConfig := c.parseUpdateIssuesConfig(outputMap); updateIssuesConfig != nil {
+		config.UpdateIssues = updateIssuesConfig
+	}
+	if addLabelsConfig := c.parseAddLabelsConfig(outputMap); addLabelsConfig != nil {
+		config.AddLabels = addLabelsConfig
+	}
+	if removeLabelsConfig := c.parseRemoveLabelsConfig(outputMap); removeLabelsConfig != nil {
+		config.RemoveLabels = removeLabelsConfig
+	}
+	if assignMilestoneConfig := c.parseAssignMilestoneConfig(outputMap); assignMilestoneConfig != nil {
+		config.AssignMilestone = assignMilestoneConfig
+	}
+	if linkSubIssueConfig := c.parseLinkSubIssueConfig(outputMap); linkSubIssueConfig != nil {
+		config.LinkSubIssue = linkSubIssueConfig
+	}
+	if setIssueTypeConfig := c.parseSetIssueTypeConfig(outputMap); setIssueTypeConfig != nil {
+		config.SetIssueType = setIssueTypeConfig
+	}
+	if setIssueFieldConfig := c.parseSetIssueFieldConfig(outputMap); setIssueFieldConfig != nil {
+		config.SetIssueField = setIssueFieldConfig
+	}
+}
+
+func (c *Compiler) applyDiscussionOutputConfigs(config *SafeOutputsConfig, outputMap map[string]any) {
+	if discussionsConfig := c.parseCreateDiscussionsConfig(outputMap); discussionsConfig != nil {
+		config.CreateDiscussions = discussionsConfig
+	}
+	if closeDiscussionsConfig := c.parseCloseDiscussionsConfig(outputMap); closeDiscussionsConfig != nil {
+		config.CloseDiscussions = closeDiscussionsConfig
+	}
+	if updateDiscussionsConfig := c.parseUpdateDiscussionsConfig(outputMap); updateDiscussionsConfig != nil {
+		config.UpdateDiscussions = updateDiscussionsConfig
+	}
+}
+
+func (c *Compiler) applyCommentOutputConfigs(config *SafeOutputsConfig, outputMap map[string]any) {
+	if commentsConfig := c.parseCommentsConfig(outputMap); commentsConfig != nil {
+		config.AddComments = commentsConfig
+	}
+	if hideCommentConfig := c.parseHideCommentConfig(outputMap); hideCommentConfig != nil {
+		config.HideComment = hideCommentConfig
+	}
+}
+
+func (c *Compiler) applyPullRequestOutputConfigs(config *SafeOutputsConfig, outputMap map[string]any) {
+	if closePullRequestsConfig := c.parseClosePullRequestsConfig(outputMap); closePullRequestsConfig != nil {
+		config.ClosePullRequests = closePullRequestsConfig
+	}
+	if markReadyConfig := c.parseMarkPullRequestAsReadyForReviewConfig(outputMap); markReadyConfig != nil {
+		config.MarkPullRequestAsReadyForReview = markReadyConfig
+	}
+	if pullRequestsConfig := c.parseCreatePullRequestsConfig(outputMap); pullRequestsConfig != nil {
+		safeOutputsConfigLog.Print("Configured create-pull-request output handler")
+		config.CreatePullRequests = pullRequestsConfig
+	}
+	if reviewCommentsConfig := c.parsePullRequestReviewCommentsConfig(outputMap); reviewCommentsConfig != nil {
+		config.CreatePullRequestReviewComments = reviewCommentsConfig
+	}
+	if submitReviewConfig := c.parseSubmitPullRequestReviewConfig(outputMap); submitReviewConfig != nil {
+		config.SubmitPullRequestReview = submitReviewConfig
+	}
+	if replyConfig := c.parseReplyToPullRequestReviewCommentConfig(outputMap); replyConfig != nil {
+		config.ReplyToPullRequestReviewComment = replyConfig
+	}
+	if resolveThreadConfig := c.parseResolvePullRequestReviewThreadConfig(outputMap); resolveThreadConfig != nil {
+		config.ResolvePullRequestReviewThread = resolveThreadConfig
+	}
+	if addReviewerConfig := c.parseAddReviewerConfig(outputMap); addReviewerConfig != nil {
+		config.AddReviewer = addReviewerConfig
+	}
+	if updatePullRequestsConfig := c.parseUpdatePullRequestsConfig(outputMap); updatePullRequestsConfig != nil {
+		config.UpdatePullRequests = updatePullRequestsConfig
+	}
+	if mergePullRequestConfig := c.parseMergePullRequestConfig(outputMap); mergePullRequestConfig != nil {
+		config.MergePullRequest = mergePullRequestConfig
+	}
+	if pushToBranchConfig := c.parsePushToPullRequestBranchConfig(outputMap); pushToBranchConfig != nil {
+		config.PushToPullRequestBranch = pushToBranchConfig
+	}
+}
+
+func (c *Compiler) applyAssignmentOutputConfigs(config *SafeOutputsConfig, outputMap map[string]any) {
+	if assignToAgentConfig := c.parseAssignToAgentConfig(outputMap); assignToAgentConfig != nil {
+		config.AssignToAgent = assignToAgentConfig
+	}
+	if assignToUserConfig := c.parseAssignToUserConfig(outputMap); assignToUserConfig != nil {
+		config.AssignToUser = assignToUserConfig
+	}
+	if unassignFromUserConfig := c.parseUnassignFromUserConfig(outputMap); unassignFromUserConfig != nil {
+		config.UnassignFromUser = unassignFromUserConfig
+	}
+}
+
+func (c *Compiler) applyAutomationOutputConfigs(config *SafeOutputsConfig, outputMap map[string]any) {
+	if securityReportsConfig := c.parseCodeScanningAlertsConfig(outputMap); securityReportsConfig != nil {
+		config.CreateCodeScanningAlerts = securityReportsConfig
+	}
+	if autofixConfig := c.parseAutofixCodeScanningAlertConfig(outputMap); autofixConfig != nil {
+		config.AutofixCodeScanningAlert = autofixConfig
+	}
+	if checkRunConfig := c.parseCreateCheckRunConfig(outputMap); checkRunConfig != nil {
+		config.CreateCheckRun = checkRunConfig
+	}
+	if uploadAssetsConfig := c.parseUploadAssetConfig(outputMap); uploadAssetsConfig != nil {
+		config.UploadAssets = uploadAssetsConfig
+	}
+	if uploadArtifactConfig := c.parseUploadArtifactConfig(outputMap); uploadArtifactConfig != nil {
+		config.UploadArtifact = uploadArtifactConfig
+	}
+	if updateReleaseConfig := c.parseUpdateReleaseConfig(outputMap); updateReleaseConfig != nil {
+		config.UpdateRelease = updateReleaseConfig
+	}
+	if dispatchWorkflowConfig := c.parseDispatchWorkflowConfig(outputMap); dispatchWorkflowConfig != nil {
+		config.DispatchWorkflow = dispatchWorkflowConfig
+	}
+	if dispatchRepositoryConfig := c.parseDispatchRepositoryConfig(outputMap); dispatchRepositoryConfig != nil {
+		config.DispatchRepository = dispatchRepositoryConfig
+	}
+	if callWorkflowConfig := c.parseCallWorkflowConfig(outputMap); callWorkflowConfig != nil {
+		config.CallWorkflow = callWorkflowConfig
+	}
+}
+
+func (c *Compiler) applySafeOutputsNetworkConfig(config *SafeOutputsConfig, outputMap map[string]any) {
+	if allowedDomains, exists := outputMap["allowed-domains"]; exists {
+		if domainsArray, ok := allowedDomains.([]any); ok {
+			config.AllowedDomains = collectStringValues(domainsArray)
+			safeOutputsConfigLog.Printf("Configured allowed-domains with %d domain(s)", len(config.AllowedDomains))
+		}
+	}
+	if allowGitHubRefs, exists := outputMap["allowed-github-references"]; exists {
+		if refsArray, ok := allowGitHubRefs.([]any); ok {
+			refs := make([]string, 0, len(refsArray))
+			refs = append(refs, collectStringValues(refsArray)...)
+			config.AllowGitHubReferences = refs
+		}
+	}
+}
+
+func (c *Compiler) applyMissingSignalConfigs(config *SafeOutputsConfig, outputMap map[string]any) {
+	if missingToolConfig := c.parseMissingToolConfig(outputMap); missingToolConfig != nil {
+		config.MissingTool = missingToolConfig
+	} else if _, exists := outputMap["missing-tool"]; !exists {
+		trueVal := "true"
+		config.MissingTool = &MissingToolConfig{CreateIssue: &trueVal, TitlePrefix: "", Labels: nil}
+	}
+	if missingDataConfig := c.parseMissingDataConfig(outputMap); missingDataConfig != nil {
+		config.MissingData = missingDataConfig
+	} else if _, exists := outputMap["missing-data"]; !exists {
+		trueVal := "true"
+		config.MissingData = &MissingDataConfig{CreateIssue: &trueVal, TitlePrefix: "", Labels: nil}
+	}
+}
+
+func (c *Compiler) applyFallbackOutputConfigs(config *SafeOutputsConfig, outputMap map[string]any) {
+	if noopConfig := c.parseNoOpConfig(outputMap); noopConfig != nil {
+		config.NoOp = noopConfig
+	} else if _, exists := outputMap["noop"]; !exists {
+		trueVal := "true"
+		config.NoOp = &NoOpConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: defaultIntStr(1)},
+			ReportAsIssue:        &trueVal,
+		}
+	}
+	if reportIncompleteConfig := c.parseReportIncompleteConfig(outputMap); reportIncompleteConfig != nil {
+		config.ReportIncomplete = reportIncompleteConfig
+	} else if _, exists := outputMap["report-incomplete"]; !exists {
+		trueVal := "true"
+		config.ReportIncomplete = &ReportIncompleteConfig{CreateIssue: &trueVal, TitlePrefix: "", Labels: nil}
+	}
+}
+
+func (c *Compiler) applySafeOutputsExecutionConfig(config *SafeOutputsConfig, outputMap map[string]any) {
+	if staged, exists := outputMap["staged"]; exists {
+		if stagedBool, ok := staged.(bool); ok {
+			config.Staged = stagedBool
+		}
+	}
+	if c.forceStaged {
+		config.Staged = true
+	}
+	if env, exists := outputMap["env"]; exists {
+		if envMap, ok := env.(map[string]any); ok {
+			config.Env = make(map[string]string)
+			for key, value := range envMap {
+				if valueStr, ok := value.(string); ok {
+					config.Env[key] = valueStr
+				}
+			}
+		}
+	}
+	if githubToken, exists := outputMap["github-token"]; exists {
+		if githubTokenStr, ok := githubToken.(string); ok {
+			config.GitHubToken = githubTokenStr
+		}
+	}
+	if runsOn, exists := outputMap["runs-on"]; exists {
+		if runsOnStr, ok := runsOn.(string); ok {
+			config.RunsOn = runsOnStr
+		}
+	}
+	c.applySafeOutputsJobConfig(config, outputMap)
+}
+
+func (c *Compiler) applySafeOutputsJobConfig(config *SafeOutputsConfig, outputMap map[string]any) {
+	if steps, exists := outputMap["steps"]; exists {
+		if stepsList, ok := steps.([]any); ok {
+			config.Steps = stepsList
+			safeOutputsConfigLog.Printf("Configured %d user-provided steps for safe-outputs", len(stepsList))
+		}
+	}
+	if idToken, exists := outputMap["id-token"]; exists {
+		if idTokenStr, ok := idToken.(string); ok {
+			if idTokenStr == "write" || idTokenStr == "none" {
+				config.IDToken = &idTokenStr
+				safeOutputsConfigLog.Printf("Configured id-token permission override: %s", idTokenStr)
+			} else {
+				safeOutputsConfigLog.Printf(`Warning: unrecognized safe-outputs id-token value %q (expected "write" or "none"); ignoring`, idTokenStr)
+			}
+		}
+	}
+	if concurrencyGroup, exists := outputMap["concurrency-group"]; exists {
+		if concurrencyGroupStr, ok := concurrencyGroup.(string); ok && concurrencyGroupStr != "" {
+			config.ConcurrencyGroup = concurrencyGroupStr
+			safeOutputsConfigLog.Printf("Configured concurrency-group for safe-outputs job: %s", concurrencyGroupStr)
+		}
+	}
+	if needsValue, exists := outputMap["needs"]; exists {
+		if needsArray, ok := needsValue.([]any); ok {
+			for _, needStr := range collectStringValues(needsArray) {
+				if needStr != "" {
+					config.Needs = append(config.Needs, needStr)
+				}
+			}
+			if len(config.Needs) > 0 {
+				safeOutputsConfigLog.Printf("Configured %d explicit safe-outputs needs dependency(ies)", len(config.Needs))
+			}
+		}
+	}
+	config.Environment = c.extractTopLevelYAMLSection(outputMap, "environment")
+	if config.Environment != "" {
+		safeOutputsConfigLog.Printf("Configured environment override for safe-outputs job: %s", config.Environment)
+	}
+}
+
+func (c *Compiler) applySafeOutputsPatchConfig(config *SafeOutputsConfig, outputMap map[string]any) {
+	c.applyMaximumPatchSize(config, outputMap)
+	c.applyMaximumPatchFiles(config, outputMap)
+}
+
+func (c *Compiler) applyMaximumPatchSize(config *SafeOutputsConfig, outputMap map[string]any) {
+	if maxPatchSize, exists := outputMap["max-patch-size"]; exists {
+		switch v := maxPatchSize.(type) {
+		case int:
+			if v >= 1 {
+				config.MaximumPatchSize = v
+			}
+		case int64:
+			if v >= 1 {
+				config.MaximumPatchSize = int(v)
+			}
+		case uint64:
+			if v >= 1 {
+				config.MaximumPatchSize = int(v)
+			}
+		case float64:
+			intVal := int(v)
+			if v != float64(intVal) {
+				safeOutputsConfigLog.Printf("max-patch-size: float value %.2f truncated to integer %d", v, intVal)
+			}
+			if intVal >= 1 {
+				config.MaximumPatchSize = intVal
+			}
+		}
+	}
+	if config.MaximumPatchSize == 0 {
+		config.MaximumPatchSize = 1024
+	}
+}
+
+func (c *Compiler) applyMaximumPatchFiles(config *SafeOutputsConfig, outputMap map[string]any) {
+	if maxPatchFiles, exists := outputMap["max-patch-files"]; exists {
+		switch v := maxPatchFiles.(type) {
+		case int:
+			if v >= 1 {
+				config.MaximumPatchFiles = v
+			}
+		case int64:
+			if v >= 1 {
+				if v > int64(math.MaxInt) {
+					safeOutputsConfigLog.Printf("max-patch-files: int64 value %d exceeds platform int range, clamping to %d", v, math.MaxInt)
+					config.MaximumPatchFiles = math.MaxInt
+				} else {
+					config.MaximumPatchFiles = int(v)
+				}
+			}
+		case uint64:
+			if v >= 1 {
+				if v > uint64(math.MaxInt) {
+					safeOutputsConfigLog.Printf("max-patch-files: uint64 value %d exceeds platform int range, clamping to %d", v, math.MaxInt)
+					config.MaximumPatchFiles = math.MaxInt
+				} else {
+					config.MaximumPatchFiles = int(v)
+				}
+			}
+		case float64:
+			if v != v || v > float64(math.MaxInt) || v < float64(math.MinInt) {
+				safeOutputsConfigLog.Printf("max-patch-files: float value %.2f is out of range, ignoring", v)
+			} else {
+				intVal := int(v)
+				if v != float64(intVal) {
+					safeOutputsConfigLog.Printf("max-patch-files: float value %.2f truncated to integer %d", v, intVal)
+				}
+				if intVal >= 1 {
+					config.MaximumPatchFiles = intVal
+				}
+			}
+		}
+	}
+	if config.MaximumPatchFiles == 0 {
+		config.MaximumPatchFiles = 100
+	}
+}
+
+func (c *Compiler) applySafeOutputsMessageConfig(config *SafeOutputsConfig, outputMap map[string]any) {
+	if messages, exists := outputMap["messages"]; exists {
+		if messagesMap, ok := messages.(map[string]any); ok {
+			config.Messages = parseMessagesConfig(messagesMap)
+		}
+	}
+	if err := preprocessBoolFieldAsString(outputMap, "activation-comments", safeOutputsConfigLog); err != nil {
+		safeOutputsConfigLog.Printf("activation-comments: %v", err)
+	} else if activationComments, exists := outputMap["activation-comments"]; exists {
+		if activationCommentsStr, ok := activationComments.(string); ok && activationCommentsStr != "" {
+			if config.Messages == nil {
+				config.Messages = &SafeOutputMessagesConfig{}
+			}
+			config.Messages.ActivationComments = activationCommentsStr
+		}
+	}
+	if mentions, exists := outputMap["mentions"]; exists {
+		config.Mentions = parseMentionsConfig(mentions)
+	}
+	if footer, exists := outputMap["footer"]; exists {
+		if footerBool, ok := footer.(bool); ok {
+			config.Footer = &footerBool
+			safeOutputsConfigLog.Printf("Global footer control: %t", footerBool)
+		}
+	}
+	c.applySafeOutputsFailureConfig(config, outputMap)
+}
+
+func (c *Compiler) applySafeOutputsFailureConfig(config *SafeOutputsConfig, outputMap map[string]any) {
+	if groupReports, exists := outputMap["group-reports"]; exists {
+		if groupReportsBool, ok := groupReports.(bool); ok {
+			config.GroupReports = groupReportsBool
+			safeOutputsConfigLog.Printf("Group reports control: %t", groupReportsBool)
+		}
+	}
+	if reportFailureAsIssue, exists := outputMap["report-failure-as-issue"]; exists {
+		if reportFailureAsIssueBool, ok := reportFailureAsIssue.(bool); ok {
+			config.ReportFailureAsIssue = &reportFailureAsIssueBool
+			safeOutputsConfigLog.Printf("Report failure as issue: %t", reportFailureAsIssueBool)
+		}
+	}
+	if failureIssueRepo, exists := outputMap["failure-issue-repo"]; exists {
+		if failureIssueRepoStr, ok := failureIssueRepo.(string); ok && failureIssueRepoStr != "" {
+			config.FailureIssueRepo = failureIssueRepoStr
+			safeOutputsConfigLog.Printf("Failure issue repo: %s", failureIssueRepoStr)
+		}
+	}
+	if err := preprocessIntFieldAsString(outputMap, "max-bot-mentions", safeOutputsConfigLog); err != nil {
+		safeOutputsConfigLog.Printf("max-bot-mentions: %v", err)
+	} else if maxBotMentions, exists := outputMap["max-bot-mentions"]; exists {
+		if maxBotMentionsStr, ok := maxBotMentions.(string); ok {
+			config.MaxBotMentions = &maxBotMentionsStr
+		}
+	}
+}
+
+func (c *Compiler) applySafeOutputsExtensionConfig(config *SafeOutputsConfig, outputMap map[string]any) {
+	if jobs, exists := outputMap["jobs"]; exists {
+		if jobsMap, ok := jobs.(map[string]any); ok {
+			compiler := &Compiler{}
+			config.Jobs = compiler.parseSafeJobsConfig(jobsMap)
+		}
+	}
+	if scripts, exists := outputMap["scripts"]; exists {
+		if scriptsMap, ok := scripts.(map[string]any); ok {
+			config.Scripts = parseSafeScriptsConfig(scriptsMap)
+			safeOutputsConfigLog.Printf("Configured %d custom safe-output script(s)", len(config.Scripts))
+		}
+	}
+	if actions, exists := outputMap["actions"]; exists {
+		if actionsMap, ok := actions.(map[string]any); ok {
+			config.Actions = parseActionsConfig(actionsMap)
+			safeOutputsConfigLog.Printf("Configured %d custom safe-output action(s)", len(config.Actions))
+		}
+	}
+	if app, exists := outputMap["github-app"]; exists {
+		if appMap, ok := app.(map[string]any); ok {
+			config.GitHubApp = parseAppConfig(appMap)
+		}
+	}
+}
+
+func (c *Compiler) applySafeOutputsThreatConfig(config *SafeOutputsConfig, outputMap map[string]any) {
+	if threatDetectionConfig := c.parseThreatDetectionConfig(outputMap); threatDetectionConfig != nil {
+		config.ThreatDetection = threatDetectionConfig
+	}
+}
+
+func (c *Compiler) applyDefaultThreatDetection(config *SafeOutputsConfig, outputMap map[string]any) {
+	if config.ThreatDetection != nil {
+		return
+	}
+	if _, exists := outputMap["threat-detection"]; exists {
+		return
+	}
+	safeOutputsConfigLog.Print("Applying default threat-detection configuration")
+	config.ThreatDetection = &ThreatDetectionConfig{}
+}
+
+func collectStringValues(values []any) []string {
+	var result []string
+	for _, value := range values {
+		if valueStr, ok := value.(string); ok {
+			result = append(result, valueStr)
+		}
+	}
+	return result
 }
 
 // parseBaseSafeOutputConfig parses common fields (max, github-token, github-app, staged) from a config map.
@@ -1702,91 +1550,91 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		return
 	}
 
+	config := c.buildHandlerManagerConfig(data)
+	if len(config) == 0 {
+		safeOutputsConfigLog.Print("No handlers configured, skipping config env var")
+		return
+	}
+	c.appendHandlerManagerConfigEnvVar(steps, config)
+}
+
+func (c *Compiler) buildHandlerManagerConfig(data *WorkflowData) map[string]any {
 	safeOutputsConfigLog.Print("Building handler manager configuration for safe-outputs")
-	// config holds both per-handler configs (keyed by handler name, e.g. "add_comment") and
-	// global runtime knobs (e.g. "mentions") that safe_output_handler_manager.cjs forwards to
-	// specific handlers at startup. Handler names are the reserved keys defined in handlerRegistry;
-	// non-handler keys ("mentions") are documented in safe_outputs_config_generation.go.
 	config := make(map[string]any)
-
-	// Collect engine-specific manifest files and path prefixes (AgentFileProvider interface).
-	// These are merged with the global runtime-derived lists so that engine-specific
-	// instruction files (e.g. CLAUDE.md, .claude/, AGENTS.md) are automatically protected.
-	extraManifestFiles, extraPathPrefixes := c.getEngineAgentFileInfo(data)
-	fullManifestFiles := getAllManifestFiles(extraManifestFiles...)
-	fullPathPrefixes := getProtectedPathPrefixes(extraPathPrefixes...)
-
-	// For workflow_call relay workflows, inject the resolved platform repo and ref into the
-	// dispatch_workflow handler config so dispatch targets the host repo, not the caller's.
-	safeOutputs := data.SafeOutputs
-	if hasWorkflowCallTrigger(data.On) && safeOutputs.DispatchWorkflow != nil {
-		if safeOutputs.DispatchWorkflow.TargetRepoSlug == "" {
-			safeOutputs = safeOutputsWithDispatchTargetRepo(safeOutputs, "${{ needs.activation.outputs.target_repo }}")
-			safeOutputsConfigLog.Print("Injecting target_repo into dispatch_workflow config for workflow_call relay")
-		}
-		if safeOutputs.DispatchWorkflow.TargetRef == "" {
-			safeOutputs = safeOutputsWithDispatchTargetRef(safeOutputs, "${{ needs.activation.outputs.target_ref }}")
-			safeOutputsConfigLog.Print("Injecting target_ref into dispatch_workflow config for workflow_call relay")
-		}
-	}
-
-	// Build configuration for each handler using the registry
+	safeOutputs := c.getHandlerManagerSafeOutputs(data)
+	fullManifestFiles, fullPathPrefixes := c.getProtectedHandlerPaths(data)
 	for handlerName, builder := range handlerRegistry {
-		handlerConfig := builder(safeOutputs)
-		// Include handler if:
-		// 1. It returns a non-nil config (explicitly enabled, even if empty)
-		// 2. For auto-enabled handlers, include even with empty config
-		if handlerConfig != nil {
-			injectCurrentCheckoutPatchWorkspacePath(handlerName, handlerConfig, data)
-			// Augment protected-files protection with engine-specific files for handlers that use it.
-			if _, hasProtected := handlerConfig["protected_files"]; hasProtected {
-				// Extract per-handler exclusions set by the handler builder (sentinel key).
-				// These are compile-time overrides and must not be forwarded to the runtime.
-				excludeFiles := ParseStringArrayFromConfig(handlerConfig, "_protected_files_exclude", nil)
-				delete(handlerConfig, "_protected_files_exclude")
-
-				handlerConfig["protected_files"] = sliceutil.Exclude(fullManifestFiles, excludeFiles...)
-				filteredPrefixes := sliceutil.Exclude(fullPathPrefixes, excludeFiles...)
-				if len(filteredPrefixes) > 0 {
-					handlerConfig["protected_path_prefixes"] = filteredPrefixes
-				} else {
-					delete(handlerConfig, "protected_path_prefixes")
-				}
-				// Compute which top-level dot-folder prefixes are excluded so the runtime
-				// dot-folder check can skip them.
-				if dotFolderExcludes := getDotFolderExcludes(excludeFiles); len(dotFolderExcludes) > 0 {
-					handlerConfig["protected_dot_folder_excludes"] = dotFolderExcludes
-				}
-			}
-			safeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
-			config[handlerName] = handlerConfig
-		}
+		c.addHandlerManagerConfig(config, handlerName, builder, safeOutputs, fullManifestFiles, fullPathPrefixes, data)
 	}
-
-	// Include top-level mentions configuration so the handler manager can pass it to
-	// markdown-producing handlers that call sanitizeContent with allowed aliases.
 	if safeOutputs.Mentions != nil {
 		mentionsCfg := buildMentionsHandlerConfig(safeOutputs.Mentions)
 		if len(mentionsCfg) > 0 {
 			config["mentions"] = mentionsCfg
 		}
 	}
+	return config
+}
 
-	// Only add the env var if there are handlers to configure
-	if len(config) > 0 {
-		safeOutputsConfigLog.Printf("Marshaling handler config with %d handlers", len(config))
-		configJSON, err := json.Marshal(config)
-		if err != nil {
-			safeOutputsConfigLog.Printf("Failed to marshal handler config: %v", err)
-			return
-		}
-		// Escape the JSON for YAML (handle quotes and special chars)
-		configStr := string(configJSON)
-		*steps = append(*steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: %q\n", configStr))
-		safeOutputsConfigLog.Printf("Added handler config env var: size=%d bytes", len(configStr))
-	} else {
-		safeOutputsConfigLog.Print("No handlers configured, skipping config env var")
+func (c *Compiler) getHandlerManagerSafeOutputs(data *WorkflowData) *SafeOutputsConfig {
+	safeOutputs := data.SafeOutputs
+	if !hasWorkflowCallTrigger(data.On) || safeOutputs.DispatchWorkflow == nil {
+		return safeOutputs
 	}
+	if safeOutputs.DispatchWorkflow.TargetRepoSlug == "" {
+		safeOutputs = safeOutputsWithDispatchTargetRepo(safeOutputs, "${{ needs.activation.outputs.target_repo }}")
+		safeOutputsConfigLog.Print("Injecting target_repo into dispatch_workflow config for workflow_call relay")
+	}
+	if safeOutputs.DispatchWorkflow.TargetRef == "" {
+		safeOutputs = safeOutputsWithDispatchTargetRef(safeOutputs, "${{ needs.activation.outputs.target_ref }}")
+		safeOutputsConfigLog.Print("Injecting target_ref into dispatch_workflow config for workflow_call relay")
+	}
+	return safeOutputs
+}
+
+func (c *Compiler) getProtectedHandlerPaths(data *WorkflowData) ([]string, []string) {
+	extraManifestFiles, extraPathPrefixes := c.getEngineAgentFileInfo(data)
+	return getAllManifestFiles(extraManifestFiles...), getProtectedPathPrefixes(extraPathPrefixes...)
+}
+
+func (c *Compiler) addHandlerManagerConfig(config map[string]any, handlerName string, builder handlerBuilder, safeOutputs *SafeOutputsConfig, fullManifestFiles, fullPathPrefixes []string, data *WorkflowData) {
+	handlerConfig := builder(safeOutputs)
+	if handlerConfig == nil {
+		return
+	}
+	injectCurrentCheckoutPatchWorkspacePath(handlerName, handlerConfig, data)
+	c.applyProtectedHandlerConfig(handlerConfig, fullManifestFiles, fullPathPrefixes)
+	safeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
+	config[handlerName] = handlerConfig
+}
+
+func (c *Compiler) applyProtectedHandlerConfig(handlerConfig map[string]any, fullManifestFiles, fullPathPrefixes []string) {
+	if _, hasProtected := handlerConfig["protected_files"]; !hasProtected {
+		return
+	}
+	excludeFiles := ParseStringArrayFromConfig(handlerConfig, "_protected_files_exclude", nil)
+	delete(handlerConfig, "_protected_files_exclude")
+	handlerConfig["protected_files"] = sliceutil.Exclude(fullManifestFiles, excludeFiles...)
+	filteredPrefixes := sliceutil.Exclude(fullPathPrefixes, excludeFiles...)
+	if len(filteredPrefixes) > 0 {
+		handlerConfig["protected_path_prefixes"] = filteredPrefixes
+	} else {
+		delete(handlerConfig, "protected_path_prefixes")
+	}
+	if dotFolderExcludes := getDotFolderExcludes(excludeFiles); len(dotFolderExcludes) > 0 {
+		handlerConfig["protected_dot_folder_excludes"] = dotFolderExcludes
+	}
+}
+
+func (c *Compiler) appendHandlerManagerConfigEnvVar(steps *[]string, config map[string]any) {
+	safeOutputsConfigLog.Printf("Marshaling handler config with %d handlers", len(config))
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		safeOutputsConfigLog.Printf("Failed to marshal handler config: %v", err)
+		return
+	}
+	configStr := string(configJSON)
+	*steps = append(*steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: %q\n", configStr))
+	safeOutputsConfigLog.Printf("Added handler config env var: size=%d bytes", len(configStr))
 }
 
 // buildMentionsHandlerConfig converts a MentionsConfig into the map format used by

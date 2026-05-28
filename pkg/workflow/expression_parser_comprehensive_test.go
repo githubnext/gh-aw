@@ -9,397 +9,428 @@ import (
 
 // TestParseExpressionComprehensive provides extensive test coverage for the expression parser
 // including edge cases, error conditions, and complex nested scenarios
+type parseExpressionTestCase struct {
+	name        string
+	input       string
+	expected    string
+	wantErr     bool
+	errorString string
+}
+
+type parseExpressionTestGroup struct {
+	name  string
+	tests []parseExpressionTestCase
+}
+
+var parseExpressionComprehensiveTests = []parseExpressionTestCase{
+	{
+		name:     "single literal",
+		input:    "github.event_name",
+		expected: "github.event_name",
+		wantErr:  false,
+	},
+	{
+		name:     "simple AND operation",
+		input:    "a && b",
+		expected: "(a) && (b)",
+		wantErr:  false,
+	},
+	{
+		name:     "simple OR operation",
+		input:    "a || b",
+		expected: "a || b",
+		wantErr:  false,
+	},
+	{
+		name:     "simple NOT operation",
+		input:    "!a",
+		expected: "!(a)",
+		wantErr:  false,
+	},
+
+	// Operator precedence tests
+	{
+		name:     "AND has higher precedence than OR",
+		input:    "a || b && c",
+		expected: "a || (b) && (c)",
+		wantErr:  false,
+	},
+	{
+		name:     "multiple AND with OR",
+		input:    "a && b || c && d",
+		expected: "(a) && (b) || (c) && (d)",
+		wantErr:  false,
+	},
+	{
+		name:     "NOT has highest precedence",
+		input:    "!a && b",
+		expected: "(!(a)) && (b)",
+		wantErr:  false,
+	},
+	{
+		name:     "NOT with OR",
+		input:    "!a || b",
+		expected: "!(a) || b",
+		wantErr:  false,
+	},
+	{
+		name:     "multiple NOT operations",
+		input:    "!!a",
+		expected: "!(!(a))",
+		wantErr:  false,
+	},
+	{
+		name:     "NOT with AND and OR",
+		input:    "!a && b || c",
+		expected: "(!(a)) && (b) || c",
+		wantErr:  false,
+	},
+
+	// Parentheses tests
+	{
+		name:     "simple parentheses",
+		input:    "(a)",
+		expected: "a",
+		wantErr:  false,
+	},
+	{
+		name:     "parentheses override precedence",
+		input:    "(a || b) && c",
+		expected: "(a || b) && (c)",
+		wantErr:  false,
+	},
+	{
+		name:     "nested parentheses",
+		input:    "((a && b) || (c && d))",
+		expected: "(a) && (b) || (c) && (d)",
+		wantErr:  false,
+	},
+	{
+		name:     "deeply nested parentheses",
+		input:    "(((((a)))))",
+		expected: "a",
+		wantErr:  false,
+	},
+	{
+		name:     "complex nested expression",
+		input:    "((a || b) && (c || d)) || ((e && f) || (g && h))",
+		expected: "(a || b) && (c || d) || (e) && (f) || (g) && (h)",
+		wantErr:  false,
+	},
+
+	// NOT with parentheses
+	{
+		name:     "NOT with parentheses",
+		input:    "!(a && b)",
+		expected: "!((a) && (b))",
+		wantErr:  false,
+	},
+	{
+		name:     "NOT in parentheses",
+		input:    "(!a) && b",
+		expected: "(!(a)) && (b)",
+		wantErr:  false,
+	},
+	{
+		name:     "complex NOT expression",
+		input:    "!(a && (b || !c))",
+		expected: "!((a) && (b || !(c)))",
+		wantErr:  false,
+	},
+
+	// Complex real-world expressions (using allowed expressions)
+	{
+		name:     "GitHub Actions condition - issue events",
+		input:    "github.workflow == 'issues' && github.repository == 'test/repo'",
+		expected: "(github.workflow == 'issues') && (github.repository == 'test/repo')",
+		wantErr:  false,
+	},
+	{
+		name:     "GitHub Actions condition - run check",
+		input:    "github.run_id && !github.workflow",
+		expected: "(github.run_id) && (!(github.workflow))",
+		wantErr:  false,
+	},
+	{
+		name:     "GitHub Actions condition - multiple checks",
+		input:    "(github.workflow && github.repository) || (github.run_id && github.actor)",
+		expected: "(github.workflow) && (github.repository) || (github.run_id) && (github.actor)",
+		wantErr:  false,
+	},
+
+	// Function calls and complex literals
+	{
+		name:     "function call in expression",
+		input:    "contains(github.workflow, 'test') && github.repository",
+		expected: "(contains(github.workflow, 'test')) && (github.repository)",
+		wantErr:  false,
+	},
+	{
+		name:     "nested function calls",
+		input:    "contains(labels, 'urgent') || (contains(labels, 'critical') && !contains(labels, 'wip'))",
+		expected: "contains(labels, 'urgent') || (contains(labels, 'critical')) && (!(contains(labels, 'wip')))",
+		wantErr:  false,
+	},
+
+	// String literals with special characters
+	{
+		name:     "string with operators inside",
+		input:    "github.workflow == 'Fix && improve' || github.repository == 'done'",
+		expected: "github.workflow == 'Fix && improve' || github.repository == 'done'",
+		wantErr:  false,
+	},
+	{
+		name:     "string with parentheses inside",
+		input:    "github.workflow == 'test (draft)' && github.repository",
+		expected: "(github.workflow == 'test (draft)') && (github.repository)",
+		wantErr:  false,
+	},
+	{
+		name:     "string with NOT operator inside",
+		input:    "github.workflow == '!important note' || github.repository",
+		expected: "github.workflow == '!important note' || github.repository",
+		wantErr:  false,
+	},
+
+	// OR with string literals (fallback patterns)
+	{
+		name:     "OR with single-quoted literal",
+		input:    "inputs.repository || 'FStarLang/FStar'",
+		expected: "inputs.repository || 'FStarLang/FStar'",
+		wantErr:  false,
+	},
+	{
+		name:     "OR with double-quoted literal",
+		input:    `inputs.name || "default-name"`,
+		expected: `inputs.name || "default-name"`,
+		wantErr:  false,
+	},
+	{
+		name:     "OR with backtick literal",
+		input:    "inputs.config || `default-config`",
+		expected: "inputs.config || `default-config`",
+		wantErr:  false,
+	},
+	{
+		name:     "OR with number literal",
+		input:    "inputs.count || 42",
+		expected: "inputs.count || 42",
+		wantErr:  false,
+	},
+	{
+		name:     "OR with boolean literal",
+		input:    "inputs.flag || true",
+		expected: "inputs.flag || true",
+		wantErr:  false,
+	},
+	{
+		name:     "complex OR with literal and parentheses",
+		input:    "(inputs.value || 'default') && github.actor",
+		expected: "(inputs.value || 'default') && (github.actor)",
+		wantErr:  false,
+	},
+	{
+		name:     "multiple OR with mixed literals",
+		input:    "inputs.a || 'default-a' || inputs.b || 'default-b'",
+		expected: "inputs.a || 'default-a' || inputs.b || 'default-b'",
+		wantErr:  false,
+	},
+
+	// Whitespace handling
+	{
+		name:     "expression with extra whitespace",
+		input:    "  a  &&  b  ||  c  ",
+		expected: "(a) && (b) || c",
+		wantErr:  false,
+	},
+	{
+		name:     "expression with tabs and newlines",
+		input:    "a\t&&\tb\n||\nc",
+		expected: "(a) && (b) || c",
+		wantErr:  false,
+	},
+	{
+		name:     "whitespace in parentheses",
+		input:    "( a && b ) || ( c )",
+		expected: "(a) && (b) || c",
+		wantErr:  false,
+	},
+
+	// Error cases - malformed expressions
+	{
+		name:        "empty expression",
+		input:       "",
+		wantErr:     true,
+		errorString: "empty expression",
+	},
+	{
+		name:        "only whitespace",
+		input:       "   ",
+		wantErr:     true,
+		errorString: "empty expression",
+	},
+	{
+		name:        "missing closing parenthesis",
+		input:       "(a && b",
+		wantErr:     true,
+		errorString: "expected ')'",
+	},
+	{
+		name:        "missing opening parenthesis",
+		input:       "a && b)",
+		wantErr:     true,
+		errorString: "unexpected token ')'",
+	},
+	{
+		name:        "empty parentheses",
+		input:       "()",
+		wantErr:     true,
+		errorString: "unexpected token ')'",
+	},
+	{
+		name:        "mismatched parentheses",
+		input:       "((a && b) || c",
+		wantErr:     true,
+		errorString: "expected ')'",
+	},
+
+	// Error cases - invalid operators
+	{
+		name:        "consecutive AND operators",
+		input:       "a && && b",
+		wantErr:     true,
+		errorString: "unexpected token '&&'",
+	},
+	{
+		name:        "consecutive OR operators",
+		input:       "a || || b",
+		wantErr:     true,
+		errorString: "unexpected token '||'",
+	},
+	{
+		name:        "operator at end",
+		input:       "a &&",
+		wantErr:     true,
+		errorString: "unexpected token",
+	},
+	{
+		name:        "operator at start",
+		input:       "&& a",
+		wantErr:     true,
+		errorString: "unexpected token '&&'",
+	},
+	{
+		name:        "only operators",
+		input:       "&&",
+		wantErr:     true,
+		errorString: "unexpected token '&&'",
+	},
+	{
+		name:        "only OR operator",
+		input:       "||",
+		wantErr:     true,
+		errorString: "unexpected token '||'",
+	},
+
+	// Error cases - NOT operator issues
+	{
+		name:        "NOT at end without operand",
+		input:       "a && !",
+		wantErr:     true,
+		errorString: "unexpected token",
+	},
+	{
+		name:        "multiple NOT without operand",
+		input:       "!!",
+		wantErr:     true,
+		errorString: "unexpected token",
+	},
+
+	// Edge cases with quotes and escaping
+	{
+		name:     "escaped quotes in string",
+		input:    "github.workflow == 'can\\'t reproduce' && github.repository == 'open'",
+		expected: "(github.workflow == 'can\\'t reproduce') && (github.repository == 'open')",
+		wantErr:  false,
+	},
+	{
+		name:     "double quotes with operators",
+		input:    "github.workflow == \"Fix && Improve\" || github.repository",
+		expected: "github.workflow == \"Fix && Improve\" || github.repository",
+		wantErr:  false,
+	},
+
+	// Complex integration test cases
+	{
+		name:     "very complex expression",
+		input:    "((github.workflow == 'issues' || github.repository == 'issue_comment') && (github.actor == 'opened' || github.run_id == 'created')) || (github.workflow == 'pull_request' && !github.repository && (github.actor == 'opened' || github.run_id == 'synchronize'))",
+		expected: "(github.workflow == 'issues' || github.repository == 'issue_comment') && (github.actor == 'opened' || github.run_id == 'created') || (github.workflow == 'pull_request') && (!(github.repository)) && (github.actor == 'opened' || github.run_id == 'synchronize')",
+		wantErr:  false,
+	},
+	{
+		name:     "expression with mixed function calls",
+		input:    "(contains(github.workflow, 'bug') || contains(github.repository, 'enhancement')) && !contains(github.actor, 'wontfix')",
+		expected: "(contains(github.workflow, 'bug') || contains(github.repository, 'enhancement')) && (!(contains(github.actor, 'wontfix')))",
+		wantErr:  false,
+	},
+}
+
+var parseExpressionComprehensiveGroups = []parseExpressionTestGroup{
+	{name: "basic operators", tests: parseExpressionComprehensiveTests[0:4]},
+	{name: "operator precedence", tests: parseExpressionComprehensiveTests[4:10]},
+	{name: "parentheses", tests: parseExpressionComprehensiveTests[10:15]},
+	{name: "not with parentheses", tests: parseExpressionComprehensiveTests[15:18]},
+	{name: "GitHub Actions conditions", tests: parseExpressionComprehensiveTests[18:21]},
+	{name: "function calls", tests: parseExpressionComprehensiveTests[21:23]},
+	{name: "strings and literals", tests: parseExpressionComprehensiveTests[23:33]},
+	{name: "whitespace handling", tests: parseExpressionComprehensiveTests[33:36]},
+	{name: "malformed expressions", tests: parseExpressionComprehensiveTests[36:42]},
+	{name: "invalid operators", tests: parseExpressionComprehensiveTests[42:48]},
+	{name: "not operator errors", tests: parseExpressionComprehensiveTests[48:50]},
+	{name: "quoting edge cases", tests: parseExpressionComprehensiveTests[50:52]},
+	{name: "complex integration", tests: parseExpressionComprehensiveTests[52:54]},
+}
+
+// TestParseExpressionComprehensive provides extensive test coverage for the expression parser
+// including edge cases, error conditions, and complex nested scenarios
 func TestParseExpressionComprehensive(t *testing.T) {
-	tests := []struct {
-		name        string
-		input       string
-		expected    string
-		wantErr     bool
-		errorString string
-	}{
-		// Basic operator tests
-		{
-			name:     "single literal",
-			input:    "github.event_name",
-			expected: "github.event_name",
-			wantErr:  false,
-		},
-		{
-			name:     "simple AND operation",
-			input:    "a && b",
-			expected: "(a) && (b)",
-			wantErr:  false,
-		},
-		{
-			name:     "simple OR operation",
-			input:    "a || b",
-			expected: "a || b",
-			wantErr:  false,
-		},
-		{
-			name:     "simple NOT operation",
-			input:    "!a",
-			expected: "!(a)",
-			wantErr:  false,
-		},
-
-		// Operator precedence tests
-		{
-			name:     "AND has higher precedence than OR",
-			input:    "a || b && c",
-			expected: "a || (b) && (c)",
-			wantErr:  false,
-		},
-		{
-			name:     "multiple AND with OR",
-			input:    "a && b || c && d",
-			expected: "(a) && (b) || (c) && (d)",
-			wantErr:  false,
-		},
-		{
-			name:     "NOT has highest precedence",
-			input:    "!a && b",
-			expected: "(!(a)) && (b)",
-			wantErr:  false,
-		},
-		{
-			name:     "NOT with OR",
-			input:    "!a || b",
-			expected: "!(a) || b",
-			wantErr:  false,
-		},
-		{
-			name:     "multiple NOT operations",
-			input:    "!!a",
-			expected: "!(!(a))",
-			wantErr:  false,
-		},
-		{
-			name:     "NOT with AND and OR",
-			input:    "!a && b || c",
-			expected: "(!(a)) && (b) || c",
-			wantErr:  false,
-		},
-
-		// Parentheses tests
-		{
-			name:     "simple parentheses",
-			input:    "(a)",
-			expected: "a",
-			wantErr:  false,
-		},
-		{
-			name:     "parentheses override precedence",
-			input:    "(a || b) && c",
-			expected: "(a || b) && (c)",
-			wantErr:  false,
-		},
-		{
-			name:     "nested parentheses",
-			input:    "((a && b) || (c && d))",
-			expected: "(a) && (b) || (c) && (d)",
-			wantErr:  false,
-		},
-		{
-			name:     "deeply nested parentheses",
-			input:    "(((((a)))))",
-			expected: "a",
-			wantErr:  false,
-		},
-		{
-			name:     "complex nested expression",
-			input:    "((a || b) && (c || d)) || ((e && f) || (g && h))",
-			expected: "(a || b) && (c || d) || (e) && (f) || (g) && (h)",
-			wantErr:  false,
-		},
-
-		// NOT with parentheses
-		{
-			name:     "NOT with parentheses",
-			input:    "!(a && b)",
-			expected: "!((a) && (b))",
-			wantErr:  false,
-		},
-		{
-			name:     "NOT in parentheses",
-			input:    "(!a) && b",
-			expected: "(!(a)) && (b)",
-			wantErr:  false,
-		},
-		{
-			name:     "complex NOT expression",
-			input:    "!(a && (b || !c))",
-			expected: "!((a) && (b || !(c)))",
-			wantErr:  false,
-		},
-
-		// Complex real-world expressions (using allowed expressions)
-		{
-			name:     "GitHub Actions condition - issue events",
-			input:    "github.workflow == 'issues' && github.repository == 'test/repo'",
-			expected: "(github.workflow == 'issues') && (github.repository == 'test/repo')",
-			wantErr:  false,
-		},
-		{
-			name:     "GitHub Actions condition - run check",
-			input:    "github.run_id && !github.workflow",
-			expected: "(github.run_id) && (!(github.workflow))",
-			wantErr:  false,
-		},
-		{
-			name:     "GitHub Actions condition - multiple checks",
-			input:    "(github.workflow && github.repository) || (github.run_id && github.actor)",
-			expected: "(github.workflow) && (github.repository) || (github.run_id) && (github.actor)",
-			wantErr:  false,
-		},
-
-		// Function calls and complex literals
-		{
-			name:     "function call in expression",
-			input:    "contains(github.workflow, 'test') && github.repository",
-			expected: "(contains(github.workflow, 'test')) && (github.repository)",
-			wantErr:  false,
-		},
-		{
-			name:     "nested function calls",
-			input:    "contains(labels, 'urgent') || (contains(labels, 'critical') && !contains(labels, 'wip'))",
-			expected: "contains(labels, 'urgent') || (contains(labels, 'critical')) && (!(contains(labels, 'wip')))",
-			wantErr:  false,
-		},
-
-		// String literals with special characters
-		{
-			name:     "string with operators inside",
-			input:    "github.workflow == 'Fix && improve' || github.repository == 'done'",
-			expected: "github.workflow == 'Fix && improve' || github.repository == 'done'",
-			wantErr:  false,
-		},
-		{
-			name:     "string with parentheses inside",
-			input:    "github.workflow == 'test (draft)' && github.repository",
-			expected: "(github.workflow == 'test (draft)') && (github.repository)",
-			wantErr:  false,
-		},
-		{
-			name:     "string with NOT operator inside",
-			input:    "github.workflow == '!important note' || github.repository",
-			expected: "github.workflow == '!important note' || github.repository",
-			wantErr:  false,
-		},
-
-		// OR with string literals (fallback patterns)
-		{
-			name:     "OR with single-quoted literal",
-			input:    "inputs.repository || 'FStarLang/FStar'",
-			expected: "inputs.repository || 'FStarLang/FStar'",
-			wantErr:  false,
-		},
-		{
-			name:     "OR with double-quoted literal",
-			input:    `inputs.name || "default-name"`,
-			expected: `inputs.name || "default-name"`,
-			wantErr:  false,
-		},
-		{
-			name:     "OR with backtick literal",
-			input:    "inputs.config || `default-config`",
-			expected: "inputs.config || `default-config`",
-			wantErr:  false,
-		},
-		{
-			name:     "OR with number literal",
-			input:    "inputs.count || 42",
-			expected: "inputs.count || 42",
-			wantErr:  false,
-		},
-		{
-			name:     "OR with boolean literal",
-			input:    "inputs.flag || true",
-			expected: "inputs.flag || true",
-			wantErr:  false,
-		},
-		{
-			name:     "complex OR with literal and parentheses",
-			input:    "(inputs.value || 'default') && github.actor",
-			expected: "(inputs.value || 'default') && (github.actor)",
-			wantErr:  false,
-		},
-		{
-			name:     "multiple OR with mixed literals",
-			input:    "inputs.a || 'default-a' || inputs.b || 'default-b'",
-			expected: "inputs.a || 'default-a' || inputs.b || 'default-b'",
-			wantErr:  false,
-		},
-
-		// Whitespace handling
-		{
-			name:     "expression with extra whitespace",
-			input:    "  a  &&  b  ||  c  ",
-			expected: "(a) && (b) || c",
-			wantErr:  false,
-		},
-		{
-			name:     "expression with tabs and newlines",
-			input:    "a\t&&\tb\n||\nc",
-			expected: "(a) && (b) || c",
-			wantErr:  false,
-		},
-		{
-			name:     "whitespace in parentheses",
-			input:    "( a && b ) || ( c )",
-			expected: "(a) && (b) || c",
-			wantErr:  false,
-		},
-
-		// Error cases - malformed expressions
-		{
-			name:        "empty expression",
-			input:       "",
-			wantErr:     true,
-			errorString: "empty expression",
-		},
-		{
-			name:        "only whitespace",
-			input:       "   ",
-			wantErr:     true,
-			errorString: "empty expression",
-		},
-		{
-			name:        "missing closing parenthesis",
-			input:       "(a && b",
-			wantErr:     true,
-			errorString: "expected ')'",
-		},
-		{
-			name:        "missing opening parenthesis",
-			input:       "a && b)",
-			wantErr:     true,
-			errorString: "unexpected token ')'",
-		},
-		{
-			name:        "empty parentheses",
-			input:       "()",
-			wantErr:     true,
-			errorString: "unexpected token ')'",
-		},
-		{
-			name:        "mismatched parentheses",
-			input:       "((a && b) || c",
-			wantErr:     true,
-			errorString: "expected ')'",
-		},
-
-		// Error cases - invalid operators
-		{
-			name:        "consecutive AND operators",
-			input:       "a && && b",
-			wantErr:     true,
-			errorString: "unexpected token '&&'",
-		},
-		{
-			name:        "consecutive OR operators",
-			input:       "a || || b",
-			wantErr:     true,
-			errorString: "unexpected token '||'",
-		},
-		{
-			name:        "operator at end",
-			input:       "a &&",
-			wantErr:     true,
-			errorString: "unexpected token",
-		},
-		{
-			name:        "operator at start",
-			input:       "&& a",
-			wantErr:     true,
-			errorString: "unexpected token '&&'",
-		},
-		{
-			name:        "only operators",
-			input:       "&&",
-			wantErr:     true,
-			errorString: "unexpected token '&&'",
-		},
-		{
-			name:        "only OR operator",
-			input:       "||",
-			wantErr:     true,
-			errorString: "unexpected token '||'",
-		},
-
-		// Error cases - NOT operator issues
-		{
-			name:        "NOT at end without operand",
-			input:       "a && !",
-			wantErr:     true,
-			errorString: "unexpected token",
-		},
-		{
-			name:        "multiple NOT without operand",
-			input:       "!!",
-			wantErr:     true,
-			errorString: "unexpected token",
-		},
-
-		// Edge cases with quotes and escaping
-		{
-			name:     "escaped quotes in string",
-			input:    "github.workflow == 'can\\'t reproduce' && github.repository == 'open'",
-			expected: "(github.workflow == 'can\\'t reproduce') && (github.repository == 'open')",
-			wantErr:  false,
-		},
-		{
-			name:     "double quotes with operators",
-			input:    "github.workflow == \"Fix && Improve\" || github.repository",
-			expected: "github.workflow == \"Fix && Improve\" || github.repository",
-			wantErr:  false,
-		},
-
-		// Complex integration test cases
-		{
-			name:     "very complex expression",
-			input:    "((github.workflow == 'issues' || github.repository == 'issue_comment') && (github.actor == 'opened' || github.run_id == 'created')) || (github.workflow == 'pull_request' && !github.repository && (github.actor == 'opened' || github.run_id == 'synchronize'))",
-			expected: "(github.workflow == 'issues' || github.repository == 'issue_comment') && (github.actor == 'opened' || github.run_id == 'created') || (github.workflow == 'pull_request') && (!(github.repository)) && (github.actor == 'opened' || github.run_id == 'synchronize')",
-			wantErr:  false,
-		},
-		{
-			name:     "expression with mixed function calls",
-			input:    "(contains(github.workflow, 'bug') || contains(github.repository, 'enhancement')) && !contains(github.actor, 'wontfix')",
-			expected: "(contains(github.workflow, 'bug') || contains(github.repository, 'enhancement')) && (!(contains(github.actor, 'wontfix')))",
-			wantErr:  false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseExpression(tt.input)
-
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("ParseExpression() expected error but got none")
-					return
-				}
-				if tt.errorString != "" && !strings.Contains(err.Error(), tt.errorString) {
-					t.Errorf("ParseExpression() error = %v, should contain %q", err, tt.errorString)
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("ParseExpression() unexpected error: %v", err)
-				return
-			}
-
-			if result == nil {
-				t.Errorf("ParseExpression() returned nil result")
-				return
-			}
-
-			rendered := result.Render()
-			if rendered != tt.expected {
-				t.Errorf("ParseExpression() = %q, want %q", rendered, tt.expected)
+	for _, group := range parseExpressionComprehensiveGroups {
+		group := group
+		t.Run(group.name, func(t *testing.T) {
+			for _, tt := range group.tests {
+				tt := tt
+				t.Run(tt.name, func(t *testing.T) {
+					testParseExpressionCase(t, tt)
+				})
 			}
 		})
+	}
+}
+
+func testParseExpressionCase(t *testing.T, tt parseExpressionTestCase) {
+	t.Helper()
+
+	result, err := ParseExpression(tt.input)
+	if tt.wantErr {
+		if err == nil {
+			t.Errorf("ParseExpression() expected error but got none")
+			return
+		}
+		if tt.errorString != "" && !strings.Contains(err.Error(), tt.errorString) {
+			t.Errorf("ParseExpression() error = %v, should contain %q", err, tt.errorString)
+		}
+		return
+	}
+	if err != nil {
+		t.Errorf("ParseExpression() unexpected error: %v", err)
+		return
+	}
+	if result == nil {
+		t.Errorf("ParseExpression() returned nil result")
+		return
+	}
+	if rendered := result.Render(); rendered != tt.expected {
+		t.Errorf("ParseExpression() = %q, want %q", rendered, tt.expected)
 	}
 }
 

@@ -7,453 +7,226 @@ import (
 	"testing"
 )
 
-func TestEcosystemDomainExpansion(t *testing.T) {
-	t.Run("defaults ecosystem includes basic infrastructure", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"defaults"},
-		}
-		domains := GetAllowedDomains(permissions)
+type ecosystemDomainExpansionTestCase struct {
+	name          string
+	allowed       []string
+	expected      []string
+	excluded      []string
+	expectedCount int
+	context       string
+}
 
-		// Check that basic infrastructure domains are included
-		expectedDomains := []string{
-			"crl3.digicert.com",      // Certificates
-			"json-schema.org",        // JSON Schema
-			"archive.ubuntu.com",     // Ubuntu
-			"packagecloud.io",        // Common Package Mirrors
-			"packages.microsoft.com", // Microsoft Sources
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in defaults, but it was not found", expectedDomain)
-			}
-		}
-
-		// Check that ecosystem-specific domains are NOT included in defaults
-		excludedDomains := []string{
-			"ghcr.io",    // Container registries
-			"nuget.org",  // .NET
-			"github.com", // GitHub (not in defaults anymore)
-			"golang.org", // Go
-			"npmjs.org",  // Node
-			"pypi.org",   // Python
-		}
-
-		for _, excludedDomain := range excludedDomains {
-			found := slices.Contains(domains, excludedDomain)
-			if found {
-				t.Errorf("Domain '%s' should NOT be included in defaults, but it was found", excludedDomain)
-			}
-		}
-	})
-
-	t.Run("containers ecosystem includes container registries", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"containers"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
+var ecosystemDomainInfrastructureCases = []ecosystemDomainExpansionTestCase{
+	{
+		name:    "defaults ecosystem includes basic infrastructure",
+		allowed: []string{"defaults"},
+		expected: []string{
+			"crl3.digicert.com",
+			"json-schema.org",
+			"archive.ubuntu.com",
+			"packagecloud.io",
+			"packages.microsoft.com",
+		},
+		excluded: []string{
+			"ghcr.io",
+			"nuget.org",
+			"github.com",
+			"golang.org",
+			"npmjs.org",
+			"pypi.org",
+		},
+		context: "defaults",
+	},
+	{
+		name:    "containers ecosystem includes container registries",
+		allowed: []string{"containers"},
+		expected: []string{
 			"ghcr.io",
 			"registry.hub.docker.com",
 			"*.docker.io",
 			"quay.io",
 			"gcr.io",
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in containers ecosystem, but it was not found", expectedDomain)
-			}
-		}
-	})
-
-	t.Run("dotnet ecosystem includes .NET and NuGet domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"dotnet"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
-			"nuget.org",
-			"dist.nuget.org",
-			"api.nuget.org",
-			"dotnet.microsoft.com",
-			"dot.net",
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in dotnet ecosystem, but it was not found", expectedDomain)
-			}
-		}
-	})
-
-	t.Run("python ecosystem includes Python package domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"python"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
-			"pypi.org",
-			"pip.pypa.io",
-			"*.pythonhosted.org",
-			"files.pythonhosted.org",
-			"anaconda.org",
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in python ecosystem, but it was not found", expectedDomain)
-			}
-		}
-	})
-
-	t.Run("go ecosystem includes Go package domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"go"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
-			"go.dev",
-			"golang.org",
-			"proxy.golang.org",
-			"sum.golang.org",
-			"pkg.go.dev",
-			"storage.googleapis.com",
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in go ecosystem, but it was not found", expectedDomain)
-			}
-		}
-	})
-
-	t.Run("java ecosystem includes Java package and tooling domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"java"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
-			"repo.maven.apache.org",
-			"repo1.maven.org",
-			"services.gradle.org",
-			"plugins.gradle.org",
-			"download.oracle.com",
-			"dlcdn.apache.org",
-			"archive.apache.org",
-			"download.java.net",
-			"api.foojay.io",
-			"cdn.azul.com",
-			"central.sonatype.com",
-			"maven.google.com",
-			"dl.google.com",
-			"repo.gradle.org",
-			"maven-central.storage-download.googleapis.com",
-			"repository.apache.org",
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in java ecosystem, but it was not found", expectedDomain)
-			}
-		}
-	})
-
-	t.Run("node ecosystem includes Node.js package domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"node"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
-			"npmjs.org",
-			"registry.npmjs.com",
-			"nodejs.org",
-			"yarnpkg.com",
-			"bun.sh",
-			"deno.land",
-			"jsr.io",
-			"esm.sh",
-			"googleapis.deno.dev",
-			"googlechromelabs.github.io",
-			"cdn.jsdelivr.net",
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in node ecosystem, but it was not found", expectedDomain)
-			}
-		}
-	})
-
-	t.Run("python-native ecosystem includes Rust FFI domains for native packages", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"python-native"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
-			"pypi.org",
-			"pip.pypa.io",
-			"crates.io",
-			"index.crates.io",
-			"static.crates.io",
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in python-native ecosystem, but it was not found", expectedDomain)
-			}
-		}
-	})
-
-	t.Run("python ecosystem does not include crates domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"python"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		cratesDomains := []string{
-			"crates.io",
-			"index.crates.io",
-			"static.crates.io",
-		}
-
-		for _, domain := range cratesDomains {
-			found := slices.Contains(domains, domain)
-			if found {
-				t.Errorf("Expected domain '%s' to NOT be included in python ecosystem, but it was found", domain)
-			}
-		}
-	})
-
-	t.Run("github ecosystem includes GitHub domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"github"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
+		},
+		context: "containers ecosystem",
+	},
+	{
+		name:    "github ecosystem includes GitHub domains",
+		allowed: []string{"github"},
+		expected: []string{
 			"*.githubusercontent.com",
 			"raw.githubusercontent.com",
 			"objects.githubusercontent.com",
 			"patch-diff.githubusercontent.com",
 			"lfs.github.com",
 			"github.githubassets.com",
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in github ecosystem, but it was not found", expectedDomain)
-			}
-		}
-	})
-
-	t.Run("bazel ecosystem includes Bazel registry and download domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"bazel"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
+		},
+		context: "github ecosystem",
+	},
+	{
+		name:    "bazel ecosystem includes Bazel registry and download domains",
+		allowed: []string{"bazel"},
+		expected: []string{
 			"releases.bazel.build",
 			"mirror.bazel.build",
 			"bcr.bazel.build",
-		}
+		},
+		context: "bazel ecosystem",
+	},
+}
 
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in bazel ecosystem, but it was not found", expectedDomain)
-			}
-		}
+var ecosystemDomainLanguageCases = []ecosystemDomainExpansionTestCase{
+	{
+		name:     "dotnet ecosystem includes .NET and NuGet domains",
+		allowed:  []string{"dotnet"},
+		expected: []string{"nuget.org", "dist.nuget.org", "api.nuget.org", "dotnet.microsoft.com", "dot.net"},
+		context:  "dotnet ecosystem",
+	},
+	{
+		name:     "python ecosystem includes Python package domains",
+		allowed:  []string{"python"},
+		expected: []string{"pypi.org", "pip.pypa.io", "*.pythonhosted.org", "files.pythonhosted.org", "anaconda.org"},
+		context:  "python ecosystem",
+	},
+	{
+		name:     "go ecosystem includes Go package domains",
+		allowed:  []string{"go"},
+		expected: []string{"go.dev", "golang.org", "proxy.golang.org", "sum.golang.org", "pkg.go.dev", "storage.googleapis.com"},
+		context:  "go ecosystem",
+	},
+	{
+		name:    "java ecosystem includes Java package and tooling domains",
+		allowed: []string{"java"},
+		expected: []string{
+			"repo.maven.apache.org", "repo1.maven.org", "services.gradle.org", "plugins.gradle.org",
+			"download.oracle.com", "dlcdn.apache.org", "archive.apache.org", "download.java.net",
+			"api.foojay.io", "cdn.azul.com", "central.sonatype.com", "maven.google.com",
+			"dl.google.com", "repo.gradle.org", "maven-central.storage-download.googleapis.com", "repository.apache.org",
+		},
+		context: "java ecosystem",
+	},
+	{
+		name:    "node ecosystem includes Node.js package domains",
+		allowed: []string{"node"},
+		expected: []string{
+			"npmjs.org", "registry.npmjs.com", "nodejs.org", "yarnpkg.com", "bun.sh", "deno.land",
+			"jsr.io", "esm.sh", "googleapis.deno.dev", "googlechromelabs.github.io", "cdn.jsdelivr.net",
+		},
+		context: "node ecosystem",
+	},
+	{
+		name:     "python-native ecosystem includes Rust FFI domains for native packages",
+		allowed:  []string{"python-native"},
+		expected: []string{"pypi.org", "pip.pypa.io", "crates.io", "index.crates.io", "static.crates.io"},
+		context:  "python-native ecosystem",
+	},
+	{
+		name:     "python ecosystem does not include crates domains",
+		allowed:  []string{"python"},
+		excluded: []string{"crates.io", "index.crates.io", "static.crates.io"},
+		context:  "python ecosystem",
+	},
+	{
+		name:     "julia ecosystem includes Julia package registry domains",
+		allowed:  []string{"julia"},
+		expected: []string{"pkg.julialang.org", "julialang.org"},
+		context:  "julia ecosystem",
+	},
+	{
+		name:     "lua ecosystem includes LuaRocks domains",
+		allowed:  []string{"lua"},
+		expected: []string{"luarocks.org", "www.luarocks.org"},
+		context:  "lua ecosystem",
+	},
+	{
+		name:    "latex ecosystem includes CTAN and TeX Live domains",
+		allowed: []string{"latex"},
+		expected: []string{
+			"ctan.org", "mirror.ctan.org", "mirrors.ctan.org", "tug.org", "www.tug.org",
+			"ftp.tug.org", "latex-project.org", "www.latex-project.org", "miktex.org", "packages.miktex.org",
+		},
+		context: "latex ecosystem",
+	},
+	{
+		name:     "ocaml ecosystem includes opam domains",
+		allowed:  []string{"ocaml"},
+		expected: []string{"opam.ocaml.org", "ocaml.org", "erratique.ch"},
+		context:  "ocaml ecosystem",
+	},
+	{
+		name:     "r ecosystem includes CRAN domains",
+		allowed:  []string{"r"},
+		expected: []string{"cloud.r-project.org", "cran.r-project.org", "cran.rstudio.com"},
+		context:  "r ecosystem",
+	},
+	{
+		name:     "kotlin ecosystem includes JetBrains and Kotlin domains",
+		allowed:  []string{"kotlin"},
+		expected: []string{"download.jetbrains.com", "ge.jetbrains.com", "packages.jetbrains.team", "kotlin.bintray.com", "maven.pkg.jetbrains.space"},
+		context:  "kotlin ecosystem",
+	},
+}
+
+var ecosystemDomainCombinationCases = []ecosystemDomainExpansionTestCase{
+	{
+		name:    "multiple ecosystems can be combined",
+		allowed: []string{"defaults", "dotnet", "python", "example.com"},
+		expected: []string{
+			"json-schema.org", "archive.ubuntu.com", "nuget.org", "dotnet.microsoft.com",
+			"pypi.org", "*.pythonhosted.org", "example.com",
+		},
+		context: "combined ecosystems",
+	},
+	{
+		name:          "unknown ecosystem identifier is treated as domain",
+		allowed:       []string{"unknown-ecosystem", "example.com"},
+		expected:      []string{"unknown-ecosystem", "example.com"},
+		expectedCount: 2,
+		context:       "literal domain",
+	},
+}
+
+func TestEcosystemDomainExpansion(t *testing.T) {
+	t.Run("infrastructure ecosystems", func(t *testing.T) {
+		runEcosystemDomainExpansionCases(t, ecosystemDomainInfrastructureCases)
 	})
-
-	t.Run("julia ecosystem includes Julia package registry domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"julia"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
-			"pkg.julialang.org",
-			"julialang.org",
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in julia ecosystem, but it was not found", expectedDomain)
-			}
-		}
+	t.Run("language ecosystems", func(t *testing.T) {
+		runEcosystemDomainExpansionCases(t, ecosystemDomainLanguageCases)
 	})
-
-	t.Run("lua ecosystem includes LuaRocks domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"lua"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
-			"luarocks.org",
-			"www.luarocks.org",
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in lua ecosystem, but it was not found", expectedDomain)
-			}
-		}
+	t.Run("combined ecosystems", func(t *testing.T) {
+		runEcosystemDomainExpansionCases(t, ecosystemDomainCombinationCases)
 	})
+}
 
-	t.Run("latex ecosystem includes CTAN and TeX Live domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"latex"},
+func runEcosystemDomainExpansionCases(t *testing.T, tests []ecosystemDomainExpansionTestCase) {
+	t.Helper()
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			assertEcosystemDomains(t, tt)
+		})
+	}
+}
+
+func assertEcosystemDomains(t *testing.T, tt ecosystemDomainExpansionTestCase) {
+	t.Helper()
+
+	domains := GetAllowedDomains(&NetworkPermissions{Allowed: tt.allowed})
+	if tt.expectedCount > 0 && len(domains) != tt.expectedCount {
+		t.Fatalf("Expected %d domains, got %d: %v", tt.expectedCount, len(domains), domains)
+	}
+
+	for _, expectedDomain := range tt.expected {
+		if !slices.Contains(domains, expectedDomain) {
+			t.Errorf("Expected domain '%s' to be included in %s, but it was not found", expectedDomain, tt.context)
 		}
-		domains := GetAllowedDomains(permissions)
+	}
 
-		expectedDomains := []string{
-			"ctan.org",
-			"mirror.ctan.org",
-			"mirrors.ctan.org",
-			"tug.org",
-			"www.tug.org",
-			"ftp.tug.org",
-			"latex-project.org",
-			"www.latex-project.org",
-			"miktex.org",
-			"packages.miktex.org",
+	for _, excludedDomain := range tt.excluded {
+		if slices.Contains(domains, excludedDomain) {
+			t.Errorf("Expected domain '%s' to NOT be included in %s, but it was found", excludedDomain, tt.context)
 		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in latex ecosystem, but it was not found", expectedDomain)
-			}
-		}
-	})
-
-	t.Run("ocaml ecosystem includes opam domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"ocaml"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
-			"opam.ocaml.org",
-			"ocaml.org",
-			"erratique.ch",
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in ocaml ecosystem, but it was not found", expectedDomain)
-			}
-		}
-	})
-
-	t.Run("r ecosystem includes CRAN domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"r"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
-			"cloud.r-project.org",
-			"cran.r-project.org",
-			"cran.rstudio.com",
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in r ecosystem, but it was not found", expectedDomain)
-			}
-		}
-	})
-
-	t.Run("kotlin ecosystem includes JetBrains and Kotlin domains", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"kotlin"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		expectedDomains := []string{
-			"download.jetbrains.com",
-			"ge.jetbrains.com",
-			"packages.jetbrains.team",
-			"kotlin.bintray.com",
-			"maven.pkg.jetbrains.space",
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in kotlin ecosystem, but it was not found", expectedDomain)
-			}
-		}
-	})
-
-	t.Run("multiple ecosystems can be combined", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"defaults", "dotnet", "python", "example.com"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		// Should include domains from all specified ecosystems plus custom domain
-		expectedFromDefaults := []string{"json-schema.org", "archive.ubuntu.com"}
-		expectedFromDotnet := []string{"nuget.org", "dotnet.microsoft.com"}
-		expectedFromPython := []string{"pypi.org", "*.pythonhosted.org"}
-		expectedCustom := []string{"example.com"}
-
-		allExpected := append(expectedFromDefaults, expectedFromDotnet...)
-		allExpected = append(allExpected, expectedFromPython...)
-		allExpected = append(allExpected, expectedCustom...)
-
-		for _, expectedDomain := range allExpected {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included in combined ecosystems, but it was not found", expectedDomain)
-			}
-		}
-	})
-
-	t.Run("unknown ecosystem identifier is treated as domain", func(t *testing.T) {
-		permissions := &NetworkPermissions{
-			Allowed: []string{"unknown-ecosystem", "example.com"},
-		}
-		domains := GetAllowedDomains(permissions)
-
-		// Should include both as literal domains
-		expectedDomains := []string{"unknown-ecosystem", "example.com"}
-
-		if len(domains) != 2 {
-			t.Fatalf("Expected 2 domains, got %d: %v", len(domains), domains)
-		}
-
-		for _, expectedDomain := range expectedDomains {
-			found := slices.Contains(domains, expectedDomain)
-			if !found {
-				t.Errorf("Expected domain '%s' to be included as literal domain, but it was not found", expectedDomain)
-			}
-		}
-	})
+	}
 }
 
 func TestAllEcosystemDomainFunctions(t *testing.T) {

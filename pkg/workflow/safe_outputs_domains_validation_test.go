@@ -437,362 +437,35 @@ func TestDomainPatternRegex(t *testing.T) {
 
 // TestDomainPatternRegexComprehensive provides comprehensive regex validation tests
 func TestDomainPatternRegexComprehensive(t *testing.T) {
-	tests := []struct {
-		name    string
-		domain  string
-		matches bool
-		reason  string
-	}{
-		// Valid plain domains
-		{
-			name:    "simple two-part domain",
-			domain:  "example.com",
-			matches: true,
-			reason:  "basic domain structure",
-		},
-		{
-			name:    "three-part domain",
-			domain:  "api.example.com",
-			matches: true,
-			reason:  "subdomain structure",
-		},
-		{
-			name:    "four-part domain",
-			domain:  "v2.api.example.com",
-			matches: true,
-			reason:  "multiple subdomain levels",
-		},
-		{
-			name:    "domain with numbers",
-			domain:  "api123.example456.com",
-			matches: true,
-			reason:  "alphanumeric characters",
-		},
-		{
-			name:    "domain with hyphens",
-			domain:  "my-api.my-example.com",
-			matches: true,
-			reason:  "hyphens in labels",
-		},
-		{
-			name:    "domain starting with number",
-			domain:  "1api.example.com",
-			matches: true,
-			reason:  "label can start with number",
-		},
-		{
-			name:    "domain ending with number",
-			domain:  "api1.example1.com",
-			matches: true,
-			reason:  "label can end with number",
-		},
-		{
-			name:    "single character labels",
-			domain:  "a.b.c",
-			matches: true,
-			reason:  "minimum label length",
-		},
-		{
-			name:    "maximum label length (63 chars)",
-			domain:  "a123456789012345678901234567890123456789012345678901234567890bc.example.com",
-			matches: true,
-			reason:  "63-character label is valid",
-		},
-		{
-			name:    "very deep nesting",
-			domain:  "a.b.c.d.e.f.g.example.com",
-			matches: true,
-			reason:  "many subdomain levels",
-		},
+	t.Run("plain domains", func(t *testing.T) {
+		testDomainPatternRegexCases(t, testDomainPatternRegexPlainCases())
+	})
+	t.Run("wildcard domains", func(t *testing.T) {
+		testDomainPatternRegexCases(t, testDomainPatternRegexWildcardCases())
+	})
+	t.Run("dot handling", func(t *testing.T) {
+		testDomainPatternRegexCases(t, testDomainPatternRegexDotCases())
+	})
+	t.Run("wildcard validation", func(t *testing.T) {
+		testDomainPatternRegexCases(t, testDomainPatternRegexWildcardValidationCases())
+	})
+	t.Run("special characters", func(t *testing.T) {
+		testDomainPatternRegexCases(t, testDomainPatternRegexSpecialCharacterCases())
+	})
+	t.Run("edge cases", func(t *testing.T) {
+		testDomainPatternRegexCases(t, testDomainPatternRegexEdgeCases())
+	})
+}
 
-		// Valid wildcard domains
-		{
-			name:    "wildcard with two-part base",
-			domain:  "*.example.com",
-			matches: true,
-			reason:  "wildcard at start",
-		},
-		{
-			name:    "wildcard with three-part base",
-			domain:  "*.api.example.com",
-			matches: true,
-			reason:  "wildcard with subdomain base",
-		},
-		{
-			name:    "wildcard with hyphenated base",
-			domain:  "*.my-example.com",
-			matches: true,
-			reason:  "wildcard with hyphen in base",
-		},
-		{
-			name:    "wildcard with numeric base",
-			domain:  "*.example123.com",
-			matches: true,
-			reason:  "wildcard with numbers in base",
-		},
+type domainPatternRegexTestCase struct {
+	name    string
+	domain  string
+	matches bool
+	reason  string
+}
 
-		// Invalid - empty and whitespace
-		{
-			name:    "empty string",
-			domain:  "",
-			matches: false,
-			reason:  "empty domain not allowed",
-		},
-		{
-			name:    "only whitespace",
-			domain:  "   ",
-			matches: false,
-			reason:  "whitespace not allowed",
-		},
-
-		// Invalid - trailing/leading dots
-		{
-			name:    "trailing dot",
-			domain:  "example.com.",
-			matches: false,
-			reason:  "FQDN format not allowed",
-		},
-		{
-			name:    "leading dot",
-			domain:  ".example.com",
-			matches: false,
-			reason:  "leading dot not allowed",
-		},
-		{
-			name:    "double leading dot",
-			domain:  "..example.com",
-			matches: false,
-			reason:  "multiple leading dots not allowed",
-		},
-		{
-			name:    "wildcard with trailing dot",
-			domain:  "*.example.com.",
-			matches: false,
-			reason:  "wildcard with trailing dot invalid",
-		},
-
-		// Invalid - consecutive dots
-		{
-			name:    "double dots in middle",
-			domain:  "example..com",
-			matches: false,
-			reason:  "consecutive dots not allowed",
-		},
-		{
-			name:    "triple dots",
-			domain:  "example...com",
-			matches: false,
-			reason:  "multiple consecutive dots not allowed",
-		},
-		{
-			name:    "dots at start and middle",
-			domain:  ".example..com",
-			matches: false,
-			reason:  "multiple dot issues",
-		},
-
-		// Invalid - wildcard patterns
-		{
-			name:    "double wildcard",
-			domain:  "*.*.example.com",
-			matches: false,
-			reason:  "multiple wildcards not allowed",
-		},
-		{
-			name:    "triple wildcard",
-			domain:  "*.*.*.example.com",
-			matches: false,
-			reason:  "multiple wildcards not allowed",
-		},
-		{
-			name:    "wildcard in middle",
-			domain:  "api.*.example.com",
-			matches: false,
-			reason:  "wildcard must be at start",
-		},
-		{
-			name:    "wildcard at end",
-			domain:  "api.example.*",
-			matches: false,
-			reason:  "wildcard at end not allowed",
-		},
-		{
-			name:    "wildcard without dot",
-			domain:  "*example.com",
-			matches: false,
-			reason:  "wildcard must be followed by dot",
-		},
-		{
-			name:    "only wildcard",
-			domain:  "*",
-			matches: false,
-			reason:  "standalone wildcard not allowed",
-		},
-		{
-			name:    "wildcard with dot only",
-			domain:  "*.",
-			matches: false,
-			reason:  "wildcard with no base domain",
-		},
-
-		// Invalid - special characters
-		{
-			name:    "underscore in domain",
-			domain:  "example_api.com",
-			matches: false,
-			reason:  "underscore not allowed in hostname",
-		},
-		{
-			name:    "space in domain",
-			domain:  "example .com",
-			matches: false,
-			reason:  "space not allowed",
-		},
-		{
-			name:    "at sign",
-			domain:  "user@example.com",
-			matches: false,
-			reason:  "@ not allowed in domain",
-		},
-		{
-			name:    "forward slash",
-			domain:  "example.com/path",
-			matches: false,
-			reason:  "path not part of domain",
-		},
-		{
-			name:    "colon (port)",
-			domain:  "example.com:8080",
-			matches: false,
-			reason:  "port not part of domain",
-		},
-		{
-			name:    "question mark",
-			domain:  "example.com?query",
-			matches: false,
-			reason:  "query string not part of domain",
-		},
-		{
-			name:    "hash",
-			domain:  "example.com#anchor",
-			matches: false,
-			reason:  "anchor not part of domain",
-		},
-		{
-			name:    "percent encoding",
-			domain:  "example%20.com",
-			matches: false,
-			reason:  "percent encoding not allowed",
-		},
-		{
-			name:    "exclamation mark",
-			domain:  "example!.com",
-			matches: false,
-			reason:  "special characters not allowed",
-		},
-
-		// Invalid - hyphen rules
-		{
-			name:    "hyphen at start of label",
-			domain:  "-example.com",
-			matches: false,
-			reason:  "label cannot start with hyphen",
-		},
-		{
-			name:    "hyphen at end of label",
-			domain:  "example-.com",
-			matches: false,
-			reason:  "label cannot end with hyphen",
-		},
-		{
-			name:    "hyphen at start and end",
-			domain:  "-example-.com",
-			matches: false,
-			reason:  "label cannot start/end with hyphen",
-		},
-		{
-			name:    "only hyphen in label",
-			domain:  "-.com",
-			matches: false,
-			reason:  "label cannot be only hyphen",
-		},
-
-		// Invalid - single label (no TLD)
-		{
-			name:    "single label domain",
-			domain:  "localhost",
-			matches: true, // The regex allows single-label domains
-			reason:  "single label matches regex pattern",
-		},
-		{
-			name:    "wildcard single label",
-			domain:  "*.localhost",
-			matches: true,
-			reason:  "wildcard with single label base",
-		},
-
-		// Edge cases - length limits
-		{
-			name:    "label too long (64 chars)",
-			domain:  "a1234567890123456789012345678901234567890123456789012345678901234.example.com",
-			matches: false,
-			reason:  "label exceeds 63 character limit",
-		},
-		{
-			name:    "exactly 63 chars in first label",
-			domain:  "a123456789012345678901234567890123456789012345678901234567890bc.example.com",
-			matches: true,
-			reason:  "63 chars is valid",
-		},
-
-		// Edge cases - case sensitivity (regex should handle both)
-		{
-			name:    "uppercase domain",
-			domain:  "EXAMPLE.COM",
-			matches: true,
-			reason:  "uppercase letters allowed",
-		},
-		{
-			name:    "mixed case",
-			domain:  "Example.Com",
-			matches: true,
-			reason:  "mixed case allowed",
-		},
-		{
-			name:    "wildcard uppercase",
-			domain:  "*.EXAMPLE.COM",
-			matches: true,
-			reason:  "wildcard with uppercase",
-		},
-
-		// Edge cases - numbers
-		{
-			name:    "all numbers",
-			domain:  "123.456.789",
-			matches: true,
-			reason:  "numeric domains allowed",
-		},
-		{
-			name:    "IP-like format",
-			domain:  "192.168.1.1",
-			matches: true,
-			reason:  "IP-like patterns match domain regex",
-		},
-
-		// Edge cases - multiple hyphens
-		{
-			name:    "multiple hyphens in middle",
-			domain:  "my--api.example.com",
-			matches: true,
-			reason:  "multiple hyphens in middle allowed",
-		},
-		{
-			name:    "many hyphens",
-			domain:  "my-really-long-domain-name.example.com",
-			matches: true,
-			reason:  "many hyphens allowed",
-		},
-	}
+func testDomainPatternRegexCases(t *testing.T, tests []domainPatternRegexTestCase) {
+	t.Helper()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -801,6 +474,90 @@ func TestDomainPatternRegexComprehensive(t *testing.T) {
 				"Domain '%s' regex match - %s (expected %v, got %v)",
 				tt.domain, tt.reason, tt.matches, matches)
 		})
+	}
+}
+
+func testDomainPatternRegexPlainCases() []domainPatternRegexTestCase {
+	return []domainPatternRegexTestCase{
+		{name: "simple two-part domain", domain: "example.com", matches: true, reason: "basic domain structure"},
+		{name: "three-part domain", domain: "api.example.com", matches: true, reason: "subdomain structure"},
+		{name: "four-part domain", domain: "v2.api.example.com", matches: true, reason: "multiple subdomain levels"},
+		{name: "domain with numbers", domain: "api123.example456.com", matches: true, reason: "alphanumeric characters"},
+		{name: "domain with hyphens", domain: "my-api.my-example.com", matches: true, reason: "hyphens in labels"},
+		{name: "domain starting with number", domain: "1api.example.com", matches: true, reason: "label can start with number"},
+		{name: "domain ending with number", domain: "api1.example1.com", matches: true, reason: "label can end with number"},
+	}
+}
+
+func testDomainPatternRegexWildcardCases() []domainPatternRegexTestCase {
+	return []domainPatternRegexTestCase{
+		{name: "single character labels", domain: "a.b.c", matches: true, reason: "minimum label length"},
+		{name: "maximum label length (63 chars)", domain: "a123456789012345678901234567890123456789012345678901234567890bc.example.com", matches: true, reason: "63-character label is valid"},
+		{name: "very deep nesting", domain: "a.b.c.d.e.f.g.example.com", matches: true, reason: "many subdomain levels"},
+		{name: "wildcard with two-part base", domain: "*.example.com", matches: true, reason: "wildcard at start"},
+		{name: "wildcard with three-part base", domain: "*.api.example.com", matches: true, reason: "wildcard with subdomain base"},
+		{name: "wildcard with hyphenated base", domain: "*.my-example.com", matches: true, reason: "wildcard with hyphen in base"},
+		{name: "wildcard with numeric base", domain: "*.example123.com", matches: true, reason: "wildcard with numbers in base"},
+	}
+}
+
+func testDomainPatternRegexDotCases() []domainPatternRegexTestCase {
+	return []domainPatternRegexTestCase{
+		{name: "empty string", domain: "", matches: false, reason: "empty domain not allowed"},
+		{name: "only whitespace", domain: "   ", matches: false, reason: "whitespace not allowed"},
+		{name: "trailing dot", domain: "example.com.", matches: false, reason: "FQDN format not allowed"},
+		{name: "leading dot", domain: ".example.com", matches: false, reason: "leading dot not allowed"},
+		{name: "double leading dot", domain: "..example.com", matches: false, reason: "multiple leading dots not allowed"},
+		{name: "wildcard with trailing dot", domain: "*.example.com.", matches: false, reason: "wildcard with trailing dot invalid"},
+		{name: "double dots in middle", domain: "example..com", matches: false, reason: "consecutive dots not allowed"},
+	}
+}
+
+func testDomainPatternRegexWildcardValidationCases() []domainPatternRegexTestCase {
+	return []domainPatternRegexTestCase{
+		{name: "triple dots", domain: "example...com", matches: false, reason: "multiple consecutive dots not allowed"},
+		{name: "dots at start and middle", domain: ".example..com", matches: false, reason: "multiple dot issues"},
+		{name: "double wildcard", domain: "*.*.example.com", matches: false, reason: "multiple wildcards not allowed"},
+		{name: "triple wildcard", domain: "*.*.*.example.com", matches: false, reason: "multiple wildcards not allowed"},
+		{name: "wildcard in middle", domain: "api.*.example.com", matches: false, reason: "wildcard must be at start"},
+		{name: "wildcard at end", domain: "api.example.*", matches: false, reason: "wildcard at end not allowed"},
+		{name: "wildcard without dot", domain: "*example.com", matches: false, reason: "wildcard must be followed by dot"},
+		{name: "only wildcard", domain: "*", matches: false, reason: "standalone wildcard not allowed"},
+		{name: "wildcard with dot only", domain: "*.", matches: false, reason: "wildcard with no base domain"},
+	}
+}
+
+func testDomainPatternRegexSpecialCharacterCases() []domainPatternRegexTestCase {
+	return []domainPatternRegexTestCase{
+		{name: "underscore in domain", domain: "example_api.com", matches: false, reason: "underscore not allowed in hostname"},
+		{name: "space in domain", domain: "example .com", matches: false, reason: "space not allowed"},
+		{name: "at sign", domain: "user@example.com", matches: false, reason: "@ not allowed in domain"},
+		{name: "forward slash", domain: "example.com/path", matches: false, reason: "path not part of domain"},
+		{name: "colon (port)", domain: "example.com:8080", matches: false, reason: "port not part of domain"},
+		{name: "question mark", domain: "example.com?query", matches: false, reason: "query string not part of domain"},
+		{name: "hash", domain: "example.com#anchor", matches: false, reason: "anchor not part of domain"},
+	}
+}
+
+func testDomainPatternRegexEdgeCases() []domainPatternRegexTestCase {
+	return []domainPatternRegexTestCase{
+		{name: "percent encoding", domain: "example%20.com", matches: false, reason: "percent encoding not allowed"},
+		{name: "exclamation mark", domain: "example!.com", matches: false, reason: "special characters not allowed"},
+		{name: "hyphen at start of label", domain: "-example.com", matches: false, reason: "label cannot start with hyphen"},
+		{name: "hyphen at end of label", domain: "example-.com", matches: false, reason: "label cannot end with hyphen"},
+		{name: "hyphen at start and end", domain: "-example-.com", matches: false, reason: "label cannot start/end with hyphen"},
+		{name: "only hyphen in label", domain: "-.com", matches: false, reason: "label cannot be only hyphen"},
+		{name: "single label domain", domain: "localhost", matches: true, reason: "single label matches regex pattern"},
+		{name: "wildcard single label", domain: "*.localhost", matches: true, reason: "wildcard with single label base"},
+		{name: "label too long (64 chars)", domain: "a1234567890123456789012345678901234567890123456789012345678901234.example.com", matches: false, reason: "label exceeds 63 character limit"},
+		{name: "exactly 63 chars in first label", domain: "a123456789012345678901234567890123456789012345678901234567890bc.example.com", matches: true, reason: "63 chars is valid"},
+		{name: "uppercase domain", domain: "EXAMPLE.COM", matches: true, reason: "uppercase letters allowed"},
+		{name: "mixed case", domain: "Example.Com", matches: true, reason: "mixed case allowed"},
+		{name: "wildcard uppercase", domain: "*.EXAMPLE.COM", matches: true, reason: "wildcard with uppercase"},
+		{name: "all numbers", domain: "123.456.789", matches: true, reason: "numeric domains allowed"},
+		{name: "IP-like format", domain: "192.168.1.1", matches: true, reason: "IP-like patterns match domain regex"},
+		{name: "multiple hyphens in middle", domain: "my--api.example.com", matches: true, reason: "multiple hyphens in middle allowed"},
+		{name: "many hyphens", domain: "my-really-long-domain-name.example.com", matches: true, reason: "many hyphens allowed"},
 	}
 }
 

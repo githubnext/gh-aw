@@ -11,496 +11,396 @@ import (
 )
 
 func TestParseFrontmatterConfig(t *testing.T) {
-	t.Run("parses minimal workflow config", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"name":   "test-workflow",
-			"engine": "claude",
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if config.Name != "test-workflow" {
-			t.Errorf("Name = %q, want %q", config.Name, "test-workflow")
-		}
-
-		if config.Engine != "claude" {
-			t.Errorf("Engine = %q, want %q", config.Engine, "claude")
-		}
-	})
-
-	t.Run("parses labels array", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"name":   "test-workflow",
-			"engine": "copilot",
-			"labels": []any{"automation", "ci", "diagnostics"},
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if len(config.Labels) != 3 {
-			t.Fatalf("expected 3 labels, got %d", len(config.Labels))
-		}
-
-		expectedLabels := []string{"automation", "ci", "diagnostics"}
-		for i, expected := range expectedLabels {
-			if config.Labels[i] != expected {
-				t.Errorf("Labels[%d] = %q, want %q", i, config.Labels[i], expected)
-			}
-		}
-	})
-
-	t.Run("parses inline-sub-agents boolean", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"inline-sub-agents": false,
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if config.InlineSubAgents == nil {
-			t.Fatal("InlineSubAgents should not be nil")
-		}
-		if *config.InlineSubAgents {
-			t.Error("InlineSubAgents should be false")
-		}
-	})
-
-	t.Run("parses complete workflow config", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"name":        "full-workflow",
-			"description": "A complete workflow",
-			"engine":      "copilot",
-			"source":      "owner/repo/path@main",
-			"redirect":    "owner/repo/new-path@main",
-			"tracker-id":  "test-tracker-123",
-			"tools": map[string]any{
-				"bash": map[string]any{
-					"enabled": true,
-				},
-			},
-			"mcp-servers": map[string]any{
-				"github": map[string]any{
-					"mode": "remote",
-				},
-			},
-			"safe-outputs": map[string]any{
-				"create-issue": map[string]any{
-					"enabled": true,
-				},
-			},
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		// Check core fields
-		if config.Name != "full-workflow" {
-			t.Errorf("Name = %q, want %q", config.Name, "full-workflow")
-		}
-
-		if config.Description != "A complete workflow" {
-			t.Errorf("Description = %q, want %q", config.Description, "A complete workflow")
-		}
-
-		if config.Engine != "copilot" {
-			t.Errorf("Engine = %q, want %q", config.Engine, "copilot")
-		}
-
-		if config.Source != "owner/repo/path@main" {
-			t.Errorf("Source = %q, want %q", config.Source, "owner/repo/path@main")
-		}
-		if config.Redirect != "owner/repo/new-path@main" {
-			t.Errorf("Redirect = %q, want %q", config.Redirect, "owner/repo/new-path@main")
-		}
-
-		if config.TrackerID != "test-tracker-123" {
-			t.Errorf("TrackerID = %q, want %q", config.TrackerID, "test-tracker-123")
-		}
-
-		// Check nested configuration sections
-		if config.Tools == nil {
-			t.Error("Tools should not be nil")
-		}
-
-		if config.MCPServers == nil {
-			t.Error("MCPServers should not be nil")
-		}
-
-		if config.SafeOutputs == nil {
-			t.Error("SafeOutputs should not be nil")
-		}
-	})
-
-	t.Run("parses on.needs config", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"on": map[string]any{
-				"workflow_dispatch": map[string]any{},
-				"needs":             []any{"secrets_fetcher", "config_loader"},
-			},
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if len(config.OnNeeds) != 2 {
-			t.Fatalf("expected 2 on.needs entries, got %d", len(config.OnNeeds))
-		}
-		if config.OnNeeds[0] != "secrets_fetcher" || config.OnNeeds[1] != "config_loader" {
-			t.Fatalf("unexpected on.needs entries: %#v", config.OnNeeds)
-		}
-	})
-
-	t.Run("handles timeout-minutes as int", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"timeout-minutes": 60,
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if config.TimeoutMinutes == nil {
-			t.Fatal("TimeoutMinutes should not be nil")
-		}
-		if config.TimeoutMinutes.IntValue() != 60 {
-			t.Errorf("TimeoutMinutes.IntValue() = %d, want 60", config.TimeoutMinutes.IntValue())
-		}
-		if config.TimeoutMinutes.IsExpression() {
-			t.Error("TimeoutMinutes.IsExpression() should be false for an integer literal")
-		}
-	})
-
-	t.Run("handles timeout-minutes as expression string", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"timeout-minutes": "${{ inputs.timeout }}",
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if config.TimeoutMinutes == nil {
-			t.Fatal("TimeoutMinutes should not be nil")
-		}
-		if config.TimeoutMinutes.String() != "${{ inputs.timeout }}" {
-			t.Errorf("TimeoutMinutes.String() = %q, want %q", config.TimeoutMinutes.String(), "${{ inputs.timeout }}")
-		}
-		if !config.TimeoutMinutes.IsExpression() {
-			t.Error("TimeoutMinutes.IsExpression() should be true for an expression")
-		}
-	})
-
-	t.Run("rejects timeout-minutes as float", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"timeout-minutes": 5.5,
-		}
-
-		_, err := ParseFrontmatterConfig(frontmatter)
-		if err == nil {
-			t.Error("expected error for float timeout-minutes, got nil")
-		}
-	})
-
-	t.Run("rejects timeout-minutes as free-form string", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"timeout-minutes": "not-an-expression",
-		}
-
-		_, err := ParseFrontmatterConfig(frontmatter)
-		if err == nil {
-			t.Error("expected error for non-expression string timeout-minutes, got nil")
-			return
-		}
-		if !strings.Contains(err.Error(), "timeout-minutes") {
-			t.Errorf("error message should mention 'timeout-minutes', got: %v", err)
-		}
-	})
-
-	t.Run("handles empty frontmatter", func(t *testing.T) {
-		frontmatter := map[string]any{}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if config.Name != "" {
-			t.Errorf("Name should be empty, got %q", config.Name)
-		}
-
-		if config.Tools != nil {
-			t.Errorf("Tools should be nil for empty frontmatter, got %v", config.Tools)
-		}
-	})
-
-	t.Run("handles network configuration", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"network": map[string]any{
-				"allowed": []any{"github.com", "api.github.com"},
-				"firewall": map[string]any{
-					"enabled": true,
-				},
-			},
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if config.Network == nil {
-			t.Fatal("Network should not be nil")
-		}
-
-		// Check that allowed domains are present
-		if len(config.Network.Allowed) != 2 {
-			t.Errorf("expected 2 allowed domains, got %d", len(config.Network.Allowed))
-		}
-	})
-
-	t.Run("handles sandbox configuration", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"sandbox": map[string]any{
-				"agent": map[string]any{
-					"type": "awf",
-				},
-			},
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if config.Sandbox == nil {
-			t.Fatal("Sandbox should not be nil")
-		}
-	})
-
-	t.Run("handles observability configuration", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"observability": map[string]any{
-				"otlp": map[string]any{
-					"endpoint": "https://traces.example.com",
-				},
-			},
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if config.Observability == nil {
-			t.Fatal("Observability should not be nil")
-		}
-
-		if config.Observability.OTLP == nil {
-			t.Fatal("OTLP should not be nil")
-		}
-	})
-
-	t.Run("handles jobs configuration", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"jobs": map[string]any{
-				"test-job": map[string]any{
-					"runs-on": "ubuntu-latest",
-					"steps": []any{
-						map[string]any{
-							"run": "echo hello",
-						},
-					},
-				},
-			},
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if config.Jobs == nil {
-			t.Fatal("Jobs should not be nil")
-		}
-
-		if _, ok := config.Jobs["test-job"]; !ok {
-			t.Error("test-job should exist in Jobs")
-		}
-	})
-
-	t.Run("handles top-level runs-on forms", func(t *testing.T) {
-		tests := []struct {
-			name      string
-			runsOn    any
-			assertion func(t *testing.T, got any)
-		}{
-			{
-				name:   "string form",
-				runsOn: "ubuntu-latest",
-				assertion: func(t *testing.T, got any) {
-					parsed, ok := got.(string)
-					if !ok {
-						t.Fatalf("RunsOn should be preserved as a string, got %T", got)
-					}
-					if parsed != "ubuntu-latest" {
-						t.Errorf("RunsOn = %v, want ubuntu-latest", parsed)
-					}
-				},
-			},
-			{
-				name:   "array form",
-				runsOn: []any{"self-hosted", "linux"},
-				assertion: func(t *testing.T, got any) {
-					parsed, ok := got.([]any)
-					if !ok {
-						t.Fatalf("RunsOn should be preserved as a slice, got %T", got)
-					}
-					if len(parsed) != 2 || parsed[0] != "self-hosted" || parsed[1] != "linux" {
-						t.Errorf("RunsOn = %v, want [self-hosted linux]", parsed)
-					}
-				},
-			},
-			{
-				name: "object form",
-				runsOn: map[string]any{
-					"group":  "arc-custom",
-					"labels": []any{"self-hosted", "linux"},
-				},
-				assertion: func(t *testing.T, got any) {
-					parsed, ok := got.(map[string]any)
-					if !ok {
-						t.Fatalf("RunsOn should be preserved as a map, got %T", got)
-					}
-					if parsed["group"] != "arc-custom" {
-						t.Errorf("RunsOn group = %v, want arc-custom", parsed["group"])
-					}
-				},
-			},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				frontmatter := map[string]any{
-					"runs-on": tt.runsOn,
-				}
-
-				config, err := ParseFrontmatterConfig(frontmatter)
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-
-				tt.assertion(t, config.RunsOn)
-
-				reconstructed := config.ToMap()
-				tt.assertion(t, reconstructed["runs-on"])
-
-				config2, err := ParseFrontmatterConfig(reconstructed)
-				require.NoError(t, err)
-				tt.assertion(t, config2.RunsOn)
-
-				reconstructed2 := config2.ToMap()
-				assert.Equal(t, reconstructed, reconstructed2)
-			})
-		}
-	})
-
-	t.Run("rejects invalid top-level runs-on forms", func(t *testing.T) {
-		tests := []struct {
-			name        string
-			runsOn      any
-			errContains string
-		}{
-			{
-				name:        "number form",
-				runsOn:      42,
-				errContains: "invalid runs-on type",
-			},
-			{
-				name:        "array contains non-string",
-				runsOn:      []any{"self-hosted", 42},
-				errContains: "invalid runs-on array entry type",
-			},
-			{
-				name:        "object contains unknown key",
-				runsOn:      map[string]any{"unknown": "value"},
-				errContains: "invalid runs-on object key",
-			},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				_, err := ParseFrontmatterConfig(map[string]any{
-					"runs-on": tt.runsOn,
-				})
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errContains)
-			})
-		}
-	})
-
-	t.Run("omits typed-nil top-level runs-on during serialization", func(t *testing.T) {
-		var runsOn *string
-		config := &FrontmatterConfig{
-			RunsOn: runsOn,
-		}
-
-		reconstructed := config.ToMap()
-		_, ok := reconstructed["runs-on"]
-		assert.False(t, ok)
-	})
-
-	t.Run("preserves complex nested structures", func(t *testing.T) {
-		frontmatter := map[string]any{
-			"safe-outputs": map[string]any{
-				"jobs": map[string]any{
-					"custom-job": map[string]any{
-						"conditions": []any{
-							map[string]any{
-								"field": "status",
-								"value": "success",
-							},
-						},
-					},
-				},
-			},
-		}
-
-		config, err := ParseFrontmatterConfig(frontmatter)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if config.SafeOutputs == nil {
-			t.Fatal("SafeOutputs should not be nil")
-		}
-
-		if config.SafeOutputs.Jobs == nil {
-			t.Fatal("SafeOutputs.Jobs should not be nil")
-		}
-
-		customJob, ok := config.SafeOutputs.Jobs["custom-job"]
-		if !ok {
-			t.Fatal("custom-job should exist in SafeOutputs.Jobs")
-		}
-
-		if customJob == nil {
-			t.Fatal("custom-job should not be nil")
-		}
-	})
+t.Run("parses minimal workflow config", testParseFrontmatterMinimalWorkflowConfig)
+t.Run("parses labels array", testParseFrontmatterLabelsArray)
+t.Run("parses inline-sub-agents boolean", testParseFrontmatterInlineSubAgents)
+t.Run("parses complete workflow config", testParseFrontmatterCompleteWorkflowConfig)
+t.Run("parses on.needs config", testParseFrontmatterOnNeeds)
+t.Run("handles timeout-minutes as int", testParseFrontmatterTimeoutMinutesInt)
+t.Run("handles timeout-minutes as expression string", testParseFrontmatterTimeoutMinutesExpression)
+t.Run("rejects timeout-minutes as float", testParseFrontmatterRejectsFloatTimeout)
+t.Run("rejects timeout-minutes as free-form string", testParseFrontmatterRejectsStringTimeout)
+t.Run("handles empty frontmatter", testParseFrontmatterEmpty)
+t.Run("handles network configuration", testParseFrontmatterNetworkConfig)
+t.Run("handles sandbox configuration", testParseFrontmatterSandboxConfig)
+t.Run("handles observability configuration", testParseFrontmatterObservabilityConfig)
+t.Run("handles jobs configuration", testParseFrontmatterJobsConfig)
+t.Run("handles top-level runs-on forms", testParseFrontmatterRunsOnForms)
+t.Run("rejects invalid top-level runs-on forms", testParseFrontmatterRejectsInvalidRunsOn)
+t.Run("omits typed-nil top-level runs-on during serialization", testParseFrontmatterOmitsTypedNilRunsOn)
+t.Run("preserves complex nested structures", testParseFrontmatterComplexNestedStructures)
+}
+
+func testParseFrontmatterConfigResult(t *testing.T, frontmatter map[string]any) *FrontmatterConfig {
+t.Helper()
+
+config, err := ParseFrontmatterConfig(frontmatter)
+if err != nil {
+t.Fatalf("unexpected error: %v", err)
+}
+
+return config
+}
+
+func testParseFrontmatterMinimalWorkflowConfig(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{
+"name":   "test-workflow",
+"engine": "claude",
+})
+
+if config.Name != "test-workflow" {
+t.Errorf("Name = %q, want %q", config.Name, "test-workflow")
+}
+if config.Engine != "claude" {
+t.Errorf("Engine = %q, want %q", config.Engine, "claude")
+}
+}
+
+func testParseFrontmatterLabelsArray(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{
+"name":   "test-workflow",
+"engine": "copilot",
+"labels": []any{"automation", "ci", "diagnostics"},
+})
+
+if len(config.Labels) != 3 {
+t.Fatalf("expected 3 labels, got %d", len(config.Labels))
+}
+
+expectedLabels := []string{"automation", "ci", "diagnostics"}
+for i, expected := range expectedLabels {
+if config.Labels[i] != expected {
+t.Errorf("Labels[%d] = %q, want %q", i, config.Labels[i], expected)
+}
+}
+}
+
+func testParseFrontmatterInlineSubAgents(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{
+"inline-sub-agents": false,
+})
+
+if config.InlineSubAgents == nil {
+t.Fatal("InlineSubAgents should not be nil")
+}
+if *config.InlineSubAgents {
+t.Error("InlineSubAgents should be false")
+}
+}
+
+func testParseFrontmatterCompleteWorkflowConfig(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{
+"name":        "full-workflow",
+"description": "A complete workflow",
+"engine":      "copilot",
+"source":      "owner/repo/path@main",
+"redirect":    "owner/repo/new-path@main",
+"tracker-id":  "test-tracker-123",
+"tools": map[string]any{
+"bash": map[string]any{"enabled": true},
+},
+"mcp-servers": map[string]any{
+"github": map[string]any{"mode": "remote"},
+},
+"safe-outputs": map[string]any{
+"create-issue": map[string]any{"enabled": true},
+},
+})
+
+if config.Name != "full-workflow" {
+t.Errorf("Name = %q, want %q", config.Name, "full-workflow")
+}
+if config.Description != "A complete workflow" {
+t.Errorf("Description = %q, want %q", config.Description, "A complete workflow")
+}
+if config.Engine != "copilot" {
+t.Errorf("Engine = %q, want %q", config.Engine, "copilot")
+}
+if config.Source != "owner/repo/path@main" {
+t.Errorf("Source = %q, want %q", config.Source, "owner/repo/path@main")
+}
+if config.Redirect != "owner/repo/new-path@main" {
+t.Errorf("Redirect = %q, want %q", config.Redirect, "owner/repo/new-path@main")
+}
+if config.TrackerID != "test-tracker-123" {
+t.Errorf("TrackerID = %q, want %q", config.TrackerID, "test-tracker-123")
+}
+if config.Tools == nil {
+t.Error("Tools should not be nil")
+}
+if config.MCPServers == nil {
+t.Error("MCPServers should not be nil")
+}
+if config.SafeOutputs == nil {
+t.Error("SafeOutputs should not be nil")
+}
+}
+
+func testParseFrontmatterOnNeeds(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{
+"on": map[string]any{
+"workflow_dispatch": map[string]any{},
+"needs":             []any{"secrets_fetcher", "config_loader"},
+},
+})
+
+if len(config.OnNeeds) != 2 {
+t.Fatalf("expected 2 on.needs entries, got %d", len(config.OnNeeds))
+}
+if config.OnNeeds[0] != "secrets_fetcher" || config.OnNeeds[1] != "config_loader" {
+t.Fatalf("unexpected on.needs entries: %#v", config.OnNeeds)
+}
+}
+
+func testParseFrontmatterTimeoutMinutesInt(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{
+"timeout-minutes": 60,
+})
+
+if config.TimeoutMinutes == nil {
+t.Fatal("TimeoutMinutes should not be nil")
+}
+if config.TimeoutMinutes.IntValue() != 60 {
+t.Errorf("TimeoutMinutes.IntValue() = %d, want 60", config.TimeoutMinutes.IntValue())
+}
+if config.TimeoutMinutes.IsExpression() {
+t.Error("TimeoutMinutes.IsExpression() should be false for an integer literal")
+}
+}
+
+func testParseFrontmatterTimeoutMinutesExpression(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{
+"timeout-minutes": "${{ inputs.timeout }}",
+})
+
+if config.TimeoutMinutes == nil {
+t.Fatal("TimeoutMinutes should not be nil")
+}
+if config.TimeoutMinutes.String() != "${{ inputs.timeout }}" {
+t.Errorf("TimeoutMinutes.String() = %q, want %q", config.TimeoutMinutes.String(), "${{ inputs.timeout }}")
+}
+if !config.TimeoutMinutes.IsExpression() {
+t.Error("TimeoutMinutes.IsExpression() should be true for an expression")
+}
+}
+
+func testParseFrontmatterRejectsFloatTimeout(t *testing.T) {
+_, err := ParseFrontmatterConfig(map[string]any{
+"timeout-minutes": 5.5,
+})
+if err == nil {
+t.Error("expected error for float timeout-minutes, got nil")
+}
+}
+
+func testParseFrontmatterRejectsStringTimeout(t *testing.T) {
+_, err := ParseFrontmatterConfig(map[string]any{
+"timeout-minutes": "not-an-expression",
+})
+if err == nil {
+t.Error("expected error for non-expression string timeout-minutes, got nil")
+return
+}
+if !strings.Contains(err.Error(), "timeout-minutes") {
+t.Errorf("error message should mention 'timeout-minutes', got: %v", err)
+}
+}
+
+func testParseFrontmatterEmpty(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{})
+
+if config.Name != "" {
+t.Errorf("Name should be empty, got %q", config.Name)
+}
+if config.Tools != nil {
+t.Errorf("Tools should be nil for empty frontmatter, got %v", config.Tools)
+}
+}
+
+func testParseFrontmatterNetworkConfig(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{
+"network": map[string]any{
+"allowed": []any{"github.com", "api.github.com"},
+"firewall": map[string]any{"enabled": true},
+},
+})
+
+if config.Network == nil {
+t.Fatal("Network should not be nil")
+}
+if len(config.Network.Allowed) != 2 {
+t.Errorf("expected 2 allowed domains, got %d", len(config.Network.Allowed))
+}
+}
+
+func testParseFrontmatterSandboxConfig(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{
+"sandbox": map[string]any{
+"agent": map[string]any{"type": "awf"},
+},
+})
+
+if config.Sandbox == nil {
+t.Fatal("Sandbox should not be nil")
+}
+}
+
+func testParseFrontmatterObservabilityConfig(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{
+"observability": map[string]any{
+"otlp": map[string]any{"endpoint": "https://traces.example.com"},
+},
+})
+
+if config.Observability == nil {
+t.Fatal("Observability should not be nil")
+}
+if config.Observability.OTLP == nil {
+t.Fatal("OTLP should not be nil")
+}
+}
+
+func testParseFrontmatterJobsConfig(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{
+"jobs": map[string]any{
+"test-job": map[string]any{
+"runs-on": "ubuntu-latest",
+"steps": []any{map[string]any{"run": "echo hello"}},
+},
+},
+})
+
+if config.Jobs == nil {
+t.Fatal("Jobs should not be nil")
+}
+if _, ok := config.Jobs["test-job"]; !ok {
+t.Error("test-job should exist in Jobs")
+}
+}
+
+func testParseFrontmatterRunsOnForms(t *testing.T) {
+tests := []struct {
+name      string
+runsOn    any
+assertion func(t *testing.T, got any)
+}{
+{
+name:   "string form",
+runsOn: "ubuntu-latest",
+assertion: func(t *testing.T, got any) {
+parsed, ok := got.(string)
+if !ok {
+t.Fatalf("RunsOn should be preserved as a string, got %T", got)
+}
+if parsed != "ubuntu-latest" {
+t.Errorf("RunsOn = %v, want ubuntu-latest", parsed)
+}
+},
+},
+{
+name:   "array form",
+runsOn: []any{"self-hosted", "linux"},
+assertion: func(t *testing.T, got any) {
+parsed, ok := got.([]any)
+if !ok {
+t.Fatalf("RunsOn should be preserved as a slice, got %T", got)
+}
+if len(parsed) != 2 || parsed[0] != "self-hosted" || parsed[1] != "linux" {
+t.Errorf("RunsOn = %v, want [self-hosted linux]", parsed)
+}
+},
+},
+{
+name: "object form",
+runsOn: map[string]any{
+"group":  "arc-custom",
+"labels": []any{"self-hosted", "linux"},
+},
+assertion: func(t *testing.T, got any) {
+parsed, ok := got.(map[string]any)
+if !ok {
+t.Fatalf("RunsOn should be preserved as a map, got %T", got)
+}
+if parsed["group"] != "arc-custom" {
+t.Errorf("RunsOn group = %v, want arc-custom", parsed["group"])
+}
+},
+},
+}
+
+for _, tt := range tests {
+tt := tt
+t.Run(tt.name, func(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{"runs-on": tt.runsOn})
+tt.assertion(t, config.RunsOn)
+
+reconstructed := config.ToMap()
+tt.assertion(t, reconstructed["runs-on"])
+
+config2, err := ParseFrontmatterConfig(reconstructed)
+require.NoError(t, err)
+tt.assertion(t, config2.RunsOn)
+
+reconstructed2 := config2.ToMap()
+assert.Equal(t, reconstructed, reconstructed2)
+})
+}
+}
+
+func testParseFrontmatterRejectsInvalidRunsOn(t *testing.T) {
+tests := []struct {
+name        string
+runsOn      any
+errContains string
+}{
+{name: "number form", runsOn: 42, errContains: "invalid runs-on type"},
+{name: "array contains non-string", runsOn: []any{"self-hosted", 42}, errContains: "invalid runs-on array entry type"},
+{name: "object contains unknown key", runsOn: map[string]any{"unknown": "value"}, errContains: "invalid runs-on object key"},
+}
+
+for _, tt := range tests {
+tt := tt
+t.Run(tt.name, func(t *testing.T) {
+_, err := ParseFrontmatterConfig(map[string]any{"runs-on": tt.runsOn})
+require.Error(t, err)
+assert.Contains(t, err.Error(), tt.errContains)
+})
+}
+}
+
+func testParseFrontmatterOmitsTypedNilRunsOn(t *testing.T) {
+var runsOn *string
+config := &FrontmatterConfig{RunsOn: runsOn}
+
+reconstructed := config.ToMap()
+_, ok := reconstructed["runs-on"]
+assert.False(t, ok)
+}
+
+func testParseFrontmatterComplexNestedStructures(t *testing.T) {
+config := testParseFrontmatterConfigResult(t, map[string]any{
+"safe-outputs": map[string]any{
+"jobs": map[string]any{
+"custom-job": map[string]any{
+"conditions": []any{map[string]any{"field": "status", "value": "success"}},
+},
+},
+},
+})
+
+if config.SafeOutputs == nil {
+t.Fatal("SafeOutputs should not be nil")
+}
+if config.SafeOutputs.Jobs == nil {
+t.Fatal("SafeOutputs.Jobs should not be nil")
+}
+customJob, ok := config.SafeOutputs.Jobs["custom-job"]
+if !ok {
+t.Fatal("custom-job should exist in SafeOutputs.Jobs")
+}
+if customJob == nil {
+t.Fatal("custom-job should not be nil")
+}
 }
 
 func TestFrontmatterConfigFieldExtraction(t *testing.T) {
