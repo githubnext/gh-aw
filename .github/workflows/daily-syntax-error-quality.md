@@ -22,10 +22,6 @@ tools:
     - "mkdir -p /tmp/gh-aw/agent/syntax-error-tests"
 safe-outputs:
   create-issue:
-    expires: 3d
-    title-prefix: "[syntax-error-quality] "
-    labels: [dx, error-messages, automated-analysis]
-    max: 1
     close-older-issues: true
   noop:
 timeout-minutes: 20
@@ -53,7 +49,11 @@ steps:
       fi
       gh aw --version
 imports:
-  - shared/reporting.md
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[syntax-error-quality] "
+      expires: 3d
+      labels: [dx, error-messages, automated-analysis]
   - shared/otlp.md
 features:
   copilot-requests: true

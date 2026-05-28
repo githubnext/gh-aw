@@ -42,16 +42,14 @@ tools:
 
 safe-outputs:
   create-discussion:
-    expires: 3d
     category: "announcements"
-    title-prefix: "🦛 "
-    close-older-discussions: true
-    max: 1
 
 imports:
   - shared/hippo-memory.md
-  - shared/reporting.md
-  - shared/otlp.md
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "🦛 "
+      expires: 3d
 features:
   copilot-requests: true
 

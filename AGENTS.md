@@ -101,6 +101,12 @@ make fmt         # REQUIRED - formats Go code with go fmt
 make recompile   # REQUIRED - recompile all workflow files after code changes
 ```
 
+For scheduled workflows with `tracker-id` that publish GitHub issues or discussions, prefer the shared bundles:
+- `shared/daily-issue-base.md` for issue-publishing daily workflows
+- `shared/daily-audit-base.md` for discussion-publishing daily workflows
+
+Use these instead of hand-rolling `shared/reporting.md` plus duplicate `safe-outputs` boilerplate where possible.
+
 **After making JavaScript changes (*.cjs files):**
 ```bash
 make fmt-cjs     # REQUIRED - ensures JavaScript is properly formatted

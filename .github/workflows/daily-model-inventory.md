@@ -307,13 +307,14 @@ tools:
 
 safe-outputs:
   create-issue:
-    expires: 7d
-    title-prefix: "[model-inventory] "
-    labels: [automation, models]
-    max: 1
     close-older-issues: true
 
 imports:
+  - uses: shared/daily-issue-base.md
+    with:
+      title-prefix: "[model-inventory] "
+      expires: 7d
+      labels: [automation, models]
   - shared/otlp.md
 ---
 
