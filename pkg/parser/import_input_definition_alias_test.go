@@ -10,7 +10,7 @@ import (
 )
 
 func TestImportInputDefinitionAliasesSharedType(t *testing.T) {
-	if reflect.TypeOf(ImportInputDefinition{}) != reflect.TypeOf(types.InputDefinition{}) {
+	if reflect.TypeFor[ImportInputDefinition]() != reflect.TypeFor[types.InputDefinition]() {
 		t.Fatal("ImportInputDefinition should alias types.InputDefinition")
 	}
 
