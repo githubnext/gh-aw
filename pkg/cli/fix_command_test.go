@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // getCodemodByID is a helper function to find a codemod by ID
@@ -627,27 +629,25 @@ func TestFixCommand_UpdatesPromptAndAgentFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
 
-	// Save and restore original directory
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
-
-	// Initialize git repo (required for ensure functions)
-	if err := exec.Command("git", "init").Run(); err != nil {
+	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("Git not available")
 	}
 
+	// Save and restore original directory
+	originalDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(originalDir), "Failed to restore current directory")
+	})
+
+	require.NoError(t, os.Chdir(tmpDir), "Failed to change to temp directory")
+
+	// Initialize git repo (required for ensure functions)
+	require.NoError(t, exec.Command("git", "init").Run(), "Failed to initialize git repo")
+
 	// Configure git
-	exec.Command("git", "config", "user.name", "Test User").Run()
-	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	require.NoError(t, exec.Command("git", "config", "user.name", "Test User").Run(), "Failed to configure git user.name")
+	require.NoError(t, exec.Command("git", "config", "user.email", "test@example.com").Run(), "Failed to configure git user.email")
 
 	// Create a simple workflow file (no fixes needed)
 	content := `---
@@ -663,9 +663,7 @@ permissions:
 This is a test workflow.
 `
 
-	if err := os.WriteFile(workflowFile, []byte(content), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
+	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644), "Failed to create test file")
 
 	// Run fix command (which checks prompt and agent files exist)
 	config := FixConfig{
@@ -675,10 +673,7 @@ This is a test workflow.
 		WorkflowDir: tmpDir,
 	}
 
-	err = RunFix(config)
-	if err != nil {
-		t.Fatalf("RunFix failed: %v", err)
-	}
+	require.NoError(t, RunFix(config), "RunFix failed")
 
 	// Note: The ensure functions no longer create files from templates.
 	// They just check if files exist. Since we're in a temp directory,
