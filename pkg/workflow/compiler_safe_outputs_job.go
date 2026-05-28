@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -669,6 +670,16 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	// The value is set by parse_mcp_gateway_log.cjs in the agent job and exposed as a job output.
 	// An empty/missing value is handled gracefully by getEffectiveTokensFromEnv() in messages_footer.cjs.
 	envVars["GH_AW_EFFECTIVE_TOKENS"] = fmt.Sprintf("${{ needs.%s.outputs.effective_tokens }}", constants.AgentJobName)
+
+	// Add slash command metadata so safe output handlers can render run-again footer hints.
+	if len(data.Command) > 0 {
+		if commandsJSON, err := json.Marshal(data.Command); err == nil {
+			envVars["GH_AW_COMMANDS"] = fmt.Sprintf("%q", string(commandsJSON))
+		}
+		if data.CommandPlaceholder != "" {
+			envVars["GH_AW_COMMAND_PLACEHOLDER"] = fmt.Sprintf("%q", data.CommandPlaceholder)
+		}
+	}
 
 	// Add safe output job environment variables (staged/target repo)
 	if data.SafeOutputs != nil && (c.trialMode || data.SafeOutputs.Staged) {

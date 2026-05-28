@@ -430,7 +430,7 @@ func TestExtractCommandConfig_CentralizedStrategy(t *testing.T) {
 	assert.Equal(t, []string{"deploy"}, names)
 	assert.Equal(t, []string{"issue_comment"}, events)
 	assert.True(t, centralized)
-	assert.Equal(t, "", placeholder)
+	assert.Empty(t, placeholder)
 }
 
 func TestExtractCommandConfig_Placeholder(t *testing.T) {
