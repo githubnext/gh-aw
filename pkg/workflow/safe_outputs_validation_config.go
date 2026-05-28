@@ -448,7 +448,7 @@ func GetValidationConfigJSON(enabledTypes []string) (string, error) {
 		result, ok := cached.(string)
 		if !ok {
 			// The cache exclusively stores string values; a non-string indicates a programmer error.
-			panic(fmt.Sprintf("validationConfigJSONCache: unexpected type %T for key %s", cached, cacheKey))
+			return "", fmt.Errorf("validationConfigJSONCache: unexpected type %T for key %s", cached, cacheKey)
 		}
 		return result, nil
 	}
