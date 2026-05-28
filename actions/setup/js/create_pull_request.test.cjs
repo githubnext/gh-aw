@@ -225,7 +225,7 @@ describe("create_pull_request - bundle transport shallow checkout", () => {
     vi.clearAllMocks();
   });
 
-  it("should unshallow before fetching a bundle", async () => {
+  it("should fetch bundle without forcing an unshallow fetch", async () => {
     const patchPath = path.join(tempDir, "test.patch");
     fs.writeFileSync(
       patchPath,
@@ -253,7 +253,6 @@ index 0000000..abc1234
     const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--unshallow", "origin"], expect.any(Object));
     // Initial bundle fetch is now via getExecOutput (with ignoreReturnCode: true) rather than exec,
     // so the bundle fetch appears in getExecOutput.mock.calls.
     const bundleFetchCall = global.exec.getExecOutput.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
@@ -264,9 +263,9 @@ index 0000000..abc1234
     const bundleTempRef = bundleFetchCall[1][2].split(":")[1];
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature/test", bundleTempRef]);
     expect(global.exec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"]);
-    const unshallowCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === "--unshallow");
     const bundleFetchCallIndex = global.exec.getExecOutput.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
-    expect(unshallowCallIndex).toBeGreaterThanOrEqual(0);
+    const unshallowCallIndex = global.exec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === "--unshallow");
+    expect(unshallowCallIndex).toBe(-1);
     expect(bundleFetchCallIndex).toBeGreaterThanOrEqual(0);
   });
 

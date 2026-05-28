@@ -11,8 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func strPtr(s string) *string { return &s }
-
 func TestNewEnvCommand(t *testing.T) {
 	cmd := NewEnvCommand()
 	require.NotNil(t, cmd)
@@ -73,13 +71,13 @@ func TestResolveDefaultsTarget(t *testing.T) {
 
 func TestDefaultsFileYAMLKeys(t *testing.T) {
 	file := defaultsFile{
-		DefaultMaxEffectiveTokens: strPtr("10000"),
-		DefaultMaxTurns:           strPtr("42"),
-		DefaultTimeoutMinutes:     strPtr("90"),
-		DefaultDetectionModel:     strPtr("claude-sonnet-4.6"),
-		DefaultModelCopilot:       strPtr("claude-sonnet-4.7"),
-		DefaultModelClaude:        strPtr("claude-opus-4.7"),
-		DefaultModelCodex:         strPtr("gpt-5.5"),
+		DefaultMaxEffectiveTokens: new("10000"),
+		DefaultMaxTurns:           new("42"),
+		DefaultTimeoutMinutes:     new("90"),
+		DefaultDetectionModel:     new("claude-sonnet-4.6"),
+		DefaultModelCopilot:       new("claude-sonnet-4.7"),
+		DefaultModelClaude:        new("claude-opus-4.7"),
+		DefaultModelCodex:         new("gpt-5.5"),
 	}
 
 	data, err := yaml.Marshal(&file)
@@ -130,23 +128,23 @@ func TestDefaultsParseFileDisallowsUnknownFields(t *testing.T) {
 func TestDefaultsValidateFile(t *testing.T) {
 	t.Run("accepts valid values", func(t *testing.T) {
 		err := defaultsValidateFile(&defaultsFile{
-			DefaultMaxEffectiveTokens: strPtr("-1"),
-			DefaultMaxTurns:           strPtr("12"),
-			DefaultTimeoutMinutes:     strPtr("30"),
-			DefaultDetectionModel:     strPtr("claude-sonnet-4.6"),
-			DefaultModelCopilot:       strPtr("gpt-5-mini"),
-			DefaultModelClaude:        strPtr("claude-haiku-4.5"),
-			DefaultModelCodex:         strPtr("gpt-5.4-mini"),
+			DefaultMaxEffectiveTokens: new("-1"),
+			DefaultMaxTurns:           new("12"),
+			DefaultTimeoutMinutes:     new("30"),
+			DefaultDetectionModel:     new("claude-sonnet-4.6"),
+			DefaultModelCopilot:       new("gpt-5-mini"),
+			DefaultModelClaude:        new("claude-haiku-4.5"),
+			DefaultModelCodex:         new("gpt-5.4-mini"),
 		})
 		require.NoError(t, err)
 	})
 
 	t.Run("rejects invalid numeric and empty model values", func(t *testing.T) {
 		err := defaultsValidateFile(&defaultsFile{
-			DefaultMaxEffectiveTokens: strPtr("0"),
-			DefaultMaxTurns:           strPtr("abc"),
-			DefaultTimeoutMinutes:     strPtr("0"),
-			DefaultModelCopilot:       strPtr("   "),
+			DefaultMaxEffectiveTokens: new("0"),
+			DefaultMaxTurns:           new("abc"),
+			DefaultTimeoutMinutes:     new("0"),
+			DefaultModelCopilot:       new("   "),
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default_max_effective_tokens must be a non-zero integer when set")
@@ -169,8 +167,8 @@ func TestDefaultsTargetEndpoints(t *testing.T) {
 
 func TestDefaultsBuildUpdateChanges(t *testing.T) {
 	changes := defaultsBuildUpdateChanges(&defaultsFile{
-		DefaultMaxEffectiveTokens: strPtr("10000"),
-		DefaultModelCodex:         strPtr("gpt-5.5"),
+		DefaultMaxEffectiveTokens: new("10000"),
+		DefaultModelCodex:         new("gpt-5.5"),
 	})
 
 	require.Len(t, changes, len(defaultsBindings))

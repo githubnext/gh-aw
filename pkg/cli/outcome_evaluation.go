@@ -21,6 +21,7 @@ const (
 	EvidenceStrong EvidenceStrength = "strong"
 	EvidenceMedium EvidenceStrength = "medium"
 	EvidenceWeak   EvidenceStrength = "weak"
+	EvidenceNone   EvidenceStrength = "none"
 )
 
 // OutcomeEvaluation is the shared normalized outcome model.

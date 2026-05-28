@@ -1,5 +1,20 @@
 // @ts-check
 
+const crypto = require("crypto");
+
+function normalizeBodyForHash(body) {
+  const normalized = String(body || "").replace(/\r\n/g, "\n");
+  return normalized
+    .split("\n")
+    .map(line => line.replace(/[ \t]+$/g, ""))
+    .join("\n")
+    .trim();
+}
+
+function hashNormalizedBody(body) {
+  return crypto.createHash("sha256").update(normalizeBodyForHash(body), "utf8").digest("hex");
+}
+
 function normalizeLabelNames(labels) {
   if (!Array.isArray(labels)) {
     return [];
@@ -88,7 +103,7 @@ function normalizeReviews(reviews) {
 function extractIssueStateFromData(issue) {
   return {
     title: typeof issue?.title === "string" ? issue.title : "",
-    body: typeof issue?.body === "string" ? issue.body : "",
+    body_hash: hashNormalizedBody(issue?.body),
     state: typeof issue?.state === "string" ? issue.state : "",
     labels: normalizeLabelNames(issue?.labels),
     assignees: normalizeAssigneeLogins(issue?.assignees),
@@ -98,7 +113,7 @@ function extractIssueStateFromData(issue) {
 function mergeIssueState(baseState, issue) {
   const nextState = {
     title: "",
-    body: "",
+    body_hash: "",
     state: "",
     labels: [],
     assignees: [],
@@ -110,8 +125,8 @@ function mergeIssueState(baseState, issue) {
   if ("title" in issue && typeof issue.title === "string") {
     nextState.title = issue.title;
   }
-  if ("body" in issue && typeof issue.body === "string") {
-    nextState.body = issue.body;
+  if ("body" in issue) {
+    nextState.body_hash = hashNormalizedBody(issue.body);
   }
   if ("state" in issue && typeof issue.state === "string") {
     nextState.state = issue.state;
@@ -121,6 +136,51 @@ function mergeIssueState(baseState, issue) {
   }
   if ("assignees" in issue) {
     nextState.assignees = normalizeAssigneeLogins(issue.assignees);
+  }
+  return nextState;
+}
+
+function extractPullRequestStateFromData(pullRequest) {
+  return {
+    title: typeof pullRequest?.title === "string" ? pullRequest.title : "",
+    body_hash: hashNormalizedBody(pullRequest?.body),
+    state: typeof pullRequest?.state === "string" ? pullRequest.state : "",
+    base: typeof pullRequest?.base?.ref === "string" ? pullRequest.base.ref : "",
+    draft: pullRequest?.draft === true,
+    head_sha: typeof pullRequest?.head?.sha === "string" ? pullRequest.head.sha : "",
+  };
+}
+
+function mergePullRequestState(baseState, pullRequest) {
+  const nextState = {
+    title: "",
+    body_hash: "",
+    state: "",
+    base: "",
+    draft: false,
+    head_sha: "",
+    ...(baseState || {}),
+  };
+  if (!pullRequest || typeof pullRequest !== "object") {
+    return nextState;
+  }
+  if ("title" in pullRequest && typeof pullRequest.title === "string") {
+    nextState.title = pullRequest.title;
+  }
+  if ("body" in pullRequest) {
+    nextState.body_hash = hashNormalizedBody(pullRequest.body);
+  }
+  if ("state" in pullRequest && typeof pullRequest.state === "string") {
+    nextState.state = pullRequest.state;
+  }
+  if (pullRequest.base && typeof pullRequest.base.ref === "string") {
+    nextState.base = pullRequest.base.ref;
+  }
+  if ("draft" in pullRequest) {
+    nextState.draft = pullRequest.draft === true;
+  }
+  if (pullRequest.head && typeof pullRequest.head.sha === "string") {
+    nextState.head_sha = pullRequest.head.sha;
   }
   return nextState;
 }
@@ -159,6 +219,15 @@ async function fetchPullRequestReviewState(github, repoParts, pullRequestNumber)
   return extractReviewStateFromData(pullRequest, reviews);
 }
 
+async function fetchPullRequestState(github, repoParts, pullRequestNumber) {
+  const { data: pullRequest } = await github.rest.pulls.get({
+    owner: repoParts.owner,
+    repo: repoParts.repo,
+    pull_number: pullRequestNumber,
+  });
+  return extractPullRequestStateFromData(pullRequest);
+}
+
 function attachExecutionState(result, beforeState, afterState) {
   return {
     ...result,
@@ -170,9 +239,14 @@ function attachExecutionState(result, beforeState, afterState) {
 module.exports = {
   attachExecutionState,
   extractIssueStateFromData,
+  extractPullRequestStateFromData,
   extractReviewStateFromData,
   fetchIssueState,
+  fetchPullRequestState,
   fetchPullRequestReviewState,
+  hashNormalizedBody,
+  mergePullRequestState,
   mergeIssueState,
+  normalizeBodyForHash,
   normalizeLabelNames,
 };

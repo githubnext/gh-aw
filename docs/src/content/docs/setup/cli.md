@@ -116,6 +116,7 @@ The script is installed to `/opt/gh-aw/actions/configure_gh_for_ghe.sh` by the s
 |------|-------------|
 | `-h`, `--help` | Show help (`gh aw help [command]` for command-specific help) |
 | `-v`, `--verbose` | Enable verbose output with debugging details |
+| `--banner` | Display ASCII logo banner with purple GitHub color theme |
 
 ### The `--push` Flag
 
@@ -581,6 +582,24 @@ gh aw checks 42 --json             # Output in JSON format
 
 Maps PR check rollups to one of the following normalized states: `success`, `failed`, `pending`, `no_checks`, `policy_blocked`. JSON output includes two state fields: `state` (aggregate across all checks) and `required_state` (derived from required checks only, ignoring optional third-party statuses like deployment integrations).
 
+#### `forecast` `[EXPERIMENTAL]`
+
+Forecast token usage and costs for agentic workflows using recent run history and Monte Carlo simulation.
+
+```bash wrap
+gh aw forecast                              # Forecast all workflows (monthly)
+gh aw forecast ci-doctor                    # Forecast a specific workflow
+gh aw forecast ci-doctor daily-planner      # Compare two workflows
+gh aw forecast --period week                # Weekly projections
+gh aw forecast --days 7                     # Use 7-day history window
+gh aw forecast --sample 50                  # Sample up to 50 runs per workflow
+gh aw forecast --json                       # Machine-readable JSON output
+gh aw forecast --repo owner/repo            # Forecast in another repository
+gh aw forecast --eval                       # Backtest forecast quality against past data
+```
+
+**Options:** `--days`, `--period`, `--sample`, `--eval`, `--repo/-r`, `--json/-j`
+
 ### Management
 
 #### `enable`
@@ -672,6 +691,35 @@ gh aw upgrade --audit --json               # Dependency audit in JSON format
 ```
 
 **Options:** `--dir/-d`, `--no-fix`, `--no-actions`, `--no-compile`, `--create-pull-request`, `--audit`, `--json/-j`, `--approve`
+
+#### `env`
+
+Manage compiler defaults as GitHub variables at repository, organization, or enterprise scope.
+
+##### `env get [file]`
+
+Download default compiler variables into a YAML file (`file.yml` by default).
+
+```bash wrap
+gh aw env get
+gh aw env get defaults.yml --scope repo
+gh aw env get org-defaults.yml --scope org --org my-org
+gh aw env get ent-defaults.yml --scope ent --enterprise my-enterprise
+```
+
+**Options:** `--scope`, `--repo`, `--org`, `--enterprise`
+
+##### `env update [file]`
+
+Upload default compiler variables from a YAML file (`file.yml` by default). Use `null` (or omit a field) to delete that variable in the selected scope.
+
+```bash wrap
+gh aw env update defaults.yml --scope repo
+gh aw env update defaults.yml --scope org --org my-org --dry-run
+gh aw env update defaults.yml --scope ent --enterprise my-enterprise --yes
+```
+
+**Options:** `--scope` (required), `--repo`, `--org`, `--enterprise`, `--yes/-y`, `--dry-run`
 
 ### Advanced
 

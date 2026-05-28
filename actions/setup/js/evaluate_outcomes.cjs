@@ -26,6 +26,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { execFileSync } = require("child_process");
 
 // ---------------------------------------------------------------------------
@@ -180,7 +181,7 @@ function secondsBetween(from, to) {
  * @typedef {object} EvalResult
  * @property {string} result
  * @property {"accepted"|"rejected"|"pending"|"ignored"|"skipped"|"unknown"} outcome_status
- * @property {"strong"|"medium"|"weak"} evidence_strength
+ * @property {"strong"|"medium"|"weak"|"none"} evidence_strength
  * @property {string} signal
  * @property {string} detail
  * @property {number | null} resolution_sec
@@ -537,7 +538,7 @@ function evaluateAddLabels(item, itemRepo, timestamp, out, apiGet, nowMs) {
  * Normalize legacy result/detail pairs into the shared outcome model.
  * @param {string} result
  * @param {string} detail
- * @returns {{ outcome_status: "accepted"|"rejected"|"pending"|"ignored"|"skipped"|"unknown", evidence_strength: "strong"|"medium"|"weak", signal: string }}
+ * @returns {{ outcome_status: "accepted"|"rejected"|"pending"|"ignored"|"skipped"|"unknown", evidence_strength: "strong"|"medium"|"weak"|"none", signal: string }}
  */
 function normalizeOutcome(result, detail) {
   const normalizedDetail = String(detail || "")
@@ -545,7 +546,7 @@ function normalizeOutcome(result, detail) {
     .trim();
 
   if (result === "noop") {
-    return { outcome_status: "skipped", evidence_strength: "weak", signal: "noop" };
+    return { outcome_status: "skipped", evidence_strength: "none", signal: "noop" };
   }
   if (normalizedDetail === "object still exists") {
     return { outcome_status: "unknown", evidence_strength: "weak", signal: "target_exists_only" };
@@ -573,6 +574,24 @@ function normalizeOutcome(result, detail) {
   }
   if (normalizedDetail === "awaiting review") {
     return { outcome_status: "pending", evidence_strength: "medium", signal: "awaiting_review" };
+  }
+  if (normalizedDetail === "update retained and merged") {
+    return { outcome_status: "accepted", evidence_strength: "strong", signal: "state_retained_and_merged" };
+  }
+  if (normalizedDetail === "update retained") {
+    return { outcome_status: "accepted", evidence_strength: "medium", signal: "state_retained" };
+  }
+  if (normalizedDetail === "update reverted") {
+    return { outcome_status: "rejected", evidence_strength: "strong", signal: "state_reverted" };
+  }
+  if (normalizedDetail === "update replaced") {
+    return { outcome_status: "rejected", evidence_strength: "strong", signal: "state_replaced" };
+  }
+  if (normalizedDetail === "missing execution state") {
+    return { outcome_status: "unknown", evidence_strength: "none", signal: "missing_execution_state" };
+  }
+  if (normalizedDetail === "no persisted state delta") {
+    return { outcome_status: "unknown", evidence_strength: "none", signal: "no_state_delta" };
   }
   if (result === "accepted" && normalizedDetail.startsWith("merged")) {
     return { outcome_status: "accepted", evidence_strength: "strong", signal: "merged" };
@@ -645,6 +664,205 @@ function getMetadataNumber(item, key) {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+/**
+ * @param {string} key
+ * @param {any} value
+ * @returns {any}
+ */
+function normalizeStateValue(key, value) {
+  if (key === "labels" || key === "assignees") {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map(entry => String(entry || "").trim())
+      .filter(Boolean)
+      .sort();
+  }
+  if (key === "draft") {
+    return value === true;
+  }
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  return value ?? "";
+}
+
+function hashOutcomeBody(body) {
+  const normalized = String(body || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map(line => line.replace(/[ \t]+$/g, ""))
+    .join("\n")
+    .trim();
+  return crypto.createHash("sha256").update(normalized, "utf8").digest("hex");
+}
+
+/**
+ * @param {string} key
+ * @param {any} left
+ * @param {any} right
+ * @returns {boolean}
+ */
+function stateValuesEqual(key, left, right) {
+  const normalizedLeft = normalizeStateValue(key, left);
+  const normalizedRight = normalizeStateValue(key, right);
+  return JSON.stringify(normalizedLeft) === JSON.stringify(normalizedRight);
+}
+
+/**
+ * @param {Record<string, any> | null | undefined} beforeState
+ * @param {Record<string, any> | null | undefined} afterState
+ * @param {Record<string, any>} currentState
+ * @param {string[]} fields
+ * @returns {{changed: string[], retained: string[], reverted: string[], replaced: string[]}}
+ */
+function compareRetainedState(beforeState, afterState, currentState, fields) {
+  const changed = [];
+  const retained = [];
+  const reverted = [];
+  const replaced = [];
+
+  for (const field of fields) {
+    if (!afterState || !(field in afterState)) continue;
+    const beforeValue = beforeState ? beforeState[field] : undefined;
+    const afterValue = afterState[field];
+    if (stateValuesEqual(field, beforeValue, afterValue)) continue;
+    changed.push(field);
+    const currentValue = currentState[field];
+    if (stateValuesEqual(field, currentValue, afterValue)) {
+      retained.push(field);
+      continue;
+    }
+    if (beforeState && field in beforeState && stateValuesEqual(field, currentValue, beforeValue)) {
+      reverted.push(field);
+      continue;
+    }
+    replaced.push(field);
+  }
+
+  return { changed, retained, reverted, replaced };
+}
+
+function extractIssueUpdateState(issue) {
+  return {
+    title: typeof issue?.title === "string" ? issue.title : "",
+    body_hash: hashOutcomeBody(issue?.body),
+    state: typeof issue?.state === "string" ? issue.state : "",
+    labels: Array.isArray(issue?.labels)
+      ? issue.labels
+          .map(label => {
+            if (typeof label === "string") return label;
+            if (label && typeof label.name === "string") return label.name;
+            return "";
+          })
+          .filter(Boolean)
+      : [],
+    assignees: Array.isArray(issue?.assignees)
+      ? issue.assignees
+          .map(assignee => {
+            if (typeof assignee === "string") return assignee;
+            if (assignee && typeof assignee.login === "string") return assignee.login;
+            return "";
+          })
+          .filter(Boolean)
+      : [],
+  };
+}
+
+function extractPullRequestUpdateState(pullRequest) {
+  return {
+    title: typeof pullRequest?.title === "string" ? pullRequest.title : "",
+    body_hash: hashOutcomeBody(pullRequest?.body),
+    state: typeof pullRequest?.state === "string" ? pullRequest.state : "",
+    base: typeof pullRequest?.base?.ref === "string" ? pullRequest.base.ref : "",
+    draft: pullRequest?.draft === true,
+    head_sha: typeof pullRequest?.head?.sha === "string" ? pullRequest.head.sha : "",
+  };
+}
+
+/**
+ * @param {object} item
+ * @param {string} defaultRepo
+ * @param {(endpoint: string) => any} api
+ * @param {{fields: string[], loadCurrent: (repo: string, number: number) => { currentState: Record<string, any>, merged?: boolean } | null}} options
+ * @returns {EvalResult}
+ */
+function evaluateRetainedUpdate(item, defaultRepo, api, options) {
+  const repo = getItemRepo(item, defaultRepo);
+  const number = getItemNumber(item);
+  /** @type {EvalResult} */
+  const out = {
+    result: "unknown",
+    outcome_status: "unknown",
+    evidence_strength: "none",
+    signal: "missing_execution_state",
+    detail: "",
+    resolution_sec: null,
+    pending_age_sec: null,
+    review_comments: null,
+    changed_files: null,
+    additions: null,
+    deletions: null,
+    reactions_total: null,
+    reactions_positive: null,
+    reactions_negative: null,
+    comments: null,
+    zero_touch: false,
+  };
+
+  if (!repo || !number) {
+    out.detail = "missing execution state";
+    return out;
+  }
+
+  if (!item.before_state || !item.after_state) {
+    out.detail = "missing execution state";
+    return out;
+  }
+
+  const loaded = options.loadCurrent(repo, number);
+  if (!loaded || !loaded.currentState) {
+    out.signal = "unknown";
+    out.detail = "api error";
+    out.evidence_strength = "none";
+    return out;
+  }
+
+  const comparison = compareRetainedState(item.before_state, item.after_state, loaded.currentState, options.fields);
+  if (comparison.changed.length === 0) {
+    out.detail = "no persisted state delta";
+    out.signal = "no_state_delta";
+    return out;
+  }
+
+  if (comparison.retained.length === comparison.changed.length) {
+    out.result = "accepted";
+    if (loaded.merged) {
+      out.outcome_status = "accepted";
+      out.evidence_strength = "strong";
+      out.signal = "state_retained_and_merged";
+      out.detail = "update retained and merged";
+      return out;
+    }
+    out.outcome_status = "accepted";
+    out.evidence_strength = "medium";
+    out.signal = "state_retained";
+    out.detail = "update retained";
+    return out;
+  }
+
+  out.result = "rejected";
+  out.outcome_status = "rejected";
+  out.evidence_strength = "strong";
+  if (comparison.reverted.length === comparison.changed.length) {
+    out.signal = "state_reverted";
+    out.detail = "update reverted";
+    return out;
+  }
+  out.signal = "state_replaced";
+  out.detail = "update replaced";
+  return out;
 }
 
 /**
@@ -770,6 +988,43 @@ function evaluateAddReviewer(item, defaultRepo, api = ghAPI) {
 
   out.detail = "unknown review request state";
   return out;
+}
+
+/**
+ * @param {object} item
+ * @param {string} defaultRepo
+ * @param {(endpoint: string) => any} api
+ * @returns {EvalResult}
+ */
+function evaluateUpdateIssue(item, defaultRepo, api = ghAPI) {
+  return evaluateRetainedUpdate(item, defaultRepo, api, {
+    fields: ["title", "body_hash", "state", "labels", "assignees"],
+    loadCurrent: (repo, number) => {
+      const issue = api(`repos/${repo}/issues/${number}`);
+      if (!issue || !issue.state) return null;
+      return { currentState: extractIssueUpdateState(issue) };
+    },
+  });
+}
+
+/**
+ * @param {object} item
+ * @param {string} defaultRepo
+ * @param {(endpoint: string) => any} api
+ * @returns {EvalResult}
+ */
+function evaluateUpdatePullRequest(item, defaultRepo, api = ghAPI) {
+  return evaluateRetainedUpdate(item, defaultRepo, api, {
+    fields: ["title", "body_hash", "state", "base", "draft", "head_sha"],
+    loadCurrent: (repo, number) => {
+      const pullRequest = api(`repos/${repo}/pulls/${number}`);
+      if (!pullRequest || !pullRequest.state) return null;
+      return {
+        currentState: extractPullRequestUpdateState(pullRequest),
+        merged: pullRequest.merged === true,
+      };
+    },
+  });
 }
 
 /**
@@ -925,6 +1180,12 @@ function evaluateItem(item, defaultRepo, apiOrOptions) {
   }
   if (type === "push_to_pull_request_branch") {
     return evaluatePushToPullRequestBranchOutcome(item, itemRepo, out, ghAPIFn);
+  }
+  if (type === "update_issue") {
+    return evaluateUpdateIssue(item, defaultRepo, ghAPIFn);
+  }
+  if (type === "update_pull_request") {
+    return evaluateUpdatePullRequest(item, defaultRepo, ghAPIFn);
   }
 
   if (!url) {
@@ -1677,6 +1938,8 @@ module.exports = {
   main,
   evaluateItem,
   evaluateAddReviewer,
+  evaluateUpdateIssue,
+  evaluateUpdatePullRequest,
   evaluateSubmitPullRequestReview,
   evaluateCreateIssue,
   evaluateAddComment,

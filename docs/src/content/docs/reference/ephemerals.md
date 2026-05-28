@@ -117,7 +117,7 @@ Available operations:
 - **`create_labels`**: Runs `gh aw compile --json --no-emit`, collects all unique label names across workflows, and creates missing ones with deterministic pastel colors. Requires `issues: write` permission.
 - **`validate`**: Runs `gh aw compile --validate --no-emit --zizmor --actionlint --poutine --verbose`. If errors or warnings are found, creates or updates a GitHub issue titled `[aw] workflow validation findings` with the full output.
 - **`activity_report`**: Runs `gh aw logs --format markdown` for the last 24 hours, 7 days, and 30 days (up to 1000 runs each), then creates an issue titled `[aw] agentic status report` with all three time-range sections as collapsible `<details>` blocks. Downloaded logs are cached under `./.cache/gh-aw/activity-report-logs`. The job has a 2-hour timeout and skips the 30-day query when the GitHub API is rate-limited.
-- **`forecast`**: Runs `gh aw forecast --repo <owner/repo> --json`, writes the output to `./.cache/gh-aw/forecast/report.json`, then creates an issue titled `[aw] workflow forecast report` with the JSON payload embedded in a fenced block.
+- **`forecast`**: Warms the forecast cache with `gh aw logs`, runs `gh aw forecast --repo <owner/repo> --timeout 10 --json` with a 10-minute graceful computation timeout, and always creates an issue summarizing the outcome. Successful runs create `[aw] workflow forecast report`; timeouts and other forecast failures create `[aw] workflow forecast report (error)`.
 
 ### Maintenance Configuration
 

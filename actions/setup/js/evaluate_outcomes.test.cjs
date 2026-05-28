@@ -1,8 +1,22 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
+import crypto from "crypto";
 
 const req = createRequire(import.meta.url);
 const { evaluateItem, normalizeOutcome } = req("./evaluate_outcomes.cjs");
+
+function hashBody(body) {
+  return crypto
+    .createHash("sha256")
+    .update(
+      String(body || "")
+        .replace(/\r\n/g, "\n")
+        .replace(/[ \t]+\n/g, "\n")
+        .trim(),
+      "utf8"
+    )
+    .digest("hex");
+}
 
 /**
  * @param {Record<string, any>} apiResponses
@@ -148,6 +162,178 @@ describe("evaluate_outcomes type-specific evaluators", () => {
 
     expect(evaluateItem(item, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-25T00:01:00Z") }).result).toBe("pending");
     expect(evaluateItem({ ...item, labelsBefore: [] }, "acme/repo", { ghAPI: retained, nowMs: Date.parse("2026-05-27T00:00:00Z") }).detail).toBe("accepted:strong");
+  });
+
+  it("evaluates update_issue retained and reverted states from persisted execution metadata", () => {
+    const retained = evaluateItem(
+      {
+        type: "update_issue",
+        repo: "acme/repo",
+        number: 12,
+        before_state: {
+          title: "Old title",
+          body_hash: hashBody("Old body"),
+          state: "open",
+          labels: ["triage"],
+          assignees: [],
+        },
+        after_state: {
+          title: "New title",
+          body_hash: hashBody("New body"),
+          state: "open",
+          labels: ["triage", "bug"],
+          assignees: ["octo"],
+        },
+      },
+      "acme/repo",
+      {
+        ghAPI: createAPIStub({
+          "repos/acme/repo/issues/12": {
+            title: "New title",
+            body: "New body",
+            state: "open",
+            labels: [{ name: "triage" }, { name: "bug" }],
+            assignees: [{ login: "octo" }],
+          },
+        }),
+      }
+    );
+    expect(retained).toMatchObject({
+      result: "accepted",
+      outcome_status: "accepted",
+      evidence_strength: "medium",
+      signal: "state_retained",
+      detail: "update retained",
+    });
+
+    const reverted = evaluateItem(
+      {
+        type: "update_issue",
+        repo: "acme/repo",
+        number: 12,
+        before_state: {
+          title: "Old title",
+          body_hash: hashBody("Old body"),
+          state: "open",
+        },
+        after_state: {
+          title: "New title",
+          body_hash: hashBody("New body"),
+          state: "closed",
+        },
+      },
+      "acme/repo",
+      {
+        ghAPI: createAPIStub({
+          "repos/acme/repo/issues/12": {
+            title: "Old title",
+            body: "Old body",
+            state: "open",
+            labels: [],
+            assignees: [],
+          },
+        }),
+      }
+    );
+    expect(reverted).toMatchObject({
+      result: "rejected",
+      outcome_status: "rejected",
+      evidence_strength: "strong",
+      signal: "state_reverted",
+      detail: "update reverted",
+    });
+  });
+
+  it("evaluates update_pull_request retained-merged and replaced states from persisted execution metadata", () => {
+    const retainedMerged = evaluateItem(
+      {
+        type: "update_pull_request",
+        repo: "acme/repo",
+        number: 99,
+        before_state: {
+          title: "Old title",
+          body_hash: hashBody("Old body"),
+          state: "open",
+          base: "main",
+          draft: true,
+          head_sha: "abc123",
+        },
+        after_state: {
+          title: "New title",
+          body_hash: hashBody("New body"),
+          state: "open",
+          base: "release",
+          draft: false,
+          head_sha: "def456",
+        },
+      },
+      "acme/repo",
+      {
+        ghAPI: createAPIStub({
+          "repos/acme/repo/pulls/99": {
+            title: "New title",
+            body: "New body",
+            state: "closed",
+            merged: true,
+            base: { ref: "release" },
+            draft: false,
+            head: { sha: "def456" },
+          },
+        }),
+      }
+    );
+    expect(retainedMerged).toMatchObject({
+      result: "accepted",
+      outcome_status: "accepted",
+      evidence_strength: "strong",
+      signal: "state_retained_and_merged",
+      detail: "update retained and merged",
+    });
+
+    const replaced = evaluateItem(
+      {
+        type: "update_pull_request",
+        repo: "acme/repo",
+        number: 99,
+        before_state: {
+          title: "Old title",
+          body_hash: hashBody("Old body"),
+          state: "open",
+          base: "main",
+          draft: true,
+          head_sha: "abc123",
+        },
+        after_state: {
+          title: "New title",
+          body_hash: hashBody("New body"),
+          state: "open",
+          base: "release",
+          draft: false,
+          head_sha: "def456",
+        },
+      },
+      "acme/repo",
+      {
+        ghAPI: createAPIStub({
+          "repos/acme/repo/pulls/99": {
+            title: "Maintainer rewrite",
+            body: "New body with edits",
+            state: "open",
+            merged: false,
+            base: { ref: "hotfix" },
+            draft: false,
+            head: { sha: "zzz999" },
+          },
+        }),
+      }
+    );
+    expect(replaced).toMatchObject({
+      result: "rejected",
+      outcome_status: "rejected",
+      evidence_strength: "strong",
+      signal: "state_replaced",
+      detail: "update replaced",
+    });
   });
 });
 

@@ -201,8 +201,58 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	}
 	steps = append(steps, gitConfigSteps...)
 
+	// Step 3: Fetch additional refs for cross-repo checkouts when declared in checkout:.
+	// This mirrors what the agent job emits via generateFetchStepLines and ensures the
+	// safe_outputs job has the same remote-tracking refs available when applying bundles.
+	// Without this, applyBundleToBranch must fall back to per-SHA git fetch (prerequisite
+	// recovery), which requires uploadpack.allowReachableSHA1InWant on the server.
+	if targetRepoSlug != "" {
+		checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
+		if matchedEntry := checkoutMgr.GetCheckoutForRepository(targetRepoSlug); matchedEntry != nil && len(matchedEntry.fetchRefs) > 0 {
+			consolidatedSafeOutputsStepsLog.Printf("Adding fetch refs step for cross-repo target %s (%d refs)", targetRepoSlug, len(matchedEntry.fetchRefs))
+			if fetchStep := buildSafeOutputsFetchRefsStep(targetRepoSlug, checkoutToken, matchedEntry.fetchRefs, RenderCondition(condition)); fetchStep != "" {
+				steps = append(steps, fetchStep)
+			}
+		}
+	}
+
 	consolidatedSafeOutputsStepsLog.Printf("Added shared checkout with condition: %s", condition.Render())
 	return steps
+}
+
+// buildSafeOutputsFetchRefsStep generates a conditional "Fetch additional refs" step
+// for the safe_outputs job's cross-repo checkout.
+//
+// Unlike the agent-job fetch step (which targets a subdirectory via -C and runs
+// unconditionally), this step:
+//   - Runs under the same condition as the shared PR checkout step
+//   - Targets the workspace root — safe_outputs checks out the single cross-repo
+//     target to the workspace root (no path: parameter), never to a subdirectory.
+//     NOTE: safe_outputs supports only one cross-repo checkout at a time. If multiple
+//     distinct target repositories were needed, this step would need a -C <path>
+//     argument and the checkout step would need a path: parameter, which is not
+//     currently supported.
+//   - Uses the resolved safe_outputs checkout token (from resolvePRCheckoutToken)
+//     rather than the CheckoutConfig's token
+func buildSafeOutputsFetchRefsStep(repoSlug, token string, fetchRefs []string, condition string) string {
+	if len(fetchRefs) == 0 {
+		return ""
+	}
+	refspecs := make([]string, 0, len(fetchRefs))
+	for _, ref := range fetchRefs {
+		refspecs = append(refspecs, fmt.Sprintf("'%s'", fetchRefToRefspec(ref)))
+	}
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "      - name: Fetch additional refs for %s\n", repoSlug)
+	if condition != "" {
+		fmt.Fprintf(&sb, "        if: %s\n", condition)
+	}
+	sb.WriteString("        env:\n")
+	fmt.Fprintf(&sb, "          GH_AW_FETCH_TOKEN: %s\n", token)
+	sb.WriteString("        run: |\n")
+	sb.WriteString("          header=$(printf \"x-access-token:%s\" \"${GH_AW_FETCH_TOKEN}\" | base64 -w 0)\n")
+	fmt.Fprintf(&sb, "          git -c \"http.extraheader=Authorization: Basic ${header}\" fetch origin %s\n", strings.Join(refspecs, " "))
+	return sb.String()
 }
 
 // buildHandlerManagerStep builds a single step that uses the safe output handler manager

@@ -816,8 +816,34 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
       repo: "testrepo",
       pull_number: 100,
     });
-    expect(mockGithub.rest.pulls.get).not.toHaveBeenCalled();
+    // The handler now fetches the PR twice: once before mutation for before_state and
+    // once after updateBranch so after_state includes the real retained-update fields.
+    expect(mockGithub.rest.pulls.get).toHaveBeenCalledTimes(2);
+    expect(mockGithub.rest.pulls.get).toHaveBeenNthCalledWith(1, {
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+    });
+    expect(mockGithub.rest.pulls.get).toHaveBeenNthCalledWith(2, {
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+    });
     expect(mockGithub.rest.pulls.update).not.toHaveBeenCalled();
+    expect(result.before_state).toMatchObject({
+      title: "Test PR",
+      state: "",
+      base: "",
+      draft: false,
+      head_sha: "",
+    });
+    expect(result.after_state).toMatchObject({
+      title: "Test PR",
+      state: "",
+      base: "",
+      draft: false,
+      head_sha: "",
+    });
   });
 
   it("should call updateBranch before pulls.update when update_branch and title update are both requested", async () => {

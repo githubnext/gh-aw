@@ -188,6 +188,27 @@ To disable the reaction entirely, use `reaction: none`.
 
 See [Reactions and Status Comments](/gh-aw/reference/triggers/#reactions-reaction) for all available reactions and detailed behavior.
 
+## Customizing the Run-Again Hint (`placeholder`)
+
+When a workflow has a `slash_command:` trigger, the default footer on generated issues and pull requests includes a hint showing how to invoke the workflow again:
+
+> <sub>Comment <em>/my-bot</em> to run again</sub>
+
+Override the trailing `"to run again"` suffix with `placeholder:`:
+
+```yaml wrap
+on:
+  slash_command:
+    name: review-bot
+    placeholder: to review this PR
+```
+
+The footer hint then reads:
+
+> <sub>Comment <em>/review-bot</em> to review this PR</sub>
+
+The hint is appended only by the default footer template. Custom footer templates are unaffected.
+
 ## Slash Commands from a Side Repository
 
 GitHub Actions only delivers events to the repository where they occur. When workflows live in a separate side repository, events from the main repository are never delivered there. **Slash command triggers cannot be used directly in a workflow hosted in a side repository.**

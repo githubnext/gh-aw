@@ -16,7 +16,7 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { fetchIssueState, mergeIssueState } = require("./safe_output_execution_metadata.cjs");
+const { fetchPullRequestState, mergePullRequestState } = require("./safe_output_execution_metadata.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 
 /**
@@ -147,10 +147,15 @@ async function executePRUpdate(github, context, prNumber, updateData) {
   }
 
   if (Object.keys(apiData).length === 0) {
-    return {
-      number: prNumber,
-      html_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/pull/${prNumber}`,
-    };
+    // update_branch-only operations need the authoritative post-update PR state so the
+    // manifest can persist after_state fields such as head_sha/base/draft for later
+    // retained-update evaluation. A synthetic {number, html_url} result is not enough.
+    const { data: pullRequest } = await github.rest.pulls.get({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      pull_number: prNumber,
+    });
+    return pullRequest;
   }
 
   const { data: pr } = await github.rest.pulls.update({
@@ -261,8 +266,8 @@ const main = createUpdateHandlerFactory({
   executeUpdate: executePRUpdate,
   formatSuccessResult: formatPRSuccessResult,
   captureExecutionMetadata: {
-    captureBefore: async (githubClient, effectiveContext, prNumber) => fetchIssueState(githubClient, effectiveContext.repo, prNumber),
-    captureAfter: async (updatedPullRequest, beforeState) => mergeIssueState(beforeState, updatedPullRequest),
+    captureBefore: async (githubClient, effectiveContext, prNumber) => fetchPullRequestState(githubClient, effectiveContext.repo, prNumber),
+    captureAfter: async (updatedPullRequest, beforeState) => mergePullRequestState(beforeState, updatedPullRequest),
   },
   additionalConfig: {
     allow_title: true,

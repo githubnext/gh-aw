@@ -1625,6 +1625,35 @@ jobs:
     - name: Build gh-aw binary
       run: make build
 
+    - name: Scan built binary with Microsoft Defender
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $binaryPath = Join-Path $PWD "gh-aw.exe"
+        if (-not (Test-Path $binaryPath)) {
+          Write-Error "Built binary not found: $binaryPath"
+          exit 1
+        }
+
+        $mpCmdRun = Join-Path $env:ProgramFiles "Windows Defender\MpCmdRun.exe"
+        if (-not (Test-Path $mpCmdRun)) {
+          $programFilesX86 = (Get-Item -Path "Env:ProgramFiles(x86)" -ErrorAction SilentlyContinue).Value
+          if ($programFilesX86) {
+            $mpCmdRun = Join-Path $programFilesX86 "Windows Defender\MpCmdRun.exe"
+          }
+        }
+        if (-not (Test-Path $mpCmdRun)) {
+          Write-Error "Microsoft Defender CLI not found (MpCmdRun.exe)"
+          exit 1
+        }
+
+        # ScanType 3 = custom scan. Use -File to scan only the generated binary.
+        & $mpCmdRun -Scan -ScanType 3 -File $binaryPath
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "Microsoft Defender scan failed with exit code $LASTEXITCODE"
+          exit $LASTEXITCODE
+        }
+
     - name: Create test workflow
       shell: bash
       run: |

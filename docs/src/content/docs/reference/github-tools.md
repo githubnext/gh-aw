@@ -45,6 +45,27 @@ Some key toolsets are:
 
 Some toolsets require [additional authentication](#additional-authentication-for-github-tools).
 
+## Restricting Tools (`tools.github.allowed`)
+
+Use `tools.github.allowed` to restrict which GitHub MCP tools the agent can call. Each entry is either a string tool name or an object with a per-tool call limit:
+
+```yaml wrap
+tools:
+  github:
+    allowed:
+      - name: issue_read
+        max-calls: 1
+      - list_labels
+      - pull_request_read
+```
+
+- **String entries** (`list_labels`) — allow unlimited calls to that tool within the run.
+- **Object entries** (`{ name: <tool>, max-calls: <n> }`) — cap how many times the tool can be invoked. `max-calls` must be a positive integer; the MCP gateway enforces the cap at runtime.
+
+The shorthand form `"issue_read:1"` is **not** interpreted as a call limit — it is treated as a literal (and therefore unknown) tool name.
+
+This complements toolset selection: `toolsets` decides which API groups are loaded, while `allowed` further narrows which individual tools the agent may invoke and how many times.
+
 ## GitHub Integrity Filtering (`tools.github.min-integrity`)
 
 Sets the minimum integrity level required for content the agent can access. For public repositories, `min-integrity: approved` is applied automatically. See [Integrity Filtering](/gh-aw/reference/integrity/) for levels, examples, user blocking, and approval labels.
