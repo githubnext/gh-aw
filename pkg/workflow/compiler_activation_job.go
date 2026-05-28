@@ -49,6 +49,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// Expose the combined experiment JSON as a job output so downstream jobs can access
 		// the variant assignments via needs.activation.outputs.experiments.
 		ctx.outputs["experiments"] = "${{ steps.pick-experiment.outputs.experiments }}"
+		// Also expose each experiment variant individually so downstream jobs can reference
+		// needs.activation.outputs.<name> in timeout-minutes or other expressions.
+		for _, name := range sortedExperimentNames(data.Experiments) {
+			ctx.outputs[name] = "${{ steps.pick-experiment.outputs." + name + " }}"
+		}
 	}
 
 	c.configureActivationNeedsAndCondition(ctx)

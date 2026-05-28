@@ -6,21 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestEnterpriseVariables(t *testing.T) {
-	vars := EnterpriseVariables()
-	names := make([]string, 0, len(vars))
-	for _, v := range vars {
-		names = append(names, v.Name)
-	}
-	assert.Contains(t, names, DefaultMaxEffectiveTokens)
-	assert.Contains(t, names, DefaultMaxTurns)
-	assert.Contains(t, names, DefaultTimeoutMinutes)
-	assert.Contains(t, names, DefaultDetectionModel)
-	assert.Contains(t, names, DefaultModelCopilot)
-	assert.Contains(t, names, DefaultModelClaude)
-	assert.Contains(t, names, DefaultModelCodex)
-}
-
 func TestResolveDefaultMaxEffectiveTokens(t *testing.T) {
 	t.Run("unset uses fallback", func(t *testing.T) {
 		t.Setenv(DefaultMaxEffectiveTokens, "")

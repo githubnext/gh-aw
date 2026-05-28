@@ -9,12 +9,14 @@ import (
 )
 
 func TestPtr(t *testing.T) {
-	b := Ptr(true)
+	ptrBool := Ptr[bool]
+	b := ptrBool(true)
 	if b == nil || !*b {
 		t.Fatalf("Ptr(true) = %v, want pointer to true", b)
 	}
 
-	s := Ptr("hello")
+	ptrString := Ptr[string]
+	s := ptrString("hello")
 	if s == nil || *s != "hello" {
 		t.Fatalf("Ptr(\"hello\") = %v, want pointer to hello", s)
 	}

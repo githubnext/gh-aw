@@ -260,7 +260,7 @@ func defaultsValidateFile(file *defaultsFile) error {
 		trimmed := strings.TrimSpace(*value)
 		parsed, err := strconv.ParseInt(trimmed, 10, 64)
 		if err != nil || parsed == 0 {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s must be a non-zero integer when set", field))
+			validationErrors = append(validationErrors, field+" must be a non-zero integer when set")
 		}
 	}
 	validatePositiveInt := func(field string, value *string) {
@@ -270,7 +270,7 @@ func defaultsValidateFile(file *defaultsFile) error {
 		trimmed := strings.TrimSpace(*value)
 		parsed, err := strconv.ParseInt(trimmed, 10, 64)
 		if err != nil || parsed <= 0 {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s must be a positive integer when set", field))
+			validationErrors = append(validationErrors, field+" must be a positive integer when set")
 		}
 	}
 	validateNonEmpty := func(field string, value *string) {
@@ -278,7 +278,7 @@ func defaultsValidateFile(file *defaultsFile) error {
 			return
 		}
 		if strings.TrimSpace(*value) == "" {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s cannot be empty when set", field))
+			validationErrors = append(validationErrors, field+" cannot be empty when set")
 		}
 	}
 
