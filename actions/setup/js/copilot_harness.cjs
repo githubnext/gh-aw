@@ -175,7 +175,7 @@ function isModelAvailableInReflectData(model, reflectData) {
   if (!reflectData || typeof reflectData !== "object") return false;
 
   // TypeScript needs explicit 'in' check or cast before property access on narrowed object type
-  const endpoints = 'endpoints' in reflectData && Array.isArray(reflectData.endpoints) ? reflectData.endpoints : [];
+  const endpoints = "endpoints" in reflectData && Array.isArray(reflectData.endpoints) ? reflectData.endpoints : [];
   for (const endpoint of endpoints) {
     if (!endpoint || endpoint.configured !== true || !Array.isArray(endpoint.models)) {
       continue;
