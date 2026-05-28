@@ -1666,8 +1666,10 @@ jobs:
         Write-Host "=========================================="
 
         # ScanType 3 = custom scan. Use -File to scan only the generated binary.
-        # Capture output so we can detect the "was skipped" case, which exits 0
-        # but means the file was NOT actually scanned.
+        # Capture output (2>&1 merges stderr into the output stream so all
+        # MpCmdRun messages are available for the skip detection below) so we
+        # can detect the "was skipped" case, which exits 0 but means the file
+        # was NOT actually scanned.
         $output = & $mpCmdRun -Scan -ScanType 3 -File $binaryPath 2>&1
         $scanExitCode = $LASTEXITCODE
 
@@ -1684,7 +1686,9 @@ jobs:
         # MpCmdRun exits 0 even when scanning is skipped (e.g. file excluded,
         # signatures stale, or real-time protection is disabled). Detect this and
         # treat it as a hard failure so a skipped scan never silently passes CI.
-        $skipped = $output | Where-Object { $_ -match "was skipped" }
+        # Use -imatch for case-insensitive matching since the exact casing of
+        # MpCmdRun output may vary across Defender versions.
+        $skipped = $output | Where-Object { $_ -imatch "was skipped" }
         if ($skipped) {
           Write-Error "Microsoft Defender scan was skipped for $binaryPath - the binary was NOT scanned."
           Write-Error "Possible causes: file/path exclusion, stale signatures, or protection disabled."
