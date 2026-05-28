@@ -267,7 +267,11 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     if (OID_PATTERN.test(trimmedBaseRefOid)) {
       baseRefOid = trimmedBaseRefOid;
     } else if (trimmedBaseRefOid) {
-      core.warning(`pushSignedCommits: git rev-parse returned an unexpected baseRef OID value for '${baseRef}'; boundary-commit filter is disabled for this run: ${JSON.stringify(trimmedBaseRefOid)}`);
+      core.warning(
+        `pushSignedCommits: git rev-parse returned an unexpected baseRef OID value for '${baseRef}'; ` +
+          `boundary-commit filter is disabled for this run. Check that '${baseRef}' resolves to a valid commit in this checkout. ` +
+          `Observed value: ${JSON.stringify(trimmedBaseRefOid)}`
+      );
     }
   } catch (baseRefResolveError) {
     core.warning(
@@ -485,10 +489,10 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
               const { stdout: refreshedOidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) } });
               const refreshedHeadOid = refreshedOidOut.trim().split(/\s+/)[0];
               if (!refreshedHeadOid) {
-                throw new Error(`${ERR_API}: Could not resolve remote branch OID for ${branch} after concurrent creation; ` + `ls-remote output was ${JSON.stringify(refreshedOidOut)}`);
+                throw new Error(`${ERR_API}: Could not resolve remote branch OID for ${branch} after concurrent creation; ls-remote output was ${JSON.stringify(refreshedOidOut)}`);
               }
               if (!OID_PATTERN.test(refreshedHeadOid)) {
-                throw new Error(`${ERR_API}: Invalid remote branch OID for ${branch} after concurrent creation; ` + `ls-remote output was ${JSON.stringify(refreshedOidOut)}`);
+                throw new Error(`${ERR_API}: Invalid remote branch OID for ${branch} after concurrent creation; ls-remote output was ${JSON.stringify(refreshedOidOut)}`);
               }
               expectedHeadOid = refreshedHeadOid;
             } else {
