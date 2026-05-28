@@ -75,7 +75,7 @@ To support authoring a single markdown file that works as both a gh-aw workflow 
 
 Current ignored fields:
 
-- `user-invokable` — Copilot custom-agent flag indicating whether a user can invoke the agent directly. gh-aw ignores this field because invocation behavior is defined by workflow triggers and permissions.
+- `user-invokable` — Copilot custom-agent flag indicating whether a user can invoke the agent directly via Copilot Chat. gh-aw ignores this field because invocation behavior is defined by workflow triggers and permissions.
 
 See [GitHub Copilot custom agent configuration](https://docs.github.com/en/copilot/reference/custom-agents-configuration) for Copilot-specific field behavior.
 
