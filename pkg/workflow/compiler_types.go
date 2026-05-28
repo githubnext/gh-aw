@@ -503,6 +503,7 @@ type WorkflowData struct {
 	Command                        []string                        // for /command trigger support - multiple command names
 	CommandEvents                  []string                        // events where command should be active (nil = all events)
 	CommandCentralized             bool                            // when true, slash_command uses centralized dispatch routing via workflow_dispatch
+	CommandPlaceholder             string                          // optional footer hint text from slash_command.placeholder
 	CommandOtherEvents             map[string]any                  // for merging command with other events
 	LabelCommand                   []string                        // for label-command trigger support - label names that act as commands
 	LabelCommandEvents             []string                        // events where label-command should be active (nil = all: issues, pull_request, discussion)

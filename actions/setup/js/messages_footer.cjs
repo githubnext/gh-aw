@@ -74,6 +74,7 @@ function buildModelPrefix(modelName) {
  * @property {string} [model] - Model name used for the run, used to build a compact model identifier in ET suffixes
  * @property {string} [emoji] - Optional emoji representing the workflow (from frontmatter)
  * @property {string} [slashCommand] - Slash command name (without leading slash) for the run-again hint, when applicable
+ * @property {string} [slashCommandPlaceholder] - Custom hint text appended after the command name (replaces default "to run again")
  */
 
 /**
@@ -138,7 +139,8 @@ function getFooterMessage(ctx) {
   }
   // Append slash command hint when applicable (workflow has a slash command trigger)
   if (ctx.slashCommand) {
-    defaultFooter += "\n> <sub>Comment <em>/{slash_command}</em> to run again</sub>";
+    const hintText = ctx.slashCommandPlaceholder || "to run again";
+    defaultFooter += `\n> <sub>Comment <em>/{slash_command}</em> ${hintText}</sub>`;
   }
   return renderTemplate(defaultFooter, templateContext);
 }
@@ -444,6 +446,10 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
     }
   }
 
+  // Read optional footer hint placeholder from GH_AW_COMMAND_PLACEHOLDER.
+  // When set, it replaces the default "to run again" suffix in the slash command hint.
+  const slashCommandPlaceholder = process.env.GH_AW_COMMAND_PLACEHOLDER || undefined;
+
   const ctx = {
     workflowName,
     runUrl,
@@ -454,6 +460,7 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
     effectiveTokens,
     emoji,
     slashCommand,
+    slashCommandPlaceholder,
   };
 
   const { skipDetectionCaution = false } = options || {};
