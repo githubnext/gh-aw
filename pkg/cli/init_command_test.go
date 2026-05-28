@@ -175,8 +175,12 @@ func TestInitRepositoryBasic(t *testing.T) {
 	}
 
 	// Configure git
-	exec.Command("git", "config", "user.name", "Test User").Run()
-	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	if err := exec.Command("git", "config", "user.name", "Test User").Run(); err != nil {
+		t.Fatalf("Failed to set git user.name: %v", err)
+	}
+	if err := exec.Command("git", "config", "user.email", "test@example.com").Run(); err != nil {
+		t.Fatalf("Failed to set git user.email: %v", err)
+	}
 
 	// Test basic init with MCP enabled by default (mcp=true, noMcp=false behavior)
 	err = InitRepository(InitOptions{Verbose: false, MCP: true, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
