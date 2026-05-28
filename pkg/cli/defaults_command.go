@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -201,6 +202,10 @@ func defaultsUpdateFromFile(target defaultsTarget, inputFile string, skipConfirm
 		return fmt.Errorf("failed to read defaults file %q: %w", inputFile, err)
 	}
 
+	if err := validateDefaultsFileFormat(data, inputFile); err != nil {
+		return err
+	}
+
 	var file defaultsFile
 	if err := yaml.Unmarshal(data, &file); err != nil {
 		return fmt.Errorf("failed to parse defaults file %q: %w", inputFile, err)
@@ -239,6 +244,49 @@ func defaultsBuildUpdateChanges(file *defaultsFile) []defaultsUpdateChange {
 		})
 	}
 	return changes
+}
+
+// validateDefaultsFileFormat rejects files that contain legacy default_*-prefixed
+// keys or that have no keys matching the expected trimmed format.  Either case
+// would otherwise result in every binding being treated as a delete, causing an
+// accidental mass-wipe of defaults.
+func validateDefaultsFileFormat(data []byte, inputFile string) error {
+	var rawMap map[string]any
+	if err := yaml.Unmarshal(data, &rawMap); err != nil {
+		return nil // let the typed unmarshal surface the parse error
+	}
+	if len(rawMap) == 0 {
+		return nil // intentionally empty file; preview + confirm will catch mass-delete
+	}
+
+	var legacyKeys []string
+	for k := range rawMap {
+		if strings.HasPrefix(k, "default_") {
+			legacyKeys = append(legacyKeys, k)
+		}
+	}
+	if len(legacyKeys) > 0 {
+		sort.Strings(legacyKeys)
+		return fmt.Errorf(
+			"defaults file %q uses legacy default_* keys (%s); rename them to trimmed keys (e.g. max_turns, model_copilot) before updating",
+			inputFile,
+			strings.Join(legacyKeys, ", "),
+		)
+	}
+
+	knownKeys := make(map[string]bool, len(defaultsBindings))
+	for _, b := range defaultsBindings {
+		knownKeys[b.fieldName] = true
+	}
+	for k := range rawMap {
+		if knownKeys[k] {
+			return nil
+		}
+	}
+	return fmt.Errorf(
+		"defaults file %q contains no recognized keys; expected trimmed keys such as max_turns or model_copilot",
+		inputFile,
+	)
 }
 
 func confirmDefaultsUpdate(

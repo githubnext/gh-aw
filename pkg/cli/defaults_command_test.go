@@ -102,6 +102,33 @@ func TestDefaultsFileYAMLDoesNotReadLegacyKeys(t *testing.T) {
 	assert.Empty(t, file.MaxTurns)
 }
 
+func TestValidateDefaultsFileFormat(t *testing.T) {
+	t.Run("accepts trimmed keys", func(t *testing.T) {
+		data := []byte("max_turns: \"42\"\nmodel_copilot: gpt-5-mini\n")
+		require.NoError(t, validateDefaultsFileFormat(data, "file.yml"))
+	})
+
+	t.Run("accepts empty file", func(t *testing.T) {
+		require.NoError(t, validateDefaultsFileFormat([]byte{}, "file.yml"))
+	})
+
+	t.Run("rejects legacy default_* keys", func(t *testing.T) {
+		data := []byte("default_max_turns: \"42\"\ndefault_model_copilot: gpt-5-mini\n")
+		err := validateDefaultsFileFormat(data, "file.yml")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "legacy default_*")
+		assert.Contains(t, err.Error(), "default_max_turns")
+		assert.Contains(t, err.Error(), "default_model_copilot")
+	})
+
+	t.Run("rejects file with no recognized keys", func(t *testing.T) {
+		data := []byte("unknown_key: value\nanother_key: value2\n")
+		err := validateDefaultsFileFormat(data, "file.yml")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no recognized keys")
+	})
+}
+
 func TestDefaultsFileYAMLReadsTrimmedKeys(t *testing.T) {
 	var file defaultsFile
 
