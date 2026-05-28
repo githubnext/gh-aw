@@ -31,6 +31,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
+	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
 	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
 )
 
@@ -51,6 +52,7 @@ func main() {
 		rawloginlib.Analyzer,
 		regexpcompileinfunction.Analyzer,
 		ssljson.Analyzer,
+		strconvparseignorederror.Analyzer,
 		uncheckedtypeassertion.Analyzer,
 	)
 }
