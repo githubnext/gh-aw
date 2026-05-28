@@ -647,6 +647,63 @@ describe("push_signed_commits integration tests", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("baseRef boundary commit(s)"));
     });
 
+    it("should drop injected baseRef boundary entries and replay only new commits in order", async () => {
+      execGit(["checkout", "-b", "new-boundary-multi-branch"], { cwd: workDir });
+
+      fs.writeFileSync(path.join(workDir, "boundary-alpha.txt"), "Alpha boundary content\n");
+      execGit(["add", "boundary-alpha.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add boundary-alpha.txt"], { cwd: workDir });
+
+      fs.writeFileSync(path.join(workDir, "boundary-beta.txt"), "Beta boundary content\n");
+      execGit(["add", "boundary-beta.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add boundary-beta.txt"], { cwd: workDir });
+
+      const baseRefOid = execGit(["rev-parse", "origin/main"], { cwd: workDir }).stdout.trim();
+      const alphaCommitOid = execGit(["rev-parse", "HEAD~1"], { cwd: workDir }).stdout.trim();
+      const betaCommitOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+
+      const realExec = makeRealExec(workDir);
+      global.exec = {
+        ...realExec,
+        getExecOutput: vi.fn(async (program, args, opts = {}) => {
+          if (program === "git" && args[0] === "rev-list" && args[1] === "--parents") {
+            return {
+              exitCode: 0,
+              stdout: `${baseRefOid}\n${alphaCommitOid} ${baseRefOid}\n${betaCommitOid} ${alphaCommitOid}\n`,
+              stderr: "",
+            };
+          }
+          return realExec.getExecOutput(program, args, opts);
+        }),
+      };
+      const githubClient = makeMockGithubClient({ oid: "signed-oid-first" });
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "new-boundary-multi-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledTimes(1);
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        ref: "refs/heads/new-boundary-multi-branch",
+        sha: baseRefOid,
+      });
+      expect(githubClient.graphql).toHaveBeenCalledTimes(2);
+      expect(githubClient.graphql.mock.calls[0][1].input.expectedHeadOid).toBe(baseRefOid);
+      expect(githubClient.graphql.mock.calls[1][1].input.expectedHeadOid).toBe("signed-oid-first");
+      expect(githubClient.graphql.mock.calls.map(call => call[1].input.message.headline)).toEqual(["Add boundary-alpha.txt", "Add boundary-beta.txt"]);
+
+      const attemptedBoundaryParentResolution = global.exec.getExecOutput.mock.calls.some(([, args]) => args[0] === "rev-parse" && args[1] === `${baseRefOid}^`);
+      expect(attemptedBoundaryParentResolution).toBe(false);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("dropped 1 baseRef boundary commit"));
+    });
+
     it("should create remote branch once then chain GraphQL OIDs for multiple commits on a new branch", async () => {
       // Create a local branch with two commits but do NOT push it
       execGit(["checkout", "-b", "new-multi-commit-branch"], { cwd: workDir });
