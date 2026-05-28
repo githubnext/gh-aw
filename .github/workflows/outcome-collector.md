@@ -98,7 +98,7 @@ The summary JSON produced by the pre-agent step includes:
 | `waste_rate` | float | `rejected / total_outcomes` |
 | `zero_touch` | int | Accepted items with no actor-visible non-bot follow-up |
 | `zero_touch_rate` | float | `zero_touch / accepted` |
-| `median_resolution_sec` | int\|null | Median seconds from creation to terminal state (null if no resolved items) |
+| `median_resolution_sec` | int|null | Median seconds from creation to terminal state (null if no resolved items) |
 | `date` | string | Evaluation date (YYYY-MM-DD) |
 
 ## Report Format
@@ -123,7 +123,7 @@ Suggested structure:
 | **Acceptance rate** | **{acceptance_rate}%** | 🟢 >80% / 🟡 60-80% / 🔴 <60% |
 | **Zero-touch rate** | **{zero_touch_rate}%** | 🟢 >50% / 🟡 25-50% / 🔴 <25% |
 | **Waste rate** | {waste_rate}% | 🟢 <10% / 🟡 10-25% / 🔴 >25% |
-| **Median time to resolution** | {median_resolution_sec converted to hours/minutes, or "—" if null} | — |
+| **Median time to resolution** | {median_resolution_sec ÷ 3600 → hours, or ÷ 60 → minutes if under 1h; "—" if null} | — |
 | Accepted | {accepted} / {total_outcomes} | — |
 | — strong evidence | {accepted_strong} | merged, completed, approved |
 | — medium evidence | {accepted_medium} | engaged, retained |
@@ -157,7 +157,7 @@ Sort by waste rate descending (worst first).
 
 If `fallback_exists_only_count` > 0, include this note:
 
-> ⚠️ **{fallback_exists_only_count} item(s)** were evaluated using only a generic existence check (signal: `target_exists_only`). These contribute to `accepted_weak` and may overstate acceptance. The dedicated evaluators for `add_reviewer`, `submit_pull_request_review`, `update_issue`, `update_pull_request`, and others provide stronger evidence.
+> ⚠️ **{fallback_exists_only_count} item(s)** were evaluated using only a generic existence check (signal: `target_exists_only`). These contribute to `accepted_weak` and may overstate acceptance. Dedicated evaluators for `add_reviewer`, `submit_pull_request_review`, `update_issue`, `update_pull_request`, and other types provide stronger evidence.
 
 ### Trend Signal
 
