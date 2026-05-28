@@ -19,7 +19,7 @@ When writing prompting for using memory, you can usually use surprisingly high l
 
 ## Memory Types
 
-Two types of memory stores are available. Each has different use cases and access patterns.
+Three types of memory stores are available. Each has different use cases and access patterns.
 
 [Cache Memory](/gh-aw/reference/cache-memory/) gives fast, ephemeral storage using GitHub Actions cache (7 days retention):
 
@@ -41,6 +41,16 @@ tools:
 ```
 
 Use for historical data, trend tracking, permanent state. By default the memory is available at `/tmp/gh-aw/repo-memory/default/`.
+
+[Comment Memory](/gh-aw/reference/frontmatter-full/) gives persistent memory backed by a managed issue or PR comment:
+
+```yaml
+tools:
+  comment-memory:
+    target: triggering  # Use the issue/PR that triggered this workflow run
+```
+
+Use for issue and PR follow-up context, review history, and iterative updates without creating a separate branch. A managed comment is automatically created and updated by the workflow for the configured memory ID. By default, memory files are available at `/tmp/gh-aw/comment-memory/`. Data persists in the managed issue or PR comment until that content is edited or removed.
 
 ## Pattern 1: Exhaustive Processing
 
@@ -163,6 +173,25 @@ tools:
     - id: archive
       branch-name: memory/archive  # Compressed backups
 ```
+
+## Pattern 7: PR Comment Memory
+
+Use comment memory to keep task state in the pull request discussion, allowing each run to continue with the latest context directly from the PR.
+
+```markdown
+Review this pull request in passes. Store the running checklist, unresolved
+questions, and follow-up tasks in comment memory so each new run continues from
+the previous review state.
+```
+
+```yaml
+tools:
+  comment-memory:
+    target: triggering
+    memory-id: pr-review-state  # Separate state bucket in the managed comment
+```
+
+This pattern works well for PRs that need multiple review cycles because state stays attached to the PR itself. Use a stable `memory-id` so repeated runs update the same state file at `/tmp/gh-aw/comment-memory/<memory-id>.md`. If the `memory-id` changes, the run writes to a different file and previous state is not updated.
 
 ## Best Practices
 

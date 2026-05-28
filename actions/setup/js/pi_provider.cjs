@@ -344,10 +344,7 @@ function piProviderExtension(pi) {
     log(
       `provider_error provider=${message.provider || "(unknown provider)"} model=${message.model || "(unknown model)"} api=${request.api} status=${status} method=${request.method} url=${request.url} response_headers=${responseHeaders} error=${JSON.stringify(message.errorMessage)}`
     );
-    emitInfrastructureIncompleteIfNoSafeOutputs(
-      `Pi provider request failed before safe outputs were emitted: ${message.errorMessage}`,
-      log
-    );
+    emitInfrastructureIncompleteIfNoSafeOutputs(`Pi provider request failed before safe outputs were emitted: ${message.errorMessage}`, log);
   });
 
   pi.on("agent_start", async () => {
