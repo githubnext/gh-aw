@@ -74,6 +74,11 @@ jobs:
           popd >/dev/null
 
           BASE_CONFIG="$GITHUB_WORKSPACE/.skill-optimizer/skill-optimizer.json"
+          if ! jq -e '(.target | type == "object") and (.optimize | type == "object")' "$BASE_CONFIG" >/dev/null; then
+            echo "::error file=.skill-optimizer/skill-optimizer.json::Expected .target and .optimize objects in base SkillOpt config."
+            exit 1
+          fi
+
           WORKFLOWS_FILE="$RESULT_DIR/workflows.txt"
           find "$GITHUB_WORKSPACE/.github/workflows" -maxdepth 1 -type f -name "*.md" | sort >"$WORKFLOWS_FILE"
 
@@ -98,6 +103,9 @@ jobs:
             rel_workflow="${rel_workflow#/}"
             workflow_name="$(basename "$rel_workflow" .md)"
             workflow_slug="$(echo "$workflow_name" | tr -cd '[:alnum:]_-')"
+            if [ -z "$workflow_slug" ] || ! [[ "$workflow_slug" =~ ^[[:alnum:]] ]]; then
+              workflow_slug="workflow-$(printf '%s' "$workflow_name" | sha256sum | cut -c1-12)"
+            fi
             workflow_dir="$RUNS_DIR/$workflow_slug"
             workflow_log="$workflow_dir/run.log"
             workflow_config="$CONFIG_DIR/$workflow_slug.json"
