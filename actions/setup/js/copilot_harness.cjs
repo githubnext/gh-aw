@@ -174,7 +174,8 @@ function isModelAvailableInReflectData(model, reflectData) {
   if (!normalizedModel) return false;
   if (!reflectData || typeof reflectData !== "object") return false;
 
-  const endpoints = Array.isArray(reflectData.endpoints) ? reflectData.endpoints : [];
+  // TypeScript needs explicit 'in' check or cast before property access on narrowed object type
+  const endpoints = 'endpoints' in reflectData && Array.isArray(reflectData.endpoints) ? reflectData.endpoints : [];
   for (const endpoint of endpoints) {
     if (!endpoint || endpoint.configured !== true || !Array.isArray(endpoint.models)) {
       continue;
@@ -631,7 +632,7 @@ async function main() {
 
     // Model-not-supported errors are persistent — retrying will not help.
     if (isModelNotSupported) {
-      if (!modelNotSupportedReflectRetryAttempted && attempt < MAX_RETRIES && isDetectionPhase(process.env.GH_AW_PHASE)) {
+      if (!modelNotSupportedReflectRetryAttempted && attempt < MAX_RETRIES && isDetectionPhase(process.env.GH_AW_PHASE) && process.env.AWF_REFLECT_ENABLED === "1") {
         const configuredModel = process.env.COPILOT_MODEL || "";
         modelNotSupportedReflectRetryAttempted = true;
         log(`attempt ${attempt + 1}: model not supported during detection — refreshing awf-reflect to rule out startup registry race`);

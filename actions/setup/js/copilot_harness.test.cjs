@@ -922,17 +922,20 @@ describe("copilot_harness.cjs", () => {
 
     it("reads reflect file and checks model availability", () => {
       const reflectFile = path.join(os.tmpdir(), `awf-reflect-${Date.now()}.json`);
-      fs.writeFileSync(
-        reflectFile,
-        JSON.stringify({
-          endpoints: [{ provider: "copilot", configured: true, models: ["claude-sonnet-4.6"] }],
-        }),
-        "utf8"
-      );
-      const logs = [];
-      expect(isModelAvailableInReflectFile("claude-sonnet-4.6", { reflectPath: reflectFile, logger: msg => logs.push(msg) })).toBe(true);
-      expect(isModelAvailableInReflectFile("gpt-4.1", { reflectPath: reflectFile, logger: msg => logs.push(msg) })).toBe(false);
-      fs.unlinkSync(reflectFile);
+      try {
+        fs.writeFileSync(
+          reflectFile,
+          JSON.stringify({
+            endpoints: [{ provider: "copilot", configured: true, models: ["claude-sonnet-4.6"] }],
+          }),
+          "utf8"
+        );
+        const logs = [];
+        expect(isModelAvailableInReflectFile("claude-sonnet-4.6", { reflectPath: reflectFile, logger: msg => logs.push(msg) })).toBe(true);
+        expect(isModelAvailableInReflectFile("gpt-4.1", { reflectPath: reflectFile, logger: msg => logs.push(msg) })).toBe(false);
+      } finally {
+        fs.unlinkSync(reflectFile);
+      }
     });
   });
 
