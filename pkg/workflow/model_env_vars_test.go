@@ -246,7 +246,7 @@ func TestCopilotFallbackModelMapsToNativeEnvVar(t *testing.T) {
 			name:           "Detection job maps GH_AW_MODEL_DETECTION_COPILOT with GH_AW_MODEL_AGENT_COPILOT fallback to COPILOT_MODEL",
 			safeOutputs:    nil,
 			expectedOrgVar: constants.EnvVarModelDetectionCopilot,
-			expectedTail:   "vars." + constants.EnvVarModelAgentCopilot + " || vars." + compilerenv.DefaultModelCopilot + " || '" + constants.CopilotBYOKDefaultModel + "'",
+			expectedTail:   "vars." + constants.EnvVarModelAgentCopilot + " || vars." + compilerenv.DefaultModelDetectionCopilot + " || vars." + compilerenv.DefaultModelCopilot + " || '" + constants.CopilotBYOKDefaultModel + "'",
 		},
 	}
 

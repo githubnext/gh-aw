@@ -221,6 +221,7 @@ gh aw defaults get defaults.yml --scope org --org MY_ORG
 
 ```yaml
 default_max_effective_tokens: "5000000"
+default_model_detection_copilot: "gpt-5.5-mini"
 default_model_copilot: "gpt-5-mini"
 default_model_claude: "claude-haiku-4-5"
 default_model_codex: "gpt-5.4-mini"

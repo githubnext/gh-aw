@@ -23,13 +23,14 @@ const (
 )
 
 type defaultsFile struct {
-	DefaultMaxEffectiveTokens string `yaml:"default_max_effective_tokens"`
-	DefaultMaxTurns           string `yaml:"default_max_turns"`
-	DefaultTimeoutMinutes     string `yaml:"default_timeout_minutes"`
-	DefaultDetectionModel     string `yaml:"default_detection_model"`
-	DefaultModelCopilot       string `yaml:"default_model_copilot"`
-	DefaultModelClaude        string `yaml:"default_model_claude"`
-	DefaultModelCodex         string `yaml:"default_model_codex"`
+	DefaultMaxEffectiveTokens    string `yaml:"default_max_effective_tokens"`
+	DefaultMaxTurns              string `yaml:"default_max_turns"`
+	DefaultTimeoutMinutes        string `yaml:"default_timeout_minutes"`
+	DefaultDetectionModel        string `yaml:"default_detection_model"`
+	DefaultModelCopilot          string `yaml:"default_model_copilot"`
+	DefaultModelDetectionCopilot string `yaml:"default_model_detection_copilot"`
+	DefaultModelClaude           string `yaml:"default_model_claude"`
+	DefaultModelCodex            string `yaml:"default_model_codex"`
 }
 
 type defaultsBinding struct {
@@ -69,6 +70,7 @@ var defaultsBindings = []defaultsBinding{
 	{envName: compilerenv.DefaultTimeoutMinutes, get: func(f *defaultsFile) *string { return &f.DefaultTimeoutMinutes }},
 	{envName: compilerenv.DefaultDetectionModel, get: func(f *defaultsFile) *string { return &f.DefaultDetectionModel }},
 	{envName: compilerenv.DefaultModelCopilot, get: func(f *defaultsFile) *string { return &f.DefaultModelCopilot }},
+	{envName: compilerenv.DefaultModelDetectionCopilot, get: func(f *defaultsFile) *string { return &f.DefaultModelDetectionCopilot }},
 	{envName: compilerenv.DefaultModelClaude, get: func(f *defaultsFile) *string { return &f.DefaultModelClaude }},
 	{envName: compilerenv.DefaultModelCodex, get: func(f *defaultsFile) *string { return &f.DefaultModelCodex }},
 }

@@ -17,6 +17,7 @@ func TestEnterpriseVariables(t *testing.T) {
 	assert.Contains(t, names, DefaultTimeoutMinutes)
 	assert.Contains(t, names, DefaultDetectionModel)
 	assert.Contains(t, names, DefaultModelCopilot)
+	assert.Contains(t, names, DefaultModelDetectionCopilot)
 	assert.Contains(t, names, DefaultModelClaude)
 	assert.Contains(t, names, DefaultModelCodex)
 }
@@ -50,6 +51,17 @@ func TestBuildModelOverrideExpression(t *testing.T) {
 		BuildModelOverrideExpressionWithSecondary(
 			"GH_AW_MODEL_DETECTION_COPILOT",
 			"GH_AW_MODEL_AGENT_COPILOT",
+			"GH_AW_DEFAULT_MODEL_COPILOT",
+			"gpt-5.5-mini",
+		),
+	)
+	assert.Equal(
+		t,
+		"${{ vars.GH_AW_MODEL_DETECTION_COPILOT || vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_DETECTION_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'gpt-5.5-mini' }}",
+		BuildModelOverrideExpressionWithSecondaryAndDefaults(
+			"GH_AW_MODEL_DETECTION_COPILOT",
+			"GH_AW_MODEL_AGENT_COPILOT",
+			"GH_AW_DEFAULT_MODEL_DETECTION_COPILOT",
 			"GH_AW_DEFAULT_MODEL_COPILOT",
 			"gpt-5.5-mini",
 		),

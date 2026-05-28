@@ -165,6 +165,7 @@ Model defaults now use two different resolution paths:
 - **Compiler process environment (compile time):**
   `GH_AW_DEFAULT_DETECTION_MODEL`
 - **GitHub `vars.*` expressions (runtime in compiled workflow):**
+  `GH_AW_DEFAULT_MODEL_DETECTION_COPILOT`,
   `GH_AW_DEFAULT_MODEL_COPILOT`,
   `GH_AW_DEFAULT_MODEL_CLAUDE`,
   `GH_AW_DEFAULT_MODEL_CODEX`

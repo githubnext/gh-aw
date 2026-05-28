@@ -1093,7 +1093,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 			shouldContainModel: true,
 			// Detection defaults to detection model override, then agent model override,
 			// then enterprise default and built-in Copilot fallback.
-			expectedModel: "${{ vars." + constants.EnvVarModelDetectionCopilot + " || vars." + constants.EnvVarModelAgentCopilot + " || vars.GH_AW_DEFAULT_MODEL_COPILOT || '" + constants.CopilotBYOKDefaultModel + "' }}",
+			expectedModel: "${{ vars." + constants.EnvVarModelDetectionCopilot + " || vars." + constants.EnvVarModelAgentCopilot + " || vars.GH_AW_DEFAULT_MODEL_DETECTION_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || '" + constants.CopilotBYOKDefaultModel + "' }}",
 		},
 		{
 			name: "detection model uses enterprise default override when configured",
@@ -1153,7 +1153,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				},
 			},
 			shouldContainModel: true,
-			expectedModel:      "${{ vars." + constants.EnvVarModelDetectionCopilot + " || vars." + constants.EnvVarModelAgentCopilot + " || vars.GH_AW_DEFAULT_MODEL_COPILOT || '" + constants.CopilotBYOKDefaultModel + "' }}",
+			expectedModel:      "${{ vars." + constants.EnvVarModelDetectionCopilot + " || vars." + constants.EnvVarModelAgentCopilot + " || vars.GH_AW_DEFAULT_MODEL_DETECTION_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || '" + constants.CopilotBYOKDefaultModel + "' }}",
 		},
 		{
 			name: "claude engine does not add model parameter",

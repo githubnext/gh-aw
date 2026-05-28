@@ -15,6 +15,7 @@ Use these variables to set organization- or repository-wide defaults without edi
 | `GH_AW_DEFAULT_MAX_TURNS` | Compiler process environment | Default `engine.max-turns` | `engine.max-turns` is not set in frontmatter and the selected engine supports max-turns |
 | `GH_AW_DEFAULT_TIMEOUT_MINUTES` | Compiler process environment | Default top-level `timeout-minutes` | `timeout-minutes` is not set in frontmatter |
 | `GH_AW_DEFAULT_DETECTION_MODEL` | Compiler process environment | Default threat-detection model | `safe-outputs.threat-detection.engine.model` is not set |
+| `GH_AW_DEFAULT_MODEL_DETECTION_COPILOT` | GitHub Actions `vars.*` at runtime | Detection-only fallback model for Copilot | `GH_AW_MODEL_DETECTION_COPILOT` is unset in Copilot detection runs |
 | `GH_AW_DEFAULT_MODEL_COPILOT` | GitHub Actions `vars.*` at runtime | Default fallback model for Copilot | `GH_AW_MODEL_AGENT_COPILOT` / `GH_AW_MODEL_DETECTION_COPILOT` is unset |
 | `GH_AW_DEFAULT_MODEL_CLAUDE` | GitHub Actions `vars.*` at runtime | Default fallback model for Claude | `GH_AW_MODEL_AGENT_CLAUDE` / `GH_AW_MODEL_DETECTION_CLAUDE` is unset |
 | `GH_AW_DEFAULT_MODEL_CODEX` | GitHub Actions `vars.*` at runtime | Default fallback model for Codex | `GH_AW_MODEL_AGENT_CODEX` / `GH_AW_MODEL_DETECTION_CODEX` is unset |
@@ -28,8 +29,9 @@ For model selection, precedence is:
 
 1. `engine.model` in workflow frontmatter
 2. `GH_AW_MODEL_AGENT_*` or `GH_AW_MODEL_DETECTION_*`
-3. `GH_AW_DEFAULT_MODEL_*`
-4. Built-in compiler fallback
+3. Detection-only defaults such as `GH_AW_DEFAULT_MODEL_DETECTION_COPILOT` (when available for the selected engine + phase)
+4. `GH_AW_DEFAULT_MODEL_*`
+5. Built-in compiler fallback
 
 For max effective tokens, precedence is:
 

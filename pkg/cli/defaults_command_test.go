@@ -65,13 +65,14 @@ func TestResolveDefaultsTarget(t *testing.T) {
 
 func TestDefaultsFileYAMLKeys(t *testing.T) {
 	file := defaultsFile{
-		DefaultMaxEffectiveTokens: "10000",
-		DefaultMaxTurns:           "42",
-		DefaultTimeoutMinutes:     "90",
-		DefaultDetectionModel:     "claude-sonnet-4.6",
-		DefaultModelCopilot:       "claude-sonnet-4.7",
-		DefaultModelClaude:        "claude-opus-4.7",
-		DefaultModelCodex:         "gpt-5.5",
+		DefaultMaxEffectiveTokens:    "10000",
+		DefaultMaxTurns:              "42",
+		DefaultTimeoutMinutes:        "90",
+		DefaultDetectionModel:        "claude-sonnet-4.6",
+		DefaultModelCopilot:          "claude-sonnet-4.7",
+		DefaultModelDetectionCopilot: "gpt-5.5-mini",
+		DefaultModelClaude:           "claude-opus-4.7",
+		DefaultModelCodex:            "gpt-5.5",
 	}
 
 	data, err := yaml.Marshal(&file)
@@ -83,6 +84,7 @@ func TestDefaultsFileYAMLKeys(t *testing.T) {
 	assert.Contains(t, yml, "default_timeout_minutes:")
 	assert.Contains(t, yml, "default_detection_model:")
 	assert.Contains(t, yml, "default_model_copilot:")
+	assert.Contains(t, yml, "default_model_detection_copilot:")
 	assert.Contains(t, yml, "default_model_claude:")
 	assert.Contains(t, yml, "default_model_codex:")
 }

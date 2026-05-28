@@ -154,11 +154,16 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// The model is always passed via the native COPILOT_MODEL env var - no --model flag needed.
 	var modelEnvVar string
 	var secondaryModelEnvVar string
+	var modelDefaultEnvVar string
+	var secondaryModelDefaultEnvVar string
 	if isDetectionJob {
 		modelEnvVar = constants.EnvVarModelDetectionCopilot
 		secondaryModelEnvVar = constants.EnvVarModelAgentCopilot
+		modelDefaultEnvVar = compilerenv.DefaultModelDetectionCopilot
+		secondaryModelDefaultEnvVar = compilerenv.DefaultModelCopilot
 	} else {
 		modelEnvVar = constants.EnvVarModelAgentCopilot
+		modelDefaultEnvVar = compilerenv.DefaultModelCopilot
 	}
 
 	// Determine which command to use (once for both sandbox and non-sandbox modes)
@@ -437,14 +442,15 @@ touch %s
 		env[constants.CopilotCLIModelEnvVar] = workflowData.EngineConfig.Model
 	} else {
 		if secondaryModelEnvVar != "" {
-			env[constants.CopilotCLIModelEnvVar] = compilerenv.BuildModelOverrideExpressionWithSecondary(
+			env[constants.CopilotCLIModelEnvVar] = compilerenv.BuildModelOverrideExpressionWithSecondaryAndDefaults(
 				modelEnvVar,
 				secondaryModelEnvVar,
-				compilerenv.DefaultModelCopilot,
+				modelDefaultEnvVar,
+				secondaryModelDefaultEnvVar,
 				constants.CopilotBYOKDefaultModel,
 			)
 		} else {
-			env[constants.CopilotCLIModelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
+			env[constants.CopilotCLIModelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, modelDefaultEnvVar, constants.CopilotBYOKDefaultModel)
 		}
 	}
 

@@ -23,6 +23,8 @@ const (
 
 	// DefaultModelCopilot is the enterprise override for Copilot fallback model selection.
 	DefaultModelCopilot = "GH_AW_DEFAULT_MODEL_COPILOT"
+	// DefaultModelDetectionCopilot is the enterprise override for Copilot detection fallback model selection.
+	DefaultModelDetectionCopilot = "GH_AW_DEFAULT_MODEL_DETECTION_COPILOT"
 	// DefaultModelClaude is the enterprise override for Claude fallback model selection.
 	DefaultModelClaude = "GH_AW_DEFAULT_MODEL_CLAUDE"
 	// DefaultModelCodex is the enterprise override for Codex fallback model selection.
@@ -56,6 +58,10 @@ func EnterpriseVariables() []Variable {
 		{
 			Name:        DefaultModelCopilot,
 			Description: "Default Copilot model fallback override when GH_AW_MODEL_AGENT/DETECTION_COPILOT is unset",
+		},
+		{
+			Name:        DefaultModelDetectionCopilot,
+			Description: "Default Copilot detection model fallback override when GH_AW_MODEL_DETECTION_COPILOT is unset",
 		},
 		{
 			Name:        DefaultModelClaude,
@@ -137,6 +143,14 @@ func BuildModelOverrideExpression(primaryVar, enterpriseDefaultVar, builtinFallb
 func BuildModelOverrideExpressionWithSecondary(primaryVar, secondaryVar, enterpriseDefaultVar, builtinFallback string) string {
 	escaped := strings.ReplaceAll(builtinFallback, "'", "''")
 	return fmt.Sprintf("${{ vars.%s || vars.%s || vars.%s || '%s' }}", primaryVar, secondaryVar, enterpriseDefaultVar, escaped)
+}
+
+// BuildModelOverrideExpressionWithSecondaryAndDefaults builds a vars expression with
+// primary model var, secondary model var, detection-specific default model var,
+// shared default model var, and built-in fallback model.
+func BuildModelOverrideExpressionWithSecondaryAndDefaults(primaryVar, secondaryVar, primaryDefaultVar, secondaryDefaultVar, builtinFallback string) string {
+	escaped := strings.ReplaceAll(builtinFallback, "'", "''")
+	return fmt.Sprintf("${{ vars.%s || vars.%s || vars.%s || vars.%s || '%s' }}", primaryVar, secondaryVar, primaryDefaultVar, secondaryDefaultVar, escaped)
 }
 
 // BuildModelOverrideExpressionEmptyFallback builds a vars expression with primary model var,
