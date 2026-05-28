@@ -1324,6 +1324,10 @@ The compile-time schedule calendar emitted by `pkg/cli/compile_schedule_calendar
 aggregate UTC trigger density of scheduled workflows. A conforming implementation MUST treat the
 calendar as a human-readable console artifact rather than a machine-readable file format.
 
+### 12.1 Minimum-Required Fields
+
+The following elements are **required** and MUST be present in every conforming calendar output:
+
 | Element | Requirement |
 |---|---|
 | Output stream | MUST be written to `stderr` only, and MUST NOT be emitted in JSON output mode. |
@@ -1335,9 +1339,41 @@ calendar as a human-readable console artifact rather than a machine-readable fil
 | Legend | MUST explain the trigger-count buckets for each glyph after the grid. |
 | File output | MUST NOT create a separate file; the calendar is an inline stderr rendering only. |
 
+### 12.2 Optional Extended Fields
+
+The following elements are **optional** and MAY be present in conforming calendar output. Their
+presence MUST NOT break consumers that expect only the minimum-required fields above.
+
+| Element | Requirement |
+|---|---|
+| ANSI color styling | MAY be applied when stderr is a terminal; MUST degrade gracefully to plain text in non-TTY contexts. |
+| Per-workflow summary | MAY render a secondary table listing each scheduled workflow and its scattered cron expression. |
+| Workflow count line | MAY render a count line such as `N scheduled workflows` immediately before or after the heatmap grid. |
+| Timezone annotation | MAY append a `(UTC)` or equivalent annotation to the title or hour header to reinforce UTC context. |
+
 Implementations SHOULD preserve a fixed-width grid so adjacent cells remain visually aligned in
 plain-text terminals. ANSI styling MAY be applied when stderr is a terminal, but the unstyled text
 content MUST preserve the same row/column structure.
+
+### 12.3 Example Output
+
+The following is a minimal conforming calendar output for a repository with two scheduled
+workflows. The exact trigger-count thresholds for intensity glyphs are implementation-defined, but
+MUST be documented in the legend.
+
+```
+Schedule Heatmap (UTC)
+       00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+Mon  │ ·  ·  ░  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  · │
+Tue  │ ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  · │
+Wed  │ ·  ·  ░  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  · │
+Thu  │ ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  · │
+Fri  │ ·  ·  ░  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  · │
+Sat  │ ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  · │
+Sun  │ ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  · │
+
+Legend: · = 0  ░ = 1–2  ▒ = 3–5  ▓ = 6–10  █ = >10 triggers/hour
+```
 
 ### Version 1.2.0 (Draft) — 2026-05-12
 
