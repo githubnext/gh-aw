@@ -1,0 +1,269 @@
+package cli
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"slices"
+	"strings"
+)
+
+var outcomeUpdateGHAPIGet = ghAPIGet
+
+func evalUpdateIssue(item CreatedItemReport, repoOverride string) OutcomeReport {
+	return evalRetainedUpdate(item, repoOverride, "issue", extractCurrentIssueUpdateState, false)
+}
+
+func evalUpdatePullRequest(item CreatedItemReport, repoOverride string) OutcomeReport {
+	return evalRetainedUpdate(item, repoOverride, "pull request", extractCurrentPullRequestUpdateState, true)
+}
+
+type mutableStateLoader func(repo string, number int) (map[string]any, bool, error)
+
+func evalRetainedUpdate(item CreatedItemReport, repoOverride string, objectKind string, load mutableStateLoader, strongOnMerge bool) OutcomeReport {
+	repo := resolveItemRepo(item, repoOverride)
+	num := resolveItemNumber(item)
+	report := OutcomeReport{
+		Type:         item.Type,
+		ObjectURL:    item.URL,
+		ObjectNumber: num,
+		Repo:         repo,
+	}
+	if num == 0 || repo == "" {
+		report.Result = OutcomeUnknown
+		report.Detail = "missing execution state"
+		report.OutcomeEvaluation = OutcomeEvaluation{
+			OutcomeStatus:    OutcomeStatusUnknown,
+			EvidenceStrength: EvidenceNone,
+			Signal:           "missing_execution_state",
+		}
+		return report
+	}
+	if item.BeforeState == nil || item.AfterState == nil {
+		report.Result = OutcomeUnknown
+		report.Detail = "missing execution state"
+		report.OutcomeEvaluation = OutcomeEvaluation{
+			OutcomeStatus:    OutcomeStatusUnknown,
+			EvidenceStrength: EvidenceNone,
+			Signal:           "missing_execution_state",
+		}
+		return report
+	}
+
+	currentState, merged, err := load(repo, num)
+	if err != nil {
+		report.Result = OutcomeError
+		report.EvalError = err.Error()
+		return report
+	}
+
+	comparison := compareRetainedUpdateState(item.BeforeState, item.AfterState, currentState, mutableTrackedFields(item.Type))
+	if len(comparison.Changed) == 0 {
+		report.Result = OutcomeUnknown
+		report.Detail = "no persisted state delta"
+		report.OutcomeEvaluation = OutcomeEvaluation{
+			OutcomeStatus:    OutcomeStatusUnknown,
+			EvidenceStrength: EvidenceNone,
+			Signal:           "no_state_delta",
+		}
+		return report
+	}
+
+	switch {
+	case len(comparison.Retained) == len(comparison.Changed):
+		report.Result = OutcomeAccepted
+		if strongOnMerge && merged {
+			report.Detail = fmt.Sprintf("%s update retained and merged", objectKind)
+			report.OutcomeEvaluation = OutcomeEvaluation{
+				OutcomeStatus:    OutcomeStatusAccepted,
+				EvidenceStrength: EvidenceStrong,
+				Signal:           "state_retained_and_merged",
+			}
+			return report
+		}
+		report.Detail = fmt.Sprintf("%s update retained", objectKind)
+		report.OutcomeEvaluation = OutcomeEvaluation{
+			OutcomeStatus:    OutcomeStatusAccepted,
+			EvidenceStrength: EvidenceMedium,
+			Signal:           "state_retained",
+		}
+		return report
+	case len(comparison.Reverted) == len(comparison.Changed):
+		report.Result = OutcomeRejected
+		report.Detail = fmt.Sprintf("%s update reverted", objectKind)
+		report.OutcomeEvaluation = OutcomeEvaluation{
+			OutcomeStatus:    OutcomeStatusRejected,
+			EvidenceStrength: EvidenceStrong,
+			Signal:           "state_reverted",
+		}
+		return report
+	default:
+		report.Result = OutcomeRejected
+		report.Detail = fmt.Sprintf("%s update replaced", objectKind)
+		report.OutcomeEvaluation = OutcomeEvaluation{
+			OutcomeStatus:    OutcomeStatusRejected,
+			EvidenceStrength: EvidenceStrong,
+			Signal:           "state_replaced",
+		}
+		return report
+	}
+}
+
+type retainedStateComparison struct {
+	Changed  []string
+	Retained []string
+	Reverted []string
+	Replaced []string
+}
+
+func compareRetainedUpdateState(beforeState map[string]any, afterState map[string]any, currentState map[string]any, fields []string) retainedStateComparison {
+	var out retainedStateComparison
+	for _, field := range fields {
+		afterValue, ok := afterState[field]
+		if !ok {
+			continue
+		}
+		beforeValue := beforeState[field]
+		if mutableStateEqual(field, beforeValue, afterValue) {
+			continue
+		}
+		out.Changed = append(out.Changed, field)
+		currentValue := currentState[field]
+		switch {
+		case mutableStateEqual(field, currentValue, afterValue):
+			out.Retained = append(out.Retained, field)
+		case mutableStateEqual(field, currentValue, beforeValue):
+			out.Reverted = append(out.Reverted, field)
+		default:
+			out.Replaced = append(out.Replaced, field)
+		}
+	}
+	return out
+}
+
+func mutableTrackedFields(itemType string) []string {
+	switch itemType {
+	case "update_issue":
+		return []string{"title", "body_hash", "state", "labels", "assignees"}
+	case "update_pull_request":
+		return []string{"title", "body_hash", "state", "base", "draft", "head_sha"}
+	default:
+		return nil
+	}
+}
+
+func mutableStateEqual(field string, left any, right any) bool {
+	switch field {
+	case "labels", "assignees":
+		return slices.Equal(mutableStringSlice(left), mutableStringSlice(right))
+	case "draft":
+		return mutableBool(left) == mutableBool(right)
+	default:
+		return strings.TrimSpace(mutableString(left)) == strings.TrimSpace(mutableString(right))
+	}
+}
+
+func mutableString(raw any) string {
+	switch value := raw.(type) {
+	case string:
+		return value
+	case fmt.Stringer:
+		return value.String()
+	case bool:
+		if value {
+			return "true"
+		}
+		return "false"
+	case nil:
+		return ""
+	default:
+		return strings.TrimSpace(fmt.Sprint(value))
+	}
+}
+
+func mutableBool(raw any) bool {
+	value, ok := raw.(bool)
+	return ok && value
+}
+
+func mutableStringSlice(raw any) []string {
+	switch values := raw.(type) {
+	case []string:
+		out := slices.Clone(values)
+		for i := range out {
+			out[i] = strings.TrimSpace(out[i])
+		}
+		slices.Sort(out)
+		return out
+	case []any:
+		out := make([]string, 0, len(values))
+		for _, value := range values {
+			s := strings.TrimSpace(fmt.Sprint(value))
+			if s != "" {
+				out = append(out, s)
+			}
+		}
+		slices.Sort(out)
+		return out
+	default:
+		return nil
+	}
+}
+
+func extractCurrentIssueUpdateState(repo string, number int) (map[string]any, bool, error) {
+	issue, err := outcomeUpdateGHAPIGet(fmt.Sprintf("issues/%d", number), repo)
+	if err != nil {
+		return nil, false, err
+	}
+	return map[string]any{
+		"title":     mutableString(issue["title"]),
+		"body_hash": mutableBodyHash(issue["body"]),
+		"state":     mutableString(issue["state"]),
+		"labels":    extractNamedItems(issue["labels"], "name"),
+		"assignees": extractNamedItems(issue["assignees"], "login"),
+	}, false, nil
+}
+
+func extractCurrentPullRequestUpdateState(repo string, number int) (map[string]any, bool, error) {
+	pullRequest, err := outcomeUpdateGHAPIGet(fmt.Sprintf("pulls/%d", number), repo)
+	if err != nil {
+		return nil, false, err
+	}
+	base, _ := pullRequest["base"].(map[string]any)
+	head, _ := pullRequest["head"].(map[string]any)
+	merged, _ := pullRequest["merged"].(bool)
+	return map[string]any{
+		"title":     mutableString(pullRequest["title"]),
+		"body_hash": mutableBodyHash(pullRequest["body"]),
+		"state":     mutableString(pullRequest["state"]),
+		"base":      mutableString(base["ref"]),
+		"draft":     mutableBool(pullRequest["draft"]),
+		"head_sha":  mutableString(head["sha"]),
+	}, merged, nil
+}
+
+func extractNamedItems(raw any, key string) []string {
+	items, _ := raw.([]any)
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		if value := outcomeNestedString(item, key); value != "" {
+			out = append(out, value)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+func mutableBodyHash(raw any) string {
+	sum := sha256.Sum256([]byte(normalizeMutableBody(raw)))
+	return hex.EncodeToString(sum[:])
+}
+
+func normalizeMutableBody(raw any) string {
+	body := strings.ReplaceAll(mutableString(raw), "\r\n", "\n")
+	lines := strings.Split(body, "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " \t")
+	}
+	return strings.TrimSpace(strings.Join(lines, "\n"))
+}

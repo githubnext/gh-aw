@@ -73,6 +73,8 @@ type outcomeEvaluator func(item CreatedItemReport, repoOverride string) OutcomeR
 var outcomeEvaluators = map[string]outcomeEvaluator{
 	"create_pull_request":                   evalCreatePullRequest,
 	"create_issue":                          evalCreateIssue,
+	"update_issue":                          evalUpdateIssue,
+	"update_pull_request":                   evalUpdatePullRequest,
 	"add_comment":                           evalAddComment,
 	"add_labels":                            evalAddLabels,
 	"assign_to_agent":                       evalAssignToAgent,

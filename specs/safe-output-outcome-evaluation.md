@@ -90,16 +90,16 @@ Rows marked `evalGenericSticky` fallback are generic existence checks, not type-
 | `create_issue` | `evalCreateIssue` | completed/closed |
 | `add_comment` | `evalAddComment` | reacted to or replied to |
 | `add_labels` | `evalAddLabels` | label retention |
-| `add_reviewer` | `evalGenericSticky` fallback | review target exists |
-| `update_issue` | `evalGenericSticky` fallback | issue still exists |
-| `update_pull_request` | `evalGenericSticky` fallback | PR still exists |
+| `add_reviewer` | dedicated review-request evaluator | reviewer acted or request remained/was removed |
+| `update_issue` | dedicated retained-update evaluator | intended edit still matches current issue state |
+| `update_pull_request` | dedicated retained-update evaluator | intended edit still matches current PR state |
 | `close_issue` | `evalCloseSticky` | still closed |
 | `close_pull_request` | `evalCloseSticky` | still closed |
 | `close_discussion` | `evalCloseDiscussion` | none yet |
 | `create_discussion` | `evalCreateDiscussion` | none yet |
 | `update_discussion` | `evalGenericSticky` fallback | discussion target exists |
 | `create_pull_request_review_comment` | `evalReviewComment` | none yet |
-| `submit_pull_request_review` | `evalGenericSticky` fallback | PR still exists |
+| `submit_pull_request_review` | dedicated review evaluator | review affected PR lifecycle |
 | `reply_to_pull_request_review_comment` | `evalGenericSticky` fallback | review target exists |
 | `resolve_pull_request_review_thread` | `evalResolveThread` | none yet |
 | `push_to_pull_request_branch` | `evalPushToPRBranch` | merged |
@@ -122,16 +122,16 @@ Rows marked `evalGenericSticky` fallback are generic existence checks, not type-
 | `create_issue` | implemented | `pkg/workflow/safe_outputs_config.go`, `pkg/workflow/compiler_safe_outputs.go`, `pkg/cli/outcome_eval.go` (`evalCreateIssue`) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (issue-specific path) |
 | `add_comment` | implemented | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalAddComment`) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (issue-comment URL path) |
 | `add_labels` | partial | `pkg/workflow/safe_outputs_allowed_labels_validation.go`, `pkg/cli/outcome_eval.go` (`evalAddLabels`) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
-| `add_reviewer` | not-started | `pkg/workflow/add_reviewer.go`, `pkg/workflow/safe_outputs_config.go` | `actions/setup/js/add_reviewer.cjs`, `actions/setup/js/safe_outputs_handlers.cjs` |
-| `update_issue` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/update_issue.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
-| `update_pull_request` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/update_pull_request.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `add_reviewer` | implemented | `pkg/workflow/add_reviewer.go`, `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval_review.go` | `actions/setup/js/add_reviewer.cjs`, `actions/setup/js/evaluate_outcomes.cjs` |
+| `update_issue` | implemented | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval_update.go` | `actions/setup/js/update_issue.cjs`, `actions/setup/js/evaluate_outcomes.cjs` |
+| `update_pull_request` | implemented | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval_update.go` | `actions/setup/js/update_pull_request.cjs`, `actions/setup/js/evaluate_outcomes.cjs` |
 | `close_issue` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCloseSticky`) | `actions/setup/js/close_issue.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `close_pull_request` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCloseSticky`) | `actions/setup/js/close_pull_request.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `close_discussion` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCloseDiscussion`) | `actions/setup/js/close_discussion.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `create_discussion` | partial | `pkg/workflow/safe_outputs_dispatch.go`, `pkg/cli/outcome_eval.go` (`evalCreateDiscussion`) | `actions/setup/js/create_discussion.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `update_discussion` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/update_discussion.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `create_pull_request_review_comment` | partial | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalReviewComment`) | `actions/setup/js/create_pr_review_comment.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
-| `submit_pull_request_review` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/submit_pr_review.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
+| `submit_pull_request_review` | implemented | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval_review.go` | `actions/setup/js/submit_pr_review.cjs`, `actions/setup/js/evaluate_outcomes.cjs` |
 | `reply_to_pull_request_review_comment` | not-started | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalGenericSticky` fallback) | `actions/setup/js/reply_to_pr_review_comment.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `resolve_pull_request_review_thread` | partial | `pkg/workflow/safe_outputs_config.go`, `pkg/cli/outcome_eval.go` (`evalResolveThread`) | `actions/setup/js/resolve_pr_review_thread.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
 | `push_to_pull_request_branch` | partial | `pkg/workflow/push_to_pull_request_branch_validation.go`, `pkg/cli/outcome_eval.go` (`evalPushToPRBranch`) | `actions/setup/js/push_to_pull_request_branch.cjs`, `actions/setup/js/evaluate_outcomes.cjs` (generic fallback) |
@@ -306,10 +306,12 @@ Rows marked `evalGenericSticky` fallback are generic existence checks, not type-
 
 | Condition | Outcome |
 |-----------|---------|
-| Title/body unchanged since workflow edit (or only bot edits after) | `accepted` |
-| Title/body changed by a visible non-bot actor after workflow edit | `rejected` |
+| Changed fields still match the persisted `after_state` snapshot | `accepted` |
+| Changed fields match the persisted `before_state` snapshot again | `rejected` |
+| Changed fields differ from both `before_state` and `after_state` | `rejected` |
+| Required `before_state` / `after_state` snapshots are missing | `unknown` |
 
-**Detection:** compare `updated_at` with the workflow's edit timestamp. If `updated_at` is close to the workflow timestamp and no visible non-bot events follow, the edit stuck.
+**Detection:** compare the current issue fields against the execution-time `before_state` and `after_state` snapshots captured in the safe-output manifest. Compare `title`, normalized `body_hash`, `state`, `labels`, and `assignees`.
 
 ---
 
@@ -317,9 +319,11 @@ Rows marked `evalGenericSticky` fallback are generic existence checks, not type-
 
 **Question:** Did the edit stick?
 
-Same logic as `update_issue` but on a PR object.
+Same retained-update logic as `update_issue` but on a PR object, using persisted execution-time snapshots instead of `updated_at`.
 
 **API:** `GET /repos/{owner}/{repo}/pulls/{number}`
+
+**Detection:** compare the current PR fields against the execution-time `before_state` and `after_state` snapshots. Compare `title`, normalized `body_hash`, `state`, `base`, `draft`, and `head_sha`. If the retained state later merges, classify that acceptance as stronger evidence.
 
 ---
 
