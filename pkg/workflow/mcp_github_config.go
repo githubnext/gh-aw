@@ -68,6 +68,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var githubConfigLog = logger.New("workflow:mcp_github_config")
@@ -264,10 +265,52 @@ func expandDefaultToolset(toolsetsStr string) string {
 func getGitHubAllowedTools(githubTool any) []string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if allowedSetting, exists := toolConfig["allowed"]; exists {
-			return parseStringSliceAny(allowedSetting, nil)
+			allowedTools, _ := parseGitHubAllowedToolsAndLimits(allowedSetting)
+			return allowedTools
 		}
 	}
 	return nil
+}
+
+// parseGitHubAllowedToolsAndLimits parses tools.github.allowed entries.
+// Supports string entries and object entries:
+// {name: "tool_name", max-calls: 1}.
+func parseGitHubAllowedToolsAndLimits(allowedSetting any) ([]string, map[string]int) {
+	allowedItems, ok := allowedSetting.([]any)
+	if !ok {
+		return parseStringSliceAny(allowedSetting, nil), nil
+	}
+
+	allowedTools := make([]string, 0, len(allowedItems))
+	toolCallLimits := make(map[string]int)
+
+	for _, item := range allowedItems {
+		switch entry := item.(type) {
+		case string:
+			toolName := strings.TrimSpace(entry)
+			if toolName == "" {
+				continue
+			}
+			allowedTools = append(allowedTools, toolName)
+		case map[string]any:
+			toolName, ok := entry["name"].(string)
+			toolName = strings.TrimSpace(toolName)
+			if !ok || toolName == "" {
+				continue
+			}
+			allowedTools = append(allowedTools, toolName)
+			if maxCalls, hasMax := entry["max-calls"]; hasMax {
+				if max, ok := typeutil.ParseIntValue(maxCalls); ok && max > 0 {
+					toolCallLimits[toolName] = max
+				}
+			}
+		}
+	}
+
+	if len(toolCallLimits) == 0 {
+		return allowedTools, nil
+	}
+	return allowedTools, toolCallLimits
 }
 
 // getGitHubGuardPolicies extracts guard policies from GitHub tool configuration.
@@ -283,13 +326,19 @@ func getGitHubAllowedTools(githubTool any) []string {
 // Returns nil if no guard policies are configured.
 func getGitHubGuardPolicies(githubTool any) map[string]any {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
+		var toolCallLimits map[string]int
+		if allowedSetting, exists := toolConfig["allowed"]; exists {
+			_, toolCallLimits = parseGitHubAllowedToolsAndLimits(allowedSetting)
+		}
+		hasToolCallLimits := len(toolCallLimits) > 0
+
 		// Support both 'allowed-repos' (preferred) and deprecated 'repos'
 		repos, hasRepos := toolConfig["allowed-repos"]
 		if !hasRepos {
 			repos, hasRepos = toolConfig["repos"]
 		}
 		integrity, hasIntegrity := toolConfig["min-integrity"]
-		if hasRepos || hasIntegrity {
+		if hasRepos || hasIntegrity || hasToolCallLimits {
 			policy := map[string]any{}
 			if hasRepos {
 				policy["repos"] = normalizeGitHubRepositoryInReposScope(repos)
@@ -300,6 +349,9 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 			}
 			if hasIntegrity {
 				policy["min-integrity"] = integrity
+			}
+			if hasToolCallLimits {
+				policy["tool-call-limits"] = toolCallLimits
 			}
 			// blocked-users, trusted-users, and approval-labels are parsed at runtime by the
 			// parse-guard-vars step. The step outputs proper JSON arrays (split on comma/newline,

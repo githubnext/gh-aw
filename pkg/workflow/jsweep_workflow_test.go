@@ -122,16 +122,22 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 		}
 	})
 
-	// Test 9: Verify the fallback selection is deterministic
-	t.Run("UsesDeterministicFallbackSelection", func(t *testing.T) {
+	// Test 9: Verify the fallback selection randomizes among recently modified files
+	t.Run("UsesRandomizedRecentFallbackSelection", func(t *testing.T) {
 		if !strings.Contains(mdContent, "git log -1 --format='%ct'") {
 			t.Error("jsweep workflow should use a deterministic git query for fallback file selection")
 		}
-		if !strings.Contains(mdContent, "most recent git commit is oldest") {
-			t.Error("jsweep workflow should tie the git query to choosing the oldest cleanup candidate")
+		if !strings.Contains(mdContent, "pick **one file at random**") {
+			t.Error("jsweep workflow should randomize fallback file selection")
 		}
-		if !strings.Contains(mdContent, "sorted by path") {
-			t.Error("jsweep workflow should sort candidate files by path before fallback selection")
+		if !strings.Contains(mdContent, "top 10 most recently modified candidates") {
+			t.Error("jsweep workflow should limit randomized fallback selection to top recent candidates")
+		}
+		if strings.Contains(mdContent, "most recent git commit is oldest") {
+			t.Error("jsweep workflow should not choose the oldest fallback candidate")
+		}
+		if strings.Contains(mdContent, "sorted by path") {
+			t.Error("jsweep workflow should not sort candidates by path for fallback selection")
 		}
 		if strings.Contains(mdContent, "earliest modification timestamp") {
 			t.Error("jsweep workflow should not use filesystem modification timestamps for fallback selection")
