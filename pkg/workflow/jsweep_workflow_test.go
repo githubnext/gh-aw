@@ -130,8 +130,8 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 		if !strings.Contains(mdContent, "pick **one file at random**") {
 			t.Error("jsweep workflow should randomize fallback file selection")
 		}
-		if !strings.Contains(mdContent, "most recently modified") {
-			t.Error("jsweep workflow should limit randomized fallback selection to recently modified files")
+		if !strings.Contains(mdContent, "top 10 most recently modified candidates") {
+			t.Error("jsweep workflow should limit randomized fallback selection to top recent candidates")
 		}
 		if strings.Contains(mdContent, "most recent git commit is oldest") {
 			t.Error("jsweep workflow should not choose the oldest fallback candidate")

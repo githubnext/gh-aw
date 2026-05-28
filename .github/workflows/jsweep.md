@@ -92,7 +92,7 @@ fi
 - Exclude test files (`*.test.cjs`)
 - Exclude files already listed in `cleaned_files` in the loaded state
 - **Priority 1**: Pick files with `@ts-nocheck` or `// @ts-nocheck` comments (these need type checking enabled)
-- **Priority 2**: If no uncleaned files with `@ts-nocheck` remain, pick **one file at random** from the recently modified candidates by ranking files with `git log -1 --format='%ct' -- <file>` and sampling from the most recently modified group (do not use filesystem modification timestamps)
+- **Priority 2**: If no uncleaned files with `@ts-nocheck` remain, pick **one file at random** from the top 10 most recently modified candidates by ranking files with `git log -1 --format='%ct' -- <file>` (do not use filesystem modification timestamps)
 
 If no uncleaned files remain, start over with the oldest cleaned file (reset `cleaned_files` to only the one just chosen).
 
