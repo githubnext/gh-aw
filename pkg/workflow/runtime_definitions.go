@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"sync"
+
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -208,11 +210,30 @@ var securityConfigFiles = []string{
 	"CODE_OF_CONDUCT.md", // Community conduct policy
 }
 
+// allManifestFilesBaseCache caches the base (no-extra) result of getAllManifestFiles.
+// knownRuntimes and securityConfigFiles are package-level constants, so this slice is
+// identical on every call when no extra files are provided.
+var (
+	allManifestFilesBaseOnce  sync.Once
+	allManifestFilesBaseCache []string
+)
+
 // getAllManifestFiles returns the deduplicated union of all manifest file names
 // across all known runtimes, plus repository security configuration files, plus
 // any additionally-provided filenames.
 // These are matched by basename only (no path comparison).
 func getAllManifestFiles(extra ...string) []string {
+	if len(extra) == 0 {
+		allManifestFilesBaseOnce.Do(func() {
+			var files []string
+			for _, runtime := range knownRuntimes {
+				files = append(files, runtime.ManifestFiles...)
+			}
+			files = append(files, securityConfigFiles...)
+			allManifestFilesBaseCache = sliceutil.MergeUnique(files)
+		})
+		return allManifestFilesBaseCache
+	}
 	var files []string
 	for _, runtime := range knownRuntimes {
 		files = append(files, runtime.ManifestFiles...)

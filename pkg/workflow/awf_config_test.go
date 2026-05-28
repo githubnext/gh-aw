@@ -586,6 +586,62 @@ func TestBuildAWFConfigJSON_DomainDeduplication(t *testing.T) {
 	assert.Equal(t, 1, count, "github.com should appear exactly once after deduplication")
 }
 
+// TestBuildAWFConfigJSON_SchemaCompliance validates that BuildAWFConfigJSON always produces
+// JSON that conforms to the embedded AWF config schema. This test replaces the removed
+// runtime schema validation (see validateAWFConfigJSON) which was called on every compile
+// and was a significant performance hotspot.
+func TestBuildAWFConfigJSON_SchemaCompliance(t *testing.T) {
+	cases := []struct {
+		name   string
+		config AWFCommandConfig
+	}{
+		{
+			name: "basic config with firewall and allowed domains",
+			config: AWFCommandConfig{
+				EngineName:     "copilot",
+				AllowedDomains: "github.com,api.github.com",
+				WorkflowData: &WorkflowData{
+					EngineConfig: &EngineConfig{ID: "copilot"},
+					NetworkPermissions: &NetworkPermissions{
+						Firewall: &FirewallConfig{Enabled: true},
+					},
+				},
+			},
+		},
+		{
+			name: "config without network section",
+			config: AWFCommandConfig{
+				EngineName: "copilot",
+				WorkflowData: &WorkflowData{
+					EngineConfig: &EngineConfig{ID: "copilot"},
+				},
+			},
+		},
+		{
+			name: "config with pinned firewall version",
+			config: AWFCommandConfig{
+				EngineName:     "copilot",
+				AllowedDomains: "github.com",
+				WorkflowData: &WorkflowData{
+					EngineConfig: &EngineConfig{ID: "copilot"},
+					NetworkPermissions: &NetworkPermissions{
+						Firewall: &FirewallConfig{Enabled: true, Version: "v0.24.0"},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			jsonStr, err := BuildAWFConfigJSON(tc.config)
+			require.NoError(t, err, "BuildAWFConfigJSON should not return an error")
+			require.NoError(t, validateAWFConfigJSON(jsonStr),
+				"generated AWF config JSON must conform to the embedded schema")
+		})
+	}
+}
+
 // TestSplitDomainList verifies the splitDomainList helper handles edge cases.
 func TestSplitDomainList(t *testing.T) {
 	tests := []struct {
