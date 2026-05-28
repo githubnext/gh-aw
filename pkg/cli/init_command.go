@@ -1,10 +1,13 @@
 package cli
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -55,6 +58,7 @@ After running this command, you can:
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` init                                # Initialize repository with defaults
   ` + string(constants.CLIExtensionPrefix) + ` init -v                             # Initialize with verbose output
+  ` + string(constants.CLIExtensionPrefix) + ` init --engine claude                # Skip Copilot-specific artifacts
   ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp                       # Skip MCP configuration
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces ""               # Configure Codespaces for current repo only
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2       # Codespaces with additional repos
@@ -64,12 +68,22 @@ Examples:
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcpFlag, _ := cmd.Flags().GetBool("mcp")
 			noMcp, _ := cmd.Flags().GetBool("no-mcp")
+			engineOverride, _ := cmd.Flags().GetString("engine")
 			codespaceReposStr, _ := cmd.Flags().GetString("codespaces")
 			codespaceEnabled := cmd.Flags().Changed("codespaces")
 			completions, _ := cmd.Flags().GetBool("completions")
 			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias // Support both --create-pull-request and --pr
+
+			if engineOverride != "" {
+				registry := workflow.GetGlobalEngineRegistry()
+				if !registry.IsValidEngine(engineOverride) {
+					supportedEngines := registry.GetSupportedEngines()
+					sort.Strings(supportedEngines)
+					return fmt.Errorf("invalid engine value '%s'. Must be one of: %s", engineOverride, strings.Join(supportedEngines, ", "))
+				}
+			}
 
 			// Determine MCP state: default true, unless --no-mcp is specified
 			// --mcp flag is kept for backward compatibility (hidden from help)
@@ -96,6 +110,7 @@ Examples:
 			opts := InitOptions{
 				Ctx:              cmd.Context(),
 				Verbose:          verbose,
+				Engine:           engineOverride,
 				MCP:              mcp,
 				CodespaceRepos:   codespaceRepos,
 				CodespaceEnabled: codespaceEnabled,
@@ -112,8 +127,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, crush)")
-	_ = cmd.Flags().MarkHidden("engine") // Hide the engine flag from help output (internal use only)
+	addEngineFlag(cmd)
 	cmd.Flags().Bool("no-mcp", false, "Skip configuring gh-aw MCP server integration for GitHub Copilot Agent")
 	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use with an empty value for the current repo only")
 	cmd.Flags().Bool("completions", false, "Install shell completion for the detected shell (bash, zsh, fish, or PowerShell)")

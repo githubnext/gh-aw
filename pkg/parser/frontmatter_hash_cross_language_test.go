@@ -277,6 +277,43 @@ model: gpt-5
 		"FH-TV-004 hash should match specification vector")
 }
 
+// TestFrontmatterHashVectorFH_BFS_002 validates the FH-BFS-002 single-level import vector
+// from the specification (§5.1 BFS Diamond-Import Test Vectors).
+func TestFrontmatterHashVectorFH_BFS_002(t *testing.T) {
+	tempDir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "root.md"), []byte("---\nengine: copilot\nimports:\n  - ./helper.md\n---\n"), 0o644), "Should write root file")
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "helper.md"), []byte("---\ndescription: Helper agent\n---\n"), 0o644), "Should write helper file")
+
+	cache := NewImportCache(tempDir)
+	hash, err := ComputeFrontmatterHashFromFile(filepath.Join(tempDir, "root.md"), cache)
+	require.NoError(t, err, "Should compute hash for single-level import")
+	assert.Equal(t,
+		"3946bb0dc0698a31e37a1efc7012071939db1be2c8365f12f8a240bc01ba2e9e",
+		hash,
+		"FH-BFS-002 hash should match specification vector")
+}
+
+// TestFrontmatterHashVectorFH_BFS_003 validates the FH-BFS-003 diamond-import deduplication
+// vector from the specification (§5.1 BFS Diamond-Import Test Vectors).
+// shared.md is reachable from both a.md and b.md but must appear only once in the hash input.
+func TestFrontmatterHashVectorFH_BFS_003(t *testing.T) {
+	tempDir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "root.md"), []byte("---\nengine: copilot\nimports:\n  - ./a.md\n  - ./b.md\n---\n"), 0o644), "Should write root file")
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "a.md"), []byte("---\ndescription: Agent A\nimports:\n  - ./shared.md\n---\n"), 0o644), "Should write a.md")
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "b.md"), []byte("---\ndescription: Agent B\nimports:\n  - ./shared.md\n---\n"), 0o644), "Should write b.md")
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "shared.md"), []byte("---\ndescription: Shared helper\n---\n"), 0o644), "Should write shared.md")
+
+	cache := NewImportCache(tempDir)
+	hash, err := ComputeFrontmatterHashFromFile(filepath.Join(tempDir, "root.md"), cache)
+	require.NoError(t, err, "Should compute hash for diamond-import graph")
+	assert.Equal(t,
+		"13f1c69f5761454beac63c7dc259fa212f020d3dab9e0dd04d2e1bdcc242b108",
+		hash,
+		"FH-BFS-003 hash should match specification vector")
+}
+
 // findRepoRoot finds the repository root directory
 func findRepoRoot(t *testing.T) string {
 	// Start from current directory and walk up to find .git
