@@ -372,6 +372,17 @@ those prerequisites are met and the migration milestone is approved.
 **Sync verification (2026-05-12)**: SPDD review reconfirmed that the 2026-05-08 text-based
 resolution remains in force.
 
+**S-6 sync verification (2026-05-28)**: The 1 MiB cumulative input-size guard (S-6) is confirmed
+implemented in `pkg/parser/frontmatter_hash.go` via `validateFrontmatterHashInputSize`. The function
+accumulates normalized byte lengths across the main and all imported frontmatter texts and returns a
+deterministic error `"frontmatter hash input exceeds 1048576 bytes after normalization"` when the
+cumulative size exceeds `maxFrontmatterHashInputBytes` (1,048,576). The limit is equivalently
+enforced in `actions/setup/js/frontmatter_hash_pure.cjs` via
+`validateNormalizedFrontmatterHashInputSize`. Boundary-condition compliance is verified by
+`TestFrontmatterHashInputSizeLimit` in `pkg/parser/frontmatter_hash_test.go` (uses an input of
+`maxFrontmatterHashInputBytes + 1` bytes and asserts the exact error string). **Status: Verified
+2026-05-28.**
+
 ---
 
 ## Security Considerations

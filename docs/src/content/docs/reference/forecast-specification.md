@@ -1026,6 +1026,11 @@ Sync follow-up tasks:
   comment on `poissonNormalApproximationThreshold` in `pkg/cli/forecast_montecarlo.go` directing
   maintainers to Appendix B and R-FC-060. Closes
   [#31985](https://github.com/github/gh-aw/issues/31985).
+- **[Resolved 2026-05-28]** R-IMPL-040 experimental-warning sync: Confirmed that
+  `pkg/cli/forecast.go` (`RunForecast`) emits the experimental-status warning via
+  `console.FormatWarningMessage` on every non-JSON invocation. The warning is now correctly
+  suppressed when `config.JSONOutput` is true (per R-IMPL-040 requirement). Verified by
+  `TestRunForecast_R_IMPL_040_ExperimentalWarning` in `pkg/cli/forecast_test.go`.
 
 ---
 

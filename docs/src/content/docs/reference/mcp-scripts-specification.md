@@ -348,8 +348,7 @@ Implementations MUST validate:
 6. **Tool Names**: Tool names match pattern `^[a-zA-Z][a-zA-Z0-9_-]*$`
 7. **Dependencies**: Dependency names are valid for target package manager
 8. **Per-string length limits**: Each string-typed input parameter MUST enforce a maximum accepted
-   length of at least 10KB and MUST reject oversized values before tool execution (SM-IS-01);
-   follow-up implementation tracking is recorded in [#35257](https://github.com/github/gh-aw/issues/35257).
+   length of at least 10KB and MUST reject oversized values before tool execution (SM-IS-01).
 
 Implementations SHOULD validate:
 
@@ -359,10 +358,13 @@ Implementations SHOULD validate:
 4. **Description Length**: Tool descriptions are clear and concise (recommended 10-200 characters)
 5. **Timeout Reasonableness**: Timeout values are reasonable for tool purpose (warn if >600 seconds)
 
-**Sync note (2026-05-27)**: SM-IS-01 enforcement was reviewed against the current runtime path.
-`actions/setup/js/mcp_scripts_mcp_server_http.cjs` calls
-`validateRequiredFields` in `actions/setup/js/mcp_scripts_validation.cjs`, which validates required
-presence but does not yet enforce a per-string 10KB limit. Follow-up implementation tracking issue:
+**Sync note (2026-05-28)**: SM-IS-01 enforcement is now implemented. `validateStringInputLengths`
+has been added to `actions/setup/js/mcp_scripts_validation.cjs` and is called by the HTTP server
+in `actions/setup/js/mcp_scripts_mcp_server_http.cjs` immediately after required-field validation.
+Any string-typed input parameter whose UTF-8 byte length exceeds `MAX_STRING_INPUT_BYTES` (10 KB =
+10,240 bytes) causes the tool invocation to be rejected with a descriptive error before the handler
+is called. Implementations MUST NOT silently truncate oversized inputs. Verified by unit tests in
+`actions/setup/js/mcp_scripts_validation.test.cjs`. Closes
 [#35257](https://github.com/github/gh-aw/issues/35257).
 
 ---
@@ -806,7 +808,7 @@ Implementations MUST:
 3. Prevent code injection via input validation
 4. Apply length limits to string inputs (MUST enforce a maximum input string length of at least 10KB)
 
-**SM-IS-01**: Implementations MUST enforce a maximum input string length of at least 10KB for each string-typed input parameter. Inputs exceeding the configured maximum MUST be rejected with a validation error before the tool script is invoked. Implementations MUST NOT silently truncate oversized inputs.
+**SM-IS-01**: Implementations MUST enforce a maximum input string length of at least 10KB for each string-typed input parameter. Inputs exceeding the configured maximum MUST be rejected with a validation error before the tool script is invoked. Implementations MUST NOT silently truncate oversized inputs. The limit is enforced via `validateStringInputLengths` in `actions/setup/js/mcp_scripts_validation.cjs` (`MAX_STRING_INPUT_BYTES` = 10,240 bytes). **Status: Implemented 2026-05-28.**
 
 ### 7.4 Output Sanitization
 
