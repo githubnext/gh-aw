@@ -19,7 +19,7 @@ func TestDeleteOldAgentFiles(t *testing.T) {
 		expectedDeleted []string // Files that should be deleted
 	}{
 		{
-			name: "deletes old agent files from .github/agents including dispatcher",
+			name: "deletes legacy agent files from .github/agents including dispatcher",
 			filesToCreate: []string{
 				".github/agents/agentic-workflows.agent.md",
 				".github/agents/create-agentic-workflow.agent.md",
