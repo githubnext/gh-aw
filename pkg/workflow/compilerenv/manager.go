@@ -27,6 +27,8 @@ const (
 	DefaultModelClaude = "GH_AW_DEFAULT_MODEL_CLAUDE"
 	// DefaultModelCodex is the enterprise override for Codex fallback model selection.
 	DefaultModelCodex = "GH_AW_DEFAULT_MODEL_CODEX"
+	// DefaultMinCompilerVersion is the enterprise override for minimum compiler version enforcement.
+	DefaultMinCompilerVersion = "GH_AW_DEFAULT_MIN_COMPILER_VERSION"
 )
 
 type Variable struct {
@@ -64,6 +66,10 @@ func EnterpriseVariables() []Variable {
 		{
 			Name:        DefaultModelCodex,
 			Description: "Default Codex model fallback override when GH_AW_MODEL_AGENT/DETECTION_CODEX is unset",
+		},
+		{
+			Name:        DefaultMinCompilerVersion,
+			Description: "Minimum released compiler version required to run generated workflows",
 		},
 	}
 }

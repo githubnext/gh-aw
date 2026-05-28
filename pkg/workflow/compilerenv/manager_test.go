@@ -19,6 +19,7 @@ func TestEnterpriseVariables(t *testing.T) {
 	assert.Contains(t, names, DefaultModelCopilot)
 	assert.Contains(t, names, DefaultModelClaude)
 	assert.Contains(t, names, DefaultModelCodex)
+	assert.Contains(t, names, DefaultMinCompilerVersion)
 }
 
 func TestResolveDefaultMaxEffectiveTokens(t *testing.T) {

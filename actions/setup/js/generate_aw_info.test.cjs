@@ -50,6 +50,7 @@ describe("generate_aw_info.cjs", () => {
     process.env.GH_AW_INFO_VERSION = "";
     process.env.GH_AW_INFO_AGENT_VERSION = "0.0.419";
     process.env.GH_AW_INFO_CLI_VERSION = "";
+    process.env.GH_AW_INFO_MIN_COMPILER_VERSION = "";
     process.env.GH_AW_INFO_WORKFLOW_NAME = "my-workflow";
     process.env.GH_AW_INFO_EXPERIMENTAL = "false";
     process.env.GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST = "true";
@@ -160,6 +161,37 @@ describe("generate_aw_info.cjs", () => {
 
     const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
     expect(awInfo.cli_version).toBeUndefined();
+  });
+
+  it("should fail when configured minimum compiler version is higher than current released compiler version", async () => {
+    process.env.GH_AW_INFO_CLI_VERSION = "1.2.3";
+    process.env.GH_AW_INFO_MIN_COMPILER_VERSION = "v1.2.4";
+
+    await main(mockCore, mockContext);
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(
+      expect.stringContaining("Compiler version requirement not met")
+    );
+  });
+
+  it("should ignore minimum compiler version when configured value is not a release version", async () => {
+    process.env.GH_AW_INFO_CLI_VERSION = "1.2.3";
+    process.env.GH_AW_INFO_MIN_COMPILER_VERSION = "latest";
+
+    await main(mockCore, mockContext);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping minimum compiler version check"));
+  });
+
+  it("should ignore minimum compiler version when current compiler version is not a release version", async () => {
+    process.env.GH_AW_INFO_CLI_VERSION = "dev";
+    process.env.GH_AW_INFO_MIN_COMPILER_VERSION = "v1.2.3";
+
+    await main(mockCore, mockContext);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping minimum compiler version check"));
   });
 
   it("should parse allowed domains from JSON env var", async () => {

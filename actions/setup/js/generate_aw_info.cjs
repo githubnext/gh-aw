@@ -101,6 +101,10 @@ async function main(core, ctx) {
   if (cliVersion) {
     awInfo.cli_version = cliVersion;
   }
+  const minimumCompilerVersion = process.env.GH_AW_INFO_MIN_COMPILER_VERSION || "";
+  if (!(await enforceMinimumCompilerVersion(core, cliVersion || "", minimumCompilerVersion))) {
+    return;
+  }
 
   // Include deployment_state when triggered by a deployment_status event.
   // This makes the deployment state available to the agent without requiring it to
@@ -245,6 +249,81 @@ async function main(core, ctx) {
 }
 
 module.exports = { main };
+
+/**
+ * Parse a release version string in MAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH format.
+ * Returns numeric components or null for non-release versions.
+ *
+ * @param {string} version
+ * @returns {number[]|null}
+ */
+function parseReleaseVersion(version) {
+  const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  if (!match) {
+    return null;
+  }
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+/**
+ * Compare two parsed release versions.
+ *
+ * @param {number[]} a
+ * @param {number[]} b
+ * @returns {number}
+ */
+function compareReleaseVersions(a, b) {
+  for (let i = 0; i < 3; i++) {
+    if (a[i] !== b[i]) {
+      return a[i] - b[i];
+    }
+  }
+  return 0;
+}
+
+/**
+ * Enforce minimum compiler version when configured with a valid release version.
+ *
+ * @param {typeof import('@actions/core')} core
+ * @param {string} currentVersion
+ * @param {string} minimumVersion
+ * @returns {Promise<boolean>}
+ */
+async function enforceMinimumCompilerVersion(core, currentVersion, minimumVersion) {
+  if (!minimumVersion) {
+    return true;
+  }
+
+  const parsedMinimum = parseReleaseVersion(minimumVersion);
+  if (!parsedMinimum) {
+    core.info(
+      `Skipping minimum compiler version check: '${minimumVersion}' is not an official release version (expected vMAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH)`
+    );
+    return true;
+  }
+
+  const parsedCurrent = parseReleaseVersion(currentVersion);
+  if (!parsedCurrent) {
+    core.info(
+      `Skipping minimum compiler version check: current compiler version '${currentVersion || "(empty)"}' is not an official release version`
+    );
+    return true;
+  }
+
+  if (compareReleaseVersions(parsedCurrent, parsedMinimum) < 0) {
+    core.summary
+      .addRaw("### ❌ Compiler version requirement not met\n\n")
+      .addRaw(`Current compiler version \`${currentVersion}\` is below required minimum \`${minimumVersion}\`.\n\n`)
+      .addRaw("**Action required:** Upgrade `gh-aw`, recompile the workflow, and run it again.\n");
+    await core.summary.write();
+    core.setFailed(
+      `Compiler version requirement not met: current ${currentVersion} is below minimum ${minimumVersion}. Upgrade gh-aw and recompile the workflow.`
+    );
+    return false;
+  }
+
+  return true;
+}
 
 /**
  * @param {unknown} value

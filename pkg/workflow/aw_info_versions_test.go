@@ -159,6 +159,28 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 	}
 }
 
+func TestMinCompilerVersionEnvInAwInfo(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.2.3"))
+	registry := GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine("copilot")
+	if err != nil {
+		t.Fatalf("Failed to get copilot engine: %v", err)
+	}
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+	}
+
+	var yaml strings.Builder
+	compiler.generateCreateAwInfo(&yaml, workflowData, engine)
+	output := yaml.String()
+
+	expectedLine := "GH_AW_INFO_MIN_COMPILER_VERSION: ${{ vars.GH_AW_DEFAULT_MIN_COMPILER_VERSION || '' }}"
+	if !strings.Contains(output, expectedLine) {
+		t.Errorf("Expected output to contain minimum compiler version env line %q, got:\n%s", expectedLine, output)
+	}
+}
+
 func TestAwfVersionInAwInfo(t *testing.T) {
 	tests := []struct {
 		name               string
