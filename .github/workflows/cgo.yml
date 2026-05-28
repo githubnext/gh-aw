@@ -1656,7 +1656,11 @@ jobs:
         $workspaceBinaryHash = (Get-FileHash -LiteralPath $workspaceBinaryPath -Algorithm SHA256).Hash
 
         # Copy to a dedicated scan directory instead of scanning directly under D:\a\ workspace.
-        $scanBasePath = Join-Path ($env:TEMP ? $env:TEMP : "C:\Temp") "defender-scan"
+        $scanBaseRoot = $env:TEMP
+        if (-not $scanBaseRoot) {
+          $scanBaseRoot = "C:\Temp"
+        }
+        $scanBasePath = Join-Path $scanBaseRoot "defender-scan"
         New-Item -ItemType Directory -Path $scanBasePath -Force | Out-Null
         $scanFileName = "scan-$([guid]::NewGuid().ToString('N')).exe"
         $binaryPath = Join-Path $scanBasePath $scanFileName
@@ -1666,7 +1670,11 @@ jobs:
           exit 1
         }
         $binaryPath = (Resolve-Path -Path $binaryPath).Path
-        if ($binaryPath -like "D:\a\*") {
+        $workspaceRoot = $null
+        if ($env:GITHUB_WORKSPACE -and (Test-Path -Path $env:GITHUB_WORKSPACE -PathType Container)) {
+          $workspaceRoot = (Resolve-Path -Path $env:GITHUB_WORKSPACE).Path
+        }
+        if ($workspaceRoot -and $binaryPath.StartsWith($workspaceRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
           Write-Error "Refusing to scan from workspace path: $binaryPath"
           exit 1
         }
