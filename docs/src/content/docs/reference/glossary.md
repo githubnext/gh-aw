@@ -87,6 +87,19 @@ tools:
     min-integrity: approved
 ```
 
+### Tool Call Limits (`max-calls`)
+
+A per-tool call cap declared inline on entries in `tools.github.allowed`. Each entry can be a plain string tool name (no limit) or an object with a `name` field and an optional `max-calls` integer. When `max-calls` is set, the MCP gateway enforces that the tool may be called at most that many times in a single workflow run, preventing runaway re-invocation of read tools. Call limits are emitted into the `allow-only.tool-call-limits` guard policy at compile time; enforcement is delegated to the AWF MCP gateway. See [GitHub Tools Reference](/gh-aw/reference/github-tools/).
+
+```aw wrap
+tools:
+  github:
+    allowed:
+      - issue_read          # no limit
+      - name: list_labels
+        max-calls: 3
+```
+
 ### Ignore If Missing (`ignore-if-missing`)
 
 A GitHub App authentication field that gracefully skips token minting when `client-id` or `private-key` resolve to empty strings at runtime (e.g., on fork pull requests where App secrets are unavailable). When set to `true` under `github-app.ignore-if-missing`, the workflow falls back to the standard token chain (`secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN`) instead of failing. Applies consistently to all token mint paths: safe outputs, activation, pre-activation, and checkout. Default behavior (fail when keys are empty) remains unchanged when omitted or set to `false`. See [Authentication Reference](/gh-aw/reference/auth/).
@@ -785,6 +798,10 @@ A system-injected environment variable containing the gh-aw compiler version tha
 ### `GH_AW_ALLOWED_DOMAINS`
 
 A system-injected environment variable containing the comma-separated list of domains allowed by the workflow's network configuration. Used by safe output jobs for URL sanitization — URLs from unlisted domains are redacted in AI-generated content before it is applied. Automatically populated from `network.allowed` domains and, when `engine.api-target` is set, includes the GHES/GHEC API hostname and base domain. Cannot be overridden by user-defined `env:` blocks. See [Environment Variables Reference](/gh-aw/reference/environment-variables/).
+
+### `GH_AW_DEFAULT_*`
+
+A family of environment variables set in the compiler process environment or as GitHub Actions `vars.*` to apply organization- or repository-wide defaults without editing individual workflow frontmatter. Compiler-process variables (`GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS`, `GH_AW_DEFAULT_MAX_TURNS`, `GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_DETECTION_MODEL`) inject defaults at compile time; runtime repository variables (`GH_AW_DEFAULT_MODEL_COPILOT`, `GH_AW_DEFAULT_MODEL_CLAUDE`, `GH_AW_DEFAULT_MODEL_CODEX`) provide model fallbacks when per-run model overrides are unset. Frontmatter settings always take precedence over `GH_AW_DEFAULT_*`. Managed in batch via `gh aw env`. See [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/).
 
 ### `GH_HOST`
 
