@@ -73,24 +73,6 @@ Analyze Go code for quality improvements:
 2. Identify code patterns and suggest improvements
 ```
 
-## Migration from `tools.serena`
-
-Replace `tools.serena` with the equivalent import:
-
-```yaml title="Before (removed)"
-tools:
-  serena: ["go", "typescript"]
-```
-
-```aw wrap title="After (recommended)"
-imports:
-  - uses: shared/mcp/serena.md
-    with:
-      languages: ["go", "typescript"]
-```
-
-The shared workflow configures the full Serena MCP server (container image, entrypoint, workspace mount) explicitly.
-
 ## Language Support
 
 Serena supports **30+ programming languages** through Language Server Protocol (LSP):
