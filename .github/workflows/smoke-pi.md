@@ -13,6 +13,7 @@ permissions:
   issues: read
   pull-requests: read
 env:
+  NODE_DEBUG: "http,https,net,tls,undici"
   AWF_REFLECT_MAX_ATTEMPTS: "7"
   AWF_REFLECT_RETRY_BASE_MS: "1000"
   AWF_REFLECT_RETRY_MAX_MS: "10000"
