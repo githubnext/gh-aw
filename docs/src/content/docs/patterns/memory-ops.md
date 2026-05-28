@@ -47,7 +47,7 @@ Use for historical data, trend tracking, permanent state. By default the memory 
 ```yaml
 tools:
   comment-memory:
-    target: triggering
+    target: triggering  # Use the issue/PR that triggered this workflow run
 ```
 
 Use for issue and PR follow-up context, review history, and iterative updates without creating a separate branch. A managed comment is automatically created and updated by the workflow for the configured memory ID. By default the memory is available at `/tmp/gh-aw/comment-memory/`. Data persists in the managed issue or PR comment until that content is edited or removed.
@@ -188,10 +188,10 @@ the previous review state.
 tools:
   comment-memory:
     target: triggering
-    memory-id: pr-review-state
+    memory-id: pr-review-state  # Separate state bucket in the managed comment
 ```
 
-This pattern works well for PRs that need multiple review cycles because state stays attached to the PR itself.
+This pattern works well for PRs that need multiple review cycles because state stays attached to the PR itself. Use distinct `memory-id` values when one workflow stores multiple independent state sections.
 
 ## Best Practices
 
