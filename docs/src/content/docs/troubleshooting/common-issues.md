@@ -386,7 +386,7 @@ Common causes: missing tokens, permission mismatches, network restrictions, disa
 Using Copilot Chat (requires [agentic authoring setup](/gh-aw/guides/agentic-authoring/#configuring-your-repository)):
 
 ```text wrap
-/agent agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
+agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
 Using any coding agent (no setup required):

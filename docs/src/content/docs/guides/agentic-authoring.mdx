@@ -55,10 +55,10 @@ Use the agentic workflows agent to diagnose and fix failing workflow runs.
 
 ### Through Copilot
 
-If your repository is [configured for agentic authoring](#configuring-your-repository), use the `agentic-workflows` agent in Copilot Chat:
+If your repository is [configured for agentic authoring](#configuring-your-repository), use the `agentic-workflows` skill in Copilot Chat:
 
 ```text wrap
-/agent agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
+agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
 The agent audits the run, identifies the root cause (missing tools, permission errors, network blocks), and suggests targeted fixes.

@@ -32,7 +32,7 @@ To help the agent succeed, please:
 
 **Steps:**
 
-1. Invoke agent: `/agent agentic-workflows`
+1. Invoke skill: `agentic-workflows`
 2. Command: "Debug this missing data issue"
 3. Analyze what data the agent needs and why
 4. Determine the appropriate solution:

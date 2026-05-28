@@ -45,7 +45,7 @@ Navigate to your repository on https://github.com and click the "Agents" tab, th
 
 ```text wrap
 # Create a new workflow
-/agent agentic-workflows create a workflow that triages issues
+agentic-workflows create a workflow that triages issues
 ```
 
 The skill will generate a workflow file in `.github/workflows/`, write the frontmatter and prompt, configure tools and permissions, and compile to `.lock.yml`.
@@ -55,7 +55,7 @@ The skill will generate a workflow file in `.github/workflows/`, write the front
 Modify or improve existing workflows using natural language prompts:
 
 ```text wrap
-/agent agentic-workflows update the issue-triage workflow to add web-fetch tool and
+agentic-workflows update the issue-triage workflow to add web-fetch tool and
   improve the prompt for better accuracy
 ```
 
@@ -64,7 +64,7 @@ Modify or improve existing workflows using natural language prompts:
 Keep workflows up-to-date with the latest `gh-aw` versions and features:
 
 ```text wrap
-/agent agentic-workflows upgrade all workflows to latest version
+agentic-workflows upgrade all workflows to latest version
 ```
 
 ### Importing Workflows
@@ -72,13 +72,13 @@ Keep workflows up-to-date with the latest `gh-aw` versions and features:
 Import workflows from any accessible GitHub repository:
 
 ```text wrap
-/agent agentic-workflows import workflow from https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
+agentic-workflows import workflow from https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
 ```
 
 When importing, you can specify customizations such as engine or tools:
 
 ```text wrap
-/agent agentic-workflows import issue-triage from githubnext/agentics and use claude engine
+agentic-workflows import issue-triage from githubnext/agentics and use claude engine
 ```
 
 ### Debugging Agentic Workflows
@@ -86,13 +86,13 @@ When importing, you can specify customizations such as engine or tools:
 When workflows fail or behave unexpectedly, use the agentic-workflows skill to investigate and diagnose issues:
 
 ```text wrap
-/agent agentic-workflows debug why is my issue-triage workflow failing?
+agentic-workflows debug why is my issue-triage workflow failing?
 ```
 
 For the fastest diagnosis, pass the full run URL from the GitHub Actions page:
 
 ```text wrap
-/agent agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
+agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
 The agent audits logs, identifies the root cause, and suggests targeted fixes. It handles permission errors, missing tools, network access issues, and safe-output problems — just describe the issue in natural language.

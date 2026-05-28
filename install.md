@@ -98,7 +98,7 @@ After successful initialization, the user can:
 
 - **Add workflows from repos**: `gh aw add githubnext/agentics`
 - **Create new workflows**: `gh aw new <workflow-name>` os using the agent
-- **Use the AI agent**: Type `/agent` in GitHub Copilot Chat and select `agentic-workflows`
+- **Use the AI skill**: Invoke the `agentic-workflows` skill in GitHub Copilot Chat
 - **Read documentation**: Visit `https://github.github.com/gh-aw/`
 
 ## Reference

@@ -8,10 +8,10 @@ There are two ways to invoke this debugging workflow:
 
 ### Option A: Through Copilot
 
-If your repository is configured with the `agentic-workflows` agent, use Copilot Chat:
+If your repository is configured with the `agentic-workflows` skill, use Copilot Chat:
 
 ```text
-/agent agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
+agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
 ### Option B: Self-Contained (with URL)

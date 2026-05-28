@@ -94,7 +94,7 @@ The fastest way to diagnose failures is to use the Copilot CLI interactively fro
    GH_HOST=yourorg.ghe.com copilot
    ```
 
-3. **Select the agentic-workflows agent** — when Copilot starts, run `/agent` and choose `agentic-workflows` from the list.
+3. **Select the agentic-workflows skill** — when Copilot starts, invoke `agentic-workflows`.
 
 4. **Ask Copilot to run and debug the workflow** — trigger the workflow, wait for it to complete, and then ask Copilot to analyze the results. For example:
    ```

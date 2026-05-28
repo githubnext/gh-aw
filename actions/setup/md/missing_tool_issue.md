@@ -20,7 +20,7 @@ Please investigate why these tools are missing and either:
 
 **Steps:**
 
-1. Invoke agent: `/agent agentic-workflows`
+1. Invoke skill: `agentic-workflows`
 2. Command: "Debug this missing tool issue"
 3. Analyze which tools are missing and why they're needed
 4. Determine the appropriate solution:

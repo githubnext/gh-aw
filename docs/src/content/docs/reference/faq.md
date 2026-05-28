@@ -474,7 +474,7 @@ One workflow is simpler to maintain; multiple workflows give better separation o
 
 ### Should I create agentic workflows by hand editing or using AI?
 
-Both work. AI-assisted authoring via `/agent agentic-workflows create` in Copilot Chat gives interactive guidance and best practices; manual editing gives full control for advanced customization. See [Creating Workflows](/gh-aw/setup/creating-workflows/) or [Frontmatter Reference](/gh-aw/reference/frontmatter/).
+Both work. AI-assisted authoring via `agentic-workflows create` in Copilot Chat gives interactive guidance and best practices; manual editing gives full control for advanced customization. See [Creating Workflows](/gh-aw/setup/creating-workflows/) or [Frontmatter Reference](/gh-aw/reference/frontmatter/).
 
 ### Can the agent use an existing branch specified at runtime (e.g., from a Jira issue)?
 
