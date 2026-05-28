@@ -218,6 +218,17 @@ var (
 	allManifestFilesBaseCache []string
 )
 
+// buildBaseManifestFiles computes the deduplicated union of manifest files from all
+// known runtimes plus the security config files. It is the shared computation used by
+// both the cached (no-extra) and uncached (with-extra) paths of getAllManifestFiles.
+func buildBaseManifestFiles() []string {
+	var files []string
+	for _, runtime := range knownRuntimes {
+		files = append(files, runtime.ManifestFiles...)
+	}
+	return append(files, securityConfigFiles...)
+}
+
 // getAllManifestFiles returns the deduplicated union of all manifest file names
 // across all known runtimes, plus repository security configuration files, plus
 // any additionally-provided filenames.
@@ -225,21 +236,11 @@ var (
 func getAllManifestFiles(extra ...string) []string {
 	if len(extra) == 0 {
 		allManifestFilesBaseOnce.Do(func() {
-			var files []string
-			for _, runtime := range knownRuntimes {
-				files = append(files, runtime.ManifestFiles...)
-			}
-			files = append(files, securityConfigFiles...)
-			allManifestFilesBaseCache = sliceutil.MergeUnique(files)
+			allManifestFilesBaseCache = sliceutil.MergeUnique(buildBaseManifestFiles())
 		})
 		return allManifestFilesBaseCache
 	}
-	var files []string
-	for _, runtime := range knownRuntimes {
-		files = append(files, runtime.ManifestFiles...)
-	}
-	files = append(files, securityConfigFiles...)
-	return sliceutil.MergeUnique(files, extra...)
+	return sliceutil.MergeUnique(buildBaseManifestFiles(), extra...)
 }
 
 // getProtectedPathPrefixes returns non-dot path prefixes (relative to repo root)

@@ -2,7 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -444,7 +444,9 @@ func GetValidationConfigJSON(enabledTypes []string) (string, error) {
 	cacheKey := buildValidationConfigCacheKey(enabledTypes)
 	if cached, ok := validationConfigJSONCache.Load(cacheKey); ok {
 		safeOutputValidationLog.Print("Returning cached validation config JSON")
-		return cached.(string), nil
+		if result, ok := cached.(string); ok {
+			return result, nil
+		}
 	}
 
 	configToMarshal := ValidationConfig
@@ -478,8 +480,6 @@ func buildValidationConfigCacheKey(enabledTypes []string) string {
 	if len(enabledTypes) == 0 {
 		return ""
 	}
-	sorted := make([]string, len(enabledTypes))
-	copy(sorted, enabledTypes)
-	sort.Strings(sorted)
+	sorted := slices.Sorted(slices.Values(enabledTypes))
 	return strings.Join(sorted, ",")
 }
