@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"6ab58b9981438afb144f321bf132b27895fefd5617a039356d949091470bafe9","body_hash":"48c0440323caddece2916649601281965e039a10906c66bcce0ff1b8b2f7f2e1","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"21145b863e6ac60ccbd9e420748f575cfa67633db94265599fdd8f911817c634","body_hash":"48c0440323caddece2916649601281965e039a10906c66bcce0ff1b8b2f7f2e1","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"anchore/sbom-action","sha":"e22c389904149dbc22b58101806040fa8d37a610","version":"v0.24.0"},{"repo":"docker/build-push-action","sha":"bcafcacb16a39f128d818304e6c9c0c18556b85f","version":"v7.1.0"},{"repo":"docker/login-action","sha":"4907a6ddec9925e35a0a9e82d7399ccc52663121","version":"v4.1.0"},{"repo":"docker/metadata-action","sha":"80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9","version":"v6"},{"repo":"docker/setup-buildx-action","sha":"d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5","version":"v4"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.56"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.56"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.56"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.20"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4","digest":"sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.4@sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -222,20 +222,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_aa4712b86646f911_EOF'
+          cat << 'GH_AW_PROMPT_19971061abb4b858_EOF'
           <system>
-          GH_AW_PROMPT_aa4712b86646f911_EOF
+          GH_AW_PROMPT_19971061abb4b858_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_aa4712b86646f911_EOF'
+          cat << 'GH_AW_PROMPT_19971061abb4b858_EOF'
           <safe-output-tools>
           Tools: update_release, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_aa4712b86646f911_EOF
+          GH_AW_PROMPT_19971061abb4b858_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_aa4712b86646f911_EOF'
+          cat << 'GH_AW_PROMPT_19971061abb4b858_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -264,15 +264,15 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_aa4712b86646f911_EOF
+          GH_AW_PROMPT_19971061abb4b858_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_aa4712b86646f911_EOF'
+          cat << 'GH_AW_PROMPT_19971061abb4b858_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/community-attribution.md}}
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/release.md}}
-          GH_AW_PROMPT_aa4712b86646f911_EOF
+          GH_AW_PROMPT_19971061abb4b858_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -508,9 +508,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_d1271e1a0cad0699_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_ef6d5325ae15a113_EOF'
           {"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"update_release":{"max":1}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_d1271e1a0cad0699_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_ef6d5325ae15a113_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -709,7 +709,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_2e038844e72d36a1_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_6bfab154819f8314_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -755,7 +755,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_2e038844e72d36a1_EOF
+          GH_AW_MCP_CONFIG_6bfab154819f8314_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1019,6 +1019,7 @@ jobs:
       - activation
       - agent
       - config
+      - defender
       - push_tag
       - release
       - safe_outputs
@@ -1298,6 +1299,54 @@ jobs:
             console.log(`Computed release tag: ${releaseTag}`);
             core.setOutput('release_tag', releaseTag);
             console.log(`✓ Release tag: ${releaseTag}`);
+
+  defender:
+    needs:
+      - activation
+      - config
+      - pre_activation
+      - push_tag
+    runs-on: windows-latest
+    steps:
+      - name: Configure GH_HOST for enterprise compatibility
+        id: ghes-host-config
+        shell: bash
+        run: |
+          # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
+          # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
+          GH_HOST="${GITHUB_SERVER_URL#https://}"
+          GH_HOST="${GH_HOST#http://}"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+      - name: Download release binaries
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-binaries-${{ needs.config.outputs.release_tag }}
+          path: dist/
+      - name: Update Microsoft Defender signatures
+        run: |
+          & "C:\Program Files\Windows Defender\MpCmdRun.exe" -SignatureUpdate
+        shell: pwsh
+      - name: Run Microsoft Defender scan on Windows binaries
+        run: |
+          $binaries = Get-ChildItem -Path dist\ -Filter "windows-*.exe" -File
+          if ($binaries.Count -eq 0) {
+            Write-Error "No Windows binaries found in dist/"
+            exit 1
+          }
+          $failed = $false
+          foreach ($binary in $binaries) {
+            Write-Host "Scanning $($binary.FullName)..."
+            $output = & "C:\Program Files\Windows Defender\MpCmdRun.exe" -Scan -ScanType 3 -File $binary.FullName 2>&1
+            Write-Host $output
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Defender scan failed for $($binary.Name) with exit code $LASTEXITCODE"
+              $failed = $true
+            } else {
+              Write-Host "✓ Clean: $($binary.Name)"
+            }
+          }
+          if ($failed) { exit 1 }
+        shell: pwsh
 
   pre_activation:
     runs-on: ubuntu-slim
@@ -1687,6 +1736,7 @@ jobs:
     needs:
       - activation
       - config
+      - defender
       - pre_activation
       - push_tag
     runs-on: ubuntu-latest
