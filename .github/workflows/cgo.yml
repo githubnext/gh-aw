@@ -1649,14 +1649,19 @@ jobs:
 
         # Log Defender version and signature information for diagnostics
         Write-Host "=== Microsoft Defender diagnostic info ==="
-        $mpPreference = Get-MpComputerStatus -ErrorAction SilentlyContinue
-        if ($mpPreference) {
-          Write-Host "AntivirusEnabled:         $($mpPreference.AntivirusEnabled)"
-          Write-Host "RealTimeProtectionEnabled: $($mpPreference.RealTimeProtectionEnabled)"
-          Write-Host "AntivirusSignatureVersion: $($mpPreference.AntivirusSignatureVersion)"
-          Write-Host "AntivirusSignatureLastUpdated: $($mpPreference.AntivirusSignatureLastUpdated)"
-          Write-Host "AMProductVersion:          $($mpPreference.AMProductVersion)"
-          Write-Host "AMEngineVersion:           $($mpPreference.AMEngineVersion)"
+        try {
+          $mpStatus = Get-MpComputerStatus
+        } catch {
+          $mpStatus = $null
+          Write-Host "Could not query Microsoft Defender status: $_"
+        }
+        if ($mpStatus) {
+          Write-Host "AntivirusEnabled:         $($mpStatus.AntivirusEnabled)"
+          Write-Host "RealTimeProtectionEnabled: $($mpStatus.RealTimeProtectionEnabled)"
+          Write-Host "AntivirusSignatureVersion: $($mpStatus.AntivirusSignatureVersion)"
+          Write-Host "AntivirusSignatureLastUpdated: $($mpStatus.AntivirusSignatureLastUpdated)"
+          Write-Host "AMProductVersion:          $($mpStatus.AMProductVersion)"
+          Write-Host "AMEngineVersion:           $($mpStatus.AMEngineVersion)"
         } else {
           Write-Host "(Get-MpComputerStatus unavailable)"
         }
@@ -1670,7 +1675,7 @@ jobs:
         # MpCmdRun messages are available for the skip detection below) so we
         # can detect the "was skipped" case, which exits 0 but means the file
         # was NOT actually scanned.
-        $output = & $mpCmdRun -Scan -ScanType 3 -File $binaryPath 2>&1
+        $output = & $mpCmdRun -Scan -ScanType 3 -File $binaryPath 2>&1 | ForEach-Object { "$_" }
         $scanExitCode = $LASTEXITCODE
 
         Write-Host "=== MpCmdRun output ==="
@@ -1688,11 +1693,11 @@ jobs:
         # treat it as a hard failure so a skipped scan never silently passes CI.
         # Use -imatch for case-insensitive matching since the exact casing of
         # MpCmdRun output may vary across Defender versions.
-        $skipped = $output | Where-Object { $_ -imatch "was skipped" }
+        $skipped = $output | Where-Object { $_ -imatch "was skipped|cannot be scanned|not performed|excluded" }
         if ($skipped) {
           Write-Error "Microsoft Defender scan was skipped for $binaryPath - the binary was NOT scanned."
           Write-Error "Possible causes: file/path exclusion, stale signatures, or protection disabled."
-          Write-Error "Skipped output: $($skipped -join '; ')"
+          Write-Error "Skipped output: $(@($skipped) -join '; ')"
           exit 1
         }
 
