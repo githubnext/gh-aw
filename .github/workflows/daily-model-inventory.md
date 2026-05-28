@@ -279,6 +279,15 @@ steps:
     with:
       path: /tmp/gh-aw/agent/model-inventory/artifacts
 
+  - name: Predownload models.dev API index
+    shell: bash
+    run: |
+      set -euo pipefail
+      OUT="/tmp/gh-aw/agent/model-inventory/models-dev"
+      mkdir -p "$OUT"
+      curl -fsS https://models.dev/api.json -o "$OUT/api.json"
+      echo "Downloaded models.dev API index to $OUT/api.json"
+
   - name: Merge artifacts into combined inventory
     shell: bash
     run: |
@@ -324,6 +333,7 @@ them into:
 - Combined inventory: `/tmp/gh-aw/agent/model-inventory/inventory.json`
 - Individual provider files: `/tmp/gh-aw/agent/model-inventory/artifacts/<provider>-models/models.json`
 - Raw provider responses: `/tmp/gh-aw/agent/model-inventory/artifacts/<provider>-models/raw.json`
+- Predownloaded models.dev API index: `/tmp/gh-aw/agent/model-inventory/models-dev/api.json`
 - Copilot live provider metadata: `/tmp/gh-aw/agent/model-inventory/reflect.json` (generated in
   Step 0 below; filter `.endpoints[] | select(.provider == "copilot") | .models`). If the
   file contains an `error` field, treat Copilot data as unavailable for this run and
@@ -425,6 +435,8 @@ echo "Copilot reflect metadata written to $OUT"
 Read the combined inventory from `/tmp/gh-aw/agent/model-inventory/inventory.json`. Then read
 the `/tmp/gh-aw/agent/model-inventory/reflect.json` file from Step 0 and extract the configured
 `copilot` endpoint (`.endpoints[] | select(.provider == "copilot" and .configured)`).
+Also read `/tmp/gh-aw/agent/model-inventory/models-dev/api.json` as a secondary cross-provider
+catalog snapshot.
 
 List the providers that returned data and the count of models available from each, including
 Copilot from the reflect file.
@@ -449,6 +461,9 @@ Specifically look for:
   or a premium indicator (e.g. `billing.multiplier`, `policy`, `tier`, `premium`, `cost_multiplier`)
 - **Model metadata**: `display_name`, `vendor`, `version`, `created_at`/`created`
 
+For `models.dev/api.json`, focus on normalized provider/model IDs and any capability or pricing-like
+metadata that can improve alias coverage checks when provider APIs are partial.
+
 Summarize which fields are present and which carry useful data worth including in future cached
 inventories.
 
@@ -468,6 +483,9 @@ with columns `Model`, `Current multiplier`, and `New multiplier`.
 **Use the docs table as the primary (authoritative) source of ET multipliers.** Prefer the
 **New multiplier** column for upcoming billing schedule comparisons. If the docs table fetch
 failed or returned an empty model list, fall back to the heuristics below.
+
+Use `models.dev/api.json` as an additional reference for missing model IDs and family naming, but
+do not treat it as the primary multiplier authority over the GitHub docs table.
 
 For each provider's enriched data, attempt to infer or validate the ET multiplier for each model:
 
