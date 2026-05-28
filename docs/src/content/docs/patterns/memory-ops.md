@@ -19,7 +19,7 @@ When writing prompting for using memory, you can usually use surprisingly high l
 
 ## Memory Types
 
-Three memory stores are available. Each has different use cases and access patterns.
+Three types of memory stores are available. Each has different use cases and access patterns.
 
 [Cache Memory](/gh-aw/reference/cache-memory/) gives fast, ephemeral storage using GitHub Actions cache (7 days retention):
 
@@ -50,7 +50,7 @@ tools:
     target: triggering
 ```
 
-Use for issue and PR follow-up context, review history, and iterative updates without creating a separate branch. By default the memory is available at `/tmp/gh-aw/comment-memory/`. Data persists in the managed issue or PR comment until that content is edited or removed.
+Use for issue and PR follow-up context, review history, and iterative updates without creating a separate branch. A managed comment is automatically created and updated by the workflow for the configured memory ID. By default the memory is available at `/tmp/gh-aw/comment-memory/`. Data persists in the managed issue or PR comment until that content is edited or removed.
 
 ## Pattern 1: Exhaustive Processing
 
