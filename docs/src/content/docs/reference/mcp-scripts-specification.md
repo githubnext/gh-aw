@@ -745,6 +745,31 @@ The following imports are automatically included:
 
 Additional imports MAY be added by the user in their code.
 
+#### 6.4.5 Module and Dependency Requirements
+
+**go.mod requirement**: Go tools that use external (non-standard-library) packages MUST supply a
+`go.mod` file. The `go.mod` content MUST be provided either:
+
+1. **Inline** in the `go:` script body, as a separate section delimited by `// go.mod` comments
+   (implementation-defined syntax); or
+2. **Via the `dependencies` field**, where each entry is a `module@version` string (e.g.,
+   `github.com/some/pkg@v1.2.3`) that the runtime will use to generate a minimal `go.mod`.
+
+Go tools that use only standard library packages MAY omit the `go.mod` declaration; the runtime
+MUST generate a minimal `go.mod` with `go 1.21` (the minimum supported version) in that case.
+
+**Minimum supported Go version**: Implementations MUST support Go **1.21** or later. The Go
+toolchain version used in the containerized environment SHOULD be declared in the tool's
+`dependencies` or documented in the workflow's README. Tools relying on language features
+introduced after 1.21 MUST specify the required version in their `go.mod` `go` directive.
+
+**R-GO-001**: If a `go.mod` is provided and specifies a minimum Go version, the runtime MUST use
+a toolchain that satisfies that requirement and MUST fail with a descriptive error if no
+conforming toolchain is available.
+
+**R-GO-002**: The runtime MUST NOT cache `go.mod` state across tool invocations. Each invocation
+MUST start from a clean module cache to ensure reproducible dependency resolution.
+
 #### 6.4.4 Example
 
 ```yaml

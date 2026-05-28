@@ -215,6 +215,112 @@ Both Go and JavaScript implementations MUST:
 - Special characters and escaping
 - All workflows in the repository
 
+### 5.2 BFS Diamond-Import Test Vectors
+
+The following test vectors are normative and MUST produce the specified SHA-256 hash in both the
+Go and JavaScript implementations. These vectors exercise the three required corpus cases from
+**R-XLANG-001**: empty frontmatter, single-level import, and the diamond-import pattern.
+
+All hashes are verified in CI via `pkg/parser/frontmatter_hash_cross_language_test.go`.
+
+#### FH-BFS-001 — Empty Frontmatter
+
+Root file content (explicit empty frontmatter block, no imports):
+
+```markdown
+---
+---
+
+# Empty Workflow
+```
+
+Expected SHA-256: `4c8309afbcf816cd80c0824dce2b50047834b29e14b34b96953e88ae81048c46`
+
+Canonical JSON input: `{"frontmatter-text":""}`
+
+#### FH-BFS-002 — Single-Level Import
+
+Root file (`root.md`) imports one helper. The helper's normalized frontmatter is concatenated into
+`imported-frontmatters`.
+
+`root.md`:
+```yaml
+---
+engine: copilot
+imports:
+  - ./helper.md
+---
+```
+
+`helper.md`:
+```yaml
+---
+description: Helper agent
+---
+```
+
+Expected SHA-256: `3946bb0dc0698a31e37a1efc7012071939db1be2c8365f12f8a240bc01ba2e9e`
+
+Canonical JSON input:
+```json
+{"frontmatter-text":"engine: copilot\nimports:\n  - ./helper.md","imported-frontmatters":"description: Helper agent","imports":["./helper.md"]}
+```
+
+#### FH-BFS-003 — Diamond Import (root → a, b → shared)
+
+This vector verifies BFS diamond-import deduplication. `shared.md` is reachable from both `a.md`
+and `b.md`, but MUST appear only once in the hash input (at its first BFS encounter via `a.md`).
+
+`root.md`:
+```yaml
+---
+engine: copilot
+imports:
+  - ./a.md
+  - ./b.md
+---
+```
+
+`a.md`:
+```yaml
+---
+description: Agent A
+imports:
+  - ./shared.md
+---
+```
+
+`b.md`:
+```yaml
+---
+description: Agent B
+imports:
+  - ./shared.md
+---
+```
+
+`shared.md`:
+```yaml
+---
+description: Shared helper
+---
+```
+
+BFS traversal order: `root.md → a.md → b.md → shared.md` (the second occurrence of `shared.md`
+via `b.md` is silently skipped).
+
+Expected SHA-256: `13f1c69f5761454beac63c7dc259fa212f020d3dab9e0dd04d2e1bdcc242b108`
+
+Canonical JSON input:
+```json
+{"frontmatter-text":"engine: copilot\nimports:\n  - ./a.md\n  - ./b.md","imported-frontmatters":"description: Agent A\nimports:\n  - ./shared.md\n---\ndescription: Agent B\nimports:\n  - ./shared.md\n---\ndescription: Shared helper","imports":["./a.md","./b.md","./shared.md"]}
+```
+
+**Note**: The `imports` array and `imported-frontmatters` entries in the canonical JSON are sorted
+alphabetically. The BFS traversal order determines *which* files are included (deduplication), but
+the canonical JSON representation sorts the collected entries before hashing so the hash is stable
+regardless of the order sibling imports appear in the frontmatter.
+
 ### 5.1 Cross-Language Validation Protocol
 
 The project maintains Go and JavaScript implementations of the frontmatter hash algorithm. A

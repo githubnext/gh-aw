@@ -36,6 +36,7 @@ This document is governed by the GitHub Agentic Workflows project specifications
 10. [Compliance Testing](#10-compliance-testing)
 11. [Sync Notes](#11-sync-notes)
 12. [Calendar Output Schema](#12-calendar-output-schema)
+13. [Norms](#13-norms)
 
 ---
 
@@ -1346,6 +1347,51 @@ content MUST preserve the same row/column structure.
   `:30`, and `:45` hotspot minutes during documented peak windows.
 - **Added**: Calendar output schema requirements (Section 12) for the compile-time heatmap rendered
   by `compile_schedule_calendar.go`.
+
+---
+
+## 13. Norms
+
+This section collects normative guarantees that apply to all conforming scattering implementations
+and are not covered by the algorithm or safeguard sections above. Requirements here use [RFC 2119]
+key words with the same interpretation as §2.2.
+
+### 13.1 Determinism Guarantee
+
+**N-DET-001**: For a given workflow identifier and schedule expression, the scattered cron
+expression MUST be identical on every recompilation, regardless of runtime, host OS, Go version
+(within the same major version), or whether the workflow has been previously compiled. Determinism
+is guaranteed by using a hash of the workflow identifier as the sole source of randomness; no
+wall-clock time, process ID, or external entropy MUST be introduced into the scattering step.
+
+**N-DET-002**: The determinism guarantee extends across recompilations that occur after unrelated
+frontmatter changes. If only non-schedule fields change (e.g., `description`), the scattered
+minute and hour values MUST remain unchanged for all schedule entries that were not modified.
+
+### 13.2 Operator-Visible Error Codes
+
+The following normative error codes MUST be surfaced to operators when the corresponding failure
+condition is detected. Implementations MUST use these exact codes in error messages or structured
+error objects so that operators and CI pipelines can identify the failure type unambiguously.
+
+| Error code | Trigger condition | Normative requirement |
+|---|---|---|
+| `R-SAFE-003` | Hash input material is empty (e.g., missing workflow identifier) | §8 R-SAFE-003: MUST fail with a descriptive error; MUST NOT fall back to random scattering |
+| `R-SAFE-004` | Non-unique hash input causes repeated collision across workflows | §8 R-SAFE-004: MUST log a diagnostic; MAY apply deterministic offset to resolve |
+
+Operator-visible error messages for R-SAFE-003 MUST include the phrase "missing workflow
+identifier" or equivalent so the root cause is immediately actionable.
+
+### 13.3 Zero-Width Scatter Window
+
+**N-ZERO-001**: When the declared scatter window resolves to a zero-width interval (e.g., `between
+14:30 and 14:30`), the implementation MUST use the single boundary minute as the fixed output
+without error. The zero-width window is treated as a deterministic fixed-time schedule; no
+jitter is applied and no warning is required.
+
+**N-ZERO-002**: A zero-width `around` schedule (i.e., `around HH:MM` with an effective ±0 window
+due to clamping) MUST be treated identically to N-ZERO-001 and MUST NOT produce a different output
+on successive compilations.
 
 ---
 
