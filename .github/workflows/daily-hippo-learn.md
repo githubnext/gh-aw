@@ -43,6 +43,7 @@ tools:
 safe-outputs:
   create-discussion:
     category: "announcements"
+    expires: 3d
 
 imports:
   - shared/hippo-memory.md
