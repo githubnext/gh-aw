@@ -286,8 +286,8 @@ describe("mcp_scripts_validation.cjs", () => {
       const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./mcp_scripts_validation.cjs");
 
       // A value that exceeds the default 10 KB limit but is within maxLength
-      const oversizedValue = "a".repeat(MAX_STRING_INPUT_BYTES + 1);
-      const args = { body: oversizedValue };
+      const valueExceedingDefaultLimit = "a".repeat(MAX_STRING_INPUT_BYTES + 1);
+      const args = { body: valueExceedingDefaultLimit };
       const schema = {
         type: "object",
         properties: { body: { type: "string", maxLength: MAX_STRING_INPUT_BYTES + 1000 } },
