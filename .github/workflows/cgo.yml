@@ -1629,9 +1629,65 @@ jobs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        $binaryPath = Join-Path $PWD "gh-aw.exe"
-        if (-not (Test-Path $binaryPath)) {
-          Write-Error "Built binary not found: $binaryPath"
+        $workspaceBinaryPath = Join-Path $PWD "gh-aw.exe"
+        if (-not (Test-Path -Path $workspaceBinaryPath -PathType Leaf)) {
+          Write-Host "Current directory: $($PWD.Path)"
+          Write-Host "Directory contents:"
+          Get-ChildItem -Name | ForEach-Object { Write-Host " - $_" }
+          Write-Error "Built binary not found: $workspaceBinaryPath"
+          exit 1
+        }
+        $workspaceBinaryPath = (Resolve-Path -Path $workspaceBinaryPath).Path
+
+        # Stabilize file before scanning to avoid transient build/link races.
+        $stabilizationDelaySeconds = 3
+        $initialBinaryItem = Get-Item -LiteralPath $workspaceBinaryPath
+        Start-Sleep -Seconds $stabilizationDelaySeconds
+        $stableBinaryItem = Get-Item -LiteralPath $workspaceBinaryPath
+        if (
+          $initialBinaryItem.Length -ne $stableBinaryItem.Length -or
+          $initialBinaryItem.LastWriteTimeUtc -ne $stableBinaryItem.LastWriteTimeUtc
+        ) {
+          Write-Error "Built binary changed during stabilization window (${stabilizationDelaySeconds}s): $workspaceBinaryPath"
+          Write-Error "Initial: size=$($initialBinaryItem.Length), lastWriteUtc=$($initialBinaryItem.LastWriteTimeUtc)"
+          Write-Error "Current: size=$($stableBinaryItem.Length), lastWriteUtc=$($stableBinaryItem.LastWriteTimeUtc)"
+          exit 1
+        }
+        $workspaceBinaryHash = (Get-FileHash -LiteralPath $workspaceBinaryPath -Algorithm SHA256).Hash
+
+        # Copy to a dedicated scan directory instead of scanning directly under D:\a\ workspace.
+        $scanBaseRoot = $env:TEMP
+        if (-not $scanBaseRoot) {
+          $scanBaseRoot = "C:\Temp"
+        }
+        $scanBasePath = Join-Path $scanBaseRoot "defender-scan"
+        New-Item -ItemType Directory -Path $scanBasePath -Force | Out-Null
+        $scanFileName = "scan-$([guid]::NewGuid().ToString('N')).exe"
+        $binaryPath = Join-Path $scanBasePath $scanFileName
+        Copy-Item -LiteralPath $workspaceBinaryPath -Destination $binaryPath -Force
+        if (-not (Test-Path -Path $binaryPath -PathType Leaf)) {
+          Write-Error "Copied scan target not found: $binaryPath"
+          exit 1
+        }
+        $binaryPath = (Resolve-Path -Path $binaryPath).Path
+        $workspaceRoot = $null
+        if ($env:GITHUB_WORKSPACE -and (Test-Path -Path $env:GITHUB_WORKSPACE -PathType Container)) {
+          $workspaceRoot = (Resolve-Path -Path $env:GITHUB_WORKSPACE).Path
+        }
+        if ($workspaceRoot -and $binaryPath.StartsWith($workspaceRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+          Write-Error "Refusing to scan from workspace path: $binaryPath"
+          exit 1
+        }
+
+        # Validate copied file integrity before scanning.
+        $scanBinaryItem = Get-Item -LiteralPath $binaryPath
+        $scanBinaryHash = (Get-FileHash -LiteralPath $binaryPath -Algorithm SHA256).Hash
+        if ($scanBinaryItem.Length -ne $stableBinaryItem.Length) {
+          Write-Error "Copied file size mismatch: source=$($stableBinaryItem.Length), copy=$($scanBinaryItem.Length)"
+          exit 1
+        }
+        if ($scanBinaryHash -ne $workspaceBinaryHash) {
+          Write-Error "Copied file hash mismatch: source=$workspaceBinaryHash, copy=$scanBinaryHash"
           exit 1
         }
 
@@ -1647,12 +1703,97 @@ jobs:
           exit 1
         }
 
-        # ScanType 3 = custom scan. Use -File to scan only the generated binary.
-        & $mpCmdRun -Scan -ScanType 3 -File $binaryPath
-        if ($LASTEXITCODE -ne 0) {
-          Write-Error "Microsoft Defender scan failed with exit code $LASTEXITCODE"
-          exit $LASTEXITCODE
+        # Log Defender status, preference, and execution details for diagnostics.
+        Write-Host "=== Microsoft Defender diagnostic info ==="
+        try {
+          $mpStatus = Get-MpComputerStatus
+        } catch {
+          $mpStatus = $null
+          Write-Host "Could not query Microsoft Defender status: $_"
         }
+        if ($mpStatus) {
+          Write-Host "AntivirusEnabled:         $($mpStatus.AntivirusEnabled)"
+          Write-Host "RealTimeProtectionEnabled: $($mpStatus.RealTimeProtectionEnabled)"
+          Write-Host "AntivirusSignatureVersion: $($mpStatus.AntivirusSignatureVersion)"
+          Write-Host "AntivirusSignatureLastUpdated: $($mpStatus.AntivirusSignatureLastUpdated)"
+          Write-Host "AMProductVersion:          $($mpStatus.AMProductVersion)"
+          Write-Host "AMEngineVersion:           $($mpStatus.AMEngineVersion)"
+        } else {
+          Write-Host "(Get-MpComputerStatus unavailable)"
+        }
+        try {
+          $mpPreference = Get-MpPreference
+        } catch {
+          $mpPreference = $null
+          Write-Host "Could not query Microsoft Defender preferences: $_"
+        }
+        if ($mpPreference) {
+          Write-Host "ExclusionPath:             $(@($mpPreference.ExclusionPath) -join '; ')"
+          Write-Host "ExclusionExtension:        $(@($mpPreference.ExclusionExtension) -join '; ')"
+          Write-Host "ExclusionProcess:          $(@($mpPreference.ExclusionProcess) -join '; ')"
+          Write-Host "ExclusionIpAddress:        $(@($mpPreference.ExclusionIpAddress) -join '; ')"
+        } else {
+          Write-Host "(Get-MpPreference unavailable)"
+        }
+        $winDefendService = Get-Service -Name WinDefend -ErrorAction SilentlyContinue
+        if ($winDefendService) {
+          Write-Host "WinDefend service status:  $($winDefendService.Status)"
+          Write-Host "WinDefend service start:   $($winDefendService.StartType)"
+        } else {
+          Write-Host "(WinDefend service unavailable)"
+        }
+        if ($mpStatus) {
+          Write-Host "AMRunningMode:             $($mpStatus.AMRunningMode)"
+          Write-Host "IoavProtectionEnabled:     $($mpStatus.IoavProtectionEnabled)"
+        }
+        Write-Host "MpCmdRun.exe path: $mpCmdRun"
+        Write-Host "Workspace binary:  $workspaceBinaryPath"
+        Write-Host "Workspace size:    $($stableBinaryItem.Length) bytes"
+        Write-Host "Workspace SHA256:  $workspaceBinaryHash"
+        Write-Host "Binary to scan:    $binaryPath"
+        Write-Host "Binary size:       $($scanBinaryItem.Length) bytes"
+        Write-Host "Binary SHA256:     $scanBinaryHash"
+        Write-Host "=========================================="
+
+        # ScanType 3 = custom scan. Use -File to scan only the copied binary.
+        # Capture output (2>&1 merges stderr into the output stream so all
+        # MpCmdRun messages are available for strict failure checks below.
+        $output = & $mpCmdRun -Scan -ScanType 3 -File $binaryPath -DisableRemediation 2>&1 | ForEach-Object { "$_" }
+        $scanExitCode = $LASTEXITCODE
+        $outputText = @($output) -join "`n"
+
+        Write-Host "=== MpCmdRun output ==="
+        $output | ForEach-Object { Write-Host $_ }
+        Write-Host "Exit code: $scanExitCode"
+        Write-Host "======================="
+
+        # Exit code alone is not enough: explicitly parse output to confirm scan execution.
+        $skipped = $output | Where-Object { $_ -imatch "\bwas skipped\b|\bcannot be scanned\b|\bnot performed\b|\b(?:file|scan).*\bexcluded\b" }
+        $threatLines = $output | Where-Object { $_ -match "\bThreat\b" }
+        $scanStarted = $outputText -imatch "\bScan starting\b"
+        $scanFinished = $outputText -imatch "\bScan finished\b"
+        if ($scanExitCode -ne 0) {
+          Write-Error "Microsoft Defender scan failed with exit code $scanExitCode"
+          exit $scanExitCode
+        }
+        if ($skipped) {
+          Write-Error "Microsoft Defender scan was skipped for $binaryPath - the binary was NOT scanned."
+          Write-Error "Possible causes: file/path exclusion, stale signatures, or protection disabled."
+          # Wrap with @() so a single matched line is joined as one line, not character-by-character.
+          Write-Error "Skipped output: $(@($skipped) -join '; ')"
+          exit 1
+        }
+        if ($threatLines) {
+          Write-Error "Microsoft Defender reported threat indicators in scan output."
+          Write-Error "Threat output: $(@($threatLines) -join '; ')"
+          exit 1
+        }
+        if (-not ($scanStarted -and $scanFinished)) {
+          Write-Error "Could not confirm scan completion from MpCmdRun output (expected both 'Scan starting' and 'Scan finished')."
+          exit 1
+        }
+
+        Write-Host "✅ Microsoft Defender scan completed successfully for $binaryPath"
 
     - name: Create test workflow
       shell: bash
