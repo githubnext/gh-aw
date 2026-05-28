@@ -547,6 +547,7 @@ type WorkflowData struct {
 	ActionResolutionFailures       []GHAWManifestResolutionFailure // unresolved action-ref pinning failures for lock manifest auditing
 	StrictMode                     bool                            // strict mode for action pinning
 	AllowActionRefs                bool                            // if true, unresolved action refs are warnings instead of errors
+	ValidateAWFConfig              bool                            // if true, validate generated AWF config JSON against schema (set by --validate)
 	SecretMasking                  *SecretMaskingConfig            // secret masking configuration
 	ParsedFrontmatter              *FrontmatterConfig              // cached parsed frontmatter configuration (for performance optimization)
 	RawFrontmatter                 map[string]any                  // raw parsed frontmatter map (for passing to hash functions without re-parsing)
