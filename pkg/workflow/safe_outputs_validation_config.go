@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -444,9 +445,12 @@ func GetValidationConfigJSON(enabledTypes []string) (string, error) {
 	cacheKey := buildValidationConfigCacheKey(enabledTypes)
 	if cached, ok := validationConfigJSONCache.Load(cacheKey); ok {
 		safeOutputValidationLog.Print("Returning cached validation config JSON")
-		if result, ok := cached.(string); ok {
-			return result, nil
+		result, ok := cached.(string)
+		if !ok {
+			// The cache exclusively stores string values; a non-string indicates a programmer error.
+			panic(fmt.Sprintf("validationConfigJSONCache: unexpected type %T for key %s", cached, cacheKey))
 		}
+		return result, nil
 	}
 
 	configToMarshal := ValidationConfig

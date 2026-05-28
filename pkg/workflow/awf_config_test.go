@@ -643,6 +643,37 @@ func TestBuildAWFConfigJSON_SchemaCompliance(t *testing.T) {
 	}
 }
 
+// TestValidateAWFConfigJSON_RejectsInvalidJSON verifies that validateAWFConfigJSON is a
+// genuine two-sided contract: valid JSON passes and deliberately invalid JSON is rejected.
+// This ensures the validator itself is functional after the runtime guard was removed from
+// the hot path.
+func TestValidateAWFConfigJSON_RejectsInvalidJSON(t *testing.T) {
+	cases := []struct {
+		name string
+		json string
+	}{
+		{
+			name: "network field with wrong type (string instead of object)",
+			json: `{"network": "invalid_string_not_object"}`,
+		},
+		{
+			name: "unknown top-level key",
+			json: `{"unexpected_key": true}`,
+		},
+		{
+			name: "invalid JSON syntax",
+			json: `{not valid json`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateAWFConfigJSON(tc.json)
+			require.Error(t, err, "validateAWFConfigJSON should reject invalid input: %s", tc.name)
+		})
+	}
+}
+
 // TestBuildAWFConfigJSON_ValidateFlag verifies that schema validation runs when
 // WorkflowData.ValidateAWFConfig is true (--validate mode) and is skipped otherwise.
 func TestBuildAWFConfigJSON_ValidateFlag(t *testing.T) {

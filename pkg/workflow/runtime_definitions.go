@@ -238,7 +238,9 @@ func getAllManifestFiles(extra ...string) []string {
 		allManifestFilesBaseOnce.Do(func() {
 			allManifestFilesBaseCache = sliceutil.MergeUnique(buildBaseManifestFiles())
 		})
-		return allManifestFilesBaseCache
+		result := make([]string, len(allManifestFilesBaseCache))
+		copy(result, allManifestFilesBaseCache)
+		return result
 	}
 	return sliceutil.MergeUnique(buildBaseManifestFiles(), extra...)
 }
