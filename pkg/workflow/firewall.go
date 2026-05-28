@@ -126,7 +126,7 @@ func getAgentConfig(workflowData *WorkflowData) *AgentSandboxConfig {
 // - SRT sandbox is configured
 func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) {
 	// Only apply to copilot and codex engines
-	if engineID != "copilot" && engineID != "codex" {
+	if engineID != string(constants.CopilotEngine) && engineID != string(constants.CodexEngine) {
 		return
 	}
 
@@ -142,7 +142,7 @@ func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *Netw
 // - sandbox.agent is explicitly set to false
 func enableFirewallByDefaultForClaude(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) {
 	// Only apply to claude engine
-	if engineID != "claude" {
+	if engineID != string(constants.ClaudeEngine) {
 		return
 	}
 
