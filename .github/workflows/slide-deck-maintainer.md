@@ -70,6 +70,17 @@ steps:
       cd docs
       npm ci
 
+pre-agent-steps:
+  - name: Prepare slide-deck-maintainer cache directory
+    run: |
+      mkdir -p /tmp/gh-aw/cache-memory/slide-deck-maintainer
+      if ! touch /tmp/gh-aw/cache-memory/slide-deck-maintainer/.preflight-write-check 2>/dev/null; then
+        echo "ERROR: /tmp/gh-aw/cache-memory/slide-deck-maintainer is not writable - cache state cannot be persisted" >&2
+        exit 1
+      fi
+      rm -f /tmp/gh-aw/cache-memory/slide-deck-maintainer/.preflight-write-check
+      echo "Cache directory ready and writable: /tmp/gh-aw/cache-memory/slide-deck-maintainer"
+
 ---
 
 # Slide Deck Maintenance Agent
@@ -212,11 +223,7 @@ Based on the selected category, scan the corresponding sources:
 
 ### 4c: Save Round-Robin State to Cache
 
-After scanning, **always write the updated state file** regardless of whether changes were made:
-
-```bash
-mkdir -p /tmp/gh-aw/cache-memory/slide-deck-maintainer
-```
+After scanning, **always write the updated state file** regardless of whether changes were made. The directory `/tmp/gh-aw/cache-memory/slide-deck-maintainer` is pre-created and verified writable by the workflow setup — write the state file directly:
 
 Write `/tmp/gh-aw/cache-memory/slide-deck-maintainer/state.json` with:
 - `last_category`: the category you just scanned
