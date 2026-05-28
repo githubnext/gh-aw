@@ -471,10 +471,9 @@ This workflow sets trusted-users without min-integrity (should fail).
 	assert.Contains(t, err.Error(), "min-integrity", "Error should mention min-integrity requirement")
 }
 
-// TestGuardPolicyToolCallLimitsCompiledOutput verifies that max-calls entries under
-// tools.github.allowed are emitted into allow-only.tool-call-limits and that repos
-// defaults to "all" when no explicit repos scope is configured.
-func TestGuardPolicyToolCallLimitsCompiledOutput(t *testing.T) {
+// TestGuardPolicyToolCallLimitsCompilation verifies that max-calls entries under
+// tools.github.allowed compile successfully in CLI workflow compilation.
+func TestGuardPolicyToolCallLimitsCompilation(t *testing.T) {
 	workflowContent := `---
 on:
   workflow_dispatch:
