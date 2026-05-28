@@ -1629,11 +1629,15 @@ jobs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        $binaryPath = Join-Path $PWD "gh-aw.exe"
-        if (-not (Test-Path $binaryPath)) {
+        $binaryPath = Join-Path $PWD.Path "gh-aw.exe"
+        if (-not (Test-Path -LiteralPath $binaryPath -PathType Leaf)) {
+          Write-Host "Current directory: $($PWD.Path)"
+          Write-Host "Directory contents:"
+          Get-ChildItem -Name | ForEach-Object { Write-Host " - $_" }
           Write-Error "Built binary not found: $binaryPath"
           exit 1
         }
+        $binaryPath = (Resolve-Path -LiteralPath $binaryPath).Path
 
         $mpCmdRun = Join-Path $env:ProgramFiles "Windows Defender\MpCmdRun.exe"
         if (-not (Test-Path $mpCmdRun)) {
