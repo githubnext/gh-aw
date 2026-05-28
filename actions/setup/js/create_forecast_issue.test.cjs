@@ -25,6 +25,7 @@ describe("create_forecast_issue", () => {
     vi.clearAllMocks();
     vi.resetModules();
     process.env.GITHUB_RUN_ID = "123456";
+    process.env.GH_AW_PROMPTS_DIR = new URL("../md", import.meta.url).pathname;
     mockFs = {
       existsSync: vi.fn(),
       readFileSync: vi.fn(),
@@ -101,13 +102,40 @@ describe("create_forecast_issue", () => {
     expect(body).toContain("All projected ET values are 0 even after cache warm-up.");
   });
 
-  it("warns and skips when report file is missing", async () => {
+  it("creates an error issue when report file is missing", async () => {
     mockFs.existsSync.mockReturnValue(false);
 
     const module = await import("./create_forecast_issue.cjs");
     await module.main();
 
-    expect(mockCore.warning).toHaveBeenCalledWith("Forecast report JSON not found at ./.cache/gh-aw/forecast/report.json; skipping issue creation.");
-    expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    expect(mockCore.warning).toHaveBeenCalledWith("Forecast report JSON not found at ./.cache/gh-aw/forecast/report.json.");
+    expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: module.FORECAST_ERROR_ISSUE_TITLE,
+      })
+    );
+  });
+
+  it("creates a timeout error issue when forecast reports timeout metadata", async () => {
+    const module = await import("./create_forecast_issue.cjs");
+    mockFs.existsSync.mockImplementation(path => path === module.FORECAST_ERROR_PATH);
+    mockFs.readFileSync.mockImplementation(path => {
+      if (path === module.FORECAST_ERROR_PATH) {
+        return JSON.stringify({
+          outcome: "timeout",
+          message: "Forecast computation timed out after 10 minutes.",
+        });
+      }
+      throw new Error(`Unexpected read path: ${path}`);
+    });
+
+    await module.main();
+
+    expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: module.FORECAST_ERROR_ISSUE_TITLE,
+        body: expect.stringContaining("Forecast outcome: timeout."),
+      })
+    );
   });
 });
