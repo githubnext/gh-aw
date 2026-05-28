@@ -28,6 +28,12 @@ func TestJSONFieldNames(t *testing.T) {
 	got := jsonFieldNames(sampleArgs{})
 	// sorted result
 	assert.Equal(t, []string{"alpha", "beta", "gamma"}, got, "should include only tagged exported fields, sorted")
+
+	type pointerArgs struct {
+		Name string `json:"name"`
+	}
+	assert.Equal(t, []string{"name"}, jsonFieldNames(&pointerArgs{}), "should support pointer inputs")
+	assert.Nil(t, jsonFieldNames(nil), "nil input should not panic and should return nil")
 }
 
 // TestExtractUnknownParams verifies that the error-message parser correctly

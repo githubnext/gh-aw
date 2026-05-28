@@ -1029,6 +1029,21 @@ func TestNormalizeForJSONSchema_TypedSlice(t *testing.T) {
 	}
 }
 
+// TestNormalizeForJSONSchema_NonStringMapKeyPreserved verifies that non-string keyed
+// maps are left unchanged (they are not valid JSON objects).
+func TestNormalizeForJSONSchema_NonStringMapKeyPreserved(t *testing.T) {
+	input := map[int]string{1: "one"}
+
+	result := normalizeForJSONSchema(input)
+	resultMap, ok := result.(map[int]string)
+	if !ok {
+		t.Fatalf("expected map[int]string, got %T", result)
+	}
+	if len(resultMap) != 1 || resultMap[1] != "one" {
+		t.Fatalf("unexpected map value: %#v", resultMap)
+	}
+}
+
 // TestValidateWithSchema_YAMLTypedSlice verifies that validateWithSchema accepts
 // typed slices (e.g. []string) that goccy/go-yaml produces for array fields.
 func TestValidateWithSchema_YAMLTypedSlice(t *testing.T) {

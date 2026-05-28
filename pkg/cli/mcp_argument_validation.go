@@ -231,7 +231,10 @@ func longestCommonPrefixLen(a, b string) int {
 // The returned slice is sorted for deterministic output.
 func jsonFieldNames(v any) []string {
 	t := reflect.TypeOf(v)
-	if t.Kind() == reflect.Pointer {
+	if t == nil {
+		return nil
+	}
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	if t.Kind() != reflect.Struct {

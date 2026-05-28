@@ -253,6 +253,9 @@ func normalizeForJSONSchema(v any) any {
 		// Use reflection to handle typed slices (e.g. []string) and typed maps
 		// that goccy/go-yaml may produce instead of []any / map[string]any.
 		rv := reflect.ValueOf(v)
+		if !rv.IsValid() {
+			return nil
+		}
 		switch rv.Kind() {
 		case reflect.Slice:
 			normalized := make([]any, rv.Len())
@@ -261,6 +264,10 @@ func normalizeForJSONSchema(v any) any {
 			}
 			return normalized
 		case reflect.Map:
+			if rv.Type().Key().Kind() != reflect.String {
+				// Non-string keyed maps are not JSON objects; keep original value.
+				return v
+			}
 			normalized := make(map[string]any, rv.Len())
 			for _, key := range rv.MapKeys() {
 				normalized[key.String()] = normalizeForJSONSchema(rv.MapIndex(key).Interface())
