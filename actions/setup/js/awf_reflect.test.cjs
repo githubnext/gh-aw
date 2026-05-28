@@ -416,5 +416,45 @@ describe("awf_reflect.cjs", () => {
       expect(logs.some(l => l.includes("running curl probe"))).toBe(true);
       expect(logs.some(l => l.includes("curl probe exit=0 http_status=200"))).toBe(true);
     });
+
+    it("logs proxy environment variables before reflect fetch", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+      const originalProxyEnvs = Object.fromEntries(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "no_proxy", "all_proxy"].map(name => [name, process.env[name]]));
+      process.env.HTTP_PROXY = "http://proxy.internal:3128";
+      process.env.HTTPS_PROXY = "http://proxy-secure.internal:3129";
+      process.env.NO_PROXY = "localhost,127.0.0.1,api-proxy";
+      process.env.ALL_PROXY = "socks5://proxy-all.internal:1080";
+      process.env.http_proxy = "http://proxy-lower.internal:3130";
+      process.env.https_proxy = "http://proxy-lower-secure.internal:3131";
+      process.env.no_proxy = "localhost";
+      process.env.all_proxy = "socks5://proxy-lower-all.internal:1081";
+      const logs = [];
+
+      try {
+        await fetchAWFReflect({
+          reflectUrl: "http://api-proxy:10000/reflect",
+          outputPath: "/tmp/gh-aw-test-noop.json",
+          timeoutMs: 500,
+          maxAttempts: 1,
+          logger: msg => logs.push(msg),
+        });
+      } finally {
+        for (const [name, value] of Object.entries(originalProxyEnvs)) {
+          if (value === undefined) delete process.env[name];
+          else process.env[name] = value;
+        }
+      }
+
+      const proxyLogLine = logs.find(l => l.includes("awf-reflect: proxy env "));
+      expect(proxyLogLine).toBeTruthy();
+      expect(proxyLogLine).toContain('HTTP_PROXY="http://proxy.internal:3128"');
+      expect(proxyLogLine).toContain('HTTPS_PROXY="http://proxy-secure.internal:3129"');
+      expect(proxyLogLine).toContain('NO_PROXY="localhost,127.0.0.1,api-proxy"');
+      expect(proxyLogLine).toContain('ALL_PROXY="socks5://proxy-all.internal:1080"');
+      expect(proxyLogLine).toContain('http_proxy="http://proxy-lower.internal:3130"');
+      expect(proxyLogLine).toContain('https_proxy="http://proxy-lower-secure.internal:3131"');
+      expect(proxyLogLine).toContain('no_proxy="localhost"');
+      expect(proxyLogLine).toContain('all_proxy="socks5://proxy-lower-all.internal:1081"');
+    });
   });
 });

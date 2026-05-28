@@ -65,6 +65,7 @@ const GEMINI_MODEL_NAME_PREFIX = "models/";
 // HTTP statuses from api-proxy /reflect that are typically transient during startup.
 const RETRYABLE_REFLECT_STATUS_CODES = [502, 503, 504];
 const RETRYABLE_NETWORK_ERROR_CODES = new Set(["ECONNREFUSED", "ECONNRESET", "ENOTFOUND", "ETIMEDOUT", "EAI_AGAIN"]);
+const PROXY_ENV_VAR_NAMES = ["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "no_proxy", "all_proxy"];
 
 // Default logger used by fetchAWFReflect when no logger is provided via options.
 // All lines are prefixed with "[awf-reflect]" for easy grepping in combined logs.
@@ -94,6 +95,7 @@ function runReflectCurlProbe(reflectUrl, timeoutMs, logger) {
       logger(`awf-reflect: curl probe failed: ${result.error.message}`);
       return;
     }
+
     const status = (result.stdout || "").trim() || "n/a";
     const stderr = (result.stderr || "").trim() || "none";
     const exitCode = typeof result.status === "number" ? result.status : -1;
@@ -102,6 +104,27 @@ function runReflectCurlProbe(reflectUrl, timeoutMs, logger) {
     const message = error instanceof Error ? error.message : String(error);
     logger(`awf-reflect: curl probe threw: ${message}`);
   }
+}
+
+/**
+ * Redact URL credentials for proxy environment variable logging.
+ *
+ * @param {string|undefined} value
+ * @returns {string}
+ */
+function redactProxyEnvValue(value) {
+  if (!value) return "<unset>";
+  try {
+    const parsed = new URL(value);
+    if (parsed.username || parsed.password) {
+      parsed.username = "***";
+      parsed.password = "***";
+      return parsed.toString();
+    }
+  } catch {
+    // Keep non-URL values unchanged (for example NO_PROXY host lists).
+  }
+  return value;
 }
 
 /**
@@ -328,6 +351,8 @@ async function fetchAWFReflect(options) {
   };
 
   try {
+    const proxyEnvSummary = PROXY_ENV_VAR_NAMES.map(name => `${name}=${JSON.stringify(redactProxyEnvValue(process.env[name]))}`).join(" ");
+    logger(`awf-reflect: proxy env ${proxyEnvSummary}`);
     logger(`awf-reflect: fetching ${reflectUrl} (timeout=${timeoutMs}ms, max_attempts=${maxAttempts})`);
     return await withRetry(
       async () => {
