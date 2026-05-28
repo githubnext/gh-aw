@@ -191,7 +191,7 @@ tools:
     memory-id: pr-review-state  # Separate state bucket in the managed comment
 ```
 
-This pattern works well for PRs that need multiple review cycles because state stays attached to the PR itself. Use distinct `memory-id` values when one workflow stores multiple independent state sections.
+This pattern works well for PRs that need multiple review cycles because state stays attached to the PR itself. Use a stable `memory-id` so repeated runs update the same state file at `/tmp/gh-aw/comment-memory/<memory-id>.md`.
 
 ## Best Practices
 
