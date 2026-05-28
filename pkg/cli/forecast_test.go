@@ -96,10 +96,12 @@ func TestRunForecast_R_IMPL_040_ExperimentalWarning(t *testing.T) {
 	captureStderr := func(fn func()) string {
 		r, w, err := os.Pipe()
 		require.NoError(t, err)
+		defer r.Close()
 		orig := os.Stderr
 		os.Stderr = w
 		t.Cleanup(func() { os.Stderr = orig })
 		fn()
+		// Close the write end before reading so io.ReadAll sees EOF.
 		require.NoError(t, w.Close())
 		out, readErr := io.ReadAll(r)
 		require.NoError(t, readErr)

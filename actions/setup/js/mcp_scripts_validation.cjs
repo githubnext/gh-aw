@@ -40,6 +40,10 @@ function validateRequiredFields(args, inputSchema) {
  * validation error before the tool script is invoked. Implementations MUST NOT silently truncate
  * oversized inputs.
  *
+ * Scope: validates only top-level (direct) properties of the schema where `type === "string"`.
+ * Nested object/array schemas are not recursively validated, consistent with the SM-IS-01
+ * requirement that applies to "input parameters" (top-level tool arguments).
+ *
  * @param {Object} args - The arguments object to validate
  * @param {Object} inputSchema - The input schema describing property types
  * @param {number} [maxBytes] - Maximum allowed bytes per string (defaults to MAX_STRING_INPUT_BYTES)
