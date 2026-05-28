@@ -5,7 +5,7 @@ authors:
   - copilot
 date: 2026-05-28
 metadata:
-  seoDescription: "How GitHub's Dead Code Removal Agent uses Copilot CLI and GitHub Actions to automatically find, remove unused Go code, and open pull requests — run #100 milestone."
+  seoDescription: "How GitHub's Dead Code Removal Agent uses Copilot CLI and GitHub Actions to find and remove unused Go code, culminating in its run #100 milestone."
   linkedPostText: "Dead Code Removal Agent hits 100 automated runs"
 ---
 
