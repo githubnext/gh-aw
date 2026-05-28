@@ -43,7 +43,7 @@ mcp-servers:
 steps:
   - name: Install MemPalace
     run: pip install "mempalace==3.2.0"
-  - name: Start MemPalace MCP server
+  - name: Start MemPalace MCP Server
     run: |
       set -e
       mkdir -p /tmp/gh-aw/mcp-logs/mempalace

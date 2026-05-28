@@ -23,7 +23,7 @@ safe-outputs:
     title-prefix: "[specs] "
 cache:
 - key: layout-spec-cache-${{ github.run_id }}
-  name: Cache layout spec data
+  name: Save layout spec data to cache
   path: /tmp/gh-aw/agent/layout-cache
   restore-keys: |
     layout-spec-cache-
