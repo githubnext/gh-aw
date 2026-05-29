@@ -740,6 +740,7 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).not.toHaveBeenCalled();
       expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Daily per-category issue cap reached"));
       expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Summarize-and-stop"));
+      expect(global.github.rest.search.issuesAndPullRequests).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining("is:open") }));
     });
   });
 

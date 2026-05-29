@@ -13,8 +13,12 @@ describe.sequential("safe_outputs_mcp_server.cjs large content handling", () => 
       (tempOutputFile = path.join(tempOutputDir, "outputs.jsonl")),
       fs.writeFileSync(tempConfigFile, JSON.stringify({ "create-issue": {} })));
     const toolsJsonPath = path.join(tempOutputDir, "tools.json"),
-      toolsJsonContent = fs.readFileSync(path.join(__dirname, "safe_outputs_tools.json"), "utf8");
-    fs.writeFileSync(toolsJsonPath, toolsJsonContent);
+      tools = JSON.parse(fs.readFileSync(path.join(__dirname, "safe_outputs_tools.json"), "utf8")),
+      createIssueTool = tools.find(tool => tool.name === "create_issue");
+    if (createIssueTool?.inputSchema?.properties?.body) {
+      createIssueTool.inputSchema.properties.body.maxLength = 2e5;
+    }
+    fs.writeFileSync(toolsJsonPath, JSON.stringify(tools));
   }),
     afterEach(() => {
       (Object.keys(process.env).forEach(k => {

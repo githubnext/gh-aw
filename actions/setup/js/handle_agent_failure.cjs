@@ -334,7 +334,7 @@ async function countRecentFailureIssuesByCategory(options) {
   const windowStartMs = Date.now() - FAILURE_ISSUE_WINDOW_MS;
   const since = new Date(windowStartMs).toISOString().slice(0, 19) + "Z";
   const escapedCategory = escapeGitHubSearchPhrase(category);
-  const searchQuery = `repo:${owner}/${repo} is:issue label:agentic-workflows created:>=${since} ` + `"gh-aw-failure-issue:" "failure_categories:" "${escapedCategory}" in:body`;
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows created:>=${since} ` + `"gh-aw-failure-issue:" "failure_categories:" "${escapedCategory}" in:body`;
   const perPage = 100;
   let count = 0;
 
