@@ -67,6 +67,7 @@ describe("pi_provider.cjs", () => {
   it("adds api-proxy to no_proxy when proxy vars are set", () => {
     process.env.HTTP_PROXY = "http://proxy.internal:3128";
     process.env.NO_PROXY = "localhost,127.0.0.1";
+    process.env.no_proxy = "localhost";
 
     const pi = {
       registerProvider: vi.fn(),
@@ -75,9 +76,9 @@ describe("pi_provider.cjs", () => {
 
     module.default(pi);
 
-    expect(process.env.NO_PROXY).toContain("api-proxy");
-    expect(process.env.no_proxy).toContain("api-proxy");
-    expect(stderrOutput.some(line => line.includes("proxy_bypass host=api-proxy"))).toBe(true);
+    expect(process.env.NO_PROXY).toBe("localhost,127.0.0.1,api-proxy");
+    expect(process.env.no_proxy).toBe("localhost,127.0.0.1,api-proxy");
+    expect(stderrOutput.some(line => line.includes("proxy_bypass host=api-proxy no_proxy=localhost,127.0.0.1,api-proxy"))).toBe(true);
   });
 
   it("logs the configured provider using GH_AW_PI_MODEL during agent_start", async () => {

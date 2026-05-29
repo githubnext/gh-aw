@@ -110,15 +110,23 @@ function ensureNoProxyHost(host, logger) {
   if (!hasProxyEnv) return;
 
   const hostLower = host.toLowerCase();
-  const current = process.env.NO_PROXY || process.env.no_proxy || "";
-  const entries = current
-    .split(",")
+  const entries = [process.env.NO_PROXY, process.env.no_proxy]
+    .filter(v => typeof v === "string" && v.length > 0)
+    .flatMap(v => v.split(","))
     .map(v => v.trim())
     .filter(Boolean);
-  const alreadyPresent = entries.some(entry => entry.toLowerCase() === hostLower);
+  const normalizedEntries = [];
+  const seen = new Set();
+  for (const entry of entries) {
+    const lower = entry.toLowerCase();
+    if (seen.has(lower)) continue;
+    seen.add(lower);
+    normalizedEntries.push(entry);
+  }
+  const alreadyPresent = seen.has(hostLower);
   if (alreadyPresent) return;
 
-  const updated = [...entries, host].join(",");
+  const updated = [...normalizedEntries, host].join(",");
   process.env.NO_PROXY = updated;
   process.env.no_proxy = updated;
   logger(`proxy_bypass host=${host} no_proxy=${updated}`);
