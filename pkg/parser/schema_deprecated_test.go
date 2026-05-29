@@ -12,11 +12,22 @@ func TestGetMainWorkflowDeprecatedFields(t *testing.T) {
 		t.Fatalf("GetMainWorkflowDeprecatedFields() error = %v", err)
 	}
 
+	byName := make(map[string]DeprecatedField, len(deprecatedFields))
+	for _, field := range deprecatedFields {
+		byName[field.Name] = field
+	}
+
 	// Check that timeout_minutes is NOT in the list (it has been removed from the schema)
 	// This field was fully removed per https://github.com/github/gh-aw/issues/14736
 	for _, field := range deprecatedFields {
 		if field.Name == "timeout_minutes" {
 			t.Errorf("timeout_minutes should not be in the deprecated fields list - it has been completely removed from the schema")
+		}
+	}
+
+	for _, name := range []string{"inline-sub-agents", "rate-limit"} {
+		if _, ok := byName[name]; !ok {
+			t.Errorf("expected %q in deprecated fields list", name)
 		}
 	}
 
@@ -177,6 +188,18 @@ func TestGetMainWorkflowDeprecatedFieldsDeep(t *testing.T) {
 	} else {
 		if repos.DeprecationMessage == "" {
 			t.Error("tools.github.repos: DeprecationMessage should not be empty")
+		}
+	}
+
+	// inline-sub-agents and rate-limit must be detected with x-deprecation-message.
+	for _, path := range []string{"inline-sub-agents", "rate-limit"} {
+		f, ok := byPath[path]
+		if !ok {
+			t.Errorf("expected %q in deep deprecated fields, not found", path)
+			continue
+		}
+		if f.DeprecationMessage == "" {
+			t.Errorf("%s: DeprecationMessage should not be empty", path)
 		}
 	}
 

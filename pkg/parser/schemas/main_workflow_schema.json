@@ -2725,6 +2725,8 @@
     "inline-sub-agents": {
       "type": "boolean",
       "description": "Deprecated switch for inline sub-agent support. Inline sub-agents are enabled by default. Setting this to false is not supported and causes a compilation error.",
+      "deprecated": true,
+      "x-deprecation-message": "`inline-sub-agents` is deprecated and no longer needed.",
       "examples": [true]
     },
     "features": {
@@ -9791,6 +9793,8 @@
     "rate-limit": {
       "type": "object",
       "description": "Legacy alias for 'user-rate-limit'. Prefer 'user-rate-limit' with 'max-runs-per-window'.",
+      "deprecated": true,
+      "x-deprecation-message": "Use `user-rate-limit` instead.",
       "properties": {
         "max-runs": {
           "description": "Legacy maximum runs key. Prefer 'max-runs-per-window'.",
