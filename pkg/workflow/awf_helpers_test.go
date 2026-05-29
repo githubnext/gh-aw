@@ -273,16 +273,14 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 }
 
 // TestExtractAPITargetAuthHeader tests the extractAPITargetAuthHeader function that reads
-// the custom auth header name from sandbox.agent.apiProxy.targets.<provider>.authHeader in frontmatter.
+// the custom auth header name from sandbox.agent.targets.<provider>.authHeader in frontmatter.
 func TestExtractAPITargetAuthHeader(t *testing.T) {
 	makeWorkflowData := func(provider, authHeader string) *WorkflowData {
 		return &WorkflowData{
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					APIProxy: &AgentAPIProxyConfig{
-						Targets: map[string]*AgentAPIProxyTargetConfig{
-							provider: {AuthHeader: authHeader},
-						},
+					Targets: map[string]*AgentAPIProxyTargetConfig{
+						provider: {AuthHeader: authHeader},
 					},
 				},
 			},
@@ -308,9 +306,7 @@ func TestExtractAPITargetAuthHeader(t *testing.T) {
 		wd := &WorkflowData{
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					APIProxy: &AgentAPIProxyConfig{
-						Targets: map[string]*AgentAPIProxyTargetConfig{},
-					},
+					Targets: map[string]*AgentAPIProxyTargetConfig{},
 				},
 			},
 		}
@@ -321,7 +317,7 @@ func TestExtractAPITargetAuthHeader(t *testing.T) {
 		assert.Empty(t, extractAPITargetAuthHeader(nil, "openai"))
 	})
 
-	t.Run("returns empty string when apiProxy is nil", func(t *testing.T) {
+	t.Run("returns empty string when targets is nil", func(t *testing.T) {
 		wd := &WorkflowData{
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{},

@@ -3907,22 +3907,15 @@
                       },
                       "additionalProperties": false
                     },
-                    "apiProxy": {
+                    "targets": {
                       "type": "object",
-                      "description": "API proxy configuration for LLM provider routing. Settings are compiled into the AWF config JSON.",
+                      "description": "Per-provider API proxy target overrides. Settings are compiled into the AWF config JSON.",
                       "properties": {
-                        "targets": {
-                          "type": "object",
-                          "description": "Per-provider API proxy target overrides.",
-                          "properties": {
-                            "openai": {
-                              "$ref": "#/$defs/sandbox_agent_api_target"
-                            },
-                            "anthropic": {
-                              "$ref": "#/$defs/sandbox_agent_api_target"
-                            }
-                          },
-                          "additionalProperties": false
+                        "openai": {
+                          "$ref": "#/$defs/sandbox_agent_api_target"
+                        },
+                        "anthropic": {
+                          "$ref": "#/$defs/sandbox_agent_api_target"
                         }
                       },
                       "additionalProperties": false

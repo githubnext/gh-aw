@@ -1,4 +1,4 @@
-# ADR-35694: Expose `authHeader` in `sandbox.agent.apiProxy.targets` Frontmatter
+# ADR-35694: Expose `authHeader` in `sandbox.agent.targets` Frontmatter
 
 **Date**: 2026-05-29
 **Status**: Draft
@@ -14,7 +14,7 @@ The AWF firewall sidecar (PR #3998) introduced `--openai-api-auth-header` and `-
 
 ### Decision
 
-We will expose `authHeader` as a frontmatter field at `sandbox.agent.apiProxy.targets.<provider>.authHeader` for `provider ∈ {openai, anthropic}`. The new field is read by a dedicated helper `extractAPITargetAuthHeader` (in `pkg/workflow/engine_api_targets.go`) and applied inside `BuildAWFConfigJSON` (in `pkg/workflow/awf_config.go`) by mutating the existing `AWFAPITargetConfig` entry when one is already present, or creating a header-only entry when no host override exists. The field is emitted with `omitempty` so the generated AWF JSON stays clean when it is not configured. The frontmatter path mirrors the AWF JSON config structure 1:1, preserving the drift-tracking guarantee documented in `specs/awf-config-sources-spec.md`.
+We will expose `authHeader` as a frontmatter field at `sandbox.agent.targets.<provider>.authHeader` for `provider ∈ {openai, anthropic}`. The new field is read by a dedicated helper `extractAPITargetAuthHeader` (in `pkg/workflow/engine_api_targets.go`) and applied inside `BuildAWFConfigJSON` (in `pkg/workflow/awf_config.go`) by mutating the existing `AWFAPITargetConfig` entry when one is already present, or creating a header-only entry when no host override exists. The field is emitted with `omitempty` so the generated AWF JSON stays clean when it is not configured. The frontmatter path mirrors the AWF JSON config structure 1:1, preserving the drift-tracking guarantee documented in `specs/awf-config-sources-spec.md`.
 
 ### Alternatives Considered
 
@@ -39,7 +39,7 @@ The compiler could inspect the host of `OPENAI_BASE_URL` and, when it matches an
 - `authHeader` is independent of host overrides, so workflows that need a custom header against the public provider host (or against an already-configured host) can express that without redundant configuration.
 
 #### Negative
-- The workflow frontmatter schema grows by a new nested block (`sandbox.agent.apiProxy.targets.{openai,anthropic}.authHeader`); the regenerated `main_workflow_schema.json` adds ~1.9k net lines, increasing the surface that schema-based tooling must scan.
+- The workflow frontmatter schema grows by a new nested block (`sandbox.agent.targets.{openai,anthropic}.authHeader`); the regenerated `main_workflow_schema.json` adds ~1.9k net lines, increasing the surface that schema-based tooling must scan.
 - Two truths must be kept in sync: a workflow can configure `authHeader: api-key` without setting a custom host, which is valid but easy to misuse if the public provider rejects the non-standard header.
 - The new helper `extractAPITargetAuthHeader` is a per-provider lookup that traverses the same frontmatter path that future per-target fields (e.g. timeouts, retries) would also walk; we accept this duplication for now rather than building a generic per-target extractor.
 
@@ -56,23 +56,23 @@ The compiler could inspect the host of `OPENAI_BASE_URL` and, when it matches an
 
 ### Frontmatter Schema
 
-1. The workflow frontmatter **MUST** accept an optional `sandbox.agent.apiProxy.targets.<provider>.authHeader` path that holds the custom authentication header name.
-2. The set of recognized providers under `sandbox.agent.apiProxy.targets` **MUST** be restricted via `additionalProperties: false`; unknown provider keys **MUST** be rejected at schema-validation time.
+1. The workflow frontmatter **MUST** accept an optional `sandbox.agent.targets.<provider>.authHeader` path that holds the custom authentication header name.
+2. The set of recognized providers under `sandbox.agent.targets` **MUST** be restricted via `additionalProperties: false`; unknown provider keys **MUST** be rejected at schema-validation time.
 3. The value of `authHeader` **MUST** be a string; non-string values (including numbers, booleans, arrays, and objects) **MUST** be rejected at schema-validation time.
 4. Workflows **MAY** set `authHeader` without configuring a custom host for the same provider; the two settings **MUST** be independent.
 
 ### Compiler Behavior
 
-1. `BuildAWFConfigJSON` **MUST** read `sandbox.agent.apiProxy.targets.<provider>.authHeader` from `WorkflowData.SandboxConfig` for each supported provider and apply it to the emitted AWF JSON config.
+1. `BuildAWFConfigJSON` **MUST** read `sandbox.agent.targets.<provider>.authHeader` from `WorkflowData.SandboxConfig` for each supported provider and apply it to the emitted AWF JSON config.
 2. When a target entry already exists for a provider (e.g. because a custom host was configured), the compiler **MUST** mutate the existing entry in place rather than overwriting it; the host and `authHeader` fields **MUST** coexist.
 3. When no target entry exists for a provider, the compiler **MUST** create a header-only entry containing only `authHeader`, leaving `host` unset.
 4. The compiler **MUST NOT** emit an `authHeader` field in the AWF JSON output when the frontmatter value is absent, empty, or non-string.
-5. The frontmatter-extraction helper **MUST** return an empty string (and the compiler **MUST** treat that as "not configured") when any of the following hold: `WorkflowData` is `nil`; `SandboxConfig` or `Agent` is `nil`; `APIProxy` or `Targets` is `nil`; the provider key is absent; or `authHeader` is empty.
+5. The frontmatter-extraction helper **MUST** return an empty string (and the compiler **MUST** treat that as "not configured") when any of the following hold: `WorkflowData` is `nil`; `SandboxConfig` or `Agent` is `nil`; `Targets` is `nil`; the provider key is absent; or `authHeader` is empty.
 
 ### Drift Tracking
 
-1. `specs/awf-config-sources-spec.md` **MUST** list every frontmatter path that maps to an AWF JSON config field or AWF CLI flag, including `sandbox.agent.apiProxy.targets.openai.authHeader` and `sandbox.agent.apiProxy.targets.anthropic.authHeader`.
-2. Any future addition of a per-target proxy field to the AWF JSON config **SHOULD** be exposed via the parallel `sandbox.agent.apiProxy.targets.<provider>.<field>` frontmatter path and **MUST** be recorded in the drift-tracking table.
+1. `specs/awf-config-sources-spec.md` **MUST** list every frontmatter path that maps to an AWF JSON config field or AWF CLI flag, including `sandbox.agent.targets.openai.authHeader` and `sandbox.agent.targets.anthropic.authHeader`.
+2. Any future addition of a per-target proxy field to the AWF JSON config **SHOULD** be exposed via the parallel `sandbox.agent.targets.<provider>.<field>` frontmatter path and **MUST** be recorded in the drift-tracking table.
 
 ### Conformance
 

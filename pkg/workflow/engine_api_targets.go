@@ -108,21 +108,21 @@ func extractAPIBasePath(workflowData *WorkflowData, envVar string) string {
 	return ""
 }
 
-// extractAPITargetAuthHeader extracts the authHeader value from the sandbox.agent.apiProxy
+// extractAPITargetAuthHeader extracts the authHeader value from the sandbox.agent.targets
 // frontmatter section for a given provider (e.g. "openai" or "anthropic"). It reads:
 //
-//	sandbox.agent.apiProxy.targets.<provider>.authHeader
+//	sandbox.agent.targets.<provider>.authHeader
 //
 // Returns the header name string (e.g. "api-key") or empty string if not configured.
 func extractAPITargetAuthHeader(workflowData *WorkflowData, provider string) string {
 	if workflowData == nil || workflowData.SandboxConfig == nil || workflowData.SandboxConfig.Agent == nil {
 		return ""
 	}
-	apiProxy := workflowData.SandboxConfig.Agent.APIProxy
-	if apiProxy == nil || apiProxy.Targets == nil {
+	targets := workflowData.SandboxConfig.Agent.Targets
+	if targets == nil {
 		return ""
 	}
-	target, ok := apiProxy.Targets[provider]
+	target, ok := targets[provider]
 	if !ok || target == nil {
 		return ""
 	}

@@ -309,7 +309,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("API proxy: custom anthropic target=%s", anthropicTarget)
 	}
 
-	// Apply authHeader overrides from sandbox.agent.apiProxy.targets frontmatter.
+	// Apply authHeader overrides from sandbox.agent.targets frontmatter.
 	// These are independent of the host/env-var settings: authHeader can be set
 	// even when no custom host is configured.
 	for _, provider := range []string{"openai", "anthropic"} {

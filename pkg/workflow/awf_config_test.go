@@ -455,7 +455,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, "\\u0026", "JSON output should not HTML-escape '&' characters")
 	})
 
-	t.Run("openai authHeader from frontmatter sandbox.agent.apiProxy.targets is included", func(t *testing.T) {
+	t.Run("openai authHeader from frontmatter sandbox.agent.targets is included", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "codex",
 			AllowedDomains: "github.com",
@@ -466,10 +466,8 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
-						APIProxy: &AgentAPIProxyConfig{
-							Targets: map[string]*AgentAPIProxyTargetConfig{
-								"openai": {AuthHeader: "api-key"},
-							},
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							"openai": {AuthHeader: "api-key"},
 						},
 					},
 				},
@@ -483,7 +481,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, `"host":""`, "should not emit empty host when only authHeader is set")
 	})
 
-	t.Run("anthropic authHeader from frontmatter sandbox.agent.apiProxy.targets is included", func(t *testing.T) {
+	t.Run("anthropic authHeader from frontmatter sandbox.agent.targets is included", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "claude",
 			AllowedDomains: "github.com",
@@ -494,10 +492,8 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
-						APIProxy: &AgentAPIProxyConfig{
-							Targets: map[string]*AgentAPIProxyTargetConfig{
-								"anthropic": {AuthHeader: "api-key"},
-							},
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							"anthropic": {AuthHeader: "api-key"},
 						},
 					},
 				},
@@ -527,10 +523,8 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
-						APIProxy: &AgentAPIProxyConfig{
-							Targets: map[string]*AgentAPIProxyTargetConfig{
-								"openai": {AuthHeader: "api-key"},
-							},
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							"openai": {AuthHeader: "api-key"},
 						},
 					},
 				},
