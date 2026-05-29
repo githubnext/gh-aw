@@ -14,6 +14,7 @@ jobs:
   label-closure-reason:
     name: Label PR Closure Reason
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Only label PRs that were closed WITHOUT merging
     if: github.event.pull_request.merged == false
     steps:

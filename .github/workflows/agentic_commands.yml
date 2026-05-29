@@ -71,6 +71,7 @@ permissions: {}
 jobs:
   route:
     runs-on: ubuntu-slim
+    timeout-minutes: 15
     permissions:
       actions: write
       contents: read

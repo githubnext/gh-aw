@@ -293,6 +293,7 @@ permissions: {}
 jobs:
   route:
     runs-on: ` + runsOn + `
+    timeout-minutes: 15
 `)
 	writeCentralSlashRoutePermissions(&b, mergedEvents)
 	b.WriteString(`
