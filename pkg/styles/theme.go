@@ -47,10 +47,11 @@
 package styles
 
 import (
+	"os"
+
 	lipgloss "charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/compat"
 	"github.com/charmbracelet/colorprofile"
-	"os"
 )
 
 func configureLipglossCompat() {
