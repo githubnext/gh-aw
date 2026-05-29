@@ -172,7 +172,7 @@ func replaceOutsideQuotedHeredocs(s, old, new string) string {
 	}
 
 	if len(quotedRegions) == 0 {
-		return strings.ReplaceAll(s, old, new)
+		return replaceOutsideShellLineComments(s, old, new)
 	}
 
 	templateInjectionValidationLog.Printf("Replacing outside %d quoted heredoc region(s): replacing %q with %q", len(quotedRegions), old, new)
@@ -187,7 +187,7 @@ func replaceOutsideQuotedHeredocs(s, old, new string) string {
 	for _, r := range quotedRegions {
 		// Replace in the non-heredoc segment before this region.
 		if pos < r.start {
-			result.WriteString(strings.ReplaceAll(s[pos:r.start], old, new))
+			result.WriteString(replaceOutsideShellLineComments(s[pos:r.start], old, new))
 		}
 		// Write the quoted-heredoc region verbatim.
 		result.WriteString(s[r.start:r.end])
@@ -195,8 +195,78 @@ func replaceOutsideQuotedHeredocs(s, old, new string) string {
 	}
 	// Replace in the trailing non-heredoc segment.
 	if pos < len(s) {
-		result.WriteString(strings.ReplaceAll(s[pos:], old, new))
+		result.WriteString(replaceOutsideShellLineComments(s[pos:], old, new))
 	}
+	return result.String()
+}
+
+// replaceOutsideShellLineComments replaces old with new in shell script content
+// while preserving text inside bash-style # line comments.
+func replaceOutsideShellLineComments(content, old, new string) string {
+	var result strings.Builder
+	result.Grow(len(content))
+
+	inSingleQuote := false
+	inDoubleQuote := false
+	escaped := false
+	segmentStart := 0
+
+	for i := 0; i < len(content); {
+		ch := content[i]
+
+		if ch == '\n' {
+			escaped = false
+			i++
+			continue
+		}
+
+		if escaped {
+			escaped = false
+			i++
+			continue
+		}
+
+		if ch == '\\' && !inSingleQuote {
+			escaped = true
+			i++
+			continue
+		}
+
+		if ch == '\'' && !inDoubleQuote {
+			inSingleQuote = !inSingleQuote
+			i++
+			continue
+		}
+
+		if ch == '"' && !inSingleQuote {
+			inDoubleQuote = !inDoubleQuote
+			i++
+			continue
+		}
+
+		if ch == '#' && !inSingleQuote && !inDoubleQuote && isShellCommentStart(content, i) {
+			result.WriteString(strings.ReplaceAll(content[segmentStart:i], old, new))
+
+			commentEnd := i
+			for commentEnd < len(content) && content[commentEnd] != '\n' {
+				commentEnd++
+			}
+			result.WriteString(content[i:commentEnd])
+			if commentEnd < len(content) {
+				result.WriteByte('\n')
+				commentEnd++
+			}
+
+			escaped = false
+			segmentStart = commentEnd
+			i = commentEnd
+			continue
+		}
+
+		i++
+	}
+
+	result.WriteString(strings.ReplaceAll(content[segmentStart:], old, new))
 	return result.String()
 }
 
