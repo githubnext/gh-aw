@@ -33,6 +33,7 @@ imports:
   - shared/mcp/microsoft-docs.md
   - shared/mcp/deepwiki.md
   - shared/mcp/markitdown.md
+  - shared/otlp.md
 tools:
   cli-proxy: true
   edit:
