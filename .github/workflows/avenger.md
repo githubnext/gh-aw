@@ -14,7 +14,7 @@ permissions:
 tracker-id: avenger-ci
 engine:
   id: claude
-  max-turns: 25
+  max-turns: 50
   agent: ci-cleaner
 network:
   allowed:

@@ -65,7 +65,6 @@ tools:
   - jq* /tmp/gh-aw/agent/step-alignment-input.json
   - "git log --since=\"24 hours ago\" --oneline --name-only -- \".github/workflows/*.lock.yml\""
   cache-memory: true
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets:
