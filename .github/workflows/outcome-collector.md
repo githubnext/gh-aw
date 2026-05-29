@@ -70,12 +70,14 @@ The pre-agent step has already evaluated outcomes for recent workflow runs. Resu
 
 - `/tmp/gh-aw/outcome-summary.json` — fleet-wide summary
 - `/tmp/gh-aw/outcomes/run-*.json` — per-run outcome details
+- `/tmp/gh-aw/outcome-evaluations.jsonl` — per-item outcomes with `outcome_status` for status-bar rendering
 
 ## Task
 
 1. Read `/tmp/gh-aw/outcome-summary.json`
-2. If `total_outcomes` is 0, call `noop` with "No new safe output outcomes to report"
-3. Otherwise, create a report issue with the summary
+2. Read `/tmp/gh-aw/outcome-evaluations.jsonl` to build per-workflow status bars from per-item `outcome_status`
+3. If `total_outcomes` is 0, call `noop` with "No new safe output outcomes to report"
+4. Otherwise, create a report issue with the summary
 
 ### Summary JSON field reference
 
