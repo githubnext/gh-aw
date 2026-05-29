@@ -51,7 +51,7 @@ Adapt permissions and repository-specific references for our structure.
 
 ## Debugging Workflows
 
-Use the agentic workflows agent to diagnose and fix failing workflow runs.
+Use the `agentic-workflows` skill to diagnose and fix failing workflow runs.
 
 ### Through Copilot
 
@@ -61,7 +61,7 @@ If your repository is [configured for agentic authoring](#configuring-your-repos
 agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
-The agent audits the run, identifies the root cause (missing tools, permission errors, network blocks), and suggests targeted fixes.
+The coding agent audits the run, identifies the root cause (missing tools, permission errors, network blocks), and suggests targeted fixes.
 
 > [!TIP]
 > Copy this prompt, replace `OWNER`, `REPO`, and `RUN_ID` with your values, and paste it into Copilot Chat. You can find the run URL on the GitHub Actions run page.

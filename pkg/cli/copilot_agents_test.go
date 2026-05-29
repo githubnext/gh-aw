@@ -11,8 +11,8 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestDeleteOldAgentFiles tests deletion of old agent files
-func TestDeleteOldAgentFiles(t *testing.T) {
+// TestDeleteLegacyAgentFiles tests deletion of old agent files.
+func TestDeleteLegacyAgentFiles(t *testing.T) {
 	tests := []struct {
 		name            string
 		filesToCreate   []string // Paths relative to git root
@@ -136,10 +136,10 @@ func TestDeleteOldAgentFiles(t *testing.T) {
 				}
 			}
 
-			// Call deleteOldAgentFiles
-			err = deleteOldAgentFiles(false)
+			// Call deleteLegacyAgentFiles
+			err = deleteLegacyAgentFiles(false)
 			if err != nil {
-				t.Fatalf("deleteOldAgentFiles() returned error: %v", err)
+				t.Fatalf("deleteLegacyAgentFiles() returned error: %v", err)
 			}
 
 			// Verify expected files were deleted

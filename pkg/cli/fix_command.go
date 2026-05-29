@@ -200,7 +200,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 	// Delete old agent files if write flag is set
 	if write {
 		fixLog.Print("Deleting old agent files")
-		if err := deleteOldAgentFiles(verbose); err != nil {
+		if err := deleteLegacyAgentFiles(verbose); err != nil {
 			fixLog.Printf("Failed to delete old agent files: %v", err)
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to delete old agent files: %v", err)))
 		}

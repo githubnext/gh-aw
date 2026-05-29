@@ -37,7 +37,7 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 	}
 
 	// Download the skill file from GitHub
-	agentContent, err := downloadAgentFileFromGitHub(verbose)
+	skillContent, err := downloadSkillFileFromGitHub(verbose)
 	if err != nil {
 		copilotAgentsLog.Printf("Failed to download skill file from GitHub: %v", err)
 		return fmt.Errorf("failed to download skill file from GitHub: %w", err)
@@ -50,7 +50,7 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 	}
 
 	// Check if content matches the downloaded template
-	expectedContent := strings.TrimSpace(agentContent)
+	expectedContent := strings.TrimSpace(skillContent)
 	if strings.TrimSpace(existingContent) == expectedContent {
 		copilotAgentsLog.Printf("Dispatcher skill is up-to-date: %s", targetPath)
 		if verbose {
@@ -59,9 +59,8 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 		return nil
 	}
 
-	// Write the file with restrictive permissions (0600) to follow security best practices
-	// Skill files may contain sensitive configuration
-	if err := os.WriteFile(targetPath, []byte(agentContent), constants.FilePermSensitive); err != nil {
+	// Skill files are committed repository instructions, so keep them world-readable.
+	if err := os.WriteFile(targetPath, []byte(skillContent), constants.FilePermPublic); err != nil {
 		copilotAgentsLog.Printf("Failed to write dispatcher skill: %s, error: %v", targetPath, err)
 		return fmt.Errorf("failed to write dispatcher skill: %w", err)
 	}
@@ -184,8 +183,8 @@ func deleteOldTemplateFiles(verbose bool) error {
 	return nil
 }
 
-// deleteOldAgentFiles deletes old workflow-specific .agent.md files from .github/agents/
-func deleteOldAgentFiles(verbose bool) error {
+// deleteLegacyAgentFiles deletes legacy workflow-specific agent files from .github/agents/.
+func deleteLegacyAgentFiles(verbose bool) error {
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return nil // Not in a git repository, skip

@@ -88,6 +88,10 @@ func InitRepository(opts InitOptions) error {
 		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher skill"))
 		}
+		if err := deleteLegacyAgentFiles(opts.Verbose); err != nil {
+			initLog.Printf("Failed to delete legacy agent files: %v", err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to delete legacy agent files: %v", err)))
+		}
 	} else {
 		initLog.Printf("Skipping Copilot dispatcher skill for engine: %s", opts.Engine)
 	}
