@@ -1862,6 +1862,23 @@ sandbox:
     # (optional)
     memory: "example-value"
 
+    # Model fallback policy for unresolved model selections. AWF default is enabled
+    # with the middle_power strategy, which silently rewrites deployment names to
+    # base-catalog names. Set enabled: false for BYOK Azure OpenAI deployments to
+    # prevent deployment-name rewriting that causes HTTP 404 DeploymentNotFound errors.
+    # (optional)
+    modelFallback:
+      # Enable or disable the middle-power fallback when model resolution fails.
+      # Defaults to true (AWF default). Set to false for custom-provider or BYOK
+      # Azure deployments where deployment-name rewriting is undesired.
+      # (optional)
+      enabled: true
+
+      # Fallback selection strategy. Currently only "middle_power" is supported.
+      # Omit to use the AWF default.
+      # (optional)
+      strategy: "middle_power"
+
     # Custom sandbox runtime configuration. Note: Network configuration is controlled
     # by the top-level 'network' field, not here.
     # (optional)
@@ -2211,31 +2228,6 @@ engine:
       # Weight for cache write tokens (default: 1.0)
       # (optional)
       cache-write: 1
-
-  # AWF firewall sidecar configuration overrides for the engine. These settings are
-  # written into the inline awf-config.json embedded in the generated lock file.
-  # (optional)
-  firewall:
-    # API proxy sidecar configuration overrides.
-    # (optional)
-    apiProxy:
-      # Model fallback policy for unresolved model selections. AWF default is enabled
-      # with the middle_power strategy, which silently rewrites deployment names to
-      # base-catalog names. Set enabled: false for BYOK Azure OpenAI deployments to
-      # prevent deployment-name rewriting that causes HTTP 404 DeploymentNotFound
-      # errors.
-      # (optional)
-      modelFallback:
-        # Enable or disable the middle-power fallback when model resolution fails.
-        # Defaults to true (AWF default). Set to false for custom-provider or BYOK
-        # Azure deployments where deployment-name rewriting is undesired.
-        # (optional)
-        enabled: true
-
-        # Fallback selection strategy. Currently only "middle_power" is supported.
-        # Omit to use the AWF default.
-        # (optional)
-        strategy: "middle_power"
 
   # Optional array of command-line arguments to pass to the AI engine CLI. These
   # arguments are injected after all other args but before the prompt.

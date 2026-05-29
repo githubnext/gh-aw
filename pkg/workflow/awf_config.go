@@ -408,15 +408,18 @@ func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {
 }
 
 // extractModelFallback returns an AWFModelFallbackConfig if the workflow has configured
-// engine.firewall.apiProxy.modelFallback, or nil if the field is absent (letting AWF use its default).
+// sandbox.agent.modelFallback, or nil if the field is absent (letting AWF use its default).
 func extractModelFallback(workflowData *WorkflowData) *AWFModelFallbackConfig {
 	if workflowData == nil {
 		return nil
 	}
-	if workflowData.EngineConfig == nil {
+	if workflowData.SandboxConfig == nil {
 		return nil
 	}
-	mf := workflowData.EngineConfig.ModelFallback
+	if workflowData.SandboxConfig.Agent == nil {
+		return nil
+	}
+	mf := workflowData.SandboxConfig.Agent.ModelFallback
 	if mf == nil {
 		return nil
 	}

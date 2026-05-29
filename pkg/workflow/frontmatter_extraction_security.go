@@ -243,6 +243,30 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract modelFallback (AWF API proxy model fallback policy)
+	if mfVal, hasMF := agentObj["modelFallback"]; hasMF {
+		if mfObj, ok := mfVal.(map[string]any); ok {
+			mf := &SandboxModelFallbackConfig{}
+			hasFields := false
+			if enabledRaw, hasEnabled := mfObj["enabled"]; hasEnabled {
+				if enabledBool, ok := enabledRaw.(bool); ok {
+					mf.Enabled = &enabledBool
+					hasFields = true
+				}
+			}
+			if strategyRaw, hasStrategy := mfObj["strategy"]; hasStrategy {
+				if strategyStr, ok := strategyRaw.(string); ok {
+					mf.Strategy = strategyStr
+					hasFields = true
+				}
+			}
+			if hasFields {
+				agentConfig.ModelFallback = mf
+				frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.modelFallback")
+			}
+		}
+	}
+
 	return agentConfig
 }
 

@@ -463,8 +463,12 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 			WorkflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
 					ID: "copilot",
-					ModelFallback: &EngineModelFallbackConfig{
-						Enabled: &falseVal,
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ModelFallback: &SandboxModelFallbackConfig{
+							Enabled: &falseVal,
+						},
 					},
 				},
 				NetworkPermissions: &NetworkPermissions{
@@ -488,8 +492,12 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 			WorkflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
 					ID: "copilot",
-					ModelFallback: &EngineModelFallbackConfig{
-						Enabled: &trueVal,
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ModelFallback: &SandboxModelFallbackConfig{
+							Enabled: &trueVal,
+						},
 					},
 				},
 				NetworkPermissions: &NetworkPermissions{
@@ -512,9 +520,13 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 			WorkflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
 					ID: "copilot",
-					ModelFallback: &EngineModelFallbackConfig{
-						Enabled:  &falseVal,
-						Strategy: "middle_power",
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ModelFallback: &SandboxModelFallbackConfig{
+							Enabled:  &falseVal,
+							Strategy: "middle_power",
+						},
 					},
 				},
 				NetworkPermissions: &NetworkPermissions{
@@ -529,7 +541,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"strategy":"middle_power"`, "apiProxy.modelFallback should include strategy when set")
 	})
 
-	t.Run("modelFallback is omitted when not configured in engine", func(t *testing.T) {
+	t.Run("modelFallback is omitted when not configured in sandbox", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com",
@@ -732,9 +744,11 @@ func TestBuildAWFConfigJSON_SchemaCompliance(t *testing.T) {
 				WorkflowData: func() *WorkflowData {
 					f := false
 					return &WorkflowData{
-						EngineConfig: &EngineConfig{
-							ID:            "copilot",
-							ModelFallback: &EngineModelFallbackConfig{Enabled: &f},
+						EngineConfig: &EngineConfig{ID: "copilot"},
+						SandboxConfig: &SandboxConfig{
+							Agent: &AgentSandboxConfig{
+								ModelFallback: &SandboxModelFallbackConfig{Enabled: &f},
+							},
 						},
 						NetworkPermissions: &NetworkPermissions{
 							Firewall: &FirewallConfig{Enabled: true},
@@ -751,9 +765,11 @@ func TestBuildAWFConfigJSON_SchemaCompliance(t *testing.T) {
 				WorkflowData: func() *WorkflowData {
 					f := false
 					return &WorkflowData{
-						EngineConfig: &EngineConfig{
-							ID:            "copilot",
-							ModelFallback: &EngineModelFallbackConfig{Enabled: &f, Strategy: "middle_power"},
+						EngineConfig: &EngineConfig{ID: "copilot"},
+						SandboxConfig: &SandboxConfig{
+							Agent: &AgentSandboxConfig{
+								ModelFallback: &SandboxModelFallbackConfig{Enabled: &f, Strategy: "middle_power"},
+							},
 						},
 						NetworkPermissions: &NetworkPermissions{
 							Firewall: &FirewallConfig{Enabled: true},

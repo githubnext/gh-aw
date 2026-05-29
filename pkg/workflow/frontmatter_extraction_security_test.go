@@ -24,6 +24,88 @@ func TestExtractAgentSandboxConfigVersion(t *testing.T) {
 	})
 }
 
+func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
+	compiler := &Compiler{}
+
+	t.Run("extracts sandbox.agent.modelFallback enabled=false", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id": "awf",
+			"modelFallback": map[string]any{
+				"enabled": false,
+			},
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		require.NotNil(t, config.ModelFallback, "Should extract modelFallback")
+		require.NotNil(t, config.ModelFallback.Enabled, "Enabled should be non-nil")
+		assert.False(t, *config.ModelFallback.Enabled, "Enabled should be false")
+		assert.Empty(t, config.ModelFallback.Strategy, "Strategy should be empty")
+	})
+
+	t.Run("extracts sandbox.agent.modelFallback enabled=true", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id": "awf",
+			"modelFallback": map[string]any{
+				"enabled": true,
+			},
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		require.NotNil(t, config.ModelFallback, "Should extract modelFallback")
+		require.NotNil(t, config.ModelFallback.Enabled, "Enabled should be non-nil")
+		assert.True(t, *config.ModelFallback.Enabled, "Enabled should be true")
+	})
+
+	t.Run("extracts sandbox.agent.modelFallback with strategy", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id": "awf",
+			"modelFallback": map[string]any{
+				"enabled":  false,
+				"strategy": "middle_power",
+			},
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		require.NotNil(t, config.ModelFallback, "Should extract modelFallback")
+		assert.Equal(t, "middle_power", config.ModelFallback.Strategy, "Should extract strategy")
+	})
+
+	t.Run("modelFallback is nil when absent", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id": "awf",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.Nil(t, config.ModelFallback, "ModelFallback should be nil when not configured")
+	})
+
+	t.Run("modelFallback is nil when object is empty", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id":            "awf",
+			"modelFallback": map[string]any{},
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.Nil(t, config.ModelFallback, "ModelFallback should be nil when object has no recognised fields")
+	})
+
+	t.Run("modelFallback is nil when value is not a map", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id":            "awf",
+			"modelFallback": "not-a-map",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.Nil(t, config.ModelFallback, "ModelFallback should be nil for non-map value")
+	})
+}
+
 // TestExtractMCPGatewayConfigPayloadFields tests extraction of payload-related fields
 // from MCP gateway frontmatter configuration
 func TestExtractMCPGatewayConfigPayloadFields(t *testing.T) {

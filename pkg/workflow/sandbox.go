@@ -46,16 +46,29 @@ type SandboxConfig struct {
 
 // AgentSandboxConfig represents the agent sandbox configuration
 type AgentSandboxConfig struct {
-	ID       string                `yaml:"id,omitempty"`      // Agent ID: "awf" or "srt" (replaces Type in new object format)
-	Type     SandboxType           `yaml:"type,omitempty"`    // Sandbox type: "awf" or "srt" (legacy, use ID instead)
-	Version  string                `yaml:"version,omitempty"` // AWF version override used to install and run the matching firewall version
-	Disabled bool                  `yaml:"-"`                 // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
-	Config   *SandboxRuntimeConfig `yaml:"config,omitempty"`  // Custom SRT config (optional)
-	Command  string                `yaml:"command,omitempty"` // Custom command to replace AWF or SRT installation
-	Args     []string              `yaml:"args,omitempty"`    // Additional arguments to append to the command
-	Env      map[string]string     `yaml:"env,omitempty"`     // Environment variables to set on the step
-	Mounts   []string              `yaml:"mounts,omitempty"`  // Container mounts to add for AWF (format: "source:dest:mode")
-	Memory   string                `yaml:"memory,omitempty"`  // Memory limit for the AWF container (e.g., "4g", "8g")
+	ID            string                      `yaml:"id,omitempty"`            // Agent ID: "awf" or "srt" (replaces Type in new object format)
+	Type          SandboxType                 `yaml:"type,omitempty"`          // Sandbox type: "awf" or "srt" (legacy, use ID instead)
+	Version       string                      `yaml:"version,omitempty"`       // AWF version override used to install and run the matching firewall version
+	Disabled      bool                        `yaml:"-"`                       // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
+	Config        *SandboxRuntimeConfig       `yaml:"config,omitempty"`        // Custom SRT config (optional)
+	Command       string                      `yaml:"command,omitempty"`       // Custom command to replace AWF or SRT installation
+	Args          []string                    `yaml:"args,omitempty"`          // Additional arguments to append to the command
+	Env           map[string]string           `yaml:"env,omitempty"`           // Environment variables to set on the step
+	Mounts        []string                    `yaml:"mounts,omitempty"`        // Container mounts to add for AWF (format: "source:dest:mode")
+	Memory        string                      `yaml:"memory,omitempty"`        // Memory limit for the AWF container (e.g., "4g", "8g")
+	ModelFallback *SandboxModelFallbackConfig `yaml:"modelFallback,omitempty"` // AWF API proxy model fallback policy (optional)
+}
+
+// SandboxModelFallbackConfig holds the model fallback policy parsed from sandbox.agent.modelFallback.
+// It maps to the apiProxy.modelFallback field in the generated AWF config.
+type SandboxModelFallbackConfig struct {
+	// Enabled controls whether the AWF middle-power fallback is applied when model resolution fails.
+	// A nil pointer means the field was not set in frontmatter; AWF will use its default (true).
+	Enabled *bool `yaml:"enabled,omitempty"`
+
+	// Strategy is the fallback selection strategy. Currently only "middle_power" is supported.
+	// When empty, AWF uses its default strategy.
+	Strategy string `yaml:"strategy,omitempty"`
 }
 
 // SandboxRuntimeConfig represents the Anthropic Sandbox Runtime configuration
