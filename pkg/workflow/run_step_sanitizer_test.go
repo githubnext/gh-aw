@@ -98,6 +98,44 @@ EOF`,
 			expectChanged: false,
 		},
 		{
+			name: "expression in bash comment not extracted",
+			step: map[string]any{
+				"run": strings.Join([]string{
+					`set -euo pipefail`,
+					`# docs: ${{ secrets.* }}`,
+					`echo "ok"`,
+				}, "\n"),
+			},
+			expectChanged: false,
+		},
+		{
+			name: "only non-comment expression is extracted",
+			step: map[string]any{
+				"run": strings.Join([]string{
+					`# docs: ${{ secrets.* }}`,
+					`echo "${{ github.event.issue.title }}"`,
+				}, "\n"),
+			},
+			expectChanged:   true,
+			expectRunHas:    []string{"# docs: ${{ secrets.* }}", "$GH_AW_GITHUB_EVENT_ISSUE_TITLE"},
+			expectRunNotHas: []string{"${{ github.event.issue.title }}"},
+			expectEnvKeys:   []string{"GH_AW_GITHUB_EVENT_ISSUE_TITLE"},
+			expectWarnings:  1,
+		},
+		{
+			name: "same expression in comment remains unchanged",
+			step: map[string]any{
+				"run": strings.Join([]string{
+					`# docs: ${{ github.event.issue.title }}`,
+					`echo "${{ github.event.issue.title }}"`,
+				}, "\n"),
+			},
+			expectChanged:   true,
+			expectRunHas:    []string{"# docs: ${{ github.event.issue.title }}", `echo "$GH_AW_GITHUB_EVENT_ISSUE_TITLE"`},
+			expectEnvKeys:   []string{"GH_AW_GITHUB_EVENT_ISSUE_TITLE"},
+			expectWarnings:  1,
+		},
+		{
 			name: "steps outputs expression extracted",
 			step: map[string]any{
 				"run": `bash script.sh "${{ steps.build.outputs.artifact }}"`,
@@ -764,4 +802,15 @@ func TestReplaceOutsideQuotedHeredocs_UnquotedHeredocIsReplaced(t *testing.T) {
 	// Unquoted heredoc — replacement is safe because the shell expands $TITLE.
 	assert.NotContains(t, result, "${{ github.event.issue.title }}")
 	assert.Contains(t, result, "$TITLE")
+}
+
+func TestReplaceOutsideQuotedHeredocs_DoesNotReplaceInComments(t *testing.T) {
+	s := strings.Join([]string{
+		`# docs: ${{ github.event.issue.title }}`,
+		`echo "${{ github.event.issue.title }}"`,
+	}, "\n")
+	result := replaceOutsideQuotedHeredocs(s, "${{ github.event.issue.title }}", "$TITLE")
+
+	assert.Contains(t, result, `# docs: ${{ github.event.issue.title }}`)
+	assert.Contains(t, result, `echo "$TITLE"`)
 }

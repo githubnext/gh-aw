@@ -74,7 +74,6 @@ func loadBuiltinModelAliases() (map[string][]string, error) {
 //   - "sonnet-6x"      → Sonnet family constrained to <=6x multiplier tiers (excludes 4.6+)
 //   - "haiku"          → Anthropic Haiku family
 //   - "opus"           → Anthropic Opus family
-//   - "gpt-4.1"        → OpenAI GPT-4.1 family
 //   - "gpt-5"          → OpenAI GPT-5 family
 //   - "gpt-5-mini"     → OpenAI GPT-5-mini family
 //   - "gpt-5-nano"     → OpenAI GPT-5-nano family (ultra-lightweight)

@@ -6,10 +6,8 @@ import (
 
 var addCommentLog = logger.New("workflow:add_comment")
 
-// AddCommentConfig holds configuration for creating GitHub issue/PR comments from agent output (deprecated, use AddCommentsConfig)
-type AddCommentConfig struct {
-	// Empty struct for now, as per requirements, but structured for future expansion
-}
+// AddCommentConfig is a deprecated alias of AddCommentsConfig.
+type AddCommentConfig = AddCommentsConfig
 
 // AddCommentsConfig holds configuration for creating GitHub issue/PR comments from agent output
 type AddCommentsConfig struct {

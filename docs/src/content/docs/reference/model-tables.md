@@ -26,7 +26,6 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `sonnet-6x` | `copilot/*sonnet-4-5-*`, `anthropic/*sonnet-4-5-*`, `copilot/*sonnet-4-6*`, `anthropic/*sonnet-4-6*` |
 | `haiku` | `copilot/*haiku*`, `anthropic/*haiku*` |
 | `opus` | `copilot/*opus*`, `anthropic/*opus*` |
-| `gpt-4.1` | `copilot/gpt-4.1*`, `openai/gpt-4.1*` |
 | `gpt-5` | `copilot/gpt-5*`, `openai/gpt-5*` |
 | `gpt-5.5` | `copilot/gpt-5.5*`, `openai/gpt-5.5*` |
 | `gpt-5.4` | `copilot/gpt-5.4*`, `openai/gpt-5.4*` |
@@ -127,13 +126,10 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 
 | Model | Multiplier |
 |-------|-----------|
-| `gpt-4o` | 0.33 |
 | `gpt-4o-2024-05-13` | 0.33 |
 | `gpt-4o-2024-08-06` | 0.33 |
 | `gpt-4o-2024-11-20` | 0.33 |
-| `gpt-4o-mini` | 0.33 |
 | `gpt-4o-mini-2024-07-18` | 0.33 |
-| `gpt-4.1` | 1 |
 | `gpt-4.1-2025-04-14` | 1 |
 | `gpt-41-copilot` | 1 |
 | `gpt-4.1-mini` | 1 |
@@ -176,7 +172,6 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gpt-5.4-2026-03-05` | 6 |
 | `gpt-5.4-mini` | 6 |
 | `gpt-5.4-mini-2026-03-17` | 6 |
-| `gpt-5.4-nano` | 6 |
 | `gpt-5.4-nano-2026-03-17` | 6 |
 | `gpt-5.4-pro` | 6 |
 | `gpt-5.4-pro-2026-03-05` | 6 |

@@ -84,6 +84,20 @@ jobs:
           EOF
 `
 
+	commentExpressionYAML := `
+name: comment-expression
+on: workflow_dispatch
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment expression
+        run: |
+          set -euo pipefail
+          # docs: ${{ secrets.* }}
+          echo "ok"
+`
+
 	tmpDir := testutil.TempDir(t, "template-injection-test")
 	markdownPath := filepath.Join(tmpDir, "test.md")
 	lockFile := stringutil.MarkdownToLockFile(markdownPath)
@@ -153,6 +167,16 @@ jobs:
 	t.Run("Path B - schema disabled - heredoc expression passes", func(t *testing.T) {
 		err := compiler.validateTemplateInjection(heredocExpressionYAML, lockFile, markdownPath, nil)
 		assert.NoError(t, err, "expressions inside heredoc content should not be flagged")
+	})
+
+	t.Run("Path A - schema enabled - comment expression passes", func(t *testing.T) {
+		err := compiler.validateTemplateInjection(commentExpressionYAML, lockFile, markdownPath, parseYAML(t, commentExpressionYAML))
+		assert.NoError(t, err, "expressions inside bash comments should not be flagged")
+	})
+
+	t.Run("Path B - schema disabled - comment expression passes", func(t *testing.T) {
+		err := compiler.validateTemplateInjection(commentExpressionYAML, lockFile, markdownPath, nil)
+		assert.NoError(t, err, "expressions inside bash comments should not be flagged")
 	})
 
 	t.Run("both paths agree on unsafe YAML", func(t *testing.T) {

@@ -148,7 +148,10 @@ func (p *ScheduleParser) parseShortDurationInterval(hasWeekdaysSuffix bool) (str
 		return "", false, nil
 	}
 
-	interval, _ := strconv.Atoi(matches[1])
+	interval, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return "", true, fmt.Errorf("invalid duration interval %q: %w", matches[1], err)
+	}
 	unit := matches[2]
 	if err := p.validateIntervalTimeClause(2, hasWeekdaysSuffix); err != nil {
 		return "", true, err

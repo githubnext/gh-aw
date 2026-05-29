@@ -68,9 +68,16 @@ func normalizeTimeTokens(tokens []string) string {
 }
 
 // parseTimeToMinutes converts hour and minute strings to total minutes since midnight
+// Invalid hour/minute strings are treated as zero to preserve existing behavior.
 func parseTimeToMinutes(hourStr, minuteStr string) int {
-	hour, _ := strconv.Atoi(hourStr)
-	minute, _ := strconv.Atoi(minuteStr)
+	hour := 0
+	if n, err := strconv.Atoi(hourStr); err == nil {
+		hour = n
+	}
+	minute := 0
+	if n, err := strconv.Atoi(minuteStr); err == nil {
+		minute = n
+	}
 	return hour*60 + minute
 }
 

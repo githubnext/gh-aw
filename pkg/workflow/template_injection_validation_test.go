@@ -813,6 +813,47 @@ GH_AW_MCP_CONFIG_EOF`,
 	}
 }
 
+func TestStripShellLineComments(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "full line comment stripped",
+			input: strings.Join([]string{
+				`# docs: ${{ secrets.* }}`,
+				`echo "ok"`,
+			}, "\n"),
+			expected: strings.Join([]string{
+				``,
+				`echo "ok"`,
+			}, "\n"),
+		},
+		{
+			name:     "trailing comment stripped",
+			input:    `echo "ok" # docs: ${{ github.token }}`,
+			expected: `echo "ok" `,
+		},
+		{
+			name:     "hash in double quotes is preserved",
+			input:    `echo "# docs: ${{ github.token }}"`,
+			expected: `echo "# docs: ${{ github.token }}"`,
+		},
+		{
+			name:     "escaped hash is preserved",
+			input:    `echo \# ${{ github.token }}`,
+			expected: `echo \# ${{ github.token }}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, stripShellLineComments(tt.input))
+		})
+	}
+}
+
 // TestTemplateInjectionYAMLKeyOrdering tests that validation correctly handles
 // different YAML key orderings, particularly when env: appears after run:
 func TestTemplateInjectionYAMLKeyOrdering(t *testing.T) {
