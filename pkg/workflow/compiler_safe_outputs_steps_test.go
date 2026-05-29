@@ -347,6 +347,8 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"+refs/heads/my/branch/*:refs/remotes/origin/my/branch/*",
 				// Fetch step must carry same condition as the checkout step
 				"contains(needs.agent.outputs.output_types, 'create_pull_request')",
+				// Depth flag must mirror the checkout fetch-depth to avoid expanding the shallow clone
+				"--depth=1",
 			},
 		},
 		{
@@ -404,6 +406,8 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"+refs/heads/feature/*:refs/remotes/origin/feature/*",
 				// Condition tied to push_to_pull_request_branch
 				"contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')",
+				// Depth flag must mirror the checkout fetch-depth to avoid expanding the shallow clone
+				"--depth=1",
 			},
 		},
 		{
