@@ -13,6 +13,7 @@ set +o histexpand
 # Security features:
 #   - Downloads binary directly from Google Cloud Storage over HTTPS
 #   - Verifies SHA256 checksum against official checksums.txt before installation
+#   - Warns and skips checksum verification if checksums.txt is unavailable (HTTP 404)
 #   - Fails fast if checksum verification fails
 #   - Fails fast on any curl errors
 
@@ -76,10 +77,15 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 
 # Download checksums file from GCS (if available for this version)
 echo "Downloading checksums from ${CHECKSUMS_URL}..."
-CHECKSUMS_DOWNLOAD_STATUS=$(curl -sSL --retry 3 --retry-delay 5 -w "%{http_code}" -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}" || true)
+if ! CHECKSUMS_DOWNLOAD_STATUS=$(curl -sSL --retry 3 --retry-delay 5 -w "%{http_code}" -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"); then
+  echo "ERROR: Failed to download checksums.txt due to a network or TLS error"
+  exit 1
+fi
+
 VERIFY_CHECKSUM=true
 if [ "${CHECKSUMS_DOWNLOAD_STATUS}" = "404" ]; then
   echo "WARNING: checksums.txt not found for version ${VERSION}; skipping checksum verification."
+  rm -f "${TEMP_DIR}/checksums.txt"
   VERIFY_CHECKSUM=false
 elif [ "${CHECKSUMS_DOWNLOAD_STATUS}" != "200" ]; then
   echo "ERROR: Failed to download checksums.txt (HTTP ${CHECKSUMS_DOWNLOAD_STATUS})"
