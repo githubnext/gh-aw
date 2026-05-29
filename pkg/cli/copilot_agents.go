@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -23,7 +24,7 @@ const agenticWorkflowsAgentHeader = "---\n" +
 	"# Agentic Workflows\n\n" +
 	"Read only the files you need:\n"
 
-const agenticWorkflowsPromptsGitHubBaseURL = "https://github.com/github/gh-aw/blob/main/.github/aw/"
+const agenticWorkflowsPromptsGitHubBaseURL = "https://github.com/github/gh-aw/blob/main/.github/aw"
 
 const maxAgenticWorkflowsPromptSummaryLength = 80
 
@@ -169,7 +170,14 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 			return "", fmt.Errorf("failed to summarize prompt %s: %w", promptPath, err)
 		}
 
-		relPromptPath, err := filepath.Rel(filepath.Join(gitRoot, ".github", "aw"), promptPath)
+		promptRoot := filepath.Clean(filepath.Join(gitRoot, ".github", "aw"))
+		cleanPromptPath := filepath.Clean(promptPath)
+		promptRootPrefix := promptRoot + string(os.PathSeparator)
+		if cleanPromptPath != promptRoot && !strings.HasPrefix(cleanPromptPath, promptRootPrefix) {
+			return "", fmt.Errorf("prompt path escapes .github/aw: %s", promptPath)
+		}
+
+		relPromptPath, err := filepath.Rel(promptRoot, cleanPromptPath)
 		if err != nil {
 			return "", fmt.Errorf("failed to compute relative prompt path for %s: %w", promptPath, err)
 		}
@@ -178,7 +186,10 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 			return "", fmt.Errorf("prompt path escapes .github/aw: %s", promptPath)
 		}
 
-		promptURL := agenticWorkflowsPromptsGitHubBaseURL + relPromptPath
+		promptURL, err := url.JoinPath(agenticWorkflowsPromptsGitHubBaseURL, relPromptPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to construct prompt URL for %s: %w", promptPath, err)
+		}
 		lines = append(lines, formatAgenticWorkflowsAgentEntry(promptURL, purpose))
 	}
 
