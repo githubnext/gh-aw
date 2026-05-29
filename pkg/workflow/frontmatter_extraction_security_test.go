@@ -91,7 +91,7 @@ func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
-		assert.Nil(t, config.ModelFallback, "ModelFallback should be nil when object has no recognised fields")
+		assert.Nil(t, config.ModelFallback, "ModelFallback should be nil when object has no recognized fields")
 	})
 
 	t.Run("modelFallback is nil when value is not a map", func(t *testing.T) {
