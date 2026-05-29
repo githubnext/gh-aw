@@ -108,6 +108,27 @@ func extractAPIBasePath(workflowData *WorkflowData, envVar string) string {
 	return ""
 }
 
+// extractAPITargetAuthHeader extracts the authHeader value from the sandbox.agent.targets
+// frontmatter section for a given provider (e.g. "openai" or "anthropic"). It reads:
+//
+//	sandbox.agent.targets.<provider>.authHeader
+//
+// Returns the header name string (e.g. "api-key") or empty string if not configured.
+func extractAPITargetAuthHeader(workflowData *WorkflowData, provider string) string {
+	if workflowData == nil || workflowData.SandboxConfig == nil || workflowData.SandboxConfig.Agent == nil {
+		return ""
+	}
+	targets := workflowData.SandboxConfig.Agent.Targets
+	if targets == nil {
+		return ""
+	}
+	target, ok := targets[provider]
+	if !ok || target == nil {
+		return ""
+	}
+	return target.AuthHeader
+}
+
 // GetCopilotAPITarget returns the effective Copilot API target hostname, checking in order:
 //  1. engine.api-target (explicit, takes precedence)
 //  2. GITHUB_COPILOT_BASE_URL in engine.env (implicit, derived from the configured Copilot base URL)

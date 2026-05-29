@@ -445,6 +445,10 @@
         "basePath": {
           "type": "string",
           "description": "Override the provider API base path."
+        },
+        "authHeader": {
+          "type": "string",
+          "description": "Custom authentication header name sent with API requests. Overrides the provider default (\"Authorization\" for OpenAI, \"x-api-key\" for Anthropic). Use \"api-key\" for Azure OpenAI gateways."
         }
       }
     },

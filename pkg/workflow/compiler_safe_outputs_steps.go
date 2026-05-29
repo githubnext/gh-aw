@@ -298,6 +298,20 @@ func buildSafeOutputsFetchRefsStep(repoSlug, token string, fetchRefs []string, f
 		depthFlag = fmt.Sprintf(" --depth=%d", effectiveDepth)
 	}
 
+	// Use --filter=blob:none when the checkout is depth-limited so only commit and
+	// tree objects are downloaded for these refs.  These refs are fetched solely to
+	// make bundle prerequisite commits reachable locally; they are never checked out
+	// in the safe_outputs job, so their blob objects are unnecessary.
+	// When sparse-checkout is also configured, actions/checkout has already written
+	// core.partialclonefilter=blob:none to .git/config, and git applies the filter
+	// automatically; the explicit flag is consistent and harmless in that case.
+	// For full clones (effectiveDepth == 0) we omit the flag: all objects are already
+	// present and there is no benefit to filtering.
+	filterFlag := ""
+	if effectiveDepth > 0 {
+		filterFlag = " --filter=blob:none"
+	}
+
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "      - name: Fetch additional refs for %s\n", repoSlug)
 	if condition != "" {
@@ -307,7 +321,7 @@ func buildSafeOutputsFetchRefsStep(repoSlug, token string, fetchRefs []string, f
 	fmt.Fprintf(&sb, "          GH_AW_FETCH_TOKEN: %s\n", token)
 	sb.WriteString("        run: |\n")
 	sb.WriteString("          header=$(printf \"x-access-token:%s\" \"${GH_AW_FETCH_TOKEN}\" | base64 -w 0)\n")
-	fmt.Fprintf(&sb, "          git -c \"http.extraheader=Authorization: Basic ${header}\" fetch origin%s %s\n", depthFlag, strings.Join(refspecs, " "))
+	fmt.Fprintf(&sb, "          git -c \"http.extraheader=Authorization: Basic ${header}\" fetch origin%s%s %s\n", filterFlag, depthFlag, strings.Join(refspecs, " "))
 	return sb.String()
 }
 

@@ -86,6 +86,7 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.NotContains(t, text, "Compiler version:")
 	require.Contains(t, text, "permissions: {}")
 	require.Contains(t, text, "runs-on: ubuntu-slim")
+	require.Contains(t, text, "timeout-minutes: 15")
 	require.Contains(t, text, "    permissions:\n      actions: write\n      contents: read\n      issues: write\n      pull-requests: write\n      discussions: write")
 	require.Contains(t, text, "      - name: Setup Scripts")
 	require.Contains(t, text, "        uses: ./actions/setup")

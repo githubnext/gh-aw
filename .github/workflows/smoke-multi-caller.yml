@@ -16,6 +16,7 @@ jobs:
   # First invocation of the reusable workflow
   task-a:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'smoke-multi-caller'
+    timeout-minutes: 20
     uses: ./.github/workflows/smoke-workflow-call-with-inputs.lock.yml
     with:
       task-description: 'task-a - first invocation'
@@ -31,6 +32,7 @@ jobs:
   # names must be unique per workflow run.
   task-b:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'smoke-multi-caller'
+    timeout-minutes: 20
     uses: ./.github/workflows/smoke-workflow-call-with-inputs.lock.yml
     with:
       task-description: 'task-b - second invocation'
@@ -43,6 +45,7 @@ jobs:
   # Third invocation running after task-a and task-b to show sequential + parallel combinations
   task-c:
     needs: [task-a, task-b]
+    timeout-minutes: 20
     uses: ./.github/workflows/smoke-workflow-call-with-inputs.lock.yml
     with:
       task-description: 'task-c - third invocation (after a and b)'

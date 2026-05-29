@@ -61,6 +61,8 @@ The following fields previously existed in schema but were missed in spec CLI ma
 | `apiProxy.modelFallback` | config-only (model fallback policy; set `sandbox.agent.model-fallback: false` to prevent deployment-name rewriting for BYOK Azure) |
 | `apiProxy.maxRuns` | config-only (LLM invocation hard cap) |
 | `apiProxy.auth.*` | config-only (maps to `AWF_AUTH_*` env vars) |
+| `apiProxy.targets.openai.authHeader` | `--openai-api-auth-header` (frontmatter: `sandbox.agent.targets.openai.authHeader`) |
+| `apiProxy.targets.anthropic.authHeader` | `--anthropic-api-auth-header` (frontmatter: `sandbox.agent.targets.anthropic.authHeader`) |
 | `container.dockerHostPathPrefix` | `--docker-host-path-prefix` |
 
 Agents SHOULD treat this class of mismatch as a regression signal and open a corrective PR when detected.

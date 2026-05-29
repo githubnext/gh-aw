@@ -272,6 +272,61 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 	})
 }
 
+// TestExtractAPITargetAuthHeader tests the extractAPITargetAuthHeader function that reads
+// the custom auth header name from sandbox.agent.targets.<provider>.authHeader in frontmatter.
+func TestExtractAPITargetAuthHeader(t *testing.T) {
+	makeWorkflowData := func(provider, authHeader string) *WorkflowData {
+		return &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Targets: map[string]*AgentAPIProxyTargetConfig{
+						provider: {AuthHeader: authHeader},
+					},
+				},
+			},
+		}
+	}
+
+	t.Run("returns authHeader for openai provider", func(t *testing.T) {
+		result := extractAPITargetAuthHeader(makeWorkflowData("openai", "api-key"), "openai")
+		assert.Equal(t, "api-key", result)
+	})
+
+	t.Run("returns authHeader for anthropic provider", func(t *testing.T) {
+		result := extractAPITargetAuthHeader(makeWorkflowData("anthropic", "x-custom-header"), "anthropic")
+		assert.Equal(t, "x-custom-header", result)
+	})
+
+	t.Run("returns empty string when sandbox config is absent", func(t *testing.T) {
+		wd := &WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}}
+		assert.Empty(t, extractAPITargetAuthHeader(wd, "openai"))
+	})
+
+	t.Run("returns empty string when provider is absent", func(t *testing.T) {
+		wd := &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Targets: map[string]*AgentAPIProxyTargetConfig{},
+				},
+			},
+		}
+		assert.Empty(t, extractAPITargetAuthHeader(wd, "openai"))
+	})
+
+	t.Run("returns empty string for nil WorkflowData", func(t *testing.T) {
+		assert.Empty(t, extractAPITargetAuthHeader(nil, "openai"))
+	})
+
+	t.Run("returns empty string when targets is nil", func(t *testing.T) {
+		wd := &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{},
+			},
+		}
+		assert.Empty(t, extractAPITargetAuthHeader(wd, "openai"))
+	})
+}
+
 // TestExtractAPIBasePath tests the extractAPIBasePath function that extracts
 // path components from custom API base URLs in engine.env
 func TestExtractAPIBasePath(t *testing.T) {

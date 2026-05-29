@@ -455,6 +455,110 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, "\\u0026", "JSON output should not HTML-escape '&' characters")
 	})
 
+	t.Run("openai authHeader from frontmatter sandbox.agent.targets is included", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "codex",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "codex"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							"openai": {AuthHeader: "api-key"},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"authHeader":"api-key"`, "should include openai authHeader in apiProxy targets")
+		assert.Contains(t, jsonStr, `"openai"`, "should include openai target")
+		assert.NotContains(t, jsonStr, `"host":""`, "should not emit empty host when only authHeader is set")
+	})
+
+	t.Run("anthropic authHeader from frontmatter sandbox.agent.targets is included", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "claude"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							"anthropic": {AuthHeader: "api-key"},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"authHeader":"api-key"`, "should include anthropic authHeader in apiProxy targets")
+		assert.Contains(t, jsonStr, `"anthropic"`, "should include anthropic target")
+		assert.NotContains(t, jsonStr, `"host":""`, "should not emit empty host when only authHeader is set")
+	})
+
+	t.Run("authHeader coexists with host from engine.env", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "codex",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "codex",
+					Env: map[string]string{
+						"OPENAI_BASE_URL": "https://azure-openai.internal/v1",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							"openai": {AuthHeader: "api-key"},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, "azure-openai.internal", "should include host from OPENAI_BASE_URL")
+		assert.Contains(t, jsonStr, `"authHeader":"api-key"`, "should include authHeader alongside host")
+	})
+
+	t.Run("authHeader is omitted when not configured in frontmatter", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "codex",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "codex",
+					Env: map[string]string{
+						"OPENAI_BASE_URL": "https://my-proxy.internal.example.com/v1",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"authHeader"`, "authHeader should be absent when not configured")
+	})
+
 	t.Run("model-fallback is emitted when enabled is explicitly set to false", func(t *testing.T) {
 		disabled := TemplatableBool("false")
 		config := AWFCommandConfig{

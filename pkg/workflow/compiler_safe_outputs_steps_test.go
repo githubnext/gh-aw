@@ -349,6 +349,8 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"contains(needs.agent.outputs.output_types, 'create_pull_request')",
 				// Depth flag must mirror the checkout fetch-depth to avoid expanding the shallow clone
 				"--depth=1",
+				// Blob filter avoids downloading blobs for refs that are only used as prerequisites
+				"--filter=blob:none",
 			},
 		},
 		{
@@ -408,6 +410,36 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')",
 				// Depth flag must mirror the checkout fetch-depth to avoid expanding the shallow clone
 				"--depth=1",
+				// Blob filter avoids downloading blobs for refs that are only used as prerequisites
+				"--filter=blob:none",
+			},
+		},
+		{
+			name: "cross-repo fetch refs with full clone (fetch-depth: 0) omits blob filter",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.CROSS_PAT }}",
+					},
+					TargetRepoSlug: "org/target-repo",
+				},
+			},
+			checkoutConfigs: []*CheckoutConfig{
+				{
+					Repository: "org/target-repo",
+					FetchDepth: func() *int { d := 0; return &d }(),
+					Fetch:      []string{"main"},
+				},
+			},
+			checkContains: []string{
+				"name: Fetch additional refs for org/target-repo",
+				"+refs/heads/main:refs/remotes/origin/main",
+			},
+			checkNotContains: []string{
+				// Full clone: all objects already present; filter is unnecessary
+				"--filter=blob:none",
+				// Full clone: no depth restriction
+				"--depth=",
 			},
 		},
 		{
