@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -159,6 +158,9 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to list .github/aw prompts: %w", err)
 	}
+	if len(promptPaths) > 0 {
+		lines = append(lines, fmt.Sprintf("Load `.github/aw/*.md` prompt files from `%s`:", agenticWorkflowsPromptsGitHubBaseURL))
+	}
 
 	sort.Slice(promptPaths, func(i, j int) bool {
 		return filepath.Base(promptPaths[i]) < filepath.Base(promptPaths[j])
@@ -187,11 +189,7 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 			return "", fmt.Errorf("prompt path escapes .github/aw: %s", promptPath)
 		}
 
-		promptURL, err := url.JoinPath(agenticWorkflowsPromptsGitHubBaseURL, relPromptPath)
-		if err != nil {
-			return "", fmt.Errorf("failed to construct prompt URL for %s: %w", promptPath, err)
-		}
-		lines = append(lines, formatAgenticWorkflowsAgentEntry(promptURL, purpose))
+		lines = append(lines, formatAgenticWorkflowsAgentEntry(filepath.ToSlash(filepath.Join(".github", "aw", relPromptPath)), purpose))
 	}
 
 	return strings.Join(lines, "\n") + "\n", nil
