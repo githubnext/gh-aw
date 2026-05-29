@@ -129,7 +129,7 @@ The report must open with an executive-first view. Place the following at the to
 - Render one emoji per outcome item for each workflow: 🟩 accepted, 🟥 rejected, 🟨 pending, ⬜ unknown.
 - Wrap in `<span style="white-space: nowrap;">...</span>` to prevent line breaks.
 - Do not include numeric counts in the top table — the bar communicates volume.
-- Sort rows by management attention: most pending first, then most unknown, then accepted-only workflows last.
+- Sort rows by management attention: most pending first, then most unknown, then resolved-only workflows last.
 
 **Lifecycle health classification** — assign one label per workflow based on its outcome history:
 
