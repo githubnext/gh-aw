@@ -183,7 +183,7 @@ type AWFAPIProxyConfig struct {
 // Maps to: --<provider>-api-target <host>
 type AWFAPITargetConfig struct {
 	// Host is the hostname (and optional port) of the API endpoint.
-	Host string `json:"host"`
+	Host string `json:"host,omitempty"`
 
 	// AuthHeader is the custom authentication header name sent with API requests.
 	// When set, the raw API key is sent as "<authHeader>: <key>" instead of the

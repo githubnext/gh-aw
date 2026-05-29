@@ -482,6 +482,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, jsonStr, `"authHeader":"api-key"`, "should include openai authHeader in apiProxy targets")
 		assert.Contains(t, jsonStr, `"openai"`, "should include openai target")
+		assert.NotContains(t, jsonStr, `"host":""`, "should not emit empty host when only authHeader is set")
 	})
 
 	t.Run("anthropic authHeader from frontmatter awf.apiProxy.targets is included", func(t *testing.T) {
@@ -511,6 +512,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, jsonStr, `"authHeader":"api-key"`, "should include anthropic authHeader in apiProxy targets")
 		assert.Contains(t, jsonStr, `"anthropic"`, "should include anthropic target")
+		assert.NotContains(t, jsonStr, `"host":""`, "should not emit empty host when only authHeader is set")
 	})
 
 	t.Run("authHeader coexists with host from engine.env", func(t *testing.T) {
