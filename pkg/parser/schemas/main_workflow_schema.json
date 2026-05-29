@@ -11576,6 +11576,11 @@
           "enum": ["read", "write", "none"],
           "description": "Permission for repository checks and status checks (read: view checks, write: create/update checks, none: no access)"
         },
+        "copilot-requests": {
+          "type": "string",
+          "enum": ["write", "none"],
+          "description": "Permission level for Copilot requests (write/none only). Set to write to allow Copilot inference via the GitHub Actions token."
+        },
         "contents": {
           "type": "string",
           "enum": ["read", "write", "none"],

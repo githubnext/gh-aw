@@ -23,8 +23,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 
 	// Populate cached values after all mutations to Permissions and Concurrency have been applied.
 	// Using defer ensures the cache is always set on every return path, including early returns.
-	// applyDefaults is the final stage that mutates data.Permissions (setting defaults and
-	// injecting feature-flag permissions), so the values computed here represent the stable,
+	// applyDefaults is the final stage that mutates data.Permissions (setting defaults), so
+	// the values computed here represent the stable,
 	// final state that validateWorkflowData will use. These caches eliminate repeated
 	// YAML parsing, regex extraction, and expression parsing in the hot validateWorkflowData loop.
 	defer func() {
