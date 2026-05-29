@@ -79,8 +79,10 @@ func getSecretRequirementsForWorkflow(workflowFile string) []SecretRequirement {
 		workflowSecretsLog.Printf("Adding %d auth definition secret(s) for workflow %s", len(authReqs), workflowFile)
 		reqs = append(reqs, authReqs...)
 	}
-	if engine == string(constants.CopilotEngine) && hasCopilotRequestsWritePermission(frontmatter) {
-		reqs = filterOutSecretRequirement(reqs, "COPILOT_GITHUB_TOKEN")
+	if hasCopilotRequestsWritePermission(frontmatter) {
+		if opt := constants.GetEngineOption(engine); opt != nil && opt.SecretName == "COPILOT_GITHUB_TOKEN" {
+			reqs = filterOutSecretRequirement(reqs, "COPILOT_GITHUB_TOKEN")
+		}
 	}
 
 	return reqs
