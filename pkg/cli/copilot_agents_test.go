@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -271,5 +273,104 @@ func TestDeleteOldTemplateFiles(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	if err := os.MkdirAll(filepath.Join(tempDir, ".github", "aw"), 0755); err != nil {
+		t.Fatalf("Failed to create .github/aw directory: %v", err)
+	}
+
+	debugPrompt := "---\n" +
+		"description: Debug and refine agentic workflows using gh-aw CLI tools - analyze logs and improve workflow performance.\n" +
+		"---\n"
+	if err := os.WriteFile(filepath.Join(tempDir, ".github", "aw", "debug-agentic-workflow.md"), []byte(debugPrompt), 0644); err != nil {
+		t.Fatalf("Failed to write debug prompt: %v", err)
+	}
+
+	agenticChatPrompt := "---\n" +
+		"description: AI assistant for creating clear, detailed task descriptions for GitHub Copilot coding agents with embedded workflow recommendations.\n" +
+		"---\n\n" +
+		"# Agentic Task Description Assistant\n"
+	if err := os.WriteFile(filepath.Join(tempDir, ".github", "aw", "agentic-chat.md"), []byte(agenticChatPrompt), 0644); err != nil {
+		t.Fatalf("Failed to write agentic-chat prompt: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(tempDir, ".github", "aw", "github-agentic-workflows.md"), []byte("# GitHub Agentic Workflows\n"), 0644); err != nil {
+		t.Fatalf("Failed to write github-agentic-workflows prompt: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(tempDir, ".github", "aw", "triggers.md"), []byte("# ✅ GOOD - Weekday schedule avoids Monday wall of work\n"), 0644); err != nil {
+		t.Fatalf("Failed to write triggers prompt: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(tempDir, ".github", "aw", "compat.json"), []byte("{}"), 0644); err != nil {
+		t.Fatalf("Failed to write compat.json: %v", err)
+	}
+
+	content, err := buildAgenticWorkflowsAgentContent(tempDir)
+	if err != nil {
+		t.Fatalf("buildAgenticWorkflowsAgentContent() returned error: %v", err)
+	}
+
+	if !strings.Contains(content, "`.github/skills/agentic-workflows/SKILL.md`") {
+		t.Fatal("Expected agent content to include the dispatcher skill path")
+	}
+
+	if !strings.Contains(content, "Load `.github/aw/*.md` prompt files from `https://github.com/github/gh-aw/blob/main/.github/aw`:") {
+		t.Fatalf("Expected agent content to include shared prompt base URL guidance, got:\n%s", content)
+	}
+
+	if !strings.Contains(content, "`.github/aw/debug-agentic-workflow.md` — Debug and refine agentic workflows using gh-aw CLI tools.") {
+		t.Fatalf("Expected agent content to include concise debug prompt summary, got:\n%s", content)
+	}
+
+	if !strings.Contains(content, "`.github/aw/agentic-chat.md` — AI assistant for creating clear, detailed task descriptions for GitHub Copilot.") {
+		t.Fatalf("Expected frontmatter description summaries for prompts, got:\n%s", content)
+	}
+
+	if !strings.Contains(content, "`.github/aw/triggers.md` — Weekday schedule avoids Monday wall of work.") {
+		t.Fatalf("Expected agent content to include cleaned triggers prompt summary, got:\n%s", content)
+	}
+
+	if strings.Contains(content, "compat.json") {
+		t.Fatalf("Expected non-markdown files to be excluded from agent content, got:\n%s", content)
+	}
+
+	if !strings.Contains(content, "`.github/skills/agentic-workflows/SKILL.md` — router skill for workflow create, debug, and upgrade tasks.\nLoad `.github/aw/*.md` prompt files from `https://github.com/github/gh-aw/blob/main/.github/aw`:\n- `.github/aw/github-agentic-workflows.md` — GitHub Agentic Workflows.") {
+		t.Fatalf("Expected github-agentic-workflows.md to be the first prompt entry after the dispatcher skill, got:\n%s", content)
+	}
+
+	githubWorkflowsIndex := strings.Index(content, "`.github/aw/github-agentic-workflows.md`")
+	debugPromptIndex := strings.Index(content, "`.github/aw/debug-agentic-workflow.md`")
+	if githubWorkflowsIndex == -1 || debugPromptIndex == -1 {
+		t.Fatalf("Expected agent content to include prioritized workflow instructions and debug prompt, got:\n%s", content)
+	}
+	if githubWorkflowsIndex > debugPromptIndex {
+		t.Fatalf("Expected github-agentic-workflows.md to appear before other prompts, got:\n%s", content)
+	}
+}
+
+func TestCheckedInAgenticWorkflowsAgentMatchesGeneratedContent(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("Failed to locate test file")
+	}
+
+	gitRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	expected, err := buildAgenticWorkflowsAgentContent(gitRoot)
+	if err != nil {
+		t.Fatalf("buildAgenticWorkflowsAgentContent() returned error: %v", err)
+	}
+
+	actual, err := os.ReadFile(filepath.Join(gitRoot, ".github", "agents", "agentic-workflows.md"))
+	if err != nil {
+		t.Fatalf("Failed to read checked-in agent file: %v", err)
+	}
+
+	if strings.TrimSpace(string(actual)) != strings.TrimSpace(expected) {
+		t.Fatalf("Checked-in agent file is out of sync with generated content\nexpected:\n%s\nactual:\n%s", expected, string(actual))
 	}
 }

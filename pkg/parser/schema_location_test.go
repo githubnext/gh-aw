@@ -250,6 +250,81 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AdditionalProperti
 			wantErr:     true,
 			errContains: "/test/workflow.md:2:1:",
 		},
+		{
+			name: "workflow_call input typo now fails with additional property error",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_call": map[string]any{
+						"inputs": map[string]any{
+							"payload": map[string]any{
+								"type":    "string",
+								"requird": true,
+							},
+						},
+					},
+				},
+			},
+			filePath:    "/test/workflow.md",
+			wantErr:     true,
+			errContains: "requird",
+		},
+		{
+			name: "workflow_call secret typo now fails with additional property error",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_call": map[string]any{
+						"secrets": map[string]any{
+							"token": map[string]any{
+								"requird": true,
+							},
+						},
+					},
+				},
+			},
+			filePath:    "/test/workflow.md",
+			wantErr:     true,
+			errContains: "requird",
+		},
+		{
+			name: "dispatch_repository input typo now fails with additional property error",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+				"safe-outputs": map[string]any{
+					"dispatch_repository": map[string]any{
+						"relay": map[string]any{
+							"event_type": "dispatch",
+							"repository": "github/gh-aw",
+							"inputs": map[string]any{
+								"payload": map[string]any{
+									"type":    "string",
+									"requird": true,
+								},
+							},
+						},
+					},
+				},
+			},
+			filePath:    "/test/workflow.md",
+			wantErr:     true,
+			errContains: "requird",
+		},
+		{
+			name: "valid workflow_call input still compiles",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_call": map[string]any{
+						"inputs": map[string]any{
+							"payload": map[string]any{
+								"type":     "string",
+								"required": true,
+							},
+						},
+					},
+				},
+			},
+			filePath: "/test/workflow.md",
+			wantErr:  false,
+		},
 	}
 
 	for _, tt := range tests {
