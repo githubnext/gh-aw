@@ -556,10 +556,10 @@ func TestCacheMemoryArtifactUploadAddsGitIntegrityCheck(t *testing.T) {
 
 	assert.Contains(t, output, "- name: Check cache-memory git integrity",
 		"Should include pre-upload git integrity check step")
-	assert.Contains(t, output, "git -C \"/tmp/gh-aw/cache-memory\" fsck --no-dangling >/dev/null 2>&1",
-		"Should run git fsck before upload")
-	assert.Contains(t, output, "rm -rf \"/tmp/gh-aw/cache-memory\"/.git || true",
-		"Should reseed broken git repositories")
+	assert.Contains(t, output, "GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory",
+		"Should set cache dir env var for integrity script")
+	assert.Contains(t, output, "run: bash \"${RUNNER_TEMP}/gh-aw/actions/check_cache_memory_git_integrity.sh\"",
+		"Should run shared integrity script before upload")
 	assert.Contains(t, output, "- name: Upload cache-memory data as artifact",
 		"Should still upload artifact after integrity check")
 }
