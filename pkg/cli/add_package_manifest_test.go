@@ -1220,6 +1220,45 @@ files:
 		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "skills/missing-skill")
 	})
 
+	t.Run("explicit skill without marker produces warning", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+			switch filePath {
+			case "aw.yml":
+				return []byte(`name: My Package
+skills:
+  - skills/no-marker
+files:
+  - workflows/review.md
+`), nil
+			case "README.md":
+				return []byte("# My Package\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(filePath)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			if workflowPath == "agents" {
+				return nil, createRepositoryPackageNotFoundError(workflowPath)
+			}
+			t.Fatalf("unexpected workflow scan of %s", workflowPath)
+			return nil, nil
+		}
+		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			if dirPath == "skills/no-marker" {
+				return []string{"skills/no-marker/prompt.md"}, nil
+			}
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.NoError(t, err)
+		assert.Empty(t, pkg.SkillFiles)
+		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "missing required SKILL.md")
+	})
+
 	t.Run("no skills or agents when directories absent", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
 			switch filePath {

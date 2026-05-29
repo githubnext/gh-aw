@@ -136,7 +136,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	warnings = append(warnings, agentWarnings...)
 
 	if len(installationSources) == 0 && len(skillFiles) == 0 && len(agentFiles) == 0 {
-		return nil, fmt.Errorf("repository %q does not declare any installable workflows, skills, or agents", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
+		return nil, fmt.Errorf("repository %q does not contain any installable workflows, skills, or agents (either explicitly declared or auto-discovered)", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
 	}
 
 	return &resolvedRepositoryPackage{
@@ -251,7 +251,8 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 		manifest.Files = files
 		warnings = append(warnings, fileWarnings...)
 		if len(files) > 0 {
-			warnings = append(warnings, fmt.Sprintf("Field 'files' in %s is deprecated; use 'includes' instead (codemod suggestion: %v)", manifestPath, codemodManifestFilesToIncludes(files)))
+			warnings = append(warnings, fmt.Sprintf("Field 'files' in %s is deprecated; use 'includes' instead.", manifestPath))
+			warnings = append(warnings, "Codemod suggestion:\n"+formatIncludesCodemodSuggestion(codemodManifestFilesToIncludes(files)))
 		}
 	}
 
@@ -290,7 +291,7 @@ func extractManifestIncludes(value any, manifestPath string) ([]string, []string
 	seen := make(map[string]struct{})
 	for _, include := range rawIncludes {
 		if !isSupportedManifestIncludePath(include) {
-			warnings = append(warnings, fmt.Sprintf("Ignoring includes entry %q in %s: supported entries are workflow files under workflows/, includes/workflows/, or .github/workflows/, skill directories under skills/, includes/skills/, or .github/skills/, and agent markdown files under agents/, includes/agents/, or .github/agents/", include, manifestPath))
+			warnings = append(warnings, fmt.Sprintf("Ignoring includes entry %q in %s: use workflow files (workflows/, includes/workflows/, .github/workflows/), skill directories (skills/, includes/skills/, .github/skills/), or agent markdown files (agents/, includes/agents/, .github/agents/)", include, manifestPath))
 			continue
 		}
 		if _, exists := seen[include]; exists {
@@ -347,20 +348,15 @@ func codemodManifestFilesToIncludes(files []string) []string {
 	return converted
 }
 
-func appendUniqueStrings(base []string, values ...string) []string {
-	seen := make(map[string]struct{}, len(base))
-	out := append([]string{}, base...)
-	for _, v := range base {
-		seen[v] = struct{}{}
+func formatIncludesCodemodSuggestion(paths []string) string {
+	if len(paths) == 0 {
+		return "includes: []"
 	}
-	for _, v := range values {
-		if _, ok := seen[v]; ok {
-			continue
-		}
-		seen[v] = struct{}{}
-		out = append(out, v)
+	lines := []string{"includes:"}
+	for _, p := range paths {
+		lines = append(lines, "  - "+p)
 	}
-	return out
+	return strings.Join(lines, "\n")
 }
 
 func splitManifestIncludePaths(includes []string) (installable, skillDirs, agentFiles []string) {
@@ -539,7 +535,7 @@ func resolvePackageSkillFiles(owner, repo, packagePath, ref, host string, explic
 			markerPath := joinRepositoryPackagePath(skillDir, packageSkillMarkerFile)
 			if _, err := downloadPackageFileFromGitHubForHost(owner, repo, markerPath, ref, host); err != nil {
 				if isRepositoryFileNotFound(err) {
-					warnings = append(warnings, fmt.Sprintf("Skill directory %q is invalid: missing %s", skillDir, packageSkillMarkerFile))
+					warnings = append(warnings, fmt.Sprintf("Skill directory %q is missing required %s marker file", skillDir, packageSkillMarkerFile))
 					continue
 				}
 				return nil, nil, fmt.Errorf("failed to validate skill marker %q: %w", markerPath, err)
