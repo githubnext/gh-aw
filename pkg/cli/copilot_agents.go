@@ -14,12 +14,12 @@ import (
 
 var copilotAgentsLog = logger.New("cli:copilot_agents")
 
-const agenticWorkflowsAgentContent = "---\n" +
+const agenticWorkflowsAgentHeader = "---\n" +
 	"name: Agentic Workflows\n" +
-	"description: Use the agentic-workflows skill for GitHub Agentic Workflows tasks in this repository.\n" +
+	"description: Minimal file index for GitHub Agentic Workflows tasks in this repository.\n" +
 	"---\n\n" +
 	"# Agentic Workflows\n\n" +
-	"Use the `agentic-workflows` skill for GitHub Agentic Workflows tasks in this repository.\n"
+	"Read only the files you need:\n"
 
 // ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md contains the dispatcher skill
 func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error {
@@ -108,6 +108,11 @@ func ensureAgenticWorkflowsAgent(verbose bool) error {
 		existingContent = string(content)
 	}
 
+	agenticWorkflowsAgentContent, err := buildAgenticWorkflowsAgentContent(gitRoot)
+	if err != nil {
+		return err
+	}
+
 	expectedContent := strings.TrimSpace(agenticWorkflowsAgentContent)
 	if strings.TrimSpace(existingContent) == expectedContent {
 		copilotAgentsLog.Printf("Agentic Workflows custom agent is up-to-date: %s", targetPath)
@@ -134,6 +139,141 @@ func ensureAgenticWorkflowsAgent(verbose bool) error {
 	}
 
 	return nil
+}
+
+func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
+	lines := []string{
+		strings.TrimRight(agenticWorkflowsAgentHeader, "\n"),
+		"- `.github/skills/agentic-workflows/SKILL.md` — router skill for workflow create, debug, and upgrade tasks.",
+	}
+
+	promptPaths, err := filepath.Glob(filepath.Join(gitRoot, ".github", "aw", "*.md"))
+	if err != nil {
+		return "", fmt.Errorf("failed to list .github/aw prompts: %w", err)
+	}
+
+	for _, promptPath := range promptPaths {
+		purpose, err := summarizeAgenticWorkflowPrompt(promptPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to summarize prompt %s: %w", promptPath, err)
+		}
+
+		relPath, err := filepath.Rel(gitRoot, promptPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to compute relative path for %s: %w", promptPath, err)
+		}
+
+		lines = append(lines, fmt.Sprintf("- `%s` — %s.", filepath.ToSlash(relPath), purpose))
+	}
+
+	return strings.Join(lines, "\n") + "\n", nil
+}
+
+func summarizeAgenticWorkflowPrompt(path string) (string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	summary := extractPromptSummary(string(content))
+	if summary == "" {
+		summary = humanizePromptFilename(filepath.Base(path))
+	}
+
+	return strings.TrimSuffix(summary, "."), nil
+}
+
+func extractPromptSummary(content string) string {
+	lines := strings.Split(content, "\n")
+	if len(lines) == 0 {
+		return ""
+	}
+
+	start := 0
+	if strings.TrimSpace(lines[0]) == "---" {
+		start = 1
+		for ; start < len(lines); start++ {
+			line := strings.TrimSpace(lines[start])
+			if line == "---" {
+				start++
+				break
+			}
+			if strings.HasPrefix(line, "description:") {
+				return cleanPromptSummary(strings.TrimSpace(strings.TrimPrefix(line, "description:")))
+			}
+		}
+	}
+
+	for ; start < len(lines); start++ {
+		line := strings.TrimSpace(lines[start])
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "# ") {
+			return cleanPromptSummary(strings.TrimSpace(strings.TrimPrefix(line, "# ")))
+		}
+		if strings.HasPrefix(line, "```") || strings.HasPrefix(line, ">") {
+			continue
+		}
+		return cleanPromptSummary(line)
+	}
+
+	return ""
+}
+
+func cleanPromptSummary(summary string) string {
+	summary = strings.Trim(summary, `"'`)
+	summary = strings.TrimSpace(summary)
+	summary = strings.TrimPrefix(summary, "RECOMMENDED: ")
+	summary = strings.TrimPrefix(summary, "✅ GOOD - ")
+	summary = strings.TrimPrefix(summary, "✅ ")
+	summary = strings.TrimSpace(summary)
+
+	if idx := strings.Index(summary, " - "); idx > 0 {
+		summary = summary[:idx]
+	}
+
+	if idx := strings.Index(summary, ","); idx > 0 && len(summary) > 80 {
+		summary = summary[:idx]
+	}
+
+	return summary
+}
+
+func humanizePromptFilename(name string) string {
+	base := strings.TrimSuffix(name, filepath.Ext(name))
+	switch base {
+	case "agentic-chat":
+		return "draft task descriptions"
+	case "asciicharts":
+		return "render ASCII charts"
+	case "cli-commands":
+		return "reference gh aw CLI commands"
+	case "context":
+		return "use sanitized context text"
+	case "github-agentic-workflows":
+		return "reference workflow instructions"
+	case "github-mcp-server":
+		return "use the GitHub MCP server"
+	case "llms":
+		return "discover LLM API endpoints"
+	case "pr-reviewer":
+		return "design PR reviewer workflows"
+	case "safe-outputs":
+		return "configure safe outputs"
+	case "serena-tool":
+		return "use the Serena tool"
+	case "test-coverage":
+		return "add test coverage guidance"
+	case "test-expression":
+		return "test expressions"
+	case "token-optimization":
+		return "reduce token usage"
+	case "visual-regression":
+		return "run visual regression tests"
+	}
+
+	return strings.ReplaceAll(base, "-", " ")
 }
 
 // cleanupOldPromptFile removes an old prompt file from .github/prompts/ if it exists

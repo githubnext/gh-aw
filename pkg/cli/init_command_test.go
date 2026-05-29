@@ -251,8 +251,11 @@ func TestInitRepositoryBasic(t *testing.T) {
 	if !strings.Contains(string(agentContent), "name: Agentic Workflows") {
 		t.Error("Expected Agentic Workflows custom agent file to use the Agentic Workflows name")
 	}
-	if !strings.Contains(string(agentContent), "`agentic-workflows` skill") {
-		t.Error("Expected Agentic Workflows custom agent file to reference the agentic-workflows skill")
+	if !strings.Contains(string(agentContent), "`.github/skills/agentic-workflows/SKILL.md`") {
+		t.Error("Expected Agentic Workflows custom agent file to reference the dispatcher skill path")
+	}
+	if strings.Contains(string(agentContent), ".github/aw/") {
+		t.Error("Expected generic init repositories without .github/aw prompts to omit .github/aw prompt entries")
 	}
 }
 

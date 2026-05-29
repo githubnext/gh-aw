@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -271,5 +273,71 @@ func TestDeleteOldTemplateFiles(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	if err := os.MkdirAll(filepath.Join(tempDir, ".github", "aw"), 0755); err != nil {
+		t.Fatalf("Failed to create .github/aw directory: %v", err)
+	}
+
+	debugPrompt := "---\n" +
+		"description: Debug and refine agentic workflows using gh-aw CLI tools - analyze logs and improve workflow performance.\n" +
+		"---\n"
+	if err := os.WriteFile(filepath.Join(tempDir, ".github", "aw", "debug-agentic-workflow.md"), []byte(debugPrompt), 0644); err != nil {
+		t.Fatalf("Failed to write debug prompt: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(tempDir, ".github", "aw", "triggers.md"), []byte("# ✅ GOOD - Weekday schedule avoids Monday wall of work\n"), 0644); err != nil {
+		t.Fatalf("Failed to write triggers prompt: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(tempDir, ".github", "aw", "compat.json"), []byte("{}"), 0644); err != nil {
+		t.Fatalf("Failed to write compat.json: %v", err)
+	}
+
+	content, err := buildAgenticWorkflowsAgentContent(tempDir)
+	if err != nil {
+		t.Fatalf("buildAgenticWorkflowsAgentContent() returned error: %v", err)
+	}
+
+	if !strings.Contains(content, "`.github/skills/agentic-workflows/SKILL.md`") {
+		t.Fatal("Expected agent content to include the dispatcher skill path")
+	}
+
+	if !strings.Contains(content, "`.github/aw/debug-agentic-workflow.md` — Debug and refine agentic workflows using gh-aw CLI tools.") {
+		t.Fatalf("Expected agent content to include concise debug prompt summary, got:\n%s", content)
+	}
+
+	if !strings.Contains(content, "`.github/aw/triggers.md` — Weekday schedule avoids Monday wall of work.") {
+		t.Fatalf("Expected agent content to include cleaned triggers prompt summary, got:\n%s", content)
+	}
+
+	if strings.Contains(content, "compat.json") {
+		t.Fatalf("Expected non-markdown files to be excluded from agent content, got:\n%s", content)
+	}
+}
+
+func TestCheckedInAgenticWorkflowsAgentMatchesGeneratedContent(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("Failed to locate test file")
+	}
+
+	gitRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	expected, err := buildAgenticWorkflowsAgentContent(gitRoot)
+	if err != nil {
+		t.Fatalf("buildAgenticWorkflowsAgentContent() returned error: %v", err)
+	}
+
+	actual, err := os.ReadFile(filepath.Join(gitRoot, ".github", "agents", "agentic-workflows.md"))
+	if err != nil {
+		t.Fatalf("Failed to read checked-in agent file: %v", err)
+	}
+
+	if strings.TrimSpace(string(actual)) != strings.TrimSpace(expected) {
+		t.Fatalf("Checked-in agent file is out of sync with generated content")
 	}
 }
