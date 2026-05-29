@@ -5,6 +5,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -72,7 +73,7 @@ files:
 		assert.Equal(t, "README.md", pkg.DocsPath)
 		assert.Equal(t, []string{"workflows/review.md", ".github/workflows/nightly-review.md"}, pkg.InstallationSource)
 		require.NotEmpty(t, pkg.Warnings)
-		assert.Contains(t, pkg.Warnings[0], "Ignoring files entry")
+		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "Ignoring files entry")
 	})
 
 	t.Run("uses repository default branch when version is omitted", func(t *testing.T) {
@@ -663,6 +664,7 @@ func TestIsSupportedPackageInstallablePath(t *testing.T) {
 	}{
 		// .md files: allowed under workflows/ and .github/workflows/
 		{"workflows/review.md", true},
+		{"includes/workflows/review.md", true},
 		{".github/workflows/nightly-review.md", true},
 		// .yml action workflow files: allowed only under .github/workflows/ (direct children only)
 		{".github/workflows/deploy.yml", true},
@@ -686,11 +688,39 @@ func TestIsSupportedPackageInstallablePath(t *testing.T) {
 		{".github/workflows/../x.yml", false},
 		{"", false},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
 			assert.Equal(t, tt.want, isSupportedPackageInstallablePath(tt.path))
 		})
 	}
+}
+
+func TestExtractManifestIncludes(t *testing.T) {
+	includes, warnings := extractManifestIncludes([]any{
+		"includes/workflows/review.md",
+		"includes/skills/code-review",
+		"includes/agents/reviewer.md",
+		".github/workflows/ci.yml",
+	}, "aw.yml")
+	assert.Equal(t, []string{
+		"includes/workflows/review.md",
+		"includes/skills/code-review",
+		"includes/agents/reviewer.md",
+		".github/workflows/ci.yml",
+	}, includes)
+	assert.Empty(t, warnings)
+}
+
+func TestCodemodManifestFilesToIncludes(t *testing.T) {
+	converted := codemodManifestFilesToIncludes([]string{
+		"workflows/review.md",
+		".github/workflows/ci.yml",
+	})
+	assert.Equal(t, []string{
+		"includes/workflows/review.md",
+		".github/workflows/ci.yml",
+	}, converted)
 }
 
 func TestResolveRepositoryPackage_ActionWorkflowYML(t *testing.T) {
@@ -742,7 +772,7 @@ files:
 		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"workflows/triage.md", ".github/workflows/ci.yml"}, pkg.InstallationSource)
-		assert.Empty(t, pkg.Warnings)
+		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "Field 'files'")
 	})
 
 	t.Run("rejects yml files outside .github/workflows with warning", func(t *testing.T) {
@@ -770,7 +800,7 @@ files:
 		// Only the .md file should be accepted; the yml under workflows/ is rejected
 		assert.Equal(t, []string{"workflows/triage.md"}, pkg.InstallationSource)
 		require.NotEmpty(t, pkg.Warnings)
-		assert.Contains(t, pkg.Warnings[0], "Ignoring files entry")
+		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "Ignoring files entry")
 	})
 
 	t.Run("rejects duplicate markdown filenames across different folders", func(t *testing.T) {
@@ -893,7 +923,8 @@ func TestIsSupportedSkillDirPath(t *testing.T) {
 		// Invalid: wrong prefix
 		{"agents/my-skill", false},
 		{"workflows/my-skill", false},
-		{".github/skills/my-skill", false},
+		{".github/skills/my-skill", true},
+		{"includes/skills/my-skill", true},
 		// Invalid: empty
 		{"", false},
 		// Invalid: path traversal
@@ -927,7 +958,8 @@ func TestIsSupportedAgentFilePath(t *testing.T) {
 		// Invalid: wrong prefix
 		{"skills/my-agent.md", false},
 		{"workflows/my-agent.md", false},
-		{".github/agents/my-agent.md", false},
+		{".github/agents/my-agent.md", true},
+		{"includes/agents/my-agent.md", true},
 		// Invalid: empty
 		{"", false},
 		// Invalid: path traversal
@@ -949,10 +981,9 @@ func TestExtractManifestSkillDirs(t *testing.T) {
 
 	t.Run("invalid entries produce warnings", func(t *testing.T) {
 		dirs, warnings := extractManifestSkillDirs([]any{"skills/valid", "not-skills/bad", ".github/skills/bad"}, "aw.yml")
-		assert.Equal(t, []string{"skills/valid"}, dirs)
-		require.Len(t, warnings, 2)
+		assert.Equal(t, []string{"skills/valid", ".github/skills/bad"}, dirs)
+		require.Len(t, warnings, 1)
 		assert.Contains(t, warnings[0], "not-skills/bad")
-		assert.Contains(t, warnings[1], ".github/skills/bad")
 	})
 
 	t.Run("duplicate entries are deduplicated", func(t *testing.T) {
@@ -1032,6 +1063,8 @@ files:
 `), nil
 			case "README.md":
 				return []byte("# My Package\n"), nil
+			case "skills/code-review/SKILL.md":
+				return []byte("# skill\n"), nil
 			default:
 				return nil, createRepositoryPackageNotFoundError(filePath)
 			}
@@ -1060,7 +1093,47 @@ files:
 		assert.Equal(t, "skills/code-review/prompt.sh", pkg.SkillFiles[1].SourcePath)
 		assert.Equal(t, "code-review", pkg.SkillFiles[1].SkillName)
 		assert.Equal(t, []string{"agents/triage.md"}, pkg.AgentFiles)
-		assert.Empty(t, pkg.Warnings)
+		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "Field 'files'")
+	})
+
+	t.Run("includes field infers workflow skill and agent types", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+			switch filePath {
+			case "aw.yml":
+				return []byte(`name: My Package
+includes:
+  - includes/workflows/review.md
+  - includes/skills/code-review
+  - .github/agents/triage.md
+`), nil
+			case "README.md":
+				return []byte("# My Package\n"), nil
+			case "includes/skills/code-review/SKILL.md":
+				return []byte("# skill\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(filePath)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected workflow scan of %s", workflowPath)
+			return nil, nil
+		}
+		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			if dirPath == "includes/skills/code-review" {
+				return []string{"includes/skills/code-review/SKILL.md", "includes/skills/code-review/prompt.md"}, nil
+			}
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			t.Fatalf("unexpected subdir scan of %s", dirPath)
+			return nil, nil
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"includes/workflows/review.md"}, pkg.InstallationSource)
+		require.Len(t, pkg.SkillFiles, 2)
+		assert.Equal(t, []string{".github/agents/triage.md"}, pkg.AgentFiles)
 	})
 
 	t.Run("auto-scans skills and agents when absent from manifest", func(t *testing.T) {
@@ -1144,7 +1217,7 @@ files:
 		require.NoError(t, err)
 		assert.Empty(t, pkg.SkillFiles)
 		require.NotEmpty(t, pkg.Warnings)
-		assert.Contains(t, pkg.Warnings[0], "skills/missing-skill")
+		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "skills/missing-skill")
 	})
 
 	t.Run("no skills or agents when directories absent", func(t *testing.T) {
@@ -1176,7 +1249,7 @@ files:
 		require.NoError(t, err)
 		assert.Empty(t, pkg.SkillFiles)
 		assert.Empty(t, pkg.AgentFiles)
-		assert.Empty(t, pkg.Warnings)
+		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "Field 'files'")
 	})
 }
 

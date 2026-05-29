@@ -628,7 +628,7 @@ func addActionWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTrac
 // addSkillFileWithTracking installs a single skill file from a package to the agentic engine
 // skill directory.
 func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, gitRoot string) error {
-	engineSkillDir := parser.GetEngineSkillDir("")
+	engineSkillDir := parser.GetEngineSkillDir(opts.EngineOverride)
 	skillDir := filepath.Join(gitRoot, engineSkillDir, resolved.SkillName)
 	if err := os.MkdirAll(skillDir, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create skill directory %s: %w", skillDir, err)
@@ -677,7 +677,7 @@ func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, 
 // addAgentFileWithTracking installs a single agent file from a package to the agentic engine
 // agents directory.
 func addAgentFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, gitRoot string) error {
-	engineAgentsDir := parser.GetEngineSubAgentDir("")
+	engineAgentsDir := parser.GetEngineSubAgentDir(opts.EngineOverride)
 	agentsDir := filepath.Join(gitRoot, engineAgentsDir)
 	if err := os.MkdirAll(agentsDir, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create agents directory %s: %w", agentsDir, err)

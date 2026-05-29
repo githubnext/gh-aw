@@ -1000,7 +1000,7 @@ func listDirAllFilesViaGitForHost(owner, repo, ref, dirPath, host string) ([]str
 		return nil, fmt.Errorf("failed to clone repository for %s/%s@%s: %w", owner, repo, ref, err)
 	}
 
-	lsTreeCmd := exec.Command("git", "-C", tmpDir, "ls-tree", "--name-only", "HEAD", dirPath+"/")
+	lsTreeCmd := exec.Command("git", "-C", tmpDir, "ls-tree", "-r", "--name-only", "HEAD", dirPath+"/")
 	lsTreeOutput, err := lsTreeCmd.CombinedOutput()
 	if err != nil {
 		remoteLog.Printf("Failed to list dir files: %s", string(lsTreeOutput))

@@ -23,8 +23,16 @@
     "description": {
       "type": "string"
     },
+    "includes": {
+      "type": "array",
+      "description": "Installable package entries. Use folder naming conventions to infer type: workflows under workflows/, includes/workflows/, or .github/workflows/; skill directories under skills/, includes/skills/, or .github/skills/; agent files under agents/, includes/agents/, or .github/agents/.",
+      "items": {
+        "type": "string"
+      }
+    },
     "files": {
       "type": "array",
+      "description": "Deprecated. Use 'includes' instead.",
       "items": {
         "type": "string"
       }
