@@ -648,11 +648,13 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		Tools: map[string]any{
 			"bash": []any{"*"},
 		},
-		SafeOutputs:    nil,
-		EngineConfig:   detectionEngineConfig,
-		AI:             engineSetting,
-		Features:       data.Features,
-		IsDetectionRun: true, // Mark as detection run for phase tagging
+		SafeOutputs:       nil,
+		EngineConfig:      detectionEngineConfig,
+		AI:                engineSetting,
+		Features:          data.Features,
+		Permissions:       data.Permissions,
+		CachedPermissions: data.CachedPermissions,
+		IsDetectionRun:    true, // Mark as detection run for phase tagging
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: []string{}, // no user-specified additional domains; engine provides its own minimal set
 		},

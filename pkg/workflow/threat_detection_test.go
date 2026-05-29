@@ -1327,10 +1327,12 @@ func TestDetectionJobPermissionsIndentation(t *testing.T) {
 			// permission values must be indented by exactly 6 spaces (4 for job key + 2 for sub-key)
 			wantContains: []string{
 				"      copilot-requests: write",
+				"COPILOT_GITHUB_TOKEN: ${{ github.token }}",
 			},
 			// Over-indented value (10 spaces) must not appear - this was the bug
 			wantNotContains: []string{
 				"          copilot-requests: write",
+				"COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}",
 			},
 		},
 		{
