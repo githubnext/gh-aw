@@ -1,6 +1,12 @@
+//go:build !integration
+
 package workflow
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestHasBashWildcard(t *testing.T) {
 	tests := []struct {
@@ -16,9 +22,8 @@ func TestHasBashWildcard(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := hasBashWildcard(tt.commands); got != tt.want {
-				t.Fatalf("hasBashWildcard() = %v, want %v", got, tt.want)
-			}
+			got := hasBashWildcard(tt.commands)
+			assert.Equal(t, tt.want, got, "hasBashWildcard() should match expected value")
 		})
 	}
 }
@@ -40,9 +45,8 @@ func TestNormalizeSandboxWritablePattern(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, gotOkay := normalizeSandboxWritablePattern(tt.input)
-			if got != tt.want || gotOkay != tt.wantOkay {
-				t.Fatalf("normalizeSandboxWritablePattern() = (%q, %v), want (%q, %v)", got, gotOkay, tt.want, tt.wantOkay)
-			}
+			assert.Equal(t, tt.want, got, "pattern should match expected")
+			assert.Equal(t, tt.wantOkay, gotOkay, "ok flag should match expected")
 		})
 	}
 }
