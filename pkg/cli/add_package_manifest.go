@@ -464,7 +464,7 @@ func scanPackageSkillDirs(owner, repo, packagePath, ref, host string) ([]string,
 
 	var skillDirs []string
 	for _, subdir := range subdirs {
-		markerPath := subdir + "/" + packageSkillMarkerFile
+		markerPath := joinRepositoryPackagePath(subdir, packageSkillMarkerFile)
 		if _, err := downloadPackageFileFromGitHubForHost(owner, repo, markerPath, ref, host); err == nil {
 			skillDirs = append(skillDirs, subdir)
 		}

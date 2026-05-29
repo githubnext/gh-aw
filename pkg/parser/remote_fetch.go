@@ -1102,22 +1102,11 @@ func listDirSubdirsViaGitForHost(owner, repo, ref, dirPath, host string) ([]stri
 		return nil, fmt.Errorf("failed to clone repository for %s/%s@%s: %w", owner, repo, ref, err)
 	}
 
-	// Use ls-tree without -r to only list direct children; filter for trees (directories)
-	lsTreeCmd := exec.Command("git", "-C", tmpDir, "ls-tree", "--name-only", "HEAD", dirPath+"/")
-	lsTreeOutput, err := lsTreeCmd.CombinedOutput()
-	if err != nil {
-		remoteLog.Printf("Failed to list subdirs: %s", string(lsTreeOutput))
-		return nil, fmt.Errorf("failed to list subdirs: %w", err)
-	}
-
-	// git ls-tree without -r lists both blobs (files) and trees (dirs); we need
-	// to check each entry's type. Re-run with --object-type tree to get only dirs.
+	// Use ls-tree -d to list only direct subdirectory entries.
 	lsTreeDirsCmd := exec.Command("git", "-C", tmpDir, "ls-tree", "--name-only", "-d", "HEAD", dirPath+"/")
 	lsTreeDirsOutput, err := lsTreeDirsCmd.CombinedOutput()
 	if err != nil {
 		remoteLog.Printf("Failed to list tree subdirs: %s", string(lsTreeDirsOutput))
-		// Fall back to the non-filtered output and detect dirs heuristically
-		_ = lsTreeOutput
 		return nil, fmt.Errorf("failed to list subdirs: %w", err)
 	}
 
