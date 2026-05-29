@@ -17,7 +17,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
-const { ensureFullHistoryForBundle, getGitAuthEnv, extractBundlePrerequisiteCommits, linearizeRangeAsCommit } = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, getGitAuthEnv, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { getThreatDetectedMarker } = require("./threat_detection_warning.cjs");
@@ -742,7 +742,16 @@ async function main(config = {}) {
             if (prerequisiteCommits.length > 0) {
               core.warning(`Bundle fetch failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
               core.info(`Fetching ${prerequisiteCommits.length} prerequisite commit(s) from origin`);
-              await exec.exec("git", ["fetch", "origin", ...prerequisiteCommits], { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts });
+              // Use --filter=blob:none only when the local repo is already shallow or sparse —
+              // in a full clone we already have all blobs and must not convert the repo to a
+              // partial clone (which would trigger lazy blob fetches on later operations).
+              const prereqGitOpts = { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts };
+              const useBlobFilter = await isShallowOrSparseCheckout(exec, prereqGitOpts);
+              const prerequisiteFetchArgs = useBlobFilter ? ["fetch", "--filter=blob:none", "origin", ...prerequisiteCommits] : ["fetch", "origin", ...prerequisiteCommits];
+              if (useBlobFilter) {
+                core.info("Using --filter=blob:none for prerequisite fetch (shallow or sparse checkout detected)");
+              }
+              await exec.exec("git", prerequisiteFetchArgs, prereqGitOpts);
               core.info("Fetched prerequisite commits from origin successfully");
               await exec.exec("git", ["fetch", bundleFilePath, bundleFetchRef], baseGitOpts);
               core.info("Bundle fetch retry succeeded after prerequisite recovery");

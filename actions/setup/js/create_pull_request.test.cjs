@@ -471,8 +471,8 @@ index 0000000..abc1234
     const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
 
     expect(result.success).toBe(true);
-    // Prerequisites are fetched from origin via exec
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", missingSha]);
+    // Prerequisites are fetched from origin via exec with --filter=blob:none to avoid downloading blobs
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", missingSha]);
     // Retry bundle fetch is via exec (only the retry, not the initial attempt which was getExecOutput)
     const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
     expect(bundleRetryFetchCalls.length).toBe(1);
@@ -525,7 +525,7 @@ index 0000000..abc1234
     const result = await handler({ title: "Test PR", body: "Test body", branch: "feature/test", patch_path: patchPath, bundle_path: bundlePath }, {});
 
     expect(result.success).toBe(true);
-    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", missingSha1, missingSha2]);
+    expect(global.exec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", missingSha1, missingSha2]);
     const bundleRetryFetchCalls = global.exec.exec.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
     expect(bundleRetryFetchCalls.length).toBe(1);
     expect(global.exec.getExecOutput).not.toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
@@ -571,7 +571,7 @@ index 0000000..abc1234
       return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
     });
     global.exec.exec.mockImplementation((cmd, args) => {
-      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args[1] === "origin" && args[2] === missingSha) {
+      if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args.includes("origin") && args.includes(missingSha)) {
         throw new Error("fatal: couldn't connect to 'origin'");
       }
       return Promise.resolve(0);

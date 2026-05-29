@@ -340,6 +340,81 @@ describe("git_helpers.cjs", () => {
     });
   });
 
+  describe("isShallowOrSparseCheckout", () => {
+    const buildExecApi = handler => ({
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => Promise.resolve(handler(cmd, args))),
+    });
+
+    it("should return true when repository is shallow", async () => {
+      const { isShallowOrSparseCheckout } = await import("./git_helpers.cjs");
+      const execApi = buildExecApi((cmd, args) => {
+        if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+          return { exitCode: 0, stdout: "true\n", stderr: "" };
+        }
+        return { exitCode: 1, stdout: "", stderr: "" };
+      });
+
+      await expect(isShallowOrSparseCheckout(execApi)).resolves.toBe(true);
+      // Sparse probe must not run when shallow probe already returned true.
+      expect(execApi.getExecOutput).toHaveBeenCalledTimes(1);
+    });
+
+    it("should return true when sparse-checkout is enabled", async () => {
+      const { isShallowOrSparseCheckout } = await import("./git_helpers.cjs");
+      const execApi = buildExecApi((cmd, args) => {
+        if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+          return { exitCode: 0, stdout: "false\n", stderr: "" };
+        }
+        if (args[0] === "config" && args[1] === "--get" && args[2] === "core.sparseCheckout") {
+          return { exitCode: 0, stdout: "true\n", stderr: "" };
+        }
+        return { exitCode: 1, stdout: "", stderr: "" };
+      });
+
+      await expect(isShallowOrSparseCheckout(execApi)).resolves.toBe(true);
+    });
+
+    it("should return false for a full, non-sparse clone", async () => {
+      const { isShallowOrSparseCheckout } = await import("./git_helpers.cjs");
+      const execApi = buildExecApi((cmd, args) => {
+        if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+          return { exitCode: 0, stdout: "false\n", stderr: "" };
+        }
+        if (args[0] === "config" && args[1] === "--get" && args[2] === "core.sparseCheckout") {
+          // git config exits 1 when the key is not set.
+          return { exitCode: 1, stdout: "", stderr: "" };
+        }
+        return { exitCode: 0, stdout: "", stderr: "" };
+      });
+
+      await expect(isShallowOrSparseCheckout(execApi)).resolves.toBe(false);
+    });
+
+    it("should return false when both probes throw", async () => {
+      const { isShallowOrSparseCheckout } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockRejectedValue(new Error("git missing")),
+      };
+
+      await expect(isShallowOrSparseCheckout(execApi)).resolves.toBe(false);
+    });
+
+    it("should treat sparse-checkout value case-insensitively", async () => {
+      const { isShallowOrSparseCheckout } = await import("./git_helpers.cjs");
+      const execApi = buildExecApi((cmd, args) => {
+        if (args[0] === "rev-parse") {
+          return { exitCode: 0, stdout: "false\n", stderr: "" };
+        }
+        if (args[0] === "config") {
+          return { exitCode: 0, stdout: "True\n", stderr: "" };
+        }
+        return { exitCode: 1, stdout: "", stderr: "" };
+      });
+
+      await expect(isShallowOrSparseCheckout(execApi)).resolves.toBe(true);
+    });
+  });
+
   describe("extractBundlePrerequisiteCommits", () => {
     it("should return empty array for empty string", async () => {
       const { extractBundlePrerequisiteCommits } = await import("./git_helpers.cjs");
