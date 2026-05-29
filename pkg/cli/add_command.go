@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -366,6 +367,16 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 		return addActionWorkflowWithTracking(resolved, tracker, opts, githubWorkflowsDir, workflowName)
 	}
 
+	// Package skill files are copied as-is to the agentic engine skill directory.
+	if resolved.IsPackageSkillFile {
+		return addSkillFileWithTracking(resolved, tracker, opts, gitRoot)
+	}
+
+	// Package agent files are copied as-is to the agentic engine agents directory.
+	if resolved.IsPackageAgentFile {
+		return addAgentFileWithTracking(resolved, tracker, opts, gitRoot)
+	}
+
 	// Check if a workflow with this name already exists
 	existingFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
 	if _, err := os.Stat(existingFile); err == nil && !opts.Force {
@@ -609,6 +620,104 @@ func addActionWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTrac
 
 	if !opts.Quiet {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added action workflow: "+filepath.Base(destFile)))
+	}
+
+	return nil
+}
+
+// addSkillFileWithTracking installs a single skill file from a package to the agentic engine
+// skill directory.
+func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, gitRoot string) error {
+	engineSkillDir := parser.GetEngineSkillDir(opts.EngineOverride)
+	skillDir := filepath.Join(gitRoot, engineSkillDir, resolved.SkillName)
+	if err := os.MkdirAll(skillDir, constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create skill directory %s: %w", skillDir, err)
+	}
+
+	fileName := filepath.Base(resolved.Spec.WorkflowPath)
+	destFile := filepath.Join(skillDir, fileName)
+
+	addLog.Printf("Adding skill file: dest=%s, skill=%s, content_size=%d bytes", destFile, resolved.SkillName, len(resolved.Content))
+
+	if opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding skill file to %s: %s", engineSkillDir+"/"+resolved.SkillName, fileName)))
+	}
+
+	fileExists := false
+	if _, err := os.Stat(destFile); err == nil {
+		fileExists = true
+		if !opts.Force {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skill file '%s' already exists. Skipping.", destFile)))
+			}
+			return nil
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing skill file: "+destFile))
+	}
+
+	if tracker != nil {
+		if fileExists {
+			tracker.TrackModified(destFile)
+		} else {
+			tracker.TrackCreated(destFile)
+		}
+	}
+
+	if err := os.WriteFile(destFile, resolved.Content, constants.FilePermPublic); err != nil {
+		return fmt.Errorf("failed to write skill file '%s': %w", destFile, err)
+	}
+
+	if !opts.Quiet {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added skill file: %s/%s/%s", engineSkillDir, resolved.SkillName, fileName)))
+	}
+
+	return nil
+}
+
+// addAgentFileWithTracking installs a single agent file from a package to the agentic engine
+// agents directory.
+func addAgentFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, gitRoot string) error {
+	engineAgentsDir := parser.GetEngineSubAgentDir(opts.EngineOverride)
+	agentsDir := filepath.Join(gitRoot, engineAgentsDir)
+	if err := os.MkdirAll(agentsDir, constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create agents directory %s: %w", agentsDir, err)
+	}
+
+	fileName := filepath.Base(resolved.Spec.WorkflowPath)
+	destFile := filepath.Join(agentsDir, fileName)
+
+	addLog.Printf("Adding agent file: dest=%s, content_size=%d bytes", destFile, len(resolved.Content))
+
+	if opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding agent file to %s: %s", engineAgentsDir, fileName)))
+	}
+
+	fileExists := false
+	if _, err := os.Stat(destFile); err == nil {
+		fileExists = true
+		if !opts.Force {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Agent file '%s' already exists. Skipping.", destFile)))
+			}
+			return nil
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Overwriting existing agent file: "+destFile))
+	}
+
+	if tracker != nil {
+		if fileExists {
+			tracker.TrackModified(destFile)
+		} else {
+			tracker.TrackCreated(destFile)
+		}
+	}
+
+	if err := os.WriteFile(destFile, resolved.Content, constants.FilePermPublic); err != nil {
+		return fmt.Errorf("failed to write agent file '%s': %w", destFile, err)
+	}
+
+	if !opts.Quiet {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added agent file: %s/%s", engineAgentsDir, fileName)))
 	}
 
 	return nil

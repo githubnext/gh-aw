@@ -15,6 +15,7 @@ import (
 	pathpkg "path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/cli/go-gh/v2"
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -27,6 +28,70 @@ import (
 )
 
 var remoteLog = logger.New("parser:remote_fetch")
+
+// gitListCloneCache is a process-lifetime cache of shallow clones used by
+// git-based directory listing fallbacks to avoid repeated clone operations for
+// the same repository/ref tuple. Entries are not explicitly cleaned up because
+// the CLI process is short-lived and temporary directories are OS-managed.
+var gitListCloneCache = struct {
+	mu   sync.Mutex
+	dirs map[string]string
+}{
+	dirs: make(map[string]string),
+}
+
+func getOrCreateListRepoClone(owner, repo, ref, host string) (string, error) {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return "", fmt.Errorf("git fallback requires a non-empty ref")
+	}
+
+	githubHost := GetGitHubHostForRepo(owner, repo)
+	if host != "" {
+		githubHost = stringutil.NormalizeGitHubHostURL(host)
+	}
+	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
+	cacheKey := fmt.Sprintf("%s|%s|%s|%s", githubHost, owner, repo, ref)
+
+	gitListCloneCache.mu.Lock()
+	if cloneDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
+		if stat, err := os.Stat(filepath.Join(cloneDir, ".git")); err == nil && stat.IsDir() {
+			gitListCloneCache.mu.Unlock()
+			return cloneDir, nil
+		}
+		delete(gitListCloneCache.dirs, cacheKey)
+	}
+	gitListCloneCache.mu.Unlock()
+
+	tmpDir, err := os.MkdirTemp("", "gh-aw-list-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	cloneCmd := exec.Command("git", "clone", "--depth", "1", "--branch", ref, "--single-branch", "--filter=blob:none", "--no-checkout", repoURL, tmpDir)
+	cloneOutput, err := cloneCmd.CombinedOutput()
+	if err != nil {
+		if cleanupErr := os.RemoveAll(tmpDir); cleanupErr != nil {
+			remoteLog.Printf("Failed to clean up temp directory %q: %v", tmpDir, cleanupErr)
+		}
+		remoteLog.Printf("Failed to clone repository: %s", string(cloneOutput))
+		return "", fmt.Errorf("failed to clone repository for %s/%s@%s: %w", owner, repo, ref, err)
+	}
+
+	gitListCloneCache.mu.Lock()
+	if existingDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
+		if stat, statErr := os.Stat(filepath.Join(existingDir, ".git")); statErr == nil && stat.IsDir() {
+			gitListCloneCache.mu.Unlock()
+			if cleanupErr := os.RemoveAll(tmpDir); cleanupErr != nil {
+				remoteLog.Printf("Failed to clean up duplicate clone %q: %v", tmpDir, cleanupErr)
+			}
+			return existingDir, nil
+		}
+	}
+	gitListCloneCache.dirs[cacheKey] = tmpDir
+	gitListCloneCache.mu.Unlock()
+	return tmpDir, nil
+}
 
 // isUnderWorkflowsDirectory checks if a file path is a top-level workflow file (not in shared subdirectory)
 func isUnderWorkflowsDirectory(filePath string) bool {
@@ -920,6 +985,183 @@ func listWorkflowFilesForHost(owner, repo, ref, workflowPath, host string) ([]st
 
 	remoteLog.Printf("Found %d workflow files in %s/%s@%s (path: %s)", len(workflowFiles), owner, repo, ref, workflowPath)
 	return workflowFiles, nil
+}
+
+// ListDirAllFilesForHost lists all files (any extension) that are direct children of
+// the given directory in a remote GitHub repository. Subdirectories and their contents
+// are not included. This is used for skill file discovery.
+func ListDirAllFilesForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
+	return listDirAllFilesForHost(owner, repo, ref, dirPath, host)
+}
+
+func listDirAllFilesForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
+	remoteLog.Printf("Listing all files in dir for %s/%s@%s (path: %s)", owner, repo, ref, dirPath)
+
+	var (
+		client *api.RESTClient
+		err    error
+	)
+	if host != "" {
+		client, err = api.NewRESTClient(api.ClientOptions{Host: host})
+	} else {
+		client, err = api.DefaultRESTClient()
+	}
+	if err != nil {
+		remoteLog.Printf("Failed to create REST client, attempting git fallback: %v", err)
+		return listDirAllFilesViaGitForHost(owner, repo, ref, dirPath, host)
+	}
+
+	var contents []struct {
+		Name string `json:"name"`
+		Path string `json:"path"`
+		Type string `json:"type"`
+	}
+
+	endpoint := fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, dirPath, ref)
+	err = client.Get(endpoint, &contents)
+	if err != nil {
+		errStr := err.Error()
+		if gitutil.IsAuthError(errStr) {
+			remoteLog.Printf("GitHub API auth failed, attempting git fallback for %s/%s@%s", owner, repo, ref)
+			files, gitErr := listDirAllFilesViaGitForHost(owner, repo, ref, dirPath, host)
+			if gitErr != nil {
+				return nil, fmt.Errorf("failed to list dir files via API (auth error) and git fallback: API error: %w, Git error: %w", err, gitErr)
+			}
+			return files, nil
+		}
+		return nil, fmt.Errorf("failed to list dir files from %s/%s@%s (path: %s): %w", owner, repo, ref, dirPath, err)
+	}
+
+	var files []string
+	for _, item := range contents {
+		if item.Type == "file" {
+			files = append(files, item.Path)
+		}
+	}
+
+	remoteLog.Printf("Found %d files in dir %s/%s@%s (path: %s)", len(files), owner, repo, ref, dirPath)
+	return files, nil
+}
+
+func listDirAllFilesViaGitForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
+	remoteLog.Printf("Git fallback for listing all dir files: %s/%s@%s (path: %s)", owner, repo, ref, dirPath)
+
+	tmpDir, err := getOrCreateListRepoClone(owner, repo, ref, host)
+	if err != nil {
+		return nil, err
+	}
+
+	lsTreeCmd := exec.Command("git", "-C", tmpDir, "ls-tree", "-r", "--name-only", "HEAD", dirPath+"/")
+	lsTreeOutput, err := lsTreeCmd.CombinedOutput()
+	if err != nil {
+		remoteLog.Printf("Failed to list dir files: %s", string(lsTreeOutput))
+		return nil, fmt.Errorf("failed to list dir files: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(lsTreeOutput)), "\n")
+	var files []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// Only include direct children (no additional path separator after dirPath/)
+		afterDirPath := strings.TrimPrefix(line, dirPath+"/")
+		if !strings.Contains(afterDirPath, "/") && afterDirPath != "" {
+			files = append(files, line)
+		}
+	}
+
+	remoteLog.Printf("Found %d files in dir via git for %s/%s@%s (path: %s)", len(files), owner, repo, ref, dirPath)
+	return files, nil
+}
+
+// ListDirSubdirsForHost lists subdirectory paths that are direct children of the given
+// directory in a remote GitHub repository. This is used for auto-discovering skill dirs.
+func ListDirSubdirsForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
+	return listDirSubdirsForHost(owner, repo, ref, dirPath, host)
+}
+
+func listDirSubdirsForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
+	remoteLog.Printf("Listing subdirs in %s/%s@%s (path: %s)", owner, repo, ref, dirPath)
+
+	var (
+		client *api.RESTClient
+		err    error
+	)
+	if host != "" {
+		client, err = api.NewRESTClient(api.ClientOptions{Host: host})
+	} else {
+		client, err = api.DefaultRESTClient()
+	}
+	if err != nil {
+		remoteLog.Printf("Failed to create REST client, attempting git fallback: %v", err)
+		return listDirSubdirsViaGitForHost(owner, repo, ref, dirPath, host)
+	}
+
+	var contents []struct {
+		Name string `json:"name"`
+		Path string `json:"path"`
+		Type string `json:"type"`
+	}
+
+	endpoint := fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, dirPath, ref)
+	err = client.Get(endpoint, &contents)
+	if err != nil {
+		errStr := err.Error()
+		if gitutil.IsAuthError(errStr) {
+			remoteLog.Printf("GitHub API auth failed, attempting git fallback for %s/%s@%s", owner, repo, ref)
+			dirs, gitErr := listDirSubdirsViaGitForHost(owner, repo, ref, dirPath, host)
+			if gitErr != nil {
+				return nil, fmt.Errorf("failed to list subdirs via API (auth error) and git fallback: API error: %w, Git error: %w", err, gitErr)
+			}
+			return dirs, nil
+		}
+		return nil, fmt.Errorf("failed to list subdirs from %s/%s@%s (path: %s): %w", owner, repo, ref, dirPath, err)
+	}
+
+	var dirs []string
+	for _, item := range contents {
+		if item.Type == "dir" {
+			dirs = append(dirs, item.Path)
+		}
+	}
+
+	remoteLog.Printf("Found %d subdirs in %s/%s@%s (path: %s)", len(dirs), owner, repo, ref, dirPath)
+	return dirs, nil
+}
+
+func listDirSubdirsViaGitForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
+	remoteLog.Printf("Git fallback for listing subdirs: %s/%s@%s (path: %s)", owner, repo, ref, dirPath)
+
+	tmpDir, err := getOrCreateListRepoClone(owner, repo, ref, host)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use ls-tree -d to list only direct subdirectory entries.
+	lsTreeDirsCmd := exec.Command("git", "-C", tmpDir, "ls-tree", "--name-only", "-d", "HEAD", dirPath+"/")
+	lsTreeDirsOutput, err := lsTreeDirsCmd.CombinedOutput()
+	if err != nil {
+		remoteLog.Printf("Failed to list tree subdirs: %s", string(lsTreeDirsOutput))
+		return nil, fmt.Errorf("failed to list subdirs: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(lsTreeDirsOutput)), "\n")
+	var dirs []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		afterDirPath := strings.TrimPrefix(line, dirPath+"/")
+		if !strings.Contains(afterDirPath, "/") && afterDirPath != "" {
+			dirs = append(dirs, line)
+		}
+	}
+
+	remoteLog.Printf("Found %d subdirs via git for %s/%s@%s (path: %s)", len(dirs), owner, repo, ref, dirPath)
+	return dirs, nil
 }
 
 func listWorkflowFilesViaGitForHost(owner, repo, ref, workflowPath, host string) ([]string, error) {
