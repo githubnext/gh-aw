@@ -173,8 +173,12 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to compute relative prompt path for %s: %w", promptPath, err)
 		}
+		relPromptPath = filepath.ToSlash(relPromptPath)
+		if relPromptPath == ".." || strings.HasPrefix(relPromptPath, "../") {
+			return "", fmt.Errorf("prompt path escapes .github/aw: %s", promptPath)
+		}
 
-		promptURL := agenticWorkflowsPromptsGitHubBaseURL + filepath.ToSlash(relPromptPath)
+		promptURL := agenticWorkflowsPromptsGitHubBaseURL + relPromptPath
 		lines = append(lines, formatAgenticWorkflowsAgentEntry(promptURL, purpose))
 	}
 
