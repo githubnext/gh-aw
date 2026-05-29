@@ -335,6 +335,10 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 		t.Fatalf("Expected non-markdown files to be excluded from agent content, got:\n%s", content)
 	}
 
+	if !strings.Contains(content, "`.github/skills/agentic-workflows/SKILL.md` — router skill for workflow create, debug, and upgrade tasks.\n- `.github/aw/github-agentic-workflows.md` — GitHub Agentic Workflows.") {
+		t.Fatalf("Expected github-agentic-workflows.md to be the first prompt entry after the dispatcher skill, got:\n%s", content)
+	}
+
 	githubWorkflowsIndex := strings.Index(content, "`.github/aw/github-agentic-workflows.md`")
 	debugPromptIndex := strings.Index(content, "`.github/aw/debug-agentic-workflow.md`")
 	if githubWorkflowsIndex == -1 || debugPromptIndex == -1 {

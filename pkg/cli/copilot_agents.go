@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -155,9 +156,10 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 		return "", fmt.Errorf("failed to list .github/aw prompts: %w", err)
 	}
 
-	sort.SliceStable(promptPaths, func(i, j int) bool {
-		return agenticWorkflowsPromptSortKey(promptPaths[i]) < agenticWorkflowsPromptSortKey(promptPaths[j])
+	sort.Slice(promptPaths, func(i, j int) bool {
+		return filepath.Base(promptPaths[i]) < filepath.Base(promptPaths[j])
 	})
+	promptPaths = prioritizeAgenticWorkflowsPrompt(promptPaths, "github-agentic-workflows.md")
 
 	for _, promptPath := range promptPaths {
 		purpose, err := summarizeAgenticWorkflowPrompt(promptPath)
@@ -176,11 +178,13 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 	return strings.Join(lines, "\n") + "\n", nil
 }
 
-func agenticWorkflowsPromptSortKey(path string) string {
-	if filepath.Base(path) == "github-agentic-workflows.md" {
-		return ""
+func prioritizeAgenticWorkflowsPrompt(paths []string, name string) []string {
+	for i, path := range paths {
+		if filepath.Base(path) == name {
+			return append([]string{path}, slices.Delete(paths, i, i+1)...)
+		}
 	}
-	return filepath.Base(path)
+	return paths
 }
 
 func formatAgenticWorkflowsAgentEntry(path, purpose string) string {
