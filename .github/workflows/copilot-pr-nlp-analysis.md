@@ -262,9 +262,11 @@ Post a comprehensive discussion with the following structure:
 
 **Title**: `Copilot PR Conversation NLP Analysis - [DATE]`
 
+Use h3 (`###`) or lower for all headers in the discussion body. Never use h1 (`#`) or h2 (`##`) — these are reserved for the discussion title. Keep large analysis sections inside `<details>` blocks with bold `<summary>` labels.
+
 **Content Template** (substitute `[SENTIMENT_DIST_URL]`, `[SENTIMENT_TIME_URL]`, `[TOPIC_FREQ_URL]`, `[TOPICS_CLOUD_URL]`, and `[KEYWORD_TRENDS_URL]` with the literal URL strings read by Python from the files above):
 ````markdown
-# 🤖 Copilot PR Conversation NLP Analysis - [DATE]
+### 🤖 Copilot PR Conversation NLP Analysis — [DATE]
 
 ### Executive Summary
 
@@ -274,7 +276,8 @@ Post a comprehensive discussion with the following structure:
 **Total Messages**: [count] comments, [count] reviews, [count] review comments  
 **Average Sentiment**: [polarity score] ([positive/neutral/negative])
 
-### Sentiment Analysis
+<details>
+<summary><b>Sentiment Analysis</b></summary>
 
 ### Overall Sentiment Distribution
 ![Sentiment Distribution]([SENTIMENT_DIST_URL])
@@ -292,7 +295,10 @@ Post a comprehensive discussion with the following structure:
 - [e.g., "Conversations typically start neutral and become more positive as issues are resolved"]
 - [e.g., "PR #123 showed unusual negative sentiment spike mid-conversation"]
 
-### Topic Analysis
+</details>
+
+<details>
+<summary><b>Topic Analysis</b></summary>
 
 ### Identified Discussion Topics
 ![Topic Frequencies]([TOPIC_FREQ_URL])
@@ -306,7 +312,10 @@ Post a comprehensive discussion with the following structure:
 ### Topic Word Cloud
 ![Topics Word Cloud]([TOPICS_CLOUD_URL])
 
-### Keyword Trends
+</details>
+
+<details>
+<summary><b>Keyword Trends & Conversation Patterns</b></summary>
 
 ### Most Common Keywords and Phrases
 ![Keyword Trends]([KEYWORD_TRENDS_URL])
@@ -330,7 +339,10 @@ Post a comprehensive discussion with the following structure:
 - PRs merged without discussion: [count]
 - Average response time: [if timestamps available]
 
-### Insights and Trends
+</details>
+
+<details>
+<summary><b>Insights and Trends</b></summary>
 
 ### 🔍 Key Observations
 
@@ -353,6 +365,8 @@ Post a comprehensive discussion with the following structure:
 | Comments | [score] | [count] | [%] |
 | Reviews | [score] | [count] | [%] |
 | Review Comments | [score] | [count] | [%] |
+
+</details>
 
 ### PR Highlights
 
