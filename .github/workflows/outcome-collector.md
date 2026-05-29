@@ -120,7 +120,7 @@ The report must open with an executive-first view. Place the following at the to
 
 | Workflow | Status | Lifecycle health | References |
 |---|---|---|---|
-| {workflow_name} | <span style="white-space: nowrap;">{status_bar}</span> | {lifecycle_emoji} {lifecycle_label} | {reference_links_by_status} |
+| {workflow_name} | <span style="white-space: nowrap;">{status_bar}</span> | {lifecycle_emoji} {lifecycle_label} | {reference_links_by_status e.g. `A: [#123](...) [#456](...) · R: [#78](...) · P: [#90](...)`} |
 
 **Legend:**
 - **Status:** 🟩 accepted · 🟥 rejected · 🟨 pending · ⬜ unknown
@@ -136,7 +136,8 @@ The report must open with an executive-first view. Place the following at the to
 
 **References column rules:**
 - Add grouped links for each status present in that workflow (accepted, rejected, pending, ignored, unknown).
-- Use short status prefixes and compact link lists (example format: `A: [1](...) [2](...) · R: [1](...) · P: [1](...)`).
+- Use short status prefixes and compact link lists (example format: `A: [#123](...) [#456](...) · R: [#78](...) · P: [#90](...)`).
+- Link labels must be the real item identifiers when available (issue/PR/discussion/comment number, run id, or short commit SHA), not a synthetic sequence.
 - Include only valid issue/PR/discussion/comment/run URLs from the evaluated outcomes.
 
 ### 🔴 Action Items
