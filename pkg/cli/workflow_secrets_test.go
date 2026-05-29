@@ -87,6 +87,26 @@ on: push
 			}
 		})
 	}
+
+	t.Run("copilot engine with permissions.copilot-requests: write does not require copilot token", func(t *testing.T) {
+		workflowPath := filepath.Join(workflowsDir, "copilot-with-permission.md")
+		workflowContent := `---
+engine: copilot
+permissions:
+  copilot-requests: write
+on: push
+---
+# Copilot Workflow`
+		err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+		require.NoError(t, err, "Should write workflow file")
+		defer os.Remove(workflowPath)
+
+		secrets := getSecretRequirementsForWorkflow(workflowPath)
+		require.NotNil(t, secrets, "Should return secrets list")
+		for _, secret := range secrets {
+			assert.NotEqual(t, "COPILOT_GITHUB_TOKEN", secret.Name)
+		}
+	})
 }
 
 func TestGetRequiredSecretsForWorkflows(t *testing.T) {
