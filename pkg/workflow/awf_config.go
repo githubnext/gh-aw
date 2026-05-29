@@ -191,7 +191,8 @@ type AWFModelFallbackConfig struct {
 	// Enabled controls whether middle-power fallback is applied when model resolution fails.
 	// AWF default is true. Set to false to disable for BYOK Azure / custom-provider deployments
 	// where deployment name rewriting causes HTTP 404 DeploymentNotFound errors.
-	Enabled bool `json:"enabled"`
+	// A nil value omits the field from the generated config, letting AWF use its default.
+	Enabled *bool `json:"enabled,omitempty"`
 
 	// Strategy is the fallback selection strategy. Currently only "middle_power" is supported.
 	// When omitted, AWF uses its default strategy.
@@ -409,14 +410,18 @@ func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {
 // extractModelFallback returns an AWFModelFallbackConfig if the workflow has configured
 // engine.firewall.apiProxy.modelFallback, or nil if the field is absent (letting AWF use its default).
 func extractModelFallback(workflowData *WorkflowData) *AWFModelFallbackConfig {
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.ModelFallback == nil {
+	if workflowData == nil {
+		return nil
+	}
+	if workflowData.EngineConfig == nil {
 		return nil
 	}
 	mf := workflowData.EngineConfig.ModelFallback
-	result := &AWFModelFallbackConfig{}
-	if mf.Enabled != nil {
-		result.Enabled = *mf.Enabled
+	if mf == nil {
+		return nil
 	}
-	result.Strategy = mf.Strategy
-	return result
+	return &AWFModelFallbackConfig{
+		Enabled:  mf.Enabled,
+		Strategy: mf.Strategy,
+	}
 }
