@@ -27,50 +27,41 @@ func TestExtractAgentSandboxConfigVersion(t *testing.T) {
 func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 	compiler := &Compiler{}
 
-	t.Run("extracts sandbox.agent.model-fallback enabled=false", func(t *testing.T) {
+	t.Run("extracts sandbox.agent.model-fallback false", func(t *testing.T) {
 		agentObj := map[string]any{
-			"id": "awf",
-			"model-fallback": map[string]any{
-				"enabled": false,
-			},
+			"id":             "awf",
+			"model-fallback": false,
 		}
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
 		require.NotNil(t, config.ModelFallback, "Should extract model-fallback")
-		require.NotNil(t, config.ModelFallback.Enabled, "Enabled should be non-nil")
-		assert.False(t, *config.ModelFallback.Enabled, "Enabled should be false")
-		assert.Empty(t, config.ModelFallback.Strategy, "Strategy should be empty")
+		assert.Equal(t, "false", config.ModelFallback.String(), "Should normalize false to string form")
 	})
 
-	t.Run("extracts sandbox.agent.model-fallback enabled=true", func(t *testing.T) {
+	t.Run("extracts sandbox.agent.model-fallback true", func(t *testing.T) {
 		agentObj := map[string]any{
-			"id": "awf",
-			"model-fallback": map[string]any{
-				"enabled": true,
-			},
+			"id":             "awf",
+			"model-fallback": true,
 		}
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
 		require.NotNil(t, config.ModelFallback, "Should extract model-fallback")
-		require.NotNil(t, config.ModelFallback.Enabled, "Enabled should be non-nil")
-		assert.True(t, *config.ModelFallback.Enabled, "Enabled should be true")
+		assert.Equal(t, "true", config.ModelFallback.String(), "Should normalize true to string form")
 	})
 
-	t.Run("extracts sandbox.agent.model-fallback with strategy", func(t *testing.T) {
+	t.Run("extracts sandbox.agent.model-fallback expression", func(t *testing.T) {
+		expr := "${{ inputs.model-fallback }}"
 		agentObj := map[string]any{
-			"id": "awf",
-			"model-fallback": map[string]any{
-				"enabled":  false,
-				"strategy": "middle_power",
-			},
+			"id":             "awf",
+			"model-fallback": expr,
 		}
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
 		require.NotNil(t, config.ModelFallback, "Should extract model-fallback")
-		assert.Equal(t, "middle_power", config.ModelFallback.Strategy, "Should extract strategy")
+		assert.Equal(t, expr, config.ModelFallback.String(), "Should preserve expression")
 	})
 
 	t.Run("model-fallback is nil when absent", func(t *testing.T) {
@@ -83,26 +74,26 @@ func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 		assert.Nil(t, config.ModelFallback, "ModelFallback should be nil when not configured")
 	})
 
-	t.Run("model-fallback is nil when object is empty", func(t *testing.T) {
+	t.Run("model-fallback is nil when value is not a boolean or expression", func(t *testing.T) {
 		agentObj := map[string]any{
 			"id":             "awf",
-			"model-fallback": map[string]any{},
+			"model-fallback": "not-an-expression",
 		}
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
-		assert.Nil(t, config.ModelFallback, "ModelFallback should be nil when object has no recognized fields")
+		assert.Nil(t, config.ModelFallback, "ModelFallback should be nil for invalid strings")
 	})
 
-	t.Run("model-fallback is nil when value is not a map", func(t *testing.T) {
+	t.Run("model-fallback is nil when value is an object", func(t *testing.T) {
 		agentObj := map[string]any{
 			"id":             "awf",
-			"model-fallback": "not-a-map",
+			"model-fallback": map[string]any{"enabled": false},
 		}
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
-		assert.Nil(t, config.ModelFallback, "ModelFallback should be nil for non-map value")
+		assert.Nil(t, config.ModelFallback, "ModelFallback should be nil for object value")
 	})
 }
 

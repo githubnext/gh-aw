@@ -8,9 +8,7 @@ engine: copilot
 sandbox:
   agent:
     id: awf
-    model-fallback:
-      enabled: false
-      strategy: middle_power
+    model-fallback: false
 ---
 
 # Test Sandbox Model Fallback

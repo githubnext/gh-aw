@@ -838,27 +838,9 @@
               "leaf": true
             },
             "model-fallback": {
-              "type": "object",
-              "desc": "Model fallback policy for unresolved model selections.",
-              "children": {
-                "enabled": {
-                  "type": "boolean",
-                  "desc": "Enable or disable model fallback.",
-                  "enum": [
-                    true,
-                    false
-                  ],
-                  "leaf": true
-                },
-                "strategy": {
-                  "type": "string",
-                  "desc": "Fallback selection strategy.",
-                  "enum": [
-                    "middle_power"
-                  ],
-                  "leaf": true
-                }
-              }
+              "type": "boolean|string",
+              "desc": "Enable or disable model fallback for unresolved model selections.",
+              "leaf": true
             },
             "config": {
               "type": "object",

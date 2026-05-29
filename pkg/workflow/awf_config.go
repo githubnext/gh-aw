@@ -186,17 +186,12 @@ type AWFAPIProxyConfig struct {
 }
 
 // AWFModelFallbackConfig is the "apiProxy.modelFallback" section of the AWF config file.
-// It controls the model fallback policy for unresolved model selections.
+// It controls whether model fallback is enabled for unresolved model selections.
 type AWFModelFallbackConfig struct {
 	// Enabled controls whether middle-power fallback is applied when model resolution fails.
-	// AWF default is true. Set to false to disable for BYOK Azure / custom-provider deployments
-	// where deployment name rewriting causes HTTP 404 DeploymentNotFound errors.
-	// A nil value omits the field from the generated config, letting AWF use its default.
-	Enabled *bool `json:"enabled,omitempty"`
-
-	// Strategy is the fallback selection strategy. Currently only "middle_power" is supported.
-	// When omitted, AWF uses its default strategy.
-	Strategy string `json:"strategy,omitempty"`
+	// It accepts literal booleans and GitHub Actions expressions. A nil value omits the field,
+	// letting AWF use its default.
+	Enabled *TemplatableBool `json:"enabled,omitempty"`
 }
 
 // AWFAPITargetConfig is a single API proxy target entry.
@@ -314,9 +309,9 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		apiProxy.ModelFallback = mf
 		enabledDisplay := "<unset>"
 		if mf.Enabled != nil {
-			enabledDisplay = fmt.Sprintf("%t", *mf.Enabled)
+			enabledDisplay = mf.Enabled.String()
 		}
-		awfConfigLog.Printf("API proxy: modelFallback configured: enabled=%s, strategy=%q", enabledDisplay, mf.Strategy)
+		awfConfigLog.Printf("API proxy: modelFallback configured: enabled=%s", enabledDisplay)
 	}
 
 	targets := map[string]*AWFAPITargetConfig{}
@@ -428,7 +423,6 @@ func extractModelFallback(workflowData *WorkflowData) *AWFModelFallbackConfig {
 		return nil
 	}
 	return &AWFModelFallbackConfig{
-		Enabled:  mf.Enabled,
-		Strategy: mf.Strategy,
+		Enabled: mf,
 	}
 }

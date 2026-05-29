@@ -88,8 +88,17 @@
           "additionalProperties": false,
           "properties": {
             "enabled": {
-              "type": "boolean",
-              "description": "Enable or disable middle-power fallback when model resolution fails."
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^\\$\\{\\{.*\\}\\}$",
+                  "description": "GitHub Actions expression that resolves to a boolean at runtime"
+                }
+              ],
+              "description": "Enable or disable middle-power fallback when model resolution fails. Supports literal booleans and GitHub Actions expressions in compiled workflows."
             },
             "strategy": {
               "type": "string",

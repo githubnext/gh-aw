@@ -3292,20 +3292,9 @@
                       "examples": ["4g", "8g", "512m"]
                     },
                     "model-fallback": {
-                      "type": "object",
-                      "description": "Model fallback policy for unresolved model selections. Set enabled: false for BYOK Azure OpenAI deployments to prevent deployment-name rewriting.",
-                      "properties": {
-                        "enabled": {
-                          "type": "boolean",
-                          "description": "Enable or disable model fallback. Omit to use the AWF default."
-                        },
-                        "strategy": {
-                          "type": "string",
-                          "enum": ["middle_power"],
-                          "description": "Fallback selection strategy. Currently only \"middle_power\" is supported."
-                        }
-                      },
-                      "additionalProperties": false
+                      "$ref": "#/$defs/templatable_boolean",
+                      "description": "Enable or disable model fallback for unresolved model selections. Set to false for BYOK Azure OpenAI deployments to prevent deployment-name rewriting. Supports literal boolean or GitHub Actions expression.",
+                      "examples": [false, "${{ inputs.model-fallback }}"]
                     },
                     "config": {
                       "type": "object",

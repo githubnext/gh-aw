@@ -243,25 +243,20 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
-	// Extract model-fallback (AWF API proxy model fallback policy)
+	// Extract model-fallback (AWF API proxy model fallback enable/disable flag)
 	if mfVal, hasMF := agentObj["model-fallback"]; hasMF {
-		if mfObj, ok := mfVal.(map[string]any); ok {
-			mf := &SandboxModelFallbackConfig{}
-			hasFields := false
-			if enabledRaw, hasEnabled := mfObj["enabled"]; hasEnabled {
-				if enabledBool, ok := enabledRaw.(bool); ok {
-					mf.Enabled = &enabledBool
-					hasFields = true
-				}
+		switch v := mfVal.(type) {
+		case bool:
+			value := TemplatableBool("false")
+			if v {
+				value = TemplatableBool("true")
 			}
-			if strategyRaw, hasStrategy := mfObj["strategy"]; hasStrategy {
-				if strategyStr, ok := strategyRaw.(string); ok {
-					mf.Strategy = strategyStr
-					hasFields = true
-				}
-			}
-			if hasFields {
-				agentConfig.ModelFallback = mf
+			agentConfig.ModelFallback = &value
+			frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.model-fallback")
+		case string:
+			if isExpression(v) {
+				value := TemplatableBool(v)
+				agentConfig.ModelFallback = &value
 				frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.model-fallback")
 			}
 		}

@@ -1862,17 +1862,17 @@ sandbox:
     # (optional)
     memory: "example-value"
 
-    # Model fallback policy for unresolved model selections. Set enabled: false for
-    # BYOK Azure OpenAI deployments to prevent deployment-name rewriting.
+    # Enable or disable model fallback for unresolved model selections. Set to false
+    # for BYOK Azure OpenAI deployments to prevent deployment-name rewriting. Supports
+    # literal boolean or GitHub Actions expression.
     # (optional)
-    model-fallback:
-      # Enable or disable model fallback. Omit to use the AWF default.
-      # (optional)
-      enabled: true
+    # Accepted formats:
 
-      # Fallback selection strategy. Currently only "middle_power" is supported.
-      # (optional)
-      strategy: "middle_power"
+    # Format 1: boolean
+    model-fallback: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    model-fallback: "example-value"
 
     # Custom sandbox runtime configuration. Note: Network configuration is controlled
     # by the top-level 'network' field, not here.
