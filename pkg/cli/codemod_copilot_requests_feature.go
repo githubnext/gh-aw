@@ -127,7 +127,12 @@ func ensureCopilotRequestsWritePermission(lines []string) []string {
 	trimmedPermissionsLine := strings.TrimSpace(lines[permissionsIdx])
 	inlineValue := strings.TrimSpace(strings.TrimPrefix(trimmedPermissionsLine, "permissions:"))
 	if inlineValue != "" && !strings.HasPrefix(inlineValue, "#") {
-		if inlineValue == "{}" {
+		// Extract the value before any comment
+		valuePart := inlineValue
+		if commentIdx := strings.Index(inlineValue, "#"); commentIdx >= 0 {
+			valuePart = strings.TrimSpace(inlineValue[:commentIdx])
+		}
+		if valuePart == "{}" {
 			result := make([]string, 0, len(lines)+1)
 			result = append(result, lines[:permissionsIdx]...)
 			result = append(result, permissionsIndent+"permissions:")

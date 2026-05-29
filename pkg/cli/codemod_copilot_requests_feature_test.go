@@ -106,4 +106,29 @@ permissions: read-all
 		assert.False(t, applied)
 		assert.Equal(t, content, result)
 	})
+
+	t.Run("handles empty permissions with comment", func(t *testing.T) {
+		content := `---
+features:
+  copilot-requests: true
+permissions: {} # empty
+---
+
+# Test
+`
+		frontmatter := map[string]any{
+			"features": map[string]any{
+				"copilot-requests": true,
+			},
+			"permissions": map[string]any{},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.NotContains(t, result, "copilot-requests: true")
+		assert.Contains(t, result, "permissions:")
+		assert.Contains(t, result, "copilot-requests: write")
+		assert.NotContains(t, result, "permissions: {} # empty")
+	})
 }
