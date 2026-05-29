@@ -1,5 +1,5 @@
 # gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"f61fbcecef6c44ce294ea5d62d34369c6a871538a201628cc56addc516435b97","body_hash":"fdd6e8292c93914680a47626b66ad4e15c77725c5db83a1a2bd7720d233e4fd1","strict":true,"agent_id":"codex"}
-# gh-aw-manifest: {"version":1,"secrets":["CODEX_API_KEY","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN","OPENAI_API_KEY"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"bcafcacb16a39f128d818304e6c9c0c18556b85f","version":"v7.1.0"},{"repo":"docker/setup-buildx-action","sha":"4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd","version":"v4.0.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.56"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.56"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.56"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.56"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.20"},{"image":"ghcr.io/github/github-mcp-server:v1.0.4","digest":"sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4","pinned_image":"ghcr.io/github/github-mcp-server:v1.0.4@sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
+# gh-aw-manifest: {"version":1,"secrets":["CODEX_API_KEY","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN","OPENAI_API_KEY"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"docker/build-push-action","sha":"bcafcacb16a39f128d818304e6c9c0c18556b85f","version":"v7.1.0"},{"repo":"docker/setup-buildx-action","sha":"4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd","version":"v4.0.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.56"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.56"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.56"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.56"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.20"},{"image":"ghcr.io/github/github-mcp-server:v1.1.0"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -61,7 +61,7 @@
 #   - ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.56
 #   - ghcr.io/github/gh-aw-firewall/squid:0.25.56
 #   - ghcr.io/github/gh-aw-mcpg:v0.3.20
-#   - ghcr.io/github/github-mcp-server:v1.0.4@sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4
+#   - ghcr.io/github/github-mcp-server:v1.1.0
 #   - node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14
 
 name: "Daily Cache Strategy Analyzer"
@@ -126,7 +126,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Cache Strategy Analyzer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-cache-strategy-analyzer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.133.0"
+          GH_AW_INFO_VERSION: "0.135.0"
           GH_AW_INFO_AWF_VERSION: "v0.25.56"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Mask OTLP telemetry headers
@@ -137,8 +137,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "codex"
           GH_AW_INFO_ENGINE_NAME: "Codex"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || vars.GH_AW_DEFAULT_MODEL_CODEX || 'gpt-5.4' }}
-          GH_AW_INFO_VERSION: "0.133.0"
-          GH_AW_INFO_AGENT_VERSION: "0.133.0"
+          GH_AW_INFO_VERSION: "0.135.0"
+          GH_AW_INFO_AGENT_VERSION: "0.135.0"
           GH_AW_INFO_WORKFLOW_NAME: "Daily Cache Strategy Analyzer"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -408,7 +408,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Cache Strategy Analyzer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-cache-strategy-analyzer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.133.0"
+          GH_AW_INFO_VERSION: "0.135.0"
           GH_AW_INFO_AWF_VERSION: "v0.25.56"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Set runtime paths
@@ -509,7 +509,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex CLI
-        run: npm install --ignore-scripts -g @openai/codex@0.133.0
+        run: npm install --ignore-scripts -g @openai/codex@0.135.0
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.56
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -543,7 +543,7 @@ jobs:
           GH_AW_SKILL_DIR: ".codex/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.56 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.56 ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.56 ghcr.io/github/gh-aw-firewall/squid:0.25.56 ghcr.io/github/gh-aw-mcpg:v0.3.20 ghcr.io/github/github-mcp-server:v1.0.4@sha256:e3816a476a977cfb836e7d221510011436c654d11861db66ecfd826601aba6a4 node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.56 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.56 ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.56 ghcr.io/github/gh-aw-firewall/squid:0.25.56 ghcr.io/github/gh-aw-mcpg:v0.3.20 ghcr.io/github/github-mcp-server:v1.1.0 node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14
       - name: Build and install gh-aw CLI from source
         run: |
           gh extension remove aw || true
@@ -1212,7 +1212,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Cache Strategy Analyzer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-cache-strategy-analyzer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.133.0"
+          GH_AW_INFO_VERSION: "0.135.0"
           GH_AW_INFO_AWF_VERSION: "v0.25.56"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Download agent output artifact
@@ -1368,7 +1368,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Cache Strategy Analyzer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-cache-strategy-analyzer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.133.0"
+          GH_AW_INFO_VERSION: "0.135.0"
           GH_AW_INFO_AWF_VERSION: "v0.25.56"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Download agent output artifact
@@ -1453,7 +1453,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex CLI
-        run: npm install --ignore-scripts -g @openai/codex@0.133.0
+        run: npm install --ignore-scripts -g @openai/codex@0.135.0
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.56
       - name: Download container images
@@ -1489,18 +1489,18 @@ jobs:
           DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e CODEX_HOME -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.20'
           
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_5519b3f412e11203_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_452cf3af99b36c65_EOF
           [history]
           persistence = "none"
           
           [shell_environment_policy]
           inherit = "core"
           include_only = ["^CODEX_API_KEY$", "^HOME$", "^OPENAI_API_KEY$", "^PATH$"]
-          GH_AW_MCP_CONFIG_5519b3f412e11203_EOF
+          GH_AW_MCP_CONFIG_452cf3af99b36c65_EOF
           
           # Generate JSON config for MCP gateway
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_ba584aad5deb92f2_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_4f123aaff7dfe7a6_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
             },
@@ -1511,11 +1511,11 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_ba584aad5deb92f2_EOF
+          GH_AW_MCP_CONFIG_4f123aaff7dfe7a6_EOF
           
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_9bef252af9959f24_EOF
+          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_63dd563825c7b964_EOF
           model_provider = "openai-proxy"
           [model_providers.openai-proxy]
           name = "OpenAI AWF proxy"
@@ -1525,7 +1525,7 @@ jobs:
           [shell_environment_policy]
           inherit = "core"
           include_only = ["^CODEX_API_KEY$", "^HOME$", "^OPENAI_API_KEY$", "^PATH$"]
-          GH_AW_CODEX_SHELL_POLICY_9bef252af9959f24_EOF
+          GH_AW_CODEX_SHELL_POLICY_63dd563825c7b964_EOF
           awk '
             BEGIN { skip_openai_proxy = 0 }
             /^[[:space:]]*model_provider[[:space:]]*=/ { next }
@@ -1664,7 +1664,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Cache Strategy Analyzer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-cache-strategy-analyzer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.133.0"
+          GH_AW_INFO_VERSION: "0.135.0"
           GH_AW_INFO_AWF_VERSION: "v0.25.56"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Mask OTLP telemetry headers
@@ -1749,7 +1749,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Cache Strategy Analyzer"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-cache-strategy-analyzer.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.133.0"
+          GH_AW_INFO_VERSION: "0.135.0"
           GH_AW_INFO_AWF_VERSION: "v0.25.56"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Download cache-memory artifact (default)

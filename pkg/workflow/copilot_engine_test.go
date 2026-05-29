@@ -1831,6 +1831,102 @@ func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
 	})
 }
 
+// TestCopilotEngineBYOKOmitsCopilotGitHubToken verifies that COPILOT_GITHUB_TOKEN is
+// NOT injected into the execution step env when BYOK mode is active
+// (i.e. COPILOT_PROVIDER_BASE_URL is set in engine.env). Forwarding the GitHub identity
+// token to a third-party provider would be a credential leak.
+func TestCopilotEngineBYOKOmitsCopilotGitHubToken(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	t.Run("COPILOT_GITHUB_TOKEN absent when COPILOT_PROVIDER_BASE_URL is set (BYOK)", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					constants.CopilotProviderBaseURL: "https://api.openai.com/v1",
+					constants.CopilotProviderAPIKey:  "${{ secrets.PROVIDER_API_KEY }}",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// COPILOT_GITHUB_TOKEN must not appear at all — not even its default expression.
+		if strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN:") {
+			t.Errorf("COPILOT_GITHUB_TOKEN should be absent in BYOK mode, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("COPILOT_GITHUB_TOKEN absent with COPILOT_PROVIDER_BASE_URL only (no API key)", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					constants.CopilotProviderBaseURL: "http://localhost:11434/v1",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN:") {
+			t.Errorf("COPILOT_GITHUB_TOKEN should be absent in BYOK mode (local provider), got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("COPILOT_GITHUB_TOKEN present when COPILOT_PROVIDER_BASE_URL is not set (standard mode)", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
+			t.Errorf("COPILOT_GITHUB_TOKEN should be present in standard (non-BYOK) mode, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("AWF command omits --exclude-env COPILOT_GITHUB_TOKEN in BYOK mode", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					constants.CopilotProviderBaseURL: "http://localhost:11434/v1",
+				},
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{Type: SandboxTypeAWF},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if strings.Contains(stepContent, "--exclude-env COPILOT_GITHUB_TOKEN") {
+			t.Errorf("AWF command should not exclude COPILOT_GITHUB_TOKEN in BYOK mode, got:\n%s", stepContent)
+		}
+	})
+}
+
 func TestCopilotEngineSetsDummyAPIKey(t *testing.T) {
 	engine := NewCopilotEngine()
 
