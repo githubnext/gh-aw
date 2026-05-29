@@ -3,10 +3,12 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"slices"
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
@@ -298,7 +300,9 @@ func (c *Compiler) extractRateLimitConfig(frontmatter map[string]any) *RateLimit
 			}
 
 			if legacyKey {
-				roleLog.Print("Extracted legacy rate-limit configuration")
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+					"'rate-limit' is deprecated. Use 'user-rate-limit' instead."))
+				c.IncrementWarningCount()
 			}
 			roleLog.Printf("Extracted user-rate-limit config: max=%d, window=%d, events=%v, ignored-roles=%v", config.Max, config.Window, config.Events, config.IgnoredRoles)
 			return config

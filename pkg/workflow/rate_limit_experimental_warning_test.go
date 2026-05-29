@@ -17,9 +17,10 @@ import (
 // emits an experimental warning when enabled.
 func TestRateLimitExperimentalWarning(t *testing.T) {
 	tests := []struct {
-		name          string
-		content       string
-		expectWarning bool
+		name                string
+		content             string
+		expectWarning       bool
+		expectLegacyWarning bool
 	}{
 		{
 			name: "user-rate-limit enabled produces experimental warning",
@@ -97,6 +98,25 @@ permissions:
 `,
 			expectWarning: true,
 		},
+		{
+			name: "legacy rate-limit produces deprecation warning",
+			content: `---
+on: workflow_dispatch
+engine: copilot
+rate-limit:
+  max-runs: 5
+  window: 60
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+---
+
+# Test Workflow
+`,
+			expectWarning:       true,
+			expectLegacyWarning: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -130,10 +150,19 @@ permissions:
 			}
 
 			expectedMessage := "Using experimental feature: rate limiting"
+			expectedLegacyMessage := "'rate-limit' is deprecated. Use 'user-rate-limit' instead."
 
 			if tt.expectWarning {
 				if !strings.Contains(stderrOutput, expectedMessage) {
 					t.Errorf("Expected warning containing '%s', got stderr:\n%s", expectedMessage, stderrOutput)
+				}
+
+				if tt.expectLegacyWarning {
+					if !strings.Contains(stderrOutput, expectedLegacyMessage) {
+						t.Errorf("Expected warning containing '%s', got stderr:\n%s", expectedLegacyMessage, stderrOutput)
+					}
+				} else if strings.Contains(stderrOutput, expectedLegacyMessage) {
+					t.Errorf("Did not expect warning '%s', but got stderr:\n%s", expectedLegacyMessage, stderrOutput)
 				}
 			} else {
 				if strings.Contains(stderrOutput, expectedMessage) {
