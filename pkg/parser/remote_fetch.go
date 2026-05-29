@@ -29,6 +29,9 @@ import (
 
 var remoteLog = logger.New("parser:remote_fetch")
 
+// gitListCloneCache is a process-lifetime cache of shallow clones used by
+// git-based directory listing fallbacks to avoid repeated clone operations for
+// the same repository/ref tuple. Entries are cleaned up when the process exits.
 var gitListCloneCache = struct {
 	mu   sync.Mutex
 	dirs map[string]string
@@ -67,7 +70,9 @@ func getOrCreateListRepoClone(owner, repo, ref, host string) (string, error) {
 	cloneCmd := exec.Command("git", "clone", "--depth", "1", "--branch", ref, "--single-branch", "--filter=blob:none", "--no-checkout", repoURL, tmpDir)
 	cloneOutput, err := cloneCmd.CombinedOutput()
 	if err != nil {
-		_ = os.RemoveAll(tmpDir)
+		if cleanupErr := os.RemoveAll(tmpDir); cleanupErr != nil {
+			remoteLog.Printf("Failed to clean up temp directory %q: %v", tmpDir, cleanupErr)
+		}
 		remoteLog.Printf("Failed to clone repository: %s", string(cloneOutput))
 		return "", fmt.Errorf("failed to clone repository for %s/%s@%s: %w", owner, repo, ref, err)
 	}
@@ -76,7 +81,9 @@ func getOrCreateListRepoClone(owner, repo, ref, host string) (string, error) {
 	if existingDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
 		if stat, statErr := os.Stat(filepath.Join(existingDir, ".git")); statErr == nil && stat.IsDir() {
 			gitListCloneCache.mu.Unlock()
-			_ = os.RemoveAll(tmpDir)
+			if cleanupErr := os.RemoveAll(tmpDir); cleanupErr != nil {
+				remoteLog.Printf("Failed to clean up duplicate clone %q: %v", tmpDir, cleanupErr)
+			}
 			return existingDir, nil
 		}
 	}

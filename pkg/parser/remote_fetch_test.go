@@ -2,7 +2,10 @@
 
 package parser
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestBuildCommitLookupAPIPath(t *testing.T) {
 	t.Run("escapes refs containing slash", func(t *testing.T) {
@@ -28,12 +31,18 @@ func TestGitFallbackRequiresNonEmptyRef(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for empty ref")
 		}
+		if !strings.Contains(err.Error(), "non-empty ref") {
+			t.Fatalf("expected non-empty ref error, got %q", err)
+		}
 	})
 
 	t.Run("subdirs fallback validates ref", func(t *testing.T) {
 		_, err := listDirSubdirsViaGitForHost("owner", "repo", "   ", "skills", "")
 		if err == nil {
 			t.Fatal("expected error for empty ref")
+		}
+		if !strings.Contains(err.Error(), "non-empty ref") {
+			t.Fatalf("expected non-empty ref error, got %q", err)
 		}
 	})
 }
