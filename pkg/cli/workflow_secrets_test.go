@@ -109,7 +109,6 @@ on: push
 	})
 
 	for _, eng := range []string{"opencode", "crush", "pi"} {
-		eng := eng
 		t.Run(eng+" engine with permissions.copilot-requests: write does not require copilot token", func(t *testing.T) {
 			workflowPath := filepath.Join(workflowsDir, eng+"-with-permission.md")
 			workflowContent := fmt.Sprintf(`---
