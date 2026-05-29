@@ -27,12 +27,22 @@ Each report should start with:
 
 ### Lifecycle health values
 
-Use one of:
-- 🟢 Resolving
-- 🟡 In flight
-- 🟠 Aging
-- 🔴 Stuck
-- ⚪ Underdefined
+Assign one lifecycle health label per workflow based on its outcome history across consecutive report cycles. Use cache-memory from the previous run to determine trend.
+
+| Label | Emoji | When to assign |
+|---|---|---|
+| resolving | 🟢 | Pending items are moving to accepted/rejected at a healthy rate over recent runs |
+| in flight | 🟡 | Outcomes are still being evaluated; no concerning stagnation pattern yet |
+| aging | 🟠 | One or more items have been pending for >48 hours without resolution |
+| stuck | 🔴 | Pending/unknown outcomes persist across two or more consecutive report cycles; pending count has not decreased |
+| underdefined | ⚪ | Most outcomes land in unknown or ignored; acceptance/rejection criteria are unclear, the evaluator lacks signal, or the outcome model for this workflow has not yet matured |
+
+**Lifecycle health decision rules:**
+- A workflow is **stuck** (🔴) if its pending count has not decreased over two or more consecutive evaluation cycles. This is a signal that items need human review, the workflow has a timeout problem, or the evaluator is not reaching a terminal state.
+- A workflow is **underdefined** (⚪) if its unknown or ignored share consistently exceeds 50% of its outcomes. This means the outcome model needs work: the safe output type may lack a dedicated evaluator, the acceptance/rejection criteria may not be clear, or the workflow's outputs may not map well to existing outcome categories.
+- A workflow is **aging** (🟠) if any individual item has been pending for >48 hours, even if the overall pending count is decreasing.
+- A workflow is **in flight** (🟡) when outcomes are actively being evaluated and no stagnation or quality problem is detected yet.
+- A workflow is **resolving** (🟢) when its pending count is decreasing across consecutive cycles and a reasonable share of items are reaching accepted or rejected.
 
 The top section should be optimized for at-a-glance executive readability.
 
