@@ -34,7 +34,7 @@ func TestIsNotFoundError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := errorutil.IsNotFoundError(tt.err)
-			assert.Equal(t, tt.want, got, "IsNotFoundError(%v) mismatch for: %s", tt.err, tt.name)
+			assert.Equal(t, tt.want, got, "IsNotFoundError result mismatch for subtest %s", tt.name)
 		})
 	}
 }
@@ -60,7 +60,7 @@ func TestIsForbiddenError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := errorutil.IsForbiddenError(tt.err)
-			assert.Equal(t, tt.want, got, "IsForbiddenError(%v) mismatch for: %s", tt.err, tt.name)
+			assert.Equal(t, tt.want, got, "IsForbiddenError result mismatch for subtest %s", tt.name)
 		})
 	}
 }
@@ -86,7 +86,7 @@ func TestIsGoneError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := errorutil.IsGoneError(tt.err)
-			assert.Equal(t, tt.want, got, "IsGoneError(%v) mismatch for: %s", tt.err, tt.name)
+			assert.Equal(t, tt.want, got, "IsGoneError result mismatch for subtest %s", tt.name)
 		})
 	}
 }
