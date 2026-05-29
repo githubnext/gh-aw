@@ -107,7 +107,7 @@ permissions: read-all
 		assert.Equal(t, content, result)
 	})
 
-	t.Run("handles empty permissions with comment", func(t *testing.T) {
+	t.Run("handles empty permissions object with inline comment", func(t *testing.T) {
 		content := `---
 features:
   copilot-requests: true
