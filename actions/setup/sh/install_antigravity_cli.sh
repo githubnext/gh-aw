@@ -13,6 +13,7 @@ set +o histexpand
 # Security features:
 #   - Downloads binary directly from Google Cloud Storage over HTTPS
 #   - Verifies SHA256 checksum against official checksums.txt before installation
+#   - Warns and skips checksum verification if checksums.txt is unavailable (HTTP 404)
 #   - Fails fast if checksum verification fails
 #   - Fails fast on any curl errors
 
@@ -74,34 +75,51 @@ sha256_hash() {
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-# Download checksums file from GCS
+# Download checksums file from GCS (if available for this version)
 echo "Downloading checksums from ${CHECKSUMS_URL}..."
-curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"
+if ! CHECKSUMS_DOWNLOAD_STATUS=$(curl -sSL --retry 3 --retry-delay 5 -w "%{http_code}" -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"); then
+  echo "ERROR: Failed to download checksums.txt due to a network or TLS error"
+  exit 1
+fi
+
+VERIFY_CHECKSUM=true
+if [ "${CHECKSUMS_DOWNLOAD_STATUS}" = "404" ]; then
+  echo "WARNING: checksums.txt not found for version ${VERSION}; skipping checksum verification."
+  rm -f "${TEMP_DIR}/checksums.txt"
+  VERIFY_CHECKSUM=false
+elif [ "${CHECKSUMS_DOWNLOAD_STATUS}" != "200" ]; then
+  echo "ERROR: Failed to download checksums.txt (HTTP ${CHECKSUMS_DOWNLOAD_STATUS})"
+  exit 1
+fi
 
 # Download binary tarball from GCS over HTTPS
 echo "Downloading from ${TARBALL_URL}..."
 curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"
 
-# Verify SHA256 checksum before extracting
-echo "Verifying SHA256 checksum for ${TARBALL_NAME}..."
-EXPECTED_CHECKSUM=$(awk -v fname="${TARBALL_NAME}" '$2 == fname {print $1; exit}' "${TEMP_DIR}/checksums.txt" | tr 'A-F' 'a-f')
+# Verify SHA256 checksum before extracting (when checksums.txt is available)
+if [ "${VERIFY_CHECKSUM}" = "true" ]; then
+  echo "Verifying SHA256 checksum for ${TARBALL_NAME}..."
+  EXPECTED_CHECKSUM=$(awk -v fname="${TARBALL_NAME}" '$2 == fname {print $1; exit}' "${TEMP_DIR}/checksums.txt" | tr 'A-F' 'a-f')
 
-if [ -z "$EXPECTED_CHECKSUM" ]; then
-  echo "ERROR: Could not find checksum for ${TARBALL_NAME} in checksums.txt"
-  exit 1
+  if [ -z "$EXPECTED_CHECKSUM" ]; then
+    echo "ERROR: Could not find checksum for ${TARBALL_NAME} in checksums.txt"
+    exit 1
+  fi
+
+  ACTUAL_CHECKSUM=$(sha256_hash "${TEMP_DIR}/${TARBALL_NAME}" | tr 'A-F' 'a-f')
+
+  if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then
+    echo "ERROR: Checksum verification failed!"
+    echo "  Expected: $EXPECTED_CHECKSUM"
+    echo "  Got:      $ACTUAL_CHECKSUM"
+    echo "  The downloaded file may be corrupted or tampered with"
+    exit 1
+  fi
+
+  echo "✓ Checksum verification passed for ${TARBALL_NAME}"
+else
+  echo "WARNING: Proceeding without checksum verification for ${TARBALL_NAME}"
 fi
-
-ACTUAL_CHECKSUM=$(sha256_hash "${TEMP_DIR}/${TARBALL_NAME}" | tr 'A-F' 'a-f')
-
-if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then
-  echo "ERROR: Checksum verification failed!"
-  echo "  Expected: $EXPECTED_CHECKSUM"
-  echo "  Got:      $ACTUAL_CHECKSUM"
-  echo "  The downloaded file may be corrupted or tampered with"
-  exit 1
-fi
-
-echo "✓ Checksum verification passed for ${TARBALL_NAME}"
 
 # Extract and install binary
 echo "Installing binary to ${INSTALL_DIR}/${BINARY_NAME}..."

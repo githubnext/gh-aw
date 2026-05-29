@@ -115,6 +115,16 @@ For each selected specification:
 
 Always create one issue per run with actionable tasks (even if no major gaps are found).
 
+### Output Contract (Required)
+
+1. Emit exactly one `create_issue` item only after the full body is complete.
+2. Never emit placeholder or draft bodies (for example: `test`, `.`, `todo`, `tbd`, or a single sentence).
+3. Before emitting `create_issue`, verify the body:
+   - includes all six required sections: `Summary`, `Priority Work Queue`, `SPDD Checklist`, `Per-Spec Findings`, `Sync Follow-ups`, and `Context`
+   - has at least 6 actionable checklist items so the daily plan is substantial enough to execute
+   - is at least 600 characters long to prevent accidental placeholder outputs
+4. If these checks cannot be met, emit `report_incomplete` instead of `create_issue`.
+
 Issue title format:
 `[spdd] Daily spec work plan - YYYY-MM-DD`
 

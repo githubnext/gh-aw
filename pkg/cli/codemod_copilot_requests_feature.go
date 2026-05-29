@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -129,8 +128,8 @@ func ensureCopilotRequestsWritePermission(lines []string) []string {
 	if inlineValue != "" && !strings.HasPrefix(inlineValue, "#") {
 		// Extract the value before any comment
 		valuePart := inlineValue
-		if commentIdx := strings.Index(inlineValue, "#"); commentIdx >= 0 {
-			valuePart = strings.TrimSpace(inlineValue[:commentIdx])
+		if beforeComment, _, hasComment := strings.Cut(inlineValue, "#"); hasComment {
+			valuePart = strings.TrimSpace(beforeComment)
 		}
 		if valuePart == "{}" {
 			result := make([]string, 0, len(lines)+1)
@@ -152,7 +151,7 @@ func ensureCopilotRequestsWritePermission(lines []string) []string {
 
 	result := make([]string, 0, len(lines)+1)
 	result = append(result, lines[:permissionsEnd]...)
-	result = append(result, fmt.Sprintf("%s  copilot-requests: write", permissionsIndent))
+	result = append(result, permissionsIndent+"  copilot-requests: write")
 	result = append(result, lines[permissionsEnd:]...)
 	return result
 }
