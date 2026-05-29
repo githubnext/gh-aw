@@ -323,7 +323,7 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 		t.Fatalf("Expected agent content to include concise debug prompt summary, got:\n%s", content)
 	}
 
-	if !strings.Contains(content, "`https://github.com/github/gh-aw/blob/main/.github/aw/agentic-chat.md` — AI assistant for creating clear.") {
+	if !strings.Contains(content, "`https://github.com/github/gh-aw/blob/main/.github/aw/agentic-chat.md` — AI assistant for creating clear, detailed task descriptions for GitHub Copilot.") {
 		t.Fatalf("Expected frontmatter description summaries for prompts, got:\n%s", content)
 	}
 

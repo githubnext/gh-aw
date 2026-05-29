@@ -27,6 +27,7 @@ const agenticWorkflowsAgentHeader = "---\n" +
 const agenticWorkflowsPromptsGitHubBaseURL = "https://github.com/github/gh-aw/blob/main/.github/aw"
 
 const maxAgenticWorkflowsPromptSummaryLength = 80
+const minPromptSummaryWordBoundary = (maxAgenticWorkflowsPromptSummaryLength * 4) / 5
 
 // ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md contains the dispatcher skill
 func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error {
@@ -244,6 +245,7 @@ func extractPromptSummary(content string) string {
 			}
 		}
 	}
+	// Prefer frontmatter description over heading text when available.
 	if summary := normalizePromptSummary(description); summary != "" {
 		return summary
 	}
@@ -273,7 +275,7 @@ func normalizePromptSummary(summary string) string {
 	runes := []rune(summary)
 	if len(runes) > maxAgenticWorkflowsPromptSummaryLength {
 		summary = strings.TrimSpace(string(runes[:maxAgenticWorkflowsPromptSummaryLength]))
-		if cut := strings.LastIndex(summary, " "); cut > maxAgenticWorkflowsPromptSummaryLength/2 {
+		if cut := strings.LastIndex(summary, " "); cut > minPromptSummaryWordBoundary {
 			summary = summary[:cut]
 		}
 	}
@@ -290,10 +292,6 @@ func cleanPromptSummary(summary string) string {
 	summary = strings.TrimSpace(summary)
 
 	if idx := strings.Index(summary, " - "); idx > 0 {
-		summary = summary[:idx]
-	}
-
-	if idx := strings.Index(summary, ","); idx > 0 && len(summary) > maxAgenticWorkflowsPromptSummaryLength {
 		summary = summary[:idx]
 	}
 
