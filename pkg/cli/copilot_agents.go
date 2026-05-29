@@ -167,12 +167,8 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 			return "", fmt.Errorf("failed to summarize prompt %s: %w", promptPath, err)
 		}
 
-		relPath, err := filepath.Rel(gitRoot, promptPath)
-		if err != nil {
-			return "", fmt.Errorf("failed to compute relative path for %s: %w", promptPath, err)
-		}
-
-		lines = append(lines, formatAgenticWorkflowsAgentEntry(filepath.ToSlash(relPath), purpose))
+		promptURL := fmt.Sprintf("https://github.com/github/gh-aw/blob/main/.github/aw/%s", filepath.Base(promptPath))
+		lines = append(lines, formatAgenticWorkflowsAgentEntry(promptURL, purpose))
 	}
 
 	return strings.Join(lines, "\n") + "\n", nil

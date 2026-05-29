@@ -319,15 +319,15 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 		t.Fatal("Expected agent content to include the dispatcher skill path")
 	}
 
-	if !strings.Contains(content, "`.github/aw/debug-agentic-workflow.md` — Debug and refine agentic workflows using gh-aw CLI tools.") {
+	if !strings.Contains(content, "`https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md` — Debug and refine agentic workflows using gh-aw CLI tools.") {
 		t.Fatalf("Expected agent content to include concise debug prompt summary, got:\n%s", content)
 	}
 
-	if !strings.Contains(content, "`.github/aw/agentic-chat.md` — Agentic Task Description Assistant.") {
+	if !strings.Contains(content, "`https://github.com/github/gh-aw/blob/main/.github/aw/agentic-chat.md` — Agentic Task Description Assistant.") {
 		t.Fatalf("Expected headings to win over long frontmatter descriptions, got:\n%s", content)
 	}
 
-	if !strings.Contains(content, "`.github/aw/triggers.md` — Weekday schedule avoids Monday wall of work.") {
+	if !strings.Contains(content, "`https://github.com/github/gh-aw/blob/main/.github/aw/triggers.md` — Weekday schedule avoids Monday wall of work.") {
 		t.Fatalf("Expected agent content to include cleaned triggers prompt summary, got:\n%s", content)
 	}
 
@@ -335,12 +335,12 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 		t.Fatalf("Expected non-markdown files to be excluded from agent content, got:\n%s", content)
 	}
 
-	if !strings.Contains(content, "`.github/skills/agentic-workflows/SKILL.md` — router skill for workflow create, debug, and upgrade tasks.\n- `.github/aw/github-agentic-workflows.md` — GitHub Agentic Workflows.") {
+	if !strings.Contains(content, "`.github/skills/agentic-workflows/SKILL.md` — router skill for workflow create, debug, and upgrade tasks.\n- `https://github.com/github/gh-aw/blob/main/.github/aw/github-agentic-workflows.md` — GitHub Agentic Workflows.") {
 		t.Fatalf("Expected github-agentic-workflows.md to be the first prompt entry after the dispatcher skill, got:\n%s", content)
 	}
 
-	githubWorkflowsIndex := strings.Index(content, "`.github/aw/github-agentic-workflows.md`")
-	debugPromptIndex := strings.Index(content, "`.github/aw/debug-agentic-workflow.md`")
+	githubWorkflowsIndex := strings.Index(content, "`https://github.com/github/gh-aw/blob/main/.github/aw/github-agentic-workflows.md`")
+	debugPromptIndex := strings.Index(content, "`https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md`")
 	if githubWorkflowsIndex == -1 || debugPromptIndex == -1 {
 		t.Fatalf("Expected agent content to include prioritized workflow instructions and debug prompt, got:\n%s", content)
 	}
