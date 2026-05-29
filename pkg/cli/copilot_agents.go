@@ -14,6 +14,13 @@ import (
 
 var copilotAgentsLog = logger.New("cli:copilot_agents")
 
+const agenticWorkflowsAgentContent = "---\n" +
+	"name: Agentic Workflows\n" +
+	"description: Use the agentic-workflows skill for GitHub Agentic Workflows tasks in this repository.\n" +
+	"---\n\n" +
+	"# Agentic Workflows\n\n" +
+	"Use the `agentic-workflows` skill for GitHub Agentic Workflows tasks in this repository.\n"
+
 // ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md contains the dispatcher skill
 func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error {
 	copilotAgentsLog.Print("Ensuring agentic workflows dispatcher skill")
@@ -74,6 +81,55 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 		copilotAgentsLog.Printf("Updated dispatcher skill: %s", targetPath)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated dispatcher skill: "+targetPath))
+		}
+	}
+
+	return nil
+}
+
+// ensureAgenticWorkflowsAgent ensures that .github/agents/agentic-workflows.md contains the custom agent.
+func ensureAgenticWorkflowsAgent(verbose bool) error {
+	copilotAgentsLog.Print("Ensuring agentic workflows custom agent")
+
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return err
+	}
+
+	targetDir := filepath.Join(gitRoot, ".github", "agents")
+	targetPath := filepath.Join(targetDir, "agentic-workflows.md")
+
+	if err := os.MkdirAll(targetDir, constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create .github/agents directory: %w", err)
+	}
+
+	existingContent := ""
+	if content, err := os.ReadFile(targetPath); err == nil {
+		existingContent = string(content)
+	}
+
+	expectedContent := strings.TrimSpace(agenticWorkflowsAgentContent)
+	if strings.TrimSpace(existingContent) == expectedContent {
+		copilotAgentsLog.Printf("Agentic Workflows custom agent is up-to-date: %s", targetPath)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Agentic Workflows custom agent is up-to-date: "+targetPath))
+		}
+		return nil
+	}
+
+	if err := os.WriteFile(targetPath, []byte(agenticWorkflowsAgentContent), constants.FilePermPublic); err != nil {
+		return fmt.Errorf("failed to write Agentic Workflows custom agent: %w", err)
+	}
+
+	if existingContent == "" {
+		copilotAgentsLog.Printf("Created Agentic Workflows custom agent: %s", targetPath)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created Agentic Workflows custom agent: "+targetPath))
+		}
+	} else {
+		copilotAgentsLog.Printf("Updated Agentic Workflows custom agent: %s", targetPath)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated Agentic Workflows custom agent: "+targetPath))
 		}
 	}
 
