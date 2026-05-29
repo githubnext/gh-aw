@@ -11654,7 +11654,7 @@
     },
     "awf": {
       "type": "object",
-      "description": "AWF (Agent Workflow Firewall) declarative configuration.",
+      "description": "AWF (Agent Workflow Firewall) declarative configuration. Settings here are compiled into the AWF config JSON and control API proxy routing and authentication for LLM providers in AWF-enabled workflows.",
       "properties": {
         "apiProxy": {
           "type": "object",

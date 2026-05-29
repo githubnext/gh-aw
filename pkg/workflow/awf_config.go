@@ -187,9 +187,9 @@ type AWFAPITargetConfig struct {
 
 	// AuthHeader is the custom authentication header name sent with API requests.
 	// When set, the raw API key is sent as "<authHeader>: <key>" instead of the
-	// provider default (e.g., "Authorization: Bearer" for OpenAI or "x-api-key"
-	// for Anthropic). This supports gateways like Azure OpenAI that require
-	// "api-key: <rawkey>" instead of the standard ****** scheme.
+	// provider default (e.g. "Authorization: ******" for OpenAI, or
+	// "x-api-key: <key>" for Anthropic). This supports gateways like Azure OpenAI
+	// that require "api-key: <rawkey>" in place of the standard provider scheme.
 	// Maps to: --openai-api-auth-header / --anthropic-api-auth-header
 	AuthHeader string `json:"authHeader,omitempty"`
 }
