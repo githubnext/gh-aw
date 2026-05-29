@@ -1637,7 +1637,8 @@
                           "default": {
                             "description": "Default value for the input parameter"
                           }
-                        }
+                        },
+                        "additionalProperties": false
                       }
                     },
                     "secrets": {
@@ -1654,7 +1655,8 @@
                             "type": "boolean",
                             "description": "Whether the secret is required"
                           }
-                        }
+                        },
+                        "additionalProperties": false
                       }
                     }
                   }
@@ -8411,7 +8413,8 @@
                         "type": "string"
                       }
                     }
-                  }
+                  },
+                  "additionalProperties": false
                 }
               },
               "max": {

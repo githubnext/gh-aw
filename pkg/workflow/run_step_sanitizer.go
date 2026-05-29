@@ -86,10 +86,10 @@ func sanitizeRunStepExpressions(step map[string]any) (map[string]any, []string, 
 		return step, nil, false
 	}
 
-	// Only scan the non-heredoc portion of the run script so that expressions
-	// inside heredoc blocks (which are written to files rather than executed)
-	// are not extracted.
-	scanContent := removeHeredocContent(runVal)
+	// Only scan executable script content:
+	//   - strip heredoc bodies (written to files/stdin, not executed)
+	//   - strip bash line comments (not executed)
+	scanContent := stripShellLineComments(removeHeredocContent(runVal))
 	if !hasExpressionMarker(scanContent) {
 		return step, nil, false
 	}

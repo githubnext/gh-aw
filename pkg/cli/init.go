@@ -24,6 +24,8 @@ type InitOptions struct {
 	Ctx              context.Context
 	Verbose          bool
 	Engine           string
+	Skill            bool
+	Agent            bool
 	MCP              bool
 	CodespaceRepos   []string
 	CodespaceEnabled bool
@@ -80,13 +82,29 @@ func InitRepository(opts InitOptions) error {
 
 	// Write dispatcher skill for Copilot engine only
 	if copilotArtifactsEnabled {
-		initLog.Print("Writing agentic workflows dispatcher skill")
-		if err := ensureAgenticWorkflowsDispatcher(opts.Verbose, false); err != nil {
-			initLog.Printf("Failed to write dispatcher skill: %v", err)
-			return fmt.Errorf("failed to write dispatcher skill: %w", err)
+		if opts.Skill {
+			initLog.Print("Writing agentic workflows dispatcher skill")
+			if err := ensureAgenticWorkflowsDispatcher(opts.Verbose, false); err != nil {
+				initLog.Printf("Failed to write dispatcher skill: %v", err)
+				return fmt.Errorf("failed to write dispatcher skill: %w", err)
+			}
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher skill"))
+			}
+		} else {
+			initLog.Print("Skipping agentic workflows dispatcher skill")
 		}
-		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher skill"))
+		if opts.Agent {
+			initLog.Print("Writing agentic workflows custom agent")
+			if err := ensureAgenticWorkflowsAgent(opts.Verbose); err != nil {
+				initLog.Printf("Failed to write agentic workflows custom agent: %v", err)
+				return fmt.Errorf("failed to write agentic workflows custom agent: %w", err)
+			}
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created agentic workflows custom agent"))
+			}
+		} else {
+			initLog.Print("Skipping agentic workflows custom agent")
 		}
 		if err := deleteLegacyAgentFiles(opts.Verbose); err != nil {
 			initLog.Printf("Failed to delete legacy agent files: %v", err)
