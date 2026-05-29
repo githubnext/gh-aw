@@ -394,7 +394,7 @@ describe("pick_experiment", () => {
 
       const rawCall = mockCore.summary.addRaw.mock.calls[0]?.[0] ?? "";
       expect(rawCall).toContain("<details>");
-      expect(rawCall).toContain("<summary>🧪 Experiment Assignments</summary>");
+      expect(rawCall).toContain("<summary>Experiment Assignments</summary>");
       expect(rawCall).toContain("</details>");
     });
 

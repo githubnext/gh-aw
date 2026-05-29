@@ -221,7 +221,7 @@ function recordVariant(name, variant, state) {
  */
 async function writeSummary(assignments, configs, state, core) {
   const names = Object.keys(assignments).sort();
-  const lines = ["<details>", "<summary>🧪 Experiment Assignments</summary>", "", "| Experiment | Variant | Counts (current/total) |", "| --- | --- | --- |"];
+  const lines = ["<details>", "<summary>Experiment Assignments</summary>", "", "| Experiment | Variant | Counts (current/total) |", "| --- | --- | --- |"];
   const detailLines = [];
   for (const name of names) {
     const selected = assignments[name];
