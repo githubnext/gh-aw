@@ -164,6 +164,22 @@ func TestCopilotEngineSkipsSecretValidationWhenBYOKBearerTokenSet(t *testing.T) 
 	}
 }
 
+func TestCopilotEngineSkipsSecretValidationWhenBYOKBaseURLOnlySet(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			Env: map[string]string{
+				"COPILOT_PROVIDER_BASE_URL": "http://localhost:11434/v1",
+			},
+		},
+	}
+
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) != 0 {
+		t.Errorf("Expected empty validation step when BYOK COPILOT_PROVIDER_BASE_URL is set, got:\n%s", strings.Join(step, "\n"))
+	}
+}
+
 func TestCodexEngineHasSecretValidation(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{}
