@@ -120,8 +120,9 @@ The report must open with an executive-first view. Place the following at the to
 |---|---|---|
 | {workflow_name} | <span style="white-space: nowrap;">{status_bar}</span> | {lifecycle_emoji} {lifecycle_label} |
 
-**Status:** 🟩 accepted · 🟥 rejected · 🟨 pending · ⬜ unknown
-**Lifecycle health:** 🟢 resolving · 🟡 in flight · 🟠 aging · 🔴 stuck · ⚪ underdefined
+**Legend:**
+- **Status:** 🟩 accepted · 🟥 rejected · 🟨 pending · ⬜ unknown
+- **Lifecycle health:** 🟢 resolving · 🟡 in flight · 🟠 aging · 🔴 stuck · ⚪ underdefined
 ```
 
 **Status bar rules:**
