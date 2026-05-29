@@ -61,7 +61,10 @@
         },
         "anthropicCacheTailTtl": {
           "type": "string",
-          "enum": ["5m", "1h"],
+          "enum": [
+            "5m",
+            "1h"
+          ],
           "description": "TTL for Anthropic cache tail optimization. Only applies when anthropicAutoCache is enabled. Allowed values: \"5m\" or \"1h\"."
         },
         "maxEffectiveTokens": {
@@ -102,8 +105,17 @@
             },
             "strategy": {
               "type": "string",
-              "enum": ["middle_power"],
+              "enum": [
+                "middle_power"
+              ],
               "description": "Fallback selection strategy. Currently only 'middle_power' is supported."
+            },
+            "excludeEngines": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of engine/provider names for which middle-power fallback is suppressed. Use this to let specific providers handle model-unavailable errors natively instead of rewriting to a fallback model."
             }
           }
         },
@@ -126,11 +138,11 @@
             },
             "gemini": {
               "$ref": "#/$defs/providerTarget",
-              "description": "Google Gemini API target override. Deprecated: use 'antigravity' instead."
+              "description": "Google Gemini API target override."
             },
             "antigravity": {
               "$ref": "#/$defs/providerTarget",
-              "description": "Antigravity API target override."
+              "description": "Antigravity API target override (alias of Gemini runtime settings)."
             }
           }
         },
@@ -146,23 +158,30 @@
         },
         "auth": {
           "type": "object",
-          "description": "Authentication configuration for the API proxy sidecar. Enables OIDC-based credential exchange (e.g., GitHub OIDC → Azure AD, AWS STS, or GCP Workload Identity). See docs/awf-config-spec.md §9.5.",
+          "description": "Authentication configuration for the API proxy sidecar. Enables OIDC-based credential exchange (e.g., GitHub OIDC → Azure AD, AWS STS, GCP Workload Identity, or Anthropic Workload Identity Federation). See docs/awf-config-spec.md §9.5.",
           "additionalProperties": false,
           "properties": {
             "type": {
               "type": "string",
-              "enum": ["github-oidc"],
+              "enum": [
+                "github-oidc"
+              ],
               "description": "Authentication type. Currently only 'github-oidc' is supported. Maps to AWF_AUTH_TYPE."
             },
             "provider": {
               "type": "string",
-              "enum": ["azure", "aws", "gcp"],
+              "enum": [
+                "azure",
+                "aws",
+                "gcp",
+                "anthropic"
+              ],
               "description": "Cloud provider for OIDC token exchange. Determines which token exchange protocol is used. Maps to AWF_AUTH_PROVIDER.",
               "default": "azure"
             },
             "oidcAudience": {
               "type": "string",
-              "description": "Audience claim for the GitHub OIDC token. Provider-specific defaults apply when omitted: Azure='api://AzureADTokenExchange', AWS='sts.amazonaws.com', GCP=workloadIdentityProvider value. Maps to AWF_AUTH_OIDC_AUDIENCE."
+              "description": "Audience claim for the GitHub OIDC token. Provider-specific defaults apply when omitted: Azure='api://AzureADTokenExchange', AWS='sts.amazonaws.com', GCP=workloadIdentityProvider value, Anthropic='https://api.anthropic.com'. Maps to AWF_AUTH_OIDC_AUDIENCE."
             },
             "azureTenantId": {
               "type": "string",
@@ -179,7 +198,11 @@
             },
             "azureCloud": {
               "type": "string",
-              "enum": ["public", "usgovernment", "china"],
+              "enum": [
+                "public",
+                "usgovernment",
+                "china"
+              ],
               "description": "Azure cloud environment. Maps to AWF_AUTH_AZURE_CLOUD.",
               "default": "public"
             },
@@ -208,26 +231,101 @@
               "type": "string",
               "description": "OAuth2 scope for GCP token. Maps to AWF_AUTH_GCP_SCOPE.",
               "default": "https://www.googleapis.com/auth/cloud-platform"
+            },
+            "anthropicFederationRuleId": {
+              "type": "string",
+              "description": "Anthropic federation rule ID (e.g. fdrl_...). Required when provider is 'anthropic'. Maps to AWF_AUTH_ANTHROPIC_FEDERATION_RULE_ID."
+            },
+            "anthropicOrganizationId": {
+              "type": "string",
+              "description": "Anthropic organization UUID. Required when provider is 'anthropic'. Maps to AWF_AUTH_ANTHROPIC_ORGANIZATION_ID."
+            },
+            "anthropicServiceAccountId": {
+              "type": "string",
+              "description": "Anthropic service account ID (e.g. svac_...). Required when provider is 'anthropic'. Maps to AWF_AUTH_ANTHROPIC_SERVICE_ACCOUNT_ID."
+            },
+            "anthropicWorkspaceId": {
+              "type": "string",
+              "description": "Anthropic workspace ID. Required when the federation rule covers multiple workspaces. Maps to AWF_AUTH_ANTHROPIC_WORKSPACE_ID."
             }
           },
-          "required": ["type"],
+          "required": [
+            "type"
+          ],
           "if": {
-            "properties": { "provider": { "const": "aws" } },
-            "required": ["provider"]
+            "properties": {
+              "provider": {
+                "const": "aws"
+              }
+            },
+            "required": [
+              "provider"
+            ]
           },
           "then": {
-            "required": ["awsRoleArn", "awsRegion"]
+            "required": [
+              "awsRoleArn",
+              "awsRegion"
+            ]
           },
           "else": {
             "if": {
-              "properties": { "provider": { "const": "gcp" } },
-              "required": ["provider"]
+              "properties": {
+                "provider": {
+                  "const": "gcp"
+                }
+              },
+              "required": [
+                "provider"
+              ]
             },
             "then": {
-              "required": ["gcpWorkloadIdentityProvider"]
+              "required": [
+                "gcpWorkloadIdentityProvider"
+              ]
             },
             "else": {
-              "required": ["azureTenantId", "azureClientId"]
+              "if": {
+                "properties": {
+                  "provider": {
+                    "const": "anthropic"
+                  }
+                },
+                "required": [
+                  "provider"
+                ]
+              },
+              "then": {
+                "required": [
+                  "anthropicFederationRuleId",
+                  "anthropicOrganizationId",
+                  "anthropicServiceAccountId"
+                ]
+              },
+              "else": {
+                "required": [
+                  "azureTenantId",
+                  "azureClientId"
+                ]
+              }
+            }
+          }
+        },
+        "logging": {
+          "type": "object",
+          "description": "API proxy diagnostic and model-alias logging configuration.",
+          "additionalProperties": false,
+          "properties": {
+            "debugTokens": {
+              "type": "boolean",
+              "description": "Enable detailed token and model-alias diagnostics. Writes MODEL_ALIAS_RESOLUTION_STEP, MODEL_ALIAS_REWRITE, and other diagnostic events to token-diag.jsonl. Maps to AWF_DEBUG_TOKENS=1.",
+              "default": false
+            },
+            "tokenLogDir": {
+              "type": "string",
+              "description": "Directory for token-usage.jsonl and token-diag.jsonl files. Must be /var/log/api-proxy (or a subdirectory) so logs are captured by AWF's bind mount.",
+              "pattern": "^/var/log/api-proxy(?:/.*)?$",
+              "default": "/var/log/api-proxy"
             }
           }
         }
@@ -351,7 +449,7 @@
         },
         "dockerHostPathPrefix": {
           "type": "string",
-          "description": "Prefix bind-mount source paths so the Docker daemon can resolve runner filesystem paths. Required for ARC DinD sidecar runners where the runner and daemon have separate filesystems. Example: \"/host\". Kernel virtual filesystems (/dev, /sys, /proc) are automatically excluded from prefixing."
+          "description": "Prefix bind-mount source paths so the Docker daemon can resolve runner filesystem paths. Required for ARC DinD sidecar runners where the runner and daemon have separate filesystems. Example: \"/host\". Kernel virtual filesystems (/dev, /sys, /proc) are automatically excluded from prefixing. When this points at a daemon-visible shared /tmp path, AWF also stages the invoking CLI binary plus /etc/passwd, /etc/group, and the generated chroot /etc/hosts there."
         }
       }
     },
@@ -384,7 +482,12 @@
       "properties": {
         "logLevel": {
           "type": "string",
-          "enum": ["debug", "info", "warn", "error"],
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
           "description": "Log verbosity level. Defaults to \"info\"."
         },
         "diagnosticLogs": {
@@ -448,7 +551,7 @@
         },
         "authHeader": {
           "type": "string",
-          "description": "Custom authentication header name sent with API requests. Overrides the provider default (\"Authorization\" for OpenAI, \"x-api-key\" for Anthropic). Use \"api-key\" for Azure OpenAI gateways."
+          "description": "Override the auth header name used for API requests. For OpenAI, replaces 'Authorization: Bearer <key>' with '<authHeader>: <key>' (raw key, no Bearer prefix). For Anthropic, replaces 'x-api-key'. Not applicable to Copilot or Gemini."
         }
       }
     },

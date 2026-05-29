@@ -17,7 +17,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 
 	expectedFamilies := []string{
 		"sonnet", "sonnet-6x", "haiku", "opus", "opusplan",
-		"gpt-4.1", "gpt-5", "gpt-5.5", "gpt-5.4", "gpt-5.3", "gpt-5.2", "gpt-5-mini", "gpt-5-nano", "gpt-5-codex", "gpt-5-pro", "reasoning",
+		"gpt-5", "gpt-5.5", "gpt-5.4", "gpt-5.3", "gpt-5.2", "gpt-5-mini", "gpt-5-nano", "gpt-5-codex", "gpt-5-pro", "reasoning",
 		"gemini-flash", "gemini-flash-lite", "gemini-pro", "gemini-3-pro", "gemini-3-flash", "gemini-3.1-pro", "gemini-3.1-flash", "gemini-3.5-flash", "antigravity", "computer-use", "robotics", "deep-research",
 		"mini", "large", "any", "agent", "copilot", "claude", "codex", "gemini", "summarization",
 	}
@@ -26,10 +26,11 @@ func TestBuiltinModelAliases(t *testing.T) {
 		assert.True(t, ok, "expected builtin alias for family %q", family)
 		assert.NotEmpty(t, patterns, "builtin alias %q should have at least one pattern", family)
 	}
+	assert.NotContains(t, aliases, "gpt-4.1", "gpt-4.1 alias should remain removed")
 
 	// Vendor aliases should include at least one copilot/* pattern.
 	// Meta-aliases (mini, large, auto) reference other alias names and are excluded here.
-	vendorFamilies := []string{"sonnet", "sonnet-6x", "haiku", "opus", "gpt-4.1", "gpt-5", "gpt-5.5", "gpt-5.4", "gpt-5.3", "gpt-5.2", "gpt-5-mini", "gpt-5-nano", "gpt-5-codex", "gpt-5-pro", "reasoning", "gemini-flash", "gemini-flash-lite", "gemini-pro", "gemini-3-pro", "gemini-3-flash", "gemini-3.1-pro", "gemini-3.1-flash", "gemini-3.5-flash", "antigravity", "computer-use", "robotics", "deep-research"}
+	vendorFamilies := []string{"sonnet", "sonnet-6x", "haiku", "opus", "gpt-5", "gpt-5.5", "gpt-5.4", "gpt-5.3", "gpt-5.2", "gpt-5-mini", "gpt-5-nano", "gpt-5-codex", "gpt-5-pro", "reasoning", "gemini-flash", "gemini-flash-lite", "gemini-pro", "gemini-3-pro", "gemini-3-flash", "gemini-3.1-pro", "gemini-3.1-flash", "gemini-3.5-flash", "antigravity", "computer-use", "robotics", "deep-research"}
 	for _, family := range vendorFamilies {
 		patterns := aliases[family]
 		hasCopilot := false

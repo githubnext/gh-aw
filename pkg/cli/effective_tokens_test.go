@@ -75,7 +75,6 @@ func TestModelMultipliersInventoryUpdate20260510(t *testing.T) {
 	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4"], 1e-9, "gpt-5.4 should use updated multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-mini"], 1e-9, "gpt-5.4-mini should use updated multiplier")
-	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-nano"], 1e-9, "gpt-5.4-nano should use updated multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-pro"], 1e-9, "gpt-5.4-pro should use updated multiplier")
 	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4.6"], 1e-9, "claude-opus-4.6 should use updated multiplier")
 	assert.InDelta(t, 0.1, loadedMultipliers["gemini-3.1-flash-lite"], 1e-9, "gemini-3.1-flash-lite should be present")
@@ -150,6 +149,17 @@ func TestModelMultipliersInventoryUpdate20260525(t *testing.T) {
 	assert.InDelta(t, 1.0, loadedMultipliers["gpt-4-0613"], 1e-9, "gpt-4-0613 should be present with legacy gpt-4 tier multiplier")
 	assert.InDelta(t, 0.0, loadedMultipliers["gpt-3.5-turbo"], 1e-9, "gpt-3.5-turbo should be present with zero multiplier")
 	assert.InDelta(t, 0.0, loadedMultipliers["gpt-3.5-turbo-0613"], 1e-9, "gpt-3.5-turbo-0613 should be present with zero multiplier")
+}
+
+func TestModelMultipliersRemovedCopilotAliases(t *testing.T) {
+	loadedMultipliers = nil
+	initMultipliers()
+
+	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
+	assert.NotContains(t, loadedMultipliers, "gpt-4o", "gpt-4o should remain removed from the alias list")
+	assert.NotContains(t, loadedMultipliers, "gpt-4o-mini", "gpt-4o-mini should remain removed from the alias list")
+	assert.NotContains(t, loadedMultipliers, "gpt-4.1", "gpt-4.1 should remain removed from the alias list")
+	assert.NotContains(t, loadedMultipliers, "gpt-5.4-nano", "gpt-5.4-nano should remain removed from the alias list")
 }
 
 // TestModelMultipliersNoPlaceholders verifies R-REG-007: the registry MUST NOT contain

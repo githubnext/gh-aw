@@ -80,16 +80,22 @@ func ParseVersion(v string) *SemanticVersion {
 		corePart = corePart[:idx]
 	}
 	parts := strings.Split(corePart, ".")
-	// Parse the numeric components; strconv.Atoi returns 0 on error, matching
+	// Parse the numeric components; failed conversions leave zero values, matching
 	// the previous behavior where non-numeric input produced 0.
 	if len(parts) >= 1 {
-		ver.Major, _ = strconv.Atoi(parts[0])
+		if n, err := strconv.Atoi(parts[0]); err == nil {
+			ver.Major = n
+		}
 	}
 	if len(parts) >= 2 {
-		ver.Minor, _ = strconv.Atoi(parts[1])
+		if n, err := strconv.Atoi(parts[1]); err == nil {
+			ver.Minor = n
+		}
 	}
 	if len(parts) >= 3 {
-		ver.Patch, _ = strconv.Atoi(parts[2])
+		if n, err := strconv.Atoi(parts[2]); err == nil {
+			ver.Patch = n
+		}
 	}
 
 	// Get prerelease if any; semver.Prerelease includes the leading hyphen, strip it
