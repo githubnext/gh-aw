@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"golang.org/x/mod/semver"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/console"
@@ -181,7 +182,6 @@ func checkForUpdates(noCheckUpdate bool, verbose bool) {
 		return
 	}
 
-	// Compare versions
 	if latestVersion == currentVersion {
 		if verbose {
 			updateCheckLog.Print("gh-aw is up to date")
@@ -189,10 +189,8 @@ func checkForUpdates(noCheckUpdate bool, verbose bool) {
 		return
 	}
 
-	// Normalize versions for comparison (remove 'v' prefix)
 	currentVersionNormalized := strings.TrimPrefix(currentVersion, "v")
 	latestVersionNormalized := strings.TrimPrefix(latestVersion, "v")
-
 	if currentVersionNormalized == latestVersionNormalized {
 		if verbose {
 			updateCheckLog.Print("gh-aw is up to date (version format differs)")
@@ -200,9 +198,7 @@ func checkForUpdates(noCheckUpdate bool, verbose bool) {
 		return
 	}
 
-	// Check if we're on a newer version (development/prerelease)
-	// Simple heuristic: if current version sorts after latest, we might be on a dev version
-	if currentVersionNormalized > latestVersionNormalized {
+	if isCurrentVersionAtLeastLatest(currentVersion, latestVersion) {
 		updateCheckLog.Printf("Current version (%s) appears newer than latest release (%s), skipping notification", currentVersion, latestVersion)
 		return
 	}
@@ -213,6 +209,27 @@ func checkForUpdates(noCheckUpdate bool, verbose bool) {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("A new version of gh-aw is available: %s (current: %s)", renderReleaseVersion(latestVersion), renderReleaseVersion(currentVersion))))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Update with: gh extension upgrade github/gh-aw"))
 	fmt.Fprintln(os.Stderr, "")
+}
+
+func isCurrentVersionAtLeastLatest(currentVersion, latestVersion string) bool {
+	if latestVersion == currentVersion {
+		return true
+	}
+
+	currentVersionNormalized := strings.TrimPrefix(currentVersion, "v")
+	latestVersionNormalized := strings.TrimPrefix(latestVersion, "v")
+
+	if currentVersionNormalized == latestVersionNormalized {
+		return true
+	}
+
+	currentSV := ensureSemverPrefix(currentVersion)
+	latestSV := ensureSemverPrefix(latestVersion)
+	if semver.IsValid(currentSV) && semver.IsValid(latestSV) {
+		return semver.Compare(currentSV, latestSV) >= 0
+	}
+
+	return currentVersionNormalized > latestVersionNormalized
 }
 
 // getLatestRelease queries GitHub API for the latest release of gh-aw

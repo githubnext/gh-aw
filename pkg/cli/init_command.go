@@ -18,14 +18,14 @@ func NewInitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize the repository for agentic workflows",
-		Long: `Initialize the repository for agentic workflows by configuring .gitattributes and creating the dispatcher agent file.
+		Long: `Initialize the repository for agentic workflows by configuring .gitattributes and creating the dispatcher skill file.
 
 This command performs non-interactive repository setup and does not prompt for
 engine selection or secret configuration.
 
 This command:
 - Configures .gitattributes to mark .lock.yml files as generated
-- Creates the dispatcher agent at .github/agents/agentic-workflows.agent.md
+- Creates the dispatcher skill at .github/skills/agentic-workflows/SKILL.md
 - Removes old prompt files from .github/prompts/ if they exist
 - Configures VSCode settings (.vscode/settings.json)
 - Generates/updates .github/workflows/agentics-maintenance.yml if any workflows use expires field for discussions or issues
@@ -50,8 +50,8 @@ With --completions flag:
 - Provides instructions for enabling completions in your shell
 
 After running this command, you can:
-- Use GitHub Copilot Chat: type /agent and select agentic-workflows to get started with workflow tasks
-- The dispatcher will route your request to the appropriate specialized prompt
+- Use GitHub Copilot Chat or coding agent tools with the agentic-workflows skill to get started with workflow tasks
+- The dispatcher skill will route your request to the appropriate specialized prompt
 - Add workflows from the catalog with: ` + string(constants.CLIExtensionPrefix) + ` add <workflow-name>
 - Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>
 

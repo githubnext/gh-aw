@@ -11,21 +11,23 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestDeleteOldAgentFiles tests deletion of old agent files
-func TestDeleteOldAgentFiles(t *testing.T) {
+// TestDeleteLegacyAgentFiles tests deletion of old agent files.
+func TestDeleteLegacyAgentFiles(t *testing.T) {
 	tests := []struct {
 		name            string
 		filesToCreate   []string // Paths relative to git root
 		expectedDeleted []string // Files that should be deleted
 	}{
 		{
-			name: "deletes old agent files from .github/agents",
+			name: "deletes legacy agent files from .github/agents including dispatcher",
 			filesToCreate: []string{
+				".github/agents/agentic-workflows.agent.md",
 				".github/agents/create-agentic-workflow.agent.md",
 				".github/agents/debug-agentic-workflow.agent.md",
 				".github/agents/create-shared-agentic-workflow.agent.md",
 			},
 			expectedDeleted: []string{
+				".github/agents/agentic-workflows.agent.md",
 				".github/agents/create-agentic-workflow.agent.md",
 				".github/agents/debug-agentic-workflow.agent.md",
 				".github/agents/create-shared-agentic-workflow.agent.md",
@@ -74,6 +76,7 @@ func TestDeleteOldAgentFiles(t *testing.T) {
 				".github/agents/create-agentic-workflow.agent.md",
 				".github/agents/debug-agentic-workflow.agent.md",
 				".github/agents/create-shared-agentic-workflow.agent.md",
+				".github/agents/agentic-workflows.agent.md",
 				".github/agents/create-agentic-workflow.md",
 				".github/agents/create-shared-agentic-workflow.md",
 				".github/agents/setup-agentic-workflows.md",
@@ -85,6 +88,7 @@ func TestDeleteOldAgentFiles(t *testing.T) {
 				".github/agents/create-agentic-workflow.agent.md",
 				".github/agents/debug-agentic-workflow.agent.md",
 				".github/agents/create-shared-agentic-workflow.agent.md",
+				".github/agents/agentic-workflows.agent.md",
 				".github/agents/create-agentic-workflow.md",
 				".github/agents/create-shared-agentic-workflow.md",
 				".github/agents/setup-agentic-workflows.md",
@@ -132,10 +136,10 @@ func TestDeleteOldAgentFiles(t *testing.T) {
 				}
 			}
 
-			// Call deleteOldAgentFiles
-			err = deleteOldAgentFiles(false)
+			// Call deleteLegacyAgentFiles
+			err = deleteLegacyAgentFiles(false)
 			if err != nil {
-				t.Fatalf("deleteOldAgentFiles() returned error: %v", err)
+				t.Fatalf("deleteLegacyAgentFiles() returned error: %v", err)
 			}
 
 			// Verify expected files were deleted

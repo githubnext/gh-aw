@@ -9,6 +9,7 @@
 
 const { ERR_API } = require("./error_codes.cjs");
 const { loadTemporaryIdMapFromResolved, replaceTemporaryIdReferencesInPatch, TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN } = require("./temporary_id.cjs");
+const OID_PATTERN = /^[0-9a-f]{40}$/i;
 
 /** Sentinel error class used to signal that the commit range contains a shape
  *  that the GitHub GraphQL `createCommitOnBranch` mutation cannot represent
@@ -258,13 +259,45 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     }
   }
 
+  /** @type {string | undefined} */
+  let baseRefOid;
+  try {
+    const { stdout: baseRefOut } = await exec.getExecOutput("git", ["rev-parse", `${baseRef}^{commit}`], { cwd });
+    const trimmedBaseRefOid = baseRefOut.trim();
+    if (OID_PATTERN.test(trimmedBaseRefOid)) {
+      baseRefOid = trimmedBaseRefOid;
+    } else if (trimmedBaseRefOid) {
+      core.warning(
+        `pushSignedCommits: git rev-parse returned an unexpected baseRef OID value for '${baseRef}'; ` +
+          `boundary-commit filter is disabled for this run. Check that '${baseRef}' resolves to a valid commit in this checkout. ` +
+          `Observed value: ${JSON.stringify(trimmedBaseRefOid)}`
+      );
+    }
+  } catch (baseRefResolveError) {
+    core.warning(
+      `pushSignedCommits: could not resolve baseRef '${baseRef}' to OID; boundary-commit filter is disabled for this run and parent OID resolution may fall back to per-commit rev-parse: ${baseRefResolveError instanceof Error ? baseRefResolveError.message : String(baseRefResolveError)}`
+    );
+  }
   // Collect the commits introduced (oldest-first) using topological order to ensure
   // correct sequencing even when commit dates are out of sync (e.g. after rebase --committer-date-is-author-date).
   // Using --parents emits each line as "<sha> <parent1> [<parent2> ...]", which lets us detect merge commits
   // (more than one parent) in a single subprocess call without iterating each SHA individually.
-  const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${baseRef}..HEAD`], { cwd });
-  const revListLines = revListOut.trim().split("\n").filter(Boolean);
-  const shas = revListLines.map(line => line.split(" ")[0]);
+  const revListBase = baseRefOid ?? baseRef;
+  const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${revListBase}..HEAD`], { cwd });
+  const revListEntriesRaw = revListOut
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map(line => {
+      const fields = line.split(" ");
+      return { line, fields, sha: fields[0] };
+    });
+  const revListEntries = baseRefOid !== undefined ? revListEntriesRaw.filter(entry => entry.sha !== baseRefOid) : revListEntriesRaw;
+  const droppedBoundaryCount = revListEntriesRaw.length - revListEntries.length;
+  if (baseRefOid !== undefined && droppedBoundaryCount > 0) {
+    core.info(`pushSignedCommits: dropped ${droppedBoundaryCount} baseRef boundary commit(s) from replay set`);
+  }
+  const shas = revListEntries.map(entry => entry.sha);
 
   if (shas.length === 0) {
     core.info("pushSignedCommits: no new commits to push via GraphQL");
@@ -278,8 +311,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     // A line with 3+ space-separated fields means the commit has 2+ parents (i.e. a merge commit).
     // The GitHub GraphQL createCommitOnBranch mutation does not support multiple parents, so refuse
     // the unsigned push fallback if any merge commit is found.
-    for (const line of revListLines) {
-      const fields = line.split(" ");
+    for (const { fields } of revListEntries) {
       if (fields.length > 2) {
         const sha = fields[0];
         core.warning(`pushSignedCommits: merge commit ${sha} detected, refusing unsigned push fallback`);
@@ -426,8 +458,13 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           // Resolve the parent OID, create the branch on the remote via the REST API,
           // then proceed with the signed-commit mutation as normal.
           core.info(`pushSignedCommits: branch ${branch} not yet on the remote, resolving parent OID for first commit`);
-          const { stdout: parentOut } = await exec.getExecOutput("git", ["rev-parse", `${sha}^`], { cwd });
-          expectedHeadOid = parentOut.trim();
+          if (baseRefOid !== undefined) {
+            expectedHeadOid = baseRefOid;
+            core.info(`pushSignedCommits: using baseRef OID for initial branch creation: ${expectedHeadOid}`);
+          } else {
+            const { stdout: parentOut } = await exec.getExecOutput("git", ["rev-parse", `${sha}^`], { cwd });
+            expectedHeadOid = parentOut.trim();
+          }
           if (!expectedHeadOid) {
             throw new Error(`${ERR_API}: Could not resolve OID for new branch ${branch}`);
           }
@@ -449,6 +486,15 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
             // GitHub returns 422 "Reference refs/heads/<branch> already exists". Treat that as success and continue.
             if (status === 422 && /reference.*already exists/i.test(message)) {
               core.info(`pushSignedCommits: remote branch ${branch} was created concurrently (422 Reference already exists); continuing with signed commits`);
+              const { stdout: refreshedOidOut } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branch}`], { cwd, env: { ...process.env, ...(gitAuthEnv || {}) } });
+              const refreshedHeadOid = refreshedOidOut.trim().split(/\s+/)[0];
+              if (!refreshedHeadOid) {
+                throw new Error(`${ERR_API}: Could not resolve remote branch OID for ${branch} after concurrent creation; ls-remote output was ${JSON.stringify(refreshedOidOut)}`);
+              }
+              if (!OID_PATTERN.test(refreshedHeadOid)) {
+                throw new Error(`${ERR_API}: Invalid remote branch OID for ${branch} after concurrent creation; ls-remote output was ${JSON.stringify(refreshedOidOut)}`);
+              }
+              expectedHeadOid = refreshedHeadOid;
             } else {
               throw createRefError;
             }

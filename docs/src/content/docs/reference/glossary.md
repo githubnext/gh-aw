@@ -598,9 +598,9 @@ A human-friendly data format for configuration files using indentation and simpl
 
 A token authenticating you to GitHub's APIs with specific permissions. Required for GitHub Copilot CLI to access Copilot services. Created at github.com/settings/personal-access-tokens.
 
-### Agent Files
+### Skill Files
 
-Markdown files with YAML frontmatter stored in `.github/agents/` defining interactive Copilot Chat agents. Created by `gh aw init`, these files can be invoked with the `/agent` command in Copilot Chat to guide workflow creation, debugging, and updates. The `agentic-workflows` agent is a unified dispatcher routing requests to specialized prompts.
+Markdown files with YAML frontmatter stored in `.github/skills/` for repository-scoped Copilot Chat skills. Created by `gh aw init`, these files can be invoked by calling the skill in Copilot Chat to guide workflow creation, debugging, and updates. The `agentic-workflows` skill is a unified dispatcher routing requests to specialized prompts.
 
 ### Fine-grained Personal Access Token
 

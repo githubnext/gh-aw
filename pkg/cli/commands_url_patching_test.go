@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestPatchAgentFileURLs(t *testing.T) {
+func TestPatchSkillFileURLs(t *testing.T) {
 	tests := []struct {
 		name           string
 		content        string
@@ -55,7 +55,7 @@ Other content
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := patchAgentFileURLs(tt.content, tt.ref)
+			result := patchSkillFileURLs(tt.content, tt.ref)
 			if result != tt.expectedOutput {
 				t.Errorf("Expected:\n%s\n\nGot:\n%s", tt.expectedOutput, result)
 			}

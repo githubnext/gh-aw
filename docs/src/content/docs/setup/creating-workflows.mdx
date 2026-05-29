@@ -115,7 +115,7 @@ Initialize this repository for GitHub Agentic Workflows using https://raw.github
 
 This command:
 
-- Creates a **dispatcher agent** at `.github/agents/agentic-workflows.agent.md`, which registers the `agentic-workflows` custom agent in GitHub Copilot and enables workflow authoring via `/agent agentic-workflows` in Copilot Chat on github.com and the GitHub mobile app.
+- Creates a **dispatcher skill** at `.github/skills/agentic-workflows/SKILL.md`, which registers the `agentic-workflows` skill in GitHub Copilot and enables workflow authoring with the `agentic-workflows` skill in Copilot Chat on github.com and the GitHub mobile app.
 - Sets up **MCP server integration** so that Copilot has access to gh-aw tools when creating or editing workflows.
 - Updates `.gitattributes` to mark generated `.lock.yml` files correctly.
 - Configures **VS Code settings** for the best local authoring experience.
@@ -123,7 +123,7 @@ This command:
 Once initialized, you and your team can create and edit workflows by opening a Copilot Chat session on github.com or the GitHub app and running:
 
 ```text wrap
-/agent agentic-workflows Create a new workflow that...
+agentic-workflows Create a new workflow that...
 ```
 
 ## Manual Editing

@@ -16,6 +16,7 @@ const KNOWN_FILES_UPDATE = [".github/aw/actions-lock.json"];
  */
 const KNOWN_FILES_UPGRADE = [
   ".github/aw/actions-lock.json",
+  ".github/skills/agentic-workflows/SKILL.md",
   ".github/agents/agentic-workflows.agent.md",
   // Old agent files that may be deleted by deleteOldAgentFiles:
   ".github/agents/create-agentic-workflow.agent.md",

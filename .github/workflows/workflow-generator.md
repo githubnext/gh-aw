@@ -54,7 +54,7 @@ Your job is to:
    - Append clear instructions to the issue body for the agent that will pick it up
 
 2. **Assign to the Copilot coding agent** using the `assign-to-agent` safe output to hand off the workflow design work
-   - The Copilot coding agent will follow the agentic-workflows instructions from `.github/agents/agentic-workflows.agent.md`
+   - The Copilot coding agent will follow the agentic-workflows instructions from `.github/skills/agentic-workflows/SKILL.md`
    - The agent will parse the issue, design the workflow content, and create a PR with the `.md` workflow file
 
 ## Instructions to Append

@@ -388,3 +388,55 @@ func TestFindLatestPublishedReleaseTag(t *testing.T) {
 		})
 	}
 }
+
+func TestIsCurrentVersionAtLeastLatest(t *testing.T) {
+	tests := []struct {
+		name           string
+		currentVersion string
+		latestVersion  string
+		want           bool
+	}{
+		{
+			name:           "equal versions",
+			currentVersion: "v0.76.1",
+			latestVersion:  "v0.76.1",
+			want:           true,
+		},
+		{
+			name:           "equal versions without v prefix",
+			currentVersion: "0.76.1",
+			latestVersion:  "v0.76.1",
+			want:           true,
+		},
+		{
+			name:           "newer stable release than latest stable",
+			currentVersion: "v0.77.0",
+			latestVersion:  "v0.76.1",
+			want:           true,
+		},
+		{
+			name:           "newer prerelease than latest stable",
+			currentVersion: "v0.77.0-beta.1",
+			latestVersion:  "v0.76.1",
+			want:           true,
+		},
+		{
+			name:           "older prerelease than latest stable",
+			currentVersion: "v0.76.1-beta.1",
+			latestVersion:  "v0.76.1",
+			want:           false,
+		},
+		{
+			name:           "older stable release",
+			currentVersion: "v0.76.0",
+			latestVersion:  "v0.76.1",
+			want:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isCurrentVersionAtLeastLatest(tt.currentVersion, tt.latestVersion))
+		})
+	}
+}

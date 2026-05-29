@@ -215,6 +215,11 @@ func TestInitRepositoryBasic(t *testing.T) {
 	if _, err := os.Stat(setupStepsPath); os.IsNotExist(err) {
 		t.Error("Expected .github/workflows/copilot-setup-steps.yml to be created by default")
 	}
+
+	skillPath := filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")
+	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
+		t.Errorf("Expected dispatcher skill file to be created at %s", skillPath)
+	}
 }
 
 func TestInitRepositoryWithMCP(t *testing.T) {
@@ -335,8 +340,8 @@ func TestInitRepositoryWithNonCopilotEngineSkipsCopilotArtifacts(t *testing.T) {
 		t.Fatalf("InitRepository with --engine claude failed: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(".github", "agents", "agentic-workflows.agent.md")); err == nil {
-		t.Error("Expected dispatcher agent file to NOT be created for non-Copilot engine")
+	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")); err == nil {
+		t.Error("Expected dispatcher skill file to NOT be created for non-Copilot engine")
 	}
 	if _, err := os.Stat(mcpConfigFilePath); err == nil {
 		t.Error("Expected .github/mcp.json to NOT be created for non-Copilot engine")
@@ -346,6 +351,51 @@ func TestInitRepositoryWithNonCopilotEngineSkipsCopilotArtifacts(t *testing.T) {
 	}
 	if _, err := os.Stat(".gitattributes"); os.IsNotExist(err) {
 		t.Error("Expected .gitattributes to be created for non-Copilot engine")
+	}
+}
+
+func TestInitRepositoryRemovesLegacyDispatcherAgentFile(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	_ = exec.Command("git", "config", "user.name", "Test User").Run()
+	_ = exec.Command("git", "config", "user.email", "test@example.com").Run()
+
+	legacyPath := filepath.Join(".github", "agents", "agentic-workflows.agent.md")
+	if err := os.MkdirAll(filepath.Dir(legacyPath), 0755); err != nil {
+		t.Fatalf("Failed to create legacy agent directory: %v", err)
+	}
+	if err := os.WriteFile(legacyPath, []byte("legacy dispatcher"), 0644); err != nil {
+		t.Fatalf("Failed to create legacy agent file: %v", err)
+	}
+
+	err = InitRepository(InitOptions{Verbose: false, MCP: true, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
+	if err != nil {
+		t.Fatalf("InitRepository() failed: %v", err)
+	}
+
+	if _, err := os.Stat(legacyPath); !os.IsNotExist(err) {
+		t.Fatalf("Expected legacy dispatcher agent file to be removed, got err=%v", err)
+	}
+
+	skillPath := filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")
+	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
+		t.Fatalf("Expected dispatcher skill file to be created at %s", skillPath)
 	}
 }
 

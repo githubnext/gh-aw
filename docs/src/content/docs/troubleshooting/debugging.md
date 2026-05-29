@@ -8,13 +8,13 @@ sidebar:
 This guide shows you how to debug agentic workflow failures on **github.com** using the Copilot CLI, the `gh aw` debugging commands, and manual investigation techniques.
 
 > [!TIP]
-> The fastest path to a fix is to let an AI agent debug it for you. Launch the Copilot CLI, load the agentic-workflows agent, and paste the failing run URL.
+> The fastest path to a fix is to let an AI agent debug it for you. Launch the Copilot CLI, invoke the `agentic-workflows` skill, and paste the failing run URL.
 
 ## Debugging with the Copilot CLI
 
 The Copilot CLI is the recommended first step: it audits logs, traces failures, and suggests fixes interactively.
 
-Launch `copilot`, run `/agent` and select **agentic-workflows** to enable `gh aw audit`, `gh aw logs`, and related debugging tools. Then paste the failing run URL:
+Launch `copilot`, invoke **agentic-workflows** to enable `gh aw audit`, `gh aw logs`, and related debugging tools. Then paste the failing run URL:
 
 ```text
 Debug this workflow run: https://github.com/OWNER/REPO/actions/runs/RUN_ID
@@ -24,7 +24,7 @@ Copilot downloads the logs, identifies the root cause (missing tools, permission
 
 ### Alternative entry points
 
-- **Copilot Chat on GitHub.com** (requires [agentic authoring setup](/gh-aw/guides/agentic-authoring/)): `/agent agentic-workflows debug <run-url>`
+- **Copilot Chat on GitHub.com** (requires [agentic authoring setup](/gh-aw/guides/agentic-authoring/)): `agentic-workflows debug <run-url>`
 - **Any coding agent**: paste this prompt to install `gh aw` and run the standalone analysis:
 
   ```text

@@ -202,17 +202,17 @@ func runUpgradeCommand(opts upgradeOptions) error {
 		}
 	}
 
-	// Step 1: Update dispatcher agent file (like init command)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating agent file..."))
-	upgradeLog.Print("Updating agent file")
+	// Step 1: Update dispatcher skill and related Copilot artifacts (like init command)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating dispatcher skill..."))
+	upgradeLog.Print("Updating dispatcher skill")
 
-	if err := updateAgentFiles(opts.ctx, opts.verbose); err != nil {
-		upgradeLog.Printf("Failed to update agent file: %v", err)
-		return fmt.Errorf("failed to update agent file: %w", err)
+	if err := updateCopilotArtifacts(opts.ctx, opts.verbose); err != nil {
+		upgradeLog.Printf("Failed to update dispatcher skill: %v", err)
+		return fmt.Errorf("failed to update dispatcher skill: %w", err)
 	}
 
 	if opts.verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated agent file"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated dispatcher skill"))
 	}
 
 	// Step 2: Apply codemods to all workflows (unless --no-fix is specified)
@@ -347,12 +347,16 @@ func runUpgradeCommand(opts upgradeOptions) error {
 	return nil
 }
 
-// updateAgentFiles updates the dispatcher agent file to the latest template
-func updateAgentFiles(ctx context.Context, verbose bool) error {
-	// Update dispatcher agent
+// updateCopilotArtifacts updates the dispatcher skill and related Copilot setup artifacts.
+func updateCopilotArtifacts(ctx context.Context, verbose bool) error {
+	// Update dispatcher skill
 	if err := ensureAgenticWorkflowsDispatcher(verbose, false); err != nil {
-		upgradeLog.Printf("Failed to update dispatcher agent: %v", err)
-		return fmt.Errorf("failed to update dispatcher agent: %w", err)
+		upgradeLog.Printf("Failed to update dispatcher skill: %v", err)
+		return fmt.Errorf("failed to update dispatcher skill: %w", err)
+	}
+	if err := deleteLegacyAgentFiles(verbose); err != nil {
+		upgradeLog.Printf("Failed to delete legacy agent files: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to delete legacy agent files: %v", err)))
 	}
 
 	// Upgrade copilot-setup-steps.yml version
