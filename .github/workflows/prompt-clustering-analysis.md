@@ -35,7 +35,7 @@ imports:
   - shared/otlp.md
 cache:
   - key: prompt-clustering-cache-${{ github.run_id }}
-    name: Cache prompt clustering data
+    name: Save prompt clustering data to cache
     path: /tmp/gh-aw/agent/prompt-cache
     restore-keys: |
       prompt-clustering-cache-

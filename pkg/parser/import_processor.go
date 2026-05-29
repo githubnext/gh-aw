@@ -8,7 +8,10 @@
 //   - import_topological.go: Topological ordering
 package parser
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/types"
+)
 
 var importLog = logger.New("parser:import_processor")
 
@@ -71,15 +74,9 @@ type ImportsResult struct {
 
 // ImportInputDefinition defines an input parameter for a shared workflow import.
 // Uses the same schema as workflow_dispatch inputs.
-// NOTE: This type matches workflow.InputDefinition which is the canonical type for input parameters.
-// The parser package uses map[string]any for actual parsing to avoid circular dependencies.
-type ImportInputDefinition struct {
-	Description string   `yaml:"description,omitempty" json:"description,omitempty"`
-	Required    bool     `yaml:"required,omitempty" json:"required,omitempty"`
-	Default     any      `yaml:"default,omitempty" json:"default,omitempty"` // Can be string, number, or boolean (dynamic type from YAML)
-	Type        string   `yaml:"type,omitempty" json:"type,omitempty"`       // "string", "choice", "boolean", "number"
-	Options     []string `yaml:"options,omitempty" json:"options,omitempty"` // Options for choice type
-}
+// NOTE: The parser package still uses map[string]any for actual parsing to avoid prematurely
+// constraining dynamic YAML/JSON payloads during frontmatter extraction.
+type ImportInputDefinition = types.InputDefinition
 
 // ImportSpec represents a single import specification (either a string path or an object with path and inputs)
 type ImportSpec struct {

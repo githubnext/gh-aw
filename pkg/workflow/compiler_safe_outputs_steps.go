@@ -40,6 +40,19 @@ func buildExtractBaseBranchStep() []string {
 	}
 }
 
+// appendSparseCheckoutLines appends the "sparse-checkout" block lines to steps when
+// sparsePatterns is non-empty. Each pattern is trimmed of leading/trailing whitespace.
+func appendSparseCheckoutLines(steps []string, sparsePatterns []string) []string {
+	if len(sparsePatterns) == 0 {
+		return steps
+	}
+	steps = append(steps, "          sparse-checkout: |\n")
+	for _, pattern := range sparsePatterns {
+		steps = append(steps, fmt.Sprintf("            %s\n", strings.TrimSpace(pattern)))
+	}
+	return steps
+}
+
 // buildSharedPRCheckoutSteps builds checkout and git configuration steps that are shared
 // between create-pull-request and push-to-pull-request-branch operations.
 // These steps are added once with a combined condition to avoid duplication.
@@ -180,12 +193,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
 		steps = append(steps, "          persist-credentials: false\n")
 		steps = append(steps, fmt.Sprintf("          fetch-depth: %d\n", fetchDepth))
-		if len(sparsePatterns) > 0 {
-			steps = append(steps, "          sparse-checkout: |\n")
-			for _, pattern := range sparsePatterns {
-				steps = append(steps, fmt.Sprintf("            %s\n", strings.TrimSpace(pattern)))
-			}
-		}
+		steps = appendSparseCheckoutLines(steps, sparsePatterns)
 	}
 
 	// Step 1b: Checkout repository with conditional execution
@@ -209,12 +217,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
 	steps = append(steps, "          persist-credentials: false\n")
 	steps = append(steps, fmt.Sprintf("          fetch-depth: %d\n", fetchDepth))
-	if len(sparsePatterns) > 0 {
-		steps = append(steps, "          sparse-checkout: |\n")
-		for _, pattern := range sparsePatterns {
-			steps = append(steps, fmt.Sprintf("            %s\n", strings.TrimSpace(pattern)))
-		}
-	}
+	steps = appendSparseCheckoutLines(steps, sparsePatterns)
 
 	// Step 2: Configure Git credentials with conditional execution
 	// Security: Pass GitHub token through environment variable to prevent template injection

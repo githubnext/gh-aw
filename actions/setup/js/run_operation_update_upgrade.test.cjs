@@ -296,7 +296,7 @@ describe("run_operation_update_upgrade", () => {
       const getExecOutputMock = vi.fn();
       // git diff --cached --name-only
       getExecOutputMock.mockResolvedValueOnce({
-        stdout: ".github/agents/agentic-workflows.agent.md\n",
+        stdout: ".github/skills/agentic-workflows/SKILL.md\n",
         stderr: "",
         exitCode: 0,
       });
@@ -313,8 +313,9 @@ describe("run_operation_update_upgrade", () => {
 
       // Verify gh aw upgrade was run
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "upgrade"]);
-      // Verify known upgrade files were staged (including agent file)
+      // Verify known upgrade files were staged (including skill and legacy agent file)
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/actions-lock.json"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/skills/agentic-workflows/SKILL.md"]);
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/agents/agentic-workflows.agent.md"]);
       // Verify correct commit message
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "chore: upgrade agentic workflows"]);

@@ -599,6 +599,158 @@ describe("push_signed_commits integration tests", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("not yet on the remote"));
     });
 
+    it("should ignore an injected baseRef boundary commit in rev-list output", async () => {
+      execGit(["checkout", "-b", "new-boundary-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "boundary-file.txt"), "Boundary file content\n");
+      execGit(["add", "boundary-file.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add boundary-file.txt"], { cwd: workDir });
+
+      const baseRefOid = execGit(["rev-parse", "origin/main"], { cwd: workDir }).stdout.trim();
+      const newCommitOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+
+      const realExec = makeRealExec(workDir);
+      global.exec = {
+        ...realExec,
+        getExecOutput: vi.fn(async (program, args, opts = {}) => {
+          if (program === "git" && args[0] === "rev-list" && args[1] === "--parents") {
+            return {
+              exitCode: 0,
+              stdout: `${baseRefOid}\n${newCommitOid} ${baseRefOid}\n`,
+              stderr: "",
+            };
+          }
+          return realExec.getExecOutput(program, args, opts);
+        }),
+      };
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "new-boundary-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledTimes(1);
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        ref: "refs/heads/new-boundary-branch",
+        sha: baseRefOid,
+      });
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const callArg = githubClient.graphql.mock.calls[0][1].input;
+      expect(callArg.message.headline).toBe("Add boundary-file.txt");
+      expect(callArg.expectedHeadOid).toBe(baseRefOid);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("baseRef boundary commit(s)"));
+    });
+
+    it("should drop injected baseRef boundary entries and replay only new commits in order", async () => {
+      execGit(["checkout", "-b", "new-boundary-multi-branch"], { cwd: workDir });
+
+      fs.writeFileSync(path.join(workDir, "boundary-alpha.txt"), "Alpha boundary content\n");
+      execGit(["add", "boundary-alpha.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add boundary-alpha.txt"], { cwd: workDir });
+
+      fs.writeFileSync(path.join(workDir, "boundary-beta.txt"), "Beta boundary content\n");
+      execGit(["add", "boundary-beta.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add boundary-beta.txt"], { cwd: workDir });
+
+      const baseRefOid = execGit(["rev-parse", "origin/main"], { cwd: workDir }).stdout.trim();
+      const alphaCommitOid = execGit(["rev-parse", "HEAD~1"], { cwd: workDir }).stdout.trim();
+      const betaCommitOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+
+      const realExec = makeRealExec(workDir);
+      global.exec = {
+        ...realExec,
+        getExecOutput: vi.fn(async (program, args, opts = {}) => {
+          if (program === "git" && args[0] === "rev-list" && args[1] === "--parents") {
+            return {
+              exitCode: 0,
+              stdout: `${baseRefOid}\n${alphaCommitOid} ${baseRefOid}\n${betaCommitOid} ${alphaCommitOid}\n`,
+              stderr: "",
+            };
+          }
+          return realExec.getExecOutput(program, args, opts);
+        }),
+      };
+      const githubClient = makeMockGithubClient({ oid: "signed-oid-first" });
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "new-boundary-multi-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledTimes(1);
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        ref: "refs/heads/new-boundary-multi-branch",
+        sha: baseRefOid,
+      });
+      expect(githubClient.graphql).toHaveBeenCalledTimes(2);
+      expect(githubClient.graphql.mock.calls[0][1].input.expectedHeadOid).toBe(baseRefOid);
+      expect(githubClient.graphql.mock.calls[1][1].input.expectedHeadOid).toBe("signed-oid-first");
+      const committedHeadlines = githubClient.graphql.mock.calls.map(call => call[1].input.message.headline);
+      expect(committedHeadlines).toEqual(["Add boundary-alpha.txt", "Add boundary-beta.txt"]);
+
+      const attemptedBoundaryParentResolution = global.exec.getExecOutput.mock.calls.some(([program, args]) => program === "git" && args[0] === "rev-parse" && args[1] === `${baseRefOid}^`);
+      expect(attemptedBoundaryParentResolution).toBe(false);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("dropped 1 baseRef boundary commit"));
+    });
+
+    it("should fall back to per-commit parent resolution when baseRef OID resolution fails", async () => {
+      execGit(["checkout", "-b", "new-base-ref-failure-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "fallback-file.txt"), "Fallback content\n");
+      execGit(["add", "fallback-file.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add fallback-file.txt"], { cwd: workDir });
+
+      const newCommitOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+      const expectedParentOid = execGit(["rev-parse", "HEAD^"], { cwd: workDir }).stdout.trim();
+
+      const realExec = makeRealExec(workDir);
+      global.exec = {
+        ...realExec,
+        getExecOutput: vi.fn(async (program, args, opts = {}) => {
+          if (program === "git" && args[0] === "rev-parse" && args[1] === "origin/main^{commit}") {
+            throw new Error("simulated rev-parse failure");
+          }
+          return realExec.getExecOutput(program, args, opts);
+        }),
+      };
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "new-base-ref-failure-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("boundary-commit filter is disabled for this run"));
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledTimes(1);
+      expect(githubClient.rest.git.createRef).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        ref: "refs/heads/new-base-ref-failure-branch",
+        sha: expectedParentOid,
+      });
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      expect(githubClient.graphql.mock.calls[0][1].input.message.headline).toBe("Add fallback-file.txt");
+      expect(githubClient.graphql.mock.calls[0][1].input.expectedHeadOid).toBe(expectedParentOid);
+
+      const hasPerCommitParentCall = global.exec.getExecOutput.mock.calls.some(([program, args]) => program === "git" && args[0] === "rev-parse" && args[1] === `${newCommitOid}^`);
+      expect(hasPerCommitParentCall).toBe(true);
+    });
+
     it("should create remote branch once then chain GraphQL OIDs for multiple commits on a new branch", async () => {
       // Create a local branch with two commits but do NOT push it
       execGit(["checkout", "-b", "new-multi-commit-branch"], { cwd: workDir });
@@ -657,7 +809,21 @@ describe("push_signed_commits integration tests", () => {
 
       const expectedParentOid = execGit(["rev-parse", "HEAD^"], { cwd: workDir }).stdout.trim();
 
-      global.exec = makeRealExec(workDir);
+      const realExec = makeRealExec(workDir);
+      let lsRemoteCallCount = 0;
+      global.exec = {
+        ...realExec,
+        getExecOutput: vi.fn(async (program, args, opts = {}) => {
+          if (program === "git" && args[0] === "ls-remote" && args[2] === "refs/heads/race-condition-branch") {
+            lsRemoteCallCount += 1;
+            if (lsRemoteCallCount === 1) {
+              return { exitCode: 0, stdout: "", stderr: "" };
+            }
+            return { exitCode: 0, stdout: `${expectedParentOid}\trefs/heads/race-condition-branch\n`, stderr: "" };
+          }
+          return realExec.getExecOutput(program, args, opts);
+        }),
+      };
 
       // Simulate concurrent branch creation: createRef throws 422 (GitHub API exact format)
       const concurrentError = Object.assign(new Error("Reference refs/heads/race-condition-branch already exists"), { status: 422 });

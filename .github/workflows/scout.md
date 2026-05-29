@@ -33,7 +33,6 @@ imports:
   - shared/mcp/microsoft-docs.md
   - shared/mcp/deepwiki.md
   - shared/mcp/markitdown.md
-  - ../skills/jqschema/SKILL.md
   - shared/otlp.md
 tools:
   cli-proxy: true
@@ -97,12 +96,15 @@ If `Git History Mode` is `shallow` (or empty), keep default shallow history unle
 ## Research Process
 
 ### 1. Context Analysis
-- Read the issue/PR title and body to understand the topic
+- Read the issue/PR title and body to understand the topic — use `gh issue view <number> --repo <repo> --json title,body --jq '{title, body: .body[0:3000]}'` for initial context
+- If comments are needed, fetch only the first 5: `gh api repos/<repo>/issues/<number>/comments --jq '.[0:5][] | {author: .user.login, body: .body[0:500]}'`
+- Do not reload the same issue or PR more than once during a run
 - Analyze the triggering comment to understand the specific research request
 - Identify key topics, questions, or problems that need investigation
 
 ### 2. Research Strategy
 - Formulate targeted search queries based on the context
+- Always add `--jq` filters to issue/PR API reads. Keep body fields to `body[0:3000]`. Never use raw `head` on API output — add the right `--jq` filter instead
 - Use available research tools to find:
   - **Tavily**: Web search for technical documentation, best practices, recent developments
   - **DeepWiki**: GitHub repository documentation and Q&A for specific projects
@@ -137,6 +139,7 @@ Create a comprehensive research summary that includes:
 - **Be Actionable**: Focus on practical insights that can be applied to the issue/PR
 - **Cite Sources**: Include links to important references and documentation
 - **Report Null Results**: If searches yield no relevant results, explain what was searched and why nothing was found
+- **Fetch External Content Once**: When fetching external GitHub content (e.g., files from other repos via `gh api`), save to a temp file in one step and read from it — never fetch the same URL more than once. Use this pattern: `gh api <path> --jq '.content' | base64 -d > /tmp/gh-aw/agent/<name>.md && head -200 /tmp/gh-aw/agent/<name>.md` (adjust line count for large files)
 
 ## Output Format
 

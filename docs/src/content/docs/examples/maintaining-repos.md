@@ -157,7 +157,7 @@ copilot
 Inside the CLI:
 
 ```text
-/agent agentic-workflows
+agentic-workflows
 
 Debug this run: https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
@@ -167,7 +167,7 @@ The agent loads the `debug-agentic-workflow` prompt, audits the run, and explain
 On GitHub.com with [agentic authoring configured](/gh-aw/guides/agentic-authoring/):
 
 ```text
-/agent agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
+agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
 ### Manual Debugging with CLI Commands
@@ -211,7 +211,7 @@ gh aw audit BASELINE_ID CURRENT_ID
 
 1. Check the workflow run summary in the GitHub Actions UI.
 2. Run `gh aw audit RUN_ID` for a structured breakdown.
-3. For complex issues, use `/agent agentic-workflows` in Copilot Chat.
+3. For complex issues, use the `agentic-workflows` skill in Copilot Chat.
 4. Edit the `.md` file → run `gh aw compile` to validate → trigger a new run.
 5. Compare the new run against the baseline with `gh aw audit BASELINE_ID NEW_ID`.
 

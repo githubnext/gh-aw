@@ -48,7 +48,7 @@ Run the upgrade command from your repository root:
 gh aw upgrade
 ```
 
-This updates `.github/agents/agentic-workflows.agent.md` to the latest template, applies codemods to fix deprecated fields in all workflow files (`.github/workflows/*.md`), and recompiles all workflows to regenerate `.lock.yml` files. Use `--no-fix` to skip codemods and compilation, `-v` for verbose output, or `--dir` to target a custom workflows directory.
+This updates `.github/skills/agentic-workflows/SKILL.md` to the latest template, applies codemods to fix deprecated fields in all workflow files (`.github/workflows/*.md`), and recompiles all workflows to regenerate `.lock.yml` files. Use `--no-fix` to skip codemods and compilation, `-v` for verbose output, or `--dir` to target a custom workflows directory.
 
 ## Step 3: Review the Changes
 
@@ -59,7 +59,7 @@ Run `git diff .github/workflows/` to verify the changes. Typical migrations incl
 Stage and commit your changes:
 
 ```bash wrap
-git add .github/workflows/ .github/agents/
+git add .github/workflows/ .github/skills/
 git commit -m "Upgrade agentic workflows to latest version"
 git push origin main
 ```

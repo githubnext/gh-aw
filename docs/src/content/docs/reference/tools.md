@@ -138,9 +138,11 @@ tools:
 With CLI mounting enabled, MCP servers accessible to the workflow (such as `safeoutputs` and `mcpscripts`) are wrapped as executable commands. For example:
 
 ```bash
-safeoutputs add_comment --issue_number 42 --body "Analysis complete"
+safeoutputs add_comment --item_number 42 --body "Analysis complete"
 mcpscripts mcpscripts-gh --args "issue list --limit 5"
 ```
+
+The safe-output `add_comment` tool uses `--item_number` (not `--issue_number`) to target the issue or pull request — passing `--issue_number` is silently stripped by schema validation.
 
 The MCP gateway configuration is unchanged — servers still start as normal. Only the agent's view changes: servers registered for CLI mounting are removed from the MCP tool list and accessed via shell instead.
 

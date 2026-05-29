@@ -291,12 +291,13 @@ function autoCopyToStaging(reqPath) {
  * @returns {{ files: string[], error: string|null }}
  */
 function resolveFiles(request, allowedPaths, defaultInclude, defaultExclude) {
-  const hasMutuallyExclusive = ("path" in request ? 1 : 0) + ("filters" in request ? 1 : 0);
-  if (hasMutuallyExclusive !== 1) {
+  const hasPath = "path" in request;
+  const hasFilters = "filters" in request;
+  if (hasPath === hasFilters) {
     return { files: [], error: "exactly one of 'path' or 'filters' must be present" };
   }
 
-  /** @type {string[]} candidateRelPaths */
+  /** @type {string[]} */
   let candidateRelPaths;
 
   if ("path" in request) {
@@ -354,11 +355,7 @@ function resolveFiles(request, allowedPaths, defaultInclude, defaultExclude) {
     const include = /** @type {string[]} */ requestFilters.include || defaultInclude;
     const exclude = /** @type {string[]} */ requestFilters.exclude || defaultExclude;
 
-    candidateRelPaths = allFiles.filter(f => {
-      if (include.length > 0 && !matchesAnyPattern(f, include)) return false;
-      if (exclude.length > 0 && matchesAnyPattern(f, exclude)) return false;
-      return true;
-    });
+    candidateRelPaths = allFiles.filter(f => (include.length === 0 || matchesAnyPattern(f, include)) && (exclude.length === 0 || !matchesAnyPattern(f, exclude)));
   }
 
   // Apply allowed-paths policy filter.

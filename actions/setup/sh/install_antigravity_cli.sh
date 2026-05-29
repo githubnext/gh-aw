@@ -12,6 +12,8 @@ set +o histexpand
 #
 # Security features:
 #   - Downloads binary directly from Google Cloud Storage over HTTPS
+#   - Verifies SHA256 checksum against official checksums.txt before installation
+#   - Fails fast if checksum verification fails
 #   - Fails fast on any curl errors
 
 set -euo pipefail
@@ -51,16 +53,55 @@ case "$OS" in
 esac
 
 TARBALL_URL="${GCS_BASE_URL}/${VERSION}/${ARCH_DIR}/${TARBALL_NAME}"
+CHECKSUMS_URL="${GCS_BASE_URL}/${VERSION}/checksums.txt"
 
 echo "Installing Antigravity CLI version ${VERSION} (os: ${OS}, arch: ${ARCH})..."
-echo "Downloading from ${TARBALL_URL}..."
+
+# Platform-portable SHA256 function
+sha256_hash() {
+  local file="$1"
+  if command -v sha256sum &>/dev/null; then
+    sha256sum "$file" | awk '{print $1}'
+  elif command -v shasum &>/dev/null; then
+    shasum -a 256 "$file" | awk '{print $1}'
+  else
+    echo "ERROR: No sha256sum or shasum found" >&2
+    exit 1
+  fi
+}
 
 # Create temp directory with cleanup on exit
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
+# Download checksums file from GCS
+echo "Downloading checksums from ${CHECKSUMS_URL}..."
+curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"
+
 # Download binary tarball from GCS over HTTPS
+echo "Downloading from ${TARBALL_URL}..."
 curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"
+
+# Verify SHA256 checksum before extracting
+echo "Verifying SHA256 checksum for ${TARBALL_NAME}..."
+EXPECTED_CHECKSUM=$(awk -v fname="${TARBALL_NAME}" '$2 == fname {print $1; exit}' "${TEMP_DIR}/checksums.txt" | tr 'A-F' 'a-f')
+
+if [ -z "$EXPECTED_CHECKSUM" ]; then
+  echo "ERROR: Could not find checksum for ${TARBALL_NAME} in checksums.txt"
+  exit 1
+fi
+
+ACTUAL_CHECKSUM=$(sha256_hash "${TEMP_DIR}/${TARBALL_NAME}" | tr 'A-F' 'a-f')
+
+if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then
+  echo "ERROR: Checksum verification failed!"
+  echo "  Expected: $EXPECTED_CHECKSUM"
+  echo "  Got:      $ACTUAL_CHECKSUM"
+  echo "  The downloaded file may be corrupted or tampered with"
+  exit 1
+fi
+
+echo "✓ Checksum verification passed for ${TARBALL_NAME}"
 
 # Extract and install binary
 echo "Installing binary to ${INSTALL_DIR}/${BINARY_NAME}..."

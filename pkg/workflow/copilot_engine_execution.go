@@ -47,6 +47,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Build copilot CLI arguments based on configuration
 	var copilotArgs []string
 	sandboxEnabled := isFirewallEnabled(workflowData)
+	// isBYOKMode is true when the user has set COPILOT_PROVIDER_BASE_URL in engine.env,
+	// which routes Copilot requests to a non-GitHub provider. In that mode the GitHub
+	// identity token (COPILOT_GITHUB_TOKEN) must NOT be injected into the step env:
+	// forwarding it to a third-party host would be a credential leak.
+	isBYOKMode := engineEnvHasKey(workflowData, constants.CopilotProviderBaseURL)
 	if sandboxEnabled {
 		// Simplified args for sandbox mode (AWF)
 		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--log-dir", logsFolder}
@@ -274,6 +279,14 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		if customCommandScriptSetup != "" {
 			pathSetup = customCommandScriptSetup + "\n" + pathSetup
 		}
+		// Build the list of core secret var names to hide from the agent shell tools.
+		// In BYOK mode COPILOT_GITHUB_TOKEN is not injected into the step env at all,
+		// so there is nothing to exclude. Excluding it unconditionally would produce
+		// spurious --exclude-env flags when the token is absent.
+		var copilotCoreSecrets []string
+		if !isBYOKMode {
+			copilotCoreSecrets = []string{"COPILOT_GITHUB_TOKEN"}
+		}
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "copilot",
 			EngineCommand:  engineCommand,
@@ -295,7 +308,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			PathSetup: pathSetup,
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"COPILOT_GITHUB_TOKEN"}),
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, copilotCoreSecrets),
 		})
 	} else {
 		// Run copilot command without AWF wrapper.
@@ -311,14 +324,19 @@ touch %s
 %s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, preCommandSetup, copilotCommand, logFile)
 	}
 
-	// Use COPILOT_GITHUB_TOKEN: when the copilot-requests feature is enabled, use the GitHub
-	// Actions token directly (${{ github.token }}). Otherwise use the COPILOT_GITHUB_TOKEN secret.
+	// COPILOT_GITHUB_TOKEN injection: in BYOK mode (COPILOT_PROVIDER_BASE_URL set), skip
+	// this entirely. The request goes to a third-party provider; forwarding the GitHub
+	// identity token would be a credential leak. The token is only needed for GitHub's
+	// own Copilot backend. When not in BYOK mode, use the GitHub Actions token when the
+	// copilot-requests feature is enabled, otherwise use the COPILOT_GITHUB_TOKEN secret.
 	// #nosec G101 -- These are NOT hardcoded credentials. They are GitHub Actions expression templates
 	// that the runtime replaces with actual values. The strings "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 	// and "${{ github.token }}" are placeholders, not actual credentials.
 	var copilotGitHubToken string
 	useCopilotRequests := isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData)
-	if useCopilotRequests {
+	if isBYOKMode {
+		copilotExecLog.Print("Skipping COPILOT_GITHUB_TOKEN injection: BYOK mode active (COPILOT_PROVIDER_BASE_URL is set)")
+	} else if useCopilotRequests {
 		copilotGitHubToken = "${{ github.token }}"
 		copilotExecLog.Print("Using GitHub Actions token as COPILOT_GITHUB_TOKEN (copilot-requests feature enabled)")
 	} else {
@@ -328,7 +346,6 @@ touch %s
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
 		"COPILOT_AGENT_RUNNER_TYPE": "STANDALONE",
-		"COPILOT_GITHUB_TOKEN":      copilotGitHubToken,
 		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
 		// The runner's original path is unreachable within the AWF isolated filesystem;
 		// we create this file before the agent starts and append it to the real
@@ -343,6 +360,12 @@ touch %s
 		// server URL (e.g. https://COMPANY.ghe.com and https://COMPANY.ghe.com/api/v3).
 		"GITHUB_SERVER_URL": "${{ github.server_url }}",
 		"GITHUB_API_URL":    "${{ github.api_url }}",
+	}
+	// Inject the GitHub token only when not in BYOK mode. The engine.env merge that
+	// happens later (maps.Copy(env, workflowData.EngineConfig.Env)) can still override
+	// or nullify this if the user explicitly sets COPILOT_GITHUB_TOKEN in engine.env.
+	if !isBYOKMode {
+		env["COPILOT_GITHUB_TOKEN"] = copilotGitHubToken
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 

@@ -1,19 +1,19 @@
 ---
-title: Copilot Agent Files support for Agentic Workflows
-description: How to create, update, import, and debug agentic workflows using our AI agent.
+title: Copilot Skills support for Agentic Workflows
+description: How to create, update, import, and debug agentic workflows using our AI skill.
 sidebar:
   order: 1
 ---
 
 import CopyEntireFileButton from '../../../components/CopyEntireFileButton.astro';
 
-"Custom Agents" are added prompts that can be used with Copilot, Copilot CLI and VSCode Agent Mode to provide specialized behavior for specific tasks.
+"Custom Skills" are added prompts that can be used with Copilot, Copilot CLI and VSCode Agent Mode to provide specialized behavior for specific tasks.
 
-In this guide, we show you how to install and use the custom agent `agentic-workflows` to create, update, import, and debug agentic workflows in your repository.
+In this guide, we show you how to install and use the `agentic-workflows` skill to create, update, import, and debug agentic workflows in your repository.
 
-## Installing the Copilot Agent Files for Agentic Workflows
+## Installing the Copilot Skill Files for Agentic Workflows
 
-Follow these steps to set up your repository for agentic workflows using the custom `agentic-workflows` agent.
+Follow these steps to set up your repository for agentic workflows using the custom `agentic-workflows` skill.
 
 1. **Start your coding agent**.
 
@@ -21,7 +21,7 @@ Follow these steps to set up your repository for agentic workflows using the cus
    - Start [VSCode Agent Mode](https://code.visualstudio.com/docs/copilot/agents/overview), or
    - Start your coding agent in your repository
 
-2. **Install the Copilot Agent Files for Agentic Workflows into your repository**. 
+2. **Install the Copilot Skill Files for Agentic Workflows into your repository**. 
 
    ```text wrap
    Initialize this repository for GitHub Agentic Workflows using https://github.com/github/gh-aw/blob/main/install.md
@@ -33,11 +33,11 @@ Alternatively just run
 gh aw init
 ```
 
-After initialization, you'll have `.github/agents/agentic-workflows.agent.md`, a [Copilot agent file](/gh-aw/reference/glossary/#agent-files) that registers the `/agent agentic-workflows` command in Copilot Chat.
+After initialization, you'll have `.github/skills/agentic-workflows/SKILL.md`, a Copilot skill file that registers the `agentic-workflows` skill in Copilot Chat.
 
-## Using the Copilot Agent Files for Agentic Workflows
+## Using the Copilot Skill Files for Agentic Workflows
 
-Once your repository is set up for agentic workflows, you can use the `agentic-workflows` agent from VSCode or GitHub.com to perform a variety of tasks:
+Once your repository is set up for agentic workflows, you can use the `agentic-workflows` skill from VSCode or GitHub.com to perform a variety of tasks:
 
 ### Creating New Agentic Workflows
 
@@ -45,17 +45,17 @@ Navigate to your repository on https://github.com and click the "Agents" tab, th
 
 ```text wrap
 # Create a new workflow
-/agent agentic-workflows create a workflow that triages issues
+agentic-workflows create a workflow that triages issues
 ```
 
-The agent will generate a workflow file in `.github/workflows/`, write the frontmatter and prompt, configure tools and permissions, and compile to `.lock.yml`.
+The skill will generate a workflow file in `.github/workflows/`, write the frontmatter and prompt, configure tools and permissions, and compile to `.lock.yml`.
 
 ### Updating Existing Workflows
 
 Modify or improve existing workflows using natural language prompts:
 
 ```text wrap
-/agent agentic-workflows update the issue-triage workflow to add web-fetch tool and
+agentic-workflows update the issue-triage workflow to add web-fetch tool and
   improve the prompt for better accuracy
 ```
 
@@ -64,7 +64,7 @@ Modify or improve existing workflows using natural language prompts:
 Keep workflows up-to-date with the latest `gh-aw` versions and features:
 
 ```text wrap
-/agent agentic-workflows upgrade all workflows to latest version
+agentic-workflows upgrade all workflows to latest version
 ```
 
 ### Importing Workflows
@@ -72,27 +72,27 @@ Keep workflows up-to-date with the latest `gh-aw` versions and features:
 Import workflows from any accessible GitHub repository:
 
 ```text wrap
-/agent agentic-workflows import workflow from https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
+agentic-workflows import workflow from https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
 ```
 
 When importing, you can specify customizations such as engine or tools:
 
 ```text wrap
-/agent agentic-workflows import issue-triage from githubnext/agentics and use claude engine
+agentic-workflows import issue-triage from githubnext/agentics and use claude engine
 ```
 
 ### Debugging Agentic Workflows
 
-When workflows fail or behave unexpectedly, use the agentic-workflows agent to investigate and diagnose issues:
+When workflows fail or behave unexpectedly, use the agentic-workflows skill to investigate and diagnose issues:
 
 ```text wrap
-/agent agentic-workflows debug why is my issue-triage workflow failing?
+agentic-workflows debug why is my issue-triage workflow failing?
 ```
 
 For the fastest diagnosis, pass the full run URL from the GitHub Actions page:
 
 ```text wrap
-/agent agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
+agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
 The agent audits logs, identifies the root cause, and suggests targeted fixes. It handles permission errors, missing tools, network access issues, and safe-output problems — just describe the issue in natural language.
@@ -122,4 +122,3 @@ Copy the instructions into your AI chat interface, describe your workflow goal, 
 When creating agentic workflows using speech-to-text (dictation), you may encounter terminology mismatches and formatting issues common to voice recognition systems. To help correct these issues, use the [dictation instructions prompt](https://raw.githubusercontent.com/github/gh-aw/main/DICTATION.md) or <CopyEntireFileButton filePath="https://raw.githubusercontent.com/github/gh-aw/main/DICTATION.md" label="Copy dictation instructions" />.
 
 This prompt corrects terminology (e.g., "ghaw" → "gh-aw"), removes filler words, and transforms dictated sentences into clear, imperative task descriptions. Load it into your AI assistant before or after dictating to improve accuracy.
-

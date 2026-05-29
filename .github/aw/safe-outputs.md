@@ -140,10 +140,10 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
   {"type": "add_comment", "body": "Thread reply text", "reply_to_id": 12345}
   ```
 
-- `comment-memory:` - Persist and update a managed memory comment on the triggering issue/PR
+- `comment-memory:` - Persist and update a managed memory comment on the triggering issue/PR. **Configured under `tools:`, not `safe-outputs:`.**
 
   ```yaml
-  safe-outputs:
+  tools:
     comment-memory:
       max: 1                          # Optional: max comment_memory updates (default: 1, range: 1-100)
       target: "triggering"            # Optional: "triggering" (default), "*", or explicit issue/PR number
@@ -153,7 +153,7 @@ Safe outputs are the primary mechanism for write operations in agentic workflows
       allowed-repos: [owner/other]    # Optional: additional repos agent can target
   ```
 
-  Boolean shorthand: `comment-memory: true` enables defaults; `false` or `null` disables. The handler materializes memory content to files before agent execution and synchronizes edits back to a single managed comment on the issue/PR after execution, providing durable cross-run state without external storage.
+  Boolean shorthand: `comment-memory: true` enables defaults; `false` or `null` disables. The handler materializes memory content to files before agent execution and synchronizes edits back to a single managed comment on the issue/PR after execution, providing durable cross-run state without external storage. See [memory.md](memory.md) for full details.
 
 - `create-pull-request:` - Safe pull request creation with git patches
 

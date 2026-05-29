@@ -178,14 +178,14 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 		}
 	}
 
-	// Update prompt and agent files (similar to init command)
+	// Update prompt and skill files (similar to init command)
 	// This ensures the latest templates are always used
-	fixLog.Print("Updating prompt and agent files")
+	fixLog.Print("Updating prompt and skill files")
 
-	// Update dispatcher agent
+	// Update dispatcher skill
 	if err := ensureAgenticWorkflowsDispatcher(verbose, false); err != nil {
-		fixLog.Printf("Failed to update dispatcher agent: %v", err)
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update dispatcher agent: %v", err)))
+		fixLog.Printf("Failed to update dispatcher skill: %v", err)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update dispatcher skill: %v", err)))
 	}
 
 	// Delete old template files from pkg/cli/templates/ (only with --write)
@@ -200,7 +200,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 	// Delete old agent files if write flag is set
 	if write {
 		fixLog.Print("Deleting old agent files")
-		if err := deleteOldAgentFiles(verbose); err != nil {
+		if err := deleteLegacyAgentFiles(verbose); err != nil {
 			fixLog.Printf("Failed to delete old agent files: %v", err)
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to delete old agent files: %v", err)))
 		}

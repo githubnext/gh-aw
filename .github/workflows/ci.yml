@@ -1603,7 +1603,7 @@ jobs:
       run: go mod download
 
     - name: Run redirect resolution tests
-      run: go test -v -run TestResolveAddWorkflowSpecAndContent -timeout 5m -coverprofile=coverage-redirect-${{ matrix.os }}.out ./pkg/cli/...
+      run: go test -v -run TestResolveAddWorkflowSpecAndContent -timeout 5m "-coverprofile=coverage-redirect-${{ matrix.os }}.out" ./pkg/cli/...
       shell: pwsh
 
     - name: Convert redirect test coverage to Cobertura

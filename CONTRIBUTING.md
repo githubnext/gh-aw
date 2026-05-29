@@ -172,7 +172,7 @@ For workflow failures, use this prompt with your agent:
 Please debug this workflow failure:
 https://github.com/owner/repo/actions/runs/RUN_ID
 
-Load [https://github.com/github/gh-aw/.github/agents/agentic-workflows.agent.md and](https://github.com/github/gh-aw/blob/main/.github/agents/agentic-workflows.agent.md) investigate:
+Load [https://github.com/github/gh-aw/.github/skills/agentic-workflows/SKILL.md](https://github.com/github/gh-aw/blob/main/.github/skills/agentic-workflows/SKILL.md) and investigate:
 - Why the workflow failed
 - What tools were missing
 - How to fix the configuration

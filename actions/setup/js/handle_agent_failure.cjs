@@ -19,6 +19,9 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = 24 * 7;
+const FAILURE_ISSUE_DEDUP_WINDOW_HOURS = 24;
+const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 5;
+const FAILURE_ISSUE_WINDOW_MS = FAILURE_ISSUE_DEDUP_WINDOW_HOURS * 60 * 60 * 1000;
 const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
 // Engine-side 429/rate-limit signatures:
 // - HTTP 429 accompanied by "too many requests"/"rate limit" phrasing
@@ -201,8 +204,6 @@ function generateFailureMatchMarker(options) {
  * @param {string} body - Existing issue body
  * @param {Object} options - Match criteria
  * @param {string} options.workflowId - Workflow identifier
- * @param {string} options.branch - Triggering branch
- * @param {number|undefined} options.pullRequestNumber - Triggering pull request number
  * @param {string[]} options.failureCategories - Sorted failure categories
  * @returns {boolean} True when the issue body matches and is not expired
  */
@@ -229,16 +230,22 @@ function isReusableFailureIssue(body, options) {
   if ((failureMarker.workflow_id || "") !== options.workflowId) {
     return false;
   }
-  if ((failureMarker.branch || "") !== (options.branch || "")) {
-    return false;
-  }
-
-  const expectedPullRequest = options.pullRequestNumber ? String(options.pullRequestNumber) : "";
-  if ((failureMarker.pull_request || "") !== expectedPullRequest) {
-    return false;
-  }
 
   return (failureMarker.failure_categories || "") === options.failureCategories.join("|");
+}
+
+/**
+ * Determine whether an issue timestamp falls within the active dedup/throttle window.
+ * @param {string|undefined} createdAt - Issue created_at timestamp
+ * @param {number} windowStartMs - Inclusive lower bound as Unix ms
+ * @returns {boolean} True when timestamp is missing or within the window
+ */
+function isIssueWithinWindow(createdAt, windowStartMs) {
+  if (!createdAt) {
+    return true;
+  }
+  const createdMs = Date.parse(createdAt);
+  return Number.isFinite(createdMs) && createdMs >= windowStartMs;
 }
 
 /**
@@ -262,15 +269,15 @@ function escapeGitHubSearchPhrase(value) {
  * @param {string} options.owner - Repository owner
  * @param {string} options.repo - Repository name
  * @param {string} options.workflowId - Workflow identifier
- * @param {string} options.branch - Triggering branch
- * @param {number|undefined} options.pullRequestNumber - Triggering pull request number
  * @param {string[]} options.failureCategories - Sorted failure categories
  * @returns {Promise<{number: number, html_url: string} | null>} Matching issue or null
  */
 async function findExistingFailureIssue(options) {
-  const { owner, repo, workflowId, branch, pullRequestNumber, failureCategories } = options;
+  const { owner, repo, workflowId, failureCategories } = options;
+  const windowStartMs = Date.now() - FAILURE_ISSUE_WINDOW_MS;
+  const since = new Date(windowStartMs).toISOString().slice(0, 19) + "Z";
   const escapedWorkflowId = escapeGitHubSearchPhrase(workflowId);
-  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows ` + `"gh-aw-agentic-workflow:" "workflow_id: ${escapedWorkflowId}" in:body`;
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows created:>=${since} ` + `"gh-aw-agentic-workflow:" "workflow_id: ${escapedWorkflowId}" in:body`;
   const perPage = 100;
   for (let page = 1; ; page += 1) {
     const searchResult = await github.rest.search.issuesAndPullRequests({
@@ -280,6 +287,9 @@ async function findExistingFailureIssue(options) {
     });
 
     for (const item of searchResult.data.items) {
+      if (!isIssueWithinWindow(item.created_at, windowStartMs)) {
+        continue;
+      }
       let body = typeof item.body === "string" ? item.body : "";
       if (!body) {
         const issueResult = await github.rest.issues.get({
@@ -293,8 +303,6 @@ async function findExistingFailureIssue(options) {
       if (
         isReusableFailureIssue(body, {
           workflowId,
-          branch,
-          pullRequestNumber,
           failureCategories,
         })
       ) {
@@ -311,6 +319,90 @@ async function findExistingFailureIssue(options) {
   }
 
   return null;
+}
+
+/**
+ * Count recently created failure issues that include the specified failure category.
+ * @param {Object} options - Query options
+ * @param {string} options.owner - Repository owner
+ * @param {string} options.repo - Repository name
+ * @param {string} options.category - Failure category name
+ * @returns {Promise<number>} Number of matching issues created within the dedup window
+ */
+async function countRecentFailureIssuesByCategory(options) {
+  const { owner, repo, category } = options;
+  const windowStartMs = Date.now() - FAILURE_ISSUE_WINDOW_MS;
+  const since = new Date(windowStartMs).toISOString().slice(0, 19) + "Z";
+  const escapedCategory = escapeGitHubSearchPhrase(category);
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows created:>=${since} ` + `"gh-aw-failure-issue:" "failure_categories:" "${escapedCategory}" in:body`;
+  const perPage = 100;
+  let count = 0;
+
+  for (let page = 1; ; page += 1) {
+    const searchResult = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: perPage,
+      page,
+    });
+
+    for (const item of searchResult.data.items) {
+      if (!isIssueWithinWindow(item.created_at, windowStartMs)) {
+        continue;
+      }
+
+      let body = typeof item.body === "string" ? item.body : "";
+      if (!body) {
+        const issueResult = await github.rest.issues.get({
+          owner,
+          repo,
+          issue_number: item.number,
+        });
+        body = issueResult.data.body || "";
+      }
+
+      const marker = parseHTMLCommentMetadata(body, "gh-aw-failure-issue");
+      if (!marker) {
+        continue;
+      }
+      const categories = (marker.failure_categories || "")
+        .split("|")
+        .map(part => part.trim())
+        .filter(Boolean);
+      if (categories.includes(category)) {
+        count += 1;
+      }
+    }
+
+    if (searchResult.data.items.length < perPage) {
+      break;
+    }
+  }
+
+  return count;
+}
+
+/**
+ * Find categories that hit the daily new-issue cap.
+ * @param {Object} options - Query options
+ * @param {string} options.owner - Repository owner
+ * @param {string} options.repo - Repository name
+ * @param {string[]} options.failureCategories - Categories for the current failure
+ * @returns {Promise<Array<{category: string, count: number}>>}
+ */
+async function getCappedFailureCategories(options) {
+  const { owner, repo, failureCategories } = options;
+  const uniqueCategories = [...new Set(failureCategories)];
+  /** @type {Array<{category: string, count: number}>} */
+  const capped = [];
+
+  for (const category of uniqueCategories) {
+    const count = await countRecentFailureIssuesByCategory({ owner, repo, category });
+    if (count >= FAILURE_ISSUE_CATEGORY_DAILY_CAP) {
+      capped.push({ category, count });
+    }
+  }
+
+  return capped;
 }
 
 /**
@@ -2260,8 +2352,6 @@ async function main() {
         owner,
         repo,
         workflowId: workflowID,
-        branch: currentBranch,
-        pullRequestNumber: pullRequest?.number,
         failureCategories,
       });
 
@@ -2449,6 +2539,17 @@ async function main() {
       } else {
         // No existing issue, create a new one
         core.info("No existing issue found, creating a new one");
+        const cappedCategories = await getCappedFailureCategories({
+          owner,
+          repo,
+          failureCategories,
+        });
+        if (cappedCategories.length > 0) {
+          const summary = cappedCategories.map(({ category, count }) => `${category} (${count}/${FAILURE_ISSUE_CATEGORY_DAILY_CAP})`).join(", ");
+          core.warning(`Daily per-category issue cap reached for ${summary}.`);
+          core.info(`Summarize-and-stop: skipping new issue creation because category cap was reached in the last ${FAILURE_ISSUE_DEDUP_WINDOW_HOURS}h.`);
+          return;
+        }
 
         // Read issue template
         const issueTemplatePath = getPromptPath("agent_failure_issue.md");

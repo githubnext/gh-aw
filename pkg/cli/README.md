@@ -49,6 +49,10 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw secrets` | `NewSecretsCommand` | Manage workflow secrets |
 | `gh aw secrets set` | (secret_set_command.go) | Create or update a repository secret |
 | `gh aw secrets bootstrap` | (secret_set_command.go) | Validate and configure all required secrets for workflows |
+| `gh aw env` | `NewEnvCommand` | Manage compiler defaults as GitHub variables |
+| `gh aw env pull` | (env_command.go) | Download compiler defaults into a YAML file |
+| `gh aw env push` | (env_command.go) | Upload compiler defaults from a YAML file |
+| `gh aw view` | `NewViewCommand` | Render unified timeline and safe outputs for a workflow run |
 | `gh aw lint` | `NewLintCommand` | Lint existing `.lock.yml` workflows with actionlint |
 | `gh aw experiments` | `NewExperimentsCommand` | Explore ongoing A/B experiments in the repository (hidden) |
 | `gh aw experiments list` | `NewExperimentsListSubcommand` | List all experiment workflow branches |
