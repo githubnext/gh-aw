@@ -23,6 +23,8 @@ const agenticWorkflowsAgentHeader = "---\n" +
 	"# Agentic Workflows\n\n" +
 	"Read only the files you need:\n"
 
+const agenticWorkflowsPromptsGitHubBaseURL = "https://github.com/github/gh-aw/blob/main/.github/aw/"
+
 const maxAgenticWorkflowsPromptSummaryLength = 80
 
 // ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md contains the dispatcher skill
@@ -167,7 +169,12 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 			return "", fmt.Errorf("failed to summarize prompt %s: %w", promptPath, err)
 		}
 
-		promptURL := fmt.Sprintf("https://github.com/github/gh-aw/blob/main/.github/aw/%s", filepath.Base(promptPath))
+		relPromptPath, err := filepath.Rel(filepath.Join(gitRoot, ".github", "aw"), promptPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to compute relative prompt path for %s: %w", promptPath, err)
+		}
+
+		promptURL := agenticWorkflowsPromptsGitHubBaseURL + filepath.ToSlash(relPromptPath)
 		lines = append(lines, formatAgenticWorkflowsAgentEntry(promptURL, purpose))
 	}
 
