@@ -507,6 +507,98 @@ describe("upload_artifact.cjs", () => {
     });
   });
 
+  describe("max-size-bytes enforcement", () => {
+    it("fails when total file size exceeds max-size-bytes", async () => {
+      writeStaging("large.bin", "x".repeat(1024));
+
+      const results = await runHandler(buildConfig({ "max-size-bytes": 100 }), [{ type: "upload_artifact", path: "large.bin" }]);
+
+      expect(results[0].success).toBe(false);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("exceeds max-size-bytes limit"));
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
+    });
+
+    it("succeeds when total file size is exactly at the max-size-bytes limit", async () => {
+      writeStaging("exact.bin", "x".repeat(100));
+
+      const results = await runHandler(buildConfig({ "max-size-bytes": 100 }), [{ type: "upload_artifact", path: "exact.bin" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("artifact name derivation", () => {
+    it("uses custom name from message when provided", async () => {
+      writeStaging("report.json");
+
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json", name: "my-custom-name" }]);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      const [name] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(name).toBe("my-custom-name");
+    });
+
+    it("sanitises special characters in custom name", async () => {
+      writeStaging("report.json");
+
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json", name: "my report (v1.0)!" }]);
+
+      const [name] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(name).not.toContain(" ");
+      expect(name).not.toContain("(");
+      expect(name).not.toContain("!");
+    });
+
+    it("falls back to basename of path when no name given", async () => {
+      writeStaging("sub/output.json");
+
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "sub/output.json" }]);
+
+      const [name] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(name).toBe("output.json");
+    });
+
+    it("falls back to slot index name when path basename is empty", async () => {
+      // Use filter-based request (no path) so deriveArtifactName falls back to slot index.
+      // Files must be in a subdirectory to match the **/*.json pattern.
+      writeStaging("output/data.json");
+
+      await runHandler(buildConfig(), [{ type: "upload_artifact", filters: { include: ["**/*.json"] } }]);
+
+      const [name] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(name).toBe("artifact-slot-0");
+    });
+  });
+
+  describe("slot index outputs", () => {
+    it("increments slot index across multiple successful uploads", async () => {
+      writeStaging("a.json");
+      writeStaging("b.json");
+
+      const results = await runHandler(buildConfig({ "max-uploads": 2 }), [
+        { type: "upload_artifact", path: "a.json" },
+        { type: "upload_artifact", path: "b.json" },
+      ]);
+
+      expect(results[0].slotIndex).toBe(0);
+      expect(results[1].slotIndex).toBe(1);
+      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_tmp_id", expect.any(String));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_1_tmp_id", expect.any(String));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("upload_artifact_count", "2");
+    });
+
+    it("sets slot file_count and size_bytes outputs", async () => {
+      writeStaging("data.json", "hello world");
+
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "data.json" }]);
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_file_count", "1");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_size_bytes", expect.stringMatching(/^\d+$/));
+    });
+  });
+
   describe("auto-copy from outside staging directory", () => {
     const WORKSPACE_DIR = "/tmp/gh-aw-test-workspace";
 

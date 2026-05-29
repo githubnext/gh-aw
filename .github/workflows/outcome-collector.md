@@ -70,12 +70,14 @@ The pre-agent step has already evaluated outcomes for recent workflow runs. Resu
 
 - `/tmp/gh-aw/outcome-summary.json` — fleet-wide summary
 - `/tmp/gh-aw/outcomes/run-*.json` — per-run outcome details
+- `/tmp/gh-aw/outcome-evaluations.jsonl` — per-item outcomes with `outcome_status` for status-bar rendering
 
 ## Task
 
 1. Read `/tmp/gh-aw/outcome-summary.json`
-2. If `total_outcomes` is 0, call `noop` with "No new safe output outcomes to report"
-3. Otherwise, create a report issue with the summary
+2. Read `/tmp/gh-aw/outcome-evaluations.jsonl` to build per-workflow status bars from per-item `outcome_status`
+3. If `total_outcomes` is 0, call `noop` with "No new safe output outcomes to report"
+4. Otherwise, create a report issue with the summary
 
 ### Summary JSON field reference
 
@@ -107,15 +109,50 @@ Create an issue with this structure:
 
 Use h3 (`###`) or lower for all headers in your report. Never use h1 (`#`) or h2 (`##`) inside issue/comment bodies — these are reserved for the issue title.
 
-Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling. Keep critical summaries and key metrics always visible.
+### Executive section (always visible)
 
-Suggested structure:
-- Scorecard with economics metrics (always visible)
-- Actionable recommendations with specific next steps (always visible)
-- Per-workflow breakdown (in `<details>` tags)
-- Detailed per-run data (in `<details>` tags)
+The report must open with an executive-first view. Place the following at the top, before any `<details>` block:
 
 ```markdown
+### Workflow Health — {date}
+
+**Executive read:** {one sentence: overall quality signal, where unresolved volume is concentrated, and whether any workflows are stuck or underdefined}
+
+| Workflow | Status | Lifecycle health |
+|---|---|---|
+| {workflow_name} | <span style="white-space: nowrap;">{status_bar}</span> | {lifecycle_emoji} {lifecycle_label} |
+
+**Legend:**
+- **Status:** 🟩 accepted · 🟥 rejected · 🟨 pending · ⬜ unknown
+- **Lifecycle health:** 🟢 resolving · 🟡 in flight · 🟠 aging · 🔴 stuck · ⚪ underdefined
+```
+
+**Status bar rules:**
+- Render one emoji per outcome item for each workflow: 🟩 accepted, 🟥 rejected, 🟨 pending, ⬜ unknown.
+- Wrap in `<span style="white-space: nowrap;">...</span>` to prevent line breaks.
+- Do not include numeric counts in the top table — the bar communicates volume.
+- Sort rows by management attention: most pending first, then most unknown, then resolved-only workflows last.
+
+**Lifecycle health classification** — assign one label per workflow based on its outcome history:
+
+| Label | Emoji | When to assign |
+|---|---|---|
+| resolving | 🟢 | Pending items are moving to accepted/rejected at a healthy rate over recent runs |
+| in flight | 🟡 | Outcomes are still being evaluated; no concerning pattern yet |
+| aging | 🟠 | One or more items have been pending for >48 hours without resolution |
+| stuck | 🔴 | Pending/unknown outcomes persist across two or more consecutive report cycles with no resolution |
+| underdefined | ⚪ | Most outcomes land in unknown or ignored; acceptance/rejection criteria are unclear or the evaluator lacks signal |
+
+Use cache-memory to determine lifecycle health: compare this run's per-workflow pending/unknown counts against the previous run. A workflow is **stuck** if its pending count has not decreased over two or more consecutive cycles. A workflow is **underdefined** if its unknown or ignored share consistently exceeds 50% of its outcomes.
+
+### Details section (inside `<details>`)
+
+Place all detailed metrics, numeric breakdowns, evidence quality, trends, and action items inside a collapsible block:
+
+```markdown
+<details>
+<summary>Detailed metrics, evidence quality, workflow counts, and actions</summary>
+
 ### Outcome Scorecard — {date}
 
 | Metric | Value | Status |
@@ -139,10 +176,11 @@ Suggested structure:
 List concrete actions the team should take based on the data:
 
 1. **Highest-waste workflows** — Name the top 2-3 workflows by waste rate. If waste rate >25%, recommend reviewing the prompt or safe-output configuration.
-2. **Stuck pending items** — List any items pending >48 hours. These need human review or the workflow needs a timeout.
-3. **Low zero-touch workflows** — Workflows where accepted items always need human edits indicate the agent's output quality needs improvement.
-4. **High ignored rate** — If ignored items exceed 30% of total outcomes, the workflow may be producing outputs that nobody engages with; consider refining targeting or output type.
-5. **Data quality: fallback evaluations** — If `fallback_exists_only_count` > 20% of total outcomes, many items were evaluated with only a generic existence check (weak signal). This means the acceptance numbers may be overstated; note this in the report.
+2. **Stuck pending items** — List any items pending >48 hours or any workflow classified as 🔴 stuck. These need human review or the workflow needs a timeout.
+3. **Underdefined workflows** — Any workflow classified as ⚪ underdefined needs clearer acceptance/rejection criteria or a dedicated evaluator. The outcome model for that workflow is not yet mature.
+4. **Low zero-touch workflows** — Workflows where accepted items always need human edits indicate the agent's output quality needs improvement.
+5. **High ignored rate** — If ignored items exceed 30% of total outcomes, the workflow may be producing outputs that nobody engages with; consider refining targeting or output type.
+6. **Data quality: fallback evaluations** — If `fallback_exists_only_count` > 20% of total outcomes, many items were evaluated with only a generic existence check (weak signal). This means the acceptance numbers may be overstated; note this in the report.
 
 ### Per-Workflow Breakdown
 
@@ -167,18 +205,22 @@ Compare today's acceptance rate and zero-touch rate against the previous report 
 - ➡️ Stable: within 5pp of previous
 
 If no previous data exists, skip this section.
+
+</details>
 ```
 
 ## Guidelines
 
 - Keep the report factual — numbers only, no speculation
 - Do not re-evaluate outcomes — use the pre-computed data
-- Sort workflows by waste rate descending so the worst performers are at the top
+- Optimize the top executive section for at-a-glance scanning; put all numeric detail in the `<details>` block
+- Sort the executive table rows by management attention: most pending first, then most unknown, then resolved-only workflows last.
+- Sort the per-workflow breakdown inside `<details>` by waste rate descending (worst first)
 - Flag any workflow with acceptance rate <60% as needing attention
 - Flag any item pending >48 hours
 - Convert `median_resolution_sec` to a human-readable format: divide by 3600 for hours (e.g., 7200 → "2h"), or by 60 for minutes if under one hour
 - Flag `fallback_exists_only_count` if it exceeds 20% of `total_outcomes` — this indicates many items were evaluated with weak existence-only signals
 - Distinguish `ignored` (no observable follow-up) from `rejected` (explicitly undone) — high ignored rates suggest targeting or output quality issues, not waste
-- Save this report's key metrics to cache-memory for trend comparison in the next run
+- Save this report's key metrics **and per-workflow pending/unknown counts** to cache-memory for trend comparison and lifecycle health classification in the next run
 - If no outcomes exist, use `noop`
 - Stop immediately after creating the issue

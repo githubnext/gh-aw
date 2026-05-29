@@ -127,6 +127,31 @@ Static Analysis Results Interchange Format - a standardized JSON format for repo
 
 Pre-approved actions the AI can take without elevated permissions. The AI generates structured output describing what to create (issues, comments, pull requests), processed by separate permission-controlled jobs. Configured via `safe-outputs:` section, letting AI agents create GitHub content without direct write access.
 
+### Outcome
+
+The observable repository state that follows a [safe output](#safe-outputs). While safe outputs record what a workflow did, outcomes record what happened afterward — whether a pull request was merged, an issue was resolved, or a comment received follow-up activity. Outcome data is based on visible repository state, not on the workflow's self-assessment. See [Outcomes](/gh-aw/reference/outcomes/).
+
+### Outcome State
+
+The classification assigned to each evaluated safe output result. The six outcome states are:
+
+- `accepted` — kept, merged, completed, or otherwise accepted
+- `rejected` — explicitly undone, closed, or not accepted
+- `pending` — exists but has not reached a terminal state
+- `ignored` — received no meaningful follow-up within the evaluation window
+- `lifecycle` — closed or removed by the workflow itself as part of normal operation (for example, a stale-issue workflow), not a rejection
+- `lifecycle_close` — a `close_issue` or `close_pull_request` output where the closing actor was a lifecycle bot and no non-bot actor has since reopened it
+
+See [Outcomes](/gh-aw/reference/outcomes/).
+
+### Accepted Outcome
+
+The simplest useful unit for measuring workflow effectiveness. An outcome is accepted when its result was kept, merged, completed, or acted on — for example, a merged pull request, a resolved issue, or a comment that received a reaction or reply. Different output types use type-specific rules to determine acceptance. See [Outcomes](/gh-aw/reference/outcomes/).
+
+### Outcome Efficiency
+
+A cost-quality metric computed as effective tokens divided by accepted outcomes. Lower values indicate the workflow spent less AI work per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/reference/measuring-impact/).
+
 ### Pwn Request
 
 A critical security vulnerability that occurs when a `pull_request_target` workflow checks out and executes code from a fork PR. Because `pull_request_target` runs in the context of the target (base) branch with full write permissions and access to repository secrets, executing untrusted fork code grants an attacker the ability to exfiltrate secrets or make unauthorized changes. The compiler emits a warning (non-strict mode) or a hard error (strict mode) when `pull_request_target` is used without `checkout: false`. Add `checkout: false` to prevent the insecure checkout; use `pull_request` instead when you do not need write-back access. See the [GitHub Security Lab advisory on pwn requests](https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/).

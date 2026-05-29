@@ -24,7 +24,7 @@ The package uses typed aliases to prevent mixing unrelated string or integer val
 
 | Type | Description | Example constant |
 |------|-------------|-----------------|
-| `EngineName` | AI engine identifier | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `GeminiEngine`, `OpenCodeEngine`, `CrushEngine`, `PiEngine` |
+| `EngineName` | AI engine identifier | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `GeminiEngine`, `AntigravityEngine`, `OpenCodeEngine`, `CrushEngine`, `PiEngine` |
 | `FeatureFlag` | Feature flag identifier | `MCPGatewayFeatureFlag`, `MCPScriptsFeatureFlag` |
 | `JobName` | GitHub Actions job name | `AgentJobName`, `ActivationJobName` |
 | `StepID` | GitHub Actions step identifier | `CheckMembershipStepID`, `CheckRateLimitStepID` |
@@ -45,17 +45,18 @@ All semantic types implement `String() string` and `IsValid() bool` methods.
 import "github.com/github/gh-aw/pkg/constants"
 
 // Engine names
-constants.CopilotEngine   // "copilot"
-constants.ClaudeEngine    // "claude"
-constants.CodexEngine     // "codex"
-constants.GeminiEngine    // "gemini"
-constants.OpenCodeEngine  // "opencode"
-constants.CrushEngine     // "crush"
-constants.PiEngine        // "pi" (experimental)
-constants.DefaultEngine   // "copilot"
+constants.CopilotEngine      // "copilot"
+constants.ClaudeEngine       // "claude"
+constants.CodexEngine        // "codex"
+constants.GeminiEngine       // "gemini"
+constants.AntigravityEngine  // "antigravity"
+constants.OpenCodeEngine     // "opencode"
+constants.CrushEngine        // "crush"
+constants.PiEngine           // "pi" (experimental)
+constants.DefaultEngine      // "copilot"
 
 // All supported engine names
-constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "opencode", "crush", "pi"}
+constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "crush", "pi"}
 
 // Get engine metadata
 opt := constants.GetEngineOption("copilot")
