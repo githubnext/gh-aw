@@ -28,6 +28,20 @@
       "items": {
         "type": "string"
       }
+    },
+    "skills": {
+      "type": "array",
+      "description": "Skill directory paths relative to the package root. Each entry is a directory that must contain a SKILL.md file; all direct files in the directory are installed to the agentic engine skill folder.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "agents": {
+      "type": "array",
+      "description": "Agent markdown file paths relative to the package root. Each entry must be a .md file under an agents/ directory; the file is installed to the agentic engine agents folder.",
+      "items": {
+        "type": "string"
+      }
     }
   }
 }
