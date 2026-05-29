@@ -21,3 +21,19 @@ func TestBuildCommitLookupAPIPath(t *testing.T) {
 		}
 	})
 }
+
+func TestGitFallbackRequiresNonEmptyRef(t *testing.T) {
+	t.Run("all files fallback validates ref", func(t *testing.T) {
+		_, err := listDirAllFilesViaGitForHost("owner", "repo", "", "skills/demo", "")
+		if err == nil {
+			t.Fatal("expected error for empty ref")
+		}
+	})
+
+	t.Run("subdirs fallback validates ref", func(t *testing.T) {
+		_, err := listDirSubdirsViaGitForHost("owner", "repo", "   ", "skills", "")
+		if err == nil {
+			t.Fatal("expected error for empty ref")
+		}
+	})
+}

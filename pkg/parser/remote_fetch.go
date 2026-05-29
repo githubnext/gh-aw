@@ -15,6 +15,7 @@ import (
 	pathpkg "path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/cli/go-gh/v2"
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -27,6 +28,62 @@ import (
 )
 
 var remoteLog = logger.New("parser:remote_fetch")
+
+var gitListCloneCache = struct {
+	mu   sync.Mutex
+	dirs map[string]string
+}{
+	dirs: make(map[string]string),
+}
+
+func getOrCreateListRepoClone(owner, repo, ref, host string) (string, error) {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return "", fmt.Errorf("git fallback requires a non-empty ref")
+	}
+
+	githubHost := GetGitHubHostForRepo(owner, repo)
+	if host != "" {
+		githubHost = stringutil.NormalizeGitHubHostURL(host)
+	}
+	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
+	cacheKey := fmt.Sprintf("%s|%s|%s|%s", githubHost, owner, repo, ref)
+
+	gitListCloneCache.mu.Lock()
+	if cloneDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
+		if stat, err := os.Stat(filepath.Join(cloneDir, ".git")); err == nil && stat.IsDir() {
+			gitListCloneCache.mu.Unlock()
+			return cloneDir, nil
+		}
+		delete(gitListCloneCache.dirs, cacheKey)
+	}
+	gitListCloneCache.mu.Unlock()
+
+	tmpDir, err := os.MkdirTemp("", "gh-aw-list-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	cloneCmd := exec.Command("git", "clone", "--depth", "1", "--branch", ref, "--single-branch", "--filter=blob:none", "--no-checkout", repoURL, tmpDir)
+	cloneOutput, err := cloneCmd.CombinedOutput()
+	if err != nil {
+		_ = os.RemoveAll(tmpDir)
+		remoteLog.Printf("Failed to clone repository: %s", string(cloneOutput))
+		return "", fmt.Errorf("failed to clone repository for %s/%s@%s: %w", owner, repo, ref, err)
+	}
+
+	gitListCloneCache.mu.Lock()
+	if existingDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
+		if stat, statErr := os.Stat(filepath.Join(existingDir, ".git")); statErr == nil && stat.IsDir() {
+			gitListCloneCache.mu.Unlock()
+			_ = os.RemoveAll(tmpDir)
+			return existingDir, nil
+		}
+	}
+	gitListCloneCache.dirs[cacheKey] = tmpDir
+	gitListCloneCache.mu.Unlock()
+	return tmpDir, nil
+}
 
 // isUnderWorkflowsDirectory checks if a file path is a top-level workflow file (not in shared subdirectory)
 func isUnderWorkflowsDirectory(filePath string) bool {
@@ -981,23 +1038,9 @@ func listDirAllFilesForHost(owner, repo, ref, dirPath, host string) ([]string, e
 func listDirAllFilesViaGitForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
 	remoteLog.Printf("Git fallback for listing all dir files: %s/%s@%s (path: %s)", owner, repo, ref, dirPath)
 
-	githubHost := GetGitHubHostForRepo(owner, repo)
-	if host != "" {
-		githubHost = stringutil.NormalizeGitHubHostURL(host)
-	}
-	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
-
-	tmpDir, err := os.MkdirTemp("", "gh-aw-list-*")
+	tmpDir, err := getOrCreateListRepoClone(owner, repo, ref, host)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp directory: %w", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	cloneCmd := exec.Command("git", "clone", "--depth", "1", "--branch", ref, "--single-branch", "--filter=blob:none", "--no-checkout", repoURL, tmpDir)
-	cloneOutput, err := cloneCmd.CombinedOutput()
-	if err != nil {
-		remoteLog.Printf("Failed to clone repository: %s", string(cloneOutput))
-		return nil, fmt.Errorf("failed to clone repository for %s/%s@%s: %w", owner, repo, ref, err)
+		return nil, err
 	}
 
 	lsTreeCmd := exec.Command("git", "-C", tmpDir, "ls-tree", "-r", "--name-only", "HEAD", dirPath+"/")
@@ -1083,23 +1126,9 @@ func listDirSubdirsForHost(owner, repo, ref, dirPath, host string) ([]string, er
 func listDirSubdirsViaGitForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
 	remoteLog.Printf("Git fallback for listing subdirs: %s/%s@%s (path: %s)", owner, repo, ref, dirPath)
 
-	githubHost := GetGitHubHostForRepo(owner, repo)
-	if host != "" {
-		githubHost = stringutil.NormalizeGitHubHostURL(host)
-	}
-	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
-
-	tmpDir, err := os.MkdirTemp("", "gh-aw-list-*")
+	tmpDir, err := getOrCreateListRepoClone(owner, repo, ref, host)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp directory: %w", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	cloneCmd := exec.Command("git", "clone", "--depth", "1", "--branch", ref, "--single-branch", "--filter=blob:none", "--no-checkout", repoURL, tmpDir)
-	cloneOutput, err := cloneCmd.CombinedOutput()
-	if err != nil {
-		remoteLog.Printf("Failed to clone repository: %s", string(cloneOutput))
-		return nil, fmt.Errorf("failed to clone repository for %s/%s@%s: %w", owner, repo, ref, err)
+		return nil, err
 	}
 
 	// Use ls-tree -d to list only direct subdirectory entries.
