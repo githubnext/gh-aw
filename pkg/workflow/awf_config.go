@@ -312,11 +312,11 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	if mf := extractModelFallback(config.WorkflowData); mf != nil {
 		apiProxy.ModelFallback = mf
-		enabledValue := "<unset>"
+		enabledDisplay := "<unset>"
 		if mf.Enabled != nil {
-			enabledValue = fmt.Sprintf("%t", *mf.Enabled)
+			enabledDisplay = fmt.Sprintf("%t", *mf.Enabled)
 		}
-		awfConfigLog.Printf("API proxy: modelFallback configured: enabled=%s, strategy=%q", enabledValue, mf.Strategy)
+		awfConfigLog.Printf("API proxy: modelFallback configured: enabled=%s, strategy=%q", enabledDisplay, mf.Strategy)
 	}
 
 	targets := map[string]*AWFAPITargetConfig{}
