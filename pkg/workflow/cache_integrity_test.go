@@ -545,7 +545,9 @@ func TestCacheMemoryArtifactUploadAddsGitIntegrityCheck(t *testing.T) {
 				{ID: "default"},
 			},
 		},
-		SafeOutputs: &SafeOutputsConfig{Enabled: true},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
 	}
 
 	var builder strings.Builder
