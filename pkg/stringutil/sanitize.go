@@ -304,13 +304,24 @@ func SanitizeForFilenameWithSeparator(slug, separator string) string {
 	}
 	var sb strings.Builder
 	for _, r := range strings.ReplaceAll(slug, "/", separator) {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+		if isFilenameSafeRune(r) {
 			sb.WriteRune(r)
 		} else {
 			sb.WriteString(separator)
 		}
 	}
 	return sb.String()
+}
+
+// isFilenameSafeRune reports whether a rune can be preserved in sanitized
+// filename strings without replacement.
+func isFilenameSafeRune(r rune) bool {
+	return (r >= 'a' && r <= 'z') ||
+		(r >= 'A' && r <= 'Z') ||
+		(r >= '0' && r <= '9') ||
+		r == '-' ||
+		r == '_' ||
+		r == '.'
 }
 
 // SanitizeForFilename converts a repository slug (owner/repo) to a filename-safe string.

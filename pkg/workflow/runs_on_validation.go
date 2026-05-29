@@ -50,13 +50,14 @@ func validateRunsOn(frontmatter map[string]any, markdownPath string) error {
 	for _, label := range labels {
 		lower := strings.ToLower(label)
 		if strings.HasPrefix(lower, "macos-") || lower == "macos" {
-			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("runner '%s' is not supported in agentic workflows.\n\n"+
+			message := fmt.Sprintf("runner '%s' is not supported in agentic workflows.\n\n"+
 				"macOS runners are not supported because agentic workflows rely on containers "+
 				"for the secure Agent Workflow Firewall sandbox, and GitHub-hosted macOS runners "+
 				"do not support container jobs.\n\n"+
 				"Use 'ubuntu-latest' (default) or another Linux-based runner instead.\n\n"+
 				"See %s for details.",
-				label, macOSRunnerFAQURL), Cause: nil})
+				label, macOSRunnerFAQURL)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: message, Cause: nil})
 
 		}
 	}

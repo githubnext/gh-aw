@@ -21,14 +21,28 @@ type wrappedCompilerError struct {
 func (e *wrappedCompilerError) Error() string { return e.formatted }
 func (e *wrappedCompilerError) Unwrap() error { return e.cause }
 
+func normalizePosition(value, defaultValue int) int {
+	if value <= 0 {
+		return defaultValue
+	}
+	return value
+}
+
 type compilerErrorOpts struct {
+	// FilePath is the source file path shown in the formatted diagnostic.
 	FilePath string
-	Line     int
-	Column   int
-	ErrType  string
-	Message  string
-	Cause    error
-	Context  []string
+	// Line is the 1-based source line. Defaults to 1 when unset.
+	Line int
+	// Column is the 1-based source column. Defaults to 1 when unset.
+	Column int
+	// ErrType is the diagnostic kind (for example "error" or "warning").
+	ErrType string
+	// Message is the human-readable diagnostic message.
+	Message string
+	// Cause is the optional wrapped underlying error.
+	Cause error
+	// Context contains optional source lines for Rust-style context rendering.
+	Context []string
 }
 
 // formatCompilerError creates a formatted compiler error from options.
@@ -36,14 +50,8 @@ type compilerErrorOpts struct {
 // When Cause is a *WorkflowValidationError with Line > 0, the error's own
 // position (and file, when available) takes precedence.
 func formatCompilerError(opts compilerErrorOpts) error {
-	line := opts.Line
-	column := opts.Column
-	if line <= 0 {
-		line = 1
-	}
-	if column <= 0 {
-		column = 1
-	}
+	line := normalizePosition(opts.Line, 1)
+	column := normalizePosition(opts.Column, 1)
 
 	// Promote precise source location from WorkflowValidationError when available so that
 	// the emitted "file:line:col: error:" prefix points directly at the problematic field
