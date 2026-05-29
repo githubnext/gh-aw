@@ -120,7 +120,7 @@ The report must open with an executive-first view. Place the following at the to
 
 | Workflow | Status | Lifecycle health | References |
 |---|---|---|---|
-| {workflow_name} | <span style="white-space: nowrap;">{status_bar}</span> | {lifecycle_emoji} {lifecycle_label} | {ordered_reference_links e.g. `🟩 [#123](...) · 🟩 [#456](...) · 🟥 [#78](...) · 🟨 [#90](...)`} |
+| {workflow_name} | <span style="white-space: nowrap;">{status_bar}</span> | {lifecycle_emoji} {lifecycle_label} | {status_matched_reference_links e.g. `🟩 [#123](...) · 🟩 [#456](...) · 🟥 [#78](...) · 🟨 [#90](...)`} |
 
 **Legend:**
 - **Status:** 🟩 accepted · 🟥 rejected · 🟨 pending · ⬜ unknown
@@ -233,5 +233,6 @@ If no previous data exists, skip this section.
 - Distinguish `ignored` (no observable follow-up) from `rejected` (explicitly undone) — high ignored rates suggest targeting or output quality issues, not waste
 - Save this report's key metrics **and per-workflow pending/unknown counts** to cache-memory for trend comparison and lifecycle health classification in the next run
 - Before creating the issue, validate every workflow row: Status emoji count == References token count, and each reference token's emoji/status matches the corresponding Status position.
+- If any row fails validation, fix that row before creating the issue; never publish a row with mismatched Status/References.
 - If no outcomes exist, use `noop`
 - Stop immediately after creating the issue
