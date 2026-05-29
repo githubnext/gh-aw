@@ -31,7 +31,8 @@ var remoteLog = logger.New("parser:remote_fetch")
 
 // gitListCloneCache is a process-lifetime cache of shallow clones used by
 // git-based directory listing fallbacks to avoid repeated clone operations for
-// the same repository/ref tuple. Entries are cleaned up when the process exits.
+// the same repository/ref tuple. Entries are not explicitly cleaned up because
+// the CLI process is short-lived and temporary directories are OS-managed.
 var gitListCloneCache = struct {
 	mu   sync.Mutex
 	dirs map[string]string
