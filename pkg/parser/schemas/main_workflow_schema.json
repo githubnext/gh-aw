@@ -3858,6 +3858,11 @@
                         "512m"
                       ]
                     },
+                    "model-fallback": {
+                      "$ref": "#/$defs/templatable_boolean",
+                      "description": "Enable or disable model fallback for unresolved model selections. Set to false for BYOK Azure OpenAI deployments to prevent deployment-name rewriting. Supports literal boolean or GitHub Actions expression.",
+                      "examples": [false, "${{ inputs.model-fallback }}"]
+                    },
                     "config": {
                       "type": "object",
                       "description": "Custom sandbox runtime configuration. Note: Network configuration is controlled by the top-level 'network' field, not here.",
@@ -13259,6 +13264,11 @@
             "none"
           ],
           "description": "Permission for repository checks and status checks (read: view checks, write: create/update checks, none: no access)"
+        },
+        "copilot-requests": {
+          "type": "string",
+          "enum": ["write", "none"],
+          "description": "Permission level for Copilot requests (write/none only). Set to write to allow Copilot inference via the GitHub Actions token."
         },
         "contents": {
           "type": "string",

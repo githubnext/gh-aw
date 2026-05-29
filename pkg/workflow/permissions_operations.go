@@ -25,6 +25,7 @@ func (p *Permissions) HasContentsReadAccess() bool {
 	if p == nil {
 		return false
 	}
+
 	if p.shorthand != "" {
 		switch p.shorthand {
 		case "read-all", "write-all":
@@ -45,6 +46,24 @@ func (p *Permissions) HasContentsReadAccess() bool {
 		return contentsLevel == PermissionRead || contentsLevel == PermissionWrite
 	}
 	return false
+}
+
+// hasCopilotRequestsWritePermission returns true when workflow permissions include
+// copilot-requests: write. This controls whether engines should use ${{ github.token }}
+// for Copilot authentication instead of requiring COPILOT_GITHUB_TOKEN.
+func hasCopilotRequestsWritePermission(workflowData *WorkflowData) bool {
+	if workflowData == nil {
+		return false
+	}
+	perms := workflowData.CachedPermissions
+	if perms == nil {
+		perms = NewPermissionsParser(workflowData.Permissions).ToPermissions()
+	}
+	if perms == nil {
+		return false
+	}
+	level, ok := perms.Get(PermissionCopilotRequests)
+	return ok && level == PermissionWrite
 }
 
 // filterJobLevelPermissions takes a raw permissions YAML string (as stored in WorkflowData.Permissions)

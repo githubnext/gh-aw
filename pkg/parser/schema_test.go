@@ -1342,6 +1342,46 @@ func TestMainWorkflowSchema_ProtectedFilesObjectFormStructure(t *testing.T) {
 	}
 }
 
+func TestMainWorkflowSchema_SandboxAgentModelFallback(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name          string
+		modelFallback any
+	}{
+		{name: "boolean", modelFallback: false},
+		{name: "expression", modelFallback: "${{ inputs.model-fallback }}"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			validFrontmatter := map[string]any{
+				"name": "sandbox-agent-model-fallback",
+				"on": map[string]any{
+					"workflow_dispatch": map[string]any{},
+				},
+				"permissions": map[string]any{
+					"contents": "read",
+				},
+				"engine": "copilot",
+				"sandbox": map[string]any{
+					"agent": map[string]any{
+						"id":             "awf",
+						"model-fallback": tc.modelFallback,
+					},
+				},
+			}
+
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/sandbox-agent-model-fallback-test.md")
+			if err != nil {
+				t.Fatalf("expected sandbox.agent.model-fallback to pass schema validation, got: %v", err)
+			}
+		})
+	}
+}
+
 // TestValidateWithSchema_YAMLIntegerTypes verifies that validateWithSchema accepts
 // YAML-native integer types (uint64/int64) when the schema expects number/integer.
 func TestValidateWithSchema_YAMLIntegerTypes(t *testing.T) {

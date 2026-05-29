@@ -163,6 +163,12 @@ type AWFAPIProxyConfig struct {
 	// MaxEffectiveTokens is the explicit ET budget enforced by the API proxy.
 	MaxEffectiveTokens int64 `json:"maxEffectiveTokens,omitempty"`
 
+	// ModelFallback configures the model fallback policy for unresolved model selections.
+	// When nil, the AWF default (enabled=true, strategy=middle_power) is used.
+	// Set enabled=false to prevent AWF from silently rewriting deployment names, which
+	// is needed for BYOK Azure OpenAI deployments where rewriting causes HTTP 404.
+	ModelFallback *AWFModelFallbackConfig `json:"modelFallback,omitempty"`
+
 	// ModelMultipliers configures per-model ET accounting multipliers in AWF.
 	ModelMultipliers map[string]float64 `json:"modelMultipliers,omitempty"`
 
@@ -177,6 +183,15 @@ type AWFAPIProxyConfig struct {
 	// AWF resolves aliases recursively; loops are not permitted.
 	// Per the AWF config schema, this lives under apiProxy.models.
 	Models map[string][]string `json:"models,omitempty"`
+}
+
+// AWFModelFallbackConfig is the "apiProxy.modelFallback" section of the AWF config file.
+// It controls whether model fallback is enabled for unresolved model selections.
+type AWFModelFallbackConfig struct {
+	// Enabled controls whether middle-power fallback is applied when model resolution fails.
+	// It accepts literal booleans and GitHub Actions expressions. A nil value omits the field,
+	// letting AWF use its default.
+	Enabled *TemplatableBool `json:"enabled,omitempty"`
 }
 
 // AWFAPITargetConfig is a single API proxy target entry.
@@ -298,6 +313,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("API proxy: %d model multipliers configured", len(apiProxy.ModelMultipliers))
 	}
 
+	if mf := extractModelFallback(config.WorkflowData); mf != nil {
+		apiProxy.ModelFallback = mf
+		enabledDisplay := "<unset>"
+		if mf.Enabled != nil {
+			enabledDisplay = mf.Enabled.String()
+		}
+		awfConfigLog.Printf("API proxy: modelFallback configured: enabled=%s", enabledDisplay)
+	}
+
 	targets := map[string]*AWFAPITargetConfig{}
 
 	if openaiTarget := extractAPITargetHost(config.WorkflowData, "OPENAI_BASE_URL"); openaiTarget != "" {
@@ -404,4 +428,25 @@ func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {
 		return nil
 	}
 	return workflowData.EngineConfig.TokenWeights.Multipliers
+}
+
+// extractModelFallback returns an AWFModelFallbackConfig if the workflow has configured
+// sandbox.agent.model-fallback, or nil if the field is absent (letting AWF use its default).
+func extractModelFallback(workflowData *WorkflowData) *AWFModelFallbackConfig {
+	if workflowData == nil {
+		return nil
+	}
+	if workflowData.SandboxConfig == nil {
+		return nil
+	}
+	if workflowData.SandboxConfig.Agent == nil {
+		return nil
+	}
+	mf := workflowData.SandboxConfig.Agent.ModelFallback
+	if mf == nil {
+		return nil
+	}
+	return &AWFModelFallbackConfig{
+		Enabled: mf,
+	}
 }

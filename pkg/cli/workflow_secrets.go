@@ -61,7 +61,7 @@ func getSecretRequirementsForWorkflow(workflowFile string) []SecretRequirement {
 	workflowSecretsLog.Printf("Extracting secrets for workflow: %s", workflowFile)
 
 	// Extract engine from workflow file
-	engine, engineConfig := extractEngineConfigFromFile(workflowFile)
+	engine, engineConfig, frontmatter := extractEngineConfigFromFile(workflowFile)
 	if engine == "" {
 		workflowSecretsLog.Printf("No engine found in workflow %s, skipping", workflowFile)
 		return nil
@@ -79,33 +79,61 @@ func getSecretRequirementsForWorkflow(workflowFile string) []SecretRequirement {
 		workflowSecretsLog.Printf("Adding %d auth definition secret(s) for workflow %s", len(authReqs), workflowFile)
 		reqs = append(reqs, authReqs...)
 	}
+	if hasCopilotRequestsWritePermission(frontmatter) {
+		if opt := constants.GetEngineOption(engine); opt != nil && opt.SecretName == "COPILOT_GITHUB_TOKEN" {
+			reqs = filterOutSecretRequirement(reqs, "COPILOT_GITHUB_TOKEN")
+		}
+	}
 
 	return reqs
 }
 
 // extractEngineConfigFromFile parses a workflow file and returns the engine ID and config.
 // Returns ("", nil) when the file cannot be read or parsed.
-func extractEngineConfigFromFile(filePath string) (string, *workflow.EngineConfig) {
+func extractEngineConfigFromFile(filePath string) (string, *workflow.EngineConfig, map[string]any) {
 	content, err := readWorkflowFileContent(filePath)
 	if err != nil {
-		return "", nil
+		return "", nil, nil
 	}
 
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {
-		return "", nil
+		return "", nil, nil
 	}
 
 	compiler := &workflow.Compiler{}
 	engineSetting, engineConfig := compiler.ExtractEngineConfig(result.Frontmatter)
 
 	if engineConfig != nil && engineConfig.ID != "" {
-		return engineConfig.ID, engineConfig
+		return engineConfig.ID, engineConfig, result.Frontmatter
 	}
 	if engineSetting != "" {
-		return engineSetting, engineConfig
+		return engineSetting, engineConfig, result.Frontmatter
 	}
-	return "copilot", engineConfig // Default engine
+	return "copilot", engineConfig, result.Frontmatter // Default engine
+}
+
+func hasCopilotRequestsWritePermission(frontmatter map[string]any) bool {
+	if frontmatter == nil {
+		return false
+	}
+	permissionsValue, ok := frontmatter["permissions"]
+	if !ok {
+		return false
+	}
+	perms := workflow.NewPermissionsParserFromValue(permissionsValue).ToPermissions()
+	level, exists := perms.Get(workflow.PermissionCopilotRequests)
+	return exists && level == workflow.PermissionWrite
+}
+
+func filterOutSecretRequirement(reqs []SecretRequirement, secretName string) []SecretRequirement {
+	filtered := make([]SecretRequirement, 0, len(reqs))
+	for _, req := range reqs {
+		if req.Name != secretName {
+			filtered = append(filtered, req)
+		}
+	}
+	return filtered
 }
 
 // readWorkflowFileContent reads a workflow file's content as a string.

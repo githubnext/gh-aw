@@ -43,7 +43,7 @@ func (e *OpenCodeEngine) GetModelEnvVarName() string {
 
 // GetRequiredSecretNames returns the list of secrets required by the OpenCode engine.
 // By default, OpenCode routes through the Copilot API using COPILOT_GITHUB_TOKEN
-// (or ${{ github.token }} when copilot-requests feature is enabled).
+// (or ${{ github.token }} when permissions.copilot-requests is set to write).
 // Additional provider API keys can be added via engine.env overrides.
 func (e *OpenCodeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	openCodeLog.Print("Collecting required secrets for OpenCode engine")
@@ -70,7 +70,7 @@ func (e *OpenCodeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitH
 }
 
 // GetSecretValidationStep returns the secret validation step for the OpenCode engine.
-// Returns an empty step if copilot-requests feature is enabled (uses GitHub Actions token).
+// Returns an empty step if permissions.copilot-requests is write (uses GitHub Actions token).
 func (e *OpenCodeEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
 	return e.GetUniversalSecretValidationStep(
 		workflowData,

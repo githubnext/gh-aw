@@ -14,6 +14,7 @@ permissions:
   discussions: read
   actions: read
 
+  copilot-requests: write
 tracker-id: daily-news-weekday
 engine:
   id: copilot
@@ -319,9 +320,6 @@ imports:
       expires: 3d
   - shared/trends.md
   - shared/otlp.md
-features:
-  copilot-requests: true
-
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -148,7 +148,7 @@ func buildPiModelsJSON(gatewayPort int, secretEnvVarName, modelID string) string
 func (e *PiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	piLog.Print("Collecting required secrets for Pi engine")
 	backend := resolvePiBackend(workflowData)
-	profile := getUniversalLLMBackendProfile(backend, isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData))
+	profile := getUniversalLLMBackendProfile(backend, hasCopilotRequestsWritePermission(workflowData))
 	secrets := append([]string{}, profile.coreSecretNames...)
 	secrets = append(secrets, collectCommonMCPSecrets(workflowData)...)
 	return secrets
@@ -158,7 +158,7 @@ func (e *PiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 // The validated secret depends on the resolved provider backend.
 func (e *PiEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
 	backend := resolvePiBackend(workflowData)
-	profile := getUniversalLLMBackendProfile(backend, isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData))
+	profile := getUniversalLLMBackendProfile(backend, hasCopilotRequestsWritePermission(workflowData))
 	if len(profile.coreSecretNames) == 0 {
 		return GitHubActionStep{}
 	}
@@ -264,7 +264,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	// Resolve backend and profile early so we can use them when building piArgs.
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
 	backend := resolvePiBackend(workflowData)
-	profile := getUniversalLLMBackendProfile(backend, isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData))
+	profile := getUniversalLLMBackendProfile(backend, hasCopilotRequestsWritePermission(workflowData))
 	firewallEnabled := isFirewallEnabled(workflowData)
 
 	// Build the pi command.  Pi v0.72+ uses flags-only syntax (no "run" subcommand).

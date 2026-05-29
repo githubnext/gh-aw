@@ -9,6 +9,7 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
+  copilot-requests: write
 engine: copilot
 strict: true
 tracker-id: daily-secrets-analysis
@@ -24,10 +25,8 @@ imports:
     with:
       title-prefix: "[daily secrets] "
   - shared/otlp.md
-features:
-  copilot-requests: true
-
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Secrets Analysis Agent

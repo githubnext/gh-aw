@@ -9,6 +9,7 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
+  copilot-requests: write
 tracker-id: daily-geo-optimizer
 engine: copilot
 strict: true
@@ -26,8 +27,6 @@ tools:
     - "jq *"
     - "find *"
     - "grep *"
-features:
-  copilot-requests: true
 if: needs.geo_audit.result == 'success'
 jobs:
   geo_audit:

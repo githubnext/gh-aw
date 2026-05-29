@@ -14,6 +14,7 @@ permissions:
   pull-requests: read
   actions: read
 
+  copilot-requests: write
 engine: copilot
 
 network:
@@ -38,13 +39,11 @@ imports:
   - shared/otlp.md
 timeout-minutes: 15
 
-features:
-  copilot-requests: true
-
 tools:
   cli-proxy: true
 
 ---
+
 # Copilot PR Prompt Pattern Analysis
 
 You are an AI analytics agent that analyzes the patterns in prompts used to create pull requests via GitHub Copilot, correlating them with PR outcomes (merged vs closed).

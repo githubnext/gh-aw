@@ -304,29 +304,28 @@ This is a test workflow with network permissions and codex engine.
 	})
 }
 
-// TestCopilotRequestsFeaturePermissions verifies that when permissions: read-all is combined
-// with features: copilot-requests: true, the agent job receives all read-all permissions merged
-// with copilot-requests: write (not replaced by it), and the detection job receives at minimum
-// copilot-requests: write.
-func TestCopilotRequestsFeaturePermissions(t *testing.T) {
+// TestCopilotRequestsPermissions verifies that when permissions explicitly include
+// copilot-requests: write alongside broad read permissions, the agent and detection jobs
+// retain both the read scopes and copilot-requests: write.
+func TestCopilotRequestsPermissions(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "copilot-requests-permissions-test")
 
 	compiler := NewCompiler()
 
-	t.Run("agent job merges read-all with copilot-requests: write", func(t *testing.T) {
+	t.Run("agent job keeps read scopes with copilot-requests: write", func(t *testing.T) {
 		testContent := `---
 on:
   issues:
     types: [opened]
 engine: copilot
-permissions: read-all
-features:
-  copilot-requests: true
+permissions:
+  all: read
+  copilot-requests: write
 ---
 
 # Test Workflow
 
-This is a test workflow with read-all permissions and copilot-requests feature.
+This is a test workflow with read permissions and copilot-requests permission.
 `
 		testFile := filepath.Join(tmpDir, "copilot-requests-agent.md")
 		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
@@ -346,7 +345,7 @@ This is a test workflow with read-all permissions and copilot-requests feature.
 
 		content := string(lockContent)
 
-		// The agent job must include copilot-requests: write (added by the feature).
+		// The agent job must include copilot-requests: write.
 		if !strings.Contains(content, "copilot-requests: write") {
 			t.Error("Agent job should contain 'copilot-requests: write'")
 		}
@@ -362,22 +361,22 @@ This is a test workflow with read-all permissions and copilot-requests feature.
 		}
 	})
 
-	t.Run("detection job gets copilot-requests: write when feature enabled", func(t *testing.T) {
+	t.Run("detection job gets copilot-requests: write when permission is set", func(t *testing.T) {
 		testContent := `---
 on:
   issues:
     types: [opened]
 engine: copilot
-permissions: read-all
-features:
-  copilot-requests: true
+permissions:
+  all: read
+  copilot-requests: write
 safe-outputs:
   threat-detection: true
 ---
 
 # Test Workflow With Detection
 
-This is a test workflow with read-all permissions, copilot-requests, and threat detection.
+This is a test workflow with explicit copilot-requests permission and threat detection.
 `
 		testFile := filepath.Join(tmpDir, "copilot-requests-detection.md")
 		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
@@ -405,7 +404,7 @@ This is a test workflow with read-all permissions, copilot-requests, and threat 
 		}
 		detectionSection := content[detectionIdx:]
 		if !strings.Contains(detectionSection, "copilot-requests: write") {
-			t.Error("Detection job should contain 'copilot-requests: write' when copilot-requests feature is enabled")
+			t.Error("Detection job should contain 'copilot-requests: write' when permissions.copilot-requests is write")
 		}
 	})
 }

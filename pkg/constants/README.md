@@ -148,7 +148,6 @@ constants.CopilotBYOKDefaultModel // "claude-sonnet-4.6" — explicit fallback u
 constants.MCPScriptsFeatureFlag             // "mcp-scripts"
 constants.MCPGatewayFeatureFlag             // "mcp-gateway"
 constants.DisableXPIAPromptFeatureFlag      // "disable-xpia-prompt"
-constants.CopilotRequestsFeatureFlag        // "copilot-requests"
 constants.DIFCProxyFeatureFlag              // "difc-proxy" (deprecated — use tools.github.integrity-proxy)
 constants.CliProxyFeatureFlag               // "cli-proxy"
 constants.AwfDiagnosticLogsFeatureFlag      // "awf-diagnostic-logs"

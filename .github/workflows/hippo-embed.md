@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
 
+  copilot-requests: write
 tracker-id: hippo-embed
 engine:
   id: copilot
@@ -44,9 +45,6 @@ imports:
   - shared/hippo-memory.md
 
   - shared/otlp.md
-features:
-  copilot-requests: true
-
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -7,6 +7,7 @@ on:
 permissions:
   contents: read
   actions: read
+  copilot-requests: write
 engine: copilot
 network:
   allowed:
@@ -33,9 +34,6 @@ imports:
   - shared/reporting.md
   - shared/safe-output-app.md
   - shared/otlp.md
-features:
-  copilot-requests: true
-
 ---
 
 # Artifacts Summary

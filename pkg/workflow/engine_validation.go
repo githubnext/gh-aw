@@ -435,7 +435,7 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 // This is used to determine whether the secret_verification_result job output should be added.
 //
 // The validate-secret step is provided by engines that override GetSecretValidationStep():
-//   - Copilot engine: Adds step unless copilot-requests feature is enabled or custom command is set
+//   - Copilot engine: Adds step unless permissions.copilot-requests is write or custom command is set
 //   - Claude engine: Adds step unless custom command is set
 //   - Codex engine: Adds step unless custom command is set
 //   - Antigravity engine: Adds step unless custom command is set

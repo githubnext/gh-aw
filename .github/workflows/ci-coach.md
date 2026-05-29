@@ -9,6 +9,7 @@ permissions:
   actions: read
   pull-requests: read
   issues: read
+  copilot-requests: write
 tracker-id: ci-coach-daily
 engine: copilot
 tools:
@@ -28,8 +29,6 @@ imports:
   - shared/ci-optimization-strategies.md
   - shared/reporting.md
   - shared/otlp.md
-features:
-  copilot-requests: true
 experiments:
   prompt_style:
     variants: [detailed, concise]

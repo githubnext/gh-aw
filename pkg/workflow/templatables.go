@@ -132,6 +132,30 @@ func (t *TemplatableInt32) Ptr() *TemplatableInt32 {
 	return &v
 }
 
+// TemplatableBool represents a boolean frontmatter field that also accepts
+// GitHub Actions expression strings (e.g. "${{ inputs.enabled }}"). The
+// underlying value is always stored as a string: boolean literals as "true" or
+// "false", expressions verbatim.
+type TemplatableBool string
+
+// MarshalJSON emits a JSON boolean for literal values and a JSON string for
+// GitHub Actions expressions.
+func (t *TemplatableBool) MarshalJSON() ([]byte, error) {
+	switch string(*t) {
+	case "true":
+		return json.Marshal(true)
+	case "false":
+		return json.Marshal(false)
+	default:
+		return json.Marshal(string(*t))
+	}
+}
+
+// String returns the underlying string representation of the value.
+func (t *TemplatableBool) String() string {
+	return string(*t)
+}
+
 // buildTemplatableBoolEnvVar returns a YAML environment variable entry for a
 // templatable boolean field. If value is a GitHub Actions expression it is
 // embedded unquoted so that GitHub Actions can evaluate it at runtime;

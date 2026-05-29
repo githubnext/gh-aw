@@ -412,13 +412,27 @@ func generateFetchStepLines(entry *resolvedCheckout, index int) string {
 		gitPrefix = fmt.Sprintf(`git -C "${{ github.workspace }}/%s"`, entry.key.path)
 	}
 
+	// Mirror the fetch-depth from the actions/checkout step so this fetch doesn't
+	// expand a shallow clone into a full-history fetch.
+	// - nil (unset) → actions/checkout defaults to depth=1; pass --depth=1
+	// - 0           → full history explicitly requested; omit the flag
+	// - N > 0       → pass --depth=N to match
+	depthFlag := ""
+	effectiveDepth := 1
+	if entry.fetchDepth != nil {
+		effectiveDepth = *entry.fetchDepth
+	}
+	if effectiveDepth > 0 {
+		depthFlag = fmt.Sprintf(" --depth=%d", effectiveDepth)
+	}
+
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "      - name: %s\n", name)
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_AW_FETCH_TOKEN: %s\n", token)
 	sb.WriteString("        run: |\n")
 	sb.WriteString("          header=$(printf \"x-access-token:%s\" \"${GH_AW_FETCH_TOKEN}\" | base64 -w 0)\n")
-	fmt.Fprintf(&sb, `          %s -c "http.extraheader=Authorization: Basic ${header}" fetch origin %s`+"\n",
-		gitPrefix, strings.Join(refspecs, " "))
+	fmt.Fprintf(&sb, `          %s -c "http.extraheader=Authorization: Basic ${header}" fetch origin%s %s`+"\n",
+		gitPrefix, depthFlag, strings.Join(refspecs, " "))
 	return sb.String()
 }

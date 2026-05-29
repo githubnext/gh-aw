@@ -13,6 +13,7 @@ permissions:
   discussions: read
   issues: read
   security-events: read
+  copilot-requests: write
 tools:
   github:
     toolsets: [all]

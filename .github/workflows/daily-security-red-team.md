@@ -8,6 +8,7 @@ permissions:
   contents: read
   issues: read
   security-events: read
+  copilot-requests: write
 tracker-id: security-red-team
 engine: claude
 strict: true

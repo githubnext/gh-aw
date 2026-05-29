@@ -10,6 +10,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 engine: copilot
 strict: true
 imports:
@@ -25,9 +26,6 @@ safe-outputs:
     run-success: "✅ Research complete. [{workflow_name}]({run_url}) has returned with results."
     run-failure: "❌ Search failed. [{workflow_name}]({run_url}) {status}. Unable to retrieve web sources."
 timeout-minutes: 10
-features:
-  copilot-requests: true
-
 tools:
   cli-proxy: true
 

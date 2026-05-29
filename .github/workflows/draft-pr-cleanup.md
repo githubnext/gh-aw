@@ -9,6 +9,7 @@ permissions:
   contents: read
   pull-requests: read
   # Note: PR write operations handled via safe-outputs
+  copilot-requests: write
 engine: copilot
 strict: true
 imports:
@@ -33,9 +34,6 @@ safe-outputs:
     run-success: "✅ Draft PR cleanup complete! [{workflow_name}]({run_url}) has reviewed and processed stale drafts."
     run-failure: "❌ Draft PR cleanup failed! [{workflow_name}]({run_url}) {status}. Some draft PRs may not be processed."
 timeout-minutes: 20
-features:
-  copilot-requests: true
-
 ---
 
 # Draft PR Cleanup Agent 🧹

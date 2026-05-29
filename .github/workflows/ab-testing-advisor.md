@@ -11,6 +11,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 network:
   allowed:
   - defaults
@@ -33,8 +34,6 @@ emoji: 🧪
 engine:
   bare: true
   id: copilot
-features:
-  copilot-requests: true
 strict: true
 timeout-minutes: 30
 tools:
@@ -71,6 +70,7 @@ tools:
     - actions
 tracker-id: ab-testing-advisor
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily A/B Testing Advisor

@@ -255,7 +255,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	if targetRepoSlug != "" {
 		if matchedEntry := checkoutMgr.GetCheckoutForRepository(targetRepoSlug); matchedEntry != nil && len(matchedEntry.fetchRefs) > 0 {
 			consolidatedSafeOutputsStepsLog.Printf("Adding fetch refs step for cross-repo target %s (%d refs)", targetRepoSlug, len(matchedEntry.fetchRefs))
-			if fetchStep := buildSafeOutputsFetchRefsStep(targetRepoSlug, checkoutToken, matchedEntry.fetchRefs, RenderCondition(condition)); fetchStep != "" {
+			if fetchStep := buildSafeOutputsFetchRefsStep(targetRepoSlug, checkoutToken, matchedEntry.fetchRefs, matchedEntry.fetchDepth, RenderCondition(condition)); fetchStep != "" {
 				steps = append(steps, fetchStep)
 			}
 		}
@@ -279,7 +279,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 //     currently supported.
 //   - Uses the resolved safe_outputs checkout token (from resolvePRCheckoutToken)
 //     rather than the CheckoutConfig's token
-func buildSafeOutputsFetchRefsStep(repoSlug, token string, fetchRefs []string, condition string) string {
+func buildSafeOutputsFetchRefsStep(repoSlug, token string, fetchRefs []string, fetchDepth *int, condition string) string {
 	if len(fetchRefs) == 0 {
 		return ""
 	}
@@ -287,6 +287,17 @@ func buildSafeOutputsFetchRefsStep(repoSlug, token string, fetchRefs []string, c
 	for _, ref := range fetchRefs {
 		refspecs = append(refspecs, fmt.Sprintf("'%s'", fetchRefToRefspec(ref)))
 	}
+
+	// Mirror the fetch-depth from the checkout step to avoid expanding a shallow clone.
+	depthFlag := ""
+	effectiveDepth := 1
+	if fetchDepth != nil {
+		effectiveDepth = *fetchDepth
+	}
+	if effectiveDepth > 0 {
+		depthFlag = fmt.Sprintf(" --depth=%d", effectiveDepth)
+	}
+
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "      - name: Fetch additional refs for %s\n", repoSlug)
 	if condition != "" {
@@ -296,7 +307,7 @@ func buildSafeOutputsFetchRefsStep(repoSlug, token string, fetchRefs []string, c
 	fmt.Fprintf(&sb, "          GH_AW_FETCH_TOKEN: %s\n", token)
 	sb.WriteString("        run: |\n")
 	sb.WriteString("          header=$(printf \"x-access-token:%s\" \"${GH_AW_FETCH_TOKEN}\" | base64 -w 0)\n")
-	fmt.Fprintf(&sb, "          git -c \"http.extraheader=Authorization: Basic ${header}\" fetch origin %s\n", strings.Join(refspecs, " "))
+	fmt.Fprintf(&sb, "          git -c \"http.extraheader=Authorization: Basic ${header}\" fetch origin%s %s\n", depthFlag, strings.Join(refspecs, " "))
 	return sb.String()
 }
 

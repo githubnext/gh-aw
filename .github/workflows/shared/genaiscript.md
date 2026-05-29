@@ -4,49 +4,49 @@ engine:
   env:
     GH_AW_AGENT_VERSION: "2.5.1"
     GH_AW_AGENT_MODEL_VERSION: "openai:gpt-4o"
-  steps:
-    - name: Validate OPENAI_API_KEY secret
-      run: |
-        if [ -z "$OPENAI_API_KEY" ]; then
-          echo "Error: OPENAI_API_KEY secret is not set"
-          echo "The GenAIScript engine with openai:gpt-4o model requires OPENAI_API_KEY secret to be configured."
-          echo "Please configure this secret in your repository settings."
-          echo "Documentation: https://github.github.com/gh-aw/reference/engines/"
-          exit 1
-        fi
-        echo "OPENAI_API_KEY secret is configured"
-      env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-    
-    - name: Install GenAIScript
-      run: npm install -g genaiscript@${GH_AW_AGENT_VERSION} && genaiscript --version
-      env:
-        GH_AW_AGENT_VERSION: ${{ env.GH_AW_AGENT_VERSION }}
-    
-    - name: Convert prompt to GenAI format
-      run: |
-        mkdir -p /tmp/gh-aw/agent/aw-prompts
-        echo "---" > /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
-        echo "model: ${GH_AW_AGENT_MODEL_VERSION}" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
-        echo "system: []" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
-        echo "system-safety: false" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
-        echo "---" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
-        cat "$GH_AW_PROMPT" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
-        echo "Generated GenAI prompt file:"
-        cat /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
-      env:
-        GH_AW_PROMPT: ${{ env.GH_AW_PROMPT }}
-        GH_AW_AGENT_MODEL_VERSION: ${{ env.GH_AW_AGENT_MODEL_VERSION }}
-    
-    - name: Run GenAIScript
-      id: genaiscript
-      run: genaiscript run /tmp/gh-aw/agent/aw-prompts/prompt.genai.md --mcp-config "$GH_AW_MCP_CONFIG" --out /tmp/gh-aw/agent/genaiscript-output.md
-      env:
-        DEBUG: genaiscript:*
-        GH_AW_PROMPT: ${{ env.GH_AW_PROMPT }}
-        GH_AW_MCP_CONFIG: ${{ env.GH_AW_MCP_CONFIG }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+steps:
+  - name: Validate OPENAI_API_KEY secret
+    run: |
+      if [ -z "$OPENAI_API_KEY" ]; then
+        echo "Error: OPENAI_API_KEY secret is not set"
+        echo "The GenAIScript engine with openai:gpt-4o model requires OPENAI_API_KEY secret to be configured."
+        echo "Please configure this secret in your repository settings."
+        echo "Documentation: https://github.github.com/gh-aw/reference/engines/"
+        exit 1
+      fi
+      echo "OPENAI_API_KEY secret is configured"
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  - name: Install GenAIScript
+    run: npm install -g genaiscript@${GH_AW_AGENT_VERSION} && genaiscript --version
+    env:
+      GH_AW_AGENT_VERSION: ${{ env.GH_AW_AGENT_VERSION }}
+
+  - name: Convert prompt to GenAI format
+    run: |
+      mkdir -p /tmp/gh-aw/agent/aw-prompts
+      echo "---" > /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
+      echo "model: ${GH_AW_AGENT_MODEL_VERSION}" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
+      echo "system: []" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
+      echo "system-safety: false" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
+      echo "---" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
+      cat "$GH_AW_PROMPT" >> /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
+      echo "Generated GenAI prompt file:"
+      cat /tmp/gh-aw/agent/aw-prompts/prompt.genai.md
+    env:
+      GH_AW_PROMPT: ${{ env.GH_AW_PROMPT }}
+      GH_AW_AGENT_MODEL_VERSION: ${{ env.GH_AW_AGENT_MODEL_VERSION }}
+
+  - name: Run GenAIScript
+    id: genaiscript
+    run: genaiscript run /tmp/gh-aw/agent/aw-prompts/prompt.genai.md --mcp-config "$GH_AW_MCP_CONFIG" --out /tmp/gh-aw/agent/genaiscript-output.md
+    env:
+      DEBUG: genaiscript:*
+      GH_AW_PROMPT: ${{ env.GH_AW_PROMPT }}
+      GH_AW_MCP_CONFIG: ${{ env.GH_AW_MCP_CONFIG }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 ---
 
 <!--

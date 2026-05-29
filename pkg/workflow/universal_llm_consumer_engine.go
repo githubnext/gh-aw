@@ -114,7 +114,7 @@ func (e *UniversalLLMConsumerEngine) resolveBackend(workflowData *WorkflowData) 
 func (e *UniversalLLMConsumerEngine) GetUniversalRequiredSecretNames(workflowData *WorkflowData) []string {
 	backend := e.resolveBackend(workflowData)
 	universalLLMConsumerLog.Printf("Collecting required secret names for backend: %s", backend)
-	profile := getUniversalLLMBackendProfile(backend, isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData))
+	profile := getUniversalLLMBackendProfile(backend, hasCopilotRequestsWritePermission(workflowData))
 	secrets := append([]string{}, profile.coreSecretNames...)
 
 	if workflowData != nil && workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
@@ -156,7 +156,7 @@ func extractToolsConfig(workflowData *WorkflowData) (*ToolsConfig, map[string]an
 
 func (e *UniversalLLMConsumerEngine) GetUniversalSecretValidationStep(workflowData *WorkflowData, engineName, docsURL string) GitHubActionStep {
 	backend := e.resolveBackend(workflowData)
-	profile := getUniversalLLMBackendProfile(backend, isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData))
+	profile := getUniversalLLMBackendProfile(backend, hasCopilotRequestsWritePermission(workflowData))
 	if len(profile.coreSecretNames) == 0 {
 		return GitHubActionStep{}
 	}
@@ -166,7 +166,7 @@ func (e *UniversalLLMConsumerEngine) GetUniversalSecretValidationStep(workflowDa
 func (e *UniversalLLMConsumerEngine) ApplyUniversalProviderEnv(env map[string]string, workflowData *WorkflowData, firewallEnabled bool) {
 	backend := e.resolveBackend(workflowData)
 	universalLLMConsumerLog.Printf("Applying provider env for backend=%s, firewallEnabled=%t", backend, firewallEnabled)
-	profile := getUniversalLLMBackendProfile(backend, isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData))
+	profile := getUniversalLLMBackendProfile(backend, hasCopilotRequestsWritePermission(workflowData))
 	maps.Copy(env, profile.env)
 	if firewallEnabled {
 		universalLLMConsumerLog.Printf("Setting %s to gateway port %d", profile.baseURLEnvName, profile.gatewayPort)

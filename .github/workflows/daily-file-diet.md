@@ -7,6 +7,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 imports:
 - uses: shared/skip-if-issue-open.md
   with:
@@ -28,8 +29,6 @@ emoji: 🧹
 engine:
   agent: developer.instructions
   id: copilot
-features:
-  copilot-requests: true
 name: Daily File Diet
 strict: true
 timeout-minutes: 20
@@ -44,6 +43,7 @@ tools:
     - default
 tracker-id: daily-file-diet
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily File Diet Agent 🏋️

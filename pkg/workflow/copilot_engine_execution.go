@@ -327,18 +327,18 @@ touch %s
 	// COPILOT_GITHUB_TOKEN injection: in BYOK mode (COPILOT_PROVIDER_BASE_URL set), skip
 	// this entirely. The request goes to a third-party provider; forwarding the GitHub
 	// identity token would be a credential leak. The token is only needed for GitHub's
-	// own Copilot backend. When not in BYOK mode, use the GitHub Actions token when the
-	// copilot-requests feature is enabled, otherwise use the COPILOT_GITHUB_TOKEN secret.
+	// own Copilot backend. When not in BYOK mode, use the GitHub Actions token when
+	// permissions.copilot-requests is write, otherwise use the COPILOT_GITHUB_TOKEN secret.
 	// #nosec G101 -- These are NOT hardcoded credentials. They are GitHub Actions expression templates
 	// that the runtime replaces with actual values. The strings "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 	// and "${{ github.token }}" are placeholders, not actual credentials.
 	var copilotGitHubToken string
-	useCopilotRequests := isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData)
+	useCopilotRequests := hasCopilotRequestsWritePermission(workflowData)
 	if isBYOKMode {
 		copilotExecLog.Print("Skipping COPILOT_GITHUB_TOKEN injection: BYOK mode active (COPILOT_PROVIDER_BASE_URL is set)")
 	} else if useCopilotRequests {
 		copilotGitHubToken = "${{ github.token }}"
-		copilotExecLog.Print("Using GitHub Actions token as COPILOT_GITHUB_TOKEN (copilot-requests feature enabled)")
+		copilotExecLog.Print("Using GitHub Actions token as COPILOT_GITHUB_TOKEN (permissions.copilot-requests=write)")
 	} else {
 		copilotGitHubToken = "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 	}
@@ -369,7 +369,7 @@ touch %s
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 
-	// When copilot-requests feature is enabled, set S2STOKENS=true to allow the Copilot CLI
+	// When permissions.copilot-requests is write, set S2STOKENS=true to allow the Copilot CLI
 	// to accept GitHub App installation tokens (ghs_*) such as ${{ github.token }}.
 	if useCopilotRequests {
 		env["S2STOKENS"] = "true"

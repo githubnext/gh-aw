@@ -11,6 +11,7 @@ permissions:
   issues: read
   pull-requests: read
 
+  copilot-requests: write
 tracker-id: spec-extractor
 engine: copilot
 strict: true
@@ -150,9 +151,6 @@ safe-outputs:
         - README.md    # this workflow writes pkg/*/README.md specification files
 
 timeout-minutes: 30
-features:
-  copilot-requests: true
-
 ---
 
 # Package Specification Extractor

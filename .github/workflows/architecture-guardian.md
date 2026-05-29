@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   actions: read
+  copilot-requests: write
 engine: copilot
 tracker-id: architecture-guardian
 imports:
@@ -33,8 +34,6 @@ safe-outputs:
     run-success: "✅ Architecture scan complete! [{workflow_name}]({run_url}) has reviewed code structure. Report delivered! 📋"
     run-failure: "🏛️ Architecture scan failed! [{workflow_name}]({run_url}) {status}. Structure status unknown..."
 timeout-minutes: 20
-features:
-  copilot-requests: true
 steps:
   - name: Collect architecture metrics
     run: |
@@ -129,6 +128,7 @@ steps:
       echo "✅ Pre-computed metrics for $FILE_COUNT file(s) → /tmp/gh-aw/agent/arch-metrics.json"
 
 ---
+
 # Architecture Guardian
 
 You are the Architecture Guardian, a code quality agent that enforces structural discipline in the codebase. Your mission is to prevent "spaghetti code" by detecting structural violations in commits landed in the last 24 hours before they accumulate.

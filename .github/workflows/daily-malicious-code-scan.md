@@ -8,6 +8,7 @@ permissions:
   contents: read
   actions: read
   security-events: read
+  copilot-requests: write
 tracker-id: malicious-code-scan
 engine: copilot
 safe-outputs:

@@ -1315,28 +1315,28 @@ func TestDetectionJobPermissionsIndentation(t *testing.T) {
 		wantNotContains []string
 	}{
 		{
-			name: "copilot-requests feature produces correctly indented permissions",
+			name: "copilot-requests permission produces correctly indented permissions",
 			data: &WorkflowData{
 				Name: "test-workflow",
 				AI:   "copilot",
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{},
 				},
-				Features: map[string]any{
-					string(constants.CopilotRequestsFeatureFlag): true,
-				},
+				Permissions: "permissions:\n  copilot-requests: write",
 			},
 			// permission values must be indented by exactly 6 spaces (4 for job key + 2 for sub-key)
 			wantContains: []string{
 				"      copilot-requests: write",
+				"COPILOT_GITHUB_TOKEN: ${{ github.token }}",
 			},
 			// Over-indented value (10 spaces) must not appear - this was the bug
 			wantNotContains: []string{
 				"          copilot-requests: write",
+				"COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}",
 			},
 		},
 		{
-			name: "permissions block absent when copilot-requests feature disabled and no contents read needed",
+			name: "copilot-requests permission omitted from output when not configured",
 			data: &WorkflowData{
 				Name: "test-workflow",
 				AI:   "copilot",
@@ -1344,7 +1344,7 @@ func TestDetectionJobPermissionsIndentation(t *testing.T) {
 					ThreatDetection: &ThreatDetectionConfig{},
 				},
 			},
-			// copilot-requests should not be in the output when the feature is not enabled
+			// copilot-requests should not be in the output when the permission is not set
 			wantContains:    []string{},
 			wantNotContains: []string{"copilot-requests: write"},
 		},

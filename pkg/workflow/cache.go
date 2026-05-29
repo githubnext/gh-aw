@@ -687,6 +687,19 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 
 		cacheDir := cacheMemoryDirFor(cache.ID)
 
+		// Add a best-effort git integrity check and reseed step before upload.
+		// This prevents upload-artifact from failing on torn/corrupt .git object stores.
+		if useBackwardCompatiblePaths {
+			builder.WriteString("      - name: Check cache-memory git integrity\n")
+		} else {
+			fmt.Fprintf(builder, "      - name: Check cache-memory git integrity (%s)\n", cache.ID)
+		}
+		builder.WriteString("        if: always()\n")
+		builder.WriteString("        continue-on-error: true\n")
+		builder.WriteString("        env:\n")
+		fmt.Fprintf(builder, "          GH_AW_CACHE_DIR: %s\n", cacheDir)
+		builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/check_cache_memory_git_integrity.sh\"\n")
+
 		// Add upload-artifact step for each cache (runs always)
 		if useBackwardCompatiblePaths {
 			builder.WriteString("      - name: Upload cache-memory data as artifact\n")

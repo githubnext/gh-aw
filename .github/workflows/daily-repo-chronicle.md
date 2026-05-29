@@ -10,6 +10,7 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
+  copilot-requests: write
 tracker-id: daily-repo-chronicle
 engine: copilot
 
@@ -48,9 +49,6 @@ imports:
       expires: 3d
   - shared/trends.md
   - shared/otlp.md
-features:
-  copilot-requests: true
-
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

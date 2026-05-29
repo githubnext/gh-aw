@@ -1862,6 +1862,18 @@ sandbox:
     # (optional)
     memory: "example-value"
 
+    # Enable or disable model fallback for unresolved model selections. Set to false
+    # for BYOK Azure OpenAI deployments to prevent deployment-name rewriting. Supports
+    # literal boolean or GitHub Actions expression.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    model-fallback: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    model-fallback: "example-value"
+
     # Custom sandbox runtime configuration. Note: Network configuration is controlled
     # by the top-level 'network' field, not here.
     # (optional)
@@ -2520,11 +2532,11 @@ tools:
 
   # Format 4: GitHub tools object configuration with restricted function access
   github:
-    # List of allowed GitHub API functions (e.g., 'create_issue', 'update_issue',
-    # 'add_comment')
+    # List of allowed GitHub API functions. Each entry can be a string tool name
+    # (e.g., 'issue_read') or an object with per-tool limits (e.g., {name:
+    # 'issue_read', max-calls: 1})
     # (optional)
     allowed: []
-      # Array of strings
 
     # GitHub access mode. Prefer 'gh-proxy' for better performance (uses
     # pre-authenticated gh CLI prompt guidance). Legacy MCP transport values 'local'
@@ -7588,6 +7600,29 @@ observability:
     # workflow-level OTEL_* environment variables are still injected.
     # (optional)
     if-missing: "error"
+
+    # Optional runtime authentication for OTLP export. Supports GitHub App credentials
+    # (client-id/app-id + private-key) for token minting, or implicit GitHub OIDC mode
+    # when the github-app object is present without credentials.
+    # (optional)
+    github-app:
+      # Deprecated alias for client-id. GitHub App ID/client ID (e.g., '${{ vars.APP_ID
+      # }}').
+      # (optional)
+      app-id: "example-value"
+
+      # GitHub App client ID (e.g., '${{ vars.APP_ID }}').
+      # (optional)
+      client-id: "example-value"
+
+      # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}').
+      # (optional)
+      private-key: "example-value"
+
+      # If true, skip token minting when client-id/private-key resolve to empty strings
+      # at runtime. Defaults to false.
+      # (optional)
+      ignore-if-missing: true
 
 # Rate limiting configuration to restrict how frequently users can trigger the
 # workflow. Helps prevent abuse and resource exhaustion from programmatically

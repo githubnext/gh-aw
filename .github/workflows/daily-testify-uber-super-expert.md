@@ -6,6 +6,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 imports:
 - uses: shared/skip-if-issue-open.md
   with:
@@ -25,8 +26,6 @@ imports:
 description: Daily expert that analyzes one test file and creates an issue with testify-based improvements
 emoji: 🧪
 engine: copilot
-features:
-  copilot-requests: true
 name: Daily Testify Uber Super Expert
 strict: true
 timeout-minutes: 20
@@ -51,6 +50,7 @@ tools:
     max-file-size: 51200
 tracker-id: daily-testify-uber-super-expert
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Testify Uber Super Expert 🧪✨

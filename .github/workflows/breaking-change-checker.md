@@ -7,6 +7,7 @@ on:
 permissions:
   contents: read
   actions: read
+  copilot-requests: write
 engine: copilot
 tracker-id: breaking-change-checker
 tools:
@@ -40,9 +41,6 @@ safe-outputs:
     run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋"
     run-failure: "🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown..."
 timeout-minutes: 10
-features:
-  copilot-requests: true
-
 ---
 
 # Breaking Change Checker

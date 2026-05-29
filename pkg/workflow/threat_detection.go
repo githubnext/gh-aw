@@ -648,11 +648,13 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		Tools: map[string]any{
 			"bash": []any{"*"},
 		},
-		SafeOutputs:    nil,
-		EngineConfig:   detectionEngineConfig,
-		AI:             engineSetting,
-		Features:       data.Features,
-		IsDetectionRun: true, // Mark as detection run for phase tagging
+		SafeOutputs:       nil,
+		EngineConfig:      detectionEngineConfig,
+		AI:                engineSetting,
+		Features:          data.Features,
+		Permissions:       data.Permissions,
+		CachedPermissions: data.CachedPermissions,
+		IsDetectionRun:    true, // Mark as detection run for phase tagging
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: []string{}, // no user-specified additional domains; engine provides its own minimal set
 		},
@@ -962,9 +964,9 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	//   The checkout is conditional on has_patch at runtime, but permissions cannot
 	//   be set conditionally in GitHub Actions.
 	// - In dev/script mode, contents: read is also needed for the actions folder checkout.
-	// - When the copilot-requests feature is enabled, the detection job runs the Copilot CLI
+	// - When permissions.copilot-requests is set to write, the detection job runs the Copilot CLI
 	//   and requires copilot-requests: write for authentication.
-	copilotRequestsEnabled := isFeatureEnabled(constants.CopilotRequestsFeatureFlag, data)
+	copilotRequestsEnabled := hasCopilotRequestsWritePermission(data)
 	perms := NewPermissionsContentsRead()
 	if copilotRequestsEnabled {
 		perms.Set(PermissionCopilotRequests, PermissionWrite)

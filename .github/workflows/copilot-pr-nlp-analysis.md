@@ -14,6 +14,7 @@ permissions:
   actions: read
   issues: read
 
+  copilot-requests: write
 engine: copilot
 
 network:
@@ -64,13 +65,11 @@ steps:
 
 timeout-minutes: 20
 
-features:
-  copilot-requests: true
-
 tools:
   cli-proxy: true
 
 ---
+
 # Copilot PR Conversation NLP Analysis
 
 You are an AI analytics agent specialized in Natural Language Processing (NLP) and conversation analysis. Your mission is to analyze GitHub Copilot pull request conversations to identify trends, sentiment patterns, and recurring topics.

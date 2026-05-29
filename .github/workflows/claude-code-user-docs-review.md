@@ -14,6 +14,7 @@ permissions:
   pull-requests: read
   discussions: read
 
+  copilot-requests: write
 tracker-id: claude-code-user-docs-review
 engine: claude
 strict: true
@@ -42,10 +43,8 @@ imports:
       expires: 1d
 
   - shared/otlp.md
-features:
-  copilot-requests: true
-
 ---
+
 # Claude Code User Documentation Review
 
 You are an experienced developer who:

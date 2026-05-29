@@ -66,7 +66,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 		if msg, ok := extractLiteralErrorMessage(call); ok && returnsError(pass, call) {
 			checkNegativeLanguage(pass, call, msg)
-			checkGenericWrap(pass, call, msg)
+			checkFailedToErrorfWrap(pass, call, msg)
 			checkValidationFmtErrorf(pass, call, pos.Filename)
 		}
 
@@ -150,10 +150,10 @@ func checkValidationFmtErrorf(pass *analysis.Pass, call *ast.CallExpr, filename 
 
 func checkNegativeLanguage(pass *analysis.Pass, call *ast.CallExpr, msg string) {
 	lower := strings.ToLower(msg)
-	if !containsAnyKeyword(lower, "invalid", "cannot", "must", "failed") {
+	if !containsAnyWholeWord(lower, "invalid", "cannot", "must", "failed") {
 		return
 	}
-	if containsAnyKeyword(lower, "expected", "requires", "should", "example", "valid") {
+	if containsAnyWholeWord(lower, "expected", "requires", "should", "example", "valid") {
 		return
 	}
 	pass.ReportRangef(call, "error message uses negative language without constructive guidance; include expected/requires/should/example details")
@@ -181,7 +181,7 @@ func checkNewValidationSuggestion(pass *analysis.Pass, call *ast.CallExpr) {
 	}
 }
 
-func checkGenericWrap(pass *analysis.Pass, call *ast.CallExpr, msg string) {
+func checkFailedToErrorfWrap(pass *analysis.Pass, call *ast.CallExpr, msg string) {
 	if !isFmtErrorf(call) {
 		return
 	}
@@ -210,16 +210,16 @@ func looksLikeYAMLExample(s string) bool {
 	return strings.Contains(trimmed, ":") && strings.Contains(trimmed, " ")
 }
 
-func containsAnyKeyword(s string, keywords ...string) bool {
+func containsAnyWholeWord(s string, keywords ...string) bool {
 	for _, keyword := range keywords {
-		if containsKeyword(s, keyword) {
+		if containsWholeWord(s, keyword) {
 			return true
 		}
 	}
 	return false
 }
 
-func containsKeyword(s, keyword string) bool {
+func containsWholeWord(s, keyword string) bool {
 	offset := 0
 	for {
 		i := strings.Index(s[offset:], keyword)

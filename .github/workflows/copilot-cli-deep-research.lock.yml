@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"aee3ac7ce50247ac7c7267f4adab629a661b0232a5017c33d6d685fd2d2dcbb6","body_hash":"b3af85dbb39d0c96c535c0d7150961e7f6e19a84c94b832dcb7958e07bf6df4e","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"d2ceb1e027b0008c9450257cb31f5b0712743022c30799ea7457a51f98d70524","body_hash":"b3af85dbb39d0c96c535c0d7150961e7f6e19a84c94b832dcb7958e07bf6df4e","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.56"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.56"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.56"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.56"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.20"},{"image":"ghcr.io/github/github-mcp-server:v1.1.0"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -199,21 +199,21 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_9799070de7d58877_EOF'
+          cat << 'GH_AW_PROMPT_a55893b154cef383_EOF'
           <system>
-          GH_AW_PROMPT_9799070de7d58877_EOF
+          GH_AW_PROMPT_a55893b154cef383_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_9799070de7d58877_EOF'
+          cat << 'GH_AW_PROMPT_a55893b154cef383_EOF'
           <safe-output-tools>
           Tools: create_discussion, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_9799070de7d58877_EOF
+          GH_AW_PROMPT_a55893b154cef383_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_9799070de7d58877_EOF'
+          cat << 'GH_AW_PROMPT_a55893b154cef383_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -242,15 +242,15 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_9799070de7d58877_EOF
+          GH_AW_PROMPT_a55893b154cef383_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_9799070de7d58877_EOF'
+          cat << 'GH_AW_PROMPT_a55893b154cef383_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/copilot-cli-deep-research.md}}
-          GH_AW_PROMPT_9799070de7d58877_EOF
+          GH_AW_PROMPT_a55893b154cef383_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -499,9 +499,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_7ab33d7c2849c1d9_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_b72bf9bb1f72a4ba_EOF'
           {"create_discussion":{"category":"research","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1,"title_prefix":"[copilot-cli-research] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":204800,"max_patch_size":10240}]},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_7ab33d7c2849c1d9_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_b72bf9bb1f72a4ba_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -699,7 +699,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_ecd9e5e87292209b_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_6b8c03e960e37858_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "safeoutputs": {
@@ -729,7 +729,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_ecd9e5e87292209b_EOF
+          GH_AW_MCP_CONFIG_6b8c03e960e37858_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

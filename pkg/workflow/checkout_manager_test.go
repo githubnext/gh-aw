@@ -820,6 +820,45 @@ func TestGenerateFetchStep(t *testing.T) {
 		assert.Contains(t, got, "+refs/heads/*:refs/remotes/origin/*", "should include branches refspec")
 		assert.Contains(t, got, "+refs/pull/*/head:refs/remotes/origin/pull/*/head", "should include PR refspec")
 	})
+
+	t.Run("default depth adds --depth=1 to prevent full-history fetch", func(t *testing.T) {
+		// nil fetchDepth = default shallow clone (depth 1); fetch must not expand history
+		entry := &resolvedCheckout{
+			fetchRefs: []string{"main"},
+		}
+		got := generateFetchStepLines(entry, 0)
+		assert.Contains(t, got, "--depth=1", "default shallow checkout should pass --depth=1 to git fetch")
+	})
+
+	t.Run("explicit depth=1 adds --depth=1", func(t *testing.T) {
+		depth := 1
+		entry := &resolvedCheckout{
+			fetchRefs:  []string{"main"},
+			fetchDepth: &depth,
+		}
+		got := generateFetchStepLines(entry, 0)
+		assert.Contains(t, got, "--depth=1", "explicit fetch-depth: 1 should pass --depth=1 to git fetch")
+	})
+
+	t.Run("explicit depth=0 (full history) omits --depth flag", func(t *testing.T) {
+		depth := 0
+		entry := &resolvedCheckout{
+			fetchRefs:  []string{"main"},
+			fetchDepth: &depth,
+		}
+		got := generateFetchStepLines(entry, 0)
+		assert.NotContains(t, got, "--depth", "fetch-depth: 0 (full history) should not add --depth flag to git fetch")
+	})
+
+	t.Run("explicit depth=N adds --depth=N", func(t *testing.T) {
+		depth := 10
+		entry := &resolvedCheckout{
+			fetchRefs:  []string{"main"},
+			fetchDepth: &depth,
+		}
+		got := generateFetchStepLines(entry, 0)
+		assert.Contains(t, got, "--depth=10", "fetch-depth: 10 should pass --depth=10 to git fetch")
+	})
 }
 
 // TestCheckoutManagerFetchMerging verifies that fetch refs are merged correctly.

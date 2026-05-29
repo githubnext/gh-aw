@@ -10,6 +10,7 @@ permissions:
   issues: read
   pull-requests: read
 
+  copilot-requests: write
 engine: copilot
 
 experiments:
@@ -58,9 +59,6 @@ imports:
   - shared/otlp.md
 timeout-minutes: 20
 strict: true
-features:
-  copilot-requests: true
-
 ---
 
 # Architecture Diagram Generator

@@ -536,6 +536,34 @@ func TestCacheMemoryGitCommitSteps_RestoreOnlySkipped(t *testing.T) {
 	assert.Empty(t, output, "Restore-only caches should not generate a git commit step")
 }
 
+// TestCacheMemoryArtifactUploadAddsGitIntegrityCheck verifies that cache-memory artifact uploads
+// run a best-effort git fsck/reseed step before upload to avoid ENOENT failures from corrupt .git stores.
+func TestCacheMemoryArtifactUploadAddsGitIntegrityCheck(t *testing.T) {
+	data := &WorkflowData{
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: []CacheMemoryEntry{
+				{ID: "default"},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	var builder strings.Builder
+	generateCacheMemoryArtifactUpload(&builder, data, func(s string) string { return s })
+	output := builder.String()
+
+	assert.Contains(t, output, "- name: Check cache-memory git integrity",
+		"Should include pre-upload git integrity check step")
+	assert.Contains(t, output, "GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory",
+		"Should set cache dir env var for integrity script")
+	assert.Contains(t, output, "run: bash \"${RUNNER_TEMP}/gh-aw/actions/check_cache_memory_git_integrity.sh\"",
+		"Should run shared integrity script before upload")
+	assert.Contains(t, output, "- name: Upload cache-memory data as artifact",
+		"Should still upload artifact after integrity check")
+}
+
 // TestCacheMemoryGitSetupStep_AllowedExtensionsEnvVar verifies that the git setup step
 // emits GH_AW_ALLOWED_EXTENSIONS when allowed extensions are configured, and omits it
 // when the extensions list is empty (all allowed).
