@@ -1004,14 +1004,33 @@ index 0000000..abc1234
 
       mockExec.exec.mockResolvedValueOnce(0); // git am
 
-      // pushSignedCommits: git rev-list returns one SHA so the push is attempted
-      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "abc123\n", stderr: "" }); // git rev-list
-      // pushSignedCommits: git ls-remote returns remote HEAD OID
-      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "remote-oid\trefs/heads/feature-branch\n", stderr: "" }); // git ls-remote
-      // pushSignedCommits: git log -1 returns commit message
-      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "Test commit\n", stderr: "" }); // git log -1
-      // pushSignedCommits: git diff --name-status returns file changes
-      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "", stderr: "" }); // git diff --name-status (empty - no files)
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (argList[0] === "rev-parse" && argList[1] === "origin/feature-branch^{commit}") {
+          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\n", stderr: "" };
+        }
+        if (argList[0] === "rev-list" && argList[1] === "--merges") {
+          return { exitCode: 0, stdout: "0\n", stderr: "" };
+        }
+        if (argList[0] === "rev-list" && argList[1] === "--parents") {
+          return {
+            exitCode: 0,
+            stdout: "2222222222222222222222222222222222222222 1111111111111111111111111111111111111111\n",
+            stderr: "",
+          };
+        }
+        if (argList[0] === "ls-remote" && argList[2] === "refs/heads/feature-branch") {
+          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\trefs/heads/feature-branch\n", stderr: "" };
+        }
+        if (argList[0] === "log") {
+          return { exitCode: 0, stdout: "Test commit\n", stderr: "" };
+        }
+        if (argList[0] === "diff-tree") {
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        return originalGetExecOutput(cmd, args);
+      });
 
       // GraphQL call fails, triggering fallback to git push
       mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: branch protection"));
@@ -1041,10 +1060,33 @@ index 0000000..abc1234
 
       mockExec.exec.mockResolvedValueOnce(0); // git am
 
-      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "abc123\n", stderr: "" }); // git rev-list
-      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "remote-oid\trefs/heads/feature-branch\n", stderr: "" }); // git ls-remote
-      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "Test commit\n", stderr: "" }); // git log -1
-      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "", stderr: "" }); // git diff --name-status
+      const originalGetExecOutput = mockExec.getExecOutput;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (argList[0] === "rev-parse" && argList[1] === "origin/feature-branch^{commit}") {
+          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\n", stderr: "" };
+        }
+        if (argList[0] === "rev-list" && argList[1] === "--merges") {
+          return { exitCode: 0, stdout: "0\n", stderr: "" };
+        }
+        if (argList[0] === "rev-list" && argList[1] === "--parents") {
+          return {
+            exitCode: 0,
+            stdout: "2222222222222222222222222222222222222222 1111111111111111111111111111111111111111\n",
+            stderr: "",
+          };
+        }
+        if (argList[0] === "ls-remote" && argList[2] === "refs/heads/feature-branch") {
+          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\trefs/heads/feature-branch\n", stderr: "" };
+        }
+        if (argList[0] === "log") {
+          return { exitCode: 0, stdout: "Test commit\n", stderr: "" };
+        }
+        if (argList[0] === "diff-tree") {
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        return originalGetExecOutput(cmd, args);
+      });
 
       mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: branch protection"));
       mockExec.exec.mockRejectedValueOnce(new Error("! [rejected] feature-branch -> feature-branch (non-fast-forward)"));
