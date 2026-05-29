@@ -21,9 +21,9 @@ name: Repo Assist
 emoji: 🤖
 description: Friendly repository automation for review and issue triage
 includes:
-  - includes/workflows/review.md       # agentic workflow — compiled on install
-  - includes/skills/code-review        # skill directory (must contain SKILL.md)
-  - includes/agents/reviewer.md        # agent file
+  - workflows/review.md                # agentic workflow — compiled on install
+  - skills/code-review                 # skill directory (must contain SKILL.md)
+  - agents/reviewer.md                 # agent file
   - .github/workflows/ci.yml           # raw Actions YAML — copied verbatim
 ```
 
@@ -36,7 +36,7 @@ includes:
 | `name` | string | Yes | Human-readable package name. Must be non-empty after trimming whitespace. |
 | `emoji` | string | No | Optional package emoji for display in package metadata. |
 | `description` | string | No | Optional package description. `gh aw add` warns when it exceeds 255 characters. |
-| `includes` | array of strings | No | Package-root-relative paths. Type is inferred from folder naming: workflows (`workflows/`, `includes/workflows/`, `.github/workflows/`), skills (`skills/`, `includes/skills/`, `.github/skills/`), agents (`agents/`, `includes/agents/`, `.github/agents/`). |
+| `includes` | array of strings | No | Package-root-relative paths. Type is inferred from folder naming: workflows (`workflows/`, `.github/workflows/`), skills (`skills/`, `.github/skills/`), agents (`agents/`, `.github/agents/`). |
 | `files` | array of strings | No | Deprecated alias. Use `includes` instead. |
 
 ## Documentation
@@ -49,16 +49,16 @@ Package documentation is `README.md` in the package root.
 The manifest does not support a `docs` field.
 Missing `README.md` causes package validation to fail.
 
-When `files` is present, `gh aw add` emits a deprecation warning and automatically codemods `workflows/*` entries to `includes/workflows/*` in memory for resolution.
+When `files` is present, `gh aw add` emits a deprecation warning and automatically codemods values to equivalent `includes` entries in memory for resolution.
 
 ## Installable workflows
 
 If `includes` is present, valid entries are used as the install bundle. Supported entry kinds:
 
-- **Agentic workflow markdown** — paths ending in `.md` under `workflows/`, `includes/workflows/`, or `.github/workflows/`. Compiled to lock files on install.
+- **Agentic workflow markdown** — paths ending in `.md` under `workflows/` or `.github/workflows/`. Compiled to lock files on install.
 - **Raw GitHub Actions YAML** — paths ending in `.yml` (but not `.lock.yml`) that are direct children of `.github/workflows/`. Copied verbatim with no compilation or dependency fetching. `.yml` files under `workflows/` and nested subdirectories under `.github/workflows/` are not accepted.
-- **Skills** — directory paths under `skills/`, `includes/skills/`, or `.github/skills/` that contain `SKILL.md`.
-- **Agents** — `.md` files under `agents/`, `includes/agents/`, or `.github/agents/`.
+- **Skills** — directory paths under `skills/` or `.github/skills/` that contain `SKILL.md`.
+- **Agents** — `.md` files under `agents/` or `.github/agents/`.
 
 If `includes` is omitted or contains no valid workflow paths, `gh aw add` scans:
 

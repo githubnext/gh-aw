@@ -664,7 +664,6 @@ func TestIsSupportedPackageInstallablePath(t *testing.T) {
 	}{
 		// .md files: allowed under workflows/ and .github/workflows/
 		{"workflows/review.md", true},
-		{"includes/workflows/review.md", true},
 		{".github/workflows/nightly-review.md", true},
 		// .yml action workflow files: allowed only under .github/workflows/ (direct children only)
 		{".github/workflows/deploy.yml", true},
@@ -698,15 +697,15 @@ func TestIsSupportedPackageInstallablePath(t *testing.T) {
 
 func TestExtractManifestIncludes(t *testing.T) {
 	includes, warnings := extractManifestIncludes([]any{
-		"includes/workflows/review.md",
-		"includes/skills/code-review",
-		"includes/agents/reviewer.md",
+		"workflows/review.md",
+		"skills/code-review",
+		"agents/reviewer.md",
 		".github/workflows/ci.yml",
 	}, "aw.yml")
 	assert.Equal(t, []string{
-		"includes/workflows/review.md",
-		"includes/skills/code-review",
-		"includes/agents/reviewer.md",
+		"workflows/review.md",
+		"skills/code-review",
+		"agents/reviewer.md",
 		".github/workflows/ci.yml",
 	}, includes)
 	assert.Empty(t, warnings)
@@ -718,7 +717,7 @@ func TestCodemodManifestFilesToIncludes(t *testing.T) {
 		".github/workflows/ci.yml",
 	})
 	assert.Equal(t, []string{
-		"includes/workflows/review.md",
+		"workflows/review.md",
 		".github/workflows/ci.yml",
 	}, converted)
 }
@@ -924,7 +923,6 @@ func TestIsSupportedSkillDirPath(t *testing.T) {
 		{"agents/my-skill", false},
 		{"workflows/my-skill", false},
 		{".github/skills/my-skill", true},
-		{"includes/skills/my-skill", true},
 		// Invalid: empty
 		{"", false},
 		// Invalid: path traversal
@@ -959,7 +957,6 @@ func TestIsSupportedAgentFilePath(t *testing.T) {
 		{"skills/my-agent.md", false},
 		{"workflows/my-agent.md", false},
 		{".github/agents/my-agent.md", true},
-		{"includes/agents/my-agent.md", true},
 		// Invalid: empty
 		{"", false},
 		// Invalid: path traversal
@@ -1102,13 +1099,13 @@ files:
 			case "aw.yml":
 				return []byte(`name: My Package
 includes:
-  - includes/workflows/review.md
-  - includes/skills/code-review
+  - workflows/review.md
+  - skills/code-review
   - .github/agents/triage.md
 `), nil
 			case "README.md":
 				return []byte("# My Package\n"), nil
-			case "includes/skills/code-review/SKILL.md":
+			case "skills/code-review/SKILL.md":
 				return []byte("# skill\n"), nil
 			default:
 				return nil, createRepositoryPackageNotFoundError(filePath)
@@ -1119,8 +1116,8 @@ includes:
 			return nil, nil
 		}
 		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
-			if dirPath == "includes/skills/code-review" {
-				return []string{"includes/skills/code-review/SKILL.md", "includes/skills/code-review/prompt.md"}, nil
+			if dirPath == "skills/code-review" {
+				return []string{"skills/code-review/SKILL.md", "skills/code-review/prompt.md"}, nil
 			}
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
@@ -1131,7 +1128,7 @@ includes:
 
 		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
-		assert.Equal(t, []string{"includes/workflows/review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
 		require.Len(t, pkg.SkillFiles, 2)
 		assert.Equal(t, []string{".github/agents/triage.md"}, pkg.AgentFiles)
 	})

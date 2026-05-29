@@ -33,7 +33,6 @@ const repositoryPackageManifestFileName = "aw.yml"
 const repositoryPackageManifestVersion = "1"
 const packageSkillsDirectory = "skills"
 const packageAgentsDirectory = "agents"
-const packageIncludesDirectory = "includes"
 const packageSkillMarkerFile = "SKILL.md"
 
 type resolvedRepositoryPackage struct {
@@ -291,7 +290,7 @@ func extractManifestIncludes(value any, manifestPath string) ([]string, []string
 	seen := make(map[string]struct{})
 	for _, include := range rawIncludes {
 		if !isSupportedManifestIncludePath(include) {
-			warnings = append(warnings, fmt.Sprintf("Ignoring includes entry %q in %s: use workflow files (workflows/, includes/workflows/, .github/workflows/), skill directories (skills/, includes/skills/, .github/skills/), or agent markdown files (agents/, includes/agents/, .github/agents/)", include, manifestPath))
+			warnings = append(warnings, fmt.Sprintf("Ignoring includes entry %q in %s: use workflow files (workflows/, .github/workflows/), skill directories (skills/, .github/skills/), or agent markdown files (agents/, .github/agents/)", include, manifestPath))
 			continue
 		}
 		if _, exists := seen[include]; exists {
@@ -339,11 +338,7 @@ func extractManifestFiles(value any, manifestPath string) ([]string, []string) {
 func codemodManifestFilesToIncludes(files []string) []string {
 	converted := make([]string, 0, len(files))
 	for _, file := range files {
-		cleaned := path.Clean(filepath.ToSlash(file))
-		if strings.HasPrefix(cleaned, "workflows/") {
-			cleaned = path.Join(packageIncludesDirectory, cleaned)
-		}
-		converted = append(converted, cleaned)
+		converted = append(converted, path.Clean(filepath.ToSlash(file)))
 	}
 	return converted
 }
@@ -478,14 +473,11 @@ func isSupportedManifestIncludePath(p string) bool {
 
 func isSupportedSkillDirectoryPrefix(cleaned string) bool {
 	return strings.HasPrefix(cleaned, packageSkillsDirectory+"/") ||
-		strings.HasPrefix(cleaned, packageIncludesDirectory+"/"+packageSkillsDirectory+"/") ||
 		strings.HasPrefix(cleaned, ".github/"+packageSkillsDirectory+"/")
 }
 
 func skillDirectoryRoot(cleaned string) string {
 	switch {
-	case strings.HasPrefix(cleaned, packageIncludesDirectory+"/"+packageSkillsDirectory+"/"):
-		return packageIncludesDirectory + "/" + packageSkillsDirectory
 	case strings.HasPrefix(cleaned, ".github/"+packageSkillsDirectory+"/"):
 		return ".github/" + packageSkillsDirectory
 	default:
@@ -495,14 +487,11 @@ func skillDirectoryRoot(cleaned string) string {
 
 func isSupportedAgentDirectoryPrefix(cleaned string) bool {
 	return strings.HasPrefix(cleaned, packageAgentsDirectory+"/") ||
-		strings.HasPrefix(cleaned, packageIncludesDirectory+"/"+packageAgentsDirectory+"/") ||
 		strings.HasPrefix(cleaned, ".github/"+packageAgentsDirectory+"/")
 }
 
 func agentDirectoryRoot(cleaned string) string {
 	switch {
-	case strings.HasPrefix(cleaned, packageIncludesDirectory+"/"+packageAgentsDirectory+"/"):
-		return packageIncludesDirectory + "/" + packageAgentsDirectory
 	case strings.HasPrefix(cleaned, ".github/"+packageAgentsDirectory+"/"):
 		return ".github/" + packageAgentsDirectory
 	default:
@@ -573,7 +562,7 @@ func resolvePackageAgentFiles(owner, repo, packagePath, ref, host string, explic
 	}
 
 	var agentFiles []string
-	for _, root := range []string{packageAgentsDirectory, packageIncludesDirectory + "/" + packageAgentsDirectory, ".github/" + packageAgentsDirectory} {
+	for _, root := range []string{packageAgentsDirectory, ".github/" + packageAgentsDirectory} {
 		agentsDir := joinRepositoryPackagePath(packagePath, root)
 		files, err := listPackageDirFilesForHost(owner, repo, ref, agentsDir, host)
 		if err != nil {
@@ -595,7 +584,7 @@ func resolvePackageAgentFiles(owner, repo, packagePath, ref, host string, explic
 // of skill subdirectories (those that contain a SKILL.md file).
 func scanPackageSkillDirs(owner, repo, packagePath, ref, host string) ([]string, error) {
 	var skillDirs []string
-	for _, root := range []string{packageSkillsDirectory, packageIncludesDirectory + "/" + packageSkillsDirectory, ".github/" + packageSkillsDirectory} {
+	for _, root := range []string{packageSkillsDirectory, ".github/" + packageSkillsDirectory} {
 		skillsDir := joinRepositoryPackagePath(packagePath, root)
 		subdirs, err := listPackageDirSubdirsForHost(owner, repo, ref, skillsDir, host)
 		if err != nil {
@@ -687,7 +676,6 @@ func isSupportedPackageInstallablePath(p string) bool {
 	lowerCleaned := strings.ToLower(cleaned)
 	if strings.HasSuffix(lowerCleaned, ".md") {
 		return strings.HasPrefix(cleaned, "workflows/") ||
-			strings.HasPrefix(cleaned, "includes/workflows/") ||
 			strings.HasPrefix(cleaned, ".github/workflows/")
 	}
 	if isActionWorkflowPath(cleaned) {
