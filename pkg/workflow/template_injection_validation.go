@@ -151,10 +151,10 @@ func validateNoTemplateInjectionFromParsed(workflow map[string]any) error {
 			continue
 		}
 
-		// Remove heredoc content from the run block to avoid false positives
-		// Heredocs (e.g., << 'EOF' ... EOF) safely contain template expressions
-		// because they're written to files, not executed in shell
-		contentWithoutHeredocs := removeHeredocContent(runContent)
+		// Remove non-executable regions from the run block to avoid false positives:
+		//   - heredocs are written to files/stdin, not executed directly
+		//   - bash # comments are ignored by the shell
+		contentWithoutHeredocs := stripShellLineComments(removeHeredocContent(runContent))
 
 		// Extract all inline expressions from this run block (excluding heredocs)
 		expressions := InlineExpressionPattern.FindAllString(contentWithoutHeredocs, -1)
@@ -199,9 +199,9 @@ func validateNoGitHubExpressionsInRunScriptsFromParsed(workflow map[string]any) 
 	var violations []TemplateInjectionViolation
 
 	for _, runContent := range runBlocks {
-		// Align with template-injection validation: heredoc bodies are written to files
-		// and are not executed as shell commands, so they are excluded from scanning.
-		contentWithoutHeredocs := removeHeredocContent(runContent)
+		// Align with template-injection validation by excluding non-executable regions:
+		// heredoc bodies and bash # comments.
+		contentWithoutHeredocs := stripShellLineComments(removeHeredocContent(runContent))
 		expressions := InlineExpressionPattern.FindAllString(contentWithoutHeredocs, -1)
 		for _, expr := range expressions {
 			if allowedRunScriptExpressionRegex.MatchString(expr) {
