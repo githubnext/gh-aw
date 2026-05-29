@@ -98,6 +98,31 @@ EOF`,
 			expectChanged: false,
 		},
 		{
+			name: "expression in bash comment not extracted",
+			step: map[string]any{
+				"run": strings.Join([]string{
+					`set -euo pipefail`,
+					`# docs: ${{ secrets.* }}`,
+					`echo "ok"`,
+				}, "\n"),
+			},
+			expectChanged: false,
+		},
+		{
+			name: "only non-comment expression is extracted",
+			step: map[string]any{
+				"run": strings.Join([]string{
+					`# docs: ${{ secrets.* }}`,
+					`echo "${{ github.event.issue.title }}"`,
+				}, "\n"),
+			},
+			expectChanged:   true,
+			expectRunHas:    []string{"# docs: ${{ secrets.* }}", "$GH_AW_GITHUB_EVENT_ISSUE_TITLE"},
+			expectRunNotHas: []string{"${{ github.event.issue.title }}"},
+			expectEnvKeys:   []string{"GH_AW_GITHUB_EVENT_ISSUE_TITLE"},
+			expectWarnings:  1,
+		},
+		{
 			name: "steps outputs expression extracted",
 			step: map[string]any{
 				"run": `bash script.sh "${{ steps.build.outputs.artifact }}"`,

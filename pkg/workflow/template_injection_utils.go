@@ -79,6 +79,71 @@ func removeHeredocContent(content string) string {
 	return result
 }
 
+// stripShellLineComments removes bash-style # line comments while preserving text
+// inside single/double quotes and escaped # characters.
+func stripShellLineComments(content string) string {
+	var out strings.Builder
+	out.Grow(len(content))
+
+	inSingleQuote := false
+	inDoubleQuote := false
+	escaped := false
+
+	for i := 0; i < len(content); i++ {
+		ch := content[i]
+
+		// Preserve newlines and reset escape state across lines.
+		if ch == '\n' {
+			out.WriteByte(ch)
+			escaped = false
+			continue
+		}
+
+		if escaped {
+			out.WriteByte(ch)
+			escaped = false
+			continue
+		}
+
+		if ch == '\\' && !inSingleQuote {
+			out.WriteByte(ch)
+			escaped = true
+			continue
+		}
+
+		if ch == '\'' && !inDoubleQuote {
+			inSingleQuote = !inSingleQuote
+			out.WriteByte(ch)
+			continue
+		}
+
+		if ch == '"' && !inSingleQuote {
+			inDoubleQuote = !inDoubleQuote
+			out.WriteByte(ch)
+			continue
+		}
+
+		if ch == '#' && !inSingleQuote && !inDoubleQuote && isShellCommentStart(content, i) {
+			for i+1 < len(content) && content[i+1] != '\n' {
+				i++
+			}
+			continue
+		}
+
+		out.WriteByte(ch)
+	}
+
+	return out.String()
+}
+
+func isShellCommentStart(content string, index int) bool {
+	if index == 0 {
+		return true
+	}
+	prev := content[index-1]
+	return prev == ' ' || prev == '\t' || prev == '\n' || prev == '\r' || prev == ';'
+}
+
 // replaceOutsideQuotedHeredocs replaces all occurrences of old with new in s,
 // skipping content inside quoted heredoc blocks (e.g. << 'EOF' ... EOF).
 //
