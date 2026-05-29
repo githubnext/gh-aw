@@ -132,19 +132,21 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 
 #### `init`
 
-Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher skill file (`.github/skills/agentic-workflows/SKILL.md`), and performs non-interactive setup. Enables MCP server integration by default (use `--no-mcp` to skip). Use `--engine` to select a non-Copilot engine and skip Copilot-specific artifacts.
+Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher skill file (`.github/skills/agentic-workflows/SKILL.md`), creates the Agentic Workflows custom agent (`.github/agents/agentic-workflows.md`), and performs non-interactive setup. Enables MCP server integration by default (use `--no-mcp` to skip). Use `--no-skill` or `--no-agent` to skip either artifact, or `--engine` to select a non-Copilot engine and skip Copilot-specific artifacts.
 
 ```bash wrap
 gh aw init                              # Initialize repository with defaults (non-interactive)
 gh aw init --engine claude              # Skip Copilot-specific artifacts
 gh aw init --no-mcp                     # Skip MCP server integration
+gh aw init --no-skill                   # Skip dispatcher skill creation
+gh aw init --no-agent                   # Skip custom agent creation
 gh aw init --codespaces ""              # Configure devcontainer for current repo only
 gh aw init --codespaces repo1,repo2     # Configure devcontainer for additional repos
 gh aw init --completions                # Install shell completions
 gh aw init --create-pull-request        # Initialize and open a pull request
 ```
 
-**Options:** `--engine/-e`, `--no-mcp`, `--codespaces`, `--completions`, `--create-pull-request`
+**Options:** `--engine/-e`, `--no-mcp`, `--no-skill`, `--no-agent`, `--codespaces`, `--completions`, `--create-pull-request`
 
 #### `add-wizard`
 
