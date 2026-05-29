@@ -312,7 +312,11 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	if mf := extractModelFallback(config.WorkflowData); mf != nil {
 		apiProxy.ModelFallback = mf
-		awfConfigLog.Printf("API proxy: modelFallback configured: enabled=%v, strategy=%q", mf.Enabled, mf.Strategy)
+		enabledValue := "<unset>"
+		if mf.Enabled != nil {
+			enabledValue = fmt.Sprintf("%t", *mf.Enabled)
+		}
+		awfConfigLog.Printf("API proxy: modelFallback configured: enabled=%s, strategy=%q", enabledValue, mf.Strategy)
 	}
 
 	targets := map[string]*AWFAPITargetConfig{}
@@ -408,7 +412,7 @@ func extractModelMultipliers(workflowData *WorkflowData) map[string]float64 {
 }
 
 // extractModelFallback returns an AWFModelFallbackConfig if the workflow has configured
-// sandbox.agent.modelFallback, or nil if the field is absent (letting AWF use its default).
+// sandbox.agent.model-fallback, or nil if the field is absent (letting AWF use its default).
 func extractModelFallback(workflowData *WorkflowData) *AWFModelFallbackConfig {
 	if workflowData == nil {
 		return nil

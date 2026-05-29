@@ -1862,20 +1862,15 @@ sandbox:
     # (optional)
     memory: "example-value"
 
-    # Model fallback policy for unresolved model selections. AWF default is enabled
-    # with the middle_power strategy, which silently rewrites deployment names to
-    # base-catalog names. Set enabled: false for BYOK Azure OpenAI deployments to
-    # prevent deployment-name rewriting that causes HTTP 404 DeploymentNotFound errors.
+    # Model fallback policy for unresolved model selections. Set enabled: false for
+    # BYOK Azure OpenAI deployments to prevent deployment-name rewriting.
     # (optional)
     model-fallback:
-      # Enable or disable the middle-power fallback when model resolution fails.
-      # Defaults to true (AWF default). Set to false for custom-provider or BYOK
-      # Azure deployments where deployment-name rewriting is undesired.
+      # Enable or disable model fallback. Omit to use the AWF default.
       # (optional)
       enabled: true
 
       # Fallback selection strategy. Currently only "middle_power" is supported.
-      # Omit to use the AWF default.
       # (optional)
       strategy: "middle_power"
 
@@ -2537,11 +2532,11 @@ tools:
 
   # Format 4: GitHub tools object configuration with restricted function access
   github:
-    # List of allowed GitHub API functions (e.g., 'create_issue', 'update_issue',
-    # 'add_comment')
+    # List of allowed GitHub API functions. Each entry can be a string tool name
+    # (e.g., 'issue_read') or an object with per-tool limits (e.g., {name:
+    # 'issue_read', max-calls: 1})
     # (optional)
     allowed: []
-      # Array of strings
 
     # GitHub access mode. Prefer 'gh-proxy' for better performance (uses
     # pre-authenticated gh CLI prompt guidance). Legacy MCP transport values 'local'
@@ -7605,6 +7600,29 @@ observability:
     # workflow-level OTEL_* environment variables are still injected.
     # (optional)
     if-missing: "error"
+
+    # Optional runtime authentication for OTLP export. Supports GitHub App credentials
+    # (client-id/app-id + private-key) for token minting, or implicit GitHub OIDC mode
+    # when the github-app object is present without credentials.
+    # (optional)
+    github-app:
+      # Deprecated alias for client-id. GitHub App ID/client ID (e.g., '${{ vars.APP_ID
+      # }}').
+      # (optional)
+      app-id: "example-value"
+
+      # GitHub App client ID (e.g., '${{ vars.APP_ID }}').
+      # (optional)
+      client-id: "example-value"
+
+      # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}').
+      # (optional)
+      private-key: "example-value"
+
+      # If true, skip token minting when client-id/private-key resolve to empty strings
+      # at runtime. Defaults to false.
+      # (optional)
+      ignore-if-missing: true
 
 # Rate limiting configuration to restrict how frequently users can trigger the
 # workflow. Helps prevent abuse and resource exhaustion from programmatically

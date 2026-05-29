@@ -3291,6 +3291,22 @@
                       "pattern": "^[0-9]+(b|k|m|g|kb|mb|gb|B|K|M|G|KB|MB|GB)$",
                       "examples": ["4g", "8g", "512m"]
                     },
+                    "model-fallback": {
+                      "type": "object",
+                      "description": "Model fallback policy for unresolved model selections. Set enabled: false for BYOK Azure OpenAI deployments to prevent deployment-name rewriting.",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean",
+                          "description": "Enable or disable model fallback. Omit to use the AWF default."
+                        },
+                        "strategy": {
+                          "type": "string",
+                          "enum": ["middle_power"],
+                          "description": "Fallback selection strategy. Currently only \"middle_power\" is supported."
+                        }
+                      },
+                      "additionalProperties": false
+                    },
                     "config": {
                       "type": "object",
                       "description": "Custom sandbox runtime configuration. Note: Network configuration is controlled by the top-level 'network' field, not here.",
