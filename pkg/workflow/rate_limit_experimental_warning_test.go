@@ -38,7 +38,8 @@ permissions:
 
 # Test Workflow
 `,
-			expectWarning: true,
+			expectWarning:       true,
+			expectLegacyWarning: false,
 		},
 		{
 			name: "no user-rate-limit does not produce experimental warning",
@@ -156,18 +157,19 @@ permissions:
 				if !strings.Contains(stderrOutput, expectedMessage) {
 					t.Errorf("Expected warning containing '%s', got stderr:\n%s", expectedMessage, stderrOutput)
 				}
-
-				if tt.expectLegacyWarning {
-					if !strings.Contains(stderrOutput, expectedLegacyMessage) {
-						t.Errorf("Expected warning containing '%s', got stderr:\n%s", expectedLegacyMessage, stderrOutput)
-					}
-				} else if strings.Contains(stderrOutput, expectedLegacyMessage) {
-					t.Errorf("Did not expect warning '%s', but got stderr:\n%s", expectedLegacyMessage, stderrOutput)
-				}
 			} else {
 				if strings.Contains(stderrOutput, expectedMessage) {
 					t.Errorf("Did not expect warning '%s', but got stderr:\n%s", expectedMessage, stderrOutput)
 				}
+			}
+
+			if tt.expectLegacyWarning {
+				if !strings.Contains(stderrOutput, expectedLegacyMessage) {
+					t.Errorf("Expected warning containing '%s', got stderr:\n%s", expectedLegacyMessage, stderrOutput)
+				}
+			}
+			if !tt.expectLegacyWarning && strings.Contains(stderrOutput, expectedLegacyMessage) {
+				t.Errorf("Did not expect warning '%s', but got stderr:\n%s", expectedLegacyMessage, stderrOutput)
 			}
 
 			// Verify warning count includes rate-limit warning
