@@ -454,6 +454,99 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, "&&", "JSON output should preserve && in GitHub Actions expressions")
 		assert.NotContains(t, jsonStr, "\\u0026", "JSON output should not HTML-escape '&' characters")
 	})
+
+	t.Run("modelFallback is emitted when enabled is explicitly set to false", func(t *testing.T) {
+		falseVal := false
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					ModelFallback: &EngineModelFallbackConfig{
+						Enabled: &falseVal,
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"modelFallback"`, "apiProxy should emit modelFallback when configured")
+		assert.Contains(t, jsonStr, `"enabled":false`, "apiProxy.modelFallback.enabled should be false")
+		assert.NotContains(t, jsonStr, `"strategy"`, "apiProxy.modelFallback should omit strategy when not set")
+	})
+
+	t.Run("modelFallback is emitted when enabled is explicitly set to true", func(t *testing.T) {
+		trueVal := true
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					ModelFallback: &EngineModelFallbackConfig{
+						Enabled: &trueVal,
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"modelFallback"`, "apiProxy should emit modelFallback when configured")
+		assert.Contains(t, jsonStr, `"enabled":true`, "apiProxy.modelFallback.enabled should be true")
+	})
+
+	t.Run("modelFallback includes strategy when set", func(t *testing.T) {
+		falseVal := false
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					ModelFallback: &EngineModelFallbackConfig{
+						Enabled:  &falseVal,
+						Strategy: "middle_power",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"modelFallback"`, "apiProxy should emit modelFallback when configured")
+		assert.Contains(t, jsonStr, `"strategy":"middle_power"`, "apiProxy.modelFallback should include strategy when set")
+	})
+
+	t.Run("modelFallback is omitted when not configured in engine", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"modelFallback"`, "apiProxy should omit modelFallback when not configured")
+	})
 }
 
 // TestBuildAWFConfigSchemaURL verifies that buildAWFConfigSchemaURL returns a release-pinned
@@ -629,6 +722,44 @@ func TestBuildAWFConfigJSON_SchemaCompliance(t *testing.T) {
 						Firewall: &FirewallConfig{Enabled: true, Version: "v0.24.0"},
 					},
 				},
+			},
+		},
+		{
+			name: "config with modelFallback disabled",
+			config: AWFCommandConfig{
+				EngineName:     "copilot",
+				AllowedDomains: "github.com",
+				WorkflowData: func() *WorkflowData {
+					f := false
+					return &WorkflowData{
+						EngineConfig: &EngineConfig{
+							ID:            "copilot",
+							ModelFallback: &EngineModelFallbackConfig{Enabled: &f},
+						},
+						NetworkPermissions: &NetworkPermissions{
+							Firewall: &FirewallConfig{Enabled: true},
+						},
+					}
+				}(),
+			},
+		},
+		{
+			name: "config with modelFallback disabled and strategy set",
+			config: AWFCommandConfig{
+				EngineName:     "copilot",
+				AllowedDomains: "github.com",
+				WorkflowData: func() *WorkflowData {
+					f := false
+					return &WorkflowData{
+						EngineConfig: &EngineConfig{
+							ID:            "copilot",
+							ModelFallback: &EngineModelFallbackConfig{Enabled: &f, Strategy: "middle_power"},
+						},
+						NetworkPermissions: &NetworkPermissions{
+							Firewall: &FirewallConfig{Enabled: true},
+						},
+					}
+				}(),
 			},
 		},
 	}

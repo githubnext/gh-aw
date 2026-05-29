@@ -50,6 +50,11 @@ type EngineConfig struct {
 	// When set, overrides or extends the built-in model_multipliers.json values.
 	TokenWeights *types.TokenWeights
 
+	// ModelFallback configures the API proxy model fallback policy from engine.firewall.apiProxy.modelFallback.
+	// When nil, the AWF default (enabled=true, strategy=middle_power) is used.
+	// Set enabled=false for BYOK Azure OpenAI deployments to prevent deployment name rewriting.
+	ModelFallback *EngineModelFallbackConfig
+
 	// Inline definition fields (populated when engine.runtime is specified in frontmatter)
 	IsInlineDefinition bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
 	InlineProviderID   string // engine.provider.id  (e.g. "openai", "anthropic")
@@ -70,6 +75,18 @@ type EngineConfig struct {
 	// Extensions is a list of engine-specific plugin names to install before launching the engine.
 	// Currently used by the Pi engine: each entry is passed to `pi install <extension>`.
 	Extensions []string
+}
+
+// EngineModelFallbackConfig holds model fallback policy parsed from engine.firewall.apiProxy.modelFallback.
+// It maps to the apiProxy.modelFallback field in the generated AWF config.
+type EngineModelFallbackConfig struct {
+	// Enabled controls whether the AWF middle-power fallback is applied when model resolution fails.
+	// A nil pointer means the field was not set in frontmatter; AWF will use its default (true).
+	Enabled *bool
+
+	// Strategy is the fallback selection strategy. Currently only "middle_power" is supported.
+	// When empty, AWF uses its default strategy.
+	Strategy string
 }
 
 // EngineAuthConfig represents engine.auth frontmatter settings that map to
@@ -487,6 +504,24 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
+			// Extract optional 'firewall' sub-object (engine-level AWF config overrides)
+			if firewallVal, hasFirewall := engineObj["firewall"]; hasFirewall {
+				if firewallObj, ok := firewallVal.(map[string]any); ok {
+					if mf := parseEngineModelFallback(firewallObj); mf != nil {
+						config.ModelFallback = mf
+						enabled := "<unset>"
+						if mf.Enabled != nil {
+							if *mf.Enabled {
+								enabled = "true"
+							} else {
+								enabled = "false"
+							}
+						}
+						engineLog.Printf("Extracted engine.firewall.apiProxy.modelFallback: enabled=%s, strategy=%q", enabled, mf.Strategy)
+					}
+				}
+			}
+
 			// Return the ID as the engineSetting for backwards compatibility
 			config.MaxRuns = topLevelMaxRuns
 			config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
@@ -755,4 +790,53 @@ func parseEngineTokenWeights(raw any) *types.TokenWeights {
 		return nil
 	}
 	return tw
+}
+
+// parseEngineModelFallback parses the engine.firewall.apiProxy.modelFallback configuration
+// from the "firewall" sub-object of the engine configuration map. Returns nil when modelFallback
+// is absent or not a recognised object. The caller is responsible for logging the result.
+//
+// Expected frontmatter structure:
+//
+//	engine:
+//	  firewall:
+//	    apiProxy:
+//	      modelFallback:
+//	        enabled: false
+//	        strategy: middle_power   # optional
+func parseEngineModelFallback(firewallObj map[string]any) *EngineModelFallbackConfig {
+	apiProxyRaw, hasAPIProxy := firewallObj["apiProxy"]
+	if !hasAPIProxy {
+		return nil
+	}
+	apiProxyObj, ok := apiProxyRaw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	mfRaw, hasMF := apiProxyObj["modelFallback"]
+	if !hasMF {
+		return nil
+	}
+	mfObj, ok := mfRaw.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	result := &EngineModelFallbackConfig{}
+	if enabledRaw, hasEnabled := mfObj["enabled"]; hasEnabled {
+		if enabledBool, ok := enabledRaw.(bool); ok {
+			result.Enabled = &enabledBool
+		}
+	}
+	if strategyRaw, hasStrategy := mfObj["strategy"]; hasStrategy {
+		if strategyStr, ok := strategyRaw.(string); ok {
+			result.Strategy = strategyStr
+		}
+	}
+
+	// Return nil when neither field was set — treat as absent
+	if result.Enabled == nil && result.Strategy == "" {
+		return nil
+	}
+	return result
 }
