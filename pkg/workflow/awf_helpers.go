@@ -203,16 +203,16 @@ fi`,
 GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"
 if [ -d "$GH_AW_TOOL_CACHE" ]; then
   if [[ "$GH_AW_TOOL_CACHE" != /opt/* ]]; then
-    %s="--mount \"$GH_AW_TOOL_CACHE:$GH_AW_TOOL_CACHE:ro\""
+    %s="$GH_AW_TOOL_CACHE:$GH_AW_TOOL_CACHE:ro"
   fi
 elif [ -d "/home/runner/work/_tool" ]; then
-  %s="--mount \"/home/runner/work/_tool:/home/runner/work/_tool:ro\""
+  %s="/home/runner/work/_tool:/home/runner/work/_tool:ro"
 fi`,
 		awfToolCacheMountVarName,
 		awfToolCacheMountVarName,
 		awfToolCacheMountVarName,
 	)
-	toolCacheMountRef := fmt.Sprintf("${%s}", awfToolCacheMountVarName)
+	toolCacheMountRef := fmt.Sprintf("${%s:+--mount \"$%s\"}", awfToolCacheMountVarName, awfToolCacheMountVarName)
 
 	// Build the expandable args string for args that need shell variable expansion.
 	// These MUST be appended as raw (unescaped) strings because single-quoting would

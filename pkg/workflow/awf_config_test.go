@@ -1174,9 +1174,9 @@ func TestBuildAWFCommand_AddsToolCacheMountProbe(t *testing.T) {
 	command := BuildAWFCommand(config)
 
 	assert.Contains(t, command, `GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"`, "should detect RUNNER_TOOL_CACHE with hostedtoolcache fallback")
-	assert.Contains(t, command, `--mount \"$GH_AW_TOOL_CACHE:$GH_AW_TOOL_CACHE:ro\"`, "should mount non-/opt tool cache paths")
-	assert.Contains(t, command, `--mount \"/home/runner/work/_tool:/home/runner/work/_tool:ro\"`, "should include fallback mount for legacy _tool path")
-	assert.Contains(t, command, `${GH_AW_TOOL_CACHE_MOUNT}`, "should inject tool-cache mount args into awf invocation")
+	assert.Contains(t, command, `GH_AW_TOOL_CACHE_MOUNT="$GH_AW_TOOL_CACHE:$GH_AW_TOOL_CACHE:ro"`, "should mount non-/opt tool cache paths")
+	assert.Contains(t, command, `GH_AW_TOOL_CACHE_MOUNT="/home/runner/work/_tool:/home/runner/work/_tool:ro"`, "should include fallback mount for legacy _tool path")
+	assert.Contains(t, command, `${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"}`, "should inject tool-cache mount args into awf invocation")
 }
 
 func TestBuildAWFCommand_WorkflowCallNetworkAllowedUpdaterUsesRunnerTempEnv(t *testing.T) {

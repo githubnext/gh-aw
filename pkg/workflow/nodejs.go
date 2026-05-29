@@ -194,7 +194,7 @@ func GetNpmBinPathSetup() string {
 	// alphabetically, so go/1.23.12 shadows go/1.25.0. Re-prepending GOROOT/bin
 	// ensures the Go version set by actions/setup-go takes precedence.
 	// AWF's entrypoint.sh exports GOROOT before the user command runs.
-	return `export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true`
+	return `GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"; export PATH="$(find "$GH_AW_TOOL_CACHE" /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true`
 }
 
 // GenerateNpmInstallStepsWithScope generates npm installation steps with control over global vs local installation.
