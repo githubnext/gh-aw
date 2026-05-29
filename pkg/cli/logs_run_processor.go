@@ -24,6 +24,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/sourcegraph/conc/pool"
 )
 
@@ -524,7 +525,7 @@ func inferWorkflowPathFromDisplayName(displayName string) string {
 	}
 	// Match sanitizeWorkflowName.cjs: lowercase, replace :[\/\s] with "-",
 	// replace other non-identifier chars with "-", preserve "." and "_".
-	slug := stringutil.SanitizeName(displayName, &stringutil.SanitizeOptions{
+	slug := workflow.SanitizeName(displayName, &workflow.SanitizeOptions{
 		PreserveSpecialChars: []rune{'.', '_'},
 		TrimHyphens:          true,
 	})

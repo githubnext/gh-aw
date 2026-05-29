@@ -11,7 +11,7 @@ import (
 )
 
 // TestIsFormattedCompilerError verifies that the helper correctly identifies
-// errors produced by formatCompilerError / formatCompilerErrorWithPosition and
+// errors produced by formatCompilerError and
 // returns false for other error types.
 func TestIsFormattedCompilerError(t *testing.T) {
 	tests := []struct {
@@ -21,17 +21,17 @@ func TestIsFormattedCompilerError(t *testing.T) {
 	}{
 		{
 			name:     "error from formatCompilerError with nil cause",
-			err:      formatCompilerError("file.md", "error", "something went wrong", nil),
+			err:      formatCompilerError(compilerErrorOpts{FilePath: "file.md", ErrType: "error", Message: "something went wrong", Cause: nil}),
 			expected: true,
 		},
 		{
 			name:     "error from formatCompilerError with non-nil cause",
-			err:      formatCompilerError("file.md", "error", "something went wrong", errors.New("root cause")),
+			err:      formatCompilerError(compilerErrorOpts{FilePath: "file.md", ErrType: "error", Message: "something went wrong", Cause: errors.New("root cause")}),
 			expected: true,
 		},
 		{
-			name:     "error from formatCompilerErrorWithPosition",
-			err:      formatCompilerErrorWithPosition("file.md", 5, 3, "error", "bad value", nil),
+			name:     "error from formatCompilerError with explicit position",
+			err:      formatCompilerError(compilerErrorOpts{FilePath: "file.md", Line: 5, Column: 3, ErrType: "error", Message: "bad value", Cause: nil}),
 			expected: true,
 		},
 		{

@@ -652,6 +652,41 @@ func TestSanitizeForFilename(t *testing.T) {
 	}
 }
 
+func TestSanitizeForFilenameWithSeparator(t *testing.T) {
+	tests := []struct {
+		name      string
+		slug      string
+		separator string
+		expected  string
+	}{
+		{
+			name:      "custom separator for repo path",
+			slug:      "owner/repo",
+			separator: "__",
+			expected:  "owner__repo",
+		},
+		{
+			name:      "special chars use separator",
+			slug:      "owner:repo@main",
+			separator: "__",
+			expected:  "owner__repo__main",
+		},
+		{
+			name:      "empty separator falls back to hyphen",
+			slug:      "owner/repo",
+			separator: "",
+			expected:  "owner-repo",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SanitizeForFilenameWithSeparator(tt.slug, tt.separator)
+			assertSanitizeResult(t, "SanitizeForFilenameWithSeparator", tt.slug, result, tt.expected)
+		})
+	}
+}
+
 func BenchmarkSanitizeForFilename(b *testing.B) {
 	slug := "github/gh-aw"
 	for b.Loop() {

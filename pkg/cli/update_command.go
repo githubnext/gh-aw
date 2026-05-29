@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/spf13/cobra"
 )
 
@@ -207,7 +208,7 @@ func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateW
 		return err
 	}
 
-	checkoutDir := filepath.Join(updatesDir, sanitizeRepoPath(targetRepo))
+	checkoutDir := filepath.Join(updatesDir, stringutil.SanitizeForFilenameWithSeparator(targetRepo, "__"))
 	if err := shallowCloneTargetRepo(ctx, targetRepo, checkoutDir); err != nil {
 		return err
 	}
@@ -287,9 +288,4 @@ func shallowCloneTargetRepo(ctx context.Context, repo, destination string) error
 		return fmt.Errorf("failed to shallow clone %s: %w: %s", repo, err, trimmed)
 	}
 	return nil
-}
-
-func sanitizeRepoPath(repo string) string {
-	replacer := strings.NewReplacer("/", "__", "\\", "__", ":", "__", "@", "__")
-	return replacer.Replace(repo)
 }

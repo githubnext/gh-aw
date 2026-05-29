@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
-
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var importCacheLog = logger.New("parser:import_cache")
@@ -18,17 +18,6 @@ const (
 	// ImportCacheDir is the directory where cached imports are stored
 	ImportCacheDir = ".github/aw/imports"
 )
-
-// sanitizePath converts a file path to a safe filename by using filepath.Clean
-// and replacing directory separators with underscores
-func sanitizePath(path string) string {
-	// Clean the path to remove any ".." or other suspicious elements
-	cleaned := filepath.Clean(path)
-	// Replace directory separators with underscores to create a flat filename
-	// This prevents directory traversal while preserving path uniqueness
-	sanitized := strings.ReplaceAll(cleaned, string(filepath.Separator), "_")
-	return sanitized
-}
 
 // validatePathComponents validates that path components don't contain malicious sequences
 func validatePathComponents(owner, repo, path, sha string) error {
@@ -72,7 +61,7 @@ func NewImportCache(repoRoot string) *ImportCache {
 func (c *ImportCache) Get(owner, repo, path, sha string) (string, bool) {
 	// Use SHA-based approach: cache files are stored by commit SHA
 	// Cache path: .github/aw/imports/owner/repo/sha/sanitized_path.md
-	sanitizedPath := sanitizePath(path)
+	sanitizedPath := stringutil.SanitizeForFilenameWithSeparator(filepath.Clean(path), "_")
 	relativeCachePath := filepath.Join(ImportCacheDir, owner, repo, sha, sanitizedPath)
 	fullCachePath := filepath.Join(c.baseDir, relativeCachePath)
 
@@ -111,7 +100,7 @@ func (c *ImportCache) Set(owner, repo, path, sha string, content []byte) (string
 
 	// Use SHA in path for consistent caching
 	// This ensures that different refs pointing to the same commit reuse the same cache
-	sanitizedPath := sanitizePath(path)
+	sanitizedPath := stringutil.SanitizeForFilenameWithSeparator(filepath.Clean(path), "_")
 	relativeCachePath := filepath.Join(ImportCacheDir, owner, repo, sha, sanitizedPath)
 	fullCachePath := filepath.Join(c.baseDir, relativeCachePath)
 

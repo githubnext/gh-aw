@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -183,8 +184,8 @@ func TestSanitizePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := sanitizePath(tt.input)
-			assert.Equal(t, tt.expected, result, "sanitizePath(%q) should return expected value", tt.input)
+			result := stringutil.SanitizeForFilenameWithSeparator(filepath.Clean(tt.input), "_")
+			assert.Equal(t, tt.expected, result, "sanitize path(%q) should return expected value", tt.input)
 		})
 	}
 }

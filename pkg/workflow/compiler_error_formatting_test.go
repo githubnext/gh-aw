@@ -90,7 +90,7 @@ func TestFormatCompilerError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := formatCompilerError(tt.filePath, tt.errType, tt.message, tt.cause)
+			err := formatCompilerError(compilerErrorOpts{FilePath: tt.filePath, ErrType: tt.errType, Message: tt.message, Cause: tt.cause})
 			require.Error(t, err, "formatCompilerError should return an error")
 
 			errStr := err.Error()
@@ -108,7 +108,7 @@ func TestFormatCompilerError(t *testing.T) {
 
 // TestFormatCompilerError_OutputFormat verifies the output format remains consistent
 func TestFormatCompilerError_OutputFormat(t *testing.T) {
-	err := formatCompilerError("/test/workflow.md", "error", "test message", nil)
+	err := formatCompilerError(compilerErrorOpts{FilePath: "/test/workflow.md", ErrType: "error", Message: "test message", Cause: nil})
 	require.Error(t, err)
 
 	errStr := err.Error()
@@ -123,8 +123,8 @@ func TestFormatCompilerError_OutputFormat(t *testing.T) {
 
 // TestFormatCompilerError_ErrorVsWarning tests differentiation between error and warning types
 func TestFormatCompilerError_ErrorVsWarning(t *testing.T) {
-	errorErr := formatCompilerError("test.md", "error", "error message", nil)
-	warningErr := formatCompilerError("test.md", "warning", "warning message", nil)
+	errorErr := formatCompilerError(compilerErrorOpts{FilePath: "test.md", ErrType: "error", Message: "error message", Cause: nil})
+	warningErr := formatCompilerError(compilerErrorOpts{FilePath: "test.md", ErrType: "warning", Message: "warning message", Cause: nil})
 
 	require.Error(t, errorErr)
 	require.Error(t, warningErr)
@@ -186,7 +186,7 @@ func TestFormatCompilerError_ErrorWrapping(t *testing.T) {
 	underlyingErr := errors.New("underlying validation error")
 
 	// Wrap it with formatCompilerError
-	wrappedErr := formatCompilerError("test.md", "error", "validation failed", underlyingErr)
+	wrappedErr := formatCompilerError(compilerErrorOpts{FilePath: "test.md", ErrType: "error", Message: "validation failed", Cause: underlyingErr})
 
 	require.Error(t, wrappedErr)
 
@@ -207,7 +207,7 @@ func TestFormatCompilerError_SameMessageAndCause(t *testing.T) {
 
 	// This is the most common call pattern in compiler.go:
 	//   return formatCompilerError(path, "error", err.Error(), err)
-	wrappedErr := formatCompilerError("test.md", "error", underlying.Error(), underlying)
+	wrappedErr := formatCompilerError(compilerErrorOpts{FilePath: "test.md", ErrType: "error", Message: underlying.Error(), Cause: underlying})
 
 	require.Error(t, wrappedErr)
 
@@ -223,7 +223,7 @@ func TestFormatCompilerError_SameMessageAndCause(t *testing.T) {
 
 // TestFormatCompilerError_NilCause verifies that nil cause creates a new error
 func TestFormatCompilerError_NilCause(t *testing.T) {
-	err := formatCompilerError("test.md", "error", "validation error", nil)
+	err := formatCompilerError(compilerErrorOpts{FilePath: "test.md", ErrType: "error", Message: "validation error", Cause: nil})
 
 	require.Error(t, err)
 
@@ -244,7 +244,7 @@ func TestFormatCompilerError_UsesLocationFromValidationError(t *testing.T) {
 	t.Run("uses line and column from validation error", func(t *testing.T) {
 		vErr := &WorkflowValidationError{Field: "engine", Value: "copiliot", Reason: "not a valid engine", Suggestion: "Did you mean 'copilot'?", File: "workflow.md", Line: 15, Column: 3}
 
-		wrapped := formatCompilerError("workflow.md", "error", vErr.Error(), vErr)
+		wrapped := formatCompilerError(compilerErrorOpts{FilePath: "workflow.md", ErrType: "error", Message: vErr.Error(), Cause: vErr})
 		require.Error(t, wrapped)
 
 		errStr := wrapped.Error()
@@ -258,7 +258,7 @@ func TestFormatCompilerError_UsesLocationFromValidationError(t *testing.T) {
 	t.Run("uses file from validation error when different from filePath", func(t *testing.T) {
 		vErr := &WorkflowValidationError{Field: "concurrency", Value: "invalid", Reason: "reason", File: "actual-source.md", Line: 7, Column: 1}
 
-		wrapped := formatCompilerError("other.md", "error", vErr.Error(), vErr)
+		wrapped := formatCompilerError(compilerErrorOpts{FilePath: "other.md", ErrType: "error", Message: vErr.Error(), Cause: vErr})
 		require.Error(t, wrapped)
 
 		errStr := wrapped.Error()
@@ -268,7 +268,7 @@ func TestFormatCompilerError_UsesLocationFromValidationError(t *testing.T) {
 	t.Run("falls back to 1:1 when validation error has no location", func(t *testing.T) {
 		vErr := NewValidationError("engine", "copiliot", "not a valid engine", "")
 
-		wrapped := formatCompilerError("workflow.md", "error", vErr.Error(), vErr)
+		wrapped := formatCompilerError(compilerErrorOpts{FilePath: "workflow.md", ErrType: "error", Message: vErr.Error(), Cause: vErr})
 		require.Error(t, wrapped)
 
 		errStr := wrapped.Error()
@@ -277,7 +277,7 @@ func TestFormatCompilerError_UsesLocationFromValidationError(t *testing.T) {
 
 	t.Run("non-validation-error cause still defaults to 1:1", func(t *testing.T) {
 		cause := errors.New("some other error")
-		wrapped := formatCompilerError("workflow.md", "error", "message", cause)
+		wrapped := formatCompilerError(compilerErrorOpts{FilePath: "workflow.md", ErrType: "error", Message: "message", Cause: cause})
 		require.Error(t, wrapped)
 
 		errStr := wrapped.Error()

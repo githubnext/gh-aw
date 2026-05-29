@@ -287,6 +287,32 @@ func SanitizeToolID(toolID string) string {
 	return cleaned
 }
 
+// SanitizeForFilenameWithSeparator converts a repository slug (owner/repo) to a filename-safe string.
+// Replaces "/" with the provided separator and any remaining non-alphanumeric characters
+// (except "-", "_", ".") with the same separator. Returns "clone-mode" if the slug is empty.
+//
+// Example:
+//
+//	SanitizeForFilenameWithSeparator("owner/repo", "-")  // returns "owner-repo"
+//	SanitizeForFilenameWithSeparator("owner/repo", "__") // returns "owner__repo"
+func SanitizeForFilenameWithSeparator(slug, separator string) string {
+	if slug == "" {
+		return "clone-mode"
+	}
+	if separator == "" {
+		separator = "-"
+	}
+	var sb strings.Builder
+	for _, r := range strings.ReplaceAll(slug, "/", separator) {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			sb.WriteRune(r)
+		} else {
+			sb.WriteString(separator)
+		}
+	}
+	return sb.String()
+}
+
 // SanitizeForFilename converts a repository slug (owner/repo) to a filename-safe string.
 // Replaces "/" with "-" and any remaining non-alphanumeric characters (except "-", "_", ".")
 // with "-". Returns "clone-mode" if the slug is empty.
@@ -297,16 +323,5 @@ func SanitizeToolID(toolID string) string {
 //	SanitizeForFilename("my.org/my_repo") // returns "my.org-my_repo"
 //	SanitizeForFilename("")               // returns "clone-mode"
 func SanitizeForFilename(slug string) string {
-	if slug == "" {
-		return "clone-mode"
-	}
-	var sb strings.Builder
-	for _, r := range strings.ReplaceAll(slug, "/", "-") {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
-			sb.WriteRune(r)
-		} else {
-			sb.WriteRune('-')
-		}
-	}
-	return sb.String()
+	return SanitizeForFilenameWithSeparator(slug, "-")
 }

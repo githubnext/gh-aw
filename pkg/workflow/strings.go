@@ -93,6 +93,11 @@ import (
 
 var stringsLog = logger.New("workflow:strings")
 
+// SanitizeOptions and SanitizeName are intentionally re-exported from stringutil
+// so workflow-facing callers can consistently use workflow's sanitize helpers.
+// Keep external callers on this package-level entry point rather than mixing direct
+// stringutil.SanitizeName usage.
+//
 // SanitizeOptions configures the behavior of the SanitizeName function.
 type SanitizeOptions = stringutil.SanitizeOptions
 

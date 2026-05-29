@@ -147,7 +147,7 @@ func FormatSecurityFindings(findings []SecurityFinding, filePath string) string 
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "Security scan found %d issue(s) in workflow markdown:\n\n", len(findings))
 
-	// Format each finding using formatCompilerErrorWithPosition for consistency
+	// Format each finding with explicit line/column information for consistency.
 	for _, f := range findings {
 		line := f.Line
 		if line <= 0 {
@@ -155,14 +155,7 @@ func FormatSecurityFindings(findings []SecurityFinding, filePath string) string 
 		}
 
 		// Create a formatted error for this finding
-		findingErr := formatCompilerErrorWithPosition(
-			filePath,
-			line,
-			1, // Column 1 (we don't have column info)
-			"error",
-			fmt.Sprintf("[%s] %s", f.Category, f.Description),
-			nil,
-		)
+		findingErr := formatCompilerError(compilerErrorOpts{FilePath: filePath, Line: line, Column: 1, ErrType: "error", Message: fmt.Sprintf("[%s] %s", f.Category, f.Description), Cause: nil})
 
 		// Append the formatted error to our output
 		sb.WriteString(findingErr.Error())

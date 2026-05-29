@@ -133,7 +133,7 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		"See: https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/"
 
 	if effectiveStrictMode {
-		return formatCompilerError(markdownPath, "error", message, nil)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: message, Cause: nil})
 	}
 
 	// Non-strict mode: emit a warning so existing workflows continue to compile.

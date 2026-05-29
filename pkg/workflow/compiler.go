@@ -70,7 +70,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			return err
 		}
 		// Fallback for any unformatted error that slipped through.
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	return c.CompileWorkflowData(workflowData, markdownPath)
@@ -123,7 +123,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	// (returned to avoid a second scan of the full YAML in the caller for safe update enforcement).
 	yamlContent, bodySecrets, bodyActions, err := c.generateYAML(workflowData, markdownPath)
 	if err != nil {
-		return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("failed to generate YAML: %v", err), err)
+		return "", nil, nil, formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("failed to generate YAML: %v", err), Cause: err})
 	}
 
 	// Always validate expression sizes - this is a hard limit from GitHub Actions (21KB)
@@ -131,7 +131,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	workflowLog.Print("Validating expression sizes")
 	if err := c.validateExpressionSizes(yamlContent); err != nil {
 		// Store error first so we can write invalid YAML before returning
-		formattedErr := formatCompilerError(markdownPath, "error", fmt.Sprintf("expression size validation failed: %v", err), err)
+		formattedErr := formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("expression size validation failed: %v", err), Cause: err})
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
@@ -197,8 +197,8 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 				}
 			}
 			// Store error first so we can write invalid YAML before returning
-			formattedErr := formatCompilerErrorWithPosition(markdownPath, fieldLine, 1, "error",
-				fmt.Sprintf("invalid workflow: %v", schemaErr), schemaErr)
+			formattedErr := formatCompilerError(compilerErrorOpts{FilePath: markdownPath, Line: fieldLine, Column: 1, ErrType: "error", Message: fmt.Sprintf("invalid workflow: %v", schemaErr), Cause: schemaErr})
+
 			// Write the invalid YAML to a .invalid.yml file for inspection
 			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
@@ -219,19 +219,19 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		// Validate runtime packages (npx, uv)
 		workflowLog.Print("Validating runtime packages")
 		if err := c.validateRuntimePackages(workflowData); err != nil {
-			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("runtime package validation failed: %v", err), err)
+			return "", nil, nil, formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("runtime package validation failed: %v", err), Cause: err})
 		}
 
 		// Validate firewall configuration (log-level enum)
 		workflowLog.Print("Validating firewall configuration")
 		if err := c.validateFirewallConfig(workflowData); err != nil {
-			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("firewall configuration validation failed: %v", err), err)
+			return "", nil, nil, formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("firewall configuration validation failed: %v", err), Cause: err})
 		}
 
 		// Validate repository features (discussions, issues)
 		workflowLog.Print("Validating repository features")
 		if err := c.validateRepositoryFeatures(workflowData); err != nil {
-			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("repository feature validation failed: %v", err), err)
+			return "", nil, nil, formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("repository feature validation failed: %v", err), Cause: err})
 		}
 	} else if c.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
@@ -263,7 +263,7 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 		// Only write if content has changed
 		if !contentUnchanged {
 			if err := os.WriteFile(lockFile, []byte(yamlContent), constants.FilePermPublic); err != nil {
-				return formatCompilerError(lockFile, "error", fmt.Sprintf("failed to write lock file: %v", err), err)
+				return formatCompilerError(compilerErrorOpts{FilePath: lockFile, ErrType: "error", Message: fmt.Sprintf("failed to write lock file: %v", err), Cause: err})
 			}
 			workflowLog.Print("Lock file written successfully")
 		}
@@ -345,7 +345,7 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 
 	if templateErr != nil {
 		// Store error first so we can write invalid YAML before returning
-		formattedErr := formatCompilerError(markdownPath, "error", templateErr.Error(), templateErr)
+		formattedErr := formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: templateErr.Error(), Cause: templateErr})
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
@@ -493,7 +493,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		if isFormattedCompilerError(err) {
 			return err
 		}
-		return formatCompilerError(markdownPath, "error", "workflow validation: "+err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: "workflow validation: " + err.Error(), Cause: err})
 	}
 
 	// Note: Markdown content size is now handled by splitting into multiple steps in generatePrompt
@@ -512,7 +512,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		if isFormattedCompilerError(err) {
 			return err
 		}
-		return formatCompilerError(markdownPath, "error", "YAML generation: "+err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: "YAML generation: " + err.Error(), Cause: err})
 	}
 
 	// Enforce safe update mode: emit a warning prompt (not a hard error) when unapproved

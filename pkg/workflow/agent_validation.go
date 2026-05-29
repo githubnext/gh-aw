@@ -71,8 +71,8 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 	// Only alphanumeric characters, dots, underscores, hyphens, forward slashes,
 	// and spaces are permitted. Shell metacharacters are rejected.
 	if !agentFilePathRegex.MatchString(agentPath) {
-		return formatCompilerError(markdownPath, "error",
-			fmt.Sprintf("agent file path '%s' contains invalid characters. Only alphanumeric characters, dots, underscores, hyphens, forward slashes, and spaces are allowed.", agentPath), nil)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("agent file path '%s' contains invalid characters. Only alphanumeric characters, dots, underscores, hyphens, forward slashes, and spaces are allowed.", agentPath), Cause: nil})
+
 	}
 
 	var fullAgentPath string
@@ -93,12 +93,12 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 	// Check if the file exists
 	if _, err := os.Stat(fullAgentPath); err != nil {
 		if os.IsNotExist(err) {
-			return formatCompilerError(markdownPath, "error",
-				fmt.Sprintf("agent file '%s' does not exist. Ensure the file exists in the repository and is properly imported.", agentPath), nil)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("agent file '%s' does not exist. Ensure the file exists in the repository and is properly imported.", agentPath), Cause: nil})
+
 		}
 		// Other error (permissions, etc.)
-		return formatCompilerError(markdownPath, "error",
-			fmt.Sprintf("failed to access agent file '%s': %v", agentPath, err), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("failed to access agent file '%s': %v", agentPath, err), Cause: err})
+
 	}
 
 	if c.verbose {
@@ -291,7 +291,7 @@ on:
   workflow_run:
     workflows: ["your-workflow"]
     types: [completed]`
-		return formatCompilerError(markdownPath, "error", message, nil)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: message, Cause: nil})
 	}
 
 	// Check if workflow_run has branches field
@@ -319,7 +319,7 @@ on:
 
 	if c.strictMode {
 		// In strict mode, this is an error
-		return formatCompilerError(markdownPath, "error", message, nil)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: message, Cause: nil})
 	}
 
 	// In normal mode, this is a warning

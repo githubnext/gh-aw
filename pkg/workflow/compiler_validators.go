@@ -19,7 +19,7 @@ func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath 
 	if strings.Contains(workflowData.MarkdownContent, "${{") {
 		workflowLog.Printf("Validating expression safety")
 		if err := validateExpressionSafety(workflowData.MarkdownContent); err != nil {
-			return formatCompilerError(markdownPath, "error", err.Error(), err)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 		}
 	}
 
@@ -39,7 +39,7 @@ func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath 
 			c.IncrementWarningCount()
 		}
 		if err != nil {
-			return formatCompilerError(markdownPath, "error", err.Error(), err)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 		}
 	}
 
@@ -98,13 +98,13 @@ func (c *Compiler) validateFeatureConfig(workflowData *WorkflowData, markdownPat
 	// Validate feature flags
 	workflowLog.Printf("Validating feature flags")
 	if err := validateFeatures(workflowData); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Inline sub-agents are always enabled and can no longer be disabled.
 	if workflowData.InlineSubAgentsDisabled {
 		msg := "inline-sub-agents: false is not supported. Inline sub-agents are always enabled. Remove inline-sub-agents from your frontmatter."
-		return formatCompilerError(markdownPath, "error", msg, errors.New("inline-sub-agents cannot be set to false"))
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: msg, Cause: errors.New("inline-sub-agents cannot be set to false")})
 	}
 
 	// Check for action-mode feature flag override
@@ -113,7 +113,7 @@ func (c *Compiler) validateFeatureConfig(workflowData *WorkflowData, markdownPat
 			if actionModeStr, ok := actionModeVal.(string); ok && actionModeStr != "" {
 				mode := ActionMode(actionModeStr)
 				if !mode.IsValid() {
-					return formatCompilerError(markdownPath, "error", fmt.Sprintf("invalid action-mode feature flag '%s'. Must be 'dev', 'release', or 'script'", actionModeStr), nil)
+					return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("invalid action-mode feature flag '%s'. Must be 'dev', 'release', or 'script'", actionModeStr), Cause: nil})
 				}
 				workflowLog.Printf("Overriding action mode from feature flag: %s", mode)
 				c.SetActionMode(mode)
@@ -140,19 +140,19 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// Validate sandbox configuration
 	workflowLog.Printf("Validating sandbox configuration")
 	if err := validateSandboxConfig(workflowData); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate safe-outputs target configuration
 	workflowLog.Printf("Validating safe-outputs target fields")
 	if err := validateSafeOutputsTarget(workflowData.SafeOutputs); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate safe-outputs max configuration
 	workflowLog.Printf("Validating safe-outputs max fields")
 	if err := validateSafeOutputsMax(workflowData.SafeOutputs); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate safe-outputs steps for dangerous shell expansion patterns.
@@ -161,7 +161,7 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	workflowLog.Printf("Validating safe-outputs steps for shell expansion patterns")
 	if err := validateSafeOutputsStepsShellExpansion(workflowData.SafeOutputs); err != nil {
 		if c.strictMode {
-			return formatCompilerError(markdownPath, "error", err.Error(), err)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 		}
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", err.Error()))
 		c.IncrementWarningCount()
@@ -170,31 +170,31 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// Validate safe-outputs allowed-domains configuration
 	workflowLog.Printf("Validating safe-outputs allowed-domains")
 	if err := c.validateSafeOutputsAllowedDomains(workflowData.SafeOutputs); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate safe-outputs merge-pull-request configuration
 	workflowLog.Printf("Validating safe-outputs merge-pull-request")
 	if err := validateSafeOutputsMergePullRequest(workflowData.SafeOutputs); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate safe-outputs needs declarations
 	workflowLog.Printf("Validating safe-outputs needs declarations")
 	if err := validateSafeOutputsNeeds(workflowData); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate on.needs declarations and on.github-app needs expressions
 	workflowLog.Printf("Validating on.needs declarations")
 	if err := c.validateOnNeeds(workflowData); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate safe-job needs: declarations against known generated job IDs
 	workflowLog.Printf("Validating safe-job needs declarations")
 	if err := validateSafeJobNeeds(workflowData); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Emit warnings for push-to-pull-request-branch misconfiguration
@@ -204,51 +204,51 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// Reject bare "*" in allowed-labels (CTR-015)
 	workflowLog.Printf("Validating safe-outputs allowed-labels glob scope")
 	if err := c.validateSafeOutputsAllowedLabelsGlobScope(workflowData.SafeOutputs); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate network allowed domains configuration
 	workflowLog.Printf("Validating network allowed domains")
 	if err := c.validateNetworkAllowedDomains(workflowData.NetworkPermissions); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate network firewall configuration
 	workflowLog.Printf("Validating network firewall configuration")
 	if err := validateNetworkFirewallConfig(workflowData.NetworkPermissions); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate safe-outputs allow-workflows requires GitHub App
 	workflowLog.Printf("Validating safe-outputs allow-workflows")
 	if err := validateSafeOutputsAllowWorkflows(workflowData.SafeOutputs); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate labels configuration
 	workflowLog.Printf("Validating labels")
 	if err := validateLabels(workflowData); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate workflow_dispatch required inputs with slash/label command triggers.
 	workflowLog.Printf("Validating workflow_dispatch input requirements for command triggers")
 	if err := validateCommandWorkflowDispatchInputs(workflowData); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate workflow-level concurrency group expression
 	workflowLog.Printf("Validating workflow-level concurrency configuration")
 	if workflowData.Concurrency != "" {
 		if err := validateConcurrencyQueueConfiguration(workflowData.Concurrency); err != nil {
-			return formatCompilerError(markdownPath, "error", "workflow-level concurrency validation failed: "+err.Error(), err)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: "workflow-level concurrency validation failed: " + err.Error(), Cause: err})
 		}
 
 		// Use the cached validation result from applyDefaults to avoid re-running the
 		// expensive ExpressionParser (regex + tokenize + parse) on every validateWorkflowData call.
 		if workflowData.CachedConcurrencyGroupExprSet {
 			if workflowData.CachedConcurrencyGroupExprErr != nil {
-				return formatCompilerError(markdownPath, "error", "workflow-level concurrency validation failed: "+workflowData.CachedConcurrencyGroupExprErr.Error(), workflowData.CachedConcurrencyGroupExprErr)
+				return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: "workflow-level concurrency validation failed: " + workflowData.CachedConcurrencyGroupExprErr.Error(), Cause: workflowData.CachedConcurrencyGroupExprErr})
 			}
 		} else {
 			// Fallback: cache not populated (e.g. WorkflowData created without applyDefaults).
@@ -257,7 +257,7 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 			groupExpr := extractConcurrencyGroupFromYAML(workflowData.Concurrency)
 			if groupExpr != "" {
 				if err := validateConcurrencyGroupExpression(groupExpr); err != nil {
-					return formatCompilerError(markdownPath, "error", "workflow-level concurrency validation failed: "+err.Error(), err)
+					return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: "workflow-level concurrency validation failed: " + err.Error(), Cause: err})
 				}
 			}
 		}
@@ -266,7 +266,7 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// Validate concurrency.job-discriminator expression
 	if workflowData.ConcurrencyJobDiscriminator != "" {
 		if err := validateConcurrencyGroupExpression(workflowData.ConcurrencyJobDiscriminator); err != nil {
-			return formatCompilerError(markdownPath, "error", "concurrency.job-discriminator validation failed: "+err.Error(), err)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: "concurrency.job-discriminator validation failed: " + err.Error(), Cause: err})
 		}
 	}
 
@@ -274,14 +274,14 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	workflowLog.Printf("Validating engine-level concurrency configuration")
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Concurrency != "" {
 		if err := validateConcurrencyQueueConfiguration(workflowData.EngineConfig.Concurrency); err != nil {
-			return formatCompilerError(markdownPath, "error", "engine.concurrency validation failed: "+err.Error(), err)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: "engine.concurrency validation failed: " + err.Error(), Cause: err})
 		}
 
 		// Extract the group expression from the engine concurrency YAML
 		groupExpr := extractConcurrencyGroupFromYAML(workflowData.EngineConfig.Concurrency)
 		if groupExpr != "" {
 			if err := validateConcurrencyGroupExpression(groupExpr); err != nil {
-				return formatCompilerError(markdownPath, "error", "engine.concurrency validation failed: "+err.Error(), err)
+				return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: "engine.concurrency validation failed: " + err.Error(), Cause: err})
 			}
 		}
 	}
@@ -289,7 +289,7 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// Validate safe-outputs concurrency group expression
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ConcurrencyGroup != "" {
 		if err := validateConcurrencyGroupExpression(workflowData.SafeOutputs.ConcurrencyGroup); err != nil {
-			return formatCompilerError(markdownPath, "error", "safe-outputs.concurrency-group validation failed: "+err.Error(), err)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: "safe-outputs.concurrency-group validation failed: " + err.Error(), Cause: err})
 		}
 	}
 
@@ -323,7 +323,7 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 
 	// Validate: threat detection requires sandbox.agent to be enabled (detection runs inside AWF)
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ThreatDetection != nil && isAgentSandboxDisabled(workflowData) {
-		return formatCompilerError(markdownPath, "error", "threat detection requires sandbox.agent to be enabled. Threat detection runs inside the agent sandbox (AWF) with fully blocked network. Either enable sandbox.agent or use 'threat-detection: false' to disable the threat-detection configuration in safe-outputs.", errors.New("threat detection requires sandbox.agent"))
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: "threat detection requires sandbox.agent to be enabled. Threat detection runs inside the agent sandbox (AWF) with fully blocked network. Either enable sandbox.agent or use 'threat-detection: false' to disable the threat-detection configuration in safe-outputs.", Cause: errors.New("threat detection requires sandbox.agent")})
 	}
 
 	// Emit warning when assign-to-agent is used with github-app: but no explicit github-token:.
@@ -406,7 +406,7 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 
 		// Validate that all allowed tools have their toolsets enabled
 		if err := ValidateGitHubToolsAgainstToolsets(allowedTools, enabledToolsets); err != nil {
-			return formatCompilerError(markdownPath, "error", err.Error(), err)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 		}
 
 		// Print informational message if "projects" toolset is explicitly specified
@@ -432,7 +432,7 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 			message += "permissions:\n"
 			message += "  actions: read"
 
-			return formatCompilerError(markdownPath, "error", message, nil)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: message, Cause: nil})
 		}
 	}
 
@@ -441,8 +441,8 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	if workflowData.ParsedFrontmatter != nil {
 		for _, r := range workflowData.ParsedFrontmatter.Resources {
 			if strings.Contains(r, "${{") {
-				return formatCompilerError(markdownPath, "error",
-					fmt.Sprintf("resources entry %q contains GitHub Actions expression syntax (${{) which is not allowed; use static paths only", r), nil)
+				return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("resources entry %q contains GitHub Actions expression syntax (${{) which is not allowed; use static paths only", r), Cause: nil})
+
 			}
 		}
 	}
@@ -450,19 +450,19 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 	// Validate dispatch-workflow configuration (independent of agentic-workflows tool)
 	workflowLog.Print("Validating dispatch-workflow configuration")
 	if err := c.validateDispatchWorkflow(workflowData, markdownPath); err != nil {
-		return formatCompilerError(markdownPath, "error", fmt.Sprintf("dispatch-workflow validation failed: %v", err), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("dispatch-workflow validation failed: %v", err), Cause: err})
 	}
 
 	// Validate dispatch_repository configuration (independent of agentic-workflows tool)
 	workflowLog.Print("Validating dispatch_repository configuration")
 	if err := c.validateDispatchRepository(workflowData, markdownPath); err != nil {
-		return formatCompilerError(markdownPath, "error", fmt.Sprintf("dispatch_repository validation failed: %v", err), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("dispatch_repository validation failed: %v", err), Cause: err})
 	}
 
 	// Validate call-workflow configuration (independent of agentic-workflows tool)
 	workflowLog.Print("Validating call-workflow configuration")
 	if err := c.validateCallWorkflow(workflowData, markdownPath); err != nil {
-		return formatCompilerError(markdownPath, "error", fmt.Sprintf("call-workflow validation failed: %v", err), err)
+		return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("call-workflow validation failed: %v", err), Cause: err})
 	}
 
 	return nil

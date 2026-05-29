@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/spf13/cobra"
 )
 
@@ -118,7 +119,7 @@ func runDeploy(ctx context.Context, targetRepo string, workflows []string, addOp
 		return err
 	}
 
-	checkoutDir := filepath.Join(updatesDir, sanitizeRepoPath(targetRepo))
+	checkoutDir := filepath.Join(updatesDir, stringutil.SanitizeForFilenameWithSeparator(targetRepo, "__"))
 	if err := shallowCloneTargetRepo(ctx, targetRepo, checkoutDir); err != nil {
 		return err
 	}

@@ -42,7 +42,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	engineSetup, err := c.setupEngineAndImports(result, cleanPath, content, markdownDir)
 	if err != nil {
 		// Wrap unformatted errors with file location.  Errors produced by
-		// formatCompilerError/formatCompilerErrorWithPosition are already
+		// formatCompilerError already
 		// console-formatted and must not be double-wrapped.
 		if isFormattedCompilerError(err) {
 			return nil, err
@@ -53,9 +53,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		if engineLine > 0 {
 			// Read source context lines (±3 lines around the error) for Rust-style rendering
 			contextLines := readSourceContextLines(content, engineLine)
-			return nil, formatCompilerErrorWithContext(cleanPath, engineLine, 1, "error", err.Error(), err, contextLines)
+			return nil, formatCompilerError(compilerErrorOpts{FilePath: cleanPath, Line: engineLine, Column: 1, ErrType: "error", Message: err.Error(), Cause: err, Context: contextLines})
 		}
-		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
+		return nil, formatCompilerError(compilerErrorOpts{FilePath: cleanPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Process tools and markdown
@@ -64,7 +64,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		if isFormattedCompilerError(err) {
 			return nil, err
 		}
-		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
+		return nil, formatCompilerError(compilerErrorOpts{FilePath: cleanPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Build initial workflow data structure
@@ -131,11 +131,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Validate that inlined-imports is not used with agent file imports.
 	// Agent files require runtime access and cannot be resolved without sources.
 	if workflowData.InlinedImports && engineSetup.importsResult.AgentFile != "" {
-		return nil, formatCompilerError(cleanPath, "error",
-			fmt.Sprintf("inlined-imports cannot be used with agent file imports: '%s'. "+
-				"Agent files require runtime access and will not be resolved without sources. "+
-				"Remove 'inlined-imports: true' or do not import agent files.",
-				engineSetup.importsResult.AgentFile), nil)
+		return nil, formatCompilerError(compilerErrorOpts{FilePath: cleanPath, ErrType: "error", Message: fmt.Sprintf("inlined-imports cannot be used with agent file imports: '%s'. "+
+			"Agent files require runtime access and will not be resolved without sources. "+
+			"Remove 'inlined-imports: true' or do not import agent files.",
+			engineSetup.importsResult.AgentFile), Cause: nil})
+
 	}
 
 	// Validate bash tool configuration BEFORE applying defaults
@@ -177,7 +177,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Extract YAML configuration sections from frontmatter
 	if err := c.extractYAMLSections(result.Frontmatter, workflowData); err != nil {
-		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
+		return nil, formatCompilerError(compilerErrorOpts{FilePath: cleanPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Merge observability endpoints and custom attributes from imports with those

@@ -110,10 +110,9 @@ func (c *Compiler) validateModelAliasMap(
 	if engineModel != "" {
 		literalText := ExpressionPattern.ReplaceAllString(engineModel, "")
 		if strings.Contains(literalText, "*") {
-			return formatCompilerError(markdownPath, "error",
-				fmt.Sprintf("engine.model: glob patterns are not allowed in engine.model; "+
-					"got %q — glob patterns may only appear in models alias list entries (V-MAF-004)", engineModel),
-				nil)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("engine.model: glob patterns are not allowed in engine.model; "+
+				"got %q — glob patterns may only appear in models alias list entries (V-MAF-004)", engineModel), Cause: nil})
+
 		}
 		// Syntax and parameter checks ($-character parsing, known params) are
 		// skipped for runtime-resolved expressions — they cannot be parsed at
@@ -121,7 +120,7 @@ func (c *Compiler) validateModelAliasMap(
 		if !containsExpression(engineModel) {
 			// V-MAF-001 + V-MAF-006: validate syntax of engine.model.
 			if errs := validateModelIdentifierStrings([]string{engineModel}, "engine.model"); len(errs) > 0 {
-				return formatCompilerError(markdownPath, "error", errs[0], nil)
+				return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: errs[0], Cause: nil})
 			}
 			// V-MAF-011: warn about unrecognised parameter keys in engine.model.
 			c.warnUnrecognizedModelParams([]string{engineModel}, markdownPath)
@@ -137,7 +136,7 @@ func (c *Compiler) validateModelAliasMap(
 
 		// V-MAF-001 + V-MAF-002 + V-MAF-003 + V-MAF-006: validate each entry string.
 		if errs := validateModelIdentifierStrings(entries, "models."+displayKey(key)); len(errs) > 0 {
-			return formatCompilerError(markdownPath, "error", errs[0], nil)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: errs[0], Cause: nil})
 		}
 
 		// V-MAF-011: warn about unrecognised parameter keys in each entry.
@@ -163,9 +162,8 @@ func validateAliasKey(key, markdownPath string) error {
 	}
 	for _, forbidden := range []string{"/", "?", "&"} {
 		if strings.Contains(key, forbidden) {
-			return formatCompilerError(markdownPath, "error",
-				fmt.Sprintf("models: alias key %q must not contain %q (V-MAF-005)", key, forbidden),
-				nil)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("models: alias key %q must not contain %q (V-MAF-005)", key, forbidden), Cause: nil})
+
 		}
 	}
 	return nil
@@ -259,11 +257,10 @@ func detectCircularModelAliases(aliasMap map[string][]string, markdownPath strin
 		if cycle := dfsCycleCheck(key, aliasMap, visited, path); cycle != nil {
 			// Format cycle chain for a clear error message.
 			chain := strings.Join(append(cycle, cycle[0]), " → ")
-			return formatCompilerError(markdownPath, "error",
-				fmt.Sprintf("circular alias reference detected: %s\n\n"+
-					"Circular alias references are prohibited. Remove or rewrite the cycle in the 'models:' "+
-					"frontmatter section (V-MAF-010).", chain),
-				nil)
+			return formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: fmt.Sprintf("circular alias reference detected: %s\n\n"+
+				"Circular alias references are prohibited. Remove or rewrite the cycle in the 'models:' "+
+				"frontmatter section (V-MAF-010).", chain), Cause: nil})
+
 		}
 	}
 

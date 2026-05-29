@@ -67,25 +67,25 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 		scopeValidationErr = ValidatePermissionScopeNames(workflowData.Permissions)
 	}
 	if scopeValidationErr != nil {
-		return nil, formatCompilerError(markdownPath, "error", scopeValidationErr.Error(), scopeValidationErr)
+		return nil, formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: scopeValidationErr.Error(), Cause: scopeValidationErr})
 	}
 
 	// Validate dangerous permissions
 	workflowLog.Printf("Validating dangerous permissions")
 	if err := validateDangerousPermissions(workflowData, workflowPermissions); err != nil {
-		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+		return nil, formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate GitHub App-only permissions require a GitHub App to be configured
 	workflowLog.Printf("Validating GitHub App-only permissions")
 	if err := validateGitHubAppOnlyPermissions(workflowData, workflowPermissions); err != nil {
-		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+		return nil, formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Validate tools.github.github-app.permissions does not use "write"
 	workflowLog.Printf("Validating GitHub MCP app permissions (no write)")
 	if err := validateGitHubMCPAppPermissionsNoWrite(workflowData); err != nil {
-		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+		return nil, formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Warn when github-app.permissions is set in contexts that don't support it
@@ -131,7 +131,7 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 					downgradeToWarning := c.strictMode && shouldDowngradeDefaultToolsetPermissionError(workflowData.ParsedTools.GitHub)
 					if c.strictMode && !downgradeToWarning {
 						// In strict mode, missing permissions are errors
-						return nil, formatCompilerError(markdownPath, "error", message, nil)
+						return nil, formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: message, Cause: nil})
 					}
 
 					if downgradeToWarning {
@@ -149,7 +149,7 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 
 	// Enforce required id-token: write permission for OIDC auth users.
 	if err := validateOIDCPermissions(workflowData, workflowPermissions); err != nil {
-		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+		return nil, formatCompilerError(compilerErrorOpts{FilePath: markdownPath, ErrType: "error", Message: err.Error(), Cause: err})
 	}
 
 	// Emit warning if id-token: write permission is detected
