@@ -27,41 +27,41 @@ func TestExtractAgentSandboxConfigVersion(t *testing.T) {
 func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 	compiler := &Compiler{}
 
-	t.Run("extracts sandbox.agent.modelFallback enabled=false", func(t *testing.T) {
+	t.Run("extracts sandbox.agent.model-fallback enabled=false", func(t *testing.T) {
 		agentObj := map[string]any{
 			"id": "awf",
-			"modelFallback": map[string]any{
+			"model-fallback": map[string]any{
 				"enabled": false,
 			},
 		}
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
-		require.NotNil(t, config.ModelFallback, "Should extract modelFallback")
+		require.NotNil(t, config.ModelFallback, "Should extract model-fallback")
 		require.NotNil(t, config.ModelFallback.Enabled, "Enabled should be non-nil")
 		assert.False(t, *config.ModelFallback.Enabled, "Enabled should be false")
 		assert.Empty(t, config.ModelFallback.Strategy, "Strategy should be empty")
 	})
 
-	t.Run("extracts sandbox.agent.modelFallback enabled=true", func(t *testing.T) {
+	t.Run("extracts sandbox.agent.model-fallback enabled=true", func(t *testing.T) {
 		agentObj := map[string]any{
 			"id": "awf",
-			"modelFallback": map[string]any{
+			"model-fallback": map[string]any{
 				"enabled": true,
 			},
 		}
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
-		require.NotNil(t, config.ModelFallback, "Should extract modelFallback")
+		require.NotNil(t, config.ModelFallback, "Should extract model-fallback")
 		require.NotNil(t, config.ModelFallback.Enabled, "Enabled should be non-nil")
 		assert.True(t, *config.ModelFallback.Enabled, "Enabled should be true")
 	})
 
-	t.Run("extracts sandbox.agent.modelFallback with strategy", func(t *testing.T) {
+	t.Run("extracts sandbox.agent.model-fallback with strategy", func(t *testing.T) {
 		agentObj := map[string]any{
 			"id": "awf",
-			"modelFallback": map[string]any{
+			"model-fallback": map[string]any{
 				"enabled":  false,
 				"strategy": "middle_power",
 			},
@@ -69,11 +69,11 @@ func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
 		require.NotNil(t, config, "Should extract agent sandbox config")
-		require.NotNil(t, config.ModelFallback, "Should extract modelFallback")
+		require.NotNil(t, config.ModelFallback, "Should extract model-fallback")
 		assert.Equal(t, "middle_power", config.ModelFallback.Strategy, "Should extract strategy")
 	})
 
-	t.Run("modelFallback is nil when absent", func(t *testing.T) {
+	t.Run("model-fallback is nil when absent", func(t *testing.T) {
 		agentObj := map[string]any{
 			"id": "awf",
 		}
@@ -83,10 +83,10 @@ func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 		assert.Nil(t, config.ModelFallback, "ModelFallback should be nil when not configured")
 	})
 
-	t.Run("modelFallback is nil when object is empty", func(t *testing.T) {
+	t.Run("model-fallback is nil when object is empty", func(t *testing.T) {
 		agentObj := map[string]any{
-			"id":            "awf",
-			"modelFallback": map[string]any{},
+			"id":             "awf",
+			"model-fallback": map[string]any{},
 		}
 
 		config := compiler.extractAgentSandboxConfig(agentObj)
@@ -94,10 +94,10 @@ func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 		assert.Nil(t, config.ModelFallback, "ModelFallback should be nil when object has no recognized fields")
 	})
 
-	t.Run("modelFallback is nil when value is not a map", func(t *testing.T) {
+	t.Run("model-fallback is nil when value is not a map", func(t *testing.T) {
 		agentObj := map[string]any{
-			"id":            "awf",
-			"modelFallback": "not-a-map",
+			"id":             "awf",
+			"model-fallback": "not-a-map",
 		}
 
 		config := compiler.extractAgentSandboxConfig(agentObj)

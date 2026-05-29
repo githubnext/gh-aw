@@ -455,7 +455,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, "\\u0026", "JSON output should not HTML-escape '&' characters")
 	})
 
-	t.Run("modelFallback is emitted when enabled is explicitly set to false", func(t *testing.T) {
+	t.Run("model-fallback is emitted when enabled is explicitly set to false", func(t *testing.T) {
 		falseVal := false
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
@@ -484,7 +484,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, `"strategy"`, "apiProxy.modelFallback should omit strategy when not set")
 	})
 
-	t.Run("modelFallback is emitted when enabled is explicitly set to true", func(t *testing.T) {
+	t.Run("model-fallback is emitted when enabled is explicitly set to true", func(t *testing.T) {
 		trueVal := true
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
@@ -512,7 +512,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"enabled":true`, "apiProxy.modelFallback.enabled should be true")
 	})
 
-	t.Run("modelFallback includes strategy when set", func(t *testing.T) {
+	t.Run("model-fallback includes strategy when set", func(t *testing.T) {
 		falseVal := false
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
@@ -541,7 +541,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"strategy":"middle_power"`, "apiProxy.modelFallback should include strategy when set")
 	})
 
-	t.Run("modelFallback is omitted when not configured in sandbox", func(t *testing.T) {
+	t.Run("model-fallback is omitted when not configured in sandbox", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com",
@@ -737,7 +737,7 @@ func TestBuildAWFConfigJSON_SchemaCompliance(t *testing.T) {
 			},
 		},
 		{
-			name: "config with modelFallback disabled",
+			name: "config with model-fallback disabled",
 			config: AWFCommandConfig{
 				EngineName:     "copilot",
 				AllowedDomains: "github.com",
@@ -758,7 +758,7 @@ func TestBuildAWFConfigJSON_SchemaCompliance(t *testing.T) {
 			},
 		},
 		{
-			name: "config with modelFallback disabled and strategy set",
+			name: "config with model-fallback disabled and strategy set",
 			config: AWFCommandConfig{
 				EngineName:     "copilot",
 				AllowedDomains: "github.com",

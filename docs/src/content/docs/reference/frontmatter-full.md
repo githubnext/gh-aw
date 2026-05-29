@@ -1867,7 +1867,7 @@ sandbox:
     # base-catalog names. Set enabled: false for BYOK Azure OpenAI deployments to
     # prevent deployment-name rewriting that causes HTTP 404 DeploymentNotFound errors.
     # (optional)
-    modelFallback:
+    model-fallback:
       # Enable or disable the middle-power fallback when model resolution fails.
       # Defaults to true (AWF default). Set to false for custom-provider or BYOK
       # Azure deployments where deployment-name rewriting is undesired.

@@ -56,10 +56,10 @@ type AgentSandboxConfig struct {
 	Env           map[string]string           `yaml:"env,omitempty"`           // Environment variables to set on the step
 	Mounts        []string                    `yaml:"mounts,omitempty"`        // Container mounts to add for AWF (format: "source:dest:mode")
 	Memory        string                      `yaml:"memory,omitempty"`        // Memory limit for the AWF container (e.g., "4g", "8g")
-	ModelFallback *SandboxModelFallbackConfig `yaml:"modelFallback,omitempty"` // AWF API proxy model fallback policy (optional)
+	ModelFallback *SandboxModelFallbackConfig `yaml:"model-fallback,omitempty"` // AWF API proxy model fallback policy (optional)
 }
 
-// SandboxModelFallbackConfig holds the model fallback policy parsed from sandbox.agent.modelFallback.
+// SandboxModelFallbackConfig holds the model fallback policy parsed from sandbox.agent.model-fallback.
 // It maps to the apiProxy.modelFallback field in the generated AWF config.
 type SandboxModelFallbackConfig struct {
 	// Enabled controls whether the AWF middle-power fallback is applied when model resolution fails.
