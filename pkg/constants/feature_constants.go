@@ -18,10 +18,6 @@ const (
 	MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
 	// DisableXPIAPromptFeatureFlag is the feature flag name for disabling XPIA prompt
 	DisableXPIAPromptFeatureFlag FeatureFlag = "disable-xpia-prompt"
-	// CopilotRequestsFeatureFlag is the feature flag name for enabling copilot-requests mode.
-	// When enabled: no secret validation step is generated, copilot-requests: write permission is added,
-	// and the GitHub Actions token is used as the agentic engine secret.
-	CopilotRequestsFeatureFlag FeatureFlag = "copilot-requests"
 	// DIFCProxyFeatureFlag is the deprecated feature flag name for the DIFC proxy.
 	// Deprecated: Use tools.github.integrity-proxy instead. The proxy is now enabled
 	// by default when guard policies are configured. Set tools.github.integrity-proxy: false

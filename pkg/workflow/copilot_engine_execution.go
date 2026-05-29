@@ -311,16 +311,16 @@ touch %s
 %s%s 2>&1 | tee %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, preCommandSetup, copilotCommand, logFile)
 	}
 
-	// Use COPILOT_GITHUB_TOKEN: when the copilot-requests feature is enabled, use the GitHub
+	// Use COPILOT_GITHUB_TOKEN: when permissions.copilot-requests is write, use the GitHub
 	// Actions token directly (${{ github.token }}). Otherwise use the COPILOT_GITHUB_TOKEN secret.
 	// #nosec G101 -- These are NOT hardcoded credentials. They are GitHub Actions expression templates
 	// that the runtime replaces with actual values. The strings "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 	// and "${{ github.token }}" are placeholders, not actual credentials.
 	var copilotGitHubToken string
-	useCopilotRequests := isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData)
+	useCopilotRequests := hasCopilotRequestsWritePermission(workflowData)
 	if useCopilotRequests {
 		copilotGitHubToken = "${{ github.token }}"
-		copilotExecLog.Print("Using GitHub Actions token as COPILOT_GITHUB_TOKEN (copilot-requests feature enabled)")
+		copilotExecLog.Print("Using GitHub Actions token as COPILOT_GITHUB_TOKEN (permissions.copilot-requests=write)")
 	} else {
 		copilotGitHubToken = "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 	}
@@ -346,7 +346,7 @@ touch %s
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 
-	// When copilot-requests feature is enabled, set S2STOKENS=true to allow the Copilot CLI
+	// When permissions.copilot-requests is write, set S2STOKENS=true to allow the Copilot CLI
 	// to accept GitHub App installation tokens (ghs_*) such as ${{ github.token }}.
 	if useCopilotRequests {
 		env["S2STOKENS"] = "true"

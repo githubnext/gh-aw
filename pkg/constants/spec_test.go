@@ -286,8 +286,6 @@ func TestSpec_FeatureFlags_Values(t *testing.T) {
 		{name: "MCPGatewayFeatureFlag", constant: constants.MCPGatewayFeatureFlag, expected: "mcp-gateway"},
 		// From spec: DisableXPIAPromptFeatureFlag // "disable-xpia-prompt"
 		{name: "DisableXPIAPromptFeatureFlag", constant: constants.DisableXPIAPromptFeatureFlag, expected: "disable-xpia-prompt"},
-		// From spec: CopilotRequestsFeatureFlag // "copilot-requests"
-		{name: "CopilotRequestsFeatureFlag", constant: constants.CopilotRequestsFeatureFlag, expected: "copilot-requests"},
 		// From spec: DIFCProxyFeatureFlag // "difc-proxy" (deprecated)
 		{name: "DIFCProxyFeatureFlag", constant: constants.DIFCProxyFeatureFlag, expected: "difc-proxy"},
 		// From spec: CliProxyFeatureFlag // "cli-proxy"
