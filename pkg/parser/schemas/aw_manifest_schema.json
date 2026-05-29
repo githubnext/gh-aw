@@ -23,8 +23,30 @@
     "description": {
       "type": "string"
     },
+    "includes": {
+      "type": "array",
+      "description": "Installable package entries. Use folder naming conventions to infer type: workflows under workflows/, agentic-workflows/, or .github/workflows/; skill directories under skills/ or .github/skills/; agent files under agents/ or .github/agents/.",
+      "items": {
+        "type": "string"
+      }
+    },
     "files": {
       "type": "array",
+      "description": "Deprecated. Use 'includes' instead.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "skills": {
+      "type": "array",
+      "description": "Skill directory paths relative to the package root. Each entry is a directory that must contain a SKILL.md file; all direct files in the directory are installed to the agentic engine skill folder.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "agents": {
+      "type": "array",
+      "description": "Agent markdown file paths relative to the package root. Each entry must be a .md file under an agents/ directory; the file is installed to the agentic engine agents folder.",
       "items": {
         "type": "string"
       }

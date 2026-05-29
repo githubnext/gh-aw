@@ -3,11 +3,13 @@
 package styles
 
 import (
+	"os"
 	"strings"
 	"testing"
 
 	lipgloss "charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/compat"
+	"github.com/charmbracelet/colorprofile"
 )
 
 // TestAdaptiveColorsHaveBothVariants verifies that all adaptive colors
@@ -254,6 +256,27 @@ func TestAdaptiveColorVarsUseHexConstants(t *testing.T) {
 				t.Errorf("%s.Dark is nil", name)
 			}
 		})
+	}
+}
+
+func TestConfigureLipglossCompatUsesStderr(t *testing.T) {
+	originalProfile := compat.Profile
+	originalHasDarkBackground := compat.HasDarkBackground
+	t.Cleanup(func() {
+		compat.Profile = originalProfile
+		compat.HasDarkBackground = originalHasDarkBackground
+	})
+
+	configureLipglossCompat()
+
+	expectedHasDarkBackground := lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
+	expectedProfile := colorprofile.Detect(os.Stderr, os.Environ())
+
+	if compat.HasDarkBackground != expectedHasDarkBackground {
+		t.Fatalf("compat.HasDarkBackground = %v, want %v", compat.HasDarkBackground, expectedHasDarkBackground)
+	}
+	if compat.Profile != expectedProfile {
+		t.Fatalf("compat.Profile = %v, want %v", compat.Profile, expectedProfile)
 	}
 }
 

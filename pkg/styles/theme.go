@@ -47,9 +47,21 @@
 package styles
 
 import (
+	"os"
+
 	lipgloss "charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/compat"
+	"github.com/charmbracelet/colorprofile"
 )
+
+func configureLipglossCompat() {
+	compat.HasDarkBackground = lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
+	compat.Profile = colorprofile.Detect(os.Stderr, os.Environ())
+}
+
+func init() {
+	configureLipglossCompat()
+}
 
 // Hex color constants for light and dark variants.
 // These are used both to build the AdaptiveColor values at runtime and to

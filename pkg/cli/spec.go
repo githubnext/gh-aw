@@ -43,6 +43,16 @@ type WorkflowSpec struct {
 	// GitHub host.  When non-empty, WorkflowPath, RepoSlug, Version, and Host are all
 	// empty; the spec is resolved by fetching the URL and dispatching on Content-Type.
 	RawURL string
+	// IsPackageSkillFile is true when this spec refers to a file that belongs to a skill
+	// directory from an aw.yml package manifest. The file is installed as-is to the
+	// agentic engine skill folder rather than compiled as a workflow.
+	IsPackageSkillFile bool
+	// IsPackageAgentFile is true when this spec refers to an agent .md file from an aw.yml
+	// package manifest. The file is installed as-is to the agentic engine agents folder.
+	IsPackageAgentFile bool
+	// SkillName is the name of the skill directory for package skill files.
+	// Only meaningful when IsPackageSkillFile is true.
+	SkillName string
 }
 
 // isLocalWorkflowPath checks if a path refers to a local filesystem workflow.

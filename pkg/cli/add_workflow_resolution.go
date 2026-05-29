@@ -37,6 +37,15 @@ type ResolvedWorkflow struct {
 	// rather than an agentic workflow markdown file (.md). When true, the file is installed
 	// directly to .github/workflows/ without frontmatter processing or compilation.
 	IsActionWorkflow bool
+	// IsPackageSkillFile is true when the file belongs to a skill directory from an aw.yml
+	// package manifest. The file is installed as-is to the agentic engine skill folder.
+	IsPackageSkillFile bool
+	// IsPackageAgentFile is true when the file is an agent .md from an aw.yml package
+	// manifest. The file is installed as-is to the agentic engine agents folder.
+	IsPackageAgentFile bool
+	// SkillName is the skill directory name for package skill files (e.g. "my-skill").
+	// Only meaningful when IsPackageSkillFile is true.
+	SkillName string
 }
 
 // ResolvedWorkflows contains all resolved workflows ready to be added
@@ -158,6 +167,33 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 			return nil, fmt.Errorf("workflow '%s' not found: %w", spec.String(), err)
 		}
 
+		// Package skill files are installed as-is to the engine's skill directory.
+		if spec.IsPackageSkillFile {
+			resolutionLog.Printf("Resolved package skill file: spec=%s, skill=%s, content_size=%d bytes",
+				spec.String(), spec.SkillName, len(fetched.Content))
+			resolvedWorkflows = append(resolvedWorkflows, &ResolvedWorkflow{
+				Spec:               resolvedSpec,
+				Content:            fetched.Content,
+				SourceInfo:         fetched,
+				IsPackageSkillFile: true,
+				SkillName:          spec.SkillName,
+			})
+			continue
+		}
+
+		// Package agent files are installed as-is to the engine's agents directory.
+		if spec.IsPackageAgentFile {
+			resolutionLog.Printf("Resolved package agent file: spec=%s, content_size=%d bytes",
+				spec.String(), len(fetched.Content))
+			resolvedWorkflows = append(resolvedWorkflows, &ResolvedWorkflow{
+				Spec:               resolvedSpec,
+				Content:            fetched.Content,
+				SourceInfo:         fetched,
+				IsPackageAgentFile: true,
+			})
+			continue
+		}
+
 		// Action workflow files (.yml) are raw GitHub Actions YAML — skip all markdown
 		// frontmatter processing and install them as-is.
 		if isActionWorkflowPath(resolvedSpec.WorkflowPath) {
@@ -239,6 +275,44 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 			WorkflowName:           workflowName,
 			Host:                   host,
 			FromRepositoryManifest: true,
+		})
+	}
+
+	// Append skill file specs. Each spec carries IsPackageSkillFile=true and the SkillName
+	// so that the installation step can route the file to the correct skill directory.
+	for _, skillFile := range pkg.SkillFiles {
+		base := filepath.Base(skillFile.SourcePath)
+		// WorkflowName is unused for skill files but set to a stable value for logging.
+		workflowName := skillFile.SkillName + "/" + strings.TrimSuffix(base, filepath.Ext(base))
+		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
+			RepoSpec: RepoSpec{
+				RepoSlug:    repoSpec.RepoSlug,
+				Version:     repoSpec.Version,
+				PackagePath: repoSpec.PackagePath,
+			},
+			WorkflowPath:       skillFile.SourcePath,
+			WorkflowName:       workflowName,
+			Host:               host,
+			IsPackageSkillFile: true,
+			SkillName:          skillFile.SkillName,
+		})
+	}
+
+	// Append agent file specs. Each spec carries IsPackageAgentFile=true so the installation
+	// step routes the file to the correct agents directory.
+	for _, agentFile := range pkg.AgentFiles {
+		base := filepath.Base(agentFile)
+		workflowName := strings.TrimSuffix(base, filepath.Ext(base))
+		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
+			RepoSpec: RepoSpec{
+				RepoSlug:    repoSpec.RepoSlug,
+				Version:     repoSpec.Version,
+				PackagePath: repoSpec.PackagePath,
+			},
+			WorkflowPath:       agentFile,
+			WorkflowName:       workflowName,
+			Host:               host,
+			IsPackageAgentFile: true,
 		})
 	}
 
