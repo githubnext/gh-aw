@@ -138,6 +138,7 @@ func (r *ActionResolver) resolveFromGitHub(ctx context.Context, repo, version st
 		defer peelCancel()
 		cmd2 := ExecGHContext(peelCtx, "api", tagPath, "--jq", "[.object.sha, .object.type] | @tsv")
 		output2, peelErr := cmd2.Output()
+		peelCancel()
 		if peelErr != nil {
 			return "", fmt.Errorf("failed to peel annotated tag %s@%s: %w", repo, version, peelErr)
 		}
