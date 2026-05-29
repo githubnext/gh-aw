@@ -239,10 +239,13 @@ func extractPromptSummary(content string) string {
 				start++
 				break
 			}
-			if strings.HasPrefix(line, "description:") {
-				description = cleanPromptSummary(strings.TrimSpace(strings.TrimPrefix(line, "description:")))
+			if value, ok := strings.CutPrefix(line, "description:"); ok {
+				description = cleanPromptSummary(strings.TrimSpace(value))
 			}
 		}
+	}
+	if summary := normalizePromptSummary(description); summary != "" {
+		return summary
 	}
 
 	for ; start < len(lines); start++ {
@@ -250,17 +253,32 @@ func extractPromptSummary(content string) string {
 		if line == "" {
 			continue
 		}
-		if strings.HasPrefix(line, "# ") {
-			return cleanPromptSummary(strings.TrimSpace(strings.TrimPrefix(line, "# ")))
+		if value, ok := strings.CutPrefix(line, "# "); ok {
+			return normalizePromptSummary(cleanPromptSummary(strings.TrimSpace(value)))
 		}
 		break
 	}
 
-	if description != "" && len(description) <= maxAgenticWorkflowsPromptSummaryLength && !strings.ContainsAny(description, "*`#") {
-		return description
+	return ""
+}
+
+func normalizePromptSummary(summary string) string {
+	if summary == "" {
+		return ""
+	}
+	if strings.ContainsAny(summary, "*`#") {
+		return ""
 	}
 
-	return ""
+	runes := []rune(summary)
+	if len(runes) > maxAgenticWorkflowsPromptSummaryLength {
+		summary = strings.TrimSpace(string(runes[:maxAgenticWorkflowsPromptSummaryLength]))
+		if cut := strings.LastIndex(summary, " "); cut > maxAgenticWorkflowsPromptSummaryLength/2 {
+			summary = summary[:cut]
+		}
+	}
+
+	return strings.TrimSuffix(strings.TrimSpace(summary), ".")
 }
 
 func cleanPromptSummary(summary string) string {
