@@ -10,6 +10,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 engine: copilot
 imports:
   - shared/otlp.md
@@ -36,9 +37,6 @@ safe-outputs:
     run-started: "🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}..."
     run-success: "⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️"
     run-failure: "🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt..."
-features:
-  copilot-requests: true
-
 ---
 
 # Workflow Craft Agent

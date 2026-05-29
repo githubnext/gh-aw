@@ -10,6 +10,7 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 engine: copilot
 strict: false
 network:
@@ -67,9 +68,6 @@ safe-outputs:
     labels: [automation, cli, documentation, cookie]
     max: 1
 timeout-minutes: 20
-features:
-  copilot-requests: true
-
 ---
 
 # CLI Consistency Checker

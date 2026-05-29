@@ -14,6 +14,7 @@ permissions:
   pull-requests: read
   issues: read
 
+  copilot-requests: write
 network:
   allowed:
     - defaults
@@ -56,8 +57,6 @@ safe-outputs:
     run-failure: "❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}"
 
 timeout-minutes: 10
-features:
-  copilot-requests: true
 imports:
   - shared/otlp.md
 ---

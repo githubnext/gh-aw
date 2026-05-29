@@ -8,6 +8,7 @@ permissions:
   discussions: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 network:
   allowed:
   - defaults
@@ -40,8 +41,6 @@ safe-outputs:
 description: Scans AI-generated discussions to extract actionable code quality improvement tasks
 emoji: ⛏️
 engine: copilot
-features:
-  copilot-requests: true
 strict: true
 timeout-minutes: 20
 tools:
@@ -59,6 +58,7 @@ tools:
     - discussions
 tracker-id: discussion-task-miner
 ---
+
 # Discussion Task Miner - Code Quality Improvement Agent
 
 You are a task mining agent that analyzes AI-generated discussions to discover actionable code quality improvement opportunities.

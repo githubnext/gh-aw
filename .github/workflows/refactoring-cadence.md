@@ -9,6 +9,7 @@ permissions:
   contents: read
   issues: read
   actions: read
+  copilot-requests: write
 tracker-id: refactoring-cadence
 engine: copilot
 imports:
@@ -39,10 +40,8 @@ network:
     - defaults
     - go
 timeout-minutes: 20
-features:
-  copilot-requests: true
-
 ---
+
 # Refactoring Cadence
 
 You are the **Refactoring Cadence** agent — a continuous code health monitor that prevents technical debt accumulation by tracking key metrics over time and alerting when code quality degrades.

@@ -13,6 +13,7 @@ permissions:
   pull-requests: read
   discussions: read
 
+  copilot-requests: write
 tracker-id: daily-hippo-learn
 engine:
   id: copilot
@@ -52,9 +53,6 @@ imports:
   - shared/hippo-memory.md
   - shared/reporting.md
   - shared/otlp.md
-features:
-  copilot-requests: true
-
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

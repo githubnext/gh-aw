@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  copilot-requests: write
 engine:
   id: copilot
   max-continuations: 15
@@ -79,9 +80,6 @@ timeout-minutes: 15
 imports:
   - shared/reporting.md
   - shared/otlp.md
-features:
-  copilot-requests: true
-
 ---
 
 # Test Quality Sentinel 🧪

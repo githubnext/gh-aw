@@ -5,13 +5,13 @@
 permissions:
   security-events: read
 
+  contents: read
+  copilot-requests: write
 tools:
   github:
     toolsets: [repos, code_security]
   bash: true
 
-features:
-  copilot-requests: true
 ---
 
 ## Security Analysis Configuration

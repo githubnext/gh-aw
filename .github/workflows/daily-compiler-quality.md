@@ -7,6 +7,7 @@ permissions:
   discussions: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 imports:
 - uses: shared/daily-audit-base.md
   with:
@@ -54,8 +55,6 @@ experiments:
     weight:
     - 50
     - 50
-features:
-  copilot-requests: true
 name: Daily Compiler Quality Check
 strict: true
 timeout-minutes: 30
@@ -82,6 +81,7 @@ tools:
     - discussions
 tracker-id: daily-compiler-quality
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Compiler Quality Check Agent 🔍

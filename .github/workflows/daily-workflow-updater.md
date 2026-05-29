@@ -13,6 +13,7 @@ permissions:
   pull-requests: read
   issues: read
 
+  copilot-requests: write
 tracker-id: daily-workflow-updater
 engine: copilot
 strict: true
@@ -40,8 +41,6 @@ tools:
 
 timeout-minutes: 15
 
-features:
-  copilot-requests: true
 imports:
   - shared/otlp.md
 ---

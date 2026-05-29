@@ -1,4 +1,7 @@
 ---
+permissions:
+  contents: read
+  pull-requests: read
 # Base configuration for AI-powered PR code review workflows
 # Provides: GitHub PR tools and review comment safe-outputs
 

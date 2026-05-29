@@ -10,6 +10,7 @@ permissions:
   discussions: read
   pull-requests: read
   actions: read
+  copilot-requests: write
 tracker-id: linter-miner
 engine: copilot
 network:
@@ -69,8 +70,6 @@ safe-outputs:
   noop:
 timeout-minutes: 120
 max-runs: 1000
-features:
-  copilot-requests: true
 ---
 
 # Linter Miner

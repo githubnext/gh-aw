@@ -15,6 +15,7 @@ permissions:
   issues: read
   pull-requests: read
   security-events: read
+  copilot-requests: write
 safe-outputs:
   create-code-scanning-alert:
     driver: "Semgrep Security Scanner"

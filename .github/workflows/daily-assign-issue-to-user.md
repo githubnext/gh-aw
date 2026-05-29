@@ -9,6 +9,7 @@ permissions:
   issues: read
   pull-requests: read
   contents: read
+  copilot-requests: write
 engine: copilot
 tools:
   cli-proxy: true
@@ -20,8 +21,6 @@ safe-outputs:
     target: "*"
   add-comment:
     target: "*"
-features:
-  copilot-requests: true
 imports:
   - shared/otlp.md
 ---

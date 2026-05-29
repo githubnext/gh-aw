@@ -9,6 +9,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 tracker-id: daily-syntax-error-quality
 engine: copilot
 tools:
@@ -55,9 +56,6 @@ steps:
 imports:
   - shared/reporting.md
   - shared/otlp.md
-features:
-  copilot-requests: true
-
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

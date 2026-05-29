@@ -15,6 +15,7 @@ permissions:
   contents: read
   actions: read
   pull-requests: read
+  copilot-requests: write
 engine: copilot
 tools:
   bash:
@@ -36,9 +37,6 @@ imports:
       toolsets: [pull_requests, actions, repos]
   - shared/reporting.md
   - shared/otlp.md
-features:
-  copilot-requests: true
-
 ---
 
 # Dev Hawk - Development Workflow Monitor

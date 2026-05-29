@@ -11,6 +11,7 @@ permissions:
   pull-requests: read
   issues: read
   actions: read
+  copilot-requests: write
 checkout:
   fetch: ["refs/pulls/open/*"]
   fetch-depth: 0
@@ -155,9 +156,6 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) finished PR sous-chef nudges."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} while preparing PRs."
 timeout-minutes: 25
-features:
-  copilot-requests: true
-
 ---
 
 # PR Sous Chef 🍳

@@ -6,6 +6,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 network:
   allowed:
   - defaults
@@ -45,8 +46,6 @@ safe-outputs:
 description: Daily review of all package README.md specifications to detect inconsistencies, staleness, and cross-package conflicts
 emoji: 📚
 engine: copilot
-features:
-  copilot-requests: true
 name: Package Specification Librarian
 strict: true
 timeout-minutes: 25
@@ -76,6 +75,7 @@ tools:
     - default
 tracker-id: spec-librarian
 ---
+
 # Package Specification Librarian
 
 You are the Package Specification Librarian — a meticulous documentation auditor that reviews all package README.md specifications daily to detect inconsistencies, staleness, missing specifications, and cross-package conflicts.

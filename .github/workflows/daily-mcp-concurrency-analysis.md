@@ -7,6 +7,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 imports:
 - uses: shared/daily-audit-base.md
   with:
@@ -35,8 +36,6 @@ safe-outputs:
 description: Performs deep-dive concurrency analysis on each safe-outputs MCP server tool to ensure thread-safety and detect race conditions
 emoji: 📊
 engine: copilot
-features:
-  copilot-requests: true
 name: Daily MCP Tool Concurrency Analysis
 strict: true
 timeout-minutes: 45
@@ -60,6 +59,7 @@ tools:
     - default
 tracker-id: mcp-concurrency-analysis
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily MCP Tool Concurrency Analysis Agent 🔒

@@ -14,6 +14,7 @@ permissions:
   pull-requests: read
   actions: read
 
+  copilot-requests: write
 engine: copilot
 strict: false
 
@@ -38,10 +39,8 @@ imports:
 
   - shared/otlp.md
 timeout-minutes: 10
-features:
-  copilot-requests: true
-
 ---
+
 # Daily Copilot PR Merged Report
 
 You are an AI analytics agent that generates daily reports on GitHub Copilot coding agent pull requests that were **merged** in the last 24 hours.

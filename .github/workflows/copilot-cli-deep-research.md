@@ -8,6 +8,7 @@ permissions:
   discussions: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 network:
   allowed:
   - defaults
@@ -25,8 +26,6 @@ safe-outputs:
 description: Deep research analyzing Copilot CLI current state, available features, and missed optimization opportunities
 emoji: 🔬
 engine: copilot
-features:
-  copilot-requests: true
 strict: true
 timeout-minutes: 20
 tools:
@@ -52,6 +51,7 @@ tools:
     - "*.md"
     max-file-size: 204800
 ---
+
 # Copilot CLI Deep Research Agent
 
 You are a research agent tasked with performing a comprehensive analysis of GitHub Copilot CLI (the agentic coding agent) usage in this repository. Your goal is to identify missed opportunities, unused features, and potential optimizations.

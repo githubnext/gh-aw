@@ -8,6 +8,7 @@ permissions:
   contents: read
   pull-requests: read
   security-events: read
+  copilot-requests: write
 engine: copilot
 imports:
   - uses: shared/skip-if-issue-open.md

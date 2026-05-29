@@ -8,6 +8,7 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
+  copilot-requests: write
 engine: copilot
 imports:
   - uses: shared/skip-if-issue-open.md
@@ -35,8 +36,6 @@ tools:
     toolsets: [default, pull_requests]
   cache-memory: true
 timeout-minutes: 30
-features:
-  copilot-requests: true
 steps:
   - name: Install deadcode analyzer
     run: go install golang.org/x/tools/cmd/deadcode@latest

@@ -11,6 +11,7 @@ permissions:
   issues: read
   pull-requests: read
 
+  copilot-requests: write
 tracker-id: daily-spdd-spec-planner
 engine: copilot
 strict: true
@@ -63,9 +64,6 @@ safe-outputs:
   max-bot-mentions: 1
 
 timeout-minutes: 20
-features:
-  copilot-requests: true
-
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

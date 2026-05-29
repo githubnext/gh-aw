@@ -31,6 +31,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 tracker-id: daily-cli-performance
 engine: copilot
 tools:
@@ -63,8 +64,6 @@ imports:
       expires: 3d
   - shared/go-make.md
   - shared/otlp.md
-features:
-  copilot-requests: true
 if: needs.pre_activation.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
 jobs:
   pre-activation:

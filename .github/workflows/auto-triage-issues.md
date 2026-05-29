@@ -13,6 +13,7 @@ user-rate-limit:
 permissions:
   contents: read
   issues: read
+  copilot-requests: write
 engine:
   id: copilot
   model: gpt-5-mini
@@ -56,9 +57,6 @@ safe-outputs:
     max: 1
   noop:
 timeout-minutes: 15
-features:
-  copilot-requests: true
-
 ---
 
 # Auto-Triage Issues Agent 🏷️

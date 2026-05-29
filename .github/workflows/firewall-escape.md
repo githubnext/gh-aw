@@ -17,6 +17,7 @@ permissions:
   pull-requests: read
   discussions: read
 
+  copilot-requests: write
 strict: true
 
 engine: copilot
@@ -86,9 +87,6 @@ jobs:
             - File operations failed`,
               labels: ['bug', 'firewall', 'automated']
             });
-features:
-  copilot-requests: true
-
 ---
 
 # The Great Escapi

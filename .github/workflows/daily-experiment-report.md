@@ -12,6 +12,7 @@ permissions:
   pull-requests: read
   discussions: read
 
+  copilot-requests: write
 engine: copilot
 tools:
   cli-proxy: true
@@ -45,9 +46,6 @@ safe-outputs:
   max-bot-mentions: 1
 
 timeout-minutes: 30
-
-features:
-  copilot-requests: true
 
 ---
 

@@ -8,6 +8,7 @@ permissions:
   discussions: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 network:
   allowed:
   - defaults
@@ -37,8 +38,6 @@ safe-outputs:
 description: Targeted scan of user-facing aspects to improve clarity, usability, and professionalism in enterprise software context
 emoji: ✨
 engine: copilot
-features:
-  copilot-requests: true
 name: Delight
 pre-agent-steps:
 - name: Sample files and load memory
@@ -74,6 +73,7 @@ tools:
     - discussions
 tracker-id: delight-daily
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Delight Agent 📊

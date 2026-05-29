@@ -12,6 +12,7 @@ permissions:
   issues: read
   pull-requests: read
 
+  copilot-requests: write
 engine: copilot
 
 network: defaults
@@ -38,9 +39,6 @@ safe-outputs:
     auto-merge: true
 
 timeout-minutes: 10
-features:
-  copilot-requests: true
-
 ---
 
 # Dictation Prompt Generator

@@ -8,6 +8,7 @@ permissions:
   pull-requests: read
   discussions: read
   actions: read
+  copilot-requests: write
 engine: copilot
 tools:
   repo-memory:
@@ -35,8 +36,6 @@ timeout-minutes: 30
 # Raised above 25M default: meta-orchestrator does deep analysis across all agents.
 # Caveman experiment aims to reduce by ≥20%; set ceiling to catch runaway loops.
 max-effective-tokens: 40000000
-features:
-  copilot-requests: true
 experiments:
   prompt_compression:
     variants: [verbose, caveman]
