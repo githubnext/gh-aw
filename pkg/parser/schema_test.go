@@ -1438,18 +1438,20 @@ func TestMainWorkflowSchema_GitHubAllowedSupportsToolCallLimits(t *testing.T) {
 }
 
 // TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AwfApiProxyTargets verifies that
-// the awf.apiProxy.targets frontmatter section is validated by the schema, accepting valid
-// authHeader strings and rejecting non-string values.
+// the sandbox.agent.apiProxy.targets frontmatter section is validated by the schema, accepting
+// valid authHeader strings and rejecting non-string values.
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AwfApiProxyTargets(t *testing.T) {
 	t.Run("valid string authHeader for openai is accepted", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"on":     "push",
 			"engine": "codex",
-			"awf": map[string]any{
-				"apiProxy": map[string]any{
-					"targets": map[string]any{
-						"openai": map[string]any{
-							"authHeader": "api-key",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"apiProxy": map[string]any{
+						"targets": map[string]any{
+							"openai": map[string]any{
+								"authHeader": "api-key",
+							},
 						},
 					},
 				},
@@ -1465,11 +1467,13 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AwfApiProxyTargets
 		frontmatter := map[string]any{
 			"on":     "push",
 			"engine": "claude",
-			"awf": map[string]any{
-				"apiProxy": map[string]any{
-					"targets": map[string]any{
-						"anthropic": map[string]any{
-							"authHeader": "api-key",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"apiProxy": map[string]any{
+						"targets": map[string]any{
+							"anthropic": map[string]any{
+								"authHeader": "api-key",
+							},
 						},
 					},
 				},
@@ -1485,11 +1489,13 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AwfApiProxyTargets
 		frontmatter := map[string]any{
 			"on":     "push",
 			"engine": "codex",
-			"awf": map[string]any{
-				"apiProxy": map[string]any{
-					"targets": map[string]any{
-						"openai": map[string]any{
-							"authHeader": 42,
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"apiProxy": map[string]any{
+						"targets": map[string]any{
+							"openai": map[string]any{
+								"authHeader": 42,
+							},
 						},
 					},
 				},
@@ -1505,11 +1511,13 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AwfApiProxyTargets
 		frontmatter := map[string]any{
 			"on":     "push",
 			"engine": "codex",
-			"awf": map[string]any{
-				"apiProxy": map[string]any{
-					"targets": map[string]any{
-						"unknown-provider": map[string]any{
-							"authHeader": "api-key",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"apiProxy": map[string]any{
+						"targets": map[string]any{
+							"unknown-provider": map[string]any{
+								"authHeader": "api-key",
+							},
 						},
 					},
 				},
@@ -1517,7 +1525,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AwfApiProxyTargets
 		}
 		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-unknown-provider-test.md")
 		if err == nil {
-			t.Error("unknown provider in awf.apiProxy.targets should be rejected")
+			t.Error("unknown provider in sandbox.agent.apiProxy.targets should be rejected")
 		}
 	})
 }

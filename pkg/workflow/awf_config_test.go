@@ -455,7 +455,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, "\\u0026", "JSON output should not HTML-escape '&' characters")
 	})
 
-	t.Run("openai authHeader from frontmatter awf.apiProxy.targets is included", func(t *testing.T) {
+	t.Run("openai authHeader from frontmatter sandbox.agent.apiProxy.targets is included", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "codex",
 			AllowedDomains: "github.com",
@@ -464,13 +464,11 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{Enabled: true},
 				},
-				RawFrontmatter: map[string]any{
-					"awf": map[string]any{
-						"apiProxy": map[string]any{
-							"targets": map[string]any{
-								"openai": map[string]any{
-									"authHeader": "api-key",
-								},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						APIProxy: &AgentAPIProxyConfig{
+							Targets: map[string]*AgentAPIProxyTargetConfig{
+								"openai": {AuthHeader: "api-key"},
 							},
 						},
 					},
@@ -485,7 +483,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, `"host":""`, "should not emit empty host when only authHeader is set")
 	})
 
-	t.Run("anthropic authHeader from frontmatter awf.apiProxy.targets is included", func(t *testing.T) {
+	t.Run("anthropic authHeader from frontmatter sandbox.agent.apiProxy.targets is included", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "claude",
 			AllowedDomains: "github.com",
@@ -494,13 +492,11 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{Enabled: true},
 				},
-				RawFrontmatter: map[string]any{
-					"awf": map[string]any{
-						"apiProxy": map[string]any{
-							"targets": map[string]any{
-								"anthropic": map[string]any{
-									"authHeader": "api-key",
-								},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						APIProxy: &AgentAPIProxyConfig{
+							Targets: map[string]*AgentAPIProxyTargetConfig{
+								"anthropic": {AuthHeader: "api-key"},
 							},
 						},
 					},
@@ -529,13 +525,11 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{Enabled: true},
 				},
-				RawFrontmatter: map[string]any{
-					"awf": map[string]any{
-						"apiProxy": map[string]any{
-							"targets": map[string]any{
-								"openai": map[string]any{
-									"authHeader": "api-key",
-								},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						APIProxy: &AgentAPIProxyConfig{
+							Targets: map[string]*AgentAPIProxyTargetConfig{
+								"openai": {AuthHeader: "api-key"},
 							},
 						},
 					},

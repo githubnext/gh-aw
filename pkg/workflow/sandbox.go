@@ -56,6 +56,22 @@ type AgentSandboxConfig struct {
 	Env      map[string]string     `yaml:"env,omitempty"`     // Environment variables to set on the step
 	Mounts   []string              `yaml:"mounts,omitempty"`  // Container mounts to add for AWF (format: "source:dest:mode")
 	Memory   string                `yaml:"memory,omitempty"`  // Memory limit for the AWF container (e.g., "4g", "8g")
+	APIProxy *AgentAPIProxyConfig  `yaml:"apiProxy,omitempty"` // API proxy configuration for LLM provider routing
+}
+
+// AgentAPIProxyConfig holds per-provider API proxy target overrides declared in
+// sandbox.agent.apiProxy frontmatter. These are compiled into the AWF config JSON.
+type AgentAPIProxyConfig struct {
+	Targets map[string]*AgentAPIProxyTargetConfig `yaml:"targets,omitempty"` // Per-provider target overrides keyed by provider name (e.g. "openai", "anthropic")
+}
+
+// AgentAPIProxyTargetConfig configures a single LLM provider's API proxy target.
+type AgentAPIProxyTargetConfig struct {
+	// AuthHeader is the custom authentication header name sent with API requests.
+	// When set, the raw API key is sent as "<authHeader>: <key>" instead of the
+	// provider default ("Authorization" for OpenAI, "x-api-key" for Anthropic).
+	// Example: "api-key" for Azure OpenAI gateways.
+	AuthHeader string `yaml:"authHeader,omitempty"`
 }
 
 // SandboxRuntimeConfig represents the Anthropic Sandbox Runtime configuration

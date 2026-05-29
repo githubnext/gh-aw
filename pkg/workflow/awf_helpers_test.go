@@ -273,73 +273,61 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 }
 
 // TestExtractAPITargetAuthHeader tests the extractAPITargetAuthHeader function that reads
-// the custom auth header name from awf.apiProxy.targets.<provider>.authHeader in frontmatter.
+// the custom auth header name from sandbox.agent.apiProxy.targets.<provider>.authHeader in frontmatter.
 func TestExtractAPITargetAuthHeader(t *testing.T) {
-	t.Run("returns authHeader for openai provider", func(t *testing.T) {
-		raw := map[string]any{
-			"awf": map[string]any{
-				"apiProxy": map[string]any{
-					"targets": map[string]any{
-						"openai": map[string]any{
-							"authHeader": "api-key",
+	makeWorkflowData := func(provider, authHeader string) *WorkflowData {
+		return &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					APIProxy: &AgentAPIProxyConfig{
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							provider: {AuthHeader: authHeader},
 						},
 					},
 				},
 			},
 		}
-		result := extractAPITargetAuthHeader(raw, "openai")
+	}
+
+	t.Run("returns authHeader for openai provider", func(t *testing.T) {
+		result := extractAPITargetAuthHeader(makeWorkflowData("openai", "api-key"), "openai")
 		assert.Equal(t, "api-key", result)
 	})
 
 	t.Run("returns authHeader for anthropic provider", func(t *testing.T) {
-		raw := map[string]any{
-			"awf": map[string]any{
-				"apiProxy": map[string]any{
-					"targets": map[string]any{
-						"anthropic": map[string]any{
-							"authHeader": "x-custom-header",
-						},
-					},
-				},
-			},
-		}
-		result := extractAPITargetAuthHeader(raw, "anthropic")
+		result := extractAPITargetAuthHeader(makeWorkflowData("anthropic", "x-custom-header"), "anthropic")
 		assert.Equal(t, "x-custom-header", result)
 	})
 
-	t.Run("returns empty string when awf key is absent", func(t *testing.T) {
-		raw := map[string]any{"engine": "codex"}
-		assert.Empty(t, extractAPITargetAuthHeader(raw, "openai"))
+	t.Run("returns empty string when sandbox config is absent", func(t *testing.T) {
+		wd := &WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}}
+		assert.Empty(t, extractAPITargetAuthHeader(wd, "openai"))
 	})
 
 	t.Run("returns empty string when provider is absent", func(t *testing.T) {
-		raw := map[string]any{
-			"awf": map[string]any{
-				"apiProxy": map[string]any{
-					"targets": map[string]any{},
-				},
-			},
-		}
-		assert.Empty(t, extractAPITargetAuthHeader(raw, "openai"))
-	})
-
-	t.Run("returns empty string for nil frontmatter", func(t *testing.T) {
-		assert.Empty(t, extractAPITargetAuthHeader(nil, "openai"))
-	})
-
-	t.Run("returns empty string when authHeader value is not a string", func(t *testing.T) {
-		raw := map[string]any{
-			"awf": map[string]any{
-				"apiProxy": map[string]any{
-					"targets": map[string]any{
-						"openai": map[string]any{
-							"authHeader": 42,
-						},
+		wd := &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					APIProxy: &AgentAPIProxyConfig{
+						Targets: map[string]*AgentAPIProxyTargetConfig{},
 					},
 				},
 			},
 		}
-		assert.Empty(t, extractAPITargetAuthHeader(raw, "openai"))
+		assert.Empty(t, extractAPITargetAuthHeader(wd, "openai"))
+	})
+
+	t.Run("returns empty string for nil WorkflowData", func(t *testing.T) {
+		assert.Empty(t, extractAPITargetAuthHeader(nil, "openai"))
+	})
+
+	t.Run("returns empty string when apiProxy is nil", func(t *testing.T) {
+		wd := &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{},
+			},
+		}
+		assert.Empty(t, extractAPITargetAuthHeader(wd, "openai"))
 	})
 }
 

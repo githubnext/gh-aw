@@ -3906,6 +3906,26 @@
                         }
                       },
                       "additionalProperties": false
+                    },
+                    "apiProxy": {
+                      "type": "object",
+                      "description": "API proxy configuration for LLM provider routing. Settings are compiled into the AWF config JSON.",
+                      "properties": {
+                        "targets": {
+                          "type": "object",
+                          "description": "Per-provider API proxy target overrides.",
+                          "properties": {
+                            "openai": {
+                              "$ref": "#/$defs/sandbox_agent_api_target"
+                            },
+                            "anthropic": {
+                              "$ref": "#/$defs/sandbox_agent_api_target"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
                     }
                   },
                   "additionalProperties": false
@@ -11651,33 +11671,6 @@
           }
         }
       ]
-    },
-    "awf": {
-      "type": "object",
-      "description": "AWF (Agent Workflow Firewall) declarative configuration. Settings here are compiled into the AWF config JSON and control API proxy routing and authentication for LLM providers in AWF-enabled workflows.",
-      "properties": {
-        "apiProxy": {
-          "type": "object",
-          "description": "API proxy configuration for LLM provider routing.",
-          "properties": {
-            "targets": {
-              "type": "object",
-              "description": "Per-provider API proxy target overrides.",
-              "properties": {
-                "openai": {
-                  "$ref": "#/$defs/awf_provider_target"
-                },
-                "anthropic": {
-                  "$ref": "#/$defs/awf_provider_target"
-                }
-              },
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
     }
   },
   "additionalProperties": false,
@@ -13701,13 +13694,13 @@
         }
       ]
     },
-    "awf_provider_target": {
+    "sandbox_agent_api_target": {
       "type": "object",
       "description": "AWF API proxy target configuration for a single LLM provider.",
       "properties": {
         "authHeader": {
           "type": "string",
-          "description": "Custom authentication header name to use when forwarding requests to this provider's API. When set, the raw API key is sent as '<authHeader>: <key>' instead of the provider default ('Authorization: Bearer' for OpenAI, 'x-api-key' for Anthropic). Example: 'api-key' for Azure OpenAI."
+          "description": "Custom authentication header name to use when forwarding requests to this provider's API. Overrides the provider default (\"Authorization\" for OpenAI, \"x-api-key\" for Anthropic). Example: \"api-key\" for Azure OpenAI gateways."
         }
       },
       "additionalProperties": false
