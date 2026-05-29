@@ -144,7 +144,7 @@ func ensureAgenticWorkflowsAgent(verbose bool) error {
 func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 	lines := []string{
 		strings.TrimRight(agenticWorkflowsAgentHeader, "\n"),
-		"- `.github/skills/agentic-workflows/SKILL.md` — router skill for workflow create, debug, and upgrade tasks.",
+		formatAgenticWorkflowsAgentEntry(".github/skills/agentic-workflows/SKILL.md", "router skill for workflow create, debug, and upgrade tasks"),
 	}
 
 	promptPaths, err := filepath.Glob(filepath.Join(gitRoot, ".github", "aw", "*.md"))
@@ -163,10 +163,14 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 			return "", fmt.Errorf("failed to compute relative path for %s: %w", promptPath, err)
 		}
 
-		lines = append(lines, fmt.Sprintf("- `%s` — %s.", filepath.ToSlash(relPath), purpose))
+		lines = append(lines, formatAgenticWorkflowsAgentEntry(filepath.ToSlash(relPath), purpose))
 	}
 
 	return strings.Join(lines, "\n") + "\n", nil
+}
+
+func formatAgenticWorkflowsAgentEntry(path, purpose string) string {
+	return fmt.Sprintf("- `%s` — %s.", path, strings.TrimSuffix(purpose, "."))
 }
 
 func summarizeAgenticWorkflowPrompt(path string) (string, error) {
@@ -190,6 +194,7 @@ func extractPromptSummary(content string) string {
 	}
 
 	start := 0
+	description := ""
 	if strings.TrimSpace(lines[0]) == "---" {
 		start = 1
 		for ; start < len(lines); start++ {
@@ -199,7 +204,7 @@ func extractPromptSummary(content string) string {
 				break
 			}
 			if strings.HasPrefix(line, "description:") {
-				return cleanPromptSummary(strings.TrimSpace(strings.TrimPrefix(line, "description:")))
+				description = cleanPromptSummary(strings.TrimSpace(strings.TrimPrefix(line, "description:")))
 			}
 		}
 	}
@@ -212,10 +217,11 @@ func extractPromptSummary(content string) string {
 		if strings.HasPrefix(line, "# ") {
 			return cleanPromptSummary(strings.TrimSpace(strings.TrimPrefix(line, "# ")))
 		}
-		if strings.HasPrefix(line, "```") || strings.HasPrefix(line, ">") {
-			continue
-		}
-		return cleanPromptSummary(line)
+		break
+	}
+
+	if description != "" && len(description) <= 80 && !strings.ContainsAny(description, "*`#") {
+		return description
 	}
 
 	return ""
@@ -273,7 +279,11 @@ func humanizePromptFilename(name string) string {
 		return "run visual regression tests"
 	}
 
-	return strings.ReplaceAll(base, "-", " ")
+	summary := strings.ReplaceAll(base, "-", " ")
+	if summary == "" {
+		return ""
+	}
+	return strings.ToUpper(summary[:1]) + summary[1:]
 }
 
 // cleanupOldPromptFile removes an old prompt file from .github/prompts/ if it exists

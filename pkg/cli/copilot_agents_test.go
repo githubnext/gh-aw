@@ -290,6 +290,14 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 		t.Fatalf("Failed to write debug prompt: %v", err)
 	}
 
+	agenticChatPrompt := "---\n" +
+		"description: AI assistant for creating clear, detailed task descriptions for GitHub Copilot coding agents with embedded workflow recommendations.\n" +
+		"---\n\n" +
+		"# Agentic Task Description Assistant\n"
+	if err := os.WriteFile(filepath.Join(tempDir, ".github", "aw", "agentic-chat.md"), []byte(agenticChatPrompt), 0644); err != nil {
+		t.Fatalf("Failed to write agentic-chat prompt: %v", err)
+	}
+
 	if err := os.WriteFile(filepath.Join(tempDir, ".github", "aw", "triggers.md"), []byte("# ✅ GOOD - Weekday schedule avoids Monday wall of work\n"), 0644); err != nil {
 		t.Fatalf("Failed to write triggers prompt: %v", err)
 	}
@@ -309,6 +317,10 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 
 	if !strings.Contains(content, "`.github/aw/debug-agentic-workflow.md` — Debug and refine agentic workflows using gh-aw CLI tools.") {
 		t.Fatalf("Expected agent content to include concise debug prompt summary, got:\n%s", content)
+	}
+
+	if !strings.Contains(content, "`.github/aw/agentic-chat.md` — Agentic Task Description Assistant.") {
+		t.Fatalf("Expected headings to win over long frontmatter descriptions, got:\n%s", content)
 	}
 
 	if !strings.Contains(content, "`.github/aw/triggers.md` — Weekday schedule avoids Monday wall of work.") {
@@ -338,6 +350,6 @@ func TestCheckedInAgenticWorkflowsAgentMatchesGeneratedContent(t *testing.T) {
 	}
 
 	if strings.TrimSpace(string(actual)) != strings.TrimSpace(expected) {
-		t.Fatalf("Checked-in agent file is out of sync with generated content")
+		t.Fatalf("Checked-in agent file is out of sync with generated content\nexpected:\n%s\nactual:\n%s", expected, string(actual))
 	}
 }
