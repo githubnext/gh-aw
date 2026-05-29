@@ -540,6 +540,83 @@ func TestMainWorkflowSchema_WorkflowDispatchNumberTypeDocumentation(t *testing.T
 	}
 }
 
+func TestMainWorkflowSchema_WorkflowCallAndDispatchInputDefsDisallowUnknownKeys(t *testing.T) {
+	t.Parallel()
+
+	schemaContent, err := os.ReadFile("schemas/main_workflow_schema.json")
+	if err != nil {
+		t.Fatalf("failed to read schema: %v", err)
+	}
+
+	var schema map[string]any
+	if err := json.Unmarshal(schemaContent, &schema); err != nil {
+		t.Fatalf("failed to parse schema json: %v", err)
+	}
+
+	getMapAtPath := func(t *testing.T, root map[string]any, path ...any) map[string]any {
+		t.Helper()
+		var cur any = root
+		for _, p := range path {
+			switch step := p.(type) {
+			case string:
+				m, ok := cur.(map[string]any)
+				if !ok {
+					t.Fatalf("expected map before key %q", step)
+				}
+				next, ok := m[step]
+				if !ok {
+					t.Fatalf("missing key %q in path", step)
+				}
+				cur = next
+			case int:
+				arr, ok := cur.([]any)
+				if !ok {
+					t.Fatalf("expected array before index %d", step)
+				}
+				if step < 0 || step >= len(arr) {
+					t.Fatalf("index %d out of range in path", step)
+				}
+				cur = arr[step]
+			default:
+				t.Fatalf("unsupported path step type %T", p)
+			}
+		}
+
+		out, ok := cur.(map[string]any)
+		if !ok {
+			t.Fatalf("expected map at target path, got %T", cur)
+		}
+		return out
+	}
+
+	paths := []struct {
+		name string
+		path []any
+	}{
+		{
+			name: "on.workflow_call.inputs.<id>",
+			path: []any{"properties", "on", "oneOf", 1, "properties", "workflow_call", "oneOf", 1, "properties", "inputs", "additionalProperties"},
+		},
+		{
+			name: "on.workflow_call.secrets.<id>",
+			path: []any{"properties", "on", "oneOf", 1, "properties", "workflow_call", "oneOf", 1, "properties", "secrets", "additionalProperties"},
+		},
+		{
+			name: "safe-outputs.dispatch_repository.<tool>.inputs.<id>",
+			path: []any{"properties", "safe-outputs", "properties", "dispatch_repository", "additionalProperties", "properties", "inputs", "additionalProperties"},
+		},
+	}
+
+	for _, tc := range paths {
+		t.Run(tc.name, func(t *testing.T) {
+			subschema := getMapAtPath(t, schema, tc.path...)
+			if subschema["additionalProperties"] != false {
+				t.Fatalf("%s should set additionalProperties to false", tc.name)
+			}
+		})
+	}
+}
+
 func TestMainWorkflowSchema_CreatePullRequestAllowedBaseBranches(t *testing.T) {
 	t.Parallel()
 
