@@ -113,7 +113,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Codex GitHub Remote MCP Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/codex-github-remote-mcp-test.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.133.0"
+          GH_AW_INFO_VERSION: "0.135.0"
           GH_AW_INFO_AWF_VERSION: "v0.25.56"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Mask OTLP telemetry headers
@@ -124,8 +124,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "codex"
           GH_AW_INFO_ENGINE_NAME: "Codex"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || vars.GH_AW_DEFAULT_MODEL_CODEX || 'gpt-5.4' }}
-          GH_AW_INFO_VERSION: "0.133.0"
-          GH_AW_INFO_AGENT_VERSION: "0.133.0"
+          GH_AW_INFO_VERSION: "0.135.0"
+          GH_AW_INFO_AGENT_VERSION: "0.135.0"
           GH_AW_INFO_WORKFLOW_NAME: "Codex GitHub Remote MCP Test"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -373,7 +373,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Codex GitHub Remote MCP Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/codex-github-remote-mcp-test.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.133.0"
+          GH_AW_INFO_VERSION: "0.135.0"
           GH_AW_INFO_AWF_VERSION: "v0.25.56"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Set runtime paths
@@ -429,7 +429,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex CLI
-        run: npm install --ignore-scripts -g @openai/codex@0.133.0
+        run: npm install --ignore-scripts -g @openai/codex@0.135.0
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.56
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -960,7 +960,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Codex GitHub Remote MCP Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/codex-github-remote-mcp-test.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.133.0"
+          GH_AW_INFO_VERSION: "0.135.0"
           GH_AW_INFO_AWF_VERSION: "v0.25.56"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Download agent output artifact
@@ -1058,7 +1058,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Codex GitHub Remote MCP Test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/codex-github-remote-mcp-test.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.133.0"
+          GH_AW_INFO_VERSION: "0.135.0"
           GH_AW_INFO_AWF_VERSION: "v0.25.56"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Mask OTLP telemetry headers
