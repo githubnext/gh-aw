@@ -108,6 +108,60 @@ func extractAPIBasePath(workflowData *WorkflowData, envVar string) string {
 	return ""
 }
 
+// extractAPITargetAuthHeader extracts the authHeader value from the awf frontmatter section
+// for a given provider (e.g. "openai" or "anthropic"). It reads the following frontmatter path:
+//
+//	awf.apiProxy.targets.<provider>.authHeader
+//
+// Returns the header name string (e.g. "api-key") or empty string if not configured.
+// A non-string value is treated as absent and returns empty string.
+func extractAPITargetAuthHeader(rawFrontmatter map[string]any, provider string) string {
+	if rawFrontmatter == nil {
+		return ""
+	}
+	awfAny, ok := rawFrontmatter["awf"]
+	if !ok {
+		return ""
+	}
+	awfMap, ok := awfAny.(map[string]any)
+	if !ok {
+		return ""
+	}
+	apiProxyAny, ok := awfMap["apiProxy"]
+	if !ok {
+		return ""
+	}
+	apiProxyMap, ok := apiProxyAny.(map[string]any)
+	if !ok {
+		return ""
+	}
+	targetsAny, ok := apiProxyMap["targets"]
+	if !ok {
+		return ""
+	}
+	targetsMap, ok := targetsAny.(map[string]any)
+	if !ok {
+		return ""
+	}
+	providerAny, ok := targetsMap[provider]
+	if !ok {
+		return ""
+	}
+	providerMap, ok := providerAny.(map[string]any)
+	if !ok {
+		return ""
+	}
+	authHeaderAny, ok := providerMap["authHeader"]
+	if !ok {
+		return ""
+	}
+	authHeader, ok := authHeaderAny.(string)
+	if !ok {
+		return ""
+	}
+	return authHeader
+}
+
 // GetCopilotAPITarget returns the effective Copilot API target hostname, checking in order:
 //  1. engine.api-target (explicit, takes precedence)
 //  2. GITHUB_COPILOT_BASE_URL in engine.env (implicit, derived from the configured Copilot base URL)

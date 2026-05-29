@@ -272,6 +272,77 @@ func TestAWFCustomAPITargetFlags(t *testing.T) {
 	})
 }
 
+// TestExtractAPITargetAuthHeader tests the extractAPITargetAuthHeader function that reads
+// the custom auth header name from awf.apiProxy.targets.<provider>.authHeader in frontmatter.
+func TestExtractAPITargetAuthHeader(t *testing.T) {
+	t.Run("returns authHeader for openai provider", func(t *testing.T) {
+		raw := map[string]any{
+			"awf": map[string]any{
+				"apiProxy": map[string]any{
+					"targets": map[string]any{
+						"openai": map[string]any{
+							"authHeader": "api-key",
+						},
+					},
+				},
+			},
+		}
+		result := extractAPITargetAuthHeader(raw, "openai")
+		assert.Equal(t, "api-key", result)
+	})
+
+	t.Run("returns authHeader for anthropic provider", func(t *testing.T) {
+		raw := map[string]any{
+			"awf": map[string]any{
+				"apiProxy": map[string]any{
+					"targets": map[string]any{
+						"anthropic": map[string]any{
+							"authHeader": "x-custom-header",
+						},
+					},
+				},
+			},
+		}
+		result := extractAPITargetAuthHeader(raw, "anthropic")
+		assert.Equal(t, "x-custom-header", result)
+	})
+
+	t.Run("returns empty string when awf key is absent", func(t *testing.T) {
+		raw := map[string]any{"engine": "codex"}
+		assert.Empty(t, extractAPITargetAuthHeader(raw, "openai"))
+	})
+
+	t.Run("returns empty string when provider is absent", func(t *testing.T) {
+		raw := map[string]any{
+			"awf": map[string]any{
+				"apiProxy": map[string]any{
+					"targets": map[string]any{},
+				},
+			},
+		}
+		assert.Empty(t, extractAPITargetAuthHeader(raw, "openai"))
+	})
+
+	t.Run("returns empty string for nil frontmatter", func(t *testing.T) {
+		assert.Empty(t, extractAPITargetAuthHeader(nil, "openai"))
+	})
+
+	t.Run("returns empty string when authHeader value is not a string", func(t *testing.T) {
+		raw := map[string]any{
+			"awf": map[string]any{
+				"apiProxy": map[string]any{
+					"targets": map[string]any{
+						"openai": map[string]any{
+							"authHeader": 42,
+						},
+					},
+				},
+			},
+		}
+		assert.Empty(t, extractAPITargetAuthHeader(raw, "openai"))
+	})
+}
+
 // TestExtractAPIBasePath tests the extractAPIBasePath function that extracts
 // path components from custom API base URLs in engine.env
 func TestExtractAPIBasePath(t *testing.T) {

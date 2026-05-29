@@ -1436,3 +1436,88 @@ func TestMainWorkflowSchema_GitHubAllowedSupportsToolCallLimits(t *testing.T) {
 		t.Fatal("tools.github.allowed[].max alias should not be present")
 	}
 }
+
+// TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AwfApiProxyTargets verifies that
+// the awf.apiProxy.targets frontmatter section is validated by the schema, accepting valid
+// authHeader strings and rejecting non-string values.
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AwfApiProxyTargets(t *testing.T) {
+	t.Run("valid string authHeader for openai is accepted", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "codex",
+			"awf": map[string]any{
+				"apiProxy": map[string]any{
+					"targets": map[string]any{
+						"openai": map[string]any{
+							"authHeader": "api-key",
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-auth-header-openai-test.md")
+		if err != nil {
+			t.Errorf("valid openai authHeader should be accepted, got error: %v", err)
+		}
+	})
+
+	t.Run("valid string authHeader for anthropic is accepted", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "claude",
+			"awf": map[string]any{
+				"apiProxy": map[string]any{
+					"targets": map[string]any{
+						"anthropic": map[string]any{
+							"authHeader": "api-key",
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-auth-header-anthropic-test.md")
+		if err != nil {
+			t.Errorf("valid anthropic authHeader should be accepted, got error: %v", err)
+		}
+	})
+
+	t.Run("non-string authHeader is rejected", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "codex",
+			"awf": map[string]any{
+				"apiProxy": map[string]any{
+					"targets": map[string]any{
+						"openai": map[string]any{
+							"authHeader": 42,
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-auth-header-invalid-test.md")
+		if err == nil {
+			t.Error("non-string authHeader should be rejected by schema validation")
+		}
+	})
+
+	t.Run("unknown provider in targets is rejected", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "codex",
+			"awf": map[string]any{
+				"apiProxy": map[string]any{
+					"targets": map[string]any{
+						"unknown-provider": map[string]any{
+							"authHeader": "api-key",
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-unknown-provider-test.md")
+		if err == nil {
+			t.Error("unknown provider in awf.apiProxy.targets should be rejected")
+		}
+	})
+}

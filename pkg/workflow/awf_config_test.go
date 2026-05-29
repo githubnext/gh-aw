@@ -454,6 +454,120 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, "&&", "JSON output should preserve && in GitHub Actions expressions")
 		assert.NotContains(t, jsonStr, "\\u0026", "JSON output should not HTML-escape '&' characters")
 	})
+
+	t.Run("openai authHeader from frontmatter awf.apiProxy.targets is included", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "codex",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "codex"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				RawFrontmatter: map[string]any{
+					"awf": map[string]any{
+						"apiProxy": map[string]any{
+							"targets": map[string]any{
+								"openai": map[string]any{
+									"authHeader": "api-key",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"authHeader":"api-key"`, "should include openai authHeader in apiProxy targets")
+		assert.Contains(t, jsonStr, `"openai"`, "should include openai target")
+	})
+
+	t.Run("anthropic authHeader from frontmatter awf.apiProxy.targets is included", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "claude"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				RawFrontmatter: map[string]any{
+					"awf": map[string]any{
+						"apiProxy": map[string]any{
+							"targets": map[string]any{
+								"anthropic": map[string]any{
+									"authHeader": "api-key",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"authHeader":"api-key"`, "should include anthropic authHeader in apiProxy targets")
+		assert.Contains(t, jsonStr, `"anthropic"`, "should include anthropic target")
+	})
+
+	t.Run("authHeader coexists with host from engine.env", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "codex",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "codex",
+					Env: map[string]string{
+						"OPENAI_BASE_URL": "https://azure-openai.internal/v1",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				RawFrontmatter: map[string]any{
+					"awf": map[string]any{
+						"apiProxy": map[string]any{
+							"targets": map[string]any{
+								"openai": map[string]any{
+									"authHeader": "api-key",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, "azure-openai.internal", "should include host from OPENAI_BASE_URL")
+		assert.Contains(t, jsonStr, `"authHeader":"api-key"`, "should include authHeader alongside host")
+	})
+
+	t.Run("authHeader is omitted when not configured in frontmatter", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "codex",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "codex",
+					Env: map[string]string{
+						"OPENAI_BASE_URL": "https://my-proxy.internal.example.com/v1",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"authHeader"`, "authHeader should be absent when not configured")
+	})
 }
 
 // TestBuildAWFConfigSchemaURL verifies that buildAWFConfigSchemaURL returns a release-pinned
