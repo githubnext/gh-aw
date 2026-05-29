@@ -8,6 +8,7 @@ on:
 jobs:
   call-smoke-workflow-call:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'water'
+    timeout-minutes: 20
     uses: ./.github/workflows/smoke-workflow-call.lock.yml
     secrets: inherit
     permissions:

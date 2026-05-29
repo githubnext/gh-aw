@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/github/gh-aw/pkg/errorutil"
 )
 
@@ -32,9 +34,7 @@ func TestIsNotFoundError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := errorutil.IsNotFoundError(tt.err)
-			if got != tt.want {
-				t.Errorf("IsNotFoundError(%v) = %v, want %v", tt.err, got, tt.want)
-			}
+			assert.Equal(t, tt.want, got, "IsNotFoundError result mismatch for subtest %s", tt.name)
 		})
 	}
 }
@@ -60,9 +60,7 @@ func TestIsForbiddenError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := errorutil.IsForbiddenError(tt.err)
-			if got != tt.want {
-				t.Errorf("IsForbiddenError(%v) = %v, want %v", tt.err, got, tt.want)
-			}
+			assert.Equal(t, tt.want, got, "IsForbiddenError result mismatch for subtest %s", tt.name)
 		})
 	}
 }
@@ -88,9 +86,7 @@ func TestIsGoneError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := errorutil.IsGoneError(tt.err)
-			if got != tt.want {
-				t.Errorf("IsGoneError(%v) = %v, want %v", tt.err, got, tt.want)
-			}
+			assert.Equal(t, tt.want, got, "IsGoneError result mismatch for subtest %s", tt.name)
 		})
 	}
 }
