@@ -662,16 +662,18 @@ func TestIsSupportedPackageInstallablePath(t *testing.T) {
 		path string
 		want bool
 	}{
-		// .md files: allowed under workflows/ and .github/workflows/
+		// .md files: allowed under workflows/, agentic-workflows/, and .github/workflows/
 		{"workflows/review.md", true},
+		{"agentic-workflows/review.md", true},
 		{".github/workflows/nightly-review.md", true},
 		// .yml action workflow files: allowed only under .github/workflows/ (direct children only)
 		{".github/workflows/deploy.yml", true},
 		{".github/workflows/ci.yml", true},
 		// mixed-case extensions are accepted
 		{".github/workflows/CI.YML", true},
-		// .yml files under workflows/ are NOT supported
+		// .yml files under workflows/ and agentic-workflows/ are NOT supported
 		{"workflows/deploy.yml", false},
+		{"agentic-workflows/deploy.yml", false},
 		// nested subdirectories under .github/workflows/ are NOT supported for .yml
 		{".github/workflows/subdir/ci.yml", false},
 		// .lock.yml files are NOT supported (generated artifacts)
@@ -698,12 +700,14 @@ func TestIsSupportedPackageInstallablePath(t *testing.T) {
 func TestExtractManifestIncludes(t *testing.T) {
 	includes, warnings := extractManifestIncludes([]any{
 		"workflows/review.md",
+		"agentic-workflows/review.md",
 		"skills/code-review",
 		"agents/reviewer.md",
 		".github/workflows/ci.yml",
 	}, "aw.yml")
 	assert.Equal(t, []string{
 		"workflows/review.md",
+		"agentic-workflows/review.md",
 		"skills/code-review",
 		"agents/reviewer.md",
 		".github/workflows/ci.yml",

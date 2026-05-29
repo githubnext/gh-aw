@@ -36,7 +36,7 @@ includes:
 | `name` | string | Yes | Human-readable package name. Must be non-empty after trimming whitespace. |
 | `emoji` | string | No | Optional package emoji for display in package metadata. |
 | `description` | string | No | Optional package description. `gh aw add` warns when it exceeds 255 characters. |
-| `includes` | array of strings | No | Package-root-relative paths. Type is inferred from folder naming: workflows (`workflows/`, `.github/workflows/`), skills (`skills/`, `.github/skills/`), agents (`agents/`, `.github/agents/`). |
+| `includes` | array of strings | No | Package-root-relative paths. Type is inferred from folder naming: workflows (`workflows/`, `agentic-workflows/`, `.github/workflows/`), skills (`skills/`, `.github/skills/`), agents (`agents/`, `.github/agents/`). |
 | `files` | array of strings | No | Deprecated alias. Use `includes` instead. |
 
 ## Documentation
@@ -55,7 +55,7 @@ When `files` is present, `gh aw add` emits a deprecation warning and automatical
 
 If `includes` is present, valid entries are used as the install bundle. Supported entry kinds:
 
-- **Agentic workflow markdown** — paths ending in `.md` under `workflows/` or `.github/workflows/`. Compiled to lock files on install.
+- **Agentic workflow markdown** — paths ending in `.md` under `workflows/`, `agentic-workflows/`, or `.github/workflows/`. Compiled to lock files on install.
 - **Raw GitHub Actions YAML** — paths ending in `.yml` (but not `.lock.yml`) that are direct children of `.github/workflows/`. Copied verbatim with no compilation or dependency fetching. `.yml` files under `workflows/` and nested subdirectories under `.github/workflows/` are not accepted.
 - **Skills** — directory paths under `skills/` or `.github/skills/` that contain `SKILL.md`.
 - **Agents** — `.md` files under `agents/` or `.github/agents/`.

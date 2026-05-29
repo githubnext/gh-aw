@@ -290,7 +290,7 @@ func extractManifestIncludes(value any, manifestPath string) ([]string, []string
 	seen := make(map[string]struct{})
 	for _, include := range rawIncludes {
 		if !isSupportedManifestIncludePath(include) {
-			warnings = append(warnings, fmt.Sprintf("Ignoring includes entry %q in %s: use workflow files (workflows/, .github/workflows/), skill directories (skills/, .github/skills/), or agent markdown files (agents/, .github/agents/)", include, manifestPath))
+			warnings = append(warnings, fmt.Sprintf("Ignoring includes entry %q in %s: use workflow files (workflows/, agentic-workflows/, .github/workflows/), skill directories (skills/, .github/skills/), or agent markdown files (agents/, .github/agents/)", include, manifestPath))
 			continue
 		}
 		if _, exists := seen[include]; exists {
@@ -322,7 +322,7 @@ func extractManifestFiles(value any, manifestPath string) ([]string, []string) {
 	seen := make(map[string]struct{})
 	for _, file := range rawFiles {
 		if !isSupportedPackageInstallablePath(file) {
-			warnings = append(warnings, fmt.Sprintf("Ignoring files entry %q in %s: supported files are markdown (.md) files under workflows/ or .github/workflows/, or action workflow (.yml) files under .github/workflows/", file, manifestPath))
+			warnings = append(warnings, fmt.Sprintf("Ignoring files entry %q in %s: supported files are markdown (.md) files under workflows/, agentic-workflows/, or .github/workflows/, or action workflow (.yml) files under .github/workflows/", file, manifestPath))
 			continue
 		}
 		if _, exists := seen[file]; exists {
@@ -676,6 +676,7 @@ func isSupportedPackageInstallablePath(p string) bool {
 	lowerCleaned := strings.ToLower(cleaned)
 	if strings.HasSuffix(lowerCleaned, ".md") {
 		return strings.HasPrefix(cleaned, "workflows/") ||
+			strings.HasPrefix(cleaned, "agentic-workflows/") ||
 			strings.HasPrefix(cleaned, ".github/workflows/")
 	}
 	if isActionWorkflowPath(cleaned) {
