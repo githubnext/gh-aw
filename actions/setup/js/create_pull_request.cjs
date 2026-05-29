@@ -33,7 +33,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
-const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, linearizeRangeAsCommit } = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
 const { parseDiffGitHeader: parseDiffGitHeaderPaths, extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 const {
@@ -211,7 +211,15 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
         core.warning(`Bundle fetch with ${bundleBranchRef} failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
         core.info(`Prerequisite commits: ${summarizeListForLog(prerequisiteCommits)}`);
         core.info(`Fetching ${prerequisiteCommits.length} prerequisite commit(s) from origin`);
-        await execApi.exec("git", ["fetch", "origin", ...prerequisiteCommits]);
+        // Use --filter=blob:none only when the local repo is already shallow or sparse —
+        // in a full clone we already have all blobs and must not convert the repo to a
+        // partial clone (which would trigger lazy blob fetches on later operations).
+        const useBlobFilter = await isShallowOrSparseCheckout(execApi);
+        const prerequisiteFetchArgs = useBlobFilter ? ["fetch", "--filter=blob:none", "origin", ...prerequisiteCommits] : ["fetch", "origin", ...prerequisiteCommits];
+        if (useBlobFilter) {
+          core.info("Using --filter=blob:none for prerequisite fetch (shallow or sparse checkout detected)");
+        }
+        await execApi.exec("git", prerequisiteFetchArgs);
         core.info("Fetched prerequisite commits from origin successfully");
         try {
           core.info(`Retrying bundle fetch from ${bundleBranchRef} into ${bundleTempRef} after prerequisite recovery`);

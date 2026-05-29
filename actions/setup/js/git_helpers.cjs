@@ -181,6 +181,44 @@ async function ensureFullHistoryForBundle(execApi, options = {}) {
 }
 
 /**
+ * Return true when the local repository is shallow OR has sparse-checkout enabled.
+ *
+ * This is the gate for using `--filter=blob:none` on follow-up fetches (e.g. bundle
+ * prerequisite recovery). In a full, non-sparse clone the repo already contains all
+ * blobs for committed history; adding `--filter=blob:none` to a fetch would convert
+ * it to a partial clone and cause subsequent operations to lazily re-fetch blobs.
+ * In shallow or sparse checkouts we already accept partial object availability, so
+ * filtering blobs is consistent and saves bandwidth.
+ *
+ * Both probes are best-effort — on any error we return `false` (do not filter),
+ * which is the safe default that preserves the legacy unfiltered fetch behavior.
+ *
+ * @param {{ getExecOutput: Function }} execApi - Exec API to run git commands.
+ * @param {Object} [options] - Options passed through to exec calls.
+ * @returns {Promise<boolean>}
+ */
+async function isShallowOrSparseCheckout(execApi, options = {}) {
+  const probeOptions = { ...options, ignoreReturnCode: true };
+  try {
+    const { stdout, exitCode } = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], probeOptions);
+    if (exitCode === 0 && stdout.trim() === "true") {
+      return true;
+    }
+  } catch {
+    // Fall through to sparse check; if both probes fail, return false (no filter).
+  }
+  try {
+    const { stdout, exitCode } = await execApi.getExecOutput("git", ["config", "--get", "core.sparseCheckout"], probeOptions);
+    if (exitCode === 0 && stdout.trim().toLowerCase() === "true") {
+      return true;
+    }
+  } catch {
+    // Fall through.
+  }
+  return false;
+}
+
+/**
  * Extract prerequisite commit SHAs from git bundle fetch error output.
  *
  * When `git fetch <bundle>` fails because the local repository is missing the
@@ -265,5 +303,6 @@ module.exports = {
   extractBundlePrerequisiteCommits,
   getGitAuthEnv,
   hasMergeCommitsInRange,
+  isShallowOrSparseCheckout,
   linearizeRangeAsCommit,
 };

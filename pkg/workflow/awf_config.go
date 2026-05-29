@@ -198,7 +198,15 @@ type AWFModelFallbackConfig struct {
 // Maps to: --<provider>-api-target <host>
 type AWFAPITargetConfig struct {
 	// Host is the hostname (and optional port) of the API endpoint.
-	Host string `json:"host"`
+	Host string `json:"host,omitempty"`
+
+	// AuthHeader is the custom authentication header name sent with API requests.
+	// When set, the raw API key is sent as "<authHeader>: <key>" instead of the
+	// provider default (e.g. "Authorization: ******" for OpenAI, or
+	// "x-api-key: <key>" for Anthropic). This supports gateways like Azure OpenAI
+	// that require "api-key: <rawkey>" in place of the standard provider scheme.
+	// Maps to: --openai-api-auth-header / --anthropic-api-auth-header
+	AuthHeader string `json:"authHeader,omitempty"`
 }
 
 // AWFContainerConfig is the "container" section of the AWF config file.
@@ -323,6 +331,22 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	if anthropicTarget := extractAPITargetHost(config.WorkflowData, "ANTHROPIC_BASE_URL"); anthropicTarget != "" {
 		targets["anthropic"] = &AWFAPITargetConfig{Host: anthropicTarget}
 		awfConfigLog.Printf("API proxy: custom anthropic target=%s", anthropicTarget)
+	}
+
+	// Apply authHeader overrides from sandbox.agent.targets frontmatter.
+	// These are independent of the host/env-var settings: authHeader can be set
+	// even when no custom host is configured.
+	for _, provider := range []string{"openai", "anthropic"} {
+		authHeader := extractAPITargetAuthHeader(config.WorkflowData, provider)
+		if authHeader == "" {
+			continue
+		}
+		if existing, ok := targets[provider]; ok {
+			existing.AuthHeader = authHeader
+		} else {
+			targets[provider] = &AWFAPITargetConfig{AuthHeader: authHeader}
+		}
+		awfConfigLog.Printf("API proxy: custom %s authHeader=%s", provider, authHeader)
 	}
 	if copilotTarget := GetCopilotAPITarget(config.WorkflowData); copilotTarget != "" {
 		targets["copilot"] = &AWFAPITargetConfig{Host: copilotTarget}

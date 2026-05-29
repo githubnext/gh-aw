@@ -4,7 +4,7 @@ name: Outcome Collector
 description: Periodic evaluation of safe output outcomes to measure workflow value and acceptance rates
 on:
   schedule:
-    - cron: every 6 hours
+    - cron: every 3 days
   workflow_dispatch:
 permissions:
   contents: read
@@ -118,13 +118,14 @@ The report must open with an executive-first view. Place the following at the to
 
 **Executive read:** {one sentence: overall quality signal, where unresolved volume is concentrated, and whether any workflows are stuck or underdefined}
 
-| Workflow | Status | Lifecycle health |
-|---|---|---|
-| {workflow_name} | <span style="white-space: nowrap;">{status_bar}</span> | {lifecycle_emoji} {lifecycle_label} |
+| Workflow | Status | Lifecycle health | References |
+|---|---|---|---|
+| {workflow_name} | <span style="white-space: nowrap;">{status_bar}</span> | {lifecycle_emoji} {lifecycle_label} | {reference_links_by_status e.g. `A: [#123](...) [#456](...) · R: [#78](...) · P: [#90](...)`} |
 
 **Legend:**
 - **Status:** 🟩 accepted · 🟥 rejected · 🟨 pending · ⬜ unknown
 - **Lifecycle health:** 🟢 resolving · 🟡 in flight · 🟠 aging · 🔴 stuck · ⚪ underdefined
+- **References:** accepted/rejected/pending/ignored/unknown links for quick verification
 ```
 
 **Status bar rules:**
@@ -132,6 +133,23 @@ The report must open with an executive-first view. Place the following at the to
 - Wrap in `<span style="white-space: nowrap;">...</span>` to prevent line breaks.
 - Do not include numeric counts in the top table — the bar communicates volume.
 - Sort rows by management attention: most pending first, then most unknown, then resolved-only workflows last.
+
+**References column rules:**
+- Add grouped links for each status present in that workflow (accepted, rejected, pending, ignored, unknown).
+- Use short status prefixes and compact link lists (example format: `A: [#123](...) [#456](...) · R: [#78](...) · P: [#90](...)`).
+- Link labels must be the real item identifiers when available (issue/PR/discussion/comment number, run id, or short commit SHA), not a synthetic sequence.
+- Include only valid issue/PR/discussion/comment/run URLs from the evaluated outcomes.
+
+### 🔴 Action Items
+
+List concrete actions the team should take based on the data directly under the executive summary table (outside `<details>`):
+
+1. **Highest-waste workflows** — Name the top 2-3 workflows by waste rate. If waste rate >25%, recommend reviewing the prompt or safe-output configuration.
+2. **Stuck pending items** — List any items pending >48 hours or any workflow classified as 🔴 stuck. These need human review or the workflow needs a timeout.
+3. **Underdefined workflows** — Any workflow classified as ⚪ underdefined needs clearer acceptance/rejection criteria or a dedicated evaluator. The outcome model for that workflow is not yet mature.
+4. **Low zero-touch workflows** — Workflows where accepted items always need human edits indicate the agent's output quality needs improvement.
+5. **High ignored rate** — If ignored items exceed 30% of total outcomes, the workflow may be producing outputs that nobody engages with; consider refining targeting or output type.
+6. **Data quality: fallback evaluations** — If `fallback_exists_only_count` > 20% of total outcomes, many items were evaluated with only a generic existence check (weak signal). This means the acceptance numbers may be overstated; note this in the report.
 
 **Lifecycle health classification** — assign one label per workflow based on its outcome history:
 
@@ -147,11 +165,11 @@ Use cache-memory to determine lifecycle health: compare this run's per-workflow 
 
 ### Details section (inside `<details>`)
 
-Place all detailed metrics, numeric breakdowns, evidence quality, trends, and action items inside a collapsible block:
+Place all detailed metrics, numeric breakdowns, evidence quality, and trends inside a collapsible block:
 
 ```markdown
 <details>
-<summary>Detailed metrics, evidence quality, workflow counts, and actions</summary>
+<summary>Detailed metrics, evidence quality, workflow counts, and trends</summary>
 
 ### Outcome Scorecard — {date}
 
@@ -170,17 +188,6 @@ Place all detailed metrics, numeric breakdowns, evidence quality, trends, and ac
 | Zero-touch | {zero_touch} / {accepted} | — |
 | Pending | {pending} | — |
 | Runs checked | {runs_checked} | — |
-
-### 🔴 Action Items
-
-List concrete actions the team should take based on the data:
-
-1. **Highest-waste workflows** — Name the top 2-3 workflows by waste rate. If waste rate >25%, recommend reviewing the prompt or safe-output configuration.
-2. **Stuck pending items** — List any items pending >48 hours or any workflow classified as 🔴 stuck. These need human review or the workflow needs a timeout.
-3. **Underdefined workflows** — Any workflow classified as ⚪ underdefined needs clearer acceptance/rejection criteria or a dedicated evaluator. The outcome model for that workflow is not yet mature.
-4. **Low zero-touch workflows** — Workflows where accepted items always need human edits indicate the agent's output quality needs improvement.
-5. **High ignored rate** — If ignored items exceed 30% of total outcomes, the workflow may be producing outputs that nobody engages with; consider refining targeting or output type.
-6. **Data quality: fallback evaluations** — If `fallback_exists_only_count` > 20% of total outcomes, many items were evaluated with only a generic existence check (weak signal). This means the acceptance numbers may be overstated; note this in the report.
 
 ### Per-Workflow Breakdown
 
@@ -213,7 +220,7 @@ If no previous data exists, skip this section.
 
 - Keep the report factual — numbers only, no speculation
 - Do not re-evaluate outcomes — use the pre-computed data
-- Optimize the top executive section for at-a-glance scanning; put all numeric detail in the `<details>` block
+- Optimize the top executive section for at-a-glance scanning; keep action items directly under the executive summary table and put numeric detail in the `<details>` block
 - Sort the executive table rows by management attention: most pending first, then most unknown, then resolved-only workflows last.
 - Sort the per-workflow breakdown inside `<details>` by waste rate descending (worst first)
 - Flag any workflow with acceptance rate <60% as needing attention

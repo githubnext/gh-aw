@@ -1503,7 +1503,8 @@ index 0000000..abc1234
         const result = await handler({ branch: "feature-branch", patch_path: patchPath, bundle_path: bundlePath, diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(true);
-        // Should have fetched the missing prerequisite from origin
+        // Repo is not shallow and not sparse in this scenario, so no --filter=blob:none is used:
+        // the local clone already has all blobs and we must not convert it to a partial clone.
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", missingSha], expect.any(Object));
         // Should have retried the bundle fetch via exec after fetching prerequisites
         const bundleRetryFetch = mockExec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath);
