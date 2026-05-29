@@ -21,6 +21,8 @@ const agenticWorkflowsAgentHeader = "---\n" +
 	"# Agentic Workflows\n\n" +
 	"Read only the files you need:\n"
 
+const maxAgenticWorkflowsPromptSummaryLength = 80
+
 // ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md contains the dispatcher skill
 func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error {
 	copilotAgentsLog.Print("Ensuring agentic workflows dispatcher skill")
@@ -220,7 +222,7 @@ func extractPromptSummary(content string) string {
 		break
 	}
 
-	if description != "" && len(description) <= 80 && !strings.ContainsAny(description, "*`#") {
+	if description != "" && len(description) <= maxAgenticWorkflowsPromptSummaryLength && !strings.ContainsAny(description, "*`#") {
 		return description
 	}
 
@@ -239,7 +241,7 @@ func cleanPromptSummary(summary string) string {
 		summary = summary[:idx]
 	}
 
-	if idx := strings.Index(summary, ","); idx > 0 && len(summary) > 80 {
+	if idx := strings.Index(summary, ","); idx > 0 && len(summary) > maxAgenticWorkflowsPromptSummaryLength {
 		summary = summary[:idx]
 	}
 
