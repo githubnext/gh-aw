@@ -212,7 +212,7 @@ If no previous data exists, skip this section.
 - Keep the report factual — numbers only, no speculation
 - Do not re-evaluate outcomes — use the pre-computed data
 - Optimize the top executive section for at-a-glance scanning; put all numeric detail in the `<details>` block
-- Sort the executive table rows by management attention: most pending first, then most unknown, then accepted-only workflows last
+- Sort the executive table rows by management attention: most pending first, then most unknown, then resolved-only workflows last.
 - Sort the per-workflow breakdown inside `<details>` by waste rate descending (worst first)
 - Flag any workflow with acceptance rate <60% as needing attention
 - Flag any item pending >48 hours
