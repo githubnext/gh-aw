@@ -64,6 +64,22 @@ describe("pi_provider.cjs", () => {
     ]);
   });
 
+  it("adds api-proxy to no_proxy when proxy vars are set", () => {
+    process.env.HTTP_PROXY = "http://proxy.internal:3128";
+    process.env.NO_PROXY = "localhost,127.0.0.1";
+
+    const pi = {
+      registerProvider: vi.fn(),
+      on: vi.fn(),
+    };
+
+    module.default(pi);
+
+    expect(process.env.NO_PROXY).toContain("api-proxy");
+    expect(process.env.no_proxy).toContain("api-proxy");
+    expect(stderrOutput.some(line => line.includes("proxy_bypass host=api-proxy"))).toBe(true);
+  });
+
   it("logs the configured provider using GH_AW_PI_MODEL during agent_start", async () => {
     process.env.GH_AW_PI_MODEL = "copilot/claude-sonnet-4";
     global.fetch = vi.fn().mockRejectedValue(new Error("network disabled"));

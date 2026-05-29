@@ -32,6 +32,7 @@ const fs = require("fs");
 const path = require("path");
 const DEFAULT_FETCH_DIAGNOSTIC_URLS = ["http://api-proxy:10000/reflect", "https://github.com", "https://api.github.com/meta"];
 const DEFAULT_FETCH_DIAGNOSTIC_TIMEOUT_MS = 5000;
+const PROXY_ENV_VAR_NAMES = ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"];
 
 // Default logger: prefixed with "[gh-aw/pi-provider]" for easy grepping.
 // prettier-ignore
@@ -95,6 +96,32 @@ function resolveGatewayUrl(provider) {
  */
 function joinApiUrl(baseUrl, apiPath) {
   return `${baseUrl.replace(/\/+$/, "")}${apiPath}`;
+}
+
+/**
+ * Ensure an internal host bypasses proxy routing for Node fetch/undici.
+ *
+ * @param {string} host
+ * @param {(msg: string) => void} logger
+ */
+function ensureNoProxyHost(host, logger) {
+  if (!host) return;
+  const hasProxyEnv = PROXY_ENV_VAR_NAMES.some(name => Boolean(process.env[name]));
+  if (!hasProxyEnv) return;
+
+  const hostLower = host.toLowerCase();
+  const current = process.env.NO_PROXY || process.env.no_proxy || "";
+  const entries = current
+    .split(",")
+    .map(v => v.trim())
+    .filter(Boolean);
+  const alreadyPresent = entries.some(entry => entry.toLowerCase() === hostLower);
+  if (alreadyPresent) return;
+
+  const updated = [...entries, host].join(",");
+  process.env.NO_PROXY = updated;
+  process.env.no_proxy = updated;
+  logger(`proxy_bypass host=${host} no_proxy=${updated}`);
 }
 
 /**
@@ -423,6 +450,7 @@ function registerConfiguredProviders(pi, logger) {
  */
 function piProviderExtension(pi) {
   const log = DEFAULT_LOGGER;
+  ensureNoProxyHost(new URL(AWF_API_PROXY_REFLECT_URL).hostname, log);
   /** @type {{ api: string, method: string, url: string }|null} */
   let lastProviderRequest = null;
   /** @type {{ status: number, responseHeaders: string }|null} */
