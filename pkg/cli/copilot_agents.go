@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -154,6 +155,10 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 		return "", fmt.Errorf("failed to list .github/aw prompts: %w", err)
 	}
 
+	sort.SliceStable(promptPaths, func(i, j int) bool {
+		return agenticWorkflowsPromptSortKey(promptPaths[i]) < agenticWorkflowsPromptSortKey(promptPaths[j])
+	})
+
 	for _, promptPath := range promptPaths {
 		purpose, err := summarizeAgenticWorkflowPrompt(promptPath)
 		if err != nil {
@@ -169,6 +174,13 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 	}
 
 	return strings.Join(lines, "\n") + "\n", nil
+}
+
+func agenticWorkflowsPromptSortKey(path string) string {
+	if filepath.Base(path) == "github-agentic-workflows.md" {
+		return ""
+	}
+	return filepath.Base(path)
 }
 
 func formatAgenticWorkflowsAgentEntry(path, purpose string) string {

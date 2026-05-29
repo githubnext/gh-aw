@@ -298,6 +298,10 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 		t.Fatalf("Failed to write agentic-chat prompt: %v", err)
 	}
 
+	if err := os.WriteFile(filepath.Join(tempDir, ".github", "aw", "github-agentic-workflows.md"), []byte("# GitHub Agentic Workflows\n"), 0644); err != nil {
+		t.Fatalf("Failed to write github-agentic-workflows prompt: %v", err)
+	}
+
 	if err := os.WriteFile(filepath.Join(tempDir, ".github", "aw", "triggers.md"), []byte("# ✅ GOOD - Weekday schedule avoids Monday wall of work\n"), 0644); err != nil {
 		t.Fatalf("Failed to write triggers prompt: %v", err)
 	}
@@ -329,6 +333,15 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 
 	if strings.Contains(content, "compat.json") {
 		t.Fatalf("Expected non-markdown files to be excluded from agent content, got:\n%s", content)
+	}
+
+	githubInstructionsIndex := strings.Index(content, "`.github/aw/github-agentic-workflows.md`")
+	debugPromptIndex := strings.Index(content, "`.github/aw/debug-agentic-workflow.md`")
+	if githubInstructionsIndex == -1 || debugPromptIndex == -1 {
+		t.Fatalf("Expected agent content to include prioritized workflow instructions and debug prompt, got:\n%s", content)
+	}
+	if githubInstructionsIndex > debugPromptIndex {
+		t.Fatalf("Expected github-agentic-workflows.md to appear before other prompts, got:\n%s", content)
 	}
 }
 

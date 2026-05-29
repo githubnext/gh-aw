@@ -7,6 +7,7 @@ description: Minimal file index for GitHub Agentic Workflows tasks in this repos
 
 Read only the files you need:
 - `.github/skills/agentic-workflows/SKILL.md` — router skill for workflow create, debug, and upgrade tasks.
+- `.github/aw/github-agentic-workflows.md` — GitHub Agentic Workflows.
 - `.github/aw/agentic-chat.md` — Agentic Task Description Assistant.
 - `.github/aw/asciicharts.md` — ASCII CHART MAKER.
 - `.github/aw/campaign.md` — Campaign Workflows.
@@ -19,7 +20,6 @@ Read only the files you need:
 - `.github/aw/dependabot.md` — Dependabot.
 - `.github/aw/deployment-status.md` — Deployment Status Monitoring.
 - `.github/aw/experiments.md` — A/B Testing Experiments in Agentic Workflows.
-- `.github/aw/github-agentic-workflows.md` — GitHub Agentic Workflows.
 - `.github/aw/github-mcp-server.md` — GitHub MCP Server Instructions.
 - `.github/aw/llms.md` — LLM API Endpoint Discovery.
 - `.github/aw/memory.md` — Persistent Memory in Agentic Workflows.
