@@ -88,9 +88,34 @@ func getWorkflowRunBranchesCodemodWithDeps(deps workflowRunBranchesCodemodDeps) 
 }
 
 func addWorkflowRunBranches(lines []string, branches []string) ([]string, bool) {
-	onIdx := -1
-	onIndent := ""
-	onEnd := len(lines)
+	onIdx, onIndent, onEnd := findOnBlock(lines)
+	if onIdx == -1 {
+		return lines, false
+	}
+	workflowRunIdx, workflowRunIndent, workflowRunEnd, ok := findWorkflowRunBlock(lines, onIdx, onIndent, onEnd)
+	if !ok {
+		return lines, false
+	}
+	for i := workflowRunIdx + 1; i < workflowRunEnd; i++ {
+		if strings.HasPrefix(strings.TrimSpace(lines[i]), "branches:") {
+			return lines, false
+		}
+	}
+	branchIndent := workflowRunIndent + "  "
+	entries := make([]string, 0, len(branches)+1)
+	entries = append(entries, branchIndent+"branches:")
+	for _, branch := range branches {
+		entries = append(entries, branchIndent+"  - "+branch)
+	}
+	result := make([]string, 0, len(lines)+len(entries))
+	result = append(result, lines[:workflowRunEnd]...)
+	result = append(result, entries...)
+	result = append(result, lines[workflowRunEnd:]...)
+	return result, true
+}
+
+func findOnBlock(lines []string) (onIdx int, onIndent string, onEnd int) {
+	onEnd = len(lines)
 	for i, line := range lines {
 		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "on:") {
 			onIdx = i
@@ -101,68 +126,42 @@ func addWorkflowRunBranches(lines []string, branches []string) ([]string, bool) 
 					break
 				}
 			}
-			break
+			return onIdx, onIndent, onEnd
 		}
 	}
-	if onIdx == -1 {
-		return lines, false
-	}
+	return -1, "", onEnd
+}
 
-	workflowRunIdx := -1
-	workflowRunIndent := ""
-	workflowRunEnd := onEnd
+func findWorkflowRunBlock(lines []string, onIdx int, onIndent string, onEnd int) (idx int, indent string, end int, ok bool) {
+	end = onEnd
 	for i := onIdx + 1; i < onEnd; i++ {
 		trimmed := strings.TrimSpace(lines[i])
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-
 		if len(getIndentation(lines[i])) <= len(onIndent) {
 			break
 		}
-
 		if strings.HasPrefix(trimmed, "workflow_run:") {
 			if strings.Contains(trimmed, "{") {
-				return lines, false
+				return 0, "", 0, false
 			}
-			workflowRunIdx = i
-			workflowRunIndent = getIndentation(lines[i])
+			idx = i
+			indent = getIndentation(lines[i])
 			for j := i + 1; j < onEnd; j++ {
 				innerTrimmed := strings.TrimSpace(lines[j])
 				if innerTrimmed == "" || strings.HasPrefix(innerTrimmed, "#") {
 					continue
 				}
-				if len(getIndentation(lines[j])) <= len(workflowRunIndent) {
-					workflowRunEnd = j
+				if len(getIndentation(lines[j])) <= len(indent) {
+					end = j
 					break
 				}
 			}
-			break
+			return idx, indent, end, true
 		}
 	}
-
-	if workflowRunIdx == -1 {
-		return lines, false
-	}
-
-	for i := workflowRunIdx + 1; i < workflowRunEnd; i++ {
-		if strings.HasPrefix(strings.TrimSpace(lines[i]), "branches:") {
-			return lines, false
-		}
-	}
-
-	branchIndent := workflowRunIndent + "  "
-	entries := make([]string, 0, len(branches)+1)
-	entries = append(entries, branchIndent+"branches:")
-	for _, branch := range branches {
-		entries = append(entries, branchIndent+"  - "+branch)
-	}
-
-	result := make([]string, 0, len(lines)+len(entries))
-	result = append(result, lines[:workflowRunEnd]...)
-	result = append(result, entries...)
-	result = append(result, lines[workflowRunEnd:]...)
-	return result, true
+	return 0, "", 0, false
 }
 
 func normalizeWorkflowRunBranches(branches []string) []string {

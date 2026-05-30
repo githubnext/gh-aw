@@ -94,7 +94,7 @@ return buf.String()
 
 func checkMultipleFailureHeadings(t *testing.T, output string) {
 t.Helper()
-assertHeadingContainsMessage(t, output, "🔴 CRITICAL \(fix first\)", "invalid engine value 'copiliot'")
+assertHeadingContainsMessage(t, output, "🔴 CRITICAL (fix first)", "invalid engine value 'copiliot'")
 assertHeadingContainsMessage(t, output, "🟠 HIGH PRIORITY", "network.allowed requires strict mode")
 assertHeadingContainsMessage(t, output, "🟡 MEDIUM PRIORITY", "event filter is invalid")
 assertHeadingContainsMessage(t, output, "🔵 LOW PRIORITY", "deprecated field usage")
