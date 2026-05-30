@@ -76,6 +76,7 @@ normalize_version() {
 }
 
 # Compare dotted numeric versions without relying on GNU-specific sort -V.
+# Returns success only when the left version is strictly greater than the right version.
 version_is_greater() {
   local left="${1:-0}"
   local right="${2:-0}"
@@ -158,7 +159,7 @@ find_cached_copilot_bin() {
         best_candidate="$candidate"
         best_version="$candidate_version_normalized"
       fi
-    done < <(find "${tool_cache_root}/copilot-cli" -maxdepth 4 -type f -path '*/bin/copilot' 2>/dev/null | sort)
+    done < <(find "${tool_cache_root}/copilot-cli" -maxdepth 4 -type f -path '*/bin/copilot' 2>/dev/null)
   done
 
   if [ -n "$best_candidate" ]; then
