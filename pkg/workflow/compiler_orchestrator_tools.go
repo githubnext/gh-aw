@@ -147,18 +147,16 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		orchestratorToolsLog.Printf("Tools merge failed: %v", err)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
-	applyPiRequiredToolDefaults(tools, agenticEngine)
-
-	// Check if GitHub tool was explicitly configured in the original frontmatter
-	// This is needed to determine if permissions validation should be skipped.
-	// In Go, reading from a nil map returns zero-value, so these are nil-safe.
-	_, inMergedTools := tools["github"]
-	_, inTopTools := topTools["github"]
-	hasExplicitGitHubTool := inMergedTools && inTopTools
+	// Check if GitHub tool was explicitly configured in the original frontmatter.
+	// This must be computed before Pi defaults are applied so injected defaults do
+	// not affect explicit-intent checks used by permission validation.
+	_, hasExplicitGitHubTool := topTools["github"]
 	if hasExplicitGitHubTool {
 		orchestratorToolsLog.Print("GitHub tool was explicitly configured in frontmatter")
 	}
 	orchestratorToolsLog.Printf("hasExplicitGitHubTool: %v", hasExplicitGitHubTool)
+
+	applyPiRequiredToolDefaults(tools, agenticEngine)
 
 	// Extract and validate tools timeout settings
 	toolsTimeout, err := c.extractToolsTimeout(tools)

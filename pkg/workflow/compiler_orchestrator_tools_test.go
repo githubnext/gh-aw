@@ -105,6 +105,80 @@ engine: pi
 	assert.Equal(t, "gh-proxy", githubConfig["mode"], "Pi should default tools.github.mode to gh-proxy")
 }
 
+func TestProcessToolsAndMarkdown_PiDefaultsDoNotMarkGitHubExplicit(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "tools-pi-explicitness")
+
+	testContent := `---
+on: push
+engine: pi
+permissions:
+  contents: read
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(testContent)
+	require.NoError(t, err)
+
+	agenticEngine, err := compiler.getAgenticEngine("pi")
+	require.NoError(t, err)
+
+	result, err := compiler.processToolsAndMarkdown(
+		frontmatterResult,
+		testFile,
+		tmpDir,
+		agenticEngine,
+		"pi",
+		&parser.ImportsResult{},
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.False(t, result.hasExplicitGitHubTool, "Auto-injected Pi github defaults must not count as explicit tools.github config")
+}
+
+func TestProcessToolsAndMarkdown_PiExplicitGitHubModePreservedAndRejected(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "tools-pi-explicit-mode")
+
+	testContent := `---
+on: push
+engine: pi
+tools:
+  github:
+    mode: remote
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(testContent)
+	require.NoError(t, err)
+
+	agenticEngine, err := compiler.getAgenticEngine("pi")
+	require.NoError(t, err)
+
+	_, err = compiler.processToolsAndMarkdown(
+		frontmatterResult,
+		testFile,
+		tmpDir,
+		agenticEngine,
+		"pi",
+		&parser.ImportsResult{},
+	)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tools.github.mode: gh-proxy")
+}
+
 // TestProcessToolsAndMarkdown_ToolsMerging tests tools merging from imports and includes
 func TestProcessToolsAndMarkdown_ToolsMerging(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "tools-merging")
