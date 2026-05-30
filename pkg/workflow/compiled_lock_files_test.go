@@ -140,6 +140,15 @@ func TestCompiledLockFiles_SafeOutputsJobOutputs(t *testing.T) {
 	t.Logf("Validated safe_outputs job outputs for %d workflow(s)", checkedWorkflows)
 }
 
+func TestCompiledLockFiles_SmokePiOmitsYoloArg(t *testing.T) {
+	lockPath := filepath.Join(workflowsDir, "smoke-pi.lock.yml")
+	lockBytes, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "should read smoke-pi lock file")
+
+	assert.NotContains(t, string(lockBytes), "--yolo",
+		"smoke-pi should not pass a redundant --yolo arg because Pi runs in yolo mode by default")
+}
+
 // TestCompiledLockFiles_WorkflowCallOutputs validates that compiled lock files for workflows
 // using workflow_call + safe-outputs automatically include on.workflow_call.outputs declarations.
 func TestCompiledLockFiles_WorkflowCallOutputs(t *testing.T) {
