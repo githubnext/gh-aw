@@ -783,7 +783,9 @@ index 0000000..abc1234
         mockExec.getExecOutput
           .mockResolvedValueOnce({ exitCode: 0, stdout: "preflight-sha\trefs/heads/feature-branch\n", stderr: "" }) // preflight ls-remote
           .mockResolvedValueOnce({ exitCode: 0, stdout: "local-head-before\n", stderr: "" }) // rev-parse HEAD before patch
-          .mockResolvedValueOnce({ exitCode: 0, stdout: "1\n", stderr: "" }); // rev-list --count
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "0\n", stderr: "" }) // rev-list --merges --count (no merge commits)
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "1\n", stderr: "" }) // rev-list --count (new commits)
+          .mockResolvedValueOnce({ exitCode: 0, stdout: " file.txt | 1 +\n 1 file changed, 1 insertion(+)\n", stderr: "" }); // git diff --stat (non-empty = has file changes)
 
         const module = await loadModule();
         const handler = await module.main({});
@@ -792,7 +794,40 @@ index 0000000..abc1234
         expect(result.success).toBe(true);
         expect(result.commit_sha).toBe("remote-head-after");
         expect(result.commit_url).toContain("/commit/remote-head-after");
-        expect(updateCommitSpy).toHaveBeenCalledWith(mockGithub, mockContext, mockCore, "remote-head-after", "https://github.com/test-owner/test-repo/commit/remote-head-after", { targetIssueNumber: 123 });
+        expect(updateCommitSpy).toHaveBeenCalledWith(mockGithub, mockContext, mockCore, "remote-head-after", "https://github.com/test-owner/test-repo/commit/remote-head-after", {
+          targetIssueNumber: 123,
+          targetRepo: "test-owner/test-repo",
+          targetGithubClient: expect.anything(),
+        });
+      } finally {
+        pushSignedSpy.mockRestore();
+        updateCommitSpy.mockRestore();
+      }
+    });
+
+    it("should skip activation comment for empty commits (no file changes)", async () => {
+      const patchPath = createPatchFile();
+      const updateActivationCommentModule = require("./update_activation_comment.cjs");
+      const updateCommitSpy = vi.spyOn(updateActivationCommentModule, "updateActivationCommentWithCommit").mockResolvedValue(undefined);
+      const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("remote-head-after");
+
+      try {
+        mockExec.getExecOutput
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "preflight-sha\trefs/heads/feature-branch\n", stderr: "" }) // preflight ls-remote
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "local-head-before\n", stderr: "" }) // rev-parse HEAD before patch
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "0\n", stderr: "" }) // rev-list --merges --count (no merge commits)
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "1\n", stderr: "" }) // rev-list --count (new commits)
+          .mockResolvedValueOnce({ exitCode: 0, stdout: "", stderr: "" }); // git diff --stat (empty = no file changes)
+
+        const module = await loadModule();
+        const handler = await module.main({});
+        const result = await handler({ patch_path: patchPath }, {});
+
+        expect(result.success).toBe(true);
+        expect(result.commit_sha).toBe("remote-head-after");
+        expect(mockCore.info).toHaveBeenCalledWith("Skipping activation comment: pushed commit has no file changes (empty commit)");
+        expect(updateCommitSpy).not.toHaveBeenCalled();
       } finally {
         pushSignedSpy.mockRestore();
         updateCommitSpy.mockRestore();

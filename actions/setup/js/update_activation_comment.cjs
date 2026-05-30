@@ -43,6 +43,8 @@ async function updateActivationComment(github, context, core, itemUrl, itemNumbe
  * @param {string} commitUrl - URL of the commit
  * @param {object} [options] - Optional configuration
  * @param {number} [options.targetIssueNumber] - PR/issue number to post a new comment on if no activation comment exists
+ * @param {string} [options.targetRepo] - Target repo "owner/repo" for fallback comment (cross-repo scenarios)
+ * @param {any} [options.targetGithubClient] - Authenticated GitHub client for the target repo (cross-repo scenarios)
  */
 async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, options = {}) {
   const shortSha = commitSha.substring(0, 7);
@@ -65,6 +67,8 @@ async function updateActivationCommentWithCommit(github, context, core, commitSh
  * @param {string} label - Optional label for log messages (e.g., "pull request", "issue", "commit")
  * @param {object} [options] - Optional configuration
  * @param {number} [options.targetIssueNumber] - PR/issue number to post a new comment on if no activation comment exists
+ * @param {string} [options.targetRepo] - Target repo "owner/repo" for fallback comment (cross-repo scenarios)
+ * @param {any} [options.targetGithubClient] - Authenticated GitHub client for the target repo (cross-repo scenarios)
  */
 async function updateActivationCommentWithMessage(github, context, core, message, label = "", options = {}) {
   const commentId = process.env.GH_AW_COMMENT_ID;
@@ -187,12 +191,25 @@ async function updateActivationCommentWithMessage(github, context, core, message
     // Determine target issue/PR number: explicit option, or from event payload
     const targetNumber = options.targetIssueNumber || context.payload?.issue?.number || context.payload?.pull_request?.number;
     if (targetNumber) {
-      core.info(`No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on #${targetNumber}`);
+      // For cross-repo scenarios, use the explicitly provided target repo and client
+      // so the fallback comment is created in the correct repository
+      let fallbackOwner = repoOwner;
+      let fallbackRepo = repoName;
+      if (options.targetRepo) {
+        const parts = options.targetRepo.split("/");
+        if (parts.length === 2) {
+          fallbackOwner = parts[0];
+          fallbackRepo = parts[1];
+        }
+      }
+      const fallbackClient = options.targetGithubClient || github;
+
+      core.info(`No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on ${fallbackOwner}/${fallbackRepo}#${targetNumber}`);
       try {
         const sanitizedMessage = sanitizeContent(message);
-        const response = await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
-          owner: repoOwner,
-          repo: repoName,
+        const response = await fallbackClient.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
+          owner: fallbackOwner,
+          repo: fallbackRepo,
           issue_number: targetNumber,
           body: sanitizedMessage,
           headers: {
@@ -205,7 +222,7 @@ async function updateActivationCommentWithMessage(github, context, core, message
         if (response?.data?.id) core.info(`Comment ID: ${response.data.id}`);
         if (response?.data?.html_url) core.info(`Comment URL: ${response.data.html_url}`);
       } catch (error) {
-        core.warning(`Failed to create comment on #${targetNumber}: ${getErrorMessage(error)}`);
+        core.warning(`Failed to create comment on ${fallbackOwner}/${fallbackRepo}#${targetNumber}: ${getErrorMessage(error)}`);
       }
     } else {
       core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
