@@ -230,7 +230,7 @@ if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION")"; then
   RESOLVED_COPILOT="$(command -v copilot 2>/dev/null || true)"
   if [ -n "$RESOLVED_COPILOT" ]; then
     echo "  Resolved copilot binary: ${RESOLVED_COPILOT}"
-    "$CACHED_COPILOT_BIN" --version
+    "$RESOLVED_COPILOT" --version
     echo "✓ Copilot CLI installation complete (cached)"
     exit 0
   fi
