@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"sort"
 	"strings"
@@ -147,6 +148,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		orchestratorToolsLog.Printf("Tools merge failed: %v", err)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
+	applyPiRequiredToolDefaults(tools, agenticEngine)
 
 	// Check if GitHub tool was explicitly configured in the original frontmatter
 	// This is needed to determine if permissions validation should be skipped.
@@ -436,6 +438,36 @@ func (c *Compiler) hasContentContext(frontmatter map[string]any) bool {
 
 	orchestratorToolsLog.Printf("No content context detected in trigger events")
 	return false
+}
+
+// applyPiRequiredToolDefaults injects Pi's required tool defaults when they are not explicitly set.
+// Pi requires tools.github.mode=gh-proxy and tools.cli-proxy=true.
+func applyPiRequiredToolDefaults(tools map[string]any, agenticEngine CodingAgentEngine) {
+	if agenticEngine == nil || agenticEngine.GetID() != "pi" || tools == nil {
+		return
+	}
+
+	if _, exists := tools["cli-proxy"]; !exists {
+		tools["cli-proxy"] = true
+	}
+
+	githubTool, hasGitHub := tools["github"]
+	if hasGitHub && githubTool == false {
+		return
+	}
+
+	var githubConfig map[string]any
+	if existingConfig, ok := githubTool.(map[string]any); ok {
+		githubConfig = make(map[string]any, len(existingConfig))
+		maps.Copy(githubConfig, existingConfig)
+	} else {
+		githubConfig = make(map[string]any)
+	}
+
+	if _, hasMode := githubConfig["mode"]; !hasMode {
+		githubConfig["mode"] = "gh-proxy"
+	}
+	tools["github"] = githubConfig
 }
 
 // warnDeprecatedFrontmatterFields emits a console warning for every deprecated

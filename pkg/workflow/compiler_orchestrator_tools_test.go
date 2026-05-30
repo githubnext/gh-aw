@@ -64,6 +64,47 @@ tools:
 	assert.NotEmpty(t, result.markdownContent, "Markdown should be extracted")
 }
 
+func TestProcessToolsAndMarkdown_PiDefaultsCliProxyAndGitHubMode(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "tools-pi-defaults")
+
+	testContent := `---
+on: push
+engine: pi
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(testContent)
+	require.NoError(t, err)
+
+	agenticEngine, err := compiler.getAgenticEngine("pi")
+	require.NoError(t, err)
+
+	result, err := compiler.processToolsAndMarkdown(
+		frontmatterResult,
+		testFile,
+		tmpDir,
+		agenticEngine,
+		"pi",
+		&parser.ImportsResult{},
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, true, result.tools["cli-proxy"], "Pi should default tools.cli-proxy to true")
+
+	githubRaw, ok := result.tools["github"]
+	require.True(t, ok, "Pi should default tools.github")
+	githubConfig, ok := githubRaw.(map[string]any)
+	require.True(t, ok, "Pi github tool config should be a map")
+	assert.Equal(t, "gh-proxy", githubConfig["mode"], "Pi should default tools.github.mode to gh-proxy")
+}
+
 // TestProcessToolsAndMarkdown_ToolsMerging tests tools merging from imports and includes
 func TestProcessToolsAndMarkdown_ToolsMerging(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "tools-merging")
