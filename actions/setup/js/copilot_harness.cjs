@@ -52,12 +52,7 @@ const {
   fetchAWFReflect,
   fetchModelsFromUrl,
 } = require("./awf_reflect.cjs");
-const {
-  runSafeOutputsCLI,
-  buildMissingToolAlternatives,
-  emitMissingToolPermissionIssue,
-  emitInfrastructureIncomplete,
-} = require("./safeoutputs_cli.cjs");
+const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete } = require("./safeoutputs_cli.cjs");
 
 // Maximum number of retry attempts after the initial run
 const MAX_RETRIES = 3;

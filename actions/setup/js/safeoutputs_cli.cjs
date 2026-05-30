@@ -38,7 +38,7 @@ function runSafeOutputsCLI(toolName, args) {
   try {
     childProcess.execFileSync(command, commandArgs, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   } catch (error) {
-    const err = /** @type {{message?: string, stderr?: string | Buffer}} */ (error ?? {});
+    const err = /** @type {{message?: string, stderr?: string | Buffer}} */ error ?? {};
     const stderr = typeof err.stderr === "string" ? err.stderr.trim() : Buffer.isBuffer(err.stderr) ? err.stderr.toString("utf8").trim() : "";
     const message = typeof err.message === "string" ? err.message : String(error);
     const keysSummary = Object.keys(args).join(", ");
@@ -114,7 +114,7 @@ function emitMissingToolPermissionIssue(options) {
     });
     logger(`missing_tool emitted via safeoutputs CLI: ${safeOutputsPath}`);
   } catch (error) {
-    const err = /** @type {Error} */ (/** @type {unknown} */ (error));
+    const err = /** @type {Error} */ /** @type {unknown} */ error;
     logger(`missing_tool emission failed: ${err.message}`);
   }
 }
@@ -145,7 +145,7 @@ function emitInfrastructureIncomplete(details, options) {
     });
     logger(`report_incomplete emitted via safeoutputs CLI: ${safeOutputsPath}`);
   } catch (error) {
-    const err = /** @type {Error} */ (/** @type {unknown} */ (error));
+    const err = /** @type {Error} */ /** @type {unknown} */ error;
     logger(`report_incomplete emission failed: ${err.message}`);
   }
 }

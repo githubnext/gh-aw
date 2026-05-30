@@ -2,12 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const {
-  runSafeOutputsCLI,
-  buildMissingToolAlternatives,
-  emitMissingToolPermissionIssue,
-  emitInfrastructureIncomplete,
-} = require("./safeoutputs_cli.cjs");
+const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete } = require("./safeoutputs_cli.cjs");
 
 describe("safeoutputs_cli.cjs", () => {
   describe("runSafeOutputsCLI", () => {
@@ -26,9 +21,7 @@ describe("safeoutputs_cli.cjs", () => {
 
     it("wraps CLI errors with tool name and key summary", () => {
       process.env.GH_AW_SAFEOUTPUTS_CLI = "false"; // 'false' exits 1
-      expect(() => runSafeOutputsCLI("missing_tool", { tool: "tool/permission", reason: "test" })).toThrow(
-        "safeoutputs missing_tool(tool, reason) failed"
-      );
+      expect(() => runSafeOutputsCLI("missing_tool", { tool: "tool/permission", reason: "test" })).toThrow("safeoutputs missing_tool(tool, reason) failed");
       delete process.env.GH_AW_SAFEOUTPUTS_CLI;
     });
   });
