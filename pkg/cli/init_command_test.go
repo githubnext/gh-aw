@@ -10,118 +10,86 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 func TestNewInitCommand(t *testing.T) {
 	t.Parallel()
 
 	cmd := NewInitCommand()
-
 	if cmd == nil {
 		t.Fatal("NewInitCommand() returned nil")
 	}
 
+	assertInitCommandMetadata(t, cmd)
+	assertInitCommandFlags(t, cmd)
+}
+
+func assertInitCommandMetadata(t *testing.T, cmd *cobra.Command) {
+	t.Helper()
+
 	if cmd.Use != "init" {
 		t.Errorf("Expected Use to be 'init', got %q", cmd.Use)
 	}
-
 	if cmd.Short == "" {
 		t.Error("Expected Short description to be set")
 	}
-
 	if cmd.Long == "" {
 		t.Error("Expected Long description to be set")
 	}
+}
 
-	// Verify flags
-	noMcpFlag := cmd.Flags().Lookup("no-mcp")
-	if noMcpFlag == nil {
-		t.Error("Expected 'no-mcp' flag to be defined")
-		return
-	}
+func assertInitCommandFlags(t *testing.T, cmd *cobra.Command) {
+	t.Helper()
 
-	noSkillFlag := cmd.Flags().Lookup("no-skill")
-	if noSkillFlag == nil {
-		t.Error("Expected 'no-skill' flag to be defined")
-		return
-	}
+	noMcpFlag := requireInitCommandFlag(t, cmd, "no-mcp")
+	noSkillFlag := requireInitCommandFlag(t, cmd, "no-skill")
+	noAgentFlag := requireInitCommandFlag(t, cmd, "no-agent")
+	mcpFlag := requireInitCommandFlag(t, cmd, "mcp")
+	engineFlag := requireInitCommandFlag(t, cmd, "engine")
+	codespaceFlag := requireInitCommandFlag(t, cmd, "codespaces")
+	_ = requireInitCommandFlag(t, cmd, "create-pull-request")
+	prFlag := requireInitCommandFlag(t, cmd, "pr")
 
-	noAgentFlag := cmd.Flags().Lookup("no-agent")
-	if noAgentFlag == nil {
-		t.Error("Expected 'no-agent' flag to be defined")
-		return
-	}
-
-	// Verify hidden --mcp flag still exists for backward compatibility
-	mcpFlag := cmd.Flags().Lookup("mcp")
-	if mcpFlag == nil {
-		t.Error("Expected 'mcp' flag to be defined (for backward compatibility)")
-		return
-	}
-
-	engineFlag := cmd.Flags().Lookup("engine")
-	if engineFlag == nil {
-		t.Error("Expected 'engine' flag to be defined")
-		return
-	}
 	if engineFlag.Hidden {
 		t.Error("Expected 'engine' flag to be visible")
 	}
-
-	// Verify --mcp flag is hidden
 	if !mcpFlag.Hidden {
 		t.Error("Expected 'mcp' flag to be hidden")
 	}
-
-	if noMcpFlag.DefValue != "false" {
-		t.Errorf("Expected no-mcp flag default to be 'false', got %q", noMcpFlag.DefValue)
+	if !prFlag.Hidden {
+		t.Error("Expected 'pr' flag to be hidden")
 	}
-	if noSkillFlag.DefValue != "false" {
-		t.Errorf("Expected no-skill flag default to be 'false', got %q", noSkillFlag.DefValue)
-	}
-	if noAgentFlag.DefValue != "false" {
-		t.Errorf("Expected no-agent flag default to be 'false', got %q", noAgentFlag.DefValue)
-	}
-
-	if mcpFlag.DefValue != "false" {
-		t.Errorf("Expected mcp flag default to be 'false', got %q", mcpFlag.DefValue)
-	}
-
-	codespaceFlag := cmd.Flags().Lookup("codespaces")
-	if codespaceFlag == nil {
-		t.Error("Expected 'codespaces' flag to be defined")
-		return
-	}
+	assertInitCommandFlagDefault(t, noMcpFlag, "false")
+	assertInitCommandFlagDefault(t, noSkillFlag, "false")
+	assertInitCommandFlagDefault(t, noAgentFlag, "false")
+	assertInitCommandFlagDefault(t, mcpFlag, "false")
 	if !strings.Contains(codespaceFlag.Usage, "or use with an empty value for the current repo only") {
 		t.Errorf("Expected codespaces flag help text to include article fixes, got %q", codespaceFlag.Usage)
 	}
-
-	// String flags without NoOptDefVal require an explicit value
 	if codespaceFlag.DefValue != "" {
 		t.Errorf("Expected codespaces flag default to be '', got %q", codespaceFlag.DefValue)
 	}
-
-	// Verify NoOptDefVal is empty (flag always requires an explicit value, avoids string[=" "] in help)
 	if codespaceFlag.NoOptDefVal != "" {
 		t.Errorf("Expected codespaces flag NoOptDefVal to be '' (empty), got %q", codespaceFlag.NoOptDefVal)
 	}
+}
 
-	// Check create-pull-request flags
-	createPRFlag := cmd.Flags().Lookup("create-pull-request")
-	if createPRFlag == nil {
-		t.Error("Expected 'create-pull-request' flag to be defined")
-		return
+func requireInitCommandFlag(t *testing.T, cmd *cobra.Command, name string) *pflag.Flag {
+	t.Helper()
+
+	flag := cmd.Flags().Lookup(name)
+	if flag == nil {
+		t.Fatalf("Expected %q flag to be defined", name)
 	}
+	return flag
+}
 
-	prFlag := cmd.Flags().Lookup("pr")
-	if prFlag == nil {
-		t.Error("Expected 'pr' flag to be defined (alias)")
-		return
-	}
-
-	// Verify --pr flag is hidden
-	if !prFlag.Hidden {
-		t.Error("Expected 'pr' flag to be hidden")
+func assertInitCommandFlagDefault(t *testing.T, flag *pflag.Flag, expected string) {
+	t.Helper()
+	if flag.DefValue != expected {
+		t.Errorf("Expected %s flag default to be %q, got %q", flag.Name, expected, flag.DefValue)
 	}
 }
 
@@ -178,85 +146,16 @@ func TestInitCommandInteractiveModeDetection(t *testing.T) {
 
 func TestInitRepositoryBasic(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
+	restore := chdirInitTestDir(t, tmpDir)
+	defer restore()
+	initInitTestRepo(t)
 
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
-
-	// Initialize git repo (required for some init operations)
-	if err := exec.Command("git", "init").Run(); err != nil {
-		t.Skip("Git not available")
-	}
-
-	// Configure git
-	if err := exec.Command("git", "config", "user.name", "Test User").Run(); err != nil {
-		t.Fatalf("Failed to set git user.name: %v", err)
-	}
-	if err := exec.Command("git", "config", "user.email", "test@example.com").Run(); err != nil {
-		t.Fatalf("Failed to set git user.email: %v", err)
-	}
-
-	// Test basic init with MCP enabled by default (mcp=true, noMcp=false behavior)
-	err = InitRepository(InitOptions{Verbose: false, Skill: true, Agent: true, MCP: true, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
-	if err != nil {
+	if err := InitRepository(InitOptions{Verbose: false, Skill: true, Agent: true, MCP: true, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil}); err != nil {
 		t.Fatalf("InitRepository(, false, false, false, nil) failed: %v", err)
 	}
 
-	// Verify .gitattributes was created/updated
-	gitAttributesPath := ".gitattributes"
-	if _, err := os.Stat(gitAttributesPath); os.IsNotExist(err) {
-		t.Error("Expected .gitattributes to be created")
-	}
-
-	// Read and verify .gitattributes content
-	content, err := os.ReadFile(gitAttributesPath)
-	if err != nil {
-		t.Fatalf("Failed to read .gitattributes: %v", err)
-	}
-
-	expectedEntry := ".github/workflows/*.lock.yml linguist-generated=true merge=ours"
-	if !strings.Contains(string(content), expectedEntry) {
-		t.Errorf("Expected .gitattributes to contain %q", expectedEntry)
-	}
-
-	// Verify MCP files were created by default
-	mcpConfigPath := mcpConfigFilePath
-	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
-		t.Error("Expected .github/mcp.json to be created by default")
-	}
-
-	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
-	if _, err := os.Stat(setupStepsPath); os.IsNotExist(err) {
-		t.Error("Expected .github/workflows/copilot-setup-steps.yml to be created by default")
-	}
-
-	skillPath := filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")
-	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
-		t.Errorf("Expected dispatcher skill file to be created at %s", skillPath)
-	}
-
-	agentPath := filepath.Join(".github", "agents", "agentic-workflows.md")
-	agentContent, err := os.ReadFile(agentPath)
-	if err != nil {
-		t.Fatalf("Expected Agentic Workflows custom agent file to be created at %s: %v", agentPath, err)
-	}
-	if !strings.Contains(string(agentContent), "name: Agentic Workflows") {
-		t.Error("Expected Agentic Workflows custom agent file to use the Agentic Workflows name")
-	}
-	if !strings.Contains(string(agentContent), "`.github/skills/agentic-workflows/SKILL.md`") {
-		t.Error("Expected Agentic Workflows custom agent file to reference the dispatcher skill path")
-	}
-	if strings.Contains(string(agentContent), ".github/aw/") {
-		t.Error("Expected generic init repositories without .github/aw prompts to omit .github/aw prompt entries")
-	}
+	assertBasicInitFiles(t)
+	assertAgenticWorkflowBootstrapFiles(t)
 }
 
 func TestInitRepositoryWithMCP(t *testing.T) {
@@ -869,120 +768,108 @@ func TestInitRepositoryWithExistingFiles(t *testing.T) {
 
 func TestInitRepositoryWithCodespace(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
+	restore := chdirInitTestDir(t, tmpDir)
+	defer restore()
+	initInitTestRepo(t)
+
+	additionalRepos := []string{"org/repo1", "owner/repo2"}
+	if err := InitRepository(InitOptions{Verbose: false, Skill: true, Agent: true, MCP: true, CodespaceRepos: additionalRepos, CodespaceEnabled: true, Completions: false, CreatePR: false, RootCmd: nil}); err != nil {
+		t.Fatalf("InitRepository(, false, false, false, nil) with codespaces failed: %v", err)
+	}
+
+	assertDevcontainerContains(t, additionalRepos)
+	assertBasicInitFiles(t)
+}
+
+func chdirInitTestDir(t *testing.T, dir string) func() {
+	t.Helper()
 
 	originalDir, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Failed to get current directory: %v", err)
 	}
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	if err := os.Chdir(tmpDir); err != nil {
+	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
+	return func() { _ = os.Chdir(originalDir) }
+}
 
-	// Initialize git repo
+func initInitTestRepo(t *testing.T) {
+	t.Helper()
+
 	if err := exec.Command("git", "init").Run(); err != nil {
 		t.Skip("Git not available")
 	}
+	if err := exec.Command("git", "config", "user.name", "Test User").Run(); err != nil {
+		t.Fatalf("Failed to set git user.name: %v", err)
+	}
+	if err := exec.Command("git", "config", "user.email", "test@example.com").Run(); err != nil {
+		t.Fatalf("Failed to set git user.email: %v", err)
+	}
+}
 
-	// Configure git
-	exec.Command("git", "config", "user.name", "Test User").Run()
-	exec.Command("git", "config", "user.email", "test@example.com").Run()
+func assertBasicInitFiles(t *testing.T) {
+	t.Helper()
 
-	// Test init with --codespaces flag (with MCP enabled by default and additional repos)
-	additionalRepos := []string{"org/repo1", "owner/repo2"}
-	err = InitRepository(InitOptions{Verbose: false, Skill: true, Agent: true, MCP: true, CodespaceRepos: additionalRepos, CodespaceEnabled: true, Completions: false, CreatePR: false, RootCmd: nil})
+	content, err := os.ReadFile(".gitattributes")
 	if err != nil {
-		t.Fatalf("InitRepository(, false, false, false, nil) with codespaces failed: %v", err)
+		t.Fatalf("Failed to read .gitattributes: %v", err)
 	}
-
-	// Verify .devcontainer/devcontainer.json was created at default location
-	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
-	if _, err := os.Stat(devcontainerPath); os.IsNotExist(err) {
-		t.Error("Expected .devcontainer/devcontainer.json to be created")
+	if !strings.Contains(string(content), ".github/workflows/*.lock.yml linguist-generated=true merge=ours") {
+		t.Errorf("Expected .gitattributes to contain %q", ".github/workflows/*.lock.yml linguist-generated=true merge=ours")
 	}
+}
 
-	// Verify additional repos were added
-	data, err := os.ReadFile(devcontainerPath)
+func assertAgenticWorkflowBootstrapFiles(t *testing.T) {
+	t.Helper()
+
+	for _, path := range []string{mcpConfigFilePath, filepath.Join(".github", "workflows", "copilot-setup-steps.yml"), filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")} {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			t.Errorf("Expected %s to be created", path)
+		}
+	}
+	agentContent, err := os.ReadFile(filepath.Join(".github", "agents", "agentic-workflows.md"))
+	if err != nil {
+		t.Fatalf("Expected Agentic Workflows custom agent file to be created: %v", err)
+	}
+	if !strings.Contains(string(agentContent), "name: Agentic Workflows") {
+		t.Error("Expected Agentic Workflows custom agent file to use the Agentic Workflows name")
+	}
+	if !strings.Contains(string(agentContent), "`.github/skills/agentic-workflows/SKILL.md`") {
+		t.Error("Expected Agentic Workflows custom agent file to reference the dispatcher skill path")
+	}
+	if strings.Contains(string(agentContent), ".github/aw/") {
+		t.Error("Expected generic init repositories without .github/aw prompts to omit .github/aw prompt entries")
+	}
+}
+
+func assertDevcontainerContains(t *testing.T, expectedRepos []string) {
+	t.Helper()
+
+	content, err := os.ReadFile(filepath.Join(".devcontainer", "devcontainer.json"))
 	if err != nil {
 		t.Fatalf("Failed to read devcontainer.json: %v", err)
 	}
-
-	content := string(data)
-	if !strings.Contains(content, "org/repo1") {
-		t.Error("Expected org/repo1 to be in devcontainer.json")
-	}
-	if !strings.Contains(content, "owner/repo2") {
-		t.Error("Expected owner/repo2 to be in devcontainer.json")
-	}
-
-	// Verify basic files are still created
-	gitAttributesPath := ".gitattributes"
-	if _, err := os.Stat(gitAttributesPath); os.IsNotExist(err) {
-		t.Error("Expected .gitattributes to be created")
+	for _, repo := range expectedRepos {
+		if !strings.Contains(string(content), repo) {
+			t.Errorf("Expected %s to be in devcontainer.json", repo)
+		}
 	}
 }
 
 func TestInitCommandWithCodespacesNoArgs(t *testing.T) {
-	// Create a temporary directory for testing
 	tempDir := testutil.TempDir(t, "test-*")
+	restore := chdirInitTestDir(t, tempDir)
+	defer restore()
+	initInitTestRepo(t)
 
-	// Save and restore original directory
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
-
-	// Initialize a git repository
-	err = exec.Command("git", "init").Run()
-	if err != nil {
+	if err := exec.Command("git", "remote", "add", "origin", "https://github.com/testorg/testrepo.git").Run(); err != nil {
 		t.Skip("Git not available")
 	}
-
-	// Create a mock git remote to test owner extraction
-	err = exec.Command("git", "remote", "add", "origin", "https://github.com/testorg/testrepo.git").Run()
-	if err != nil {
-		t.Skip("Git not available")
-	}
-
-	// Configure git
-	exec.Command("git", "config", "user.name", "Test User").Run()
-	exec.Command("git", "config", "user.email", "test@example.com").Run()
-
-	// Test init with --codespaces flag (no additional repos, MCP enabled by default)
-	err = InitRepository(InitOptions{Verbose: false, Skill: true, Agent: true, MCP: true, CodespaceRepos: []string{}, CodespaceEnabled: true, Completions: false, CreatePR: false, RootCmd: nil})
-	if err != nil {
+	if err := InitRepository(InitOptions{Verbose: false, Skill: true, Agent: true, MCP: true, CodespaceRepos: []string{}, CodespaceEnabled: true, Completions: false, CreatePR: false, RootCmd: nil}); err != nil {
 		t.Fatalf("InitRepository(, false, false, false, nil) with codespaces (no args) failed: %v", err)
 	}
 
-	// Verify .devcontainer/devcontainer.json was created at default location
-	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
-	if _, err := os.Stat(devcontainerPath); os.IsNotExist(err) {
-		t.Error("Expected .devcontainer/devcontainer.json to be created")
-	}
-
-	// Verify only current repo is configured
-	data, err := os.ReadFile(devcontainerPath)
-	if err != nil {
-		t.Fatalf("Failed to read devcontainer.json: %v", err)
-	}
-
-	content := string(data)
-	if !strings.Contains(content, "testorg/testrepo") {
-		t.Error("Expected testorg/testrepo to be in devcontainer.json")
-	}
-
-	// Verify basic files are still created
-	gitAttributesPath := ".gitattributes"
-	if _, err := os.Stat(gitAttributesPath); os.IsNotExist(err) {
-		t.Error("Expected .gitattributes to be created")
-	}
+	assertDevcontainerContains(t, []string{"testorg/testrepo"})
+	assertBasicInitFiles(t)
 }

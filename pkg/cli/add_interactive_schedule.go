@@ -57,8 +57,6 @@ func detectWorkflowScheduleInfo(content string) scheduleDetection {
 	if !exists {
 		return scheduleDetection{}
 	}
-
-	// Case 1: on is a simple string (e.g., "on: daily" or "on: 0 * * * *")
 	if onStr, ok := onValue.(string); ok {
 		_, _, parseErr := parser.ParseSchedule(onStr)
 		if parseErr == nil {
@@ -71,57 +69,40 @@ func detectWorkflowScheduleInfo(content string) scheduleDetection {
 		}
 		return scheduleDetection{}
 	}
-
-	// Case 2: on is a map — extract schedule value if present
 	if onMap, ok := onValue.(map[string]any); ok {
-		schedValue, hasSchedule := onMap["schedule"]
-		if !hasSchedule {
+		return detectScheduleFromOnMap(onMap)
+	}
+	return scheduleDetection{}
+}
+
+func detectScheduleFromOnMap(onMap map[string]any) scheduleDetection {
+	schedValue, hasSchedule := onMap["schedule"]
+	if !hasSchedule {
+		return scheduleDetection{}
+	}
+
+	isMultiTrigger := false
+	for key := range onMap {
+		if key != "schedule" && key != "workflow_dispatch" {
+			isMultiTrigger = true
+			scheduleWizardLog.Printf("Multi-trigger on: map detected (trigger '%s')", key)
+			break
+		}
+	}
+	if schedStr, ok := schedValue.(string); ok {
+		return scheduleDetection{RawExpr: schedStr, Frequency: classifyScheduleFrequency(schedStr), IsUpdatable: true, IsMultiTrigger: isMultiTrigger, IsOnMap: true}
+	}
+	if schedArray, ok := schedValue.([]any); ok && len(schedArray) > 0 {
+		if len(schedArray) > 1 {
+			scheduleWizardLog.Printf("Multiple cron entries (%d) detected — not updatable", len(schedArray))
 			return scheduleDetection{}
 		}
-
-		// Determine if on: has triggers beyond schedule / workflow_dispatch
-		isMultiTrigger := false
-		for key := range onMap {
-			if key != "schedule" && key != "workflow_dispatch" {
-				isMultiTrigger = true
-				scheduleWizardLog.Printf("Multi-trigger on: map detected (trigger '%s')", key)
-				break
-			}
-		}
-
-		// Schedule as string shorthand (e.g., "schedule: daily")
-		if schedStr, ok := schedValue.(string); ok {
-			return scheduleDetection{
-				RawExpr:        schedStr,
-				Frequency:      classifyScheduleFrequency(schedStr),
-				IsUpdatable:    true,
-				IsMultiTrigger: isMultiTrigger,
-				IsOnMap:        true,
-			}
-		}
-
-		// Schedule as array (e.g., "schedule:\n  - cron: daily")
-		if schedArray, ok := schedValue.([]any); ok && len(schedArray) > 0 {
-			// Workflows with multiple cron entries cannot be safely rewritten to a single
-			// frequency, so mark them as not updatable.
-			if len(schedArray) > 1 {
-				scheduleWizardLog.Printf("Multiple cron entries (%d) detected — not updatable", len(schedArray))
-				return scheduleDetection{}
-			}
-			if item, ok := schedArray[0].(map[string]any); ok {
-				if cronVal, ok := item["cron"].(string); ok {
-					return scheduleDetection{
-						RawExpr:        cronVal,
-						Frequency:      classifyScheduleFrequency(cronVal),
-						IsUpdatable:    true,
-						IsMultiTrigger: isMultiTrigger,
-						IsOnMap:        true,
-					}
-				}
+		if item, ok := schedArray[0].(map[string]any); ok {
+			if cronVal, ok := item["cron"].(string); ok {
+				return scheduleDetection{RawExpr: cronVal, Frequency: classifyScheduleFrequency(cronVal), IsUpdatable: true, IsMultiTrigger: isMultiTrigger, IsOnMap: true}
 			}
 		}
 	}
-
 	return scheduleDetection{}
 }
 
@@ -129,8 +110,6 @@ func detectWorkflowScheduleInfo(content string) scheduleDetection {
 // Returns one of: "hourly", "3-hourly", "daily", "weekly", "monthly", or "custom".
 func classifyScheduleFrequency(scheduleStr string) string {
 	normalized := strings.ToLower(strings.TrimSpace(scheduleStr))
-
-	// Direct friendly-format matches
 	switch normalized {
 	case "hourly", "every 1h", "every 1 hour", "every 1 hours":
 		return "hourly"
@@ -141,8 +120,6 @@ func classifyScheduleFrequency(scheduleStr string) string {
 	case "weekly":
 		return "weekly"
 	}
-
-	// Fuzzy cron placeholder matches (produced by the compiler during preprocessing)
 	if strings.HasPrefix(normalized, "fuzzy:hourly/1 ") || normalized == "fuzzy:hourly/1" {
 		return "hourly"
 	}
@@ -155,42 +132,36 @@ func classifyScheduleFrequency(scheduleStr string) string {
 	if strings.HasPrefix(normalized, "fuzzy:weekly") {
 		return "weekly"
 	}
-
-	// Cron expression checks
 	if parser.IsHourlyCron(scheduleStr) {
-		fields := strings.Fields(scheduleStr)
-		if len(fields) == 5 {
-			interval := strings.TrimPrefix(fields[1], "*/")
-			switch interval {
-			case "1":
-				return "hourly"
-			case "3":
-				return "3-hourly"
-			}
-		}
-		return "custom"
+		return classifyHourlyCronFrequency(scheduleStr)
 	}
-
 	if parser.IsDailyCron(scheduleStr) {
 		return "daily"
 	}
-
 	if parser.IsWeeklyCron(scheduleStr) {
 		return "weekly"
 	}
-
-	// Monthly cron: M H <day> * * where <day> is a specific numeric date (e.g. "1", "15").
-	// fields: [0]=minute [1]=hour [2]=day-of-month [3]=month [4]=day-of-week
-	// Excludes interval expressions like "*/2" so that "0 0 */2 * *" (every-2-days) is
-	// correctly classified as "custom" rather than "monthly".
 	fields := strings.Fields(scheduleStr)
 	if len(fields) == 5 && fields[3] == "*" && fields[4] == "*" {
-		day := fields[2] // day-of-month field
+		day := fields[2]
 		if day != "*" && !strings.ContainsAny(day, "*/-,") {
 			return "monthly"
 		}
 	}
+	return "custom"
+}
 
+func classifyHourlyCronFrequency(scheduleStr string) string {
+	fields := strings.Fields(scheduleStr)
+	if len(fields) == 5 {
+		interval := strings.TrimPrefix(fields[1], "*/")
+		switch interval {
+		case "1":
+			return "hourly"
+		case "3":
+			return "3-hourly"
+		}
+	}
 	return "custom"
 }
 
@@ -212,38 +183,18 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 		rawExpr := detection.RawExpr
 		currentFreq := detection.Frequency
 		scheduleWizardLog.Printf("Detected schedule: expr=%q, freq=%s, multiTrigger=%v", rawExpr, currentFreq, detection.IsMultiTrigger)
-
-		// Build the ordered option list
 		options := buildScheduleOptions(rawExpr, currentFreq)
-
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("This workflow runs on a schedule."))
-
-		var selected string
-		form := huh.NewForm(
-			huh.NewGroup(
-				huh.NewSelect[string]().
-					Title("How often should this workflow run?").
-					Description("Current schedule: " + rawExpr).
-					Options(options...).
-					Value(&selected),
-			),
-		).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
-
-		if err := form.RunWithContext(c.Ctx); err != nil {
-			return fmt.Errorf("failed to select schedule frequency: %w", err)
+		selected, err := runScheduleSelectForm(c.Ctx, rawExpr, options)
+		if err != nil {
+			return err
 		}
-
 		scheduleWizardLog.Printf("User selected frequency: %s", selected)
-
-		// "custom" or same frequency means keep as-is
 		if selected == "custom" || selected == currentFreq {
 			scheduleWizardLog.Printf("Schedule unchanged: keeping %q", rawExpr)
 			continue
 		}
 
-		// Look up the schedule expression for the chosen frequency
-		var newExpr string
+		newExpr := ""
 		for _, opt := range standardScheduleFrequencies {
 			if opt.Value == selected {
 				newExpr = opt.Expression
@@ -253,31 +204,51 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 		if newExpr == "" {
 			continue
 		}
-
-		// Update the workflow content in memory.
-		// When on: is a mapping, update only the schedule sub-key so other triggers
-		// (e.g., workflow_dispatch, push) are preserved.
-		// When on: is a scalar string, replace the on: field value directly.
-		var updatedContent string
-		var updateErr error
-		if detection.IsOnMap {
-			updatedContent, updateErr = UpdateScheduleInOnBlock(content, newExpr)
-		} else {
-			updatedContent, updateErr = UpdateFieldInFrontmatter(content, "on", newExpr)
-		}
-		if updateErr != nil {
-			scheduleWizardLog.Printf("Failed to update schedule (isOnMap=%v): %v", detection.IsOnMap, updateErr)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update schedule: %v", updateErr)))
+		if err := applyNewScheduleToWorkflow(wf, detection, newExpr); err != nil {
+			scheduleWizardLog.Printf("Failed to update schedule (isOnMap=%v): %v", detection.IsOnMap, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update schedule: %v", err)))
 			continue
-		}
-
-		wf.Content = []byte(updatedContent)
-		if wf.SourceInfo != nil {
-			wf.SourceInfo.Content = []byte(updatedContent)
 		}
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Schedule updated to: "+selected))
 	}
+	return nil
+}
 
+func runScheduleSelectForm(ctx context.Context, rawExpr string, options []huh.Option[string]) (string, error) {
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("This workflow runs on a schedule."))
+	var selected string
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("How often should this workflow run?").
+				Description("Current schedule: " + rawExpr).
+				Options(options...).
+				Value(&selected),
+		),
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
+	if err := form.RunWithContext(ctx); err != nil {
+		return "", fmt.Errorf("failed to select schedule frequency: %w", err)
+	}
+	return selected, nil
+}
+
+func applyNewScheduleToWorkflow(wf *ResolvedWorkflow, detection scheduleDetection, newExpr string) error {
+	content := string(wf.Content)
+	updatedContent := ""
+	var err error
+	if detection.IsOnMap {
+		updatedContent, err = UpdateScheduleInOnBlock(content, newExpr)
+	} else {
+		updatedContent, err = UpdateFieldInFrontmatter(content, "on", newExpr)
+	}
+	if err != nil {
+		return err
+	}
+	wf.Content = []byte(updatedContent)
+	if wf.SourceInfo != nil {
+		wf.SourceInfo.Content = []byte(updatedContent)
+	}
 	return nil
 }
 

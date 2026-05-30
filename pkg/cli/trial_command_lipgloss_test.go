@@ -7,167 +7,52 @@ import (
 	"testing"
 )
 
+type trialConfirmationRenderTestCase struct {
+	name            string
+	workflowSpecs   []*WorkflowSpec
+	logicalRepoSlug string
+	cloneRepoSlug   string
+	hostRepoSlug    string
+	deleteHostRepo  bool
+	autoMergePRs    bool
+	repeatCount     int
+	directTrialMode bool
+	description     string
+}
+
 // TestTrialConfirmationLipglossRendering tests the Lipgloss rendering in the trial confirmation display
 func TestTrialConfirmationLipglossRendering(t *testing.T) {
-	// Note: This test validates the function structure and that it doesn't panic
-	// Visual validation requires manual testing with TTY
-
-	tests := []struct {
-		name            string
-		workflowSpecs   []*WorkflowSpec
-		logicalRepoSlug string
-		cloneRepoSlug   string
-		hostRepoSlug    string
-		deleteHostRepo  bool
-		autoMergePRs    bool
-		repeatCount     int
-		directTrialMode bool
-		description     string
-	}{
-		{
-			name: "single workflow basic",
-			workflowSpecs: []*WorkflowSpec{
-				{
-					RepoSpec: RepoSpec{
-						RepoSlug: "owner/repo",
-					},
-					WorkflowName: "test-workflow",
-				},
-			},
-			logicalRepoSlug: "owner/logical",
-			hostRepoSlug:    "owner/host",
-			deleteHostRepo:  false,
-			autoMergePRs:    false,
-			repeatCount:     0,
-			directTrialMode: false,
-			description:     "Should render single workflow without errors",
-		},
-		{
-			name: "multiple workflows",
-			workflowSpecs: []*WorkflowSpec{
-				{
-					RepoSpec: RepoSpec{
-						RepoSlug: "owner/repo1",
-					},
-					WorkflowName: "workflow-1",
-				},
-				{
-					RepoSpec: RepoSpec{
-						RepoSlug: "owner/repo2",
-					},
-					WorkflowName: "workflow-2",
-				},
-			},
-			logicalRepoSlug: "owner/logical",
-			hostRepoSlug:    "owner/host",
-			deleteHostRepo:  false,
-			autoMergePRs:    false,
-			repeatCount:     0,
-			directTrialMode: false,
-			description:     "Should render multiple workflows without errors",
-		},
-		{
-			name: "clone-repo mode",
-			workflowSpecs: []*WorkflowSpec{
-				{
-					RepoSpec: RepoSpec{
-						RepoSlug: "owner/repo",
-					},
-					WorkflowName: "test-workflow",
-				},
-			},
-			logicalRepoSlug: "",
-			cloneRepoSlug:   "owner/source",
-			hostRepoSlug:    "owner/host",
-			deleteHostRepo:  true,
-			autoMergePRs:    false,
-			repeatCount:     0,
-			directTrialMode: false,
-			description:     "Should render clone-repo mode without errors",
-		},
-		{
-			name: "direct trial mode",
-			workflowSpecs: []*WorkflowSpec{
-				{
-					RepoSpec: RepoSpec{
-						RepoSlug: "owner/repo",
-					},
-					WorkflowName: "test-workflow",
-				},
-			},
-			logicalRepoSlug: "",
-			cloneRepoSlug:   "",
-			hostRepoSlug:    "owner/host",
-			deleteHostRepo:  false,
-			autoMergePRs:    true,
-			repeatCount:     0,
-			directTrialMode: true,
-			description:     "Should render direct trial mode without errors",
-		},
-		{
-			name: "with repeat count",
-			workflowSpecs: []*WorkflowSpec{
-				{
-					RepoSpec: RepoSpec{
-						RepoSlug: "owner/repo",
-					},
-					WorkflowName: "test-workflow",
-				},
-			},
-			logicalRepoSlug: "owner/logical",
-			hostRepoSlug:    "owner/host",
-			deleteHostRepo:  false,
-			autoMergePRs:    false,
-			repeatCount:     3,
-			directTrialMode: false,
-			description:     "Should render with repeat count without errors",
-		},
-		{
-			name: "all options enabled",
-			workflowSpecs: []*WorkflowSpec{
-				{
-					RepoSpec: RepoSpec{
-						RepoSlug: "owner/repo1",
-					},
-					WorkflowName: "workflow-1",
-				},
-				{
-					RepoSpec: RepoSpec{
-						RepoSlug: "owner/repo2",
-					},
-					WorkflowName: "workflow-2",
-				},
-			},
-			logicalRepoSlug: "owner/logical",
-			hostRepoSlug:    "owner/host",
-			deleteHostRepo:  true,
-			autoMergePRs:    true,
-			repeatCount:     5,
-			directTrialMode: false,
-			description:     "Should render with all options enabled without errors",
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range trialConfirmationRenderTestCases() {
 		t.Run(tt.name, func(t *testing.T) {
-			// The function writes to stderr, so we can't easily capture output
-			// This test mainly validates that the function doesn't panic
-			// Visual validation requires manual testing
-
-			// Note: We skip the actual call since showTrialConfirmation
-			// requires user input for confirmation and would block
-			// Instead, we validate the test structure
-			t.Logf("Test case: %s", tt.description)
-			t.Logf("Workflows: %d", len(tt.workflowSpecs))
-			t.Logf("Logical repo: %s", tt.logicalRepoSlug)
-			t.Logf("Clone repo: %s", tt.cloneRepoSlug)
-			t.Logf("Host repo: %s", tt.hostRepoSlug)
-			t.Logf("Delete host repo: %v", tt.deleteHostRepo)
-			t.Logf("Auto-merge PRs: %v", tt.autoMergePRs)
-			t.Logf("Repeat count: %d", tt.repeatCount)
-			t.Logf("Direct trial mode: %v", tt.directTrialMode)
+			logTrialConfirmationRenderCase(t, tt)
 		})
 	}
+}
+
+func trialConfirmationRenderTestCases() []trialConfirmationRenderTestCase {
+	single := []*WorkflowSpec{{RepoSpec: RepoSpec{RepoSlug: "owner/repo"}, WorkflowName: "test-workflow"}}
+	multiple := []*WorkflowSpec{{RepoSpec: RepoSpec{RepoSlug: "owner/repo1"}, WorkflowName: "workflow-1"}, {RepoSpec: RepoSpec{RepoSlug: "owner/repo2"}, WorkflowName: "workflow-2"}}
+	return []trialConfirmationRenderTestCase{
+		{name: "single workflow basic", workflowSpecs: single, logicalRepoSlug: "owner/logical", hostRepoSlug: "owner/host", description: "Should render single workflow without errors"},
+		{name: "multiple workflows", workflowSpecs: multiple, logicalRepoSlug: "owner/logical", hostRepoSlug: "owner/host", description: "Should render multiple workflows without errors"},
+		{name: "clone-repo mode", workflowSpecs: single, cloneRepoSlug: "owner/source", hostRepoSlug: "owner/host", deleteHostRepo: true, description: "Should render clone-repo mode without errors"},
+		{name: "direct trial mode", workflowSpecs: single, hostRepoSlug: "owner/host", autoMergePRs: true, directTrialMode: true, description: "Should render direct trial mode without errors"},
+		{name: "with repeat count", workflowSpecs: single, logicalRepoSlug: "owner/logical", hostRepoSlug: "owner/host", repeatCount: 3, description: "Should render with repeat count without errors"},
+		{name: "all options enabled", workflowSpecs: multiple, logicalRepoSlug: "owner/logical", hostRepoSlug: "owner/host", deleteHostRepo: true, autoMergePRs: true, repeatCount: 5, description: "Should render with all options enabled without errors"},
+	}
+}
+
+func logTrialConfirmationRenderCase(t *testing.T, tt trialConfirmationRenderTestCase) {
+	t.Helper()
+	t.Logf("Test case: %s", tt.description)
+	t.Logf("Workflows: %d", len(tt.workflowSpecs))
+	t.Logf("Logical repo: %s", tt.logicalRepoSlug)
+	t.Logf("Clone repo: %s", tt.cloneRepoSlug)
+	t.Logf("Host repo: %s", tt.hostRepoSlug)
+	t.Logf("Delete host repo: %v", tt.deleteHostRepo)
+	t.Logf("Auto-merge PRs: %v", tt.autoMergePRs)
+	t.Logf("Repeat count: %d", tt.repeatCount)
+	t.Logf("Direct trial mode: %v", tt.directTrialMode)
 }
 
 // TestTrialConfirmationStructure tests that the rendering structure is maintained

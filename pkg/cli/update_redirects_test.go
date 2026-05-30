@@ -31,104 +31,51 @@ func TestNormalizeRedirectToSourceSpec(t *testing.T) {
 	})
 }
 
-func TestResolveRedirectedUpdateLocation(t *testing.T) {
+func TestResolveRedirectedUpdateLocationFollowsRedirectChain(t *testing.T) {
+	withRedirectResolutionMocks(t, map[string]string{"owner/repo/workflows/original.md@main": "---\nredirect: owner/repo/workflows/new.md@main\n---\n", "owner/repo/workflows/new.md@main": "---\nname: New Workflow\n---\n"})
+	var result *resolvedUpdateLocation
+	output := testutil.CaptureStderr(t, func() {
+		var err error
+		result, err = resolveRedirectedUpdateLocation(context.Background(), "test-workflow", &SourceSpec{Repo: "owner/repo", Path: "workflows/original.md", Ref: "main"}, false, false, false, 0)
+		require.NoError(t, err, "redirect chain should resolve")
+	})
+	assert.Equal(t, "owner/repo", result.sourceSpec.Repo, "final redirect repo should be tracked")
+	assert.Equal(t, "workflows/new.md", result.sourceSpec.Path, "final redirect path should be tracked")
+	assert.Equal(t, "main", result.sourceFieldRef, "branch ref should be preserved in source field")
+	assert.Len(t, result.redirectHistory, 1, "redirect history should include the followed hop")
+	assert.Contains(t, output, "Workflow test-workflow redirect: owner/repo/workflows/original.md@main → owner/repo/workflows/new.md@main", "redirect warning should explain source movement")
+}
+
+func TestResolveRedirectedUpdateLocationDetectsRedirectLoops(t *testing.T) {
+	withRedirectResolutionMocks(t, map[string]string{"owner/repo/workflows/a.md@main": "---\nredirect: owner/repo/workflows/b.md@main\n---\n", "owner/repo/workflows/b.md@main": "---\nredirect: owner/repo/workflows/a.md@main\n---\n"})
+	_, err := resolveRedirectedUpdateLocation(context.Background(), "loop-workflow", &SourceSpec{Repo: "owner/repo", Path: "workflows/a.md", Ref: "main"}, false, false, false, 0)
+	require.Error(t, err, "redirect loop should return an error")
+	assert.Contains(t, err.Error(), "redirect loop detected", "error should explain redirect loop")
+}
+
+func TestResolveRedirectedUpdateLocationRefusesRedirectWhenDisabled(t *testing.T) {
+	withRedirectResolutionMocks(t, map[string]string{"owner/repo/workflows/original.md@main": "---\nredirect: owner/repo/workflows/new.md@main\n---\n"})
+	_, err := resolveRedirectedUpdateLocation(context.Background(), "no-redirect-workflow", &SourceSpec{Repo: "owner/repo", Path: "workflows/original.md", Ref: "main"}, false, false, true, 0)
+	require.Error(t, err, "redirect should be refused with --no-redirect")
+	assert.Contains(t, err.Error(), "redirect is disabled by --no-redirect", "error should explain redirect refusal")
+}
+
+func withRedirectResolutionMocks(t *testing.T, responses map[string]string) {
+	t.Helper()
 	originalResolveLatestRef := resolveLatestRefFn
 	originalDownloadWorkflow := downloadWorkflowContentFn
 	t.Cleanup(func() {
 		resolveLatestRefFn = originalResolveLatestRef
 		downloadWorkflowContentFn = originalDownloadWorkflow
 	})
-
-	t.Run("follows redirect chain", func(t *testing.T) {
-		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (string, error) {
-			return currentRef, nil
+	resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (string, error) {
+		return currentRef, nil
+	}
+	downloadWorkflowContentFn = func(_ context.Context, repo, path, ref string, _ bool) ([]byte, error) {
+		key := fmt.Sprintf("%s/%s@%s", repo, path, ref)
+		if content, ok := responses[key]; ok {
+			return []byte(content), nil
 		}
-		downloadWorkflowContentFn = func(_ context.Context, repo, path, ref string, _ bool) ([]byte, error) {
-			key := fmt.Sprintf("%s/%s@%s", repo, path, ref)
-			switch key {
-			case "owner/repo/workflows/original.md@main":
-				return []byte("---\nredirect: owner/repo/workflows/new.md@main\n---\n"), nil
-			case "owner/repo/workflows/new.md@main":
-				return []byte("---\nname: New Workflow\n---\n"), nil
-			default:
-				return nil, fmt.Errorf("unexpected download key %s", key)
-			}
-		}
-
-		var result *resolvedUpdateLocation
-		output := testutil.CaptureStderr(t, func() {
-			var err error
-			result, err = resolveRedirectedUpdateLocation(
-				context.Background(),
-				"test-workflow",
-				&SourceSpec{Repo: "owner/repo", Path: "workflows/original.md", Ref: "main"},
-				false,
-				false,
-				false,
-				0,
-			)
-			require.NoError(t, err, "redirect chain should resolve")
-		})
-		assert.Equal(t, "owner/repo", result.sourceSpec.Repo, "final redirect repo should be tracked")
-		assert.Equal(t, "workflows/new.md", result.sourceSpec.Path, "final redirect path should be tracked")
-		assert.Equal(t, "main", result.sourceFieldRef, "branch ref should be preserved in source field")
-		assert.Len(t, result.redirectHistory, 1, "redirect history should include the followed hop")
-		assert.Contains(t, output, "Workflow test-workflow redirect: owner/repo/workflows/original.md@main → owner/repo/workflows/new.md@main", "redirect warning should explain source movement")
-	})
-
-	t.Run("detects redirect loops", func(t *testing.T) {
-		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (string, error) {
-			return currentRef, nil
-		}
-		downloadWorkflowContentFn = func(_ context.Context, repo, path, ref string, _ bool) ([]byte, error) {
-			key := fmt.Sprintf("%s/%s@%s", repo, path, ref)
-			switch key {
-			case "owner/repo/workflows/a.md@main":
-				return []byte("---\nredirect: owner/repo/workflows/b.md@main\n---\n"), nil
-			case "owner/repo/workflows/b.md@main":
-				return []byte("---\nredirect: owner/repo/workflows/a.md@main\n---\n"), nil
-			default:
-				return nil, fmt.Errorf("unexpected download key %s", key)
-			}
-		}
-
-		_, err := resolveRedirectedUpdateLocation(
-			context.Background(),
-			"loop-workflow",
-			&SourceSpec{Repo: "owner/repo", Path: "workflows/a.md", Ref: "main"},
-			false,
-			false,
-			false,
-			0,
-		)
-		require.Error(t, err, "redirect loop should return an error")
-		assert.Contains(t, err.Error(), "redirect loop detected", "error should explain redirect loop")
-	})
-
-	t.Run("refuses redirect when no-redirect is enabled", func(t *testing.T) {
-		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (string, error) {
-			return currentRef, nil
-		}
-		downloadWorkflowContentFn = func(_ context.Context, repo, path, ref string, _ bool) ([]byte, error) {
-			key := fmt.Sprintf("%s/%s@%s", repo, path, ref)
-			switch key {
-			case "owner/repo/workflows/original.md@main":
-				return []byte("---\nredirect: owner/repo/workflows/new.md@main\n---\n"), nil
-			default:
-				return nil, fmt.Errorf("unexpected download key %s", key)
-			}
-		}
-
-		_, err := resolveRedirectedUpdateLocation(
-			context.Background(),
-			"no-redirect-workflow",
-			&SourceSpec{Repo: "owner/repo", Path: "workflows/original.md", Ref: "main"},
-			false,
-			false,
-			true,
-			0,
-		)
-		require.Error(t, err, "redirect should be refused with --no-redirect")
-		assert.Contains(t, err.Error(), "redirect is disabled by --no-redirect", "error should explain redirect refusal")
-	})
+		return nil, fmt.Errorf("unexpected download key %s", key)
+	}
 }

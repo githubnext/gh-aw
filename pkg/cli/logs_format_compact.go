@@ -54,10 +54,17 @@ func workflowIDFromRun(path, name string) string {
 //	[mcp] MCP failures (only if present)
 func renderLogsCompact(data LogsData) {
 	logsCompactLog.Printf("Rendering %d runs in compact format", data.Summary.TotalRuns)
+	printCompactSummaryLine(data.Summary)
+	if len(data.Runs) == 0 {
+		return
+	}
+	printCompactRunsTable(data.Runs)
+	printCompactErrorInsights(data)
+	printCompactNetworkAndTools(data)
+	fmt.Fprintln(os.Stdout, "[hint] use --json for full details, -v for verbose, --format console for tables")
+}
 
-	s := data.Summary
-
-	// [summary] single line of key=value pairs
+func printCompactSummaryLine(s LogsSummary) {
 	summaryParts := []string{
 		"runs=" + strconv.Itoa(s.TotalRuns),
 		"duration=" + s.TotalDuration,
@@ -75,44 +82,25 @@ func renderLogsCompact(data LogsData) {
 		summaryParts = append(summaryParts, "github_api="+strconv.Itoa(s.TotalGitHubAPICalls))
 	}
 	if len(s.EngineCounts) > 0 {
-		parts := make([]string, 0, len(s.EngineCounts))
-		for engine, count := range s.EngineCounts {
-			parts = append(parts, engine+":"+strconv.Itoa(count))
-		}
-		summaryParts = append(summaryParts, "engines="+strings.Join(parts, ","))
+		summaryParts = append(summaryParts, "engines="+joinCompactEngineCounts(s.EngineCounts))
 	}
-	// Outcome metrics if available
 	if s.OutcomeAccepted > 0 || s.OutcomeRejected > 0 {
-		summaryParts = append(summaryParts,
-			"accepted="+strconv.Itoa(s.OutcomeAccepted),
-			"rejected="+strconv.Itoa(s.OutcomeRejected),
-		)
+		summaryParts = append(summaryParts, "accepted="+strconv.Itoa(s.OutcomeAccepted), "rejected="+strconv.Itoa(s.OutcomeRejected))
 		if s.OutcomeAcceptanceRate > 0 {
 			summaryParts = append(summaryParts, "acceptance="+fmt.Sprintf("%.0f%%", s.OutcomeAcceptanceRate*100))
 		}
 	}
 	fmt.Fprintf(os.Stdout, "[summary] %s\n", strings.Join(summaryParts, " "))
+}
 
-	if len(data.Runs) == 0 {
-		return
-	}
-
-	// [runs] aligned table using tabwriter
+func printCompactRunsTable(runs []RunData) {
 	fmt.Fprintln(os.Stdout, "[runs]")
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "RUNID\tWORKFLOW\tENGINE\tSTATUS\tDUR\tTOKENS\tTURNS\tERR\tEVENT\tACTOR\tBRANCH")
-
-	for _, r := range data.Runs {
-		status := r.Conclusion
-		if status == "" {
-			status = r.Status
-		}
+	for _, r := range runs {
+		status := compactRunStatus(r)
 		if status == "skipped" || status == "cancelled" {
 			continue
-		}
-		dur := r.Duration
-		if dur == "" {
-			dur = "-"
 		}
 		branch := r.Branch
 		if len(branch) > 30 {
@@ -122,16 +110,14 @@ func renderLogsCompact(data LogsData) {
 		if actor == "" {
 			actor = "-"
 		}
-		wfID := workflowIDFromRun(r.WorkflowPath, r.WorkflowName)
-
 		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\t%s\t%s\n",
-			r.RunID, wfID, r.EngineID, status, dur,
-			r.TokenUsage, r.Turns, r.ErrorCount,
-			r.Event, actor, branch)
+			r.RunID, workflowIDFromRun(r.WorkflowPath, r.WorkflowName), r.EngineID, status, compactDuration(r.Duration),
+			r.TokenUsage, r.Turns, r.ErrorCount, r.Event, actor, branch)
 	}
 	w.Flush()
+}
 
-	// [errors] — aggregated error/warning messages
+func printCompactErrorInsights(data LogsData) {
 	if len(data.ErrorsAndWarnings) > 0 {
 		fmt.Fprintln(os.Stdout, "[errors]")
 		for _, ew := range data.ErrorsAndWarnings {
@@ -142,44 +128,20 @@ func renderLogsCompact(data LogsData) {
 			fmt.Fprintf(os.Stdout, "%s run=%d count=%d: %s\n", ew.Type, ew.RunID, ew.Count, msg)
 		}
 	}
-
-	// [insights] — only medium/high severity (skip info-level noise)
-	if len(data.Observability) > 0 {
-		var hasActionable bool
-		for _, obs := range data.Observability {
-			if obs.Severity != "info" {
-				hasActionable = true
-				break
-			}
-		}
-		if hasActionable {
-			fmt.Fprintln(os.Stdout, "[insights]")
-			for _, obs := range data.Observability {
-				if obs.Severity == "info" {
-					continue
-				}
-				fmt.Fprintf(os.Stdout, "[%s] %s: %s\n", obs.Severity, obs.Title, obs.Summary)
-			}
-		}
+	if !hasActionableInsights(data.Observability) {
+		return
 	}
-
-	// [firewall] — summary + per-domain breakdown
-	if data.FirewallLog != nil && data.FirewallLog.TotalRequests > 0 {
-		fw := data.FirewallLog
-		fmt.Fprintf(os.Stdout, "[firewall] requests=%d allowed=%d blocked=%d\n",
-			fw.TotalRequests, fw.AllowedRequests, fw.BlockedRequests)
-		if len(fw.RequestsByDomain) > 0 {
-			for domain, counts := range fw.RequestsByDomain {
-				if counts.Blocked > 0 {
-					fmt.Fprintf(os.Stdout, "  %s allowed=%d blocked=%d\n", domain, counts.Allowed, counts.Blocked)
-				}
-			}
-		} else if len(fw.BlockedDomains) > 0 {
-			fmt.Fprintf(os.Stdout, "  blocked: %s\n", strings.Join(fw.BlockedDomains, " "))
+	fmt.Fprintln(os.Stdout, "[insights]")
+	for _, obs := range data.Observability {
+		if obs.Severity == "info" {
+			continue
 		}
+		fmt.Fprintf(os.Stdout, "[%s] %s: %s\n", obs.Severity, obs.Title, obs.Summary)
 	}
+}
 
-	// [tools] — top tools by call count
+func printCompactNetworkAndTools(data LogsData) {
+	printCompactFirewallSection(data.FirewallLog, false)
 	if len(data.ToolUsage) > 0 {
 		fmt.Fprintln(os.Stdout, "[tools]")
 		limit := min(10, len(data.ToolUsage))
@@ -191,38 +153,22 @@ func renderLogsCompact(data LogsData) {
 			fmt.Fprintf(os.Stdout, "... +%d more tools\n", len(data.ToolUsage)-limit)
 		}
 	}
-
-	// [mcp-failures]
-	if len(data.MCPFailures) > 0 {
-		fmt.Fprintln(os.Stdout, "[mcp-failures]")
-		for _, f := range data.MCPFailures {
-			fmt.Fprintf(os.Stdout, "server=%s count=%d runs=%v\n", f.ServerName, f.Count, f.RunIDs)
-		}
-	}
-
-	// [missing-tools] — missing tool summary
-	if len(data.MissingTools) > 0 {
-		fmt.Fprintln(os.Stdout, "[missing-tools]")
-		for _, mt := range data.MissingTools {
-			fmt.Fprintf(os.Stdout, "%s count=%d runs=%v\n", mt.Tool, mt.Count, mt.RunIDs)
-		}
-	}
-
-	// [location]
-	if data.LogsLocation != "" {
-		fmt.Fprintf(os.Stdout, "[location] %s\n", data.LogsLocation)
-	}
-
-	fmt.Fprintln(os.Stdout, "[hint] use --json for full details, -v for verbose, --format console for tables")
+	printCompactSharedSections(data)
 }
 
 // renderLogsCompactVerbose adds extra columns and sections for deeper analysis.
 func renderLogsCompactVerbose(data LogsData) {
 	logsCompactLog.Printf("Rendering %d runs in verbose compact format", data.Summary.TotalRuns)
+	printVerboseSummaryLine(data.Summary)
+	if len(data.Runs) == 0 {
+		return
+	}
+	printVerboseRunsTable(data.Runs)
+	printVerboseInsightFirewall(data)
+	printVerboseToolSections(data)
+}
 
-	s := data.Summary
-
-	// [summary] extended
+func printVerboseSummaryLine(s LogsSummary) {
 	summaryParts := []string{
 		"runs=" + strconv.Itoa(s.TotalRuns),
 		"duration=" + s.TotalDuration,
@@ -237,18 +183,12 @@ func renderLogsCompactVerbose(data LogsData) {
 		"episodes=" + strconv.Itoa(s.TotalEpisodes),
 	}
 	if len(s.EngineCounts) > 0 {
-		parts := make([]string, 0, len(s.EngineCounts))
-		for engine, count := range s.EngineCounts {
-			parts = append(parts, engine+":"+strconv.Itoa(count))
-		}
-		summaryParts = append(summaryParts, "engines="+strings.Join(parts, ","))
+		summaryParts = append(summaryParts, "engines="+joinCompactEngineCounts(s.EngineCounts))
 	}
 	if s.OutcomeAccepted > 0 || s.OutcomeRejected > 0 {
 		summaryParts = append(summaryParts,
-			"accepted="+strconv.Itoa(s.OutcomeAccepted),
-			"rejected="+strconv.Itoa(s.OutcomeRejected),
-			"ignored="+strconv.Itoa(s.OutcomeIgnored),
-			"pending="+strconv.Itoa(s.OutcomePending),
+			"accepted="+strconv.Itoa(s.OutcomeAccepted), "rejected="+strconv.Itoa(s.OutcomeRejected),
+			"ignored="+strconv.Itoa(s.OutcomeIgnored), "pending="+strconv.Itoa(s.OutcomePending),
 		)
 		if s.OutcomeAcceptanceRate > 0 {
 			summaryParts = append(summaryParts, "acceptance="+fmt.Sprintf("%.0f%%", s.OutcomeAcceptanceRate*100))
@@ -258,121 +198,144 @@ func renderLogsCompactVerbose(data LogsData) {
 		}
 	}
 	fmt.Fprintf(os.Stdout, "[summary] %s\n", strings.Join(summaryParts, " "))
+}
 
-	if len(data.Runs) == 0 {
-		return
-	}
-
-	// [runs] verbose aligned table
+func printVerboseRunsTable(runs []RunData) {
 	fmt.Fprintln(os.Stdout, "[runs]")
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "RUNID\tWORKFLOW\tENGINE\tSTATUS\tDUR\tTOKENS\tEFF_TOK\tTURNS\tERR\tWARN\tEVENT\tACTOR\tTBT\tCLASS\tCREATED\tBRANCH")
-
-	for _, r := range data.Runs {
-		status := r.Conclusion
-		if status == "" {
-			status = r.Status
-		}
+	for _, r := range runs {
+		status := compactRunStatus(r)
 		if status == "skipped" || status == "cancelled" {
 			continue
-		}
-		dur := r.Duration
-		if dur == "" {
-			dur = "-"
-		}
-		tbt := r.AvgTimeBetweenTurns
-		if tbt == "" {
-			tbt = "-"
-		}
-		classification := r.Classification
-		if classification == "" {
-			classification = "-"
 		}
 		actor := r.Actor
 		if actor == "" {
 			actor = "-"
 		}
-		wfID := workflowIDFromRun(r.WorkflowPath, r.WorkflowName)
-
 		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			r.RunID, wfID, r.EngineID, status, dur,
-			r.TokenUsage, r.EffectiveTokens,
-			r.Turns, r.ErrorCount, r.WarningCount,
-			r.Event, actor, tbt, classification,
+			r.RunID, workflowIDFromRun(r.WorkflowPath, r.WorkflowName), r.EngineID, status, compactDuration(r.Duration),
+			r.TokenUsage, r.EffectiveTokens, r.Turns, r.ErrorCount, r.WarningCount,
+			r.Event, actor, compactTBT(r.AvgTimeBetweenTurns), compactClassification(r.Classification),
 			r.CreatedAt.Format("01-02 15:04"), r.Branch)
 	}
 	w.Flush()
+}
 
-	// [errors]
+func printVerboseInsightFirewall(data LogsData) {
 	if len(data.ErrorsAndWarnings) > 0 {
 		fmt.Fprintln(os.Stdout, "[errors]")
 		for _, ew := range data.ErrorsAndWarnings {
 			fmt.Fprintf(os.Stdout, "%s run=%d count=%d: %s\n", ew.Type, ew.RunID, ew.Count, ew.Message)
 		}
 	}
-
-	// [insights] — all severities in verbose mode
 	if len(data.Observability) > 0 {
 		fmt.Fprintln(os.Stdout, "[insights]")
 		for _, obs := range data.Observability {
 			fmt.Fprintf(os.Stdout, "[%s] %s: %s\n", obs.Severity, obs.Title, obs.Summary)
 		}
 	}
+	printCompactFirewallSection(data.FirewallLog, true)
+}
 
-	// [firewall] — full breakdown
-	if data.FirewallLog != nil && data.FirewallLog.TotalRequests > 0 {
-		fw := data.FirewallLog
-		fmt.Fprintf(os.Stdout, "[firewall] requests=%d allowed=%d blocked=%d\n",
-			fw.TotalRequests, fw.AllowedRequests, fw.BlockedRequests)
-		if len(fw.RequestsByDomain) > 0 {
-			for domain, counts := range fw.RequestsByDomain {
-				fmt.Fprintf(os.Stdout, "  %s allowed=%d blocked=%d\n", domain, counts.Allowed, counts.Blocked)
-			}
-		}
-	}
-
-	// [tools]
+func printVerboseToolSections(data LogsData) {
 	if len(data.ToolUsage) > 0 {
 		fmt.Fprintln(os.Stdout, "[tools]")
 		for _, t := range data.ToolUsage {
 			fmt.Fprintf(os.Stdout, "%s calls=%d runs=%d\n", t.Name, t.TotalCalls, t.Runs)
 		}
 	}
-
-	// [mcp-tools]
 	if data.MCPToolUsage != nil && len(data.MCPToolUsage.Summary) > 0 {
 		fmt.Fprintln(os.Stdout, "[mcp-tools]")
 		for _, t := range data.MCPToolUsage.Summary {
 			fmt.Fprintf(os.Stdout, "%s.%s calls=%d\n", t.ServerName, t.ToolName, t.CallCount)
 		}
 	}
+	printCompactSharedSections(data)
+	if len(data.Episodes) > 0 {
+		fmt.Fprintln(os.Stdout, "[episodes]")
+		for _, ep := range data.Episodes {
+			fmt.Fprintf(os.Stdout, "%s runs=%d conf=%s duration=%s\n", ep.Kind, ep.TotalRuns, ep.Confidence, ep.TotalDuration)
+		}
+	}
+}
 
-	// [mcp-failures]
+func joinCompactEngineCounts(engineCounts map[string]int) string {
+	parts := make([]string, 0, len(engineCounts))
+	for engine, count := range engineCounts {
+		parts = append(parts, engine+":"+strconv.Itoa(count))
+	}
+	return strings.Join(parts, ",")
+}
+
+func compactRunStatus(r RunData) string {
+	if r.Conclusion != "" {
+		return r.Conclusion
+	}
+	return r.Status
+}
+
+func compactDuration(duration string) string {
+	if duration == "" {
+		return "-"
+	}
+	return duration
+}
+
+func compactTBT(tbt string) string {
+	if tbt == "" {
+		return "-"
+	}
+	return tbt
+}
+
+func compactClassification(classification string) string {
+	if classification == "" {
+		return "-"
+	}
+	return classification
+}
+
+func hasActionableInsights(observability []ObservabilityInsight) bool {
+	for _, obs := range observability {
+		if obs.Severity != "info" {
+			return true
+		}
+	}
+	return false
+}
+
+func printCompactFirewallSection(fw *FirewallLogSummary, verbose bool) {
+	if fw == nil || fw.TotalRequests == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stdout, "[firewall] requests=%d allowed=%d blocked=%d\n", fw.TotalRequests, fw.AllowedRequests, fw.BlockedRequests)
+	if len(fw.RequestsByDomain) > 0 {
+		for domain, counts := range fw.RequestsByDomain {
+			if verbose || counts.Blocked > 0 {
+				fmt.Fprintf(os.Stdout, "  %s allowed=%d blocked=%d\n", domain, counts.Allowed, counts.Blocked)
+			}
+		}
+		return
+	}
+	if !verbose && len(fw.BlockedDomains) > 0 {
+		fmt.Fprintf(os.Stdout, "  blocked: %s\n", strings.Join(fw.BlockedDomains, " "))
+	}
+}
+
+func printCompactSharedSections(data LogsData) {
 	if len(data.MCPFailures) > 0 {
 		fmt.Fprintln(os.Stdout, "[mcp-failures]")
 		for _, f := range data.MCPFailures {
 			fmt.Fprintf(os.Stdout, "server=%s count=%d runs=%v\n", f.ServerName, f.Count, f.RunIDs)
 		}
 	}
-
-	// [missing-tools]
 	if len(data.MissingTools) > 0 {
 		fmt.Fprintln(os.Stdout, "[missing-tools]")
 		for _, mt := range data.MissingTools {
 			fmt.Fprintf(os.Stdout, "%s count=%d runs=%v\n", mt.Tool, mt.Count, mt.RunIDs)
 		}
 	}
-
-	// [episodes]
-	if len(data.Episodes) > 0 {
-		fmt.Fprintln(os.Stdout, "[episodes]")
-		for _, ep := range data.Episodes {
-			fmt.Fprintf(os.Stdout, "%s runs=%d conf=%s duration=%s\n",
-				ep.Kind, ep.TotalRuns, ep.Confidence, ep.TotalDuration)
-		}
-	}
-
-	// [location]
 	if data.LogsLocation != "" {
 		fmt.Fprintf(os.Stdout, "[location] %s\n", data.LogsLocation)
 	}
