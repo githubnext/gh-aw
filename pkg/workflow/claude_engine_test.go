@@ -934,70 +934,70 @@ func TestClaudeEngineWithExpressionVersion(t *testing.T) {
 }
 
 func TestIsAnthropicWIF(t *testing.T) {
-tests := []struct {
-name         string
-workflowData *WorkflowData
-want         bool
-}{
-{
-name:         "nil workflowData returns false",
-workflowData: nil,
-want:         false,
-},
-{
-name:         "nil EngineConfig returns false",
-workflowData: &WorkflowData{},
-want:         false,
-},
-{
-name: "nil Auth returns false",
-workflowData: &WorkflowData{
-EngineConfig: &EngineConfig{},
-},
-want: false,
-},
-{
-name: "github-oidc without provider returns false",
-workflowData: &WorkflowData{
-EngineConfig: &EngineConfig{
-Auth: &EngineAuthConfig{Type: "github-oidc"},
-},
-},
-want: false,
-},
-{
-name: "github-oidc with azure provider returns false",
-workflowData: &WorkflowData{
-EngineConfig: &EngineConfig{
-Auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure"},
-},
-},
-want: false,
-},
-{
-name: "static type with anthropic provider returns false",
-workflowData: &WorkflowData{
-EngineConfig: &EngineConfig{
-Auth: &EngineAuthConfig{Type: "static", Provider: "anthropic"},
-},
-},
-want: false,
-},
-{
-name: "github-oidc with anthropic provider returns true",
-workflowData: &WorkflowData{
-EngineConfig: &EngineConfig{
-Auth: &EngineAuthConfig{Type: "github-oidc", Provider: "anthropic"},
-},
-},
-want: true,
-},
-}
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		want         bool
+	}{
+		{
+			name:         "nil workflowData returns false",
+			workflowData: nil,
+			want:         false,
+		},
+		{
+			name:         "nil EngineConfig returns false",
+			workflowData: &WorkflowData{},
+			want:         false,
+		},
+		{
+			name: "nil Auth returns false",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{},
+			},
+			want: false,
+		},
+		{
+			name: "github-oidc without provider returns false",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Auth: &EngineAuthConfig{Type: "github-oidc"},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "github-oidc with azure provider returns false",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Auth: &EngineAuthConfig{Type: "github-oidc", Provider: "azure"},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "static type with anthropic provider returns false",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Auth: &EngineAuthConfig{Type: "static", Provider: "anthropic"},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "github-oidc with anthropic provider returns true",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Auth: &EngineAuthConfig{Type: "github-oidc", Provider: "anthropic"},
+				},
+			},
+			want: true,
+		},
+	}
 
-for _, tt := range tests {
-t.Run(tt.name, func(t *testing.T) {
-got := isAnthropicWIF(tt.workflowData)
-assert.Equal(t, tt.want, got)
-})
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isAnthropicWIF(tt.workflowData)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
