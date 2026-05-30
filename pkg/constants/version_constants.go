@@ -59,7 +59,7 @@ const DefaultPiVersion Version = "0.75.4"
 // DefaultCopilotSDKVersion is the default pinned version of the @github/copilot-sdk npm package.
 // This package enables headless HTTP transport mode for the Copilot CLI when copilot-sdk: true
 // is set in the engine front matter.
-const DefaultCopilotSDKVersion Version = "0.1.0"
+const DefaultCopilotSDKVersion Version = "1.0.0-beta.10"
 
 // DefaultCopilotSDKPackage is the npm package name for the GitHub Copilot SDK.
 // Installed alongside the Copilot CLI when engine.copilot-sdk: true is set.
