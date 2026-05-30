@@ -60,7 +60,7 @@ func getCurrentRepoSlug() (string, error) {
 ## Dependencies
 
 **Internal**:
-- `pkg/logger` — package-scoped logging used by `OnceLoader[T]`.
+- `github.com/github/gh-aw/pkg/logger` — package-scoped logging used by `OnceLoader[T]`.
 
 **External**:
 - None beyond the Go standard library (`sync`).

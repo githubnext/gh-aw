@@ -53,7 +53,7 @@ filtered := sliceutil.Exclude([]string{"a", "b", "c"}, "b")
 ## Dependencies
 
 **Internal**:
-- `pkg/logger` — package-scoped logging used by `Deduplicate` and `MergeUnique`.
+- `github.com/github/gh-aw/pkg/logger` — package-scoped logging used by `Deduplicate` and `MergeUnique`.
 
 **External**:
 - None beyond the Go standard library (`slices`).

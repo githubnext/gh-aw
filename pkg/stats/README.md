@@ -48,7 +48,7 @@ fmt.Println(s.Median()) // 20
 ## Dependencies
 
 **Internal**:
-- `pkg/logger` — debug logging for non-finite observations
+- `github.com/github/gh-aw/pkg/logger` — debug logging for non-finite observations
 
 **Standard library**:
 - `math` — square root for standard deviation
