@@ -195,7 +195,7 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		}
 		// Prevent actions/checkout from adding --filter=blob:none when sparse-checkout
 		// is specified. Blobless clones require credentials for lazy blob fetches, but
-		// agent jobs use persist-credentials: false, making offline git operations fail.
+		// agent jobs intentionally do not retain git credentials after checkout, making offline git operations fail.
 		if len(override.sparsePatterns) > 0 {
 			sb.WriteString("          filter: ''\n")
 		}
