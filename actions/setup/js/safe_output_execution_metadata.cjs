@@ -1,4 +1,5 @@
 // @ts-check
+// @safe-outputs-exempt SEC-004 — body is only read to compute a normalized SHA-256 hash for execution-state diffing; raw body content is never written back to any GitHub API.
 
 const crypto = require("crypto");
 
