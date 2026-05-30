@@ -232,8 +232,8 @@ func TestPiEngine_GetExecutionSteps_IgnoresRedundantYoloArg(t *testing.T) {
 
 func TestFilterPiArgs(t *testing.T) {
 	t.Run("empty args", func(t *testing.T) {
-		assert.Empty(t, filterPiArgs(nil))
-		assert.Empty(t, filterPiArgs([]string{}))
+		require.Empty(t, filterPiArgs(nil))
+		require.Empty(t, filterPiArgs([]string{}))
 	})
 
 	t.Run("drops yolo variants only", func(t *testing.T) {

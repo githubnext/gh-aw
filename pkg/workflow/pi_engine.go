@@ -459,6 +459,9 @@ touch %s
 // and step summary rendering.
 const PiStreamingLogFile = "/tmp/gh-aw/pi-streaming.jsonl"
 
+// filterPiArgs removes redundant Pi CLI flags that gh-aw should not pass through.
+// Pi runs in yolo mode by default, so explicit --yolo flags are ignored while all
+// other engine args are preserved in order.
 func filterPiArgs(args []string) []string {
 	filtered := make([]string, 0, len(args))
 	for _, arg := range args {
