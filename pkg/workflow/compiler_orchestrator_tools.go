@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"maps"
 	"os"
 	"sort"
 	"strings"
@@ -452,14 +451,14 @@ func applyPiRequiredToolDefaults(tools map[string]any, agenticEngine CodingAgent
 	}
 
 	githubTool, hasGitHub := tools["github"]
+	// Respect an explicit opt-out for github tool injection.
 	if hasGitHub && githubTool == false {
 		return
 	}
 
 	var githubConfig map[string]any
 	if existingConfig, ok := githubTool.(map[string]any); ok {
-		githubConfig = make(map[string]any, len(existingConfig))
-		maps.Copy(githubConfig, existingConfig)
+		githubConfig = existingConfig
 	} else {
 		githubConfig = make(map[string]any)
 	}
