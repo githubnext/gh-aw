@@ -185,3 +185,112 @@ func TestSpec_SafeOutputs_SafeOutputsConfigFromKeys(t *testing.T) {
 		})
 	}
 }
+
+// TestSpec_SafeOutputs_HasSafeOutputsEnabled validates the documented behavior of
+// HasSafeOutputsEnabled as described in the workflow package README.md.
+// Spec: "HasSafeOutputsEnabled — Returns whether any safe-output type is enabled".
+func TestSpec_SafeOutputs_HasSafeOutputsEnabled(t *testing.T) {
+	t.Run("nil config reports no safe outputs enabled", func(t *testing.T) {
+		assert.False(t, workflow.HasSafeOutputsEnabled(nil),
+			"a nil SafeOutputsConfig must report no safe outputs enabled")
+	})
+
+	t.Run("empty config reports no safe outputs enabled", func(t *testing.T) {
+		assert.False(t, workflow.HasSafeOutputsEnabled(&workflow.SafeOutputsConfig{}),
+			"an empty SafeOutputsConfig must report no safe outputs enabled")
+	})
+
+	t.Run("config built from a key reports safe outputs enabled", func(t *testing.T) {
+		cfg := workflow.SafeOutputsConfigFromKeys([]string{"add-comment"})
+		assert.True(t, workflow.HasSafeOutputsEnabled(cfg),
+			"a config with an enabled output must report safe outputs enabled")
+	})
+}
+
+// TestSpec_SecretHandling_ExtractSecretName validates the documented behavior of
+// ExtractSecretName as described in the workflow package README.md.
+// Spec: "ExtractSecretName — Extracts the secret name from a ${{ secrets.NAME }} expression".
+func TestSpec_SecretHandling_ExtractSecretName(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected string
+	}{
+		{
+			name:     "extracts name from a secrets expression",
+			value:    "${{ secrets.MY_TOKEN }}",
+			expected: "MY_TOKEN",
+		},
+		{
+			name:     "extracts name from an expression with a default fallback",
+			value:    "${{ secrets.DD_SITE || 'datadoghq.com' }}",
+			expected: "DD_SITE",
+		},
+		{
+			name:     "returns empty string for a plain value with no secret",
+			value:    "plain value",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := workflow.ExtractSecretName(tt.value)
+			assert.Equal(t, tt.expected, result,
+				"ExtractSecretName(%q) should match documented behavior", tt.value)
+		})
+	}
+}
+
+// TestSpec_Engine_RegistryLookupAndIdentity validates the documented engine-registry
+// lookup and the Engine identity contract from the workflow package README.md.
+//
+// Spec ("Look up an engine" usage example): a global registry is obtained via
+// GetGlobalEngineRegistry() and an engine is looked up by name. Spec (Engine
+// interface): "Core identity: GetID(), GetDisplayName(), GetDescription(), IsExperimental()".
+//
+// SPEC_MISMATCH: The README usage example shows `engine, ok := registry.Get("copilot")`
+// returning a (engine, bool) pair, but the implemented method is
+// `GetEngine(id string) (CodingAgentEngine, error)`. There is no `Get` method.
+// This test exercises the actual API and documents the divergence.
+func TestSpec_Engine_RegistryLookupAndIdentity(t *testing.T) {
+	registry := workflow.GetGlobalEngineRegistry()
+	require.NotNil(t, registry, "GetGlobalEngineRegistry() must return a non-nil registry")
+
+	// SPEC_MISMATCH: spec example uses registry.Get(name) (engine, ok);
+	// the real API is registry.GetEngine(name) (engine, error).
+	engine, err := registry.GetEngine("copilot")
+	require.NoError(t, err, "the documented copilot engine must be resolvable")
+	require.NotNil(t, engine, "resolved engine must be non-nil")
+
+	assert.Equal(t, "copilot", engine.GetID(),
+		"Engine.GetID() must return the documented identity")
+	assert.NotEmpty(t, engine.GetDisplayName(),
+		"Engine.GetDisplayName() must return a non-empty display name")
+	assert.NotEmpty(t, engine.GetDescription(),
+		"Engine.GetDescription() must return a non-empty description")
+}
+
+// TestSpec_Engine_DocumentedEnginesRegistered validates that every AI engine documented
+// in the workflow package README.md is registered and reports the documented identity.
+// Spec: the engine architecture lists copilot, claude, codex, gemini, crush, opencode,
+// pi, and antigravity engines, each created by a New<Name>Engine constructor.
+func TestSpec_Engine_DocumentedEnginesRegistered(t *testing.T) {
+	registry := workflow.GetGlobalEngineRegistry()
+	require.NotNil(t, registry, "GetGlobalEngineRegistry() must return a non-nil registry")
+
+	documentedEngines := []string{
+		"copilot", "claude", "codex", "gemini",
+		"crush", "opencode", "pi", "antigravity",
+	}
+
+	for _, id := range documentedEngines {
+		t.Run(id, func(t *testing.T) {
+			engine, err := registry.GetEngine(id)
+			require.NoError(t, err, "documented engine %q must be registered", id)
+			require.NotNil(t, engine, "documented engine %q must be non-nil", id)
+			assert.Equal(t, id, engine.GetID(),
+				"engine %q must report its documented ID via GetID()", id)
+		})
+	}
+}

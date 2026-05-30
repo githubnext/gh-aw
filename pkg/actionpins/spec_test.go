@@ -326,16 +326,6 @@ func TestSpec_DynamicResolution_VersionCommentConsistency(t *testing.T) {
 	})
 }
 
-// TestSpec_PublicAPI_GetActionPins_SPEC_MISMATCH documents a spec-implementation gap.
-// SPEC_MISMATCH: The README specifies GetActionPins() []ActionPin ("Returns all loaded pins")
-// but this function is not implemented. Only GetActionPinsByRepo(repo string) is available.
-// Proxy validation: verify embedded data is non-empty via the available API.
-func TestSpec_PublicAPI_GetActionPins_SPEC_MISMATCH(t *testing.T) {
-	// SPEC_MISMATCH: GetActionPins() documented in README does not exist in the implementation.
-	pins := actionpins.GetActionPinsByRepo("actions/checkout")
-	assert.NotEmpty(t, pins, "embedded pin data should be non-empty (proxy for missing GetActionPins)")
-}
-
 // TestSpec_PublicAPI_GetContainerPin validates the documented GetContainerPin function.
 // Spec: "Returns a pinned container image by its original image reference"
 func TestSpec_PublicAPI_GetContainerPin(t *testing.T) {

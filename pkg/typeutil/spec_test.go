@@ -296,3 +296,186 @@ func TestSpec_PublicAPI_ConvertToFloat(t *testing.T) {
 		})
 	}
 }
+
+// TestSpec_PublicAPI_LookupMap validates the documented behavior of LookupMap
+// as described in the package README.md.
+//
+// Specification: "Safe map extraction from map[string]any by key". Returns the
+// nested map with ok=true when the key holds a map[string]any; otherwise the
+// zero value with ok=false (including a nil map or a wrong-typed value).
+func TestSpec_PublicAPI_LookupMap(t *testing.T) {
+	nested := map[string]any{"inner": "value"}
+
+	tests := []struct {
+		name      string
+		m         map[string]any
+		key       string
+		wantValue map[string]any
+		wantOK    bool
+	}{
+		{
+			name:      "key holds a map returns (map, true)",
+			m:         map[string]any{"cfg": nested},
+			key:       "cfg",
+			wantValue: nested,
+			wantOK:    true,
+		},
+		{
+			name:      "nil map returns (nil, false)",
+			m:         nil,
+			key:       "cfg",
+			wantValue: nil,
+			wantOK:    false,
+		},
+		{
+			name:      "absent key returns (nil, false)",
+			m:         map[string]any{"other": nested},
+			key:       "cfg",
+			wantValue: nil,
+			wantOK:    false,
+		},
+		{
+			name:      "non-map value returns (nil, false)",
+			m:         map[string]any{"cfg": "not-a-map"},
+			key:       "cfg",
+			wantValue: nil,
+			wantOK:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotValue, gotOK := LookupMap(tt.m, tt.key)
+			assert.Equal(t, tt.wantOK, gotOK,
+				"LookupMap(map, %q) ok flag mismatch", tt.key)
+			assert.Equal(t, tt.wantValue, gotValue,
+				"LookupMap(map, %q) value mismatch", tt.key)
+		})
+	}
+}
+
+// TestSpec_PublicAPI_LookupString validates the documented behavior of
+// LookupString as described in the package README.md.
+//
+// Specification: "Safe string extraction from map[string]any by key". Returns
+// the string with ok=true when the key holds a string; otherwise ("", false)
+// (including a nil map, an absent key, or a wrong-typed value).
+func TestSpec_PublicAPI_LookupString(t *testing.T) {
+	tests := []struct {
+		name      string
+		m         map[string]any
+		key       string
+		wantValue string
+		wantOK    bool
+	}{
+		{
+			name:      "key holds a string returns (value, true)",
+			m:         map[string]any{"name": "gh-aw"},
+			key:       "name",
+			wantValue: "gh-aw",
+			wantOK:    true,
+		},
+		{
+			name:      "nil map returns (\"\", false)",
+			m:         nil,
+			key:       "name",
+			wantValue: "",
+			wantOK:    false,
+		},
+		{
+			name:      "absent key returns (\"\", false)",
+			m:         map[string]any{"other": "x"},
+			key:       "name",
+			wantValue: "",
+			wantOK:    false,
+		},
+		{
+			name:      "non-string value returns (\"\", false)",
+			m:         map[string]any{"name": 42},
+			key:       "name",
+			wantValue: "",
+			wantOK:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotValue, gotOK := LookupString(tt.m, tt.key)
+			assert.Equal(t, tt.wantOK, gotOK,
+				"LookupString(map, %q) ok flag mismatch", tt.key)
+			assert.Equal(t, tt.wantValue, gotValue,
+				"LookupString(map, %q) value mismatch", tt.key)
+		})
+	}
+}
+
+// TestSpec_PublicAPI_LookupStringPath validates the documented behavior of
+// LookupStringPath as described in the package README.md.
+//
+// Specification: "Safe nested string extraction by key path". Walks the nested
+// maps following the key path and returns the terminal string with ok=true;
+// returns ("", false) if any step in the path is missing or has an invalid type.
+func TestSpec_PublicAPI_LookupStringPath(t *testing.T) {
+	doc := map[string]any{
+		"a": map[string]any{
+			"b": map[string]any{
+				"c": "deep",
+			},
+		},
+		"top": "shallow",
+	}
+
+	tests := []struct {
+		name      string
+		m         map[string]any
+		path      []string
+		wantValue string
+		wantOK    bool
+	}{
+		{
+			name:      "single-key path to string returns (value, true)",
+			m:         doc,
+			path:      []string{"top"},
+			wantValue: "shallow",
+			wantOK:    true,
+		},
+		{
+			name:      "nested path to string returns (value, true)",
+			m:         doc,
+			path:      []string{"a", "b", "c"},
+			wantValue: "deep",
+			wantOK:    true,
+		},
+		{
+			name:      "missing intermediate key returns (\"\", false)",
+			m:         doc,
+			path:      []string{"a", "x", "c"},
+			wantValue: "",
+			wantOK:    false,
+		},
+		{
+			name:      "path terminating at a map returns (\"\", false)",
+			m:         doc,
+			path:      []string{"a", "b"},
+			wantValue: "",
+			wantOK:    false,
+		},
+		{
+			name:      "empty path returns (\"\", false)",
+			m:         doc,
+			path:      []string{},
+			wantValue: "",
+			wantOK:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotValue, gotOK := LookupStringPath(tt.m, tt.path...)
+			assert.Equal(t, tt.wantOK, gotOK,
+				"LookupStringPath(map, %v) ok flag mismatch", tt.path)
+			assert.Equal(t, tt.wantValue, gotValue,
+				"LookupStringPath(map, %v) value mismatch", tt.path)
+		})
+	}
+}
