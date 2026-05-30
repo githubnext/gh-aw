@@ -96,23 +96,6 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	npmSteps := GenerateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI")
 	steps := BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 
-	// When copilot-sdk: true, also install @github/copilot-sdk.
-	// It is installed after the Copilot CLI (and AWF) so the SDK is available
-	// when the harness launches the Copilot CLI with --transport http.
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
-		copilotInstallLog.Printf("copilot-sdk enabled: installing %s@%s", constants.DefaultCopilotSDKPackage, constants.DefaultCopilotSDKVersion)
-		sdkInstallSteps := GenerateNpmInstallSteps(
-			constants.DefaultCopilotSDKPackage,
-			string(constants.DefaultCopilotSDKVersion),
-			"Install GitHub Copilot SDK",
-			"copilot-sdk",
-			false, // Node.js is already set up by the Copilot CLI install above
-			false, // Never allow install scripts for engine dependencies
-			false, // No cooldown for the SDK package
-		)
-		steps = append(steps, sdkInstallSteps...)
-	}
-
 	return steps
 }
 
