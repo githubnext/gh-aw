@@ -220,13 +220,13 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 
 	if minVersion, ok := stringValue(root["min-version"]); ok {
 		manifest.MinVersion = strings.TrimSpace(minVersion)
-		if !isSupportedManifestMinVersion(manifest.MinVersion) {
+		if !isSupportedManifestVersion(manifest.MinVersion) {
 			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version must use vMAJOR.minor.patch, got %q", manifestPath, minVersion)
 		}
 	}
 	if maxVersion, ok := stringValue(root["max-version"]); ok {
 		manifest.MaxVersion = strings.TrimSpace(maxVersion)
-		if !isSupportedManifestMinVersion(manifest.MaxVersion) {
+		if !isSupportedManifestVersion(manifest.MaxVersion) {
 			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: max-version must use vMAJOR.minor.patch, got %q", manifestPath, maxVersion)
 		}
 	}
@@ -803,7 +803,7 @@ func isRepositoryPackageManifestNotFound(err error) bool {
 	return errors.Is(err, errRepositoryPackageManifestNotFound)
 }
 
-func isSupportedManifestMinVersion(version string) bool {
+func isSupportedManifestVersion(version string) bool {
 	const expectedManifestMinVersionDotCount = 2
 	return semverutil.IsActionVersionTag(version) && strings.Count(strings.TrimPrefix(version, "v"), ".") == expectedManifestMinVersionDotCount
 }

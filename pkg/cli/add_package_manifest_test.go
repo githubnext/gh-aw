@@ -1483,3 +1483,39 @@ files:
 	assert.True(t, agent.IsPackageAgentFile)
 	assert.Equal(t, agentMD, agent.Content)
 }
+
+func TestStringSliceValue(t *testing.T) {
+	t.Run("accepts []string", func(t *testing.T) {
+		got, ok := stringSliceValue([]string{"a", "b"})
+		require.True(t, ok)
+		assert.Equal(t, []string{"a", "b"}, got)
+	})
+
+	t.Run("accepts []any with strings", func(t *testing.T) {
+		got, ok := stringSliceValue([]any{"a", "b"})
+		require.True(t, ok)
+		assert.Equal(t, []string{"a", "b"}, got)
+	})
+
+	t.Run("rejects []any with non-string values", func(t *testing.T) {
+		_, ok := stringSliceValue([]any{"a", 1})
+		assert.False(t, ok)
+	})
+
+	t.Run("accepts empty slices", func(t *testing.T) {
+		gotAny, okAny := stringSliceValue([]any{})
+		require.True(t, okAny)
+		assert.Empty(t, gotAny)
+
+		gotString, okString := stringSliceValue([]string{})
+		require.True(t, okString)
+		assert.Empty(t, gotString)
+	})
+
+	t.Run("rejects nil and non-slice values", func(t *testing.T) {
+		_, ok := stringSliceValue(nil)
+		assert.False(t, ok)
+		_, ok = stringSliceValue("not-a-slice")
+		assert.False(t, ok)
+	})
+}
