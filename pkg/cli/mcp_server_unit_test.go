@@ -128,7 +128,7 @@ func TestMCPServerUnit_CompileTool(t *testing.T) {
 
 func TestMCPServerUnit_CompileToolBulkTimeoutReturnsStructuredError(t *testing.T) {
 	originalTimeout := mcpCompileBulkTimeout
-	mcpCompileBulkTimeout = 20 * time.Millisecond
+	mcpCompileBulkTimeout = 100 * time.Millisecond
 	t.Cleanup(func() {
 		mcpCompileBulkTimeout = originalTimeout
 	})

@@ -226,11 +226,11 @@ Returns JSON array with validation results for each workflow:
 		// - Stdout contains JSON output (--json flag)
 		// - Stderr contains console messages that shouldn't be mixed with JSON
 		execCtx := ctx
-		cancel := func() {}
 		if len(args.Workflows) == 0 {
+			var cancel context.CancelFunc
 			execCtx, cancel = context.WithTimeout(ctx, mcpCompileBulkTimeout)
+			defer cancel()
 		}
-		defer cancel()
 
 		cmd := execCmd(execCtx, cmdArgs...)
 		stdout, err := cmd.Output()
