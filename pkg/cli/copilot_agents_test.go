@@ -292,11 +292,9 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 		t.Fatalf("buildAgenticWorkflowsAgentContent() returned error: %v", err)
 	}
 
-	if !strings.Contains(content, "Always load and follow `.github/skills/agentic-workflows/SKILL.md`.") {
-		t.Fatalf("Expected agent content to explicitly load the skill, got:\n%s", content)
-	}
-	if strings.Contains(content, "Load `.github/aw/*.md`") || strings.Contains(content, ".github/aw/") {
-		t.Fatalf("Expected agent content to omit prompt dispatch list, got:\n%s", content)
+	expected := agenticWorkflowsAgentHeader + "Always load and follow `.github/skills/agentic-workflows/SKILL.md`.\n"
+	if content != expected {
+		t.Fatalf("Expected exact agent content:\n%s\ngot:\n%s", expected, content)
 	}
 }
 
