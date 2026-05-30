@@ -79,30 +79,39 @@ func renameRateLimitToUserRateLimit(lines []string) ([]string, bool) {
 		}
 
 		if inUserRateLimit {
-			lineIndent := getIndentation(line)
-			if isDescendant(lineIndent, userRateLimitIndent) {
-				if len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") && userRateLimitChildIndent == "" {
-					userRateLimitChildIndent = lineIndent
-				}
-				if userRateLimitChildIndent != "" && lineIndent != userRateLimitChildIndent {
-					result = append(result, line)
-					continue
-				}
-				newLine, replaced := findAndReplaceInLine(line, "max-runs", "max-runs-per-window")
-				if !replaced {
-					newLine, replaced = findAndReplaceInLine(line, "max", "max-runs-per-window")
-				}
-				if replaced {
-					result = append(result, newLine)
-					modified = true
-					userRateLimitCodemodLog.Printf("Renamed max field to 'max-runs-per-window' on line %d", i+1)
-					continue
-				}
+			newLine, wasModified, newChildIndent := renameRateLimitFields(line, trimmed, userRateLimitIndent, userRateLimitChildIndent, i)
+			userRateLimitChildIndent = newChildIndent
+			result = append(result, newLine)
+			if wasModified {
+				modified = true
 			}
+			continue
 		}
 
 		result = append(result, line)
 	}
 
 	return result, modified
+}
+
+func renameRateLimitFields(line, trimmed, rateLimitIndent, childIndent string, lineIdx int) (string, bool, string) {
+	lineIndent := getIndentation(line)
+	if !isDescendant(lineIndent, rateLimitIndent) {
+		return line, false, childIndent
+	}
+	if len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") && childIndent == "" {
+		childIndent = lineIndent
+	}
+	if childIndent != "" && lineIndent != childIndent {
+		return line, false, childIndent
+	}
+	newLine, replaced := findAndReplaceInLine(line, "max-runs", "max-runs-per-window")
+	if !replaced {
+		newLine, replaced = findAndReplaceInLine(line, "max", "max-runs-per-window")
+	}
+	if replaced {
+		userRateLimitCodemodLog.Printf("Renamed max field to 'max-runs-per-window' on line %d", lineIdx+1)
+		return newLine, true, childIndent
+	}
+	return line, false, childIndent
 }
