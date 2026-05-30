@@ -151,6 +151,18 @@ func TestModelMultipliersInventoryUpdate20260525(t *testing.T) {
 	assert.InDelta(t, 0.0, loadedMultipliers["gpt-3.5-turbo-0613"], 1e-9, "gpt-3.5-turbo-0613 should be present with zero multiplier")
 }
 
+func TestModelMultipliersInventoryUpdate20260530(t *testing.T) {
+	loadedMultipliers = nil
+	initMultipliers()
+
+	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
+	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4-8"], 1e-9, "claude-opus-4-8 should match documented multiplier")
+	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4.7"], 1e-9, "claude-opus-4.7 should match the hyphenated claude-opus-4-7 multiplier")
+	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4.8"], 1e-9, "claude-opus-4.8 should match the hyphenated claude-opus-4-8 multiplier")
+	assert.InDelta(t, 7.5, loadedMultipliers["gpt-5.5"], 1e-9, "gpt-5.5 should retain its existing multiplier")
+	assert.InDelta(t, 7.5, loadedMultipliers["gpt-5.5-2026-04-23"], 1e-9, "gpt-5.5-2026-04-23 should retain its existing multiplier")
+}
+
 func TestModelMultipliersRemovedCopilotAliases(t *testing.T) {
 	loadedMultipliers = nil
 	initMultipliers()
