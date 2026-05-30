@@ -503,13 +503,15 @@ func (e *CodexEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActi
 // Updated to use ToolsConfig instead of map[string]any
 func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *ToolsConfig {
 	if toolsConfig == nil {
-		return &ToolsConfig{
-			Custom: make(map[string]MCPServerConfig),
-			raw:    make(map[string]any),
-		}
+		return &ToolsConfig{Custom: make(map[string]MCPServerConfig), raw: make(map[string]any)}
 	}
 
-	// Create a copy of the tools config
+	result := copyCodexToolsConfig(toolsConfig)
+	e.applyCodexPlaywrightToolConfig(toolsConfig, result)
+	return result
+}
+
+func copyCodexToolsConfig(toolsConfig *ToolsConfig) *ToolsConfig {
 	result := &ToolsConfig{
 		GitHub:           toolsConfig.GitHub,
 		Bash:             toolsConfig.Bash,
@@ -524,47 +526,33 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 		Custom:           make(map[string]MCPServerConfig),
 		raw:              make(map[string]any),
 	}
-
-	// Copy custom tools
 	maps.Copy(result.Custom, toolsConfig.Custom)
-
-	// Copy raw map
 	maps.Copy(result.raw, toolsConfig.raw)
-
-	// Handle playwright tool by converting it to an MCP tool configuration with copilot agent tools
-	if toolsConfig.Playwright != nil {
-		// Create an updated Playwright config preserving all fields including Mode
-		playwrightConfig := &PlaywrightToolConfig{
-			Version: toolsConfig.Playwright.Version,
-			Args:    toolsConfig.Playwright.Args,
-			Mode:    toolsConfig.Playwright.Mode,
-		}
-
-		result.Playwright = playwrightConfig
-
-		// In CLI mode, playwright is not an MCP server — remove from raw map and skip MCP config entry.
-		// result.raw is populated by maps.Copy(result.raw, toolsConfig.raw) earlier in this function,
-		// so delete is safe regardless of whether the key was originally present.
-		if playwrightConfig.IsCLIMode() {
-			delete(result.raw, "playwright")
-		} else {
-			// Also update the Custom map entry for playwright with allowed tools list
-			playwrightMCP := map[string]any{
-				"allowed": GetPlaywrightTools(),
-			}
-			if playwrightConfig.Version != "" {
-				playwrightMCP["version"] = playwrightConfig.Version
-			}
-			if len(playwrightConfig.Args) > 0 {
-				playwrightMCP["args"] = playwrightConfig.Args
-			}
-
-			// Update raw map for backward compatibility
-			result.raw["playwright"] = playwrightMCP
-		}
-	}
-
 	return result
+}
+
+func (e *CodexEngine) applyCodexPlaywrightToolConfig(toolsConfig *ToolsConfig, result *ToolsConfig) {
+	if toolsConfig.Playwright == nil {
+		return
+	}
+	playwrightConfig := &PlaywrightToolConfig{
+		Version: toolsConfig.Playwright.Version,
+		Args:    toolsConfig.Playwright.Args,
+		Mode:    toolsConfig.Playwright.Mode,
+	}
+	result.Playwright = playwrightConfig
+	if playwrightConfig.IsCLIMode() {
+		delete(result.raw, "playwright")
+		return
+	}
+	playwrightMCP := map[string]any{"allowed": GetPlaywrightTools()}
+	if playwrightConfig.Version != "" {
+		playwrightMCP["version"] = playwrightConfig.Version
+	}
+	if len(playwrightConfig.Args) > 0 {
+		playwrightMCP["args"] = playwrightConfig.Args
+	}
+	result.raw["playwright"] = playwrightMCP
 }
 
 // expandNeutralToolsToCodexToolsFromMap is a backward compatibility wrapper
