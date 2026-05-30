@@ -21,12 +21,16 @@ func TestUpdateManifestWorkflowGroup_AddsUpdatesRemoves(t *testing.T) {
 	originalListPackage := listPackageWorkflowFilesForHost
 	originalDefaultBranch := getRepositoryPackageDefaultBranch
 	originalDownloadWorkflow := downloadWorkflowContentFn
+	originalDirSubdirs := listPackageDirSubdirsForHost
+	originalDirFiles := listPackageDirFilesForHost
 	t.Cleanup(func() {
 		resolveLatestRefFn = originalResolveLatestRef
 		downloadPackageFileFromGitHubForHost = originalDownloadPackage
 		listPackageWorkflowFilesForHost = originalListPackage
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 		downloadWorkflowContentFn = originalDownloadWorkflow
+		listPackageDirSubdirsForHost = originalDirSubdirs
+		listPackageDirFilesForHost = originalDirFiles
 	})
 
 	resolveLatestRefFn = func(ctx context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error) {
@@ -51,6 +55,13 @@ func TestUpdateManifestWorkflowGroup_AddsUpdatesRemoves(t *testing.T) {
 	}
 	listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
 		return nil, errors.New("unexpected scan")
+	}
+	// Return not-found so skill/agent auto-scan skips gracefully (no real network needed)
+	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		return nil, createRepositoryPackageNotFoundError(dirPath)
+	}
+	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
 
 	downloadWorkflowContentFn = func(_ context.Context, repo, path, ref string, _ bool) ([]byte, error) {
