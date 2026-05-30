@@ -57,7 +57,7 @@ async function main(config = {}) {
 
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   if (defaultTargetRepo) core.info(`Target repository: ${defaultTargetRepo}`);
-  if (allowedRepos.length > 0) core.info(`Allowed repositories: ${allowedRepos.join(", ")}`);
+  if (allowedRepos.size > 0) core.info(`Allowed repositories: ${Array.from(allowedRepos).join(", ")}`);
 
   core.info(`Assign milestone configuration: max=${maxCount}, auto_create=${autoCreate}`);
   if (allowedMilestones.length > 0) {
