@@ -16,21 +16,21 @@ import (
 func TestRateLimitResponseUnmarshal(t *testing.T) {
 	now := time.Now().Add(time.Second * 30).Unix()
 	raw := []byte(`{
-		"resources": {
-			"core": {
-				"limit": 5000,
-				"remaining": 42,
-				"reset": ` + jsonInt(now) + `,
-				"used": 4958
-			}
-		},
-		"rate": {
-			"limit": 5000,
-			"remaining": 42,
-			"reset": ` + jsonInt(now) + `,
-			"used": 4958
-		}
-	}`)
+"resources": {
+"core": {
+"limit": 5000,
+"remaining": 42,
+"reset": ` + jsonInt(t, now) + `,
+"used": 4958
+}
+},
+"rate": {
+"limit": 5000,
+"remaining": 42,
+"reset": ` + jsonInt(t, now) + `,
+"used": 4958
+}
+}`)
 
 	var resp rateLimitResponse
 	require.NoError(t, json.Unmarshal(raw, &resp), "unmarshal should succeed")
@@ -79,7 +79,9 @@ func TestRateLimitResourceIsBelowThreshold(t *testing.T) {
 }
 
 // jsonInt is a helper that converts an int64 to its JSON number representation.
-func jsonInt(n int64) string {
-	b, _ := json.Marshal(n)
+func jsonInt(t *testing.T, n int64) string {
+	t.Helper()
+	b, err := json.Marshal(n)
+	require.NoError(t, err, "marshal JSON integer")
 	return string(b)
 }

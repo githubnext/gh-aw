@@ -7,86 +7,40 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewLogsCommand(t *testing.T) {
-	cmd := NewLogsCommand()
-
+func assertLogsCommandMetadata(t *testing.T, cmd *cobra.Command) {
+	t.Helper()
 	require.NotNil(t, cmd, "NewLogsCommand should not return nil")
 	assert.Equal(t, "logs [workflow]", cmd.Use, "Command use should be 'logs [workflow]'")
 	assert.Equal(t, "Download and analyze agentic workflow logs with aggregated metrics", cmd.Short, "Command short description should match")
 	assert.Contains(t, cmd.Long, "Download and analyze agentic workflow logs", "Command long description should contain expected text")
 	assert.Contains(t, cmd.Long, "logs --cache-before -1w", "Cache maintenance examples should use the cache-before flag name")
+}
 
-	// Verify flags are registered
+func assertLogsCommandFlagsRegistered(t *testing.T, cmd *cobra.Command) {
+	t.Helper()
 	flags := cmd.Flags()
-
-	// Check count flag
-	countFlag := flags.Lookup("count")
-	assert.NotNil(t, countFlag, "Should have 'count' flag")
-	assert.Equal(t, "c", countFlag.Shorthand, "Count flag shorthand should be 'c'")
-
-	// Check start-date flag
-	startDateFlag := flags.Lookup("start-date")
-	assert.NotNil(t, startDateFlag, "Should have 'start-date' flag")
-
-	// Check end-date flag
-	endDateFlag := flags.Lookup("end-date")
-	assert.NotNil(t, endDateFlag, "Should have 'end-date' flag")
-
-	// Check engine flag
-	engineFlag := flags.Lookup("engine")
-	assert.NotNil(t, engineFlag, "Should have 'engine' flag")
-
-	// Check firewall flags
-	firewallFlag := flags.Lookup("firewall")
-	assert.NotNil(t, firewallFlag, "Should have 'firewall' flag")
-	noFirewallFlag := flags.Lookup("no-firewall")
-	assert.NotNil(t, noFirewallFlag, "Should have 'no-firewall' flag")
-
-	// Check output flag
-	outputFlag := flags.Lookup("output")
-	assert.NotNil(t, outputFlag, "Should have 'output' flag")
-	assert.Equal(t, "o", outputFlag.Shorthand, "Output flag shorthand should be 'o'")
-
-	// Check ref flag
-	refFlag := flags.Lookup("ref")
-	assert.NotNil(t, refFlag, "Should have 'ref' flag")
-
-	// Check run ID filters
-	afterRunIDFlag := flags.Lookup("after-run-id")
-	assert.NotNil(t, afterRunIDFlag, "Should have 'after-run-id' flag")
-	beforeRunIDFlag := flags.Lookup("before-run-id")
-	assert.NotNil(t, beforeRunIDFlag, "Should have 'before-run-id' flag")
-
-	// Check tool-graph flag
-	toolGraphFlag := flags.Lookup("tool-graph")
-	assert.NotNil(t, toolGraphFlag, "Should have 'tool-graph' flag")
-
-	// Check parse flag
-	parseFlag := flags.Lookup("parse")
-	assert.NotNil(t, parseFlag, "Should have 'parse' flag")
-
-	// Check json flag
-	jsonFlag := flags.Lookup("json")
-	assert.NotNil(t, jsonFlag, "Should have 'json' flag")
-
-	// Check repo flag
-	repoFlag := flags.Lookup("repo")
-	assert.NotNil(t, repoFlag, "Should have 'repo' flag")
-
-	// Check cache-before flag (cache maintenance)
+	for _, flagName := range []string{"count", "start-date", "end-date", "engine", "firewall", "no-firewall", "output", "ref", "after-run-id", "before-run-id", "tool-graph", "parse", "json", "repo", "cache-before"} {
+		assert.NotNil(t, flags.Lookup(flagName), "Should have '%s' flag", flagName)
+	}
+	assert.Equal(t, "c", flags.Lookup("count").Shorthand, "Count flag shorthand should be 'c'")
+	assert.Equal(t, "o", flags.Lookup("output").Shorthand, "Output flag shorthand should be 'o'")
 	cacheBeforeFlag := flags.Lookup("cache-before")
-	assert.NotNil(t, cacheBeforeFlag, "Should have 'cache-before' flag")
 	assert.Contains(t, cacheBeforeFlag.Usage, "-1d", "cache-before flag should document day deltas")
 	assert.Contains(t, cacheBeforeFlag.Usage, "-30d", "cache-before flag should document explicit day-count deltas")
-
-	// Backward-compatible alias should remain registered but hidden from help output
 	afterAliasFlag := flags.Lookup("after")
 	assert.NotNil(t, afterAliasFlag, "Should retain hidden 'after' alias")
 	assert.True(t, afterAliasFlag.Hidden, "'after' alias should be hidden from help output")
+}
+
+func TestNewLogsCommand(t *testing.T) {
+	cmd := NewLogsCommand()
+	assertLogsCommandMetadata(t, cmd)
+	assertLogsCommandFlagsRegistered(t, cmd)
 }
 
 func TestLogsCommandFlagDefaults(t *testing.T) {

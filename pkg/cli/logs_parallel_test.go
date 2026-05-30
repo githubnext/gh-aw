@@ -173,84 +173,55 @@ func TestMaxConcurrentDownloads(t *testing.T) {
 	}
 }
 
-func TestGetMaxConcurrentDownloads(t *testing.T) {
-	// Save original env value
-	originalValue := os.Getenv("GH_AW_MAX_CONCURRENT_DOWNLOADS")
-	defer func() {
-		if originalValue != "" {
-			os.Setenv("GH_AW_MAX_CONCURRENT_DOWNLOADS", originalValue)
-		} else {
-			os.Unsetenv("GH_AW_MAX_CONCURRENT_DOWNLOADS")
-		}
-	}()
+type maxConcurrentDownloadsTestCase struct {
+	name     string
+	envValue string
+	expected int
+}
 
-	tests := []struct {
-		name     string
-		envValue string
-		expected int
-	}{
-		{
-			name:     "default when env var not set",
-			envValue: "",
-			expected: MaxConcurrentDownloads,
-		},
-		{
-			name:     "valid value 5",
-			envValue: "5",
-			expected: 5,
-		},
-		{
-			name:     "valid value 1 (minimum)",
-			envValue: "1",
-			expected: 1,
-		},
-		{
-			name:     "valid value 100 (maximum)",
-			envValue: "100",
-			expected: 100,
-		},
-		{
-			name:     "valid value 50",
-			envValue: "50",
-			expected: 50,
-		},
-		{
-			name:     "invalid non-numeric value",
-			envValue: "invalid",
-			expected: MaxConcurrentDownloads,
-		},
-		{
-			name:     "invalid zero value",
-			envValue: "0",
-			expected: MaxConcurrentDownloads,
-		},
-		{
-			name:     "invalid negative value",
-			envValue: "-5",
-			expected: MaxConcurrentDownloads,
-		},
-		{
-			name:     "invalid too large value",
-			envValue: "101",
-			expected: MaxConcurrentDownloads,
-		},
-		{
-			name:     "invalid extremely large value",
-			envValue: "1000",
-			expected: MaxConcurrentDownloads,
-		},
+func maxConcurrentDownloadsTestCases() []maxConcurrentDownloadsTestCase {
+	return []maxConcurrentDownloadsTestCase{
+		{name: "default when env var not set", envValue: "", expected: MaxConcurrentDownloads},
+		{name: "valid value 5", envValue: "5", expected: 5},
+		{name: "valid value 1 (minimum)", envValue: "1", expected: 1},
+		{name: "valid value 100 (maximum)", envValue: "100", expected: 100},
+		{name: "valid value 50", envValue: "50", expected: 50},
+		{name: "invalid non-numeric value", envValue: "invalid", expected: MaxConcurrentDownloads},
+		{name: "invalid zero value", envValue: "0", expected: MaxConcurrentDownloads},
+		{name: "invalid negative value", envValue: "-5", expected: MaxConcurrentDownloads},
+		{name: "invalid too large value", envValue: "101", expected: MaxConcurrentDownloads},
+		{name: "invalid extremely large value", envValue: "1000", expected: MaxConcurrentDownloads},
 	}
+}
 
-	for _, tt := range tests {
+func setMaxConcurrentDownloadsEnv(t *testing.T, value string) {
+	t.Helper()
+	const envName = "GH_AW_MAX_CONCURRENT_DOWNLOADS"
+	originalValue, hadOriginal := os.LookupEnv(envName)
+	if value == "" {
+		if err := os.Unsetenv(envName); err != nil {
+			t.Fatalf("unset %s: %v", envName, err)
+		}
+	} else if err := os.Setenv(envName, value); err != nil {
+		t.Fatalf("set %s: %v", envName, err)
+	}
+	t.Cleanup(func() {
+		var err error
+		if hadOriginal {
+			err = os.Setenv(envName, originalValue)
+		} else {
+			err = os.Unsetenv(envName)
+		}
+		if err != nil {
+			t.Fatalf("restore %s: %v", envName, err)
+		}
+	})
+}
+
+func TestGetMaxConcurrentDownloads(t *testing.T) {
+	for _, tt := range maxConcurrentDownloadsTestCases() {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set environment variable
-			if tt.envValue != "" {
-				os.Setenv("GH_AW_MAX_CONCURRENT_DOWNLOADS", tt.envValue)
-			} else {
-				os.Unsetenv("GH_AW_MAX_CONCURRENT_DOWNLOADS")
-			}
-
-			// Test the function
+			setMaxConcurrentDownloadsEnv(t, tt.envValue)
 			result := getMaxConcurrentDownloads()
 			if result != tt.expected {
 				t.Errorf("Expected %d, got %d", tt.expected, result)

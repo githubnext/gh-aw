@@ -185,83 +185,43 @@ func TestExtractZipFileWithNestedDirectories(t *testing.T) {
 	assert.Equal(t, testContent, string(extractedContent), "Nested file content should match original")
 }
 
-// TestExtractZipFileErrorHandling tests that the function properly handles and returns errors
-// This test validates the security fix for CWE-252: Unchecked Return Value
-func TestExtractZipFileErrorHandling(t *testing.T) {
-	t.Run("returns error when opening invalid zip file", func(t *testing.T) {
-		// Create a temporary directory for extraction
-		tempDir := t.TempDir()
+func makeSingleFileZipReader(t *testing.T, fileName, content string) *zip.Reader {
+	t.Helper()
+	buf := new(bytes.Buffer)
+	zipWriter := zip.NewWriter(buf)
+	writer, err := zipWriter.Create(fileName)
+	require.NoError(t, err)
+	_, err = writer.Write([]byte(content))
+	require.NoError(t, err)
+	err = zipWriter.Close()
+	require.NoError(t, err)
+	zipReader, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	require.NoError(t, err)
+	return zipReader
+}
 
-		// Create an invalid zip file entry (this test is more about the error propagation pattern)
-		buf := new(bytes.Buffer)
-		zipWriter := zip.NewWriter(buf)
+// TestExtractZipFileErrorHandling tests that the function properly handles and returns errors.
+// This test validates the security fix for CWE-252: Unchecked Return Value.
+func TestExtractZipFileErrorHandlingReadOnlyDestination(t *testing.T) {
+	tempDir := t.TempDir()
+	zipReader := makeSingleFileZipReader(t, "test.txt", "content")
+	readOnlyDir := filepath.Join(tempDir, "readonly")
+	err := os.MkdirAll(readOnlyDir, 0555)
+	require.NoError(t, err)
+	err = extractZipFile(zipReader.File[0], readOnlyDir, false)
+	if err == nil {
+		t.Skip("expected extraction to fail in read-only directory, but it succeeded (likely elevated privileges)")
+	}
+	assert.Contains(t, err.Error(), "failed to create", "Error should mention creation failure")
+}
 
-		// Create a valid file
-		writer, err := zipWriter.Create("test.txt")
-		require.NoError(t, err)
-		_, err = writer.Write([]byte("content"))
-		require.NoError(t, err)
-
-		err = zipWriter.Close()
-		require.NoError(t, err)
-
-		// Read the zip
-		zipReader, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
-		require.NoError(t, err)
-
-		// Extract to a read-only destination (will fail on create in most environments).
-		//
-		// Note: When running as root (or with elevated permissions), creating files inside a
-		// 0555 directory may still succeed depending on the platform and filesystem.
-		// In that case, we skip this assertion rather than make the suite flaky.
-		readOnlyDir := filepath.Join(tempDir, "readonly")
-		err = os.MkdirAll(readOnlyDir, 0555) // Read-only directory
-		require.NoError(t, err)
-
-		// Try to extract - should fail and return error
-		err = extractZipFile(zipReader.File[0], readOnlyDir, false)
-		if err == nil {
-			// Likely running with elevated privileges.
-			t.Skip("expected extraction to fail in read-only directory, but it succeeded (likely elevated privileges)")
-		}
-		assert.Contains(t, err.Error(), "failed to create", "Error should mention creation failure")
-	})
-
-	t.Run("validates error return signature for writable file close", func(t *testing.T) {
-		// This test documents the security fix: the function uses named return value
-		// to properly handle errors from closing writable files (CWE-252)
-
-		// Create a temporary directory for extraction
-		tempDir := t.TempDir()
-
-		// Create a valid zip file
-		buf := new(bytes.Buffer)
-		zipWriter := zip.NewWriter(buf)
-
-		writer, err := zipWriter.Create("test.txt")
-		require.NoError(t, err)
-		_, err = writer.Write([]byte("test content"))
-		require.NoError(t, err)
-
-		err = zipWriter.Close()
-		require.NoError(t, err)
-
-		// Read the zip
-		zipReader, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
-		require.NoError(t, err)
-
-		// Extract successfully
-		err = extractZipFile(zipReader.File[0], tempDir, false)
-		require.NoError(t, err, "Normal extraction should succeed")
-
-		// Verify file was written
-		extractedPath := filepath.Join(tempDir, "test.txt")
-		content, err := os.ReadFile(extractedPath)
-		require.NoError(t, err)
-		assert.Equal(t, "test content", string(content))
-
-		// Note: The security fix ensures that if Close() fails on the writable file,
-		// the error is captured and returned via the named return value (extractErr).
-		// This prevents silent data loss that could occur if Close() errors were ignored.
-	})
+func TestExtractZipFileErrorHandlingWritableClosePath(t *testing.T) {
+	tempDir := t.TempDir()
+	zipReader := makeSingleFileZipReader(t, "test.txt", "test content")
+	err := extractZipFile(zipReader.File[0], tempDir, false)
+	require.NoError(t, err, "Normal extraction should succeed")
+	extractedPath := filepath.Join(tempDir, "test.txt")
+	content, err := os.ReadFile(extractedPath)
+	require.NoError(t, err)
+	assert.Equal(t, "test content", string(content))
 }

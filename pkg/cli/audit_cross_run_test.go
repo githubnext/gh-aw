@@ -65,89 +65,45 @@ func TestBuildCrossRunAuditReport_SingleRunWithData(t *testing.T) {
 	assert.True(t, report.PerRunBreakdown[0].HasData, "Run should have data")
 }
 
-func TestBuildCrossRunAuditReport_MultipleRuns(t *testing.T) {
-	inputs := []crossRunInput{
-		{
-			RunID:        100,
-			WorkflowName: "workflow-a",
-			Conclusion:   "success",
-			FirewallAnalysis: &FirewallAnalysis{
-				TotalRequests:   5,
-				AllowedRequests: 5,
-				BlockedRequests: 0,
-				RequestsByDomain: map[string]DomainRequestStats{
-					"api.github.com:443":     {Allowed: 3, Blocked: 0},
-					"npm.pkg.github.com:443": {Allowed: 2, Blocked: 0},
-				},
-			},
-		},
-		{
-			RunID:        200,
-			WorkflowName: "workflow-a",
-			Conclusion:   "failure",
-			FirewallAnalysis: &FirewallAnalysis{
-				TotalRequests:   8,
-				AllowedRequests: 5,
-				BlockedRequests: 3,
-				RequestsByDomain: map[string]DomainRequestStats{
-					"api.github.com:443":   {Allowed: 3, Blocked: 0},
-					"evil.example.com:443": {Allowed: 0, Blocked: 3},
-					"pypi.org:443":         {Allowed: 2, Blocked: 0},
-				},
-			},
-		},
-		{
-			RunID:            300,
-			WorkflowName:     "workflow-b",
-			Conclusion:       "success",
-			FirewallAnalysis: nil, // no firewall data
-		},
+func multipleRunsCrossRunInputs() []crossRunInput {
+	return []crossRunInput{
+		{RunID: 100, WorkflowName: "workflow-a", Conclusion: "success", FirewallAnalysis: &FirewallAnalysis{TotalRequests: 5, AllowedRequests: 5, BlockedRequests: 0, RequestsByDomain: map[string]DomainRequestStats{"api.github.com:443": {Allowed: 3, Blocked: 0}, "npm.pkg.github.com:443": {Allowed: 2, Blocked: 0}}}},
+		{RunID: 200, WorkflowName: "workflow-a", Conclusion: "failure", FirewallAnalysis: &FirewallAnalysis{TotalRequests: 8, AllowedRequests: 5, BlockedRequests: 3, RequestsByDomain: map[string]DomainRequestStats{"api.github.com:443": {Allowed: 3, Blocked: 0}, "evil.example.com:443": {Allowed: 0, Blocked: 3}, "pypi.org:443": {Allowed: 2, Blocked: 0}}}},
+		{RunID: 300, WorkflowName: "workflow-b", Conclusion: "success", FirewallAnalysis: nil},
 	}
+}
 
-	report := buildCrossRunAuditReport(inputs)
+func findDomainInventoryEntry(entries []DomainInventoryEntry, domain string) *DomainInventoryEntry {
+	for i, entry := range entries {
+		if entry.Domain == domain {
+			return &entries[i]
+		}
+	}
+	return nil
+}
 
+func TestBuildCrossRunAuditReport_MultipleRuns(t *testing.T) {
+	report := buildCrossRunAuditReport(multipleRunsCrossRunInputs())
 	assert.Equal(t, 3, report.RunsAnalyzed, "Should analyze 3 runs")
 	assert.Equal(t, 2, report.RunsWithData, "Should have 2 runs with data")
 	assert.Equal(t, 1, report.RunsWithoutData, "Should have 1 run without data")
-
-	// Summary
 	assert.Equal(t, 13, report.Summary.TotalRequests, "Total requests should be 13")
 	assert.Equal(t, 10, report.Summary.TotalAllowed, "Total allowed should be 10")
 	assert.Equal(t, 3, report.Summary.TotalBlocked, "Total blocked should be 3")
 	assert.Equal(t, 4, report.Summary.UniqueDomains, "Should have 4 unique domains")
-
-	// Domain inventory: api.github.com should be seen in 2 runs
-	var githubEntry *DomainInventoryEntry
-	for i, entry := range report.DomainInventory {
-		if entry.Domain == "api.github.com:443" {
-			githubEntry = &report.DomainInventory[i]
-			break
-		}
-	}
+	githubEntry := findDomainInventoryEntry(report.DomainInventory, "api.github.com:443")
 	require.NotNil(t, githubEntry, "Should find api.github.com in inventory")
 	assert.Equal(t, 2, githubEntry.SeenInRuns, "api.github.com should be seen in 2 runs")
 	assert.Equal(t, 6, githubEntry.TotalAllowed, "api.github.com total allowed should be 6")
 	assert.Equal(t, "allowed", githubEntry.OverallStatus, "api.github.com should be overall allowed")
-
-	// Per-run status for api.github.com should include all 3 runs
 	require.Len(t, githubEntry.PerRunStatus, 3, "api.github.com per-run status should include all 3 runs")
 	assert.Equal(t, "allowed", githubEntry.PerRunStatus[0].Status, "Run 100 should be allowed")
 	assert.Equal(t, "allowed", githubEntry.PerRunStatus[1].Status, "Run 200 should be allowed")
 	assert.Equal(t, "absent", githubEntry.PerRunStatus[2].Status, "Run 300 should be absent")
-
-	// evil.example.com should only be in run 200
-	var evilEntry *DomainInventoryEntry
-	for i, entry := range report.DomainInventory {
-		if entry.Domain == "evil.example.com:443" {
-			evilEntry = &report.DomainInventory[i]
-			break
-		}
-	}
+	evilEntry := findDomainInventoryEntry(report.DomainInventory, "evil.example.com:443")
 	require.NotNil(t, evilEntry, "Should find evil.example.com in inventory")
 	assert.Equal(t, 1, evilEntry.SeenInRuns, "evil.example.com should be seen in 1 run")
 	assert.Equal(t, "denied", evilEntry.OverallStatus, "evil.example.com should be overall denied")
-
-	// Per-run breakdown: run 300 should have HasData=false
 	require.Len(t, report.PerRunBreakdown, 3, "Should have 3 per-run breakdown entries")
 	assert.False(t, report.PerRunBreakdown[2].HasData, "Run 300 should have no data")
 }
@@ -380,68 +336,47 @@ func TestNewLogsCommand_HasFormatFlag(t *testing.T) {
 	require.NotNil(t, cmd.Flags().Lookup("count"), "Should have --count flag")
 }
 
-func TestLogsCommand_FormatPrecedence(t *testing.T) {
-	tests := []struct {
+func logsCommandFormatPrecedenceTestCases() []struct {
+	name       string
+	jsonOutput bool
+	format     string
+	wantMode   string
+} {
+	return []struct {
 		name       string
 		jsonOutput bool
 		format     string
-		wantMode   string // "crossrun-json", "crossrun-markdown", "crossrun-pretty", "default-json", "default-console"
+		wantMode   string
 	}{
-		{
-			name:       "no format uses default console",
-			jsonOutput: false,
-			format:     "",
-			wantMode:   "default-console",
-		},
-		{
-			name:       "json flag without format uses default json",
-			jsonOutput: true,
-			format:     "",
-			wantMode:   "default-json",
-		},
-		{
-			name:       "format=markdown triggers cross-run markdown report",
-			jsonOutput: false,
-			format:     "markdown",
-			wantMode:   "crossrun-markdown",
-		},
-		{
-			name:       "format=pretty triggers cross-run pretty report",
-			jsonOutput: false,
-			format:     "pretty",
-			wantMode:   "crossrun-pretty",
-		},
-		{
-			name:       "format=markdown with json flag triggers cross-run json report",
-			jsonOutput: true,
-			format:     "markdown",
-			wantMode:   "crossrun-json",
-		},
-		{
-			name:       "format=pretty with json flag triggers cross-run json report",
-			jsonOutput: true,
-			format:     "pretty",
-			wantMode:   "crossrun-json",
-		},
+		{name: "no format uses default console", wantMode: "default-console"},
+		{name: "json flag without format uses default json", jsonOutput: true, wantMode: "default-json"},
+		{name: "format=markdown triggers cross-run markdown report", format: "markdown", wantMode: "crossrun-markdown"},
+		{name: "format=pretty triggers cross-run pretty report", format: "pretty", wantMode: "crossrun-pretty"},
+		{name: "format=markdown with json flag triggers cross-run json report", jsonOutput: true, format: "markdown", wantMode: "crossrun-json"},
+		{name: "format=pretty with json flag triggers cross-run json report", jsonOutput: true, format: "pretty", wantMode: "crossrun-json"},
 	}
+}
 
-	for _, tt := range tests {
+func selectLogsCommandOutputMode(format string, jsonOutput bool) string {
+	if format == "markdown" || format == "pretty" {
+		if jsonOutput {
+			return "crossrun-json"
+		}
+		if format == "pretty" {
+			return "crossrun-pretty"
+		}
+		return "crossrun-markdown"
+	}
+	if jsonOutput {
+		return "default-json"
+	}
+	return "default-console"
+}
+
+func TestLogsCommand_FormatPrecedence(t *testing.T) {
+	for _, tt := range logsCommandFormatPrecedenceTestCases() {
 		t.Run(tt.name, func(t *testing.T) {
-			// Apply the same format selection logic as DownloadWorkflowLogs
-			var selected string
-			if tt.format == "markdown" || tt.format == "pretty" {
-				if tt.jsonOutput {
-					selected = "crossrun-json"
-				} else if tt.format == "pretty" {
-					selected = "crossrun-pretty"
-				} else {
-					selected = "crossrun-markdown"
-				}
-			} else if tt.jsonOutput {
-				selected = "default-json"
-			} else {
-				selected = "default-console"
-			}
+			selected := selectLogsCommandOutputMode(tt.format, tt.jsonOutput)
 			assert.Equal(t, tt.wantMode, selected, "Output mode should be selected correctly for format=%q jsonOutput=%v", tt.format, tt.jsonOutput)
 		})
 	}
@@ -629,98 +564,35 @@ func TestBuildMetricsTrend_NoSpikes(t *testing.T) {
 	assert.Empty(t, trend.TokenSpikes, "No spikes when all tokens are similar")
 }
 
-func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
-	report := &CrossRunAuditReport{
-		RunsAnalyzed:    2,
-		RunsWithData:    2,
-		RunsWithoutData: 0,
-		Summary: CrossRunSummary{
-			TotalRequests:   5,
-			TotalAllowed:    5,
-			TotalBlocked:    0,
-			OverallDenyRate: 0.0,
-			UniqueDomains:   1,
-		},
-		MetricsTrend: MetricsTrendData{
-			TotalTokens: 30000,
-			AvgTokens:   15000,
-			MinTokens:   10000,
-			MaxTokens:   20000,
-			TotalTurns:  15,
-			MaxTurns:    10,
-			AvgTurns:    7.5,
-			TokenSpikes: []int64{200},
-		},
-		MCPHealth: []MCPServerCrossRunHealth{
-			{
-				ServerName:    "github",
-				RunsConnected: 2,
-				TotalRuns:     2,
-				TotalCalls:    20,
-				TotalErrors:   1,
-				ErrorRate:     0.05,
-				Unreliable:    false,
-			},
-		},
-		ErrorTrend: ErrorTrendData{
-			RunsWithErrors:  1,
-			TotalErrors:     2,
-			AvgErrorsPerRun: 1.0,
-		},
-		DomainInventory: []DomainInventoryEntry{
-			{
-				Domain:        "api.github.com:443",
-				SeenInRuns:    2,
-				TotalAllowed:  5,
-				TotalBlocked:  0,
-				OverallStatus: "allowed",
-			},
-		},
-		PerRunBreakdown: []PerRunFirewallBreakdown{
-			{
-				RunID:         100,
-				WorkflowName:  "test",
-				Conclusion:    "success",
-				TotalRequests: 3,
-				Allowed:       3,
-				Blocked:       0,
-				DenyRate:      0.0,
-				UniqueDomains: 1,
-				Tokens:        10000,
-				Turns:         5,
-				MCPErrors:     0,
-				HasData:       true,
-			},
-			{
-				RunID:         200,
-				WorkflowName:  "test",
-				Conclusion:    "success",
-				TotalRequests: 2,
-				Allowed:       2,
-				Blocked:       0,
-				Tokens:        20000,
-				Turns:         10,
-				MCPErrors:     1,
-				HasData:       true,
-				TokenSpike:    true,
-			},
-		},
+func newMarkdownCrossRunReport() *CrossRunAuditReport {
+	return &CrossRunAuditReport{
+		RunsAnalyzed: 2, RunsWithData: 2,
+		Summary:         CrossRunSummary{TotalRequests: 5, TotalAllowed: 5, TotalBlocked: 0, OverallDenyRate: 0.0, UniqueDomains: 1},
+		MetricsTrend:    MetricsTrendData{TotalTokens: 30000, AvgTokens: 15000, MinTokens: 10000, MaxTokens: 20000, TotalTurns: 15, MaxTurns: 10, AvgTurns: 7.5, TokenSpikes: []int64{200}},
+		MCPHealth:       []MCPServerCrossRunHealth{{ServerName: "github", RunsConnected: 2, TotalRuns: 2, TotalCalls: 20, TotalErrors: 1, ErrorRate: 0.05}},
+		ErrorTrend:      ErrorTrendData{RunsWithErrors: 1, TotalErrors: 2, AvgErrorsPerRun: 1.0},
+		DomainInventory: []DomainInventoryEntry{{Domain: "api.github.com:443", SeenInRuns: 2, TotalAllowed: 5, TotalBlocked: 0, OverallStatus: "allowed"}},
+		PerRunBreakdown: []PerRunFirewallBreakdown{{RunID: 100, WorkflowName: "test", Conclusion: "success", TotalRequests: 3, Allowed: 3, Blocked: 0, DenyRate: 0.0, UniqueDomains: 1, Tokens: 10000, Turns: 5, MCPErrors: 0, HasData: true}, {RunID: 200, WorkflowName: "test", Conclusion: "success", TotalRequests: 2, Allowed: 2, Blocked: 0, Tokens: 20000, Turns: 10, MCPErrors: 1, HasData: true, TokenSpike: true}},
 	}
+}
 
-	// Capture stdout
+func renderCrossRunMarkdownOutput(t *testing.T, report *CrossRunAuditReport) string {
+	t.Helper()
 	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "Should create stdout pipe")
 	os.Stdout = w
-
+	defer func() { os.Stdout = oldStdout }()
 	renderCrossRunReportMarkdown(report)
-
-	w.Close()
-	os.Stdout = oldStdout
-
+	require.NoError(t, w.Close(), "Should close stdout writer")
 	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(r)
-	output := buf.String()
+	_, err = buf.ReadFrom(r)
+	require.NoError(t, err, "Should read markdown output")
+	return buf.String()
+}
 
+func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
+	output := renderCrossRunMarkdownOutput(t, newMarkdownCrossRunReport())
 	assert.Contains(t, output, "# Audit Report", "Should have markdown header")
 	assert.Contains(t, output, "Executive Summary", "Should have executive summary")
 	assert.Contains(t, output, "Metrics Trends", "Should have metrics trends section")

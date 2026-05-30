@@ -139,80 +139,80 @@ func compileAllWorkflowFiles(ctx context.Context, compiler *workflow.Compiler, w
 
 // compileModifiedFilesWithDependencies compiles modified files and their dependencies using the dependency graph
 func compileModifiedFilesWithDependencies(ctx context.Context, compiler *workflow.Compiler, depGraph *DependencyGraph, files []string, verbose bool) {
-if len(files) == 0 {
-return
-}
+	if len(files) == 0 {
+		return
+	}
 
-console.ClearScreen()
-workflowsToCompile := collectAffectedWorkflowsForCompilation(depGraph, compiler, files)
-printWatchRecompileMessage(workflowsToCompile, files, verbose)
+	console.ClearScreen()
+	workflowsToCompile := collectAffectedWorkflowsForCompilation(depGraph, compiler, files)
+	printWatchRecompileMessage(workflowsToCompile, files, verbose)
 
-compiler.ResetWarningCount()
-stats := &CompilationStats{}
-for _, file := range workflowsToCompile {
-compileSingleFile(ctx, compiler, file, stats, verbose, true)
-}
+	compiler.ResetWarningCount()
+	stats := &CompilationStats{}
+	for _, file := range workflowsToCompile {
+		compileSingleFile(ctx, compiler, file, stats, verbose, true)
+	}
 
-stats.Warnings = compiler.GetWarningCount()
-saveWatchCompilationState(compiler, stats, verbose)
-printCompilationSummary(stats, false)
+	stats.Warnings = compiler.GetWarningCount()
+	saveWatchCompilationState(compiler, stats, verbose)
+	printCompilationSummary(stats, false)
 }
 
 func collectAffectedWorkflowsForCompilation(depGraph *DependencyGraph, compiler *workflow.Compiler, files []string) []string {
-var workflowsToCompile []string
-uniqueWorkflows := make(map[string]bool)
+	var workflowsToCompile []string
+	uniqueWorkflows := make(map[string]bool)
 
-for _, modifiedFile := range files {
-compileHelpersLog.Printf("Processing modified file: %s", modifiedFile)
-if err := depGraph.UpdateWorkflow(modifiedFile, compiler); err != nil {
-compileHelpersLog.Printf("Warning: failed to update workflow in dependency graph: %v", err)
-}
+	for _, modifiedFile := range files {
+		compileHelpersLog.Printf("Processing modified file: %s", modifiedFile)
+		if err := depGraph.UpdateWorkflow(modifiedFile, compiler); err != nil {
+			compileHelpersLog.Printf("Warning: failed to update workflow in dependency graph: %v", err)
+		}
 
-affected := depGraph.GetAffectedWorkflows(modifiedFile)
-compileHelpersLog.Printf("File %s affects %d workflow(s)", modifiedFile, len(affected))
-for _, workflow := range affected {
-if !uniqueWorkflows[workflow] {
-uniqueWorkflows[workflow] = true
-workflowsToCompile = append(workflowsToCompile, workflow)
-}
-}
-}
+		affected := depGraph.GetAffectedWorkflows(modifiedFile)
+		compileHelpersLog.Printf("File %s affects %d workflow(s)", modifiedFile, len(affected))
+		for _, workflow := range affected {
+			if !uniqueWorkflows[workflow] {
+				uniqueWorkflows[workflow] = true
+				workflowsToCompile = append(workflowsToCompile, workflow)
+			}
+		}
+	}
 
-return workflowsToCompile
+	return workflowsToCompile
 }
 
 func printWatchRecompileMessage(workflowsToCompile []string, files []string, verbose bool) {
-fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Watching for file changes"))
-if verbose {
-fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Recompiling %d workflow(s) affected by %d change(s)...", len(workflowsToCompile), len(files))))
-}
+	fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Watching for file changes"))
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Recompiling %d workflow(s) affected by %d change(s)...", len(workflowsToCompile), len(files))))
+	}
 }
 
 func saveWatchCompilationState(compiler *workflow.Compiler, stats *CompilationStats, verbose bool) {
-actionCache := compiler.GetSharedActionCache()
-hasActionCacheEntries := actionCache != nil && len(actionCache.Entries) > 0
-successCount := stats.Total - stats.Errors
+	actionCache := compiler.GetSharedActionCache()
+	hasActionCacheEntries := actionCache != nil && len(actionCache.Entries) > 0
+	successCount := stats.Total - stats.Errors
 
-if actionCache != nil {
-pruneStaleActionCacheEntries(compiler, actionCache)
-if err := actionCache.Save(); err != nil {
-compileHelpersLog.Printf("Failed to save action cache: %v", err)
-if verbose {
-fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save action cache: %v", err)))
-}
-} else {
-compileHelpersLog.Print("Action cache saved successfully")
-}
-}
+	if actionCache != nil {
+		pruneStaleActionCacheEntries(compiler, actionCache)
+		if err := actionCache.Save(); err != nil {
+			compileHelpersLog.Printf("Failed to save action cache: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save action cache: %v", err)))
+			}
+		} else {
+			compileHelpersLog.Print("Action cache saved successfully")
+		}
+	}
 
-if successCount > 0 || hasActionCacheEntries {
-if _, err := ensureGitAttributes(); err != nil && verbose {
-fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
-}
-return
-}
+	if successCount > 0 || hasActionCacheEntries {
+		if _, err := ensureGitAttributes(); err != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
+		}
+		return
+	}
 
-compileHelpersLog.Print("Skipping .gitattributes update (no compiled workflows and no action cache entries)")
+	compileHelpersLog.Print("Skipping .gitattributes update (no compiled workflows and no action cache entries)")
 }
 
 // handleFileDeleted handles the deletion of a markdown file by removing its corresponding lock file

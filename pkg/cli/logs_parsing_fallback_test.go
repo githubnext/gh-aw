@@ -10,13 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseLogFileWithEngine_FallbackParser(t *testing.T) {
-	tests := []struct {
-		name           string
-		logContent     string
-		expectedErrors int
-		expectedWarns  int
-	}{
+type fallbackParserTestCase struct {
+	name           string
+	logContent     string
+	expectedErrors int
+	expectedWarns  int
+}
+
+func fallbackParserTestCases() []fallbackParserTestCase {
+	return []fallbackParserTestCase{
 		{
 			name: "GitHub Actions workflow commands",
 			logContent: `2024-01-04T10:00:00.000Z Some log line
@@ -63,20 +65,23 @@ INFO: Configuration loaded`,
 			expectedWarns:  0,
 		},
 	}
+}
 
-	for _, tt := range tests {
+func writeFallbackParserLogFile(t *testing.T, logContent string) string {
+	t.Helper()
+	tempDir := t.TempDir()
+	logFile := filepath.Join(tempDir, "test.log")
+	err := os.WriteFile(logFile, []byte(logContent), 0644)
+	require.NoError(t, err, "Failed to create test log file")
+	return logFile
+}
+
+func TestParseLogFileWithEngine_FallbackParser(t *testing.T) {
+	for _, tt := range fallbackParserTestCases() {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a temporary log file
-			tempDir := t.TempDir()
-			logFile := filepath.Join(tempDir, "test.log")
-			err := os.WriteFile(logFile, []byte(tt.logContent), 0644)
-			require.NoError(t, err, "Failed to create test log file")
-
-			// Parse the log file without an engine (fallback mode)
-			_, err = parseLogFileWithEngine(logFile, nil, false, false)
+			logFile := writeFallbackParserLogFile(t, tt.logContent)
+			_, err := parseLogFileWithEngine(logFile, nil, false, false)
 			require.NoError(t, err, "parseLogFileWithEngine should not return an error")
-
-			// Error patterns have been removed - no error/warning counting
 		})
 	}
 }
