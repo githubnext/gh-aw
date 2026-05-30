@@ -20,7 +20,8 @@ const agenticWorkflowsAgentHeader = "---\n" +
 	"---\n\n" +
 	"# Agentic Workflows\n\n"
 
-// ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md contains the dispatcher skill
+// ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md
+// exists and contains the routing instructions loaded by the Agentic Workflows agent.
 func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error {
 	copilotAgentsLog.Print("Ensuring agentic workflows dispatcher skill")
 

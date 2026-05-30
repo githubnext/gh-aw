@@ -279,14 +279,6 @@ func TestDeleteOldTemplateFiles(t *testing.T) {
 func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 
-	if err := os.MkdirAll(filepath.Join(tempDir, ".github", "aw"), 0755); err != nil {
-		t.Fatalf("Failed to create .github/aw directory: %v", err)
-	}
-
-	if err := os.WriteFile(filepath.Join(tempDir, ".github", "aw", "github-agentic-workflows.md"), []byte("# GitHub Agentic Workflows\n"), 0644); err != nil {
-		t.Fatalf("Failed to write github-agentic-workflows prompt: %v", err)
-	}
-
 	content, err := buildAgenticWorkflowsAgentContent(tempDir)
 	if err != nil {
 		t.Fatalf("buildAgenticWorkflowsAgentContent() returned error: %v", err)
