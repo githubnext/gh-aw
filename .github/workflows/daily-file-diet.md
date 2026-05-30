@@ -42,9 +42,29 @@ tools:
     toolsets:
     - default
 tracker-id: daily-file-diet
+experiments:
+  prompt_style:
+    variants: [detailed, concise]
+    description: "Tests whether a leaner prompt preserves refactoring-issue quality vs. the current verbose multi-step protocol."
+    hypothesis: "H0: no change in issue completeness score. H1: concise variant reduces token usage by ≥15% with no significant drop in issue quality (split suggestions present, acceptance criteria present, Serena analysis present)."
+    metric: issue_completeness_score
+    secondary_metrics: [effective_token_count, run_duration_ms]
+    guardrail_metrics:
+    - name: issue_creation_success_rate
+      threshold: ">=0.90"
+    - name: empty_output_rate
+      threshold: "<=0.05"
+    min_samples: 50
+    weight: [50, 50]
+    start_date: "2026-05-30"
+    issue: 35904 #aw_filedieta
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
+
+{{#if experiments.prompt_style == 'concise'}}
+Find the largest `.go` source file in the repository (exclude `*_test.go`, `third_party/`, and generated files such as `*_gen.go`, `*.pb.go`, and files with `Code generated` markers). If it has fewer than **800 lines**, stop and report no action is needed. If it has **800+ lines**, open a GitHub issue titled **`[file-diet] Refactor <filename> (<N> lines)`** with: a summary of findings, 2–4 concrete split proposals with rationale, a test coverage plan, and an acceptance checklist. Use `serena` for semantic analysis.
+{{#else}}
 
 # Daily File Diet Agent 🏋️
 
@@ -286,5 +306,6 @@ Use Serena to:
 - Detect complexity hotspots
 
 Begin your analysis now. Find the largest Go source file, assess if it needs refactoring, and create an issue only if necessary.
+{{#endif}}
 
 {{#runtime-import shared/noop-reminder.md}}
