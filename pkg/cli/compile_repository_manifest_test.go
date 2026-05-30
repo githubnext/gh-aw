@@ -53,6 +53,42 @@ name: Repo Assist
 	assert.Contains(t, err.Error(), `requires gh-aw`)
 }
 
+func TestCompileWorkflows_ValidatesRootAwManifestMaxVersion(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "aw-manifest-max-version-*")
+	originalWd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(originalWd) })
+	require.NoError(t, os.Chdir(tmpDir))
+
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tmpDir
+	require.NoError(t, cmd.Run())
+
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, ".github", "workflows"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".github", "workflows", "test.md"), []byte(`---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Test
+`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Repo Assist\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "aw.yml"), []byte(`manifest-version: "1"
+max-version: v1.0.0
+name: Repo Assist
+`), 0o644))
+
+	originalVersion := GetVersion()
+	SetVersionInfo("v1.2.3")
+	t.Cleanup(func() { SetVersionInfo(originalVersion) })
+
+	_, err = CompileWorkflows(context.Background(), CompileConfig{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `or older`)
+}
+
 func TestCompileWorkflows_JSONOutputIncludesManifestValidationResult(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "aw-manifest-json-*")
 	originalWd, err := os.Getwd()

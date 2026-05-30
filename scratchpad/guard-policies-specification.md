@@ -316,10 +316,11 @@ tools:
    - `TestValidateReposScopeWithStringSlice`: 4 cases covering `[]string` and `[]any` input types
    - Tests live in `pkg/workflow/tools_validation_test.go`
 
-2. **Integration Tests** (Pending):
-   - Test end-to-end workflow compilation with guard policies
-   - Test that guard policies appear in compiled workflow YAML
-   - Test that guard policies are passed to MCP gateway configuration
+2. **Integration Tests** (Complete):
+   - `TestGuardPolicyEndToEndCompilation` verifies end-to-end workflow compilation with guard policies
+   - Confirms guard policies appear in compiled lock workflow YAML
+   - Confirms allow-only policy includes expected `repos` and `min-integrity` values
+   - Test file: `pkg/workflow/tools_guard_policy_integration_test.go`
 
 ## Next Steps
 
@@ -348,12 +349,23 @@ tools:
 5. **Clarity**: Clear error messages and validation
 6. **Documentation**: Self-documenting through type system
 
-## Open Questions
+## Decisions
 
-1. Should we support negative patterns (e.g., exclude certain repos)?
-2. Should we support combining multiple policies (AND/OR logic)?
-3. How should conflicts between lockdown and guard policies be resolved?
-4. Should we add a "dry-run" mode to test policies before enforcement?
+1. **Q1: Negative patterns (exclude repos)**
+   - **Decision**: **Deferred**
+   - **Reason**: The current allow-list model is simpler and already supports least-privilege defaults. Negative patterns increase matcher complexity and ambiguity when mixed with wildcards.
+
+2. **Q2: Combining multiple policies (AND/OR logic)**
+   - **Decision**: **Out-of-scope**
+   - **Reason**: v1 keeps a single deterministic policy shape per server. Multi-policy boolean composition requires a separate policy language and evaluator contract.
+
+3. **Q3: Lockdown and guard-policy conflicts**
+   - **Decision**: **Accepted**
+   - **Reason**: Apply most-restrictive-wins semantics. When lockdown and guard policies both apply, the effective scope MUST be the intersection of both constraints.
+
+4. **Q4: Dry-run mode before enforcement**
+   - **Decision**: **Deferred**
+   - **Reason**: Runtime enforcement wiring is still pending. Dry-run will be reconsidered once enforcement emits stable decision logs and telemetry suitable for simulation.
 
 ## Conclusion
 

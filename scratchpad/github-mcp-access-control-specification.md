@@ -1811,6 +1811,16 @@ Implementations MUST log all access control decisions with the following informa
 - Error messages SHOULD be generic: "Access denied" rather than "Repository is private"
 - Detailed access denials logged separately for administrators
 
+### 9.5 Configuration Reload and Stale-Config Safeguards
+
+Implementations that support runtime config reload MUST enforce the following safeguards:
+
+- Reloaded access-control configuration MUST be schema-validated before activation.
+- If reload validation fails, the gateway MUST keep the last known-good access-control configuration active.
+- The gateway MUST atomically swap access-control config to avoid partial state between concurrent requests.
+- The gateway MUST emit a structured stale-config event when a reload attempt is rejected, including reason and source revision/hash.
+- Requests evaluated while config state is unknown or inconsistent MUST fail closed (deny) until a valid configuration is restored.
+
 ---
 
 ## 10. Integration with MCP Gateway

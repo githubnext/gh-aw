@@ -4227,6 +4227,14 @@ All errors MUST be logged to:
 
 ## 10. Execution Guarantees
 
+<!--
+SPDD audit note (2026-05-30): §10 MUST/MUST NOT clauses reviewed against pkg/workflow JS handlers.
+Current coverage gaps to track:
+- Add explicit tests that ordering guarantees (10.2) hold when mixed system/non-system records coexist.
+- Add explicit tests that batch partial-failure reporting (10.4) always emits per-type summary counts.
+- Add explicit tests that WTD2 conversion paths emit the same caution/label/marker envelope as WTD1.
+-->
+
 ### 10.1 Atomicity
 
 **Single-Item Operations**: Complete success or complete failure (no partial state).

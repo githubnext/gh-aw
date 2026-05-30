@@ -704,7 +704,8 @@ At compile time, an implementation SHOULD:
 | Requirement | Test ID | Level | Status |
 |-------------|---------|-------|--------|
 | Bare identifier parsing | T-MAF-001 | 1 | Required |
-| Parameter parsing | T-MAF-002, 004 | 1 | Required |
+| Provider/model identifier parsing | T-MAF-003 | 1 | Required |
+| Parameter parsing | T-MAF-002, T-MAF-004 | 1 | Required |
 | Glob rejection in engine.model | T-MAF-005 | 1 | Required |
 | Invalid effort value rejection | T-MAF-006 | 1 | Required |
 | Temperature range validation | T-MAF-007 | 1 | Required |
@@ -714,10 +715,15 @@ At compile time, an implementation SHOULD:
 | Transitive alias resolution | T-MAF-021 | 2 | Required |
 | Parameter propagation | T-MAF-022 | 2 | Required |
 | Caller-wins parameter merge | T-MAF-023 | 2 | Required |
+| Builtin-alias composition | T-MAF-024 | 2 | Required |
 | Default policy (`""`) | T-MAF-025 | 2 | Required |
 | Semver-aware glob selection (latest wins) | T-MAF-026 | 2 | Required |
 | Date-suffix tiebreaker | T-MAF-027 | 2 | Required |
+| Unversioned model ranking fallback | T-MAF-028 | 2 | Required |
 | Main workflow wins merge | T-MAF-030 | 2 | Required |
+| First import wins on duplicate key | T-MAF-031 | 2 | Required |
+| Main workflow overrides import keys | T-MAF-032 | 2 | Required |
+| Builtin-only key retention | T-MAF-033 | 2 | Required |
 | Compile-time circular alias detection | T-MAF-040, 041 | 3 | Required |
 | Runtime circular alias guard | T-MAF-042 | 3 | Required |
 | Unrecognized param warning | T-MAF-043 | 3 | Recommended |
@@ -852,6 +858,8 @@ Model parameters are compile-time configuration values and are not derived from 
 - **Enhanced**: Compile-time cycle detection (§8.6.1): expanded from a single sentence to a full DFS algorithm with error-message requirements.
 - **Added**: Models payload merge algorithm pseudocode (§10.2) making the three-layer merge semantics explicit.
 - **Added**: Merge precedence test T-MAF-033 (builtin-only keys are preserved).
+- **Clarified**: `?effort=` parsing/validation semantics now explicitly align with runtime parser behavior (`low|medium|high`, caller-wins merge, compile-time validation).
+- **Clarified**: `?temperature=` parsing/validation semantics now explicitly align with runtime parser behavior (numeric range `0.0..2.0`, forwarding and overwrite rules).
 
 ### Version 1.0.0 (Draft)
 

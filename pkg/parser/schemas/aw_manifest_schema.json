@@ -13,6 +13,11 @@
       "description": "Minimum supported gh-aw CLI version. Requires the exact vMAJOR.minor.patch form.",
       "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
     },
+    "max-version": {
+      "type": "string",
+      "description": "Maximum supported gh-aw CLI version. Requires the exact vMAJOR.minor.patch form.",
+      "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
     "name": {
       "type": "string",
       "minLength": 1
@@ -22,6 +27,40 @@
     },
     "description": {
       "type": "string"
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX license identifier for the package.",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9.+-]+$"
+    },
+    "tags": {
+      "type": "array",
+      "description": "Up to 10 short package tags, each at most 32 characters.",
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 32
+      }
+    },
+    "categories": {
+      "type": "array",
+      "description": "Package category classification.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "automation",
+          "ci-cd",
+          "code-review",
+          "security",
+          "documentation",
+          "release",
+          "triage",
+          "testing"
+        ]
+      }
     },
     "includes": {
       "type": "array",

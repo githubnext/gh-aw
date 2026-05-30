@@ -270,6 +270,31 @@ files:
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
 	})
 
+	t.Run("accepts compatible max-version", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "aw.yml":
+				return []byte(`max-version: v1.2.3
+name: Repo Assist
+files:
+  - workflows/review.md
+`), nil
+			case "README.md":
+				return []byte("# Repo Assist\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected scan of %s", workflowPath)
+			return nil, nil
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+	})
+
 	t.Run("rejects unsupported manifest-version", func(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
 			if path == "aw.yml" {
@@ -329,6 +354,78 @@ name: Repo Assist
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `requires gh-aw`)
+	})
+
+	t.Run("rejects incompatible max-version", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "aw.yml" {
+				return []byte(`max-version: v1.0.0
+name: Repo Assist
+`), nil
+			}
+			return nil, createRepositoryPackageNotFoundError(path)
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `or older`)
+	})
+
+	t.Run("rejects manifest when min-version is greater than max-version", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "aw.yml" {
+				return []byte(`min-version: v1.3.0
+max-version: v1.2.0
+name: Repo Assist
+`), nil
+			}
+			return nil, createRepositoryPackageNotFoundError(path)
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `cannot be greater`)
+	})
+
+	t.Run("accepts license tags and categories metadata", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			switch path {
+			case "aw.yml":
+				return []byte(`name: Repo Assist
+license: MIT
+tags: [triage, issues]
+categories: [automation, triage]
+files:
+  - workflows/review.md
+`), nil
+			case "README.md":
+				return []byte("# Repo Assist\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected scan of %s", workflowPath)
+			return nil, nil
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.NoError(t, err)
+	})
+
+	t.Run("rejects invalid categories metadata", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "aw.yml" {
+				return []byte(`name: Repo Assist
+categories: [unknown]
+`), nil
+			}
+			return nil, createRepositoryPackageNotFoundError(path)
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `categories`)
 	})
 
 	t.Run("requires package README", func(t *testing.T) {

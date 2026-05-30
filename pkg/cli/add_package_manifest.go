@@ -172,9 +172,13 @@ func loadRepositoryPackageManifestFile(owner, repo, packagePath, ref, host strin
 type repositoryPackageManifest struct {
 	ManifestVersion string
 	MinVersion      string
+	MaxVersion      string
 	Name            string
 	Emoji           string
 	Description     string
+	License         string
+	Tags            []string
+	Categories      []string
 	Includes        []string
 	Files           []string
 	Skills          []string // skill directory paths (e.g. "skills/my-skill")
@@ -219,12 +223,26 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 		if !isSupportedManifestMinVersion(manifest.MinVersion) {
 			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version must use vMAJOR.minor.patch, got %q", manifestPath, minVersion)
 		}
+	}
+	if maxVersion, ok := stringValue(root["max-version"]); ok {
+		manifest.MaxVersion = strings.TrimSpace(maxVersion)
+		if !isSupportedManifestMinVersion(manifest.MaxVersion) {
+			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: max-version must use vMAJOR.minor.patch, got %q", manifestPath, maxVersion)
+		}
+	}
+	if manifest.MinVersion != "" && manifest.MaxVersion != "" && semverutil.Compare(manifest.MinVersion, manifest.MaxVersion) > 0 {
+		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version %q cannot be greater than max-version %q", manifestPath, manifest.MinVersion, manifest.MaxVersion)
+	}
+	if manifest.MinVersion != "" || manifest.MaxVersion != "" {
 		currentVersion := GetVersion()
 		if !semverutil.IsValid(currentVersion) {
-			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version validation requires a semantic-versioned compiler, but the current compiler version %q is not a valid semantic version (this indicates a build issue)", manifestPath, currentVersion)
+			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: version-range validation requires a semantic-versioned compiler, but the current compiler version %q is not a valid semantic version (this indicates a build issue)", manifestPath, currentVersion)
 		}
-		if semverutil.Compare(currentVersion, manifest.MinVersion) < 0 {
+		if manifest.MinVersion != "" && semverutil.Compare(currentVersion, manifest.MinVersion) < 0 {
 			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version %q requires gh-aw %s or newer (current: %s)", manifestPath, manifest.MinVersion, manifest.MinVersion, currentVersion)
+		}
+		if manifest.MaxVersion != "" && semverutil.Compare(currentVersion, manifest.MaxVersion) > 0 {
+			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: max-version %q requires gh-aw %s or older (current: %s)", manifestPath, manifest.MaxVersion, manifest.MaxVersion, currentVersion)
 		}
 	}
 
@@ -237,6 +255,15 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 
 	if emoji, ok := stringValue(root["emoji"]); ok {
 		manifest.Emoji = emoji
+	}
+	if license, ok := stringValue(root["license"]); ok {
+		manifest.License = strings.TrimSpace(license)
+	}
+	if tags, ok := stringSliceValue(root["tags"]); ok {
+		manifest.Tags = tags
+	}
+	if categories, ok := stringSliceValue(root["categories"]); ok {
+		manifest.Categories = categories
 	}
 
 	if includesValue, ok := root["includes"]; ok {
@@ -747,6 +774,25 @@ func joinRepositoryPackagePath(packagePath, relativePath string) string {
 func stringValue(value any) (string, bool) {
 	s, ok := value.(string)
 	return s, ok
+}
+
+func stringSliceValue(value any) ([]string, bool) {
+	switch raw := value.(type) {
+	case []any:
+		out := make([]string, 0, len(raw))
+		for _, entry := range raw {
+			s, ok := entry.(string)
+			if !ok {
+				return nil, false
+			}
+			out = append(out, s)
+		}
+		return out, true
+	case []string:
+		return append([]string(nil), raw...), true
+	default:
+		return nil, false
+	}
 }
 
 func isRepositoryFileNotFound(err error) bool {

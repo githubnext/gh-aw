@@ -43,9 +43,13 @@ The manifest document MUST be a YAML mapping. Unknown top-level fields MUST be r
 | --- | --- | --- | --- |
 | `manifest-version` | string | No | Manifest format version. Defaults to `"1"`. |
 | `min-version` | string | No | Minimum supported `gh-aw` version. |
+| `max-version` | string | No | Maximum supported `gh-aw` version. |
 | `name` | string | Yes | Human-readable package name. |
 | `emoji` | string | No | Optional package emoji for display in package metadata. |
 | `description` | string | No | Human-readable package description. |
+| `license` | string | No | SPDX license identifier for package metadata. |
+| `tags` | array of strings | No | Package tags (max 10 entries, each max 32 chars). |
+| `categories` | array of enum strings | No | Package categories (`automation`, `ci-cd`, `code-review`, `security`, `documentation`, `release`, `triage`, `testing`). |
 | `files` | array of strings | No | Explicit installable workflow file list. |
 
 ### 4.2 `manifest-version`
@@ -54,13 +58,17 @@ If omitted, `manifest-version` defaults to `"1"`.
 
 For this version of the format, the only valid value is `"1"`.
 
-### 4.3 `min-version`
+### 4.3 Version constraints: `min-version` and `max-version`
 
-If present, `min-version` MUST use the exact `vMAJOR.minor.patch` form, such as:
+If present, `min-version` and `max-version` MUST use the exact `vMAJOR.minor.patch` form, such as:
 
 - `v1.2.3`
 
 If the running compiler version is lower than `min-version`, validation MUST fail.
+
+If the running compiler version is higher than `max-version`, validation MUST fail.
+
+If both `min-version` and `max-version` are present, `min-version` MUST be less than or equal to `max-version`.
 
 ### 4.4 `name`
 
@@ -86,6 +94,29 @@ Each entry MUST be resolved relative to the package root and MUST match one of t
 - **Raw GitHub Actions YAML** — the path MUST end in `.yml` (case-insensitive) but MUST NOT end in `.lock.yml`. It MUST be a direct child of `.github/workflows/` (no nested subdirectories) and MUST NOT appear under `workflows/`.
 
 Duplicate entries SHOULD be ignored after normalization.
+
+### 4.8 `license`
+
+If present, `license` MUST be a valid SPDX identifier string.
+
+### 4.9 `tags`
+
+If present, `tags` MUST be an array of strings with at most 10 entries.
+
+Each `tags` entry MUST be 1-32 characters.
+
+### 4.10 `categories`
+
+If present, `categories` MUST be an array of enum values from this set:
+
+- `automation`
+- `ci-cd`
+- `code-review`
+- `security`
+- `documentation`
+- `release`
+- `triage`
+- `testing`
 
 ## 5. Installable file resolution
 
@@ -131,7 +162,13 @@ Validation MUST fail for at least the following conditions:
 - missing or empty `name`;
 - unsupported `manifest-version`;
 - invalid `min-version`;
+- invalid `max-version`;
 - current compiler version is lower than `min-version`;
+- current compiler version is higher than `max-version`;
+- `min-version` greater than `max-version`;
+- invalid `license` (non-SPDX);
+- more than 10 `tags` entries or any tag longer than 32 characters;
+- invalid `categories` value;
 - unknown top-level fields, including `docs`; or
 - missing required `README.md`; or
 - no installable workflow files resolved.
@@ -196,3 +233,23 @@ Documentation file:
 ```text
 packages/repo-assist/README.md
 ```
+
+## 10. Package Lifecycle
+
+### 10.1 `gh aw add`
+
+- The implementation MUST fetch and validate `aw.yml` before installing package files.
+- The implementation MUST reject installation when manifest validation returns any `manifest_error`.
+- The implementation MUST copy raw `.yml` workflow includes verbatim without compilation.
+
+### 10.2 `gh aw update`
+
+- The implementation MUST re-fetch and re-validate `aw.yml` during update.
+- The implementation MUST preserve local install targets and only replace files belonging to the package manifest selection.
+- The implementation MUST fail the update if a newly resolved package manifest is incompatible with current compiler version constraints.
+
+### 10.3 `gh aw remove`
+
+- The implementation MUST remove only files that were previously installed from the package.
+- The implementation MUST NOT delete user-authored files outside the tracked package install set.
+- The implementation MUST report missing installed files as warnings (not hard failures) and continue removal for remaining tracked files.
