@@ -1741,9 +1741,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Read workflow metadata from aw_info.json (written by the agent job setup step).
   const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
 
-  // Effective token count is surfaced by the agent job and passed to downstream jobs
-  // via the GH_AW_EFFECTIVE_TOKENS environment variable.
-  const rawET = process.env.GH_AW_EFFECTIVE_TOKENS || "";
+  // Effective token count is surfaced by the agent job. Prefer the explicit env var
+  // when present, otherwise fall back to the durable agent_usage artifact so
+  // downstream post-steps still emit gh-aw.effective_tokens.
+  const usageFromArtifact = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || {};
+  const rawET = process.env.GH_AW_EFFECTIVE_TOKENS || String(usageFromArtifact.effective_tokens || "");
   const effectiveTokens = rawET ? parseInt(rawET, 10) : NaN;
 
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";

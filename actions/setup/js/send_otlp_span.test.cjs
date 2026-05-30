@@ -3425,6 +3425,53 @@ describe("sendJobConclusionSpan", () => {
     expect(etAttr.value.intValue).toBe(5000);
   });
 
+  it("falls back to agent_usage.json for effective_tokens when GH_AW_EFFECTIVE_TOKENS is absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/agent_usage.json") {
+        return JSON.stringify({ effective_tokens: 4321 });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const etAttr = span.attributes.find(a => a.key === "gh-aw.effective_tokens");
+    expect(etAttr).toBeDefined();
+    expect(etAttr.value.intValue).toBe(4321);
+  });
+
+  it("prefers GH_AW_EFFECTIVE_TOKENS over agent_usage.json effective_tokens", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/agent_usage.json") {
+        return JSON.stringify({ effective_tokens: 4321 });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const etAttr = span.attributes.find(a => a.key === "gh-aw.effective_tokens");
+    expect(etAttr).toBeDefined();
+    expect(etAttr.value.intValue).toBe(5000);
+  });
+
   it("emits dashboard metrics and aliases on the conclusion span", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -3571,7 +3618,7 @@ describe("sendJobConclusionSpan", () => {
     expect(attrs["gh-aw.otlp.export_errors"]).toBe(2);
   });
 
-  it("omits effective_tokens attribute when GH_AW_EFFECTIVE_TOKENS is absent", async () => {
+  it("omits effective_tokens attribute when GH_AW_EFFECTIVE_TOKENS is absent and agent_usage.json has no effective_tokens", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
