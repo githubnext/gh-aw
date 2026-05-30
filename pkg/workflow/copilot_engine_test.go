@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -220,6 +221,36 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	// Test that GH_AW_SAFE_OUTPUTS is present when SafeOutputs is not nil
 	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}") {
 		t.Errorf("Expected GH_AW_SAFE_OUTPUTS environment variable when SafeOutputs is not nil in step content:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			CopilotSDK: true,
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	if strings.Contains(stepContent, "--transport http") {
+		t.Fatalf("Expected main copilot command to avoid --transport http when copilot-sdk is enabled, got:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, constants.GHAWCopilotSDKEnvVar+":") {
+		t.Fatalf("Expected %s to be present in step env, got:\n%s", constants.GHAWCopilotSDKEnvVar, stepContent)
+	}
+
+	expectedURI := constants.CopilotSDKURIEnvVar + ": http://127.0.0.1:" + strconv.Itoa(constants.DefaultCopilotSDKPort)
+	if !strings.Contains(stepContent, expectedURI) {
+		t.Fatalf("Expected %s in step env, got:\n%s", expectedURI, stepContent)
 	}
 }
 

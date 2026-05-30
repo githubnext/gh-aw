@@ -72,9 +72,8 @@ type EngineConfig struct {
 	Extensions []string
 
 	// CopilotSDK enables the GitHub Copilot SDK integration.
-	// When true the compiler: installs @github/copilot-sdk alongside the Copilot CLI,
-	// starts the Copilot CLI in headless mode with HTTP transport (--transport http),
-	// and sets COPILOT_SDK_URI on every process started by the harness.
+	// When true the compiler enables a harness-managed Copilot CLI headless sidecar
+	// and sets COPILOT_SDK_URI on child processes so the SDK can connect to it.
 	CopilotSDK bool
 }
 

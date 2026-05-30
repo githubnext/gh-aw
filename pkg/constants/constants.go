@@ -111,8 +111,8 @@ const (
 	DefaultMCPInspectorPort = 3001
 
 	// DefaultCopilotSDKPort is the default localhost port for the Copilot CLI HTTP server
-	// when running in headless SDK mode (copilot-sdk: true).  The Copilot CLI binds to
-	// this port with --transport http; the @github/copilot-sdk library connects via
+	// when running in headless SDK mode (copilot-sdk: true). The harness starts a
+	// separate Copilot CLI sidecar with --headless --port <port>, and the SDK connects via
 	// COPILOT_SDK_URI = "http://127.0.0.1:DefaultCopilotSDKPort".
 	DefaultCopilotSDKPort = 3002
 

@@ -102,14 +102,6 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--autopilot", "--max-autopilot-continues", strconv.Itoa(maxCont))
 	}
 
-	// When copilot-sdk: true, start the Copilot CLI in headless mode with HTTP transport.
-	// The --transport http flag makes copilot listen as an HTTP server on DefaultCopilotSDKPort
-	// so the @github/copilot-sdk library can connect to it.
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
-		copilotExecLog.Printf("copilot-sdk enabled: adding --transport http (port %d)", constants.DefaultCopilotSDKPort)
-		copilotArgs = append(copilotArgs, "--transport", "http")
-	}
-
 	// Add tool permission arguments based on configuration
 	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts, workflowData)
 	if len(toolArgs) > 0 {
@@ -504,10 +496,9 @@ touch %s
 		env["AWF_REFLECT_ENABLED"] = "1"
 	}
 
-	// When copilot-sdk: true, signal the harness to use SDK mode and provide the SDK URI.
-	// GH_AW_COPILOT_SDK tells the harness to add --transport http to the copilot CLI args
-	// and to forward COPILOT_SDK_URI to every child process it starts.
-	// COPILOT_SDK_URI points to the Copilot CLI's headless HTTP server on localhost.
+	// When copilot-sdk: true, signal the harness to start a separate Copilot CLI
+	// headless server and provide the SDK URI to child processes that use the SDK.
+	// COPILOT_SDK_URI points at the harness-managed Copilot CLI sidecar on localhost.
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
 		env[constants.GHAWCopilotSDKEnvVar] = "1"
 		env[constants.CopilotSDKURIEnvVar] = fmt.Sprintf("http://127.0.0.1:%d", constants.DefaultCopilotSDKPort)

@@ -12231,7 +12231,7 @@
             },
             "copilot-sdk": {
               "type": "boolean",
-              "description": "Enables the GitHub Copilot SDK integration (copilot engine only). When true, the compiler installs @github/copilot-sdk alongside the Copilot CLI, starts the Copilot CLI in headless mode with HTTP transport, and sets COPILOT_SDK_URI on every process started by the harness."
+              "description": "Enables the GitHub Copilot SDK integration (copilot engine only). When true, the harness starts a separate headless Copilot CLI sidecar on the configured localhost port and sets COPILOT_SDK_URI on child processes."
             }
           },
           "required": [
