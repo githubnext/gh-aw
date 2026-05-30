@@ -54,12 +54,13 @@ func TestLogsJSONOutputBeforeStderr(t *testing.T) {
 	os.Stdout = oldStdout
 	os.Stderr = oldStderr
 
-	// Skip test if GitHub API is not accessible
+	// Skip test if GitHub API is not accessible or workflow not found
 	if err != nil {
 		if strings.Contains(err.Error(), "no auth token found") ||
 			strings.Contains(err.Error(), "GitHub CLI authentication required") ||
-			strings.Contains(err.Error(), "HTTP 403") {
-			t.Skip("Skipping test: GitHub authentication not available")
+			strings.Contains(err.Error(), "HTTP 403") ||
+			strings.Contains(err.Error(), "failed to list workflow runs") {
+			t.Skip("Skipping test: GitHub API not available or workflow not found in this environment")
 		}
 		// For other errors, we still want to verify the output format
 	}
@@ -163,12 +164,13 @@ func TestLogsJSONAndStderrRedirected(t *testing.T) {
 	os.Stdout = oldStdout
 	os.Stderr = oldStderr
 
-	// Skip test if GitHub API is not accessible
+	// Skip test if GitHub API is not accessible or workflow not found
 	if err != nil {
 		if strings.Contains(err.Error(), "no auth token found") ||
 			strings.Contains(err.Error(), "GitHub CLI authentication required") ||
-			strings.Contains(err.Error(), "HTTP 403") {
-			t.Skip("Skipping test: GitHub authentication not available")
+			strings.Contains(err.Error(), "HTTP 403") ||
+			strings.Contains(err.Error(), "failed to list workflow runs") {
+			t.Skip("Skipping test: GitHub API not available or workflow not found in this environment")
 		}
 	}
 
