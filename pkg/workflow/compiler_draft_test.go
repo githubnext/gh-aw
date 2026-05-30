@@ -385,6 +385,20 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 			description: "Should comment out needs list items when emitted with compact indentation",
 		},
 		{
+			name: "top-level on needs inline array",
+			input: `on:
+  needs: [study_repo, setup]
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:`,
+			expected: `on:
+  # needs: [study_repo, setup] # Needs processed as dependency in pre-activation job
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:`,
+			description: "Should comment out needs when emitted as an inline YAML array",
+		},
+		{
 			name: "issues with two-space indentation names",
 			input: `on:
   issues:
