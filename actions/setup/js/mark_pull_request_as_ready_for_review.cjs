@@ -13,6 +13,7 @@ const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "mark_pull_request_as_ready_for_review";
@@ -113,6 +114,10 @@ async function main(config = {}) {
 
   core.info(`Mark pull request as ready for review configuration: max=${maxCount}`);
 
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  if (defaultTargetRepo) core.info(`Target repository: ${defaultTargetRepo}`);
+  if (allowedRepos.length > 0) core.info(`Allowed repositories: ${allowedRepos.join(", ")}`);
+
   // Track how many items we've processed for max limit
   let processedCount = 0;
 
@@ -135,6 +140,15 @@ async function main(config = {}) {
     processedCount++;
 
     const item = message;
+
+    // Determine PR number and target repo
+    const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "pull request");
+    if (!repoResult.success) {
+      core.warning(`mark_pull_request_as_ready_for_review: ${repoResult.error}`);
+      return { success: false, error: repoResult.error };
+    }
+    const prOwner = repoResult.repoParts.owner;
+    const prRepo = repoResult.repoParts.repo;
 
     // Determine PR number
     let prNumber;
@@ -160,7 +174,7 @@ async function main(config = {}) {
       prNumber = contextPR;
     }
 
-    const repoParts = { owner: context.repo.owner, repo: context.repo.repo };
+    const repoParts = { owner: prOwner, repo: prRepo };
     const filterResult = await checkRequiredFilter(githubClient, repoParts, prNumber, requiredLabels, requiredTitlePrefix, "mark_pull_request_as_ready_for_review");
     if (filterResult) return filterResult;
 
@@ -175,7 +189,7 @@ async function main(config = {}) {
 
     try {
       // First, get the current PR to check if it's a draft
-      const currentPR = await getPullRequestDetails(githubClient, context.repo.owner, context.repo.repo, prNumber);
+      const currentPR = await getPullRequestDetails(githubClient, prOwner, prRepo, prNumber);
 
       // Check if it's already not a draft
       if (!currentPR.draft) {
@@ -234,7 +248,7 @@ async function main(config = {}) {
       const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, undefined, { skipDetectionCaution: true });
       const commentBody = `${cautionPrefix}${sanitizedReason}\n\n${footer}`;
 
-      await addPullRequestComment(githubClient, context.repo.owner, context.repo.repo, prNumber, commentBody);
+      await addPullRequestComment(githubClient, prOwner, prRepo, prNumber, commentBody);
 
       core.info(`✓ Marked PR #${prNumber} as ready for review and added comment: ${pr.html_url}`);
 

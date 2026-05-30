@@ -13,6 +13,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { resolveNumberFromTemporaryId } = require("./temporary_id.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
+const { resolveTargetRepoConfig } = require("./repo_helpers.cjs");
 
 /**
  * Get discussion details using GraphQL with pagination for labels
@@ -172,6 +173,18 @@ async function main(config = {}) {
     allowedMentionAliases = await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions);
   }
 
+  const { defaultTargetRepo } = resolveTargetRepoConfig(config);
+  let discussionOwner = context.repo.owner;
+  let discussionRepo = context.repo.repo;
+  if (defaultTargetRepo) {
+    const parts = defaultTargetRepo.split("/");
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      discussionOwner = parts[0];
+      discussionRepo = parts[1];
+      core.info(`Target repository: ${defaultTargetRepo}`);
+    }
+  }
+
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
 
@@ -235,7 +248,7 @@ async function main(config = {}) {
 
     try {
       // Fetch discussion details
-      const discussion = await getDiscussionDetails(githubClient, context.repo.owner, context.repo.repo, discussionNumber);
+      const discussion = await getDiscussionDetails(githubClient, discussionOwner, discussionRepo, discussionNumber);
 
       // Validate required labels if configured
       if (requiredLabels.length > 0) {

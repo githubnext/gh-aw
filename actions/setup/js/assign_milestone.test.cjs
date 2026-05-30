@@ -376,4 +376,69 @@ describe("assign_milestone (Handler Factory Architecture)", () => {
     expect(result.error).toBe("Either milestone_number or milestone_title must be provided");
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
   });
+
+  describe("target-repo support", () => {
+    it("should use target-repo config for all API calls", async () => {
+      const { main } = require("./assign_milestone.cjs");
+      const handlerWithTarget = await main({
+        max: 10,
+        "target-repo": "external-org/external-repo",
+      });
+
+      mockGithub.rest.issues.update.mockResolvedValue({});
+      const paginateCalls = [];
+      mockGithub.paginate.mockImplementation(async (_method, params, callback) => {
+        paginateCalls.push(params);
+        if (callback) {
+          const done = vi.fn();
+          callback({ data: [] }, done);
+        }
+        return [];
+      });
+
+      const result = await handlerWithTarget({ type: "assign_milestone", issue_number: 42, milestone_number: 5 }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ owner: "external-org", repo: "external-repo" }));
+    });
+
+    it("should use context.repo as default when no target-repo configured", async () => {
+      mockGithub.rest.issues.update.mockResolvedValue({});
+
+      const result = await handler({ type: "assign_milestone", issue_number: 42, milestone_number: 5 }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ owner: "test-owner", repo: "test-repo" }));
+    });
+
+    it("should use repo from message when allowed_repos is configured", async () => {
+      const { main } = require("./assign_milestone.cjs");
+      const handlerWithAllowedRepos = await main({
+        max: 10,
+        "target-repo": "default-org/default-repo",
+        allowed_repos: ["cross-org/cross-repo"],
+      });
+
+      mockGithub.rest.issues.update.mockResolvedValue({});
+
+      const result = await handlerWithAllowedRepos({ type: "assign_milestone", issue_number: 42, milestone_number: 5, repo: "cross-org/cross-repo" }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ owner: "cross-org", repo: "cross-repo" }));
+    });
+
+    it("should reject repo not in allowed_repos list", async () => {
+      const { main } = require("./assign_milestone.cjs");
+      const handlerWithAllowedRepos = await main({
+        max: 10,
+        "target-repo": "default-org/default-repo",
+        allowed_repos: ["allowed-org/allowed-repo"],
+      });
+
+      const result = await handlerWithAllowedRepos({ type: "assign_milestone", issue_number: 42, milestone_number: 5, repo: "unauthorized-org/unauthorized-repo" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not in the allowed-repos list");
+    });
+  });
 });

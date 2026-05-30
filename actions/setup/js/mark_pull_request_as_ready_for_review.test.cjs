@@ -326,4 +326,64 @@ describe("mark_pull_request_as_ready_for_review", () => {
       expect(mockGraphql).not.toHaveBeenCalled();
     });
   });
+
+  describe("target-repo support", () => {
+    it("should use target-repo config for PR fetch and comment", async () => {
+      const { main } = require("./mark_pull_request_as_ready_for_review.cjs");
+      const handler = await main({
+        max: 10,
+        "target-repo": "external-org/external-repo",
+      });
+
+      setupDefaultMocks(42);
+
+      const result = await handler({ pull_request_number: 42, reason: "Ready for review" }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockRestPullsGet).toHaveBeenCalledWith(expect.objectContaining({ owner: "external-org", repo: "external-repo" }));
+      expect(mockRestIssuesCreateComment).toHaveBeenCalledWith(expect.objectContaining({ owner: "external-org", repo: "external-repo" }));
+    });
+
+    it("should use context.repo as default when no target-repo configured", async () => {
+      const { main } = require("./mark_pull_request_as_ready_for_review.cjs");
+      const handler = await main({ max: 10 });
+
+      setupDefaultMocks(42);
+
+      const result = await handler({ pull_request_number: 42, reason: "Ready" }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockRestPullsGet).toHaveBeenCalledWith(expect.objectContaining({ owner: "test-owner", repo: "test-repo" }));
+    });
+
+    it("should use repo from message when allowed_repos is configured", async () => {
+      const { main } = require("./mark_pull_request_as_ready_for_review.cjs");
+      const handler = await main({
+        max: 10,
+        "target-repo": "default-org/default-repo",
+        allowed_repos: ["cross-org/cross-repo"],
+      });
+
+      setupDefaultMocks(42);
+
+      const result = await handler({ pull_request_number: 42, reason: "Ready", repo: "cross-org/cross-repo" }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockRestPullsGet).toHaveBeenCalledWith(expect.objectContaining({ owner: "cross-org", repo: "cross-repo" }));
+    });
+
+    it("should reject repo not in allowed_repos list", async () => {
+      const { main } = require("./mark_pull_request_as_ready_for_review.cjs");
+      const handler = await main({
+        max: 10,
+        "target-repo": "default-org/default-repo",
+        allowed_repos: ["allowed-org/allowed-repo"],
+      });
+
+      const result = await handler({ pull_request_number: 42, reason: "Ready", repo: "unauthorized-org/unauthorized-repo" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not in the allowed-repos list");
+    });
+  });
 });

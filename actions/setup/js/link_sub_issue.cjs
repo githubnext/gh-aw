@@ -6,6 +6,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { resolveTargetRepoConfig } = require("./repo_helpers.cjs");
 
 /**
  * Main handler factory for link_sub_issue
@@ -39,6 +40,18 @@ async function main(config = {}) {
   }
   core.info(`Max count: ${maxCount}`);
 
+  const { defaultTargetRepo } = resolveTargetRepoConfig(config);
+  let defaultOwner = context.repo.owner;
+  let defaultRepo = context.repo.repo;
+  if (defaultTargetRepo) {
+    const parts = defaultTargetRepo.split("/");
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      defaultOwner = parts[0];
+      defaultRepo = parts[1];
+      core.info(`Target repository: ${defaultTargetRepo}`);
+    }
+  }
+
   // Track how many items we've processed for max limit
   let processedCount = 0;
 
@@ -66,8 +79,8 @@ async function main(config = {}) {
     const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
 
     // Resolve issue numbers, supporting temporary IDs from create_issue job
-    const parentResolved = resolveRepoIssueTarget(item.parent_issue_number, temporaryIdMap, context.repo.owner, context.repo.repo);
-    const subResolved = resolveRepoIssueTarget(item.sub_issue_number, temporaryIdMap, context.repo.owner, context.repo.repo);
+    const parentResolved = resolveRepoIssueTarget(item.parent_issue_number, temporaryIdMap, defaultOwner, defaultRepo);
+    const subResolved = resolveRepoIssueTarget(item.sub_issue_number, temporaryIdMap, defaultOwner, defaultRepo);
 
     // Check if either parent or sub issue is an unresolved temporary ID
     // If so, defer the operation to allow for resolution later
@@ -151,8 +164,8 @@ async function main(config = {}) {
       }
     }
 
-    const owner = parentResolved.resolved?.owner || context.repo.owner;
-    const repo = parentResolved.resolved?.repo || context.repo.repo;
+    const owner = parentResolved.resolved?.owner || defaultOwner;
+    const repo = parentResolved.resolved?.repo || defaultRepo;
 
     // Fetch parent issue to validate filters
     let parentIssue;

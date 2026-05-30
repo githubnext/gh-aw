@@ -124,6 +124,9 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
 			}
+			if config.TargetRepoSlug != "" {
+				constraints = append(constraints, fmt.Sprintf("Discussions will be closed in repository %q.", config.TargetRepoSlug))
+			}
 			if config.RequiredTitlePrefix != "" {
 				constraints = append(constraints, fmt.Sprintf("Only discussions with title prefix %q can be closed.", config.RequiredTitlePrefix))
 			}
@@ -179,11 +182,24 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.Target != "" {
 				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
 			}
+			if config.TargetRepoSlug != "" {
+				constraints = append(constraints, fmt.Sprintf("Pull requests will be closed in repository %q.", config.TargetRepoSlug))
+			}
 			if len(config.RequiredLabels) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Only PRs with labels %v can be closed.", config.RequiredLabels))
 			}
 			if config.RequiredTitlePrefix != "" {
 				constraints = append(constraints, fmt.Sprintf("Only PRs with title prefix %q can be closed.", config.RequiredTitlePrefix))
+			}
+		}
+
+	case "mark_pull_request_as_ready_for_review":
+		if config := safeOutputs.MarkPullRequestAsReadyForReview; config != nil {
+			if templatableIntValue(config.Max) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d pull request(s) can be marked as ready for review.", templatableIntValue(config.Max)))
+			}
+			if config.TargetRepoSlug != "" {
+				constraints = append(constraints, fmt.Sprintf("Pull requests will be marked as ready in repository %q.", config.TargetRepoSlug))
 			}
 		}
 
@@ -389,12 +405,18 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if config.SubTitlePrefix != "" {
 				constraints = append(constraints, fmt.Sprintf("The sub-issue title must start with %q.", config.SubTitlePrefix))
 			}
+			if config.TargetRepoSlug != "" {
+				constraints = append(constraints, fmt.Sprintf("Sub-issues will be linked in repository %q.", config.TargetRepoSlug))
+			}
 		}
 
 	case "assign_milestone":
 		if config := safeOutputs.AssignMilestone; config != nil {
 			if templatableIntValue(config.Max) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum %d milestone assignment(s) can be made.", templatableIntValue(config.Max)))
+			}
+			if config.TargetRepoSlug != "" {
+				constraints = append(constraints, fmt.Sprintf("Milestones will be assigned in repository %q.", config.TargetRepoSlug))
 			}
 		}
 
@@ -413,7 +435,6 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 				constraints = append(constraints, fmt.Sprintf("Agent assignment can target these repositories: %v.", config.AllowedRepos))
 			}
 		}
-
 	case "update_project":
 		if config := safeOutputs.UpdateProjects; config != nil {
 			if templatableIntValue(config.Max) > 0 {

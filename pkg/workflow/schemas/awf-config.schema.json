@@ -61,10 +61,7 @@
         },
         "anthropicCacheTailTtl": {
           "type": "string",
-          "enum": [
-            "5m",
-            "1h"
-          ],
+          "enum": ["5m", "1h"],
           "description": "TTL for Anthropic cache tail optimization. Only applies when anthropicAutoCache is enabled. Allowed values: \"5m\" or \"1h\"."
         },
         "maxEffectiveTokens": {
@@ -105,9 +102,7 @@
             },
             "strategy": {
               "type": "string",
-              "enum": [
-                "middle_power"
-              ],
+              "enum": ["middle_power"],
               "description": "Fallback selection strategy. Currently only 'middle_power' is supported."
             },
             "excludeEngines": {
@@ -163,19 +158,12 @@
           "properties": {
             "type": {
               "type": "string",
-              "enum": [
-                "github-oidc"
-              ],
+              "enum": ["github-oidc"],
               "description": "Authentication type. Currently only 'github-oidc' is supported. Maps to AWF_AUTH_TYPE."
             },
             "provider": {
               "type": "string",
-              "enum": [
-                "azure",
-                "aws",
-                "gcp",
-                "anthropic"
-              ],
+              "enum": ["azure", "aws", "gcp", "anthropic"],
               "description": "Cloud provider for OIDC token exchange. Determines which token exchange protocol is used. Maps to AWF_AUTH_PROVIDER.",
               "default": "azure"
             },
@@ -198,11 +186,7 @@
             },
             "azureCloud": {
               "type": "string",
-              "enum": [
-                "public",
-                "usgovernment",
-                "china"
-              ],
+              "enum": ["public", "usgovernment", "china"],
               "description": "Azure cloud environment. Maps to AWF_AUTH_AZURE_CLOUD.",
               "default": "public"
             },
@@ -249,24 +233,17 @@
               "description": "Anthropic workspace ID. Required when the federation rule covers multiple workspaces. Maps to AWF_AUTH_ANTHROPIC_WORKSPACE_ID."
             }
           },
-          "required": [
-            "type"
-          ],
+          "required": ["type"],
           "if": {
             "properties": {
               "provider": {
                 "const": "aws"
               }
             },
-            "required": [
-              "provider"
-            ]
+            "required": ["provider"]
           },
           "then": {
-            "required": [
-              "awsRoleArn",
-              "awsRegion"
-            ]
+            "required": ["awsRoleArn", "awsRegion"]
           },
           "else": {
             "if": {
@@ -275,14 +252,10 @@
                   "const": "gcp"
                 }
               },
-              "required": [
-                "provider"
-              ]
+              "required": ["provider"]
             },
             "then": {
-              "required": [
-                "gcpWorkloadIdentityProvider"
-              ]
+              "required": ["gcpWorkloadIdentityProvider"]
             },
             "else": {
               "if": {
@@ -291,22 +264,13 @@
                     "const": "anthropic"
                   }
                 },
-                "required": [
-                  "provider"
-                ]
+                "required": ["provider"]
               },
               "then": {
-                "required": [
-                  "anthropicFederationRuleId",
-                  "anthropicOrganizationId",
-                  "anthropicServiceAccountId"
-                ]
+                "required": ["anthropicFederationRuleId", "anthropicOrganizationId", "anthropicServiceAccountId"]
               },
               "else": {
-                "required": [
-                  "azureTenantId",
-                  "azureClientId"
-                ]
+                "required": ["azureTenantId", "azureClientId"]
               }
             }
           }
@@ -482,12 +446,7 @@
       "properties": {
         "logLevel": {
           "type": "string",
-          "enum": [
-            "debug",
-            "info",
-            "warn",
-            "error"
-          ],
+          "enum": ["debug", "info", "warn", "error"],
           "description": "Log verbosity level. Defaults to \"info\"."
         },
         "diagnosticLogs": {

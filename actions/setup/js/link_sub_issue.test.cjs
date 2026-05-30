@@ -211,4 +211,34 @@ const mockCore = {
       expect(mockGithub.rest.issues.get).not.toHaveBeenCalled();
       expect(mockGithub.graphql).not.toHaveBeenCalled();
     });
+
+    it("should use target-repo config as default for issue resolution", async () => {
+      const { main } = require(path.join(process.cwd(), "link_sub_issue.cjs"));
+      const handlerWithTarget = await main({
+        max: 5,
+        "target-repo": "external-org/external-repo",
+      });
+
+      mockGithub.rest.issues.get
+        .mockResolvedValueOnce({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } })
+        .mockResolvedValueOnce({ data: { number: 50, title: "Sub Issue", node_id: "I_sub_50", labels: [] } });
+      mockGithub.graphql.mockResolvedValueOnce({ repository: { issue: { parent: null } } }).mockResolvedValueOnce({ addSubIssue: { issue: { id: "I_parent_100", number: 100 }, subIssue: { id: "I_sub_50", number: 50 } } });
+
+      const result = await handlerWithTarget({ type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.get).toHaveBeenCalledWith(expect.objectContaining({ owner: "external-org", repo: "external-repo", issue_number: 100 }));
+    });
+
+    it("should use context.repo as default when no target-repo configured", async () => {
+      mockGithub.rest.issues.get
+        .mockResolvedValueOnce({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } })
+        .mockResolvedValueOnce({ data: { number: 50, title: "Sub Issue", node_id: "I_sub_50", labels: [] } });
+      mockGithub.graphql.mockResolvedValueOnce({ repository: { issue: { parent: null } } }).mockResolvedValueOnce({ addSubIssue: { issue: { id: "I_parent_100", number: 100 }, subIssue: { id: "I_sub_50", number: 50 } } });
+
+      const result = await handler({ type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 }, {});
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.get).toHaveBeenCalledWith(expect.objectContaining({ owner: "testowner", repo: "testrepo", issue_number: 100 }));
+    });
   }));

@@ -10,6 +10,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "assign_milestone";
@@ -54,6 +55,10 @@ async function main(config = {}) {
   if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
   if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
 
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  if (defaultTargetRepo) core.info(`Target repository: ${defaultTargetRepo}`);
+  if (allowedRepos.length > 0) core.info(`Allowed repositories: ${allowedRepos.join(", ")}`);
+
   core.info(`Assign milestone configuration: max=${maxCount}, auto_create=${autoCreate}`);
   if (allowedMilestones.length > 0) {
     core.info(`Allowed milestones: ${allowedMilestones.join(", ")}`);
@@ -73,9 +78,11 @@ async function main(config = {}) {
    * Find a milestone by title using lazy paginated search with early exit.
    * Results are cached so repeated lookups don't re-paginate.
    * @param {string} title
+   * @param {string} owner
+   * @param {string} repo
    * @returns {Promise<Object|null>}
    */
-  async function findMilestoneByTitle(title) {
+  async function findMilestoneByTitle(title, owner, repo) {
     if (milestoneByTitle.has(title)) {
       return milestoneByTitle.get(title);
     }
@@ -83,7 +90,7 @@ async function main(config = {}) {
       return null;
     }
     let found = false;
-    await githubClient.paginate(githubClient.rest.issues.listMilestones, { owner: context.repo.owner, repo: context.repo.repo, state: "all", per_page: 100 }, (response, done) => {
+    await githubClient.paginate(githubClient.rest.issues.listMilestones, { owner, repo, state: "all", per_page: 100 }, (response, done) => {
       for (const m of response.data) {
         if (!milestoneByTitle.has(m.title)) {
           milestoneByTitle.set(m.title, m);
@@ -126,8 +133,17 @@ async function main(config = {}) {
     // Convert resolvedTemporaryIds to a normalized Map for resolveRepoIssueTarget
     const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
 
+    // Resolve target repo from item or default target-repo config
+    const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "milestone assignment");
+    if (!repoResult.success) {
+      core.warning(`assign_milestone: ${repoResult.error}`);
+      return { success: false, error: repoResult.error };
+    }
+    const milestoneOwner = repoResult.repoParts.owner;
+    const milestoneRepo = repoResult.repoParts.repo;
+
     // Resolve issue_number, which may be a temporary ID (e.g. "aw_abc123") or a plain number
-    const resolvedIssueTarget = resolveRepoIssueTarget(item.issue_number, temporaryIdMap, context.repo.owner, context.repo.repo);
+    const resolvedIssueTarget = resolveRepoIssueTarget(item.issue_number, temporaryIdMap, milestoneOwner, milestoneRepo);
 
     // If the issue_number is a temporary ID that hasn't been resolved yet, defer processing
     if (resolvedIssueTarget.wasTemporaryId && !resolvedIssueTarget.resolved) {
@@ -149,7 +165,7 @@ async function main(config = {}) {
 
     const issueNumber = resolvedIssueTarget.resolved.number;
 
-    const repoParts = { owner: context.repo.owner, repo: context.repo.repo };
+    const repoParts = { owner: milestoneOwner, repo: milestoneRepo };
     const filterResult = await checkRequiredFilter(githubClient, repoParts, issueNumber, requiredLabels, requiredTitlePrefix, "assign_milestone");
     if (filterResult) return filterResult;
 
@@ -174,15 +190,15 @@ async function main(config = {}) {
     // Resolve milestone by title if milestone_number is not valid
     if (!hasMilestoneNumber && milestoneTitle !== null) {
       try {
-        const match = await findMilestoneByTitle(milestoneTitle);
+        const match = await findMilestoneByTitle(milestoneTitle, milestoneOwner, milestoneRepo);
         if (match) {
           milestoneNumber = match.number;
           core.info(`Resolved milestone title "${milestoneTitle}" to #${milestoneNumber}`);
         } else if (autoCreate) {
           // Create the milestone automatically
           const created = await githubClient.rest.issues.createMilestone({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
+            owner: milestoneOwner,
+            repo: milestoneRepo,
             title: milestoneTitle,
           });
           milestoneNumber = created.data.number;
@@ -211,8 +227,8 @@ async function main(config = {}) {
     if (allowedMilestones.length > 0) {
       try {
         const { data: milestone } = await githubClient.rest.issues.getMilestone({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
+          owner: milestoneOwner,
+          repo: milestoneRepo,
           milestone_number: milestoneNumber,
         });
 
@@ -251,8 +267,8 @@ async function main(config = {}) {
       }
 
       await githubClient.rest.issues.update({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
+        owner: milestoneOwner,
+        repo: milestoneRepo,
         issue_number: issueNumber,
         milestone: milestoneNumber,
       });
