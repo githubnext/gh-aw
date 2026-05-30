@@ -40,7 +40,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
+const { runProcess, formatDuration, sleep, buildCopilotSDKEnv } = require("./process_runner.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -525,6 +525,20 @@ async function main() {
   await checkCommandAccessible(command);
   const resolvedArgs = resolvePromptFileArgs(args);
 
+  // Build SDK env additions.  When GH_AW_COPILOT_SDK=1 the compiler has already added
+  // --transport http to the copilot CLI args and set COPILOT_SDK_URI; the helper merges
+  // COPILOT_SDK_URI into the child process env so that every started process (including
+  // retry attempts) always inherits the correct URI.
+  const sdkEnv = buildCopilotSDKEnv();
+  const copilotSDKMode = process.env.GH_AW_COPILOT_SDK === "1";
+  if (copilotSDKMode) {
+    log(`copilot-sdk mode active: COPILOT_SDK_URI=${sdkEnv.COPILOT_SDK_URI || "(not set)"}`);
+  }
+  // Merge SDK env additions into the child process env only when the SDK helper
+  // returned at least one variable; otherwise leave the env undefined so that
+  // runProcess inherits the full process.env (the common case).
+  const childEnv = Object.keys(sdkEnv).length > 0 ? { ...process.env, ...sdkEnv } : undefined;
+
   // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
   // This is best-effort: failures are logged but do not affect the agent run.
   // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. sandbox.agent: false — no api-proxy running).
@@ -564,7 +578,7 @@ async function main() {
 
     // Redact --prompt / -p value from logs to avoid leaking prompt content
     const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
-    const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs });
+    const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
     lastExitCode = result.exitCode;
     const attemptDetections = detectCopilotErrors(result.output);
     detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;

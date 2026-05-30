@@ -262,6 +262,18 @@ const (
 	// CopilotCLIIntegrationIDValue is the value of the integration ID for agentic workflows.
 	CopilotCLIIntegrationIDValue = "agentic-workflows"
 
+	// CopilotSDKURIEnvVar is the environment variable name for the Copilot SDK URI.
+	// When copilot-sdk: true is set, this env var holds the HTTP endpoint URI
+	// where the Copilot CLI listens for SDK connections (e.g. "http://127.0.0.1:3002").
+	// It is set on every process started by the harness so that the @github/copilot-sdk
+	// library can locate the running Copilot HTTP server.
+	CopilotSDKURIEnvVar = "COPILOT_SDK_URI"
+
+	// GHAWCopilotSDKEnvVar is the internal signal variable set by the compiler to tell
+	// the harness that copilot-sdk mode is active.  The harness adds --transport http to
+	// the Copilot CLI args and ensures COPILOT_SDK_URI is forwarded to child processes.
+	GHAWCopilotSDKEnvVar = "GH_AW_COPILOT_SDK"
+
 	// CopilotBYOKDummyAPIKey is the placeholder API key used to trigger AWF's
 	// runtime BYOK detection for Copilot offline mode. The real credential remains
 	// isolated in the AWF API proxy sidecar.
