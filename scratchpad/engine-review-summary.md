@@ -1,4 +1,4 @@
-# Deep Review Summary: Agentic Engine Interface & Implementations
+# Detailed Review Summary: Agentic Engine Interface & Implementations
 
 ## Overview
 

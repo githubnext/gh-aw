@@ -239,7 +239,7 @@ Explicit instructions in workflow prompts to reduce token consumption:
 **Previous Configuration:**
 - No max-turns limit
 - 30-minute timeout
-- Scans all lock files comprehensively
+- Scans all lock files
 - No issue-creation cap per run
 - Re-reads glossary multiple times
 
