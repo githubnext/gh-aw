@@ -13,7 +13,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { resolveNumberFromTemporaryId } = require("./temporary_id.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
-const { resolveTargetRepoConfig } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /**
  * Get discussion details using GraphQL with pagination for labels
@@ -173,17 +173,11 @@ async function main(config = {}) {
     allowedMentionAliases = await resolveAllowedMentionsFromPayload(context, githubClient, core, config.mentions);
   }
 
-  const { defaultTargetRepo } = resolveTargetRepoConfig(config);
-  let discussionOwner = context.repo.owner;
-  let discussionRepo = context.repo.repo;
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   if (defaultTargetRepo) {
-    const parts = defaultTargetRepo.split("/");
-    if (parts.length === 2 && parts[0] && parts[1]) {
-      discussionOwner = parts[0];
-      discussionRepo = parts[1];
-      core.info(`Target repository: ${defaultTargetRepo}`);
-    }
+    core.info(`Target repository: ${defaultTargetRepo}`);
   }
+  if (allowedRepos.size > 0) core.info(`Allowed repositories: ${Array.from(allowedRepos).join(", ")}`);
 
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
@@ -216,6 +210,15 @@ async function main(config = {}) {
     }
 
     processedCount++;
+
+    // Resolve and validate target repository for this item
+    const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "discussion");
+    if (!repoResult.success) {
+      core.warning(`Skipping close_discussion: ${repoResult.error}`);
+      return { success: false, error: repoResult.error };
+    }
+    const discussionOwner = repoResult.repoParts.owner;
+    const discussionRepo = repoResult.repoParts.repo;
 
     // Determine discussion number
     let discussionNumber;

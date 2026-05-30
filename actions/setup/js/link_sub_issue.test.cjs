@@ -241,4 +241,18 @@ const mockCore = {
       expect(result.success).toBe(true);
       expect(mockGithub.rest.issues.get).toHaveBeenCalledWith(expect.objectContaining({ owner: "testowner", repo: "testrepo", issue_number: 100 }));
     });
+
+    it("should reject item.repo not in allowed_repos", async () => {
+      const { main } = require(path.join(process.cwd(), "link_sub_issue.cjs"));
+      const handlerWithAllowed = await main({
+        max: 5,
+        "target-repo": "default-org/default-repo",
+        allowed_repos: ["default-org/default-repo"],
+      });
+
+      const result = await handlerWithAllowed({ type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50, repo: "evil-org/evil-repo" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/not allowed|evil-org\/evil-repo/);
+    });
   }));

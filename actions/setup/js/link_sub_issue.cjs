@@ -6,7 +6,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-const { resolveTargetRepoConfig } = require("./repo_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /**
  * Main handler factory for link_sub_issue
@@ -40,7 +40,7 @@ async function main(config = {}) {
   }
   core.info(`Max count: ${maxCount}`);
 
-  const { defaultTargetRepo } = resolveTargetRepoConfig(config);
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   let defaultOwner = context.repo.owner;
   let defaultRepo = context.repo.repo;
   if (defaultTargetRepo) {
@@ -51,6 +51,7 @@ async function main(config = {}) {
       core.info(`Target repository: ${defaultTargetRepo}`);
     }
   }
+  if (allowedRepos.size > 0) core.info(`Allowed repositories: ${Array.from(allowedRepos).join(", ")}`);
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
@@ -75,12 +76,26 @@ async function main(config = {}) {
 
     const item = message;
 
+    // Resolve and validate target repository for this item
+    const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "sub-issue link");
+    if (!repoResult.success) {
+      core.warning(`Skipping link_sub_issue: ${repoResult.error}`);
+      return {
+        parent_issue_number: item.parent_issue_number,
+        sub_issue_number: item.sub_issue_number,
+        success: false,
+        error: repoResult.error,
+      };
+    }
+    const itemOwner = repoResult.repoParts.owner;
+    const itemRepo = repoResult.repoParts.repo;
+
     // Convert resolvedTemporaryIds to a normalized Map for resolveIssueNumber
     const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
 
     // Resolve issue numbers, supporting temporary IDs from create_issue job
-    const parentResolved = resolveRepoIssueTarget(item.parent_issue_number, temporaryIdMap, defaultOwner, defaultRepo);
-    const subResolved = resolveRepoIssueTarget(item.sub_issue_number, temporaryIdMap, defaultOwner, defaultRepo);
+    const parentResolved = resolveRepoIssueTarget(item.parent_issue_number, temporaryIdMap, itemOwner, itemRepo);
+    const subResolved = resolveRepoIssueTarget(item.sub_issue_number, temporaryIdMap, itemOwner, itemRepo);
 
     // Check if either parent or sub issue is an unresolved temporary ID
     // If so, defer the operation to allow for resolution later
@@ -164,8 +179,8 @@ async function main(config = {}) {
       }
     }
 
-    const owner = parentResolved.resolved?.owner || defaultOwner;
-    const repo = parentResolved.resolved?.repo || defaultRepo;
+    const owner = parentResolved.resolved?.owner || itemOwner;
+    const repo = parentResolved.resolved?.repo || itemRepo;
 
     // Fetch parent issue to validate filters
     let parentIssue;
