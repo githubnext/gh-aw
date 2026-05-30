@@ -359,6 +359,12 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		c.IncrementWarningCount()
 	}
 
+	// Emit experimental warning for engine.copilot-sdk feature
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: engine.copilot-sdk"))
+		c.IncrementWarningCount()
+	}
+
 	// Emit experimental warning for experiments feature
 	if len(workflowData.Experiments) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: experiments"))
