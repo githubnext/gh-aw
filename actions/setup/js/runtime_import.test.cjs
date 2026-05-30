@@ -539,6 +539,58 @@ describe("runtime_import", () => {
             expect(result).not.toContain("title: Test"),
             expect(core.debug).toHaveBeenCalledWith(`File workflows/${filepath} contains front matter which will be ignored in runtime import`));
         }),
+        it("should preserve front matter for .github/agents imports", async () => {
+          const agentsDir = path.join(tempDir, ".github", "agents");
+          fs.mkdirSync(agentsDir, { recursive: true });
+          const filepath = ".github/agents/planner.md";
+          const content = "---\nmodel: gpt-5-mini\ndescription: Planner\n---\n\n# Planner\n\nPrompt body.";
+          fs.writeFileSync(path.join(agentsDir, "planner.md"), content);
+
+          const result = await processRuntimeImport(filepath, !1, tempDir);
+
+          expect(result).toContain("model: gpt-5-mini");
+          expect(result).toContain("# Planner");
+          expect(core.debug).toHaveBeenCalledWith("File agents/planner.md contains front matter which will be preserved for agent runtime import");
+        }),
+        it("should preserve front matter for .agents/agents imports", async () => {
+          const subAgentsDir = path.join(tempDir, ".agents", "agents");
+          fs.mkdirSync(subAgentsDir, { recursive: true });
+          const filepath = ".agents/agents/router.md";
+          const content = "---\nmodel: gpt-5-mini\n---\n\nRouter body.";
+          fs.writeFileSync(path.join(subAgentsDir, "router.md"), content);
+
+          const result = await processRuntimeImport(filepath, !1, tempDir);
+
+          expect(result).toContain("model: gpt-5-mini");
+          expect(result).toContain("Router body.");
+          expect(core.debug).toHaveBeenCalledWith("File .agents/agents/router.md contains front matter which will be preserved for agent runtime import");
+        }),
+        it("should preserve front matter for .github/skills imports", async () => {
+          const skillsDir = path.join(tempDir, ".github", "skills", "planner-skill");
+          fs.mkdirSync(skillsDir, { recursive: true });
+          const filepath = ".github/skills/planner-skill/SKILL.md";
+          const content = "---\nmodel: gpt-5-mini\ndescription: Planner skill\n---\n\nSkill body.";
+          fs.writeFileSync(path.join(skillsDir, "SKILL.md"), content);
+
+          const result = await processRuntimeImport(filepath, !1, tempDir);
+
+          expect(result).toContain("model: gpt-5-mini");
+          expect(result).toContain("Skill body.");
+          expect(core.debug).toHaveBeenCalledWith("File skills/planner-skill/SKILL.md contains front matter which will be preserved for agent runtime import");
+        }),
+        it("should preserve front matter for .agents/skills imports", async () => {
+          const skillsDir = path.join(tempDir, ".agents", "skills", "router-skill");
+          fs.mkdirSync(skillsDir, { recursive: true });
+          const filepath = ".agents/skills/router-skill/instructions.md";
+          const content = "---\nmodel: gpt-5-mini\n---\n\nRouter skill body.";
+          fs.writeFileSync(path.join(skillsDir, "instructions.md"), content);
+
+          const result = await processRuntimeImport(filepath, !1, tempDir);
+
+          expect(result).toContain("model: gpt-5-mini");
+          expect(result).toContain("Router skill body.");
+          expect(core.debug).toHaveBeenCalledWith("File .agents/skills/router-skill/instructions.md contains front matter which will be preserved for agent runtime import");
+        }),
         it("should remove XML comments", async () => {
           fs.writeFileSync(path.join(workflowsDir, "with-comments.md"), "# Title\n\n\x3c!-- This is a comment --\x3e\n\nContent here.");
           const result = await processRuntimeImport("with-comments.md", !1, tempDir);
