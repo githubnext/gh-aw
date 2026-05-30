@@ -628,7 +628,10 @@ async function startCopilotSDKServer(options) {
 
   const failure = new Promise((_, reject) => {
     child.once("error", err => reject(err));
-    child.once("exit", (code, signal) => reject(new Error(`copilot-sdk headless server exited before ready (exitCode=${code ?? 1}${signal ? ` signal=${signal}` : ""})`)));
+    child.once("exit", (code, signal) => {
+      const exitDetails = `exitCode=${code ?? 1}${signal ? ` signal=${signal}` : ""}`;
+      reject(new Error(`copilot-sdk headless server exited before ready (${exitDetails})`));
+    });
   });
 
   await Promise.race([

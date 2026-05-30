@@ -1,12 +1,12 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { createRequire } from "module";
-import { EventEmitter } from "events";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { PassThrough } from "stream";
 
 const require = createRequire(import.meta.url);
+const { EventEmitter } = require("events");
+const { PassThrough } = require("stream");
 const {
   appendSafeOutputLine,
   buildMissingToolPermissionIssuePayload,
