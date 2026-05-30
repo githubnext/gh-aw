@@ -8,11 +8,13 @@ const require = createRequire(import.meta.url);
 const {
   appendSafeOutputLine,
   buildMissingToolPermissionIssuePayload,
+  buildMissingToolAlternatives,
   buildInfrastructureIncompletePayload,
   buildPromptFileFallbackInstruction,
   countPermissionDeniedIssues,
   detectCopilotErrors,
   emitInfrastructureIncomplete,
+  emitMissingToolPermissionIssue,
   extractDeniedCommands,
   hasNumerousPermissionDeniedIssues,
   INFERENCE_ACCESS_ERROR_PATTERN,
@@ -188,32 +190,44 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("emitInfrastructureIncomplete writes payload when path is configured", () => {
-      const writes = [];
+      const calls = [];
       const logs = [];
       emitInfrastructureIncomplete("temporary outage", {
         safeOutputsPath: "/tmp/safeoutputs.jsonl",
-        appendFileSync: (file, data, options) => writes.push({ file, data, options }),
+        runSafeOutputsCLI: (toolName, args) => calls.push({ toolName, args }),
         logger: message => logs.push(message),
       });
-      expect(writes).toHaveLength(1);
-      expect(writes[0].file).toBe("/tmp/safeoutputs.jsonl");
-      const parsed = JSON.parse(writes[0].data.trim());
-      expect(parsed.type).toBe("report_incomplete");
-      expect(parsed.reason).toBe("infrastructure_error");
-      expect(parsed.details).toBe("temporary outage");
+      expect(calls).toEqual([
+        {
+          toolName: "report_incomplete",
+          args: { reason: "infrastructure_error", details: "temporary outage" },
+        },
+      ]);
       expect(logs.some(message => message.includes("report_incomplete emitted"))).toBe(true);
     });
 
     it("emitInfrastructureIncomplete skips when path is missing", () => {
-      const writes = [];
+      const calls = [];
       const logs = [];
       emitInfrastructureIncomplete("temporary outage", {
         safeOutputsPath: "",
-        appendFileSync: () => writes.push("write"),
+        runSafeOutputsCLI: () => calls.push("call"),
         logger: message => logs.push(message),
       });
-      expect(writes).toHaveLength(0);
+      expect(calls).toHaveLength(0);
       expect(logs.some(message => message.includes("skipped"))).toBe(true);
+    });
+
+    it("emitInfrastructureIncomplete logs CLI errors", () => {
+      const logs = [];
+      emitInfrastructureIncomplete("temporary outage", {
+        safeOutputsPath: "/tmp/safeoutputs.jsonl",
+        runSafeOutputsCLI: () => {
+          throw new Error("EROFS");
+        },
+        logger: message => logs.push(message),
+      });
+      expect(logs.some(message => message.includes("report_incomplete emission failed: EROFS"))).toBe(true);
     });
   });
 
@@ -244,6 +258,43 @@ describe("copilot_harness.cjs", () => {
       const payload = JSON.parse(buildMissingToolPermissionIssuePayload(["go version", "ls /usr/local/go/bin/go"]));
       expect(payload.type).toBe("missing_tool");
       expect(payload.denied_commands).toEqual(["go version", "ls /usr/local/go/bin/go"]);
+    });
+
+    it("builds missing_tool alternatives with denied command details", () => {
+      const base = "Verify token scopes, repository permissions, and MCP/tool access configuration.";
+      const alternatives = buildMissingToolAlternatives(base, ["go version"]);
+      expect(alternatives).toContain("Denied commands: go version");
+    });
+
+    it("keeps base alternatives when denied command list is empty", () => {
+      const base = "Verify token scopes, repository permissions, and MCP/tool access configuration.";
+      expect(buildMissingToolAlternatives(base, [])).toBe(base);
+    });
+
+    it("caps alternatives to 512 chars and uses compact overflow marker", () => {
+      const base = "base";
+      const deniedCommands = Array.from({ length: 30 }, (_, i) => `command-${i}-${"x".repeat(30)}`);
+      const alternatives = buildMissingToolAlternatives(base, deniedCommands);
+      expect(alternatives.length).toBeLessThanOrEqual(512);
+      expect(alternatives).toContain("Denied commands:");
+      expect(alternatives).toContain("... and");
+    });
+
+    it("emitMissingToolPermissionIssue calls safeoutputs CLI when path is configured", () => {
+      const calls = [];
+      const logs = [];
+      emitMissingToolPermissionIssue({
+        safeOutputsPath: "/tmp/safeoutputs.jsonl",
+        deniedCommands: ["go version"],
+        runSafeOutputsCLI: (toolName, args) => calls.push({ toolName, args }),
+        logger: message => logs.push(message),
+      });
+      expect(calls).toHaveLength(1);
+      expect(calls[0].toolName).toBe("missing_tool");
+      expect(calls[0].args.tool).toBe("tool/permission");
+      expect(calls[0].args.reason).toContain("missing tool/permission issue");
+      expect(calls[0].args.alternatives).toContain("Denied commands: go version");
+      expect(logs.some(message => message.includes("missing_tool emitted"))).toBe(true);
     });
   });
 

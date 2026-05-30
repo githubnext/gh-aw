@@ -140,6 +140,37 @@ func TestCompiledLockFiles_SafeOutputsJobOutputs(t *testing.T) {
 	t.Logf("Validated safe_outputs job outputs for %d workflow(s)", checkedWorkflows)
 }
 
+func TestCompiledLockFiles_SmokePiOmitsYoloArg(t *testing.T) {
+	lockPath := filepath.Join(workflowsDir, "smoke-pi.lock.yml")
+	lockBytes, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "should read smoke-pi lock file")
+
+	assert.NotContains(t, string(lockBytes), "--yolo",
+		"smoke-pi should not pass a redundant --yolo arg because Pi runs in yolo mode by default")
+}
+
+func TestCompiledLockFiles_SmokePiKeepsCLIProxySafeoutputsWiring(t *testing.T) {
+	sourcePath := filepath.Join(workflowsDir, "smoke-pi.md")
+	sourceBytes, err := os.ReadFile(sourcePath)
+	require.NoError(t, err, "should read smoke-pi source workflow")
+
+	source := string(sourceBytes)
+	assert.Contains(t, source, "cli-proxy: true",
+		"smoke-pi source workflow should keep cli-proxy enabled so safeoutputs CLI wrappers are generated")
+
+	lockPath := filepath.Join(workflowsDir, "smoke-pi.lock.yml")
+	lockBytes, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "should read smoke-pi lock file")
+
+	lockContent := string(lockBytes)
+	assert.Contains(t, lockContent, "Mount MCP servers as CLIs",
+		"smoke-pi lock file should mount MCP servers as CLI wrappers")
+	assert.Contains(t, lockContent, `GH_AW_MCP_CLI_SERVERS='["safeoutputs"]'`,
+		"smoke-pi lock file should request the safeoutputs CLI wrapper")
+	assert.Contains(t, lockContent, `export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH"`,
+		"smoke-pi lock file should add mounted MCP CLI wrappers to PATH before executing Pi")
+}
+
 // TestCompiledLockFiles_WorkflowCallOutputs validates that compiled lock files for workflows
 // using workflow_call + safe-outputs automatically include on.workflow_call.outputs declarations.
 func TestCompiledLockFiles_WorkflowCallOutputs(t *testing.T) {

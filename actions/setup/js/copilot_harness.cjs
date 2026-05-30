@@ -52,6 +52,7 @@ const {
   fetchAWFReflect,
   fetchModelsFromUrl,
 } = require("./awf_reflect.cjs");
+const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete } = require("./safeoutputs_cli.cjs");
 
 // Maximum number of retry attempts after the initial run
 const MAX_RETRIES = 3;
@@ -104,10 +105,6 @@ const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
 const PERMISSION_DENIED_PATTERN = /\b(?:permission denied|permissions denied|EACCES|EPERM)\b/gi;
 const NUMEROUS_PERMISSION_DENIED_THRESHOLD = 3;
-
-/**
- * @typedef {(path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void} AppendFileSyncLike
- */
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
@@ -363,70 +360,12 @@ function buildMissingToolPermissionIssuePayload(deniedCommands) {
 
 /**
  * Append one safe-output entry line.
- * @param {AppendFileSyncLike} appendFileSync
+ * @param {(path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void} appendFileSync
  * @param {string} safeOutputsPath
  * @param {string} payload
  */
 function appendSafeOutputLine(appendFileSync, safeOutputsPath, payload) {
   appendFileSync(safeOutputsPath, payload + "\n", { encoding: "utf8" });
-}
-
-/**
- * Emit a structured missing_tool signal for repeated permission-denied failures.
- * @param {{
- *   safeOutputsPath?: string,
- *   appendFileSync?: AppendFileSyncLike,
- *   logger?: (message: string) => void,
- *   deniedCommands?: string[]
- * }=} options
- */
-function emitMissingToolPermissionIssue(options) {
-  const safeOutputsPath = options && typeof options.safeOutputsPath === "string" ? options.safeOutputsPath : process.env.GH_AW_SAFE_OUTPUTS || "";
-  const appendFileSync = options && options.appendFileSync ? options.appendFileSync : fs.appendFileSync;
-  const logger = options && options.logger ? options.logger : log;
-  const deniedCommands = options && options.deniedCommands ? options.deniedCommands : [];
-
-  if (!safeOutputsPath) {
-    logger("missing_tool skipped: GH_AW_SAFE_OUTPUTS is not set");
-    return;
-  }
-  try {
-    const payload = buildMissingToolPermissionIssuePayload(deniedCommands);
-    appendSafeOutputLine(appendFileSync, safeOutputsPath, payload);
-    logger(`missing_tool emitted for permission issues: ${safeOutputsPath}`);
-  } catch (error) {
-    const err = /** @type {Error} */ error;
-    logger(`missing_tool emission failed: ${err.message}`);
-  }
-}
-
-/**
- * Append a structured report_incomplete signal when infrastructure failures prevent completion.
- * This allows downstream failure handling to classify transient infrastructure errors explicitly.
- * @param {string} details
- * @param {{
- *   safeOutputsPath?: string,
- *   appendFileSync?: AppendFileSyncLike,
- *   logger?: (message: string) => void
- * }=} options
- */
-function emitInfrastructureIncomplete(details, options) {
-  const safeOutputsPath = options && typeof options.safeOutputsPath === "string" ? options.safeOutputsPath : process.env.GH_AW_SAFE_OUTPUTS || "";
-  const appendFileSync = options && options.appendFileSync ? options.appendFileSync : fs.appendFileSync;
-  const logger = options && options.logger ? options.logger : log;
-
-  if (!safeOutputsPath) {
-    logger("report_incomplete skipped: GH_AW_SAFE_OUTPUTS is not set");
-    return;
-  }
-  try {
-    const payload = buildInfrastructureIncompletePayload(details);
-    appendSafeOutputLine(appendFileSync, safeOutputsPath, payload);
-    logger(`report_incomplete emitted: ${safeOutputsPath}`);
-  } catch (error) {
-    const err = /** @type {Error} */ error;
-    logger(`report_incomplete emission failed: ${err.message}`);
-  }
 }
 
 /**
@@ -619,7 +558,7 @@ async function main() {
 
     if (hasNumerousPermissionDenied) {
       const deniedCommands = extractDeniedCommands(result.output);
-      emitMissingToolPermissionIssue({ deniedCommands });
+      emitMissingToolPermissionIssue({ deniedCommands, logger: log });
       log(`attempt ${attempt + 1}: detected numerous permission-denied issues — not retrying (classified as missing tool/permission issue)`);
       break;
     }
@@ -712,7 +651,7 @@ async function main() {
   }
 
   if (isScheduledRun && lastExitCode === 2 && scheduledExit2RetryAttempted) {
-    emitInfrastructureIncomplete("Copilot API interruption (exit code 2) persisted after automatic retry in scheduled workflow run.");
+    emitInfrastructureIncomplete("Copilot API interruption (exit code 2) persisted after automatic retry in scheduled workflow run.", { logger: log });
   }
 
   // Fetch AWF API proxy reflection data and persist to disk for post-run step summary.
@@ -735,6 +674,7 @@ if (typeof module !== "undefined" && module.exports) {
     GEMINI_MODEL_NAME_PREFIX,
     PROMPT_FILE_INLINE_THRESHOLD_BYTES,
     appendSafeOutputLine,
+    buildMissingToolAlternatives,
     buildPromptFileFallbackInstruction,
     buildInfrastructureIncompletePayload,
     emitInfrastructureIncomplete,
