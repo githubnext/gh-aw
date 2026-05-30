@@ -41,7 +41,7 @@ sandbox:
       filesystem:
         allowWrite:
           - ${{ github.workspace }}
-          - /tmp/gh-aw/agent
+          - /tmp
 runtimes:
   node: {}
 imports:
@@ -55,7 +55,6 @@ network:
 tools:
   cache-memory: true
   github:
-    toolsets: [repos, pull_requests]
     mode: gh-proxy
   edit:
   bash:
