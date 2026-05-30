@@ -175,8 +175,8 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gpt-5.4-nano-2026-03-17` | 6 |
 | `gpt-5.4-pro` | 6 |
 | `gpt-5.4-pro-2026-03-05` | 6 |
-| `gpt-5.5` | 7.5 |
-| `gpt-5.5-2026-04-23` | 7.5 |
+| `gpt-5.5` | 57 |
+| `gpt-5.5-2026-04-23` | 57 |
 | `gpt-5.5-pro` | 2 |
 | `gpt-5.5-pro-2026-04-23` | 2 |
 
