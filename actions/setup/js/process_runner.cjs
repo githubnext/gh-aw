@@ -139,6 +139,15 @@ function runProcess({ command, args, attempt, log, logArgs, env }) {
 }
 
 /**
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {boolean}
+ */
+function isCopilotSDKEnabled(env) {
+  const sourceEnv = env ?? process.env;
+  return sourceEnv.GH_AW_COPILOT_SDK === "1";
+}
+
+/**
  * Returns the Copilot SDK environment additions to inject into child processes
  * when SDK mode is active (GH_AW_COPILOT_SDK=1).
  *
@@ -155,12 +164,12 @@ function runProcess({ command, args, attempt, log, logArgs, env }) {
  */
 function buildCopilotSDKEnv(env) {
   const sourceEnv = env ?? process.env;
-  if (sourceEnv.GH_AW_COPILOT_SDK !== "1") return {};
+  if (!isCopilotSDKEnabled(sourceEnv)) return {};
   const uri = sourceEnv.COPILOT_SDK_URI;
   if (!uri) return {};
   return { COPILOT_SDK_URI: uri };
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { runProcess, formatDuration, sleep, buildCopilotSDKEnv };
+  module.exports = { runProcess, formatDuration, sleep, isCopilotSDKEnabled, buildCopilotSDKEnv };
 }

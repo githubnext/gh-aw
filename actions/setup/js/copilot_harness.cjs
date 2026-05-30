@@ -40,7 +40,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { runProcess, formatDuration, sleep, buildCopilotSDKEnv } = require("./process_runner.cjs");
+const { runProcess, formatDuration, sleep, isCopilotSDKEnabled, buildCopilotSDKEnv } = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
@@ -530,7 +530,7 @@ async function main() {
   // process env so that every started process (including retry attempts) inherits the
   // correct SDK endpoint URI.
   const sdkEnv = buildCopilotSDKEnv();
-  const copilotSDKMode = process.env.GH_AW_COPILOT_SDK === "1";
+  const copilotSDKMode = isCopilotSDKEnabled();
   if (copilotSDKMode) {
     log(`copilot-sdk mode active: COPILOT_SDK_URI=${sdkEnv.COPILOT_SDK_URI || "(not set)"}`);
   }
@@ -565,187 +565,189 @@ async function main() {
   };
   /** @type {Awaited<ReturnType<typeof startCopilotSDKServer>>} */
   let copilotSDKServer = null;
-  if (copilotSDKMode) {
-    copilotSDKServer = await startCopilotSDKServer({
-      command,
-      env: childEnv ?? process.env,
-      logger: log,
-    });
-  }
-
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    // Add --continue flag on retries so the copilot session continues from where it left off
-    const currentArgs = attempt > 0 && useContinueOnRetry ? [...resolvedArgs, "--continue"] : resolvedArgs;
-
-    if (attempt > 0) {
-      const retryMode = useContinueOnRetry ? "--continue" : "fresh run";
-      log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt (${retryMode})`);
-      await sleep(delay);
-      delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
-      log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
+  try {
+    if (copilotSDKMode) {
+      copilotSDKServer = await startCopilotSDKServer({
+        command,
+        env: childEnv ?? process.env,
+        logger: log,
+      });
     }
 
-    // Redact --prompt / -p value from logs to avoid leaking prompt content
-    const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
-    const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
-    lastExitCode = result.exitCode;
-    const attemptDetections = detectCopilotErrors(result.output);
-    detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;
-    detectedCopilotErrors.mcpPolicyError ||= attemptDetections.mcpPolicyError;
-    detectedCopilotErrors.agenticEngineTimeout ||= attemptDetections.agenticEngineTimeout;
-    detectedCopilotErrors.modelNotSupportedError ||= attemptDetections.modelNotSupportedError;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      // Add --continue flag on retries so the copilot session continues from where it left off
+      const currentArgs = attempt > 0 && useContinueOnRetry ? [...resolvedArgs, "--continue"] : resolvedArgs;
 
-    // Success — record exit code and stop retrying
-    if (result.exitCode === 0) {
-      log(`success on attempt ${attempt + 1}: totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
-      lastExitCode = 0;
-      break;
-    }
+      if (attempt > 0) {
+        const retryMode = useContinueOnRetry ? "--continue" : "fresh run";
+        log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt (${retryMode})`);
+        await sleep(delay);
+        delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
+        log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
+      }
 
-    // Determine whether to retry.
-    // Retry whenever the session was partially executed (hasOutput), using --continue so that
-    // the Copilot CLI can continue from where it left off.  CAPIError 400 is the well-known
-    // transient case, but any partial-execution failure is eligible for a continue retry.
-    // Exceptions:
-    //   - MCP policy errors and model-not-supported errors are persistent configuration issues.
-    //   - Auth errors trigger a one-time fallback to a fresh run; after that --continue is
-    //     permanently disabled.
-    //   - Null-type tool_call 400 errors poison conversation history — always restart fresh and
-    //     permanently disable --continue so the corrupt state is never reloaded.
-    const isCAPIError = isTransientCAPIError(result.output);
-    const isMCPPolicy = isMCPPolicyError(result.output);
-    const isModelNotSupported = isModelNotSupportedError(result.output);
-    const isAuthErr = isNoAuthInfoError(result.output);
-    const isAuthenticationFailed = isAuthenticationFailedError(result.output);
-    const isNullTypeToolCall = isNullTypeToolCallError(result.output);
-    const permissionDeniedCount = countPermissionDeniedIssues(result.output);
-    const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
-    log(
-      `attempt ${attempt + 1} failed:` +
-        ` exitCode=${result.exitCode}` +
-        ` isCAPIError400=${isCAPIError}` +
-        ` isMCPPolicyError=${isMCPPolicy}` +
-        ` isModelNotSupportedError=${isModelNotSupported}` +
-        ` isNullTypeToolCallError=${isNullTypeToolCall}` +
-        ` isAuthError=${isAuthErr}` +
-        ` isAuthenticationFailedError=${isAuthenticationFailed}` +
-        ` permissionDeniedCount=${permissionDeniedCount}` +
-        ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
-        ` hasOutput=${result.hasOutput}` +
-        ` retriesRemaining=${MAX_RETRIES - attempt}`
-    );
+      // Redact --prompt / -p value from logs to avoid leaking prompt content
+      const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
+      const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
+      lastExitCode = result.exitCode;
+      const attemptDetections = detectCopilotErrors(result.output);
+      detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;
+      detectedCopilotErrors.mcpPolicyError ||= attemptDetections.mcpPolicyError;
+      detectedCopilotErrors.agenticEngineTimeout ||= attemptDetections.agenticEngineTimeout;
+      detectedCopilotErrors.modelNotSupportedError ||= attemptDetections.modelNotSupportedError;
 
-    if (attempt === 0 && isAuthenticationFailed) {
-      log(`attempt ${attempt + 1}: authentication failed — not retrying (first-attempt auth failure is non-retryable)`);
-      break;
-    }
+      // Success — record exit code and stop retrying
+      if (result.exitCode === 0) {
+        log(`success on attempt ${attempt + 1}: totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
+        lastExitCode = 0;
+        break;
+      }
 
-    if (hasNumerousPermissionDenied) {
-      const deniedCommands = extractDeniedCommands(result.output);
-      emitMissingToolPermissionIssue({ deniedCommands });
-      log(`attempt ${attempt + 1}: detected numerous permission-denied issues — not retrying (classified as missing tool/permission issue)`);
-      break;
-    }
+      // Determine whether to retry.
+      // Retry whenever the session was partially executed (hasOutput), using --continue so that
+      // the Copilot CLI can continue from where it left off.  CAPIError 400 is the well-known
+      // transient case, but any partial-execution failure is eligible for a continue retry.
+      // Exceptions:
+      //   - MCP policy errors and model-not-supported errors are persistent configuration issues.
+      //   - Auth errors trigger a one-time fallback to a fresh run; after that --continue is
+      //     permanently disabled.
+      //   - Null-type tool_call 400 errors poison conversation history — always restart fresh and
+      //     permanently disable --continue so the corrupt state is never reloaded.
+      const isCAPIError = isTransientCAPIError(result.output);
+      const isMCPPolicy = isMCPPolicyError(result.output);
+      const isModelNotSupported = isModelNotSupportedError(result.output);
+      const isAuthErr = isNoAuthInfoError(result.output);
+      const isAuthenticationFailed = isAuthenticationFailedError(result.output);
+      const isNullTypeToolCall = isNullTypeToolCallError(result.output);
+      const permissionDeniedCount = countPermissionDeniedIssues(result.output);
+      const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
+      log(
+        `attempt ${attempt + 1} failed:` +
+          ` exitCode=${result.exitCode}` +
+          ` isCAPIError400=${isCAPIError}` +
+          ` isMCPPolicyError=${isMCPPolicy}` +
+          ` isModelNotSupportedError=${isModelNotSupported}` +
+          ` isNullTypeToolCallError=${isNullTypeToolCall}` +
+          ` isAuthError=${isAuthErr}` +
+          ` isAuthenticationFailedError=${isAuthenticationFailed}` +
+          ` permissionDeniedCount=${permissionDeniedCount}` +
+          ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
+          ` hasOutput=${result.hasOutput}` +
+          ` retriesRemaining=${MAX_RETRIES - attempt}`
+      );
 
-    // MCP policy errors are persistent — retrying will not help.
-    if (isMCPPolicy) {
-      log(`attempt ${attempt + 1}: MCP servers blocked by policy — not retrying (this is a policy configuration issue, not a transient error)`);
-      break;
-    }
+      if (attempt === 0 && isAuthenticationFailed) {
+        log(`attempt ${attempt + 1}: authentication failed — not retrying (first-attempt auth failure is non-retryable)`);
+        break;
+      }
 
-    // Model-not-supported errors are persistent — retrying will not help.
-    if (isModelNotSupported) {
-      if (!modelNotSupportedReflectRetryAttempted && attempt < MAX_RETRIES && isDetectionPhase(process.env.GH_AW_PHASE) && process.env.AWF_REFLECT_ENABLED === "1") {
-        const configuredModel = process.env.COPILOT_MODEL || "";
-        modelNotSupportedReflectRetryAttempted = true;
-        log(`attempt ${attempt + 1}: model not supported during detection — refreshing awf-reflect to rule out startup registry race`);
-        await fetchAWFReflect({ logger: log });
-        if (isModelAvailableInReflectFile(configuredModel, { logger: log })) {
+      if (hasNumerousPermissionDenied) {
+        const deniedCommands = extractDeniedCommands(result.output);
+        emitMissingToolPermissionIssue({ deniedCommands });
+        log(`attempt ${attempt + 1}: detected numerous permission-denied issues — not retrying (classified as missing tool/permission issue)`);
+        break;
+      }
+
+      // MCP policy errors are persistent — retrying will not help.
+      if (isMCPPolicy) {
+        log(`attempt ${attempt + 1}: MCP servers blocked by policy — not retrying (this is a policy configuration issue, not a transient error)`);
+        break;
+      }
+
+      // Model-not-supported errors are persistent — retrying will not help.
+      if (isModelNotSupported) {
+        if (!modelNotSupportedReflectRetryAttempted && attempt < MAX_RETRIES && isDetectionPhase(process.env.GH_AW_PHASE) && process.env.AWF_REFLECT_ENABLED === "1") {
+          const configuredModel = process.env.COPILOT_MODEL || "";
+          modelNotSupportedReflectRetryAttempted = true;
+          log(`attempt ${attempt + 1}: model not supported during detection — refreshing awf-reflect to rule out startup registry race`);
+          await fetchAWFReflect({ logger: log });
+          if (isModelAvailableInReflectFile(configuredModel, { logger: log })) {
+            useContinueOnRetry = false;
+            continueDisabledPermanently = true;
+            log(`attempt ${attempt + 1}: refreshed awf-reflect now includes model '${configuredModel}' — retrying once as fresh run`);
+            continue;
+          }
+          log(`attempt ${attempt + 1}: refreshed awf-reflect does not include model '${configuredModel || "(none)"}' — treating as non-retryable`);
+        }
+        log(`attempt ${attempt + 1}: model not supported — not retrying (the requested model is unavailable for this subscription tier; specify a supported model in the workflow frontmatter)`);
+        break;
+      }
+
+      // Auth error: behavior depends on whether this was a --continue attempt.
+      // On a --continue attempt: the Copilot CLI's on-disk session credential written by the
+      // interrupted run may be incomplete/invalid.  Fall back to a fresh run (without --continue)
+      // once so env-var auth can succeed.  Mid-stream context is lost but the job can recover.
+      // On a fresh run: the auth token is genuinely absent or invalid — retrying will not help.
+      if (isAuthErr) {
+        if (useContinueOnRetry && attempt < MAX_RETRIES) {
           useContinueOnRetry = false;
           continueDisabledPermanently = true;
-          log(`attempt ${attempt + 1}: refreshed awf-reflect now includes model '${configuredModel}' — retrying once as fresh run`);
+          log(`attempt ${attempt + 1}: auth error on --continue — retrying as fresh run (session credential may be corrupted; context will be lost)`);
           continue;
         }
-        log(`attempt ${attempt + 1}: refreshed awf-reflect does not include model '${configuredModel || "(none)"}' — treating as non-retryable`);
+        log(`attempt ${attempt + 1}: no authentication information found — not retrying (COPILOT_GITHUB_TOKEN, GH_TOKEN, and GITHUB_TOKEN are all absent or invalid)`);
+        break;
       }
-      log(`attempt ${attempt + 1}: model not supported — not retrying (the requested model is unavailable for this subscription tier; specify a supported model in the workflow frontmatter)`);
-      break;
-    }
 
-    // Auth error: behavior depends on whether this was a --continue attempt.
-    // On a --continue attempt: the Copilot CLI's on-disk session credential written by the
-    // interrupted run may be incomplete/invalid.  Fall back to a fresh run (without --continue)
-    // once so env-var auth can succeed.  Mid-stream context is lost but the job can recover.
-    // On a fresh run: the auth token is genuinely absent or invalid — retrying will not help.
-    if (isAuthErr) {
-      if (useContinueOnRetry && attempt < MAX_RETRIES) {
+      // Null-type tool_call error: the model emitted a malformed tool call that poisons the
+      // conversation history.  Retrying with --continue re-injects the same broken history and
+      // produces the same 400 on every subsequent attempt.  Restart fresh to discard the poisoned
+      // history, and permanently disable --continue so the corrupt state is never re-loaded.
+      if (isNullTypeToolCall) {
+        if (attempt < MAX_RETRIES && result.hasOutput) {
+          const priorMode = attempt > 0 && useContinueOnRetry ? "--continue" : "fresh run";
+          useContinueOnRetry = false;
+          continueDisabledPermanently = true;
+          log(`attempt ${attempt + 1}: null-type tool_call error (${priorMode}) — restarting fresh (poisoned history discarded; --continue disabled permanently)`);
+          continue;
+        }
+      }
+
+      // Scheduled runs: retry once on exit code 2 even when no output was produced.
+      // This specifically targets transient Copilot API outages at startup where there is no
+      // partial session state to continue from.
+      if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < MAX_RETRIES) {
+        scheduledExit2Retries += 1;
+        scheduledExit2RetryAttempted = true;
         useContinueOnRetry = false;
-        continueDisabledPermanently = true;
-        log(`attempt ${attempt + 1}: auth error on --continue — retrying as fresh run (session credential may be corrupted; context will be lost)`);
+        log(`attempt ${attempt + 1}: scheduled startup interruption (exit code 2, no output)` + ` — retrying once as fresh run (startupRetry=${scheduledExit2Retries}/${MAX_SCHEDULED_EXIT2_RETRIES})`);
         continue;
       }
-      log(`attempt ${attempt + 1}: no authentication information found — not retrying (COPILOT_GITHUB_TOKEN, GH_TOKEN, and GITHUB_TOKEN are all absent or invalid)`);
-      break;
-    }
+      if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt >= MAX_RETRIES) {
+        log(`attempt ${attempt + 1}: scheduled startup interruption detected but retry budget exhausted — no attempts remain`);
+      }
 
-    // Null-type tool_call error: the model emitted a malformed tool call that poisons the
-    // conversation history.  Retrying with --continue re-injects the same broken history and
-    // produces the same 400 on every subsequent attempt.  Restart fresh to discard the poisoned
-    // history, and permanently disable --continue so the corrupt state is never re-loaded.
-    if (isNullTypeToolCall) {
       if (attempt < MAX_RETRIES && result.hasOutput) {
-        const priorMode = attempt > 0 && useContinueOnRetry ? "--continue" : "fresh run";
-        useContinueOnRetry = false;
-        continueDisabledPermanently = true;
-        log(`attempt ${attempt + 1}: null-type tool_call error (${priorMode}) — restarting fresh (poisoned history discarded; --continue disabled permanently)`);
+        const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
+        useContinueOnRetry = !continueDisabledPermanently;
+        const retryMode = useContinueOnRetry ? "--continue" : "fresh run (--continue permanently disabled)";
+        log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
         continue;
       }
+
+      if (attempt >= MAX_RETRIES) {
+        log(`all ${MAX_RETRIES} retries exhausted — giving up (exitCode=${lastExitCode})`);
+      } else {
+        log(`attempt ${attempt + 1}: no output produced — not retrying` + ` (possible causes: binary not found, permission denied, auth failure, or silent startup crash)`);
+      }
+
+      // Non-retryable error or retries exhausted — propagate exit code
+      break;
     }
 
-    // Scheduled runs: retry once on exit code 2 even when no output was produced.
-    // This specifically targets transient Copilot API outages at startup where there is no
-    // partial session state to continue from.
-    if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < MAX_RETRIES) {
-      scheduledExit2Retries += 1;
-      scheduledExit2RetryAttempted = true;
-      useContinueOnRetry = false;
-      log(`attempt ${attempt + 1}: scheduled startup interruption (exit code 2, no output)` + ` — retrying once as fresh run (startupRetry=${scheduledExit2Retries}/${MAX_SCHEDULED_EXIT2_RETRIES})`);
-      continue;
-    }
-    if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt >= MAX_RETRIES) {
-      log(`attempt ${attempt + 1}: scheduled startup interruption detected but retry budget exhausted — no attempts remain`);
+    if (isScheduledRun && lastExitCode === 2 && scheduledExit2RetryAttempted) {
+      emitInfrastructureIncomplete("Copilot API interruption (exit code 2) persisted after automatic retry in scheduled workflow run.");
     }
 
-    if (attempt < MAX_RETRIES && result.hasOutput) {
-      const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
-      useContinueOnRetry = !continueDisabledPermanently;
-      const retryMode = useContinueOnRetry ? "--continue" : "fresh run (--continue permanently disabled)";
-      log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
-      continue;
+    // Fetch AWF API proxy reflection data and persist to disk for post-run step summary.
+    // This is best-effort: failures are logged but do not affect the agent exit code.
+    // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. sandbox.agent: false — no api-proxy running).
+    if (process.env.AWF_REFLECT_ENABLED === "1") {
+      await fetchAWFReflect({ logger: log });
     }
-
-    if (attempt >= MAX_RETRIES) {
-      log(`all ${MAX_RETRIES} retries exhausted — giving up (exitCode=${lastExitCode})`);
-    } else {
-      log(`attempt ${attempt + 1}: no output produced — not retrying` + ` (possible causes: binary not found, permission denied, auth failure, or silent startup crash)`);
-    }
-
-    // Non-retryable error or retries exhausted — propagate exit code
-    break;
+  } finally {
+    await stopCopilotSDKServer(copilotSDKServer, { logger: log });
   }
-
-  if (isScheduledRun && lastExitCode === 2 && scheduledExit2RetryAttempted) {
-    emitInfrastructureIncomplete("Copilot API interruption (exit code 2) persisted after automatic retry in scheduled workflow run.");
-  }
-
-  // Fetch AWF API proxy reflection data and persist to disk for post-run step summary.
-  // This is best-effort: failures are logged but do not affect the agent exit code.
-  // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. sandbox.agent: false — no api-proxy running).
-  if (process.env.AWF_REFLECT_ENABLED === "1") {
-    await fetchAWFReflect({ logger: log });
-  }
-
-  await stopCopilotSDKServer(copilotSDKServer, { logger: log });
   log(`done: exitCode=${lastExitCode} totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
   process.exit(lastExitCode);
 }

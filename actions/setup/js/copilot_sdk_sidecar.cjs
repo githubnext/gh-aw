@@ -4,7 +4,7 @@
 
 const { spawn } = require("child_process");
 const net = require("net");
-const { sleep } = require("./process_runner.cjs");
+const { sleep, isCopilotSDKEnabled } = require("./process_runner.cjs");
 
 const COPILOT_SDK_SERVER_STARTUP_TIMEOUT_MS = 5000;
 const COPILOT_SDK_SERVER_STOP_TIMEOUT_MS = 2000;
@@ -19,7 +19,7 @@ const COPILOT_SDK_SERVER_STOP_TIMEOUT_MS = 2000;
  */
 function getCopilotSDKServerURL(env) {
   const sourceEnv = env ?? process.env;
-  if (sourceEnv.GH_AW_COPILOT_SDK !== "1") return null;
+  if (!isCopilotSDKEnabled(sourceEnv)) return null;
   const raw = sourceEnv.COPILOT_SDK_URI;
   if (!raw) return null;
   try {
@@ -126,25 +126,40 @@ async function startCopilotSDKServer(options) {
     logger(`copilot-sdk stderr: ${data.toString().trimEnd()}`);
   });
 
+  /** @type {((err: Error) => void) | undefined} */
+  let onError;
+  /** @type {((code: number | null, signal: NodeJS.Signals | null) => void) | undefined} */
+  let onExit;
   const failure = new Promise((_, reject) => {
-    child.once("error", err => reject(err));
-    child.once("exit", (code, signal) => {
+    onError = err => reject(err);
+    onExit = (code, signal) => {
       const exitCode = code !== null ? code : "unknown";
       const exitDetails = `exitCode=${exitCode}${signal ? ` signal=${signal}` : ""}`;
       reject(new Error(`copilot-sdk headless server exited before ready (${exitDetails})`));
-    });
+    };
+    child.once("error", onError);
+    child.once("exit", onExit);
   });
 
-  await Promise.race([
-    waitForReady({
-      host: serverURL.hostname || "127.0.0.1",
-      port: getCopilotSDKServerPort(env),
-      logger,
-    }),
-    failure,
-  ]);
-
-  return child;
+  try {
+    await Promise.race([
+      waitForReady({
+        host: serverURL.hostname || "127.0.0.1",
+        port: getCopilotSDKServerPort(env),
+        logger,
+      }),
+      failure,
+    ]);
+    return child;
+  } catch (error) {
+    if (child.pid) {
+      await stopCopilotSDKServer(child, { logger });
+    }
+    throw error;
+  } finally {
+    if (onError) child.removeListener("error", onError);
+    if (onExit) child.removeListener("exit", onExit);
+  }
 }
 
 /**

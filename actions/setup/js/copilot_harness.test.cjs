@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url);
 const { EventEmitter } = require("events");
 const { PassThrough } = require("stream");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
+const { buildCopilotSDKEnv, isCopilotSDKEnabled } = require("./process_runner.cjs");
 const {
   appendSafeOutputLine,
   buildMissingToolPermissionIssuePayload,
@@ -192,6 +193,14 @@ describe("copilot_harness.cjs", () => {
       ).toEqual(["--headless", "--no-auto-update", "--port", "3002"]);
     });
 
+    it("centralizes copilot-sdk activation checks", () => {
+      expect(isCopilotSDKEnabled({ GH_AW_COPILOT_SDK: "1" })).toBe(true);
+      expect(isCopilotSDKEnabled({ GH_AW_COPILOT_SDK: "0" })).toBe(false);
+      expect(buildCopilotSDKEnv({ GH_AW_COPILOT_SDK: "1", COPILOT_SDK_URI: "http://127.0.0.1:3002" })).toEqual({
+        COPILOT_SDK_URI: "http://127.0.0.1:3002",
+      });
+    });
+
     it("returns null when copilot-sdk mode is disabled", async () => {
       const spawnImpl = vi.fn();
       const result = await startCopilotSDKServer({
@@ -242,6 +251,8 @@ describe("copilot_harness.cjs", () => {
         port: "3002",
         logger: expect.any(Function),
       });
+      expect(child.listenerCount("error")).toBe(0);
+      expect(child.listenerCount("exit")).toBe(0);
     });
 
     it("stops the headless Copilot CLI sidecar with SIGTERM", async () => {
@@ -257,6 +268,38 @@ describe("copilot_harness.cjs", () => {
       await stopCopilotSDKServer(child, { logger: () => {}, timeoutMs: 50 });
 
       expect(child.kill).toHaveBeenCalledWith("SIGTERM");
+    });
+
+    it("stops the sidecar when readiness fails after spawn", async () => {
+      const child = new EventEmitter();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      child.pid = 1234;
+      child.exitCode = null;
+      child.signalCode = null;
+      child.kill = vi.fn(signal => {
+        child.signalCode = signal;
+        setImmediate(() => child.emit("close", 0, signal));
+      });
+      const spawnImpl = vi.fn(() => child);
+      const waitForReady = vi.fn().mockRejectedValue(new Error("not ready"));
+
+      await expect(
+        startCopilotSDKServer({
+          command: "copilot",
+          env: {
+            GH_AW_COPILOT_SDK: "1",
+            COPILOT_SDK_URI: "http://127.0.0.1:3002",
+          },
+          logger: () => {},
+          spawnImpl,
+          waitForReady,
+        })
+      ).rejects.toThrow("not ready");
+
+      expect(child.kill).toHaveBeenCalledWith("SIGTERM");
+      expect(child.listenerCount("error")).toBe(0);
+      expect(child.listenerCount("exit")).toBe(0);
     });
 
     it("waits for the Copilot SDK sidecar port to accept connections", async () => {
