@@ -221,6 +221,7 @@ describe("copilot_harness.cjs", () => {
       child.signalCode = null;
       child.kill = vi.fn();
       const spawnImpl = vi.fn(() => child);
+      /** @type {(() => void) | undefined} */
       let resolveReady;
       const waitForReady = vi.fn(
         () =>
