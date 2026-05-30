@@ -139,7 +139,7 @@ permissions:
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	assert.False(t, result.hasExplicitGitHubTool, "Auto-injected Pi github defaults must not count as explicit tools.github config")
+	assert.False(t, result.hasExplicitGitHubTool, "Auto-injected Pi GitHub defaults must not count as explicit tools.github config")
 }
 
 func TestProcessToolsAndMarkdown_PiExplicitGitHubModePreservedAndRejected(t *testing.T) {
