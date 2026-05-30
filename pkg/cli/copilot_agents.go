@@ -158,6 +158,10 @@ func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
 	awRoot := filepath.Join(gitRoot, ".github", "aw")
 	entries, err := os.ReadDir(awRoot)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// No .github/aw directory yet — emit a minimal skill without the file list.
+			return agenticWorkflowsSkillHeader + agenticWorkflowsSkillIntro + agenticWorkflowsSkillOutro, nil
+		}
 		return "", fmt.Errorf("failed to read .github/aw directory for skill generation (%s): %w", awRoot, err)
 	}
 

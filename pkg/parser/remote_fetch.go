@@ -53,15 +53,19 @@ func getOrCreateListRepoClone(owner, repo, ref, host string) (string, error) {
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 	cacheKey := fmt.Sprintf("%s|%s|%s|%s", githubHost, owner, repo, ref)
 
-	gitListCloneCache.mu.Lock()
-	if cloneDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
-		if stat, err := os.Stat(filepath.Join(cloneDir, ".git")); err == nil && stat.IsDir() {
-			gitListCloneCache.mu.Unlock()
-			return cloneDir, nil
+	if cloneDir, found := func() (string, bool) {
+		gitListCloneCache.mu.Lock()
+		defer gitListCloneCache.mu.Unlock()
+		if cloneDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
+			if stat, err := os.Stat(filepath.Join(cloneDir, ".git")); err == nil && stat.IsDir() {
+				return cloneDir, true
+			}
+			delete(gitListCloneCache.dirs, cacheKey)
 		}
-		delete(gitListCloneCache.dirs, cacheKey)
+		return "", false
+	}(); found {
+		return cloneDir, nil
 	}
-	gitListCloneCache.mu.Unlock()
 
 	tmpDir, err := os.MkdirTemp("", "gh-aw-list-*")
 	if err != nil {
@@ -78,18 +82,23 @@ func getOrCreateListRepoClone(owner, repo, ref, host string) (string, error) {
 		return "", fmt.Errorf("failed to clone repository for %s/%s@%s: %w", owner, repo, ref, err)
 	}
 
-	gitListCloneCache.mu.Lock()
-	if existingDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
-		if stat, statErr := os.Stat(filepath.Join(existingDir, ".git")); statErr == nil && stat.IsDir() {
-			gitListCloneCache.mu.Unlock()
-			if cleanupErr := os.RemoveAll(tmpDir); cleanupErr != nil {
-				remoteLog.Printf("Failed to clean up duplicate clone %q: %v", tmpDir, cleanupErr)
+	existingDir, found := func() (string, bool) {
+		gitListCloneCache.mu.Lock()
+		defer gitListCloneCache.mu.Unlock()
+		if existingDir, ok := gitListCloneCache.dirs[cacheKey]; ok {
+			if stat, statErr := os.Stat(filepath.Join(existingDir, ".git")); statErr == nil && stat.IsDir() {
+				return existingDir, true
 			}
-			return existingDir, nil
 		}
+		gitListCloneCache.dirs[cacheKey] = tmpDir
+		return "", false
+	}()
+	if found {
+		if cleanupErr := os.RemoveAll(tmpDir); cleanupErr != nil {
+			remoteLog.Printf("Failed to clean up duplicate clone %q: %v", tmpDir, cleanupErr)
+		}
+		return existingDir, nil
 	}
-	gitListCloneCache.dirs[cacheKey] = tmpDir
-	gitListCloneCache.mu.Unlock()
 	return tmpDir, nil
 }
 

@@ -1329,6 +1329,8 @@ files:
 `), nil
 		case "README.md":
 			return []byte("# Full Package\n"), nil
+		case "skills/my-skill/SKILL.md":
+			return []byte("# My Skill\nThis is a skill.\n"), nil
 		default:
 			return nil, createRepositoryPackageNotFoundError(filePath)
 		}
