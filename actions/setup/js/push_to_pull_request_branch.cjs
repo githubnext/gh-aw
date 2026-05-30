@@ -1172,9 +1172,9 @@ async function main(config = {}) {
     // These are noise — they don't represent meaningful work and would clutter PRs on every scheduled run.
     if (hasChanges) {
       let isEmptyCommit = false;
-      if (remoteHeadBeforePatch) {
+      if (rangeBaseRef) {
         try {
-          const { stdout: diffStat } = await exec.getExecOutput("git", ["diff", "--stat", remoteHeadBeforePatch, "HEAD"], baseGitOpts);
+          const { stdout: diffStat } = await exec.getExecOutput("git", ["diff", "--stat", rangeBaseRef, "HEAD"], baseGitOpts);
           isEmptyCommit = !diffStat.trim();
           if (isEmptyCommit) {
             core.info("Skipping activation comment: pushed commit has no file changes (empty commit)");
