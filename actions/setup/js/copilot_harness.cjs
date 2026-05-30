@@ -38,6 +38,7 @@
 
 "use strict";
 
+const childProcess = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
@@ -107,6 +108,9 @@ const NUMEROUS_PERMISSION_DENIED_THRESHOLD = 3;
 
 /**
  * @typedef {(path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void} AppendFileSyncLike
+ */
+/**
+ * @typedef {(toolName: string, args: Record<string, string>) => void} RunSafeOutputsCLILike
  */
 
 /**
@@ -372,17 +376,55 @@ function appendSafeOutputLine(appendFileSync, safeOutputsPath, payload) {
 }
 
 /**
+ * Invoke the safeoutputs CLI with named arguments.
+ * @param {string} toolName
+ * @param {Record<string, string>} args
+ */
+function runSafeOutputsCLI(toolName, args) {
+  const command = process.env.GH_AW_SAFEOUTPUTS_CLI || "safeoutputs";
+  /** @type {string[]} */
+  const commandArgs = [toolName];
+  for (const [key, value] of Object.entries(args)) {
+    if (typeof value !== "string" || value.length === 0) continue;
+    commandArgs.push(`--${key}`);
+    commandArgs.push(value);
+  }
+  try {
+    childProcess.execFileSync(command, commandArgs, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  } catch (error) {
+    const err = /** @type {{message?: string, stderr?: string | Buffer}} */ error || {};
+    const stderr = typeof err.stderr === "string" ? err.stderr.trim() : Buffer.isBuffer(err.stderr) ? err.stderr.toString("utf8").trim() : "";
+    const message = typeof err.message === "string" ? err.message : String(error);
+    throw new Error(stderr ? `${message}: ${stderr}` : message);
+  }
+}
+
+/**
+ * Build missing_tool alternatives text with optional denied-command diagnostics.
+ * @param {string} baseAlternatives
+ * @param {string[]} deniedCommands
+ * @returns {string}
+ */
+function buildMissingToolAlternatives(baseAlternatives, deniedCommands) {
+  if (!Array.isArray(deniedCommands) || deniedCommands.length === 0) {
+    return baseAlternatives;
+  }
+  const deniedSummary = ` Denied commands: ${deniedCommands.join(" | ")}`;
+  return (baseAlternatives + deniedSummary).slice(0, 512);
+}
+
+/**
  * Emit a structured missing_tool signal for repeated permission-denied failures.
  * @param {{
  *   safeOutputsPath?: string,
- *   appendFileSync?: AppendFileSyncLike,
+ *   runSafeOutputsCLI?: RunSafeOutputsCLILike,
  *   logger?: (message: string) => void,
  *   deniedCommands?: string[]
  * }=} options
  */
 function emitMissingToolPermissionIssue(options) {
   const safeOutputsPath = options && typeof options.safeOutputsPath === "string" ? options.safeOutputsPath : process.env.GH_AW_SAFE_OUTPUTS || "";
-  const appendFileSync = options && options.appendFileSync ? options.appendFileSync : fs.appendFileSync;
+  const runSafeOutputs = options && options.runSafeOutputsCLI ? options.runSafeOutputsCLI : runSafeOutputsCLI;
   const logger = options && options.logger ? options.logger : log;
   const deniedCommands = options && options.deniedCommands ? options.deniedCommands : [];
 
@@ -391,9 +433,13 @@ function emitMissingToolPermissionIssue(options) {
     return;
   }
   try {
-    const payload = buildMissingToolPermissionIssuePayload(deniedCommands);
-    appendSafeOutputLine(appendFileSync, safeOutputsPath, payload);
-    logger(`missing_tool emitted for permission issues: ${safeOutputsPath}`);
+    const payload = JSON.parse(buildMissingToolPermissionIssuePayload(deniedCommands));
+    runSafeOutputs("missing_tool", {
+      tool: payload.tool,
+      reason: payload.reason,
+      alternatives: buildMissingToolAlternatives(payload.alternatives || "", deniedCommands),
+    });
+    logger(`missing_tool emitted via safeoutputs CLI: ${safeOutputsPath}`);
   } catch (error) {
     const err = /** @type {Error} */ error;
     logger(`missing_tool emission failed: ${err.message}`);
@@ -406,13 +452,13 @@ function emitMissingToolPermissionIssue(options) {
  * @param {string} details
  * @param {{
  *   safeOutputsPath?: string,
- *   appendFileSync?: AppendFileSyncLike,
+ *   runSafeOutputsCLI?: RunSafeOutputsCLILike,
  *   logger?: (message: string) => void
  * }=} options
  */
 function emitInfrastructureIncomplete(details, options) {
   const safeOutputsPath = options && typeof options.safeOutputsPath === "string" ? options.safeOutputsPath : process.env.GH_AW_SAFE_OUTPUTS || "";
-  const appendFileSync = options && options.appendFileSync ? options.appendFileSync : fs.appendFileSync;
+  const runSafeOutputs = options && options.runSafeOutputsCLI ? options.runSafeOutputsCLI : runSafeOutputsCLI;
   const logger = options && options.logger ? options.logger : log;
 
   if (!safeOutputsPath) {
@@ -420,9 +466,12 @@ function emitInfrastructureIncomplete(details, options) {
     return;
   }
   try {
-    const payload = buildInfrastructureIncompletePayload(details);
-    appendSafeOutputLine(appendFileSync, safeOutputsPath, payload);
-    logger(`report_incomplete emitted: ${safeOutputsPath}`);
+    const payload = JSON.parse(buildInfrastructureIncompletePayload(details));
+    runSafeOutputs("report_incomplete", {
+      reason: payload.reason,
+      details: payload.details,
+    });
+    logger(`report_incomplete emitted via safeoutputs CLI: ${safeOutputsPath}`);
   } catch (error) {
     const err = /** @type {Error} */ error;
     logger(`report_incomplete emission failed: ${err.message}`);
@@ -735,6 +784,7 @@ if (typeof module !== "undefined" && module.exports) {
     GEMINI_MODEL_NAME_PREFIX,
     PROMPT_FILE_INLINE_THRESHOLD_BYTES,
     appendSafeOutputLine,
+    buildMissingToolAlternatives,
     buildPromptFileFallbackInstruction,
     buildInfrastructureIncompletePayload,
     emitInfrastructureIncomplete,
