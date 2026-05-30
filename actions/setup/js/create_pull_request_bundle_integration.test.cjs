@@ -108,14 +108,10 @@ describe("create_pull_request bundle integration", () => {
     expect(listHeadsOutput).toContain("HEAD");
     expect(listHeadsOutput).not.toMatch(/refs\/heads\//);
 
-    // Target repo starts from the same base so bundle prerequisites are satisfied
-    const baseCommit = execGit(["rev-parse", "main"], { cwd: sourceRepo }).stdout.trim();
-    const bundleBase = execGit(["rev-list", "--max-parents=0", "HEAD"], { cwd: sourceRepo }).stdout.trim();
-    // Copy the base commit objects into the target repo by creating matching history
+    // Target repo starts from the same base so bundle prerequisites are satisfied.
+    // Fetch main from the source repo so the prerequisite commit is reachable.
     fs.writeFileSync(path.join(targetRepo, "file.txt"), "base\n");
     execGit(["add", "file.txt"], { cwd: targetRepo });
-    // Use the same tree to avoid prerequisite issues — we need the exact base SHA reachable
-    // in the target.  Simplest: fetch from sourceRepo directly first.
     execGit(["remote", "add", "origin", sourceRepo], { cwd: targetRepo });
     execGit(["fetch", "origin", "main"], { cwd: targetRepo });
     execGit(["checkout", "-b", branchName, "FETCH_HEAD"], { cwd: targetRepo });
