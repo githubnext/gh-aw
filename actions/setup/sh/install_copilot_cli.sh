@@ -52,21 +52,7 @@ case "$OS" in
 esac
 
 TARBALL_NAME="copilot-${PLATFORM}-${ARCH_NAME}.tar.gz"
-
-# Build download URLs
-if [ -z "$VERSION" ] || [ "$VERSION" = "latest" ]; then
-  BASE_URL="https://github.com/${COPILOT_REPO}/releases/latest/download"
-else
-  # Prefix version with 'v' if not already present
-  case "$VERSION" in
-    v*) ;;
-    *) VERSION="v$VERSION" ;;
-  esac
-  BASE_URL="https://github.com/${COPILOT_REPO}/releases/download/${VERSION}"
-fi
-
-TARBALL_URL="${BASE_URL}/${TARBALL_NAME}"
-CHECKSUMS_URL="${BASE_URL}/SHA256SUMS.txt"
+REQUESTED_VERSION="${VERSION:-latest}"
 
 echo "Installing GitHub Copilot CLI${VERSION:+ version $VERSION} (os: ${OS}, arch: ${ARCH})..."
 
@@ -83,9 +69,162 @@ sha256_hash() {
   fi
 }
 
+# Normalize Copilot versions so toolcache lookups can match both v-prefixed and bare versions.
+normalize_version() {
+  local version="${1:-}"
+  printf '%s\n' "${version#v}"
+}
+
+# Compare dotted numeric versions without relying on GNU-specific sort -V.
+version_is_greater() {
+  local left="${1:-0}"
+  local right="${2:-0}"
+  local left_parts=()
+  local right_parts=()
+  local max_parts=0
+  local i=0
+  local left_part=0
+  local right_part=0
+
+  IFS='.' read -r -a left_parts <<< "$left"
+  IFS='.' read -r -a right_parts <<< "$right"
+
+  if [ "${#left_parts[@]}" -gt "${#right_parts[@]}" ]; then
+    max_parts="${#left_parts[@]}"
+  else
+    max_parts="${#right_parts[@]}"
+  fi
+
+  for ((i = 0; i < max_parts; i++)); do
+    left_part="${left_parts[i]:-0}"
+    right_part="${right_parts[i]:-0}"
+
+    if ((10#$left_part > 10#$right_part)); then
+      return 0
+    fi
+    if ((10#$left_part < 10#$right_part)); then
+      return 1
+    fi
+  done
+
+  return 1
+}
+
+# Look up a compatible Copilot CLI from the Actions toolcache before downloading a release tarball.
+find_cached_copilot_bin() {
+  local requested_version="${1:-latest}"
+  local requested_version_normalized=""
+  local tool_cache_root=""
+  local candidate=""
+  local candidate_dir=""
+  local candidate_arch=""
+  local candidate_version=""
+  local candidate_version_normalized=""
+  local best_candidate=""
+  local best_version=""
+
+  if [ "$requested_version" != "latest" ]; then
+    requested_version_normalized="$(normalize_version "$requested_version")"
+  fi
+
+  for tool_cache_root in \
+    "${RUNNER_TOOL_CACHE:-}" \
+    /opt/hostedtoolcache \
+    /home/runner/work/_tool
+  do
+    if [ -z "$tool_cache_root" ] || [ ! -d "${tool_cache_root}/copilot-cli" ]; then
+      continue
+    fi
+
+    while IFS= read -r candidate; do
+      candidate_dir="$(dirname "$candidate")"
+      candidate_arch="$(basename "$(dirname "$candidate_dir")")"
+      candidate_version="$(basename "$(dirname "$(dirname "$candidate_dir")")")"
+      candidate_version_normalized="$(normalize_version "$candidate_version")"
+
+      if [ "$candidate_arch" != "$ARCH_NAME" ]; then
+        continue
+      fi
+
+      if [ -n "$requested_version_normalized" ]; then
+        if [ "$candidate_version_normalized" = "$requested_version_normalized" ]; then
+          printf '%s\n' "$candidate"
+          return 0
+        fi
+        continue
+      fi
+
+      if [ -z "$best_candidate" ] || version_is_greater "$candidate_version_normalized" "$best_version"; then
+        best_candidate="$candidate"
+        best_version="$candidate_version_normalized"
+      fi
+    done < <(find "${tool_cache_root}/copilot-cli" -maxdepth 4 -type f -path '*/bin/copilot' 2>/dev/null | sort)
+  done
+
+  if [ -n "$best_candidate" ]; then
+    printf '%s\n' "$best_candidate"
+    return 0
+  fi
+
+  return 1
+}
+
+# Make a cached Copilot CLI available both to the current shell and later GitHub Actions steps.
+activate_cached_copilot_bin() {
+  local cached_copilot_bin="$1"
+  local cached_copilot_dir=""
+  local wrapper_path=""
+
+  cached_copilot_dir="$(dirname "$cached_copilot_bin")"
+  export PATH="${cached_copilot_dir}:$PATH"
+
+  if [ -n "${GITHUB_PATH:-}" ]; then
+    echo "$cached_copilot_dir" >> "${GITHUB_PATH}"
+    return 0
+  fi
+
+  wrapper_path="${TEMP_DIR}/copilot"
+  cat > "$wrapper_path" <<EOF
+#!/usr/bin/env bash
+exec "$cached_copilot_bin" "\$@"
+EOF
+  sudo install -m 0755 "$wrapper_path" "${INSTALL_DIR}/copilot"
+}
+
 # Create temp directory with cleanup on exit
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
+
+# Prefer the runner toolcache when a compatible Copilot CLI is already available.
+if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION")"; then
+  echo "Using cached GitHub Copilot CLI from ${CACHED_COPILOT_BIN}"
+  activate_cached_copilot_bin "$CACHED_COPILOT_BIN"
+
+  echo "Verifying cached Copilot CLI installation..."
+  if command -v copilot >/dev/null 2>&1; then
+    copilot --version
+    echo "✓ Copilot CLI installation complete"
+    exit 0
+  fi
+
+  echo "ERROR: Cached Copilot CLI activation failed - command not found"
+  exit 1
+fi
+
+# Build download URLs
+if [ -z "$VERSION" ] || [ "$VERSION" = "latest" ]; then
+  BASE_URL="https://github.com/${COPILOT_REPO}/releases/latest/download"
+else
+  # Prefix version with 'v' if not already present
+  case "$VERSION" in
+    v*) ;;
+    *) VERSION="v$VERSION" ;;
+  esac
+  BASE_URL="https://github.com/${COPILOT_REPO}/releases/download/${VERSION}"
+fi
+
+TARBALL_URL="${BASE_URL}/${TARBALL_NAME}"
+CHECKSUMS_URL="${BASE_URL}/SHA256SUMS.txt"
 
 # Download checksums
 echo "Downloading checksums from ${CHECKSUMS_URL}..."
