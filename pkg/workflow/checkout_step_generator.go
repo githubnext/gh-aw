@@ -193,6 +193,12 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		if override.ref != "" {
 			fmt.Fprintf(&sb, "          ref: %s\n", override.ref)
 		}
+		// Prevent actions/checkout from adding --filter=blob:none when sparse-checkout
+		// is specified. Blobless clones require credentials for lazy blob fetches, but
+		// agent jobs intentionally do not retain git credentials after checkout, making offline git operations fail.
+		if len(override.sparsePatterns) > 0 {
+			sb.WriteString("          filter: ''\n")
+		}
 		// Determine effective token: github-app-minted token takes precedence
 		effectiveOverrideToken := override.token
 		if override.githubApp != nil {
@@ -301,6 +307,10 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 		for _, pattern := range entry.sparsePatterns {
 			fmt.Fprintf(&sb, "            %s\n", strings.TrimSpace(pattern))
 		}
+		// Prevent actions/checkout from adding --filter=blob:none when sparse-checkout
+		// is specified. Blobless clones require credentials for lazy blob fetches, but
+		// agent jobs intentionally do not retain git credentials after checkout, making offline git operations fail.
+		sb.WriteString("          filter: ''\n")
 	}
 	if entry.submodules != "" {
 		fmt.Fprintf(&sb, "          submodules: %s\n", entry.submodules)

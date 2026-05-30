@@ -25,6 +25,22 @@ function hasFrontMatter(content) {
 }
 
 /**
+ * Returns true when runtime-import frontmatter should be preserved for agent/skill files.
+ * Agent/skill frontmatter can carry execution metadata (for example model selection)
+ * that must not be stripped before the engine reads the imported definition.
+ *
+ * @param {string} filepath - Resolved runtime import path (relative form).
+ * @returns {boolean}
+ */
+function shouldPreserveFrontMatter(filepath) {
+  const normalized = String(filepath || "").replace(/\\/g, "/");
+  const segments = normalized.split("/").filter(Boolean);
+  // resolveRuntimeImportFilePath() strips ".github/" prefixes, so files imported from
+  // ".github/agents/*" arrive here as "agents/*".
+  return segments[0] === "agents" || segments[0] === "skills" || (segments[0] === ".agents" && (segments[1] === "agents" || segments[1] === "skills"));
+}
+
+/**
  * Removes XML comments from content
  * @param {string} content - The content to process
  * @returns {string} - Content with XML comments removed
@@ -1047,29 +1063,33 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
 
   // Check for front matter and warn
   if (hasFrontMatter(content)) {
-    core.debug(`File ${filepath} contains front matter which will be ignored in runtime import`);
-    // Remove front matter (everything between first --- and second ---)
-    const lines = content.split("\n");
-    let inFrontMatter = false;
-    let frontMatterCount = 0;
-    const processedLines = [];
+    if (shouldPreserveFrontMatter(filepath)) {
+      core.debug(`File ${filepath} contains front matter which will be preserved for agent runtime import`);
+    } else {
+      core.debug(`File ${filepath} contains front matter which will be ignored in runtime import`);
+      // Remove front matter (everything between first --- and second ---)
+      const lines = content.split("\n");
+      let inFrontMatter = false;
+      let frontMatterCount = 0;
+      const processedLines = [];
 
-    for (const line of lines) {
-      if (line.trim() === "---" || line.trim() === "---\r") {
-        frontMatterCount++;
-        if (frontMatterCount === 1) {
-          inFrontMatter = true;
-          continue;
-        } else if (frontMatterCount === 2) {
-          inFrontMatter = false;
-          continue;
+      for (const line of lines) {
+        if (line.trim() === "---" || line.trim() === "---\r") {
+          frontMatterCount++;
+          if (frontMatterCount === 1) {
+            inFrontMatter = true;
+            continue;
+          } else if (frontMatterCount === 2) {
+            inFrontMatter = false;
+            continue;
+          }
+        }
+        if (!inFrontMatter && frontMatterCount >= 2) {
+          processedLines.push(line);
         }
       }
-      if (!inFrontMatter && frontMatterCount >= 2) {
-        processedLines.push(line);
-      }
+      content = processedLines.join("\n");
     }
-    content = processedLines.join("\n");
   }
 
   // Remove XML comments

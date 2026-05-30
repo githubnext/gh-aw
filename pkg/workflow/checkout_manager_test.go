@@ -179,6 +179,16 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 		assert.Contains(t, combined, "sparse-checkout: |", "should include sparse-checkout header")
 		assert.Contains(t, combined, ".github/", "should include first pattern")
 		assert.Contains(t, combined, "src/", "should include second pattern")
+		assert.Contains(t, combined, "filter: ''", "sparse-checkout should emit filter:'' to prevent blobless clone")
+	})
+
+	t.Run("no filter emitted without sparse-checkout", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Ref: "develop"},
+		})
+		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
+		combined := strings.Join(lines, "")
+		assert.NotContains(t, combined, "filter:", "should not emit filter when no sparse-checkout")
 	})
 
 	t.Run("force-clean-git-credentials enables persist true and cleanup step", func(t *testing.T) {
@@ -257,6 +267,25 @@ func TestGenerateAdditionalCheckoutSteps(t *testing.T) {
 		combined := strings.Join(lines, "")
 		assert.Contains(t, combined, "persist-credentials: true", "force-clean-git-credentials should switch persist-credentials to true")
 		assert.Contains(t, combined, "Clean git credentials after checkout", "should inject post-checkout clean step")
+	})
+
+	t.Run("additional checkout with sparse-checkout emits filter empty", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Path: "./libs", Repository: "owner/libs", SparseCheckout: "src/\nlib/"},
+		})
+		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
+		combined := strings.Join(lines, "")
+		assert.Contains(t, combined, "sparse-checkout: |", "should include sparse-checkout header")
+		assert.Contains(t, combined, "filter: ''", "sparse-checkout should emit filter:'' to prevent blobless clone")
+	})
+
+	t.Run("additional checkout without sparse-checkout does not emit filter", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{Path: "./libs", Repository: "owner/libs"},
+		})
+		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
+		combined := strings.Join(lines, "")
+		assert.NotContains(t, combined, "filter:", "should not emit filter when no sparse-checkout")
 	})
 }
 

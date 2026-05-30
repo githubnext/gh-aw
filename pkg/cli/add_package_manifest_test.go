@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -1035,6 +1036,7 @@ func TestResolveRepositoryPackage_SkillsAndAgents(t *testing.T) {
 	originalDownload := downloadPackageFileFromGitHubForHost
 	originalList := listPackageWorkflowFilesForHost
 	originalDirFiles := listPackageDirFilesForHost
+	originalDirFilesRecursively := listPackageDirFilesRecursivelyForHost
 	originalDirSubdirs := listPackageDirSubdirsForHost
 	originalDefaultBranch := getRepositoryPackageDefaultBranch
 	t.Cleanup(func() {
@@ -1042,6 +1044,7 @@ func TestResolveRepositoryPackage_SkillsAndAgents(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = originalDownload
 		listPackageWorkflowFilesForHost = originalList
 		listPackageDirFilesForHost = originalDirFiles
+		listPackageDirFilesRecursivelyForHost = originalDirFilesRecursively
 		listPackageDirSubdirsForHost = originalDirSubdirs
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
@@ -1074,15 +1077,15 @@ files:
 			t.Fatalf("unexpected workflow scan of %s", workflowPath)
 			return nil, nil
 		}
-		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
 			if dirPath == "skills/code-review" {
 				return []string{"skills/code-review/SKILL.md", "skills/code-review/prompt.sh"}, nil
 			}
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
+		// Auto-scan runs after manifest skills; return empty so no extras are added.
 		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
-			t.Fatalf("unexpected subdir scan of %s", dirPath)
-			return nil, nil
+			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 
 		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
@@ -1119,15 +1122,15 @@ includes:
 			t.Fatalf("unexpected workflow scan of %s", workflowPath)
 			return nil, nil
 		}
-		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
 			if dirPath == "skills/code-review" {
 				return []string{"skills/code-review/SKILL.md", "skills/code-review/prompt.md"}, nil
 			}
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
+		// Auto-scan runs after manifest skills; return empty so no extras are added.
 		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
-			t.Fatalf("unexpected subdir scan of %s", dirPath)
-			return nil, nil
+			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 
 		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
@@ -1158,12 +1161,17 @@ files:
 			t.Fatalf("unexpected workflow scan of %s", workflowPath)
 			return nil, nil
 		}
+		// Agent files are listed with the non-recursive helper.
 		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
-			switch dirPath {
-			case "skills/auto-skill":
-				return []string{"skills/auto-skill/SKILL.md"}, nil
-			case "agents":
+			if dirPath == "agents" {
 				return []string{"agents/my-agent.md", "agents/helper.sh"}, nil
+			}
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+		// Skill files are listed with the recursive helper.
+		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			if dirPath == "skills/auto-skill" {
+				return []string{"skills/auto-skill/SKILL.md"}, nil
 			}
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
@@ -1200,18 +1208,18 @@ files:
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
-			if workflowPath == "agents" {
-				return nil, createRepositoryPackageNotFoundError(workflowPath)
-			}
 			t.Fatalf("unexpected workflow scan of %s", workflowPath)
 			return nil, nil
 		}
 		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
+		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+		// Auto-scan runs after manifest skills; return empty so no extras are added.
 		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
-			t.Fatalf("unexpected subdir scan of %s", dirPath)
-			return nil, nil
+			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
 
 		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
@@ -1238,13 +1246,13 @@ files:
 			}
 		}
 		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
-			if workflowPath == "agents" {
-				return nil, createRepositoryPackageNotFoundError(workflowPath)
-			}
 			t.Fatalf("unexpected workflow scan of %s", workflowPath)
 			return nil, nil
 		}
 		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
 			if dirPath == "skills/no-marker" {
 				return []string{"skills/no-marker/prompt.md"}, nil
 			}
@@ -1281,6 +1289,9 @@ files:
 		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
+		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
 		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
 			return nil, createRepositoryPackageNotFoundError(dirPath)
 		}
@@ -1291,6 +1302,157 @@ files:
 		assert.Empty(t, pkg.AgentFiles)
 		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "Field 'files'")
 	})
+
+	t.Run("manifest skills copied first then auto-scanned additional skills appended", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+			switch filePath {
+			case "aw.yml":
+				return []byte(`name: My Package
+skills:
+  - skills/review
+files:
+  - workflows/review.md
+`), nil
+			case "README.md":
+				return []byte("# My Package\n"), nil
+			case "skills/review/SKILL.md":
+				return []byte("# Review Skill\n"), nil
+			// SKILL.md marker check for auto-scanned skill
+			case "skills/triage/SKILL.md":
+				return []byte("# Triage Skill\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(filePath)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected workflow scan of %s", workflowPath)
+			return nil, nil
+		}
+		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			switch dirPath {
+			case "skills/review":
+				return []string{"skills/review/SKILL.md"}, nil
+			case "skills/triage":
+				return []string{"skills/triage/SKILL.md", "skills/triage/prompts/detailed.md"}, nil
+			}
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+		// Auto-scan finds "triage" in addition to the manifest-specified "review".
+		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			if dirPath == "skills" {
+				return []string{"skills/review", "skills/triage"}, nil
+			}
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.NoError(t, err)
+		// Manifest skill "review" appears first; auto-scanned "triage" appended after.
+		require.Len(t, pkg.SkillFiles, 3)
+		assert.Equal(t, "review", pkg.SkillFiles[0].SkillName)
+		assert.Equal(t, "triage", pkg.SkillFiles[1].SkillName)
+		assert.Equal(t, "triage", pkg.SkillFiles[2].SkillName)
+		assert.Equal(t, "skills/triage/prompts/detailed.md", pkg.SkillFiles[2].SourcePath)
+		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "Field 'files'")
+	})
+
+	t.Run("auto-scan errors are warnings when manifest skills are explicit", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+			switch filePath {
+			case "aw.yml":
+				return []byte(`name: My Package
+skills:
+  - skills/review
+files:
+  - workflows/review.md
+`), nil
+			case "README.md":
+				return []byte("# My Package\n"), nil
+			case "skills/review/SKILL.md":
+				return []byte("# Review Skill\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(filePath)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected workflow scan of %s", workflowPath)
+			return nil, nil
+		}
+		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			if dirPath == "skills/review" {
+				return []string{"skills/review/SKILL.md", "skills/review/prompts/default.md"}, nil
+			}
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			return nil, errors.New("rate limit")
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.NoError(t, err)
+		require.Len(t, pkg.SkillFiles, 2)
+		assert.Equal(t, "skills/review/SKILL.md", pkg.SkillFiles[0].SourcePath)
+		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "failed to auto-scan skills directory")
+	})
+
+	t.Run("skill folder nested files are included recursively", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+			switch filePath {
+			case "aw.yml":
+				return []byte(`name: My Package
+skills:
+  - skills/my-skill
+includes:
+  - workflows/review.md
+`), nil
+			case "README.md":
+				return []byte("# My Package\n"), nil
+			case "skills/my-skill/SKILL.md":
+				return []byte("# My Skill\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(filePath)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected workflow scan of %s", workflowPath)
+			return nil, nil
+		}
+		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			if dirPath == "skills/my-skill" {
+				// Simulate a skill with nested files in subdirectories.
+				return []string{
+					"skills/my-skill/SKILL.md",
+					"skills/my-skill/ssl.json",
+					"skills/my-skill/scripts/query.sh",
+					"skills/my-skill/scripts/helpers/util.sh",
+				}, nil
+			}
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.NoError(t, err)
+		require.Len(t, pkg.SkillFiles, 4)
+		assert.Equal(t, "skills/my-skill/SKILL.md", pkg.SkillFiles[0].SourcePath)
+		assert.Equal(t, "skills/my-skill/ssl.json", pkg.SkillFiles[1].SourcePath)
+		assert.Equal(t, "skills/my-skill/scripts/query.sh", pkg.SkillFiles[2].SourcePath)
+		assert.Equal(t, "skills/my-skill/scripts/helpers/util.sh", pkg.SkillFiles[3].SourcePath)
+		for _, sf := range pkg.SkillFiles {
+			assert.Equal(t, "my-skill", sf.SkillName)
+		}
+	})
 }
 
 func TestResolveWorkflows_SkillsAndAgents(t *testing.T) {
@@ -1298,6 +1460,7 @@ func TestResolveWorkflows_SkillsAndAgents(t *testing.T) {
 	originalDownload := downloadPackageFileFromGitHubForHost
 	originalList := listPackageWorkflowFilesForHost
 	originalDirFiles := listPackageDirFilesForHost
+	originalDirFilesRecursively := listPackageDirFilesRecursivelyForHost
 	originalDirSubdirs := listPackageDirSubdirsForHost
 	originalDefaultBranch := getRepositoryPackageDefaultBranch
 	t.Cleanup(func() {
@@ -1305,6 +1468,7 @@ func TestResolveWorkflows_SkillsAndAgents(t *testing.T) {
 		downloadPackageFileFromGitHubForHost = originalDownload
 		listPackageWorkflowFilesForHost = originalList
 		listPackageDirFilesForHost = originalDirFiles
+		listPackageDirFilesRecursivelyForHost = originalDirFilesRecursively
 		listPackageDirSubdirsForHost = originalDirSubdirs
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
@@ -1339,15 +1503,15 @@ files:
 		t.Fatalf("unexpected workflow scan of %s", workflowPath)
 		return nil, nil
 	}
-	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+	listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
 		if dirPath == "skills/my-skill" {
 			return []string{"skills/my-skill/SKILL.md"}, nil
 		}
 		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
+	// Auto-scan runs after manifest skills; return empty so no extras are added.
 	listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
-		t.Fatalf("unexpected subdir scan of %s", dirPath)
-		return nil, nil
+		return nil, createRepositoryPackageNotFoundError(dirPath)
 	}
 	fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
 		switch spec.WorkflowPath {

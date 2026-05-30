@@ -312,7 +312,11 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
         if (mode === "incremental") {
           return {
             success: false,
-            error: `Branch ${branchName} does not exist locally. Cannot generate incremental patch.`,
+            error:
+              `Branch ${branchName} does not exist locally in checkout '${cwd}'. ` +
+              "Cannot generate incremental patch. Possible causes: " +
+              `(1) you have not checked out '${branchName}' yet (for example: git checkout -b ${branchName} --track origin/${branchName}); ` +
+              "(2) the tool is running in the wrong repository checkout. Ensure GITHUB_WORKSPACE points to the repository that contains this pull request branch.",
             patchPath: patchPath,
           };
         }
