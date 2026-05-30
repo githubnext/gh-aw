@@ -126,6 +126,8 @@ find_cached_copilot_bin() {
   local best_candidate=""
   local best_version=""
 
+  echo "Searching toolcache for GitHub Copilot CLI (requested: ${requested_version}, arch: ${ARCH_NAME})..." >&2
+
   if [ "$requested_version" != "latest" ]; then
     requested_version_normalized="$(normalize_version "$requested_version")"
   fi
@@ -135,9 +137,15 @@ find_cached_copilot_bin() {
     /opt/hostedtoolcache \
     /home/runner/work/_tool
   do
-    if [ -z "$tool_cache_root" ] || [ ! -d "${tool_cache_root}/copilot-cli" ]; then
+    if [ -z "$tool_cache_root" ]; then
       continue
     fi
+    if [ ! -d "${tool_cache_root}/copilot-cli" ]; then
+      echo "  Toolcache root ${tool_cache_root}/copilot-cli not found, skipping" >&2
+      continue
+    fi
+
+    echo "  Scanning toolcache root: ${tool_cache_root}/copilot-cli" >&2
 
     while IFS= read -r candidate; do
       candidate_dir="$(dirname "$candidate")"
@@ -145,19 +153,25 @@ find_cached_copilot_bin() {
       candidate_version="$(basename "$(dirname "$(dirname "$candidate_dir")")")"
       candidate_version_normalized="$(normalize_version "$candidate_version")"
 
+      echo "  Found candidate: ${candidate} (version: ${candidate_version_normalized}, arch: ${candidate_arch})" >&2
+
       if [ "$candidate_arch" != "$ARCH_NAME" ]; then
+        echo "  Skipping candidate (arch mismatch: want ${ARCH_NAME}, got ${candidate_arch})" >&2
         continue
       fi
 
       if [ -n "$requested_version_normalized" ]; then
         if [ "$candidate_version_normalized" = "$requested_version_normalized" ]; then
+          echo "  Exact version match found: ${candidate}" >&2
           printf '%s\n' "$candidate"
           return 0
         fi
+        echo "  Skipping candidate (version mismatch: want ${requested_version_normalized}, got ${candidate_version_normalized})" >&2
         continue
       fi
 
       if [ -z "$best_candidate" ] || version_is_greater "$candidate_version_normalized" "$best_version"; then
+        echo "  New best candidate: ${candidate} (${candidate_version_normalized} > ${best_version:-none})" >&2
         best_candidate="$candidate"
         best_version="$candidate_version_normalized"
       fi
@@ -165,10 +179,12 @@ find_cached_copilot_bin() {
   done
 
   if [ -n "$best_candidate" ]; then
+    echo "  Selected best cached version: ${best_version} at ${best_candidate}" >&2
     printf '%s\n' "$best_candidate"
     return 0
   fi
 
+  echo "  No compatible toolcache entry found" >&2
   return 1
 }
 
@@ -179,21 +195,26 @@ activate_cached_copilot_bin() {
   local wrapper_path=""
 
   cached_copilot_dir="$(dirname "$cached_copilot_bin")"
+  echo "Activating cached Copilot CLI from ${cached_copilot_bin}..."
   export PATH="${cached_copilot_dir}:$PATH"
+  echo "  Prepended ${cached_copilot_dir} to PATH"
 
   if [ -n "${GITHUB_PATH:-}" ]; then
+    echo "  Exporting ${cached_copilot_dir} to GITHUB_PATH (${GITHUB_PATH})"
     echo "$cached_copilot_dir" >> "${GITHUB_PATH}"
     return 0
   fi
 
   # Outside GitHub Actions there is no GITHUB_PATH file, so install a small wrapper
   # instead of symlinking or copying the cached script and risking broken relative paths.
+  echo "  GITHUB_PATH not set — installing wrapper at ${INSTALL_DIR}/copilot"
   wrapper_path="${TEMP_DIR}/copilot"
   cat > "$wrapper_path" <<EOF
 #!/usr/bin/env bash
 exec "$cached_copilot_bin" "\$@"
 EOF
   sudo install -m 0755 "$wrapper_path" "${INSTALL_DIR}/copilot"
+  echo "  Wrapper installed at ${INSTALL_DIR}/copilot"
 }
 
 # Create temp directory with cleanup on exit
@@ -206,9 +227,11 @@ if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION")"; then
   activate_cached_copilot_bin "$CACHED_COPILOT_BIN"
 
   echo "Verifying cached Copilot CLI installation..."
-  if command -v copilot >/dev/null 2>&1; then
-    copilot --version
-    echo "✓ Copilot CLI installation complete"
+  RESOLVED_COPILOT="$(command -v copilot 2>/dev/null || true)"
+  if [ -n "$RESOLVED_COPILOT" ]; then
+    echo "  Resolved copilot binary: ${RESOLVED_COPILOT}"
+    "$CACHED_COPILOT_BIN" --version
+    echo "✓ Copilot CLI installation complete (cached)"
     exit 0
   fi
 
