@@ -245,6 +245,21 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
           core.info(`Resolved bundle source ref from list-heads: ${bundleBranchRef}`);
           core.info(`Fetching resolved bundle ref ${bundleBranchRef} into ${bundleTempRef}`);
           await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
+        } else if (branchRefs.length === 0) {
+          // Bundle contains only HEAD (no refs/heads/* entry). This happens when the
+          // agent created the bundle with `git bundle create <file> HEAD` rather than
+          // including a named branch ref.  Fetch using the HEAD refspec directly so
+          // the bundle objects become accessible, then point the temp ref at them.
+          const headLine = bundleHeadsOutput
+            .split("\n")
+            .map(line => line.trim())
+            .find(line => /^[0-9a-f]{40}\s+HEAD$/.test(line));
+          if (headLine) {
+            core.info(`Bundle has no refs/heads entries; fetching HEAD directly into ${bundleTempRef}`);
+            await execApi.exec("git", ["fetch", bundleFilePath, `HEAD:${bundleTempRef}`]);
+          } else {
+            throw new Error(`Failed to resolve bundle branch ref from list-heads: bundle contains no refs/heads entries and no HEAD ref`);
+          }
         } else {
           throw new Error(`Failed to resolve bundle branch ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`);
         }
