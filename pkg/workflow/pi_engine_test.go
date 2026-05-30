@@ -230,6 +230,23 @@ func TestPiEngine_GetExecutionSteps_IgnoresRedundantYoloArg(t *testing.T) {
 	assert.Contains(t, stepText, "--custom-flag value", "Pi should preserve non-yolo engine args")
 }
 
+func TestFilterPiArgs(t *testing.T) {
+	t.Run("empty args", func(t *testing.T) {
+		assert.Nil(t, filterPiArgs(nil))
+		assert.Nil(t, filterPiArgs([]string{}))
+	})
+
+	t.Run("drops yolo variants only", func(t *testing.T) {
+		filtered := filterPiArgs([]string{"--yolo", "--custom-flag", "value", "--yolo=true"})
+		assert.Equal(t, []string{"--custom-flag", "value"}, filtered)
+	})
+
+	t.Run("drops all redundant args", func(t *testing.T) {
+		filtered := filterPiArgs([]string{"--yolo", "--yolo=false"})
+		assert.Empty(t, filtered)
+	})
+}
+
 func TestPiEngine_GetExecutionSteps_ProviderPrefixCopilot(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{
