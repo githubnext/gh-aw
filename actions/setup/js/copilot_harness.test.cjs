@@ -7,6 +7,7 @@ import path from "path";
 const require = createRequire(import.meta.url);
 const { EventEmitter } = require("events");
 const { PassThrough } = require("stream");
+const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
 const {
   appendSafeOutputLine,
   buildMissingToolPermissionIssuePayload,
@@ -19,10 +20,8 @@ const {
   hasNumerousPermissionDeniedIssues,
   INFERENCE_ACCESS_ERROR_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
-  buildCopilotSDKServerArgs,
   isDetectionPhase,
   isAuthenticationFailedError,
-  getCopilotSDKServerPort,
   isModelAvailableInReflectData,
   isModelAvailableInReflectFile,
   enrichReflectModels,
@@ -32,9 +31,6 @@ const {
   GEMINI_MODEL_NAME_PREFIX,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
-  startCopilotSDKServer,
-  stopCopilotSDKServer,
-  waitForCopilotSDKServer,
   writeCopilotOutputs,
 } = require("./copilot_harness.cjs");
 

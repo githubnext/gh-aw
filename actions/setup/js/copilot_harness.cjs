@@ -38,11 +38,10 @@
 
 "use strict";
 
-const { spawn } = require("child_process");
 const fs = require("fs");
-const net = require("net");
 const path = require("path");
 const { runProcess, formatDuration, sleep, buildCopilotSDKEnv } = require("./process_runner.cjs");
+const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -69,9 +68,6 @@ const MAX_SCHEDULED_EXIT2_RETRIES = 1;
 // If prompt files are larger than this threshold, avoid inlining into argv.
 const PROMPT_FILE_INLINE_THRESHOLD_BYTES = 100 * 1024;
 const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
-const COPILOT_SDK_SERVER_STARTUP_TIMEOUT_MS = 5000;
-const COPILOT_SDK_SERVER_STOP_TIMEOUT_MS = 2000;
-
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 
@@ -514,177 +510,6 @@ function resolvePromptFileArgs(args) {
 }
 
 /**
- * Parse the configured Copilot SDK server URL.
- * @param {NodeJS.ProcessEnv} [env]
- * @returns {URL | null}
- */
-function getCopilotSDKServerURL(env) {
-  const sourceEnv = env ?? process.env;
-  if (sourceEnv.GH_AW_COPILOT_SDK !== "1") return null;
-  if (!sourceEnv.COPILOT_SDK_URI) return null;
-  return new URL(sourceEnv.COPILOT_SDK_URI);
-}
-
-/**
- * Resolve the Copilot SDK server port from COPILOT_SDK_URI.
- * @param {NodeJS.ProcessEnv} [env]
- * @returns {string}
- */
-function getCopilotSDKServerPort(env) {
-  const serverURL = getCopilotSDKServerURL(env);
-  if (!serverURL) return "";
-  if (serverURL.port) return serverURL.port;
-  return serverURL.protocol === "https:" ? "443" : "80";
-}
-
-/**
- * Build the Copilot CLI args for the headless SDK sidecar server.
- * @param {NodeJS.ProcessEnv} [env]
- * @returns {string[]}
- */
-function buildCopilotSDKServerArgs(env) {
-  const port = getCopilotSDKServerPort(env);
-  if (!port) return [];
-  return ["--headless", "--no-auto-update", "--port", port];
-}
-
-/**
- * Wait until the Copilot SDK TCP port is accepting connections.
- * @param {{
- *   host: string,
- *   port: string,
- *   timeoutMs?: number,
- *   logger?: (message: string) => void,
- *   connectImpl?: typeof net.connect
- * }} options
- */
-async function waitForCopilotSDKServer(options) {
-  const host = options.host;
-  const port = options.port;
-  const timeoutMs = options.timeoutMs ?? COPILOT_SDK_SERVER_STARTUP_TIMEOUT_MS;
-  const logger = options.logger ?? log;
-  const connectImpl = options.connectImpl ?? net.connect;
-  const startedAt = Date.now();
-  let lastError = "connection not ready";
-
-  while (Date.now() - startedAt < timeoutMs) {
-    const ready = await new Promise(resolve => {
-      const socket = connectImpl({ host, port: Number(port) });
-      socket.once("connect", () => {
-        socket.end();
-        resolve(true);
-      });
-      socket.once("error", err => {
-        lastError = err.message;
-        socket.destroy();
-        resolve(false);
-      });
-    });
-    if (ready) {
-      logger(`copilot-sdk: headless server ready on ${host}:${port}`);
-      return;
-    }
-    await sleep(100);
-  }
-
-  throw new Error(`copilot-sdk headless server did not become ready on ${host}:${port} within ${timeoutMs}ms (${lastError})`);
-}
-
-/**
- * Start the Copilot CLI headless SDK sidecar when GH_AW_COPILOT_SDK=1.
- * @param {{
- *   command: string,
- *   env?: NodeJS.ProcessEnv,
- *   logger?: (message: string) => void,
- *   spawnImpl?: typeof spawn,
- *   waitForReady?: typeof waitForCopilotSDKServer
- * }} options
- * @returns {Promise<import("child_process").ChildProcessWithoutNullStreams | null>}
- */
-async function startCopilotSDKServer(options) {
-  const env = options.env ?? process.env;
-  const logger = options.logger ?? log;
-  const serverURL = getCopilotSDKServerURL(env);
-  if (!serverURL) return null;
-  const args = buildCopilotSDKServerArgs(env);
-  if (args.length === 0) {
-    throw new Error("copilot-sdk enabled but COPILOT_SDK_URI does not include a usable port");
-  }
-
-  const spawnImpl = options.spawnImpl ?? spawn;
-  const waitForReady = options.waitForReady ?? waitForCopilotSDKServer;
-  logger(`copilot-sdk: starting headless Copilot CLI server: ${options.command} ${args.join(" ")}`);
-  const child = spawnImpl(options.command, args, {
-    stdio: ["ignore", "pipe", "pipe"],
-    env,
-  });
-
-  child.stdout.on("data", data => {
-    logger(`copilot-sdk stdout: ${data.toString().trimEnd()}`);
-  });
-  child.stderr.on("data", data => {
-    logger(`copilot-sdk stderr: ${data.toString().trimEnd()}`);
-  });
-
-  const failure = new Promise((_, reject) => {
-    child.once("error", err => reject(err));
-    child.once("exit", (code, signal) => {
-      const exitCode = code !== null ? code : "unknown";
-      const exitDetails = `exitCode=${exitCode}${signal ? ` signal=${signal}` : ""}`;
-      reject(new Error(`copilot-sdk headless server exited before ready (${exitDetails})`));
-    });
-  });
-
-  await Promise.race([
-    waitForReady({
-      host: serverURL.hostname || "127.0.0.1",
-      port: getCopilotSDKServerPort(env),
-      logger,
-    }),
-    failure,
-  ]);
-
-  return child;
-}
-
-/**
- * Stop the Copilot CLI headless SDK sidecar.
- * @param {import("child_process").ChildProcessWithoutNullStreams | null | undefined} child
- * @param {{
- *   logger?: (message: string) => void,
- *   timeoutMs?: number
- * }} [options]
- */
-async function stopCopilotSDKServer(child, options) {
-  if (!child) return;
-  const logger = (options && options.logger) || log;
-  const timeoutMs = (options && options.timeoutMs) || COPILOT_SDK_SERVER_STOP_TIMEOUT_MS;
-
-  if (child.exitCode !== null || child.signalCode) {
-    logger(`copilot-sdk: headless server already stopped (exitCode=${child.exitCode ?? "null"}${child.signalCode ? ` signal=${child.signalCode}` : ""})`);
-    return;
-  }
-
-  logger(`copilot-sdk: stopping headless server pid=${child.pid ?? "unknown"}`);
-  const closed = new Promise(resolve => {
-    child.once("close", (code, signal) => {
-      const exitCode = code !== null ? code : "unknown";
-      logger(`copilot-sdk: headless server stopped (exitCode=${exitCode}${signal ? ` signal=${signal}` : ""})`);
-      resolve(undefined);
-    });
-  });
-
-  child.kill("SIGTERM");
-  const timedOut = sleep(timeoutMs).then(() => "timeout");
-  const outcome = await Promise.race([closed.then(() => "closed"), timedOut]);
-  if (outcome === "timeout" && child.exitCode === null && !child.signalCode) {
-    logger(`copilot-sdk: SIGTERM timed out after ${timeoutMs}ms; sending SIGKILL`);
-    child.kill("SIGKILL");
-    await closed;
-  }
-}
-
-/**
  * Main entry point: run copilot with retry logic for partially-executed sessions.
  */
 async function main() {
@@ -738,7 +563,7 @@ async function main() {
     agenticEngineTimeout: false,
     modelNotSupportedError: false,
   };
-  /** @type {import("child_process").ChildProcessWithoutNullStreams | null} */
+  /** @type {Awaited<ReturnType<typeof startCopilotSDKServer>>} */
   let copilotSDKServer = null;
   if (copilotSDKMode) {
     copilotSDKServer = await startCopilotSDKServer({
