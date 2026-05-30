@@ -776,6 +776,10 @@ func stringValue(value any) (string, bool) {
 	return s, ok
 }
 
+// stringSliceValue converts dynamic manifest field values into []string.
+// It accepts []any and []string inputs; []string inputs are defensively copied.
+// It returns (nil, false) when the input is nil, not a string slice, or contains
+// non-string elements.
 func stringSliceValue(value any) ([]string, bool) {
 	switch raw := value.(type) {
 	case []any:
@@ -803,6 +807,8 @@ func isRepositoryPackageManifestNotFound(err error) bool {
 	return errors.Is(err, errRepositoryPackageManifestNotFound)
 }
 
+// isValidManifestVersionFormat validates the aw.yml version-constraint format:
+// exact semantic version tags in vMAJOR.minor.patch form.
 func isValidManifestVersionFormat(version string) bool {
 	const expectedManifestMinVersionDotCount = 2
 	return semverutil.IsActionVersionTag(version) && strings.Count(strings.TrimPrefix(version, "v"), ".") == expectedManifestMinVersionDotCount
