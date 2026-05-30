@@ -45,29 +45,9 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 		}
 	}
 
-	// Create or get existing claude section
-	var claudeSection map[string]any
-	if existing, hasClaudeSection := result["claude"]; hasClaudeSection {
-		if claudeMap, ok := existing.(map[string]any); ok {
-			claudeSection = claudeMap
-		} else {
-			claudeSection = make(map[string]any)
-		}
-	} else {
-		claudeSection = make(map[string]any)
-	}
-
-	// Get existing allowed tools from Claude section
-	var claudeAllowed map[string]any
-	if allowed, hasAllowed := claudeSection["allowed"]; hasAllowed {
-		if allowedMap, ok := allowed.(map[string]any); ok {
-			claudeAllowed = allowedMap
-		} else {
-			claudeAllowed = make(map[string]any)
-		}
-	} else {
-		claudeAllowed = make(map[string]any)
-	}
+	// Create or get existing claude section and allowed tools map
+	claudeSection := getOrCreateToolMap(result, "claude")
+	claudeAllowed := getOrCreateToolMap(claudeSection, "allowed")
 
 	// Convert neutral tools to Claude tools
 	if bashTool, hasBash := tools["bash"]; hasBash {
@@ -109,10 +89,6 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 		}
 		result["playwright"] = playwrightMCP
 	}
-
-	// Update claude section
-	claudeSection["allowed"] = claudeAllowed
-	result["claude"] = claudeSection
 
 	claudeToolsLog.Printf("Expansion complete: result_tools=%d, claude_allowed=%d", len(result), len(claudeAllowed))
 	return result
@@ -255,9 +231,9 @@ func hasBashWildcard(commands []any) bool {
 }
 
 // isClaudeToolName uses the existing Claude naming convention heuristic:
-// valid Claude tool keys are expected to start with an uppercase letter.
+// valid Claude tool keys are expected to start with an uppercase ASCII letter.
 func isClaudeToolName(toolName string) bool {
-	return len(toolName) > 0 && strings.HasPrefix(toolName, strings.ToUpper(toolName[:1]))
+	return len(toolName) > 0 && toolName[0] >= 'A' && toolName[0] <= 'Z'
 }
 
 func appendTopLevelClaudeTools(allowedTools []string, tools map[string]any, cacheMemoryConfig *CacheMemoryConfig) []string {
