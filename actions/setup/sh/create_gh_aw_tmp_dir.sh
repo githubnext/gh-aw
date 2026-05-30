@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set +o histexpand
 mkdir -p /tmp/gh-aw/agent
 mkdir -p /tmp/gh-aw/sandbox/agent/logs

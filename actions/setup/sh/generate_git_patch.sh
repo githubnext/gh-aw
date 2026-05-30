@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set +o histexpand
 # Diagnostic logging: Show environment information
 echo "=== Diagnostic: Environment Information ==="

@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set +o histexpand
 # Print prompt to workflow logs (equivalent to core.info)
 echo "Generated Prompt:"
