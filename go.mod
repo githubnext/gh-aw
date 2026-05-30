@@ -7,6 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.0.6
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.3
+	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/x/exp/golden v0.0.0-20260527151214-009e6338d40d
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/creack/pty v1.1.24
@@ -43,7 +44,6 @@ require (
 	github.com/catppuccin/go v0.3.0 // indirect
 	github.com/ccojocar/zxcvbn-go v1.0.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260416161146-9c68a866306c // indirect
 	github.com/charmbracelet/x/ansi v0.11.7 // indirect

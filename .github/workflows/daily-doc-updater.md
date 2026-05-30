@@ -130,6 +130,11 @@ For each closed issue:
     4. If all listed items are already documented, treat the issue as already addressed and skip it (do not continue to Step 2 for this issue).
   - Otherwise, treat it as an unaddressed gap and follow the normal Step 2 flow.
 - **closed as not_planned**: Do not create documentation based solely on this issue. Instead, cross-reference the issue's subject matter against commits from the same 7-day window (Step 2). If a related code change is found, treat it as a new documentation gap (independent of the original issue decision) and follow the normal Step 2 flow for that code change.
+  - **Cross-cutting docs-coverage / convention gaps (no triggering code change)**: If the issue describes a cross-cutting documentation **coverage or convention** gap (e.g., example parity across multiple reference pages, consistent terminology, missing cross-links) and carries the `cookie`, `improvement`, or `quick-win` label, *and no triggering code change was found above*, do not require a code change to act. Instead:
+    1. Sample the files listed in the issue to confirm the gap still exists.
+    2. If the gap persists **and** the fix direction is unambiguous (e.g., a phrase is clearly missing from a specific location), apply the fix and reference the issue with `Closes #NNN`.
+    3. If the fix direction is a docs-convention choice (e.g., add parallel examples vs. omit redundant defaults vs. tabbed multi-engine blocks), **do not guess** — open a `[doc-healer]` maintainer-decision issue instead of editing.
+    4. If a triggering code change *was* already found, the code-change path (Step 2) takes full precedence; do not apply this coverage-gap path as well.
 
 ### 1d. Scan Cookie-Labeled Automation Issues
 
@@ -311,6 +316,8 @@ When calling `noop`, use this format:
 - **Test Understanding**: If unsure about a feature, review the code changes in detail
 - **Issue-Driven**: Proactively check open `documentation` issues — do not wait for them to be reported manually.
 - **Validate Examples**: YAML frontmatter examples in docs must be structurally valid. When in doubt, test with `gh aw compile`.
+- **Default-value awareness for engine examples**: `engine: copilot` is the default and is redundant when `copilot` is the intended engine (omitting it produces identical behaviour). When normalizing engine examples, prefer *removing* the redundant `engine: copilot` line over duplicating workflow blocks with alternative engine values. This keeps examples engine-agnostic by default, reduces unnecessary doc size, and aligns with the `unbloat-docs` effort.
+- **`unbloat-docs` guardrail**: Example-coverage fixes **must not** duplicate large workflow blocks. Prefer `<Tabs>` for multi-engine illustration only where the engine choice is genuinely instructive to the reader; otherwise omit the redundant `engine:` line rather than adding parallel copies.
 
 ## Important Notes
 

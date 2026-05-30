@@ -197,6 +197,7 @@ jobs:
 
           # NOTE: If GitHub's documentation URL structure changes, this URL must be updated manually.
           URL = "https://docs.github.com/en/copilot/reference/copilot-billing/model-multipliers-for-annual-plans"
+          EXCLUDED_MODELS = {"gpt-4o-mini", "gpt-4.1", "gpt-4o", "gpt-5.4-nano"}
 
           class TableParser(html.parser.HTMLParser):
               def __init__(self):
@@ -254,9 +255,12 @@ jobs:
               for row in parser.rows:
                   if len(row) == len(parser.headers):
                       entry = {parser.headers[i]: row[i] for i in range(len(parser.headers))}
+                      model_id = entry.get("Model", "").strip()
+                      if model_id in EXCLUDED_MODELS:
+                          continue
                       models.append(entry)
 
-          result = {"source": URL, "headers": parser.headers, "models": models}
+          result = {"source": URL, "excluded_models": sorted(EXCLUDED_MODELS), "headers": parser.headers, "models": models}
           out_path = "/tmp/gh-aw/agent/model-inventory/copilot-billing/multipliers.json"
           with open(out_path, "w") as f:
               json.dump(result, f, indent=2)
@@ -483,6 +487,11 @@ with columns `Model`, `Current multiplier`, and `New multiplier`.
 **Use the docs table as the primary (authoritative) source of ET multipliers.** Prefer the
 **New multiplier** column for upcoming billing schedule comparisons. If the docs table fetch
 failed or returned an empty model list, fall back to the heuristics below.
+
+Treat `gpt-4o-mini`, `gpt-4.1`, `gpt-4o`, and `gpt-5.4-nano` as intentionally deprecated
+Copilot-facing model IDs. Keep ignoring them even if they appear in the docs table, `models.dev`,
+or live provider inventories: do not propose adding or restoring them in
+`pkg/cli/data/model_multipliers.json`, and exclude them from missing/discrepancy tables.
 
 Use `models.dev/api.json` as an additional reference for missing model IDs and family naming, but
 do not treat it as the primary multiplier authority over the GitHub docs table.

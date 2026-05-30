@@ -289,6 +289,7 @@ func fetchRemoteActionYAML(repo, subdir, ref string) (*actionYAMLFile, error) {
 		safeOutputActionsLog.Printf("Fetching action YAML from: %s", apiPath)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
 		cmd := ExecGHContext(ctx, "api", apiPath, "--jq", ".content")
 		output, err := cmd.Output()
 		cancel()

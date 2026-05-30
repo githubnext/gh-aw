@@ -75,7 +75,6 @@ func TestModelMultipliersInventoryUpdate20260510(t *testing.T) {
 	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4"], 1e-9, "gpt-5.4 should use updated multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-mini"], 1e-9, "gpt-5.4-mini should use updated multiplier")
-	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-nano"], 1e-9, "gpt-5.4-nano should use updated multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-pro"], 1e-9, "gpt-5.4-pro should use updated multiplier")
 	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4.6"], 1e-9, "claude-opus-4.6 should use updated multiplier")
 	assert.InDelta(t, 0.1, loadedMultipliers["gemini-3.1-flash-lite"], 1e-9, "gemini-3.1-flash-lite should be present")
@@ -93,7 +92,7 @@ func TestModelMultipliersInventoryUpdate20260517(t *testing.T) {
 	assert.InDelta(t, 1.0, loadedMultipliers["gpt-5-2025-08-07"], 1e-9, "gpt-5-2025-08-07 should be present")
 	assert.InDelta(t, 3.0, loadedMultipliers["gpt-5.2-chat-latest"], 1e-9, "gpt-5.2-chat-latest should be present")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.3-codex-api-preview"], 1e-9, "gpt-5.3-codex-api-preview should be present")
-	assert.InDelta(t, 7.5, loadedMultipliers["gpt-5.5-2026-04-23"], 1e-9, "gpt-5.5-2026-04-23 should be present")
+	assert.InDelta(t, 57.0, loadedMultipliers["gpt-5.5-2026-04-23"], 1e-9, "gpt-5.5-2026-04-23 should match documented multiplier")
 	assert.InDelta(t, 3.0, loadedMultipliers["o3-deep-research-2025-06-26"], 1e-9, "o3-deep-research-2025-06-26 should be present")
 	assert.InDelta(t, 0.5, loadedMultipliers["o4-mini-deep-research-2025-06-26"], 1e-9, "o4-mini-deep-research-2025-06-26 should be present")
 	assert.InDelta(t, 0.2, loadedMultipliers["gemini-2.5-flash-native-audio-preview-12-2025"], 1e-9, "gemini-2.5-flash-native-audio-preview-12-2025 should be present")
@@ -150,6 +149,29 @@ func TestModelMultipliersInventoryUpdate20260525(t *testing.T) {
 	assert.InDelta(t, 1.0, loadedMultipliers["gpt-4-0613"], 1e-9, "gpt-4-0613 should be present with legacy gpt-4 tier multiplier")
 	assert.InDelta(t, 0.0, loadedMultipliers["gpt-3.5-turbo"], 1e-9, "gpt-3.5-turbo should be present with zero multiplier")
 	assert.InDelta(t, 0.0, loadedMultipliers["gpt-3.5-turbo-0613"], 1e-9, "gpt-3.5-turbo-0613 should be present with zero multiplier")
+}
+
+func TestModelMultipliersInventoryUpdate20260530(t *testing.T) {
+	loadedMultipliers = nil
+	initMultipliers()
+
+	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
+	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4-8"], 1e-9, "claude-opus-4-8 should match documented multiplier")
+	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4.7"], 1e-9, "claude-opus-4.7 should match the hyphenated claude-opus-4-7 multiplier")
+	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4.8"], 1e-9, "claude-opus-4.8 should match the hyphenated claude-opus-4-8 multiplier")
+	assert.InDelta(t, 57.0, loadedMultipliers["gpt-5.5"], 1e-9, "gpt-5.5 should match the documented multiplier")
+	assert.InDelta(t, 57.0, loadedMultipliers["gpt-5.5-2026-04-23"], 1e-9, "gpt-5.5-2026-04-23 should match the documented multiplier")
+}
+
+func TestModelMultipliersRemovedCopilotAliases(t *testing.T) {
+	loadedMultipliers = nil
+	initMultipliers()
+
+	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
+	assert.NotContains(t, loadedMultipliers, "gpt-4o", "gpt-4o should remain removed from the alias list")
+	assert.NotContains(t, loadedMultipliers, "gpt-4o-mini", "gpt-4o-mini should remain removed from the alias list")
+	assert.NotContains(t, loadedMultipliers, "gpt-4.1", "gpt-4.1 should remain removed from the alias list")
+	assert.NotContains(t, loadedMultipliers, "gpt-5.4-nano", "gpt-5.4-nano should remain removed from the alias list")
 }
 
 // TestModelMultipliersNoPlaceholders verifies R-REG-007: the registry MUST NOT contain

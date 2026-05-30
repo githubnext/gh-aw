@@ -194,6 +194,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 
 	// List tools
 	listToolsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
+	defer cancel()
 	toolsResult, err := session.ListTools(listToolsCtx, &mcp.ListToolsParams{})
 	cancel()
 	if err != nil {
@@ -206,6 +207,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 
 	// List resources
 	listResourcesCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
+	defer cancel()
 	resourcesResult, err := session.ListResources(listResourcesCtx, &mcp.ListResourcesParams{})
 	cancel()
 	if err != nil {
@@ -283,6 +285,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerCo
 
 	// List tools
 	listToolsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
+	defer cancel()
 	toolsResult, err := session.ListTools(listToolsCtx, &mcp.ListToolsParams{})
 	cancel()
 	if err != nil {
@@ -295,6 +298,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerCo
 
 	// List resources
 	listResourcesCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
+	defer cancel()
 	resourcesResult, err := session.ListResources(listResourcesCtx, &mcp.ListResourcesParams{})
 	cancel()
 	if err != nil {

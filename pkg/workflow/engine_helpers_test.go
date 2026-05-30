@@ -318,7 +318,7 @@ func TestGetNpmBinPathSetup_NoGorootDoesNotBreakChain(t *testing.T) {
 	//   GetNpmBinPathSetup() && INSTRUCTION="..." && codex exec ...
 	// When GOROOT is empty, [ -n "$GOROOT" ] is false. Without || true,
 	// the && chain short-circuits and INSTRUCTION is never set.
-	shellCmd := `unset GOROOT; export PATH="$(find /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && echo "chain-continued"`
+	shellCmd := `unset GOROOT; GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"; export PATH="$(find "$GH_AW_TOOL_CACHE" /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && echo "chain-continued"`
 
 	cmd := exec.Command("bash", "-c", shellCmd)
 	output, err := cmd.Output()

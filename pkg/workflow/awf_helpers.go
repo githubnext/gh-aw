@@ -36,6 +36,7 @@ var awfHelpersLog = logger.New("workflow:awf_helpers")
 
 const (
 	awfArcDindPrefixArgsVarName = "GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS"
+	awfToolCacheMountVarName    = "GH_AW_TOOL_CACHE_MOUNT"
 	awfConfigRuntimePathExpr    = "${RUNNER_TEMP}/gh-aw/awf-config.json"
 	awfModelMultipliersFilePath = "/tmp/gh-aw/model_multipliers.json"
 	awfMergeModelMultipliersJS  = "${RUNNER_TEMP}/gh-aw/actions/merge_awf_model_multipliers.cjs"
@@ -198,6 +199,20 @@ fi`,
 			awfArcDindHostPathPrefixFlag)
 		arcDindPrefixArgsRef = fmt.Sprintf("${%s}", awfArcDindPrefixArgsVarName)
 	}
+	toolCacheMountProbe := fmt.Sprintf(`%s=""
+GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"
+if [ -d "$GH_AW_TOOL_CACHE" ]; then
+  if [[ "$GH_AW_TOOL_CACHE" != /opt/* ]]; then
+    %s="$GH_AW_TOOL_CACHE:$GH_AW_TOOL_CACHE:ro"
+  fi
+elif [ -d "/home/runner/work/_tool" ]; then
+  %s="/home/runner/work/_tool:/home/runner/work/_tool:ro"
+fi`,
+		awfToolCacheMountVarName,
+		awfToolCacheMountVarName,
+		awfToolCacheMountVarName,
+	)
+	toolCacheMountRef := fmt.Sprintf("${%s:+--mount \"$%s\"}", awfToolCacheMountVarName, awfToolCacheMountVarName)
 
 	// Build the expandable args string for args that need shell variable expansion.
 	// These MUST be appended as raw (unescaped) strings because single-quoting would
@@ -296,16 +311,19 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
 			configFileSetup,
 			arcDindPrefixProbe,
+			toolCacheMountProbe,
 			awfCommand,
 			expandableArgs,
+			toolCacheMountRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -317,15 +335,18 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
 			arcDindPrefixProbe,
+			toolCacheMountProbe,
 			awfCommand,
 			expandableArgs,
+			toolCacheMountRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -336,15 +357,18 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
 			configFileSetup,
 			arcDindPrefixProbe,
+			toolCacheMountProbe,
 			awfCommand,
 			expandableArgs,
+			toolCacheMountRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -354,14 +378,17 @@ fi`,
 %s
 %s
 %s
+%s
 # shellcheck disable=SC1003
-%s %s %s %s \
+%s %s %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
 			arcDindPrefixProbe,
+			toolCacheMountProbe,
 			awfCommand,
 			expandableArgs,
+			toolCacheMountRef,
 			arcDindPrefixArgsRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,

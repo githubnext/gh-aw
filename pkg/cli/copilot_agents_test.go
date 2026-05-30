@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -271,5 +273,93 @@ func TestDeleteOldTemplateFiles(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	content, err := buildAgenticWorkflowsAgentContent(tempDir)
+	if err != nil {
+		t.Fatalf("buildAgenticWorkflowsAgentContent() returned error: %v", err)
+	}
+
+	expected := agenticWorkflowsAgentHeader + "Always load and follow `.github/skills/agentic-workflows/SKILL.md`.\n"
+	if content != expected {
+		t.Fatalf("Expected exact agent content:\n%s\ngot:\n%s", expected, content)
+	}
+}
+
+func TestCheckedInAgenticWorkflowsAgentMatchesGeneratedContent(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("Failed to locate test file")
+	}
+
+	gitRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	expected, err := buildAgenticWorkflowsAgentContent(gitRoot)
+	if err != nil {
+		t.Fatalf("buildAgenticWorkflowsAgentContent() returned error: %v", err)
+	}
+
+	actual, err := os.ReadFile(filepath.Join(gitRoot, ".github", "agents", "agentic-workflows.md"))
+	if err != nil {
+		t.Fatalf("Failed to read checked-in agent file: %v", err)
+	}
+
+	if strings.TrimSpace(string(actual)) != strings.TrimSpace(expected) {
+		t.Fatalf("Checked-in agent file is out of sync with generated content\nexpected:\n%s\nactual:\n%s", expected, string(actual))
+	}
+}
+
+func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+	awDir := filepath.Join(tempDir, ".github", "aw")
+	if err := os.MkdirAll(awDir, 0o755); err != nil {
+		t.Fatalf("Failed to create .github/aw directory: %v", err)
+	}
+
+	for _, name := range []string{"workflow-z.md", "workflow-a.md", "ignore.txt"} {
+		if err := os.WriteFile(filepath.Join(awDir, name), []byte("# test"), 0o644); err != nil {
+			t.Fatalf("Failed to create %s: %v", name, err)
+		}
+	}
+
+	content, err := buildAgenticWorkflowsSkillContent(tempDir)
+	if err != nil {
+		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
+	}
+
+	expected := agenticWorkflowsSkillHeader + agenticWorkflowsSkillIntro +
+		"- `.github/aw/workflow-a.md`\n" +
+		"- `.github/aw/workflow-z.md`\n" +
+		agenticWorkflowsSkillOutro
+	if content != expected {
+		t.Fatalf("Expected exact skill content:\n%s\ngot:\n%s", expected, content)
+	}
+	if strings.Contains(content, "ignore.txt") {
+		t.Fatalf("expected non-markdown files to be excluded from generated skill content:\n%s", content)
+	}
+}
+
+func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("Failed to locate test file")
+	}
+
+	gitRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	expected, err := buildAgenticWorkflowsSkillContent(gitRoot)
+	if err != nil {
+		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
+	}
+
+	actual, err := os.ReadFile(filepath.Join(gitRoot, ".github", "skills", "agentic-workflows", "SKILL.md"))
+	if err != nil {
+		t.Fatalf("Failed to read checked-in skill file: %v", err)
+	}
+
+	if strings.TrimSpace(string(actual)) != strings.TrimSpace(expected) {
+		t.Fatalf("Checked-in skill file is out of sync with generated content\nexpected:\n%s\nactual:\n%s", expected, string(actual))
 	}
 }

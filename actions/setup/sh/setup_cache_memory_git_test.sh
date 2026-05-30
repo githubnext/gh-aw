@@ -249,9 +249,30 @@ assert "integrity branch exists after recovery" \
   "git -C '${D}' rev-parse --verify none >/dev/null 2>&1"
 echo ""
 
-# ── Test 14: Daily SPDD rotation directory preflight is created and writable ──
-echo "Test 14: Daily SPDD rotation cache directory is writable"
+# ── Test 14: Missing HEAD corruption is healed before hook config ─────────────
+echo "Test 14: Missing HEAD corruption is reinitialized"
 D="${WORKSPACE}/test14"
+make_cache_dir "${D}" "data.json"
+rm -f "${D}/.git/HEAD"
+set +e
+OUTPUT="$(run_script "${D}" none)"
+EXIT_CODE=$?
+set -e
+assert "missing HEAD exits successfully" \
+  "[ '${EXIT_CODE}' -eq 0 ]"
+assert "corruption warning logged for missing HEAD" \
+  "printf '%s' \"${OUTPUT}\" | grep -qi 'Detected corrupted cache-memory git repository'"
+assert "git metadata recreated after missing HEAD" \
+  "[ -d '${D}/.git' ]"
+assert "restored file preserved after missing HEAD recovery" \
+  "[ -f '${D}/data.json' ]"
+assert "integrity branch exists after missing HEAD recovery" \
+  "git -C '${D}' rev-parse --verify none >/dev/null 2>&1"
+echo ""
+
+# ── Test 15: Daily SPDD rotation directory preflight is created and writable ──
+echo "Test 15: Daily SPDD rotation cache directory is writable"
+D="${WORKSPACE}/test15"
 make_cache_dir "${D}" "data.json"
 set +e
 OUTPUT="$(run_script "${D}" none)"

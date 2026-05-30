@@ -22,6 +22,8 @@ var (
 
 var downloadPackageFileFromGitHubForHost = downloadRepositoryPackageFileFromGitHubForHost
 var listPackageWorkflowFilesForHost = listRepositoryPackageWorkflowFilesForHost
+var listPackageDirFilesForHost = listRepositoryPackageDirFilesForHost
+var listPackageDirSubdirsForHost = listRepositoryPackageDirSubdirsForHost
 var getRepositoryPackageDefaultBranch = resolveRepositoryPackageDefaultBranch
 var addPackageManifestLog = logger.New("cli:add_package_manifest")
 
@@ -29,6 +31,9 @@ var packageSourceDirectories = []string{"workflows", ".github/workflows"}
 
 const repositoryPackageManifestFileName = "aw.yml"
 const repositoryPackageManifestVersion = "1"
+const packageSkillsDirectory = "skills"
+const packageAgentsDirectory = "agents"
+const packageSkillMarkerFile = "SKILL.md"
 
 type resolvedRepositoryPackage struct {
 	ManifestPath       string
@@ -37,7 +42,18 @@ type resolvedRepositoryPackage struct {
 	Description        string
 	DocsPath           string
 	InstallationSource []string
+	SkillFiles         []resolvedPackageSkillFile
+	AgentFiles         []string
 	Warnings           []string
+}
+
+// resolvedPackageSkillFile represents a single file within a skill directory that
+// should be installed to the agentic engine skill folder.
+type resolvedPackageSkillFile struct {
+	// SourcePath is the file's path in the remote repository (e.g. "skills/my-skill/SKILL.md").
+	SourcePath string
+	// SkillName is the name of the skill directory (e.g. "my-skill").
+	SkillName string
 }
 
 type packageRemoteNotFoundError struct {
@@ -81,15 +97,15 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 		return nil, err
 	}
 
-	installationSources := normalizePackageInstallablePaths(manifest.Files, packagePath)
+	includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(manifest.Includes)
+	includeInstallablePaths = append(includeInstallablePaths, manifest.Files...)
+
+	installationSources := normalizePackageInstallablePaths(includeInstallablePaths, packagePath)
 	if len(installationSources) == 0 {
 		installationSources, err = scanRepositoryPackageInstallablePaths(owner, repo, packagePath, ref, host)
 		if err != nil {
 			return nil, err
 		}
-	}
-	if len(installationSources) == 0 {
-		return nil, fmt.Errorf("repository %q does not declare any installable workflow markdown files", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
 	}
 	if err := validateUniqueManifestWorkflowFilenames(installationSources, manifestPath); err != nil {
 		return nil, err
@@ -100,6 +116,28 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 		return nil, err
 	}
 
+	// Resolve skill files: explicit from manifest or auto-scanned.
+	explicitSkillDirs := append([]string{}, manifest.Skills...)
+	explicitSkillDirs = append(explicitSkillDirs, includeSkillDirs...)
+	skillFiles, skillWarnings, err := resolvePackageSkillFiles(owner, repo, packagePath, ref, host, explicitSkillDirs)
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, skillWarnings...)
+
+	// Resolve agent files: explicit from manifest or auto-scanned.
+	explicitAgentFiles := append([]string{}, manifest.Agents...)
+	explicitAgentFiles = append(explicitAgentFiles, includeAgentFiles...)
+	agentFiles, agentWarnings, err := resolvePackageAgentFiles(owner, repo, packagePath, ref, host, explicitAgentFiles)
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, agentWarnings...)
+
+	if len(installationSources) == 0 && len(skillFiles) == 0 && len(agentFiles) == 0 {
+		return nil, fmt.Errorf("repository %q does not contain any installable workflows, skills, or agents (either explicitly declared or auto-discovered)", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
+	}
+
 	return &resolvedRepositoryPackage{
 		ManifestPath:       manifestPath,
 		Name:               manifest.Name,
@@ -107,6 +145,8 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 		Description:        manifest.Description,
 		DocsPath:           docsPath,
 		InstallationSource: installationSources,
+		SkillFiles:         skillFiles,
+		AgentFiles:         agentFiles,
 		Warnings:           warnings,
 	}, nil
 }
@@ -135,7 +175,10 @@ type repositoryPackageManifest struct {
 	Name            string
 	Emoji           string
 	Description     string
+	Includes        []string
 	Files           []string
+	Skills          []string // skill directory paths (e.g. "skills/my-skill")
+	Agents          []string // agent .md file paths (e.g. "agents/my-agent.md")
 }
 
 func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repositoryPackageManifest, []string, error) {
@@ -196,13 +239,67 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 		manifest.Emoji = emoji
 	}
 
+	if includesValue, ok := root["includes"]; ok {
+		includes, includeWarnings := extractManifestIncludes(includesValue, manifestPath)
+		manifest.Includes = includes
+		warnings = append(warnings, includeWarnings...)
+	}
+
 	if filesValue, ok := root["files"]; ok {
 		files, fileWarnings := extractManifestFiles(filesValue, manifestPath)
 		manifest.Files = files
 		warnings = append(warnings, fileWarnings...)
+		if len(files) > 0 {
+			warnings = append(warnings, fmt.Sprintf("Field 'files' in %s is deprecated; use 'includes' instead.", manifestPath))
+			warnings = append(warnings, "Codemod suggestion:\n"+formatIncludesCodemodSuggestion(codemodManifestFilesToIncludes(files)))
+		}
+	}
+
+	if skillsValue, ok := root["skills"]; ok {
+		skills, skillWarnings := extractManifestSkillDirs(skillsValue, manifestPath)
+		manifest.Skills = skills
+		warnings = append(warnings, skillWarnings...)
+	}
+
+	if agentsValue, ok := root["agents"]; ok {
+		agents, agentWarnings := extractManifestAgentFiles(agentsValue, manifestPath)
+		manifest.Agents = agents
+		warnings = append(warnings, agentWarnings...)
 	}
 
 	return manifest, warnings, nil
+}
+
+func extractManifestIncludes(value any, manifestPath string) ([]string, []string) {
+	var rawIncludes []string
+	switch includes := value.(type) {
+	case []any:
+		for _, item := range includes {
+			if include, ok := stringValue(item); ok {
+				rawIncludes = append(rawIncludes, include)
+			}
+		}
+	case []string:
+		rawIncludes = append(rawIncludes, includes...)
+	default:
+		return nil, []string{fmt.Sprintf("Ignoring includes entry in %s because it is not a list of strings", manifestPath)}
+	}
+
+	var warnings []string
+	normalized := make([]string, 0, len(rawIncludes))
+	seen := make(map[string]struct{})
+	for _, include := range rawIncludes {
+		if !isSupportedManifestIncludePath(include) {
+			warnings = append(warnings, fmt.Sprintf("Ignoring includes entry %q in %s: use workflow files (workflows/, agentic-workflows/, .github/workflows/), skill directories (skills/, .github/skills/), or agent markdown files (agents/, .github/agents/)", include, manifestPath))
+			continue
+		}
+		if _, exists := seen[include]; exists {
+			continue
+		}
+		seen[include] = struct{}{}
+		normalized = append(normalized, include)
+	}
+	return normalized, warnings
 }
 
 func extractManifestFiles(value any, manifestPath string) ([]string, []string) {
@@ -225,7 +322,7 @@ func extractManifestFiles(value any, manifestPath string) ([]string, []string) {
 	seen := make(map[string]struct{})
 	for _, file := range rawFiles {
 		if !isSupportedPackageInstallablePath(file) {
-			warnings = append(warnings, fmt.Sprintf("Ignoring files entry %q in %s: supported files are markdown (.md) files under workflows/ or .github/workflows/, or action workflow (.yml) files under .github/workflows/", file, manifestPath))
+			warnings = append(warnings, fmt.Sprintf("Ignoring files entry %q in %s: supported files are markdown (.md) files under workflows/, agentic-workflows/, or .github/workflows/, or action workflow (.yml) files under .github/workflows/", file, manifestPath))
 			continue
 		}
 		if _, exists := seen[file]; exists {
@@ -236,6 +333,274 @@ func extractManifestFiles(value any, manifestPath string) ([]string, []string) {
 	}
 
 	return normalized, warnings
+}
+
+func codemodManifestFilesToIncludes(files []string) []string {
+	converted := make([]string, 0, len(files))
+	for _, file := range files {
+		converted = append(converted, path.Clean(filepath.ToSlash(file)))
+	}
+	return converted
+}
+
+func formatIncludesCodemodSuggestion(paths []string) string {
+	if len(paths) == 0 {
+		return "includes: []"
+	}
+	lines := []string{"includes:"}
+	for _, p := range paths {
+		lines = append(lines, "  - "+p)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func splitManifestIncludePaths(includes []string) (installable, skillDirs, agentFiles []string) {
+	for _, include := range includes {
+		switch {
+		case isSupportedSkillDirPath(include):
+			skillDirs = append(skillDirs, include)
+		case isSupportedAgentFilePath(include):
+			agentFiles = append(agentFiles, include)
+		case isSupportedPackageInstallablePath(include):
+			installable = append(installable, include)
+		}
+	}
+	return installable, skillDirs, agentFiles
+}
+
+// extractManifestSkillDirs parses the skills array from an aw.yml manifest, validating
+// and normalizing each entry. Each entry must be a path under skills/ that represents
+// the directory for a skill (e.g. "skills/my-skill").
+func extractManifestSkillDirs(value any, manifestPath string) ([]string, []string) {
+	var rawDirs []string
+	switch dirs := value.(type) {
+	case []any:
+		for _, item := range dirs {
+			if dir, ok := stringValue(item); ok {
+				rawDirs = append(rawDirs, dir)
+			}
+		}
+	case []string:
+		rawDirs = append(rawDirs, dirs...)
+	default:
+		return nil, []string{fmt.Sprintf("Ignoring skills entry in %s because it is not a list of strings", manifestPath)}
+	}
+
+	var warnings []string
+	normalized := make([]string, 0, len(rawDirs))
+	seen := make(map[string]struct{})
+	for _, dir := range rawDirs {
+		if !isSupportedSkillDirPath(dir) {
+			warnings = append(warnings, fmt.Sprintf("Ignoring skills entry %q in %s: skill entries must be directory paths under skills/ (e.g. \"skills/my-skill\")", dir, manifestPath))
+			continue
+		}
+		if _, exists := seen[dir]; exists {
+			continue
+		}
+		seen[dir] = struct{}{}
+		normalized = append(normalized, dir)
+	}
+	return normalized, warnings
+}
+
+// extractManifestAgentFiles parses the agents array from an aw.yml manifest, validating
+// and normalizing each entry. Each entry must be a .md file path under agents/.
+func extractManifestAgentFiles(value any, manifestPath string) ([]string, []string) {
+	var rawFiles []string
+	switch files := value.(type) {
+	case []any:
+		for _, item := range files {
+			if file, ok := stringValue(item); ok {
+				rawFiles = append(rawFiles, file)
+			}
+		}
+	case []string:
+		rawFiles = append(rawFiles, files...)
+	default:
+		return nil, []string{fmt.Sprintf("Ignoring agents entry in %s because it is not a list of strings", manifestPath)}
+	}
+
+	var warnings []string
+	normalized := make([]string, 0, len(rawFiles))
+	seen := make(map[string]struct{})
+	for _, file := range rawFiles {
+		if !isSupportedAgentFilePath(file) {
+			warnings = append(warnings, fmt.Sprintf("Ignoring agents entry %q in %s: agent entries must be .md file paths under agents/ (e.g. \"agents/my-agent.md\")", file, manifestPath))
+			continue
+		}
+		if _, exists := seen[file]; exists {
+			continue
+		}
+		seen[file] = struct{}{}
+		normalized = append(normalized, file)
+	}
+	return normalized, warnings
+}
+
+// isSupportedSkillDirPath returns true when p is a valid skill directory path.
+// Valid skill directory paths must be directly under skills/ (e.g. "skills/my-skill")
+// with no further nesting.
+func isSupportedSkillDirPath(p string) bool {
+	cleaned := path.Clean(filepath.ToSlash(p))
+	if !isSupportedSkillDirectoryPrefix(cleaned) {
+		return false
+	}
+	root := skillDirectoryRoot(cleaned)
+	remaining := strings.TrimPrefix(cleaned, root+"/")
+	// Must have exactly one path component (direct child of skills/)
+	return remaining != "" && !strings.Contains(remaining, "/")
+}
+
+// isSupportedAgentFilePath returns true when p is a valid agent file path.
+// Valid agent paths must be .md files directly under agents/ (e.g. "agents/my-agent.md").
+func isSupportedAgentFilePath(p string) bool {
+	cleaned := path.Clean(filepath.ToSlash(p))
+	if !isSupportedAgentDirectoryPrefix(cleaned) {
+		return false
+	}
+	if !strings.HasSuffix(strings.ToLower(cleaned), ".md") {
+		return false
+	}
+	root := agentDirectoryRoot(cleaned)
+	remaining := strings.TrimPrefix(cleaned, root+"/")
+	// Must be a direct child of agents/ (no subdirectories)
+	return remaining != "" && !strings.Contains(remaining, "/")
+}
+
+func isSupportedManifestIncludePath(p string) bool {
+	return isSupportedPackageInstallablePath(p) || isSupportedSkillDirPath(p) || isSupportedAgentFilePath(p)
+}
+
+func isSupportedSkillDirectoryPrefix(cleaned string) bool {
+	return strings.HasPrefix(cleaned, packageSkillsDirectory+"/") ||
+		strings.HasPrefix(cleaned, ".github/"+packageSkillsDirectory+"/")
+}
+
+func skillDirectoryRoot(cleaned string) string {
+	switch {
+	case strings.HasPrefix(cleaned, ".github/"+packageSkillsDirectory+"/"):
+		return ".github/" + packageSkillsDirectory
+	default:
+		return packageSkillsDirectory
+	}
+}
+
+func isSupportedAgentDirectoryPrefix(cleaned string) bool {
+	return strings.HasPrefix(cleaned, packageAgentsDirectory+"/") ||
+		strings.HasPrefix(cleaned, ".github/"+packageAgentsDirectory+"/")
+}
+
+func agentDirectoryRoot(cleaned string) string {
+	switch {
+	case strings.HasPrefix(cleaned, ".github/"+packageAgentsDirectory+"/"):
+		return ".github/" + packageAgentsDirectory
+	default:
+		return packageAgentsDirectory
+	}
+}
+
+// resolvePackageSkillFiles returns the list of resolvedPackageSkillFile for a package.
+// If explicitSkillDirs is non-empty it is used; otherwise the skills/ directory is
+// auto-scanned for subdirectories that contain a SKILL.md file.
+func resolvePackageSkillFiles(owner, repo, packagePath, ref, host string, explicitSkillDirs []string) ([]resolvedPackageSkillFile, []string, error) {
+	var skillDirs []string
+	explicitMode := len(explicitSkillDirs) > 0
+	if len(explicitSkillDirs) > 0 {
+		for _, dir := range explicitSkillDirs {
+			skillDirs = append(skillDirs, joinRepositoryPackagePath(packagePath, dir))
+		}
+	} else {
+		autoScanned, err := scanPackageSkillDirs(owner, repo, packagePath, ref, host)
+		if err != nil {
+			return nil, nil, err
+		}
+		skillDirs = autoScanned
+	}
+
+	var skillFiles []resolvedPackageSkillFile
+	var warnings []string
+	for _, skillDir := range skillDirs {
+		if explicitMode {
+			markerPath := joinRepositoryPackagePath(skillDir, packageSkillMarkerFile)
+			if _, err := downloadPackageFileFromGitHubForHost(owner, repo, markerPath, ref, host); err != nil {
+				if isRepositoryFileNotFound(err) {
+					warnings = append(warnings, fmt.Sprintf("Skill directory %q is missing required %s marker file", skillDir, packageSkillMarkerFile))
+					continue
+				}
+				return nil, nil, fmt.Errorf("failed to validate skill marker %q: %w", markerPath, err)
+			}
+		}
+		skillName := filepath.Base(skillDir)
+		files, err := listPackageDirFilesForHost(owner, repo, ref, skillDir, host)
+		if err != nil {
+			if isRepositoryFileNotFound(err) {
+				warnings = append(warnings, fmt.Sprintf("Skill directory %q not found in package, skipping", skillDir))
+				continue
+			}
+			return nil, nil, fmt.Errorf("failed to list files in skill directory %q: %w", skillDir, err)
+		}
+		for _, file := range files {
+			skillFiles = append(skillFiles, resolvedPackageSkillFile{
+				SourcePath: file,
+				SkillName:  skillName,
+			})
+		}
+	}
+	return skillFiles, warnings, nil
+}
+
+// resolvePackageAgentFiles returns the list of agent file source paths for a package.
+// If explicitAgentFiles is non-empty it is used; otherwise the agents/ directory is
+// auto-scanned for .md files.
+func resolvePackageAgentFiles(owner, repo, packagePath, ref, host string, explicitAgentFiles []string) ([]string, []string, error) {
+	if len(explicitAgentFiles) > 0 {
+		var agentFiles []string
+		for _, f := range explicitAgentFiles {
+			agentFiles = append(agentFiles, joinRepositoryPackagePath(packagePath, f))
+		}
+		return agentFiles, nil, nil
+	}
+
+	var agentFiles []string
+	for _, root := range []string{packageAgentsDirectory, ".github/" + packageAgentsDirectory} {
+		agentsDir := joinRepositoryPackagePath(packagePath, root)
+		files, err := listPackageDirFilesForHost(owner, repo, ref, agentsDir, host)
+		if err != nil {
+			if isRepositoryFileNotFound(err) {
+				continue
+			}
+			return nil, nil, fmt.Errorf("failed to scan agents directory %q: %w", agentsDir, err)
+		}
+		for _, f := range files {
+			if strings.HasSuffix(strings.ToLower(f), ".md") {
+				agentFiles = append(agentFiles, f)
+			}
+		}
+	}
+	return agentFiles, nil, nil
+}
+
+// scanPackageSkillDirs auto-scans the skills/ directory of a package and returns the paths
+// of skill subdirectories (those that contain a SKILL.md file).
+func scanPackageSkillDirs(owner, repo, packagePath, ref, host string) ([]string, error) {
+	var skillDirs []string
+	for _, root := range []string{packageSkillsDirectory, ".github/" + packageSkillsDirectory} {
+		skillsDir := joinRepositoryPackagePath(packagePath, root)
+		subdirs, err := listPackageDirSubdirsForHost(owner, repo, ref, skillsDir, host)
+		if err != nil {
+			if isRepositoryFileNotFound(err) {
+				continue
+			}
+			return nil, fmt.Errorf("failed to scan skills directory %q: %w", skillsDir, err)
+		}
+		for _, subdir := range subdirs {
+			markerPath := joinRepositoryPackagePath(subdir, packageSkillMarkerFile)
+			if _, err := downloadPackageFileFromGitHubForHost(owner, repo, markerPath, ref, host); err == nil {
+				skillDirs = append(skillDirs, subdir)
+			}
+		}
+	}
+	return skillDirs, nil
 }
 
 func scanRepositoryPackageInstallablePaths(owner, repo, packagePath, ref, host string) ([]string, error) {
@@ -310,7 +675,9 @@ func isSupportedPackageInstallablePath(p string) bool {
 	cleaned := path.Clean(filepath.ToSlash(p))
 	lowerCleaned := strings.ToLower(cleaned)
 	if strings.HasSuffix(lowerCleaned, ".md") {
-		return strings.HasPrefix(cleaned, "workflows/") || strings.HasPrefix(cleaned, ".github/workflows/")
+		return strings.HasPrefix(cleaned, "workflows/") ||
+			strings.HasPrefix(cleaned, "agentic-workflows/") ||
+			strings.HasPrefix(cleaned, ".github/workflows/")
 	}
 	if isActionWorkflowPath(cleaned) {
 		if !strings.HasPrefix(cleaned, ".github/workflows/") {
@@ -422,6 +789,16 @@ func downloadRepositoryPackageFileFromGitHubForHost(owner, repo, path, ref, host
 func listRepositoryPackageWorkflowFilesForHost(owner, repo, ref, workflowPath, host string) ([]string, error) {
 	files, err := parser.ListWorkflowFilesForHost(owner, repo, ref, workflowPath, host)
 	return files, normalizeRepositoryPackageRemoteError(err)
+}
+
+func listRepositoryPackageDirFilesForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
+	files, err := parser.ListDirAllFilesForHost(owner, repo, ref, dirPath, host)
+	return files, normalizeRepositoryPackageRemoteError(err)
+}
+
+func listRepositoryPackageDirSubdirsForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
+	dirs, err := parser.ListDirSubdirsForHost(owner, repo, ref, dirPath, host)
+	return dirs, normalizeRepositoryPackageRemoteError(err)
 }
 
 func normalizeRepositoryPackageRemoteError(err error) error {
