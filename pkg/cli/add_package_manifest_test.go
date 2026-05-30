@@ -1486,9 +1486,12 @@ files:
 
 func TestStringSliceValue(t *testing.T) {
 	t.Run("accepts []string", func(t *testing.T) {
-		got, ok := stringSliceValue([]string{"a", "b"})
+		input := []string{"a", "b"}
+		got, ok := stringSliceValue(input)
 		require.True(t, ok)
 		assert.Equal(t, []string{"a", "b"}, got)
+		got[0] = "changed"
+		assert.Equal(t, "a", input[0], "returned slice should be a defensive copy")
 	})
 
 	t.Run("accepts []any with strings", func(t *testing.T) {
