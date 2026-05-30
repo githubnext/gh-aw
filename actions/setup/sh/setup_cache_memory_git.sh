@@ -169,7 +169,7 @@ else
   # If git metadata is malformed enough that config cannot be written (for example
   # missing HEAD), recover by reinitializing while preserving working-tree files.
   if ! git config core.hooksPath /dev/null 2>/tmp/gh-aw-hooks-config-err; then
-    echo "WARNING: cache-memory git repository is not usable for hook disable; reinitializing git metadata"
+    echo "WARNING: Detected corrupted cache-memory git repository (cannot configure hooks); reinitializing git metadata"
     cat /tmp/gh-aw-hooks-config-err 2>/dev/null || true
     rm -rf .git
     IS_CACHE_HIT=false
