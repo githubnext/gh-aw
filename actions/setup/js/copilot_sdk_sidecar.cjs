@@ -130,6 +130,10 @@ async function startCopilotSDKServer(options) {
   let onError;
   /** @type {((code: number | null, signal: NodeJS.Signals | null) => void) | undefined} */
   let onExit;
+  function removeStartupListeners() {
+    if (onError) child.removeListener("error", onError);
+    if (onExit) child.removeListener("exit", onExit);
+  }
   const failure = new Promise((_, reject) => {
     onError = err => reject(err);
     onExit = (code, signal) => {
@@ -150,15 +154,14 @@ async function startCopilotSDKServer(options) {
       }),
       failure,
     ]);
+    removeStartupListeners();
     return child;
   } catch (error) {
+    removeStartupListeners();
     if (child.pid) {
       await stopCopilotSDKServer(child, { logger });
     }
     throw error;
-  } finally {
-    if (onError) child.removeListener("error", onError);
-    if (onExit) child.removeListener("exit", onExit);
   }
 }
 

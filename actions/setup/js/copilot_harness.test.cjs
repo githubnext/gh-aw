@@ -221,9 +221,15 @@ describe("copilot_harness.cjs", () => {
       child.signalCode = null;
       child.kill = vi.fn();
       const spawnImpl = vi.fn(() => child);
-      const waitForReady = vi.fn().mockResolvedValue(undefined);
+      let resolveReady;
+      const waitForReady = vi.fn(
+        () =>
+          new Promise(resolve => {
+            resolveReady = resolve;
+          })
+      );
 
-      const result = await startCopilotSDKServer({
+      const startPromise = startCopilotSDKServer({
         command: "copilot",
         env: {
           GH_AW_COPILOT_SDK: "1",
@@ -233,6 +239,13 @@ describe("copilot_harness.cjs", () => {
         spawnImpl,
         waitForReady,
       });
+
+      await Promise.resolve();
+      expect(child.listenerCount("error")).toBe(1);
+      expect(child.listenerCount("exit")).toBe(1);
+
+      resolveReady();
+      const result = await startPromise;
 
       expect(result).toBe(child);
       expect(spawnImpl).toHaveBeenCalledWith(
