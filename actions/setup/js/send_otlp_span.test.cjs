@@ -3430,6 +3430,7 @@ describe("sendJobConclusionSpan", () => {
     vi.stubGlobal("fetch", mockFetch);
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    delete process.env.GH_AW_EFFECTIVE_TOKENS;
 
     const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
       if (filePath === "/tmp/gh-aw/agent_usage.json") {
@@ -3470,6 +3471,7 @@ describe("sendJobConclusionSpan", () => {
     const etAttr = span.attributes.find(a => a.key === "gh-aw.effective_tokens");
     expect(etAttr).toBeDefined();
     expect(etAttr.value.intValue).toBe(5000);
+    expect(readFileSpy).not.toHaveBeenCalledWith("/tmp/gh-aw/agent_usage.json", "utf8");
   });
 
   it("emits dashboard metrics and aliases on the conclusion span", async () => {

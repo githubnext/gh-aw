@@ -1744,8 +1744,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Effective token count is surfaced by the agent job. Prefer the explicit env var
   // when present, otherwise fall back to the durable agent_usage artifact so
   // downstream post-steps still emit gh-aw.effective_tokens.
-  const usageFromArtifact = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || {};
-  const rawET = process.env.GH_AW_EFFECTIVE_TOKENS || String(usageFromArtifact.effective_tokens || "");
+  const rawETFromEnv = process.env.GH_AW_EFFECTIVE_TOKENS || "";
+  const usageFromArtifact = rawETFromEnv ? null : readJSONIfExists("/tmp/gh-aw/agent_usage.json");
+  const rawET = rawETFromEnv || String((usageFromArtifact && usageFromArtifact.effective_tokens) || "");
   const effectiveTokens = rawET ? parseInt(rawET, 10) : NaN;
 
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
