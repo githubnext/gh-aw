@@ -237,7 +237,7 @@ func TestFilterPiArgs(t *testing.T) {
 	})
 
 	t.Run("drops yolo variants only", func(t *testing.T) {
-		filtered := filterPiArgs([]string{"--yolo", "--custom-flag", "value", "--yolo=true"})
+		filtered := filterPiArgs([]string{"--yolo", "--custom-flag", "value", "--yolo=true", "--yolo=false"})
 		assert.Equal(t, []string{"--custom-flag", "value"}, filtered)
 	})
 
