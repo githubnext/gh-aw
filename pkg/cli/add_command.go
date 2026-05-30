@@ -626,21 +626,59 @@ func addActionWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTrac
 }
 
 // addSkillFileWithTracking installs a single skill file from a package to the agentic engine
-// skill directory.
+// skill directory. The file's path relative to the skill directory is preserved so that
+// nested files (e.g. scripts/ subdirectories) are written with their full structure intact.
 func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, gitRoot string) error {
 	engineSkillDir := parser.GetEngineSkillDir(opts.EngineOverride)
 	skillDir := filepath.Join(gitRoot, engineSkillDir, resolved.SkillName)
-	if err := os.MkdirAll(skillDir, constants.DirPermPublic); err != nil {
-		return fmt.Errorf("failed to create skill directory %s: %w", skillDir, err)
+
+	// Determine the relative path under the skill directory so nested files preserve
+	// structure (e.g. "scripts/query.sh"). Match a skill-name path component that is
+	// immediately under skills/ or .github/skills/ to avoid accidental first matches.
+	parts := strings.Split(filepath.ToSlash(resolved.Spec.WorkflowPath), "/")
+	var relParts []string
+	for i, part := range parts {
+		if i >= len(parts)-1 {
+			break
+		}
+		if part != resolved.SkillName {
+			continue
+		}
+		if i > 0 && parts[i-1] == "skills" {
+			relParts = parts[i+1:]
+			break
+		}
+		if i > 1 && parts[i-1] == "skills" && parts[i-2] == ".github" {
+			relParts = parts[i+1:]
+			break
+		}
+	}
+	if len(relParts) == 0 {
+		return fmt.Errorf("failed to determine relative path for skill %q from source path %q", resolved.SkillName, resolved.Spec.WorkflowPath)
+	}
+	relPath := filepath.Clean(filepath.Join(relParts...))
+	if relPath == "." || relPath == "" || relPath == string(os.PathSeparator) {
+		return fmt.Errorf("invalid relative skill path %q from source path %q", relPath, resolved.Spec.WorkflowPath)
 	}
 
-	fileName := filepath.Base(resolved.Spec.WorkflowPath)
-	destFile := filepath.Join(skillDir, fileName)
+	destFile := filepath.Join(skillDir, relPath)
+	relToSkillDir, err := filepath.Rel(skillDir, destFile)
+	if err != nil {
+		return fmt.Errorf("failed to validate destination path %q for skill %q: %w", destFile, resolved.SkillName, err)
+	}
+	if relToSkillDir == ".." || strings.HasPrefix(relToSkillDir, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("skill file path %q escapes destination skill directory %q", relPath, skillDir)
+	}
+
+	// Ensure the destination directory exists (handles nested subdirectories).
+	if err := os.MkdirAll(filepath.Dir(destFile), constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create skill directory %s: %w", filepath.Dir(destFile), err)
+	}
 
 	addLog.Printf("Adding skill file: dest=%s, skill=%s, content_size=%d bytes", destFile, resolved.SkillName, len(resolved.Content))
 
 	if opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding skill file to %s: %s", engineSkillDir+"/"+resolved.SkillName, fileName)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding skill file to %s: %s", engineSkillDir+"/"+resolved.SkillName, relPath)))
 	}
 
 	fileExists := false
@@ -668,7 +706,7 @@ func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, 
 	}
 
 	if !opts.Quiet {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added skill file: %s/%s/%s", engineSkillDir, resolved.SkillName, fileName)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added skill file: %s/%s/%s", engineSkillDir, resolved.SkillName, relPath)))
 	}
 
 	return nil
