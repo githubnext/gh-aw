@@ -634,11 +634,13 @@ func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, 
 
 	// Determine the relative path of the file within the skill directory so that any
 	// nested subdirectories are preserved (e.g. "scripts/query.sh" stays under scripts/).
-	skillPrefix := resolved.SkillName + "/"
-	idx := strings.LastIndex(resolved.Spec.WorkflowPath, skillPrefix)
+	// We search for the skill name as a proper path component (bounded by "/") so that a
+	// skill name that also appears in a subdirectory name does not produce the wrong prefix.
+	skillComponent := "/" + resolved.SkillName + "/"
+	idx := strings.Index(resolved.Spec.WorkflowPath, skillComponent)
 	var relPath string
 	if idx >= 0 {
-		relPath = filepath.FromSlash(resolved.Spec.WorkflowPath[idx+len(skillPrefix):])
+		relPath = filepath.FromSlash(resolved.Spec.WorkflowPath[idx+len(skillComponent):])
 	} else {
 		relPath = filepath.Base(resolved.Spec.WorkflowPath)
 	}

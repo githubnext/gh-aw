@@ -1165,13 +1165,16 @@ func listDirAllFilesRecursivelyViaGitForHost(owner, repo, ref, dirPath, host str
 		return nil, err
 	}
 
-	lsTreeCmd := exec.Command("git", "-C", tmpDir, "ls-tree", "-r", "--name-only", "HEAD", dirPath+"/")
+	// Normalise dirPath so it never has a trailing slash before we append one.
+	cleanDirPath := strings.TrimRight(dirPath, "/")
+	lsTreeCmd := exec.Command("git", "-C", tmpDir, "ls-tree", "-r", "--name-only", "HEAD", cleanDirPath+"/")
 	lsTreeOutput, err := lsTreeCmd.CombinedOutput()
 	if err != nil {
 		remoteLog.Printf("Failed to list dir files recursively: %s", string(lsTreeOutput))
 		return nil, fmt.Errorf("failed to list dir files recursively: %w", err)
 	}
 
+	dirPrefix := cleanDirPath + "/"
 	lines := strings.Split(strings.TrimSpace(string(lsTreeOutput)), "\n")
 	var files []string
 	for _, line := range lines {
@@ -1180,7 +1183,7 @@ func listDirAllFilesRecursivelyViaGitForHost(owner, repo, ref, dirPath, host str
 			continue
 		}
 		// Include all files at any depth under dirPath (not just direct children)
-		afterDirPath := strings.TrimPrefix(line, dirPath+"/")
+		afterDirPath := strings.TrimPrefix(line, dirPrefix)
 		if afterDirPath != "" {
 			files = append(files, line)
 		}

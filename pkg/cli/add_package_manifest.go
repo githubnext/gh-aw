@@ -524,19 +524,18 @@ func resolvePackageSkillFiles(owner, repo, packagePath, ref, host string, explic
 
 	// Build the final ordered list: manifest skills first, then auto-scanned extras.
 	var skillDirs []string
-	for _, dir := range manifestSkillDirs {
+	appendIfNew := func(dir string) {
 		name := filepath.Base(dir)
 		if _, exists := seenSkillNames[name]; !exists {
 			seenSkillNames[name] = struct{}{}
 			skillDirs = append(skillDirs, dir)
 		}
 	}
+	for _, dir := range manifestSkillDirs {
+		appendIfNew(dir)
+	}
 	for _, dir := range autoScanned {
-		name := filepath.Base(dir)
-		if _, exists := seenSkillNames[name]; !exists {
-			seenSkillNames[name] = struct{}{}
-			skillDirs = append(skillDirs, dir)
-		}
+		appendIfNew(dir)
 	}
 
 	// manifestSkillDirSet is used to know which dirs require a SKILL.md marker check.
