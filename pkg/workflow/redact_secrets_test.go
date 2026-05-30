@@ -83,6 +83,13 @@ func TestCollectSecretReferences(t *testing.T) {
 	}
 }
 
+func TestEscapeSingleQuoteBackslash(t *testing.T) {
+	got := escapeSingleQuoteBackslash(`owner's\workflow`)
+	if got != `owner\'s\\workflow` {
+		t.Fatalf("escapeSingleQuoteBackslash() = %q", got)
+	}
+}
+
 func TestCollectActionReferences(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -76,6 +76,18 @@ func getEngineEnvOverrides(workflowData *WorkflowData) map[string]string {
 	return workflowData.EngineConfig.Env
 }
 
+// ResolveEngineID returns the workflow engine ID, preferring engine.id over the legacy AI field.
+// It returns an empty string when no engine ID is available.
+func ResolveEngineID(workflowData *WorkflowData) string {
+	if workflowData == nil {
+		return ""
+	}
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
+		return workflowData.EngineConfig.ID
+	}
+	return workflowData.AI
+}
+
 // engineEnvHasKey reports whether the given env var key is present in the engine.env map.
 // Returns false if workflowData or EngineConfig is nil, or if the key is not in the map.
 func engineEnvHasKey(workflowData *WorkflowData, key string) bool {
