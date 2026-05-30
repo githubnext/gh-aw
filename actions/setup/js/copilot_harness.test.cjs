@@ -178,7 +178,6 @@ describe("copilot_harness.cjs", () => {
     it("extracts the configured Copilot SDK server port", () => {
       expect(
         getCopilotSDKServerPort({
-          GH_AW_COPILOT_SDK: "1",
           COPILOT_SDK_URI: "http://127.0.0.1:3002",
         })
       ).toBe("3002");
@@ -187,16 +186,15 @@ describe("copilot_harness.cjs", () => {
     it("builds headless Copilot CLI sidecar args", () => {
       expect(
         buildCopilotSDKServerArgs({
-          GH_AW_COPILOT_SDK: "1",
           COPILOT_SDK_URI: "http://127.0.0.1:3002",
         })
       ).toEqual(["--headless", "--no-auto-update", "--port", "3002"]);
     });
 
     it("centralizes copilot-sdk activation checks", () => {
-      expect(isCopilotSDKEnabled({ GH_AW_COPILOT_SDK: "1" })).toBe(true);
-      expect(isCopilotSDKEnabled({ GH_AW_COPILOT_SDK: "0" })).toBe(false);
-      expect(buildCopilotSDKEnv({ GH_AW_COPILOT_SDK: "1", COPILOT_SDK_URI: "http://127.0.0.1:3002" })).toEqual({
+      expect(isCopilotSDKEnabled({ COPILOT_SDK_URI: "http://127.0.0.1:3002" })).toBe(true);
+      expect(isCopilotSDKEnabled({})).toBe(false);
+      expect(buildCopilotSDKEnv({ COPILOT_SDK_URI: "http://127.0.0.1:3002" })).toEqual({
         COPILOT_SDK_URI: "http://127.0.0.1:3002",
       });
     });
@@ -233,7 +231,6 @@ describe("copilot_harness.cjs", () => {
       const startPromise = startCopilotSDKServer({
         command: "copilot",
         env: {
-          GH_AW_COPILOT_SDK: "1",
           COPILOT_SDK_URI: "http://127.0.0.1:3002",
         },
         logger: () => {},
@@ -258,7 +255,6 @@ describe("copilot_harness.cjs", () => {
         expect.objectContaining({
           stdio: ["ignore", "pipe", "pipe"],
           env: {
-            GH_AW_COPILOT_SDK: "1",
             COPILOT_SDK_URI: "http://127.0.0.1:3002",
           },
         })
@@ -305,7 +301,6 @@ describe("copilot_harness.cjs", () => {
         startCopilotSDKServer({
           command: "copilot",
           env: {
-            GH_AW_COPILOT_SDK: "1",
             COPILOT_SDK_URI: "http://127.0.0.1:3002",
           },
           logger: () => {},

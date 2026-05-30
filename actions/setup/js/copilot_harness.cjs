@@ -525,7 +525,7 @@ async function main() {
   await checkCommandAccessible(command);
   const resolvedArgs = resolvePromptFileArgs(args);
 
-  // Build SDK env additions. When GH_AW_COPILOT_SDK=1 the harness will start a separate
+  // Build SDK env additions. When COPILOT_SDK_URI is set the harness will start a separate
   // headless Copilot CLI sidecar and this helper merges COPILOT_SDK_URI into the child
   // process env so that every started process (including retry attempts) inherits the
   // correct SDK endpoint URI.

@@ -269,11 +269,6 @@ const (
 	// library can locate the running Copilot HTTP server.
 	CopilotSDKURIEnvVar = "COPILOT_SDK_URI"
 
-	// GHAWCopilotSDKEnvVar is the internal signal variable set by the compiler to tell
-	// the harness that copilot-sdk mode is active. The harness starts and stops the
-	// Copilot CLI headless sidecar and ensures COPILOT_SDK_URI is forwarded to child processes.
-	GHAWCopilotSDKEnvVar = "GH_AW_COPILOT_SDK"
-
 	// CopilotBYOKDummyAPIKey is the placeholder API key used to trigger AWF's
 	// runtime BYOK detection for Copilot offline mode. The real credential remains
 	// isolated in the AWF API proxy sidecar.

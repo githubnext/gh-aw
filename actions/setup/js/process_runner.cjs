@@ -144,16 +144,16 @@ function runProcess({ command, args, attempt, log, logArgs, env }) {
  */
 function isCopilotSDKEnabled(env) {
   const sourceEnv = env ?? process.env;
-  return sourceEnv.GH_AW_COPILOT_SDK === "1";
+  return Boolean(sourceEnv.COPILOT_SDK_URI);
 }
 
 /**
  * Returns the Copilot SDK environment additions to inject into child processes
- * when SDK mode is active (GH_AW_COPILOT_SDK=1).
+ * when SDK mode is active.
  *
- * When GH_AW_COPILOT_SDK is "1" and COPILOT_SDK_URI is set in process.env, returns
- * an object with { COPILOT_SDK_URI } so callers can merge it into their child-process
- * env.  Returns an empty object when SDK mode is not active, making it safe to call
+ * When COPILOT_SDK_URI is set in process.env, returns an object with
+ * { COPILOT_SDK_URI } so callers can merge it into their child-process env.
+ * Returns an empty object when SDK mode is not active, making it safe to call
  * unconditionally.
  *
  * Intended to be shared by all engine harnesses (copilot_harness, claude_harness, …)

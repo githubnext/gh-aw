@@ -244,10 +244,6 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 		t.Fatalf("Expected main copilot command to avoid --transport http when copilot-sdk is enabled, got:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, constants.GHAWCopilotSDKEnvVar+":") {
-		t.Fatalf("Expected %s to be present in step env, got:\n%s", constants.GHAWCopilotSDKEnvVar, stepContent)
-	}
-
 	expectedURI := constants.CopilotSDKURIEnvVar + ": http://127.0.0.1:" + strconv.Itoa(constants.DefaultCopilotSDKPort)
 	if !strings.Contains(stepContent, expectedURI) {
 		t.Fatalf("Expected %s in step env, got:\n%s", expectedURI, stepContent)
