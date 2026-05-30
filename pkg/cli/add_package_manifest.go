@@ -23,6 +23,7 @@ var (
 var downloadPackageFileFromGitHubForHost = downloadRepositoryPackageFileFromGitHubForHost
 var listPackageWorkflowFilesForHost = listRepositoryPackageWorkflowFilesForHost
 var listPackageDirFilesForHost = listRepositoryPackageDirFilesForHost
+var listPackageDirFilesRecursivelyForHost = listRepositoryPackageDirFilesRecursivelyForHost
 var listPackageDirSubdirsForHost = listRepositoryPackageDirSubdirsForHost
 var getRepositoryPackageDefaultBranch = resolveRepositoryPackageDefaultBranch
 var addPackageManifestLog = logger.New("cli:add_package_manifest")
@@ -500,27 +501,56 @@ func agentDirectoryRoot(cleaned string) string {
 }
 
 // resolvePackageSkillFiles returns the list of resolvedPackageSkillFile for a package.
-// If explicitSkillDirs is non-empty it is used; otherwise the skills/ directory is
-// auto-scanned for subdirectories that contain a SKILL.md file.
+// Manifest-specified skills (explicitSkillDirs) are resolved first. After that, the
+// skills/ directory is always auto-scanned for any additional skill subdirectories that
+// contain a SKILL.md file but are not already covered by the manifest. Each skill folder
+// is traversed recursively so that all nested files are included.
 func resolvePackageSkillFiles(owner, repo, packagePath, ref, host string, explicitSkillDirs []string) ([]resolvedPackageSkillFile, []string, error) {
+	// seenSkillNames tracks skill names already added so that auto-scanned duplicates
+	// of manifest-specified skills are not added a second time.
+	seenSkillNames := make(map[string]struct{})
+
+	// Step 1: resolve manifest skills first (explicit dirs).
+	var manifestSkillDirs []string
+	for _, dir := range explicitSkillDirs {
+		manifestSkillDirs = append(manifestSkillDirs, joinRepositoryPackagePath(packagePath, dir))
+	}
+
+	// Step 2: always auto-scan and append any skills not already in the manifest.
+	autoScanned, err := scanPackageSkillDirs(owner, repo, packagePath, ref, host)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Build the final ordered list: manifest skills first, then auto-scanned extras.
 	var skillDirs []string
-	explicitMode := len(explicitSkillDirs) > 0
-	if len(explicitSkillDirs) > 0 {
-		for _, dir := range explicitSkillDirs {
-			skillDirs = append(skillDirs, joinRepositoryPackagePath(packagePath, dir))
+	for _, dir := range manifestSkillDirs {
+		name := filepath.Base(dir)
+		if _, exists := seenSkillNames[name]; !exists {
+			seenSkillNames[name] = struct{}{}
+			skillDirs = append(skillDirs, dir)
 		}
-	} else {
-		autoScanned, err := scanPackageSkillDirs(owner, repo, packagePath, ref, host)
-		if err != nil {
-			return nil, nil, err
+	}
+	for _, dir := range autoScanned {
+		name := filepath.Base(dir)
+		if _, exists := seenSkillNames[name]; !exists {
+			seenSkillNames[name] = struct{}{}
+			skillDirs = append(skillDirs, dir)
 		}
-		skillDirs = autoScanned
+	}
+
+	// manifestSkillDirSet is used to know which dirs require a SKILL.md marker check.
+	manifestSkillDirSet := make(map[string]struct{}, len(manifestSkillDirs))
+	for _, d := range manifestSkillDirs {
+		manifestSkillDirSet[d] = struct{}{}
 	}
 
 	var skillFiles []resolvedPackageSkillFile
 	var warnings []string
 	for _, skillDir := range skillDirs {
-		if explicitMode {
+		// For skills that came from the manifest, validate that the SKILL.md marker
+		// exists so that typos in the manifest surface as clear warnings.
+		if _, fromManifest := manifestSkillDirSet[skillDir]; fromManifest {
 			markerPath := joinRepositoryPackagePath(skillDir, packageSkillMarkerFile)
 			if _, err := downloadPackageFileFromGitHubForHost(owner, repo, markerPath, ref, host); err != nil {
 				if isRepositoryFileNotFound(err) {
@@ -531,7 +561,9 @@ func resolvePackageSkillFiles(owner, repo, packagePath, ref, host string, explic
 			}
 		}
 		skillName := filepath.Base(skillDir)
-		files, err := listPackageDirFilesForHost(owner, repo, ref, skillDir, host)
+		// Use recursive listing so that the entire skill folder (including any
+		// subdirectories) is copied, not just the top-level files.
+		files, err := listPackageDirFilesRecursivelyForHost(owner, repo, ref, skillDir, host)
 		if err != nil {
 			if isRepositoryFileNotFound(err) {
 				warnings = append(warnings, fmt.Sprintf("Skill directory %q not found in package, skipping", skillDir))
@@ -793,6 +825,11 @@ func listRepositoryPackageWorkflowFilesForHost(owner, repo, ref, workflowPath, h
 
 func listRepositoryPackageDirFilesForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
 	files, err := parser.ListDirAllFilesForHost(owner, repo, ref, dirPath, host)
+	return files, normalizeRepositoryPackageRemoteError(err)
+}
+
+func listRepositoryPackageDirFilesRecursivelyForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
+	files, err := parser.ListDirAllFilesRecursivelyForHost(owner, repo, ref, dirPath, host)
 	return files, normalizeRepositoryPackageRemoteError(err)
 }
 

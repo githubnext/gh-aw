@@ -626,21 +626,34 @@ func addActionWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTrac
 }
 
 // addSkillFileWithTracking installs a single skill file from a package to the agentic engine
-// skill directory.
+// skill directory. The file's path relative to the skill directory is preserved so that
+// nested files (e.g. scripts/ subdirectories) are written with their full structure intact.
 func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, gitRoot string) error {
 	engineSkillDir := parser.GetEngineSkillDir(opts.EngineOverride)
 	skillDir := filepath.Join(gitRoot, engineSkillDir, resolved.SkillName)
-	if err := os.MkdirAll(skillDir, constants.DirPermPublic); err != nil {
-		return fmt.Errorf("failed to create skill directory %s: %w", skillDir, err)
+
+	// Determine the relative path of the file within the skill directory so that any
+	// nested subdirectories are preserved (e.g. "scripts/query.sh" stays under scripts/).
+	skillPrefix := resolved.SkillName + "/"
+	idx := strings.LastIndex(resolved.Spec.WorkflowPath, skillPrefix)
+	var relPath string
+	if idx >= 0 {
+		relPath = filepath.FromSlash(resolved.Spec.WorkflowPath[idx+len(skillPrefix):])
+	} else {
+		relPath = filepath.Base(resolved.Spec.WorkflowPath)
 	}
 
-	fileName := filepath.Base(resolved.Spec.WorkflowPath)
-	destFile := filepath.Join(skillDir, fileName)
+	destFile := filepath.Join(skillDir, relPath)
+
+	// Ensure the destination directory exists (handles nested subdirectories).
+	if err := os.MkdirAll(filepath.Dir(destFile), constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create skill directory %s: %w", filepath.Dir(destFile), err)
+	}
 
 	addLog.Printf("Adding skill file: dest=%s, skill=%s, content_size=%d bytes", destFile, resolved.SkillName, len(resolved.Content))
 
 	if opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding skill file to %s: %s", engineSkillDir+"/"+resolved.SkillName, fileName)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding skill file to %s: %s", engineSkillDir+"/"+resolved.SkillName, relPath)))
 	}
 
 	fileExists := false
@@ -668,7 +681,7 @@ func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, 
 	}
 
 	if !opts.Quiet {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added skill file: %s/%s/%s", engineSkillDir, resolved.SkillName, fileName)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added skill file: %s/%s/%s", engineSkillDir, resolved.SkillName, relPath)))
 	}
 
 	return nil
