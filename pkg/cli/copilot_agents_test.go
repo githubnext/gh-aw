@@ -311,3 +311,52 @@ func TestCheckedInAgenticWorkflowsAgentMatchesGeneratedContent(t *testing.T) {
 		t.Fatalf("Checked-in agent file is out of sync with generated content\nexpected:\n%s\nactual:\n%s", expected, string(actual))
 	}
 }
+
+func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+	awDir := filepath.Join(tempDir, ".github", "aw")
+	if err := os.MkdirAll(awDir, 0o755); err != nil {
+		t.Fatalf("Failed to create .github/aw directory: %v", err)
+	}
+
+	for _, name := range []string{"zeta.md", "alpha.md", "ignore.txt"} {
+		if err := os.WriteFile(filepath.Join(awDir, name), []byte("# test"), 0o644); err != nil {
+			t.Fatalf("Failed to create %s: %v", name, err)
+		}
+	}
+
+	content, err := buildAgenticWorkflowsSkillContent(tempDir)
+	if err != nil {
+		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
+	}
+
+	expected := agenticWorkflowsSkillHeader + "Use this skill when a user asks to create, update, debug, or upgrade GitHub Agentic Workflows.\n\nRead only the files you need:\n" +
+		"- `.github/aw/alpha.md`\n" +
+		"- `.github/aw/zeta.md`\n" +
+		"\nWhen the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching workflow prompt.\n"
+	if content != expected {
+		t.Fatalf("Expected exact skill content:\n%s\ngot:\n%s", expected, content)
+	}
+}
+
+func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("Failed to locate test file")
+	}
+
+	gitRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	expected, err := buildAgenticWorkflowsSkillContent(gitRoot)
+	if err != nil {
+		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
+	}
+
+	actual, err := os.ReadFile(filepath.Join(gitRoot, ".github", "skills", "agentic-workflows", "SKILL.md"))
+	if err != nil {
+		t.Fatalf("Failed to read checked-in skill file: %v", err)
+	}
+
+	if strings.TrimSpace(string(actual)) != strings.TrimSpace(expected) {
+		t.Fatalf("Checked-in skill file is out of sync with generated content\nexpected:\n%s\nactual:\n%s", expected, string(actual))
+	}
+}

@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -19,6 +21,12 @@ const agenticWorkflowsAgentHeader = "---\n" +
 	"description: Minimal file index for GitHub Agentic Workflows tasks in this repository.\n" +
 	"---\n\n" +
 	"# Agentic Workflows\n\n"
+
+const agenticWorkflowsSkillHeader = "---\n" +
+	"name: agentic-workflows\n" +
+	"description: Route gh-aw workflow create/debug/upgrade requests to the right prompts.\n" +
+	"---\n\n" +
+	"# Agentic Workflows Router\n\n"
 
 // ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md
 // exists and contains the routing instructions loaded by the Agentic Workflows agent.
@@ -43,11 +51,10 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 		return fmt.Errorf("failed to create .github/skills/agentic-workflows directory: %w", err)
 	}
 
-	// Download the skill file from GitHub
-	skillContent, err := downloadSkillFileFromGitHub(verbose)
+	skillContent, err := buildAgenticWorkflowsSkillContent(gitRoot)
 	if err != nil {
-		copilotAgentsLog.Printf("Failed to download skill file from GitHub: %v", err)
-		return fmt.Errorf("failed to download skill file from GitHub: %w", err)
+		copilotAgentsLog.Printf("Failed to build dispatcher skill: %v", err)
+		return fmt.Errorf("failed to build dispatcher skill: %w", err)
 	}
 
 	// Check if the file already exists and matches the downloaded content
@@ -143,6 +150,36 @@ func ensureAgenticWorkflowsAgent(verbose bool) error {
 
 func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 	return agenticWorkflowsAgentHeader + "Always load and follow `.github/skills/agentic-workflows/SKILL.md`.\n", nil
+}
+
+func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
+	awRoot := filepath.Join(gitRoot, ".github", "aw")
+	entries, err := os.ReadDir(awRoot)
+	if err != nil {
+		return "", fmt.Errorf("failed to read .github/aw directory: %w", err)
+	}
+
+	awFiles := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		awFiles = append(awFiles, entry.Name())
+	}
+	sort.Strings(awFiles)
+
+	if len(awFiles) == 0 {
+		return "", fmt.Errorf("no markdown files found in .github/aw")
+	}
+
+	var fileList bytes.Buffer
+	for _, file := range awFiles {
+		fmt.Fprintf(&fileList, "- `.github/aw/%s`\n", file)
+	}
+
+	return agenticWorkflowsSkillHeader + "Use this skill when a user asks to create, update, debug, or upgrade GitHub Agentic Workflows.\n\nRead only the files you need:\n" +
+		fileList.String() +
+		"\nWhen the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching workflow prompt.\n", nil
 }
 
 // cleanupOldPromptFile removes an old prompt file from .github/prompts/ if it exists

@@ -7,9 +7,40 @@ description: Route gh-aw workflow create/debug/upgrade requests to the right pro
 
 Use this skill when a user asks to create, update, debug, or upgrade GitHub Agentic Workflows.
 
-When the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read `skills/otel-queries/SKILL.md` after loading the matching workflow prompt.
+Read only the files you need:
+- `.github/aw/agentic-chat.md`
+- `.github/aw/asciicharts.md`
+- `.github/aw/campaign.md`
+- `.github/aw/charts.md`
+- `.github/aw/cli-commands.md`
+- `.github/aw/context.md`
+- `.github/aw/create-agentic-workflow.md`
+- `.github/aw/create-shared-agentic-workflow.md`
+- `.github/aw/debug-agentic-workflow.md`
+- `.github/aw/dependabot.md`
+- `.github/aw/deployment-status.md`
+- `.github/aw/experiments.md`
+- `.github/aw/github-agentic-workflows.md`
+- `.github/aw/github-mcp-server.md`
+- `.github/aw/llms.md`
+- `.github/aw/memory.md`
+- `.github/aw/messages.md`
+- `.github/aw/network.md`
+- `.github/aw/patterns.md`
+- `.github/aw/pr-reviewer.md`
+- `.github/aw/report.md`
+- `.github/aw/reuse.md`
+- `.github/aw/safe-outputs.md`
+- `.github/aw/serena-tool.md`
+- `.github/aw/skills.md`
+- `.github/aw/subagents.md`
+- `.github/aw/syntax.md`
+- `.github/aw/test-coverage.md`
+- `.github/aw/test-expression.md`
+- `.github/aw/token-optimization.md`
+- `.github/aw/triggers.md`
+- `.github/aw/update-agentic-workflow.md`
+- `.github/aw/upgrade-agentic-workflows.md`
+- `.github/aw/visual-regression.md`
 
-1. If older notes mention `.github/agents/agentic-workflows.agent.md` or `.github/actions/agentic-workflows.agent.md`, treat them as references to `.github/skills/agentic-workflows/SKILL.md`.
-2. Select and read the matching prompt from `https://github.com/github/gh-aw/blob/main/.github/aw/*.md`.
-3. If the task is telemetry-driven, also read `skills/otel-queries/SKILL.md` and use its fixed query loop.
-4. Follow the loaded prompt directly and keep responses concise.
+When the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching workflow prompt.
