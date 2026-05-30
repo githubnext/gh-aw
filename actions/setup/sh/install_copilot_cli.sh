@@ -22,7 +22,7 @@ set -euo pipefail
 VERSION="${1:-}"
 COPILOT_REPO="github/copilot-cli"
 INSTALL_DIR="/usr/local/bin"
-COPILOT_DIR="/home/runner/.copilot"
+COPILOT_DIR="${HOME}/.copilot"
 COPILOT_TOOLCACHE_MAX_DEPTH=4
 
 # Fix directory ownership before installation
@@ -32,7 +32,7 @@ COPILOT_TOOLCACHE_MAX_DEPTH=4
 # trying to create subdirectories. See: https://github.com/github/gh-aw/issues/12066
 echo "Ensuring correct ownership of $COPILOT_DIR..."
 mkdir -p "$COPILOT_DIR"
-sudo chown -R runner:runner "$COPILOT_DIR"
+sudo chown -R "$(id -u):$(id -g)" "$COPILOT_DIR"
 
 # Detect OS and architecture
 OS="$(uname -s)"
@@ -74,6 +74,25 @@ sha256_hash() {
 normalize_version() {
   local version="${1:-}"
   printf '%s\n' "${version#v}"
+}
+
+# Check if a version string contains only numeric parts separated by dots.
+# Returns success (0) if version is purely numeric (e.g., "1.2.3"), failure (1) otherwise.
+version_is_numeric() {
+  local version="${1:-}"
+  local parts=()
+  local part=""
+  
+  IFS='.' read -r -a parts <<< "$version"
+  
+  for part in "${parts[@]}"; do
+    # Check if part is empty or contains non-digits
+    if [[ ! "$part" =~ ^[0-9]+$ ]]; then
+      return 1
+    fi
+  done
+  
+  return 0
 }
 
 # Compare dotted numeric versions without relying on GNU-specific sort -V.
@@ -154,6 +173,12 @@ find_cached_copilot_bin() {
       candidate_version_normalized="$(normalize_version "$candidate_version")"
 
       echo "  Found candidate: ${candidate} (version: ${candidate_version_normalized}, arch: ${candidate_arch})" >&2
+
+      # Skip non-numeric versions (e.g., "1.2.3-beta.1") to prevent arithmetic expansion errors
+      if ! version_is_numeric "$candidate_version_normalized"; then
+        echo "  Skipping candidate (non-numeric version: ${candidate_version_normalized})" >&2
+        continue
+      fi
 
       if [ "$candidate_arch" != "$ARCH_NAME" ]; then
         echo "  Skipping candidate (arch mismatch: want ${ARCH_NAME}, got ${candidate_arch})" >&2
