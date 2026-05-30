@@ -382,15 +382,11 @@ func TestEnhanceToolDescription(t *testing.T) {
 
 // TestSafeOutputsToolsJSONInSync verifies that the compiler-embedded copy of
 // safe_outputs_tools.json (pkg/workflow/js/) and the runtime copy
-// (actions/setup/js/) define the same tool names in the same order.
-// If this test fails, update both files when adding or removing tools.
+// (actions/setup/js/) define the same tools in the same order.
+// If this test fails, update both files together.
 func TestSafeOutputsToolsJSONInSync(t *testing.T) {
-	type toolEntry struct {
-		Name string `json:"name"`
-	}
-
 	// Parse the embedded compiler copy (already loaded as safeOutputsToolsJSONContent).
-	var compilerTools []toolEntry
+	var compilerTools []map[string]any
 	require.NoError(t, json.Unmarshal([]byte(safeOutputsToolsJSONContent), &compilerTools), "failed to parse compiler copy of safe_outputs_tools.json")
 
 	// Locate the runtime copy relative to this file's position in the repo.
@@ -402,19 +398,9 @@ func TestSafeOutputsToolsJSONInSync(t *testing.T) {
 	runtimeBytes, err := os.ReadFile(runtimePath)
 	require.NoError(t, err, "failed to read runtime copy of safe_outputs_tools.json at %s", runtimePath)
 
-	var runtimeTools []toolEntry
+	var runtimeTools []map[string]any
 	require.NoError(t, json.Unmarshal(runtimeBytes, &runtimeTools), "failed to parse runtime copy of safe_outputs_tools.json")
 
-	// Extract names for comparison.
-	compilerNames := make([]string, len(compilerTools))
-	for i, t := range compilerTools {
-		compilerNames[i] = t.Name
-	}
-	runtimeNames := make([]string, len(runtimeTools))
-	for i, t := range runtimeTools {
-		runtimeNames[i] = t.Name
-	}
-
-	assert.Equal(t, compilerNames, runtimeNames,
-		"pkg/workflow/js/safe_outputs_tools.json and actions/setup/js/safe_outputs_tools.json must define the same tools in the same order; update both files together")
+	assert.Equal(t, compilerTools, runtimeTools,
+		"pkg/workflow/js/safe_outputs_tools.json and actions/setup/js/safe_outputs_tools.json must define identical tool objects in the same order; update both files together")
 }

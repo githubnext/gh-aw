@@ -245,6 +245,21 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
           core.info(`Resolved bundle source ref from list-heads: ${bundleBranchRef}`);
           core.info(`Fetching resolved bundle ref ${bundleBranchRef} into ${bundleTempRef}`);
           await execApi.exec("git", ["fetch", bundleFilePath, `${bundleBranchRef}:${bundleTempRef}`]);
+        } else if (branchRefs.length === 0) {
+          // Bundle contains only HEAD (no refs/heads/* entry). This happens when the
+          // agent created the bundle with `git bundle create <file> HEAD` rather than
+          // including a named branch ref.  Fetch using the HEAD refspec directly so
+          // the bundle objects become accessible, then point the temp ref at them.
+          const headLine = bundleHeadsOutput
+            .split("\n")
+            .map(line => line.trim())
+            .find(line => /^[0-9a-f]{40}\s+HEAD$/.test(line));
+          if (headLine) {
+            core.info(`Bundle has no refs/heads entries; fetching HEAD directly into ${bundleTempRef}`);
+            await execApi.exec("git", ["fetch", bundleFilePath, `HEAD:${bundleTempRef}`]);
+          } else {
+            throw new Error(`Failed to resolve bundle branch ref from list-heads: bundle contains no refs/heads entries and no HEAD ref`);
+          }
         } else {
           throw new Error(`Failed to resolve bundle branch ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`);
         }
@@ -1370,10 +1385,10 @@ async function main(config = {}) {
       }
 
       // Push the commits from the bundle to the remote branch
-      if (manifestProtectionFallback) {
-        core.info("Skipping branch push because protected-files fallback-to-issue was triggered");
-        manifestProtectionPushFailedError = new Error("Push skipped because protected-files fallback-to-issue was triggered");
-      } else {
+      // Note: when manifestProtectionFallback is set we still push the branch so the
+      // fallback issue can include a compare URL.  Genuine push failures are handled in
+      // the catch block below.
+      {
         try {
           branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
 
@@ -1438,20 +1453,26 @@ async function main(config = {}) {
           if (!pushRecovered) {
             core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
 
-            if (!fallbackAsIssue) {
+            if (manifestProtectionFallback) {
+              // Push failed specifically for a protected-file modification. Don't create
+              // a generic push-failed issue — fall through to the manifestProtectionFallback
+              // block below, which will create the proper protected-file review issue with
+              // patch artifact download instructions (since the branch was not pushed).
+              core.warning("Git push failed for protected-file modification - deferring to protected-file review issue");
+              manifestProtectionPushFailedError = pushError;
+            } else if (!fallbackAsIssue) {
               const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
               return { success: false, error, error_type: "push_failed" };
-            }
+            } else {
+              core.warning("Git push operation failed - creating fallback issue instead of pull request");
 
-            core.warning("Git push operation failed - creating fallback issue instead of pull request");
+              const runUrl = buildWorkflowRunUrl(context, context.repo);
+              const runId = context.runId;
 
-            const runUrl = buildWorkflowRunUrl(context, context.repo);
-            const runId = context.runId;
-
-            const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
-            const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
-            const fallbackBundleTempRef = createBundleTempRef(branchName);
-            const fallbackBody = `${issueSafeBody}
+              const artifactFileName = bundleFilePath ? bundleFilePath.replace("/tmp/gh-aw/", "") : "aw-unknown.bundle";
+              const fallbackBundleSourceRef = `refs/heads/${originalAgentBranch || branchName}`;
+              const fallbackBundleTempRef = createBundleTempRef(branchName);
+              const fallbackBody = `${issueSafeBody}
 
 ---
 
@@ -1484,22 +1505,23 @@ git push origin ${branchName}
 gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo ${repoParts.owner}/${repoParts.repo}
 \`\`\``;
 
-            try {
-              const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
+              try {
+                const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(effectiveFallbackLabels), configAssignees);
 
-              core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-              await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
-              await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+                core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
+                await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
-              return {
-                success: true,
-                fallback_used: true,
-                issue_number: issue.number,
-                issue_url: issue.html_url,
-              };
-            } catch (issueError) {
-              const error = `Failed to push changes and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
-              return { success: false, error };
+                return {
+                  success: true,
+                  fallback_used: true,
+                  issue_number: issue.number,
+                  issue_url: issue.html_url,
+                };
+              } catch (issueError) {
+                const error = `Failed to push changes and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+                return { success: false, error };
+              }
             }
           }
         }
@@ -1681,10 +1703,10 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
         }
 
         // Push the applied commits to the branch (with fallback to issue creation on failure)
-        if (manifestProtectionFallback) {
-          core.info("Skipping branch push because protected-files fallback-to-issue was triggered");
-          manifestProtectionPushFailedError = new Error("Push skipped because protected-files fallback-to-issue was triggered");
-        } else {
+        // Note: when manifestProtectionFallback is set we still push the branch so the
+        // fallback issue can include a compare URL.  Genuine push failures are handled in
+        // the catch block below.
+        {
           try {
             branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, { recreateRef, githubClient, owner: repoParts.owner, repo: repoParts.repo });
 
