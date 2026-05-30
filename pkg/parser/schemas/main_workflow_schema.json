@@ -11963,7 +11963,8 @@
         },
         {
           "id": "copilot",
-          "copilot-sdk": true
+          "copilot-sdk": true,
+          "version": "latest"
         }
       ],
       "oneOf": [
