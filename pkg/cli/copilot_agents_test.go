@@ -337,6 +337,9 @@ func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
 	if content != expected {
 		t.Fatalf("Expected exact skill content:\n%s\ngot:\n%s", expected, content)
 	}
+	if strings.Contains(content, "ignore.txt") {
+		t.Fatalf("expected non-markdown files to be excluded from generated skill content:\n%s", content)
+	}
 }
 
 func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {

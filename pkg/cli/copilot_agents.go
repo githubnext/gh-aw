@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -175,7 +174,7 @@ func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
 		return "", fmt.Errorf("no markdown files found in %s", awRoot)
 	}
 
-	var fileList bytes.Buffer
+	var fileList strings.Builder
 	for _, file := range awFiles {
 		fmt.Fprintf(&fileList, "- `.github/aw/%s`\n", file)
 	}
