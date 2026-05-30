@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
@@ -123,4 +124,39 @@ func TestMCPServerUnit_CompileTool(t *testing.T) {
 	require.NotEmpty(t, capturedArgs, "execCmd should have been called")
 	assert.Equal(t, "compile", capturedArgs[0], "first arg should be 'compile'")
 	assert.Contains(t, strings.Join(capturedArgs, " "), "--json", "compile should pass --json flag")
+}
+
+func TestMCPServerUnit_CompileToolBulkTimeoutReturnsStructuredError(t *testing.T) {
+	originalTimeout := mcpCompileBulkTimeout
+	mcpCompileBulkTimeout = 20 * time.Millisecond
+	t.Cleanup(func() {
+		mcpCompileBulkTimeout = originalTimeout
+	})
+
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", "sleep 1")
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "gh-aw", Version: "test"}, nil)
+	require.NoError(t, registerCompileTool(server, mockExecCmd, ""), "registerCompileTool should succeed")
+	session := connectInMemory(t, server)
+
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "compile",
+		Arguments: map[string]any{},
+	})
+	require.NoError(t, err, "compile tool should return structured JSON, not protocol error")
+	require.NotNil(t, result, "compile tool should return a result")
+	require.NotEmpty(t, result.Content, "compile tool should return content")
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	require.True(t, ok, "compile tool should return text content")
+
+	var results []ValidationResult
+	require.NoError(t, json.Unmarshal([]byte(textContent.Text), &results), "result should be valid JSON")
+	require.Len(t, results, 1, "timeout should return a single structured result")
+	require.NotEmpty(t, results[0].Errors, "timeout result should include an error")
+	assert.Equal(t, "config_error", results[0].Errors[0].Type)
+	assert.Contains(t, results[0].Errors[0].Message, "timed out")
+	assert.Contains(t, results[0].Errors[0].Message, "workflows parameter")
 }

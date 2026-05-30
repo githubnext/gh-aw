@@ -4,12 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+var mcpCompileBulkTimeout = 60 * time.Second
 
 // statusArgs holds the input parameters for the status tool.
 type statusArgs struct {
@@ -221,7 +225,14 @@ Returns JSON array with validation results for each workflow:
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
 		// - Stderr contains console messages that shouldn't be mixed with JSON
-		cmd := execCmd(ctx, cmdArgs...)
+		execCtx := ctx
+		cancel := func() {}
+		if len(args.Workflows) == 0 {
+			execCtx, cancel = context.WithTimeout(ctx, mcpCompileBulkTimeout)
+		}
+		defer cancel()
+
+		cmd := execCmd(execCtx, cmdArgs...)
 		stdout, err := cmd.Output()
 
 		// The compile command always outputs JSON to stdout when --json flag is used, even on error.
@@ -233,6 +244,25 @@ Returns JSON array with validation results for each workflow:
 		// which are included in the JSON output. Return the output, not an MCP error.
 		if err != nil {
 			mcpLog.Printf("Compile command exited with error: %v (output length: %d)", err, len(outputStr))
+			if len(args.Workflows) == 0 && errors.Is(execCtx.Err(), context.DeadlineExceeded) {
+				timeoutMsg := fmt.Sprintf(
+					"bulk compile timed out after %s; use the workflows parameter to compile in smaller batches",
+					mcpCompileBulkTimeout.String(),
+				)
+				timeoutResults := []ValidationResult{{
+					Workflow: "",
+					Valid:    false,
+					Errors:   []CompileValidationError{{Type: "config_error", Message: timeoutMsg}},
+					Warnings: []CompileValidationError{},
+				}}
+				jsonBytes, jsonErr := json.Marshal(timeoutResults)
+				if jsonErr != nil {
+					return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to marshal timeout results", jsonErr.Error())
+				}
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
+				}, nil, nil
+			}
 			// If we have no output, this is a real execution failure
 			if len(outputStr) == 0 {
 				// Try to get stderr for error details
