@@ -38,7 +38,6 @@
 
 "use strict";
 
-const childProcess = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
@@ -53,6 +52,12 @@ const {
   fetchAWFReflect,
   fetchModelsFromUrl,
 } = require("./awf_reflect.cjs");
+const {
+  runSafeOutputsCLI,
+  buildMissingToolAlternatives,
+  emitMissingToolPermissionIssue,
+  emitInfrastructureIncomplete,
+} = require("./safeoutputs_cli.cjs");
 
 // Maximum number of retry attempts after the initial run
 const MAX_RETRIES = 3;
@@ -105,13 +110,6 @@ const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
 const PERMISSION_DENIED_PATTERN = /\b(?:permission denied|permissions denied|EACCES|EPERM)\b/gi;
 const NUMEROUS_PERMISSION_DENIED_THRESHOLD = 3;
-
-/**
- * @typedef {(path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void} AppendFileSyncLike
- */
-/**
- * @typedef {(toolName: string, args: Record<string, string>) => void} RunSafeOutputsCLILike
- */
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
@@ -367,146 +365,12 @@ function buildMissingToolPermissionIssuePayload(deniedCommands) {
 
 /**
  * Append one safe-output entry line.
- * @param {AppendFileSyncLike} appendFileSync
+ * @param {(path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void} appendFileSync
  * @param {string} safeOutputsPath
  * @param {string} payload
  */
 function appendSafeOutputLine(appendFileSync, safeOutputsPath, payload) {
   appendFileSync(safeOutputsPath, payload + "\n", { encoding: "utf8" });
-}
-
-/**
- * Invoke the safeoutputs CLI with named arguments.
- * @param {string} toolName
- * @param {Record<string, string>} args
- */
-function runSafeOutputsCLI(toolName, args) {
-  const command = process.env.GH_AW_SAFEOUTPUTS_CLI || "safeoutputs";
-  /** @type {string[]} */
-  const commandArgs = [toolName];
-  for (const [key, value] of Object.entries(args)) {
-    if (typeof value !== "string" || value.length === 0) continue;
-    if (!/^[a-zA-Z0-9_-]+$/.test(key)) {
-      throw new Error(`invalid safeoutputs argument key: ${key}`);
-    }
-    commandArgs.push(`--${key}`);
-    commandArgs.push(value);
-  }
-  try {
-    childProcess.execFileSync(command, commandArgs, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-  } catch (error) {
-    const err = /** @type {{message?: string, stderr?: string | Buffer}} */ error || {};
-    const stderr = typeof err.stderr === "string" ? err.stderr.trim() : Buffer.isBuffer(err.stderr) ? err.stderr.toString("utf8").trim() : "";
-    const message = typeof err.message === "string" ? err.message : String(error);
-    const argSummary = commandArgs.slice(1, 7).join(" ");
-    throw new Error(stderr ? `safeoutputs ${argSummary} failed: ${message}: ${stderr}` : `safeoutputs ${argSummary} failed: ${message}`);
-  }
-}
-
-/**
- * Build missing_tool alternatives text with optional denied-command diagnostics.
- * @param {string} baseAlternatives
- * @param {string[]} deniedCommands
- * @returns {string}
- */
-function buildMissingToolAlternatives(baseAlternatives, deniedCommands) {
-  if (!Array.isArray(deniedCommands) || deniedCommands.length === 0) {
-    return baseAlternatives;
-  }
-  const maxLength = 512;
-  if (baseAlternatives.length >= maxLength) {
-    return baseAlternatives.slice(0, maxLength);
-  }
-
-  const remaining = maxLength - baseAlternatives.length;
-  const prefix = " Denied commands: ";
-  if (remaining <= prefix.length) {
-    return baseAlternatives.slice(0, maxLength);
-  }
-
-  let suffix = prefix;
-  let appendedCount = 0;
-  for (const command of deniedCommands) {
-    const delimiter = appendedCount === 0 ? "" : " | ";
-    const candidate = `${delimiter}${command}`;
-    if (suffix.length + candidate.length > remaining) {
-      const remainingCount = deniedCommands.length - appendedCount;
-      const more = ` | ... and ${remainingCount} more`;
-      if (remainingCount > 0 && suffix.length + more.length <= remaining) {
-        suffix += more;
-      }
-      break;
-    }
-    suffix += candidate;
-    appendedCount += 1;
-  }
-
-  return (baseAlternatives + suffix).slice(0, maxLength);
-}
-
-/**
- * Emit a structured missing_tool signal for repeated permission-denied failures.
- * @param {{
- *   safeOutputsPath?: string,
- *   runSafeOutputsCLI?: RunSafeOutputsCLILike,
- *   logger?: (message: string) => void,
- *   deniedCommands?: string[]
- * }=} options
- */
-function emitMissingToolPermissionIssue(options) {
-  const safeOutputsPath = options && typeof options.safeOutputsPath === "string" ? options.safeOutputsPath : process.env.GH_AW_SAFE_OUTPUTS || "";
-  const runSafeOutputs = options && options.runSafeOutputsCLI ? options.runSafeOutputsCLI : runSafeOutputsCLI;
-  const logger = options && options.logger ? options.logger : log;
-  const deniedCommands = options && options.deniedCommands ? options.deniedCommands : [];
-
-  if (!safeOutputsPath) {
-    logger("missing_tool skipped: GH_AW_SAFE_OUTPUTS is not set");
-    return;
-  }
-  try {
-    const payload = JSON.parse(buildMissingToolPermissionIssuePayload(deniedCommands));
-    runSafeOutputs("missing_tool", {
-      tool: payload.tool,
-      reason: payload.reason,
-      alternatives: buildMissingToolAlternatives(payload.alternatives || "", deniedCommands),
-    });
-    logger(`missing_tool emitted via safeoutputs CLI: ${safeOutputsPath}`);
-  } catch (error) {
-    const err = /** @type {Error} */ error;
-    logger(`missing_tool emission failed: ${err.message}`);
-  }
-}
-
-/**
- * Append a structured report_incomplete signal when infrastructure failures prevent completion.
- * This allows downstream failure handling to classify transient infrastructure errors explicitly.
- * @param {string} details
- * @param {{
- *   safeOutputsPath?: string,
- *   runSafeOutputsCLI?: RunSafeOutputsCLILike,
- *   logger?: (message: string) => void
- * }=} options
- */
-function emitInfrastructureIncomplete(details, options) {
-  const safeOutputsPath = options && typeof options.safeOutputsPath === "string" ? options.safeOutputsPath : process.env.GH_AW_SAFE_OUTPUTS || "";
-  const runSafeOutputs = options && options.runSafeOutputsCLI ? options.runSafeOutputsCLI : runSafeOutputsCLI;
-  const logger = options && options.logger ? options.logger : log;
-
-  if (!safeOutputsPath) {
-    logger("report_incomplete skipped: GH_AW_SAFE_OUTPUTS is not set");
-    return;
-  }
-  try {
-    const payload = JSON.parse(buildInfrastructureIncompletePayload(details));
-    runSafeOutputs("report_incomplete", {
-      reason: payload.reason,
-      details: payload.details,
-    });
-    logger(`report_incomplete emitted via safeoutputs CLI: ${safeOutputsPath}`);
-  } catch (error) {
-    const err = /** @type {Error} */ error;
-    logger(`report_incomplete emission failed: ${err.message}`);
-  }
 }
 
 /**
@@ -699,7 +563,7 @@ async function main() {
 
     if (hasNumerousPermissionDenied) {
       const deniedCommands = extractDeniedCommands(result.output);
-      emitMissingToolPermissionIssue({ deniedCommands });
+      emitMissingToolPermissionIssue({ deniedCommands, logger: log });
       log(`attempt ${attempt + 1}: detected numerous permission-denied issues — not retrying (classified as missing tool/permission issue)`);
       break;
     }
@@ -792,7 +656,7 @@ async function main() {
   }
 
   if (isScheduledRun && lastExitCode === 2 && scheduledExit2RetryAttempted) {
-    emitInfrastructureIncomplete("Copilot API interruption (exit code 2) persisted after automatic retry in scheduled workflow run.");
+    emitInfrastructureIncomplete("Copilot API interruption (exit code 2) persisted after automatic retry in scheduled workflow run.", { logger: log });
   }
 
   // Fetch AWF API proxy reflection data and persist to disk for post-run step summary.
