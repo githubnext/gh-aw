@@ -169,7 +169,7 @@ else
   # hook-file cleanup step in this script.
   # If git metadata is malformed enough that config cannot be written (for example
   # missing HEAD), recover by reinitializing while preserving working-tree files.
-  _hooks_config_err="$(mktemp /tmp/gh-aw-hooks-config-err.XXXXXX)"
+  _hooks_config_err="$(mktemp)"
   if ! git config core.hooksPath /dev/null 2>"$_hooks_config_err"; then
     echo "WARNING: Detected corrupted cache-memory git repository (cannot configure hooks); reinitializing git metadata"
     cat "$_hooks_config_err" 2>/dev/null || true
