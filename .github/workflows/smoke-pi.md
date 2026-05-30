@@ -33,8 +33,15 @@ experiments:
     # issue: PLACEHOLDER_ISSUE_NUMBER
 engine:
   id: pi
-  model: copilot/claude-sonnet-4-20250514
+  model: copilot/gpt-5.4
 strict: true
+sandbox:
+  agent:
+    config:
+      filesystem:
+        allowWrite:
+          - ${{ github.workspace }}
+          - /tmp/gh-aw/agent
 runtimes:
   node: {}
 imports:
