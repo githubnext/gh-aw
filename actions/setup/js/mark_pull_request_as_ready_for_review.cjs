@@ -116,7 +116,7 @@ async function main(config = {}) {
 
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   if (defaultTargetRepo) core.info(`Target repository: ${defaultTargetRepo}`);
-  if (allowedRepos.length > 0) core.info(`Allowed repositories: ${allowedRepos.join(", ")}`);
+  if (allowedRepos.size > 0) core.info(`Allowed repositories: ${Array.from(allowedRepos).join(", ")}`);
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
