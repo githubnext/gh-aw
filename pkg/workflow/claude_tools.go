@@ -193,8 +193,6 @@ func ensureDefaultClaudeAllowedTools(tools map[string]any, defaultClaudeTools []
 			claudeAllowed["BashOutput"] = nil
 		}
 	}
-	claudeSection["allowed"] = claudeAllowed
-	tools["claude"] = claudeSection
 }
 
 func getOrCreateToolMap(container map[string]any, key string) map[string]any {
@@ -203,7 +201,9 @@ func getOrCreateToolMap(container map[string]any, key string) map[string]any {
 			return existingMap
 		}
 	}
-	return make(map[string]any)
+	created := make(map[string]any)
+	container[key] = created
+	return created
 }
 
 func collectClaudeAllowedTools(tools map[string]any) []string {
@@ -254,6 +254,8 @@ func hasBashWildcard(commands []any) bool {
 	return false
 }
 
+// isClaudeToolName uses the existing Claude naming convention heuristic:
+// valid Claude tool keys are expected to start with an uppercase letter.
 func isClaudeToolName(toolName string) bool {
 	return len(toolName) > 0 && strings.HasPrefix(toolName, strings.ToUpper(toolName[:1]))
 }
@@ -417,6 +419,9 @@ func appendSafeOutputsTools(allowedTools []string, safeOutputs *SafeOutputsConfi
 	}
 	allowedTools = append(allowedTools, "mcp__"+string(constants.SafeOutputsMCPServerID))
 	if !slices.Contains(allowedTools, "Write") {
+		// Ideally we would grant Write only for the exact safe outputs file, but Claude
+		// doesn't currently honor that scoped grant reliably.
+		// See: https://github.com/github/gh-aw/issues/244#issuecomment-3240319103
 		allowedTools = append(allowedTools, "Write")
 	}
 	return allowedTools
