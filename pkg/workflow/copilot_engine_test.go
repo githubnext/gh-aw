@@ -2241,6 +2241,9 @@ func TestBuildEngineCommandScriptSetup(t *testing.T) {
 	if strings.Contains(setup, "set -euo pipefail") {
 		t.Fatalf("Expected script strict mode to drop -u, got:\n%s", setup)
 	}
+	if !strings.Contains(setup, "set +o histexpand") {
+		t.Fatalf("Expected histexpand disabled in engine command script, got:\n%s", setup)
+	}
 	if !strings.Contains(setup, `/usr/local/bin/custom-copilot "$@"`) {
 		t.Fatalf("Expected custom command to forward driver args, got:\n%s", setup)
 	}

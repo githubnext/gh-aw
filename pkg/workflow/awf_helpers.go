@@ -642,6 +642,10 @@ func lookupContainerDigest(image string, workflowData *WorkflowData) string {
 // WrapCommandInShell wraps an engine command in a shell invocation for AWF execution.
 // This is needed because AWF requires commands to be wrapped in shell for proper execution.
 //
+// set +o histexpand disables bash history expansion so that agent-authored strings
+// containing '!' characters (e.g. "!**") cannot be silently misinterpreted or dropped.
+// History expansion is meaningless for non-interactive execution and has no other effect.
+//
 // Parameters:
 //   - command: The engine command to wrap (may include PATH setup and other initialization)
 //
@@ -653,8 +657,10 @@ func WrapCommandInShell(command string) string {
 	// Escape single quotes in the command by replacing ' with '\''
 	escapedCommand := strings.ReplaceAll(command, "'", "'\\''")
 
-	// Wrap in shell invocation
-	return fmt.Sprintf("/bin/bash -c '%s'", escapedCommand)
+	// Wrap in shell invocation.
+	// set +o histexpand is first to prevent bash from expanding !-patterns in any
+	// double-quoted strings that appear in the engine command or its arguments.
+	return fmt.Sprintf("/bin/bash -c 'set +o histexpand; %s'", escapedCommand)
 }
 
 // ComputeAWFExcludeEnvVarNames returns the list of environment variable names that must be
