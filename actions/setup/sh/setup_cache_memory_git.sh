@@ -165,17 +165,19 @@ else
   fi
   rm -f /tmp/gh-aw-git-fsck-out /tmp/gh-aw-git-fsck-err 2>/dev/null || true
 
-  # Existing repo: disable hooks as belt-and-suspenders after hook-file deletion.
+  # Existing repo: disable hooks as belt-and-suspenders after the earlier
+  # hook-file cleanup step in this script.
   # If git metadata is malformed enough that config cannot be written (for example
   # missing HEAD), recover by reinitializing while preserving working-tree files.
-  if ! git config core.hooksPath /dev/null 2>/tmp/gh-aw-hooks-config-err; then
+  _hooks_config_err="$(mktemp /tmp/gh-aw-hooks-config-err.XXXXXX)"
+  if ! git config core.hooksPath /dev/null 2>"$_hooks_config_err"; then
     echo "WARNING: Detected corrupted cache-memory git repository (cannot configure hooks); reinitializing git metadata"
-    cat /tmp/gh-aw-hooks-config-err 2>/dev/null || true
+    cat "$_hooks_config_err" 2>/dev/null || true
     rm -rf .git
     IS_CACHE_HIT=false
     initialize_cache_memory_git_repo
   fi
-  rm -f /tmp/gh-aw-hooks-config-err 2>/dev/null || true
+  rm -f "$_hooks_config_err" 2>/dev/null || true
 fi
 
 # --- Checkout current integrity branch ---
