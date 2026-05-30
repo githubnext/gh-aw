@@ -245,6 +245,9 @@ describe("copilot_harness.cjs", () => {
       expect(child.listenerCount("error")).toBe(1);
       expect(child.listenerCount("exit")).toBe(1);
 
+      if (!resolveReady) {
+        throw new Error("waitForReady not yet called");
+      }
       resolveReady();
       const result = await startPromise;
 

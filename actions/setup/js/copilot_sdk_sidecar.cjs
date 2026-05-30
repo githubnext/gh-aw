@@ -126,13 +126,13 @@ async function startCopilotSDKServer(options) {
     logger(`copilot-sdk stderr: ${data.toString().trimEnd()}`);
   });
 
-  /** @type {((err: Error) => void) | undefined} */
-  let onError;
-  /** @type {((code: number | null, signal: NodeJS.Signals | null) => void) | undefined} */
-  let onExit;
+  /** @type {(err: Error) => void} */
+  let onError = () => {};
+  /** @type {(code: number | null, signal: NodeJS.Signals | null) => void} */
+  let onExit = () => {};
   function removeStartupListeners() {
-    if (onError) child.removeListener("error", onError);
-    if (onExit) child.removeListener("exit", onExit);
+    child.removeListener("error", onError);
+    child.removeListener("exit", onExit);
   }
   const failure = new Promise((_, reject) => {
     onError = err => reject(err);
