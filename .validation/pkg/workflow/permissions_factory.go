@@ -1,0 +1,203 @@
+package workflow
+
+import (
+	"maps"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var permissionsFactoryLog = logger.New("workflow:permissions_factory")
+
+// NewPermissions creates a new Permissions with an empty map
+func NewPermissions() *Permissions {
+	return &Permissions{
+		permissions: make(map[PermissionScope]PermissionLevel),
+	}
+}
+
+// NewPermissionsReadAll creates a Permissions with read-all shorthand
+func NewPermissionsReadAll() *Permissions {
+	permissionsFactoryLog.Print("Creating permissions with read-all shorthand")
+	return &Permissions{
+		shorthand: "read-all",
+	}
+}
+
+// NewPermissionsWriteAll creates a Permissions with write-all shorthand
+func NewPermissionsWriteAll() *Permissions {
+	permissionsFactoryLog.Print("Creating permissions with write-all shorthand")
+	return &Permissions{
+		shorthand: "write-all",
+	}
+}
+
+// NewPermissionsNone creates a Permissions with none shorthand
+func NewPermissionsNone() *Permissions {
+	return &Permissions{
+		shorthand: "none",
+	}
+}
+
+// NewPermissionsEmpty creates a Permissions that explicitly renders as "permissions: {}"
+func NewPermissionsEmpty() *Permissions {
+	return &Permissions{
+		permissions:   make(map[PermissionScope]PermissionLevel),
+		explicitEmpty: true,
+	}
+}
+
+// NewPermissionsFromMap creates a Permissions from a map of scopes to levels
+func NewPermissionsFromMap(perms map[PermissionScope]PermissionLevel) *Permissions {
+	if permissionsFactoryLog.Enabled() {
+		permissionsFactoryLog.Printf("Creating permissions from map: scope_count=%d", len(perms))
+	}
+	p := NewPermissions()
+	maps.Copy(p.permissions, perms)
+	return p
+}
+
+// NewPermissionsAllRead creates a Permissions with all: read
+func NewPermissionsAllRead() *Permissions {
+	return &Permissions{
+		hasAll:   true,
+		allLevel: PermissionRead,
+	}
+}
+
+// Helper functions for common permission patterns
+
+// NewPermissionsContentsRead creates permissions with contents: read
+func NewPermissionsContentsRead() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead,
+	})
+}
+
+// NewPermissionsContentsReadIssuesWrite creates permissions with contents: read and issues: write
+func NewPermissionsContentsReadIssuesWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead,
+		PermissionIssues:   PermissionWrite,
+	})
+}
+
+// NewPermissionsContentsReadIssuesWritePRWrite creates permissions with contents: read, issues: write, pull-requests: write
+func NewPermissionsContentsReadIssuesWritePRWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:     PermissionRead,
+		PermissionIssues:       PermissionWrite,
+		PermissionPullRequests: PermissionWrite,
+	})
+}
+
+// NewPermissionsActionsWrite creates permissions with actions: write
+// This is required for dispatching workflows via workflow_dispatch
+func NewPermissionsActionsWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionActions: PermissionWrite,
+	})
+}
+
+// NewPermissionsContentsWrite creates permissions with contents: write
+func NewPermissionsContentsWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionWrite,
+	})
+}
+
+// NewPermissionsContentsWritePRWrite creates permissions with contents: write, pull-requests: write
+// Used when create-pull-request has fallback-as-issue: false (no issue creation fallback)
+func NewPermissionsContentsWritePRWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:     PermissionWrite,
+		PermissionPullRequests: PermissionWrite,
+	})
+}
+
+// NewPermissionsContentsWriteIssuesWritePRWrite creates permissions with contents: write, issues: write, pull-requests: write
+func NewPermissionsContentsWriteIssuesWritePRWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:     PermissionWrite,
+		PermissionIssues:       PermissionWrite,
+		PermissionPullRequests: PermissionWrite,
+	})
+}
+
+// NewPermissionsContentsReadDiscussionsWrite creates permissions with contents: read and discussions: write
+func NewPermissionsContentsReadDiscussionsWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:    PermissionRead,
+		PermissionDiscussions: PermissionWrite,
+	})
+}
+
+// NewPermissionsContentsReadIssuesWriteDiscussionsWrite creates permissions with contents: read, issues: write, discussions: write
+// This is used for create-discussion jobs that support fallback-to-issue when discussion creation fails
+func NewPermissionsContentsReadIssuesWriteDiscussionsWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:    PermissionRead,
+		PermissionIssues:      PermissionWrite,
+		PermissionDiscussions: PermissionWrite,
+	})
+}
+
+// NewPermissionsContentsReadPRWrite creates permissions with contents: read and pull-requests: write
+func NewPermissionsContentsReadPRWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:     PermissionRead,
+		PermissionPullRequests: PermissionWrite,
+	})
+}
+
+// NewPermissionsContentsReadSecurityEventsWrite creates permissions with contents: read and security-events: write
+func NewPermissionsContentsReadSecurityEventsWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:       PermissionRead,
+		PermissionSecurityEvents: PermissionWrite,
+	})
+}
+
+// NewPermissionsContentsReadSecurityEventsWriteActionsRead creates permissions with contents: read, security-events: write, actions: read
+func NewPermissionsContentsReadSecurityEventsWriteActionsRead() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:       PermissionRead,
+		PermissionSecurityEvents: PermissionWrite,
+		PermissionActions:        PermissionRead,
+	})
+}
+
+// NewPermissionsContentsReadChecksWrite creates permissions with contents: read and checks: write
+func NewPermissionsContentsReadChecksWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead,
+		PermissionChecks:   PermissionWrite,
+	})
+}
+
+// Clone returns a deep copy of the Permissions object. The clone shares no underlying
+// state with the original, so callers can safely call Set() on the clone without
+// affecting the original (e.g. when reusing CachedPermissions).
+func (p *Permissions) Clone() *Permissions {
+	if p == nil {
+		return NewPermissions()
+	}
+	clone := &Permissions{
+		shorthand:     p.shorthand,
+		hasAll:        p.hasAll,
+		allLevel:      p.allLevel,
+		explicitEmpty: p.explicitEmpty,
+	}
+	if p.permissions != nil {
+		clone.permissions = make(map[PermissionScope]PermissionLevel, len(p.permissions))
+		maps.Copy(clone.permissions, p.permissions)
+	}
+	return clone
+}
+
+// Note: organization-projects is only valid for GitHub App tokens, not workflow permissions
+func NewPermissionsContentsReadProjectsWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:         PermissionRead,
+		PermissionOrganizationProj: PermissionWrite,
+	})
+}

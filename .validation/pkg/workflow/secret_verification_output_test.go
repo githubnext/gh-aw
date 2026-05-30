@@ -1,0 +1,132 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/testutil"
+)
+
+// TestSecretVerificationOutput tests that the activation job outputs include secret_verification_result
+func TestSecretVerificationOutput(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-secret-verification-output-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	workflow := `---
+on: workflow_dispatch
+engine: copilot
+---
+
+Test workflow`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Check that activation job has secret_verification_result output
+	if !strings.Contains(lockStr, "secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}") {
+		t.Error("Expected activation job to have secret_verification_result output")
+	}
+
+	// Check that validate-secret step has an id
+	if !strings.Contains(lockStr, "id: validate-secret") {
+		t.Error("Expected validate-secret step to have an id")
+	}
+}
+
+// TestSecretVerificationOutputInConclusionJob tests that the conclusion job receives the secret verification result
+func TestSecretVerificationOutputInConclusionJob(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-secret-verification-conclusion-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	workflow := `---
+on: workflow_dispatch
+engine: copilot
+safe-outputs:
+  add-comment:
+    max: 5
+---
+
+Test workflow`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Check that conclusion job receives secret verification result from activation job
+	if !strings.Contains(lockStr, "GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}") {
+		t.Error("Expected conclusion job to receive secret_verification_result from activation job")
+	}
+}
+
+func TestSecretVerificationOutputSkippedWithEnvironment(t *testing.T) {
+	testDir := testutil.TempDir(t, "secret-verify-env-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	workflow := `---
+on: workflow_dispatch
+engine: copilot
+environment: production
+---
+
+Test workflow`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0o644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+	if !strings.Contains(lockStr, "environment: production") {
+		t.Error("Expected compiled workflow to include environment: production")
+	}
+	if strings.Contains(lockStr, "id: validate-secret") {
+		t.Error("Expected validate-secret step to be skipped when top-level environment is configured")
+	}
+	if strings.Contains(lockStr, "secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}") {
+		t.Error("Expected secret_verification_result activation output to be skipped when top-level environment is configured")
+	}
+}

@@ -1,0 +1,214 @@
+---
+/**
+ * ResponsiveTable Component
+ * 
+ * A reusable table component that renders as a standard semantic HTML table on desktop
+ * and transforms into stacked card layout on mobile using CSS only.
+ * 
+ * Props:
+ * - columns: Array of column definitions { key: string, header: string, align?: 'left' | 'center' | 'right' }
+ * - rows: Array of objects keyed by columns[].key
+ * - caption?: Optional table caption
+ * - class?: Additional CSS classes
+ */
+
+interface Column {
+  key: string;
+  header: string;
+  align?: 'left' | 'center' | 'right';
+}
+
+interface Props {
+  columns: Column[];
+  rows: Record<string, any>[];
+  caption?: string;
+  class?: string;
+}
+
+const { columns, rows, caption, class: className = '' } = Astro.props;
+---
+
+<div class={`responsive-table-wrapper ${className}`}>
+  <table class="responsive-table">
+    {caption && <caption>{caption}</caption>}
+    <thead>
+      <tr>
+        {columns.map(col => (
+          <th scope="col" style={col.align ? `text-align: ${col.align}` : undefined}>
+            {col.header}
+          </th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map(row => (
+        <tr>
+          {columns.map(col => (
+            <td 
+              data-label={col.header}
+              style={col.align ? `text-align: ${col.align}` : undefined}
+            >
+              {row[col.key]}
+            </td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+<style>
+  /* Desktop table styles */
+  .responsive-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+  }
+
+  .responsive-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid var(--sl-color-hairline, #30363d);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .responsive-table caption {
+    caption-side: top;
+    text-align: left;
+    font-weight: 600;
+    padding: 0.75rem 1rem;
+    color: var(--sl-color-text);
+  }
+
+  .responsive-table thead {
+    background-color: var(--sl-color-gray-6, #161b22);
+  }
+
+  .responsive-table th {
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    text-align: left;
+    border-bottom: 1px solid var(--sl-color-hairline, #30363d);
+    color: var(--sl-color-text);
+  }
+
+  .responsive-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--sl-color-hairline-light, rgba(48, 54, 61, 0.3));
+    color: var(--sl-color-text);
+  }
+
+  .responsive-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .responsive-table tbody tr:hover {
+    background-color: var(--sl-color-gray-7, rgba(48, 54, 61, 0.1));
+  }
+
+  /* Mobile card layout - transform to stacked cards below 640px */
+  @media (max-width: 640px) {
+    .responsive-table {
+      border: none;
+      border-radius: 0;
+    }
+
+    /* Visually hide thead while keeping it accessible to screen readers */
+    .responsive-table thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Display each row as a card */
+    .responsive-table tbody tr {
+      display: block;
+      margin-bottom: 1rem;
+      border: 1px solid var(--sl-color-hairline, #30363d);
+      border-radius: 6px;
+      background-color: var(--sl-color-gray-7, rgba(22, 27, 34, 0.5));
+      padding: 0.75rem;
+    }
+
+    .responsive-table tbody tr:hover {
+      background-color: var(--sl-color-gray-6, rgba(48, 54, 61, 0.2));
+    }
+
+    /* Display each cell as a row within the card */
+    .responsive-table td {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 0.5rem 0;
+      border: none;
+      text-align: right;
+    }
+
+    .responsive-table td:first-child {
+      padding-top: 0;
+    }
+
+    .responsive-table td:last-child {
+      padding-bottom: 0;
+    }
+
+    /* Add label before each cell value using data-label attribute */
+    .responsive-table td::before {
+      content: attr(data-label);
+      font-weight: 600;
+      text-align: left;
+      flex-shrink: 0;
+      margin-right: 1rem;
+      color: var(--sl-color-text-accent, #d896ff);
+    }
+
+    /* Override text-align for mobile - always use flex layout */
+    .responsive-table td[style*="text-align"] {
+      text-align: right !important;
+    }
+  }
+
+  /* Light theme overrides */
+  :root[data-theme='light'] .responsive-table {
+    border-color: var(--sl-color-hairline, #d0d7de);
+  }
+
+  :root[data-theme='light'] .responsive-table thead {
+    background-color: var(--sl-color-gray-6, #f6f8fa);
+  }
+
+  :root[data-theme='light'] .responsive-table th {
+    border-bottom-color: var(--sl-color-hairline, #d0d7de);
+  }
+
+  :root[data-theme='light'] .responsive-table td {
+    border-bottom-color: var(--sl-color-hairline-light, rgba(208, 215, 222, 0.4));
+  }
+
+  :root[data-theme='light'] .responsive-table tbody tr:hover {
+    background-color: var(--sl-color-gray-6, rgba(246, 248, 250, 0.5));
+  }
+
+  @media (max-width: 640px) {
+    :root[data-theme='light'] .responsive-table tbody tr {
+      background-color: var(--sl-color-gray-6, rgba(246, 248, 250, 0.8));
+      border-color: var(--sl-color-hairline, #d0d7de);
+    }
+
+    :root[data-theme='light'] .responsive-table tbody tr:hover {
+      background-color: var(--sl-color-gray-5, rgba(238, 242, 247, 0.9));
+    }
+
+    :root[data-theme='light'] .responsive-table td::before {
+      color: var(--sl-color-text-accent, #5b3da3);
+    }
+  }
+</style>

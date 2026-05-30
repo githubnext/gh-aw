@@ -1,0 +1,8 @@
+workflow.md:10:15: error: invalid MCP server configuration
+ 7 | ---
+ 8 | engine: copilot
+ 9 | tools:
+10 |   github:
+11 |     mode: remote
+12 |     toolsets: [invalid_toolset]
+13 | ---

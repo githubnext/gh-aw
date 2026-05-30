@@ -1,0 +1,2387 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+
+	"github.com/github/gh-aw/pkg/semverutil"
+	"github.com/github/gh-aw/pkg/stringutil"
+
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/testutil"
+)
+
+func TestCopilotEngine(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Test basic properties
+	if engine.GetID() != "copilot" {
+		t.Errorf("Expected copilot engine ID, got '%s'", engine.GetID())
+	}
+
+	if engine.GetDisplayName() != "GitHub Copilot CLI" {
+		t.Errorf("Expected 'GitHub Copilot CLI' display name, got '%s'", engine.GetDisplayName())
+	}
+
+	if engine.IsExperimental() {
+		t.Error("Expected copilot engine to not be experimental")
+	}
+
+	capabilities := engine.GetCapabilities()
+
+	if !capabilities.ToolsAllowlist {
+		t.Error("Expected copilot engine to support tools allowlist")
+	}
+
+	if capabilities.MaxTurns {
+		t.Error("Expected copilot engine to not support max-turns yet")
+	}
+
+	// Test declared output files (session files are copied to logs folder)
+	outputFiles := engine.GetDeclaredOutputFiles()
+	if len(outputFiles) != 1 {
+		t.Errorf("Expected 1 declared output file, got %d", len(outputFiles))
+	}
+
+	if outputFiles[0] != "/tmp/gh-aw/sandbox/agent/logs/" {
+		t.Errorf("Expected declared output file to be logs folder, got %s", outputFiles[0])
+	}
+}
+
+func TestCopilotEngineDefaultDetectionModel(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// CopilotEngine does not hardcode a detection model - it falls through to the
+	// BaseEngine default (empty string), allowing the Copilot CLI to use its native
+	// default model (currently claude-sonnet-4.6), matching the main agent behavior.
+	defaultModel := engine.GetDefaultDetectionModel()
+	if defaultModel != "" {
+		t.Errorf("Expected empty default detection model (native CLI default), got '%s'", defaultModel)
+	}
+}
+
+func TestOtherEnginesNoDefaultDetectionModel(t *testing.T) {
+	// Test that other engines return empty string for GetDefaultDetectionModel
+	engines := []CodingAgentEngine{
+		NewClaudeEngine(),
+		NewCodexEngine(),
+	}
+
+	for _, engine := range engines {
+		defaultModel := engine.GetDefaultDetectionModel()
+		if defaultModel != "" {
+			t.Errorf("Expected engine '%s' to return empty default detection model, got '%s'", engine.GetID(), defaultModel)
+		}
+	}
+}
+
+func TestCopilotEngineInstallationSteps(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Test with no version (firewall feature disabled by default)
+	workflowData := &WorkflowData{}
+	steps := engine.GetInstallationSteps(workflowData)
+	// Secret validation is now in the activation job; installation only has the install step = 1 step
+	if len(steps) != 1 {
+		t.Errorf("Expected 1 installation step (install), got %d", len(steps))
+	}
+
+	// Test with version (firewall feature disabled by default)
+	workflowDataWithVersion := &WorkflowData{
+		EngineConfig: &EngineConfig{Version: "1.0.0"},
+	}
+	stepsWithVersion := engine.GetInstallationSteps(workflowDataWithVersion)
+	// Secret validation is now in the activation job; installation only has the install step = 1 step
+	if len(stepsWithVersion) != 1 {
+		t.Errorf("Expected 1 installation step with version (install), got %d", len(stepsWithVersion))
+	}
+}
+
+func TestCopilotEngineExecutionSteps(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+	// GetExecutionSteps returns 1 step: copilot execution
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	// Check the execution step
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	if !strings.Contains(stepContent, "name: Execute GitHub Copilot CLI") {
+		t.Errorf("Expected step name 'Execute GitHub Copilot CLI' in step content:\n%s", stepContent)
+	}
+
+	// When firewall is disabled, should use 'copilot' command (not npx)
+	if !strings.Contains(stepContent, "copilot") || !strings.Contains(stepContent, "--add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir") {
+		t.Errorf("Expected command to contain 'copilot' and '--add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir' in step content:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "/tmp/gh-aw/test.log") {
+		t.Errorf("Expected command to contain log file name in step content:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Errorf("Expected command to pass prompt file path directly, got:\n%s", stepContent)
+	}
+
+	if strings.Contains(stepContent, "COPILOT_CLI_INSTRUCTION=") {
+		t.Errorf("Expected command to avoid loading prompt into shell variable, got:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
+		t.Errorf("Expected COPILOT_GITHUB_TOKEN environment variable in step content:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, constants.CopilotCLIIntegrationIDEnvVar+": "+constants.CopilotCLIIntegrationIDValue) {
+		t.Errorf("Expected %s environment variable in step content:\n%s", constants.CopilotCLIIntegrationIDEnvVar, stepContent)
+	}
+
+	// Test that GITHUB_HEAD_REF and GITHUB_REF_NAME are present for branch resolution
+	if !strings.Contains(stepContent, "GITHUB_HEAD_REF: ${{ github.head_ref }}") {
+		t.Errorf("Expected GITHUB_HEAD_REF environment variable in step content:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "GITHUB_REF_NAME: ${{ github.ref_name }}") {
+		t.Errorf("Expected GITHUB_REF_NAME environment variable in step content:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "GITHUB_WORKSPACE: ${{ github.workspace }}") {
+		t.Errorf("Expected GITHUB_WORKSPACE environment variable in step content:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "RUNNER_TEMP: ${{ runner.temp }}") {
+		t.Errorf("Expected RUNNER_TEMP environment variable in step content:\n%s", stepContent)
+	}
+
+	// Test that GITHUB_SERVER_URL and GITHUB_API_URL are present for GitHub Enterprise compatibility
+	if !strings.Contains(stepContent, "GITHUB_SERVER_URL: ${{ github.server_url }}") {
+		t.Errorf("Expected GITHUB_SERVER_URL environment variable in step content:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "GITHUB_API_URL: ${{ github.api_url }}") {
+		t.Errorf("Expected GITHUB_API_URL environment variable in step content:\n%s", stepContent)
+	}
+
+	// Test that GH_AW_SAFE_OUTPUTS is not present when SafeOutputs is nil
+	if strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS to not be present when SafeOutputs is nil")
+	}
+
+	// Test that --disable-builtin-mcps flag is present
+	if !strings.Contains(stepContent, "--disable-builtin-mcps") {
+		t.Errorf("Expected --disable-builtin-mcps flag in command, got:\n%s", stepContent)
+	}
+
+	// Test that --no-ask-user IS present for detection jobs (SafeOutputs == nil)
+	if !strings.Contains(stepContent, "--no-ask-user") {
+		t.Errorf("Expected --no-ask-user to be present for detection jobs, got:\n%s", stepContent)
+	}
+
+	// Test that mkdir commands are present for --add-dir directories
+	if !strings.Contains(stepContent, "mkdir -p /tmp/") {
+		t.Errorf("Expected 'mkdir -p /tmp/' command in step content:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/") {
+		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/' command in step content:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/agent/") {
+		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/agent/' command in step content:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/sandbox/agent/logs/") {
+		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/sandbox/agent/logs/' command in step content:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name:        "test-workflow",
+		SafeOutputs: &SafeOutputsConfig{}, // Non-nil to trigger output handling
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+	// GetExecutionSteps returns 1 step: execution
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	// Check the execution step
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Test that GH_AW_SAFE_OUTPUTS is present when SafeOutputs is not nil
+	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}") {
+		t.Errorf("Expected GH_AW_SAFE_OUTPUTS environment variable when SafeOutputs is not nil in step content:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			CopilotSDK: true,
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	if strings.Contains(stepContent, "--transport http") {
+		t.Fatalf("Expected main copilot command to avoid --transport http when copilot-sdk is enabled, got:\n%s", stepContent)
+	}
+
+	expectedURI := constants.CopilotSDKURIEnvVar + ": http://127.0.0.1:" + strconv.Itoa(constants.DefaultCopilotSDKPort)
+	if !strings.Contains(stepContent, expectedURI) {
+		t.Fatalf("Expected %s in step env, got:\n%s", expectedURI, stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsAlwaysInjectsIntegrationIDAfterEnvMerges(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			Env: map[string]string{
+				constants.CopilotCLIIntegrationIDEnvVar: "override-from-engine",
+			},
+		},
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Env: map[string]string{
+					constants.CopilotCLIIntegrationIDEnvVar: "override-from-agent",
+				},
+			},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	expected := constants.CopilotCLIIntegrationIDEnvVar + ": " + constants.CopilotCLIIntegrationIDValue
+	if !strings.Contains(stepContent, expected) {
+		t.Fatalf("Expected integration ID env to be forced to %q, got:\n%s", expected, stepContent)
+	}
+	if strings.Contains(stepContent, constants.CopilotCLIIntegrationIDEnvVar+": override-from-agent") {
+		t.Fatalf("Expected agent override to be ignored for %s, got:\n%s", constants.CopilotCLIIntegrationIDEnvVar, stepContent)
+	}
+	if strings.Contains(stepContent, constants.CopilotCLIIntegrationIDEnvVar+": override-from-engine") {
+		t.Fatalf("Expected engine override to be ignored for %s, got:\n%s", constants.CopilotCLIIntegrationIDEnvVar, stepContent)
+	}
+}
+
+func TestCopilotEngineGetLogParserScript(t *testing.T) {
+	engine := NewCopilotEngine()
+	script := engine.GetLogParserScriptId()
+
+	if script != "parse_copilot_log" {
+		t.Errorf("Expected 'parse_copilot_log', got '%s'", script)
+	}
+}
+
+func TestCopilotEngineGetLogFileForParsing(t *testing.T) {
+	engine := NewCopilotEngine()
+	logFile := engine.GetLogFileForParsing()
+
+	expected := "/tmp/gh-aw/sandbox/agent/logs/"
+	if logFile != expected {
+		t.Errorf("Expected '%s', got '%s'", expected, logFile)
+	}
+}
+
+func TestCopilotEngineComputeToolArguments(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name         string
+		tools        map[string]any
+		safeOutputs  *SafeOutputsConfig
+		mcpScripts   *MCPScriptsConfig
+		workflowData *WorkflowData
+		expected     []string
+	}{
+		{
+			name:     "empty tools",
+			tools:    map[string]any{},
+			expected: []string{},
+		},
+		{
+			name: "bash with specific commands",
+			tools: map[string]any{
+				"bash": []any{"echo", "ls"},
+			},
+			expected: []string{"--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)"},
+		},
+		{
+			name: "bash with wildcard",
+			tools: map[string]any{
+				"bash": []any{":*"},
+			},
+			expected: []string{"--allow-all-tools"},
+		},
+		{
+			name: "bash with nil (all commands allowed)",
+			tools: map[string]any{
+				"bash": nil,
+			},
+			expected: []string{"--allow-tool", "shell"},
+		},
+		{
+			name: "edit tool",
+			tools: map[string]any{
+				"edit": nil,
+			},
+			expected: []string{"--allow-tool", "write"},
+		},
+		{
+			name:  "safe outputs without write (uses MCP)",
+			tools: map[string]any{},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			expected: []string{"--allow-tool", "safeoutputs"},
+		},
+		{
+			name: "mixed tools",
+			tools: map[string]any{
+				"bash": []any{"git status", "npm test"},
+				"edit": nil,
+			},
+			expected: []string{"--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
+		},
+		{
+			name: "bash with star wildcard",
+			tools: map[string]any{
+				"bash": []any{"*"},
+			},
+			expected: []string{"--allow-all-tools"},
+		},
+		{
+			name: "comprehensive with multiple tools",
+			tools: map[string]any{
+				"bash": []any{"git status", "npm test"},
+				"edit": nil,
+			},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			// safeoutputs is always CLI-mounted when safe-outputs is configured, so
+			// shell(safeoutputs:*) is also added to the restricted bash allowlist.
+			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "shell(safeoutputs:*)", "--allow-tool", "write"},
+		},
+		{
+			name:  "safe outputs with safe_outputs config",
+			tools: map[string]any{},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			expected: []string{"--allow-tool", "safeoutputs"},
+		},
+		{
+			name:  "safe outputs with safe jobs",
+			tools: map[string]any{},
+			safeOutputs: &SafeOutputsConfig{
+				Jobs: map[string]*SafeJobConfig{
+					"my-job": {Name: "test job"},
+				},
+			},
+			expected: []string{"--allow-tool", "safeoutputs"},
+		},
+		{
+			name:  "safe outputs with both safe_outputs and safe jobs",
+			tools: map[string]any{},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				Jobs: map[string]*SafeJobConfig{
+					"my-job": {Name: "test job"},
+				},
+			},
+			expected: []string{"--allow-tool", "safeoutputs"},
+		},
+		{
+			name: "github tool with allowed tools",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"get_file_contents", "list_commits"},
+				},
+			},
+			expected: []string{"--allow-tool", "github(get_file_contents)", "--allow-tool", "github(list_commits)"},
+		},
+		{
+			name: "github tool with single allowed tool",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"add_issue_comment"},
+				},
+			},
+			expected: []string{"--allow-tool", "github(add_issue_comment)"},
+		},
+		{
+			name: "github tool with wildcard",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"*"},
+				},
+			},
+			expected: []string{"--allow-tool", "github"},
+		},
+		{
+			name: "github tool with wildcard and specific tools",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"*", "get_file_contents", "list_commits"},
+				},
+			},
+			expected: []string{"--allow-tool", "github", "--allow-tool", "github(get_file_contents)", "--allow-tool", "github(list_commits)"},
+		},
+		{
+			name: "github tool with empty allowed array",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{},
+				},
+			},
+			expected: []string{},
+		},
+		{
+			name: "github tool without allowed field",
+			tools: map[string]any{
+				"github": map[string]any{},
+			},
+			expected: []string{"--allow-tool", "github"},
+		},
+		{
+			name: "github tool as nil (no config)",
+			tools: map[string]any{
+				"github": nil,
+			},
+			expected: []string{"--allow-tool", "github"},
+		},
+		{
+			name: "github tool with multiple allowed tools sorted",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"update_issue", "add_issue_comment", "create_issue"},
+				},
+			},
+			expected: []string{"--allow-tool", "github(add_issue_comment)", "--allow-tool", "github(create_issue)", "--allow-tool", "github(update_issue)"},
+		},
+		{
+			name: "github tool with bash and edit tools",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"get_file_contents", "list_commits"},
+				},
+				"bash": []any{"echo", "ls"},
+				"edit": nil,
+			},
+			expected: []string{"--allow-tool", "github(get_file_contents)", "--allow-tool", "github(list_commits)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)", "--allow-tool", "write"},
+		},
+		// Stem command tests - commands that Copilot CLI matches with subcommands
+		{
+			name: "stem command gets wildcard suffix",
+			tools: map[string]any{
+				"bash": []any{"dotnet"},
+			},
+			expected: []string{"--allow-tool", "shell(dotnet:*)"},
+		},
+		{
+			name: "multiple stem commands get wildcard suffix",
+			tools: map[string]any{
+				"bash": []any{"cargo", "go", "npm"},
+			},
+			expected: []string{"--allow-tool", "shell(cargo:*)", "--allow-tool", "shell(go:*)", "--allow-tool", "shell(npm:*)"},
+		},
+		{
+			name: "stem command with space does not get wildcard",
+			tools: map[string]any{
+				"bash": []any{"dotnet build"},
+			},
+			expected: []string{"--allow-tool", "shell(dotnet build)"},
+		},
+		{
+			name: "stem command with explicit colon does not get wildcard",
+			tools: map[string]any{
+				"bash": []any{"git:checkout"},
+			},
+			expected: []string{"--allow-tool", "shell(git:checkout)"},
+		},
+		{
+			name: "non-stem command does not get wildcard",
+			tools: map[string]any{
+				"bash": []any{"echo", "ls"},
+			},
+			expected: []string{"--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)"},
+		},
+		{
+			name: "curl and wget get wildcard as stem commands",
+			tools: map[string]any{
+				"bash": []any{"curl", "wget"},
+			},
+			expected: []string{"--allow-tool", "shell(curl:*)", "--allow-tool", "shell(wget:*)"},
+		},
+		{
+			name: "mixed stem and non-stem commands",
+			tools: map[string]any{
+				"bash": []any{"dotnet", "echo", "npm", "curl", "git status"},
+			},
+			expected: []string{"--allow-tool", "shell(curl:*)", "--allow-tool", "shell(dotnet:*)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm:*)"},
+		},
+		{
+			name: "all stem commands get wildcard",
+			tools: map[string]any{
+				"bash": []any{"git", "gh", "npm", "yarn", "cargo", "go", "pip", "dotnet", "flutter"},
+			},
+			expected: []string{
+				"--allow-tool", "shell(cargo:*)",
+				"--allow-tool", "shell(dotnet:*)",
+				"--allow-tool", "shell(flutter:*)",
+				"--allow-tool", "shell(gh:*)",
+				"--allow-tool", "shell(git:*)",
+				"--allow-tool", "shell(go:*)",
+				"--allow-tool", "shell(npm:*)",
+				"--allow-tool", "shell(pip:*)",
+				"--allow-tool", "shell(yarn:*)",
+			},
+		},
+		{
+			name: "stem command with existing :* wildcard passes through",
+			tools: map[string]any{
+				"bash": []any{"git:*"},
+			},
+			expected: []string{"--allow-tool", "shell(git:*)"},
+		},
+		{
+			name: "cli-proxy with restricted bash allows safeoutputs cli",
+			tools: map[string]any{
+				"bash": []any{"echo"},
+			},
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+			},
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					NoOp: &NoOpConfig{},
+				},
+				ParsedTools: &Tools{
+					CLIProxy: true,
+				},
+			},
+			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "shell(echo)", "--allow-tool", "shell(safeoutputs:*)"},
+		},
+		{
+			name: "cli-proxy with restricted bash allows mcpscripts cli",
+			tools: map[string]any{
+				"bash": []any{"python3 *"},
+			},
+			mcpScripts: &MCPScriptsConfig{
+				Tools: map[string]*MCPScriptToolConfig{
+					"query": {Name: "query", Description: "test", Script: "return {};"},
+				},
+			},
+			workflowData: &WorkflowData{
+				MCPScripts: &MCPScriptsConfig{
+					Tools: map[string]*MCPScriptToolConfig{
+						"query": {Name: "query", Description: "test", Script: "return {};"},
+					},
+				},
+				ParsedTools: &Tools{
+					CLIProxy: true,
+				},
+			},
+			expected: []string{"--allow-tool", "mcpscripts", "--allow-tool", "shell(mcpscripts:*)", "--allow-tool", "shell(python3)"},
+		},
+		{
+			name: "cli-proxy with restricted bash allows all mounted mcp clis",
+			tools: map[string]any{
+				"bash":       []any{"echo"},
+				"playwright": true,
+				"mymcp": map[string]any{
+					"command": "npx",
+					"args":    []any{"-y", "@acme/mcp-server"},
+				},
+			},
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+			},
+			mcpScripts: &MCPScriptsConfig{
+				Tools: map[string]*MCPScriptToolConfig{
+					"query": {Name: "query", Description: "test", Script: "return {};"},
+				},
+			},
+			workflowData: &WorkflowData{
+				ParsedTools: &Tools{
+					CLIProxy: true,
+				},
+			},
+			expected: []string{
+				"--allow-tool", "mcpscripts",
+				"--allow-tool", "mymcp",
+				"--allow-tool", "safeoutputs",
+				"--allow-tool", "shell(echo)",
+				"--allow-tool", "shell(mcpscripts:*)",
+				"--allow-tool", "shell(mymcp:*)",
+				"--allow-tool", "shell(playwright:*)",
+				"--allow-tool", "shell(safeoutputs:*)",
+			},
+		},
+		{
+			name: "cli-proxy with nil workflow data still allows mounted mcp clis",
+			tools: map[string]any{
+				"bash":           []any{"echo"},
+				"cli-proxy":      true,
+				"playwright":     true,
+				"custom-mcp-cli": map[string]any{"command": "npx", "args": []any{"-y", "@acme/custom-mcp"}},
+			},
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+			},
+			expected: []string{
+				"--allow-tool", "custom-mcp-cli",
+				"--allow-tool", "safeoutputs",
+				"--allow-tool", "shell(custom-mcp-cli:*)",
+				"--allow-tool", "shell(echo)",
+				"--allow-tool", "shell(playwright:*)",
+				"--allow-tool", "shell(safeoutputs:*)",
+			},
+		},
+		{
+			name: "github gh-proxy with restricted bash allows gh cli",
+			tools: map[string]any{
+				"bash": []any{"echo"},
+				"github": map[string]any{
+					"mode": "gh-proxy",
+				},
+			},
+			workflowData: &WorkflowData{
+				Tools: map[string]any{
+					"bash": []any{"echo"},
+					"github": map[string]any{
+						"mode": "gh-proxy",
+					},
+				},
+			},
+			expected: []string{"--allow-tool", "github", "--allow-tool", "shell(echo)", "--allow-tool", "shell(gh:*)"},
+		},
+		// Playwright CLI mode tests - playwright-cli must be auto-allowed when bash is restricted.
+		{
+			name: "playwright cli mode with restricted bash auto-allows playwright-cli",
+			tools: map[string]any{
+				"bash": []any{"echo"},
+				"playwright": map[string]any{
+					"mode": "cli",
+				},
+			},
+			workflowData: &WorkflowData{
+				Tools: map[string]any{
+					"bash": []any{"echo"},
+					"playwright": map[string]any{
+						"mode": "cli",
+					},
+				},
+			},
+			expected: []string{"--allow-tool", "shell(echo)", "--allow-tool", "shell(playwright-cli:*)"},
+		},
+		{
+			name: "playwright cli mode with unrestricted bash does not add playwright-cli",
+			tools: map[string]any{
+				"bash": nil,
+				"playwright": map[string]any{
+					"mode": "cli",
+				},
+			},
+			workflowData: &WorkflowData{
+				Tools: map[string]any{
+					"bash": nil,
+					"playwright": map[string]any{
+						"mode": "cli",
+					},
+				},
+			},
+			expected: []string{"--allow-tool", "shell"},
+		},
+		{
+			name: "playwright cli mode with wildcard bash does not add playwright-cli",
+			tools: map[string]any{
+				"bash": []any{"*"},
+				"playwright": map[string]any{
+					"mode": "cli",
+				},
+			},
+			workflowData: &WorkflowData{
+				Tools: map[string]any{
+					"bash": []any{"*"},
+					"playwright": map[string]any{
+						"mode": "cli",
+					},
+				},
+			},
+			expected: []string{"--allow-all-tools"},
+		},
+		{
+			name: "playwright mcp mode with restricted bash does not add playwright-cli",
+			tools: map[string]any{
+				"bash":       []any{"echo"},
+				"playwright": true,
+			},
+			workflowData: &WorkflowData{
+				Tools: map[string]any{
+					"bash":       []any{"echo"},
+					"playwright": true,
+				},
+			},
+			expected: []string{"--allow-tool", "shell(echo)"},
+		},
+		// Single-quote sanitization tests - commands with single quotes are truncated
+		// to safe prefixes to avoid Copilot CLI startup crashes.
+		{
+			name: "bash tool with single-quoted jq filter is truncated to prefix",
+			tools: map[string]any{
+				"bash": []any{"jq '.data[] | {id, billing}' /tmp/file.json"},
+			},
+			expected: []string{"--allow-tool", "shell(jq)"},
+		},
+		{
+			name: "bash tool with single-quoted filter and leading space trimmed",
+			tools: map[string]any{
+				"bash": []any{"jq '[.data[] | keys] | add | unique' /tmp/file.json"},
+			},
+			expected: []string{"--allow-tool", "shell(jq)"},
+		},
+		{
+			name: "bash tool without single quotes passes through unchanged",
+			tools: map[string]any{
+				"bash": []any{"jq . /tmp/file.json"},
+			},
+			expected: []string{"--allow-tool", "shell(jq . /tmp/file.json)"},
+		},
+		{
+			name: "multiple bash tools: single-quoted ones truncated, others unchanged",
+			tools: map[string]any{
+				"bash": []any{
+					"jq '.data[]' /tmp/file.json",
+					"jq . /tmp/other.json",
+					"cat /tmp/file.json",
+				},
+			},
+			expected: []string{
+				"--allow-tool", "shell(cat /tmp/file.json)",
+				// shell(jq . ...) sorts before shell(jq) because ' ' (32) < ')' (41)
+				"--allow-tool", "shell(jq . /tmp/other.json)",
+				"--allow-tool", "shell(jq)",
+			},
+		},
+		{
+			name: "multiple single-quoted tools with same prefix are deduplicated",
+			tools: map[string]any{
+				"bash": []any{
+					"jq '.filter1'",
+					"jq '.filter2'",
+					"jq '.filter3'",
+				},
+			},
+			// All three sanitize to "jq" → deduplication yields exactly one shell(jq)
+			expected: []string{"--allow-tool", "shell(jq)"},
+		},
+		// Wildcard normalization tests - "cmd *" is normalized to canonical "cmd" form
+		{
+			name: "bash tool with trailing space-star is normalized to canonical prefix",
+			tools: map[string]any{
+				"bash": []any{"jq *"},
+			},
+			expected: []string{"--allow-tool", "shell(jq)"},
+		},
+		{
+			name: "bash tool with trailing space-star on multi-word command is normalized",
+			tools: map[string]any{
+				"bash": []any{"gh issue list *"},
+			},
+			expected: []string{"--allow-tool", "shell(gh issue list)"},
+		},
+		{
+			name: "community-attribution-style wildcard entries are normalized to canonical forms",
+			tools: map[string]any{
+				"bash": []any{"jq *", "sed *", "awk *", "cat *"},
+			},
+			expected: []string{
+				"--allow-tool", "shell(awk)",
+				"--allow-tool", "shell(cat)",
+				"--allow-tool", "shell(jq)",
+				"--allow-tool", "shell(sed)",
+			},
+		},
+		{
+			name: "wildcard and non-wildcard forms of same command are deduplicated",
+			tools: map[string]any{
+				"bash": []any{"jq *", "jq"},
+			},
+			// Both normalize to shell(jq); deduplication yields exactly one entry.
+			expected: []string{"--allow-tool", "shell(jq)"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := engine.computeCopilotToolArguments(tt.tools, tt.safeOutputs, tt.mcpScripts, tt.workflowData)
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d arguments, got %d: %v", len(tt.expected), len(result), result)
+				return
+			}
+
+			for i, expected := range tt.expected {
+				if i >= len(result) || result[i] != expected {
+					t.Errorf("Expected argument %d to be '%s', got '%s'", i, expected, result[i])
+				}
+			}
+		})
+	}
+}
+
+func TestCopilotEngineGenerateToolArgumentsComment(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name        string
+		tools       map[string]any
+		safeOutputs *SafeOutputsConfig
+		indent      string
+		expected    string
+	}{
+		{
+			name:     "empty tools",
+			tools:    map[string]any{},
+			indent:   "  ",
+			expected: "",
+		},
+		{
+			name: "bash with commands",
+			tools: map[string]any{
+				"bash": []any{"echo", "ls"},
+			},
+			indent:   "        ",
+			expected: "        # Copilot CLI tool arguments (sorted):\n        # --allow-tool shell(echo)\n        # --allow-tool shell(ls)\n",
+		},
+		{
+			name: "edit tool",
+			tools: map[string]any{
+				"edit": nil,
+			},
+			indent:   "        ",
+			expected: "        # Copilot CLI tool arguments (sorted):\n        # --allow-tool write\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := engine.generateCopilotToolArgumentsComment(tt.tools, tt.safeOutputs, nil, nil, tt.indent)
+
+			if result != tt.expected {
+				t.Errorf("Expected comment:\n%s\nGot:\n%s", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"bash": []any{"echo", "git status"},
+			"edit": nil,
+		},
+		ParsedTools: NewTools(map[string]any{
+			"bash": []any{"echo", "git status"},
+			"edit": nil,
+		}),
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	// Check the execution step contains tool arguments
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Should contain the tool arguments in the command line
+	if !strings.Contains(stepContent, "--allow-tool shell(echo)") {
+		t.Errorf("Expected step to contain '--allow-tool shell(echo)' in command:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "--allow-tool shell(git status)") {
+		t.Errorf("Expected step to contain '--allow-tool shell(git status)' in command:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "--allow-tool write") {
+		t.Errorf("Expected step to contain '--allow-tool write' in command:\n%s", stepContent)
+	}
+
+	// Should contain the comment showing the tool arguments
+	if !strings.Contains(stepContent, "# Copilot CLI tool arguments (sorted):") {
+		t.Errorf("Expected step to contain tool arguments comment:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "# --allow-tool shell(echo)") {
+		t.Errorf("Expected step to contain comment for shell(echo):\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "# --allow-tool write") {
+		t.Errorf("Expected step to contain comment for write:\n%s", stepContent)
+	}
+
+	// Should contain --allow-all-paths for edit tool
+	if !strings.Contains(stepContent, "--allow-all-paths") {
+		t.Errorf("Expected step to contain '--allow-all-paths' for edit tool:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineEditToolAddsAllowAllPaths(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name       string
+		tools      map[string]any
+		shouldHave bool
+	}{
+		{
+			name: "edit tool present",
+			tools: map[string]any{
+				"edit": nil,
+			},
+			shouldHave: true,
+		},
+		{
+			name: "edit tool with other tools",
+			tools: map[string]any{
+				"edit": nil,
+				"bash": []any{"echo"},
+			},
+			shouldHave: true,
+		},
+		{
+			name: "no edit tool",
+			tools: map[string]any{
+				"bash": []any{"echo"},
+			},
+			shouldHave: false,
+		},
+		{
+			name:       "empty tools",
+			tools:      map[string]any{},
+			shouldHave: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:        "test-workflow",
+				Tools:       tt.tools,
+				ParsedTools: NewTools(tt.tools), // Populate ParsedTools from Tools map
+			}
+			steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+			if len(steps) != 1 {
+				t.Fatalf("Expected 1 step, got %d", len(steps))
+			}
+
+			stepContent := strings.Join([]string(steps[0]), "\n")
+
+			// Check for --allow-all-paths flag
+			hasAllowAllPaths := strings.Contains(stepContent, "--allow-all-paths")
+
+			if tt.shouldHave && !hasAllowAllPaths {
+				t.Errorf("Expected step to contain '--allow-all-paths' when edit tool is present, but it was missing:\n%s", stepContent)
+			}
+
+			if !tt.shouldHave && hasAllowAllPaths {
+				t.Errorf("Expected step to NOT contain '--allow-all-paths' when edit tool is absent, but it was present:\n%s", stepContent)
+			}
+
+			// When edit tool is present, verify it's in the command line
+			if tt.shouldHave {
+				lines := strings.Split(stepContent, "\n")
+				foundInCommand := false
+				for _, line := range lines {
+					// When firewall is disabled, it uses 'copilot' instead of 'npx'
+					if strings.Contains(line, "copilot") && strings.Contains(line, "--allow-all-paths") {
+						foundInCommand = true
+						break
+					}
+				}
+				if !foundInCommand {
+					t.Errorf("Expected '--allow-all-paths' in copilot command line:\n%s", stepContent)
+				}
+			}
+		})
+	}
+}
+
+func TestCopilotEngineShellEscaping(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"bash": []any{"git add:*", "git commit:*"},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	// Get the full command from the execution step
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Find the line that contains the copilot command
+	// When firewall is disabled, it uses 'copilot' instead of 'npx'
+	lines := strings.Split(stepContent, "\n")
+	var copilotCommand string
+	for _, line := range lines {
+		if strings.Contains(line, "copilot") && strings.Contains(line, "--allow-tool") {
+			copilotCommand = strings.TrimSpace(line)
+			break
+		}
+	}
+
+	if copilotCommand == "" {
+		t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
+	}
+
+	// Verify that arguments with special characters are properly quoted
+	// This test should fail initially, showing the need for escaping
+	t.Logf("Generated command: %s", copilotCommand)
+
+	// The command should contain properly escaped arguments with single quotes
+	if !strings.Contains(copilotCommand, "'shell(git add:*)'") {
+		t.Errorf("Expected 'shell(git add:*)' to be single-quoted in command: %s", copilotCommand)
+	}
+
+	if !strings.Contains(copilotCommand, "'shell(git commit:*)'") {
+		t.Errorf("Expected 'shell(git commit:*)' to be single-quoted in command: %s", copilotCommand)
+	}
+}
+
+func TestCopilotEnginePromptFilePath(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"bash": []any{"git status"},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	// Get the full command from the execution step
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Find the line that contains the copilot command
+	// When firewall is disabled, it uses 'copilot' instead of 'npx'
+	lines := strings.Split(stepContent, "\n")
+	var copilotCommand string
+	for _, line := range lines {
+		if strings.Contains(line, "copilot") && strings.Contains(line, "--prompt") {
+			copilotCommand = strings.TrimSpace(line)
+			break
+		}
+	}
+
+	if copilotCommand == "" {
+		t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
+	}
+
+	if !strings.Contains(copilotCommand, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Errorf("Expected prompt to be passed via --prompt-file, got: %s", copilotCommand)
+	}
+
+	if strings.Contains(copilotCommand, "--prompt ") {
+		t.Errorf("Expected no inline --prompt argument expansion, got: %s", copilotCommand)
+	}
+}
+
+func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
+	tests := []struct {
+		name         string
+		githubTool   any
+		isLast       bool
+		expectedStrs []string
+	}{
+		{
+			name:       "GitHub MCP with default version",
+			githubTool: nil,
+			isLast:     false,
+			expectedStrs: []string{
+				`"github": {`,
+				`"type": "stdio",`,
+				`"container": "ghcr.io/github/github-mcp-server:` + string(constants.DefaultGitHubMCPServerVersion) + `"`,
+				`"env": {`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
+				`},`,
+			},
+		},
+		{
+			name: "GitHub MCP with custom version",
+			githubTool: map[string]any{
+				"version": "v1.2.3",
+			},
+			isLast: true,
+			expectedStrs: []string{
+				`"github": {`,
+				`"type": "stdio",`,
+				`"container": "ghcr.io/github/github-mcp-server:v1.2.3"`,
+				`"env": {`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
+				`}`,
+			},
+		},
+		{
+			name: "GitHub MCP with allowed tools",
+			githubTool: map[string]any{
+				"allowed": []string{"list_workflows", "get_file_contents"},
+			},
+			isLast: true,
+			expectedStrs: []string{
+				`"github": {`,
+				`"type": "stdio",`,
+				`"container": "ghcr.io/github/github-mcp-server:` + string(constants.DefaultGitHubMCPServerVersion) + `"`,
+				`"env": {`,
+				`}`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+			workflowData := &WorkflowData{}
+			// Use unified renderer instead of direct method call
+			renderer := NewMCPConfigRenderer(MCPRendererOptions{
+				IncludeCopilotFields: true,
+				InlineArgs:           true,
+				Format:               "json",
+				IsLast:               tt.isLast,
+			})
+			renderer.RenderGitHubMCP(&yaml, tt.githubTool, workflowData)
+			output := yaml.String()
+
+			for _, expected := range tt.expectedStrs {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
+				}
+			}
+
+			// Verify proper ending based on isLast
+			if tt.isLast {
+				if !strings.HasSuffix(strings.TrimSpace(output), "}") {
+					t.Errorf("Expected output to end with '}' when isLast=true, got:\n%s", output)
+				}
+			} else {
+				if !strings.HasSuffix(strings.TrimSpace(output), "},") {
+					t.Errorf("Expected output to end with '},' when isLast=false, got:\n%s", output)
+				}
+			}
+		})
+	}
+}
+
+func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"github": map[string]any{
+				"allowed": []any{"add_issue_comment", "issue_read"},
+			},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	// Get the full command from the execution step
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Find the line that contains the copilot command
+	// When firewall is disabled, it uses 'copilot' instead of 'npx'
+	lines := strings.Split(stepContent, "\n")
+	var copilotCommand string
+	for _, line := range lines {
+		if strings.Contains(line, "copilot") && strings.Contains(line, "--allow-tool") {
+			copilotCommand = strings.TrimSpace(line)
+			break
+		}
+	}
+
+	if copilotCommand == "" {
+		t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
+	}
+
+	// Verify that GitHub tool arguments are properly single-quoted
+	t.Logf("Generated command: %s", copilotCommand)
+
+	// The command should contain properly escaped GitHub tool arguments with single quotes
+	if !strings.Contains(copilotCommand, "'github(add_issue_comment)'") {
+		t.Errorf("Expected 'github(add_issue_comment)' to be single-quoted in command: %s", copilotCommand)
+	}
+
+	if !strings.Contains(copilotCommand, "'github(issue_read)'") {
+		t.Errorf("Expected 'github(issue_read)' to be single-quoted in command: %s", copilotCommand)
+	}
+}
+
+func TestCopilotEngineLogParsingUsesCorrectLogFile(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "copilot-log-parsing-test")
+
+	// Create a test workflow with Copilot engine
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Test Copilot Log Parsing
+
+This workflow tests that Copilot log parsing uses the correct log file path.
+`
+
+	testFile := filepath.Join(tmpDir, "test-copilot-log-parsing.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Verify that the log parsing step uses /tmp/gh-aw/sandbox/agent/logs/ instead of agent-stdio.log
+	if !strings.Contains(lockStr, "GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/") {
+		t.Error("Expected GH_AW_AGENT_OUTPUT to be set to '/tmp/gh-aw/sandbox/agent/logs/' for Copilot engine")
+	}
+
+	// Verify that it's NOT using the agent-stdio.log path for parsing
+	if strings.Contains(lockStr, "GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log") {
+		t.Error("Expected GH_AW_AGENT_OUTPUT to NOT use '/tmp/gh-aw/agent-stdio.log' for Copilot engine")
+	}
+
+	t.Log("Successfully verified that Copilot log parsing uses /tmp/gh-aw/sandbox/agent/logs/")
+}
+
+func TestExtractAddDirPaths(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		expected []string
+	}{
+		{
+			name:     "empty args",
+			args:     []string{},
+			expected: []string{},
+		},
+		{
+			name:     "no add-dir flags",
+			args:     []string{"--log-level", "debug", "--model", "gpt-4"},
+			expected: []string{},
+		},
+		{
+			name:     "single add-dir",
+			args:     []string{"--add-dir", "/tmp/"},
+			expected: []string{"/tmp/"},
+		},
+		{
+			name:     "multiple add-dir flags",
+			args:     []string{"--add-dir", "/tmp/", "--log-level", "debug", "--add-dir", "/tmp/gh-aw/"},
+			expected: []string{"/tmp/", "/tmp/gh-aw/"},
+		},
+		{
+			name:     "add-dir at end of args",
+			args:     []string{"--log-level", "debug", "--add-dir", "/tmp/gh-aw/agent/"},
+			expected: []string{"/tmp/gh-aw/agent/"},
+		},
+		{
+			name:     "all default copilot args",
+			args:     []string{"--add-dir", "/tmp/", "--add-dir", "/tmp/gh-aw/", "--add-dir", "/tmp/gh-aw/agent/", "--log-level", "all", "--log-dir", "/tmp/gh-aw/sandbox/agent/logs/"},
+			expected: []string{"/tmp/", "/tmp/gh-aw/", "/tmp/gh-aw/agent/"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractAddDirPaths(tt.args)
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d paths, got %d: %v", len(tt.expected), len(result), result)
+				return
+			}
+
+			for i, expected := range tt.expected {
+				if i >= len(result) || result[i] != expected {
+					t.Errorf("Expected path %d to be '%s', got '%s'", i, expected, result[i])
+				}
+			}
+		})
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithCacheMemory(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: []CacheMemoryEntry{
+				{ID: "default"},
+				{ID: "session"},
+				{ID: "logs"},
+			},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Test that mkdir commands are present for cache-memory directories
+	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/cache-memory/") {
+		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/cache-memory/' command for default cache in step content:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/cache-memory-session/") {
+		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/cache-memory-session/' command for session cache in step content:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/cache-memory-logs/") {
+		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/cache-memory-logs/' command for logs cache in step content:\n%s", stepContent)
+	}
+
+	// Verify --add-dir flags are present for cache directories
+	if !strings.Contains(stepContent, "--add-dir /tmp/gh-aw/cache-memory/") {
+		t.Errorf("Expected '--add-dir /tmp/gh-aw/cache-memory/' in copilot args")
+	}
+	if !strings.Contains(stepContent, "--add-dir /tmp/gh-aw/cache-memory-session/") {
+		t.Errorf("Expected '--add-dir /tmp/gh-aw/cache-memory-session/' in copilot args")
+	}
+	if !strings.Contains(stepContent, "--add-dir /tmp/gh-aw/cache-memory-logs/") {
+		t.Errorf("Expected '--add-dir /tmp/gh-aw/cache-memory-logs/' in copilot args")
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithCustomAddDirArgs(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			Args: []string{"--add-dir", "/custom/path/", "--verbose"},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Test that mkdir commands are present for custom --add-dir path
+	if !strings.Contains(stepContent, "mkdir -p /custom/path/") {
+		t.Errorf("Expected 'mkdir -p /custom/path/' command for custom add-dir arg in step content:\n%s", stepContent)
+	}
+
+	// Verify the custom --add-dir flag is still present in copilot args
+	if !strings.Contains(stepContent, "--add-dir /custom/path/") {
+		t.Errorf("Expected '--add-dir /custom/path/' in copilot args")
+	}
+}
+
+func TestCopilotEngineParseLogMetrics_MultilineJSON(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Read the test data file with multi-line JSON format
+	testDataPath := filepath.Join("test_data", "copilot_debug_log.txt")
+	logContent, err := os.ReadFile(testDataPath)
+	if err != nil {
+		t.Fatalf("Failed to read test data file: %v", err)
+	}
+
+	// Parse the log metrics
+	metrics := engine.ParseLogMetrics(string(logContent), false)
+
+	// Verify token usage is extracted from multi-line JSON blocks
+	// Expected: 1524 + 89 + 1689 + 23 = 3325 tokens total
+	expectedTokens := 3325
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d, got %d", expectedTokens, metrics.TokenUsage)
+	}
+
+	// Verify the parser handles multiple JSON response blocks
+	// Log contains 2 responses with usage information
+	if metrics.TokenUsage == 0 {
+		t.Error("Token usage should not be zero when parsing Copilot debug logs with usage data")
+	}
+}
+
+func TestCopilotEngineParseLogMetrics_SingleLineJSON(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Test with single-line JSON wrapped in debug log format (realistic format)
+	// This tests backward compatibility with compact JSON logging
+	singleLineLog := `2025-09-26T11:13:17.989Z [DEBUG] data:
+2025-09-26T11:13:17.990Z [DEBUG] {"usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+2025-09-26T11:13:17.990Z [DEBUG] Workflow completed`
+	metrics := engine.ParseLogMetrics(singleLineLog, false)
+
+	// Should extract tokens from single-line JSON in data block
+	expectedTokens := 150
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d from single-line JSON, got %d", expectedTokens, metrics.TokenUsage)
+	}
+}
+
+func TestCopilotEngineParseLogMetrics_NoTokenData(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Test with log content that has no token data
+	noTokenLog := `2025-09-26T11:13:11.798Z [DEBUG] Using model: claude-sonnet-4
+2025-09-26T11:13:12.575Z [DEBUG] Starting workflow
+2025-09-26T11:13:18.502Z [DEBUG] Workflow completed`
+
+	metrics := engine.ParseLogMetrics(noTokenLog, false)
+
+	// Token usage should be 0 when no usage data is present
+	if metrics.TokenUsage != 0 {
+		t.Errorf("Expected token usage 0 when no usage data present, got %d", metrics.TokenUsage)
+	}
+}
+
+func TestCopilotEngineExtractToolSizes(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name          string
+		jsonStr       string
+		expectedTools map[string]struct{ inputSize, outputSize int }
+		expectError   bool
+	}{
+		{
+			name: "tool call with arguments",
+			jsonStr: `{
+				"choices": [{
+					"message": {
+						"role": "assistant",
+						"tool_calls": [{
+							"id": "call_abc123",
+							"type": "function",
+							"function": {
+								"name": "bash",
+								"arguments": "{\"command\":\"echo 'test'\",\"description\":\"Test command\"}"
+							}
+						}]
+					}
+				}]
+			}`,
+			expectedTools: map[string]struct{ inputSize, outputSize int }{
+				"bash": {inputSize: 54, outputSize: 0},
+			},
+		},
+		{
+			name: "multiple tool calls",
+			jsonStr: `{
+				"choices": [{
+					"message": {
+						"tool_calls": [{
+							"function": {
+								"name": "github",
+								"arguments": "{\"owner\":\"githubnext\",\"repo\":\"gh-aw\"}"
+							}
+						}, {
+							"function": {
+								"name": "playwright",
+								"arguments": "{\"url\":\"https://example.com\",\"action\":\"screenshot\"}"
+							}
+						}]
+					}
+				}]
+			}`,
+			expectedTools: map[string]struct{ inputSize, outputSize int }{
+				"github":     {inputSize: 37, outputSize: 0},
+				"playwright": {inputSize: 51, outputSize: 0},
+			},
+		},
+		{
+			name: "tool call without arguments",
+			jsonStr: `{
+				"choices": [{
+					"message": {
+						"tool_calls": [{
+							"function": {
+								"name": "bash"
+							}
+						}]
+					}
+				}]
+			}`,
+			expectedTools: map[string]struct{ inputSize, outputSize int }{
+				"bash": {inputSize: 0, outputSize: 0},
+			},
+		},
+		{
+			name: "empty tool_calls array",
+			jsonStr: `{
+				"choices": [{
+					"message": {
+						"tool_calls": []
+					}
+				}]
+			}`,
+			expectedTools: map[string]struct{ inputSize, outputSize int }{},
+		},
+		{
+			name:          "invalid JSON",
+			jsonStr:       `{invalid json}`,
+			expectedTools: map[string]struct{ inputSize, outputSize int }{},
+			expectError:   true,
+		},
+		{
+			name: "tool call in alternative message format",
+			jsonStr: `{
+				"message": {
+					"tool_calls": [{
+						"function": {
+							"name": "edit",
+							"arguments": "{\"path\":\"/test/file.txt\",\"content\":\"test content\"}"
+						}
+					}]
+				}
+			}`,
+			expectedTools: map[string]struct{ inputSize, outputSize int }{
+				"edit": {inputSize: 50, outputSize: 0},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			toolCallMap := make(map[string]*ToolCallInfo)
+			engine.extractToolCallSizes(tt.jsonStr, toolCallMap, true)
+
+			// Verify tool count
+			if len(toolCallMap) != len(tt.expectedTools) {
+				t.Errorf("Expected %d tools, got %d: %v", len(tt.expectedTools), len(toolCallMap), toolCallMap)
+			}
+
+			// Verify each tool's sizes
+			for toolName, expectedSizes := range tt.expectedTools {
+				toolInfo, exists := toolCallMap[toolName]
+				if !exists {
+					t.Errorf("Expected tool '%s' not found in tool call map", toolName)
+					continue
+				}
+
+				if toolInfo.MaxInputSize != expectedSizes.inputSize {
+					t.Errorf("Tool '%s': expected MaxInputSize %d, got %d",
+						toolName, expectedSizes.inputSize, toolInfo.MaxInputSize)
+				}
+
+				if toolInfo.MaxOutputSize != expectedSizes.outputSize {
+					t.Errorf("Tool '%s': expected MaxOutputSize %d, got %d",
+						toolName, expectedSizes.outputSize, toolInfo.MaxOutputSize)
+				}
+			}
+		})
+	}
+}
+
+func TestCopilotEngineExtractToolSizes_MaxTracking(t *testing.T) {
+	engine := NewCopilotEngine()
+	toolCallMap := make(map[string]*ToolCallInfo)
+
+	// First call with smaller arguments
+	json1 := `{
+		"choices": [{
+			"message": {
+				"tool_calls": [{
+					"function": {
+						"name": "bash",
+						"arguments": "{\"cmd\":\"ls\"}"
+					}
+				}]
+			}
+		}]
+	}`
+	engine.extractToolCallSizes(json1, toolCallMap, false)
+
+	// Second call with larger arguments
+	json2 := `{
+		"choices": [{
+			"message": {
+				"tool_calls": [{
+					"function": {
+						"name": "bash",
+						"arguments": "{\"command\":\"echo 'This is a much longer command with more content'\"}"
+					}
+				}]
+			}
+		}]
+	}`
+	engine.extractToolCallSizes(json2, toolCallMap, false)
+
+	// Third call with smaller arguments again
+	json3 := `{
+		"choices": [{
+			"message": {
+				"tool_calls": [{
+					"function": {
+						"name": "bash",
+						"arguments": "{\"cmd\":\"pwd\"}"
+					}
+				}]
+			}
+		}]
+	}`
+	engine.extractToolCallSizes(json3, toolCallMap, false)
+
+	// Verify that MaxInputSize tracks the maximum
+	bashInfo, exists := toolCallMap["bash"]
+	if !exists {
+		t.Fatal("bash tool not found in tool call map")
+	}
+
+	// Should have tracked the largest input size (from json2)
+	expectedMaxInput := len("{\"command\":\"echo 'This is a much longer command with more content'\"}")
+	if bashInfo.MaxInputSize != expectedMaxInput {
+		t.Errorf("Expected MaxInputSize %d (from largest call), got %d", expectedMaxInput, bashInfo.MaxInputSize)
+	}
+
+	// Call count should be 3
+	if bashInfo.CallCount != 3 {
+		t.Errorf("Expected CallCount 3, got %d", bashInfo.CallCount)
+	}
+}
+
+func TestCopilotEngineParseLogMetrics_WithToolSizes(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Log with tool calls containing size information
+	logWithTools := `2025-09-26T11:13:17.989Z [DEBUG] response (Request-ID 00000-4ceedfde):
+2025-09-26T11:13:17.989Z [DEBUG] data:
+2025-09-26T11:13:17.990Z [DEBUG] {
+2025-09-26T11:13:17.990Z [DEBUG]   "choices": [
+2025-09-26T11:13:17.990Z [DEBUG]     {
+2025-09-26T11:13:17.990Z [DEBUG]       "message": {
+2025-09-26T11:13:17.990Z [DEBUG]         "tool_calls": [
+2025-09-26T11:13:17.990Z [DEBUG]           {
+2025-09-26T11:13:17.990Z [DEBUG]             "function": {
+2025-09-26T11:13:17.990Z [DEBUG]               "name": "github",
+2025-09-26T11:13:17.990Z [DEBUG]               "arguments": "{\"owner\":\"githubnext\",\"repo\":\"gh-aw\",\"method\":\"list_issues\"}"
+2025-09-26T11:13:17.990Z [DEBUG]             }
+2025-09-26T11:13:17.990Z [DEBUG]           }
+2025-09-26T11:13:17.990Z [DEBUG]         ]
+2025-09-26T11:13:17.990Z [DEBUG]       }
+2025-09-26T11:13:17.990Z [DEBUG]     }
+2025-09-26T11:13:17.990Z [DEBUG]   ],
+2025-09-26T11:13:17.990Z [DEBUG]   "usage": {
+2025-09-26T11:13:17.990Z [DEBUG]     "prompt_tokens": 100,
+2025-09-26T11:13:17.990Z [DEBUG]     "completion_tokens": 50
+2025-09-26T11:13:17.990Z [DEBUG]   }
+2025-09-26T11:13:17.990Z [DEBUG] }
+2025-09-26T11:13:18.000Z [DEBUG] Executing tool: github`
+
+	metrics := engine.ParseLogMetrics(logWithTools, false)
+
+	// Verify token usage
+	if metrics.TokenUsage != 150 {
+		t.Errorf("Expected token usage 150, got %d", metrics.TokenUsage)
+	}
+
+	// Verify tool info was extracted
+	if len(metrics.ToolCalls) != 1 {
+		t.Fatalf("Expected 1 tool call, got %d", len(metrics.ToolCalls))
+	}
+
+	githubTool := metrics.ToolCalls[0]
+	if githubTool.Name != "github" {
+		t.Errorf("Expected tool name 'github', got '%s'", githubTool.Name)
+	}
+
+	// Verify input size was extracted
+	expectedInputSize := len("{\"owner\":\"githubnext\",\"repo\":\"gh-aw\",\"method\":\"list_issues\"}")
+	if githubTool.MaxInputSize != expectedInputSize {
+		t.Errorf("Expected MaxInputSize %d, got %d", expectedInputSize, githubTool.MaxInputSize)
+	}
+
+	// Output size should be 0 (not extracted from current log format)
+	if githubTool.MaxOutputSize != 0 {
+		t.Errorf("Expected MaxOutputSize 0, got %d", githubTool.MaxOutputSize)
+	}
+}
+
+func TestCopilotEngineSkipInstallationWithCommand(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Test with custom command - should skip installation
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{Command: "/usr/local/bin/custom-copilot"},
+	}
+	steps := engine.GetInstallationSteps(workflowData)
+
+	if len(steps) != 0 {
+		t.Errorf("Expected 0 installation steps when command is specified, got %d", len(steps))
+	}
+
+	// Test with custom command + firewall - should still install AWF runtime
+	workflowData = &WorkflowData{
+		EngineConfig: &EngineConfig{Command: "/usr/local/bin/custom-copilot"},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+	steps = engine.GetInstallationSteps(workflowData)
+
+	if len(steps) == 0 {
+		t.Fatal("Expected installation steps when firewall is enabled with custom command")
+	}
+
+	installContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(installContent, "Install AWF binary") {
+		t.Errorf("Expected AWF installation step when firewall is enabled with custom command, got:\n%s", installContent)
+	}
+}
+
+// TestGenerateCopilotSessionFileCopyStep verifies the generated step copies session state files.
+func TestGenerateCopilotSessionFileCopyStep(t *testing.T) {
+	step := generateCopilotSessionFileCopyStep()
+	content := strings.Join([]string(step), "\n")
+
+	if !strings.Contains(content, "Copy Copilot session state files to logs") {
+		t.Error("Step should have a descriptive name")
+	}
+	if !strings.Contains(content, "always()") {
+		t.Error("Step should run always()")
+	}
+	if !strings.Contains(content, "continue-on-error: true") {
+		t.Error("Step should be marked continue-on-error")
+	}
+	if !strings.Contains(content, "copy_copilot_session_state.sh") {
+		t.Error("Step should invoke copy_copilot_session_state.sh")
+	}
+	if !strings.Contains(content, "${RUNNER_TEMP}/gh-aw/actions/") {
+		t.Error("Step should reference script via ${RUNNER_TEMP}/gh-aw/actions/")
+	}
+}
+
+func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	t.Run("engine env overrides default token expression", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"COPILOT_GITHUB_TOKEN": "${{ secrets.MY_ORG_COPILOT_TOKEN }}",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// engine.env override should replace the default token expression
+		if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.MY_ORG_COPILOT_TOKEN }}") {
+			t.Errorf("Expected engine.env to override COPILOT_GITHUB_TOKEN, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
+			t.Errorf("Default COPILOT_GITHUB_TOKEN expression should be replaced by engine.env override, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("engine env adds extra environment variables", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"CUSTOM_VAR": "custom-value",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if !strings.Contains(stepContent, "CUSTOM_VAR: custom-value") {
+			t.Errorf("Expected engine.env to add CUSTOM_VAR, got:\n%s", stepContent)
+		}
+	})
+}
+
+// TestCopilotEngineBYOKOmitsCopilotGitHubToken verifies that COPILOT_GITHUB_TOKEN is
+// NOT injected into the execution step env when BYOK mode is active
+// (i.e. COPILOT_PROVIDER_BASE_URL is set in engine.env). Forwarding the GitHub identity
+// token to a third-party provider would be a credential leak.
+func TestCopilotEngineBYOKOmitsCopilotGitHubToken(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	t.Run("COPILOT_GITHUB_TOKEN absent when COPILOT_PROVIDER_BASE_URL is set (BYOK)", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					constants.CopilotProviderBaseURL: "https://api.openai.com/v1",
+					constants.CopilotProviderAPIKey:  "${{ secrets.PROVIDER_API_KEY }}",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// COPILOT_GITHUB_TOKEN must not appear at all — not even its default expression.
+		if strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN:") {
+			t.Errorf("COPILOT_GITHUB_TOKEN should be absent in BYOK mode, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("COPILOT_GITHUB_TOKEN absent with COPILOT_PROVIDER_BASE_URL only (no API key)", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					constants.CopilotProviderBaseURL: "http://localhost:11434/v1",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN:") {
+			t.Errorf("COPILOT_GITHUB_TOKEN should be absent in BYOK mode (local provider), got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("COPILOT_GITHUB_TOKEN present when COPILOT_PROVIDER_BASE_URL is not set (standard mode)", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
+			t.Errorf("COPILOT_GITHUB_TOKEN should be present in standard (non-BYOK) mode, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("AWF command omits --exclude-env COPILOT_GITHUB_TOKEN in BYOK mode", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					constants.CopilotProviderBaseURL: "http://localhost:11434/v1",
+				},
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{Type: SandboxTypeAWF},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if strings.Contains(stepContent, "--exclude-env COPILOT_GITHUB_TOKEN") {
+			t.Errorf("AWF command should not exclude COPILOT_GITHUB_TOKEN in BYOK mode, got:\n%s", stepContent)
+		}
+	})
+}
+
+func TestCopilotEngineSetsDummyAPIKey(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	t.Run("COPILOT_API_KEY is set when AWF sandbox is enabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{Type: SandboxTypeAWF},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// COPILOT_DUMMY_BYOK holds the literal sentinel in the env: block (not *_API_KEY shaped).
+		expectedDummyVar := constants.CopilotBYOKDummyAPIKeyEnvVar + ": " + constants.CopilotBYOKDummyAPIKey
+		if !strings.Contains(stepContent, expectedDummyVar) {
+			t.Errorf("Expected %s to be set in env: block when AWF sandbox is enabled, got:\n%s", constants.CopilotBYOKDummyAPIKeyEnvVar, stepContent)
+		}
+
+		// COPILOT_API_KEY must be exported via shell expansion in the run: script,
+		// NOT as a literal in the env: block (GitHub Actions env: values are not shell-expanded).
+		expectedExport := `export COPILOT_API_KEY="$` + constants.CopilotBYOKDummyAPIKeyEnvVar + `"`
+		if !strings.Contains(stepContent, expectedExport) {
+			t.Errorf("Expected run: script to contain %q for correct shell expansion, got:\n%s", expectedExport, stepContent)
+		}
+
+		// Sanity-check: COPILOT_API_KEY must NOT appear in the env: block as a key.
+		// That would put a token-shaped literal next to an *_API_KEY key.
+		if strings.Contains(stepContent, "          COPILOT_API_KEY:") {
+			t.Errorf("COPILOT_API_KEY must not appear as an env: key; got:\n%s", stepContent)
+		}
+
+		if !strings.Contains(stepContent, "AWF_REFLECT_ENABLED: 1") {
+			t.Errorf("Expected AWF_REFLECT_ENABLED to be set when AWF sandbox is enabled, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("COPILOT_API_KEY is NOT set when sandbox.agent: false", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{Disabled: true},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if strings.Contains(stepContent, "COPILOT_API_KEY") {
+			t.Errorf("Expected COPILOT_API_KEY to be absent when sandbox.agent: false, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, constants.CopilotBYOKDummyAPIKeyEnvVar) {
+			t.Errorf("Expected %s to be absent when sandbox.agent: false, got:\n%s", constants.CopilotBYOKDummyAPIKeyEnvVar, stepContent)
+		}
+		if strings.Contains(stepContent, "AWF_REFLECT_ENABLED") {
+			t.Errorf("Expected AWF_REFLECT_ENABLED to be absent when sandbox.agent: false, got:\n%s", stepContent)
+		}
+	})
+}
+
+func TestCopilotEngineHarnessScript(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	t.Run("GetHarnessScriptName returns copilot_harness.cjs", func(t *testing.T) {
+		if engine.GetHarnessScriptName() != "copilot_harness.cjs" {
+			t.Errorf("Expected 'copilot_harness.cjs', got '%s'", engine.GetHarnessScriptName())
+		}
+	})
+
+	t.Run("Execution step uses driver in non-sandbox mode", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			Tools:        make(map[string]any),
+			SafeOutputs:  nil,
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one step")
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// The driver should be used in the command
+		if !strings.Contains(stepContent, "copilot_harness.cjs") {
+			t.Errorf("Expected copilot_harness.cjs in execution step, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, nodeRuntimeResolutionCommand) {
+			t.Errorf("Expected runtime node resolution logic in execution step, got:\n%s", stepContent)
+		}
+
+		// Driver should appear before the copilot args
+		driverIdx := strings.Index(stepContent, "copilot_harness.cjs")
+		promptIdx := strings.Index(stepContent, "--prompt")
+		if driverIdx == -1 || promptIdx == -1 {
+			t.Fatal("Could not find both copilot_harness.cjs and --prompt in step")
+		}
+		if driverIdx > promptIdx {
+			t.Error("Expected copilot_harness.cjs to appear before --prompt")
+		}
+	})
+
+	t.Run("Execution step uses configured custom driver instead of built-in", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID:            "copilot",
+				HarnessScript: "custom_copilot_harness.cjs",
+			},
+			Tools: make(map[string]any),
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one step")
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if !strings.Contains(stepContent, "custom_copilot_harness.cjs") {
+			t.Errorf("Expected custom driver in execution step, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "actions/copilot_harness.cjs") {
+			t.Errorf("Expected built-in driver to be replaced, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("CopilotEngine implements HarnessProvider interface", func(t *testing.T) {
+		var _ HarnessProvider = engine
+	})
+
+	t.Run("Execution serializes engine.command into shell script", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID:      "copilot",
+				Command: `bash -lc 'echo custom command'`,
+			},
+			Tools: make(map[string]any),
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one step")
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if !strings.Contains(stepContent, "copilot_harness.cjs /tmp/gh-aw/engine-command.sh") {
+			t.Errorf("Expected driver to run serialized engine command script, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "cat > /tmp/gh-aw/engine-command.sh <<'GH_AW_ENGINE_COMMAND_EOF'") {
+			t.Errorf("Expected step to serialize engine.command into script via heredoc, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "GH_AW_ENGINE_COMMAND_EOF") {
+			t.Errorf("Expected step to include heredoc delimiter for script serialization, got:\n%s", stepContent)
+		}
+	})
+}
+
+func TestCopilotEngineNoAskUser(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name         string
+		engineConfig *EngineConfig
+		safeOutputs  *SafeOutputsConfig
+		expectNoAsk  bool
+		description  string
+	}{
+		{
+			name:         "default version emits --no-ask-user for agent job",
+			engineConfig: nil,
+			safeOutputs:  &SafeOutputsConfig{},
+			expectNoAsk:  true,
+			description:  "default version is >= 1.0.19",
+		},
+		{
+			name:         "latest version emits --no-ask-user for agent job",
+			engineConfig: &EngineConfig{Version: "latest"},
+			safeOutputs:  &SafeOutputsConfig{},
+			expectNoAsk:  true,
+			description:  "latest always supports --no-ask-user",
+		},
+		{
+			name:         "version 1.0.19 emits --no-ask-user",
+			engineConfig: &EngineConfig{Version: "1.0.19"},
+			safeOutputs:  &SafeOutputsConfig{},
+			expectNoAsk:  true,
+			description:  "1.0.19 is the minimum supported version",
+		},
+		{
+			name:         "version 1.0.20 emits --no-ask-user",
+			engineConfig: &EngineConfig{Version: "1.0.20"},
+			safeOutputs:  &SafeOutputsConfig{},
+			expectNoAsk:  true,
+			description:  "1.0.20 > 1.0.19",
+		},
+		{
+			name:         "version 1.0.18 does not emit --no-ask-user",
+			engineConfig: &EngineConfig{Version: "1.0.18"},
+			safeOutputs:  &SafeOutputsConfig{},
+			expectNoAsk:  false,
+			description:  "1.0.18 < 1.0.19",
+		},
+		{
+			name:         "version 1.0.0 does not emit --no-ask-user",
+			engineConfig: &EngineConfig{Version: "1.0.0"},
+			safeOutputs:  &SafeOutputsConfig{},
+			expectNoAsk:  false,
+			description:  "1.0.0 < 1.0.19",
+		},
+		{
+			name:         "detection job emits --no-ask-user with default version",
+			engineConfig: nil,
+			safeOutputs:  nil, // nil SafeOutputs = detection job
+			expectNoAsk:  true,
+			description:  "--no-ask-user is emitted for both agent and detection jobs",
+		},
+		{
+			name:         "detection job with old version does not emit --no-ask-user",
+			engineConfig: &EngineConfig{Version: "1.0.18"},
+			safeOutputs:  nil,
+			expectNoAsk:  false,
+			description:  "detection job with old version still respects version gate",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: tt.engineConfig,
+				SafeOutputs:  tt.safeOutputs,
+			}
+
+			steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+			if len(steps) == 0 {
+				t.Fatal("Expected at least one step")
+			}
+
+			stepContent := strings.Join([]string(steps[0]), "\n")
+			hasNoAsk := strings.Contains(stepContent, "--no-ask-user")
+
+			if tt.expectNoAsk && !hasNoAsk {
+				t.Errorf("%s: expected --no-ask-user in step, got:\n%s", tt.description, stepContent)
+			}
+			if !tt.expectNoAsk && hasNoAsk {
+				t.Errorf("%s: expected --no-ask-user NOT in step, got:\n%s", tt.description, stepContent)
+			}
+		})
+	}
+}
+
+func TestBuildEngineCommandScriptSetup(t *testing.T) {
+	setup := buildEngineCommandScriptSetup("/usr/local/bin/custom-copilot")
+
+	if !strings.Contains(setup, "umask 0177") {
+		t.Fatalf("Expected restrictive umask in script setup, got:\n%s", setup)
+	}
+	if !strings.Contains(setup, "chmod 700 /tmp/gh-aw/engine-command.sh") {
+		t.Fatalf("Expected owner-only execute permissions, got:\n%s", setup)
+	}
+	if !strings.Contains(setup, "cat > /tmp/gh-aw/engine-command.sh <<'GH_AW_ENGINE_COMMAND_EOF'") {
+		t.Fatalf("Expected heredoc-based script materialization, got:\n%s", setup)
+	}
+	if !strings.Contains(setup, "set -eo pipefail") {
+		t.Fatalf("Expected script strict mode without -u, got:\n%s", setup)
+	}
+	if strings.Contains(setup, "set -euo pipefail") {
+		t.Fatalf("Expected script strict mode to drop -u, got:\n%s", setup)
+	}
+	if !strings.Contains(setup, "set +o histexpand") {
+		t.Fatalf("Expected histexpand disabled in engine command script, got:\n%s", setup)
+	}
+	if !strings.Contains(setup, `/usr/local/bin/custom-copilot "$@"`) {
+		t.Fatalf("Expected custom command to forward driver args, got:\n%s", setup)
+	}
+}
+
+func TestCopilotSupportsNoAskUser(t *testing.T) {
+	defaultSupported := semverutil.Compare(
+		string(constants.DefaultCopilotVersion),
+		string(constants.CopilotNoAskUserMinVersion),
+	) >= 0
+
+	tests := []struct {
+		name         string
+		engineConfig *EngineConfig
+		expected     bool
+	}{
+		{
+			name:         "nil config uses default version gate",
+			engineConfig: nil,
+			expected:     defaultSupported,
+		},
+		{
+			name:         "empty version uses default version gate",
+			engineConfig: &EngineConfig{},
+			expected:     defaultSupported,
+		},
+		{
+			name:         "latest is always supported",
+			engineConfig: &EngineConfig{Version: "latest"},
+			expected:     true,
+		},
+		{
+			name:         "LATEST (uppercase) is always supported",
+			engineConfig: &EngineConfig{Version: "LATEST"},
+			expected:     true,
+		},
+		{
+			name:         "exact minimum version 1.0.19 is supported",
+			engineConfig: &EngineConfig{Version: "1.0.19"},
+			expected:     true,
+		},
+		{
+			name:         "version with v-prefix v1.0.19 is supported",
+			engineConfig: &EngineConfig{Version: "v1.0.19"},
+			expected:     true,
+		},
+		{
+			name:         "version above minimum 1.0.20 is supported",
+			engineConfig: &EngineConfig{Version: "1.0.20"},
+			expected:     true,
+		},
+		{
+			name:         "version below minimum 1.0.18 is not supported",
+			engineConfig: &EngineConfig{Version: "1.0.18"},
+			expected:     false,
+		},
+		{
+			name:         "version 1.0.0 is not supported",
+			engineConfig: &EngineConfig{Version: "1.0.0"},
+			expected:     false,
+		},
+		{
+			name:         "non-semver branch name returns false (conservative)",
+			engineConfig: &EngineConfig{Version: "main"},
+			expected:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := copilotSupportsNoAskUser(tt.engineConfig)
+			if result != tt.expected {
+				t.Errorf("copilotSupportsNoAskUser(%v) = %v, want %v", tt.engineConfig, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSanitizeCopilotShellCommand(t *testing.T) {
+	tests := []struct {
+		name            string
+		input           string
+		expectedOutput  string
+		expectedChanged bool
+	}{
+		{
+			name:            "no single quotes - unchanged",
+			input:           "jq . /tmp/file.json",
+			expectedOutput:  "jq . /tmp/file.json",
+			expectedChanged: false,
+		},
+		{
+			name:            "single-quoted jq filter - truncated to prefix",
+			input:           "jq '.data[] | {id, billing}' /tmp/file.json",
+			expectedOutput:  "jq",
+			expectedChanged: true,
+		},
+		{
+			name:            "single-quoted jq array filter - truncated to prefix",
+			input:           "jq '[.data[] | keys] | add | unique' /tmp/file.json",
+			expectedOutput:  "jq",
+			expectedChanged: true,
+		},
+		{
+			name:            "plain command without quotes - unchanged",
+			input:           "cat /tmp/file.json",
+			expectedOutput:  "cat /tmp/file.json",
+			expectedChanged: false,
+		},
+		{
+			name:            "empty string - unchanged",
+			input:           "",
+			expectedOutput:  "",
+			expectedChanged: false,
+		},
+		{
+			name:            "single quote at start - empty prefix",
+			input:           "'quoted from start'",
+			expectedOutput:  "",
+			expectedChanged: true,
+		},
+		{
+			name:            "trailing whitespace trimmed after truncation",
+			input:           "grep  '.pattern'",
+			expectedOutput:  "grep",
+			expectedChanged: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output, changed := sanitizeCopilotShellCommand(tt.input)
+			if output != tt.expectedOutput {
+				t.Errorf("sanitizeCopilotShellCommand(%q) output = %q, want %q", tt.input, output, tt.expectedOutput)
+			}
+			if changed != tt.expectedChanged {
+				t.Errorf("sanitizeCopilotShellCommand(%q) changed = %v, want %v", tt.input, changed, tt.expectedChanged)
+			}
+		})
+	}
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "gh-aw update check configuration",
+  "description": "Configuration for the compile-agentic version update check. This file is fetched at runtime by the activation job to validate that the compiled version is still supported.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "blockedVersions": {
+      "type": "array",
+      "description": "List of blocked compile-agentic versions that are not allowed to run (e.g. due to a security compromise). Workflows compiled with a blocked version will fail at activation.",
+      "items": {
+        "type": "string",
+        "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+        "description": "A blocked version string in vMAJOR.MINOR.PATCH format (e.g. 'v1.2.3')"
+      },
+      "uniqueItems": true,
+      "default": []
+    },
+    "minimumVersion": {
+      "type": "string",
+      "description": "The minimum supported compile-agentic version in vMAJOR.MINOR.PATCH format. Workflows compiled with a version below this will fail at activation. Use an empty string to disable this check.",
+      "pattern": "^(v[0-9]+\\.[0-9]+\\.[0-9]+)?$",
+      "default": ""
+    },
+    "minRecommendedVersion": {
+      "type": "string",
+      "description": "The minimum recommended compile-agentic version in vMAJOR.MINOR.PATCH format. Workflows compiled with a version below this will emit a warning (but not fail) at activation, nudging users to upgrade. Use an empty string to disable this check.",
+      "pattern": "^(v[0-9]+\\.[0-9]+\\.[0-9]+)?$",
+      "default": ""
+    }
+  }
+}

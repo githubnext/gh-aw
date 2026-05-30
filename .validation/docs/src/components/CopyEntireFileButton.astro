@@ -1,0 +1,332 @@
+---
+const { filePath, label = 'Copy instructions' } = Astro.props;
+const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
+---
+
+<button
+  id={id}
+  type="button"
+  class="copy-entire-file-btn"
+  data-filepath={filePath}
+  aria-label="Copy entire instructions file to clipboard"
+  title="Copy entire instructions file to clipboard"
+>
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z" fill="currentColor"/>
+  </svg>
+  <span class="btn-text">{label}</span>
+</button>
+
+<style>
+  .copy-entire-file-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--sl-color-hairline);
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+    cursor: pointer;
+    font-size: inherit;
+    font-family: inherit;
+  }
+
+  /* Mobile-specific: Increase touch targets to meet WCAG 2.1 Level AAA (44x44px) */
+  @media (max-width: 768px) {
+    .copy-entire-file-btn {
+      min-height: 44px;
+      min-width: 44px;
+      padding: 0.75rem 1rem;
+    }
+  }
+
+  .copy-entire-file-btn:hover {
+    background: var(--sl-color-gray-6);
+  }
+
+  .copy-entire-file-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Error modal styles */
+  .error-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+
+  .error-modal {
+    background: var(--sl-color-bg);
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 8px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: auto;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .error-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--sl-color-hairline);
+  }
+
+  .error-modal-title {
+    margin: 0;
+    font-size: 1.2rem;
+    color: var(--sl-color-text);
+    font-weight: 600;
+  }
+
+  .error-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--sl-color-text);
+    padding: 0;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+  }
+
+  .error-modal-close:hover {
+    background: var(--sl-color-gray-6);
+  }
+
+  .error-modal-body {
+    padding: 1.5rem;
+  }
+
+  .error-modal-body p {
+    margin: 0 0 1rem 0;
+    color: var(--sl-color-text);
+  }
+
+  .error-modal-details {
+    background: var(--sl-color-gray-7);
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 4px;
+    padding: 1rem;
+    margin: 0;
+    overflow-x: auto;
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: var(--sl-color-red);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+</style>
+
+<script is:inline>
+  // Create and show error modal
+  function showErrorModal(errorMessage) {
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'error-modal-overlay';
+    
+    // Create modal content
+    const modal = document.createElement('div');
+    modal.className = 'error-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'error-modal-title');
+    
+    // Build modal content using safe DOM APIs (no innerHTML)
+    const header = document.createElement('div');
+    header.className = 'error-modal-header';
+
+    const titleEl = document.createElement('div');
+    titleEl.id = 'error-modal-title';
+    titleEl.className = 'error-modal-title';
+    titleEl.setAttribute('role', 'heading');
+    titleEl.setAttribute('aria-level', '3');
+    titleEl.textContent = 'Error Copying File';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'error-modal-close';
+    closeBtn.setAttribute('aria-label', 'Close error dialog');
+    closeBtn.textContent = '\u00D7';
+
+    header.appendChild(titleEl);
+    header.appendChild(closeBtn);
+
+    const body = document.createElement('div');
+    body.className = 'error-modal-body';
+
+    const bodyText = document.createElement('p');
+    bodyText.textContent = 'An error occurred while trying to copy the file:';
+
+    const details = document.createElement('pre');
+    details.className = 'error-modal-details';
+    details.textContent = errorMessage;
+
+    body.appendChild(bodyText);
+    body.appendChild(details);
+
+    modal.appendChild(header);
+    modal.appendChild(body);
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Close modal on click
+    const closeModal = () => {
+      overlay.remove();
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        closeModal();
+      }
+    });
+    
+    // Close on Escape key
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', handleEscape);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+  }
+
+  // Attach click handlers immediately or wait for DOM
+  function attachCopyHandlers() {
+    document.querySelectorAll('.copy-entire-file-btn').forEach((button) => {
+      const filepath = button.getAttribute('data-filepath');
+      if (!filepath) return;
+
+      const btnText = button.querySelector('.btn-text');
+      const originalText = btnText ? btnText.textContent : 'Copy instructions';
+
+      button.addEventListener('click', async () => {
+        try {
+          button.setAttribute('disabled', 'true');
+          if (btnText) btnText.textContent = 'Copying…';
+
+          let copied = false;
+
+          // iOS Safari fix: Use ClipboardItem with promise to maintain user gesture context
+          // The fetch happens inside the clipboard write promise, preserving the user interaction context
+          if (navigator.clipboard && window.isSecureContext) {
+            try {
+              // Try ClipboardItem approach for iOS Safari (iOS 13.4+)
+              // This maintains user gesture context through async operations
+              if (typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
+                const clipboardItem = new ClipboardItem({
+                  'text/plain': fetch(filepath, { cache: 'no-store' })
+                    .then(async res => {
+                      if (!res.ok) throw new Error(`Failed to fetch file: ${res.status}`);
+                      const text = await res.text();
+                      return new Blob([text], { type: 'text/plain' });
+                    })
+                });
+                await navigator.clipboard.write([clipboardItem]);
+                copied = true;
+              }
+            } catch (clipboardItemError) {
+              // ClipboardItem failed, try traditional approach
+              console.warn('ClipboardItem approach failed:', clipboardItemError);
+              copied = false;
+            }
+          }
+
+          // Traditional approach: fetch then copy
+          if (!copied) {
+            const res = await fetch(filepath, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`Failed to fetch file: ${res.status}`);
+            const text = await res.text();
+
+            if (navigator.clipboard && window.isSecureContext) {
+              try {
+                await navigator.clipboard.writeText(text);
+                copied = true;
+              } catch (clipboardError) {
+                // Clipboard API failed, try textarea fallback
+                console.warn('Clipboard API failed:', clipboardError);
+                copied = false;
+              }
+            }
+
+            // Final fallback using textarea and execCommand
+            if (!copied) {
+              const textarea = document.createElement('textarea');
+              textarea.value = text;
+              
+              // Make textarea visible but off-screen for iOS Safari compatibility
+              textarea.style.position = 'absolute';
+              textarea.style.left = '-9999px';
+              textarea.style.top = (window.pageYOffset || document.documentElement.scrollTop) + 'px';
+              textarea.style.fontSize = '12pt'; // Prevent iOS zoom on focus
+              textarea.setAttribute('readonly', ''); // Prevent iOS keyboard from showing
+              
+              document.body.appendChild(textarea);
+              textarea.focus();
+              
+              if (textarea.setSelectionRange) {
+                textarea.setSelectionRange(0, text.length);
+              } else {
+                textarea.select();
+              }
+              
+              const success = document.execCommand('copy');
+              document.body.removeChild(textarea);
+              
+              if (!success) {
+                throw new Error('execCommand copy failed');
+              }
+            }
+          }
+
+          if (btnText) btnText.textContent = 'Copied!';
+          setTimeout(() => {
+            button.removeAttribute('disabled');
+            if (btnText) btnText.textContent = originalText;
+          }, 2000);
+        } catch (e) {
+          console.error('Copy error:', e);
+          if (btnText) btnText.textContent = 'Error';
+          
+          // Show error modal
+          showErrorModal(e instanceof Error ? e.message : String(e));
+          
+          setTimeout(() => {
+            button.removeAttribute('disabled');
+            if (btnText) btnText.textContent = originalText;
+          }, 3000);
+        }
+      });
+    });
+  }
+
+  // Run immediately if DOM is already loaded, otherwise wait
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachCopyHandlers);
+  } else {
+    attachCopyHandlers();
+  }
+</script>

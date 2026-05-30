@@ -1,0 +1,497 @@
+// @ts-check
+
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { closeOlderIssues, searchOlderIssues, addIssueComment, closeIssueAsNotPlanned, getCloseOlderIssueMessage, MAX_CLOSE_COUNT } from "./close_older_issues.cjs";
+
+// Mock globals
+global.core = {
+  info: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+};
+
+describe("close_older_issues", () => {
+  let mockGithub;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGithub = {
+      rest: {
+        search: {
+          issuesAndPullRequests: vi.fn(),
+        },
+        issues: {
+          createComment: vi.fn(),
+          update: vi.fn(),
+        },
+      },
+    };
+  });
+
+  describe("searchOlderIssues", () => {
+    it("should search for issues with workflow-id marker", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Weekly Report - 2024-01",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+            {
+              number: 124,
+              title: "Weekly Report - 2024-02",
+              html_url: "https://github.com/owner/repo/issues/124",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+          ],
+        },
+      });
+
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 125);
+
+      expect(results).toHaveLength(2);
+      expect(results[0].number).toBe(123);
+      expect(results[1].number).toBe(124);
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
+        q: 'repo:owner/repo is:issue is:open "gh-aw-workflow-id: test-workflow" in:body',
+        per_page: 50,
+      });
+    });
+
+    it("should exclude the newly created issue", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Weekly Report - 2024-01",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+            {
+              number: 124,
+              title: "Weekly Report - 2024-02",
+              html_url: "https://github.com/owner/repo/issues/124",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+          ],
+        },
+      });
+
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 124);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
+    });
+
+    it("should return empty array if no workflow-id provided", async () => {
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "", 125);
+
+      expect(results).toHaveLength(0);
+      expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+    });
+
+    it("should exclude pull requests", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Issue",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+            {
+              number: 124,
+              title: "Pull Request",
+              html_url: "https://github.com/owner/repo/pull/124",
+              labels: [],
+              pull_request: {},
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+          ],
+        },
+      });
+
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 125);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
+    });
+
+    it("should return empty array if no results", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [],
+        },
+      });
+
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 125);
+
+      expect(results).toHaveLength(0);
+    });
+
+    it("should exclude issues whose body does not contain the exact marker", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Matching issue",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "Some content\n<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+            {
+              number: 124,
+              title: "Substring match - should be excluded",
+              html_url: "https://github.com/owner/repo/issues/124",
+              labels: [],
+              // Body has a related-but-longer workflow ID - GitHub search may match this
+              // but exact filtering should exclude it
+              body: "Some content\n<!-- gh-aw-workflow-id: test-workflow-extended -->",
+            },
+            {
+              number: 125,
+              title: "No marker - should be excluded",
+              html_url: "https://github.com/owner/repo/issues/125",
+              labels: [],
+              body: "Issue without any marker",
+            },
+          ],
+        },
+      });
+
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 999);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
+    });
+
+    it("should filter by gh-aw-workflow-call-id when callerWorkflowId is provided", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Same caller - should be included",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->\n<!-- gh-aw-workflow-call-id: owner/repo/CallerA -->",
+            },
+            {
+              number: 124,
+              title: "Different caller - should be excluded",
+              html_url: "https://github.com/owner/repo/issues/124",
+              labels: [],
+              // Different caller shares the same reusable workflow-id but has a different call-id
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->\n<!-- gh-aw-workflow-call-id: owner/repo/CallerB -->",
+            },
+            {
+              number: 125,
+              title: "Old issue without call-id - should be excluded",
+              html_url: "https://github.com/owner/repo/issues/125",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: my-reusable-workflow -->",
+            },
+          ],
+        },
+      });
+
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "my-reusable-workflow", 999, "owner/repo/CallerA");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
+    });
+
+    it("should use close-key marker as primary search term when closeOlderKey is provided", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Has close-key marker - should be included",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: some-workflow -->\n<!-- gh-aw-close-key: my-stable-key -->",
+            },
+            {
+              number: 124,
+              title: "Missing close-key marker - should be excluded",
+              html_url: "https://github.com/owner/repo/issues/124",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: some-workflow -->",
+            },
+          ],
+        },
+      });
+
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "some-workflow", 999, undefined, "my-stable-key");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
+      // Should search by the close-key marker, not the workflow-id marker
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
+        q: 'repo:owner/repo is:issue is:open "gh-aw-close-key: my-stable-key" in:body',
+        per_page: 50,
+      });
+    });
+
+    it("should work with close-key when workflowId is empty", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Has close-key marker",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-close-key: team-report -->",
+            },
+          ],
+        },
+      });
+
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "", 999, undefined, "team-report");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
+        q: 'repo:owner/repo is:issue is:open "gh-aw-close-key: team-report" in:body',
+        per_page: 50,
+      });
+    });
+
+    it("should return empty array when neither workflowId nor closeOlderKey is provided", async () => {
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "", 999, undefined, undefined);
+
+      expect(results).toHaveLength(0);
+      expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+    });
+
+    it("should prefer close-key marker over callerWorkflowId when both are provided", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Has both markers - close-key should win",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-workflow-call-id: owner/repo/CallerA -->\n<!-- gh-aw-close-key: shared-key -->",
+            },
+            {
+              number: 124,
+              title: "Has only caller marker - should be excluded (close-key takes priority)",
+              html_url: "https://github.com/owner/repo/issues/124",
+              labels: [],
+              body: "<!-- gh-aw-workflow-call-id: owner/repo/CallerA -->",
+            },
+          ],
+        },
+      });
+
+      // Both callerWorkflowId and closeOlderKey provided - close-key should take priority
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "my-workflow", 999, "owner/repo/CallerA", "shared-key");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
+      // close-key should be used for search query
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
+        q: 'repo:owner/repo is:issue is:open "gh-aw-close-key: shared-key" in:body',
+        per_page: 50,
+      });
+    });
+  });
+
+  describe("addIssueComment", () => {
+    it("should add comment to issue", async () => {
+      mockGithub.rest.issues.createComment.mockResolvedValue({
+        data: {
+          id: 456,
+          html_url: "https://github.com/owner/repo/issues/123#issuecomment-456",
+        },
+      });
+
+      const result = await addIssueComment(mockGithub, "owner", "repo", 123, "Test comment");
+
+      expect(result).toEqual({
+        id: 456,
+        html_url: "https://github.com/owner/repo/issues/123#issuecomment-456",
+      });
+      expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({
+        owner: "owner",
+        repo: "repo",
+        issue_number: 123,
+        body: "Test comment",
+      });
+    });
+  });
+
+  describe("closeIssueAsNotPlanned", () => {
+    it("should close issue as not planned", async () => {
+      mockGithub.rest.issues.update.mockResolvedValue({
+        data: {
+          number: 123,
+          html_url: "https://github.com/owner/repo/issues/123",
+        },
+      });
+
+      const result = await closeIssueAsNotPlanned(mockGithub, "owner", "repo", 123);
+
+      expect(result).toEqual({
+        number: 123,
+        html_url: "https://github.com/owner/repo/issues/123",
+      });
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
+        owner: "owner",
+        repo: "repo",
+        issue_number: 123,
+        state: "closed",
+        state_reason: "not_planned",
+      });
+    });
+  });
+
+  describe("getCloseOlderIssueMessage", () => {
+    it("should generate closing message", () => {
+      const message = getCloseOlderIssueMessage({
+        newIssueUrl: "https://github.com/owner/repo/issues/125",
+        newIssueNumber: 125,
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/owner/repo/actions/runs/123",
+      });
+
+      expect(message).toContain("newer issue has been created: #125");
+      expect(message).toContain("https://github.com/owner/repo/issues/125");
+      expect(message).toContain("Test Workflow");
+      expect(message).toContain("https://github.com/owner/repo/actions/runs/123");
+    });
+  });
+
+  describe("closeOlderIssues", () => {
+    it("should close older issues successfully", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Prefix - Old Issue",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+          ],
+        },
+      });
+
+      mockGithub.rest.issues.createComment.mockResolvedValue({
+        data: { id: 456, html_url: "https://github.com/owner/repo/issues/123#issuecomment-456" },
+      });
+
+      mockGithub.rest.issues.update.mockResolvedValue({
+        data: { number: 123, html_url: "https://github.com/owner/repo/issues/123" },
+      });
+
+      const newIssue = { number: 125, html_url: "https://github.com/owner/repo/issues/125" };
+      const results = await closeOlderIssues(mockGithub, "owner", "repo", "test-workflow", newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(123);
+      expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
+      expect(mockGithub.rest.issues.update).toHaveBeenCalled();
+    });
+
+    it("should limit to MAX_CLOSE_COUNT issues", async () => {
+      const items = [];
+      for (let i = 1; i <= 15; i++) {
+        items.push({
+          number: i,
+          title: `Issue ${i}`,
+          html_url: `https://github.com/owner/repo/issues/${i}`,
+          labels: [],
+          body: "<!-- gh-aw-workflow-id: test-workflow -->",
+        });
+      }
+
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: { items },
+      });
+
+      mockGithub.rest.issues.createComment.mockResolvedValue({
+        data: { id: 456, html_url: "https://github.com/owner/repo/issues/1#issuecomment-456" },
+      });
+
+      mockGithub.rest.issues.update.mockResolvedValue({
+        data: { number: 1, html_url: "https://github.com/owner/repo/issues/1" },
+      });
+
+      const newIssue = { number: 20, html_url: "https://github.com/owner/repo/issues/20" };
+      const results = await closeOlderIssues(mockGithub, "owner", "repo", "test-workflow", newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
+
+      expect(results).toHaveLength(MAX_CLOSE_COUNT);
+      expect(global.core.warning).toHaveBeenCalledWith(`⚠️  Found 15 older issues, but only closing the first ${MAX_CLOSE_COUNT}`);
+    });
+
+    it("should continue on error for individual issues", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 123,
+              title: "Issue 1",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+            {
+              number: 124,
+              title: "Issue 2",
+              html_url: "https://github.com/owner/repo/issues/124",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+          ],
+        },
+      });
+
+      // First issue fails
+      mockGithub.rest.issues.createComment.mockRejectedValueOnce(new Error("API Error"));
+
+      // Second issue succeeds
+      mockGithub.rest.issues.createComment.mockResolvedValueOnce({
+        data: { id: 456, html_url: "https://github.com/owner/repo/issues/124#issuecomment-456" },
+      });
+
+      mockGithub.rest.issues.update.mockResolvedValue({
+        data: { number: 124, html_url: "https://github.com/owner/repo/issues/124" },
+      });
+
+      const newIssue = { number: 125, html_url: "https://github.com/owner/repo/issues/125" };
+      const results = await closeOlderIssues(mockGithub, "owner", "repo", "test-workflow", newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(124);
+      expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("Failed to close issue #123"));
+    });
+
+    it("should return empty array if no older issues found", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: { items: [] },
+      });
+
+      const newIssue = { number: 125, html_url: "https://github.com/owner/repo/issues/125" };
+      const results = await closeOlderIssues(mockGithub, "owner", "repo", "test-workflow", newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
+
+      expect(results).toHaveLength(0);
+      expect(global.core.info).toHaveBeenCalledWith("✓ No older issues found to close - operation complete");
+    });
+  });
+});

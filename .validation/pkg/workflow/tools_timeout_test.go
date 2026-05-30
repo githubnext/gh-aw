@@ -1,0 +1,363 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+)
+
+func TestClaudeEngineWithToolsTimeout(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	tests := []struct {
+		name           string
+		toolsTimeout   string
+		expectedEnvVar string
+	}{
+		{
+			name:           "default timeout when not specified",
+			toolsTimeout:   "",
+			expectedEnvVar: "", // GH_AW_TOOL_TIMEOUT not set when empty
+		},
+		{
+			name:           "custom timeout of 30 seconds",
+			toolsTimeout:   "30",
+			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: 30", // env var in seconds
+		},
+		{
+			name:           "custom timeout of 120 seconds",
+			toolsTimeout:   "120",
+			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: 120", // env var in seconds
+		},
+		{
+			name:           "expression timeout",
+			toolsTimeout:   "${{ inputs.tool-timeout }}",
+			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: ${{ inputs.tool-timeout }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				ToolsTimeout: tt.toolsTimeout,
+				Tools:        map[string]any{},
+			}
+
+			// Get execution steps
+			executionSteps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+			if len(executionSteps) == 0 {
+				t.Fatal("Expected at least one execution step")
+			}
+
+			// Check the execution step for timeout environment variables
+			stepContent := strings.Join([]string(executionSteps[0]), "\n")
+
+			// Determine expected timeouts in milliseconds (only for literal values)
+			toolTimeoutMs := 60000     // default for tool operations
+			startupTimeoutMs := 120000 // default for startup
+			if n := templatableIntValue(&tt.toolsTimeout); n > 0 {
+				toolTimeoutMs = n * 1000
+			}
+
+			// Check for MCP_TIMEOUT (uses startup timeout, defaults to 120s)
+			expectedMcpTimeout := fmt.Sprintf("MCP_TIMEOUT: %d", startupTimeoutMs)
+			if !strings.Contains(stepContent, expectedMcpTimeout) {
+				t.Errorf("Expected '%s' in execution step", expectedMcpTimeout)
+			}
+
+			// Check for MCP_TOOL_TIMEOUT (uses tool timeout)
+			expectedMcpToolTimeout := fmt.Sprintf("MCP_TOOL_TIMEOUT: %d", toolTimeoutMs)
+			if !strings.Contains(stepContent, expectedMcpToolTimeout) {
+				t.Errorf("Expected '%s' in execution step", expectedMcpToolTimeout)
+			}
+
+			// Check for BASH_DEFAULT_TIMEOUT_MS (uses tool timeout)
+			expectedBashDefault := fmt.Sprintf("BASH_DEFAULT_TIMEOUT_MS: %d", toolTimeoutMs)
+			if !strings.Contains(stepContent, expectedBashDefault) {
+				t.Errorf("Expected '%s' in execution step", expectedBashDefault)
+			}
+
+			// Check for BASH_MAX_TIMEOUT_MS (uses tool timeout)
+			expectedBashMax := fmt.Sprintf("BASH_MAX_TIMEOUT_MS: %d", toolTimeoutMs)
+			if !strings.Contains(stepContent, expectedBashMax) {
+				t.Errorf("Expected '%s' in execution step", expectedBashMax)
+			}
+
+			// Check for GH_AW_TOOL_TIMEOUT if expected
+			if tt.expectedEnvVar != "" {
+				if !strings.Contains(stepContent, tt.expectedEnvVar) {
+					t.Errorf("Expected '%s' in execution step, got: %s", tt.expectedEnvVar, stepContent)
+				}
+			} else {
+				// When timeout is empty, GH_AW_TOOL_TIMEOUT should not be present
+				if strings.Contains(stepContent, "GH_AW_TOOL_TIMEOUT") {
+					t.Errorf("Did not expect GH_AW_TOOL_TIMEOUT in execution step when timeout is empty")
+				}
+			}
+		})
+	}
+}
+
+func TestCodexEngineWithToolsTimeout(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name            string
+		toolsTimeout    string
+		expectedTimeout string
+		expectedEnvVar  string
+	}{
+		{
+			name:            "default timeout when not specified",
+			toolsTimeout:    "",
+			expectedTimeout: "tool_timeout_sec = 60", // 60 seconds default
+			expectedEnvVar:  "",                      // GH_AW_TOOL_TIMEOUT not set when empty
+		},
+		{
+			name:            "custom timeout of 30 seconds",
+			toolsTimeout:    "30",
+			expectedTimeout: "tool_timeout_sec = 30",
+			expectedEnvVar:  "GH_AW_TOOL_TIMEOUT: 30", // env var in seconds
+		},
+		{
+			name:            "custom timeout of 180 seconds",
+			toolsTimeout:    "180",
+			expectedTimeout: "tool_timeout_sec = 180",
+			expectedEnvVar:  "GH_AW_TOOL_TIMEOUT: 180", // env var in seconds
+		},
+		{
+			name:            "expression timeout uses default in TOML",
+			toolsTimeout:    "${{ inputs.tool-timeout }}",
+			expectedTimeout: "tool_timeout_sec = 60", // falls back to default in TOML
+			expectedEnvVar:  "GH_AW_TOOL_TIMEOUT: ${{ inputs.tool-timeout }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				ToolsTimeout: tt.toolsTimeout,
+				Name:         "test-workflow",
+				Tools: map[string]any{
+					"github": map[string]any{},
+				},
+			}
+
+			// Render MCP config
+			var configBuilder strings.Builder
+			mcpTools := []string{"github"}
+			if err := engine.RenderMCPConfig(&configBuilder, workflowData.Tools, mcpTools, workflowData); err != nil {
+				t.Fatalf("RenderMCPConfig returned unexpected error: %v", err)
+			}
+			configContent := configBuilder.String()
+
+			if !strings.Contains(configContent, tt.expectedTimeout) {
+				t.Errorf("Expected '%s' in MCP config, got: %s", tt.expectedTimeout, configContent)
+			}
+
+			// Check for GH_AW_TOOL_TIMEOUT in execution steps
+			executionSteps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+			if len(executionSteps) == 0 {
+				t.Fatal("Expected at least one execution step")
+			}
+
+			stepContent := strings.Join([]string(executionSteps[0]), "\n")
+			if tt.expectedEnvVar != "" {
+				if !strings.Contains(stepContent, tt.expectedEnvVar) {
+					t.Errorf("Expected '%s' in execution step, got: %s", tt.expectedEnvVar, stepContent)
+				}
+			} else {
+				// When timeout is empty, GH_AW_TOOL_TIMEOUT should not be present
+				if strings.Contains(stepContent, "GH_AW_TOOL_TIMEOUT") {
+					t.Errorf("Did not expect GH_AW_TOOL_TIMEOUT in execution step when timeout is empty")
+				}
+			}
+		})
+	}
+}
+
+func TestExtractToolsTimeout(t *testing.T) {
+	compiler := &Compiler{}
+
+	tests := []struct {
+		name            string
+		tools           map[string]any
+		expectedTimeout string
+		shouldError     bool
+	}{
+		{
+			name:            "no timeout specified",
+			tools:           map[string]any{},
+			expectedTimeout: "",
+			shouldError:     false,
+		},
+		{
+			name: "timeout as int",
+			tools: map[string]any{
+				"timeout": 45,
+			},
+			expectedTimeout: "45",
+			shouldError:     false,
+		},
+		{
+			name: "timeout as int64",
+			tools: map[string]any{
+				"timeout": int64(90),
+			},
+			expectedTimeout: "90",
+			shouldError:     false,
+		},
+		{
+			name: "timeout as uint",
+			tools: map[string]any{
+				"timeout": uint(75),
+			},
+			expectedTimeout: "75",
+			shouldError:     false,
+		},
+		{
+			name: "timeout as uint64",
+			tools: map[string]any{
+				"timeout": uint64(120),
+			},
+			expectedTimeout: "120",
+			shouldError:     false,
+		},
+		{
+			name: "timeout as float64",
+			tools: map[string]any{
+				"timeout": 60.0,
+			},
+			expectedTimeout: "60",
+			shouldError:     false,
+		},
+		{
+			name:            "nil tools",
+			tools:           nil,
+			expectedTimeout: "",
+			shouldError:     false,
+		},
+		{
+			name: "zero timeout - should fail",
+			tools: map[string]any{
+				"timeout": 0,
+			},
+			expectedTimeout: "",
+			shouldError:     true,
+		},
+		{
+			name: "negative timeout - should fail",
+			tools: map[string]any{
+				"timeout": -5,
+			},
+			expectedTimeout: "",
+			shouldError:     true,
+		},
+		{
+			name: "minimum valid timeout (1)",
+			tools: map[string]any{
+				"timeout": 1,
+			},
+			expectedTimeout: "1",
+			shouldError:     false,
+		},
+		{
+			name: "expression timeout",
+			tools: map[string]any{
+				"timeout": "${{ inputs.tool-timeout }}",
+			},
+			expectedTimeout: "${{ inputs.tool-timeout }}",
+			shouldError:     false,
+		},
+		{
+			name: "non-expression string - should fail",
+			tools: map[string]any{
+				"timeout": "not-a-number",
+			},
+			expectedTimeout: "",
+			shouldError:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			timeout, err := compiler.extractToolsTimeout(tt.tools)
+
+			if tt.shouldError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+				if timeout != tt.expectedTimeout {
+					t.Errorf("Expected timeout %q, got %q", tt.expectedTimeout, timeout)
+				}
+			}
+		})
+	}
+}
+
+func TestCopilotEngineWithToolsTimeout(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name           string
+		toolsTimeout   string
+		expectedEnvVar string
+	}{
+		{
+			name:           "default timeout when not specified",
+			toolsTimeout:   "",
+			expectedEnvVar: "", // GH_AW_TOOL_TIMEOUT not set when empty
+		},
+		{
+			name:           "custom timeout of 45 seconds",
+			toolsTimeout:   "45",
+			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: 45", // env var in seconds
+		},
+		{
+			name:           "custom timeout of 200 seconds",
+			toolsTimeout:   "200",
+			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: 200", // env var in seconds
+		},
+		{
+			name:           "expression timeout",
+			toolsTimeout:   "${{ inputs.tool-timeout }}",
+			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: ${{ inputs.tool-timeout }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				ToolsTimeout: tt.toolsTimeout,
+				Tools:        map[string]any{},
+			}
+
+			// Get execution steps
+			executionSteps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+			if len(executionSteps) < 1 {
+				t.Fatal("Expected at least 1 execution step")
+			}
+
+			// Get the execution step
+			stepContent := strings.Join([]string(executionSteps[0]), "\n")
+
+			// Check for GH_AW_TOOL_TIMEOUT if expected
+			if tt.expectedEnvVar != "" {
+				if !strings.Contains(stepContent, tt.expectedEnvVar) {
+					t.Errorf("Expected '%s' in execution step, got: %s", tt.expectedEnvVar, stepContent)
+				}
+			} else {
+				// When timeout is empty, GH_AW_TOOL_TIMEOUT should not be present
+				if strings.Contains(stepContent, "GH_AW_TOOL_TIMEOUT") {
+					t.Errorf("Did not expect GH_AW_TOOL_TIMEOUT in execution step when timeout is empty")
+				}
+			}
+		})
+	}
+}

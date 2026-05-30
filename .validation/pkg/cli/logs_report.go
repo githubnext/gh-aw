@@ -1,0 +1,567 @@
+package cli
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/github/gh-aw/pkg/constants"
+
+	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/timeutil"
+)
+
+var reportLog = logger.New("cli:logs_report")
+
+// LogsData represents the complete structured data for logs output
+type LogsData struct {
+	Summary           LogsSummary                `json:"summary" console:"title:Workflow Logs Summary"`
+	Runs              []RunData                  `json:"runs" console:"title:Workflow Logs Overview"`
+	Episodes          []EpisodeData              `json:"episodes" console:"-"`
+	Edges             []EpisodeEdge              `json:"edges" console:"-"`
+	ToolUsage         []ToolUsageSummary         `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
+	MCPToolUsage      *MCPToolUsageSummary       `json:"mcp_tool_usage,omitempty" console:"title:🔧 MCP Tool Usage,omitempty"`
+	Observability     []ObservabilityInsight     `json:"observability_insights,omitempty" console:"-"`
+	ErrorsAndWarnings []ErrorSummary             `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
+	MissingTools      []MissingToolSummary       `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
+	MissingData       []MissingDataSummary       `json:"missing_data,omitempty" console:"title:📊 Missing Data Summary,omitempty"`
+	MCPFailures       []MCPFailureSummary        `json:"mcp_failures,omitempty" console:"title:⚠️  MCP Server Failures,omitempty"`
+	AccessLog         *AccessLogSummary          `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
+	FirewallLog       *FirewallLogSummary        `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
+	RedactedDomains   *RedactedDomainsLogSummary `json:"redacted_domains,omitempty" console:"title:🔒 Redacted URL Domains,omitempty"`
+	Continuation      *ContinuationData          `json:"continuation,omitempty" console:"-"`
+	LogsLocation      string                     `json:"logs_location" console:"-"`
+	Message           string                     `json:"message,omitempty" console:"-"`
+}
+
+// ContinuationData provides parameters to continue querying when timeout is reached
+type ContinuationData struct {
+	Message      string `json:"message"`
+	WorkflowName string `json:"workflow_name,omitempty"`
+	Count        int    `json:"count,omitempty"`
+	StartDate    string `json:"start_date,omitempty"`
+	EndDate      string `json:"end_date,omitempty"`
+	Engine       string `json:"engine,omitempty"`
+	Branch       string `json:"branch,omitempty"`
+	AfterRunID   int64  `json:"after_run_id,omitempty"`
+	BeforeRunID  int64  `json:"before_run_id,omitempty"`
+	Timeout      int    `json:"timeout,omitempty"`
+}
+
+// LogsSummary contains aggregate metrics across all runs
+type LogsSummary struct {
+	TotalRuns                     int     `json:"total_runs" console:"header:Total Runs"`
+	TotalDuration                 string  `json:"total_duration" console:"header:Total Duration"`
+	TotalTokens                   int     `json:"total_tokens" console:"header:Total Tokens,format:number"`
+	TotalEffectiveTokens          int     `json:"total_effective_tokens" console:"header:Total Effective Tokens,format:number"`
+	TotalActionMinutes            float64 `json:"total_action_minutes" console:"header:Total Action Minutes"`
+	TotalTurns                    int     `json:"total_turns" console:"header:Total Turns"`
+	TotalErrors                   int     `json:"total_errors" console:"header:Total Errors"`
+	TotalWarnings                 int     `json:"total_warnings" console:"header:Total Warnings"`
+	TotalMissingTools             int     `json:"total_missing_tools" console:"header:Total Missing Tools"`
+	TotalMissingData              int     `json:"total_missing_data" console:"header:Total Missing Data"`
+	TotalSafeItems                int     `json:"total_safe_items" console:"header:Total Safe Items"`
+	RunsWithTemporaryIDChains     int     `json:"runs_with_temporary_id_chains,omitempty" console:"-"`
+	RunsWithDelegatedTempTargets  int     `json:"runs_with_delegated_temp_targets,omitempty" console:"-"`
+	RunsWithMissingTemporaryIDMap int     `json:"runs_with_missing_temporary_id_map,omitempty" console:"-"`
+	RunsWithInvalidTemporaryIDMap int     `json:"runs_with_invalid_temporary_id_map,omitempty" console:"-"`
+	TotalTemporaryIDMappings      int     `json:"total_temporary_id_mappings,omitempty" console:"-"`
+	TotalChainedTargets           int     `json:"total_chained_targets,omitempty" console:"-"`
+	TotalChainedFollowupActions   int     `json:"total_chained_followup_actions,omitempty" console:"-"`
+	TotalClosedTempTargets        int     `json:"total_closed_temp_targets,omitempty" console:"-"`
+	TotalEpisodes                 int     `json:"total_episodes" console:"header:Total Episodes"`
+	HighConfidenceEpisodes        int     `json:"high_confidence_episodes" console:"header:High Confidence Episodes"`
+	TotalGitHubAPICalls           int     `json:"total_github_api_calls,omitempty" console:"header:Total GitHub API Calls,format:number,omitempty"`
+	// EngineCounts maps engine_id (from aw_info.json) to the number of runs using that engine.
+	// Use this field to accurately classify engine types — do NOT infer engines by scanning
+	// lock files, which contain the word "copilot" in allowed-domains and workflow-source paths
+	// regardless of which engine the workflow actually uses.
+	EngineCounts map[string]int `json:"engine_counts,omitempty" console:"-"`
+
+	// Outcome metrics (populated when outcome evaluation is enabled)
+	OutcomeAccepted       int     `json:"outcome_accepted,omitempty" console:"-"`
+	OutcomeRejected       int     `json:"outcome_rejected,omitempty" console:"-"`
+	OutcomeIgnored        int     `json:"outcome_ignored,omitempty" console:"-"`
+	OutcomePending        int     `json:"outcome_pending,omitempty" console:"-"`
+	OutcomeAcceptanceRate float64 `json:"outcome_acceptance_rate,omitempty" console:"-"`
+	OutcomeWasteRate      float64 `json:"outcome_waste_rate,omitempty" console:"-"`
+	OutcomeZeroTouchRate  float64 `json:"outcome_zero_touch_rate,omitempty" console:"-"`
+}
+
+// RunData contains information about a single workflow run
+type RunData struct {
+	RunID                      int64                  `json:"run_id" console:"header:Run ID"`
+	Number                     int                    `json:"number" console:"-"`
+	WorkflowName               string                 `json:"workflow_name" console:"header:Workflow"`
+	WorkflowPath               string                 `json:"workflow_path" console:"-"`
+	Agent                      string                 `json:"agent,omitempty" console:"header:Agent,omitempty"`
+	Engine                     string                 `json:"engine,omitempty" console:"-"`
+	EngineID                   string                 `json:"engine_id,omitempty" console:"-"`
+	Status                     string                 `json:"status" console:"header:Status"`
+	Conclusion                 string                 `json:"conclusion,omitempty" console:"-"`
+	Classification             string                 `json:"classification" console:"-"`
+	Duration                   string                 `json:"duration,omitempty" console:"header:Duration,omitempty"`
+	ActionMinutes              float64                `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
+	TokenUsage                 int                    `json:"token_usage,omitempty" console:"header:Tokens,format:number,omitempty"`
+	EffectiveTokens            int                    `json:"effective_tokens,omitempty" console:"header:Effective Tokens,format:number,omitempty"`
+	AmbientContext             *AmbientContextMetrics `json:"ambient_context,omitempty" console:"-"`
+	Turns                      int                    `json:"turns,omitempty" console:"header:Turns,omitempty"`
+	ErrorCount                 int                    `json:"error_count,omitempty" console:"header:Errors"`
+	WarningCount               int                    `json:"warning_count,omitempty" console:"header:Warnings"`
+	MissingToolCount           int                    `json:"missing_tool_count,omitempty" console:"header:Missing Tools"`
+	MissingDataCount           int                    `json:"missing_data_count,omitempty" console:"header:Missing Data"`
+	SafeItemsCount             int                    `json:"safe_items_count,omitempty" console:"header:Safe Items,omitempty"`
+	ManifestEntryCount         int                    `json:"manifest_entry_count,omitempty" console:"-"`
+	TemporaryIDMapStatus       string                 `json:"temporary_id_map_status,omitempty" console:"-"`
+	TemporaryIDMappings        int                    `json:"temporary_id_mappings,omitempty" console:"-"`
+	ChainedTargetCount         int                    `json:"chained_target_count,omitempty" console:"-"`
+	ChainedFollowupActionCount int                    `json:"chained_followup_action_count,omitempty" console:"-"`
+	DelegatedTempTargetCount   int                    `json:"delegated_temp_target_count,omitempty" console:"-"`
+	ClosedTempTargetCount      int                    `json:"closed_temp_target_count,omitempty" console:"-"`
+	CreatedAt                  time.Time              `json:"created_at" console:"header:Created"`
+	StartedAt                  time.Time              `json:"started_at,omitzero" console:"-"`
+	UpdatedAt                  time.Time              `json:"updated_at,omitzero" console:"-"`
+	URL                        string                 `json:"url" console:"-"`
+	LogsPath                   string                 `json:"logs_path" console:"header:Logs Path"`
+	Event                      string                 `json:"event" console:"-"`
+	Branch                     string                 `json:"branch" console:"-"`
+	HeadSHA                    string                 `json:"head_sha,omitempty" console:"-"`
+	DisplayTitle               string                 `json:"display_title,omitempty" console:"-"`
+	Repository                 string                 `json:"repository,omitempty" console:"-"`
+	Organization               string                 `json:"organization,omitempty" console:"-"`
+	Ref                        string                 `json:"ref,omitempty" console:"-"`
+	SHA                        string                 `json:"sha,omitempty" console:"-"`
+	Actor                      string                 `json:"actor,omitempty" console:"-"`
+	RunAttempt                 string                 `json:"run_attempt,omitempty" console:"-"`
+	TargetRepo                 string                 `json:"target_repo,omitempty" console:"-"`
+	EventName                  string                 `json:"event_name,omitempty" console:"-"`
+	Comparison                 *AuditComparisonData   `json:"comparison,omitempty" console:"-"`
+	TaskDomain                 *TaskDomainInfo        `json:"task_domain,omitempty" console:"-"`
+	BehaviorFingerprint        *BehaviorFingerprint   `json:"behavior_fingerprint,omitempty" console:"-"`
+	AgenticAssessments         []AgenticAssessment    `json:"agentic_assessments,omitempty" console:"-"`
+	AwContext                  *AwContext             `json:"context,omitempty" console:"-"`                                                        // aw_context data from aw_info.json
+	TokenUsageSummary          *TokenUsageSummary     `json:"token_usage_summary,omitempty" console:"-"`                                            // Token usage from firewall proxy
+	GitHubAPICalls             int                    `json:"github_api_calls,omitempty" console:"header:GitHub API Calls,format:number,omitempty"` // GitHub API calls made during the run
+	AvgTimeBetweenTurns        string                 `json:"avg_time_between_turns,omitempty" console:"-"`                                         // Average time between consecutive LLM API calls (TBT)
+	Experiments                *ExperimentData        `json:"experiments,omitempty" console:"-"`                                                    // A/B experiment assignments for this run
+}
+
+// buildLogsData creates structured logs data from processed runs
+func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData) LogsData {
+	reportLog.Printf("Building logs data from %d processed runs", len(processedRuns))
+
+	// Build summary
+	var totalDuration time.Duration
+	var totalTokens int
+	var totalEffectiveTokens int
+	var totalActionMinutes float64
+	var totalTurns int
+	var totalErrors int
+	var totalWarnings int
+	var totalMissingTools int
+	var totalMissingData int
+	var totalSafeItems int
+	var runsWithTemporaryIDChains int
+	var runsWithDelegatedTempTargets int
+	var runsWithMissingTemporaryIDMap int
+	var runsWithInvalidTemporaryIDMap int
+	var totalTemporaryIDMappings int
+	var totalChainedTargets int
+	var totalChainedFollowupActions int
+	var totalClosedTempTargets int
+	var totalGitHubAPICalls int
+	// engineCounts tracks the number of runs per engine_id, sourced from aw_info.json.
+	// This is the authoritative engine classification — do not infer engine type from
+	// lock file contents, which contain "copilot" in allowed-domains and source paths
+	// regardless of which engine the workflow uses.
+	engineCounts := make(map[string]int)
+
+	// Build runs data
+	// Initialize as empty slice to ensure JSON marshals to [] instead of null
+	runs := make([]RunData, 0, len(processedRuns))
+	for _, pr := range processedRuns {
+		run := pr.Run
+
+		if run.Duration > 0 {
+			totalDuration += run.Duration
+		}
+		totalTokens += run.TokenUsage
+		totalEffectiveTokens += run.EffectiveTokens
+		totalActionMinutes += run.ActionMinutes
+		totalTurns += run.Turns
+		totalErrors += run.ErrorCount
+		totalWarnings += run.WarningCount
+		totalMissingTools += run.MissingToolCount
+		totalMissingData += run.MissingDataCount
+		totalSafeItems += run.SafeItemsCount
+
+		// Accumulate GitHub API call counts
+		var gitHubAPICalls int
+		if pr.GitHubRateLimitUsage != nil {
+			gitHubAPICalls = pr.GitHubRateLimitUsage.TotalRequestsMade
+		}
+		totalGitHubAPICalls += gitHubAPICalls
+
+		chainMetrics := buildSafeOutputChainMetrics(run.LogsPath)
+		totalTemporaryIDMappings += chainMetrics.TemporaryIDMappings
+		totalChainedTargets += chainMetrics.ChainedTargetCount
+		totalChainedFollowupActions += chainMetrics.ChainedFollowupActionCount
+		totalClosedTempTargets += chainMetrics.ClosedTempTargetCount
+		if chainMetrics.ChainedTargetCount > 0 {
+			runsWithTemporaryIDChains++
+		}
+		if chainMetrics.DelegatedTempTargetCount > 0 {
+			runsWithDelegatedTempTargets++
+		}
+		switch chainMetrics.TemporaryIDMapStatus {
+		case temporaryIDMapStatusMissing:
+			runsWithMissingTemporaryIDMap++
+		case temporaryIDMapStatusInvalid:
+			runsWithInvalidTemporaryIDMap++
+		}
+
+		// Extract engine ID and aw_context from aw_info.json.
+		engineID := ""
+		engineName := ""
+		var awContext *AwContext
+		var awInfo *AwInfo
+		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
+		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
+			awInfo = info
+			engineID = info.EngineID
+			engineName = info.EngineName
+			awContext = info.Context
+		}
+		if engineName == "" {
+			engineName = engineID
+		}
+		if awContext == nil {
+			awContext = pr.AwContext
+		}
+		// Accumulate engine counts from aw_info.json data (authoritative source).
+		if engineID != "" {
+			engineCounts[engineID]++
+		}
+
+		comparison := buildAuditComparisonForProcessedRuns(pr, processedRuns)
+
+		var ambientContext *AmbientContextMetrics
+		if pr.TokenUsage != nil {
+			ambientContext = pr.TokenUsage.AmbientContext
+		}
+
+		runData := RunData{
+			RunID:                      run.DatabaseID,
+			Number:                     run.Number,
+			WorkflowName:               run.WorkflowName,
+			WorkflowPath:               run.WorkflowPath,
+			Agent:                      engineID,
+			Engine:                     engineName,
+			EngineID:                   engineID,
+			Status:                     run.Status,
+			Conclusion:                 run.Conclusion,
+			Classification:             deriveRunClassification(comparison),
+			TokenUsage:                 run.TokenUsage,
+			EffectiveTokens:            run.EffectiveTokens,
+			AmbientContext:             ambientContext,
+			ActionMinutes:              run.ActionMinutes,
+			Turns:                      run.Turns,
+			ErrorCount:                 run.ErrorCount,
+			WarningCount:               run.WarningCount,
+			MissingToolCount:           run.MissingToolCount,
+			MissingDataCount:           run.MissingDataCount,
+			SafeItemsCount:             run.SafeItemsCount,
+			ManifestEntryCount:         chainMetrics.ManifestEntryCount,
+			TemporaryIDMapStatus:       chainMetrics.TemporaryIDMapStatus,
+			TemporaryIDMappings:        chainMetrics.TemporaryIDMappings,
+			ChainedTargetCount:         chainMetrics.ChainedTargetCount,
+			ChainedFollowupActionCount: chainMetrics.ChainedFollowupActionCount,
+			DelegatedTempTargetCount:   chainMetrics.DelegatedTempTargetCount,
+			ClosedTempTargetCount:      chainMetrics.ClosedTempTargetCount,
+			CreatedAt:                  run.CreatedAt,
+			StartedAt:                  run.StartedAt,
+			UpdatedAt:                  run.UpdatedAt,
+			URL:                        run.URL,
+			LogsPath:                   run.LogsPath,
+			Event:                      run.Event,
+			Branch:                     run.HeadBranch,
+			HeadSHA:                    run.HeadSha,
+			DisplayTitle:               run.DisplayTitle,
+			Comparison:                 comparison,
+			TaskDomain:                 pr.TaskDomain,
+			BehaviorFingerprint:        pr.BehaviorFingerprint,
+			AgenticAssessments:         pr.AgenticAssessments,
+			AwContext:                  awContext,
+			TokenUsageSummary:          pr.TokenUsage,
+			GitHubAPICalls:             gitHubAPICalls,
+			Experiments:                extractExperimentData(run.LogsPath),
+		}
+		if awInfo != nil {
+			runData.Repository = awInfo.Repository
+			if awInfo.Repository != "" {
+				if parts := strings.SplitN(awInfo.Repository, "/", 2); len(parts) == 2 {
+					runData.Organization = parts[0]
+				}
+			}
+			runData.Ref = awInfo.Ref
+			runData.SHA = awInfo.SHA
+			runData.Actor = awInfo.Actor
+			runData.RunAttempt = awInfo.RunAttempt
+			runData.TargetRepo = awInfo.TargetRepo
+			runData.EventName = awInfo.EventName
+			// Fall back to inferring the workflow path from the display name when the
+			// GitHub API returned an empty path (e.g. for scheduled agentic runs).
+			// This handles both fresh runs and old cached RunSummary entries whose
+			// run.WorkflowPath was persisted as empty before the fix in
+			// logs_run_processor.go was applied.
+			if runData.WorkflowPath == "" && awInfo.WorkflowName != "" {
+				runData.WorkflowPath = inferWorkflowPathFromDisplayName(awInfo.WorkflowName)
+			}
+		}
+		if run.Duration > 0 {
+			runData.Duration = timeutil.FormatDuration(run.Duration)
+		}
+		// Compute average TBT from metrics when available; fall back to wall-time / (turns - 1).
+		if run.AvgTimeBetweenTurns > 0 {
+			runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.AvgTimeBetweenTurns)
+		} else if run.Turns > 1 && run.Duration > 0 {
+			runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.Duration/time.Duration(run.Turns-1)) + " (estimated)"
+		}
+		runs = append(runs, runData)
+	}
+
+	summary := LogsSummary{
+		TotalRuns:                     len(processedRuns),
+		TotalDuration:                 timeutil.FormatDuration(totalDuration),
+		TotalTokens:                   totalTokens,
+		TotalEffectiveTokens:          totalEffectiveTokens,
+		TotalActionMinutes:            totalActionMinutes,
+		TotalTurns:                    totalTurns,
+		TotalErrors:                   totalErrors,
+		TotalWarnings:                 totalWarnings,
+		TotalMissingTools:             totalMissingTools,
+		TotalMissingData:              totalMissingData,
+		TotalSafeItems:                totalSafeItems,
+		RunsWithTemporaryIDChains:     runsWithTemporaryIDChains,
+		RunsWithDelegatedTempTargets:  runsWithDelegatedTempTargets,
+		RunsWithMissingTemporaryIDMap: runsWithMissingTemporaryIDMap,
+		RunsWithInvalidTemporaryIDMap: runsWithInvalidTemporaryIDMap,
+		TotalTemporaryIDMappings:      totalTemporaryIDMappings,
+		TotalChainedTargets:           totalChainedTargets,
+		TotalChainedFollowupActions:   totalChainedFollowupActions,
+		TotalClosedTempTargets:        totalClosedTempTargets,
+		TotalGitHubAPICalls:           totalGitHubAPICalls,
+	}
+	if len(engineCounts) > 0 {
+		summary.EngineCounts = engineCounts
+	}
+
+	episodes, edges := buildEpisodeData(runs, processedRuns)
+	for _, episode := range episodes {
+		summary.TotalEpisodes++
+		if episode.Confidence == "high" {
+			summary.HighConfidenceEpisodes++
+		}
+	}
+
+	// Build tool usage summary
+	toolUsage := buildToolUsageSummary(processedRuns)
+
+	// Build combined error and warning summary
+	errorsAndWarnings := buildCombinedErrorsSummary(processedRuns)
+
+	// Build missing tools summary
+	missingTools := buildMissingToolsSummary(processedRuns)
+
+	// Build missing data summary
+	missingData := buildMissingDataSummary(processedRuns)
+
+	// Build MCP failures summary
+	mcpFailures := buildMCPFailuresSummary(processedRuns)
+
+	// Build MCP tool usage summary
+	mcpToolUsage := buildMCPToolUsageSummary(processedRuns)
+
+	// Build access log summary
+	accessLog := buildAccessLogSummary(processedRuns)
+
+	// Build firewall log summary
+	firewallLog := buildFirewallLogSummary(processedRuns)
+
+	// Build redacted domains summary
+	redactedDomains := buildRedactedDomainsSummary(processedRuns)
+
+	observability := buildLogsObservabilityInsights(processedRuns, toolUsage)
+	observability = append(observability, buildDrain3InsightsMultiRun(processedRuns)...)
+
+	absOutputDir, _ := filepath.Abs(outputDir)
+
+	return LogsData{
+		Summary:           summary,
+		Runs:              runs,
+		Episodes:          episodes,
+		Edges:             edges,
+		ToolUsage:         toolUsage,
+		MCPToolUsage:      mcpToolUsage,
+		Observability:     observability,
+		ErrorsAndWarnings: errorsAndWarnings,
+		MissingTools:      missingTools,
+		MissingData:       missingData,
+		MCPFailures:       mcpFailures,
+		AccessLog:         accessLog,
+		FirewallLog:       firewallLog,
+		RedactedDomains:   redactedDomains,
+		Continuation:      continuation,
+		LogsLocation:      absOutputDir,
+	}
+}
+
+// deriveRunClassification maps a run's AuditComparisonData to one of four
+// human-readable classification labels:
+//
+//   - "risky"       – comparison detected a risk signal (e.g. posture change, new MCP failure).
+//   - "normal"      – comparison found no risk signals (stable or minor changes).
+//   - "baseline"    – no prior successful run was available to compare against;
+//     this run acts as its own baseline.
+//   - "unclassified" – comparison data is absent or incomplete.
+func deriveRunClassification(comparison *AuditComparisonData) string {
+	if comparison == nil {
+		return "unclassified"
+	}
+	if !comparison.BaselineFound {
+		return "baseline"
+	}
+	if comparison.Classification == nil {
+		return "unclassified"
+	}
+	if comparison.Classification.Label == "risky" {
+		return "risky"
+	}
+	return "normal"
+}
+
+// renderLogsJSON outputs the logs data as JSON.
+// When verbose is false, audit-heavy fields are stripped for compact agentic consumption.
+func renderLogsJSON(data LogsData, verbose bool) error {
+	reportLog.Printf("Rendering logs data as JSON: %d runs, verbose=%v", data.Summary.TotalRuns, verbose)
+
+	if !verbose {
+		data = compactLogsData(data)
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(data)
+}
+
+// compactLogsData strips audit-heavy fields from LogsData for token-efficient agentic output.
+// Removes: comparison, behavior_fingerprint, task_domain, agentic_assessments,
+// token_usage_summary, experiments, ambient_context from each run.
+// Omits episodes when all are standalone (single-run episodes add no information).
+func compactLogsData(data LogsData) LogsData {
+	// Strip audit-heavy fields from runs
+	for i := range data.Runs {
+		data.Runs[i].Comparison = nil
+		data.Runs[i].BehaviorFingerprint = nil
+		data.Runs[i].TaskDomain = nil
+		data.Runs[i].AgenticAssessments = nil
+		data.Runs[i].TokenUsageSummary = nil
+		data.Runs[i].Experiments = nil
+		data.Runs[i].AmbientContext = nil
+		data.Runs[i].AwContext = nil
+	}
+
+	// Omit episodes when all are standalone (no multi-run episodes)
+	allStandalone := true
+	for _, ep := range data.Episodes {
+		if ep.TotalRuns > 1 {
+			allStandalone = false
+			break
+		}
+	}
+	if allStandalone {
+		data.Episodes = nil
+		data.Edges = nil
+	}
+
+	return data
+}
+
+// writeSummaryFile writes the logs data to a JSON file
+// This file contains complete metrics and run data for all downloaded workflow runs.
+// It's primarily designed for campaign orchestrators to access workflow execution data
+// in subsequent steps without needing GitHub CLI access.
+//
+// The summary file includes:
+//   - Aggregate metrics (total runs, tokens, costs, errors, warnings)
+//   - Individual run details with metrics and metadata
+//   - Tool usage statistics
+//   - Error and warning summaries
+//   - Network access logs (if available)
+//   - Firewall logs (if available)
+func writeSummaryFile(path string, data LogsData, verbose bool) error {
+	reportLog.Printf("Writing summary file: path=%s, runs=%d", path, data.Summary.TotalRuns)
+
+	// Create parent directory if it doesn't exist
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create directory for summary file: %w", err)
+	}
+
+	// Marshal to JSON with indentation for readability
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal logs data to JSON: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(path, jsonData, constants.FilePermPublic); err != nil {
+		return fmt.Errorf("failed to write summary file: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Wrote summary to "+path))
+	}
+
+	reportLog.Printf("Successfully wrote summary file: %s", path)
+	return nil
+}
+
+// renderLogsConsole outputs the logs data as formatted console output
+func renderLogsConsole(data LogsData) {
+	reportLog.Printf("Rendering logs data to console: %d runs, %d errors, %d warnings",
+		data.Summary.TotalRuns, data.Summary.TotalErrors, data.Summary.TotalWarnings)
+
+	// Use unified console rendering for the entire logs data structure
+	fmt.Print(console.RenderStruct(data))
+
+	// Display concise summary at the end
+	fmt.Fprintln(os.Stderr, "") // Blank line for spacing
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Downloaded %d workflow logs to %s", data.Summary.TotalRuns, data.LogsLocation)))
+
+	// Show key metrics in a concise format
+	if data.Summary.TotalErrors > 0 || data.Summary.TotalWarnings > 0 {
+		fmt.Fprintf(os.Stderr, "  %s %d errors, %d warnings across %d runs\n",
+			console.FormatInfoMessage("•"),
+			data.Summary.TotalErrors,
+			data.Summary.TotalWarnings,
+			data.Summary.TotalRuns)
+	}
+
+	if len(data.ToolUsage) > 0 {
+		fmt.Fprintf(os.Stderr, "  %s %d unique tools used\n",
+			console.FormatInfoMessage("•"),
+			len(data.ToolUsage))
+	}
+
+	if len(data.Observability) > 0 {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Observability Insights"))
+		fmt.Fprintln(os.Stderr)
+		renderObservabilityInsights(data.Observability)
+	}
+}

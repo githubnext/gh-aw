@@ -1,0 +1,34 @@
+{
+  "version": "0.2",
+  "language": "en-US",
+  "enabledLanguageIds": ["markdown", "mdx"],
+  "ignorePaths": ["**/node_modules/**", "**/.git/**"],
+  "dictionaryDefinitions": [
+    {
+      "name": "docs-cspell-words",
+      "path": "docs/.cspell-words.txt",
+      "addWords": true
+    },
+    {
+      "name": "docs-spellcheck-ignore",
+      "path": "docs/.spellcheck-ignore.txt",
+      "addWords": true
+    },
+    {
+      "name": "root-cspell-words",
+      "path": ".cspell-words.txt",
+      "addWords": true
+    },
+    {
+      "name": "root-spellcheck-ignore",
+      "path": ".spellcheck-ignore.txt",
+      "addWords": true
+    },
+    {
+      "name": "github-spellcheck-ignore",
+      "path": ".github/spellcheck-ignore.txt",
+      "addWords": true
+    }
+  ],
+  "dictionaries": ["docs-cspell-words", "docs-spellcheck-ignore", "root-cspell-words", "root-spellcheck-ignore", "github-spellcheck-ignore"]
+}

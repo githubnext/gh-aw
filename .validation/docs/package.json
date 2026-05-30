@@ -1,0 +1,42 @@
+{
+  "name": "docs",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "prebuild": "npm run generate-agent-factory && npm run generate-model-tables && npm run build:slides",
+    "build": "astro build",
+    "build:slides": "mkdir -p public/js && cp node_modules/mermaid/dist/mermaid.min.js public/js/ && npx @marp-team/marp-cli slides/index.md --html --allow-local-files --theme slides/gh-aw-theme.css -o public/slides/index.html && mkdir -p public/slides && cp slides/*.pdf public/slides/",
+    "preview": "astro preview",
+    "astro": "astro",
+    "validate-links": "astro build",
+    "generate-agent-factory": "cd .. && node scripts/generate-agent-factory.js",
+    "generate-model-tables": "cd .. && node scripts/generate-model-tables.js",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug"
+  },
+  "dependencies": {
+    "@astrojs/rss": "^4.0.18",
+    "@astrojs/sitemap": "^3.7.3",
+    "@astrojs/starlight": "^0.39.2",
+    "@primer/octicons": "^19.26.0",
+    "astro": "^6.3.8",
+    "astro-mermaid": "^2.0.1",
+    "mermaid": "^11.15.0",
+    "sharp": "^0.34.5",
+    "starlight-blog": "^0.26.1",
+    "starlight-changelogs": "^0.5.0",
+    "starlight-links-validator": "^0.24.0",
+    "starlight-llms-txt": "^0.10.0",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@marp-team/marp-cli": "^4.4.0",
+    "@playwright/test": "^1.60.0",
+    "@types/primer__octicons": "^19.21.0",
+    "http-server": "^14.1.1",
+    "starlight-github-alerts": "^0.2.0"
+  }
+}

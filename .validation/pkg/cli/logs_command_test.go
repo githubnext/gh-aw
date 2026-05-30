@@ -1,0 +1,348 @@
+//go:build !integration
+
+package cli
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func assertLogsCommandMetadata(t *testing.T, cmd *cobra.Command) {
+	t.Helper()
+	require.NotNil(t, cmd, "NewLogsCommand should not return nil")
+	assert.Equal(t, "logs [workflow]", cmd.Use, "Command use should be 'logs [workflow]'")
+	assert.Equal(t, "Download and analyze agentic workflow logs with aggregated metrics", cmd.Short, "Command short description should match")
+	assert.Contains(t, cmd.Long, "Download and analyze agentic workflow logs", "Command long description should contain expected text")
+	assert.Contains(t, cmd.Long, "logs --cache-before -1w", "Cache maintenance examples should use the cache-before flag name")
+}
+
+func assertLogsCommandFlagsRegistered(t *testing.T, cmd *cobra.Command) {
+	t.Helper()
+	flags := cmd.Flags()
+	for _, flagName := range []string{"count", "start-date", "end-date", "engine", "firewall", "no-firewall", "output", "ref", "after-run-id", "before-run-id", "tool-graph", "parse", "json", "repo", "cache-before"} {
+		assert.NotNil(t, flags.Lookup(flagName), "Should have '%s' flag", flagName)
+	}
+	assert.Equal(t, "c", flags.Lookup("count").Shorthand, "Count flag shorthand should be 'c'")
+	assert.Equal(t, "o", flags.Lookup("output").Shorthand, "Output flag shorthand should be 'o'")
+	cacheBeforeFlag := flags.Lookup("cache-before")
+	assert.Contains(t, cacheBeforeFlag.Usage, "-1d", "cache-before flag should document day deltas")
+	assert.Contains(t, cacheBeforeFlag.Usage, "-30d", "cache-before flag should document explicit day-count deltas")
+	afterAliasFlag := flags.Lookup("after")
+	assert.NotNil(t, afterAliasFlag, "Should retain hidden 'after' alias")
+	assert.True(t, afterAliasFlag.Hidden, "'after' alias should be hidden from help output")
+}
+
+func TestNewLogsCommand(t *testing.T) {
+	cmd := NewLogsCommand()
+	assertLogsCommandMetadata(t, cmd)
+	assertLogsCommandFlagsRegistered(t, cmd)
+}
+
+func TestLogsCommandFlagDefaults(t *testing.T) {
+	cmd := NewLogsCommand()
+	flags := cmd.Flags()
+
+	tests := []struct {
+		flagName     string
+		defaultValue string
+	}{
+		{"start-date", ""},
+		{"end-date", ""},
+		{"engine", ""},
+		{"output", ".github/aw/logs"}, // Updated to match actual default
+		{"ref", ""},
+		{"after-run-id", "0"},
+		{"before-run-id", "0"},
+		{"repo", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.flagName, func(t *testing.T) {
+			flag := flags.Lookup(tt.flagName)
+			require.NotNil(t, flag, "Flag should exist: %s", tt.flagName)
+			assert.Equal(t, tt.defaultValue, flag.DefValue, "Default value should match for flag: %s", tt.flagName)
+		})
+	}
+}
+
+func TestLogsCommandBooleanFlags(t *testing.T) {
+	cmd := NewLogsCommand()
+	flags := cmd.Flags()
+
+	boolFlags := []string{"firewall", "no-firewall", "tool-graph", "parse", "json"}
+
+	for _, flagName := range boolFlags {
+		t.Run(flagName, func(t *testing.T) {
+			flag := flags.Lookup(flagName)
+			require.NotNil(t, flag, "Boolean flag should exist: %s", flagName)
+			assert.Equal(t, "false", flag.DefValue, "Boolean flag should default to false: %s", flagName)
+		})
+	}
+}
+
+func TestLogsCommandStructure(t *testing.T) {
+	tests := []struct {
+		name           string
+		commandCreator func() any
+	}{
+		{
+			name: "logs command exists",
+			commandCreator: func() any {
+				return NewLogsCommand()
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := tt.commandCreator()
+			require.NotNil(t, cmd, "Command should not be nil")
+		})
+	}
+}
+
+func TestLogsCommandArgs(t *testing.T) {
+	cmd := NewLogsCommand()
+
+	// Logs command accepts 0 or 1 argument (workflow is optional)
+	// Only test if Args validator is set
+	if cmd.Args != nil {
+		// Verify it accepts no arguments
+		err := cmd.Args(cmd, []string{})
+		require.NoError(t, err, "Should not error with no arguments")
+
+		// Verify it accepts 1 argument
+		err = cmd.Args(cmd, []string{"workflow1"})
+		require.NoError(t, err, "Should not error with 1 argument")
+	}
+}
+
+func TestLogsCommandMutuallyExclusiveFlags(t *testing.T) {
+	cmd := NewLogsCommand()
+	flags := cmd.Flags()
+
+	// firewall and no-firewall are mutually exclusive
+	firewallFlag := flags.Lookup("firewall")
+	noFirewallFlag := flags.Lookup("no-firewall")
+
+	require.NotNil(t, firewallFlag, "firewall flag should exist")
+	require.NotNil(t, noFirewallFlag, "no-firewall flag should exist")
+
+	// Both flags exist and are boolean
+	assert.Equal(t, "bool", firewallFlag.Value.Type(), "firewall should be boolean")
+	assert.Equal(t, "bool", noFirewallFlag.Value.Type(), "no-firewall should be boolean")
+}
+
+func TestLogsCommandCountFlag(t *testing.T) {
+	cmd := NewLogsCommand()
+	flags := cmd.Flags()
+
+	countFlag := flags.Lookup("count")
+	require.NotNil(t, countFlag, "count flag should exist")
+
+	// Count flag should be an integer
+	assert.Equal(t, "int", countFlag.Value.Type(), "count should be integer type")
+
+	// Count flag has shorthand
+	assert.Equal(t, "c", countFlag.Shorthand, "count shorthand should be 'c'")
+}
+
+func TestLogsCommandDateFlags(t *testing.T) {
+	cmd := NewLogsCommand()
+	flags := cmd.Flags()
+
+	tests := []struct {
+		flagName string
+		flagType string
+	}{
+		{"start-date", "string"},
+		{"end-date", "string"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.flagName, func(t *testing.T) {
+			flag := flags.Lookup(tt.flagName)
+			require.NotNil(t, flag, "Flag should exist: %s", tt.flagName)
+			assert.Equal(t, tt.flagType, flag.Value.Type(), "Flag %s should be %s type", tt.flagName, tt.flagType)
+		})
+	}
+}
+
+func TestLogsCommandRunIDFilters(t *testing.T) {
+	cmd := NewLogsCommand()
+	flags := cmd.Flags()
+
+	tests := []struct {
+		flagName string
+	}{
+		{"after-run-id"},
+		{"before-run-id"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.flagName, func(t *testing.T) {
+			flag := flags.Lookup(tt.flagName)
+			require.NotNil(t, flag, "Flag should exist: %s", tt.flagName)
+			assert.Equal(t, "int64", flag.Value.Type(), "Flag %s should be int64 type", tt.flagName)
+		})
+	}
+}
+
+func TestLogsCommandOutputFlag(t *testing.T) {
+	cmd := NewLogsCommand()
+	flags := cmd.Flags()
+
+	outputFlag := flags.Lookup("output")
+	require.NotNil(t, outputFlag, "output flag should exist")
+
+	// Output flag should be a string
+	assert.Equal(t, "string", outputFlag.Value.Type(), "output should be string type")
+
+	// Output flag has shorthand
+	assert.Equal(t, "o", outputFlag.Shorthand, "output shorthand should be 'o'")
+
+	// Output flag has default value
+	assert.Equal(t, ".github/aw/logs", outputFlag.DefValue, "output default should be '.github/aw/logs'")
+}
+
+func TestLogsCommandHelpText(t *testing.T) {
+	cmd := NewLogsCommand()
+
+	// Verify long description contains expected sections
+	expectedSections := []string{
+		"Download and analyze agentic workflow logs",
+		"Downloaded artifacts include:",
+		"Examples:",
+		"gh aw logs",
+		"--safe-output noop",
+		"--safe-output report-incomplete",
+	}
+
+	for _, section := range expectedSections {
+		assert.Contains(t, cmd.Long, section, "Long description should contain: %s", section)
+	}
+
+	safeOutputFlag := cmd.Flags().Lookup("safe-output")
+	require.NotNil(t, safeOutputFlag, "safe-output flag should exist")
+	assert.Contains(t, safeOutputFlag.Usage, "noop", "safe-output flag help should mention noop")
+	assert.Contains(t, safeOutputFlag.Usage, "report-incomplete", "safe-output flag help should mention report-incomplete")
+}
+
+func TestLogsCommandStdinFlag(t *testing.T) {
+	cmd := NewLogsCommand()
+	flags := cmd.Flags()
+
+	// --stdin flag must be registered
+	stdinFlag := flags.Lookup("stdin")
+	require.NotNil(t, stdinFlag, "Should have 'stdin' flag")
+	assert.Equal(t, "bool", stdinFlag.Value.Type(), "--stdin should be a boolean flag")
+	assert.Equal(t, "false", stdinFlag.DefValue, "--stdin should default to false")
+}
+
+func TestLogsCommandStdinRejectsPositionalArgs(t *testing.T) {
+	cmd := NewLogsCommand()
+	cmd.SetArgs([]string{"my-workflow", "--stdin"})
+	// Suppress output so test output stays clean
+	cmd.SetOut(nil)
+	cmd.SetErr(nil)
+	err := cmd.Execute()
+	require.Error(t, err, "logs --stdin with a positional arg should return an error")
+	assert.Contains(t, err.Error(), "positional arguments are not allowed with --stdin", "error message should explain the conflict")
+}
+
+// TestLogsCommand_RepoBypassesLocalWorkflowResolution verifies that specifying
+// --repo prevents a "workflow not found" error from local file lookup when a
+// positional workflow name argument is supplied and no local lock file exists.
+// In that case the command normalizes the name and passes it directly to the
+// download orchestrator. Because there is no running GitHub API in unit tests
+// the orchestrator itself will fail; the test asserts only that the error is
+// NOT the local-resolution "workflow not found" message.
+func TestLogsCommand_RepoBypassesLocalWorkflowResolution(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	defer func() { _ = os.Chdir(origDir) }()
+
+	cmd := NewLogsCommand()
+	// Use a workflow name that definitely does not exist locally.
+	cmd.SetArgs([]string{"nonexistent-remote-workflow", "--repo", "owner/repo"})
+	cmd.SetOut(nil)
+	cmd.SetErr(nil)
+
+	execErr := cmd.Execute()
+
+	// The command must fail: there are no local workflows and the --repo target
+	// does not exist / no gh auth in tests, so downstream API calls will error.
+	require.Error(t, execErr, "--repo with a non-existent local workflow must not succeed in unit tests")
+
+	// The "workflow 'X' not found" error from local FindWorkflowName must NOT appear.
+	// (Any other error from downstream API calls is acceptable in unit tests.)
+	assert.NotContains(t, execErr.Error(), "workflow 'nonexistent-remote-workflow' not found",
+		"--repo should bypass local workflow name resolution and not produce a local-not-found error")
+}
+
+// TestLogsCommand_RepoUsesLocalResolutionWhenLockFileExists verifies that when
+// --repo is set to the current repository (the common MCP server case where
+// GITHUB_REPOSITORY is the current repo), FindWorkflowName is still called to
+// resolve the workflow ID to its GitHub Actions display name. Without this, the
+// raw workflow ID (e.g. "audit-workflows") would be passed to `gh run list
+// --workflow` instead of the display name (e.g. "Agentic Workflow Audit Agent"),
+// causing GitHub's API to report "could not find any workflows named X".
+func TestLogsCommand_RepoUsesLocalResolutionWhenLockFileExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Create the markdown file (required by ResolveWorkflowName).
+	// The frontmatter name field is the GitHub Actions display name; the workflow
+	// ID is derived from the filename ("my-test-workflow").
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "my-test-workflow.md"), []byte("---\nname: My Test Workflow Display Name\n---\n"), 0644))
+
+	// Create a lock file whose display name differs from the workflow ID.
+	// This simulates the real scenario where audit-workflows.lock.yml has
+	// name: "Agentic Workflow Audit Agent" while the ID is "audit-workflows".
+	lockContent := "name: \"My Test Workflow Display Name\"\non: push\n"
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "my-test-workflow.lock.yml"), []byte(lockContent), 0644))
+
+	// Isolate file-system writes: chdir into tmpDir so that ensureLogsGitignore
+	// and the default output directory (.github/aw/logs) land in tmpDir, not in
+	// the repository root.
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	defer func() { _ = os.Chdir(origDir) }()
+
+	// GITHUB_REPOSITORY signals to repoIsLocal that owner/repo IS the current
+	// repo, so local lock files are authoritative for display-name resolution.
+	t.Setenv("GITHUB_REPOSITORY", "owner/repo")
+	t.Setenv("GH_AW_WORKFLOWS_DIR", workflowsDir)
+
+	cmd := NewLogsCommand()
+	cmd.SetArgs([]string{"my-test-workflow", "--repo", "owner/repo", "--output", filepath.Join(tmpDir, "logs-out")})
+	cmd.SetOut(nil)
+	cmd.SetErr(nil)
+
+	execErr := cmd.Execute()
+
+	// The command must fail in unit tests (no real GitHub API access).
+	require.Error(t, execErr)
+
+	// Local "workflow not found" must NOT appear: the lock file exists and
+	// GITHUB_REPOSITORY matches --repo, so FindWorkflowName should succeed.
+	assert.NotContains(t, execErr.Error(), "workflow 'my-test-workflow' not found",
+		"when GITHUB_REPOSITORY matches --repo and a local lock file exists, FindWorkflowName should succeed")
+
+	// The raw workflow ID must NOT appear as the failing name in a gh run list
+	// "could not find" error, because the resolved display name should be used.
+	// In unit tests the API call fails with an HTTP 403 before GitHub can report
+	// a workflow-not-found message, so we verify the negative: the workflow ID
+	// ("my-test-workflow") is not echoed back as the unrecognised workflow name.
+	assert.NotContains(t, execErr.Error(), "could not find any workflows named my-test-workflow",
+		"when a local lock file exists, the display name (not the workflow ID) should be passed to gh run list")
+}

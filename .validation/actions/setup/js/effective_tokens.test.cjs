@@ -1,0 +1,601 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+
+const {
+  defaultTokenClassWeights,
+  getTokenClassWeights,
+  getModelMultiplier,
+  computeBaseWeightedTokens,
+  computeEffectiveTokens,
+  formatET,
+  reduceModelNameToIdentifier,
+  resolveActualModelName,
+  getEffectiveTokensSuffix,
+  AGENT_USAGE_PATH,
+  _resetCache,
+} = require("./effective_tokens.cjs");
+
+let testTmpDir = "";
+
+// Model multipliers JSON used in tests (matches pkg/cli/data/model_multipliers.json)
+const TEST_MULTIPLIERS_JSON = JSON.stringify({
+  version: "1",
+  description: "Test model multipliers",
+  reference_model: "claude-sonnet-4.5",
+  token_class_weights: {
+    input: 1.0,
+    cached_input: 0.1,
+    output: 4.0,
+    reasoning: 4.0,
+    cache_write: 1.0,
+  },
+  multipliers: {
+    "model-a": 2.0,
+    "model-b": 1.0,
+    "claude-haiku-4.5": 0.1,
+    "claude-sonnet-4.5": 1.0,
+    "claude-opus-4.5": 5.0,
+    "gpt-4o": 1.0,
+    "gpt-4o-mini": 0.1,
+    o1: 3.0,
+  },
+});
+
+describe("effective_tokens", () => {
+  beforeEach(() => {
+    _resetCache();
+    testTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "effective-tokens-test-"));
+    process.env.GH_AW_MERGED_MODEL_MULTIPLIERS_PATH = path.join(testTmpDir, "model_multipliers.json");
+    process.env.GH_AW_MODEL_MULTIPLIERS = TEST_MULTIPLIERS_JSON;
+  });
+
+  afterEach(() => {
+    _resetCache();
+    fs.rmSync(testTmpDir, { recursive: true, force: true });
+    testTmpDir = "";
+    delete process.env.GH_AW_MODEL_MULTIPLIERS;
+    delete process.env.GH_AW_MERGED_MODEL_MULTIPLIERS_PATH;
+  });
+
+  describe("defaultTokenClassWeights", () => {
+    test("returns spec-mandated default weights", () => {
+      const w = defaultTokenClassWeights();
+      expect(w.input).toBe(1.0);
+      expect(w.cached_input).toBe(0.1);
+      expect(w.output).toBe(4.0);
+      expect(w.reasoning).toBe(4.0);
+      expect(w.cache_write).toBe(1.0);
+    });
+  });
+
+  describe("getTokenClassWeights", () => {
+    test("returns weights from GH_AW_MODEL_MULTIPLIERS when set", () => {
+      const w = getTokenClassWeights();
+      expect(w.input).toBe(1.0);
+      expect(w.cached_input).toBe(0.1);
+      expect(w.output).toBe(4.0);
+      expect(w.reasoning).toBe(4.0);
+    });
+
+    test("returns default weights when env var is not set", () => {
+      _resetCache();
+      delete process.env.GH_AW_MODEL_MULTIPLIERS;
+      const w = getTokenClassWeights();
+      expect(w.input).toBe(1.0);
+      expect(w.cached_input).toBe(0.1);
+      expect(w.output).toBe(4.0);
+    });
+
+    test("merges partial token_class_weights with defaults", () => {
+      _resetCache();
+      process.env.GH_AW_MODEL_MULTIPLIERS = JSON.stringify({
+        token_class_weights: { output: 8.0 },
+        multipliers: {},
+      });
+      const w = getTokenClassWeights();
+      expect(w.input).toBe(1.0); // default
+      expect(w.output).toBe(8.0); // overridden
+      expect(w.cached_input).toBe(0.1); // default
+    });
+  });
+
+  describe("getModelMultiplier", () => {
+    test("returns exact match multiplier", () => {
+      expect(getModelMultiplier("model-a")).toBe(2.0);
+      expect(getModelMultiplier("model-b")).toBe(1.0);
+    });
+
+    test("is case-insensitive", () => {
+      expect(getModelMultiplier("MODEL-A")).toBe(2.0);
+      expect(getModelMultiplier("Model-A")).toBe(2.0);
+    });
+
+    test("returns longest prefix match", () => {
+      // "gpt-4o-mini" starts with "gpt-4o", but exact "gpt-4o-mini" matches first
+      expect(getModelMultiplier("gpt-4o-mini")).toBe(0.1);
+      // A model that starts with "gpt-4o" but isn't exact
+      expect(getModelMultiplier("gpt-4o-preview")).toBe(1.0); // prefix match to "gpt-4o"
+    });
+
+    test("returns 1.0 for unknown model (reference baseline)", () => {
+      expect(getModelMultiplier("unknown-model-xyz")).toBe(1.0);
+    });
+
+    test("returns 1.0 for empty model string", () => {
+      expect(getModelMultiplier("")).toBe(1.0);
+    });
+
+    test("falls back to built-in multipliers when env var is not set", () => {
+      _resetCache();
+      delete process.env.GH_AW_MODEL_MULTIPLIERS;
+      expect(getModelMultiplier("claude-opus-4.5")).toBeGreaterThan(1.0);
+    });
+
+    test("matches claude-haiku-4.5 with multiplier 0.1", () => {
+      expect(getModelMultiplier("claude-haiku-4.5")).toBe(0.1);
+    });
+
+    test("matches claude-opus-4.5 with multiplier 5.0", () => {
+      expect(getModelMultiplier("claude-opus-4.5")).toBe(5.0);
+    });
+  });
+
+  describe("computeBaseWeightedTokens", () => {
+    // T-ET-001: Single invocation with all four token classes produces correct base_weighted_tokens
+    test("T-ET-001: computes base weighted tokens with all token classes", () => {
+      // From spec Appendix A.2:
+      // root: base = (1.0 × max(500-200,0)) + (0.1 × 200) + (4.0 × 150) + (0 reasoning)
+      //            = 300 + 20 + 600 = 920
+      // Note: cache_write is 0 in this example
+      const base = computeBaseWeightedTokens(500, 150, 200, 0, 0);
+      expect(base).toBe(920);
+    });
+
+    test("computes base weighted tokens for retrieval invocation", () => {
+      // retrieval: base = (1.0 × 300) + (4.0 × 100) = 300 + 400 = 700
+      const base = computeBaseWeightedTokens(300, 100, 0, 0, 0);
+      expect(base).toBe(700);
+    });
+
+    test("computes base weighted tokens for synthesis invocation", () => {
+      // synthesis: base = (1.0 × max(200-100,0)) + (0.1 × 100) + (4.0 × 250) = 100 + 10 + 1000 = 1110
+      const base = computeBaseWeightedTokens(200, 250, 100, 0, 0);
+      expect(base).toBe(1110);
+    });
+
+    // T-ET-003: Zero-value token classes do not affect the result
+    test("T-ET-003: zero token classes do not affect result", () => {
+      expect(computeBaseWeightedTokens(0, 0, 0, 0, 0)).toBe(0);
+      expect(computeBaseWeightedTokens(100, 0, 0, 0, 0)).toBe(100);
+      expect(computeBaseWeightedTokens(0, 100, 0, 0, 0)).toBe(400);
+    });
+
+    test("includes reasoning tokens in computation", () => {
+      // reasoning: w_reason = 4.0
+      const base = computeBaseWeightedTokens(0, 0, 0, 0, 50);
+      expect(base).toBe(200); // 4.0 × 50
+    });
+
+    test("includes cache_write tokens in computation", () => {
+      // cache_write: w_cache_write = 1.0
+      const base = computeBaseWeightedTokens(0, 0, 0, 100, 0);
+      expect(base).toBe(100); // 1.0 × 100
+    });
+
+    // T-ET-004: Custom weights are applied when default weights are overridden
+    test("T-ET-004: custom weights are applied when overridden", () => {
+      _resetCache();
+      process.env.GH_AW_MODEL_MULTIPLIERS = JSON.stringify({
+        token_class_weights: {
+          input: 2.0,
+          cached_input: 0.2,
+          output: 8.0,
+          reasoning: 8.0,
+          cache_write: 2.0,
+        },
+        multipliers: {},
+      });
+      // With custom weights: base = (2.0 × 100) + (8.0 × 50) = 200 + 400 = 600
+      const base = computeBaseWeightedTokens(100, 50, 0, 0, 0);
+      expect(base).toBe(600);
+    });
+
+    // T-ET-005: Cached/input overlap must not be double-counted
+    test("T-ET-005: uses input minus cached input to avoid double counting", () => {
+      const effectiveInput = Math.max(100 - 80, 0);
+      expect(effectiveInput).toBe(20);
+      const base = computeBaseWeightedTokens(100, 0, 80, 0, 0);
+      expect(base).toBe(28); // 1.0 × max(100-80,0) + 0.1 × 80
+    });
+
+    // T-ET-007: Clamp overlap subtraction when cached exceeds input
+    test("T-ET-007: clamps effective input at zero when cached exceeds input", () => {
+      const base = computeBaseWeightedTokens(50, 0, 80, 0, 0);
+      expect(base).toBe(8); // 1.0 × max(50-80,0) + 0.1 × 80
+    });
+
+    test("clamps effective input to zero when cached equals input", () => {
+      const base = computeBaseWeightedTokens(80, 0, 80, 0, 0);
+      expect(base).toBe(8); // 1.0 × max(80-80,0) + 0.1 × 80
+    });
+  });
+
+  describe("computeEffectiveTokens", () => {
+    // T-ET-002: Single invocation ET equals m × base_weighted_tokens
+    test("T-ET-002: ET equals m × base_weighted_tokens", () => {
+      // root: base=920, m=2.0, ET=1840
+      const et = computeEffectiveTokens("model-a", 500, 150, 200, 0, 0);
+      expect(et).toBe(1840);
+    });
+
+    test("computes ET for retrieval invocation (m=1.0)", () => {
+      // retrieval: base=700, m=1.0, ET=700
+      const et = computeEffectiveTokens("model-b", 300, 100, 0, 0, 0);
+      expect(et).toBe(700);
+    });
+
+    test("computes ET for synthesis invocation (m=2.0)", () => {
+      // synthesis: base=1110, m=2.0, ET=2220
+      const et = computeEffectiveTokens("model-a", 200, 250, 100, 0, 0);
+      expect(et).toBe(2220);
+    });
+
+    test("returns 0 for zero token inputs", () => {
+      expect(computeEffectiveTokens("model-a", 0, 0, 0, 0, 0)).toBe(0);
+    });
+
+    test("uses multiplier 1.0 for unknown model", () => {
+      // base = 1.0 × 100 = 100, m = 1.0, ET = 100
+      const et = computeEffectiveTokens("unknown-model", 100, 0, 0, 0, 0);
+      expect(et).toBe(100);
+    });
+
+    test("computes ET as real-valued product (no rounding)", () => {
+      // gpt-4o-mini multiplier = 0.1, base = 1.0 × 100 = 100, ET = 0.1 × 100 = 10
+      const et = computeEffectiveTokens("gpt-4o-mini", 100, 0, 0, 0, 0);
+      expect(et).toBe(10);
+    });
+
+    test("correctly handles high multiplier model (claude-opus)", () => {
+      // claude-opus-4.5 multiplier = 5.0
+      // base = 1.0 × 100 + 4.0 × 50 = 100 + 200 = 300, ET = 5.0 × 300 = 1500
+      const et = computeEffectiveTokens("claude-opus-4.5", 100, 50, 0, 0, 0);
+      expect(et).toBe(1500);
+    });
+
+    test("handles reasoning tokens with o1 model (m=3.0)", () => {
+      // o1 multiplier = 3.0
+      // base = (1.0 × 100) + (4.0 × 50) + (4.0 × 30) = 100 + 200 + 120 = 420
+      // ET = 3.0 × 420 = 1260
+      const et = computeEffectiveTokens("o1", 100, 50, 0, 0, 30);
+      expect(et).toBe(1260);
+    });
+  });
+
+  describe("Spec Appendix A: Worked Example (T-ET-010, T-ET-011, T-ET-012)", () => {
+    // Complete worked example from spec Appendix A.2-A.4
+    test("T-ET-010: multi-invocation ET_total equals sum of per-invocation ETs", () => {
+      const rootET = computeEffectiveTokens("model-a", 500, 150, 200, 0, 0); // 1840
+      const retrievalET = computeEffectiveTokens("model-b", 300, 100, 0, 0, 0); // 700
+      const synthesisET = computeEffectiveTokens("model-a", 200, 250, 100, 0, 0); // 2220
+
+      expect(rootET).toBe(1840);
+      expect(retrievalET).toBe(700);
+      expect(synthesisET).toBe(2220);
+
+      const totalET = rootET + retrievalET + synthesisET;
+      expect(totalET).toBe(4760);
+    });
+
+    test("T-ET-011: raw_total_tokens equals sum of all raw tokens", () => {
+      // root:      500+150+200+0 = 850
+      // retrieval: 300+100+0+0  = 400
+      // synthesis: 200+250+100+0 = 550
+      // total: 1800
+      const rawTotal = 500 + 150 + 200 + 0 + (300 + 100 + 0 + 0) + (200 + 250 + 100 + 0);
+      expect(rawTotal).toBe(1800);
+    });
+
+    test("T-ET-012: total_invocations count is 3 (root + 2 sub-agents)", () => {
+      const invocations = [
+        { id: "root", parentId: null, model: "model-a", inputTokens: 500, outputTokens: 150, cacheReadTokens: 200, cacheWriteTokens: 0 },
+        { id: "retrieval", parentId: "root", model: "model-b", inputTokens: 300, outputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        { id: "synthesis", parentId: "root", model: "model-a", inputTokens: 200, outputTokens: 250, cacheReadTokens: 100, cacheWriteTokens: 0 },
+      ];
+      expect(invocations.length).toBe(3);
+      // T-ET-020: root node has parent_id = null
+      expect(invocations[0].parentId).toBeNull();
+      // T-ET-021: sub-agents reference valid parent_id
+      expect(invocations[1].parentId).toBe("root");
+      expect(invocations[2].parentId).toBe("root");
+    });
+  });
+
+  describe("env var parsing edge cases", () => {
+    test("handles malformed JSON gracefully", () => {
+      _resetCache();
+      process.env.GH_AW_MODEL_MULTIPLIERS = "{ not valid json }";
+      expect(() => getModelMultiplier("any-model")).not.toThrow();
+      expect(getModelMultiplier("any-model")).toBe(1.0);
+    });
+
+    test("falls back to built-in multipliers when env var is malformed", () => {
+      _resetCache();
+      process.env.GH_AW_MODEL_MULTIPLIERS = "{ not valid json }";
+      expect(getModelMultiplier("claude-opus-4.5")).toBeGreaterThan(1.0);
+    });
+
+    test("handles empty env var gracefully", () => {
+      _resetCache();
+      process.env.GH_AW_MODEL_MULTIPLIERS = "";
+      expect(getModelMultiplier("any-model")).toBe(1.0);
+    });
+
+    test("falls back to built-in multipliers when env var is empty", () => {
+      _resetCache();
+      process.env.GH_AW_MODEL_MULTIPLIERS = "";
+      expect(getModelMultiplier("claude-opus-4.5")).toBeGreaterThan(1.0);
+    });
+
+    test("handles missing multipliers key gracefully", () => {
+      _resetCache();
+      process.env.GH_AW_MODEL_MULTIPLIERS = JSON.stringify({ version: "1" });
+      expect(getModelMultiplier("any-model")).toBe(1.0);
+    });
+
+    test("caches parsed result across multiple calls", () => {
+      getModelMultiplier("model-a");
+      getModelMultiplier("model-b");
+      // Should not throw or cause inconsistencies
+      expect(getModelMultiplier("model-a")).toBe(2.0);
+      expect(getModelMultiplier("model-b")).toBe(1.0);
+    });
+  });
+
+  describe("formatET", () => {
+    test("returns exact string for values under 1000", () => {
+      expect(formatET(0)).toBe("0");
+      expect(formatET(1)).toBe("1");
+      expect(formatET(900)).toBe("900");
+      expect(formatET(999)).toBe("999");
+    });
+
+    describe("reduceModelNameToIdentifier", () => {
+      test("returns empty string for null input", () => {
+        expect(reduceModelNameToIdentifier(null)).toBe("");
+      });
+
+      test("returns empty string for undefined input", () => {
+        expect(reduceModelNameToIdentifier(undefined)).toBe("");
+      });
+
+      test("returns empty string for empty string input", () => {
+        expect(reduceModelNameToIdentifier("")).toBe("");
+      });
+
+      test("uses well-known sonnet shortcut", () => {
+        expect(reduceModelNameToIdentifier("claude-sonnet-4.6")).toBe("sonnet46");
+      });
+
+      test("uses well-known gpt shortcut", () => {
+        expect(reduceModelNameToIdentifier("gpt-5.5")).toBe("gpt55");
+      });
+
+      test("uses well-known opus shortcut", () => {
+        expect(reduceModelNameToIdentifier("claude-opus-4-7")).toBe("opus47");
+      });
+
+      test("uses well-known haiku shortcut", () => {
+        expect(reduceModelNameToIdentifier("claude-haiku-4.5")).toBe("haiku45");
+      });
+
+      test("allows short alias model names", () => {
+        expect(reduceModelNameToIdentifier("opus")).toBe("opus");
+        expect(reduceModelNameToIdentifier("sonnet")).toBe("sonnet");
+        expect(reduceModelNameToIdentifier("haiku")).toBe("haiku");
+      });
+
+      test("uses well-known gemini shortcut", () => {
+        expect(reduceModelNameToIdentifier("gemini-2.5-pro")).toBe("gem25");
+      });
+
+      test("handles date-like suffixes deterministically", () => {
+        expect(reduceModelNameToIdentifier("gpt-5-2025-08-07")).toBe("gpt50");
+        expect(reduceModelNameToIdentifier("claude-sonnet-4-20250514")).toBe("sonnet40");
+        expect(reduceModelNameToIdentifier("gpt-4-100")).toBe("gpt40");
+      });
+
+      test("returns deterministic 5-character fallback for unknown models", () => {
+        expect(reduceModelNameToIdentifier("my-custom-engine-v2")).toBe("myc20");
+      });
+    });
+
+    describe("resolveActualModelName", () => {
+      let originalAgentUsagePath;
+
+      beforeEach(() => {
+        if (fs.existsSync(AGENT_USAGE_PATH)) {
+          originalAgentUsagePath = fs.readFileSync(AGENT_USAGE_PATH, "utf8");
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
+      });
+
+      afterEach(() => {
+        delete process.env.GH_AW_ENGINE_MODEL;
+        if (originalAgentUsagePath !== undefined) {
+          fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+          fs.writeFileSync(AGENT_USAGE_PATH, originalAgentUsagePath);
+          originalAgentUsagePath = undefined;
+        } else if (fs.existsSync(AGENT_USAGE_PATH)) {
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
+      });
+
+      test("returns primary_model from agent_usage.json when present", () => {
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify({ primary_model: "claude-sonnet-4.6", effective_tokens: 1000 }) + "\n");
+        process.env.GH_AW_ENGINE_MODEL = "agent";
+        expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
+      });
+
+      test("falls back to GH_AW_ENGINE_MODEL when agent_usage.json has no primary_model", () => {
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify({ effective_tokens: 1000 }) + "\n");
+        process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
+      });
+
+      test("falls back to GH_AW_ENGINE_MODEL when agent_usage.json is absent", () => {
+        process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
+      });
+
+      test("falls back to GH_AW_ENGINE_MODEL when agent_usage.json contains invalid JSON", () => {
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, "not valid json");
+        process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(resolveActualModelName()).toBe("claude-sonnet-4.6");
+      });
+
+      test("returns empty string when neither agent_usage.json nor GH_AW_ENGINE_MODEL is available", () => {
+        delete process.env.GH_AW_ENGINE_MODEL;
+        expect(resolveActualModelName()).toBe("");
+      });
+    });
+
+    describe("getEffectiveTokensSuffix", () => {
+      let originalAgentUsagePath;
+
+      beforeEach(() => {
+        if (fs.existsSync(AGENT_USAGE_PATH)) {
+          originalAgentUsagePath = fs.readFileSync(AGENT_USAGE_PATH, "utf8");
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
+      });
+
+      afterEach(() => {
+        delete process.env.GH_AW_EFFECTIVE_TOKENS;
+        delete process.env.GH_AW_ENGINE_MODEL;
+        if (originalAgentUsagePath !== undefined) {
+          fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+          fs.writeFileSync(AGENT_USAGE_PATH, originalAgentUsagePath);
+          originalAgentUsagePath = undefined;
+        } else if (fs.existsSync(AGENT_USAGE_PATH)) {
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
+      });
+
+      test("prepends reduced model identifier when model is available via GH_AW_ENGINE_MODEL", () => {
+        process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
+        process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
+        expect(getEffectiveTokensSuffix()).toBe(" · sonnet46 12.5K");
+      });
+
+      test("uses actual model from agent_usage.json primary_model, ignoring alias in GH_AW_ENGINE_MODEL", () => {
+        process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
+        process.env.GH_AW_ENGINE_MODEL = "agent";
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify({ primary_model: "claude-sonnet-4.6", effective_tokens: 12500 }) + "\n");
+        expect(getEffectiveTokensSuffix()).toBe(" · sonnet46 12.5K");
+      });
+
+      test("falls back to token-only suffix when model is unavailable", () => {
+        process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
+        delete process.env.GH_AW_ENGINE_MODEL;
+        expect(getEffectiveTokensSuffix()).toBe(" · 12.5K");
+      });
+    });
+
+    test("formats values in the thousands as K", () => {
+      expect(formatET(1000)).toBe("1K");
+      expect(formatET(1200)).toBe("1.2K");
+      expect(formatET(12345)).toBe("12.3K");
+      expect(formatET(450000)).toBe("450K");
+      expect(formatET(999999)).toBe("1000K");
+    });
+
+    test("formats values in the millions as M", () => {
+      expect(formatET(1_000_000)).toBe("1M");
+      expect(formatET(1_200_000)).toBe("1.2M");
+      expect(formatET(12_345_678)).toBe("12.3M");
+    });
+
+    test("omits trailing .0 in K/M format", () => {
+      expect(formatET(2000)).toBe("2K");
+      expect(formatET(5_000_000)).toBe("5M");
+    });
+  });
+
+  describe("buildETComputationTable", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    let tmpDir;
+
+    beforeEach(() => {
+      _resetCache();
+      delete process.env.GH_AW_MODEL_MULTIPLIERS;
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "et-table-test-"));
+    });
+
+    afterEach(() => {
+      _resetCache();
+      delete process.env.GH_AW_MODEL_MULTIPLIERS;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it("shows weights-only table when no tokenUsageMarkdown and agent_usage.json is absent", () => {
+      const { buildETComputationTable, AGENT_USAGE_PATH } = require("./effective_tokens.cjs");
+      // Ensure agent_usage.json does not exist
+      if (fs.existsSync(AGENT_USAGE_PATH)) fs.unlinkSync(AGENT_USAGE_PATH);
+      const result = buildETComputationTable("10000000");
+      expect(result).toContain("<details>");
+      expect(result).toContain("</details>");
+      expect(result).toContain("ET computation details");
+      expect(result).toContain("Input");
+      expect(result).toContain("Output");
+      expect(result).toContain("| Token class | Weight |");
+      expect(result).not.toContain("| Token class | Count | Weight | Weighted tokens |");
+    });
+
+    it("shows aggregated weighted table when agent_usage.json is present and no tokenUsageMarkdown", () => {
+      const { buildETComputationTable, AGENT_USAGE_PATH } = require("./effective_tokens.cjs");
+      const origContent = fs.existsSync(AGENT_USAGE_PATH) ? fs.readFileSync(AGENT_USAGE_PATH, "utf8") : null;
+      const usage = { input_tokens: 600000, output_tokens: 10000, cache_read_tokens: 500000, cache_write_tokens: 5000, effective_tokens: 200000 };
+      fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+      fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify(usage));
+      try {
+        const result = buildETComputationTable("200000");
+        expect(result).toContain("Input (minus cached)");
+        expect(result).toContain("100,000");
+        expect(result).toContain("10,000");
+        expect(result).toContain("500,000");
+        expect(result).toContain("5,000");
+        expect(result).toContain("Base weighted");
+      } finally {
+        if (origContent !== null) {
+          fs.writeFileSync(AGENT_USAGE_PATH, origContent);
+        } else if (fs.existsSync(AGENT_USAGE_PATH)) {
+          fs.unlinkSync(AGENT_USAGE_PATH);
+        }
+      }
+    });
+
+    it("uses tokenUsageMarkdown directly when provided, ignoring agent_usage.json", () => {
+      const { buildETComputationTable } = require("./effective_tokens.cjs");
+      const mockTable = "| Model | Input |\n|-------|------:|\n| claude-sonnet-4.5 | 100,000 |";
+      const result = buildETComputationTable("200000", mockTable);
+      expect(result).toContain("<details>");
+      expect(result).toContain("ET computation details");
+      expect(result).toContain("claude-sonnet-4.5");
+      expect(result).toContain("100,000");
+      // Should not include the fallback aggregated table headers
+      expect(result).not.toContain("Token class");
+      expect(result).not.toContain("Weighted tokens");
+    });
+  });
+});

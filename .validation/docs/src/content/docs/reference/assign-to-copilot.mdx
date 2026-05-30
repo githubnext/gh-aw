@@ -1,0 +1,101 @@
+---
+title: Assign to Copilot
+description: Programmatically assign GitHub Copilot coding agent to issues and pull requests
+sidebar:
+  order: 810
+---
+
+import Video from '../../../components/Video.astro';
+
+This page describes how to programmatically assign the [GitHub Copilot coding agent](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) to issues or pull requests using the `assign-to-agent` safe output. This automates the [standard GitHub workflow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot).
+
+## When to Use
+
+Use `assign-to-agent` when you need to programmatically assign Copilot coding agent to **existing** issues or PRs through workflow automation.
+
+If you're creating new issues and want to assign Copilot coding agent immediately, use `assignees: copilot` in your [`create-issue`](/gh-aw/reference/safe-outputs/#issue-creation-create-issue) configuration instead.
+
+## Configuration
+
+```yaml wrap
+safe-outputs:
+  assign-to-agent:
+    name: "copilot"            # default agent (default: "copilot")
+    model: "claude-opus-4.6"   # default AI model (default: "auto")
+    custom-agent: "agent-id"   # default custom agent ID (optional)
+    custom-instructions: "..."  # default custom instructions (optional)
+    allowed: [copilot]         # restrict to specific agents (optional)
+    max: 1                     # max assignments (default: 1)
+    target: "triggering"       # "triggering" (default), "*", or number
+    target-repo: "owner/repo"  # where the issue lives (cross-repository)
+    pull-request-repo: "owner/repo"      # where the PR should be created (may differ from issue repo)
+    allowed-pull-request-repos: [owner/repo1, owner/repo2]  # additional allowed PR repositories
+    base-branch: "develop"     # target branch for PR (default: target repo's default branch)
+    github-token: ${{ secrets.GH_AW_AGENT_TOKEN }} # token for permissions
+```
+
+**Supported agents:** `copilot` (`copilot-swe-agent`)
+
+## Target Issue or Pull Request
+
+The `target` parameter determines which issue or PR to assign the agent to:
+
+- `target: "triggering"` (default) - Auto-resolves from `github.event.issue.number` or `github.event.pull_request.number`
+- `target: "*"` - Requires explicit `issue_number` or `pull_number` in agent output
+- `target: "123"` - Always uses issue/PR #123
+
+## Cross-Repository PR Creation
+
+Use `pull-request-repo` to create pull requests in a different repository than where the issue lives — useful when issues are tracked centrally but code lives elsewhere. The issue repository is determined by `target-repo` or defaults to the workflow's repository.
+
+`pull-request-repo` is automatically included in the allowed list; use `allowed-pull-request-repos` for additional repositories. Use `base-branch` to target a specific branch (defaults to the target repo's default branch).
+
+## Assignee Filtering
+
+When an `allowed` list is configured, existing agent assignees not in the list are removed while regular user assignees are preserved.
+
+## Authentication
+
+This safe output requires a fine-grained PAT to authenticate the agent assignment operation. The default `GITHUB_TOKEN` lacks the necessary permissions.
+
+### Using a Personal Access Token (PAT)
+
+The required token type and permissions depend on whether you own the repository or an organization owns it.
+
+1. **Create the PAT** with **Repository permissions**: Actions, Contents, Issues, Pull requests (all Write).
+
+   - [User-owned repositories](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&issues=write&pull_requests=write): Resource owner = your user account; Repository access = "Public repositories" or specific repos
+   - [Organization-owned repositories](https://github.com/settings/personal-access-tokens/new?name=GH_AW_AGENT_TOKEN&description=GitHub+Agentic+Workflows+-+Agent+assignment&actions=write&contents=write&issues=write&pull_requests=write): Resource owner = the organization; Repository access = specific repositories that will use the workflow
+
+2. Add to repository secrets:
+
+   ```bash wrap
+   gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
+   ```
+
+### Using a GitHub App
+
+:::caution[GitHub App tokens are not supported for Copilot assignment]
+The Copilot assignment API only accepts fine-grained PATs — GitHub App installation tokens are rejected regardless of permissions. When `github-app:` is configured in `safe-outputs`, `assign-to-agent` falls back to: explicit `github-token:` in `assign-to-agent`, then `github-token:` at the `safe-outputs` level, then the magic secret chain (`GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN`).
+:::
+
+### Using a magic secret
+
+Alternatively, you can set the magic secret `GH_AW_AGENT_TOKEN` to a suitable PAT (see the above guide for creating one). This secret name is known to GitHub Agentic Workflows and does not need to be explicitly referenced in your workflow.
+
+```bash wrap
+gh aw secrets set GH_AW_AGENT_TOKEN --value "<your-pat-token>"
+```
+
+<Video
+    src="/gh-aw/videos/create-pat-org-agent.mp4"
+    caption="Creating a fine-grained PAT for organization-owned repositories with permissions for agent assignment"
+    aspectRatio="16:9"
+    silenced={true}
+/>
+
+## Related Documentation
+
+- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - All safe output configurations
+- [Authentication Reference](/gh-aw/reference/auth/) - All tokens and secrets
+- [IssueOps](/gh-aw/patterns/issue-ops/) - Issue-triggered workflow patterns

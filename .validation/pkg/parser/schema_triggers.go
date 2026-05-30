@@ -1,0 +1,158 @@
+package parser
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var schemaTriggersLog = logger.New("parser:schema_triggers")
+
+// validateEngineSpecificRules validates engine-specific rules that are not easily expressed in JSON schema
+func validateEngineSpecificRules(frontmatter map[string]any) error {
+	// Custom validation rules are now handled separately
+	// Command trigger conflicts are validated before schema validation
+	// This function is kept as a placeholder for potential future validation rules
+	_ = frontmatter
+	return nil
+}
+
+// validateCommandTriggerConflicts checks that command triggers are not used with conflicting events
+func validateCommandTriggerConflicts(frontmatter map[string]any) error {
+	// Check if 'on' field exists and is a map
+	onValue, hasOn := frontmatter["on"]
+	if !hasOn {
+		return nil
+	}
+
+	onMap, isMap := onValue.(map[string]any)
+	if !isMap {
+		return nil
+	}
+
+	// Check if command trigger is present
+	commandValue, hasCommand := onMap["command"]
+	if !hasCommand || commandValue == nil {
+		return nil
+	}
+
+	schemaTriggersLog.Print("Validating command trigger conflicts")
+
+	// List of conflicting events - but we'll check if issues/pull_request are label-only or ready_for_review
+	conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
+
+	// Check for conflicts
+	var foundConflicts []string
+	for _, eventName := range conflictingEvents {
+		if eventValue, hasEvent := onMap[eventName]; hasEvent && eventValue != nil {
+			// Special case: allow issues/pull_request events with non-conflicting types (labeled/unlabeled/ready_for_review)
+			if eventName == "issues" || eventName == "pull_request" {
+				if IsNonConflictingCommandEvent(eventValue) {
+					schemaTriggersLog.Printf("Allowing non-conflicting %s event with command trigger", eventName)
+					continue // Allow this - it doesn't conflict with command triggers
+				}
+			}
+			foundConflicts = append(foundConflicts, eventName)
+		}
+	}
+
+	if len(foundConflicts) > 0 {
+		schemaTriggersLog.Printf("Command trigger conflicts found: %s", strings.Join(foundConflicts, ", "))
+		if len(foundConflicts) == 1 {
+			return fmt.Errorf("command trigger cannot be used with '%s' event in the same workflow. Command triggers are designed to respond to slash commands in comments and should not be combined with event-based triggers for issues or pull requests", foundConflicts[0])
+		}
+		return fmt.Errorf("command trigger cannot be used with these events in the same workflow: %s. Command triggers are designed to respond to slash commands in comments and should not be combined with event-based triggers for issues or pull requests", strings.Join(foundConflicts, ", "))
+	}
+
+	return nil
+}
+
+// IsLabelOnlyEvent checks if an event configuration only contains labeled/unlabeled types
+// This is exported for use in the compiler to validate command trigger combinations
+func IsLabelOnlyEvent(eventValue any) bool {
+	// Event can be a map with types field
+	eventMap, isMap := eventValue.(map[string]any)
+	if !isMap {
+		schemaTriggersLog.Print("IsLabelOnlyEvent: event value is not a map, returning false")
+		return false
+	}
+
+	// Get the types field
+	typesValue, hasTypes := eventMap["types"]
+	if !hasTypes {
+		schemaTriggersLog.Print("IsLabelOnlyEvent: no types field found, returning false")
+		return false
+	}
+
+	// Types should be an array
+	typesArray, isArray := typesValue.([]any)
+	if !isArray {
+		return false
+	}
+
+	// Check if all types are labeled or unlabeled
+	if len(typesArray) == 0 {
+		return false
+	}
+
+	for _, typeValue := range typesArray {
+		typeStr, isString := typeValue.(string)
+		if !isString {
+			return false
+		}
+		if typeStr != "labeled" && typeStr != "unlabeled" {
+			schemaTriggersLog.Printf("IsLabelOnlyEvent: type %q is not labeled/unlabeled, returning false", typeStr)
+			return false
+		}
+	}
+
+	schemaTriggersLog.Print("IsLabelOnlyEvent: all types are labeled/unlabeled, returning true")
+	return true
+}
+
+// IsNonConflictingCommandEvent checks if a pull_request/issues event configuration
+// only contains types that do not conflict with command (slash_command/command) triggers.
+// Allowed types: labeled, unlabeled, ready_for_review
+func IsNonConflictingCommandEvent(eventValue any) bool {
+	// Event can be a map with types field
+	eventMap, isMap := eventValue.(map[string]any)
+	if !isMap {
+		schemaTriggersLog.Print("IsNonConflictingCommandEvent: event value is not a map, returning false")
+		return false
+	}
+
+	// Get the types field
+	typesValue, hasTypes := eventMap["types"]
+	if !hasTypes {
+		schemaTriggersLog.Print("IsNonConflictingCommandEvent: no types field found, returning false")
+		return false
+	}
+
+	// Types should be an array
+	typesArray, isArray := typesValue.([]any)
+	if !isArray {
+		return false
+	}
+
+	if len(typesArray) == 0 {
+		return false
+	}
+
+	for _, typeValue := range typesArray {
+		typeStr, isString := typeValue.(string)
+		if !isString {
+			return false
+		}
+		switch typeStr {
+		case "labeled", "unlabeled", "ready_for_review":
+			// allowed
+		default:
+			schemaTriggersLog.Printf("IsNonConflictingCommandEvent: type %q conflicts with command triggers, returning false", typeStr)
+			return false
+		}
+	}
+
+	schemaTriggersLog.Print("IsNonConflictingCommandEvent: all types are non-conflicting, returning true")
+	return true
+}

@@ -1,0 +1,374 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
+
+func TestAddCommentsConfigTargetRepo(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name           string
+		configMap      map[string]any
+		expectedTarget string
+		expectedRepo   string
+		shouldBeNil    bool
+	}{
+		{
+			name: "basic target-repo configuration",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max":         5,
+					"target":      "*",
+					"target-repo": "github/customer-feedback",
+				},
+			},
+			expectedTarget: "*",
+			expectedRepo:   "github/customer-feedback",
+			shouldBeNil:    false,
+		},
+		{
+			name: "target-repo with wildcard is allowed",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max":         1,
+					"target":      "*",
+					"target-repo": "*",
+				},
+			},
+			expectedTarget: "*",
+			expectedRepo:   "*",
+			shouldBeNil:    false, // Wildcard "*" is a valid target-repo for add-comment
+		},
+		{
+			name: "target-repo without target field",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max":         1,
+					"target-repo": "owner/repo",
+				},
+			},
+			expectedTarget: "",
+			expectedRepo:   "owner/repo",
+			shouldBeNil:    false,
+		},
+		{
+			name: "no target-repo field",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max":    2,
+					"target": "triggering",
+				},
+			},
+			expectedTarget: "triggering",
+			expectedRepo:   "",
+			shouldBeNil:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := compiler.parseCommentsConfig(tt.configMap)
+
+			if tt.shouldBeNil {
+				if config != nil {
+					t.Errorf("Expected config to be nil for invalid target-repo, but got %+v", config)
+				}
+				return
+			}
+
+			if config == nil {
+				t.Fatal("Expected valid config, but got nil")
+			}
+
+			if config.Target != tt.expectedTarget {
+				t.Errorf("Expected Target = %q, got %q", tt.expectedTarget, config.Target)
+			}
+
+			if config.TargetRepoSlug != tt.expectedRepo {
+				t.Errorf("Expected TargetRepoSlug = %q, got %q", tt.expectedRepo, config.TargetRepoSlug)
+			}
+		})
+	}
+}
+
+func TestAddCommentsConfigHideOlderComments(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name                      string
+		configMap                 map[string]any
+		expectedHideOlderComments *string
+	}{
+		{
+			name: "hide-older-comments enabled",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max":                 1,
+					"hide-older-comments": true,
+				},
+			},
+			expectedHideOlderComments: new("true"),
+		},
+		{
+			name: "hide-older-comments disabled",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max":                 1,
+					"hide-older-comments": false,
+				},
+			},
+			expectedHideOlderComments: new("false"),
+		},
+		{
+			name: "hide-older-comments not specified (default nil)",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max": 1,
+				},
+			},
+			expectedHideOlderComments: nil,
+		},
+		{
+			name: "hide-older-comments with other fields",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"max":                 3,
+					"target":              "*",
+					"target-repo":         "owner/repo",
+					"hide-older-comments": true,
+				},
+			},
+			expectedHideOlderComments: new("true"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := compiler.parseCommentsConfig(tt.configMap)
+
+			if config == nil {
+				t.Fatal("Expected valid config, but got nil")
+			}
+
+			if tt.expectedHideOlderComments == nil {
+				if config.HideOlderComments != nil {
+					t.Errorf("Expected HideOlderComments = nil, got %v", *config.HideOlderComments)
+				}
+			} else {
+				if config.HideOlderComments == nil {
+					t.Errorf("Expected HideOlderComments = %v, got nil", *tt.expectedHideOlderComments)
+				} else if *config.HideOlderComments != *tt.expectedHideOlderComments {
+					t.Errorf("Expected HideOlderComments = %v, got %v", *tt.expectedHideOlderComments, *config.HideOlderComments)
+				}
+			}
+		})
+	}
+}
+
+func TestAddCommentsConfigAllowedReasons(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name             string
+		configMap        map[string]any
+		expectedReasons  []string
+		shouldBeNonEmpty bool
+	}{
+		{
+			name: "allowed-reasons with multiple values",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"hide-older-comments": true,
+					"allowed-reasons":     []any{"OUTDATED", "RESOLVED"},
+				},
+			},
+			expectedReasons:  []string{"OUTDATED", "RESOLVED"},
+			shouldBeNonEmpty: true,
+		},
+		{
+			name: "allowed-reasons with single value",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"hide-older-comments": true,
+					"allowed-reasons":     []any{"SPAM"},
+				},
+			},
+			expectedReasons:  []string{"SPAM"},
+			shouldBeNonEmpty: true,
+		},
+		{
+			name: "allowed-reasons not specified",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"hide-older-comments": true,
+				},
+			},
+			expectedReasons:  nil,
+			shouldBeNonEmpty: false,
+		},
+		{
+			name: "allowed-reasons empty array",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"hide-older-comments": true,
+					"allowed-reasons":     []any{},
+				},
+			},
+			expectedReasons:  nil,
+			shouldBeNonEmpty: false,
+		},
+		{
+			name: "allowed-reasons with all valid values",
+			configMap: map[string]any{
+				"add-comment": map[string]any{
+					"hide-older-comments": true,
+					"allowed-reasons":     []any{"SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"},
+				},
+			},
+			expectedReasons:  []string{"SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"},
+			shouldBeNonEmpty: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := compiler.parseCommentsConfig(tt.configMap)
+
+			if config == nil {
+				t.Fatal("Expected valid config, but got nil")
+			}
+
+			if tt.shouldBeNonEmpty {
+				if len(config.AllowedReasons) == 0 {
+					t.Errorf("Expected non-empty AllowedReasons, got empty")
+				}
+				if len(config.AllowedReasons) != len(tt.expectedReasons) {
+					t.Errorf("Expected %d reasons, got %d", len(tt.expectedReasons), len(config.AllowedReasons))
+				}
+				for i, reason := range tt.expectedReasons {
+					if i >= len(config.AllowedReasons) || config.AllowedReasons[i] != reason {
+						t.Errorf("Expected reason[%d] = %q, got %q", i, reason, config.AllowedReasons[i])
+					}
+				}
+			} else {
+				if len(config.AllowedReasons) != 0 {
+					t.Errorf("Expected empty AllowedReasons, got %v", config.AllowedReasons)
+				}
+			}
+		})
+	}
+}
+
+// TestAddCommentMentionsInHandlerConfig verifies that when safe-outputs.mentions.allowed
+// is configured, the top-level "mentions" key is present in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
+// so that safe_output_handler_manager.cjs can pass it through to the add_comment handler
+// and prevent configured usernames from being escaped as @mentions.
+func TestAddCommentMentionsInHandlerConfig(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name           string
+		safeOutputs    *SafeOutputsConfig
+		wantMentions   map[string]any // nil means no "mentions" key expected
+		wantNoMentions bool
+	}{
+		{
+			name: "mentions.allowed propagates to handler config",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{},
+				Mentions: &MentionsConfig{
+					Allowed: []string{"copilot"},
+				},
+			},
+			wantMentions: map[string]any{
+				"allowed": []any{"copilot"},
+			},
+		},
+		{
+			name: "mentions.enabled=false propagates to handler config",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{},
+				Mentions: &MentionsConfig{
+					Enabled: boolPtr(false),
+				},
+			},
+			wantMentions: map[string]any{
+				"enabled": false,
+			},
+		},
+		{
+			name: "no mentions config omits mentions from handler config",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{},
+			},
+			wantNoMentions: true,
+		},
+		{
+			name: "mentions without add_comment still included in handler config",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				Mentions: &MentionsConfig{
+					Allowed: []string{"copilot"},
+				},
+			},
+			wantMentions: map[string]any{
+				"allowed": []any{"copilot"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:        "Test",
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			steps, err := compiler.buildHandlerManagerStep(workflowData)
+			if err != nil {
+				t.Fatalf("buildHandlerManagerStep returned error: %v", err)
+			}
+
+			// Extract and parse the HANDLER_CONFIG JSON using the shared helper which
+			// properly unquotes the %q-encoded YAML value.
+			config := extractHandlerConfig(t, strings.Join(steps, ""))
+
+			if tt.wantNoMentions {
+				if _, ok := config["mentions"]; ok {
+					t.Error("expected no 'mentions' key in handler config, but it was present")
+				}
+				return
+			}
+
+			mentionsRaw, ok := config["mentions"]
+			if !ok {
+				t.Fatal("expected 'mentions' key in handler config, but it was absent")
+			}
+			mentionsJSON, err := json.Marshal(mentionsRaw)
+			if err != nil {
+				t.Fatalf("failed to marshal mentions config: %v", err)
+			}
+			var got map[string]any
+			if err := json.Unmarshal(mentionsJSON, &got); err != nil {
+				t.Fatalf("failed to unmarshal mentions config: %v", err)
+			}
+			for k, wantVal := range tt.wantMentions {
+				gotVal, exists := got[k]
+				if !exists {
+					t.Errorf("mentions config missing key %q", k)
+					continue
+				}
+				wantJSON, _ := json.Marshal(wantVal)
+				gotJSON, _ := json.Marshal(gotVal)
+				if string(wantJSON) != string(gotJSON) {
+					t.Errorf("mentions[%q]: want %s, got %s", k, wantJSON, gotJSON)
+				}
+			}
+		})
+	}
+}

@@ -1,0 +1,9 @@
+thresholds:
+  # Go/JS/CJS/MJS files above this line count are BLOCKER violations.
+  file_lines_blocker: 2000
+  # Go/JS/CJS/MJS files above this line count are WARNING violations.
+  file_lines_warning: 1000
+  # Go/JS/CJS/MJS functions above this line count are WARNING violations.
+  function_lines: 200
+  # Go/JS/CJS/MJS modules above this public export count are INFO violations.
+  max_exports: 10

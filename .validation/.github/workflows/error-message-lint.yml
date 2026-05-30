@@ -1,0 +1,64 @@
+name: Error Message Lint
+
+on:
+  pull_request:
+    paths:
+      - '**/*.go'
+      - '.github/workflows/error-message-lint.yml'
+      - 'pkg/linters/**'
+      - '.github/skills/error-messages/SKILL.md'
+      - 'docs/src/content/docs/contributing/error-messages.md'
+      - 'CONTRIBUTING.md'
+  workflow_dispatch:
+
+jobs:
+  error-message-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Determine changed Go files
+        id: changed
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}"
+            files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- '*.go' | tr '\n' ',' | sed 's/,$//')
+          else
+            files=$(git ls-files '*.go' | tr '\n' ',' | sed 's/,$//')
+          fi
+
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+          if [ -n "$files" ]; then
+            echo "linting files: $files"
+          else
+            echo "No changed Go files to lint"
+          fi
+
+      - name: Build custom linter runner
+        if: steps.changed.outputs.files != ''
+        run: go build -o /tmp/gh-aw-linters ./cmd/linters
+
+      - name: Run errormessage linter on changed files
+        if: steps.changed.outputs.files != ''
+        run: /tmp/gh-aw-linters -errormessage.changed-files="${{ steps.changed.outputs.files }}" ./...
+
+      - name: Check for bare fmt.Println/Printf in pkg/cli
+        run: |
+          set -euo pipefail
+          matches=$(grep -rn --include='*.go' -E 'fmt\.(Println|Printf)\(' pkg/cli/ || true)
+          filtered=$(echo "$matches" | grep -v '_test\.go' || true)
+          if [ -n "$filtered" ]; then
+            echo "ERROR: bare fmt.Println/Printf found in pkg/cli/ (use fmt.Fprintln/Fprintf with os.Stdout or os.Stderr):"
+            echo "$filtered"
+            exit 1
+          fi

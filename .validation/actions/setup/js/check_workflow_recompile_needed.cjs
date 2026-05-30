@@ -1,0 +1,436 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+const { getErrorMessage } = require("./error_helpers.cjs");
+const { getFooterWorkflowRecompileMessage, getFooterWorkflowRecompileCommentMessage, generateXMLMarker, getDetectionCautionAlert } = require("./messages_footer.cjs");
+const fs = require("fs");
+const { getGitAuthEnv } = require("./git_helpers.cjs");
+const { resolvePullRequestRepo } = require("./pr_helpers.cjs");
+const { pushSignedCommits } = require("./push_signed_commits.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+
+const RECOMPILE_ISSUE_TITLE = "[aw] agentic workflows out of sync";
+const RECOMPILE_PR_TITLE = "[aw] recompile agentic workflows";
+const RECOMPILE_PR_BRANCH = "aw/recompile-workflows";
+
+function shouldCreatePullRequest() {
+  return getRecompileToken() !== "";
+}
+
+async function getEffectiveBaseBranch(owner, repo) {
+  const { effectiveBaseBranch } = await resolvePullRequestRepo(github, owner, repo, undefined);
+  return effectiveBaseBranch || "main";
+}
+
+function getRecompileToken() {
+  return process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN || "";
+}
+
+function logConfiguration(createPullRequest) {
+  core.info(`Workflow recompile mode: ${createPullRequest ? "pull-request" : "issue"}`);
+  core.info(`Configured maintenance token present: ${getRecompileToken() !== ""}`);
+}
+
+function requireRecompileToken() {
+  const token = getRecompileToken();
+  if (!token) {
+    throw new Error("Missing configured maintenance GitHub token secret for maintenance compile pull request creation");
+  }
+  return token;
+}
+
+function buildRecompilePullRequestBody(changedFiles, repository, runUrl, linkedIssueNumber) {
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Maintenance";
+  const footer = getFooterWorkflowRecompileMessage({ workflowName, runUrl, repository });
+  const xmlMarker = generateXMLMarker(workflowName, runUrl);
+  const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+  const cautionPrefix = detectionCaution ? `${detectionCaution}\n\n` : "";
+  const linkedIssueLine = linkedIssueNumber ? `Fixes #${linkedIssueNumber}\n\n` : "";
+  const fileList = changedFiles.map(file => `- \`${file}\``).join("\n");
+
+  return `${cautionPrefix}## Workflow Recompilation
+
+This automated maintenance run detected generated workflow changes and prepared this pull request to update the lock files.
+
+${linkedIssueLine}## Changed Files
+
+${fileList}
+
+---
+${footer}
+
+${xmlMarker}
+`;
+}
+
+async function getChangedLockFiles() {
+  // Compare the current working tree against HEAD to capture the lock files
+  // changed by this maintenance compile run before any branch operations.
+  const { stdout } = await exec.getExecOutput("git", ["diff", "--name-only", ".github/workflows/*.lock.yml"], {
+    ignoreReturnCode: true,
+  });
+  return stdout
+    .split("\n")
+    .map(file => file.trim())
+    .filter(Boolean);
+}
+
+async function getLocalHeadSha() {
+  const { stdout } = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
+  return stdout.trim();
+}
+
+async function getRemoteBranchHead(branchName) {
+  const { stdout, exitCode, stderr } = await exec.getExecOutput("git", ["ls-remote", "origin", `refs/heads/${branchName}`], {
+    ignoreReturnCode: true,
+  });
+  if (exitCode !== 0) {
+    core.info(`Could not query remote branch ${branchName}: ${stderr.trim() || `exit code ${exitCode}`}`);
+    return "";
+  }
+  const trimmed = stdout.trim();
+  if (!trimmed) {
+    core.info(`Remote branch ${branchName} does not exist yet`);
+    return "";
+  }
+  const remoteHead = trimmed.split(/\s+/)[0] || "";
+  core.info(`Remote branch ${branchName} currently points to ${remoteHead}`);
+  return remoteHead;
+}
+
+async function fetchRemoteBranch(branchName) {
+  core.info(`Fetching remote branch ${branchName} for comparison`);
+  await exec.exec("git", ["fetch", "origin", `refs/heads/${branchName}:refs/remotes/origin/${branchName}`]);
+}
+
+async function filterFilesNeedingUpdate(comparisonRef, changedFiles, workspaceDir) {
+  const filesToUpdate = [];
+  for (const file of changedFiles) {
+    const workingTreePath = `${workspaceDir}/${file}`;
+    const workingTreeContent = fs.readFileSync(workingTreePath, "utf8");
+    const { stdout, exitCode } = await exec.getExecOutput("git", ["show", `${comparisonRef}:${file}`], {
+      ignoreReturnCode: true,
+    });
+    if (exitCode !== 0) {
+      core.info(`Remote ref ${comparisonRef} does not contain ${file}; scheduling update`);
+      filesToUpdate.push(file);
+      continue;
+    }
+    if (stdout !== workingTreeContent) {
+      core.info(`Detected updated compiled workflow content for ${file}`);
+      filesToUpdate.push(file);
+      continue;
+    }
+    core.info(`Compiled workflow file ${file} already matches ${comparisonRef}`);
+  }
+  return filesToUpdate;
+}
+
+async function stageFiles(files) {
+  if (!Array.isArray(files) || files.length === 0) {
+    return;
+  }
+  await exec.exec("git", ["add", "--", ...files]);
+}
+
+async function prepareAndPushRecompileBranch(owner, repo, changedFiles) {
+  const token = requireRecompileToken();
+  const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
+  const baseHead = await getLocalHeadSha();
+  core.info(`Current repository HEAD before maintenance branch commit: ${baseHead}`);
+
+  const remoteHead = await getRemoteBranchHead(RECOMPILE_PR_BRANCH);
+  let filesToCommit = changedFiles;
+  let baseRef = baseHead;
+  if (remoteHead) {
+    await fetchRemoteBranch(RECOMPILE_PR_BRANCH);
+    filesToCommit = await filterFilesNeedingUpdate(`refs/remotes/origin/${RECOMPILE_PR_BRANCH}`, changedFiles, workspaceDir);
+    baseRef = remoteHead;
+  }
+
+  core.info(`Preparing maintenance branch ${RECOMPILE_PR_BRANCH}`);
+  await exec.exec("git", ["checkout", "-B", RECOMPILE_PR_BRANCH]);
+
+  if (filesToCommit.length === 0) {
+    core.info("Existing maintenance branch already contains the latest compiled workflow lock files");
+    return { pushed: false };
+  }
+
+  await stageFiles(filesToCommit);
+  core.info(`Staging ${filesToCommit.length} workflow lock file(s): ${filesToCommit.join(", ")}`);
+  await exec.exec("git", ["commit", "-m", "chore: recompile agentic workflows"]);
+
+  core.info(`Pushing maintenance branch ${RECOMPILE_PR_BRANCH} via signed commit helper (baseRef=${baseRef})`);
+  await pushSignedCommits({
+    githubClient: github,
+    owner,
+    repo,
+    branch: RECOMPILE_PR_BRANCH,
+    baseRef,
+    cwd: workspaceDir,
+    gitAuthEnv: getGitAuthEnv(token),
+    allowGitPushFallback: false,
+  });
+  return { pushed: true };
+}
+
+async function findExistingRecompilePullRequest(owner, repo) {
+  core.info(`Searching for an existing maintenance PR from branch ${owner}:${RECOMPILE_PR_BRANCH}`);
+  const result = await github.rest.pulls.list({
+    owner,
+    repo,
+    state: "open",
+    head: `${owner}:${RECOMPILE_PR_BRANCH}`,
+    per_page: 1,
+  });
+  return result.data[0] || null;
+}
+
+async function findExistingRecompileIssue(owner, repo) {
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open in:title "${RECOMPILE_ISSUE_TITLE}"`;
+
+  core.info(`Searching for existing issue with title: "${RECOMPILE_ISSUE_TITLE}"`);
+  const searchResult = await github.rest.search.issuesAndPullRequests({
+    q: searchQuery,
+    per_page: 1,
+  });
+  return searchResult.data.total_count > 0 ? searchResult.data.items[0] : null;
+}
+
+async function handlePullRequest(owner, repo, changedFiles) {
+  const repository = `${owner}/${repo}`;
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
+  core.info(`Preparing maintenance PR for ${repository}`);
+  const existingIssue = await findExistingRecompileIssue(owner, repo);
+  if (existingIssue) {
+    core.info(`Found existing issue #${existingIssue.number} to link from maintenance PR`);
+  } else {
+    core.info("No existing workflow recompile issue found to link from maintenance PR");
+  }
+  const { pushed } = await prepareAndPushRecompileBranch(owner, repo, changedFiles);
+  const pullRequestBody = buildRecompilePullRequestBody(changedFiles, repository, runUrl, existingIssue?.number);
+
+  const existingPR = await findExistingRecompilePullRequest(owner, repo);
+  if (existingPR) {
+    core.info(`Found existing pull request #${existingPR.number}: ${existingPR.html_url}`);
+    core.info(`Updating existing pull request #${existingPR.number} body`);
+    await github.rest.pulls.update({
+      owner,
+      repo,
+      pull_number: existingPR.number,
+      body: pullRequestBody,
+    });
+    const updateMessage = pushed ? "Updated existing pull request branch (avoiding duplicate)" : "Existing pull request already had the latest branch contents";
+    core.info(updateMessage);
+    await core.summary
+      .addHeading("Workflow Recompilation Needed", 2)
+      .addRaw(
+        pushed
+          ? `Updated existing pull request [#${existingPR.number}](${existingPR.html_url}) with the latest compiled workflow changes.`
+          : `Existing pull request [#${existingPR.number}](${existingPR.html_url}) already contains the latest compiled workflow changes.`
+      )
+      .write();
+    return;
+  }
+
+  core.info(`Creating maintenance pull request against repository default branch with ${changedFiles.length} changed file(s)`);
+  const defaultBranch = await getEffectiveBaseBranch(owner, repo);
+  const pullRequest = await github.rest.pulls.create({
+    owner,
+    repo,
+    title: RECOMPILE_PR_TITLE,
+    head: RECOMPILE_PR_BRANCH,
+    base: defaultBranch,
+    body: pullRequestBody,
+  });
+
+  core.info(`✓ Created pull request #${pullRequest.data.number}: ${pullRequest.data.html_url}`);
+  await core.summary.addHeading("Workflow Recompilation Needed", 2).addRaw(`Created pull request [#${pullRequest.data.number}](${pullRequest.data.html_url}) to update compiled workflow lock files.`).write();
+}
+
+/**
+ * Check if workflows need recompilation and create an issue or pull request if needed.
+ * This script:
+ * 1. Checks if there are out-of-sync workflow lock files
+ * 2. Searches for existing open issues about recompiling workflows
+ * 3. If workflows are out of sync and no issue exists, creates a new issue with agentic instructions
+ *
+ * @returns {Promise<void>}
+ */
+async function main() {
+  const owner = context.repo.owner;
+  const repo = context.repo.repo;
+  const createPullRequest = shouldCreatePullRequest();
+
+  core.info("Checking for out-of-sync workflow lock files");
+  logConfiguration(createPullRequest);
+
+  // Execute git diff to check for changes in lock files
+  let diffOutput = "";
+  let hasChanges = false;
+
+  try {
+    // Run git diff to check if there are any changes in lock files
+    await exec.exec("git", ["diff", "--exit-code", ".github/workflows/*.lock.yml"], {
+      ignoreReturnCode: true,
+      listeners: {
+        stdout: data => {
+          diffOutput += data.toString();
+        },
+        stderr: data => {
+          diffOutput += data.toString();
+        },
+      },
+    });
+
+    // If git diff exits with code 0, there are no changes
+    // If it exits with code 1, there are changes
+    // We need to check if there's actual diff output
+    hasChanges = diffOutput.trim().length > 0;
+  } catch (error) {
+    core.error(`Failed to check for workflow changes: ${getErrorMessage(error)}`);
+    throw error;
+  }
+
+  if (!hasChanges) {
+    core.info("✓ All workflow lock files are up to date");
+    return;
+  }
+
+  core.info("⚠ Detected out-of-sync workflow lock files");
+  core.info(`Workflow diff size from detection step: ${diffOutput.length} byte(s)`);
+  const changedFiles = await getChangedLockFiles();
+  core.info(`Changed workflow lock file count: ${changedFiles.length}`);
+
+  // Capture the actual diff for the issue body
+  let detailedDiff = "";
+  try {
+    await exec.exec("git", ["diff", ".github/workflows/*.lock.yml"], {
+      listeners: {
+        stdout: data => {
+          detailedDiff += data.toString();
+        },
+      },
+    });
+  } catch (error) {
+    core.warning(`Could not capture detailed diff: ${getErrorMessage(error)}`);
+  }
+  core.info(`Detailed workflow diff captured: ${detailedDiff.length} byte(s)`);
+
+  if (createPullRequest) {
+    requireRecompileToken();
+    await handlePullRequest(owner, repo, changedFiles);
+    return;
+  }
+
+  try {
+    const existingIssue = await findExistingRecompileIssue(owner, repo);
+    if (existingIssue) {
+      core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
+      core.info("Skipping issue creation (avoiding duplicate)");
+
+      // Add a comment to the existing issue with the new workflow run info
+      const runUrl = buildWorkflowRunUrl(context, context.repo);
+
+      // Get workflow metadata for footer
+      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Maintenance";
+      const repository = `${owner}/${repo}`;
+
+      // Create custom footer for workflow recompile comment
+      const ctx = {
+        workflowName,
+        runUrl,
+        repository,
+      };
+
+      const footer = getFooterWorkflowRecompileCommentMessage(ctx);
+      const xmlMarker = generateXMLMarker(workflowName, runUrl);
+
+      // Inject CAUTION at top of body if threat detection warning was raised
+      const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+      const cautionPrefix = detectionCaution ? detectionCaution + "\n\n" : "";
+
+      // Sanitize the message text but not the footer/marker which are system-generated
+      const commentBody = `${cautionPrefix}Workflows are still out of sync.\n\n---\n${footer}\n\n${xmlMarker}`;
+
+      await github.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: existingIssue.number,
+        body: commentBody,
+      });
+
+      core.info(`✓ Added comment to existing issue #${existingIssue.number}`);
+      return;
+    }
+  } catch (error) {
+    core.error(`Failed to search for existing issues: ${getErrorMessage(error)}`);
+    throw error;
+  }
+
+  // No existing issue found, create a new one
+  core.info("No existing issue found, creating a new issue with agentic instructions");
+
+  const runUrl = buildWorkflowRunUrl(context, context.repo);
+
+  // Read the issue template from the prompts directory
+  // Allow override via environment variable for testing
+  const promptsDir = process.env.GH_AW_PROMPTS_DIR || `${process.env.RUNNER_TEMP}/gh-aw/prompts`;
+  const templatePath = `${promptsDir}/workflow_recompile_issue.md`;
+  let issueTemplate;
+  try {
+    issueTemplate = fs.readFileSync(templatePath, "utf8");
+  } catch (error) {
+    core.error(`Failed to read issue template from ${templatePath}: ${getErrorMessage(error)}`);
+    throw error;
+  }
+
+  // Replace placeholders in the template
+  const diffContent = detailedDiff.substring(0, 50000) + (detailedDiff.length > 50000 ? "\n\n... (diff truncated)" : "");
+  const repository = `${owner}/${repo}`;
+
+  let issueBody = issueTemplate.replace("{DIFF_CONTENT}", diffContent).replace("{REPOSITORY}", repository);
+
+  // Get workflow metadata for footer
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Maintenance";
+
+  // Create custom footer for workflow recompile issues
+  const ctx = {
+    workflowName,
+    runUrl,
+    repository,
+  };
+
+  // Use custom footer template if configured, with XML marker for traceability
+  const footer = getFooterWorkflowRecompileMessage(ctx);
+  const xmlMarker = generateXMLMarker(workflowName, runUrl);
+
+  // Inject CAUTION at top of body if threat detection warning was raised
+  const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+  if (detectionCaution) {
+    issueBody = detectionCaution + "\n\n" + issueBody;
+  }
+
+  // Note: issueBody is built from a template render, no user content to sanitize
+  issueBody += "\n\n---\n" + footer + "\n\n" + xmlMarker + "\n";
+
+  try {
+    const newIssue = await github.rest.issues.create({
+      owner,
+      repo,
+      title: RECOMPILE_ISSUE_TITLE,
+      body: issueBody,
+      labels: ["agentic-workflows", "maintenance"],
+    });
+
+    core.info(`✓ Created issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
+
+    // Write to job summary
+    await core.summary.addHeading("Workflow Recompilation Needed", 2).addRaw(`Created issue [#${newIssue.data.number}](${newIssue.data.html_url}) to track workflow recompilation.`).write();
+  } catch (error) {
+    core.error(`Failed to create issue: ${getErrorMessage(error)}`);
+    throw error;
+  }
+}
+
+module.exports = { main, buildRecompilePullRequestBody, shouldCreatePullRequest };

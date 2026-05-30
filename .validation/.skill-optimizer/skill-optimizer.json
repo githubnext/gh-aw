@@ -1,0 +1,38 @@
+{
+  "name": "gh-aw",
+  "target": {
+    "surface": "prompt",
+    "repoPath": "..",
+    "skill": "../SKILL.md"
+  },
+  "benchmark": {
+    "format": "pi",
+    "timeout": 240000,
+    "taskGeneration": {
+      "enabled": true,
+      "maxTasks": 20,
+      "outputDir": "."
+    },
+    "models": [
+      {
+        "id": "openrouter/anthropic/claude-sonnet-4.6",
+        "name": "Claude Sonnet 4.6",
+        "tier": "flagship"
+      }
+    ],
+    "output": {
+      "dir": "../benchmark-results"
+    },
+    "verdict": {
+      "perModelFloor": 0.6,
+      "targetWeightedAverage": 0.8
+    }
+  },
+  "optimize": {
+    "model": "openrouter/anthropic/claude-sonnet-4.6",
+    "allowedPaths": ["SKILL.md"],
+    "validation": [],
+    "maxIterations": 3,
+    "requireCleanGit": false
+  }
+}

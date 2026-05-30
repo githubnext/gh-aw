@@ -1,0 +1,99 @@
+---
+interface Props {
+    src: string
+    caption?: string
+    title?: string
+    captionsSrc?: string
+    captionsLang?: string
+    captionsLabel?: string
+    aspectRatio?: '16:9' | '4:3' | '1:1' | 'auto'
+    showControls?: boolean
+    autoStart?: boolean
+    repeat?: boolean
+    silenced?: boolean
+    thumbnail?: string
+    maxWidth?: string
+}
+
+const { 
+    src, 
+    caption, 
+    title,
+    captionsSrc,
+    captionsLang = 'en',
+    captionsLabel = 'English',
+    aspectRatio = 'auto',
+    showControls = true,
+    autoStart = false,
+    repeat = false,
+    silenced = false,
+    thumbnail,
+    maxWidth = '100%'
+} = Astro.props
+
+// Extract file extension and determine content type
+const fileExtension = src.split('.').pop()?.toLowerCase() || ''
+const videoFormats: Record<string, string> = {
+    mp4: 'video/mp4',
+    webm: 'video/webm',
+    ogg: 'video/ogg',
+    ogv: 'video/ogg',
+    mov: 'video/quicktime',
+    avi: 'video/x-msvideo',
+    mkv: 'video/x-matroska',
+    m4v: 'video/x-m4v'
+}
+const contentType = videoFormats[fileExtension] || 'video/mp4'
+
+// Auto-detect poster image: replace video extension with .png
+// If no explicit thumbnail is provided, assume poster exists with same name
+const posterPath = thumbnail || src.replace(/\.[^.]+$/, '.png')
+
+// Calculate aspect ratio padding
+const ratioMap: Record<string, string> = {
+    '16:9': '56.25%',
+    '4:3': '75%',
+    '1:1': '100%',
+    'auto': '0'
+}
+const paddingBottom = ratioMap[aspectRatio]
+const fallbackLabel = src
+    .split('/')
+    .pop()
+    ?.replace(/\.[^.]+$/, '')
+    .replace(/[-_]+/g, ' ')
+const accessibilityLabel = title || caption || fallbackLabel
+const fallbackLinkLabel = accessibilityLabel
+    ? `Download ${accessibilityLabel}`
+    : 'Download this video'
+const loadingStrategy = autoStart ? 'eager' : 'lazy'
+---
+
+<div class="gh-aw-video-wrapper" style={`max-width: ${maxWidth};`}>
+    <div class={`gh-aw-video-container ${aspectRatio !== 'auto' ? 'has-aspect-ratio' : ''}`} 
+         style={aspectRatio !== 'auto' ? `padding-bottom: ${paddingBottom};` : ''}>
+        <video 
+            class="gh-aw-video-element"
+            controls={showControls}
+            autoplay={autoStart}
+            loop={repeat}
+            muted={silenced}
+            poster={posterPath}
+            preload="metadata"
+            loading={loadingStrategy}
+            title={title}
+            aria-label={accessibilityLabel}
+        >
+            <source src={src} type={contentType} />
+            {captionsSrc && (
+                <track kind="captions" src={captionsSrc} srclang={captionsLang} label={captionsLabel} />
+            )}
+            <p>Your browser doesn't support HTML5 video. <a href={src}>{fallbackLinkLabel}</a>.</p>
+        </video>
+    </div>
+    {caption && (
+        <div class="gh-aw-video-caption" role="note">
+            {caption}
+        </div>
+    )}
+</div>

@@ -1,0 +1,320 @@
+package cli
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os/exec"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var dockerImagesLog = logger.New("cli:docker_images")
+
+// DockerUnavailableError is returned when the Docker daemon is not accessible.
+// This is distinct from transient errors (e.g., images being downloaded) and signals
+// that Docker is not installed or not running on the host system.
+// Callers can use errors.As to check for this type and take appropriate action,
+// such as skipping static analysis but still running the compile step.
+type DockerUnavailableError struct {
+	Message string
+}
+
+func (e *DockerUnavailableError) Error() string {
+	return e.Message
+}
+
+// DockerImages defines the Docker images used by the compile tool's static analysis scanners
+const (
+	ZizmorImage      = "ghcr.io/zizmorcore/zizmor:latest"
+	PoutineImage     = "ghcr.io/boostsecurityio/poutine:latest"
+	ActionlintImage  = "rhysd/actionlint:latest"
+	RunnerGuardImage = "ghcr.io/vigilant-llc/runner-guard:latest"
+)
+
+// dockerPullState tracks the state of docker pull operations
+type dockerPullState struct {
+	mu                  sync.RWMutex
+	downloading         map[string]bool // image -> is currently downloading
+	mockAvailable       map[string]bool // for testing: override IsDockerImageAvailable
+	mockAvailableInUse  bool            // for testing: whether to use mockAvailable
+	mockDockerAvailable bool            // for testing: override IsDockerAvailable (default true)
+}
+
+var pullState = &dockerPullState{
+	downloading:         make(map[string]bool),
+	mockAvailable:       make(map[string]bool),
+	mockDockerAvailable: true,
+}
+
+func normalizeDockerContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.TODO()
+	}
+	return ctx
+}
+
+// isDockerImageAvailableUnlocked checks if a Docker image is available locally
+// This function must be called with pullState.mu held (either RLock or Lock)
+func isDockerImageAvailableUnlocked(ctx context.Context, image string) bool {
+	ctx = normalizeDockerContext(ctx)
+
+	// Check if we're in mock mode (for testing)
+	if pullState.mockAvailableInUse {
+		available := pullState.mockAvailable[image]
+		dockerImagesLog.Printf("Mock: Checking if image %s is available: %v", image, available)
+		return available
+	}
+
+	// For non-mock mode, we need to execute docker command
+	// This is safe to do under lock since it's just a subprocess call
+	cmd := exec.CommandContext(ctx, "docker", "image", "inspect", image)
+	// Suppress output - we only care about exit code
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	err := cmd.Run()
+	available := err == nil
+	dockerImagesLog.Printf("Checking if image %s is available: %v", image, available)
+	return available
+}
+
+// IsDockerImageAvailable checks if a Docker image is available locally
+func IsDockerImageAvailable(ctx context.Context, image string) bool {
+	ctx = normalizeDockerContext(ctx)
+
+	pullState.mu.RLock()
+	defer pullState.mu.RUnlock()
+	return isDockerImageAvailableUnlocked(ctx, image)
+}
+
+// IsDockerImageDownloading checks if a Docker image is currently being downloaded
+func IsDockerImageDownloading(image string) bool {
+	pullState.mu.RLock()
+	defer pullState.mu.RUnlock()
+	return pullState.downloading[image]
+}
+
+// IsDockerAvailable checks if the Docker daemon is running and accessible
+func IsDockerAvailable(ctx context.Context) bool {
+	ctx = normalizeDockerContext(ctx)
+
+	mockEnabled, mockAvailable := func() (bool, bool) {
+		pullState.mu.RLock()
+		defer pullState.mu.RUnlock()
+		if pullState.mockAvailableInUse {
+			return true, pullState.mockDockerAvailable
+		}
+		return false, false
+	}()
+	if mockEnabled {
+		dockerImagesLog.Printf("Mock: Docker available: %v", mockAvailable)
+		return mockAvailable
+	}
+
+	cmd := exec.CommandContext(ctx, "docker", "info")
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	err := cmd.Run()
+	available := err == nil
+	dockerImagesLog.Printf("Docker daemon available: %v", available)
+	return available
+}
+
+// StartDockerImageDownload starts downloading a Docker image in the background
+// Returns true if download was started, false if already downloading or available
+// The download can be cancelled by cancelling the provided context
+func StartDockerImageDownload(ctx context.Context, image string) bool {
+	ctx = normalizeDockerContext(ctx)
+
+	// Check availability and downloading status atomically under lock
+	pullState.mu.Lock()
+	defer pullState.mu.Unlock()
+
+	// Check if already available (inside lock for atomicity)
+	if isDockerImageAvailableUnlocked(ctx, image) {
+		dockerImagesLog.Printf("Image %s is already available", image)
+		return false
+	}
+
+	// Check if already downloading
+	if pullState.downloading[image] {
+		dockerImagesLog.Printf("Image %s is already downloading", image)
+		return false
+	}
+
+	pullState.downloading[image] = true
+
+	// Start the download in a goroutine with retry logic
+	go func() {
+		defer func() {
+			func() {
+				pullState.mu.Lock()
+				defer pullState.mu.Unlock()
+				delete(pullState.downloading, image)
+			}()
+			if r := recover(); r != nil {
+				dockerImagesLog.Printf("Panic in docker image download for %s (recovered): %v", image, r)
+			}
+		}()
+
+		dockerImagesLog.Printf("Starting download of image %s", image)
+
+		// Retry configuration
+		maxAttempts := 3
+		waitTime := 5 // seconds
+
+		var lastErr error
+		var lastOutput []byte
+
+		for attempt := 1; attempt <= maxAttempts; attempt++ {
+			// Check if context was cancelled
+			if ctx.Err() != nil {
+				dockerImagesLog.Printf("Download of image %s cancelled: %v", image, ctx.Err())
+				return
+			}
+
+			dockerImagesLog.Printf("Attempt %d of %d: Pulling image %s", attempt, maxAttempts, image)
+
+			cmd := exec.CommandContext(ctx, "docker", "pull", image)
+			output, err := cmd.CombinedOutput()
+
+			if err == nil {
+				// Success
+				dockerImagesLog.Printf("Successfully downloaded image %s", image)
+				return
+			}
+
+			lastErr = err
+			lastOutput = output
+
+			// If not the last attempt, wait and retry
+			if attempt < maxAttempts {
+				dockerImagesLog.Printf("Failed to download image %s (attempt %d/%d). Retrying in %ds...", image, attempt, maxAttempts, waitTime)
+
+				// Use context-aware sleep
+				select {
+				case <-time.After(time.Duration(waitTime) * time.Second):
+					// Continue to next retry
+				case <-ctx.Done():
+					// Context cancelled during sleep
+					dockerImagesLog.Printf("Download of image %s cancelled during retry wait: %v", image, ctx.Err())
+					return
+				}
+
+				waitTime *= 2 // Exponential backoff
+			}
+		}
+
+		// All attempts failed
+		dockerImagesLog.Printf("Failed to download image %s after %d attempts: %v\nOutput: %s", image, maxAttempts, lastErr, string(lastOutput))
+	}()
+
+	return true
+}
+
+// CheckAndPrepareDockerImages checks if required Docker images are available
+// for the requested static analysis tools. If any are not available, it starts
+// downloading them and returns a message indicating the LLM should retry.
+//
+// Returns:
+//   - nil if all required images are available
+//   - error if Docker is unavailable or images are downloading/need to be downloaded
+func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, useActionlint, useRunnerGuard bool) error {
+	// If no tools requested, nothing to do
+	if !useZizmor && !usePoutine && !useActionlint && !useRunnerGuard {
+		return nil
+	}
+
+	// Check if Docker daemon is available before attempting any image operations
+	if !IsDockerAvailable(ctx) {
+		var requestedTools []string
+		var paramsList []string
+		if useZizmor {
+			tool := "zizmor"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
+		}
+		if usePoutine {
+			tool := "poutine"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
+		}
+		if useActionlint {
+			tool := "actionlint"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
+		}
+		if useRunnerGuard {
+			tool := "runner-guard"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
+		}
+		verb := "requires"
+		if len(requestedTools) > 1 {
+			verb = "require"
+		}
+		return &DockerUnavailableError{
+			Message: fmt.Sprintf("docker is not available (cannot connect to Docker daemon). %s %s Docker. Please install and start Docker, or set %s to skip static analysis", strings.Join(requestedTools, " and "), verb, strings.Join(paramsList, " and ")),
+		}
+	}
+
+	var missingImages []string
+	var downloadingImages []string
+
+	// Check which images are needed and their availability
+	imagesToCheck := []struct {
+		use   bool
+		image string
+		name  string
+	}{
+		{useZizmor, ZizmorImage, "zizmor"},
+		{usePoutine, PoutineImage, "poutine"},
+		{useActionlint, ActionlintImage, "actionlint"},
+		{useRunnerGuard, RunnerGuardImage, "runner-guard"},
+	}
+
+	for _, img := range imagesToCheck {
+		if !img.use {
+			continue
+		}
+
+		if IsDockerImageAvailable(ctx, img.image) {
+			continue
+		}
+
+		if IsDockerImageDownloading(img.image) {
+			downloadingImages = append(downloadingImages, img.name)
+		} else {
+			// Start download
+			StartDockerImageDownload(ctx, img.image)
+			missingImages = append(missingImages, img.name)
+		}
+	}
+
+	// If any images are downloading or were just started
+	if len(downloadingImages) > 0 || len(missingImages) > 0 {
+		var msg strings.Builder
+		msg.WriteString("Docker images are being downloaded. Please wait and retry the compile command.\n\n")
+
+		if len(missingImages) > 0 {
+			msg.WriteString("Started downloading: ")
+			msg.WriteString(strings.Join(missingImages, ", "))
+			msg.WriteString("\n")
+		}
+
+		if len(downloadingImages) > 0 {
+			msg.WriteString("Currently downloading: ")
+			msg.WriteString(strings.Join(downloadingImages, ", "))
+			msg.WriteString("\n")
+		}
+
+		msg.WriteString("\nRetry in 15-30 seconds.")
+
+		return errors.New(msg.String())
+	}
+
+	return nil
+}

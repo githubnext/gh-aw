@@ -1,0 +1,449 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestMissingToolSafeOutput(t *testing.T) {
+	tests := []struct {
+		name         string
+		frontmatter  map[string]any
+		expectConfig bool
+		expectJob    bool
+		expectMax    int
+	}{
+		{
+			name:         "No safe-outputs config should NOT enable missing-tool by default",
+			frontmatter:  map[string]any{"name": "Test"},
+			expectConfig: false,
+			expectJob:    false,
+			expectMax:    0,
+		},
+		{
+			name: "Safe-outputs with other config should enable missing-tool by default",
+			frontmatter: map[string]any{
+				"name": "Test",
+				"safe-outputs": map[string]any{
+					"create-issue": nil,
+				},
+			},
+			expectConfig: true,
+			expectJob:    true,
+			expectMax:    0,
+		},
+		{
+			name: "Explicit missing-tool: false should disable it",
+			frontmatter: map[string]any{
+				"name": "Test",
+				"safe-outputs": map[string]any{
+					"create-issue": nil,
+					"missing-tool": false,
+				},
+			},
+			expectConfig: false,
+			expectJob:    false,
+			expectMax:    0,
+		},
+		{
+			name: "Explicit missing-tool config with max",
+			frontmatter: map[string]any{
+				"name": "Test",
+				"safe-outputs": map[string]any{
+					"missing-tool": map[string]any{
+						"max": 5,
+					},
+				},
+			},
+			expectConfig: true,
+			expectJob:    true,
+			expectMax:    5,
+		},
+		{
+			name: "Missing-tool with other safe outputs",
+			frontmatter: map[string]any{
+				"name": "Test",
+				"safe-outputs": map[string]any{
+					"create-issue": nil,
+					"missing-tool": nil,
+				},
+			},
+			expectConfig: true,
+			expectJob:    true,
+			expectMax:    0,
+		},
+		{
+			name: "Empty missing-tool config",
+			frontmatter: map[string]any{
+				"name": "Test",
+				"safe-outputs": map[string]any{
+					"missing-tool": nil,
+				},
+			},
+			expectConfig: true,
+			expectJob:    true,
+			expectMax:    0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			// Extract safe outputs config
+			safeOutputs := compiler.extractSafeOutputsConfig(tt.frontmatter)
+
+			// Verify config expectations
+			if tt.expectConfig {
+				if safeOutputs == nil {
+					t.Fatal("Expected SafeOutputsConfig to be created, but it was nil")
+				}
+				if safeOutputs.MissingTool == nil {
+					t.Fatal("Expected MissingTool config to be enabled, but it was nil")
+				}
+				if templatableIntValue(safeOutputs.MissingTool.Max) != tt.expectMax {
+					t.Errorf("Expected max to be %d, got %v", tt.expectMax, safeOutputs.MissingTool.Max)
+				}
+			} else {
+				if safeOutputs != nil && safeOutputs.MissingTool != nil {
+					t.Error("Expected MissingTool config to be nil, but it was not")
+				}
+			}
+		})
+	}
+}
+
+func TestGeneratePromptIncludesGitHubAWPrompt(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		MarkdownContent: "Test workflow content",
+	}
+
+	var yaml strings.Builder
+	compiler.generatePrompt(&yaml, data, false, nil)
+
+	output := yaml.String()
+
+	// Check that GH_AW_PROMPT environment variable is always included
+	if !strings.Contains(output, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Error("Expected 'GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt' in prompt generation step")
+	}
+
+	// Check that env section is always present now
+	if !strings.Contains(output, "env:") {
+		t.Error("Expected 'env:' section in prompt generation step")
+	}
+}
+
+func TestMissingToolPromptGeneration(t *testing.T) {
+	compiler := NewCompiler()
+
+	// Create workflow data with missing-tool enabled
+	data := &WorkflowData{
+		MarkdownContent: "Test workflow content",
+		SafeOutputs: &SafeOutputsConfig{
+			MissingTool: &MissingToolConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")}},
+		},
+	}
+
+	var yaml strings.Builder
+	compiler.generatePrompt(&yaml, data, false, nil)
+
+	output := yaml.String()
+
+	// Check that GH_AW_SAFE_OUTPUTS environment variable is included when SafeOutputs is configured
+	// This is how safe outputs tools are now discovered (via MCP server tool discovery)
+	// In the activation/prompt job, the path is hardcoded (no set-runtime-paths step available).
+	if !strings.Contains(output, "GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl") {
+		t.Error("Expected 'GH_AW_SAFE_OUTPUTS' environment variable when SafeOutputs is configured")
+	}
+}
+
+func TestMissingToolNotEnabledByDefault(t *testing.T) {
+	compiler := NewCompiler()
+
+	// Test with completely empty frontmatter
+	emptyFrontmatter := map[string]any{}
+	safeOutputs := compiler.extractSafeOutputsConfig(emptyFrontmatter)
+
+	if safeOutputs != nil && safeOutputs.MissingTool != nil {
+		t.Error("Expected MissingTool to not be enabled by default with empty frontmatter")
+	}
+
+	// Test with frontmatter that has other content but no safe-outputs
+	frontmatterWithoutSafeOutputs := map[string]any{
+		"name": "Test Workflow",
+		"on":   map[string]any{"workflow_dispatch": nil},
+	}
+	safeOutputs = compiler.extractSafeOutputsConfig(frontmatterWithoutSafeOutputs)
+
+	if safeOutputs != nil && safeOutputs.MissingTool != nil {
+		t.Error("Expected MissingTool to not be enabled by default without safe-outputs section")
+	}
+}
+
+func TestMissingToolConfigParsing(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name              string
+		configData        map[string]any
+		expectMax         int
+		expectCreateIssue *string
+		expectTitlePrefix string
+		expectLabels      []string
+		expectError       bool
+	}{
+		{
+			name:              "Empty config - defaults",
+			configData:        map[string]any{"missing-tool": nil},
+			expectMax:         0,
+			expectCreateIssue: strPtr("false"),
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{},
+		},
+		{
+			name: "Config with max as int",
+			configData: map[string]any{
+				"missing-tool": map[string]any{"max": 5},
+			},
+			expectMax:         5,
+			expectCreateIssue: strPtr("false"),
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{},
+		},
+		{
+			name: "Config with max as float64 (from YAML)",
+			configData: map[string]any{
+				"missing-tool": map[string]any{"max": float64(10)},
+			},
+			expectMax:         10,
+			expectCreateIssue: strPtr("false"),
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{},
+		},
+		{
+			name: "Config with max as int64",
+			configData: map[string]any{
+				"missing-tool": map[string]any{"max": int64(15)},
+			},
+			expectMax:         15,
+			expectCreateIssue: strPtr("false"),
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{},
+		},
+		{
+			name:       "No missing-tool key",
+			configData: map[string]any{},
+			expectMax:  -1, // Indicates nil config
+		},
+		{
+			name: "Explicit false disables missing-tool",
+			configData: map[string]any{
+				"missing-tool": false,
+			},
+			expectMax: -1, // Indicates nil config (disabled)
+		},
+		{
+			name: "create-issue explicitly disabled",
+			configData: map[string]any{
+				"missing-tool": map[string]any{
+					"create-issue": false,
+				},
+			},
+			expectMax:         0,
+			expectCreateIssue: strPtr("false"),
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{},
+		},
+		{
+			name: "create-issue as expression",
+			configData: map[string]any{
+				"missing-tool": map[string]any{
+					"create-issue": "${{ inputs.create-issue }}",
+				},
+			},
+			expectMax:         0,
+			expectCreateIssue: strPtr("${{ inputs.create-issue }}"),
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{},
+		},
+		{
+			name: "Custom title-prefix",
+			configData: map[string]any{
+				"missing-tool": map[string]any{
+					"title-prefix": "🔧 Missing:",
+				},
+			},
+			expectMax:         0,
+			expectCreateIssue: strPtr("false"),
+			expectTitlePrefix: "🔧 Missing:",
+			expectLabels:      []string{},
+		},
+		{
+			name: "Custom labels",
+			configData: map[string]any{
+				"missing-tool": map[string]any{
+					"labels": []any{"bug", "enhancement", "missing-tool"},
+				},
+			},
+			expectMax:         0,
+			expectCreateIssue: strPtr("false"),
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{"bug", "enhancement", "missing-tool"},
+		},
+		{
+			name: "Custom labels as []string",
+			configData: map[string]any{
+				"missing-tool": map[string]any{
+					"labels": []string{"bug", "enhancement", "missing-tool"},
+				},
+			},
+			expectMax:         0,
+			expectCreateIssue: strPtr("false"),
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{"bug", "enhancement", "missing-tool"},
+		},
+		{
+			name: "Full configuration",
+			configData: map[string]any{
+				"missing-tool": map[string]any{
+					"max":          3,
+					"create-issue": true,
+					"title-prefix": "[Tool Missing]",
+					"labels":       []any{"needs-triage", "missing-tool"},
+				},
+			},
+			expectMax:         3,
+			expectCreateIssue: strPtr("true"),
+			expectTitlePrefix: "[Tool Missing]",
+			expectLabels:      []string{"needs-triage", "missing-tool"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := compiler.parseMissingToolConfig(tt.configData)
+
+			if tt.expectMax == -1 {
+				if config != nil {
+					t.Error("Expected nil config when missing-tool key is absent or disabled")
+				}
+			} else {
+				if config == nil {
+					t.Fatal("Expected non-nil config")
+				}
+				if templatableIntValue(config.Max) != tt.expectMax {
+					t.Errorf("Expected max %d, got %v", tt.expectMax, config.Max)
+				}
+				if tt.expectCreateIssue == nil {
+					if config.CreateIssue != nil {
+						t.Errorf("Expected create-issue nil, got %q", *config.CreateIssue)
+					}
+				} else {
+					if config.CreateIssue == nil {
+						t.Errorf("Expected create-issue %q, got nil", *tt.expectCreateIssue)
+					} else if *config.CreateIssue != *tt.expectCreateIssue {
+						t.Errorf("Expected create-issue %q, got %q", *tt.expectCreateIssue, *config.CreateIssue)
+					}
+				}
+				if config.TitlePrefix != tt.expectTitlePrefix {
+					t.Errorf("Expected title-prefix %q, got %q", tt.expectTitlePrefix, config.TitlePrefix)
+				}
+				if len(config.Labels) != len(tt.expectLabels) {
+					t.Errorf("Expected %d labels, got %d", len(tt.expectLabels), len(config.Labels))
+				} else {
+					for i, label := range tt.expectLabels {
+						if config.Labels[i] != label {
+							t.Errorf("Expected label[%d] %q, got %q", i, label, config.Labels[i])
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestMissingToolReportAsFailureConfig verifies the report-as-failure field behavior.
+func TestMissingToolReportAsFailureConfig(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name                  string
+		configData            map[string]any
+		expectReportAsFailure *string
+	}{
+		{
+			name:                  "Default (nil value) - report-as-failure defaults to true",
+			configData:            map[string]any{"missing-tool": nil},
+			expectReportAsFailure: strPtr("true"),
+		},
+		{
+			name: "Map config without report-as-failure key - defaults to true",
+			configData: map[string]any{
+				"missing-tool": map[string]any{"max": 3},
+			},
+			expectReportAsFailure: strPtr("true"),
+		},
+		{
+			name: "report-as-failure explicitly false",
+			configData: map[string]any{
+				"missing-tool": map[string]any{"report-as-failure": false},
+			},
+			expectReportAsFailure: strPtr("false"),
+		},
+		{
+			name: "report-as-failure explicitly true",
+			configData: map[string]any{
+				"missing-tool": map[string]any{"report-as-failure": true},
+			},
+			expectReportAsFailure: strPtr("true"),
+		},
+		{
+			name: "report-as-failure as expression",
+			configData: map[string]any{
+				"missing-tool": map[string]any{"report-as-failure": "${{ inputs.report-as-failure }}"},
+			},
+			expectReportAsFailure: strPtr("${{ inputs.report-as-failure }}"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := compiler.parseMissingToolConfig(tt.configData)
+			if tt.expectReportAsFailure == nil {
+				if config != nil && config.ReportAsFailure != nil {
+					t.Errorf("Expected report-as-failure nil, got %q", *config.ReportAsFailure)
+				}
+			} else {
+				if config == nil {
+					t.Fatal("Expected non-nil config")
+				}
+				if config.ReportAsFailure == nil {
+					t.Errorf("Expected report-as-failure %q, got nil", *tt.expectReportAsFailure)
+				} else if *config.ReportAsFailure != *tt.expectReportAsFailure {
+					t.Errorf("Expected report-as-failure %q, got %q", *tt.expectReportAsFailure, *config.ReportAsFailure)
+				}
+			}
+		})
+	}
+}
+
+// TestReportIncompleteDoesNotHaveReportAsFailure verifies that report-incomplete does not parse report-as-failure.
+func TestReportIncompleteDoesNotHaveReportAsFailure(t *testing.T) {
+	compiler := NewCompiler()
+	configData := map[string]any{
+		"report-incomplete": map[string]any{"report-as-failure": false},
+	}
+	config := compiler.parseReportIncompleteConfig(configData)
+	if config == nil {
+		t.Fatal("Expected non-nil config")
+	}
+	// report-as-failure should NOT be parsed for report-incomplete
+	if config.ReportAsFailure != nil {
+		t.Errorf("Expected ReportAsFailure nil for report-incomplete, got %q", *config.ReportAsFailure)
+	}
+}

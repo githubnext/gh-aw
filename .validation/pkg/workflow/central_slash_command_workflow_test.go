@@ -1,0 +1,342 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/require"
+)
+
+func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "central-slash-workflow-test")
+	t.Setenv("GH_AW_ACTION_MODE", "dev")
+	originalVersion := compilerVersion
+	originalIsRelease := isReleaseBuild
+	t.Cleanup(func() {
+		compilerVersion = originalVersion
+		isReleaseBuild = originalIsRelease
+	})
+	SetVersion("c610c2a")
+	SetIsRelease(false)
+
+	data := []*WorkflowData{
+		{
+			WorkflowID:         "triage-issue",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"issue_comment", "issues"},
+			CommandCentralized: true,
+			AIReaction:         "eyes",
+		},
+		{
+			WorkflowID:         "triage-pr",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"pull_request", "pull_request_comment"},
+			CommandCentralized: true,
+			AIReaction:         "rocket",
+		},
+		{
+			WorkflowID:         "cloclo",
+			Command:            []string{"cloclo"},
+			CommandEvents:      []string{"discussion_comment"},
+			CommandCentralized: true,
+			AIReaction:         "heart",
+		},
+		{
+			WorkflowID:                "ci-doctor",
+			LabelCommand:              []string{"ci-doctor"},
+			LabelCommandEvents:        []string{"pull_request"},
+			LabelCommandDecentralized: true,
+			AIReaction:                "eyes",
+		},
+	}
+
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
+
+	generatedPath := filepath.Join(tmpDir, centralSlashCommandWorkflowFilename)
+	content, err := os.ReadFile(generatedPath)
+	require.NoError(t, err)
+	text := string(content)
+	lines := strings.Split(text, "\n")
+	require.NotEmpty(t, lines)
+	require.Contains(t, lines[0], "# gh-aw-commands: ")
+	metadataJSON := strings.TrimPrefix(lines[0], "# gh-aw-commands: ")
+	var metadata commandsHeaderMetadata
+	require.NoError(t, json.Unmarshal([]byte(metadataJSON), &metadata))
+	require.Equal(t, "v1", metadata.PayloadVersion)
+	require.Equal(t, "v1", metadata.SchemaVersion)
+	require.Equal(t, "dev", metadata.Compiler)
+	require.Equal(t, []string{"cloclo", "triage"}, metadata.Commands)
+	require.Equal(t, []string{"ci-doctor", "cloclo", "triage-issue", "triage-pr"}, metadata.Workflows)
+	require.Contains(t, text, "# Routing summary (sorted):")
+	require.Contains(t, text, "#   slash commands:")
+	require.Contains(t, text, "#     /cloclo -> cloclo [discussion_comment] reaction=heart")
+	require.Contains(t, text, "#     /triage -> triage-issue [issue_comment,issues] reaction=eyes")
+	require.Contains(t, text, "#     /triage -> triage-pr [pull_request,pull_request_comment] reaction=rocket")
+	require.Contains(t, text, "#   labels:")
+	require.Contains(t, text, "#     ci-doctor -> ci-doctor [pull_request] reaction=eyes")
+
+	require.Contains(t, text, "name: \"Agentic Commands\"")
+	require.NotContains(t, text, "Compiler version:")
+	require.Contains(t, text, "permissions: {}")
+	require.Contains(t, text, "runs-on: ubuntu-slim")
+	require.Contains(t, text, "timeout-minutes: 15")
+	require.Contains(t, text, "    permissions:\n      actions: write\n      contents: read\n      issues: write\n      pull-requests: write\n      discussions: write")
+	require.Contains(t, text, "      - name: Setup Scripts")
+	require.Contains(t, text, "        uses: ./actions/setup")
+	require.Contains(t, text, "          destination: ${{ runner.temp }}/gh-aw/actions")
+	require.Contains(t, text, "issues:")
+	require.Contains(t, text, "issue_comment:")
+	require.Contains(t, text, "pull_request:")
+	require.Contains(t, text, "discussion_comment:")
+	require.Contains(t, text, `"triage":[{"workflow":"triage-issue","events":["issue_comment","issues"],"ai_reaction":"eyes"},{"workflow":"triage-pr","events":["pull_request","pull_request_comment"],"ai_reaction":"rocket"}]`)
+	require.Contains(t, text, `"cloclo":[{"workflow":"cloclo","events":["discussion_comment"],"ai_reaction":"heart"}]`)
+	require.Contains(t, text, `"ci-doctor":[{"workflow":"ci-doctor","events":["pull_request"],"ai_reaction":"eyes"}]`)
+	require.Contains(t, text, "GH_AW_LABEL_ROUTING")
+	require.Contains(t, text, `require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs')`)
+	require.Contains(t, text, `setupGlobals(core, github, context, exec, io, getOctokit);`)
+	require.Contains(t, text, `require('${{ runner.temp }}/gh-aw/actions/route_slash_command.cjs')`)
+	require.NotContains(t, text, `const routeMap = JSON.parse(process.env.GH_AW_SLASH_ROUTING || "{}");`)
+	require.NotContains(t, text, `trustedAuthorAssociations`)
+	require.NotContains(t, text, `isForkBasedPullRequestEvent`)
+	require.NotContains(t, text, `workflow_id: route.workflow + ".lock.yml"`)
+}
+
+func TestGenerateCentralSlashCommandWorkflow_DeletesWhenUnused(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "central-slash-workflow-delete-test")
+	generatedPath := filepath.Join(tmpDir, centralSlashCommandWorkflowFilename)
+	require.NoError(t, os.WriteFile(generatedPath, []byte("stale"), 0644))
+
+	data := []*WorkflowData{
+		{
+			WorkflowID:         "regular",
+			Command:            []string{"regular"},
+			CommandEvents:      []string{"issue_comment"},
+			CommandCentralized: false,
+		},
+	}
+
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
+	_, err := os.Stat(generatedPath)
+	require.Error(t, err)
+	require.True(t, os.IsNotExist(err))
+}
+
+func TestGenerateCentralSlashCommandWorkflow_GeneratesForDecentralizedLabelsOnly(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "central-label-workflow-test")
+	data := []*WorkflowData{
+		{
+			WorkflowID:                "ci-doctor",
+			LabelCommand:              []string{"ci-doctor"},
+			LabelCommandEvents:        []string{"pull_request"},
+			LabelCommandDecentralized: true,
+		},
+	}
+
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
+	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
+	require.NoError(t, err)
+	text := string(content)
+	require.Contains(t, text, "GH_AW_LABEL_ROUTING")
+	require.Contains(t, text, `"ci-doctor":[{"workflow":"ci-doctor","events":["pull_request"]}]`)
+	require.Contains(t, text, "pull_request:")
+	require.Contains(t, text, "types: [labeled]")
+	require.Contains(t, text, "#   slash commands:")
+	require.Contains(t, text, "#     (none)")
+	require.Contains(t, text, "#   labels:")
+	require.Contains(t, text, "#     ci-doctor -> ci-doctor [pull_request]")
+}
+
+func TestCollectCentralLabelCommandRoutes_IncludesSlashCentralizedLabelCommands(t *testing.T) {
+	data := []*WorkflowData{
+		{
+			WorkflowID:         "triage",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"issue_comment"},
+			CommandCentralized: true,
+			LabelCommand:       []string{"triage"},
+			LabelCommandEvents: []string{"issues"},
+			AIReaction:         "eyes",
+		},
+	}
+
+	_, labelRoutesByCommand, mergedEvents := collectCentralCommandRoutes(data)
+	require.Equal(t, []slashCommandRoute{
+		{Workflow: "triage", Events: []string{"issues"}, AIReaction: "eyes"},
+	}, labelRoutesByCommand["triage"])
+	require.ElementsMatch(t, []string{"labeled"}, typeSetKeys(mergedEvents["issues"]))
+}
+
+func TestRemoveIfExists(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "remove-if-exists-test")
+	existingPath := filepath.Join(tmpDir, "existing.txt")
+	missingPath := filepath.Join(tmpDir, "missing.txt")
+
+	require.NoError(t, os.WriteFile(existingPath, []byte("content"), 0644))
+	require.NoError(t, removeIfExists(existingPath))
+	_, err := os.Stat(existingPath)
+	require.Error(t, err)
+	require.True(t, os.IsNotExist(err))
+
+	require.NoError(t, removeIfExists(missingPath))
+}
+
+func TestCollectCentralSlashCommandRoutes_UnionizesMergedEvents(t *testing.T) {
+	data := []*WorkflowData{
+		{
+			WorkflowID:         "triage-issue",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"issues", "issue_comment"},
+			CommandCentralized: true,
+		},
+		{
+			WorkflowID:         "triage-pr",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"pull_request", "pull_request_comment"},
+			CommandCentralized: true,
+		},
+		{
+			WorkflowID:         "non-centralized",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"discussion"},
+			CommandCentralized: false,
+		},
+	}
+
+	routesByCommand, mergedEvents := collectCentralSlashCommandRoutes(data)
+
+	require.Equal(t, []slashCommandRoute{
+		{Workflow: "triage-issue", Events: []string{"issue_comment", "issues"}},
+		{Workflow: "triage-pr", Events: []string{"pull_request", "pull_request_comment"}},
+	}, routesByCommand["triage"])
+
+	require.ElementsMatch(t, []string{"opened", "edited", "reopened"}, typeSetKeys(mergedEvents["issues"]))
+	require.ElementsMatch(t, []string{"created", "edited"}, typeSetKeys(mergedEvents["issue_comment"]))
+	require.ElementsMatch(t, []string{"opened", "edited", "reopened"}, typeSetKeys(mergedEvents["pull_request"]))
+	require.NotContains(t, mergedEvents, "discussion")
+}
+
+func TestCollectCentralSlashCommandRoutes_RespectsReactionEventTargets(t *testing.T) {
+	disable := false
+	enable := true
+	data := []*WorkflowData{
+		{
+			WorkflowID:           "issue-only",
+			Command:              []string{"triage"},
+			CommandEvents:        []string{"issue_comment", "pull_request_comment"},
+			CommandCentralized:   true,
+			AIReaction:           "eyes",
+			ReactionIssues:       &enable,
+			ReactionPullRequests: &disable,
+		},
+		{
+			WorkflowID:           "pr-only-disabled",
+			Command:              []string{"triage"},
+			CommandEvents:        []string{"pull_request_comment"},
+			CommandCentralized:   true,
+			AIReaction:           "rocket",
+			ReactionPullRequests: &disable,
+		},
+		{
+			WorkflowID:          "discussion-enabled",
+			Command:             []string{"triage"},
+			CommandEvents:       []string{"discussion_comment"},
+			CommandCentralized:  true,
+			AIReaction:          "heart",
+			ReactionDiscussions: &enable,
+		},
+		{
+			WorkflowID:         "none-reaction",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"issue_comment"},
+			CommandCentralized: true,
+			AIReaction:         "none",
+		},
+	}
+
+	routesByCommand, _ := collectCentralSlashCommandRoutes(data)
+	require.Len(t, routesByCommand["triage"], 5)
+	routeReactions := map[string][]string{}
+	for _, route := range routesByCommand["triage"] {
+		routeReactions[route.Workflow] = append(routeReactions[route.Workflow], route.AIReaction+"|"+strings.Join(route.Events, ","))
+	}
+	require.ElementsMatch(t, []string{"eyes|issue_comment", "|pull_request_comment"}, routeReactions["issue-only"])
+	require.Equal(t, []string{"|pull_request_comment"}, routeReactions["pr-only-disabled"])
+	require.Equal(t, []string{"heart|discussion_comment"}, routeReactions["discussion-enabled"])
+	require.Equal(t, []string{"|issue_comment"}, routeReactions["none-reaction"])
+}
+
+func TestGenerateCentralSlashCommandWorkflow_UsesCentralizedRunsOnResolution(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "central-slash-workflow-runs-on-test")
+	data := []*WorkflowData{
+		{
+			WorkflowID:         "one",
+			Command:            []string{"one"},
+			CommandEvents:      []string{"issue_comment"},
+			CommandCentralized: true,
+			RunsOnSlim:         "ubuntu-latest",
+		},
+		{
+			WorkflowID:         "two",
+			Command:            []string{"two"},
+			CommandEvents:      []string{"issue_comment"},
+			CommandCentralized: true,
+			SafeOutputs: &SafeOutputsConfig{
+				RunsOn: "self-hosted",
+			},
+		},
+		{
+			WorkflowID:         "three",
+			Command:            []string{"three"},
+			CommandEvents:      []string{"issue_comment"},
+			CommandCentralized: true,
+			SafeOutputs: &SafeOutputsConfig{
+				RunsOn: "self-hosted",
+			},
+		},
+	}
+
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir))
+	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
+	require.NoError(t, err)
+	require.Contains(t, string(content), "runs-on: self-hosted")
+}
+
+func TestBuildCommandsHeaderMetadata_UsesReleaseVersionOnlyForReleaseBuilds(t *testing.T) {
+	originalVersion := compilerVersion
+	originalIsRelease := isReleaseBuild
+	t.Cleanup(func() {
+		compilerVersion = originalVersion
+		isReleaseBuild = originalIsRelease
+	})
+
+	routesByCommand := map[string][]slashCommandRoute{
+		"triage": {
+			{Workflow: "triage-issue", Events: []string{"issues"}},
+		},
+	}
+
+	SetVersion("abc1234")
+	SetIsRelease(false)
+	metadata := buildCommandsHeaderMetadata(routesByCommand, nil)
+	require.Equal(t, "dev", metadata.Compiler)
+
+	SetVersion("v1.2.3")
+	SetIsRelease(true)
+	metadata = buildCommandsHeaderMetadata(routesByCommand, nil)
+	require.Equal(t, "v1.2.3", metadata.Compiler)
+}
+
+func typeSetKeys(typeSet map[string]bool) []string {
+	out := make([]string, 0, len(typeSet))
+	for key := range typeSet {
+		out = append(out, key)
+	}
+	return out
+}

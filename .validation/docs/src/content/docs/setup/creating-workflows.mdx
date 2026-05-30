@@ -1,0 +1,167 @@
+---
+title: Creating Agentic Workflows
+description: Create agentic workflows using AI agents like Copilot, Claude, or Codex from GitHub's web interface, terminal, or VS Code. Author powerful automation workflows in natural language with interactive guidance and automatic best practices.
+sidebar:
+  order: 1
+---
+
+import CopyEntireFileButton from '../../../components/CopyEntireFileButton.astro';
+import Video from '../../../components/Video.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**⏱️ Estimated time: 5-15 minutes** depending on complexity
+
+You can author new agentic workflows using a coding agent or other AI chat system, under your guidance. For interactive coding agents, this can be a conversation about what you want the workflow to do, with the agent asking clarifying questions and generating the workflow for you.
+
+In this guide, we show you how to create agentic workflows in the GitHub web interface (github.com), your coding agent, or in VS Code Agent Mode.
+
+
+## GitHub Web Interface
+
+**If you have access to GitHub Copilot**, you can create and edit Agentic Workflows directly 
+from the Web Interface. This technique is slow and non-interactive 
+but it is incredibly useful to turn an idea to reality in a couple minutes. 
+For a more fine grained, interactive experience we recommend using a coding agent (see next section).
+
+Use one of these prompts in your repository.
+
+<Tabs>
+  <TabItem label="Issue Triage">
+    ```markdown wrap
+    Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
+
+    The purpose of the workflow is to triage new issues: label them by type and priority, identify duplicates, ask clarifying questions when the description is unclear, and assign them to the right team members.
+    ```
+  </TabItem>
+  <TabItem label="Activity Report">
+    ```markdown wrap
+    Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
+
+    The purpose of the workflow is a daily report on recent activity in the repository, delivered as an issue. The report should summarize new issues, pull requests merged, and any open blockers.
+    ```
+  </TabItem>
+  <TabItem label="Documentation Updater">
+    ```markdown wrap
+    Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
+
+    The purpose of the workflow is to run daily and keep the repository documentation up to date: identify doc files that are out of sync with recent code changes and open a pull request with the necessary updates.
+    ```
+  </TabItem>
+  <TabItem label="AGENTS.md Maintainer">
+    ```markdown wrap
+    Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
+
+    The purpose of the workflow is to run weekly and maintain the AGENTS.md file: review merged pull requests and updated source files since the last run, then open a pull request that keeps AGENTS.md accurate and current.
+    ```
+  </TabItem>
+</Tabs>
+
+<Video
+   src="/gh-aw/videos/create-workflow-on-github.mp4"
+   caption="Create an agentic workflow from the GitHub web interface"
+   aspectRatio="16:9"
+   thumbnail="/gh-aw/videos/create-workflow-on-github.png"
+/>
+
+> [!TIP]
+> On the first run in a new repository, the workflow will surely fail because the secrets are not configured.
+> The agentic workflow should detect the missing tokens and create an issue with instructions on how to configure them.
+
+## VSCode/Claude/Codex/Copilot
+
+Follow these steps to create an agentic workflow using VSCode or your coding CLI agent.
+
+1. **Start your coding agent**.
+
+   Choose your preferred coding agent and start it in the context of your repository. For example, you can:
+   - Start [VSCode Agent Mode](https://code.visualstudio.com/docs/copilot/agents/overview)
+   - Start your CLI coding agent in your repository
+
+2. **Create an agentic workflow**.
+
+   Enter the following prompt into your coding agent:
+
+   ```text wrap
+   Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
+
+   The purpose of the workflow is a daily report on recent activity in the repository, delivered as an issue.
+   ```
+
+   You can replace the last line with your desired workflow purpose and as much additional detail, context, goals, guardrails and purpose as you like.
+
+   This will create a new [workflow markdown file](/gh-aw/reference/workflow-structure/) in `.github/workflows/` with the appropriate configuration. Some agents will create a pull request to add these changes to your repository.
+
+3. **Setup required secrets**.
+
+   If you haven't done so already, [set up your repository secrets](/gh-aw/reference/engines/) for your chosen engine (Copilot, Claude, or Codex). If not using Copilot, also adjust the `engine:` field in your workflow's [frontmatter](/gh-aw/reference/frontmatter/).
+
+After merging the pull request, you can run the workflow to see it in action. Either:
+- trigger runs manually from the Actions tab in GitHub.com, or
+- use [the `gh aw run` command](/gh-aw/setup/cli/#run) to trigger runs from your terminal.
+
+## Initialize the Repository
+
+Running `gh aw init` is **required** to enable the authoring experience in the GitHub code agent. This step configures your repository so that you can create and modify agentic workflows directly from [github.com](https://github.com) or the GitHub mobile app, using the Copilot coding agent.
+
+```bash wrap
+gh aw init
+```
+
+Alternatively, run this prompt in your coding agent:
+
+```text wrap
+Initialize this repository for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/install.md
+```
+
+This command:
+
+- Creates a **dispatcher skill** at `.github/skills/agentic-workflows/SKILL.md`, which registers the `agentic-workflows` skill in GitHub Copilot and enables workflow authoring with the `agentic-workflows` skill in Copilot Chat on github.com and the GitHub mobile app.
+- Sets up **MCP server integration** so that Copilot has access to gh-aw tools when creating or editing workflows.
+- Updates `.gitattributes` to mark generated `.lock.yml` files correctly.
+- Configures **VS Code settings** for the best local authoring experience.
+
+Once initialized, you and your team can create and edit workflows by opening a Copilot Chat session on github.com or the GitHub app and running:
+
+```text wrap
+agentic-workflows Create a new workflow that...
+```
+
+## Manual Editing
+
+If you prefer to create workflows manually, you can
+
+1. Create the workflow file in `.github/workflows/<workflow-name>.md`
+2. Install the [GitHub CLI](https://cli.github.com/) and the GitHub Agentic Workflows extension:
+
+   ```bash wrap
+   gh extension install github/gh-aw
+   ```
+
+3. Compile the workflow markdown into a YAML workflow file using:
+
+   ```bash wrap
+   gh aw compile
+   ```
+
+   This will generate a workflow YAML lock file `.github/workflows/<workflow-name>.lock.yml` based on the content of your markdown file.
+
+4. Add, commit and push the workflow file and its lock file to your repository.
+
+   ```bash wrap
+   git add .github/workflows/<workflow-name>.md
+   git add .github/workflows/<workflow-name>.lock.yml
+   git commit -m "Add <workflow-name> workflow"
+   git push
+   ```
+
+5. If you haven't done so already, [set up your repository secrets](/gh-aw/reference/engines/) for the coding agent your workflow will be using.
+
+You can now trigger runs of the workflow either from the Actions tab in GitHub.com or using the `gh aw run` command from your terminal.
+
+## Adding an Existing Workflow
+
+To add a workflow from another repository, see [Reusing Workflows](/gh-aw/guides/reusing-workflows/#adding-existing-workflows).
+
+## Learn More About Agentic Authoring
+
+The [Agentic Authoring](/gh-aw/guides/agentic-authoring/) contains additional techniques to leverage agents to help build better agentic workflows.

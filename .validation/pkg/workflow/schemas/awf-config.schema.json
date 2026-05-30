@@ -1,0 +1,529 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/github/gh-aw-firewall/main/docs/awf-config.schema.json",
+  "title": "AWF Configuration",
+  "description": "JSON/YAML configuration for awf CLI. CLI flags override config file values. See https://github.com/github/gh-aw-firewall for documentation.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema URL for IDE validation and autocomplete."
+    },
+    "network": {
+      "type": "object",
+      "description": "Network egress configuration.",
+      "additionalProperties": false,
+      "properties": {
+        "allowDomains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Domains that the agent is allowed to reach. Both the bare domain and all subdomains are permitted (e.g. \"github.com\" also allows \"api.github.com\")."
+        },
+        "blockDomains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Domains that are explicitly blocked, overriding allowDomains."
+        },
+        "dnsServers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "DNS servers to use inside the container. Defaults to Google DNS (8.8.8.8, 8.8.4.4). Accepts IPv4 and IPv6 addresses."
+        },
+        "upstreamProxy": {
+          "type": "string",
+          "description": "Upstream HTTP proxy URL (e.g. \"http://proxy.corp.example.com:8080\"). When set, the AWF Squid proxy forwards traffic through this proxy."
+        }
+      }
+    },
+    "apiProxy": {
+      "type": "object",
+      "description": "API proxy sidecar configuration. The sidecar injects real API credentials so the agent never has direct access to them.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable the API proxy sidecar container. When enabled, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, COPILOT_GITHUB_TOKEN, COPILOT_API_KEY, GEMINI_API_KEY) are held exclusively in the sidecar and excluded from the agent environment. The agent receives proxy-routing base URLs instead. See docs/awf-config-spec.md §9 for credential isolation semantics."
+        },
+        "enableTokenSteering": {
+          "type": "boolean",
+          "description": "Enable effective token budget steering. When true, the proxy injects budget-warning system messages at 80%, 90%, 95%, and 99% usage to nudge the agent to wrap up. Requires maxEffectiveTokens. Default: false."
+        },
+        "anthropicAutoCache": {
+          "type": "boolean",
+          "description": "Automatically apply Anthropic prompt-cache optimizations on /v1/messages requests."
+        },
+        "anthropicCacheTailTtl": {
+          "type": "string",
+          "enum": ["5m", "1h"],
+          "description": "TTL for Anthropic cache tail optimization. Only applies when anthropicAutoCache is enabled. Allowed values: \"5m\" or \"1h\"."
+        },
+        "maxEffectiveTokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum cumulative effective tokens allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'effective_tokens_limit_exceeded'. Tokens are weighted: input ×1, cache-read ×0.1, output ×4, reasoning ×4. See spec §10."
+        },
+        "modelMultipliers": {
+          "type": "object",
+          "description": "Per-model multipliers for effective token accounting. Each model's weighted tokens are multiplied by this value before accumulation. Defaults to 1 for unlisted models. See spec §10.2.",
+          "additionalProperties": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "maxRuns": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'max_runs_exceeded'. See spec §11."
+        },
+        "modelFallback": {
+          "type": "object",
+          "description": "Model fallback policy for unresolved model selections. Enabled by default as a safety net.",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^\\$\\{\\{.*\\}\\}$",
+                  "description": "GitHub Actions expression that resolves to a boolean at runtime"
+                }
+              ],
+              "description": "Enable or disable middle-power fallback when model resolution fails. Supports literal booleans and GitHub Actions expressions in compiled workflows."
+            },
+            "strategy": {
+              "type": "string",
+              "enum": ["middle_power"],
+              "description": "Fallback selection strategy. Currently only 'middle_power' is supported."
+            },
+            "excludeEngines": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of engine/provider names for which middle-power fallback is suppressed. Use this to let specific providers handle model-unavailable errors natively instead of rewriting to a fallback model."
+            }
+          }
+        },
+        "targets": {
+          "type": "object",
+          "description": "Override upstream API endpoints for each provider.",
+          "additionalProperties": false,
+          "properties": {
+            "openai": {
+              "$ref": "#/$defs/providerTarget",
+              "description": "OpenAI API target override."
+            },
+            "anthropic": {
+              "$ref": "#/$defs/providerTarget",
+              "description": "Anthropic API target override."
+            },
+            "copilot": {
+              "$ref": "#/$defs/providerHostOnlyTarget",
+              "description": "GitHub Copilot API target override (basePath not supported)."
+            },
+            "gemini": {
+              "$ref": "#/$defs/providerTarget",
+              "description": "Google Gemini API target override."
+            },
+            "antigravity": {
+              "$ref": "#/$defs/providerTarget",
+              "description": "Antigravity API target override (alias of Gemini runtime settings)."
+            }
+          }
+        },
+        "models": {
+          "type": "object",
+          "description": "Model alias mapping. Keys are canonical model names; values are arrays of alternative names or patterns that should be rewritten to the canonical name.",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "auth": {
+          "type": "object",
+          "description": "Authentication configuration for the API proxy sidecar. Enables OIDC-based credential exchange (e.g., GitHub OIDC → Azure AD, AWS STS, GCP Workload Identity, or Anthropic Workload Identity Federation). See docs/awf-config-spec.md §9.5.",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["github-oidc"],
+              "description": "Authentication type. Currently only 'github-oidc' is supported. Maps to AWF_AUTH_TYPE."
+            },
+            "provider": {
+              "type": "string",
+              "enum": ["azure", "aws", "gcp", "anthropic"],
+              "description": "Cloud provider for OIDC token exchange. Determines which token exchange protocol is used. Maps to AWF_AUTH_PROVIDER.",
+              "default": "azure"
+            },
+            "oidcAudience": {
+              "type": "string",
+              "description": "Audience claim for the GitHub OIDC token. Provider-specific defaults apply when omitted: Azure='api://AzureADTokenExchange', AWS='sts.amazonaws.com', GCP=workloadIdentityProvider value, Anthropic='https://api.anthropic.com'. Maps to AWF_AUTH_OIDC_AUDIENCE."
+            },
+            "azureTenantId": {
+              "type": "string",
+              "description": "Azure AD tenant ID for federated credential exchange. Required when provider is 'azure'. Maps to AWF_AUTH_AZURE_TENANT_ID."
+            },
+            "azureClientId": {
+              "type": "string",
+              "description": "Azure AD application (client) ID for the federated credential. Required when provider is 'azure'. Maps to AWF_AUTH_AZURE_CLIENT_ID."
+            },
+            "azureScope": {
+              "type": "string",
+              "description": "Azure token scope. Maps to AWF_AUTH_AZURE_SCOPE.",
+              "default": "https://cognitiveservices.azure.com/.default"
+            },
+            "azureCloud": {
+              "type": "string",
+              "enum": ["public", "usgovernment", "china"],
+              "description": "Azure cloud environment. Maps to AWF_AUTH_AZURE_CLOUD.",
+              "default": "public"
+            },
+            "awsRoleArn": {
+              "type": "string",
+              "description": "AWS IAM role ARN to assume via OIDC federation. Required when provider is 'aws'. Maps to AWF_AUTH_AWS_ROLE_ARN."
+            },
+            "awsRegion": {
+              "type": "string",
+              "description": "AWS region for the Bedrock endpoint. Required when provider is 'aws'. Maps to AWF_AUTH_AWS_REGION."
+            },
+            "awsRoleSessionName": {
+              "type": "string",
+              "description": "Session name for the AWS STS AssumeRoleWithWebIdentity call. Maps to AWF_AUTH_AWS_ROLE_SESSION_NAME.",
+              "default": "awf-oidc-session"
+            },
+            "gcpWorkloadIdentityProvider": {
+              "type": "string",
+              "description": "Full resource name of the GCP Workload Identity Provider (projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL_ID/providers/PROVIDER_ID). Required when provider is 'gcp'. Maps to AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER."
+            },
+            "gcpServiceAccount": {
+              "type": "string",
+              "description": "GCP service account email to impersonate. When omitted, the federated token is used directly (requires direct resource access grants on the principal). Maps to AWF_AUTH_GCP_SERVICE_ACCOUNT."
+            },
+            "gcpScope": {
+              "type": "string",
+              "description": "OAuth2 scope for GCP token. Maps to AWF_AUTH_GCP_SCOPE.",
+              "default": "https://www.googleapis.com/auth/cloud-platform"
+            },
+            "anthropicFederationRuleId": {
+              "type": "string",
+              "description": "Anthropic federation rule ID (e.g. fdrl_...). Required when provider is 'anthropic'. Maps to AWF_AUTH_ANTHROPIC_FEDERATION_RULE_ID."
+            },
+            "anthropicOrganizationId": {
+              "type": "string",
+              "description": "Anthropic organization UUID. Required when provider is 'anthropic'. Maps to AWF_AUTH_ANTHROPIC_ORGANIZATION_ID."
+            },
+            "anthropicServiceAccountId": {
+              "type": "string",
+              "description": "Anthropic service account ID (e.g. svac_...). Required when provider is 'anthropic'. Maps to AWF_AUTH_ANTHROPIC_SERVICE_ACCOUNT_ID."
+            },
+            "anthropicWorkspaceId": {
+              "type": "string",
+              "description": "Anthropic workspace ID. Required when the federation rule covers multiple workspaces. Maps to AWF_AUTH_ANTHROPIC_WORKSPACE_ID."
+            }
+          },
+          "required": ["type"],
+          "if": {
+            "properties": {
+              "provider": {
+                "const": "aws"
+              }
+            },
+            "required": ["provider"]
+          },
+          "then": {
+            "required": ["awsRoleArn", "awsRegion"]
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "provider": {
+                  "const": "gcp"
+                }
+              },
+              "required": ["provider"]
+            },
+            "then": {
+              "required": ["gcpWorkloadIdentityProvider"]
+            },
+            "else": {
+              "if": {
+                "properties": {
+                  "provider": {
+                    "const": "anthropic"
+                  }
+                },
+                "required": ["provider"]
+              },
+              "then": {
+                "required": ["anthropicFederationRuleId", "anthropicOrganizationId", "anthropicServiceAccountId"]
+              },
+              "else": {
+                "required": ["azureTenantId", "azureClientId"]
+              }
+            }
+          }
+        },
+        "logging": {
+          "type": "object",
+          "description": "API proxy diagnostic and model-alias logging configuration.",
+          "additionalProperties": false,
+          "properties": {
+            "debugTokens": {
+              "type": "boolean",
+              "description": "Enable detailed token and model-alias diagnostics. Writes MODEL_ALIAS_RESOLUTION_STEP, MODEL_ALIAS_REWRITE, and other diagnostic events to token-diag.jsonl. Maps to AWF_DEBUG_TOKENS=1.",
+              "default": false
+            },
+            "tokenLogDir": {
+              "type": "string",
+              "description": "Directory for token-usage.jsonl and token-diag.jsonl files. Must be /var/log/api-proxy (or a subdirectory) so logs are captured by AWF's bind mount.",
+              "pattern": "^/var/log/api-proxy(?:/.*)?$",
+              "default": "/var/log/api-proxy"
+            }
+          }
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "description": "Security and isolation configuration.",
+      "additionalProperties": false,
+      "properties": {
+        "sslBump": {
+          "type": "boolean",
+          "description": "Enable SSL bumping (TLS interception) in the Squid proxy. Requires a custom CA certificate."
+        },
+        "enableDlp": {
+          "type": "boolean",
+          "description": "Enable Data Loss Prevention (DLP) inspection of outbound traffic."
+        },
+        "enableHostAccess": {
+          "type": "boolean",
+          "description": "Mount the host filesystem (read-only for system paths, read-write for the workspace). Enabled by default; set to false to run without host filesystem access."
+        },
+        "allowHostPorts": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "Host TCP ports the agent may connect to (e.g. local dev services). Accepts a single port string or an array of port strings."
+        },
+        "allowHostServicePorts": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "Named service ports on the host that the agent may connect to. Accepts a single port string or an array of port strings."
+        },
+        "difcProxy": {
+          "type": "object",
+          "description": "DIFC (Data-in-Flight Control) proxy configuration.",
+          "additionalProperties": false,
+          "properties": {
+            "host": {
+              "type": "string",
+              "description": "DIFC proxy host."
+            },
+            "caCert": {
+              "type": "string",
+              "description": "Path to the CA certificate for DIFC proxy TLS verification."
+            }
+          }
+        }
+      }
+    },
+    "container": {
+      "type": "object",
+      "description": "Container and Docker configuration.",
+      "additionalProperties": false,
+      "properties": {
+        "memoryLimit": {
+          "type": "string",
+          "description": "Docker memory limit for the agent container (e.g. \"4g\", \"512m\"). Uses Docker memory limit syntax."
+        },
+        "agentTimeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum time (in minutes) the agent command is allowed to run."
+        },
+        "enableDind": {
+          "type": "boolean",
+          "description": "Enable Docker-in-Docker support inside the agent container."
+        },
+        "workDir": {
+          "type": "string",
+          "description": "Host path used as the AWF working directory for generated configs and logs. Defaults to a temporary directory."
+        },
+        "containerWorkDir": {
+          "type": "string",
+          "description": "Working directory inside the agent container."
+        },
+        "imageRegistry": {
+          "type": "string",
+          "description": "Container image registry to pull from. Defaults to \"ghcr.io/github/gh-aw-firewall\"."
+        },
+        "imageTag": {
+          "type": "string",
+          "description": "Container image tag to use. Defaults to \"latest\"."
+        },
+        "skipPull": {
+          "type": "boolean",
+          "description": "Skip pulling container images (use locally cached images)."
+        },
+        "buildLocal": {
+          "type": "boolean",
+          "description": "Build container images from source instead of pulling from the registry."
+        },
+        "agentImage": {
+          "type": "string",
+          "description": "Override the agent container image (e.g. for a GitHub Actions parity image)."
+        },
+        "tty": {
+          "type": "boolean",
+          "description": "Allocate a pseudo-TTY for the agent container."
+        },
+        "dockerHost": {
+          "type": "string",
+          "description": "Docker daemon socket or host to connect to (e.g. \"unix:///var/run/docker.sock\")."
+        },
+        "dockerHostPathPrefix": {
+          "type": "string",
+          "description": "Prefix bind-mount source paths so the Docker daemon can resolve runner filesystem paths. Required for ARC DinD sidecar runners where the runner and daemon have separate filesystems. Example: \"/host\". Kernel virtual filesystems (/dev, /sys, /proc) are automatically excluded from prefixing. When this points at a daemon-visible shared /tmp path, AWF also stages the invoking CLI binary plus /etc/passwd, /etc/group, and the generated chroot /etc/hosts there."
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "description": "Environment variable propagation into the agent container. Merge behavior is: AWF-reserved variables are set by AWF and are not overridden by envAll or envFile; if envAll is true, host environment variables are forwarded next; envFile is then applied only for variables not already present, so it does not override envAll; CLI -e/--env has highest precedence and may override any variable, including AWF-reserved ones. When apiProxy.enabled is true, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) are excluded from the agent and held in the API proxy sidecar. See docs/awf-config-spec.md §8–9 for credential isolation rules.",
+      "additionalProperties": false,
+      "properties": {
+        "envFile": {
+          "type": "string",
+          "description": "Path to a .env file whose variables are injected into the agent container."
+        },
+        "envAll": {
+          "type": "boolean",
+          "description": "Forward all host environment variables into the agent container. Use with caution — may expose secrets."
+        },
+        "excludeEnv": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Environment variable names to exclude when envAll is true. IMPORTANT: Excluding LLM API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) without setting apiProxy.enabled=true will cause agent authentication failures. Use apiProxy.enabled=true for credential isolation instead of manual exclusion."
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging and diagnostics configuration.",
+      "additionalProperties": false,
+      "properties": {
+        "logLevel": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "description": "Log verbosity level. Defaults to \"info\"."
+        },
+        "diagnosticLogs": {
+          "type": "boolean",
+          "description": "Enable diagnostic logging (Squid access logs, iptables logs). Logs are written to the work directory."
+        },
+        "auditDir": {
+          "type": "string",
+          "description": "Directory path for audit logs."
+        },
+        "proxyLogsDir": {
+          "type": "string",
+          "description": "Directory path for Squid proxy access logs."
+        },
+        "sessionStateDir": {
+          "type": "string",
+          "description": "Directory path for agent session state (e.g. conversation history). Set to \"/tmp/gh-aw/sandbox/agent/session-state\" for Copilot agent runs."
+        }
+      }
+    },
+    "rateLimiting": {
+      "type": "object",
+      "description": "Egress rate limiting configuration.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable egress rate limiting."
+        },
+        "requestsPerMinute": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of HTTP requests per minute."
+        },
+        "requestsPerHour": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of HTTP requests per hour."
+        },
+        "bytesPerMinute": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of bytes transferred per minute."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "providerTarget": {
+      "type": "object",
+      "description": "API provider target override.",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Override the provider API host."
+        },
+        "basePath": {
+          "type": "string",
+          "description": "Override the provider API base path."
+        },
+        "authHeader": {
+          "type": "string",
+          "description": "Override the auth header name used for API requests. For OpenAI, replaces 'Authorization: Bearer <key>' with '<authHeader>: <key>' (raw key, no Bearer prefix). For Anthropic, replaces 'x-api-key'. Not applicable to Copilot or Gemini."
+        }
+      }
+    },
+    "providerHostOnlyTarget": {
+      "type": "object",
+      "description": "API provider target override (host only; basePath not supported).",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Override the provider API host."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "retryOn429": true,
+  "retryCount": 3,
+  "timeout": "20s",
+  "httpHeaders": [
+    {
+      "urls": ["https://github.com/", "https://api.github.com/"],
+      "headers": {
+        "Accept": "application/vnd.github.v3+json"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    {
+      "pattern": "^https://githubnext\\.com"
+    },
+    {
+      "pattern": "^https://githubnext\\.github\\.io"
+    }
+  ],
+  "aliveStatusCodes": [200, 206, 301, 302, 307, 308]
+}

@@ -1,0 +1,100 @@
+name: Integration Test Agentics
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration-test-agentics:
+    name: Test Agentics Repository Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Install development dependencies
+        run: make deps-dev
+
+      - name: Build gh-aw binary
+        run: make build
+
+      - name: Verify GitHub CLI is available
+        run: |
+          gh --version
+          echo "GitHub CLI is available"
+
+      - name: Verify gh-aw binary
+        run: |
+          ./gh-aw --help
+          ./gh-aw version
+
+      - name: Install workflows from agentics repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Installing workflows from githubnext/agentics..."
+          ./gh-aw add githubnext/agentics/weekly-research
+          ./gh-aw add githubnext/agentics/ci-doctor --force
+          ./gh-aw add githubnext/agentics/workflows/ci-doctor.md --force
+          ./gh-aw add githubnext/agentics/workflows/ci-doctor.md@main --force
+          ./gh-aw add githubnext/agentics/ci-doctor@main --force
+          ./gh-aw add githubnext/agentics/issue-triage
+          echo "Successfully installed agentics workflows"
+
+      - name: Test MCP server discovery
+        run: |
+          echo "Testing MCP server discovery..."
+          ./gh-aw mcp list
+          echo "Testing MCP server discovery with verbose mode..."
+          ./gh-aw mcp list --verbose
+
+      - name: Test MCP server inspection
+        run: |
+          echo "Testing MCP server inspection..."
+          ./gh-aw mcp inspect
+          echo "Testing MCP inspection help..."
+          ./gh-aw mcp inspect --help
+
+      - name: Recompile all workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Recompiling all installed workflows..."
+          make recompile
+          echo "Successfully recompiled all workflows"
+
+      - name: Check for compilation artifacts
+        run: |
+          echo "Checking for generated .lock.yml files..."
+          find .github/workflows -name "*.lock.yml" | head -10 || echo "No lock files found yet"
+          
+      - name: Verify no compilation errors
+        run: |
+          echo "Verifying workflow compilation completed without errors..."
+          if [ -n "$(find .github/workflows -name "*.md" -newer .github/workflows/*.lock.yml 2>/dev/null)" ]; then
+            echo "Warning: Some markdown files may be newer than their compiled versions"
+          fi
+
+      - name: Display integration test summary
+        if: always()
+        run: |
+          echo "=== Integration Test Summary ==="
+          echo "Repository: githubnext/agentics"
+          echo "Workflows installed and compiled successfully"
+          echo "All validations passed"
+          ls -la .github/workflows/*.lock.yml 2>/dev/null || echo "Note: Check workflow compilation status above"

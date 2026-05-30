@@ -1,0 +1,279 @@
+---
+emoji: "✅"
+name: "Contribution Check"
+on:
+  schedule: "every 4 hours"
+  workflow_dispatch:
+timeout-minutes: 30
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+env:
+  TARGET_REPOSITORY: ${{ vars.TARGET_REPOSITORY || github.repository }}
+
+engine:
+  id: copilot
+  agent: contribution-checker
+  max-continuations: 20
+
+imports:
+  - shared/otlp.md
+tools:
+  cli-proxy: true
+  github:
+    mode: gh-proxy
+    toolsets: [pull_requests, repos, issues]
+    allowed-repos: all
+    min-integrity: none
+safe-outputs:
+  create-issue:
+    title-prefix: "[Contribution Check Report]"
+    labels:
+      - contribution-report
+    close-older-issues: true
+    group-by-day: true
+    expires: 1d
+  add-labels:
+    allowed: [spam, needs-work, outdated, lgtm]
+    max: 4
+    target: "*"
+    target-repo: ${{ vars.TARGET_REPOSITORY }}
+  add-comment:
+    max: 10
+    target: "*"
+    target-repo: ${{ vars.TARGET_REPOSITORY }}
+    hide-older-comments: true
+steps:
+  - name: Fetch and filter PRs
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      # Fetch open PRs from the target repository opened in the last 24 hours
+      SINCE=$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+              || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')
+
+      echo "Fetching open PRs from $TARGET_REPOSITORY created since $SINCE..."
+      ALL_PRS=$(gh pr list \
+        --repo "$TARGET_REPOSITORY" \
+        --state open \
+        --limit 100 \
+        --json number,createdAt \
+        --jq "[.[] | select(.createdAt >= \"$SINCE\")]" \
+        2>/dev/null || echo "[]")
+
+      TOTAL=$(echo "$ALL_PRS" | jq 'length')
+      echo "Found $TOTAL open PRs created in the last 24 hours"
+
+      # Cap the number of PRs to evaluate at 3
+      MAX_EVALUATE=3
+      EVALUATED=$(echo "$ALL_PRS" | jq --argjson max "$MAX_EVALUATE" '[.[0:$max][] | .number]')
+      EVALUATED_COUNT=$(echo "$EVALUATED" | jq 'length')
+      SKIPPED_COUNT=$((TOTAL - EVALUATED_COUNT))
+
+      # Write results to workspace root
+      jq -n \
+        --argjson pr_numbers "$EVALUATED" \
+        --argjson skipped_count "$SKIPPED_COUNT" \
+        --argjson evaluated_count "$EVALUATED_COUNT" \
+        '{pr_numbers: $pr_numbers, skipped_count: $skipped_count, evaluated_count: $evaluated_count}' \
+        > "$GITHUB_WORKSPACE/pr-filter-results.json"
+
+      echo "✓ Wrote pr-filter-results.json: $EVALUATED_COUNT to evaluate, $SKIPPED_COUNT skipped"
+      cat "$GITHUB_WORKSPACE/pr-filter-results.json"
+
+      # Pre-fetch CONTRIBUTING.md once so all subagent calls can reuse it
+      CONTRIBUTING_FETCHED=false
+      for CONTRIBUTING_PATH in "CONTRIBUTING.md" ".github/CONTRIBUTING.md" "docs/CONTRIBUTING.md"; do
+        if gh api "repos/$TARGET_REPOSITORY/contents/$CONTRIBUTING_PATH" \
+            --jq '.content' 2>/dev/null | base64 -d > "$GITHUB_WORKSPACE/contributing-guidelines.md" 2>/dev/null; then
+          echo "✓ Pre-fetched contributing guidelines from $CONTRIBUTING_PATH"
+          CONTRIBUTING_FETCHED=true
+          break
+        fi
+      done
+      if [ "$CONTRIBUTING_FETCHED" = "false" ]; then
+        echo "# No CONTRIBUTING.md found" > "$GITHUB_WORKSPACE/contributing-guidelines.md"
+        echo "ℹ No CONTRIBUTING.md found in $TARGET_REPOSITORY (checked root, .github/, docs/)"
+      fi
+
+
+---
+
+## Target Repository
+
+The target repository is `${{ env.TARGET_REPOSITORY }}`. All PR fetching and subagent dispatch use this value.
+
+## Overview
+
+You are an **orchestrator**. Your job is to dispatch PRs to the `contribution-checker` subagent for evaluation and compile the results into a single report issue in THIS repository (`${{ github.repository }}`).
+
+You do NOT evaluate PRs yourself. You delegate each evaluation to `.github/agents/contribution-checker.agent.md`.
+
+## Pre-filtered PR List
+
+A `pre-agent` step has already queried and filtered PRs from `${{ env.TARGET_REPOSITORY }}`. The results are in `pr-filter-results.json` at the workspace root. Read this file first. It contains:
+
+```json
+{
+  "pr_numbers": [18744, 18743, 18742],
+  "skipped_count": 10,
+  "evaluated_count": 3
+}
+```
+
+If `pr_numbers` is empty, create a report stating no PRs matched the filters and skip dispatch.
+Do **not** emit one `noop` per PR slot or placeholder. If you need a noop, emit exactly **one** consolidated noop for the entire run.
+
+## Step 1: Dispatch to Subagent
+
+For each PR number in the comma-separated list, delegate evaluation to the **contribution-checker** subagent (`.github/agents/contribution-checker.agent.md`).
+
+### How to dispatch
+
+Read the contents of `contributing-guidelines.md` from the workspace root. This file was pre-fetched in the `pre-agent` step and contains the target repository's contributing guidelines.
+
+Before injecting into any subagent prompt, **truncate the guidelines to at most 2,000 characters**: keep the first 1,500 characters and the last 500 characters. If the full content is 2,000 characters or shorter, use it as-is. This prevents token bloat when the target repository has a lengthy CONTRIBUTING.md.
+
+To build the truncated guidelines string, apply the following logic (pseudocode):
+
+```
+full = read("contributing-guidelines.md")
+if len(full) <= 2000:
+    guidelines = full
+else:
+    guidelines = full[:1500] + "\n...\n" + full[-500:]
+```
+
+Call the contribution-checker subagent for each PR with this prompt:
+
+```
+The CONTRIBUTING.md content for this repository is attached below (truncated to 2000 chars).
+Skip Step 1 — do not fetch CONTRIBUTING.md again.
+
+<contributing-guidelines>
+{first 1500 chars of contributing-guidelines.md}
+...
+{last 500 chars of contributing-guidelines.md}
+</contributing-guidelines>
+
+Evaluate PR ${{ env.TARGET_REPOSITORY }}#<number> against the contribution guidelines.
+```
+
+The subagent accepts any `owner/repo#number` reference — the target repo is not hardcoded.
+
+The subagent will return a single JSON object with the verdict and a comment for the contributor.
+
+### Parallelism (required)
+
+Dispatch **ALL subagent calls simultaneously in a single tool-use block** before waiting for any results. Do not wait for one subagent to return before dispatching the next. Collect all results only after every dispatch has been initiated.
+
+Each subagent call is stateless and self-contained. It fetches its own PR data.
+
+### Collecting results
+
+Gather all returned JSON objects. If a subagent call fails, record the PR with verdict `❓` and quality `triage:error` in the report.
+
+### Posting comments
+
+Use the `comment-dispatcher` agent on the verdict array (the JSON objects returned by the contribution-checker subagent in Step 1) to get the list of comments to post.
+
+For each returned `{issue_number, body}` payload, emit one `add_comment` safe output that includes **both fields verbatim** — `issue_number` is required.
+The safe-output validator rejects `add_comment` items that omit `item_number` / `issue_number` / `pull_request_number` (for example: `Target is "*" but no item_number/...`) and fails the entire `safe_outputs` job.
+When iterating verdict rows, copy `issue_number` directly from the returned payload into the emitted `add_comment` item; do not infer or rename it.
+Never emit `add_comment` without a numeric target field.
+Example:
+```json
+{"type":"add_comment","issue_number":35304,"body":"Thanks for the PR — here are the next changes to make..."}
+```
+Do not specify the repo — `target-repo` is pre-configured.
+
+## Completion Gate
+
+Once all subagent results are collected (or errors recorded), compile the report and call safe-output tools. Do **NOT** retry failed subagent calls more than once. If a subagent returns an error on the second attempt, record the verdict as `❓` and continue.
+
+Keep a running count of actions taken (each tool call or subagent dispatch counts as one turn). Do not exceed **50 total turns** across the entire orchestrator run. If you are approaching the limit, skip any remaining retries, finalize the report with what you have, and emit safe-output calls immediately.
+
+## Step 2: Compile Report
+
+Use the `report-formatter` agent, passing the array of returned subagent JSON objects, the `skipped_count` from `pr-filter-results.json`, and the run URL (constructed as `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`), to produce the report body. Then emit a single `create_issue` safe output with that body as `body` and `temporary_id: "aw_summary"`.
+
+## Step 3: Label the Report Issue
+
+After creating the report issue, call the `add_labels` safe output tool to apply labels based on the quality signals reported by the subagent. Collect the distinct `quality` values from all returned rows and add each as a label. The `add_labels` tool is pre-configured with `target-repo` pointing to the target repository.
+
+When you create the report issue, set a `temporary_id` (for example `aw_summary`). Then set `add_labels.item_number` to `#<temporary_id>` (for example `#aw_summary`) so labels are applied to the issue created in the same run.
+
+Example:
+
+```json
+{"type":"create_issue","temporary_id":"aw_summary","title":"Contribution Check — 2026-04-19","body":"..."}
+{"type":"add_labels","item_number":"#aw_summary","labels":["lgtm","needs-work"]}
+```
+
+For example, if the batch contains rows with `lgtm`, `spam`, and `needs-work` quality values, apply all three labels: `lgtm`, `spam`, `needs-work`.
+
+If any subagent call failed (❓), also apply `outdated`.
+
+## Important
+
+- **You are the orchestrator** — you dispatch and compile. You do NOT run the checklist yourself.
+- **PR fetching and filtering is pre-computed** — a `pre-agent` step writes `pr-filter-results.json`. Read it at the start.
+- **Subagent does the analysis** — `.github/agents/contribution-checker.agent.md` handles all per-PR evaluation logic.
+- **Read from `${{ env.TARGET_REPOSITORY }}`** — read-only access via GitHub MCP tools.
+- **Write to `${{ github.repository }}`** — reports go here as issues.
+- **Use safe output tools for target repository interactions** — use `add-comment` and `add-labels` safe output tools to post comments and labels to PRs in the target repository `${{ env.TARGET_REPOSITORY }}`. Never use `gh` CLI or direct API calls for writes.
+- Close the previous report issue when creating a new one (`close-older-issues: true`).
+- Be constructive in assessments — these reports help maintainers prioritize, not gatekeep.
+- `noop` is global, not per-PR. Emit at most one consolidated noop for the entire workflow run.
+- If you emitted any actionable safe outputs (`create_issue`, `add_comment`, `add_labels`), do **not** emit `noop`.
+
+{{#runtime-import shared/noop-reminder.md}}
+
+## agent: `report-formatter`
+---
+description: Groups PR verdict JSONs into Ready/Needs-look/Off-guidelines tables and returns the markdown body for the contribution check report issue
+model: small
+---
+You receive a JSON array of PR verdict objects (each with fields: `number`, `title`, `author`, `lines`, `quality`, `comment`) plus a `skipped_count` integer and a `run_url` string.
+
+Produce the markdown body for a contribution check report issue. Follow these rules exactly:
+
+1. **Lead with the takeaway.** Open with a single-sentence human-readable summary: *"We looked at {evaluated} new PRs — {n} look great, {n} need a closer look, and {n} don't fit the project guidelines."*
+
+2. **Group by action.** Organize results into these groups (omit any with zero items):
+   - **Ready to review** 🟢 — PRs where `quality == "lgtm"`
+   - **Needs a closer look** 🟡 — PRs where `quality == "needs-work"`
+   - **Off-guidelines** 🔴 — PRs where `quality == "spam"` or `quality == "outdated"`
+   - **Triage needed** ❓ — PRs where `quality` starts with `"triage"` or is unknown
+
+3. **One table per group.** Columns: PR (linked as `#number`), Title (truncated to ~50 chars), Author (with `@`), Lines changed, Quality signal. Do NOT include boolean checklist columns.
+
+4. **Wrap Off-guidelines in `<details>`** if it has more than 2 items.
+
+5. **End with**: `Evaluated: {n} · Skipped: {skipped_count} · Run: {run_url}`
+
+6. Use h3 (###) or lower for all headers. Use `---` between groups. Tone: warm and constructive.
+
+Return ONLY the markdown body string — no JSON wrapper, no explanation.
+
+## agent: `comment-dispatcher`
+---
+description: Filters PR verdict array to entries needing maintainer comments and returns the comment payloads
+model: small
+---
+You receive a JSON array of PR verdict objects. Each object has at minimum these fields: `number` (integer PR number) and `comment` (string, may be empty) and `quality` (string).
+
+Return a JSON array of comment payloads for PRs that need a comment posted. Include an entry only when ALL of these conditions are true:
+- `comment` is non-empty (not null, not `""`)
+- `quality` is NOT `"lgtm"`
+
+Each entry in the output array must have exactly these fields:
+```json
+{"issue_number": <number>, "body": "<comment>"}
+```
+
+Return an empty array `[]` if no entries qualify. Return ONLY the JSON array — no explanation, no markdown.

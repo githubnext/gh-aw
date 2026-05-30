@@ -1,0 +1,743 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+/**
+ * PR Review Buffer Factory
+ *
+ * Creates a buffer instance that collects PR review comments and review metadata
+ * so they can be submitted as a single GitHub PR review via pulls.createReview().
+ *
+ * Cross-repository validation: The review buffer receives pre-validated repository
+ * information from handlers like create_pr_review_comment.cjs which use
+ * validateTargetRepo/checkAllowedRepo before setting the review context.
+ *
+ * Usage:
+ *   const { createReviewBuffer } = require("./pr_review_buffer.cjs");
+ *   const buffer = createReviewBuffer();
+ *   buffer.addComment({ path: "file.js", line: 10, body: "Fix this" });
+ *   buffer.setReviewMetadata("LGTM", "APPROVE");
+ *   await buffer.submitReview();
+ */
+
+const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
+const { attachExecutionState, fetchPullRequestReviewState } = require("./safe_output_execution_metadata.cjs");
+
+const SUPERSEDE_REVIEW_MESSAGE = "Superseded by updated review from same workflow.";
+const MAX_SUPERSEDE_REVIEW_PAGES = 10;
+const MAX_REVIEW_BODY_LENGTH = 65000;
+const DEFAULT_FALLBACK_EXCERPT_LENGTH = 500;
+const FALLBACK_SECTION_HEADER = "### Comments that could not be inline-anchored";
+const FALLBACK_EMPTY_COMMENT_BODY = "_(empty comment body)_";
+const FALLBACK_TRUNCATION_SUFFIX = "\n\n_(Fallback review body truncated to fit GitHub length limits.)_";
+const FALLBACK_OMISSION_NOTE = "_(Unanchored comment details omitted to fit GitHub length limits.)_";
+const ELLIPSIS = "…";
+
+/**
+ * @typedef {Object} BufferedComment
+ * @property {string} path - File path relative to repo root
+ * @property {number} line - Line number (end line for multi-line)
+ * @property {string} body - Comment body text
+ * @property {number} [start_line] - Start line for multi-line comments
+ * @property {string} [side] - LEFT or RIGHT
+ * @property {string} [start_side] - start_side for multi-line comments
+ */
+
+/**
+ * @typedef {Object} ReviewMetadata
+ * @property {string} body - Overall review body text
+ * @property {string} event - Review event: APPROVE, REQUEST_CHANGES, or COMMENT
+ */
+
+/**
+ * @typedef {Object} ReviewContext
+ * @property {string} repo - Repository slug (owner/repo)
+ * @property {{owner: string, repo: string}} repoParts - Parsed owner and repo
+ * @property {number} pullRequestNumber - PR number
+ * @property {Object} pullRequest - Full PR object with head.sha
+ */
+
+/**
+ * Create a new PR review buffer instance.
+ * All state is encapsulated in the returned object — no module-level globals.
+ *
+ * @returns {Object} Buffer instance with methods to add comments, set metadata, and submit review
+ */
+function createReviewBuffer() {
+  /** @type {BufferedComment[]} */
+  const bufferedComments = [];
+
+  /** @type {ReviewMetadata | null} */
+  let reviewMetadata = null;
+
+  /** @type {ReviewContext | null} */
+  let reviewContext = null;
+
+  /** @type {{workflowName: string, runUrl: string, workflowSource: string, workflowSourceURL: string, triggeringIssueNumber: number|undefined, triggeringPRNumber: number|undefined, triggeringDiscussionNumber: number|undefined} | null} */
+  let footerContext = null;
+
+  /** @type {string} Footer mode: "always" (default), "none", or "if-body" */
+  let footerMode = "always";
+
+  /** @type {boolean} Staged mode: when true, preview review without submitting (set via setStaged(), reset on buffer clear) */
+  let stagedMode = false;
+
+  /** @type {boolean} When true, dismiss older same-workflow REQUEST_CHANGES reviews after posting a replacement review. */
+  let supersedeOlderReviews = false;
+  /**
+   * Add a validated comment to the buffer.
+   * Rejects comments targeting a different repo/PR than the first comment.
+   * @param {BufferedComment} comment - Validated comment to buffer
+   */
+  function addComment(comment) {
+    bufferedComments.push(comment);
+    core.info(`Buffered review comment ${bufferedComments.length}: ${comment.path}:${comment.line}`);
+  }
+
+  /**
+   * Set the review metadata (body and event).
+   * Overwrites any previously set metadata (last call wins).
+   * @param {string} body - Overall review body text
+   * @param {string} event - Review event: APPROVE, REQUEST_CHANGES, or COMMENT
+   */
+  function setReviewMetadata(body, event) {
+    reviewMetadata = { body, event };
+    core.info(`Set review metadata: event=${event}, bodyLength=${body.length}`);
+  }
+
+  /**
+   * Set the review context (target repo and PR).
+   * Only sets if not already set (first comment determines context).
+   * @param {ReviewContext} ctx - Review context
+   * @returns {boolean} true if context was set, false if already set
+   */
+  function setReviewContext(ctx) {
+    if (reviewContext === null) {
+      reviewContext = ctx;
+      core.info(`Set review context: ${ctx.repo}#${ctx.pullRequestNumber}`);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get the current review context (repo and PR).
+   * @returns {ReviewContext | null}
+   */
+  function getReviewContext() {
+    return reviewContext;
+  }
+
+  /**
+   * Set the footer context for generating review footer.
+   * Only sets if not already set.
+   * @param {Object} ctx - Footer context
+   */
+  function setFooterContext(ctx) {
+    if (footerContext === null) {
+      footerContext = ctx;
+    }
+  }
+
+  /**
+   * Set the footer mode for review body.
+   * Supported modes:
+   *   - "always" (default): Always include footer
+   *   - "none": Never include footer
+   *   - "if-body": Only include footer if review body is non-empty
+   * Also accepts boolean values for backward compatibility:
+   *   - true → "always"
+   *   - false → "none"
+   * Note: submit-pull-request-review.footer is emitted as a string by the Go compiler.
+   * The global footer setting is emitted as a boolean and converted by getEffectiveFooterString.
+   * @param {string|boolean} value - Footer mode string or boolean
+   */
+  function setFooterMode(value) {
+    if (typeof value === "boolean") {
+      // Normalize boolean to string mode (backward compatibility)
+      const normalized = value ? "always" : "none";
+      core.info(`Normalized boolean footer config (${value}) to mode: "${normalized}"`);
+      footerMode = normalized;
+    } else if (typeof value === "string") {
+      // Validate string mode
+      if (value === "always" || value === "none" || value === "if-body") {
+        footerMode = value;
+        core.info(`PR review footer mode set to "${footerMode}"`);
+      } else {
+        core.warning(`Invalid footer mode: "${value}". Using default "always". Valid values: "always", "none", "if-body"`);
+        footerMode = "always";
+      }
+    } else {
+      core.warning(`Invalid footer mode type: ${typeof value}. Using default "always".`);
+      footerMode = "always";
+    }
+  }
+
+  /**
+   * Set staged mode for the review buffer.
+   * When staged, submitReview() will preview the review without actually submitting.
+   * @param {boolean} value - Whether staged mode is enabled
+   */
+  function setStaged(value) {
+    stagedMode = value;
+    if (value) {
+      core.info("PR review buffer staged mode enabled");
+    }
+  }
+
+  /**
+   * Enable/disable superseding older same-workflow REQUEST_CHANGES reviews.
+   * @param {boolean} value - Whether supersede behavior is enabled
+   */
+  function setSupersedeOlderReviews(value) {
+    supersedeOlderReviews = value === true;
+    if (supersedeOlderReviews) {
+      core.info("PR review supersede mode enabled");
+    }
+  }
+
+  /**
+   * Check if there are buffered comments to submit.
+   * @returns {boolean}
+   */
+  function hasBufferedComments() {
+    return bufferedComments.length > 0;
+  }
+
+  /**
+   * Check if review metadata has been set.
+   * @returns {boolean}
+   */
+  function hasReviewMetadata() {
+    return reviewMetadata !== null;
+  }
+
+  /**
+   * Get the number of buffered comments.
+   * @returns {number}
+   */
+  function getBufferedCount() {
+    return bufferedComments.length;
+  }
+
+  /**
+   * Submit the buffered review as a single pulls.createReview() call.
+   * Supports body-only reviews (no inline comments) when metadata is set.
+   * If no submit_pull_request_review message was provided, defaults to event: "COMMENT".
+   *
+   * @returns {Promise<Object>} Result with success status and review details
+   */
+  async function submitReview() {
+    if (bufferedComments.length === 0 && !reviewMetadata) {
+      core.info("No buffered review comments or review metadata to submit");
+      return { success: true, skipped: true };
+    }
+
+    if (!reviewContext) {
+      core.info("No review context set - skipping PR review submission");
+      return {
+        success: true,
+        skipped: true,
+        reason: "No review context available",
+      };
+    }
+
+    const { repo, repoParts, pullRequestNumber, pullRequest } = reviewContext;
+    const beforeState = await fetchPullRequestReviewState(github, repoParts, pullRequestNumber);
+
+    if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
+      core.warning("Pull request head SHA not available - cannot submit review");
+      return { success: false, error: "Pull request head SHA not available" };
+    }
+
+    // Determine review event and body
+    let event = reviewMetadata ? reviewMetadata.event : "COMMENT";
+    let body = reviewMetadata ? reviewMetadata.body : "";
+
+    // Determine if we should add footer based on footer mode
+    let shouldAddFooter = footerMode === "always";
+    if (footerMode === "if-body") {
+      // Only add footer if body is non-empty (has meaningful content)
+      shouldAddFooter = body.trim().length > 0;
+      core.info(`Footer mode "if-body": body is ${body.trim().length > 0 ? "non-empty" : "empty"}, ${shouldAddFooter ? "adding" : "skipping"} footer`);
+    }
+
+    // Inject CAUTION at top of body unconditionally if threat detection warning was raised,
+    // independent of footer inclusion so the alert is never silently dropped.
+    if (footerContext) {
+      const detectionCaution = getDetectionCautionAlert(footerContext.workflowName, footerContext.runUrl);
+      if (detectionCaution) {
+        body = detectionCaution + "\n\n" + body;
+        // When CAUTION is present, ensure the footer (and XML marker) is always included
+        // so the review body is not empty of metadata, and re-evaluate shouldAddFooter.
+        shouldAddFooter = true;
+      }
+    }
+
+    // Add footer to review body if we should and we have footer context
+    if (shouldAddFooter && footerContext) {
+      body += generateFooterWithMessages(
+        footerContext.workflowName,
+        footerContext.runUrl,
+        footerContext.workflowSource,
+        footerContext.workflowSourceURL,
+        footerContext.triggeringIssueNumber,
+        footerContext.triggeringPRNumber,
+        footerContext.triggeringDiscussionNumber,
+        undefined,
+        { skipDetectionCaution: true }
+      );
+
+      const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
+      if (callerWorkflowId) {
+        body += "\n" + generateWorkflowCallIdMarker(callerWorkflowId);
+      }
+    }
+
+    // Build comments array for the API
+    let comments = bufferedComments.map(comment => {
+      /** @type {any} */
+      const apiComment = {
+        path: comment.path,
+        line: comment.line,
+        body: comment.body,
+      };
+
+      if (comment.start_line !== undefined) {
+        apiComment.start_line = comment.start_line;
+      }
+
+      if (comment.side) {
+        apiComment.side = comment.side;
+      }
+
+      if (comment.start_line !== undefined && comment.start_side) {
+        apiComment.start_side = comment.start_side;
+      } else if (comment.start_line !== undefined && comment.side) {
+        // Fall back to side when start_side is not explicitly provided
+        apiComment.start_side = comment.side;
+      }
+
+      return apiComment;
+    });
+
+    // Sub-pattern B: Validate comment paths against the PR diff before POSTing.
+    // Comments targeting paths not in the diff cause GitHub to return 422 "Path could not be resolved".
+    if (comments.length > 0) {
+      try {
+        const changedPaths = new Set();
+        let listPage = 1;
+        // Cap at 10 pages (1,000 files). PRs with more than 1,000 changed files are
+        // extremely rare and path validation is best-effort; we proceed without filtering
+        // if any individual listFiles call throws (see catch block below).
+        const MAX_LIST_FILES_PAGES = 10;
+        while (listPage <= MAX_LIST_FILES_PAGES) {
+          const { data: files } = await github.rest.pulls.listFiles({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            pull_number: pullRequestNumber,
+            per_page: 100,
+            page: listPage,
+          });
+          if (!Array.isArray(files) || files.length === 0) break;
+          for (const f of files) {
+            changedPaths.add(f.filename);
+            // For renamed files, the old path (previous_filename) is also valid for review comments.
+            if (f.previous_filename) changedPaths.add(f.previous_filename);
+          }
+          if (files.length < 100) break;
+          listPage++;
+        }
+        // `listPage > MAX_LIST_FILES_PAGES` is only true when the loop exited via the
+        // while-condition (not via a break), which only happens after a full page of 100
+        // files caused listPage to be incremented past the cap. A partial page always
+        // triggers the `files.length < 100` break first, so hitPageCap implies the last
+        // page was full and there may be more files beyond the 1,000-file limit.
+        // Fail-open in that case: the collected set is non-authoritative and filtering
+        // would risk dropping valid comments on the un-fetched files.
+        const hitPageCap = listPage > MAX_LIST_FILES_PAGES;
+        // Only filter when we received a non-empty file list and did not hit the cap;
+        // an empty list likely indicates an API quirk or a PR with no diff.
+        if (changedPaths.size > 0 && !hitPageCap) {
+          const invalidComments = comments.filter(c => !changedPaths.has(c.path));
+          if (invalidComments.length > 0) {
+            for (const c of invalidComments) {
+              core.warning(`Skipping review comment at '${c.path}:${c.line}' — path not found in PR #${pullRequestNumber} diff`);
+            }
+            comments = comments.filter(c => changedPaths.has(c.path));
+          }
+        }
+      } catch (pathValidationError) {
+        core.warning(`Failed to validate comment paths against PR diff: ${getErrorMessage(pathValidationError)}. Proceeding without path validation.`);
+      }
+    }
+
+    // Sub-pattern A: Guard against empty review submission (no body and no inline comments).
+    // GitHub returns 422 "Unprocessable Entity" when both are absent.
+    if (comments.length === 0 && !body) {
+      const errorMsg = "Empty review: review body is empty and no inline comments are present" + (bufferedComments.length > 0 ? " (all comment paths were outside the PR diff)" : "") + ". Skipping POST to avoid 422.";
+      core.warning(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
+    core.info(`Submitting PR review on ${repo}#${pullRequestNumber}: event=${event}, comments=${comments.length}, bodyLength=${body.length}`);
+
+    // If in staged mode, preview the review without submitting
+    const isStaged = isStagedMode({ staged: stagedMode });
+    if (isStaged) {
+      let summaryContent = "## 🎭 Staged Mode: PR Review Preview\n\n";
+      summaryContent += "The following PR review would be submitted if staged mode was disabled:\n\n";
+      summaryContent += `**Target PR:** ${repo}#${pullRequestNumber}\n\n`;
+      summaryContent += `**Review Event:** ${event}\n\n`;
+
+      if (body) {
+        summaryContent += `**Review Body:**\n${body}\n\n`;
+      }
+
+      if (comments.length > 0) {
+        summaryContent += `**Inline Comments:** ${comments.length}\n\n`;
+        for (let i = 0; i < comments.length; i++) {
+          const comment = comments[i];
+          summaryContent += `${i + 1}. \`${comment.path}:${comment.line}\` (${comment.side || "RIGHT"})\n`;
+          summaryContent += `   ${comment.body.substring(0, 100)}${comment.body.length > 100 ? "..." : ""}\n\n`;
+        }
+      }
+
+      summaryContent += "---\n\n";
+
+      await core.summary.addRaw(summaryContent).write();
+      core.info("📝 PR review preview written to step summary (staged mode)");
+      return { success: true, staged: true };
+    }
+
+    /** @type {any} */
+    const requestParams = {
+      owner: repoParts.owner,
+      repo: repoParts.repo,
+      pull_number: pullRequestNumber,
+      commit_id: pullRequest.head.sha,
+      event: event,
+    };
+
+    // Only include comments if there are any
+    if (comments.length > 0) {
+      requestParams.comments = comments;
+    }
+
+    // Only include body if non-empty
+    if (body) {
+      requestParams.body = body;
+    }
+
+    /**
+     * Dismiss older REQUEST_CHANGES reviews from the same workflow after posting a replacement review.
+     * This is best-effort: failures are logged as warnings and do not fail the current review submission.
+     * @param {number} currentReviewId
+     */
+    async function maybeSupersedeOlderReviews(currentReviewId) {
+      if (!supersedeOlderReviews) {
+        return;
+      }
+
+      const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
+      const workflowCallId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
+      if (!workflowId && !workflowCallId) {
+        core.warning("supersede-older-reviews is enabled but neither GH_AW_WORKFLOW_ID nor GH_AW_CALLER_WORKFLOW_ID is set. Skipping stale review dismissal.");
+        return;
+      }
+      const workflowCallMarker = workflowCallId ? generateWorkflowCallIdMarker(workflowCallId) : "";
+      try {
+        /** @type {Array<{id: number, state?: string, user?: {login?: string, type?: string}, body?: string}>} */
+        const reviews = [];
+        let page = 1;
+        const perPage = 100;
+        while (page <= MAX_SUPERSEDE_REVIEW_PAGES) {
+          const { data } = await github.rest.pulls.listReviews({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            pull_number: pullRequestNumber,
+            per_page: perPage,
+            page,
+          });
+
+          if (!Array.isArray(data) || data.length === 0) {
+            break;
+          }
+          reviews.push(...data);
+          if (data.length < perPage) {
+            break;
+          }
+          page++;
+        }
+        if (page > MAX_SUPERSEDE_REVIEW_PAGES) {
+          core.warning(`supersede-older-reviews reached pagination safety limit (${MAX_SUPERSEDE_REVIEW_PAGES} pages).`);
+        }
+
+        const staleReviews = reviews.filter(review => {
+          if (!review || review.id === currentReviewId) return false;
+          if (review.state !== "CHANGES_REQUESTED") return false;
+          if (review.user?.type !== "Bot") return false;
+          if (workflowCallMarker) {
+            return review.body?.includes(workflowCallMarker) || false;
+          }
+          return matchesWorkflowId(review.body, workflowId);
+        });
+
+        for (const staleReview of staleReviews) {
+          try {
+            await github.rest.pulls.dismissReview({
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              pull_number: pullRequestNumber,
+              review_id: staleReview.id,
+              message: SUPERSEDE_REVIEW_MESSAGE,
+            });
+            core.info(`Dismissed superseded review #${staleReview.id}`);
+          } catch (dismissError) {
+            core.warning(`Failed to dismiss stale review #${staleReview.id}: ${getErrorMessage(dismissError)}`);
+          }
+        }
+      } catch (listOrSupersedeError) {
+        core.warning(`Failed to supersede older reviews: ${getErrorMessage(listOrSupersedeError)}`);
+      }
+    }
+
+    try {
+      const { data: review } = await github.rest.pulls.createReview(requestParams);
+      await maybeSupersedeOlderReviews(review.id);
+
+      core.info(`Created PR review #${review.id}: ${review.html_url}`);
+
+      return attachExecutionState(
+        {
+          success: true,
+          url: review.html_url,
+          number: pullRequestNumber,
+          review_id: review.id,
+          review_url: review.html_url,
+          pull_request_number: pullRequestNumber,
+          repo: repo,
+          event: event,
+          comment_count: comments.length,
+          metadata: {
+            review_id: review.id,
+            review_event: event,
+            ...(review.state ? { review_state: review.state } : {}),
+          },
+        },
+        beforeState,
+        await fetchPullRequestReviewState(github, repoParts, pullRequestNumber)
+      );
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+
+      // Retry with COMMENT when the API rejects APPROVE/REQUEST_CHANGES on own PR.
+      // This handles all token types (GITHUB_TOKEN lacks read:user scope for proactive checks).
+      // These error message strings are returned verbatim by the GitHub API (Unprocessable Entity).
+      const ownPrMessages = ["Can not request changes on your own pull request", "Can not approve your own pull request"];
+      if (event !== "COMMENT" && ownPrMessages.some(msg => errorMessage.includes(msg))) {
+        core.warning(`Cannot submit ${event} review on own PR. Retrying with event=COMMENT.`);
+        try {
+          requestParams.event = "COMMENT";
+          const { data: review } = await github.rest.pulls.createReview(requestParams);
+          await maybeSupersedeOlderReviews(review.id);
+          core.info(`Created PR review #${review.id}: ${review.html_url}`);
+          return attachExecutionState(
+            {
+              success: true,
+              url: review.html_url,
+              number: pullRequestNumber,
+              review_id: review.id,
+              review_url: review.html_url,
+              pull_request_number: pullRequestNumber,
+              repo: repo,
+              event: "COMMENT",
+              comment_count: comments.length,
+              metadata: {
+                review_id: review.id,
+                review_event: "COMMENT",
+                ...(review.state ? { review_state: review.state } : {}),
+              },
+            },
+            beforeState,
+            await fetchPullRequestReviewState(github, repoParts, pullRequestNumber)
+          );
+        } catch (retryError) {
+          core.error(`Failed to submit PR review on retry: ${getErrorMessage(retryError)}`);
+          return {
+            success: false,
+            error: getErrorMessage(retryError),
+          };
+        }
+      }
+
+      // When the API cannot resolve a line or path reference in an inline comment, retry as a
+      // body-only review so that the overall review (and its footer body) is still submitted
+      // successfully. Matches both "Line could not be resolved" and "Path could not be resolved".
+      if ((errorMessage.includes("Line could not be resolved") || errorMessage.includes("Path could not be resolved")) && comments.length > 0) {
+        core.warning(`PR review submission failed due to unresolvable comment line(s): ${errorMessage}. Retrying as body-only review.`);
+        try {
+          const bodyOnlyParams = { ...requestParams };
+          delete bodyOnlyParams.comments;
+          bodyOnlyParams.body = appendUnanchoredCommentsSection(typeof requestParams.body === "string" ? requestParams.body : "", comments);
+          const { data: review } = await github.rest.pulls.createReview(bodyOnlyParams);
+          await maybeSupersedeOlderReviews(review.id);
+          core.info(`Created PR review #${review.id} (body-only fallback): ${review.html_url}`);
+          return attachExecutionState(
+            {
+              success: true,
+              url: review.html_url,
+              number: pullRequestNumber,
+              review_id: review.id,
+              review_url: review.html_url,
+              pull_request_number: pullRequestNumber,
+              repo: repo,
+              event: event,
+              comment_count: 0,
+              metadata: {
+                review_id: review.id,
+                review_event: event,
+                ...(review.state ? { review_state: review.state } : {}),
+              },
+            },
+            beforeState,
+            await fetchPullRequestReviewState(github, repoParts, pullRequestNumber)
+          );
+        } catch (retryError) {
+          core.error(`Failed to submit body-only PR review: ${getErrorMessage(retryError)}`);
+          return {
+            success: false,
+            error: getErrorMessage(retryError),
+          };
+        }
+      }
+
+      core.error(`Failed to submit PR review: ${errorMessage}`);
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Reset the buffer state (for testing).
+   */
+  function reset() {
+    bufferedComments.length = 0;
+    reviewMetadata = null;
+    reviewContext = null;
+    footerContext = null;
+    footerMode = "always";
+    stagedMode = false;
+  }
+
+  return {
+    addComment,
+    setReviewMetadata,
+    setReviewContext,
+    getReviewContext,
+    setFooterContext,
+    setFooterMode,
+    setIncludeFooter: setFooterMode, // Backward compatibility alias
+    setStaged,
+    setSupersedeOlderReviews,
+    hasBufferedComments,
+    hasReviewMetadata,
+    getBufferedCount,
+    submitReview,
+    reset,
+  };
+}
+
+module.exports = { createReviewBuffer };
+/**
+ * Append a fallback section that preserves inline comment content when comments cannot be anchored.
+ * @param {string} reviewBody
+ * @param {BufferedComment[]} comments
+ * @returns {string}
+ */
+function appendUnanchoredCommentsSection(reviewBody, comments) {
+  const baseBody = reviewBody || "";
+  const sectionPrefix = baseBody ? `\n\n${FALLBACK_SECTION_HEADER}\n\n` : `${FALLBACK_SECTION_HEADER}\n\n`;
+  const overheadLength = comments.reduce((sum, comment, index) => {
+    const separatorLength = index > 0 ? 2 : 0; // \n\n separator used by join("\n\n")
+    return sum + separatorLength + renderUnanchoredCommentBlock(comment, "").length;
+  }, 0);
+  const availableExcerptChars = MAX_REVIEW_BODY_LENGTH - (baseBody.length + sectionPrefix.length + overheadLength);
+
+  let perCommentExcerptLimit = DEFAULT_FALLBACK_EXCERPT_LENGTH;
+  if (comments.length > 0) {
+    if (availableExcerptChars <= 0) {
+      perCommentExcerptLimit = 0;
+    } else {
+      perCommentExcerptLimit = Math.min(DEFAULT_FALLBACK_EXCERPT_LENGTH, Math.floor(availableExcerptChars / comments.length));
+    }
+  }
+
+  const detailsBlocks = comments.map(comment => {
+    const rawBody = (comment.body || "").trim();
+    if (perCommentExcerptLimit <= 0) {
+      return renderUnanchoredCommentBlock(comment, FALLBACK_EMPTY_COMMENT_BODY);
+    }
+
+    const shouldTruncate = perCommentExcerptLimit > 0 && rawBody.length > perCommentExcerptLimit;
+    const truncateLength = perCommentExcerptLimit >= ELLIPSIS.length ? perCommentExcerptLimit - ELLIPSIS.length : 0;
+    const truncatedBody = shouldTruncate ? rawBody.substring(0, truncateLength) : rawBody;
+    const excerpt = shouldTruncate ? `${truncatedBody}${ELLIPSIS}` : rawBody;
+    const safeExcerpt = excerpt || FALLBACK_EMPTY_COMMENT_BODY;
+    return renderUnanchoredCommentBlock(comment, safeExcerpt);
+  });
+
+  const mergedBody = `${baseBody}${sectionPrefix}${detailsBlocks.join("\n\n")}`;
+  if (mergedBody.length <= MAX_REVIEW_BODY_LENGTH) {
+    return mergedBody;
+  }
+
+  const maxBodyLength = Math.max(0, MAX_REVIEW_BODY_LENGTH - FALLBACK_TRUNCATION_SUFFIX.length);
+  if (baseBody.length > maxBodyLength) {
+    return `${baseBody.substring(0, maxBodyLength)}${FALLBACK_TRUNCATION_SUFFIX}`;
+  }
+
+  const omissionBody = `${baseBody}${sectionPrefix}${FALLBACK_OMISSION_NOTE}`;
+  if (omissionBody.length <= MAX_REVIEW_BODY_LENGTH) {
+    return omissionBody;
+  }
+
+  return `${baseBody.substring(0, maxBodyLength)}${FALLBACK_TRUNCATION_SUFFIX}`;
+}
+
+/**
+ * @param {BufferedComment} comment
+ * @param {string} bodyText
+ * @returns {string}
+ */
+function renderUnanchoredCommentBlock(comment, bodyText) {
+  const summaryText = `${comment.path}:${comment.line}`;
+  return `<details><summary>${escapeHtml(summaryText)}</summary>\n\n${escapeHtml(bodyText)}\n\n</details>`;
+}
+
+/**
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, character => {
+    switch (character) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      case "'":
+        return "&#39;";
+      default:
+        return character;
+    }
+  });
+}

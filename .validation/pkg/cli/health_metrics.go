@@ -1,0 +1,231 @@
+package cli
+
+import (
+	"fmt"
+	"strconv"
+	"time"
+
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stats"
+	"github.com/github/gh-aw/pkg/timeutil"
+)
+
+var healthMetricsLog = logger.New("cli:health_metrics")
+
+// WorkflowHealth represents health metrics for a single workflow
+type WorkflowHealth struct {
+	WorkflowName  string        `json:"workflow_name" console:"header:Workflow"`
+	TotalRuns     int           `json:"total_runs" console:"-"`
+	SuccessCount  int           `json:"success_count" console:"-"`
+	FailureCount  int           `json:"failure_count" console:"-"`
+	SuccessRate   float64       `json:"success_rate" console:"-"`
+	DisplayRate   string        `json:"-" console:"header:Success Rate"`
+	Trend         string        `json:"trend" console:"header:Trend"`
+	AvgDuration   time.Duration `json:"avg_duration" console:"-"`
+	DisplayDur    string        `json:"-" console:"header:Avg Duration"`
+	TotalTokens   int           `json:"total_tokens" console:"-"`
+	AvgTokens     int           `json:"avg_tokens" console:"-"`
+	DisplayTokens string        `json:"-" console:"header:Avg Tokens"`
+	BelowThresh   bool          `json:"below_threshold" console:"-"`
+}
+
+// HealthSummary represents aggregated health metrics across all workflows
+type HealthSummary struct {
+	Period           string           `json:"period"`
+	TotalWorkflows   int              `json:"total_workflows"`
+	HealthyWorkflows int              `json:"healthy_workflows"`
+	Workflows        []WorkflowHealth `json:"workflows"`
+	BelowThreshold   int              `json:"below_threshold"`
+}
+
+// TrendDirection represents the trend of a workflow's health
+type TrendDirection int
+
+const (
+	TrendImproving TrendDirection = iota
+	TrendStable
+	TrendDegrading
+)
+
+// String returns the visual indicator for the trend
+func (t TrendDirection) String() string {
+	switch t {
+	case TrendImproving:
+		return "↑"
+	case TrendStable:
+		return "→"
+	case TrendDegrading:
+		return "↓"
+	default:
+		return "?"
+	}
+}
+
+// CalculateWorkflowHealth calculates health metrics for a workflow from its runs
+func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold float64) WorkflowHealth {
+	healthMetricsLog.Printf("Calculating health for workflow: %s, runs: %d", workflowName, len(runs))
+
+	if len(runs) == 0 {
+		return WorkflowHealth{
+			WorkflowName:  workflowName,
+			DisplayRate:   "N/A",
+			Trend:         "→",
+			DisplayDur:    "N/A",
+			DisplayTokens: "-",
+		}
+	}
+
+	// Accumulate success/failure counts and numerical metrics.
+	successCount := 0
+	failureCount := 0
+	var durationStats, tokenStats stats.StatVar
+	var totalTokens int
+
+	for _, run := range runs {
+		if run.Conclusion == "success" {
+			successCount++
+		} else if isFailureConclusion(run.Conclusion) {
+			failureCount++
+		}
+		totalTokens += run.TokenUsage
+		durationStats.Add(float64(run.Duration))
+		tokenStats.Add(float64(run.TokenUsage))
+	}
+
+	totalRuns := len(runs)
+	successRate := 0.0
+	if totalRuns > 0 {
+		successRate = float64(successCount) / float64(totalRuns) * 100
+	}
+
+	avgDuration := time.Duration(durationStats.Mean())
+	avgTokens := int(tokenStats.Mean())
+
+	// Calculate trend
+	trend := calculateTrend(runs)
+
+	// Format display values
+	displayRate := fmt.Sprintf("%.0f%%  (%d/%d)", successRate, successCount, totalRuns)
+	displayDur := timeutil.FormatDuration(avgDuration)
+	displayTokens := formatTokens(avgTokens)
+
+	belowThreshold := successRate < threshold
+
+	health := WorkflowHealth{
+		WorkflowName:  workflowName,
+		TotalRuns:     totalRuns,
+		SuccessCount:  successCount,
+		FailureCount:  failureCount,
+		SuccessRate:   successRate,
+		DisplayRate:   displayRate,
+		Trend:         trend.String(),
+		AvgDuration:   avgDuration,
+		DisplayDur:    displayDur,
+		TotalTokens:   totalTokens,
+		AvgTokens:     avgTokens,
+		DisplayTokens: displayTokens,
+		BelowThresh:   belowThreshold,
+	}
+
+	healthMetricsLog.Printf("Health calculated: workflow=%s, successRate=%.2f%%, trend=%s", workflowName, successRate, trend.String())
+
+	return health
+}
+
+// calculateTrend determines the trend direction based on recent vs older runs
+func calculateTrend(runs []WorkflowRun) TrendDirection {
+	if len(runs) < 4 {
+		// Not enough data to determine trend
+		return TrendStable
+	}
+
+	// Split runs into two halves: recent and older
+	midpoint := len(runs) / 2
+	recentRuns := runs[:midpoint]
+	olderRuns := runs[midpoint:]
+
+	// Calculate success rates for each half
+	recentSuccess := calculateSuccessRate(recentRuns)
+	olderSuccess := calculateSuccessRate(olderRuns)
+
+	// Determine trend based on difference
+	diff := recentSuccess - olderSuccess
+
+	const improvementThreshold = 5.0  // 5% improvement
+	const degradationThreshold = -5.0 // 5% degradation
+
+	if diff >= improvementThreshold {
+		return TrendImproving
+	} else if diff <= degradationThreshold {
+		return TrendDegrading
+	}
+	return TrendStable
+}
+
+// calculateSuccessRate calculates the success rate for a set of runs
+func calculateSuccessRate(runs []WorkflowRun) float64 {
+	if len(runs) == 0 {
+		return 0.0
+	}
+
+	successCount := 0
+	for _, run := range runs {
+		if run.Conclusion == "success" {
+			successCount++
+		}
+	}
+
+	return float64(successCount) / float64(len(runs)) * 100
+}
+
+// CalculateHealthSummary calculates aggregated health metrics across all workflows
+func CalculateHealthSummary(workflowHealths []WorkflowHealth, period string, threshold float64) HealthSummary {
+	healthMetricsLog.Printf("Calculating health summary: workflows=%d, period=%s", len(workflowHealths), period)
+
+	healthyCount := 0
+	belowThresholdCount := 0
+
+	for _, wh := range workflowHealths {
+		if wh.SuccessRate >= threshold {
+			healthyCount++
+		}
+		if wh.BelowThresh {
+			belowThresholdCount++
+		}
+	}
+
+	summary := HealthSummary{
+		Period:           period,
+		TotalWorkflows:   len(workflowHealths),
+		HealthyWorkflows: healthyCount,
+		Workflows:        workflowHealths,
+		BelowThreshold:   belowThresholdCount,
+	}
+
+	healthMetricsLog.Printf("Health summary: total=%d, healthy=%d, below_threshold=%d", len(workflowHealths), healthyCount, belowThresholdCount)
+
+	return summary
+}
+
+// GroupRunsByWorkflow groups workflow runs by workflow name
+func GroupRunsByWorkflow(runs []WorkflowRun) map[string][]WorkflowRun {
+	grouped := make(map[string][]WorkflowRun)
+	for _, run := range runs {
+		grouped[run.WorkflowName] = append(grouped[run.WorkflowName], run)
+	}
+	return grouped
+}
+
+// formatTokens formats token count in a human-readable format
+func formatTokens(tokens int) string {
+	if tokens == 0 {
+		return "-"
+	}
+	if tokens < 1000 {
+		return strconv.Itoa(tokens)
+	}
+	if tokens < 1000000 {
+		return fmt.Sprintf("%.1fK", float64(tokens)/1000)
+	}
+	return fmt.Sprintf("%.1fM", float64(tokens)/1000000)
+}

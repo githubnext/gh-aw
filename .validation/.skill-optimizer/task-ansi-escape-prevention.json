@@ -1,0 +1,12 @@
+{
+  "id": "ansi-escape-prevention",
+  "input": "I'm editing a compiled workflow YAML file in .github/workflows/ and some terminal output I pasted seems to have broken the YAML parser. How do I avoid ANSI escape codes in workflow YAML files, and how do I check for them?",
+  "ideal": "ANSI escape codes (e.g. \\x1b[31m, \\x1b[0m) are terminal color codes that break YAML parsing. To avoid them: (1) never copy-paste from colored terminal output into YAML files; use --no-color flags or pipe through `| cat` to strip colors before saving; (2) run `make recompile` to regenerate clean .lock.yml files from .md sources—the workflow compiler automatically strips ANSI codes during compilation via stringutil.StripANSI(); (3) detect existing ANSI codes with: `find .github/workflows -name '*.yml' -o -name '*.yaml' | xargs grep -P '\\x1b\\[[0-9;]*[a-zA-Z]'`; (4) after fixing the source .md file, always run `make recompile` rather than hand-editing .lock.yml files.",
+  "criteria": [
+    "Mentions that ANSI escape codes break YAML parsing",
+    "Recommends using --no-color or piping through `| cat` when generating terminal output",
+    "Mentions `make recompile` to regenerate clean workflow files",
+    "Notes that the compiler automatically strips ANSI codes",
+    "Provides a command to detect ANSI codes in YAML files"
+  ]
+}

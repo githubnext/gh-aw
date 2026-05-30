@@ -1,0 +1,114 @@
+package stringutil
+
+import (
+	"path/filepath"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var identifiersLog = logger.New("stringutil:identifiers")
+
+// NormalizeWorkflowName removes .md and .lock.yml extensions from workflow names.
+// This is used to standardize workflow identifiers regardless of the file format.
+//
+// The function checks for extensions in order of specificity:
+// 1. Removes .lock.yml extension (the compiled workflow format)
+// 2. Removes .md extension (the markdown source format)
+// 3. Returns the name unchanged if no recognized extension is found
+//
+// This function performs normalization only - it assumes the input is already
+// a valid identifier and does NOT perform character validation or sanitization.
+//
+// Examples:
+//
+//	NormalizeWorkflowName("weekly-research")           // returns "weekly-research"
+//	NormalizeWorkflowName("weekly-research.md")        // returns "weekly-research"
+//	NormalizeWorkflowName("weekly-research.lock.yml")  // returns "weekly-research"
+//	NormalizeWorkflowName("my.workflow.md")            // returns "my.workflow"
+func NormalizeWorkflowName(name string) string {
+	// Remove .lock.yml extension first (longer extension)
+	if before, ok := strings.CutSuffix(name, ".lock.yml"); ok {
+		return before
+	}
+
+	// Remove .md extension
+	if before, ok := strings.CutSuffix(name, ".md"); ok {
+		return before
+	}
+
+	return name
+}
+
+// NormalizeSafeOutputIdentifier converts dashes and periods to underscores for safe output
+// identifiers. This standardizes identifier format to the internal underscore-separated
+// format used in safe outputs configuration and MCP tool names.
+//
+// Both dash-separated and underscore-separated formats are valid inputs. Periods are
+// also replaced because MCP tool names must match ^[a-zA-Z0-9_-]+$ and periods are
+// not permitted. Workflow names such as "executor-workflow.agent" (where ".agent" is a
+// filename extension convention) would otherwise produce an invalid tool name.
+//
+// This function performs normalization only - it assumes the input is already
+// a valid identifier and does NOT perform character validation or sanitization.
+//
+// Examples:
+//
+//	NormalizeSafeOutputIdentifier("create-issue")          // returns "create_issue"
+//	NormalizeSafeOutputIdentifier("create_issue")          // returns "create_issue" (unchanged)
+//	NormalizeSafeOutputIdentifier("add-comment")           // returns "add_comment"
+//	NormalizeSafeOutputIdentifier("update-pr")             // returns "update_pr"
+//	NormalizeSafeOutputIdentifier("executor-workflow.agent") // returns "executor_workflow_agent"
+func NormalizeSafeOutputIdentifier(identifier string) string {
+	result := strings.ReplaceAll(identifier, "-", "_")
+	result = strings.ReplaceAll(result, ".", "_")
+	return result
+}
+
+// MarkdownToLockFile converts a workflow markdown file path to its compiled lock file path.
+// This is the standard transformation for agentic workflow files.
+//
+// The function removes the .md extension and adds .lock.yml extension.
+// If the input already has a .lock.yml extension, it returns the path unchanged.
+//
+// Examples:
+//
+//	MarkdownToLockFile("weekly-research.md")                    // returns "weekly-research.lock.yml"
+//	MarkdownToLockFile(".github/workflows/test.md")             // returns ".github/workflows/test.lock.yml"
+//	MarkdownToLockFile("workflow.lock.yml")                     // returns "workflow.lock.yml" (unchanged)
+//	MarkdownToLockFile("my.workflow.md")                        // returns "my.workflow.lock.yml"
+func MarkdownToLockFile(mdPath string) string {
+	// If already a lock file, return unchanged
+	if strings.HasSuffix(mdPath, ".lock.yml") {
+		return mdPath
+	}
+
+	cleaned := filepath.Clean(mdPath)
+	lockPath := strings.TrimSuffix(cleaned, ".md") + ".lock.yml"
+	identifiersLog.Printf("MarkdownToLockFile: %s -> %s", mdPath, lockPath)
+	return lockPath
+}
+
+// LockFileToMarkdown converts a compiled lock file path back to its markdown source path.
+// This is used when navigating from compiled workflows back to source files.
+//
+// The function removes the .lock.yml extension and adds .md extension.
+// If the input already has a .md extension, it returns the path unchanged.
+//
+// Examples:
+//
+//	LockFileToMarkdown("weekly-research.lock.yml")              // returns "weekly-research.md"
+//	LockFileToMarkdown(".github/workflows/test.lock.yml")       // returns ".github/workflows/test.md"
+//	LockFileToMarkdown("workflow.md")                           // returns "workflow.md" (unchanged)
+//	LockFileToMarkdown("my.workflow.lock.yml")                  // returns "my.workflow.md"
+func LockFileToMarkdown(lockPath string) string {
+	// If already a markdown file, return unchanged
+	if strings.HasSuffix(lockPath, ".md") {
+		return lockPath
+	}
+
+	cleaned := filepath.Clean(lockPath)
+	mdPath := strings.TrimSuffix(cleaned, ".lock.yml") + ".md"
+	identifiersLog.Printf("LockFileToMarkdown: %s -> %s", lockPath, mdPath)
+	return mdPath
+}

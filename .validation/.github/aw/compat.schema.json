@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/github/gh-aw/.github/aw/compat.schema.json",
+  "title": "gh-aw agent compatibility matrix",
+  "description": "Pins agentic CLI versions to gh-aw release ranges. Consumed by the setup action to install a known-good agent version per gh-aw release. See ADR for the design rationale.",
+  "type": "object",
+  "required": ["agent-compat-v1"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "agent-compat-v1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cache-ttl-days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "How long the setup action may cache the resolved agent install before re-fetching this matrix."
+        },
+        "copilot": {
+          "$ref": "#/definitions/agentRows"
+        },
+        "claude": {
+          "$ref": "#/definitions/agentRows"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "ghAwBound": {
+      "oneOf": [
+        { "$ref": "#/definitions/semver" },
+        { "type": "string", "enum": ["*"] }
+      ]
+    },
+    "agentRows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/row" }
+    },
+    "row": {
+      "type": "object",
+      "required": ["min-gh-aw", "max-gh-aw", "min-agent", "max-agent"],
+      "additionalProperties": false,
+      "properties": {
+        "min-gh-aw": { "$ref": "#/definitions/semver" },
+        "max-gh-aw": { "$ref": "#/definitions/ghAwBound" },
+        "min-agent": { "$ref": "#/definitions/semver" },
+        "max-agent": { "$ref": "#/definitions/semver" },
+        "open": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (the default), the setup action's weekly release process may continue bumping max-agent for this row. Set to false to freeze during rollback or quarantine. Permitted only on the catch-all row (max-gh-aw == \"*\"); bounded rows are closed-by-construction."
+        }
+      },
+      "if": {
+        "properties": { "max-gh-aw": { "const": "*" } }
+      },
+      "then": {},
+      "else": {
+        "not": { "required": ["open"] }
+      }
+    }
+  }
+}

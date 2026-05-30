@@ -1,0 +1,166 @@
+{
+  "version": "2.2",
+  "description": "GitHub MCP server toolsets and their required permissions (updated to match actual MCP server source code in github/github-mcp-server)",
+  "toolsets": {
+    "actions": {
+      "description": "GitHub Actions workflows",
+      "read_permissions": ["actions"],
+      "write_permissions": ["actions"],
+      "tools": ["actions_get", "actions_list", "actions_run_trigger", "get_job_logs"]
+    },
+    "code_security": {
+      "description": "Code scanning alerts",
+      "read_permissions": ["security-events"],
+      "write_permissions": ["security-events"],
+      "tools": ["get_code_scanning_alert", "list_code_scanning_alerts"]
+    },
+    "context": {
+      "description": "GitHub context and environment (current user, teams)",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["get_me", "get_team_members", "get_teams"]
+    },
+    "copilot_spaces": {
+      "description": "GitHub Copilot Spaces (remote-only)",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["get_copilot_space", "list_copilot_spaces"]
+    },
+    "dependabot": {
+      "description": "Dependabot alerts",
+      "read_permissions": ["security-events", "vulnerability-alerts"],
+      "write_permissions": [],
+      "tools": ["get_dependabot_alert", "list_dependabot_alerts"]
+    },
+    "discussions": {
+      "description": "GitHub Discussions",
+      "read_permissions": ["discussions"],
+      "write_permissions": ["discussions"],
+      "tools": ["get_discussion", "get_discussion_comments", "list_discussion_categories", "list_discussions"]
+    },
+    "experiments": {
+      "description": "Experimental features (dynamic toolset management)",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["enable_toolset", "get_toolset_tools", "list_available_toolsets"]
+    },
+    "gists": {
+      "description": "Gist operations",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["create_gist", "get_gist", "list_gists", "update_gist"]
+    },
+    "git": {
+      "description": "Git API operations (tree, refs)",
+      "read_permissions": ["contents"],
+      "write_permissions": [],
+      "tools": ["get_repository_tree"]
+    },
+    "github_support_docs_search": {
+      "description": "GitHub support documentation search (remote-only)",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["github_support_docs_search"]
+    },
+    "issues": {
+      "description": "Issue management",
+      "read_permissions": ["issues"],
+      "write_permissions": ["issues"],
+      "tools": ["add_issue_comment", "issue_read", "issue_write", "list_issue_types", "list_issues", "search_issues", "sub_issue_write"]
+    },
+    "labels": {
+      "description": "Label management",
+      "read_permissions": ["issues"],
+      "write_permissions": ["issues"],
+      "tools": ["get_label", "label_write", "list_label"]
+    },
+    "notifications": {
+      "description": "Notification management",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["dismiss_notification", "get_notification_details", "list_notifications", "manage_notification_subscription", "manage_repository_notification_subscription", "mark_all_notifications_read"]
+    },
+    "orgs": {
+      "description": "Organization operations",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["list_org_repository_security_advisories"]
+    },
+    "projects": {
+      "description": "GitHub Projects (requires PAT - not supported by GITHUB_TOKEN)",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["projects_get", "projects_list", "projects_write"]
+    },
+    "pull_requests": {
+      "description": "Pull request operations",
+      "read_permissions": ["pull-requests"],
+      "write_permissions": ["pull-requests"],
+      "tools": [
+        "add_comment_to_pending_review",
+        "add_reply_to_pull_request_comment",
+        "create_pull_request",
+        "list_pull_requests",
+        "merge_pull_request",
+        "pull_request_read",
+        "pull_request_review_write",
+        "search_pull_requests",
+        "update_pull_request",
+        "update_pull_request_branch"
+      ]
+    },
+    "repos": {
+      "description": "Repository operations",
+      "read_permissions": ["contents"],
+      "write_permissions": ["contents"],
+      "tools": [
+        "create_branch",
+        "create_or_update_file",
+        "create_repository",
+        "delete_file",
+        "fork_repository",
+        "get_commit",
+        "get_file_contents",
+        "get_latest_release",
+        "get_release_by_tag",
+        "get_tag",
+        "list_branches",
+        "list_commits",
+        "list_releases",
+        "list_repository_collaborators",
+        "list_tags",
+        "push_files"
+      ]
+    },
+    "search": {
+      "description": "Advanced search across GitHub (keyword and semantic)",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["search_code", "search_orgs", "search_repositories", "search_users", "semantic_issue_similarity_search", "semantic_issues_search"]
+    },
+    "secret_protection": {
+      "description": "Secret scanning",
+      "read_permissions": ["security-events"],
+      "write_permissions": [],
+      "tools": ["get_secret_scanning_alert", "list_secret_scanning_alerts", "run_secret_scanning"]
+    },
+    "security_advisories": {
+      "description": "Security advisories",
+      "read_permissions": ["security-events"],
+      "write_permissions": ["security-events"],
+      "tools": ["check_dependency_vulnerabilities", "get_global_security_advisory", "list_global_security_advisories", "list_repository_security_advisories"]
+    },
+    "stargazers": {
+      "description": "Repository stars",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["list_starred_repositories", "star_repository", "unstar_repository"]
+    },
+    "users": {
+      "description": "User information",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": []
+    }
+  }
+}

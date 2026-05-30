@@ -1,0 +1,154 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"testing"
+
+	"github.com/github/gh-aw/pkg/stringutil"
+
+	"github.com/github/gh-aw/pkg/testutil"
+)
+
+// TestHeredocInterpolation verifies that GH_AW_PROMPT_*_EOF heredoc delimiters are quoted
+// to prevent bash variable interpolation. Variables are interpolated using github-script instead.
+func TestHeredocInterpolation(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "heredoc-interpolation-test")
+
+	// Workflow with markdown content containing GitHub expressions
+	// These should be extracted and replaced with ${GH_AW_...} references
+	// Simple expressions like github.repository generate pretty names like GH_AW_GITHUB_REPOSITORY
+	testContent := `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Test Workflow with Expressions
+
+Repository: ${{ github.repository }}
+Actor: ${{ github.actor }}
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+
+	// Compile the workflow
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the compiled workflow
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	compiledYAML, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	compiledStr := string(compiledYAML)
+
+	// Verify that heredoc delimiters ARE quoted (should be '<< 'GH_AW_PROMPT_..._EOF'' not GH_AW_PROMPT_..._EOF)
+	// This prevents shell variable interpolation
+	quotedDelimRE := regexp.MustCompile(`<< 'GH_AW_PROMPT_[0-9a-f]{16}_EOF'`)
+	if !quotedDelimRE.MatchString(compiledStr) {
+		t.Error("GH_AW_PROMPT_*_EOF delimiter should be quoted to prevent shell variable interpolation")
+
+		// Show the problematic lines
+		lines := strings.Split(compiledStr, "\n")
+		unquotedDelimRE := regexp.MustCompile(`<< GH_AW_PROMPT_[0-9a-f]{16}_EOF`)
+		for i, line := range lines {
+			if unquotedDelimRE.MatchString(line) {
+				t.Logf("Line %d with unquoted delimiter: %s", i, line)
+			}
+		}
+	}
+
+	// Verify that the prompt content contains __GH_AW_...__ references
+	// These are Handlebars-style placeholders interpolated by the github-script step
+	// Simple expressions like github.repository generate pretty names like GH_AW_GITHUB_REPOSITORY
+	if !strings.Contains(compiledStr, "__GH_AW_") {
+		t.Error("Prompt content should contain __GH_AW_...__ references for JavaScript interpolation")
+	}
+
+	// Verify the original expressions have been replaced in the prompt content
+	// With grouped redirects, heredocs inside the group have no individual redirects
+	if strings.Contains(compiledStr, "Repository: ${{ github.repository }}") {
+		t.Error("Original GitHub expressions should be replaced with __GH_AW_...__ references in prompt heredoc")
+	}
+	if !strings.Contains(compiledStr, "__GH_AW_") {
+		t.Error("Prompt content should contain __GH_AW_...__ references for JavaScript interpolation")
+	}
+
+	// Verify that the interpolation and template rendering step exists
+	if !strings.Contains(compiledStr, "- name: Interpolate variables and render templates") {
+		t.Error("Compiled workflow should contain interpolation and template rendering step")
+	}
+
+	// Verify that the step uses github-script
+	if !strings.Contains(compiledStr, "uses: actions/github-script@") {
+		t.Error("Interpolation and template rendering step should use actions/github-script")
+	}
+
+	// Verify environment variables are defined in the step
+	// Simple expressions like github.repository generate pretty names like GH_AW_GITHUB_REPOSITORY
+	if !strings.Contains(compiledStr, "GH_AW_GITHUB_") {
+		t.Error("Interpolation and template rendering step should contain GH_AW_* environment variables")
+	}
+}
+
+// TestHeredocInterpolationMainPrompt tests that the main prompt content uses quoted delimiter
+func TestHeredocInterpolationMainPrompt(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "heredoc-main-test")
+
+	testContent := `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Test Workflow
+
+Repository: ${{ github.repository }}
+Actor: ${{ github.actor }}
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	compiledYAML, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	compiledStr := string(compiledYAML)
+
+	// All heredoc delimiters should be quoted to prevent shell expansion
+	quotedDelimRE := regexp.MustCompile(`<< 'GH_AW_PROMPT_[0-9a-f]{16}_EOF'`)
+	if !quotedDelimRE.MatchString(compiledStr) {
+		t.Error("Expected quoted GH_AW_PROMPT_*_EOF delimiters to prevent shell variable interpolation")
+	}
+
+	// Verify interpolation and template rendering step exists
+	if !strings.Contains(compiledStr, "- name: Interpolate variables and render templates") {
+		t.Error("Expected interpolation and template rendering step for JavaScript-based variable interpolation")
+	}
+}

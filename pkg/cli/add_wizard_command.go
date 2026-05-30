@@ -62,63 +62,55 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			workflows := args
-			engineOverride, _ := cmd.Flags().GetString("engine")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
-			workflowDir, _ := cmd.Flags().GetString("dir")
-			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
-			stopAfter, _ := cmd.Flags().GetString("stop-after")
-			skipSecret, _ := cmd.Flags().GetBool("skip-secret")
-
-			addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
-
-			if err := validateEngine(engineOverride); err != nil {
-				return err
-			}
-
-			// add-wizard requires an interactive terminal
-			isTerminal := tty.IsStdoutTerminal()
-			isCIEnv := os.Getenv("CI") != ""
-			addWizardLog.Printf("Terminal check: is_terminal=%v, is_ci=%v", isTerminal, isCIEnv)
-			if !isTerminal || isCIEnv {
-				return errors.New("add-wizard requires an interactive terminal; use 'add' for non-interactive environments")
-			}
-
-			return RunAddInteractive(cmd.Context(), &AddInteractiveConfig{
-				WorkflowSpecs:   workflows,
-				Verbose:         verbose,
-				EngineOverride:  engineOverride,
-				NoGitattributes: noGitattributes,
-				WorkflowDir:     workflowDir,
-				NoStopAfter:     noStopAfter,
-				StopAfter:       stopAfter,
-				SkipSecret:      skipSecret,
-			})
+			return runAddWizardCommandRunE(cmd, args, validateEngine)
 		},
 	}
 
-	// Add AI engine flag
+	addAddWizardCommandFlags(cmd)
+	return cmd
+}
+
+func runAddWizardCommandRunE(cmd *cobra.Command, args []string, validateEngine func(string) error) error {
+	workflows := args
+	engineOverride, _ := cmd.Flags().GetString("engine")
+	verbose, _ := cmd.Flags().GetBool("verbose")
+	noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
+	workflowDir, _ := cmd.Flags().GetString("dir")
+	noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
+	stopAfter, _ := cmd.Flags().GetString("stop-after")
+	skipSecret, _ := cmd.Flags().GetBool("skip-secret")
+
+	addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
+	if err := validateEngine(engineOverride); err != nil {
+		return err
+	}
+
+	isTerminal := tty.IsStdoutTerminal()
+	isCIEnv := os.Getenv("CI") != ""
+	addWizardLog.Printf("Terminal check: is_terminal=%v, is_ci=%v", isTerminal, isCIEnv)
+	if !isTerminal || isCIEnv {
+		return errors.New("add-wizard requires an interactive terminal; use 'add' for non-interactive environments")
+	}
+
+	return RunAddInteractive(cmd.Context(), &AddInteractiveConfig{
+		WorkflowSpecs:   workflows,
+		Verbose:         verbose,
+		EngineOverride:  engineOverride,
+		NoGitattributes: noGitattributes,
+		WorkflowDir:     workflowDir,
+		NoStopAfter:     noStopAfter,
+		StopAfter:       stopAfter,
+		SkipSecret:      skipSecret,
+	})
+}
+
+func addAddWizardCommandFlags(cmd *cobra.Command) {
 	addEngineFlag(cmd)
-
-	// Add no-gitattributes flag
 	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")
-
-	// Add workflow directory flag
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
-
-	// Add no-stop-after flag
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
-
-	// Add stop-after flag
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
-
-	// Add skip-secret flag
 	cmd.Flags().Bool("skip-secret", false, "Skip the API secret prompt (use when the secret is already set at the org or repo level)")
-
-	// Register completions
 	RegisterEngineFlagCompletion(cmd)
 	RegisterDirFlagCompletion(cmd, "dir")
-
-	return cmd
 }

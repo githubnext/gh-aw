@@ -1,0 +1,8 @@
+{
+  "name": "GitHub Agentic Workflows (gh-aw)",
+  "description": "Write agentic AI workflows in natural language markdown, run as GitHub Actions.",
+  "version": "latest",
+  "docs": "https://github.github.com/gh-aw/",
+  "source": "https://github.com/github/gh-aw",
+  "install": "gh extension install github/gh-aw"
+}

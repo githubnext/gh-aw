@@ -1,0 +1,19 @@
+[[rule]]
+name = "quality_floor"
+metric = "quality"
+min = 5200
+
+[[rule]]
+name = "coupling_ceiling"
+metric = "coupling"
+max = 0.20
+
+[[rule]]
+name = "no_new_cycles"
+metric = "cycles"
+max = 2
+
+[[rule]]
+name = "god_files_ceiling"
+metric = "god_files"
+max = 1

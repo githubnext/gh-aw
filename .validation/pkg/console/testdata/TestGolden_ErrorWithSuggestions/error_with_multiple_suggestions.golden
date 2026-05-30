@@ -1,0 +1,6 @@
+✗ workflow 'test' not found
+
+Suggestions:
+  • Run 'gh aw status' to see all available workflows
+  • Create a new workflow with 'gh aw new test'
+  • Check for typos in the workflow name

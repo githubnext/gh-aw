@@ -1,0 +1,494 @@
+//go:build !integration
+
+package cli
+
+import (
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestInitRepository(t *testing.T) {
+	tests := []struct {
+		name      string
+		setupRepo bool
+		wantError bool
+	}{
+		{
+			name:      "successfully initializes repository",
+			setupRepo: true,
+			wantError: false,
+		},
+		{
+			name:      "fails when not in git repository",
+			setupRepo: false,
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a temporary directory for testing
+			tempDir := testutil.TempDir(t, "test-*")
+
+			// Change to temp directory
+			oldWd, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get current directory: %v", err)
+			}
+			defer func() {
+				_ = os.Chdir(oldWd)
+			}()
+			err = os.Chdir(tempDir)
+			if err != nil {
+				t.Fatalf("Failed to change directory: %v", err)
+			}
+
+			// Initialize git repo if needed
+			if tt.setupRepo {
+				if err := exec.Command("git", "init").Run(); err != nil {
+					t.Fatalf("Failed to init git repo: %v", err)
+				}
+			}
+
+			// Call the function (no MCP or campaign)
+			err = InitRepository(InitOptions{Verbose: false, Skill: true, Agent: true, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
+
+			// Check error expectation
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("InitRepository(, false, false, false, nil) expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("InitRepository(, false, false, false, nil) returned unexpected error: %v", err)
+			}
+
+			// Verify .gitattributes was created
+			gitAttributesPath := filepath.Join(tempDir, ".gitattributes")
+			if _, err := os.Stat(gitAttributesPath); os.IsNotExist(err) {
+				t.Errorf("Expected .gitattributes file to exist")
+			}
+
+			// Note: The .github/aw/logs/.gitignore file is no longer created by init.
+			// It is now created by the logs download command on every invocation.
+
+			// Verify .gitattributes contains the correct entry
+			content, err := os.ReadFile(gitAttributesPath)
+			if err != nil {
+				t.Fatalf("Failed to read .gitattributes: %v", err)
+			}
+			if !strings.Contains(string(content), ".github/workflows/*.lock.yml linguist-generated=true merge=ours") {
+				t.Errorf("Expected .gitattributes to contain '.github/workflows/*.lock.yml linguist-generated=true merge=ours'")
+			}
+		})
+	}
+}
+
+func TestInitRepository_Idempotent(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Change to temp directory
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWd)
+	}()
+	err = os.Chdir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	// Call the function first time
+	err = InitRepository(InitOptions{Verbose: false, Skill: true, Agent: true, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
+	if err != nil {
+		t.Fatalf("InitRepository(, false, false, false, nil) returned error on first call: %v", err)
+	}
+
+	// Call the function second time
+	err = InitRepository(InitOptions{Verbose: false, Skill: true, Agent: true, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
+	if err != nil {
+		t.Fatalf("InitRepository(, false, false, false, nil) returned error on second call: %v", err)
+	}
+
+	// Verify files still exist and are correct
+	gitAttributesPath := filepath.Join(tempDir, ".gitattributes")
+	if _, err := os.Stat(gitAttributesPath); os.IsNotExist(err) {
+		t.Errorf("Expected .gitattributes file to exist after second call")
+	}
+
+	// Note: The .github/aw/logs/.gitignore file is no longer created by init.
+	// It is now created by the logs download command on every invocation.
+}
+
+func TestInitRepository_Verbose(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Change to temp directory
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWd)
+	}()
+	err = os.Chdir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	// Call the function with verbose=true (should not error)
+	err = InitRepository(InitOptions{Verbose: true, Skill: true, Agent: true, MCP: false, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
+	if err != nil {
+		t.Fatalf("InitRepository(, false, false, false, nil) returned error with verbose=true: %v", err)
+	}
+
+	// Verify files were created
+	gitAttributesPath := filepath.Join(tempDir, ".gitattributes")
+	if _, err := os.Stat(gitAttributesPath); os.IsNotExist(err) {
+		t.Errorf("Expected .gitattributes file to exist with verbose=true")
+	}
+}
+
+func TestEnsureMaintenanceWorkflow(t *testing.T) {
+	tests := []struct {
+		name                    string
+		setupWorkflows          bool
+		workflowsWithExpires    bool
+		expectMaintenanceFile   bool
+		expectMaintenanceDelete bool
+	}{
+		{
+			name:                  "generates maintenance workflow when expires field present",
+			setupWorkflows:        true,
+			workflowsWithExpires:  true,
+			expectMaintenanceFile: true,
+		},
+		{
+			name:                    "deletes maintenance workflow when no expires field",
+			setupWorkflows:          true,
+			workflowsWithExpires:    false,
+			expectMaintenanceDelete: true,
+		},
+		{
+			name:                  "skips when no workflows directory",
+			setupWorkflows:        false,
+			expectMaintenanceFile: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a temporary directory for testing
+			tempDir := testutil.TempDir(t, "test-maintenance-*")
+
+			// Change to temp directory
+			oldWd, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get current directory: %v", err)
+			}
+			defer func() {
+				_ = os.Chdir(oldWd)
+			}()
+			err = os.Chdir(tempDir)
+			if err != nil {
+				t.Fatalf("Failed to change directory: %v", err)
+			}
+
+			// Initialize git repo
+			if err := exec.Command("git", "init").Run(); err != nil {
+				t.Fatalf("Failed to init git repo: %v", err)
+			}
+
+			maintenanceFile := filepath.Join(tempDir, ".github", "workflows", "agentics-maintenance.yml")
+
+			// Setup workflows if needed
+			if tt.setupWorkflows {
+				workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+				if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+					t.Fatalf("Failed to create workflows directory: %v", err)
+				}
+
+				// Create an existing maintenance file if we're testing deletion
+				if tt.expectMaintenanceDelete {
+					if err := os.WriteFile(maintenanceFile, []byte("# Test maintenance file\n"), 0644); err != nil {
+						t.Fatalf("Failed to create test maintenance file: %v", err)
+					}
+				}
+
+				// Create a sample workflow with or without expires
+				// Note: For the no-expires case, we don't include create-discussion at all
+				// because the schema sets a default of 7 days if create-discussion is present
+				workflowContent := `---
+on:
+  issues:
+    types: [opened]
+`
+				if tt.workflowsWithExpires {
+					workflowContent += `safe-outputs:
+  create-discussion:
+    expires: 168
+`
+				}
+				workflowContent += `---
+
+# Test Workflow
+
+This is a test workflow.
+`
+				workflowPath := filepath.Join(workflowsDir, "test-workflow.md")
+				if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+					t.Fatalf("Failed to create test workflow: %v", err)
+				}
+			}
+
+			// Call ensureMaintenanceWorkflow
+			err = ensureMaintenanceWorkflow(context.Background(), false)
+			if err != nil {
+				t.Logf("ensureMaintenanceWorkflow returned error (may be expected): %v", err)
+			}
+
+			// Check if maintenance file exists/was deleted based on expectations
+			_, statErr := os.Stat(maintenanceFile)
+
+			if tt.expectMaintenanceFile {
+				if os.IsNotExist(statErr) {
+					t.Errorf("Expected maintenance workflow file to be created at %s", maintenanceFile)
+				}
+			}
+
+			if tt.expectMaintenanceDelete {
+				if !os.IsNotExist(statErr) {
+					t.Errorf("Expected maintenance workflow file to be deleted at %s", maintenanceFile)
+				}
+			}
+
+			if !tt.expectMaintenanceFile && !tt.expectMaintenanceDelete && !tt.setupWorkflows {
+				// When no workflows directory, maintenance file should not exist
+				if !os.IsNotExist(statErr) {
+					t.Errorf("Did not expect maintenance workflow file to exist when no workflows directory")
+				}
+			}
+		})
+	}
+}
+
+func TestEnsureMaintenanceWorkflow_UsesWorkflowDirEnvOverride(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-maintenance-override-*")
+
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWd)
+	}()
+	err = os.Chdir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	t.Setenv("GH_AW_WORKFLOWS_DIR", filepath.Join("custom", "workflows"))
+
+	overrideDir := filepath.Join(tempDir, "custom", "workflows")
+	if err := os.MkdirAll(overrideDir, 0755); err != nil {
+		t.Fatalf("Failed to create override workflows directory: %v", err)
+	}
+
+	workflowContent := `---
+on:
+  issues:
+    types: [opened]
+safe-outputs:
+  create-discussion:
+    expires: 168
+---
+
+# Test Workflow
+`
+	workflowPath := filepath.Join(overrideDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	err = ensureMaintenanceWorkflow(context.Background(), false)
+	if err != nil {
+		t.Fatalf("ensureMaintenanceWorkflow returned error: %v", err)
+	}
+
+	overrideMaintenance := filepath.Join(overrideDir, "agentics-maintenance.yml")
+	if _, err := os.Stat(overrideMaintenance); err != nil {
+		t.Fatalf("Expected maintenance workflow at override path %s: %v", overrideMaintenance, err)
+	}
+
+	defaultMaintenance := filepath.Join(tempDir, ".github", "workflows", "agentics-maintenance.yml")
+	if _, err := os.Stat(defaultMaintenance); !os.IsNotExist(err) {
+		t.Fatalf("Expected default maintenance path %s to not exist when override is set", defaultMaintenance)
+	}
+}
+
+func TestIsGHESHost(t *testing.T) {
+	tests := []struct {
+		Host     string
+		Expected bool
+	}{
+		{"github.com", false},
+		{"acme.ghe.com", false},         // GHE Cloud tenant
+		{"myorg.ghe.com", false},        // GHE Cloud tenant
+		{"ghes.example.com", true},      // GHES instance
+		{"github.mycompany.com", true},  // GHES custom domain
+		{"", false},                     // empty host
+		{"localhost", true},             // local dev instance counts as GHES
+		{"ghes.example.com:8080", true}, // with port
+		{"github.com:443", false},       // github.com with port
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Host, func(t *testing.T) {
+			got := isGHESHost(tt.Host)
+			assert.Equal(t, tt.Expected, got, "isGHESHost(%q) should return %v", tt.Host, tt.Expected)
+		})
+	}
+}
+
+func TestEnsureGHESRepoConfig_NoDetection(t *testing.T) {
+	// Without GH_HOST or GITHUB_SERVER_URL pointing to GHES, and without a git remote,
+	// ensureGHESRepoConfig should do nothing (detection fails gracefully).
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get cwd: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to chdir: %v", err)
+	}
+
+	// Set up a git repo with a github.com remote (not GHES)
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tempDir
+	_ = cmd.Run()
+	cmd = exec.Command("git", "remote", "add", "origin", "https://github.com/owner/repo.git")
+	cmd.Dir = tempDir
+	_ = cmd.Run()
+
+	// Unset any env vars that might signal GHES
+	t.Setenv("GH_HOST", "")
+	t.Setenv("GITHUB_SERVER_URL", "")
+
+	updated, err := ensureGHESRepoConfig(false)
+	if err != nil {
+		t.Fatalf("ensureGHESRepoConfig returned unexpected error: %v", err)
+	}
+	if updated {
+		t.Error("ensureGHESRepoConfig should not update aw.json when not on GHES")
+	}
+}
+
+func TestEnsureGHESRepoConfig_GHHostEnvVar(t *testing.T) {
+	// When GH_HOST points to a GHES host, ensureGHESRepoConfig should write aw.json.
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get cwd: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to chdir: %v", err)
+	}
+
+	// Init a git repo so gitutil.FindGitRoot works
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git init failed: %v", err)
+	}
+
+	// Point GH_HOST at a GHES instance
+	t.Setenv("GH_HOST", "ghes.example.com")
+	t.Setenv("GITHUB_SERVER_URL", "")
+
+	updated, err := ensureGHESRepoConfig(false)
+	if err != nil {
+		t.Fatalf("ensureGHESRepoConfig returned unexpected error: %v", err)
+	}
+	if !updated {
+		t.Fatal("ensureGHESRepoConfig should have updated aw.json for GHES GH_HOST")
+	}
+
+	// Verify aw.json was written with ghes: true
+	awJSONPath := filepath.Join(tempDir, ".github", "workflows", "aw.json")
+	data, err := os.ReadFile(awJSONPath)
+	if err != nil {
+		t.Fatalf("Failed to read aw.json: %v", err)
+	}
+	if !strings.Contains(string(data), `"ghes": true`) {
+		t.Errorf("aw.json should contain ghes: true, got: %s", string(data))
+	}
+}
+
+func TestEnsureGHESRepoConfig_Idempotent(t *testing.T) {
+	// Calling ensureGHESRepoConfig twice should not overwrite existing ghes: true.
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get cwd: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWd) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to chdir: %v", err)
+	}
+
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git init failed: %v", err)
+	}
+
+	t.Setenv("GH_HOST", "ghes.example.com")
+	t.Setenv("GITHUB_SERVER_URL", "")
+
+	// First call should write aw.json
+	updated1, err := ensureGHESRepoConfig(false)
+	if err != nil {
+		t.Fatalf("First call returned error: %v", err)
+	}
+	if !updated1 {
+		t.Error("First call should have updated aw.json")
+	}
+
+	// Second call should be a no-op
+	updated2, err := ensureGHESRepoConfig(false)
+	if err != nil {
+		t.Fatalf("Second call returned error: %v", err)
+	}
+	if updated2 {
+		t.Error("Second call should be idempotent (no update when ghes: true already set)")
+	}
+}

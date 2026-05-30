@@ -1,0 +1,629 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"os"
+	"regexp"
+	"strings"
+	"testing"
+)
+
+// TestMCPServersCompilation verifies that mcp-servers configuration is properly compiled into workflows
+// TestMCPEnvVarsAlphabeticallySorted verifies that env vars in MCP configs are sorted alphabetically
+func TestMCPEnvVarsAlphabeticallySorted(t *testing.T) {
+	// Create a temporary markdown file with mcp-servers configuration containing env vars
+	workflowContent := `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+mcp-servers:
+  test-server:
+    container: example/test:latest
+    env:
+      ZEBRA_VAR: "z"
+      ALPHA_VAR: "a"
+      BETA_VAR: "b"
+---
+
+# Test MCP Env Var Sorting
+
+This workflow tests that MCP server env vars are sorted alphabetically.
+`
+
+	// Create temporary file
+	tmpFile, err := os.CreateTemp("", "test-env-sort-*.md")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	// Write content to file
+	if _, err := tmpFile.WriteString(workflowContent); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	// Create compiler and compile workflow
+	compiler := NewCompiler()
+	compiler.SetSkipValidation(true)
+
+	// Generate YAML
+	workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to parse workflow file: %v", err)
+	}
+
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// Find the test-server env section in the generated YAML
+	// Look for "test-server" first, then find the env section after it
+	testServerIndex := strings.Index(yamlContent, `"test-server"`)
+	if testServerIndex == -1 {
+		t.Fatalf("Could not find test-server section in generated YAML")
+	}
+
+	// Find env section after test-server
+	envIndex := strings.Index(yamlContent[testServerIndex:], `"env": {`)
+	if envIndex == -1 {
+		t.Fatalf("Could not find env section for test-server in generated YAML")
+	}
+
+	// Adjust envIndex to be relative to the full yamlContent
+	envIndex += testServerIndex
+
+	// Extract a portion of YAML starting from env section (next 300 chars should be enough)
+	envSection := yamlContent[envIndex : envIndex+300]
+
+	// Verify that ALPHA_VAR appears before BETA_VAR and ZEBRA_VAR
+	alphaIndex := strings.Index(envSection, `"ALPHA_VAR"`)
+	betaIndex := strings.Index(envSection, `"BETA_VAR"`)
+	zebraIndex := strings.Index(envSection, `"ZEBRA_VAR"`)
+
+	if alphaIndex == -1 || betaIndex == -1 || zebraIndex == -1 {
+		t.Fatalf("Could not find all env vars in generated YAML. Section: %s", envSection)
+	}
+
+	// Verify alphabetical order
+	if alphaIndex >= betaIndex {
+		t.Errorf("Expected ALPHA_VAR to appear before BETA_VAR, but ALPHA_VAR is at %d and BETA_VAR is at %d", alphaIndex, betaIndex)
+	}
+	if betaIndex >= zebraIndex {
+		t.Errorf("Expected BETA_VAR to appear before ZEBRA_VAR, but BETA_VAR is at %d and ZEBRA_VAR is at %d", betaIndex, zebraIndex)
+	}
+	if alphaIndex >= zebraIndex {
+		t.Errorf("Expected ALPHA_VAR to appear before ZEBRA_VAR, but ALPHA_VAR is at %d and ZEBRA_VAR is at %d", alphaIndex, zebraIndex)
+	}
+}
+
+// TestHasMCPConfigDetection verifies that hasMCPConfig properly detects MCP configurations
+func TestHasMCPConfigDetection(t *testing.T) {
+	testCases := []struct {
+		name     string
+		config   map[string]any
+		expected bool
+		mcpType  string
+	}{
+		{
+			name: "explicit stdio type",
+			config: map[string]any{
+				"type":    "stdio",
+				"command": "npx",
+			},
+			expected: true,
+			mcpType:  "stdio",
+		},
+		{
+			name: "explicit http type",
+			config: map[string]any{
+				"type": "http",
+				"url":  "https://example.com",
+			},
+			expected: true,
+			mcpType:  "http",
+		},
+		{
+			name: "inferred stdio from command",
+			config: map[string]any{
+				"command": "npx",
+				"args":    []any{"-y", "@microsoft/markitdown"},
+			},
+			expected: true,
+			mcpType:  "stdio",
+		},
+		{
+			name: "inferred http from url",
+			config: map[string]any{
+				"url": "https://example.com/mcp",
+			},
+			expected: true,
+			mcpType:  "http",
+		},
+		{
+			name: "inferred stdio from container",
+			config: map[string]any{
+				"container": "example/mcp:latest",
+			},
+			expected: true,
+			mcpType:  "stdio",
+		},
+		{
+			name: "not MCP config",
+			config: map[string]any{
+				"allowed": []any{"some_tool"},
+			},
+			expected: false,
+			mcpType:  "",
+		},
+		{
+			name: "markitdown-like config",
+			config: map[string]any{
+				"registry": "https://api.mcp.github.com/v0/servers/microsoft/markitdown",
+				"command":  "npx",
+				"args":     []any{"-y", "@microsoft/markitdown"},
+			},
+			expected: true,
+			mcpType:  "stdio",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			hasMcp, mcpType := hasMCPConfig(tc.config)
+			if hasMcp != tc.expected {
+				t.Errorf("Expected hasMCPConfig to return %v, got %v", tc.expected, hasMcp)
+			}
+			if mcpType != tc.mcpType {
+				t.Errorf("Expected MCP type %q, got %q", tc.mcpType, mcpType)
+			}
+		})
+	}
+}
+
+// TestMCPServersAllowedToolFilterCompilation verifies that the allowed tool filter in
+// mcp-servers section is properly compiled into the "tools" field in the output.
+func TestMCPServersAllowedToolFilterCompilation(t *testing.T) {
+	tests := []struct {
+		name               string
+		workflowContent    string
+		serverName         string
+		expectedContent    []string
+		unexpectedInServer []string
+	}{
+		{
+			name: "copilot - http mcp server with specific allowed tools",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  my-api:
+    type: http
+    url: https://api.example.com/mcp
+    allowed:
+      - get_data
+      - list_items
+---
+
+Test workflow.
+`,
+			serverName:      `"my-api"`,
+			expectedContent: []string{`"get_data"`, `"list_items"`},
+			// Regex: "tools" key whose value array starts with "*" (ignores whitespace/indentation).
+			// guard-policies "accept": ["*"] has a different key, so it is never matched.
+			unexpectedInServer: []string{`"tools"\s*:\s*\[\s*"\*"`},
+		},
+		{
+			name: "copilot - stdio mcp server with specific allowed tools",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  my-tool:
+    container: example/tool:latest
+    allowed:
+      - run_query
+      - fetch_results
+---
+
+Test workflow.
+`,
+			serverName:      `"my-tool"`,
+			expectedContent: []string{`"run_query"`, `"fetch_results"`},
+			// Regex: "tools" key whose value array starts with "*" (ignores whitespace/indentation).
+			// guard-policies "accept": ["*"] has a different key, so it is never matched.
+			unexpectedInServer: []string{`"tools"\s*:\s*\[\s*"\*"`},
+		},
+		{
+			name: "copilot - mcp server with no allowed field defaults to wildcard",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  my-api:
+    type: http
+    url: https://api.example.com/mcp
+---
+
+Test workflow.
+`,
+			serverName:         `"my-api"`,
+			expectedContent:    []string{`"*"`},
+			unexpectedInServer: []string{},
+		},
+		{
+			name: "claude - http mcp server with specific allowed tools passes through",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: claude
+mcp-servers:
+  my-api:
+    type: http
+    url: https://api.example.com/mcp
+    allowed:
+      - get_data
+      - list_items
+---
+
+Test workflow.
+`,
+			serverName:      `"my-api"`,
+			expectedContent: []string{`"get_data"`, `"list_items"`},
+			// Regex: "tools" key whose value array starts with "*" (ignores whitespace/indentation).
+			// guard-policies "accept": ["*"] has a different key, so it is never matched.
+			unexpectedInServer: []string{`"tools"\s*:\s*\[\s*"\*"`},
+		},
+		{
+			name: "claude - http mcp server with no allowed field has no tools filter",
+			workflowContent: `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: claude
+mcp-servers:
+  my-api:
+    type: http
+    url: https://api.example.com/mcp
+---
+
+Test workflow.
+`,
+			serverName:         `"my-api"`,
+			expectedContent:    []string{`"url":`},
+			unexpectedInServer: []string{`"tools":`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpFile, err := os.CreateTemp("", "test-allowed-filter-*.md")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpFile.Name())
+
+			if _, err := tmpFile.WriteString(tt.workflowContent); err != nil {
+				t.Fatalf("Failed to write to temp file: %v", err)
+			}
+			tmpFile.Close()
+
+			compiler := NewCompiler()
+			compiler.SetSkipValidation(true)
+
+			workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to parse workflow file: %v", err)
+			}
+
+			yamlContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to generate YAML: %v", err)
+			}
+
+			// Find the server-specific block in the YAML
+			serverIndex := strings.Index(yamlContent, tt.serverName)
+			if serverIndex == -1 {
+				t.Fatalf("Could not find server %s in generated YAML", tt.serverName)
+			}
+
+			// Extract the server block (next 500 chars should be sufficient)
+			endIdx := min(serverIndex+500, len(yamlContent))
+			serverBlock := yamlContent[serverIndex:endIdx]
+
+			for _, content := range tt.expectedContent {
+				if !strings.Contains(serverBlock, content) {
+					t.Errorf("Expected %q in server block for %s, but not found.\nServer block:\n%s",
+						content, tt.serverName, serverBlock)
+				}
+			}
+
+			for _, pattern := range tt.unexpectedInServer {
+				matched, err := regexp.MatchString(pattern, serverBlock)
+				if err != nil {
+					t.Fatalf("Invalid regex pattern %q: %v", pattern, err)
+				}
+				if matched {
+					t.Errorf("Unexpected pattern %q matched in server block for %s.\nServer block:\n%s",
+						pattern, tt.serverName, serverBlock)
+				}
+			}
+		})
+	}
+}
+
+// TestDevModeAgenticWorkflowsContainer verifies that the agentic-workflows MCP server
+// uses the locally built Docker image in dev mode instead of alpine:latest
+func TestDevModeAgenticWorkflowsContainer(t *testing.T) {
+	tests := []struct {
+		name              string
+		actionMode        ActionMode
+		expectedContainer string
+	}{
+		{
+			name:              "dev mode uses local image",
+			actionMode:        ActionModeDev,
+			expectedContainer: "localhost/gh-aw:dev",
+		},
+		{
+			name:              "release mode uses alpine",
+			actionMode:        ActionModeRelease,
+			expectedContainer: "alpine:latest",
+		},
+		{
+			name:              "script mode uses alpine",
+			actionMode:        ActionModeScript,
+			expectedContainer: "alpine:latest",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a workflow with agentic-workflows tool
+			workflowContent := `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+  actions: read
+engine: copilot
+tools:
+  agentic-workflows:
+---
+
+# Test Agentic Workflows Dev Mode
+
+This workflow tests that agentic-workflows uses the correct container in dev mode.
+`
+
+			// Create temporary file
+			tmpFile, err := os.CreateTemp("", "test-dev-mode-*.md")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpFile.Name())
+
+			// Write content to file
+			if _, err := tmpFile.WriteString(workflowContent); err != nil {
+				t.Fatalf("Failed to write to temp file: %v", err)
+			}
+			tmpFile.Close()
+
+			// Compile the workflow with the specified action mode
+			compiler := NewCompiler()
+			compiler.SetActionMode(tt.actionMode)
+
+			if err := compiler.CompileWorkflow(tmpFile.Name()); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			// Read the compiled lock file
+			lockFile := strings.TrimSuffix(tmpFile.Name(), ".md") + ".lock.yml"
+			defer os.Remove(lockFile)
+
+			lockContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+
+			// Check that the container image is correct
+			if !strings.Contains(string(lockContent), `"container": "`+tt.expectedContainer+`"`) {
+				t.Errorf("Expected container %q in lock file, but not found. Lock file content:\n%s",
+					tt.expectedContainer, string(lockContent))
+			}
+
+			// In dev mode, verify dev-specific configuration
+			if tt.actionMode == ActionModeDev {
+				// Check for build steps
+				requiredSteps := []string{
+					"Setup Go for CLI build",
+					"Build gh-aw CLI",
+					"Setup Docker Buildx",
+					"Build gh-aw Docker image",
+					"tags: localhost/gh-aw:dev",
+				}
+
+				for _, step := range requiredSteps {
+					if !strings.Contains(string(lockContent), step) {
+						t.Errorf("Expected build step %q in dev mode lock file, but not found", step)
+					}
+				}
+
+				// Verify binary copy step for user-defined steps that execute ./gh-aw
+				if !strings.Contains(string(lockContent), "cp dist/gh-aw-linux-amd64 ./gh-aw") {
+					t.Error("Expected 'cp dist/gh-aw-linux-amd64 ./gh-aw' in dev mode build step")
+				}
+				if !strings.Contains(string(lockContent), "chmod +x ./gh-aw") {
+					t.Error("Expected 'chmod +x ./gh-aw' in dev mode build step")
+				}
+
+				// Verify NO entrypoint field (uses container's default ENTRYPOINT)
+				if strings.Contains(string(lockContent), `"entrypoint"`) {
+					t.Error("Did not expect entrypoint field in dev mode (uses container's ENTRYPOINT)")
+				}
+
+				// Verify NO entrypointArgs field (uses container's default CMD)
+				if strings.Contains(string(lockContent), `"entrypointArgs"`) {
+					t.Error("Did not expect entrypointArgs field in dev mode (uses container's CMD)")
+				}
+
+				// Verify no --cmd argument
+				if strings.Contains(string(lockContent), `"--cmd"`) {
+					t.Error("Did not expect --cmd argument in dev mode")
+				}
+
+				// Verify ${RUNNER_TEMP}/gh-aw is always mounted read-only for security
+				// (protects gh-aw infrastructure files from direct agent writes in all modes)
+				if !strings.Contains(string(lockContent), `${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro`) {
+					t.Error("Expected ${RUNNER_TEMP}/gh-aw to be mounted read-only in AWF for security")
+				}
+				if strings.Contains(string(lockContent), `/usr/bin/gh:/usr/bin/gh:ro`) {
+					t.Error("Did not expect /usr/bin/gh mount in dev mode (gh CLI is in image)")
+				}
+
+				// Verify DEBUG and GITHUB_TOKEN are present
+				if !strings.Contains(string(lockContent), `"DEBUG": "*"`) {
+					t.Error("Expected DEBUG set to literal '*' in dev mode env vars")
+				}
+				if !strings.Contains(string(lockContent), `"GITHUB_TOKEN"`) {
+					t.Error("Expected GITHUB_TOKEN in dev mode env vars")
+				}
+
+				// Verify working directory args are present
+				if !strings.Contains(string(lockContent), `"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"]`) {
+					t.Error("Expected args with network access and working directory in dev mode")
+				}
+			}
+		})
+	}
+}
+
+// TestNpxCommandAutoContainerization verifies that `command: "npx"` with args is auto-converted to a
+// containerized stdio server without duplicating the command in entrypointArgs.
+// Regression test: the auto-containerization previously prepended the command (e.g. "npx") to
+// entrypointArgs, which caused Docker to run "npx npx @sentry/mcp-server" instead of the correct
+// "npx @sentry/mcp-server", resulting in the MCP server exposing 0 tools.
+func TestNpxCommandAutoContainerization(t *testing.T) {
+	tests := []struct {
+		name         string
+		command      string
+		args         string
+		wantImage    string
+		wantEntry    string
+		wantFirstArg string
+	}{
+		{
+			name:         "npx command with package arg",
+			command:      "npx",
+			args:         `["@sentry/mcp-server@0.33.0"]`,
+			wantImage:    "node:lts-alpine",
+			wantEntry:    "npx",
+			wantFirstArg: "@sentry/mcp-server@0.33.0",
+		},
+		{
+			name:         "npx command with -y flag and package",
+			command:      "npx",
+			args:         `["-y", "@modelcontextprotocol/server-memory"]`,
+			wantImage:    "node:lts-alpine",
+			wantEntry:    "npx",
+			wantFirstArg: "-y",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowContent := `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  my-server:
+    command: "` + tt.command + `"
+    args: ` + tt.args + `
+---
+
+# Test workflow
+`
+			tmpFile, err := os.CreateTemp("", "test-npx-container-*.md")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpFile.Name())
+
+			if _, err := tmpFile.WriteString(workflowContent); err != nil {
+				t.Fatalf("Failed to write workflow content: %v", err)
+			}
+			tmpFile.Close()
+
+			compiler := NewCompiler()
+			compiler.SetSkipValidation(true)
+
+			workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to parse workflow file: %v", err)
+			}
+
+			yamlContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to generate YAML: %v", err)
+			}
+
+			serverIdx := strings.Index(yamlContent, `"my-server"`)
+			if serverIdx == -1 {
+				t.Fatal("Could not find my-server block in generated YAML")
+			}
+			endIdx := min(serverIdx+800, len(yamlContent))
+			serverBlock := yamlContent[serverIdx:endIdx]
+
+			// container must be auto-assigned
+			if !strings.Contains(serverBlock, `"container": "`+tt.wantImage+`"`) {
+				t.Errorf("Expected container=%q in server block; got:\n%s", tt.wantImage, serverBlock)
+			}
+
+			// entrypoint must be the command
+			if !strings.Contains(serverBlock, `"entrypoint": "`+tt.wantEntry+`"`) {
+				t.Errorf("Expected entrypoint=%q in server block; got:\n%s", tt.wantEntry, serverBlock)
+			}
+
+			// entrypointArgs must NOT start with the command itself (no double "npx"/"uvx")
+			badPattern := `"entrypointArgs":\s*\[\s*"` + tt.command + `"`
+			if matched, _ := regexp.MatchString(badPattern, serverBlock); matched {
+				t.Errorf("entrypointArgs must NOT begin with %q (the command is already the entrypoint and must not be duplicated); got:\n%s",
+					tt.command, serverBlock)
+			}
+
+			// entrypointArgs must start with the first actual arg
+			if !strings.Contains(serverBlock, `"`+tt.wantFirstArg+`"`) {
+				t.Errorf("Expected first entrypointArg %q in server block; got:\n%s", tt.wantFirstArg, serverBlock)
+			}
+		})
+	}
+}

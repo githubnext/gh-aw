@@ -1,0 +1,304 @@
+//go:build !integration
+
+package stringutil
+
+import (
+	"testing"
+)
+
+func TestNormalizeWorkflowName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "name without extension",
+			input:    "weekly-research",
+			expected: "weekly-research",
+		},
+		{
+			name:     "name with .md extension",
+			input:    "weekly-research.md",
+			expected: "weekly-research",
+		},
+		{
+			name:     "name with .lock.yml extension",
+			input:    "weekly-research.lock.yml",
+			expected: "weekly-research",
+		},
+		{
+			name:     "name with dots in filename",
+			input:    "my.workflow.md",
+			expected: "my.workflow",
+		},
+		{
+			name:     "name with dots and lock.yml",
+			input:    "my.workflow.lock.yml",
+			expected: "my.workflow",
+		},
+		{
+			name:     "name with other extension",
+			input:    "workflow.yaml",
+			expected: "workflow.yaml",
+		},
+		{
+			name:     "simple name",
+			input:    "agent",
+			expected: "agent",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "just .md",
+			input:    ".md",
+			expected: "",
+		},
+		{
+			name:     "just .lock.yml",
+			input:    ".lock.yml",
+			expected: "",
+		},
+		{
+			name:     "multiple extensions priority",
+			input:    "workflow.md.lock.yml",
+			expected: "workflow.md",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NormalizeWorkflowName(tt.input)
+			if result != tt.expected {
+				t.Errorf("NormalizeWorkflowName(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestNormalizeSafeOutputIdentifier(t *testing.T) {
+	tests := []struct {
+		name       string
+		identifier string
+		expected   string
+	}{
+		{
+			name:       "dash-separated to underscore",
+			identifier: "create-issue",
+			expected:   "create_issue",
+		},
+		{
+			name:       "already underscore-separated",
+			identifier: "create_issue",
+			expected:   "create_issue",
+		},
+		{
+			name:       "multiple dashes",
+			identifier: "add-comment-to-issue",
+			expected:   "add_comment_to_issue",
+		},
+		{
+			name:       "mixed dashes and underscores",
+			identifier: "update-pr_status",
+			expected:   "update_pr_status",
+		},
+		{
+			name:       "no dashes or underscores",
+			identifier: "createissue",
+			expected:   "createissue",
+		},
+		{
+			name:       "single dash",
+			identifier: "add-comment",
+			expected:   "add_comment",
+		},
+		{
+			name:       "trailing dash",
+			identifier: "update-",
+			expected:   "update_",
+		},
+		{
+			name:       "leading dash",
+			identifier: "-create",
+			expected:   "_create",
+		},
+		{
+			name:       "consecutive dashes",
+			identifier: "create--issue",
+			expected:   "create__issue",
+		},
+		{
+			name:       "empty string",
+			identifier: "",
+			expected:   "",
+		},
+		{
+			name:       "only dashes",
+			identifier: "---",
+			expected:   "___",
+		},
+		{
+			name:       "period in workflow name",
+			identifier: "executor-workflow.agent",
+			expected:   "executor_workflow_agent",
+		},
+		{
+			name:       "period only",
+			identifier: "my.workflow",
+			expected:   "my_workflow",
+		},
+		{
+			name:       "multiple periods",
+			identifier: "my.workflow.agent",
+			expected:   "my_workflow_agent",
+		},
+		{
+			name:       "period and dashes",
+			identifier: "my-workflow.agent",
+			expected:   "my_workflow_agent",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NormalizeSafeOutputIdentifier(tt.identifier)
+			if result != tt.expected {
+				t.Errorf("NormalizeSafeOutputIdentifier(%q) = %q, want %q", tt.identifier, result, tt.expected)
+			}
+		})
+	}
+}
+
+func BenchmarkNormalizeWorkflowName(b *testing.B) {
+	name := "weekly-research-workflow.lock.yml"
+	for b.Loop() {
+		NormalizeWorkflowName(name)
+	}
+}
+
+func BenchmarkNormalizeSafeOutputIdentifier(b *testing.B) {
+	identifier := "create-pull-request-review-comment"
+	for b.Loop() {
+		NormalizeSafeOutputIdentifier(identifier)
+	}
+}
+
+func TestMarkdownToLockFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple markdown file",
+			input:    "weekly-research.md",
+			expected: "weekly-research.lock.yml",
+		},
+		{
+			name:     "markdown file with path",
+			input:    ".github/workflows/test.md",
+			expected: ".github/workflows/test.lock.yml",
+		},
+		{
+			name:     "already a lock file",
+			input:    "workflow.lock.yml",
+			expected: "workflow.lock.yml",
+		},
+		{
+			name:     "file with dots in name",
+			input:    "my.workflow.md",
+			expected: "my.workflow.lock.yml",
+		},
+		{
+			name:     "file without extension",
+			input:    "workflow",
+			expected: "workflow.lock.yml",
+		},
+		{
+			name:     "absolute path",
+			input:    "/home/user/.github/workflows/daily.md",
+			expected: "/home/user/.github/workflows/daily.lock.yml",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := MarkdownToLockFile(tt.input)
+			if result != tt.expected {
+				t.Errorf("MarkdownToLockFile(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestLockFileToMarkdown(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple lock file",
+			input:    "weekly-research.lock.yml",
+			expected: "weekly-research.md",
+		},
+		{
+			name:     "lock file with path",
+			input:    ".github/workflows/test.lock.yml",
+			expected: ".github/workflows/test.md",
+		},
+		{
+			name:     "already a markdown file",
+			input:    "workflow.md",
+			expected: "workflow.md",
+		},
+		{
+			name:     "file with dots in name",
+			input:    "my.workflow.lock.yml",
+			expected: "my.workflow.md",
+		},
+		{
+			name:     "absolute path",
+			input:    "/home/user/.github/workflows/daily.lock.yml",
+			expected: "/home/user/.github/workflows/daily.md",
+		},
+		{
+			name:     "agentic-campaign-generator in workflows directory",
+			input:    ".github/workflows/agentic-campaign-generator.lock.yml",
+			expected: ".github/workflows/agentic-campaign-generator.md",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := LockFileToMarkdown(tt.input)
+			if result != tt.expected {
+				t.Errorf("LockFileToMarkdown(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestRoundTripConversions(t *testing.T) {
+	// Test that converting back and forth preserves the base name
+	t.Run("markdown to lock and back", func(t *testing.T) {
+		original := "workflow.md"
+		lockFile := MarkdownToLockFile(original)
+		backToMd := LockFileToMarkdown(lockFile)
+		if backToMd != original {
+			t.Errorf("Round trip failed: %q -> %q -> %q", original, lockFile, backToMd)
+		}
+	})
+
+	t.Run("lock to markdown and back", func(t *testing.T) {
+		original := "workflow.lock.yml"
+		mdFile := LockFileToMarkdown(original)
+		backToLock := MarkdownToLockFile(mdFile)
+		if backToLock != original {
+			t.Errorf("Round trip failed: %q -> %q -> %q", original, mdFile, backToLock)
+		}
+	})
+}

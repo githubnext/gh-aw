@@ -1,0 +1,219 @@
+---
+import type { Props } from '@astrojs/starlight/props';
+
+// Access page data via Starlight's route locals
+const route = Astro.locals.starlightRoute;
+const entry = route?.entry;
+
+// Detect blog posts by URL path - more reliable than entry.id   
+const isBlogPost = Astro.url.pathname.includes('/blog/');
+
+// Social images - use combined image for blog posts, hero for everything else
+const heroImage = 'https://github.github.com/gh-aw/og-hero-1200x630.png';
+//const blogCombinedImage = 'https://github.github.com/gh-aw/blog-combined.png';
+const socialImage = heroImage;
+
+// Build enhanced OG title: "Page Title | Site Name" (target: 50-60 chars)
+const siteTitle = 'GitHub Agentic Workflows';
+const rawPageTitle = entry?.data?.title ?? siteTitle;
+const isHomePage = rawPageTitle === siteTitle;
+const ogTitle = isHomePage ? siteTitle : `${rawPageTitle} | ${siteTitle}`;
+
+// Enhanced default description (110-160 chars optimal for OG)
+const defaultDescription = 'Write agentic workflows in natural language using markdown files and run them as GitHub Actions. Automate your repository with AI agents, strong guardrails, and simple configuration.';
+const pageDescription = entry?.data?.description || defaultDescription;
+const pathname = Astro.url.pathname;
+const isDocsHomePage = pathname === '/gh-aw/' || pathname === '/gh-aw/index.html';
+const homeJsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      '@id': 'https://github.github.com/gh-aw/#website',
+      name: siteTitle,
+      url: 'https://github.github.com/gh-aw/',
+      description: defaultDescription,
+      publisher: {
+        '@id': 'https://github.github.com/gh-aw/#organization',
+      },
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: 'https://github.github.com/gh-aw/search/?q={search_term_string}',
+        'query-input': 'required name=search_term_string',
+      },
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      '@id': 'https://github.github.com/gh-aw/#organization',
+      name: 'GitHub',
+      url: 'https://github.com/github',
+      sameAs: [
+        'https://github.com/github/gh-aw',
+        'https://github.com/github',
+        'https://www.linkedin.com/company/github',
+        'https://www.wikidata.org/wiki/Q364',
+        'https://githubnext.com/',
+        'https://github.blog/',
+      ],
+      contactPoint: {
+        '@context': 'https://schema.org',
+        '@type': 'ContactPoint',
+        contactType: 'customer service',
+        url: 'https://github.com/github/gh-aw/issues',
+      },
+      dateModified: '2026-05-09',
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      '@id': 'https://github.github.com/gh-aw/#software',
+      name: siteTitle,
+      url: 'https://github.github.com/gh-aw/',
+      description: defaultDescription,
+      applicationCategory: 'DeveloperApplication',
+      operatingSystem: 'Any',
+      dateModified: '2026-05-09',
+      downloadUrl: 'https://github.com/github/gh-aw/releases',
+      creator: {
+        '@context': 'https://schema.org',
+        '@id': 'https://github.github.com/gh-aw/#organization',
+      },
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      '@id': 'https://github.github.com/gh-aw/#faq',
+      mainEntity: [
+        {
+          '@type': 'Question',
+          name: "What's the difference between agentic workflows and regular GitHub Actions workflows?",
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Agentic workflows use AI to interpret natural language instructions in markdown instead of complex YAML. The AI engine can call pre-approved tools to perform tasks while running with read-only default permissions, safe outputs, and sandboxed execution.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Can agentic workflows write code and create pull requests?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes. Agentic workflows can create pull requests using the create-pull-request safe output so proposed changes are reviewed and merged by humans.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Can workflows trigger other workflows?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes. Workflows can dispatch other workflows using the dispatch-workflow safe output with configurable limits.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Can I use MCP servers with agentic workflows?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes. Model Context Protocol servers can be configured in frontmatter to extend workflows with custom tools and integrations.',
+          },
+        },
+      ],
+    },
+  ],
+};
+
+// Properties we override with enhanced values
+const overriddenProps = new Set([
+  'og:title', 'og:description', 'og:image',
+  'twitter:title', 'twitter:description', 'twitter:image',
+]);
+
+// Filter Starlight's head tags to remove OG/Twitter tags we'll override
+const head = route?.head ?? [];
+const filteredHead = head.filter(({ tag, attrs }) => {
+  if (tag !== 'meta') return true;
+  const prop = attrs?.property || attrs?.name;
+  return !overriddenProps.has(prop);
+});
+---
+
+<!-- Starlight's head tags (with OG/Twitter duplicates removed) -->
+{filteredHead.map(({ tag: Tag, attrs, content }) => <Tag {...attrs} set:html={content} />)}
+{isDocsHomePage && (
+  <script type="application/ld+json" set:html={JSON.stringify(homeJsonLd)} />
+)}
+
+<!-- Enhanced OG tags with site name in title and social image -->
+<meta property="og:title" content={ogTitle} />
+<meta property="og:description" content={pageDescription} />
+<meta property="og:image" content={socialImage} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:type" content="image/png" />
+<meta name="twitter:title" content={ogTitle} />
+<meta name="twitter:description" content={pageDescription} />
+<meta name="twitter:image" content={socialImage} />
+
+<link
+  rel="preload"
+  href="/gh-aw/fonts/MonaSans-Regular.woff2"
+  as="font"
+  type="font/woff2"
+  crossorigin
+/>
+<link
+  rel="preload"
+  href="/gh-aw/fonts/MonaSans-Bold.woff2"
+  as="font"
+  type="font/woff2"
+  crossorigin
+/>
+
+<link rel="icon" type="image/svg+xml" href="/gh-aw/favicon.svg" />
+
+<!-- Responsive tables enhancement script -->
+<script>
+  import '../scripts/responsive-tables.ts';
+</script>
+
+<!-- Search accessibility enhancement: adds aria-live to the dynamic results container -->
+<script>
+  import '../scripts/search-aria.ts';
+</script>
+
+<!-- Copy button accessibility enhancement: mirrors title→aria-label on Expressive Code copy buttons -->
+<script>
+  import '../scripts/copy-button-aria.ts';
+</script>
+
+<!-- Skip link accessibility enhancement: adds id="main-content" and tabindex="-1" to <main> -->
+<script>
+  import '../scripts/skip-link.ts';
+</script>
+
+<script is:inline>
+  (function() {
+    const storedTheme = localStorage.getItem('starlight-theme') || 'auto';
+    const isDark = storedTheme === 'dark' || (storedTheme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme-mode', storedTheme);
+  })();
+
+  (function() {
+    const isLandingPage = window.location.pathname === '/gh-aw/' || 
+                          window.location.pathname === '/gh-aw/index.html' ||
+                          window.location.pathname.endsWith('/gh-aw');
+    
+    if (isLandingPage) {
+      if (document.body) {
+        document.body.classList.add('landing-page');
+      } else {
+        document.addEventListener('DOMContentLoaded', function() {
+          document.body.classList.add('landing-page');
+        });
+      }
+    }
+  })();
+</script>

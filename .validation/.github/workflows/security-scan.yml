@@ -1,0 +1,68 @@
+name: Security Scan
+
+on:
+  schedule:
+    # Daily scan at 6:00 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  gosec:
+    name: Gosec Security Scanner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run Gosec
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.22.11
+          # Exclusions configured in .golangci.yml (linters-settings.gosec.exclude)
+          # Keep this list in sync with .golangci.yml for consistency
+          gosec -fmt sarif -out gosec-results.sarif -stdout -exclude-generated -track-suppressions \
+            -exclude=G101,G115,G204,G602,G301,G302,G304,G306 \
+            ./...
+
+      - name: Upload Gosec SARIF
+        uses: github/codeql-action/upload-sarif@4248455a6f2335bc3b7a8a62932f000050ec8f13 # v3
+        if: always()
+        with:
+          sarif_file: gosec-results.sarif
+          category: gosec
+
+  govulncheck:
+    name: Go Vulnerability Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
+        with:
+          output-format: sarif
+          output-file: govulncheck-results.sarif
+
+      - name: Upload govulncheck SARIF
+        uses: github/codeql-action/upload-sarif@4248455a6f2335bc3b7a8a62932f000050ec8f13 # v3
+        if: always()
+        with:
+          sarif_file: govulncheck-results.sarif
+          category: govulncheck
+

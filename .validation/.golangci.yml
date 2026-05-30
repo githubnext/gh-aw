@@ -1,0 +1,216 @@
+version: "2"
+run:
+  go: "1.26"
+  tests: true
+  timeout: 5m  # Prevent linter from hanging indefinitely
+  modules-download-mode: readonly  # Use cached modules only, skip downloads
+
+linters:
+  enable:
+    - misspell
+    - gomoddirectives  # Forbid replace, retract, and excludes directives in go.mod
+    # gosec disabled in golangci-lint due to configuration bugs in v2
+    # It's run separately via 'make security-gosec' with proper exclusions
+    # - gosec
+    # godot linter disabled - too pedantic about comment punctuation
+    - unconvert      # Remove unnecessary conversions
+    - testifylint    # Enforce testify best practices
+    - intrange       # Suggest integer range in for loops
+    - modernize      # Modernize Go code using modern language features
+    - errorlint      # Find error wrapping issues (type assertions, comparisons)
+    - usestdlibvars  # Use standard library variables/constants (e.g. http.MethodGet)
+    - mirror         # Avoid unnecessary allocations in bytes/strings operations
+    - nolintlint     # Report ill-formed or insufficient nolint directives
+    - wastedassign   # Find wasted assignment statements
+    - makezero       # Find slice declarations with non-zero initial length followed by append
+    - perfsprint     # Replace fmt.Sprintf with faster alternatives where possible
+    - bodyclose      # Check HTTP response bodies are closed
+    - gocheckcompilerdirectives  # Validate go compiler directive comments
+    - recvcheck      # Check receiver type consistency
+    - copyloopvar    # Detect loop variable copies
+    - exptostd       # Replace golang.org/x/exp functions with std equivalents
+    - durationcheck  # Check for two durations multiplied together
+    - fatcontext     # Detect nested contexts in loops and function literals
+    - nosprintfhostport  # Check for misuse of Sprintf to construct host:port URLs
+    - reassign       # Check that package variables are not reassigned
+  disable:
+    - errcheck       # Disabled due to exclude-functions not working properly in golangci-lint v2
+    - gocritic       # Disabled due to disabled-checks not working properly in golangci-lint v2
+    - revive         # Disabled due to exclude-rules not working properly in golangci-lint v2
+
+linters-settings:
+  gomoddirectives:
+    # Forbid all replace directives in go.mod
+    replace-local: false       # Forbid local replace directives (e.g., replace foo => ../foo)
+    replace-allow-list: []     # No replace directives are allowed
+  errcheck:
+    exclude-functions:
+      - (*os.File).Close
+      - (*os.File).Sync
+      - os.Chdir
+      - os.Chmod
+      - os.Chtimes
+      - os.MkdirAll
+      - os.Remove
+      - os.RemoveAll
+      - os.WriteFile
+  gocritic:
+    enable-all: true
+    disabled-checks:
+      - ifElseChain      # else-if chains are often clearer than switches
+      - singleCaseSwitch # Single case switches can be intentional for consistency
+      - appendAssign     # Appending to different variable is often intentional
+      - unlambda         # Explicit lambdas can be clearer than direct function refs
+      - elseif           # else-if pattern is acceptable
+      - assignOp         # Long form assignment can be clearer
+      - argOrder         # False positives on string contains
+      - dupBranchBody    # Duplicate branches can be intentional for clarity
+      - deprecatedComment # Allow existing deprecated comment format
+      - commentFormatting # Allow commented out code
+      - badCall           # filepath.Join with 1 arg is acceptable
+  gosec:
+    # NOTE: gosec is disabled in golangci-lint due to configuration bugs in v2.
+    # The following exclusions are the source of truth and are applied when running
+    # gosec directly via 'make security-gosec' and in GitHub Actions.
+    # Update the -exclude flags in Makefile and .github/workflows/security-scan.yml
+    # when changing these exclusions to maintain consistency.
+    # - G101: Potential hardcoded credentials (often false positives)
+    # - G115: Integer overflow conversion (acceptable in most cases)
+    # - G204: Subprocess with variable args - all exec.Command calls use separate args
+    #         (not shell execution), making shell injection impossible. Specific high-risk
+    #         cases (user-controlled command names) are mitigated by exec.LookPath validation
+    #         and documented with inline #nosec G204 annotations.
+    # - G602: Slice bounds check (handled by runtime)
+    # - G301: Directory permissions 0755 (acceptable for non-sensitive dirs)
+    # - G302: File permissions 0755 (acceptable for chmod operations)
+    # - G304: File inclusion via variable (validated file paths)
+    # - G306: WriteFile permissions 0644 (acceptable for non-sensitive files)
+    exclude:
+      - G101
+      - G115
+      - G204
+      - G602
+      - G301
+      - G302
+      - G304
+      - G306
+    config:
+      G204: "0644" # Allow common file permissions in tests
+      G306: "0644" # Allow common file permissions
+  testifylint:
+    enable-all: true
+
+issues:
+  exclude-generated: lax
+  exclude-dirs-use-default: false
+  exclude-use-default: false
+  # NOTE: The issues.exclude field does not work properly in golangci-lint v2
+  # Exclusions for gosec are applied when running gosec directly via 'make security-gosec'
+  exclude-rules:
+    - linters:
+        - staticcheck
+      text: "ST1005: error strings should not end with punctuation or newlines" # Allow multiline user-facing error messages with formatting
+      path: pkg/workflow/compiler_orchestrator\.go
+    - linters:
+        - staticcheck
+      text: "ST1005: error strings should not end with punctuation or newlines" # Allow multiline user-facing error messages with formatting
+      path: pkg/workflow/dispatch_workflow_validation\.go
+    - linters:
+        - gosec
+      text: "^G304:" # Ignore "file inclusion via variable" - validated file paths
+    - linters:
+        - gosec
+      text: "^G104:" # Ignore "errors unhandled" - intentional in tests
+      path: _test\.go
+    - linters:
+        - gosec
+      text: "^G204:" # Allow docker commands in actionlint
+      path: pkg/cli/actionlint\.go
+    - linters:
+        - gosec
+      text: "^G204:" # Allow git commands in remote_fetch
+      path: pkg/parser/remote_fetch\.go
+    - linters:
+        - gosec
+      text: "^G404:" # Allow math/rand for non-crypto purposes
+      path: pkg/cli/(add_command|update_git)\.go
+    - linters:
+        - gosec
+      text: "^G306:" # Allow 0644 permissions in test files
+      path: _test\.go
+    - linters:
+        - gosec
+      text: "^G305:" # Allow file path operations in logs_download
+      path: pkg/cli/logs_download\.go
+    - linters:
+        - gosec
+      text: "^G110:" # Allow decompression in logs_download
+      path: pkg/cli/logs_download\.go
+    - linters:
+        - gosec
+      text: "^G204:" # Allow git commands in download_workflow
+      path: pkg/cli/download_workflow\.go
+    - linters:
+        - gosec
+      text: "^G204:" # Allow exec.Command with config in mcp_inspect
+      path: pkg/cli/mcp_inspect\.go
+    - linters:
+        - gosec
+      text: "^G204:" # Allow exec.Command with config in mcp_inspect_mcp
+      path: pkg/cli/mcp_inspect_mcp\.go
+    - linters:
+        - gosec
+      text: "^G306:" # 0755 is correct permission for executable script
+      path: pkg/cli/mcp_inspect\.go
+    - linters:
+        - gosec
+      text: "^G204:" # Allow docker commands in poutine
+      path: pkg/cli/poutine\.go
+    - linters:
+        - gosec
+      text: "^G204:" # Allow node command in tests
+      path: pkg/workflow/js_comments_test\.go
+    - linters:
+        - gosec
+      text: "^G204:" # Allow npx command in integration tests
+      path: pkg/workflow/playwright_mcp_integration_test\.go
+    - linters:
+        - gosec
+      text: "^G204:" # Allow exec of binary in status tests
+      path: pkg/cli/status_command_test\.go
+    - linters:
+        - gosec
+      text: "^G204:" # Allow docker commands in zizmor
+      path: pkg/cli/zizmor\.go
+    - linters:
+        - gosec
+      text: "^G304:" # Allow file inclusion in parser for frontmatter/includes
+      path: pkg/parser/(frontmatter_content|include_expander|include_processor)\.go
+    - linters:
+        - gosec
+      text: "^G301:" # Allow directory permissions in parser cache
+      path: pkg/parser/(import_cache|frontmatter_includes_test)\.go
+    - linters:
+        - gosec
+      text: "^G306:" # Allow file write permissions in parser cache
+      path: pkg/parser/import_cache\.go
+    - linters:
+        - gosec
+      text: "^G301:" # Allow directory permissions in testutil
+      path: pkg/testutil/tempdir\.go
+    - linters:
+        - gosec
+      text: "^G101:" # Allow string literals in safe outputs that look like env var names
+      path: pkg/workflow/compiler_safe_outputs_core\.go
+    - linters:
+        - gosec
+      text: "^G204:" # Allow mcp inspect commands with docker
+      path: pkg/cli/mcp_inspect_mcp\.go
+    - linters:
+        - unconvert
+      path: _test\.go # Allow explicit conversions in tests for clarity
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

@@ -1,0 +1,2639 @@
+{
+  "root": {
+    "name": {
+      "type": "string",
+      "desc": "Workflow name that appears in the GitHub Actions interface.",
+      "leaf": true
+    },
+    "description": {
+      "type": "string",
+      "desc": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)",
+      "leaf": true
+    },
+    "emoji": {
+      "type": "string",
+      "desc": "Optional emoji to represent the workflow visually in listings and UI surfaces.",
+      "leaf": true
+    },
+    "source": {
+      "type": "string",
+      "desc": "Optional source reference indicating where this workflow was added from.",
+      "leaf": true
+    },
+    "redirect": {
+      "type": "string",
+      "desc": "Optional workflow location redirect for updates.",
+      "leaf": true
+    },
+    "tracker-id": {
+      "type": "string",
+      "desc": "Optional tracker identifier to tag all created assets (issues, discussions, comments, pull requests).",
+      "leaf": true
+    },
+    "labels": {
+      "type": "array",
+      "desc": "Optional array of labels to categorize and organize workflows.",
+      "array": true
+    },
+    "metadata": {
+      "type": "object",
+      "desc": "Optional metadata field for storing custom key-value pairs compatible with the custom agent spec."
+    },
+    "imports": {
+      "type": "array|object",
+      "desc": "Workflow specifications to import.",
+      "children": {
+        "aw": {
+          "type": "array",
+          "desc": "Array of shared agentic workflow specifications to import.",
+          "array": true
+        }
+      },
+      "array": true
+    },
+    "resources": {
+      "type": "array",
+      "desc": "Optional list of additional workflow or action files that should be fetched alongside this workflow when running 'gh ...",
+      "array": true
+    },
+    "inlined-imports": {
+      "type": "boolean",
+      "desc": "If true, inline all imports (including those without inputs) at compilation time in the generated lock.yml instead of...",
+      "enum": [true, false],
+      "leaf": true
+    },
+    "on": {
+      "type": "string|object",
+      "desc": "Workflow triggers that define when the agentic workflow should run.",
+      "children": {
+        "slash_command": {
+          "type": "null|string|object",
+          "desc": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments).",
+          "leaf": true
+        },
+        "command": {
+          "type": "null|string|object",
+          "desc": "DEPRECATED: Use 'slash_command' instead.",
+          "leaf": true
+        },
+        "label_command": {
+          "type": "string|object",
+          "desc": "On Label Command trigger: fires when a specific label is added to an issue, pull request, or discussion.",
+          "leaf": true
+        },
+        "push": {
+          "type": "object",
+          "desc": "Push event trigger that runs the workflow when code is pushed to the repository"
+        },
+        "pull_request": {
+          "type": "object",
+          "desc": "Pull request event trigger that runs the workflow when pull requests are created, updated, or closed"
+        },
+        "issues": {
+          "type": "object",
+          "desc": "Issues event trigger that runs when repository issues are created, updated, or managed"
+        },
+        "issue_comment": {
+          "type": "object",
+          "desc": "Issue comment event trigger"
+        },
+        "discussion": {
+          "type": "object",
+          "desc": "Discussion event trigger that runs the workflow when repository discussions are created, updated, or managed"
+        },
+        "discussion_comment": {
+          "type": "object",
+          "desc": "Discussion comment event trigger that runs the workflow when comments on discussions are created, updated, or deleted"
+        },
+        "schedule": {
+          "type": "string|array",
+          "desc": "Scheduled trigger events using fuzzy schedules or standard cron expressions.",
+          "leaf": true,
+          "array": true
+        },
+        "workflow_dispatch": {
+          "type": "null|object",
+          "desc": "Manual workflow dispatch trigger",
+          "leaf": true
+        },
+        "workflow_run": {
+          "type": "object",
+          "desc": "Workflow run trigger"
+        },
+        "release": {
+          "type": "object",
+          "desc": "Release event trigger"
+        },
+        "pull_request_review_comment": {
+          "type": "object",
+          "desc": "Pull request review comment event trigger"
+        },
+        "branch_protection_rule": {
+          "type": "object",
+          "desc": "Branch protection rule event trigger that runs when branch protection rules are changed"
+        },
+        "check_run": {
+          "type": "object",
+          "desc": "Check run event trigger that runs when a check run is created, rerequested, completed, or has a requested action"
+        },
+        "check_suite": {
+          "type": "object",
+          "desc": "Check suite event trigger that runs when check suite activity occurs"
+        },
+        "create": {
+          "type": "null|object",
+          "desc": "Create event trigger that runs when a Git reference (branch or tag) is created",
+          "leaf": true
+        },
+        "delete": {
+          "type": "null|object",
+          "desc": "Delete event trigger that runs when a Git reference (branch or tag) is deleted",
+          "leaf": true
+        },
+        "deployment": {
+          "type": "null|object",
+          "desc": "Deployment event trigger that runs when a deployment is created",
+          "leaf": true
+        },
+        "deployment_status": {
+          "type": "null|object",
+          "desc": "Deployment status event trigger that runs when a deployment status is updated",
+          "leaf": true
+        },
+        "fork": {
+          "type": "null|object",
+          "desc": "Fork event trigger that runs when someone forks the repository",
+          "leaf": true
+        },
+        "gollum": {
+          "type": "null|object",
+          "desc": "Gollum event trigger that runs when someone creates or updates a Wiki page",
+          "leaf": true
+        },
+        "label": {
+          "type": "object",
+          "desc": "Label event trigger that runs when a label is created, edited, or deleted"
+        },
+        "merge_group": {
+          "type": "object",
+          "desc": "Merge group event trigger that runs when a pull request is added to a merge queue"
+        },
+        "milestone": {
+          "type": "object",
+          "desc": "Milestone event trigger that runs when a milestone is created, closed, opened, edited, or deleted"
+        },
+        "page_build": {
+          "type": "null|object",
+          "desc": "Page build event trigger that runs when someone pushes to a GitHub Pages publishing source branch",
+          "leaf": true
+        },
+        "public": {
+          "type": "null|object",
+          "desc": "Public event trigger that runs when a repository changes from private to public",
+          "leaf": true
+        },
+        "pull_request_target": {
+          "type": "object",
+          "desc": "Pull request target event trigger that runs in the context of the base repository (secure for fork PRs)"
+        },
+        "pull_request_review": {
+          "type": "object",
+          "desc": "Pull request review event trigger that runs when a pull request review is submitted, edited, or dismissed"
+        },
+        "registry_package": {
+          "type": "object",
+          "desc": "Registry package event trigger that runs when a package is published or updated"
+        },
+        "repository_dispatch": {
+          "type": "object",
+          "desc": "Repository dispatch event trigger for custom webhook events"
+        },
+        "status": {
+          "type": "null|object",
+          "desc": "Status event trigger that runs when the status of a Git commit changes",
+          "leaf": true
+        },
+        "watch": {
+          "type": "object",
+          "desc": "Watch event trigger that runs when someone stars the repository"
+        },
+        "workflow_call": {
+          "type": "null|object",
+          "desc": "Workflow call event trigger that allows this workflow to be called by another workflow",
+          "leaf": true
+        },
+        "stop-after": {
+          "type": "string",
+          "desc": "Time when workflow should stop running.",
+          "leaf": true
+        },
+        "skip-if-match": {
+          "type": "string|object",
+          "desc": "Conditionally skip workflow execution when a GitHub search query has matches.",
+          "leaf": true
+        },
+        "skip-if-no-match": {
+          "type": "string|object",
+          "desc": "Conditionally skip workflow execution when a GitHub search query has no matches (or fewer than minimum).",
+          "leaf": true
+        },
+        "skip-if-check-failing": {
+          "type": "null|boolean|object",
+          "desc": "Skip workflow execution if any CI checks on the target branch are failing or pending.",
+          "enum": [true],
+          "leaf": true
+        },
+        "skip-roles": {
+          "type": "string|array",
+          "desc": "Skip workflow execution for users with specific repository roles.",
+          "leaf": true,
+          "array": true
+        },
+        "skip-bots": {
+          "type": "string|array",
+          "desc": "Skip workflow execution for specific GitHub users.",
+          "leaf": true,
+          "array": true
+        },
+        "skip-author-associations": {
+          "type": "object",
+          "desc": "Skip workflow execution when an event-specific payload author_association field (for example: github.event.comment.au..."
+        },
+        "roles": {
+          "type": "string|array",
+          "desc": "Repository access roles required to trigger agentic workflows.",
+          "enum": ["admin", "maintainer", "maintain", "write", "triage", "read", "all"],
+          "leaf": true,
+          "array": true
+        },
+        "bots": {
+          "type": "array",
+          "desc": "Allow list of bot identifiers that can trigger the workflow even if they don't meet the required role permissions.",
+          "array": true
+        },
+        "labels": {
+          "type": "string|array",
+          "desc": "Filter workflows triggered by pull_request_target (or other labeled events) to only fire when the triggering label ma...",
+          "leaf": true,
+          "array": true
+        },
+        "allow-bot-authored-trigger-comment": {
+          "type": "boolean",
+          "desc": "Allow the bot-posted-menu / user-checks-box pattern: when a workflow posts a checkbox-menu comment as a GitHub App bo...",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "manual-approval": {
+          "type": "string",
+          "desc": "Environment name that requires manual approval before the workflow can run.",
+          "leaf": true
+        },
+        "reaction": {
+          "type": "string|integer|object",
+          "desc": "AI reaction to add/remove on triggering item.",
+          "enum": ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes", "none"],
+          "leaf": true
+        },
+        "status-comment": {
+          "type": "boolean|object",
+          "desc": "Whether to post status comments (started/completed) on the triggering item.",
+          "leaf": true
+        },
+        "github-token": {
+          "type": "string",
+          "desc": "Custom GitHub token for pre-activation reactions, activation status comments, and skip-if search queries.",
+          "leaf": true
+        },
+        "github-app": {
+          "type": "object",
+          "desc": "GitHub App configuration for minting a token used in pre-activation reactions, activation status comments, and skip-i..."
+        },
+        "needs": {
+          "type": "array",
+          "desc": "Explicit additional custom workflow jobs that pre_activation and activation should depend on.",
+          "array": true
+        },
+        "steps": {
+          "type": "array",
+          "desc": "Steps to inject into the pre-activation job.",
+          "array": true
+        },
+        "permissions": {
+          "type": "object",
+          "desc": "Additional permissions for the pre-activation job."
+        },
+        "stale-check": {
+          "type": "boolean|string",
+          "desc": "Controls the stale lock file check in the activation job.",
+          "enum": ["full"],
+          "leaf": true
+        }
+      }
+    },
+    "permissions": {
+      "type": "string|object",
+      "desc": "GitHub token permissions for the workflow.",
+      "enum": ["read-all", "write-all"],
+      "children": {
+        "actions": {
+          "type": "string",
+          "desc": "Permission for GitHub Actions workflows and runs (read: view workflows, write: manage workflows, none: no access)",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "attestations": {
+          "type": "string",
+          "desc": "Permission for artifact attestations (read: view attestations, write: create attestations, none: no access)",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "checks": {
+          "type": "string",
+          "desc": "Permission for repository checks and status checks (read: view checks, write: create/update checks, none: no access)",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "contents": {
+          "type": "string",
+          "desc": "Permission for repository contents (read: view files, write: modify files/branches, none: no access)",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "deployments": {
+          "type": "string",
+          "desc": "Permission for repository deployments (read: view deployments, write: create/update deployments, none: no access)",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "discussions": {
+          "type": "string",
+          "desc": "Permission for repository discussions (read: view discussions, write: create/update discussions, none: no access)",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "id-token": {
+          "type": "string",
+          "desc": "Permission level for OIDC token requests (write/none only - read is not supported).",
+          "enum": ["write", "none"],
+          "leaf": true
+        },
+        "issues": {
+          "type": "string",
+          "desc": "Permission for repository issues (read: view issues, write: create/update/close issues, none: no access)",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "models": {
+          "type": "string",
+          "desc": "Permission for GitHub Copilot models (read: access AI models for agentic workflows, none: no access)",
+          "enum": ["read", "none"],
+          "leaf": true
+        },
+        "metadata": {
+          "type": "string",
+          "desc": "Permission for repository metadata (read: view repository information, write: update repository metadata, none: no ac...",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "packages": {
+          "type": "string",
+          "desc": "Permission level for GitHub Packages (read/write/none).",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "pages": {
+          "type": "string",
+          "desc": "Permission level for GitHub Pages (read/write/none).",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "pull-requests": {
+          "type": "string",
+          "desc": "Permission level for pull requests (read/write/none).",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "repository-projects": {
+          "type": "string",
+          "desc": "Permission level for repository projects (read/write/none).",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "organization-projects": {
+          "type": "string",
+          "desc": "Permission level for organization projects (read/write/none).",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "security-events": {
+          "type": "string",
+          "desc": "Permission level for security events (read/write/none).",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "statuses": {
+          "type": "string",
+          "desc": "Permission level for commit statuses (read/write/none).",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "vulnerability-alerts": {
+          "type": "string",
+          "desc": "Permission level for Dependabot vulnerability alerts (read/write/none).",
+          "enum": ["read", "write", "none"],
+          "leaf": true
+        },
+        "all": {
+          "type": "string",
+          "desc": "Permission shorthand that applies read access to all permission scopes.",
+          "enum": ["read"],
+          "leaf": true
+        }
+      }
+    },
+    "run-name": {
+      "type": "string",
+      "desc": "Custom name for workflow runs that appears in the GitHub Actions interface (supports GitHub expressions like ${{ gith...",
+      "leaf": true
+    },
+    "jobs": {
+      "type": "object",
+      "desc": "Groups together all the jobs that run in the workflow"
+    },
+    "runs-on": {
+      "type": "string|array|object",
+      "desc": "Runner type for workflow execution (GitHub Actions standard field).",
+      "children": {
+        "group": {
+          "type": "string",
+          "desc": "Runner group name for self-hosted runners or GitHub-hosted runner groups",
+          "leaf": true
+        },
+        "labels": {
+          "type": "array",
+          "desc": "List of runner labels for self-hosted runners or GitHub-hosted runner selection",
+          "array": true
+        }
+      },
+      "array": true
+    },
+    "runs-on-slim": {
+      "type": "string",
+      "desc": "Runner for all framework/generated jobs (activation, pre-activation, safe-outputs, unlock, APM, etc.).",
+      "leaf": true
+    },
+    "timeout-minutes": {
+      "type": "integer|string",
+      "desc": "Workflow timeout in minutes (GitHub Actions standard field).",
+      "leaf": true
+    },
+    "concurrency": {
+      "type": "string|object",
+      "desc": "Concurrency control to limit concurrent workflow runs (GitHub Actions standard field).",
+      "children": {
+        "group": {
+          "type": "string",
+          "desc": "Concurrency group name.",
+          "leaf": true
+        },
+        "cancel-in-progress": {
+          "type": "boolean",
+          "desc": "Whether to cancel in-progress workflows in the same concurrency group when a new one starts.",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "queue": {
+          "type": "string",
+          "desc": "Pending run queue behavior for this concurrency group.",
+          "enum": ["single", "max"],
+          "leaf": true
+        },
+        "job-discriminator": {
+          "type": "string",
+          "desc": "Additional discriminator expression appended to compiler-generated job-level concurrency groups (agent, output jobs).",
+          "leaf": true
+        }
+      }
+    },
+    "env": {
+      "type": "object|string",
+      "desc": "Environment variables for the workflow",
+      "leaf": true
+    },
+    "inline-sub-agents": {
+      "type": "boolean",
+      "desc": "Deprecated switch for inline sub-agent support.",
+      "enum": [true, false],
+      "leaf": true
+    },
+    "features": {
+      "type": "object",
+      "desc": "Feature flags and configuration options for experimental or optional features in the workflow."
+    },
+    "models": {
+      "type": "object",
+      "desc": "Named model alias definitions with ordered fallback lists, resolved recursively by AWF."
+    },
+    "experiments": {
+      "type": "object",
+      "desc": "A/B testing experiments.",
+      "children": {
+        "storage": {
+          "type": "string",
+          "desc": "Storage backend for experiment state.",
+          "enum": ["cache", "repo"],
+          "leaf": true
+        }
+      }
+    },
+    "disable-model-invocation": {
+      "type": "boolean",
+      "desc": "Controls whether the custom agent should disable model invocation.",
+      "enum": [true, false],
+      "leaf": true
+    },
+    "secrets": {
+      "type": "object",
+      "desc": "Secret values passed to workflow execution."
+    },
+    "environment": {
+      "type": "string|object",
+      "desc": "Environment that the job references (for protected environments and deployments)",
+      "children": {
+        "name": {
+          "type": "string",
+          "desc": "The name of the environment configured in the repo",
+          "leaf": true
+        },
+        "url": {
+          "type": "string",
+          "desc": "A deployment URL",
+          "leaf": true
+        }
+      }
+    },
+    "container": {
+      "type": "string|object",
+      "desc": "Container to run the job steps in",
+      "children": {
+        "image": {
+          "type": "string",
+          "desc": "The Docker image to use as the container",
+          "leaf": true
+        },
+        "credentials": {
+          "type": "object",
+          "desc": "Credentials for private registries",
+          "children": {
+            "username": {
+              "type": "string",
+              "desc": "Username for Docker registry authentication when pulling private container images.",
+              "leaf": true
+            },
+            "password": {
+              "type": "string",
+              "desc": "Password or access token for Docker registry authentication.",
+              "leaf": true
+            }
+          }
+        },
+        "env": {
+          "type": "object",
+          "desc": "Environment variables for the container"
+        },
+        "ports": {
+          "type": "array",
+          "desc": "Ports to expose on the container",
+          "array": true
+        },
+        "volumes": {
+          "type": "array",
+          "desc": "Volumes for the container",
+          "array": true
+        },
+        "options": {
+          "type": "string",
+          "desc": "Additional Docker container options",
+          "leaf": true
+        }
+      }
+    },
+    "services": {
+      "type": "object",
+      "desc": "Service containers for the job"
+    },
+    "network": {
+      "type": "string|object",
+      "desc": "Network access control for AI engines using ecosystem identifiers and domain allowlists.",
+      "enum": ["defaults"],
+      "children": {
+        "allowed": {
+          "type": "array",
+          "desc": "List of allowed domains or ecosystem identifiers (e.g., 'defaults', 'python', 'node', '*.example.com').",
+          "array": true
+        },
+        "allowed-input": {
+          "type": "boolean",
+          "desc": "When true and the workflow uses workflow_call, expose a network_allowed string input on the compiled lock file.",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "blocked": {
+          "type": "array",
+          "desc": "List of blocked domains or ecosystem identifiers (e.g., 'python', 'node', 'tracker.example.com').",
+          "array": true
+        }
+      }
+    },
+    "sandbox": {
+      "type": "string|object",
+      "desc": "Sandbox configuration for AI engines.",
+      "enum": ["default", "awf"],
+      "children": {
+        "type": {
+          "type": "string",
+          "desc": "Legacy sandbox type field (use agent instead).",
+          "enum": ["default", "awf"],
+          "leaf": true
+        },
+        "agent": {
+          "type": "boolean|string|object",
+          "desc": "Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), or false to disable agent sandbox.",
+          "enum": ["awf"],
+          "children": {
+            "id": {
+              "type": "string",
+              "desc": "Agent identifier (replaces 'type' field in new format): 'awf' for Agent Workflow Firewall",
+              "enum": ["awf"],
+              "leaf": true
+            },
+            "type": {
+              "type": "string",
+              "desc": "Legacy: Sandbox type to use (use 'id' instead)",
+              "enum": ["awf"],
+              "leaf": true
+            },
+            "version": {
+              "type": "string",
+              "desc": "AWF version override used to install and run the matching firewall version.",
+              "leaf": true
+            },
+            "command": {
+              "type": "string",
+              "desc": "Custom command to replace the default AWF installation.",
+              "leaf": true
+            },
+            "args": {
+              "type": "array",
+              "desc": "Additional arguments to append to the command (applies to AWF, for standard and custom commands)",
+              "array": true
+            },
+            "env": {
+              "type": "object",
+              "desc": "Environment variables to set on the execution step (applies to AWF)"
+            },
+            "mounts": {
+              "type": "array",
+              "desc": "Container mounts to add when using AWF.",
+              "array": true
+            },
+            "memory": {
+              "type": "string",
+              "desc": "Memory limit for the AWF container (e.g., '4g', '8g').",
+              "leaf": true
+            },
+            "model-fallback": {
+              "type": "boolean|string",
+              "desc": "Enable or disable model fallback for unresolved model selections.",
+              "leaf": true
+            },
+            "config": {
+              "type": "object",
+              "desc": "Custom sandbox runtime configuration.",
+              "children": {
+                "filesystem": {
+                  "type": "object",
+                  "desc": "Filesystem access control configuration for the agent within the sandbox."
+                },
+                "ignoreViolations": {
+                  "type": "object",
+                  "desc": "Map of command patterns to paths that should ignore violations"
+                },
+                "enableWeakerNestedSandbox": {
+                  "type": "boolean",
+                  "desc": "Enable weaker nested sandbox mode (recommended: true for Docker access)",
+                  "enum": [true, false],
+                  "leaf": true
+                }
+              }
+            }
+          }
+        },
+        "config": {
+          "type": "object",
+          "desc": "Legacy custom Sandbox Runtime configuration (use agent.config instead).",
+          "children": {
+            "filesystem": {
+              "type": "object",
+              "desc": "Filesystem access control configuration for sandboxed workflows.",
+              "children": {
+                "denyRead": {
+                  "type": "array",
+                  "desc": "Array of path patterns that deny read access in the sandboxed environment.",
+                  "array": true
+                },
+                "allowWrite": {
+                  "type": "array",
+                  "desc": "Array of path patterns that allow write access in the sandboxed environment.",
+                  "array": true
+                },
+                "denyWrite": {
+                  "type": "array",
+                  "desc": "Array of path patterns that deny write access in the sandboxed environment.",
+                  "array": true
+                }
+              }
+            },
+            "ignoreViolations": {
+              "type": "object",
+              "desc": "When true, log sandbox violations without blocking execution."
+            },
+            "enableWeakerNestedSandbox": {
+              "type": "boolean",
+              "desc": "When true, allows nested sandbox processes to run with relaxed restrictions.",
+              "enum": [true, false],
+              "leaf": true
+            }
+          }
+        },
+        "mcp": {
+          "type": "object",
+          "desc": "MCP Gateway configuration for routing MCP server calls through a unified HTTP gateway.",
+          "children": {
+            "container": {
+              "type": "string",
+              "desc": "Container image for the MCP gateway executable (required)",
+              "leaf": true
+            },
+            "version": {
+              "type": "string|number",
+              "desc": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')",
+              "leaf": true
+            },
+            "entrypoint": {
+              "type": "string",
+              "desc": "Optional custom entrypoint for the MCP gateway container.",
+              "leaf": true
+            },
+            "args": {
+              "type": "array",
+              "desc": "Arguments for docker run",
+              "array": true
+            },
+            "entrypointArgs": {
+              "type": "array",
+              "desc": "Arguments to add after the container image (container entrypoint arguments)",
+              "array": true
+            },
+            "mounts": {
+              "type": "array",
+              "desc": "Volume mounts for the MCP gateway container.",
+              "array": true
+            },
+            "env": {
+              "type": "object",
+              "desc": "Environment variables for MCP gateway"
+            },
+            "port": {
+              "type": "integer",
+              "desc": "Port number for the MCP gateway HTTP server (default: 8080)",
+              "leaf": true
+            },
+            "api-key": {
+              "type": "string",
+              "desc": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)",
+              "leaf": true
+            },
+            "domain": {
+              "type": "string",
+              "desc": "Gateway domain for URL generation (default: 'host.docker.internal' when agent is enabled, 'localhost' when disabled)",
+              "enum": ["localhost", "host.docker.internal"],
+              "leaf": true
+            },
+            "keepalive-interval": {
+              "type": "integer",
+              "desc": "Keepalive ping interval in seconds for HTTP MCP backends.",
+              "leaf": true
+            }
+          }
+        }
+      }
+    },
+    "if": {
+      "type": "string",
+      "desc": "Conditional execution expression",
+      "leaf": true
+    },
+    "steps": {
+      "type": "object|array",
+      "desc": "Custom workflow steps",
+      "array": true
+    },
+    "pre-steps": {
+      "type": "object|array",
+      "desc": "Custom workflow steps to run at the very beginning of the agent job, before checkout and any other built-in steps.",
+      "array": true
+    },
+    "pre-agent-steps": {
+      "type": "object|array",
+      "desc": "Custom workflow steps to run immediately before AI execution, after all initialization and setup steps in the agent job.",
+      "array": true
+    },
+    "post-steps": {
+      "type": "object|array",
+      "desc": "Custom workflow steps to run after AI execution",
+      "array": true
+    },
+    "engine": {
+      "type": "string|object",
+      "desc": "AI engine configuration that specifies which AI processor interprets and executes the markdown content of the workflow.",
+      "children": {
+        "id": {
+          "type": "string",
+          "desc": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog...",
+          "leaf": true
+        },
+        "version": {
+          "type": "string|number",
+          "desc": "Optional version of the AI engine action (e.g., 'beta', 'stable', 20).",
+          "leaf": true
+        },
+        "model": {
+          "type": "string",
+          "desc": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4').",
+          "leaf": true
+        },
+        "permission-mode": {
+          "type": "string",
+          "desc": "Claude permission mode override.",
+          "enum": ["auto", "acceptEdits", "plan", "bypassPermissions"],
+          "leaf": true
+        },
+        "max-turns": {
+          "type": "integer|string",
+          "desc": "Maximum number of chat iterations per run.",
+          "leaf": true
+        },
+        "max-continuations": {
+          "type": "integer",
+          "desc": "Maximum number of continuations for multi-run autopilot mode.",
+          "leaf": true
+        },
+        "concurrency": {
+          "type": "string|object",
+          "desc": "Agent job concurrency configuration.",
+          "children": {
+            "group": {
+              "type": "string",
+              "desc": "Concurrency group identifier.",
+              "leaf": true
+            },
+            "cancel-in-progress": {
+              "type": "boolean",
+              "desc": "Whether to cancel in-progress runs of the same concurrency group.",
+              "enum": [true, false],
+              "leaf": true
+            },
+            "queue": {
+              "type": "string",
+              "desc": "Pending run queue behavior for this concurrency group.",
+              "enum": ["single", "max"],
+              "leaf": true
+            }
+          }
+        },
+        "user-agent": {
+          "type": "string",
+          "desc": "Custom user agent string for GitHub MCP server configuration (codex engine only)",
+          "leaf": true
+        },
+        "command": {
+          "type": "string",
+          "desc": "Custom executable path for the AI engine CLI.",
+          "leaf": true
+        },
+        "harness": {
+          "type": "string",
+          "desc": "Custom Node.js harness script filename for an agentic engine.",
+          "leaf": true
+        },
+        "env": {
+          "type": "object",
+          "desc": "Custom environment variables to pass to the AI engine, including secret overrides (e.g., OPENAI_API_KEY: ${{ secrets...."
+        },
+        "auth": {
+          "type": "object",
+          "desc": "Engine-level authentication configuration for AWF API proxy sidecar integration (for example, Azure OpenAI via GitHub...",
+          "children": {
+            "type": {
+              "type": "string",
+              "desc": "Authentication type.",
+              "enum": ["github-oidc"],
+              "leaf": true
+            },
+            "audience": {
+              "type": "string",
+              "desc": "OIDC audience to request from GitHub Actions for token exchange.",
+              "leaf": true
+            },
+            "azure-tenant-id": {
+              "type": "string",
+              "desc": "Optional Azure tenant ID for token exchange.",
+              "leaf": true
+            },
+            "azure-client-id": {
+              "type": "string",
+              "desc": "Optional Azure client ID for token exchange.",
+              "leaf": true
+            },
+            "azure-scope": {
+              "type": "string",
+              "desc": "Optional Azure OAuth scope (defaults to https://cognitiveservices.azure.com/.default in AWF sidecar).",
+              "leaf": true
+            },
+            "azure-cloud": {
+              "type": "string",
+              "desc": "Optional Azure cloud name (for example, public, usgovernment, china).",
+              "leaf": true
+            }
+          }
+        },
+        "config": {
+          "type": "string",
+          "desc": "Additional TOML configuration text that will be appended to the generated config.toml in the action (codex engine only)",
+          "leaf": true
+        },
+        "agent": {
+          "type": "string",
+          "desc": "Agent identifier to pass to copilot --agent flag (copilot engine only).",
+          "leaf": true
+        },
+        "api-target": {
+          "type": "string",
+          "desc": "Custom API endpoint hostname for the agentic engine.",
+          "leaf": true
+        },
+        "token-weights": {
+          "type": "object",
+          "desc": "Custom model token weights for effective token computation.",
+          "children": {
+            "multipliers": {
+              "type": "object",
+              "desc": "Per-model cost multipliers relative to the reference model (claude-sonnet-4.5 = 1.0)."
+            },
+            "token-class-weights": {
+              "type": "object",
+              "desc": "Per-token-class weights applied before the model multiplier.",
+              "children": {
+                "input": {
+                  "type": "number",
+                  "desc": "Weight for input tokens (default: 1.0)",
+                  "leaf": true
+                },
+                "cached-input": {
+                  "type": "number",
+                  "desc": "Weight for cached input tokens (default: 0.1)",
+                  "leaf": true
+                },
+                "output": {
+                  "type": "number",
+                  "desc": "Weight for output tokens (default: 4.0)",
+                  "leaf": true
+                },
+                "reasoning": {
+                  "type": "number",
+                  "desc": "Weight for reasoning tokens (default: 4.0)",
+                  "leaf": true
+                },
+                "cache-write": {
+                  "type": "number",
+                  "desc": "Weight for cache write tokens (default: 1.0)",
+                  "leaf": true
+                }
+              }
+            }
+          }
+        },
+        "args": {
+          "type": "array",
+          "desc": "Optional array of command-line arguments to pass to the AI engine CLI.",
+          "array": true
+        },
+        "bare": {
+          "type": "boolean",
+          "desc": "When true, disables automatic loading of context and custom instructions by the AI engine.",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "mcp": {
+          "type": "object",
+          "desc": "Engine-level MCP gateway configuration.",
+          "children": {
+            "session-timeout": {
+              "type": "string",
+              "desc": "Session timeout for MCP gateway sessions as a Go duration string (e.g.",
+              "leaf": true
+            },
+            "tool-timeout": {
+              "type": "string",
+              "desc": "Timeout for individual MCP tool calls as a Go duration string (e.g.",
+              "leaf": true
+            }
+          }
+        }
+      }
+    },
+    "max-effective-tokens": {
+      "type": "integer|string",
+      "desc": "Explicit ET budget control for firewall cost enforcement.",
+      "leaf": true
+    },
+    "max-runs": {
+      "type": "integer|string",
+      "desc": "AWF invocation cap (`apiProxy.maxRuns`) applied consistently across all engines.",
+      "leaf": true
+    },
+    "mcp-servers": {
+      "type": "object",
+      "desc": "MCP server definitions"
+    },
+    "tools": {
+      "type": "object",
+      "desc": "Tools and MCP (Model Context Protocol) servers available to the AI engine for GitHub API access, browser automation, ...",
+      "children": {
+        "github": {
+          "type": "null|boolean|string|object",
+          "desc": "GitHub API tools for repository operations (issues, pull requests, content management)",
+          "children": {
+            "allowed": {
+              "type": "array",
+              "desc": "List of allowed GitHub API functions.",
+              "array": true
+            },
+            "mode": {
+              "type": "string",
+              "desc": "GitHub access mode.",
+              "enum": ["gh-proxy", "local", "remote"],
+              "leaf": true
+            },
+            "type": {
+              "type": "string",
+              "desc": "GitHub MCP transport type: 'local' (Docker-based, default) or 'remote' (hosted at api.githubcopilot.com)",
+              "enum": ["local", "remote"],
+              "leaf": true
+            },
+            "version": {
+              "type": "string|number",
+              "desc": "Optional version specification for the GitHub MCP server (used with 'local' type).",
+              "leaf": true
+            },
+            "args": {
+              "type": "array",
+              "desc": "Optional additional arguments to append to the generated MCP server command (used with 'local' type)",
+              "array": true
+            },
+            "read-only": {
+              "type": "boolean",
+              "desc": "Enable read-only mode to restrict GitHub MCP server to read-only operations only",
+              "enum": [true, false],
+              "leaf": true
+            },
+            "lockdown": {
+              "type": "boolean",
+              "desc": "Enable lockdown mode to limit content surfaced from public repositories (only items authored by users with push access).",
+              "enum": [true, false],
+              "leaf": true
+            },
+            "integrity-proxy": {
+              "type": "boolean",
+              "desc": "Controls DIFC proxy injection for pre-agent gh CLI steps when guard policies (min-integrity) are configured.",
+              "enum": [true, false],
+              "leaf": true
+            },
+            "github-token": {
+              "type": "string",
+              "desc": "Optional custom GitHub token (e.g., '${{ secrets.CUSTOM_PAT }}').",
+              "leaf": true
+            },
+            "toolsets": {
+              "type": "string|array",
+              "desc": "GitHub MCP server toolset name(s) to enable.",
+              "enum": [
+                "all",
+                "default",
+                "action-friendly",
+                "context",
+                "repos",
+                "issues",
+                "pull_requests",
+                "actions",
+                "code_security",
+                "dependabot",
+                "discussions",
+                "experiments",
+                "gists",
+                "labels",
+                "notifications",
+                "orgs",
+                "projects",
+                "search",
+                "secret_protection",
+                "security_advisories",
+                "stargazers",
+                "users"
+              ],
+              "leaf": true,
+              "array": true
+            },
+            "mounts": {
+              "type": "array",
+              "desc": "Volume mounts for the containerized GitHub MCP server (format: 'host:container:mode' where mode is 'ro' for read-only...",
+              "array": true
+            },
+            "allowed-repos": {
+              "type": "string|array",
+              "desc": "Guard policy: repository access configuration.",
+              "enum": ["all", "public", "${{ github.repository }}"],
+              "leaf": true,
+              "array": true
+            },
+            "repos": {
+              "type": "string|array",
+              "desc": "Deprecated.",
+              "enum": ["all", "public", "${{ github.repository }}"],
+              "leaf": true,
+              "array": true
+            },
+            "min-integrity": {
+              "type": "string",
+              "desc": "Guard policy: minimum required integrity level for repository access.",
+              "enum": ["none", "unapproved", "approved", "merged"],
+              "leaf": true
+            },
+            "blocked-users": {
+              "type": "array|string",
+              "desc": "Guard policy: GitHub usernames whose content is unconditionally blocked.",
+              "leaf": true,
+              "array": true
+            },
+            "trusted-users": {
+              "type": "array|string",
+              "desc": "Guard policy: GitHub usernames whose content is elevated to 'approved' integrity regardless of author_association.",
+              "leaf": true,
+              "array": true
+            },
+            "approval-labels": {
+              "type": "array|string",
+              "desc": "Guard policy: GitHub label names that promote a content item's effective integrity to 'approved' when present.",
+              "leaf": true,
+              "array": true
+            },
+            "endorsement-reactions": {
+              "type": "array",
+              "desc": "Guard policy: GitHub reaction types that promote a content item's integrity to 'approved' when added by maintainers.",
+              "array": true
+            },
+            "disapproval-reactions": {
+              "type": "array",
+              "desc": "Guard policy: GitHub reaction types that demote content integrity when added by maintainers.",
+              "array": true
+            },
+            "disapproval-integrity": {
+              "type": "string",
+              "desc": "Guard policy: integrity level assigned when a disapproval reaction is present.",
+              "enum": ["none", "unapproved", "approved", "merged"],
+              "leaf": true
+            },
+            "endorser-min-integrity": {
+              "type": "string",
+              "desc": "Guard policy: minimum integrity level required for an endorser (reactor) to promote content.",
+              "enum": ["unapproved", "approved", "merged"],
+              "leaf": true
+            },
+            "github-app": {
+              "type": "object",
+              "desc": "GitHub App configuration for token minting.",
+              "children": {
+                "app-id": {
+                  "type": "string",
+                  "desc": "Deprecated alias for client-id.",
+                  "leaf": true
+                },
+                "client-id": {
+                  "type": "string",
+                  "desc": "GitHub App client ID (e.g., '${{ vars.APP_ID }}').",
+                  "leaf": true
+                },
+                "private-key": {
+                  "type": "string",
+                  "desc": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}').",
+                  "leaf": true
+                },
+                "ignore-if-missing": {
+                  "type": "boolean",
+                  "desc": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime.",
+                  "enum": [true, false],
+                  "leaf": true
+                },
+                "owner": {
+                  "type": "string",
+                  "desc": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)",
+                  "leaf": true
+                },
+                "repositories": {
+                  "type": "array",
+                  "desc": "Optional list of repositories to grant access to (defaults to current repository if not specified)",
+                  "array": true
+                },
+                "permissions": {
+                  "type": "object",
+                  "desc": "Optional extra GitHub App-only permissions to merge into the minted token."
+                }
+              }
+            }
+          }
+        },
+        "bash": {
+          "type": "null|boolean|array",
+          "desc": "Bash shell command execution tool.",
+          "leaf": true,
+          "array": true
+        },
+        "web-fetch": {
+          "type": "null|object",
+          "desc": "Web content fetching tool for downloading web pages and API responses (subject to network permissions)",
+          "leaf": true
+        },
+        "web-search": {
+          "type": "null|object",
+          "desc": "Web search tool for performing internet searches and retrieving search results (subject to network permissions)",
+          "leaf": true
+        },
+        "grep": {
+          "type": "null|boolean|object",
+          "desc": "DEPRECATED: grep is always available as part of default bash tools.",
+          "leaf": true
+        },
+        "edit": {
+          "type": "null|boolean|object",
+          "desc": "File editing tool for reading, creating, and modifying files in the repository",
+          "leaf": true
+        },
+        "playwright": {
+          "type": "null|object",
+          "desc": "Playwright browser automation tool for web scraping, testing, and UI interactions in containerized browsers",
+          "children": {
+            "version": {
+              "type": "string|number",
+              "desc": "Optional version pin.",
+              "leaf": true
+            },
+            "args": {
+              "type": "array",
+              "desc": "Optional additional arguments to append to the generated MCP server command (MCP mode only)",
+              "array": true
+            },
+            "mode": {
+              "type": "string",
+              "desc": "Integration mode: 'cli' (recommended) installs @playwright/cli via npm for token-efficient CLI invocations — use play...",
+              "enum": ["cli", "mcp"],
+              "leaf": true
+            }
+          }
+        },
+        "agentic-workflows": {
+          "type": "boolean|null",
+          "desc": "GitHub Agentic Workflows MCP server for workflow introspection and analysis.",
+          "leaf": true
+        },
+        "cache-memory": {
+          "type": "boolean|null|object|array",
+          "desc": "Cache memory MCP configuration for persistent memory storage",
+          "children": {
+            "key": {
+              "type": "string",
+              "desc": "Custom cache key for memory MCP data (restore keys are auto-generated by splitting on '-')",
+              "leaf": true
+            },
+            "description": {
+              "type": "string",
+              "desc": "Optional description for the cache that will be shown in the agent prompt",
+              "leaf": true
+            },
+            "retention-days": {
+              "type": "integer",
+              "desc": "Number of days to retain uploaded artifacts (1-90 days, default: repository setting)",
+              "leaf": true
+            },
+            "restore-only": {
+              "type": "boolean",
+              "desc": "If true, only restore the cache without saving it back.",
+              "enum": [true, false],
+              "leaf": true
+            },
+            "scope": {
+              "type": "string",
+              "desc": "Cache restore key scope: 'workflow' (default, only restores from same workflow) or 'repo' (restores from any workflow...",
+              "enum": ["workflow", "repo"],
+              "leaf": true
+            },
+            "allowed-extensions": {
+              "type": "array",
+              "desc": "List of allowed file extensions (e.g., [\".json\", \".txt\"]).",
+              "array": true
+            }
+          },
+          "array": true
+        },
+        "comment-memory": {
+          "type": "object|boolean|null",
+          "desc": "Comment memory configuration for managed comment persistence",
+          "children": {
+            "max": {
+              "type": "integer|string",
+              "desc": "Maximum number of comment_memory updates to process (default: 1).",
+              "leaf": true
+            },
+            "target": {
+              "type": "string",
+              "desc": "Target for comment memory: 'triggering' (default), '*' (current issue/PR), or explicit issue/PR number",
+              "leaf": true
+            },
+            "target-repo": {
+              "type": "string",
+              "desc": "Target repository in format 'owner/repo' for cross-repository memory storage.",
+              "leaf": true
+            },
+            "allowed-repos": {
+              "type": "array",
+              "desc": "Additional repositories in format 'owner/repo' allowed for comment memory operations.",
+              "array": true
+            },
+            "memory-id": {
+              "type": "string",
+              "desc": "Default memory identifier when output items omit memory_id.",
+              "leaf": true
+            },
+            "footer": {
+              "type": "boolean",
+              "desc": "Controls whether AI-generated footer is added to the managed comment.",
+              "enum": [true, false],
+              "leaf": true
+            },
+            "github-token": {
+              "type": "string",
+              "desc": "GitHub token to use for comment-memory operations.",
+              "leaf": true
+            },
+            "staged": {
+              "type": "boolean",
+              "desc": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+              "enum": [true, false],
+              "leaf": true
+            }
+          }
+        },
+        "timeout": {
+          "type": "integer|string",
+          "desc": "Timeout in seconds for tool/MCP server operations.",
+          "leaf": true
+        },
+        "startup-timeout": {
+          "type": "integer|string",
+          "desc": "Timeout in seconds for MCP server startup.",
+          "leaf": true
+        },
+        "cli-proxy": {
+          "type": "boolean",
+          "desc": "When true, each user-facing MCP server is mounted as a standalone CLI tool on PATH.",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "serena": {
+          "desc": "REMOVED: Built-in support for Serena has been removed."
+        },
+        "repo-memory": {
+          "type": "boolean|null|object|array",
+          "desc": "Repo memory configuration for git-based persistent storage",
+          "children": {
+            "branch-prefix": {
+              "type": "string",
+              "desc": "Branch prefix for memory storage (default: 'memory').",
+              "leaf": true
+            },
+            "target-repo": {
+              "type": "string",
+              "desc": "Target repository for memory storage (default: current repository).",
+              "leaf": true
+            },
+            "branch-name": {
+              "type": "string",
+              "desc": "Git branch name for memory storage (default: {branch-prefix}/default or memory/default if branch-prefix not set)",
+              "leaf": true
+            },
+            "file-glob": {
+              "type": "string|array",
+              "desc": "Glob patterns for files to include in repository memory.",
+              "leaf": true,
+              "array": true
+            },
+            "max-file-size": {
+              "type": "integer",
+              "desc": "Maximum size per file in bytes (default: 102400 = 100KB)",
+              "leaf": true
+            },
+            "max-file-count": {
+              "type": "integer",
+              "desc": "Maximum file count per commit (default: 100)",
+              "leaf": true
+            },
+            "max-patch-size": {
+              "type": "integer",
+              "desc": "Maximum total patch size in bytes (default: 10240 = 10KB, max: 1048576 = 1MB).",
+              "leaf": true
+            },
+            "description": {
+              "type": "string",
+              "desc": "Optional description for the memory that will be shown in the agent prompt",
+              "leaf": true
+            },
+            "create-orphan": {
+              "type": "boolean",
+              "desc": "Create orphaned branch if it doesn't exist (default: true)",
+              "enum": [true, false],
+              "leaf": true
+            },
+            "wiki": {
+              "type": "boolean",
+              "desc": "Use the GitHub Wiki git repository instead of the regular repository.",
+              "enum": [true, false],
+              "leaf": true
+            },
+            "allowed-extensions": {
+              "type": "array",
+              "desc": "List of allowed file extensions (e.g., [\".json\", \".txt\"]).",
+              "array": true
+            }
+          },
+          "array": true
+        }
+      }
+    },
+    "cache": {
+      "type": "object|array",
+      "desc": "Cache configuration for workflow (uses actions/cache syntax)",
+      "children": {
+        "key": {
+          "type": "string",
+          "desc": "An explicit key for restoring and saving the cache",
+          "leaf": true
+        },
+        "path": {
+          "type": "string|array",
+          "desc": "File path or directory to cache for faster workflow execution.",
+          "leaf": true,
+          "array": true
+        },
+        "restore-keys": {
+          "type": "string|array",
+          "desc": "Optional list of fallback cache key patterns to use if exact cache key is not found.",
+          "leaf": true,
+          "array": true
+        },
+        "upload-chunk-size": {
+          "type": "integer",
+          "desc": "The chunk size used to split up large files during upload, in bytes",
+          "leaf": true
+        },
+        "fail-on-cache-miss": {
+          "type": "boolean",
+          "desc": "Fail the workflow if cache entry is not found",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "lookup-only": {
+          "type": "boolean",
+          "desc": "If true, only checks if cache entry exists and skips download",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "name": {
+          "type": "string",
+          "desc": "Optional custom name for the cache step (overrides auto-generated name)",
+          "leaf": true
+        }
+      },
+      "array": true
+    },
+    "safe-outputs": {
+      "type": "object",
+      "desc": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI wo...",
+      "children": {
+        "allowed-domains": {
+          "type": "array",
+          "desc": "List of allowed domains for URL redaction in safe output handlers.",
+          "array": true
+        },
+        "allowed-github-references": {
+          "type": "array",
+          "desc": "List of allowed repositories for GitHub references (e.g., #123 or owner/repo#456).",
+          "array": true
+        },
+        "create-issue": {
+          "type": "object|null",
+          "desc": "Enable AI agents to create GitHub issues from workflow output.",
+          "leaf": true
+        },
+        "create-agent-task": {
+          "type": "object|null",
+          "desc": "Enable creation of GitHub Copilot coding agent tasks from workflow output.",
+          "leaf": true
+        },
+        "create-agent-session": {
+          "type": "object|null",
+          "desc": "Enable creation of GitHub Copilot coding agent sessions from workflow output.",
+          "leaf": true
+        },
+        "update-project": {
+          "type": "object|null",
+          "desc": "Enable AI agents to add items to GitHub Projects, update custom fields, and manage project structure.",
+          "leaf": true
+        },
+        "create-project": {
+          "type": "object|null",
+          "desc": "Enable AI agents to create new GitHub Projects for organizing and tracking work across issues and pull requests.",
+          "leaf": true
+        },
+        "create-project-status-update": {
+          "type": "object|null",
+          "desc": "Enable AI agents to post status updates to GitHub Projects for progress tracking and stakeholder communication.",
+          "leaf": true
+        },
+        "create-discussion": {
+          "type": "object|null",
+          "desc": "Enable AI agents to create GitHub Discussions from workflow output.",
+          "leaf": true
+        },
+        "close-discussion": {
+          "type": "object|null",
+          "desc": "Enable AI agents to close GitHub Discussions based on workflow analysis or conditions.",
+          "leaf": true
+        },
+        "update-discussion": {
+          "type": "object|null",
+          "desc": "Enable AI agents to edit and update existing GitHub Discussion content, titles, and metadata.",
+          "leaf": true
+        },
+        "close-issue": {
+          "type": "object|null",
+          "desc": "Enable AI agents to close GitHub issues based on workflow analysis, resolution detection, or automated triage.",
+          "leaf": true
+        },
+        "close-pull-request": {
+          "type": "object|null",
+          "desc": "Enable AI agents to close pull requests based on workflow analysis or automated review decisions.",
+          "leaf": true
+        },
+        "mark-pull-request-as-ready-for-review": {
+          "type": "object|null",
+          "desc": "Enable AI agents to mark draft pull requests as ready for review when criteria are met.",
+          "leaf": true
+        },
+        "add-comment": {
+          "type": "object|null",
+          "desc": "Enable AI agents to add comments to GitHub issues, pull requests, or discussions.",
+          "leaf": true
+        },
+        "create-pull-request": {
+          "type": "object|null",
+          "desc": "Enable AI agents to create GitHub pull requests from workflow-generated code changes, patches, or analysis results.",
+          "leaf": true
+        },
+        "create-pull-request-review-comment": {
+          "type": "object|null",
+          "desc": "Enable AI agents to add review comments to specific lines in pull request diffs during code review workflows.",
+          "leaf": true
+        },
+        "submit-pull-request-review": {
+          "type": "object|null",
+          "desc": "Enable AI agents to submit consolidated pull request reviews with a status decision.",
+          "leaf": true
+        },
+        "reply-to-pull-request-review-comment": {
+          "type": "object|null",
+          "desc": "Enable AI agents to reply to existing review comments on pull requests.",
+          "leaf": true
+        },
+        "resolve-pull-request-review-thread": {
+          "type": "object|null",
+          "desc": "Enable AI agents to resolve review threads on the triggering pull request after addressing feedback.",
+          "leaf": true
+        },
+        "create-code-scanning-alert": {
+          "type": "object|null",
+          "desc": "Enable AI agents to create GitHub Advanced Security code scanning alerts for detected vulnerabilities or security iss...",
+          "leaf": true
+        },
+        "autofix-code-scanning-alert": {
+          "type": "object|null",
+          "desc": "Enable AI agents to create autofixes for code scanning alerts using the GitHub REST API.",
+          "leaf": true
+        },
+        "create-check-run": {
+          "type": "object|null",
+          "desc": "Enable AI agents to create GitHub Check Runs that surface analysis results in the PR checks UI.",
+          "leaf": true
+        },
+        "add-labels": {
+          "type": "null|object",
+          "desc": "Enable AI agents to add labels to GitHub issues or pull requests based on workflow analysis or classification.",
+          "leaf": true
+        },
+        "remove-labels": {
+          "type": "null|object",
+          "desc": "Enable AI agents to remove labels from GitHub issues or pull requests.",
+          "leaf": true
+        },
+        "add-reviewer": {
+          "type": "null|object",
+          "desc": "Enable AI agents to request reviews from users or teams on pull requests based on code changes or expertise matching.",
+          "leaf": true
+        },
+        "assign-milestone": {
+          "type": "null|object",
+          "desc": "Enable AI agents to assign GitHub milestones to issues or pull requests based on workflow analysis or project planning.",
+          "leaf": true
+        },
+        "assign-to-agent": {
+          "type": "null|object",
+          "desc": "Enable AI agents to assign issues or pull requests to GitHub Copilot (@copilot) for automated handling.",
+          "leaf": true
+        },
+        "assign-to-user": {
+          "type": "null|object",
+          "desc": "Enable AI agents to assign issues or pull requests to specific GitHub users based on workflow logic or expertise matc...",
+          "leaf": true
+        },
+        "unassign-from-user": {
+          "type": "null|object",
+          "desc": "Enable AI agents to unassign users from issues or pull requests.",
+          "leaf": true
+        },
+        "link-sub-issue": {
+          "type": "null|object",
+          "desc": "Enable AI agents to create hierarchical relationships between issues using GitHub's sub-issue (tasklist) feature.",
+          "leaf": true
+        },
+        "update-issue": {
+          "type": "object|null",
+          "desc": "Enable AI agents to edit and update existing GitHub issue content, titles, labels, assignees, and metadata.",
+          "leaf": true
+        },
+        "update-pull-request": {
+          "type": "object|null",
+          "desc": "Enable AI agents to edit and update existing pull request content, titles, labels, reviewers, and metadata.",
+          "leaf": true
+        },
+        "merge-pull-request": {
+          "type": "null|object",
+          "desc": "Enable AI agents to merge pull requests under configured policy gates.",
+          "leaf": true
+        },
+        "push-to-pull-request-branch": {
+          "type": "null|object",
+          "desc": "Enable AI agents to push commits directly to pull request branches for automated fixes or improvements.",
+          "leaf": true
+        },
+        "hide-comment": {
+          "type": "null|object",
+          "desc": "Enable AI agents to minimize (hide) comments on issues or pull requests based on relevance, spam detection, or modera...",
+          "leaf": true
+        },
+        "set-issue-type": {
+          "type": "null|object",
+          "desc": "Enable AI agents to set or clear the type of GitHub issues.",
+          "leaf": true
+        },
+        "set-issue-field": {
+          "type": "null|object",
+          "desc": "Enable AI agents to set one issue field value by field name and value.",
+          "leaf": true
+        },
+        "dispatch-workflow": {
+          "type": "object|array",
+          "desc": "Dispatch workflow_dispatch events to other workflows.",
+          "array": true
+        },
+        "dispatch_repository": {
+          "type": "object",
+          "desc": "Dispatch repository_dispatch events to external repositories."
+        },
+        "call-workflow": {
+          "type": "object|array",
+          "desc": "Call reusable workflows via workflow_call fan-out.",
+          "array": true
+        },
+        "missing-tool": {
+          "type": "object|null|boolean",
+          "desc": "Enable AI agents to report when required MCP tools are unavailable.",
+          "leaf": true
+        },
+        "missing-data": {
+          "type": "object|null|boolean",
+          "desc": "Enable AI agents to report when required data or context is missing.",
+          "leaf": true
+        },
+        "noop": {
+          "type": "object|null|boolean",
+          "desc": "Enable AI agents to explicitly indicate no action is needed.",
+          "leaf": true
+        },
+        "upload-asset": {
+          "type": "object|null",
+          "desc": "Enable AI agents to publish files (images, charts, reports) to an orphaned git branch for persistent storage and web ...",
+          "leaf": true
+        },
+        "upload-artifact": {
+          "type": "object|null",
+          "desc": "Enable AI agents to upload files as run-scoped GitHub Actions artifacts.",
+          "leaf": true
+        },
+        "update-release": {
+          "type": "object|null",
+          "desc": "Enable AI agents to edit and update GitHub release content, including release notes, assets, and metadata.",
+          "leaf": true
+        },
+        "staged": {
+          "type": "boolean",
+          "desc": "If true, emit step summary messages instead of making GitHub API calls (preview mode)",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "env": {
+          "type": "object",
+          "desc": "Environment variables to pass to safe output jobs"
+        },
+        "github-token": {
+          "type": "string",
+          "desc": "GitHub token to use for safe output jobs.",
+          "leaf": true
+        },
+        "github-app": {
+          "type": "object",
+          "desc": "GitHub App credentials for minting installation access tokens."
+        },
+        "max-patch-size": {
+          "type": "integer",
+          "desc": "Maximum allowed size for git patches in kilobytes (KB).",
+          "leaf": true
+        },
+        "max-patch-files": {
+          "type": "integer",
+          "desc": "Maximum allowed number of unique files in a create-pull-request patch.",
+          "leaf": true
+        },
+        "threat-detection": {
+          "type": "boolean|string|object",
+          "desc": "Enable AI agents to report detected security threats, policy violations, or suspicious patterns for security review.",
+          "leaf": true
+        },
+        "jobs": {
+          "type": "object",
+          "desc": "Custom safe-output jobs that can be executed based on agentic workflow output."
+        },
+        "scripts": {
+          "type": "object",
+          "desc": "Inline JavaScript script handlers that run inside the consolidated safe-outputs job handler loop."
+        },
+        "messages": {
+          "type": "object",
+          "desc": "Custom message templates for safe-output footer and notification messages."
+        },
+        "mentions": {
+          "type": "boolean|object",
+          "desc": "Configuration for @mention filtering in safe outputs.",
+          "leaf": true
+        },
+        "footer": {
+          "type": "boolean",
+          "desc": "Global footer control for all safe outputs.",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "activation-comments": {
+          "type": "boolean|string",
+          "desc": "When set to false or \"false\", disables all activation and fallback comments entirely (run-started, run-success, run-f...",
+          "leaf": true
+        },
+        "group-reports": {
+          "type": "boolean",
+          "desc": "When true, creates a parent '[aw] Failed runs' issue that tracks all workflow failures as sub-issues.",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "report-failure-as-issue": {
+          "type": "boolean",
+          "desc": "When false, disables creating failure tracking issues when workflows fail.",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "failure-issue-repo": {
+          "type": "string",
+          "desc": "Repository to create failure tracking issues in, in the format 'owner/repo'.",
+          "leaf": true
+        },
+        "max-bot-mentions": {
+          "type": "integer|string",
+          "desc": "Maximum number of bot trigger references (e.g.",
+          "leaf": true
+        },
+        "id-token": {
+          "type": "string",
+          "desc": "Override the id-token permission for the safe-outputs job.",
+          "enum": ["write", "none"],
+          "leaf": true
+        },
+        "concurrency-group": {
+          "type": "string",
+          "desc": "Concurrency group for the safe-outputs job.",
+          "leaf": true
+        },
+        "needs": {
+          "type": "array",
+          "desc": "Explicit additional custom workflow jobs that the consolidated safe_outputs job should depend on.",
+          "array": true
+        },
+        "environment": {
+          "type": "string|object",
+          "desc": "Override the GitHub deployment environment for the safe-outputs job.",
+          "leaf": true
+        },
+        "runs-on": {
+          "type": "string",
+          "desc": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.).",
+          "leaf": true
+        },
+        "steps": {
+          "type": "array",
+          "desc": "Custom steps to inject into all safe-output jobs.",
+          "array": true
+        },
+        "actions": {
+          "type": "object",
+          "desc": "Custom GitHub Actions to mount as once-callable MCP tools."
+        },
+        "report-incomplete": {
+          "type": "object|null|boolean",
+          "desc": "Enable AI agents to signal that a task could not be completed due to infrastructure or tool failures (e.g., MCP crash...",
+          "leaf": true
+        }
+      }
+    },
+    "secret-masking": {
+      "type": "object",
+      "desc": "Configuration for secret redaction behavior in workflow outputs and artifacts",
+      "children": {
+        "steps": {
+          "type": "array",
+          "desc": "Additional secret redaction steps to inject after the built-in secret redaction.",
+          "array": true
+        }
+      }
+    },
+    "observability": {
+      "type": "object",
+      "desc": "Optional observability output settings for workflow runs.",
+      "children": {
+        "otlp": {
+          "type": "object",
+          "desc": "OTLP (OpenTelemetry Protocol) trace export configuration.",
+          "children": {
+            "endpoint": {
+              "type": "string|object|array",
+              "desc": "OTLP endpoint configuration.",
+              "children": {
+                "url": {
+                  "type": "string",
+                  "desc": "OTLP collector endpoint URL (e.g.",
+                  "leaf": true
+                },
+                "headers": {
+                  "type": "object|string",
+                  "leaf": true
+                }
+              },
+              "array": true
+            },
+            "headers": {
+              "type": "object|string",
+              "desc": "HTTP headers for the backward-compat string endpoint form.",
+              "leaf": true
+            },
+            "if-missing": {
+              "type": "string",
+              "desc": "How to handle missing OTLP endpoint/header values at runtime (for example from unset secrets).",
+              "enum": ["error", "warn", "ignore"],
+              "leaf": true
+            },
+            "github-app": {
+              "type": "object",
+              "desc": "Optional runtime authentication for OTLP export.",
+              "children": {
+                "app-id": {
+                  "type": "string",
+                  "desc": "Deprecated alias for client-id.",
+                  "leaf": true
+                },
+                "client-id": {
+                  "type": "string",
+                  "desc": "GitHub App client ID (e.g., '${{ vars.APP_ID }}').",
+                  "leaf": true
+                },
+                "private-key": {
+                  "type": "string",
+                  "desc": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}').",
+                  "leaf": true
+                },
+                "ignore-if-missing": {
+                  "type": "boolean",
+                  "desc": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime.",
+                  "enum": [true, false],
+                  "leaf": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "user-rate-limit": {
+      "type": "object",
+      "desc": "Rate limiting configuration to restrict how frequently users can trigger the workflow.",
+      "children": {
+        "max-runs-per-window": {
+          "type": "integer|string",
+          "desc": "Maximum number of workflow runs allowed per user within the time window.",
+          "leaf": true
+        },
+        "window": {
+          "type": "integer",
+          "desc": "Time window in minutes for rate limiting.",
+          "leaf": true
+        },
+        "events": {
+          "type": "array",
+          "desc": "Optional list of event types to apply rate limiting to.",
+          "array": true
+        },
+        "ignored-roles": {
+          "type": "array",
+          "desc": "Optional list of roles that are exempt from rate limiting.",
+          "array": true
+        }
+      }
+    },
+    "rate-limit": {
+      "type": "object",
+      "desc": "Legacy alias for 'user-rate-limit'.",
+      "children": {
+        "max-runs": {
+          "type": "integer|string",
+          "desc": "Legacy maximum runs key.",
+          "leaf": true
+        },
+        "max": {
+          "type": "integer|string",
+          "desc": "Legacy maximum runs key.",
+          "leaf": true
+        },
+        "window": {
+          "type": "integer",
+          "desc": "Time window in minutes for rate limiting.",
+          "leaf": true
+        },
+        "events": {
+          "type": "array",
+          "desc": "Optional list of event types to apply rate limiting to.",
+          "array": true
+        },
+        "ignored-roles": {
+          "type": "array",
+          "desc": "Optional list of roles that are exempt from rate limiting.",
+          "array": true
+        }
+      }
+    },
+    "strict": {
+      "type": "boolean",
+      "desc": "Enable strict mode validation for enhanced security and compliance.",
+      "enum": [true, false],
+      "leaf": true
+    },
+    "private": {
+      "type": "boolean",
+      "desc": "Mark the workflow as private, preventing it from being added to other repositories via 'gh aw add'.",
+      "enum": [true, false],
+      "leaf": true
+    },
+    "check-for-updates": {
+      "type": "boolean",
+      "desc": "Control whether the compile-agentic version update check runs in the activation job.",
+      "enum": [true, false],
+      "leaf": true
+    },
+    "run-install-scripts": {
+      "type": "boolean",
+      "desc": "Allow npm pre/post install scripts to execute during package installation.",
+      "enum": [true, false],
+      "leaf": true
+    },
+    "mcp-scripts": {
+      "type": "object",
+      "desc": "MCP Scripts configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts."
+    },
+    "runtimes": {
+      "type": "object",
+      "desc": "Runtime environment version overrides."
+    },
+    "checkout": {
+      "type": "object|array|boolean",
+      "desc": "Checkout configuration for the agent job.",
+      "enum": [false],
+      "children": {
+        "repository": {
+          "type": "string",
+          "desc": "Repository to checkout in owner/repo format.",
+          "leaf": true
+        },
+        "ref": {
+          "type": "string",
+          "desc": "Branch, tag, or SHA to checkout.",
+          "leaf": true
+        },
+        "path": {
+          "type": "string",
+          "desc": "Relative path within GITHUB_WORKSPACE to place the checkout.",
+          "leaf": true
+        },
+        "fetch-depth": {
+          "type": "integer",
+          "desc": "Number of commits to fetch.",
+          "leaf": true
+        },
+        "sparse-checkout": {
+          "type": "string",
+          "desc": "Enable sparse-checkout with newline-separated patterns.",
+          "leaf": true
+        },
+        "submodules": {
+          "type": "string|boolean",
+          "desc": "Controls submodule checkout.",
+          "enum": ["recursive", "true", "false"],
+          "leaf": true
+        },
+        "lfs": {
+          "type": "boolean",
+          "desc": "Whether to download Git LFS objects.",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "token": {
+          "type": "string",
+          "desc": "Deprecated: Use github-token instead.",
+          "leaf": true
+        },
+        "github-token": {
+          "type": "string",
+          "desc": "GitHub token for authentication.",
+          "leaf": true
+        },
+        "github-app": {
+          "type": "object",
+          "desc": "GitHub App authentication.",
+          "children": {
+            "app-id": {
+              "type": "string",
+              "desc": "Deprecated alias for client-id.",
+              "leaf": true
+            },
+            "client-id": {
+              "type": "string",
+              "desc": "GitHub App client ID (e.g., '${{ vars.APP_ID }}').",
+              "leaf": true
+            },
+            "private-key": {
+              "type": "string",
+              "desc": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}').",
+              "leaf": true
+            },
+            "ignore-if-missing": {
+              "type": "boolean",
+              "desc": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime.",
+              "enum": [true, false],
+              "leaf": true
+            },
+            "owner": {
+              "type": "string",
+              "desc": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)",
+              "leaf": true
+            },
+            "repositories": {
+              "type": "array",
+              "desc": "Optional list of repositories to grant access to (defaults to current repository if not specified)",
+              "array": true
+            },
+            "permissions": {
+              "type": "object",
+              "desc": "Optional extra GitHub App-only permissions to merge into the minted token.",
+              "children": {
+                "administration": {
+                  "type": "string",
+                  "desc": "Permission level for repository administration (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "codespaces": {
+                  "type": "string",
+                  "desc": "Permission level for Codespaces (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "codespaces-lifecycle-admin": {
+                  "type": "string",
+                  "desc": "Permission level for Codespaces lifecycle administration (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "codespaces-metadata": {
+                  "type": "string",
+                  "desc": "Permission level for Codespaces metadata (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "email-addresses": {
+                  "type": "string",
+                  "desc": "Permission level for user email addresses (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "environments": {
+                  "type": "string",
+                  "desc": "Permission level for repository environments (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "git-signing": {
+                  "type": "string",
+                  "desc": "Permission level for git signing (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "members": {
+                  "type": "string",
+                  "desc": "Permission level for organization members (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-administration": {
+                  "type": "string",
+                  "desc": "Permission level for organization administration (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-announcement-banners": {
+                  "type": "string",
+                  "desc": "Permission level for organization announcement banners (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-codespaces": {
+                  "type": "string",
+                  "desc": "Permission level for organization Codespaces (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-copilot": {
+                  "type": "string",
+                  "desc": "Permission level for organization Copilot (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-custom-org-roles": {
+                  "type": "string",
+                  "desc": "Permission level for organization custom org roles (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-custom-properties": {
+                  "type": "string",
+                  "desc": "Permission level for organization custom properties (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-custom-repository-roles": {
+                  "type": "string",
+                  "desc": "Permission level for organization custom repository roles (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-events": {
+                  "type": "string",
+                  "desc": "Permission level for organization events (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-hooks": {
+                  "type": "string",
+                  "desc": "Permission level for organization webhooks (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-members": {
+                  "type": "string",
+                  "desc": "Permission level for organization members management (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-packages": {
+                  "type": "string",
+                  "desc": "Permission level for organization packages (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-personal-access-token-requests": {
+                  "type": "string",
+                  "desc": "Permission level for organization personal access token requests (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-personal-access-tokens": {
+                  "type": "string",
+                  "desc": "Permission level for organization personal access tokens (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-plan": {
+                  "type": "string",
+                  "desc": "Permission level for organization plan (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-self-hosted-runners": {
+                  "type": "string",
+                  "desc": "Permission level for organization self-hosted runners (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "organization-user-blocking": {
+                  "type": "string",
+                  "desc": "Permission level for organization user blocking (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "repository-custom-properties": {
+                  "type": "string",
+                  "desc": "Permission level for repository custom properties (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "repository-hooks": {
+                  "type": "string",
+                  "desc": "Permission level for repository webhooks (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "single-file": {
+                  "type": "string",
+                  "desc": "Permission level for single file access (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "team-discussions": {
+                  "type": "string",
+                  "desc": "Permission level for team discussions (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                },
+                "vulnerability-alerts": {
+                  "type": "string",
+                  "desc": "Permission level for Dependabot vulnerability alerts (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none"],
+                  "leaf": true
+                },
+                "workflows": {
+                  "type": "string",
+                  "desc": "Permission level for GitHub Actions workflow files (read/none; \"write\" is rejected by the compiler).",
+                  "enum": ["read", "none", "write"],
+                  "leaf": true
+                }
+              }
+            }
+          }
+        },
+        "current": {
+          "type": "boolean",
+          "desc": "Marks this checkout as the logical current repository for the workflow.",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "fetch": {
+          "type": "string|array",
+          "desc": "Additional Git refs to fetch after the checkout.",
+          "leaf": true,
+          "array": true
+        },
+        "wiki": {
+          "type": "boolean",
+          "desc": "When true, clones the repository's wiki git instead of the regular repository.",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "force-clean-git-credentials": {
+          "type": "boolean",
+          "desc": "When true, persist credentials during checkout, then immediately run a post-checkout cleanup step that removes creden...",
+          "enum": [true, false],
+          "leaf": true
+        }
+      },
+      "array": true
+    },
+    "github-app": {
+      "type": "object",
+      "desc": "Top-level GitHub App configuration used as a fallback for all nested github-app token minting operations (on, safe-ou...",
+      "children": {
+        "app-id": {
+          "type": "string",
+          "desc": "Deprecated alias for client-id.",
+          "leaf": true
+        },
+        "client-id": {
+          "type": "string",
+          "desc": "GitHub App client ID (e.g., '${{ vars.APP_ID }}').",
+          "leaf": true
+        },
+        "private-key": {
+          "type": "string",
+          "desc": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}').",
+          "leaf": true
+        },
+        "ignore-if-missing": {
+          "type": "boolean",
+          "desc": "If true, skip token minting when client-id/private-key resolve to empty strings at runtime.",
+          "enum": [true, false],
+          "leaf": true
+        },
+        "owner": {
+          "type": "string",
+          "desc": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)",
+          "leaf": true
+        },
+        "repositories": {
+          "type": "array",
+          "desc": "Optional list of repositories to grant access to (defaults to current repository if not specified)",
+          "array": true
+        },
+        "permissions": {
+          "type": "object",
+          "desc": "Optional extra GitHub App-only permissions to merge into the minted token.",
+          "children": {
+            "administration": {
+              "type": "string",
+              "desc": "Permission level for repository administration (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "codespaces": {
+              "type": "string",
+              "desc": "Permission level for Codespaces (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "codespaces-lifecycle-admin": {
+              "type": "string",
+              "desc": "Permission level for Codespaces lifecycle administration (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "codespaces-metadata": {
+              "type": "string",
+              "desc": "Permission level for Codespaces metadata (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "email-addresses": {
+              "type": "string",
+              "desc": "Permission level for user email addresses (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "environments": {
+              "type": "string",
+              "desc": "Permission level for repository environments (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "git-signing": {
+              "type": "string",
+              "desc": "Permission level for git signing (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "members": {
+              "type": "string",
+              "desc": "Permission level for organization members (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-administration": {
+              "type": "string",
+              "desc": "Permission level for organization administration (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-announcement-banners": {
+              "type": "string",
+              "desc": "Permission level for organization announcement banners (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-codespaces": {
+              "type": "string",
+              "desc": "Permission level for organization Codespaces (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-copilot": {
+              "type": "string",
+              "desc": "Permission level for organization Copilot (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-custom-org-roles": {
+              "type": "string",
+              "desc": "Permission level for organization custom org roles (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-custom-properties": {
+              "type": "string",
+              "desc": "Permission level for organization custom properties (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-custom-repository-roles": {
+              "type": "string",
+              "desc": "Permission level for organization custom repository roles (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-events": {
+              "type": "string",
+              "desc": "Permission level for organization events (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-hooks": {
+              "type": "string",
+              "desc": "Permission level for organization webhooks (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-members": {
+              "type": "string",
+              "desc": "Permission level for organization members management (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-packages": {
+              "type": "string",
+              "desc": "Permission level for organization packages (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-personal-access-token-requests": {
+              "type": "string",
+              "desc": "Permission level for organization personal access token requests (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-personal-access-tokens": {
+              "type": "string",
+              "desc": "Permission level for organization personal access tokens (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-plan": {
+              "type": "string",
+              "desc": "Permission level for organization plan (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-self-hosted-runners": {
+              "type": "string",
+              "desc": "Permission level for organization self-hosted runners (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "organization-user-blocking": {
+              "type": "string",
+              "desc": "Permission level for organization user blocking (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "repository-custom-properties": {
+              "type": "string",
+              "desc": "Permission level for repository custom properties (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "repository-hooks": {
+              "type": "string",
+              "desc": "Permission level for repository webhooks (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "single-file": {
+              "type": "string",
+              "desc": "Permission level for single file access (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "team-discussions": {
+              "type": "string",
+              "desc": "Permission level for team discussions (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            },
+            "vulnerability-alerts": {
+              "type": "string",
+              "desc": "Permission level for Dependabot vulnerability alerts (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none"],
+              "leaf": true
+            },
+            "workflows": {
+              "type": "string",
+              "desc": "Permission level for GitHub Actions workflow files (read/none; \"write\" is rejected by the compiler).",
+              "enum": ["read", "none", "write"],
+              "leaf": true
+            }
+          }
+        }
+      }
+    },
+    "import-schema": {
+      "type": "object",
+      "desc": "Schema for validating 'with' input values when this workflow is imported by another workflow using the 'uses'/'with' ..."
+    }
+  },
+  "sortOrder": [
+    "name",
+    "description",
+    "on",
+    "engine",
+    "permissions",
+    "tools",
+    "safe-outputs",
+    "mcp-servers",
+    "env",
+    "imports",
+    "command",
+    "cache",
+    "labels",
+    "metadata",
+    "tracker-id",
+    "source",
+    "run-name",
+    "runs-on",
+    "timeout-minutes",
+    "concurrency",
+    "environment",
+    "container",
+    "services",
+    "network",
+    "sandbox",
+    "plugins",
+    "if",
+    "steps",
+    "post-steps",
+    "features",
+    "disable-model-invocation",
+    "secrets",
+    "secret-masking",
+    "bots",
+    "user-rate-limit",
+    "strict",
+    "safe-inputs",
+    "runtimes",
+    "jobs"
+  ]
+}

@@ -1,0 +1,7 @@
+╭─────┬──────────────┬───────────┬────────┬───────┬─────┬─────╮
+│ID   │Workflow      │Status     │Duration│Engine │Model│Cost │
+├─────┼──────────────┼───────────┼────────┼───────┼─────┼─────┤
+│12345│test-workflow │completed  │5m 30s  │copilot│gpt-4│$0.75│
+│12346│build-project │failed     │2m 15s  │claude │opus │$0.45│
+│12347│deploy-staging│in_progress│8m 42s  │copilot│gpt-4│$1.20│
+╰─────┴──────────────┴───────────┴────────┴───────┴─────┴─────╯

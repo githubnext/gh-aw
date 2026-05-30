@@ -1,0 +1,1625 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+  schedule:
+  - cron: 0 * * * *
+  workflow_dispatch: {}
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        fetch-depth: 2
+    - name: Detect recent changes
+      id: detect
+      shell: bash
+      run: "if [ \"${{ github.event_name }}\" != \"schedule\" ]; then\n  echo \"has_changes=true\" >> \"$GITHUB_OUTPUT\"\n  echo \"✅ Non-scheduled run: integration tests enabled\" >> \"$GITHUB_STEP_SUMMARY\"\n  exit 0\nfi\n\nCHANGES_IN_LAST_HOUR=$(git log --since='1 hour ago' --pretty=format:'%H' | wc -l | tr -d ' ')\nif [ \"$CHANGES_IN_LAST_HOUR\" -gt 0 ]; then\n  echo \"has_changes=true\" >> \"$GITHUB_OUTPUT\"\n  echo \"✅ Detected $CHANGES_IN_LAST_HOUR commit(s) in the last hour\" >> \"$GITHUB_STEP_SUMMARY\"\nelse\n  echo \"has_changes=false\" >> \"$GITHUB_OUTPUT\"\n  echo \"ℹ️ No commits in the last hour; skipping integration jobs\" >> \"$GITHUB_STEP_SUMMARY\"\nfi"
+    outputs:
+      has_changes: ${{ steps.detect.outputs.has_changes }}
+  integration:
+    name: "Integration: ${{ matrix.test-group.name }}"
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      code-quality: write
+      pull-requests: read
+    strategy:
+      fail-fast: false
+      matrix:
+        test-group:
+        - name: "CLI Compile & Poutine"
+          packages: "./pkg/cli"
+          pattern: "^TestCompile[^W]|TestPoutine"    # Exclude TestCompileWorkflows to avoid duplicates
+        - name: "CLI Safe Update"
+          packages: "./pkg/cli"
+          pattern: "^TestSafeUpdate"
+        - name: "CLI MCP Connectivity"
+          packages: "./pkg/cli"
+          pattern: "TestMCPInspectPlaywright|TestMCPGateway"
+        - name: "CLI MCP Inspect GitHub"
+          packages: "./pkg/cli"
+          pattern: "TestMCPInspectGitHub"
+        - name: "CLI MCP Other"
+          packages: "./pkg/cli"
+          pattern: "TestMCPAdd|TestMCPServer|TestMCPConfig"
+        - name: "CLI Audit Logs & Firewall"
+          packages: "./pkg/cli"
+          pattern: "TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|^TestAudit|^TestInspect"
+        - name: "CLI Progress Flag"    # Isolate slow test (~65s for TestProgressFlagSignature)
+          packages: "./pkg/cli"
+          pattern: "TestProgressFlagSignature"
+        - name: "CLI HTTP MCP Connect"    # Isolate slow HTTP MCP connection tests (~43s)
+          packages: "./pkg/cli"
+          pattern: "TestConnectHTTPMCPServer"
+        - name: "CLI Compile Workflows"    # Isolate slow workflow compilation test
+          packages: "./pkg/cli"
+          pattern: "TestCompileWorkflows_EmptyMarkdown"
+        - name: "CLI Security Tools"    # Group security tool compilation tests
+          packages: "./pkg/cli"
+          pattern: "TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor"
+        - name: "CLI Add & List Commands"
+          packages: "./pkg/cli"
+          pattern: "^TestAdd|^TestList"
+        - name: "CLI Update Command"
+          packages: "./pkg/cli"
+          pattern: "^TestUpdate"
+        - name: "CLI Docker Build"    # Isolate slow Docker tests (~43s)
+          packages: "./pkg/cli"
+          pattern: "TestDockerBuild|TestDockerImage"
+        - name: "CLI Completion & Other"    # Remaining catch-all (reduced from original)
+          packages: "./pkg/cli"
+          pattern: ""    # Catch-all for tests not matched by other CLI patterns
+          skip_pattern: "^TestCompile[^W]|TestPoutine|TestSafeUpdate|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature|TestConnectHTTPMCPServer|TestCompileWorkflows_EmptyMarkdown|TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor|^TestAdd|^TestList|^TestUpdate|^TestAudit|^TestInspect|TestDockerBuild|TestDockerImage|TestTuistoryAddWizardIntegration"
+        - name: "Workflow Compiler"
+          packages: "./pkg/workflow"
+          pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse"
+        - name: "Workflow Tools & MCP"
+          packages: "./pkg/workflow"
+          pattern: "TestMCP|TestTool|TestSkill|TestPlaywright|TestFirewall"
+        - name: "Workflow Validation"
+          packages: "./pkg/workflow"
+          pattern: "TestValidat|TestLock|TestError|TestWarning"
+        - name: "Workflow Features"
+          packages: "./pkg/workflow"
+          pattern: "SafeOutputs|CreatePullRequest|OutputLabel|HasSafeOutputs|GitHub|Git|PushToPullRequest|BuildFromAllowed|TestAgent|TestCopilot|TestCustom|TestEngine|TestModel|TestNetwork|TestOpenAI|TestProvider"
+        - name: "Workflow Rendering & Bundling"
+          packages: "./pkg/workflow"
+          pattern: "Render|Bundle|Script|WritePromptText"
+        - name: "Workflow Infra"
+          packages: "./pkg/workflow"
+          pattern: "^TestCache|TestCacheDependencies|TestCacheKey|TestValidateCache|TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow|Dependabot|Security|PII|Runtime|Setup|Install|Download|Version|Binary|String|Sanitize|Normalize|Trim|Clean|Format"
+        - name: "Workflow Actions & Containers"
+          packages: "./pkg/workflow"
+          pattern: "^TestAction[^P]|Container"
+        - name: "CMD Tests"    # All cmd/gh-aw integration tests
+          packages: "./cmd/gh-aw"
+          pattern: ""
+          skip_pattern: ""    # No other groups cover cmd tests
+        - name: "Parser Remote Fetch & Cache"
+          packages: "./pkg/parser"
+          pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache"
+        - name: "Parser Location & Validation"
+          packages: "./pkg/parser"
+          pattern: ""    # Catch-all for tests not matched by other Parser patterns
+          skip_pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache"
+        - name: "Workflow Misc Part 2"    # Remaining workflow tests
+          packages: "./pkg/workflow"
+          pattern: ""
+          skip_pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse|TestMCP|TestTool|TestSkill|TestPlaywright|TestFirewall|TestValidat|TestLock|TestError|TestWarning|SafeOutputs|CreatePullRequest|OutputLabel|HasSafeOutputs|GitHub|Git|PushToPullRequest|BuildFromAllowed|Render|Bundle|Script|WritePromptText|^TestCache|TestCacheDependencies|TestCacheKey|TestValidateCache|^TestAction[^P]|Container|Dependabot|Security|PII|TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow|TestAgent|TestCopilot|TestCustom|TestEngine|TestModel|TestNetwork|TestOpenAI|TestProvider|String|Sanitize|Normalize|Trim|Clean|Format|Runtime|Setup|Install|Download|Version|Binary"
+    concurrency:
+      group: ci-${{ github.ref }}-integration-${{ matrix.test-group.name }}
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Display Go environment
+      run: |
+        echo "Go environment:"
+        go env | grep -E "GOPROXY|GOSUMDB|GOMODCACHE|GOPRIVATE"
+        echo ""
+        echo "Module cache location: $(go env GOMODCACHE)"
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          # Use -x for verbose output to see what's being downloaded
+          if go mod download -x; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            EXIT_CODE=$?
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts (exit code: $EXIT_CODE)"
+              echo "This indicates that proxy.golang.org is unreachable or returning errors"
+              echo ""
+              echo "Diagnostic information:"
+              echo "- GOPROXY: $(go env GOPROXY)"
+              echo "- GOSUMDB: $(go env GOSUMDB)"
+              echo "- Network connectivity: checking proxy.golang.org..."
+              if curl -s -I --connect-timeout 5 https://proxy.golang.org/golang.org/@v/list >/dev/null 2>&1; then
+                echo "  ✓ proxy.golang.org is reachable"
+              else
+                echo "  ✗ proxy.golang.org is NOT reachable"
+              fi
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Pre-flight check - Validate test dependencies
+      run: |
+        echo "Validating that test dependencies are available..."
+        echo "This ensures go test can compile test packages without network access."
+        echo ""
+
+        # List all test dependencies to ensure they're in the cache
+        # This will fail fast if any dependencies are missing
+        echo "Checking test dependencies for ${{ matrix.test-group.packages }}..."
+        if go list -test -deps ${{ matrix.test-group.packages }} >/dev/null 2>&1; then
+          echo "✅ All test dependencies are available"
+        else
+          echo "❌ Failed to resolve test dependencies"
+          echo ""
+          echo "Attempting to show which dependencies are missing:"
+          go list -test -deps ${{ matrix.test-group.packages }} 2>&1 || true
+          exit 1
+        fi
+
+        echo ""
+        echo "Module cache statistics:"
+        echo "- Cache directory: $(go env GOMODCACHE)"
+        if [ -d "$(go env GOMODCACHE)" ]; then
+          echo "- Cache size: $(du -sh $(go env GOMODCACHE) 2>/dev/null | cut -f1 || echo 'unknown')"
+          echo "- Number of cached modules: $(find $(go env GOMODCACHE) -name "go.mod" 2>/dev/null | wc -l || echo 'unknown')"
+        fi
+
+    - name: Build gh-aw binary for integration tests
+      run: make build
+
+    - name: Run integration tests - ${{ matrix.test-group.name }}
+      id: run-tests
+      run: |
+        set -o pipefail
+        # Sanitize the test group name for use in filename
+        SAFE_NAME=$(echo "${{ matrix.test-group.name }}" | sed 's/[^a-zA-Z0-9]/-/g' | sed 's/--*/-/g')
+        echo "safe_name=${SAFE_NAME}" >> "$GITHUB_OUTPUT"
+
+        if [ -z "${{ matrix.test-group.pattern }}" ]; then
+          # Catch-all group: run with -skip to exclude tests matched by other groups
+          if [ -n "${{ matrix.test-group.skip_pattern || '' }}" ]; then
+            go test -v -parallel=8 -timeout=10m -tags 'integration' -coverprofile="coverage-integration-${SAFE_NAME}.out" -skip '${{ matrix.test-group.skip_pattern }}' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
+          else
+            go test -v -parallel=8 -timeout=10m -tags 'integration' -coverprofile="coverage-integration-${SAFE_NAME}.out" -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
+          fi
+        else
+          go test -v -parallel=8 -timeout=10m -tags 'integration' -coverprofile="coverage-integration-${SAFE_NAME}.out" -run '${{ matrix.test-group.pattern }}' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
+        fi
+
+    - name: Report test failures
+      if: failure() && steps.run-tests.outcome == 'failure'
+      run: |
+        # Sanitize the test group name to match the file created in the previous step
+        SAFE_NAME=$(echo "${{ matrix.test-group.name }}" | sed 's/[^a-zA-Z0-9]/-/g' | sed 's/--*/-/g')
+
+        echo "## 🔍 Test Failure Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Analyzing test results for: **${{ matrix.test-group.name }}**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Run the failure report script
+        if ./scripts/report-test-failures.sh "test-result-integration-${SAFE_NAME}.json" | tee /tmp/failure-report.txt; then
+          echo "No failures detected in JSON output (unexpected - tests failed but no failure records found)" >> $GITHUB_STEP_SUMMARY
+        else
+          # Script found failures - add to summary
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat /tmp/failure-report.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Upload integration test results
+      if: always()    # Upload even if tests fail so canary_go can track coverage
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: test-result-integration-${{ matrix.test-group.name }}
+        path: test-result-integration-*.json
+        retention-days: 3
+
+    - name: Convert integration coverage to Cobertura
+      if: always() && hashFiles(format('coverage-integration-{0}.out', steps.run-tests.outputs.safe_name)) != ''
+      run: |
+        go install github.com/boumenot/gocover-cobertura@v1.5.0
+        "$(go env GOPATH)/bin/gocover-cobertura" < "coverage-integration-${{ steps.run-tests.outputs.safe_name }}.out" > "coverage-integration-${{ steps.run-tests.outputs.safe_name }}.xml"
+
+    - name: Upload integration coverage to code coverage API
+      if: always() && hashFiles(format('coverage-integration-{0}.xml', steps.run-tests.outputs.safe_name)) != ''
+      uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3   # v1
+      with:
+        file: coverage-integration-${{ steps.run-tests.outputs.safe_name }}.xml
+        language: Go
+        label: code-coverage/ci-integration-${{ steps.run-tests.outputs.safe_name }}
+        fail-on-error: false
+
+  update:
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-update
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          if go mod download; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts"
+              echo "This may indicate that proxy.golang.org is unreachable"
+              echo "Please check network connectivity or consider vendoring dependencies"
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build gh-aw binary
+      run: make build
+
+    - name: Upload gh-aw binary artifact
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: gh-aw-linux-amd64
+        path: gh-aw
+        retention-days: 1
+
+    - name: Test update command (dry-run)
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        echo "Testing update command to ensure it runs successfully..."
+        # Run update with verbose flag to check for and apply workflow updates from source repositories
+        # The command may modify workflow files if upstream updates are available
+        ./gh-aw update --verbose
+        echo "✅ Update command executed successfully" >> $GITHUB_STEP_SUMMARY
+
+  compile-cli-workflows:
+    name: Compile pkg/cli/workflows
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    - update
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-compile-cli-workflows
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Download gh-aw binary artifact
+      uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
+      with:
+        name: gh-aw-linux-amd64
+        path: .
+
+    - name: Prepare gh-aw binary
+      run: chmod +x ./gh-aw
+
+    - name: Compile pkg/cli/workflows
+      run: make compile-cli-workflows
+
+  js-integration-live-api:
+    if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-js-integration-live-api
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Node.js
+      id: setup-node
+      uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f   # v6
+      with:
+        node-version: "24"
+        cache: npm
+        cache-dependency-path: actions/setup/js/package-lock.json
+
+    - name: Report Node cache status
+      run: |
+        if [ "${{ steps.setup-node.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Node cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Node cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Install npm dependencies
+      run: cd actions/setup/js && npm ci
+
+    - name: Run live GitHub API integration test
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "## 🔍 Live GitHub API Integration Test" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [ -z "$GITHUB_TOKEN" ]; then
+          echo "⚠️ GITHUB_TOKEN not available - test will be skipped" >> $GITHUB_STEP_SUMMARY
+          echo "ℹ️ This is expected in forks or when secrets are not available" >> $GITHUB_STEP_SUMMARY
+          cd actions/setup/js && npm run test:js-integration-live-api
+        else
+          echo "✅ GITHUB_TOKEN available - running live API test" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cd actions/setup/js && npm run test:js-integration-live-api
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✨ Live API test completed successfully" >> $GITHUB_STEP_SUMMARY
+        fi
+
+  audit:
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-audit
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          if go mod download; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts"
+              echo "This may indicate that proxy.golang.org is unreachable"
+              echo "Please check network connectivity or consider vendoring dependencies"
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build gh-aw binary
+      run: make build
+
+    - name: Run dependency audit (human-readable)
+      run: |
+        echo "## Dependency Health Audit" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        ./gh-aw upgrade --audit 2>&1 | tee audit_output.txt || true
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        head -100 audit_output.txt >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+    - name: Run dependency audit (JSON)
+      id: audit_json
+      run: |
+        # Run audit with JSON output for agent-friendly parsing
+        ./gh-aw upgrade --audit --json > audit.json 2>&1
+
+        # Display summary in GitHub Actions
+        echo "✅ Dependency audit completed" >> $GITHUB_STEP_SUMMARY
+
+        # Extract key metrics
+        TOTAL_DEPS=$(jq '.summary.total_dependencies' audit.json)
+        OUTDATED=$(jq '.summary.outdated_count' audit.json)
+        SECURITY=$(jq '.summary.security_advisories' audit.json)
+        V0_PERCENT=$(jq '.summary.v0_percentage' audit.json)
+
+        echo "📊 **Audit Results:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Total dependencies: $TOTAL_DEPS" >> $GITHUB_STEP_SUMMARY
+        echo "- Outdated: $OUTDATED" >> $GITHUB_STEP_SUMMARY
+        echo "- Security advisories: $SECURITY" >> $GITHUB_STEP_SUMMARY
+        echo "- v0.x exposure: ${V0_PERCENT}%" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload audit results
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: dependency-audit
+        path: |
+          audit.json
+          audit_output.txt
+        retention-days: 14
+
+  health-smoke-copilot:
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    concurrency:
+      group: ci-${{ github.ref }}-health-smoke-copilot
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Build gh-aw
+      run: make build
+
+    - name: Run health on smoke-copilot
+      id: health_check
+      run: |
+        set -e
+        ./gh-aw health smoke-copilot --json > health_output.json
+        echo "Health command output:"
+        cat health_output.json
+
+        # Validate JSON structure
+        if ! jq -e '.total_runs' health_output.json > /dev/null 2>&1; then
+          echo "❌ total_runs field missing from health JSON output"
+          exit 1
+        fi
+        TOTAL_RUNS=$(jq '.total_runs' health_output.json)
+        echo "✅ total_runs: $TOTAL_RUNS"
+
+        if ! jq -e '.success_rate' health_output.json > /dev/null 2>&1; then
+          echo "❌ success_rate field missing from health JSON output"
+          exit 1
+        fi
+        SUCCESS_RATE=$(jq '.success_rate' health_output.json)
+        echo "✅ success_rate: $SUCCESS_RATE"
+
+        if ! jq -e '.workflow_name' health_output.json > /dev/null 2>&1; then
+          echo "❌ workflow_name field missing from health JSON output"
+          exit 1
+        fi
+        WORKFLOW_NAME=$(jq -r '.workflow_name' health_output.json)
+        echo "✅ workflow_name: $WORKFLOW_NAME"
+
+        echo "✅ All health JSON structure validations passed"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  integration-add:
+    name: Integration Add Workflows
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-add
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build gh-aw binary
+      run: make build
+
+    - name: Verify gh-aw binary
+      run: |
+        ./gh-aw --help
+        ./gh-aw version
+
+    - name: Clone githubnext/agentics repository
+      run: |
+        echo "Cloning githubnext/agentics repository..."
+        cd /tmp
+        git clone --depth 1 --filter=blob:none https://github.com/githubnext/agentics.git
+        echo "✅ Repository cloned successfully"
+
+    - name: List workflows from agentics
+      id: list-workflows
+      run: |
+        echo "Listing workflow files from githubnext/agentics..."
+        cd /tmp/agentics/workflows
+
+        # Get list of all .md workflow files (just the names without .md extension)
+        WORKFLOWS=$(ls *.md | sed 's/\.md$//')
+
+        echo "Found workflows:"
+        echo "$WORKFLOWS"
+
+        # Count workflows
+        WORKFLOW_COUNT=$(echo "$WORKFLOWS" | wc -l)
+        echo "Total workflows found: $WORKFLOW_COUNT"
+
+        # Save workflow list for next step
+        echo "$WORKFLOWS" > /tmp/workflow-list.txt
+        echo "workflow_count=$WORKFLOW_COUNT" >> $GITHUB_OUTPUT
+
+    - name: Compare gh aw list with git clone
+      run: |
+        set -e
+        echo "## Comparing 'gh aw list' output with git clone results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # List workflows using gh aw list command with custom path
+        echo "Running: ./gh-aw list --repo githubnext/agentics --path workflows --json"
+        ./gh-aw list --repo githubnext/agentics --path workflows --json > /tmp/gh-aw-list.json
+
+        # Extract workflow names from JSON output
+        echo "Extracting workflow names from gh aw list output..."
+        jq -r '.[].workflow' /tmp/gh-aw-list.json | sort > /tmp/gh-aw-workflows.txt
+
+        # Get workflow names from git clone (already in /tmp/workflow-list.txt)
+        echo "Sorting git clone workflow list..."
+        sort /tmp/workflow-list.txt > /tmp/git-workflows-sorted.txt
+
+        # Display both lists
+        echo "### Workflows from 'gh aw list --repo githubnext/agentics --path workflows'" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        cat /tmp/gh-aw-workflows.txt >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        echo "### Workflows from git clone" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        cat /tmp/git-workflows-sorted.txt >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Compare the two lists
+        if diff -u /tmp/git-workflows-sorted.txt /tmp/gh-aw-workflows.txt > /tmp/diff-output.txt; then
+          echo "✅ **SUCCESS**: Workflow lists match!" >> $GITHUB_STEP_SUMMARY
+          echo "The 'gh aw list' command returned the same workflows as the git clone." >> $GITHUB_STEP_SUMMARY
+          echo ""
+          echo "✅ Workflow lists match!"
+        else
+          echo "❌ **FAILURE**: Workflow lists do not match!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Differences" >> $GITHUB_STEP_SUMMARY
+          echo '```diff' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/diff-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo ""
+          echo "❌ Workflow lists do not match!"
+          echo "Differences:"
+          cat /tmp/diff-output.txt
+          exit 1
+        fi
+
+    - name: Add workflows one by one
+      id: add-workflows
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        cd /home/runner/work/gh-aw/gh-aw
+
+        echo "## Adding Workflows from githubnext/agentics" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Workflow | Status | Details |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------|--------|---------|" >> $GITHUB_STEP_SUMMARY
+
+        SUCCESS_COUNT=0
+        FAILURE_COUNT=0
+
+        # Read workflow list
+        while IFS= read -r workflow; do
+          echo "Processing workflow: $workflow"
+          
+          # Try to add the workflow using gh aw add
+          if ./gh-aw add "githubnext/agentics/$workflow" --force 2>&1 | tee /tmp/add-${workflow}.log; then
+            echo "✅ Successfully added: $workflow"
+            echo "| $workflow | ✅ Success | Added successfully |" >> $GITHUB_STEP_SUMMARY
+            SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+          else
+            EXIT_CODE=$?
+            echo "❌ Failed to add: $workflow (exit code: $EXIT_CODE)"
+            
+            # Extract error message from log
+            ERROR_MSG=$(tail -5 /tmp/add-${workflow}.log | tr '\n' ' ' | cut -c1-100)
+            echo "| $workflow | ❌ Failed | Exit code: $EXIT_CODE - ${ERROR_MSG}... |" >> $GITHUB_STEP_SUMMARY
+            FAILURE_COUNT=$((FAILURE_COUNT + 1))
+          fi
+          
+          echo "---"
+        done < /tmp/workflow-list.txt
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Successful: $SUCCESS_COUNT" >> $GITHUB_STEP_SUMMARY
+        echo "- ❌ Failed: $FAILURE_COUNT" >> $GITHUB_STEP_SUMMARY
+        echo "- Total: ${{ steps.list-workflows.outputs.workflow_count }}" >> $GITHUB_STEP_SUMMARY
+
+        echo "success_count=$SUCCESS_COUNT" >> $GITHUB_OUTPUT
+        echo "failure_count=$FAILURE_COUNT" >> $GITHUB_OUTPUT
+
+        # Report overall result
+        echo ""
+        echo "====================================="
+        echo "Integration Test Results"
+        echo "====================================="
+        echo "Successful additions: $SUCCESS_COUNT"
+        echo "Failed additions: $FAILURE_COUNT"
+        echo "Total workflows: ${{ steps.list-workflows.outputs.workflow_count }}"
+        echo "====================================="
+
+    - name: Check for added workflows
+      run: |
+        echo "Checking for added workflow files..."
+        if [ -d ".github/workflows" ]; then
+          echo "Found workflows directory"
+          ls -la .github/workflows/*.md 2>/dev/null | head -20 || echo "No .md files found"
+        else
+          echo "No .github/workflows directory found"
+        fi
+
+    - name: Test result summary
+      if: always()
+      run: |
+        echo "=== Agentics Workflows Integration Test Summary ==="
+        echo "This test validates that gh-aw can successfully add workflows"
+        echo "from the githubnext/agentics repository."
+        echo ""
+        echo "Test completed with:"
+        echo "- Success count: ${{ steps.add-workflows.outputs.success_count }}"
+        echo "- Failure count: ${{ steps.add-workflows.outputs.failure_count }}"
+
+  integration-marketplace-compile:
+    name: Integration Compile gh-aw-marketplace
+    if: ${{ needs.changes.outputs.has_changes == 'true' && (false) }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-marketplace-compile
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Download gh-aw binary artifact
+      uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
+      with:
+        name: gh-aw-linux-amd64
+        path: .
+
+    - name: Prepare gh-aw binary
+      run: chmod +x ./gh-aw
+
+    - name: Clone github/gh-aw-marketplace repository
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        echo "Cloning github/gh-aw-marketplace repository..."
+        cd /tmp
+        AUTH_HEADER=$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')
+        git -c http.https://github.com/.extraheader="Authorization: Basic ${AUTH_HEADER}" clone --depth 1 https://github.com/github/gh-aw-marketplace.git
+        echo "✅ Repository cloned successfully"
+
+    - name: Compile gh-aw-marketplace workflows
+      run: |
+        set -euo pipefail
+
+        MARKETPLACE_DIR="/tmp/gh-aw-marketplace"
+        WORKFLOW_DIR="${MARKETPLACE_DIR}/.github/workflows"
+        LOG_FILE="/tmp/gh-aw-marketplace-compile.log"
+
+        if [ ! -d "$WORKFLOW_DIR" ]; then
+          echo "❌ Expected workflow directory not found: $WORKFLOW_DIR"
+          echo "Available workflow-like directories:"
+          find "$MARKETPLACE_DIR" -maxdepth 3 -type d -name workflows || true
+          exit 1
+        fi
+
+        echo "Compiling workflows from: $WORKFLOW_DIR"
+        ./gh-aw compile --dir "$WORKFLOW_DIR" --strict --no-check-update 2>&1 | tee "$LOG_FILE"
+
+        WARNINGS=$(grep -nEi '(⚠|(^|[[:space:]])(warning:|warnings?:|warn[[:space:]:]))' "$LOG_FILE" || true)
+        if [ -n "$WARNINGS" ]; then
+          echo "❌ Compilation produced warnings; failing the job."
+          echo "$WARNINGS"
+          exit 1
+        fi
+
+        echo "✅ gh-aw-marketplace workflows compiled with no warnings or errors."
+        echo "## gh-aw-marketplace compile" >> $GITHUB_STEP_SUMMARY
+        echo "✅ All workflows compiled with no warnings or errors." >> $GITHUB_STEP_SUMMARY
+
+  integration-update:
+    name: Integration Update - Preserve Local Imports
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-update
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build gh-aw binary
+      run: make build
+
+    - name: Set up isolated test workspace
+      run: |
+        mkdir -p /tmp/test-update-workspace/.github/workflows
+        cd /tmp/test-update-workspace
+        git init -q
+        git config user.email "test@example.com"
+        git config user.name "Test"
+        echo "✅ Test workspace initialised at /tmp/test-update-workspace"
+
+    - name: Add a workflow from githubnext/agentics
+      id: add-workflow
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        cd /tmp/test-update-workspace
+
+        echo "## Integration Update Test: Preserve Local Imports" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Add daily-team-status which uses shared imports in githubnext/agentics
+        if /home/runner/work/gh-aw/gh-aw/gh-aw add githubnext/agentics/workflows/daily-team-status.md --force 2>&1; then
+          echo "✅ Added workflow successfully" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Failed to add workflow" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+
+        WORKFLOW=".github/workflows/daily-team-status.md"
+        if [ ! -f "$WORKFLOW" ]; then
+          echo "❌ Workflow file not found after add"
+          exit 1
+        fi
+
+        # Check if the workflow has relative imports
+        if grep -q "^imports:" "$WORKFLOW"; then
+          echo "✅ Workflow has an imports field" >> $GITHUB_STEP_SUMMARY
+          # Collect relative import paths (those without "@" — not yet cross-repo refs).
+          # Python is used for robust YAML-aware parsing instead of fragile AWK patterns.
+          printf '%s\n' \
+            'import sys, re' \
+            '' \
+            'content = open(sys.argv[1]).read()' \
+            '# Find the imports: block (list items under the key, indented with 2+ spaces)' \
+            'm = re.search(r"^imports:\n((?:[ \t]+-[ \t]+.+\n)+)", content, re.MULTILINE)' \
+            'if m:' \
+            '    for line in m.group(1).splitlines():' \
+            '        val = line.strip().lstrip("- ").strip()' \
+            '        if val and "@" not in val:' \
+            '            print(val)' \
+            > /tmp/gh-aw-check-imports.py
+          RELATIVE_IMPORTS=$(python3 /tmp/gh-aw-check-imports.py "$WORKFLOW")
+          if [ -n "$RELATIVE_IMPORTS" ]; then
+            echo "has_relative_imports=true" >> $GITHUB_OUTPUT
+            echo "$RELATIVE_IMPORTS" > /tmp/relative-imports.txt
+            echo "Relative import paths: $RELATIVE_IMPORTS" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "has_relative_imports=false" >> $GITHUB_OUTPUT
+            echo "⚠️ All imports already use cross-repo refs; skipping local-file preservation check" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "has_relative_imports=false" >> $GITHUB_OUTPUT
+          echo "⚠️ No imports field found in added workflow; skipping preservation check" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Create local copies of the shared import files
+      if: steps.add-workflow.outputs.has_relative_imports == 'true'
+      run: |
+        cd /tmp/test-update-workspace
+        echo "Creating local shared files..." >> $GITHUB_STEP_SUMMARY
+        while IFS= read -r import_path; do
+          local_file=".github/workflows/$import_path"
+          mkdir -p "$(dirname "$local_file")"
+          echo "# Local shared file (simulating user-copied content)" > "$local_file"
+          echo "✅ Created: $local_file" >> $GITHUB_STEP_SUMMARY
+        done < /tmp/relative-imports.txt
+
+    - name: Run gh aw update --force
+      if: steps.add-workflow.outputs.has_relative_imports == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        cd /tmp/test-update-workspace
+        echo "Running gh aw update --force --no-compile daily-team-status ..."
+        /home/runner/work/gh-aw/gh-aw/gh-aw update daily-team-status --force --no-compile 2>&1
+        echo "✅ Update completed" >> $GITHUB_STEP_SUMMARY
+
+    - name: Verify local import paths are preserved after update
+      if: steps.add-workflow.outputs.has_relative_imports == 'true'
+      run: |
+        cd /tmp/test-update-workspace
+        WORKFLOW=".github/workflows/daily-team-status.md"
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Import paths after \`gh aw update\`" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        grep -A10 "^imports:" "$WORKFLOW" >> $GITHUB_STEP_SUMMARY || true
+        echo '```' >> $GITHUB_STEP_SUMMARY
+
+        FAILED=false
+        while IFS= read -r import_path; do
+          local_file=".github/workflows/$import_path"
+
+          # Confirm the local file still exists (sanity check)
+          if [ ! -f "$local_file" ]; then
+            echo "⚠️ Local file not found (was it deleted?): $local_file"
+            continue
+          fi
+
+          # The import entry in the workflow file must still be the relative path,
+          # NOT a cross-repo reference (which would contain "@" and "owner/repo/").
+          if grep -qF "- $import_path" "$WORKFLOW"; then
+            echo "✅ Relative import preserved: $import_path" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ FAIL: '$import_path' was rewritten even though the local file exists" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Current imports section:"
+            grep -A10 "^imports:" "$WORKFLOW" || true
+            FAILED=true
+          fi
+        done < /tmp/relative-imports.txt
+
+        if [ "$FAILED" = "true" ]; then
+          echo "❌ **FAILURE**: gh aw update rewrote local relative imports to cross-repo paths" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+
+        echo "✅ **SUCCESS**: All local relative import paths were preserved by gh aw update" >> $GITHUB_STEP_SUMMARY
+
+  integration-update-target-repo:
+    name: Integration Update - Target Repo
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-update-target-repo
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build gh-aw binary
+      run: make build
+
+    - name: Run gh aw update against githubnext/agentic-ops
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        mkdir -p /tmp/test-update-target-repo-workspace
+        cd /tmp/test-update-target-repo-workspace
+        git init -q
+        git config user.email "test@example.com"
+        git config user.name "Test"
+
+        /home/runner/work/gh-aw/gh-aw/gh-aw update --repo githubnext/agentic-ops --no-compile --verbose
+
+  integration-unauthenticated-add:
+    name: Integration Unauthenticated Add (Public Repo)
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      code-quality: write
+      pull-requests: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-unauthenticated-add
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build gh-aw binary
+      run: make build
+
+    - name: Run unauthenticated integration tests
+        # Explicitly clear all GitHub auth tokens to reproduce the agentic-workflow
+        # environment where gh CLI is not authenticated. Tests must succeed for public
+        # repositories via the raw URL / git fallback path.
+      env:
+        GITHUB_TOKEN: ""
+        GH_TOKEN: ""
+      run: |
+        set -o pipefail
+        go test -v -parallel=4 -timeout=10m -tags 'integration' -coverprofile=coverage-integration-unauthenticated.out -json \
+          -run 'TestAddPublicWorkflowUnauthenticated|TestDownloadFileFromGitHubUnauthenticated' \
+          ./pkg/cli/ ./pkg/parser/ \
+          | tee test-result-integration-unauthenticated.json
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: test-result-integration-unauthenticated
+        path: test-result-integration-unauthenticated.json
+        retention-days: 3
+
+    - name: Convert unauthenticated coverage to Cobertura
+      if: always() && hashFiles('coverage-integration-unauthenticated.out') != ''
+      run: |
+        go install github.com/boumenot/gocover-cobertura@v1.5.0
+        "$(go env GOPATH)/bin/gocover-cobertura" < coverage-integration-unauthenticated.out > coverage-integration-unauthenticated.xml
+
+    - name: Upload unauthenticated coverage to code coverage API
+      if: always() && hashFiles('coverage-integration-unauthenticated.xml') != ''
+      uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3   # v1
+      with:
+        file: coverage-integration-unauthenticated.xml
+        language: Go
+        label: code-coverage/ci-integration-unauthenticated
+        fail-on-error: false
+
+  integration-add-dispatch-workflow:
+    name: Integration Add with dispatch-workflow Dependencies
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      code-quality: write
+      pull-requests: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-add-dispatch-workflow
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build gh-aw binary
+      run: make build
+
+    - name: Run dispatch-workflow add integration tests
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -o pipefail
+        go test -v -parallel=4 -timeout=10m -tags 'integration' -coverprofile=coverage-integration-add-dispatch-workflow.out -json \
+          -run 'TestAddWorkflowWithDispatchWorkflow' \
+          ./pkg/cli/ \
+          | tee test-result-integration-add-dispatch-workflow.json
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: test-result-integration-add-dispatch-workflow
+        path: test-result-integration-add-dispatch-workflow.json
+        retention-days: 3
+
+    - name: Convert dispatch-workflow coverage to Cobertura
+      if: always() && hashFiles('coverage-integration-add-dispatch-workflow.out') != ''
+      run: |
+        go install github.com/boumenot/gocover-cobertura@v1.5.0
+        "$(go env GOPATH)/bin/gocover-cobertura" < coverage-integration-add-dispatch-workflow.out > coverage-integration-add-dispatch-workflow.xml
+
+    - name: Upload dispatch-workflow coverage to code coverage API
+      if: always() && hashFiles('coverage-integration-add-dispatch-workflow.xml') != ''
+      uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3   # v1
+      with:
+        file: coverage-integration-add-dispatch-workflow.xml
+        language: Go
+        label: code-coverage/ci-integration-add-dispatch-workflow
+        fail-on-error: false
+
+  integration-release-availability:
+    name: Integration Release Availability
+    if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-release-availability
+      cancel-in-progress: true
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Extract versions from constants.go
+      id: versions
+      run: |
+        CONSTANTS="pkg/constants/version_constants.go"
+
+        # Helper: regex a Version constant value from version_constants.go
+        extract() {
+          grep -oP "${1}"'\s+Version\s*=\s*"\K[^"]+' "$CONSTANTS"
+        }
+
+        FIREWALL_VERSION=$(extract "DefaultFirewallVersion")
+        MCPG_VERSION=$(extract "DefaultMCPGatewayVersion")
+        GITHUB_MCP_VERSION=$(extract "DefaultGitHubMCPServerVersion")
+
+        echo "firewall_version=$FIREWALL_VERSION" >> $GITHUB_OUTPUT
+        echo "mcpg_version=$MCPG_VERSION" >> $GITHUB_OUTPUT
+        echo "github_mcp_version=$GITHUB_MCP_VERSION" >> $GITHUB_OUTPUT
+
+        echo "Extracted versions from pkg/constants/version_constants.go:"
+        echo "  gh-aw-firewall:        $FIREWALL_VERSION"
+        echo "  gh-aw-mcpg:            $MCPG_VERSION"
+        echo "  github-mcp-server:     $GITHUB_MCP_VERSION"
+
+    - name: Check gh-aw-firewall release
+      env:
+        VERSION: ${{ steps.versions.outputs.firewall_version }}
+      run: |
+        set -e
+        REPO="github/gh-aw-firewall"
+
+        echo "## Checking gh-aw-firewall ${VERSION}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        echo "Checking GitHub release: ${REPO}@${VERSION}..."
+        if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+          echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        sleep 2  # Avoid GitHub API rate limiting between checks
+
+    - name: Check gh-aw-mcpg release
+      env:
+        VERSION: ${{ steps.versions.outputs.mcpg_version }}
+      run: |
+        set -e
+        REPO="github/gh-aw-mcpg"
+
+        echo "## Checking gh-aw-mcpg ${VERSION}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        echo "Checking GitHub release: ${REPO}@${VERSION}..."
+        if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+          echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        sleep 2  # Avoid GitHub API rate limiting between checks
+
+    - name: Check github-mcp-server release
+      env:
+        VERSION: ${{ steps.versions.outputs.github_mcp_version }}
+      run: |
+        set -e
+        REPO="github/github-mcp-server"
+
+        echo "## Checking github-mcp-server ${VERSION}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        echo "Checking GitHub release: ${REPO}@${VERSION}..."
+        if gh release view "${VERSION}" --repo "${REPO}" > /dev/null 2>&1; then
+          echo "✅ GitHub release ${VERSION} is available for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ GitHub release ${VERSION} not found for ${REPO}" | tee -a $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+  sh-difc-proxy:
+    name: DIFC Proxy sh Integration Test
+    if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    concurrency:
+      group: ci-${{ github.ref }}-sh-difc-proxy
+      cancel-in-progress: true
+    env:
+      DIFC_PROXY_IMAGE: ghcr.io/github/gh-aw-mcpg:v0.2.8
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Log in to GitHub Container Registry
+        # SECURITY: token moved to env mapping to prevent shell interpretation
+        # of the token value as syntax
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+    - name: Pull DIFC proxy image
+      run: bash actions/setup/sh/download_docker_images.sh "$DIFC_PROXY_IMAGE"
+
+    - name: Start DIFC proxy
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GITHUB_SERVER_URL: ${{ github.server_url }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        DIFC_PROXY_POLICY: '{"allow-only":{"repos":"all","min-integrity":"none"}}'
+      run: |
+        bash actions/setup/sh/start_difc_proxy.sh
+
+    - name: Verify DIFC proxy started
+      env:
+        GH_HOST: localhost:18443
+        GH_REPO: ${{ github.repository }}
+        GITHUB_API_URL: https://localhost:18443/api/v3
+        GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+        NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+      run: |
+        if [ "${GH_HOST}" != "localhost:18443" ]; then
+          echo "❌ DIFC proxy did not start (GH_HOST=${GH_HOST:-not set})"
+          echo "Docker container logs:"
+          docker logs awmg-proxy 2>&1 || true
+          echo ""
+          echo "Persisted proxy logs (if any) from /tmp/gh-aw/proxy-logs:"
+          if [ -d "/tmp/gh-aw/proxy-logs" ]; then
+            for f in /tmp/gh-aw/proxy-logs/*; do
+              [ -e "$f" ] || continue
+              echo "---- $f ----"
+              cat "$f" || true
+              echo ""
+            done
+          else
+            echo "No /tmp/gh-aw/proxy-logs directory found."
+          fi
+          echo ""
+          echo "Persisted MCP logs (if any) from /tmp/gh-aw/mcp-logs:"
+          if [ -d "/tmp/gh-aw/mcp-logs" ]; then
+            for f in /tmp/gh-aw/mcp-logs/*; do
+              [ -e "$f" ] || continue
+              echo "---- $f ----"
+              cat "$f" || true
+              echo ""
+            done
+          else
+            echo "No /tmp/gh-aw/mcp-logs directory found."
+          fi
+          exit 1
+        fi
+        echo "✅ DIFC proxy started (GH_HOST=${GH_HOST})"
+
+    - name: Test gh CLI through proxy
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_HOST: localhost:18443
+        GH_REPO: ${{ github.repository }}
+        GITHUB_API_URL: https://localhost:18443/api/v3
+        GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+        NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+      run: |
+        echo "Testing gh CLI through DIFC proxy (GH_HOST=${GH_HOST})..."
+        # Use a repository endpoint to verify proxied gh API calls.
+        gh_api_output="$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.full_name' 2>&1)" || gh_api_status=$?
+        gh_api_status="${gh_api_status:-0}"
+        if [ "${gh_api_status}" -eq 0 ]; then
+          echo "✅ gh CLI works through DIFC proxy (repo: ${gh_api_output})"
+        elif printf '%s' "${gh_api_output}" | grep -qiE 'api rate limit exceeded|rate limit'; then
+          echo "⚠️ Skipping gh CLI proxy assertion due to GitHub API rate limiting"
+          echo "${gh_api_output}"
+        else
+          echo "${gh_api_output}"
+          exit "${gh_api_status}"
+        fi
+
+    - name: Test actions/github-script with proxy env
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9
+      env:
+        GH_HOST: localhost:18443
+        GH_REPO: ${{ github.repository }}
+        GITHUB_API_URL: https://localhost:18443/api/v3
+        GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+        NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          // GITHUB_API_URL is a protected GitHub Actions default env variable and
+          // cannot be overridden via $GITHUB_ENV; verify GH_HOST instead.
+          const expectedGhHost = 'localhost:18443';
+          const ghHost = process.env.GH_HOST;
+          console.log(`GH_HOST: ${ghHost}`);
+          if (ghHost !== expectedGhHost) {
+            throw new Error(`Expected GH_HOST to be "${expectedGhHost}", got: ${ghHost}`);
+          }
+          const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
+          const { data } = await github.rest.repos.get({ owner, repo });
+          console.log(`✅ actions/github-script works with proxy env active (repo: ${data.full_name})`);
+
+    - name: Stop DIFC proxy
+      if: always()
+      run: bash actions/setup/sh/stop_difc_proxy.sh
+
+    - name: Generate summary
+      if: always()
+      run: |
+        echo "## DIFC Proxy sh Integration Test" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "This test verifies that:" >> $GITHUB_STEP_SUMMARY
+        echo "1. \`start_difc_proxy.sh\` starts the proxy container" >> $GITHUB_STEP_SUMMARY
+        echo "2. \`gh\` CLI calls are routed through the proxy (\`GH_HOST=localhost:18443\`)" >> $GITHUB_STEP_SUMMARY
+        echo "3. \`actions/github-script\` sees the proxy env (\`GH_HOST=localhost:18443\`)" >> $GITHUB_STEP_SUMMARY
+        echo "4. \`stop_difc_proxy.sh\` stops the proxy container" >> $GITHUB_STEP_SUMMARY
+
+  sh-gh-host-pr-checkout-repro:
+    name: GH_HOST Proxy PR Checkout Repro (Issue
+    if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-sh-gh-host-pr-checkout-repro
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Start local proxy
+      run: |
+        # Start a simple HTTP server on port 19443 to simulate a local proxy.
+        # This is the "local proxy" referenced in the repro scenario for issue #23461:
+        # a server IS running on the proxy host, but git remotes still point to the real
+        # GitHub host, causing `gh pr checkout` to fail.
+        python3 -m http.server 19443 --bind 127.0.0.1 --directory /tmp >/tmp/local-proxy.log 2>&1 &
+        echo "LOCAL_PROXY_PID=$!" >> "$GITHUB_ENV"
+        sleep 1
+        echo "Local proxy started on port 19443 (simulating a DIFC-style proxy)"
+
+    - name: Set GH_HOST to simulate proxy-rewritten environment
+      run: |
+        # Set GH_HOST=localhost:19443 directly to simulate the proxy-rewritten environment
+        # described in issue #23461.  We write directly to $GITHUB_ENV here because
+        # GITHUB_SERVER_URL is a runner-managed variable that cannot be overridden via
+        # step-level env:, so running configure_gh_for_ghe.sh with
+        # GITHUB_SERVER_URL=http://localhost:19443 would be silently ignored.
+        echo "GH_HOST=localhost:19443" >> "$GITHUB_ENV"
+        echo "Set GH_HOST=localhost:19443 (simulating a DIFC proxy-rewritten environment)"
+
+    - name: Repro - gh pr checkout fails when GH_HOST points to proxy without matching remote
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        echo "GH_HOST=${GH_HOST}"
+        echo "Git remotes (origin still points to github.com, not the local proxy):"
+        git remote -v
+
+        # Attempt gh pr checkout.  GH_HOST=localhost:19443 but the only git remote
+        # is origin pointing to github.com — no remote matches the proxy host.
+        # gh CLI should exit non-zero with the characteristic mismatch error.
+        # Any PR number works here: gh validates GH_HOST against git remotes before
+        # making any API call, so the failure occurs regardless of whether PR #1 exists.
+        set +e
+        error_output=$(gh pr checkout 1 2>&1)
+        exit_code=$?
+        set -e
+
+        echo "gh pr checkout exit code: ${exit_code}"
+        echo "Output: ${error_output}"
+
+        if [ "${exit_code}" -eq 0 ]; then
+          echo "❌ Expected gh pr checkout to fail but it succeeded unexpectedly"
+          exit 1
+        fi
+
+        if echo "${error_output}" | grep -q "none of the git remotes"; then
+          echo "✅ Issue #23461 reproduced: GH_HOST mismatch causes gh pr checkout to fail"
+          echo "   Error: ${error_output}"
+        else
+          echo "❌ gh pr checkout failed, but not with the expected GH_HOST/git remote mismatch error"
+          echo "   Unexpected error output: ${error_output}"
+          exit 1
+        fi
+
+    - name: Stop local proxy
+      if: always()
+      run: |
+        if [ -n "${LOCAL_PROXY_PID:-}" ]; then
+          kill "${LOCAL_PROXY_PID}" 2>/dev/null || true
+          echo "Local proxy stopped"
+        fi
+
+    - name: Generate summary
+      if: always()
+      run: |
+        echo "## GH_HOST Proxy PR Checkout Repro (Issue [#23461](https://github.com/github/gh-aw/issues/23461))" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "This test reproduces the failure mode described in issue #23461:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "1. A local HTTP server starts on \`localhost:19443\` (the \"local proxy\")" >> $GITHUB_STEP_SUMMARY
+        echo "2. \`configure_gh_for_ghe.sh\` sets \`GH_HOST=localhost:19443\` (simulating a proxy-rewritten environment)" >> $GITHUB_STEP_SUMMARY
+        echo "3. Git remote \`origin\` still points to the real GitHub host (not the proxy)" >> $GITHUB_STEP_SUMMARY
+        echo "4. \`gh pr checkout\` fails because no git remote matches \`GH_HOST\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "The existing \`sh-difc-proxy\` job uses the full Docker-based DIFC proxy; this job" >> $GITHUB_STEP_SUMMARY
+        echo "provides a lightweight local-proxy repro that does not require Docker." >> $GITHUB_STEP_SUMMARY
+
+  windows-redirect-tests:
+    name: Redirect Resolution Tests (${{ matrix.os }})
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      code-quality: write
+      pull-requests: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    concurrency:
+      group: ci-${{ github.ref }}-redirect-tests-${{ matrix.os }}
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if ("${{ steps.setup-go.outputs.cache-hit }}" -eq "true") {
+          "✅ Go cache hit" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+        } else {
+          "⚠️ Go cache miss" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+        }
+      shell: pwsh
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Run redirect resolution tests
+      run: go test -v -run TestResolveAddWorkflowSpecAndContent -timeout 5m "-coverprofile=coverage-redirect-${{ matrix.os }}.out" ./pkg/cli/...
+      shell: pwsh
+
+    - name: Convert redirect test coverage to Cobertura
+      if: always() && hashFiles(format('coverage-redirect-{0}.out', matrix.os)) != ''
+      run: |
+        go install github.com/boumenot/gocover-cobertura@v1.5.0
+        $gocover = "$(go env GOPATH)/bin/gocover-cobertura.exe"
+        if (-not (Test-Path $gocover)) { $gocover = "$(go env GOPATH)/bin/gocover-cobertura" }
+        Get-Content "coverage-redirect-${{ matrix.os }}.out" | & $gocover | Out-File "coverage-redirect-${{ matrix.os }}.xml" -Encoding utf8
+      shell: pwsh
+
+    - name: Upload redirect test coverage to code coverage API
+      if: always() && hashFiles(format('coverage-redirect-{0}.xml', matrix.os)) != ''
+      uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3   # v1
+      with:
+        file: coverage-redirect-${{ matrix.os }}.xml
+        language: Go
+        label: code-coverage/ci-redirect-${{ matrix.os }}
+        fail-on-error: false

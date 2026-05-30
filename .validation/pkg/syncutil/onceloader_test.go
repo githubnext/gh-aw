@@ -1,0 +1,129 @@
+//go:build !integration
+
+package syncutil
+
+import (
+	"errors"
+	"sync"
+	"sync/atomic"
+	"testing"
+)
+
+func TestOnceLoaderGetCachesSuccess(t *testing.T) {
+	var loader OnceLoader[string]
+	var calls atomic.Int32
+
+	load := func() (string, error) {
+		calls.Add(1)
+		return "ok", nil
+	}
+
+	got1, err1 := loader.Get(load)
+	got2, err2 := loader.Get(load)
+
+	if err1 != nil || err2 != nil {
+		t.Fatalf("expected nil errors, got err1=%v err2=%v", err1, err2)
+	}
+	if got1 != "ok" || got2 != "ok" {
+		t.Fatalf("expected cached value 'ok', got %q and %q", got1, got2)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("expected loader to be called once, got %d", calls.Load())
+	}
+}
+
+func TestOnceLoaderGetCachesError(t *testing.T) {
+	var loader OnceLoader[string]
+	var calls atomic.Int32
+	expectedErr := errors.New("boom")
+
+	load := func() (string, error) {
+		calls.Add(1)
+		return "", expectedErr
+	}
+
+	got1, err1 := loader.Get(load)
+	got2, err2 := loader.Get(load)
+
+	if got1 != "" || got2 != "" {
+		t.Fatalf("expected empty cached values, got %q and %q", got1, got2)
+	}
+	if !errors.Is(err1, expectedErr) || !errors.Is(err2, expectedErr) {
+		t.Fatalf("expected cached errors to wrap %v, got err1=%v err2=%v", expectedErr, err1, err2)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("expected loader to be called once, got %d", calls.Load())
+	}
+}
+
+func TestOnceLoaderGetConcurrentSingleInvoke(t *testing.T) {
+	var loader OnceLoader[string]
+	var calls atomic.Int32
+	const workers = 50
+
+	load := func() (string, error) {
+		calls.Add(1)
+		return "value", nil
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for range workers {
+		go func() {
+			defer wg.Done()
+			got, err := loader.Get(load)
+			if err != nil {
+				t.Errorf("expected nil error, got %v", err)
+				return
+			}
+			if got != "value" {
+				t.Errorf("expected value, got %q", got)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if calls.Load() != 1 {
+		t.Fatalf("expected loader to be called once under concurrency, got %d", calls.Load())
+	}
+}
+
+func TestOnceLoaderOverride(t *testing.T) {
+	var loader OnceLoader[string]
+	var calls atomic.Int32
+
+	load := func() (string, error) {
+		calls.Add(1)
+		return "from-loader", nil
+	}
+
+	loader.Override("forced", nil)
+
+	got, err := loader.Get(load)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "forced" {
+		t.Fatalf("expected overridden value 'forced', got %q", got)
+	}
+	if calls.Load() != 0 {
+		t.Fatalf("expected loader never to be called after Override, got %d calls", calls.Load())
+	}
+}
+
+func TestOnceLoaderOverrideError(t *testing.T) {
+	var loader OnceLoader[string]
+	expected := errors.New("override-err")
+
+	loader.Override("", expected)
+
+	got, err := loader.Get(func() (string, error) {
+		return "should-not-run", nil
+	})
+	if !errors.Is(err, expected) {
+		t.Fatalf("expected overridden error %v, got %v", expected, err)
+	}
+	if got != "" {
+		t.Fatalf("expected empty string, got %q", got)
+	}
+}

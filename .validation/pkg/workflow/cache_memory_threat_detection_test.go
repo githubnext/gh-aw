@@ -1,0 +1,247 @@
+//go:build integration
+
+package workflow
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// TestCacheMemoryWithThreatDetection verifies that when threat detection is enabled,
+// cache-memory uses actions/cache/restore instead of actions/cache and creates
+// an update_cache_memory job to save the cache after detection succeeds
+func TestCacheMemoryWithThreatDetection(t *testing.T) {
+	tests := []struct {
+		name              string
+		frontmatter       string
+		expectedInLock    []string
+		notExpectedInLock []string
+	}{
+		{
+			name: "cache-memory with threat detection enabled",
+			frontmatter: `---
+name: Test Cache Memory with Threat Detection
+on: workflow_dispatch
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+tools:
+  cache-memory: true
+  github:
+    allowed: [get_file_contents]
+safe-outputs:
+  create-issue:
+  threat-detection: true
+---
+
+Test workflow with cache-memory and threat detection enabled.`,
+			expectedInLock: []string{
+				// In agent job, should use actions/cache/restore instead of actions/cache
+				"- name: Restore cache-memory file share data",
+				"uses: actions/cache/restore@",
+				"key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
+				// Should upload artifact with if: always()
+				"- name: Upload cache-memory data as artifact",
+				"uses: actions/upload-artifact@",
+				"if: always()",
+				"name: cache-memory",
+				"include-hidden-files: true",
+				"path: /tmp/gh-aw/cache-memory",
+				// Should have update_cache_memory job (depends on detection job)
+				"update_cache_memory:",
+				"- detection",
+				"if: >",
+				"always() && needs.detection.result == 'success' &&",
+				"needs.agent.result == 'success'",
+				"- name: Download cache-memory artifact (default)",
+				"- name: Save cache-memory to cache (default)",
+				"uses: actions/cache/save@",
+			},
+			notExpectedInLock: []string{
+				// Should NOT use regular actions/cache in agent job
+				"- name: Restore cache-memory file share data\n      uses: actions/cache@",
+			},
+		},
+		{
+			name: "cache-memory without threat detection",
+			frontmatter: `---
+name: Test Cache Memory without Threat Detection
+on: workflow_dispatch
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+tools:
+  cache-memory: true
+  github:
+    allowed: [get_file_contents]
+---
+
+Test workflow with cache-memory but no threat detection.`,
+			expectedInLock: []string{
+				// Without threat detection, should still restore from cache before execution
+				"- name: Restore cache-memory file share data",
+				"uses: actions/cache@",
+				"key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
+			},
+			notExpectedInLock: []string{
+				// Should NOT upload artifact when detection is disabled
+				"- name: Upload cache-memory data as artifact",
+				// Should NOT have update_cache_memory job
+				"update_cache_memory:",
+				// Should NOT use restore action
+				"uses: actions/cache/restore@",
+			},
+		},
+		{
+			name: "multiple cache-memory with threat detection",
+			frontmatter: `---
+name: Test Multiple Cache Memory with Threat Detection
+on: workflow_dispatch
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+tools:
+  cache-memory:
+    - id: default
+      key: memory-default
+    - id: session
+      key: memory-session
+  github:
+    allowed: [get_file_contents]
+safe-outputs:
+  create-issue:
+  threat-detection: true
+---
+
+Test workflow with multiple cache-memory and threat detection enabled.`,
+			expectedInLock: []string{
+				// Both caches should use restore
+				"- name: Restore cache-memory file share data (default)",
+				"uses: actions/cache/restore@",
+				"key: memory-none-nopolicy-memory-default-${{ github.run_id }}",
+				"- name: Restore cache-memory file share data (session)",
+				"key: memory-none-nopolicy-memory-session-${{ github.run_id }}",
+				// Should upload both artifacts with if: always()
+				"- name: Upload cache-memory data as artifact (default)",
+				"if: always()",
+				"name: cache-memory-default",
+				"include-hidden-files: true",
+				"path: /tmp/gh-aw/cache-memory",
+				"- name: Upload cache-memory data as artifact (session)",
+				"name: cache-memory-session\n          include-hidden-files: true\n          path: /tmp/gh-aw/cache-memory-session",
+				// Should have update_cache_memory job with both caches
+				"update_cache_memory:",
+				"- name: Download cache-memory artifact (default)",
+				"- name: Save cache-memory to cache (default)",
+				"- name: Download cache-memory artifact (session)",
+				"- name: Save cache-memory to cache (session)",
+			},
+			notExpectedInLock: []string{
+				// Should NOT use regular actions/cache
+				"- name: Restore cache-memory file share data (default)\n        uses: actions/cache@",
+			},
+		},
+		{
+			name: "restore-only cache-memory with threat detection",
+			frontmatter: `---
+name: Test Restore-Only Cache Memory with Threat Detection
+on: workflow_dispatch
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+tools:
+  cache-memory:
+    - id: default
+      key: memory-restore-only
+      restore-only: true
+  github:
+    allowed: [get_file_contents]
+safe-outputs:
+  create-issue:
+  threat-detection: true
+---
+
+Test workflow with restore-only cache-memory and threat detection enabled.`,
+			expectedInLock: []string{
+				// Should use restore for restore-only cache (no ID suffix for single default cache)
+				"- name: Restore cache-memory file share data",
+				"uses: actions/cache/restore@",
+			},
+			notExpectedInLock: []string{
+				// Should NOT upload artifact for restore-only
+				"- name: Upload cache-memory data as artifact",
+				// Should NOT have update_cache_memory job for restore-only
+				"update_cache_memory:",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a temporary directory for the test
+			tmpDir := t.TempDir()
+			mdPath := filepath.Join(tmpDir, "test.md")
+			lockPath := filepath.Join(tmpDir, "test.lock.yml")
+
+			// Write markdown to temp file
+			if err := os.WriteFile(mdPath, []byte(tt.frontmatter), 0644); err != nil {
+				t.Fatalf("Failed to write markdown file: %v", err)
+			}
+
+			// Compile the workflow
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(mdPath); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			// Read the generated lock file
+			lockYAML, err := os.ReadFile(lockPath)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+			lockContent := string(lockYAML)
+			lines := strings.Split(lockContent, "\n")
+
+			// Check expected strings
+			for _, expected := range tt.expectedInLock {
+				if !strings.Contains(lockContent, expected) {
+					// Show first 100 lines for context (not entire file)
+					preview := strings.Join(lines[:min(100, len(lines))], "\n")
+					if len(lines) > 100 {
+						preview += fmt.Sprintf("\n... (%d more lines)", len(lines)-100)
+					}
+					t.Errorf("Expected lock YAML to contain %q, but it didn't.\nFirst 100 lines:\n%s", expected, preview)
+				}
+			}
+
+			// Check not expected strings
+			for _, notExpected := range tt.notExpectedInLock {
+				if strings.Contains(lockContent, notExpected) {
+					// Find the matching line and show context
+					matchIdx := -1
+					for i, line := range lines {
+						if strings.Contains(line, notExpected) || strings.Contains(strings.Join(lines[max(0, i-1):min(len(lines), i+2)], "\n"), notExpected) {
+							matchIdx = i
+							break
+						}
+					}
+					start := max(0, matchIdx-3)
+					end := min(len(lines), matchIdx+4)
+					context := strings.Join(lines[start:end], "\n")
+					t.Errorf("Expected lock YAML NOT to contain %q, but it did.\nContext around match (lines %d-%d):\n%s", notExpected, start+1, end, context)
+				}
+			}
+		})
+	}
+}

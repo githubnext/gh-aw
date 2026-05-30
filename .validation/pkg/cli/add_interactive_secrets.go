@@ -1,0 +1,94 @@
+package cli
+
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/workflow"
+)
+
+// checkExistingSecrets fetches which secrets already exist in the repository or its organization
+func (c *AddInteractiveConfig) checkExistingSecrets() error {
+	addInteractiveLog.Print("Checking existing repository secrets")
+
+	c.existingSecrets = make(map[string]bool)
+
+	// Use gh api to list repository secrets
+	output, err := workflow.RunGH("Checking repository secrets...", "api", fmt.Sprintf("/repos/%s/actions/secrets", c.RepoOverride), "--jq", ".secrets[].name")
+	if err != nil {
+		addInteractiveLog.Printf("Could not fetch existing secrets: %v", err)
+		// Continue without error - we'll just assume no secrets exist
+	} else {
+		for _, name := range parseSecretNames(output) {
+			c.existingSecrets[name] = true
+			addInteractiveLog.Printf("Found existing repository secret: %s", name)
+		}
+	}
+
+	// Also check org-level secrets if the repo belongs to an organization
+	if org, _, found := strings.Cut(c.RepoOverride, "/"); found && org != "" {
+		orgOutput, orgErr := workflow.RunGH("Checking organization secrets...", "api", fmt.Sprintf("/orgs/%s/actions/secrets", org), "--jq", ".secrets[].name")
+		if orgErr != nil {
+			addInteractiveLog.Printf("Could not fetch org secrets (this is expected for personal repos or if org access is restricted): %v", orgErr)
+		} else {
+			for _, name := range parseSecretNames(orgOutput) {
+				c.existingSecrets[name] = true
+				addInteractiveLog.Printf("Found existing org secret: %s", name)
+			}
+		}
+	}
+
+	if c.Verbose && len(c.existingSecrets) > 0 {
+		fmt.Fprintf(os.Stderr, "Found %d existing secret(s) (repository + organization)\n", len(c.existingSecrets))
+	}
+
+	return nil
+}
+
+// addRepositorySecret adds a secret to the repository
+func (c *AddInteractiveConfig) addRepositorySecret(name, value string) error {
+	output, err := workflow.RunGHCombined("Adding repository secret...", "secret", "set", name, "--repo", c.RepoOverride, "--body", value)
+	if err != nil {
+		return fmt.Errorf("failed to set secret: %w (output: %s)", err, string(output))
+	}
+	return nil
+}
+
+// parseSecretNames parses newline-delimited GitHub API output and returns the
+// non-empty, trimmed secret names.
+func parseSecretNames(output []byte) []string {
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return nil
+	}
+	lines := strings.Split(trimmed, "\n")
+	return sliceutil.Filter(
+		sliceutil.Map(lines, strings.TrimSpace),
+		func(name string) bool { return name != "" },
+	)
+}
+
+// resolveEngineApiKeyCredential returns the secret name and value based on the selected engine
+// Returns empty value if the secret already exists in the repository
+func (c *AddInteractiveConfig) resolveEngineApiKeyCredential() (name string, value string, err error) {
+	addInteractiveLog.Printf("Getting secret info for engine: %s", c.EngineOverride)
+
+	secretName, secretValue, existsInRepo, err := GetEngineSecretNameAndValue(c.EngineOverride, c.existingSecrets)
+	if err != nil {
+		return "", "", err
+	}
+
+	// If secret exists in repo, return early
+	if existsInRepo {
+		return secretName, "", nil
+	}
+
+	// If value not found in environment, return error
+	if secretValue == "" {
+		return "", "", fmt.Errorf("API key not found for engine %s", c.EngineOverride)
+	}
+
+	return secretName, secretValue, nil
+}

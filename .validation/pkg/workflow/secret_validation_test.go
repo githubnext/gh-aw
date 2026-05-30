@@ -1,0 +1,435 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestGenerateMultiSecretValidationStep(t *testing.T) {
+	tests := []struct {
+		name        string
+		secretNames []string
+		engineName  string
+		docsURL     string
+		wantStrings []string
+	}{
+		{
+			name:        "Codex dual secret validation",
+			secretNames: []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
+			engineName:  "Codex",
+			docsURL:     "https://github.github.com/gh-aw/reference/engines/#openai-codex",
+			wantStrings: []string{
+				"Validate CODEX_API_KEY or OPENAI_API_KEY secret",
+				"run: bash \"${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh\" CODEX_API_KEY OPENAI_API_KEY Codex https://github.github.com/gh-aw/reference/engines/#openai-codex",
+				"CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}",
+				"OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}",
+			},
+		},
+		{
+			name:        "GitHub Copilot CLI with multi-word engine name",
+			secretNames: []string{"COPILOT_GITHUB_TOKEN"},
+			engineName:  "GitHub Copilot CLI",
+			docsURL:     "https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
+			wantStrings: []string{
+				"Validate COPILOT_GITHUB_TOKEN secret",
+				"run: bash \"${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh\" COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
+				"COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}",
+			},
+		},
+		{
+			name:        "Claude Code with single secret",
+			secretNames: []string{"ANTHROPIC_API_KEY"},
+			engineName:  "Claude Code",
+			docsURL:     "https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
+			wantStrings: []string{
+				"Validate ANTHROPIC_API_KEY secret",
+				"run: bash \"${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh\" ANTHROPIC_API_KEY 'Claude Code' https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
+				"ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			step := GenerateMultiSecretValidationStep(tt.secretNames, tt.engineName, tt.docsURL, nil)
+			stepContent := strings.Join(step, "\n")
+
+			for _, want := range tt.wantStrings {
+				if !strings.Contains(stepContent, want) {
+					t.Errorf("GenerateMultiSecretValidationStep() missing expected string:\nwant: %s\ngot: %s", want, stepContent)
+				}
+			}
+
+			// Verify it calls the validate_multi_secret.sh script
+			if !strings.Contains(stepContent, "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh") {
+				t.Error("Expected step to call validate_multi_secret.sh script")
+			}
+
+			// Verify it has an env section
+			if !strings.Contains(stepContent, "env:") {
+				t.Error("Expected step to have 'env:' section")
+			}
+
+			// Verify all secrets are passed as environment variables
+			for _, secretName := range tt.secretNames {
+				expectedEnvVar := fmt.Sprintf("%s: ${{ secrets.%s }}", secretName, secretName)
+				if !strings.Contains(stepContent, expectedEnvVar) {
+					t.Errorf("Expected step to have environment variable: %s", expectedEnvVar)
+				}
+			}
+
+			// Verify step has id field
+			if !strings.Contains(stepContent, "id: validate-secret") {
+				t.Error("Expected step to have 'id: validate-secret' field")
+			}
+		})
+	}
+}
+
+func TestClaudeEngineHasSecretValidation(t *testing.T) {
+	engine := NewClaudeEngine()
+	workflowData := &WorkflowData{}
+
+	// Secret validation is now returned by GetSecretValidationStep (not GetInstallationSteps)
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) == 0 {
+		t.Fatal("Expected a non-empty secret validation step")
+	}
+
+	stepContent := strings.Join(step, "\n")
+	if !strings.Contains(stepContent, "Validate ANTHROPIC_API_KEY secret") {
+		t.Error("Secret validation step should validate ANTHROPIC_API_KEY secret")
+	}
+	if !strings.Contains(stepContent, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
+		t.Error("Secret validation step should reference secrets.ANTHROPIC_API_KEY")
+	}
+}
+
+func TestClaudeEngineWIFSkipsSecretValidation(t *testing.T) {
+	engine := NewClaudeEngine()
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			Auth: &EngineAuthConfig{
+				Type:     "github-oidc",
+				Provider: "anthropic",
+			},
+		},
+	}
+
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) != 0 {
+		t.Errorf("Expected empty secret validation step for Anthropic WIF, got %d entries", len(step))
+	}
+}
+
+func TestCopilotEngineHasSecretValidation(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{}
+
+	// Secret validation is now returned by GetSecretValidationStep (not GetInstallationSteps)
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) == 0 {
+		t.Fatal("Expected a non-empty secret validation step")
+	}
+
+	stepContent := strings.Join(step, "\n")
+	if !strings.Contains(stepContent, "Validate COPILOT_GITHUB_TOKEN secret") {
+		t.Error("Secret validation step should validate COPILOT_GITHUB_TOKEN secret")
+	}
+	if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
+		t.Error("Secret validation step should reference secrets.COPILOT_GITHUB_TOKEN")
+	}
+}
+
+func TestCopilotEngineSkipsSecretValidationWhenBYOKProviderAPIKeySet(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			Env: map[string]string{
+				"COPILOT_PROVIDER_BASE_URL": "${{ secrets.PROVIDER_BASE_URL }}",
+				"COPILOT_PROVIDER_API_KEY":  "${{ secrets.PROVIDER_API_KEY }}",
+			},
+		},
+	}
+
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) != 0 {
+		t.Errorf("Expected empty validation step when BYOK COPILOT_PROVIDER_API_KEY is set, got:\n%s", strings.Join(step, "\n"))
+	}
+}
+
+func TestCopilotEngineSkipsSecretValidationWhenBYOKBearerTokenSet(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			Env: map[string]string{
+				"COPILOT_PROVIDER_BASE_URL":     "${{ secrets.PROVIDER_BASE_URL }}",
+				"COPILOT_PROVIDER_BEARER_TOKEN": "${{ secrets.PROVIDER_BEARER_TOKEN }}",
+			},
+		},
+	}
+
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) != 0 {
+		t.Errorf("Expected empty validation step when BYOK COPILOT_PROVIDER_BEARER_TOKEN is set, got:\n%s", strings.Join(step, "\n"))
+	}
+}
+
+func TestCopilotEngineSkipsSecretValidationWhenBYOKBaseURLOnlySet(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			Env: map[string]string{
+				"COPILOT_PROVIDER_BASE_URL": "http://localhost:11434/v1",
+			},
+		},
+	}
+
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) != 0 {
+		t.Errorf("Expected empty validation step when BYOK COPILOT_PROVIDER_BASE_URL is set, got:\n%s", strings.Join(step, "\n"))
+	}
+}
+
+func TestCodexEngineHasSecretValidation(t *testing.T) {
+	engine := NewCodexEngine()
+	workflowData := &WorkflowData{}
+
+	// Secret validation is now returned by GetSecretValidationStep (not GetInstallationSteps)
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) == 0 {
+		t.Fatal("Expected a non-empty secret validation step")
+	}
+
+	stepContent := strings.Join(step, "\n")
+	if !strings.Contains(stepContent, "Validate CODEX_API_KEY or OPENAI_API_KEY secret") {
+		t.Error("Secret validation step should validate CODEX_API_KEY or OPENAI_API_KEY secret")
+	}
+
+	// Should check for both secrets
+	if !strings.Contains(stepContent, "CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}") {
+		t.Error("Secret validation step should reference secrets.CODEX_API_KEY")
+	}
+	if !strings.Contains(stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}") {
+		t.Error("Secret validation step should reference secrets.OPENAI_API_KEY")
+	}
+
+	// Should call the validate_multi_secret.sh script with both secret names
+	if !strings.Contains(stepContent, "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh") {
+		t.Error("Should call validate_multi_secret.sh script")
+	}
+	if !strings.Contains(stepContent, "CODEX_API_KEY OPENAI_API_KEY") {
+		t.Error("Should pass both CODEX_API_KEY and OPENAI_API_KEY to the script")
+	}
+}
+
+func TestGenerateMultiSecretValidationStepWithEnvOverrides(t *testing.T) {
+	t.Run("override replaces default secret expression", func(t *testing.T) {
+		overrides := map[string]string{
+			"COPILOT_GITHUB_TOKEN": "${{ secrets.MY_ORG_COPILOT_TOKEN }}",
+		}
+		step := GenerateMultiSecretValidationStep(
+			[]string{"COPILOT_GITHUB_TOKEN"},
+			"GitHub Copilot CLI",
+			"https://docs.example.com",
+			overrides,
+		)
+		stepContent := strings.Join(step, "\n")
+
+		if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.MY_ORG_COPILOT_TOKEN }}") {
+			t.Errorf("Expected overridden expression in validation step env, got:\n%s", stepContent)
+		}
+		if strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
+			t.Errorf("Default expression should be replaced by override, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("nil overrides uses default secret expressions", func(t *testing.T) {
+		step := GenerateMultiSecretValidationStep(
+			[]string{"COPILOT_GITHUB_TOKEN"},
+			"GitHub Copilot CLI",
+			"https://docs.example.com",
+			nil,
+		)
+		stepContent := strings.Join(step, "\n")
+
+		if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
+			t.Errorf("Expected default expression when overrides is nil, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("partial override only replaces matching keys", func(t *testing.T) {
+		overrides := map[string]string{
+			"CODEX_API_KEY": "${{ secrets.MY_ORG_CODEX_KEY }}",
+		}
+		step := GenerateMultiSecretValidationStep(
+			[]string{"CODEX_API_KEY", "OPENAI_API_KEY"},
+			"Codex",
+			"https://docs.example.com",
+			overrides,
+		)
+		stepContent := strings.Join(step, "\n")
+
+		if !strings.Contains(stepContent, "CODEX_API_KEY: ${{ secrets.MY_ORG_CODEX_KEY }}") {
+			t.Errorf("Expected overridden CODEX_API_KEY expression, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}") {
+			t.Errorf("Expected default OPENAI_API_KEY expression (not overridden), got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("multi-line override emitted as literal block scalar", func(t *testing.T) {
+		// Continuation lines have 4-space leading whitespace (as produced by goccy/go-yaml
+		// when parsing a >- block scalar with extra-indented continuation lines).
+		multiLineExpr := "${{ secrets.GH_AW_PAT_1 != '' && secrets.GH_AW_PAT_1 ||\n    secrets.GH_AW_PAT_2 != '' && secrets.GH_AW_PAT_2 ||\n    secrets.GH_AW_PAT_3 }}"
+		overrides := map[string]string{
+			"COPILOT_GITHUB_TOKEN": multiLineExpr,
+		}
+		step := GenerateMultiSecretValidationStep(
+			[]string{"COPILOT_GITHUB_TOKEN"},
+			"GitHub Copilot CLI",
+			"https://docs.example.com",
+			overrides,
+		)
+		stepContent := strings.Join(step, "\n")
+
+		// Multi-line value must be emitted as a literal block scalar
+		if !strings.Contains(stepContent, "          COPILOT_GITHUB_TOKEN: |") {
+			t.Errorf("Expected literal block scalar indicator, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "            ${{ secrets.GH_AW_PAT_1 != '' && secrets.GH_AW_PAT_1 ||") {
+			t.Errorf("Expected first line of multi-line expression, got:\n%s", stepContent)
+		}
+		// Continuation lines have 4-space prefix preserved: 12 base + 4 continuation = 16 spaces total.
+		if !strings.Contains(stepContent, "                secrets.GH_AW_PAT_3 }}") {
+			t.Errorf("Expected last line of multi-line expression with preserved continuation indentation (16 spaces), got:\n%s", stepContent)
+		}
+		// Should not emit the raw multi-line value inline
+		if strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.GH_AW_PAT_1") {
+			t.Errorf("Expected block scalar, not inline multi-line value, got:\n%s", stepContent)
+		}
+	})
+}
+
+func TestValidationStepUsesEngineEnvOverride(t *testing.T) {
+	tests := []struct {
+		name           string
+		engine         CodingAgentEngine
+		tokenKey       string
+		overrideSecret string
+	}{
+		{
+			name:           "Copilot engine validation uses engine.env override",
+			engine:         NewCopilotEngine(),
+			tokenKey:       "COPILOT_GITHUB_TOKEN",
+			overrideSecret: "MY_ORG_COPILOT_TOKEN",
+		},
+		{
+			name:           "Claude engine validation uses engine.env override",
+			engine:         NewClaudeEngine(),
+			tokenKey:       "ANTHROPIC_API_KEY",
+			overrideSecret: "MY_ORG_ANTHROPIC_KEY",
+		},
+		{
+			name:           "Codex engine validation uses engine.env override",
+			engine:         NewCodexEngine(),
+			tokenKey:       "CODEX_API_KEY",
+			overrideSecret: "MY_ORG_CODEX_KEY",
+		},
+		{
+			name:           "Gemini engine validation uses engine.env override",
+			engine:         NewGeminiEngine(),
+			tokenKey:       "GEMINI_API_KEY",
+			overrideSecret: "MY_ORG_GEMINI_KEY",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name: "test-workflow",
+				EngineConfig: &EngineConfig{
+					Env: map[string]string{
+						tt.tokenKey: fmt.Sprintf("${{ secrets.%s }}", tt.overrideSecret),
+					},
+				},
+			}
+
+			// Secret validation is now returned by GetSecretValidationStep (not GetInstallationSteps)
+			step := tt.engine.GetSecretValidationStep(workflowData)
+			if len(step) == 0 {
+				t.Fatal("Expected a non-empty secret validation step")
+			}
+
+			validationStep := strings.Join(step, "\n")
+
+			// The validation step should use the overridden secret expression
+			expectedExpr := fmt.Sprintf("%s: ${{ secrets.%s }}", tt.tokenKey, tt.overrideSecret)
+			if !strings.Contains(validationStep, expectedExpr) {
+				t.Errorf("Validation step should use overridden secret expression %q, got:\n%s", expectedExpr, validationStep)
+			}
+			// The default expression should NOT be present
+			defaultExpr := fmt.Sprintf("%s: ${{ secrets.%s }}", tt.tokenKey, tt.tokenKey)
+			if strings.Contains(validationStep, defaultExpr) {
+				t.Errorf("Validation step should NOT use default expression %q when engine.env overrides it, got:\n%s", defaultExpr, validationStep)
+			}
+		})
+	}
+}
+
+func TestEngineSecretValidationSkippedWhenEnvironmentConfigured(t *testing.T) {
+	tests := []struct {
+		name   string
+		engine CodingAgentEngine
+	}{
+		{
+			name:   "copilot engine skips validation with environment",
+			engine: NewCopilotEngine(),
+		},
+		{
+			name:   "claude engine skips validation with environment",
+			engine: NewClaudeEngine(),
+		},
+		{
+			name:   "codex engine skips validation with environment",
+			engine: NewCodexEngine(),
+		},
+		{
+			name:   "gemini engine skips validation with environment",
+			engine: NewGeminiEngine(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Environment: "production",
+			}
+
+			steps := tt.engine.GetSecretValidationStep(workflowData)
+			if len(steps) != 0 {
+				t.Fatalf("expected secret validation step to be skipped when environment is configured, got:\n%s", strings.Join(steps, "\n"))
+			}
+		})
+	}
+}
+
+func TestBuildDefaultSecretValidationStepHandlesNilWorkflowData(t *testing.T) {
+	step := BuildDefaultSecretValidationStep(
+		nil,
+		[]string{"COPILOT_GITHUB_TOKEN"},
+		"GitHub Copilot CLI",
+		"https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
+	)
+
+	require.NotEmpty(t, step, "expected non-empty validation step for nil workflowData")
+
+	stepContent := strings.Join(step, "\n")
+	assert.Contains(t, stepContent, "Validate COPILOT_GITHUB_TOKEN secret", "expected validation step to include COPILOT_GITHUB_TOKEN check")
+}

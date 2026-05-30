@@ -1,0 +1,426 @@
+package workflow
+
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var mcpRendererBuiltinLog = logger.New("workflow:mcp_renderer_builtin")
+
+// RenderPlaywrightMCP generates the Playwright MCP server configuration
+func (r *MCPConfigRendererUnified) RenderPlaywrightMCP(yaml *strings.Builder, playwrightTool any) {
+	mcpRendererLog.Printf("Rendering Playwright MCP: format=%s, inline_args=%t", r.options.Format, r.options.InlineArgs)
+
+	// Parse playwright tool configuration to strongly-typed struct
+	playwrightConfig := parsePlaywrightTool(playwrightTool)
+
+	if r.options.Format == "toml" {
+		r.renderPlaywrightTOML(yaml, playwrightConfig)
+		// Add guard policies for TOML format as a separate section
+		if len(r.options.WriteSinkGuardPolicies) > 0 {
+			mcpRendererLog.Print("Adding guard-policies to playwright TOML (derived from GitHub guard-policy)")
+			renderGuardPoliciesToml(yaml, r.options.WriteSinkGuardPolicies, "playwright")
+		}
+		return
+	}
+
+	// JSON format
+	renderPlaywrightMCPConfigWithOptions(yaml, playwrightConfig, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs, r.options.WriteSinkGuardPolicies)
+}
+
+// renderPlaywrightTOML generates Playwright MCP configuration in TOML format
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
+func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig) {
+	mcpRendererBuiltinLog.Print("Rendering Playwright MCP in TOML format")
+	customArgs := getPlaywrightCustomArgs(playwrightConfig)
+
+	// Use official Playwright MCP Docker image (no version tag - only one image)
+	playwrightImage := "mcr.microsoft.com/playwright/mcp"
+
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers.playwright]\n")
+	yaml.WriteString("          container = \"" + playwrightImage + "\"\n")
+
+	// Docker runtime args (goes before container image in docker run command)
+	// Add security-opt and ipc flags for Chromium browser compatibility in GitHub Actions
+	// --security-opt seccomp=unconfined: Required for Chromium sandbox to function properly
+	// --ipc=host: Provides shared memory access required by Chromium
+	yaml.WriteString("          args = [\n")
+	yaml.WriteString("            \"--init\",\n")
+	yaml.WriteString("            \"--network\",\n")
+	yaml.WriteString("            \"host\",\n")
+	yaml.WriteString("            \"--security-opt\",\n")
+	yaml.WriteString("            \"seccomp=unconfined\",\n")
+	yaml.WriteString("            \"--ipc=host\",\n")
+	yaml.WriteString("          ]\n")
+
+	// Entrypoint args for Playwright MCP server (goes after container image)
+	yaml.WriteString("          entrypointArgs = [\n")
+	yaml.WriteString("            \"--output-dir\",\n")
+	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
+
+	// Append custom args if present
+	writeArgsToYAML(yaml, customArgs, "            ")
+
+	yaml.WriteString("\n")
+	yaml.WriteString("          ]\n")
+
+	// Add volume mounts
+	yaml.WriteString("          mounts = [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw\"]\n")
+}
+
+// RenderSafeOutputsMCP generates the Safe Outputs MCP server configuration
+func (r *MCPConfigRendererUnified) RenderSafeOutputsMCP(yaml *strings.Builder, workflowData *WorkflowData) {
+	mcpRendererLog.Printf("Rendering Safe Outputs MCP: format=%s", r.options.Format)
+
+	if r.options.Format == "toml" {
+		r.renderSafeOutputsTOML(yaml, workflowData)
+		return
+	}
+
+	// JSON format
+	renderSafeOutputsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, workflowData)
+}
+
+// renderSafeOutputsTOML generates Safe Outputs MCP configuration in TOML format
+// Now uses HTTP transport instead of stdio, similar to mcp-scripts
+func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, workflowData *WorkflowData) {
+	// Determine host based on whether agent is disabled
+	host := "host.docker.internal"
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
+		host = "localhost"
+	}
+
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + "]\n")
+	yaml.WriteString("          type = \"http\"\n")
+	yaml.WriteString("          url = \"http://" + host + ":$GH_AW_SAFE_OUTPUTS_PORT\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID.String() + ".headers]\n")
+	yaml.WriteString("          Authorization = \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
+
+	// Check if GitHub tool has guard-policies configured (or auto-lockdown will run)
+	// If so, generate a linked write-sink guard-policy for safeoutputs
+	guardPolicies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
+	if len(guardPolicies) > 0 {
+		mcpRendererLog.Print("Adding guard-policies to safeoutputs TOML (derived from GitHub guard-policy or auto-lockdown detection)")
+		// Render guard-policies in TOML format
+		renderGuardPoliciesToml(yaml, guardPolicies, constants.SafeOutputsMCPServerID.String())
+	}
+}
+
+// RenderMCPScriptsMCP generates the MCP Scripts server configuration
+func (r *MCPConfigRendererUnified) RenderMCPScriptsMCP(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, workflowData *WorkflowData) {
+	mcpRendererLog.Printf("Rendering MCP Scripts: format=%s", r.options.Format)
+
+	if r.options.Format == "toml" {
+		r.renderMCPScriptsTOML(yaml, mcpScripts, workflowData)
+		// Add guard policies for TOML format as a separate section
+		if len(r.options.WriteSinkGuardPolicies) > 0 {
+			mcpRendererLog.Print("Adding guard-policies to mcp-scripts TOML (derived from GitHub guard-policy)")
+			renderGuardPoliciesToml(yaml, r.options.WriteSinkGuardPolicies, constants.MCPScriptsMCPServerID.String())
+		}
+		return
+	}
+
+	// JSON format
+	renderMCPScriptsMCPConfigWithOptions(yaml, mcpScripts, r.options.IsLast, r.options.IncludeCopilotFields, workflowData, r.options.WriteSinkGuardPolicies)
+}
+
+// renderMCPScriptsTOML generates MCP Scripts configuration in TOML format
+// Uses HTTP transport exclusively
+func (r *MCPConfigRendererUnified) renderMCPScriptsTOML(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, workflowData *WorkflowData) {
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers." + constants.MCPScriptsMCPServerID.String() + "]\n")
+	yaml.WriteString("          type = \"http\"\n")
+
+	// Determine host based on whether agent is disabled
+	host := "host.docker.internal"
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
+		host = "localhost"
+		mcpRendererLog.Print("Using localhost for mcp-scripts (agent disabled)")
+	} else {
+		mcpRendererLog.Print("Using host.docker.internal for mcp-scripts (agent enabled)")
+	}
+
+	yaml.WriteString("          url = \"http://" + host + ":$GH_AW_MCP_SCRIPTS_PORT\"\n")
+	yaml.WriteString("          headers = { Authorization = \"$GH_AW_MCP_SCRIPTS_API_KEY\" }\n")
+	// Note: env_vars is not supported for HTTP transport in MCP configuration
+	// Environment variables are passed via the workflow job's env: section instead
+}
+
+// RenderAgenticWorkflowsMCP generates the Agentic Workflows MCP server configuration
+func (r *MCPConfigRendererUnified) RenderAgenticWorkflowsMCP(yaml *strings.Builder) {
+	mcpRendererLog.Printf("Rendering Agentic Workflows MCP: format=%s, action_mode=%s", r.options.Format, r.options.ActionMode)
+
+	if r.options.Format == "toml" {
+		r.renderAgenticWorkflowsTOML(yaml)
+		// Add guard policies for TOML format as a separate section
+		if len(r.options.WriteSinkGuardPolicies) > 0 {
+			mcpRendererLog.Print("Adding guard-policies to agentic-workflows TOML (derived from GitHub guard-policy)")
+			renderGuardPoliciesToml(yaml, r.options.WriteSinkGuardPolicies, constants.AgenticWorkflowsMCPServerID.String())
+		}
+		return
+	}
+
+	// JSON format
+	renderAgenticWorkflowsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, r.options.ActionMode, r.options.WriteSinkGuardPolicies)
+}
+
+// renderAgenticWorkflowsTOML generates Agentic Workflows MCP configuration in TOML format
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Builder) {
+	mcpRendererBuiltinLog.Printf("Rendering Agentic Workflows MCP in TOML format: action_mode=%s", r.options.ActionMode)
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers." + constants.AgenticWorkflowsMCPServerID.String() + "]\n")
+
+	containerImage := constants.DefaultAlpineImage
+	var entrypoint string
+	var entrypointArgs []string
+	var mounts []string
+
+	if r.options.ActionMode.IsDev() {
+		// Dev mode: Use locally built Docker image which includes gh-aw binary and gh CLI
+		// The Dockerfile sets ENTRYPOINT ["gh-aw"] and CMD ["mcp-server", "--validate-actor"]
+		// So we don't need to specify entrypoint or entrypointArgs
+		containerImage = constants.DevModeGhAwImage
+		entrypoint = ""      // Use container's default ENTRYPOINT
+		entrypointArgs = nil // Use container's default CMD
+		// Only mount workspace and temp directory - binary and gh CLI are in the image
+		mounts = []string{constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}
+	} else {
+		// Release mode: Use minimal Alpine image with mounted binaries
+		entrypoint = "${RUNNER_TEMP}/gh-aw/gh-aw"
+		entrypointArgs = []string{"mcp-server", "--validate-actor"}
+		// Mount gh-aw binary, gh CLI binary, workspace, and temp directory
+		mounts = []string{constants.DefaultGhAwMount, constants.DefaultGhBinaryMount, constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}
+	}
+
+	yaml.WriteString("          container = \"" + containerImage + "\"\n")
+
+	// Only write entrypoint if it's specified (release mode)
+	// In dev mode, use the container's default ENTRYPOINT
+	if entrypoint != "" {
+		yaml.WriteString("          entrypoint = \"" + entrypoint + "\"\n")
+	}
+
+	// Only write entrypointArgs if specified (release mode)
+	// In dev mode, use the container's default CMD
+	if entrypointArgs != nil {
+		yaml.WriteString("          entrypointArgs = [")
+		for i, arg := range entrypointArgs {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + arg + "\"")
+		}
+		yaml.WriteString("]\n")
+	}
+
+	// Write mounts
+	yaml.WriteString("          mounts = [")
+	for i, mount := range mounts {
+		if i > 0 {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("\"" + mount + "\"")
+	}
+	yaml.WriteString("]\n")
+
+	yaml.WriteString("          env_vars = [\"DEBUG\", \"GH_TOKEN\", \"GITHUB_TOKEN\", \"GITHUB_ACTOR\", \"GITHUB_REPOSITORY\"]\n")
+}
+
+// renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options
+// Now uses HTTP transport instead of stdio, similar to mcp-scripts
+// The server is started in a separate step before the agent job
+func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
+	mcpRendererBuiltinLog.Printf("Rendering Safe Outputs MCP config with options: isLast=%v, includeCopilotFields=%v", isLast, includeCopilotFields)
+	yaml.WriteString("              \"" + constants.SafeOutputsMCPServerID.String() + "\": {\n")
+
+	// HTTP transport configuration - server started in separate step
+	// Add type field for HTTP (required by MCP specification for HTTP transport)
+	yaml.WriteString("                \"type\": \"http\",\n")
+
+	// Determine host based on whether agent is disabled
+	host := "host.docker.internal"
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
+		host = "localhost"
+		mcpRendererBuiltinLog.Print("Agent firewall disabled, using localhost instead of host.docker.internal")
+	}
+	mcpRendererBuiltinLog.Printf("Using host: %s", host)
+
+	// HTTP URL using environment variable - NOT escaped so shell expands it before awmg validation
+	// Use host.docker.internal to allow access from firewall container (or localhost if agent disabled)
+	// Note: awmg validates URL format before variable resolution, so we must expand the port variable
+	yaml.WriteString("                \"url\": \"http://" + host + ":$GH_AW_SAFE_OUTPUTS_PORT\",\n")
+
+	// Add Authorization header with API key
+	yaml.WriteString("                \"headers\": {\n")
+	if includeCopilotFields {
+		// Copilot format: backslash-escaped shell variable reference
+		yaml.WriteString("                  \"Authorization\": \"\\${GH_AW_SAFE_OUTPUTS_API_KEY}\"\n")
+	} else {
+		// Claude/Custom format: direct shell variable reference
+		yaml.WriteString("                  \"Authorization\": \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
+	}
+	yaml.WriteString("                }")
+
+	// Check if GitHub tool has guard-policies configured (or auto-lockdown will run)
+	// If so, generate a linked write-sink guard-policy for safeoutputs
+	guardPolicies := deriveWriteSinkGuardPolicyFromWorkflow(workflowData)
+
+	// Add guard-policies if configured
+	if len(guardPolicies) > 0 {
+		mcpRendererBuiltinLog.Print("Adding guard-policies to safeoutputs (derived from GitHub guard-policy or auto-lockdown detection)")
+		yaml.WriteString(",\n")
+		renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
+	} else {
+		yaml.WriteString("\n")
+	}
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}
+
+// renderAgenticWorkflowsMCPConfigWithOptions generates the Agentic Workflows MCP server configuration with engine-specific options
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
+// Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
+func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, actionMode ActionMode, guardPolicies map[string]any) {
+	mcpRendererBuiltinLog.Printf("Rendering Agentic Workflows MCP config: isLast=%v, includeCopilotFields=%v, actionMode=%v", isLast, includeCopilotFields, actionMode)
+
+	// Environment variables: map of env var name to value (literal) or source variable (reference)
+	envVars := []struct {
+		name      string
+		value     string
+		isLiteral bool
+	}{
+		{"DEBUG", "*", true},                              // Literal value "*"
+		{"GITHUB_TOKEN", "GITHUB_TOKEN", false},           // Variable reference (gh CLI auto-sets GH_TOKEN from GITHUB_TOKEN if needed)
+		{"GITHUB_ACTOR", "GITHUB_ACTOR", false},           // Variable reference for actor-based access control
+		{"GITHUB_REPOSITORY", "GITHUB_REPOSITORY", false}, // Variable reference for repository context
+	}
+
+	// Use MCP Gateway spec format with container, entrypoint, entrypointArgs, and mounts
+	yaml.WriteString("              \"" + constants.AgenticWorkflowsMCPServerID.String() + "\": {\n")
+
+	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
+	if includeCopilotFields {
+		yaml.WriteString("                \"type\": \"stdio\",\n")
+	}
+
+	// MCP Gateway spec fields for containerized stdio servers
+	containerImage := constants.DefaultAlpineImage
+	var entrypoint string
+	var entrypointArgs []string
+	var mounts []string
+
+	if actionMode.IsDev() {
+		mcpRendererBuiltinLog.Print("Using dev mode configuration with locally built Docker image")
+		// Dev mode: Use locally built Docker image which includes gh-aw binary and gh CLI
+		// The Dockerfile sets ENTRYPOINT ["gh-aw"] and CMD ["mcp-server", "--validate-actor"]
+		// Binary path is automatically detected via os.Executable()
+		// So we don't need to specify entrypoint or entrypointArgs
+		containerImage = constants.DevModeGhAwImage
+		entrypoint = ""      // Use container's default entrypoint
+		entrypointArgs = nil // Use container's default CMD
+		// Only mount workspace and temp directory - binary and gh CLI are in the image
+		mounts = []string{constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}
+	} else {
+		// Release mode: Use minimal Alpine image with mounted binaries
+		// The gh-aw binary is mounted from ${RUNNER_TEMP}/gh-aw and executed directly
+		// Pass --validate-actor flag to enable role-based access control
+		entrypoint = "${RUNNER_TEMP}/gh-aw/gh-aw"
+		entrypointArgs = []string{"mcp-server", "--validate-actor"}
+		// Mount gh-aw binary, gh CLI binary, workspace, and temp directory
+		mounts = []string{constants.DefaultGhAwMount, constants.DefaultGhBinaryMount, constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}
+	}
+
+	yaml.WriteString("                \"container\": \"" + containerImage + "\",\n")
+
+	// Only write entrypoint if it's specified (release mode)
+	// In dev mode, use the container's default ENTRYPOINT
+	if entrypoint != "" {
+		yaml.WriteString("                \"entrypoint\": \"" + entrypoint + "\",\n")
+	}
+
+	// Only write entrypointArgs if specified (release mode)
+	// In dev mode, use the container's default CMD
+	if entrypointArgs != nil {
+		yaml.WriteString("                \"entrypointArgs\": [")
+		for i, arg := range entrypointArgs {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + arg + "\"")
+		}
+		yaml.WriteString("],\n")
+	}
+
+	// Write mounts
+	yaml.WriteString("                \"mounts\": [")
+	for i, mount := range mounts {
+		if i > 0 {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("\"" + mount + "\"")
+	}
+	yaml.WriteString("],\n")
+
+	// Add Docker runtime args:
+	// - --network host: Enables network access for GitHub API calls (gh CLI needs api.github.com)
+	// - -w: Sets working directory to workspace for .github/workflows folder resolution
+	// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
+	yaml.WriteString("                \"args\": [\"--network\", \"host\", \"-w\", \"\\${GITHUB_WORKSPACE}\"],\n")
+
+	// Note: tools field is NOT included here - the converter script adds it back
+	// for Copilot. This keeps the gateway config compatible with the schema.
+
+	// Write environment variables
+	yaml.WriteString("                \"env\": {\n")
+	for i, envVar := range envVars {
+		isLastEnvVar := i == len(envVars)-1
+		comma := ""
+		if !isLastEnvVar {
+			comma = ","
+		}
+
+		var valueStr string
+		if envVar.isLiteral {
+			// Literal value (e.g., DEBUG = "*")
+			valueStr = envVar.value
+		} else {
+			// Variable reference
+			if includeCopilotFields {
+				// Copilot format: backslash-escaped shell variable reference
+				valueStr = "\\${" + envVar.value + "}"
+			} else {
+				// Claude/Custom format: direct shell variable reference
+				valueStr = "$" + envVar.value
+			}
+		}
+
+		yaml.WriteString("                  \"" + envVar.name + "\": \"" + valueStr + "\"" + comma + "\n")
+	}
+	// Close env section - with or without trailing comma depending on whether guard policies follow
+	if len(guardPolicies) > 0 {
+		yaml.WriteString("                },\n")
+		renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
+	} else {
+		yaml.WriteString("                }\n")
+	}
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}

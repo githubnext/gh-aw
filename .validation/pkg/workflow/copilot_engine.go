@@ -1,0 +1,216 @@
+// This file implements the GitHub Copilot CLI agentic engine.
+//
+// The Copilot engine is organized into focused modules:
+//   - copilot_engine.go: Core engine interface and constructor
+//   - copilot_engine_installation.go: Installation workflow generation
+//   - copilot_engine_execution.go: Execution workflow and runtime configuration
+//   - copilot_engine_tools.go: Tool permissions, arguments, and error patterns
+//   - copilot_logs.go: Log parsing, metrics extraction, and log management
+//   - copilot_mcp.go: MCP server configuration rendering
+//   - copilot_participant_steps.go: Copilot CLI participant steps
+//
+// This modular organization improves maintainability and makes it easier
+// to locate and modify specific functionality.
+
+package workflow
+
+import (
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var copilotLog = logger.New("workflow:copilot_engine")
+
+const logsFolder = "/tmp/gh-aw/sandbox/agent/logs/"
+
+// CopilotEngine represents the GitHub Copilot CLI agentic engine.
+// It provides integration with GitHub Copilot CLI for agentic workflows,
+// including MCP server support, sandboxing (AWF/SRT), and tool permissions.
+type CopilotEngine struct {
+	BaseEngine
+}
+
+func NewCopilotEngine() *CopilotEngine {
+	copilotLog.Print("Creating new Copilot engine instance")
+	return &CopilotEngine{
+		BaseEngine: BaseEngine{
+			id:           "copilot",
+			displayName:  "GitHub Copilot CLI",
+			description:  "Uses GitHub Copilot CLI with MCP server support",
+			experimental: false,
+			capabilities: EngineCapabilities{
+				ToolsAllowlist:   true,
+				MaxTurns:         false, // Copilot CLI does not support max-turns feature yet
+				MaxContinuations: true,  // Copilot CLI supports --autopilot with --max-autopilot-continues
+				WebSearch:        false, // Copilot CLI does not have built-in web-search support
+				BareMode:         true,  // Copilot CLI supports --no-custom-instructions
+			},
+			dedicatedLLMGatewayPort: constants.CopilotLLMGatewayPort,
+		},
+	}
+}
+
+// GetAPMTarget returns "copilot" so that apm-action packs Copilot-specific primitives.
+func (e *CopilotEngine) GetAPMTarget() string {
+	return "copilot"
+}
+
+// GetModelEnvVarName returns the native environment variable name that the Copilot CLI uses
+// for model selection. Setting COPILOT_MODEL is equivalent to passing --model to the CLI.
+func (e *CopilotEngine) GetModelEnvVarName() string {
+	return constants.CopilotCLIModelEnvVar
+}
+
+// GetRequiredSecretNames returns the list of secrets required by the Copilot engine.
+// This includes COPILOT_GITHUB_TOKEN and optionally MCP_GATEWAY_API_KEY.
+// It also includes COPILOT_PROVIDER_* env var keys that may carry secrets when BYOK mode
+// is configured — allowing them to pass through strict-mode validation and the secret filter.
+func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
+	copilotLog.Print("Collecting required secrets for Copilot engine")
+	secrets := []string{
+		"COPILOT_GITHUB_TOKEN",
+		// BYOK provider variables that may carry secrets in engine.env.
+		// Listed unconditionally: checking for their presence in the current workflow's
+		// EngineConfig.Env would add complexity without security benefit, since these
+		// keys only carry secrets when the workflow author explicitly sets them.
+		// Listing them here allows strict-mode validation to recognise them as engine
+		// credentials and lets FilterEnvForSecrets pass their values through to the step.
+		constants.CopilotProviderBaseURL,
+		constants.CopilotProviderAPIKey,
+		constants.CopilotProviderBearerToken,
+	}
+
+	// Add MCP gateway API key if MCP servers are present (gateway is always started with MCP servers)
+	if HasMCPServers(workflowData) {
+		copilotLog.Print("Adding MCP_GATEWAY_API_KEY secret")
+		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
+	}
+
+	// Add GitHub token for GitHub MCP server if present
+	if hasGitHubTool(workflowData.ParsedTools) {
+		copilotLog.Print("Adding GITHUB_MCP_SERVER_TOKEN secret")
+		secrets = append(secrets, "GITHUB_MCP_SERVER_TOKEN")
+	}
+
+	// Add HTTP MCP header secret names
+	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.Tools)
+	for varName := range headerSecrets {
+		secrets = append(secrets, varName)
+	}
+	if len(headerSecrets) > 0 {
+		copilotLog.Printf("Added %d HTTP MCP header secrets", len(headerSecrets))
+	}
+
+	// Add mcp-scripts secret names
+	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
+		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
+		for varName := range mcpScriptsSecrets {
+			secrets = append(secrets, varName)
+		}
+		if len(mcpScriptsSecrets) > 0 {
+			copilotLog.Printf("Added %d mcp-scripts secrets", len(mcpScriptsSecrets))
+		}
+	}
+
+	copilotLog.Printf("Total required secrets: %d", len(secrets))
+	return secrets
+}
+
+// GetInstallationSteps is implemented in copilot_engine_installation.go
+
+func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
+	// Session state files are copied to logs folder by GetFirewallLogsCollectionStep
+	return []string{logsFolder}
+}
+
+// GetAgentManifestFiles returns instruction files that should be treated as
+// security-sensitive manifests to protect against injection attacks in fork PRs.
+// AGENTS.md is the cross-engine convention read by Copilot; CLAUDE.md and GEMINI.md
+// are also protected so that multi-engine repositories cannot be poisoned via
+// whichever instruction file a given fork PR happens to target.
+func (e *CopilotEngine) GetAgentManifestFiles() []string {
+	return []string{"AGENTS.md", "CLAUDE.md", "GEMINI.md"}
+}
+
+// GetAgentManifestPathPrefixes returns Copilot-specific config directory prefixes
+// that must be protected from fork PR injection.
+// The .github/ directory contains copilot-instructions.md, path-specific instruction
+// files, and copilot-setup-steps.yml — any of which can alter agent behaviour.
+func (e *CopilotEngine) GetAgentManifestPathPrefixes() []string {
+	return []string{".github/"}
+}
+
+// GetHarnessScriptName returns the filename of the JavaScript harness script that wraps
+// the Copilot CLI with retry logic for transient CAPIError 400 errors.
+func (e *CopilotEngine) GetHarnessScriptName() string {
+	return "copilot_harness.cjs"
+}
+
+// GetExecutionSteps is implemented in copilot_engine_execution.go
+
+// RenderMCPConfig is implemented in copilot_mcp.go
+
+// ParseLogMetrics is implemented in copilot_logs.go
+
+// extractToolCallSizes is implemented in copilot_logs.go
+
+// processToolCalls is implemented in copilot_logs.go
+
+// parseCopilotToolCallsWithSequence is implemented in copilot_logs.go
+
+// GetLogParserScriptId is implemented in copilot_logs.go
+
+// GetLogFileForParsing is implemented in copilot_logs.go
+
+// GetFirewallLogsCollectionStep returns steps for collecting firewall logs and copying session state files
+func (e *CopilotEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
+	var steps []GitHubActionStep
+
+	// Add step to copy Copilot session state files to logs folder
+	// This ensures session files are in /tmp/gh-aw/ where secret redaction can scan them
+	sessionCopyStep := generateCopilotSessionFileCopyStep()
+	steps = append(steps, sessionCopyStep)
+
+	return steps
+}
+
+// GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
+func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
+	return defaultGetSquidLogsSteps(workflowData, copilotLog)
+}
+
+// GetCleanupStep returns the post-execution cleanup step (currently empty)
+func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionStep {
+	// Return empty step - cleanup steps have been removed
+	return GitHubActionStep([]string{})
+}
+
+// computeCopilotToolArguments is implemented in copilot_engine_tools.go
+
+// generateCopilotToolArgumentsComment is implemented in copilot_engine_tools.go
+
+// GetErrorPatterns is implemented in copilot_engine_tools.go
+
+// generateAWFInstallationStep is implemented in copilot_engine_installation.go
+
+// GenerateCopilotInstallerSteps creates GitHub Actions steps for installing Copilot CLI using the official installer script
+// Parameters:
+//   - version: The Copilot CLI version to install (e.g., "0.0.369" or "v0.0.369")
+//   - stepName: The name to display for the install step (e.g., "Install GitHub Copilot CLI")
+//
+// Returns steps for installing Copilot CLI using the official install.sh script from the Copilot CLI repository.
+// The script is downloaded from https://raw.githubusercontent.com/github/copilot-cli/main/install.sh
+// and executed with the VERSION environment variable set.
+//
+// Security Implementation:
+//  1. Downloads the official installer script from the Copilot CLI repository
+//  2. Saves script to a temporary file before execution (not piped directly to bash)
+//  3. Uses the official script which includes platform detection and error handling
+//
+// Version Handling:
+// The VERSION environment variable is used by the install.sh script.
+// The script automatically adds 'v' prefix if not present.
+// Examples:
+//   - VERSION=0.0.369 → downloads and installs v0.0.369
+//   - VERSION=v0.0.369 → downloads and installs v0.0.369
+//   - VERSION=1.2.3 → downloads and installs v1.2.3

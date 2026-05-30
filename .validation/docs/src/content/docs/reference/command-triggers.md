@@ -1,0 +1,226 @@
+---
+title: Command Triggers
+description: Learn about slash command triggers and context text functionality for agentic workflows, including special @mention triggers for interactive automation.
+sidebar:
+  order: 500
+---
+
+GitHub Agentic Workflows add the convenience `slash_command:` trigger to create workflows that respond to `/my-bots` in issues and comments.
+
+```yaml wrap
+on:
+  slash_command:
+    name: my-bot  # Optional: defaults to filename without .md extension
+```
+
+You can also use shorthand formats:
+
+```yaml wrap
+on:
+  slash_command: "my-bot"  # Shorthand: string directly specifies command name
+```
+
+```yaml wrap
+on: /my-bot  # Ultra-short: slash prefix automatically expands to slash_command + workflow_dispatch
+```
+
+## Multiple Command Identifiers
+
+A single workflow can respond to multiple slash command names by providing an array of command identifiers:
+
+```yaml wrap
+on:
+  slash_command:
+    name: ["cmd.add", "cmd.remove", "cmd.list"]
+```
+
+When triggered, the matched command is available as `needs.activation.outputs.slash_command`, allowing your workflow to determine which command was used:
+
+```aw wrap
+---
+on:
+  slash_command:
+    name: ["summarize", "summary", "tldr"]
+---
+
+# Multi-Command Handler
+
+You invoked the workflow using: `/${{ needs.activation.outputs.slash_command }}`
+
+Now analyzing the content...
+```
+
+This feature enables command aliases and grouped command handlers without workflow duplication.
+
+This automatically creates issue/PR triggers (`opened`, `edited`, `reopened`), comment triggers (`created`, `edited`), and conditional execution matching `/command-name` mentions.
+
+**Code availability:** When a command is triggered from a pull request body, PR comment, or PR review comment, the coding agent has access to both the PR branch and the default branch.
+
+The command must be the **first word** of the comment or body text to trigger the workflow. This prevents accidental triggers when the command is mentioned elsewhere in the content.
+
+You can combine `slash_command:` with other events like `workflow_dispatch` or `schedule`:
+
+```yaml wrap
+on:
+  slash_command:
+    name: my-bot
+  workflow_dispatch:
+  schedule: weekly on monday
+```
+
+### Centralized trigger strategy
+
+Set `on.slash_command.strategy: centralized` to opt a workflow into centralized slash-command routing.
+When enabled, the workflow compiles as `workflow_dispatch`-centric, and the compiler generates one
+shared `agentic_commands.yml` workflow that listens to merged slash-command events and
+dispatches matching target workflows with `aw_context`.
+
+```yaml wrap
+on:
+  slash_command:
+    name: my-bot
+    strategy: centralized
+```
+
+**Note**: With default inline strategy, you cannot combine `slash_command` with `issues`, `issue_comment`, or `pull_request` as they would conflict. With `strategy: centralized`, non-slash events are preserved because slash matching is handled in the generated central trigger workflow.
+
+**Exception for Label-Only Events**: You CAN combine `slash_command` with `issues` or `pull_request` if those events are configured for label-only triggers (`labeled` or `unlabeled` types only). This allows workflows to respond to slash commands while also reacting to label changes.
+
+### Combining `slash_command` with `bots:`
+
+:::caution[Concurrency clash]
+Combining `slash_command` with `on.bots:` produces a compile-time warning. When a bot listed in `bots:` posts a comment that begins with the slash command text (e.g., `/command-name`), the command check passes and the bot triggers the workflow — occupying the concurrency slot and potentially blocking a simultaneous manual invocation, since `cancel-in-progress` is disabled for command-trigger workflows.
+
+To ensure the workflow only runs on explicit user commands, remove the `bots:` field.
+:::
+
+```yaml wrap
+# This configuration produces a compile-time warning:
+on:
+  slash_command:
+    name: rust-review
+    events: [pull_request, pull_request_comment]
+  bots:
+    - "copilot[bot]"
+```
+
+```yaml wrap
+on:
+  slash_command: deploy
+  issues:
+    types: [labeled, unlabeled]  # Valid: label-only triggers don't conflict
+```
+
+This pattern is useful when you want a workflow that can be triggered both manually via commands and automatically when labels change.
+
+## Filtering Command Events
+
+By default, command triggers listen to all comment-related events, which can create skipped runs in the Actions UI. Use the `events:` field to restrict where commands are active:
+
+```yaml wrap
+on:
+  slash_command:
+    name: my-bot
+    events: [issues, issue_comment]  # Only in issue bodies and issue comments
+```
+
+**Supported events:** `issues`, `issue_comment`, `pull_request`, `pull_request_comment`, `pull_request_review_comment`, `discussion`, `discussion_comment`, or `*` (all, default).
+
+:::note
+Both `issue_comment` and `pull_request_comment` map to GitHub Actions' `issue_comment` event with automatic filtering to distinguish between issue and PR comments.
+:::
+
+### Example command workflow
+
+Issue-only command (avoids skipped runs from PR events):
+
+```yaml wrap
+on:
+  slash_command:
+    name: investigate
+    events: [issues, issue_comment]
+```
+
+PR-only command:
+
+```yaml wrap
+on:
+  slash_command:
+    name: code-review
+    events: [pull_request, pull_request_comment]
+```
+
+## Context Text
+
+All workflows access `steps.sanitized.outputs.text`, which provides **sanitized** context: for issues and PRs, it's `title + "\n\n" + body`; for comments and reviews, it's the body content.
+
+```aw wrap
+# Analyze this content: "${{ steps.sanitized.outputs.text }}"
+```
+
+**Why sanitized context?** The sanitized text neutralizes @mentions and bot triggers (like `fixes #123`), protects against XML injection, filters URIs to trusted HTTPS domains, limits content size (0.5MB max, 65k lines), and strips ANSI escape sequences.
+
+**Comparison:**
+```aw wrap
+# RECOMMENDED: Secure sanitized context
+Analyze this issue: "${{ steps.sanitized.outputs.text }}"
+
+# DISCOURAGED: Raw context values (security risks)
+Title: "${{ github.event.issue.title }}"
+Body: "${{ github.event.issue.body }}"
+```
+
+## Reactions and Status Comments
+
+Command workflows enable `reaction: eyes` (👀) and `status-comment: true` by default. The reaction adds a visual indicator to triggering comments; the status comment posts a started/completed notification with a workflow run link.
+
+Customize or disable either:
+
+```yaml wrap
+on:
+  slash_command:
+    name: my-bot
+  reaction: "rocket"       # Override default "eyes"
+  status-comment: false    # Disable the status comment
+```
+
+To disable the reaction entirely, use `reaction: none`.
+
+See [Reactions and Status Comments](/gh-aw/reference/triggers/#reactions-reaction) for all available reactions and detailed behavior.
+
+## Customizing the Run-Again Hint (`placeholder`)
+
+When a workflow has a `slash_command:` trigger, the default footer on generated issues and pull requests includes a hint showing how to invoke the workflow again:
+
+> <sub>Comment <em>/my-bot</em> to run again</sub>
+
+Override the trailing `"to run again"` suffix with `placeholder:`:
+
+```yaml wrap
+on:
+  slash_command:
+    name: review-bot
+    placeholder: to review this PR
+```
+
+The footer hint then reads:
+
+> <sub>Comment <em>/review-bot</em> to review this PR</sub>
+
+The hint is appended only by the default footer template. Custom footer templates are unaffected.
+
+## Slash Commands from a Side Repository
+
+GitHub Actions only delivers events to the repository where they occur. When workflows live in a separate side repository, events from the main repository are never delivered there. **Slash command triggers cannot be used directly in a workflow hosted in a side repository.**
+
+The recommended solution is a **bridge pattern**: a thin relay workflow in the main repository receives the slash command and forwards it to the side repository via `workflow_dispatch`.
+
+See [Triage from Side Repo](/gh-aw/examples/multi-repo/triage-from-side-repo/) for a full walkthrough with examples and trade-offs.
+
+## Related Documentation
+
+- [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options for workflows
+- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
+- [CLI Commands](/gh-aw/setup/cli/) - CLI commands for workflow management
+- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Running workflows from a separate repository
+- [ChatOps](/gh-aw/patterns/chat-ops/) - Interactive automation with slash commands

@@ -1,0 +1,422 @@
+---
+emoji: "📊"
+description: Daily observability report analyzing logging and telemetry coverage for AWF firewall and MCP Gateway across workflow runs
+on: daily
+permissions:
+  contents: read
+  actions: read
+  discussions: read
+  issues: read
+  pull-requests: read
+engine:
+  id: codex
+  model: gpt-5.4
+strict: true
+tracker-id: daily-observability-report
+tools:
+  agentic-workflows: true
+timeout-minutes: 45
+# Tuned from 80M after checking recent successful runs:
+# - run 26482328945: 2,674,398 ET
+# - run 26424799100: 7,479,570 ET
+# - run 26197188358: 7,244,916 ET
+# 20M preserves >2.5x headroom over the recent peak while keeping daily budget hygiene.
+max-effective-tokens: 20000000
+imports:
+  - uses: shared/meta-analysis-base.md
+    with:
+      toolsets: [default, discussions, actions]
+  - uses: shared/daily-audit-base.md
+    with:
+      title-prefix: "[observability] "
+      expires: 1d
+
+
+  - shared/otlp.md
+---
+{{#runtime-import? .github/shared-instructions.md}}
+
+# Daily Observability Report for AWF Firewall and MCP Gateway
+
+You are an expert site reliability engineer analyzing observability coverage for GitHub Agentic Workflows. Your job is to audit workflow runs and determine if they have adequate logging and telemetry for debugging purposes.
+
+## Mission
+
+Generate a daily report analyzing a representative, capped set of workflow runs from the past week to check for proper observability coverage in:
+1. **AWF Firewall (gh-aw-firewall)** - Network egress control with Squid proxy
+2. **MCP Gateway** - Model Context Protocol server execution runtime
+
+The goal is to ensure all workflow runs have the necessary logs and telemetry to enable effective debugging when issues occur.
+
+## Current Context
+
+- **Repository**: ${{ github.repository }}
+- **Run ID**: ${{ github.run_id }}
+- **Date**: Generated daily
+- **Analysis Window**: Last 7 days of workflow runs (see `workflow_runs_analyzed` in scratchpad/metrics-glossary.md)
+
+## Phase 1: Fetch Workflow Runs
+
+Use the `agentic-workflows` MCP server tools to download and analyze logs from recent workflow runs.
+
+**⚠️ IMPORTANT**: The `status`, `logs`, and `audit` operations are MCP server tools, NOT shell commands. Call them as tools with JSON parameters, not as `gh aw` shell commands.
+
+### Step 1.1: Download Logs from Recent Runs
+
+Start with a single broad `logs` MCP tool call. The tool will automatically save logs to `/tmp/gh-aw/aw-mcp/logs/`.
+
+Using `count: 30` gives a recent, representative cross-workflow sample without forcing the agent to download and compare every run from the full week.
+
+**Tool**: `logs`  
+**Parameters**:
+```json
+{
+  "workflow_name": "",
+  "count": 30,
+  "start_date": "-7d",
+  "parse": true
+}
+```
+
+Do **not** list every workflow first and do **not** paginate broadly. One repository-wide fetch is the default path.
+
+### Step 1.2: Narrow Follow-up Only When Needed
+
+Only if the broad fetch is missing an important class of run (for example, no recent firewall-enabled run or no recent MCP-enabled run), do a small number of targeted follow-up `logs` calls:
+
+**Tool**: `logs`  
+**Parameters**:
+```json
+{
+  "workflow_name": "workflow-name",
+  "count": 100,
+  "start_date": "-7d",
+  "parse": true
+}
+```
+
+Keep targeted follow-up minimal:
+- At most **5** targeted `logs` calls total
+- At most **10** runs per targeted call
+- Prefer the most recent failed or cancelled runs first, then successful runs
+- These follow-up calls only expand the candidate pool; they do **not** override the total analysis cap below
+
+### Step 1.3: Cap Analysis Scope
+
+Analyze at most **20 runs total** across all fetched results.
+
+Prioritize runs in this order:
+1. Failed or cancelled runs
+2. Runs with firewall enabled
+3. Runs with MCP servers configured
+4. Most recent successful runs needed to confirm healthy coverage
+
+When multiple runs come from the same workflow, keep at most **2 runs per workflow** within the 20-run total cap unless a third run is needed to confirm a repeated critical gap. If you are near the 20-run cap, prefer breadth across workflows over extra runs from the same workflow.
+
+### Step 1.4: Collect Run Information
+
+The `logs` MCP tool saves all downloaded run logs to `/tmp/gh-aw/aw-mcp/logs/`. For each downloaded run, note (see standardized metric names in scratchpad/metrics-glossary.md):
+- Workflow name
+- Run ID
+- Conclusion (success, failure, cancelled)
+- Whether firewall was enabled (`firewall_enabled_workflows`)
+- Whether MCP gateway was used (`mcp_enabled_workflows`)
+
+## Phase 2: Analyze AWF Firewall Logs
+
+The AWF Firewall uses Squid proxy for egress control. The key log file is `access.log`.
+
+### Critical Requirement: Squid Proxy Logs
+
+**🔴 CRITICAL**: The `access.log` file from the Squid proxy is essential for debugging network issues. If this file is missing from a firewall-enabled run, report it as **CRITICAL**.
+
+For each firewall-enabled workflow run, check:
+
+1. **access.log existence**: Look for `access.log/` directory in the run logs
+   - Path pattern: `/tmp/gh-aw/aw-mcp/logs/run-<id>/access.log/`
+   - Contains files like `access-*.log`
+
+2. **access.log content quality**:
+   - Are there log entries present?
+   - Do entries follow squid format: `timestamp duration client status size method url user hierarchy type`
+   - Are both allowed and blocked requests logged?
+
+3. **Firewall configuration**:
+   - Check `aw_info.json` for firewall settings:
+     - `sandbox.agent` should be `awf` or contain firewall config
+     - `network.firewall` settings if present
+
+### Firewall Analysis Criteria
+
+| Status | Condition |
+|--------|-----------|
+| ✅ **Healthy** | access.log present with entries, both allowed/blocked visible |
+| ⚠️ **Warning** | access.log present but empty or minimal entries |
+| 🔴 **Critical** | access.log missing from firewall-enabled run |
+| ℹ️ **N/A** | Firewall not enabled for this workflow |
+
+## Phase 3: Analyze MCP Gateway Logs
+
+The MCP Gateway logs tool execution. Two log formats may be present depending on engine version:
+
+- **`gateway.jsonl`**: Structured gateway log with per-event metrics (preferred format)
+- **`mcp-logs/rpc-messages.jsonl`**: Raw JSON-RPC message log written by the Copilot CLI (canonical fallback)
+
+### Key Log Files: gateway.jsonl or rpc-messages.jsonl
+
+For each run that uses MCP servers, check in this order:
+
+1. **gateway.jsonl existence** (preferred): Look for the file in run logs
+   - Path pattern: `/tmp/gh-aw/aw-mcp/logs/run-<id>/mcp-logs/gateway.jsonl`
+
+2. **rpc-messages.jsonl existence** (canonical fallback): Check when gateway.jsonl is missing
+   - Path pattern: `/tmp/gh-aw/aw-mcp/logs/run-<id>/mcp-logs/rpc-messages.jsonl`
+   - This file is written by the Copilot CLI and contains raw JSON-RPC protocol messages
+   - A run with this file present has MCP telemetry and should NOT be reported as Critical
+
+3. **gateway.jsonl content quality** (when present):
+   - Are log entries valid JSONL format?
+   - Do entries contain required fields:
+     - `timestamp`: When the event occurred
+     - `level`: Log level (debug, info, warn, error)
+     - `type`: Event type
+     - `event`: Event name (request, tool_call, rpc_call)
+     - `server_name`: MCP server identifier
+     - `tool_name` or `method`: Tool being called
+     - `duration`: Execution time in milliseconds
+     - `status`: Request status (success, error)
+
+4. **rpc-messages.jsonl content quality** (when used as fallback):
+   - Are entries valid JSONL format?
+   - Do entries contain required fields:
+     - `timestamp`: When the message was sent/received
+     - `direction`: "IN" (from server) or "OUT" (to server)
+     - `type`: "REQUEST" or "RESPONSE"
+     - `server_id`: MCP server identifier
+     - `payload`: JSON-RPC payload with `method`, `params`, `result`, or `error`
+   - Tool call count derived from outgoing `tools/call` requests
+
+5. **Metrics coverage** (from whichever log is available):
+   - Tool call counts per server
+   - Error rates
+   - Response times (min, max, avg) — available in gateway.jsonl; computed from request/response pairing in rpc-messages.jsonl
+
+### MCP Gateway Analysis Criteria
+
+| Status | Condition |
+|--------|-----------|
+| ✅ **Healthy** | gateway.jsonl present with proper JSONL entries and metrics |
+| ✅ **Healthy** | rpc-messages.jsonl present (canonical fallback) with valid JSON-RPC entries |
+| ⚠️ **Warning** | gateway.jsonl or rpc-messages.jsonl present but missing key fields or has parse errors |
+| 🔴 **Critical** | Neither gateway.jsonl nor rpc-messages.jsonl found in MCP-enabled run |
+| ℹ️ **N/A** | No MCP servers configured for this workflow |
+
+**Important**: When reporting MCP telemetry coverage, treat a run as having MCP telemetry if **either** `gateway.jsonl` **or** `rpc-messages.jsonl` is present. Only flag as Critical when both files are absent.
+
+## Phase 4: Analyze Additional Telemetry
+
+Check for other observability artifacts:
+
+### 4.1 Agent Logs
+
+- **agent-stdio.log**: Agent stdout/stderr
+- **agent_output/**: Agent execution logs directory
+
+### 4.2 Workflow Metadata
+
+- **aw_info.json**: Configuration metadata including:
+  - Engine type and version
+  - Tool configurations
+  - Network settings
+  - Sandbox settings
+
+### 4.3 Safe Output Logs
+
+- **safe_output.jsonl**: Agent's structured outputs
+
+## Phase 5: Generate Summary Metrics
+
+Calculate aggregated metrics across all analyzed runs:
+
+### Coverage Metrics
+
+```python
+# Calculate coverage percentages (see scratchpad/metrics-glossary.md for definitions)
+firewall_enabled_workflows = count_runs_with_firewall()
+firewall_logs_present = count_runs_with_access_log()
+firewall_coverage = (firewall_logs_present / firewall_enabled_workflows) * 100 if firewall_enabled_workflows > 0 else "N/A"
+
+mcp_enabled_workflows = count_runs_with_mcp()
+# A run has MCP telemetry if gateway.jsonl OR rpc-messages.jsonl is present
+gateway_logs_present = count_runs_with_gateway_jsonl_or_rpc_messages()
+gateway_coverage = (gateway_logs_present / mcp_enabled_workflows) * 100 if mcp_enabled_workflows > 0 else "N/A"
+
+# Calculate observability_coverage_percentage for overall health
+runs_with_complete_logs = firewall_logs_present + gateway_logs_present
+runs_with_missing_logs = (firewall_enabled_workflows - firewall_logs_present) + (mcp_enabled_workflows - gateway_logs_present)
+```
+
+### Health Summary
+
+Create a summary table of all runs analyzed with their observability status.
+
+## Phase 6: Create Discussion Report
+
+Create a new discussion with the comprehensive observability report.
+
+**Note**: Previous observability reports with the same `[observability]` prefix will be automatically closed when the new discussion is created. This is handled by the `close-older-discussions: true` setting in the safe-outputs configuration - you don't need to manually close them.
+
+### Discussion Format
+
+**Title**: `[observability] Observability Coverage Report - YYYY-MM-DD`
+
+**Body Structure**:
+
+Follow the formatting guidelines above. Use the following structure:
+
+```markdown
+### Executive Summary
+
+[2-3 paragraph overview of observability status with key findings, critical issues if any, and overall health assessment. Always visible.]
+
+### Key Alerts and Anomalies
+
+[Critical missing logs or observability gaps that need immediate attention. If none, state "No critical issues detected." Always visible.]
+
+🔴 **Critical Issues:**
+- [List any runs missing critical logs - access.log for firewall runs, gateway.jsonl AND rpc-messages.jsonl both absent for MCP runs]
+
+⚠️ **Warnings:**
+- [List runs with incomplete or low-quality logs]
+
+### Coverage Summary
+
+| Component | Runs Analyzed | Logs Present | Coverage | Status |
+|-----------|--------------|--------------|----------|--------|
+| AWF Firewall (access.log) | X (`firewall_enabled_workflows`) | Y (`runs_with_complete_logs`) | Z% (`observability_coverage_percentage`) | ✅/⚠️/🔴 |
+| MCP Gateway (gateway.jsonl or rpc-messages.jsonl) | X (`mcp_enabled_workflows`) | Y (`runs_with_complete_logs`) | Z% (`observability_coverage_percentage`) | ✅/⚠️/🔴 |
+
+[Always visible. Summary table showing high-level coverage metrics.]
+
+<details>
+<summary>📋 Detailed Run Analysis</summary>
+
+#### Firewall-Enabled Runs
+
+| Workflow | Run ID | access.log | Entries | Allowed | Blocked | Status |
+|----------|--------|------------|---------|---------|---------|--------|
+| ... | ... | ✅/❌ | N | N | N | ✅/⚠️/🔴 |
+
+#### Missing Firewall Logs (access.log)
+
+| Workflow | Run ID | Date | Link |
+|----------|--------|------|------|
+| workflow-name | 12345 | 2024-01-15 | [§12345](url) |
+
+#### MCP-Enabled Runs
+
+| Workflow | Run ID | Telemetry Source | Entries | Servers | Tool Calls | Errors | Status |
+|----------|--------|-----------------|---------|---------|------------|--------|--------|
+| ... | ... | gateway.jsonl / rpc-messages.jsonl / ❌ None | N | N | N | N | ✅/⚠️/🔴 |
+
+#### Missing MCP Telemetry (no gateway.jsonl or rpc-messages.jsonl)
+
+| Workflow | Run ID | Date | Link |
+|----------|--------|------|------|
+| workflow-name | 12345 | 2024-01-15 | [§12345](url) |
+
+</details>
+
+<details>
+<summary>🔍 Telemetry Quality Analysis</summary>
+
+#### Firewall Log Quality
+
+- Total access.log entries analyzed: N
+- Domains accessed: N unique
+- Blocked requests: N (X%)
+- Most accessed domains: domain1, domain2, domain3
+
+#### Gateway Log Quality
+
+- Telemetry source: gateway.jsonl (preferred) or rpc-messages.jsonl (canonical fallback)
+- Total entries analyzed: N
+- MCP servers used: server1, server2
+- Total tool calls: N
+- Error rate: X%
+- Average response time: Xms (N/A when derived from rpc-messages.jsonl without duration pairing)
+
+#### Healthy Runs Summary
+
+[Summary of runs with complete observability coverage]
+
+</details>
+
+### Recommended Actions
+
+1. [Specific recommendation for improving observability coverage]
+2. [Recommendation for workflows with missing logs]
+3. [Recommendation for improving log quality]
+
+[Always visible. Actionable recommendations based on the analysis.]
+
+<details>
+<summary>📊 Historical Trends</summary>
+
+[If historical data is available, show trends in observability coverage over time]
+
+</details>
+
+</details>
+
+---
+*Report generated automatically by the Daily Observability Report workflow*
+*Analysis window: Last 7 days | Runs analyzed: N*
+```
+
+## Important Guidelines
+
+## Token Budget Guidelines
+
+This workflow uses Codex, so prompt discipline is the main budget control.
+
+- **Start with one broad `logs` call** and avoid repository-wide workflow enumeration
+- **Stay within the 20-run cap** and do not inspect extra runs once coverage status is clear
+- **Use targeted follow-up only to fill a missing category**; do not fan out across every workflow
+- **Summarize, don't exhaustively transcribe** — visible sections should cover only the most important findings, with detailed tables limited to the analyzed run set
+- **Stop immediately after `create_discussion` or `noop`** — no extra tool calls or post-report analysis
+
+### Data Quality
+
+- Handle missing files gracefully - report their absence, don't fail
+- Validate JSON/JSONL formats before processing
+- Count both present and missing logs accurately
+
+### Severity Classification
+
+- **CRITICAL**: Missing logs that would prevent debugging (access.log for firewall runs; **both** gateway.jsonl and rpc-messages.jsonl absent for MCP runs)
+- **WARNING**: Logs present but with quality issues (empty, missing fields, parse errors)
+- **HEALTHY**: Complete observability coverage with quality logs
+
+### Report Quality
+
+- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+- Be specific with numbers and percentages
+- Link to actual workflow runs for context
+- Provide actionable recommendations
+- Highlight critical issues prominently at the top
+
+## Success Criteria
+
+A successful run will:
+- ✅ Download and analyze logs from the past 7 days of workflow runs
+- ✅ Check all firewall-enabled runs for access.log presence
+- ✅ Check all MCP-enabled runs for gateway.jsonl **or** rpc-messages.jsonl presence
+- ✅ Calculate coverage percentages and identify gaps
+- ✅ Flag any runs missing **all** MCP telemetry (neither gateway.jsonl nor rpc-messages.jsonl) as CRITICAL
+- ✅ Create a new discussion with comprehensive report (previous discussions automatically closed)
+- ✅ Include actionable recommendations
+
+Begin your analysis now. Download the logs, analyze observability coverage, and create the discussion report.
+
+{{#runtime-import shared/noop-reminder.md}}

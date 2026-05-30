@@ -1,0 +1,174 @@
+name: Check collaborator permissions (demo)
+
+on:
+  workflow_dispatch:
+
+# Global default: read-only to keep things tight.
+permissions:
+  contents: read
+
+env:
+  USERS: "nojaf dsyme pelikhan"
+  API_URL: "https://api.github.com"
+  API_VERSION: "2022-11-28"
+
+jobs:
+  # 1) All scopes read-only (or effectively read-only for contents)
+  read_all:
+    name: With read-only token (expect 403)
+    runs-on: ubuntu-latest
+    permissions:
+      # You can also use `read-all`, but showing explicit `contents: read` here.
+      contents: read
+    steps:
+      - name: Check three users via REST
+        shell: bash
+        # SECURITY: secret moved to env mapping to prevent shell interpretation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e  # we want to keep going even on 403
+          IFS=' ' read -r -a users <<< "${USERS}"
+          for u in "${users[@]}"; do
+            echo "::group::GET /repos/${{ github.repository }}/collaborators/$u/permission"
+            code=$(curl -sS -o resp.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: ${API_VERSION}" \
+              "${API_URL}/repos/${{ github.repository }}/collaborators/$u/permission")
+            echo "HTTP $code"
+            if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+              jq -r '{user:.user.login, permission, role_name} | @text "user=@\(.user) permission=\(.permission) role=\(.role_name)"' resp.json
+            else
+              cat resp.json
+            fi
+            echo "::endgroup::"
+          done
+
+  # 2) contents:read plus pull-requests:read — still read-only (expect 403)
+  read_combo:
+    name: Read-only combo (expect 403)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check three users via REST
+        shell: bash
+        # SECURITY: secret moved to env mapping to prevent shell interpretation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          IFS=' ' read -r -a users <<< "${USERS}"
+          for u in "${users[@]}"; do
+            echo "::group::GET /repos/${{ github.repository }}/collaborators/$u/permission"
+            code=$(curl -sS -o resp.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: ${API_VERSION}" \
+              "${API_URL}/repos/${{ github.repository }}/collaborators/$u/permission")
+            echo "HTTP $code"
+            if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+              jq -r '{user:.user.login, permission, role_name} | @text "user=@\(.user) permission=\(.permission) role=\(.role_name)"' resp.json
+            else
+              cat resp.json
+            fi
+            echo "::endgroup::"
+          done
+
+  # 3) contents:write — should succeed (has push-equivalent)
+  write_contents:
+    name: "With contents: write (should succeed)"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check three users via REST
+        shell: bash
+        # SECURITY: secret moved to env mapping to prevent shell interpretation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          IFS=' ' read -r -a users <<< "${USERS}"
+          for u in "${users[@]}"; do
+            echo "::group::GET /repos/${{ github.repository }}/collaborators/$u/permission"
+            code=$(curl -sS -D headers.txt -o resp.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: ${API_VERSION}" \
+              "${API_URL}/repos/${{ github.repository }}/collaborators/$u/permission")
+            echo "HTTP $code"
+            if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+              jq -r '{user:.user.login, permission, role_name} | @text "user=@\(.user) permission=\(.permission) role=\(.role_name)"' resp.json
+              # If present (fine-grained actors), show what permissions the API says are acceptable
+              echo "x-accepted-github-permissions:"
+              grep -i '^x-accepted-github-permissions:' headers.txt || true
+            else
+              cat resp.json
+            fi
+            echo "::endgroup::"
+          done
+
+  # 4) No contents permission at all — only unrelated scopes (expect 403)
+  no_contents:
+    name: No contents permission (expect 403)
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      issues: read
+    steps:
+      - name: Check three users via REST
+        shell: bash
+        # SECURITY: secret moved to env mapping to prevent shell interpretation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          IFS=' ' read -r -a users <<< "${USERS}"
+          for u in "${users[@]}"; do
+            echo "::group::GET /repos/${{ github.repository }}/collaborators/$u/permission"
+            code=$(curl -sS -o resp.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: ${API_VERSION}" \
+              "${API_URL}/repos/${{ github.repository }}/collaborators/$u/permission")
+            echo "HTTP $code"
+            if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+              jq -r '{user:.user.login, permission, role_name} | @text "user=@\(.user) permission=\(.permission) role=\(.role_name)"' resp.json
+            else
+              cat resp.json
+            fi
+            echo "::endgroup::"
+          done
+
+  # 5) write-all — also succeeds; shows a broader token example
+  write_all:
+    name: With write-all (should succeed)
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Check three users via REST
+        shell: bash
+        # SECURITY: secret moved to env mapping to prevent shell interpretation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          IFS=' ' read -r -a users <<< "${USERS}"
+          for u in "${users[@]}"; do
+            echo "::group::GET /repos/${{ github.repository }}/collaborators/$u/permission"
+            code=$(curl -sS -o resp.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: ${API_VERSION}" \
+              "${API_URL}/repos/${{ github.repository }}/collaborators/$u/permission")
+            echo "HTTP $code"
+            if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+              jq -r '{user:.user.login, permission, role_name} | @text "user=@\(.user) permission=\(.permission) role=\(.role_name)"' resp.json
+            else
+              cat resp.json
+            fi
+            echo "::endgroup::"
+          done

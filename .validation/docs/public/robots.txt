@@ -1,0 +1,89 @@
+# Allow all crawlers by default
+User-agent: *
+Allow: /
+
+# Explicitly list major AI crawlers for clarity and signaling.
+# The wildcard rule above already permits all bots; the entries below
+# make it unambiguous to AI indexers that they are welcome here.
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: Omgilibot
+Allow: /
+
+User-agent: FacebookBot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: bingbot
+Allow: /
+
+User-agent: BingPreview
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: ia_archiver
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: DataForSeoBot
+Allow: /
+
+User-agent: Diffbot
+Allow: /
+
+Sitemap: https://github.github.com/gh-aw/sitemap.xml

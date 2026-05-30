@@ -1,0 +1,56 @@
+package cli
+
+// CompileConfig holds configuration options for compiling workflows
+type CompileConfig struct {
+	MarkdownFiles          []string // Files to compile (empty for all files)
+	Verbose                bool     // Enable verbose output
+	EngineOverride         string   // Override AI engine setting
+	Validate               bool     // Enable schema validation
+	Watch                  bool     // Enable watch mode
+	WorkflowDir            string   // Custom workflow directory
+	SkipInstructions       bool     // Deprecated: Instructions are no longer written during compilation
+	NoEmit                 bool     // Validate without generating lock files
+	Purge                  bool     // Remove orphaned lock files
+	TrialMode              bool     // Enable trial mode (suppress safe outputs)
+	TrialLogicalRepoSlug   string   // Target repository for trial mode
+	Strict                 bool     // Enable strict mode validation
+	Dependabot             bool     // Generate Dependabot manifests for npm dependencies
+	ForceOverwrite         bool     // Force overwrite of existing files (dependabot.yml)
+	RefreshStopTime        bool     // Force regeneration of stop-after times instead of preserving existing ones
+	ForceRefreshActionPins bool     // Force refresh of action pins by clearing cache and resolving from GitHub API
+	AllowActionRefs        bool     // Allow unresolved action refs as warnings instead of errors
+	Staged                 bool     // Force all safe-outputs into staged mode
+	Zizmor                 bool     // Run zizmor security scanner on generated .lock.yml files
+	Poutine                bool     // Run poutine security scanner on generated .lock.yml files
+	Actionlint             bool     // Run actionlint linter on generated .lock.yml files
+	RunnerGuard            bool     // Run runner-guard taint analysis scanner on generated .lock.yml files
+	JSONOutput             bool     // Output validation results as JSON
+	ShowAllErrors          bool     // Display all prioritized errors instead of the default top five
+	ActionMode             string   // Action script inlining mode: inline, dev, or release
+	ActionTag              string   // Override action SHA or tag for actions/setup (overrides action-mode to release)
+	ActionsRepo            string   // Override the external actions repository (default: github/gh-aw-actions)
+	Stats                  bool     // Display statistics table sorted by file size
+	FailFast               bool     // Stop at first error instead of collecting all errors
+	ScheduleSeed           string   // Override repository slug used for fuzzy schedule scattering (e.g. owner/repo)
+	Approve                bool     // Approve all safe update changes, skipping safe update enforcement regardless of strict mode setting.
+	ValidateImages         bool     // Require Docker to be available for container image validation (fail instead of skipping when Docker is unavailable)
+	PriorManifestFile      string   // Path to a JSON file containing pre-cached manifests (map[lockFile]*GHAWManifest) collected at MCP server startup; takes precedence over git HEAD / filesystem reads for safe update enforcement
+	GHESCompat             bool     // Enable GHES compatibility mode: emit v3.x artifact action pins instead of v7/v8 (overrides aw.json ghes field)
+}
+
+// CompileValidationError represents a single validation error or warning
+type CompileValidationError struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+	Line    int    `json:"line,omitempty"`
+}
+
+// ValidationResult represents the validation result for a single workflow
+type ValidationResult struct {
+	Workflow     string                   `json:"workflow"`
+	Valid        bool                     `json:"valid"`
+	Errors       []CompileValidationError `json:"errors"`
+	Warnings     []CompileValidationError `json:"warnings"`
+	CompiledFile string                   `json:"compiled_file,omitempty"`
+	Labels       []string                 `json:"labels,omitempty"` // Labels referenced in safe-outputs configurations
+}

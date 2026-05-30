@@ -1,0 +1,134 @@
+// This file provides Copilot engine installation logic.
+//
+// This file contains functions for generating GitHub Actions steps to install
+// the GitHub Copilot CLI and related sandbox infrastructure (AWF or SRT).
+//
+// Installation order:
+//  1. Secret validation (COPILOT_GITHUB_TOKEN) — runs in the activation job
+//  2. Node.js setup
+//  3. Sandbox installation (SRT or AWF, if needed)
+//  4. Copilot CLI installation
+//
+// The installation strategy differs based on sandbox mode:
+//   - Standard mode: Global installation using official installer script
+//   - SRT mode: Local npm installation for offline compatibility
+//   - AWF mode: Global installation + AWF binary
+
+package workflow
+
+import (
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var copilotInstallLog = logger.New("workflow:copilot_engine_installation")
+
+// GetSecretValidationStep returns the secret validation step for the Copilot engine.
+// Returns an empty step if:
+//   - permissions.copilot-requests is set to write (uses GitHub Actions token instead), or
+//   - COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_API_KEY, or COPILOT_PROVIDER_BEARER_TOKEN is set in engine.env
+//     (BYOK mode — the external provider handles authentication, so COPILOT_GITHUB_TOKEN
+//     is not required for model routing).
+func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
+	if hasCopilotRequestsWritePermission(workflowData) {
+		copilotInstallLog.Print("Skipping secret validation step: permissions.copilot-requests=write enabled, using GitHub Actions token")
+		return GitHubActionStep{}
+	}
+	if engineEnvHasKey(workflowData, constants.CopilotProviderBaseURL) ||
+		engineEnvHasKey(workflowData, constants.CopilotProviderAPIKey) ||
+		engineEnvHasKey(workflowData, constants.CopilotProviderBearerToken) {
+		copilotInstallLog.Print("Skipping COPILOT_GITHUB_TOKEN validation: BYOK provider credentials are configured")
+		return GitHubActionStep{}
+	}
+	return BuildDefaultSecretValidationStep(
+		workflowData,
+		[]string{"COPILOT_GITHUB_TOKEN"},
+		"GitHub Copilot CLI",
+		"https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
+	)
+}
+
+// GetInstallationSteps generates the complete installation workflow for Copilot CLI.
+// This includes Node.js setup, sandbox installation (SRT or AWF), and Copilot CLI installation.
+// Secret validation is handled separately in the activation job via GetSecretValidationStep.
+// The installation order is:
+// 1. Node.js setup
+// 2. Sandbox installation (AWF, if needed)
+// 3. Copilot CLI installation
+//
+// If a custom command is specified in the engine configuration, this function skips
+// standard Copilot CLI installation. When firewall is enabled, it still returns AWF
+// runtime installation steps required for harness execution.
+func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	copilotInstallLog.Printf("Generating installation steps for Copilot engine: workflow=%s", workflowData.Name)
+
+	// Skip standard Copilot CLI installation if custom command is specified.
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		// Keep firewall runtime installation when firewall is enabled, since the
+		// custom engine command still runs inside the AWF harness.
+		if isFirewallEnabled(workflowData) {
+			copilotInstallLog.Printf("Skipping Copilot CLI installation: custom command specified (%s); keeping AWF runtime installation because firewall is enabled", workflowData.EngineConfig.Command)
+			return BuildNpmEngineInstallStepsWithAWF([]GitHubActionStep{}, workflowData)
+		}
+		copilotInstallLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return []GitHubActionStep{}
+	}
+
+	// Copilot CLI is pinned to the default version constant.
+	copilotVersion := string(constants.DefaultCopilotVersion)
+	if workflowData.EngineConfig != nil {
+		if workflowData.EngineConfig.Version != "" {
+			copilotInstallLog.Printf("Ignoring pinned engine.version (%s): Copilot CLI install version is pinned to %s", workflowData.EngineConfig.Version, copilotVersion)
+		}
+		// Normalize engine config version to effective installed version so
+		// downstream checks that consult EngineConfig.Version stay consistent.
+		// This applies even when the original version was empty (unset), so all
+		// downstream consumers observe the effective installed value.
+		// This mutates workflowData by design because subsequent generation steps
+		// in the same compile flow should observe the effective installed version.
+		// Callers that reuse the same WorkflowData instance should expect this
+		// field to be rewritten after installation-step generation.
+		workflowData.EngineConfig.Version = copilotVersion
+	}
+
+	// Use the installer script for global installation
+	copilotInstallLog.Print("Using new installer script for Copilot installation")
+	npmSteps := GenerateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI")
+	steps := BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
+
+	return steps
+}
+
+// generateAWFInstallationStep creates a GitHub Actions step to install the AWF binary
+// with SHA256 checksum verification to protect against supply chain attacks.
+//
+// The installation logic is implemented in a separate shell script (install_awf_binary.sh)
+// which downloads the binary directly from GitHub releases, verifies its checksum against
+// the official checksums.txt file, and installs it. This approach:
+// - Eliminates trust in the installer script itself
+// - Provides full transparency of the installation process
+// - Protects against tampered or compromised installer scripts
+// - Verifies the binary integrity before execution
+//
+// If a custom command is specified in the agent config, the installation is skipped
+// as the custom command replaces the AWF binary.
+func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig) GitHubActionStep {
+	// If custom command is specified, skip installation (command replaces binary)
+	if agentConfig != nil && agentConfig.Command != "" {
+		copilotInstallLog.Print("Skipping AWF binary installation (custom command specified)")
+		// Return empty step - custom command will be used in execution
+		return GitHubActionStep([]string{})
+	}
+
+	// Use default version for logging when not specified
+	if version == "" {
+		version = string(constants.DefaultFirewallVersion)
+	}
+
+	stepLines := []string{
+		"      - name: Install AWF binary",
+		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh\" " + version,
+	}
+
+	return GitHubActionStep(stepLines)
+}

@@ -1,0 +1,7 @@
+Workflow Results
+╭───┬──────────┬───────────╮
+│ID │Name      │Status     │
+├───┼──────────┼───────────┤
+│123│workflow-1│completed  │
+│456│workflow-2│in_progress│
+╰───┴──────────┴───────────╯

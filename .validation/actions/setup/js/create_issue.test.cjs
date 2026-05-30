@@ -1,0 +1,1146 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const { main } = require("./create_issue.cjs");
+
+describe("create_issue", () => {
+  let mockGithub;
+  let mockCore;
+  let mockContext;
+  let mockExec;
+  let originalEnv;
+
+  beforeEach(() => {
+    // Save original environment
+    originalEnv = { ...process.env };
+
+    // Mock GitHub API
+    mockGithub = {
+      rest: {
+        issues: {
+          create: vi.fn().mockResolvedValue({
+            data: {
+              number: 123,
+              html_url: "https://github.com/owner/repo/issues/123",
+              title: "Test Issue",
+            },
+          }),
+          createComment: vi.fn().mockResolvedValue({
+            data: {
+              id: 456,
+              html_url: "https://github.com/owner/repo/issues/99#issuecomment-456",
+            },
+          }),
+        },
+        search: {
+          issuesAndPullRequests: vi.fn().mockResolvedValue({
+            data: {
+              total_count: 0,
+              items: [],
+            },
+          }),
+        },
+        rateLimit: {
+          get: vi.fn().mockResolvedValue({
+            data: {
+              resources: {
+                search: {
+                  remaining: 1000,
+                },
+              },
+            },
+          }),
+        },
+      },
+      graphql: vi.fn(),
+    };
+
+    // Mock Core
+    mockCore = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setOutput: vi.fn(),
+    };
+
+    // Mock Context
+    mockContext = {
+      repo: { owner: "test-owner", repo: "test-repo" },
+      runId: 12345,
+      payload: {
+        repository: {
+          html_url: "https://github.com/test-owner/test-repo",
+        },
+      },
+    };
+
+    // Mock Exec
+    mockExec = {
+      exec: vi.fn().mockResolvedValue(0),
+    };
+
+    // Set globals
+    global.github = mockGithub;
+    global.core = mockCore;
+    global.context = mockContext;
+    global.exec = mockExec;
+
+    // Set required environment variables
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GH_AW_WORKFLOW_SOURCE_URL = "https://github.com/owner/repo/blob/main/workflow.md";
+  });
+
+  afterEach(() => {
+    // Restore environment by mutating process.env in place
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+    vi.clearAllMocks();
+  });
+
+  describe("basic issue creation", () => {
+    it("should create issue with title and body", async () => {
+      const handler = await main({});
+      const result = await handler({
+        title: "Test Issue",
+        body: "Test body content",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(123);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: "test-owner",
+          repo: "test-repo",
+          title: "Test Issue",
+          body: expect.stringContaining("Test body content"),
+        })
+      );
+    });
+
+    it("should use body as title when title is missing", async () => {
+      const handler = await main({});
+      const result = await handler({
+        body: "This is the body",
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "This is the body",
+        })
+      );
+    });
+
+    it("should use 'Agent Output' as title when both title and body are missing", async () => {
+      const handler = await main({});
+      const result = await handler({});
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Agent Output",
+        })
+      );
+    });
+  });
+
+  describe("labels handling", () => {
+    it("should apply default labels from config", async () => {
+      const handler = await main({
+        labels: ["bug", "enhancement"],
+      });
+      await handler({ title: "Test" });
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          labels: expect.arrayContaining(["bug", "enhancement"]),
+        })
+      );
+    });
+
+    it("should merge message labels with config labels", async () => {
+      const handler = await main({
+        labels: ["config-label"],
+      });
+      await handler({
+        title: "Test",
+        labels: ["message-label"],
+      });
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          labels: expect.arrayContaining(["config-label", "message-label"]),
+        })
+      );
+    });
+
+    it("should deduplicate labels", async () => {
+      const handler = await main({
+        labels: ["bug", "duplicate"],
+      });
+      await handler({
+        title: "Test",
+        labels: ["duplicate", "enhancement"],
+      });
+
+      const call = mockGithub.rest.issues.create.mock.calls[0][0];
+      expect(call.labels.filter(l => l === "duplicate")).toHaveLength(1);
+    });
+
+    it("should truncate labels to 64 characters", async () => {
+      const longLabel = "a".repeat(100);
+      const handler = await main({
+        labels: [longLabel],
+      });
+      await handler({ title: "Test" });
+
+      const call = mockGithub.rest.issues.create.mock.calls[0][0];
+      expect(call.labels[0]).toHaveLength(64);
+    });
+  });
+
+  describe("issue fields handling", () => {
+    it("should apply issue fields after issue creation", async () => {
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          repository: {
+            issue: { id: "ISSUE_NODE_ID" },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            issueFields: {
+              nodes: [{ id: "FIELD_PRIORITY", name: "Priority", dataType: "SINGLE_SELECT", options: [{ id: "OPTION_HIGH", name: "High" }] }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          setIssueFieldValue: {
+            issue: { id: "ISSUE_NODE_ID" },
+          },
+        });
+
+      const handler = await main({});
+      const result = await handler({
+        title: "Issue with fields",
+        body: "Body",
+        fields: [{ name: "Priority", value: "High" }],
+      });
+
+      expect(result.success).toBe(true);
+      const mutationCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("setIssueFieldValue"));
+      expect(mutationCall).toBeDefined();
+      expect(mutationCall[1].input.issueFields).toEqual([{ fieldId: "FIELD_PRIORITY", singleSelectOptionId: "OPTION_HIGH" }]);
+    });
+
+    it("should return actionable error for unknown issue field name", async () => {
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          repository: {
+            issue: { id: "ISSUE_NODE_ID" },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            issueFields: {
+              nodes: [{ id: "FIELD_PRIORITY", name: "Priority", dataType: "TEXT" }],
+            },
+          },
+        });
+
+      const handler = await main({});
+      const result = await handler({
+        title: "Issue with invalid field",
+        body: "Body",
+        fields: [{ name: "Iteration", value: "Sprint 1" }],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('unknown issue field "Iteration"');
+      expect(result.error).toContain("Available fields: Priority");
+    });
+
+    it("should return actionable error for invalid single-select option", async () => {
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          repository: {
+            issue: { id: "ISSUE_NODE_ID" },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            issueFields: {
+              nodes: [{ id: "FIELD_PRIORITY", name: "Priority", dataType: "SINGLE_SELECT", options: [{ id: "OPTION_HIGH", name: "High" }] }],
+            },
+          },
+        });
+
+      const handler = await main({});
+      const result = await handler({
+        title: "Issue with invalid option",
+        body: "Body",
+        fields: [{ name: "Priority", value: "Low" }],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('invalid option "Low" for issue field "Priority"');
+      expect(result.error).toContain("Available options: High");
+    });
+
+    it("should enforce configured allowed-fields list", async () => {
+      const handler = await main({
+        allowed_fields: ["Priority", "Iteration"],
+      });
+      const result = await handler({
+        title: "Issue with disallowed field",
+        body: "Body",
+        fields: [{ name: "Customer Impact", value: "High" }],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('issue field "Customer Impact" is not in the allowed-fields list: Priority, Iteration');
+    });
+
+    it("should allow any field when allowed-fields includes wildcard", async () => {
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          repository: {
+            issue: { id: "ISSUE_NODE_ID" },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            issueFields: {
+              nodes: [{ id: "FIELD_IMPACT", name: "Customer Impact", dataType: "TEXT" }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          setIssueFieldValue: {
+            issue: { id: "ISSUE_NODE_ID" },
+          },
+        });
+
+      const handler = await main({
+        allowed_fields: ["*"],
+      });
+      const result = await handler({
+        title: "Issue with wildcard fields",
+        body: "Body",
+        fields: [{ name: "Customer Impact", value: "High" }],
+      });
+
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe("assignees handling", () => {
+    it("should apply default assignees from config", async () => {
+      const handler = await main({
+        assignees: ["user1", "user2"],
+      });
+      await handler({ title: "Test" });
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assignees: expect.arrayContaining(["user1", "user2"]),
+        })
+      );
+    });
+
+    it("should filter out 'copilot' from assignees", async () => {
+      const handler = await main({
+        assignees: ["user1", "copilot", "user2"],
+      });
+      await handler({ title: "Test" });
+
+      const call = mockGithub.rest.issues.create.mock.calls[0][0];
+      expect(call.assignees).not.toContain("copilot");
+      expect(call.assignees).toContain("user1");
+      expect(call.assignees).toContain("user2");
+    });
+
+    it("should assign copilot directly when enabled", async () => {
+      process.env.GH_AW_ASSIGN_COPILOT = "true";
+
+      // Mock findAgent
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          repository: {
+            suggestedActors: {
+              nodes: [{ id: "COPILOT_AGENT_ID", login: "copilot-swe-agent", __typename: "Bot" }],
+            },
+          },
+        })
+        // Mock getIssueDetails
+        .mockResolvedValueOnce({
+          repository: {
+            issue: {
+              id: "ISSUE_NODE_ID",
+              assignees: { nodes: [] },
+            },
+          },
+        })
+        // Mock assignAgentToIssue mutation
+        .mockResolvedValueOnce({
+          replaceActorsForAssignable: { __typename: "ReplaceActorsForAssignablePayload" },
+        });
+
+      const handler = await main({
+        assignees: ["copilot"],
+      });
+      await handler({ title: "Test" });
+
+      // Verify graphql was called three times (findAgent, getIssueDetails, assignAgentToIssue)
+      expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe("max count limit", () => {
+    it("should respect max count limit", async () => {
+      const handler = await main({ max: 2 });
+
+      const result1 = await handler({ title: "Issue 1" });
+      const result2 = await handler({ title: "Issue 2" });
+      const result3 = await handler({ title: "Issue 3" });
+
+      expect(result1.success).toBe(true);
+      expect(result2.success).toBe(true);
+      expect(result3.success).toBe(false);
+      expect(result3.error).toContain("Max count of 2 reached");
+    });
+
+    it("should respect max count limit under concurrent calls with group-by-day pre-check", async () => {
+      const handler = await main({
+        max: 1,
+        group_by_day: true,
+        close_older_key: "concurrency-key",
+      });
+
+      const [result1, result2] = await Promise.all([handler({ title: "Issue 1" }), handler({ title: "Issue 2" })]);
+      const results = [result1, result2];
+      const successes = results.filter(result => result.success);
+      const failures = results.filter(result => !result.success);
+
+      expect(successes).toHaveLength(1);
+      expect(failures).toHaveLength(1);
+      expect(failures[0].error).toContain("Max count of 1 reached");
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("title prefix", () => {
+    it("should apply title prefix", async () => {
+      const handler = await main({
+        title_prefix: "[AUTO] ",
+      });
+      await handler({ title: "Test Issue" });
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "[AUTO] Test Issue",
+        })
+      );
+    });
+
+    it("should not duplicate prefix if already present", async () => {
+      const handler = await main({
+        title_prefix: "[AUTO] ",
+      });
+      await handler({ title: "[AUTO] Test Issue" });
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "[AUTO] Test Issue",
+        })
+      );
+    });
+  });
+
+  describe("deduplicate-by-title", () => {
+    it("should drop within-run duplicates when enabled as boolean", async () => {
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+
+      const first = await handler({ title: "Duplicate title" });
+      const second = await handler({ title: "Duplicate title" });
+
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
+      expect(second.dropped_duplicate).toBe(true);
+      expect(second.dedup_source).toBe("within-run");
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("should drop fuzzy duplicates based on Levenshtein distance", async () => {
+      const handler = await main({
+        deduplicate_by_title: 1,
+      });
+
+      const first = await handler({ title: "Fix login bug" });
+      const second = await handler({ title: "Fix login bag" });
+
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
+      expect(second.dropped_duplicate).toBe(true);
+      expect(second.duplicate_distance).toBe(1);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("should drop duplicates that already exist in the repository", async () => {
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          data: {
+            items: [{ title: "Existing title in repo", number: 99 }],
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            items: [],
+          },
+        });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const result = await handler({ title: "Existing title in repo" });
+
+      expect(result.success).toBe(true);
+      expect(result.dropped_duplicate).toBe(true);
+      expect(result.dedup_source).toBe("repo-level");
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
+    it("should deduplicate repeated repo-level duplicates within the same run", async () => {
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          data: {
+            total_count: 1,
+            items: [{ title: "Existing title in repo", number: 99 }],
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            total_count: 0,
+            items: [],
+          },
+        });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const first = await handler({ title: "Existing title in repo" });
+      const second = await handler({ title: "Existing title in repo" });
+
+      expect(first.success).toBe(true);
+      expect(first.dropped_duplicate).toBe(true);
+      expect(first.dedup_source).toBe("repo-level");
+      expect(second.success).toBe(true);
+      expect(second.dropped_duplicate).toBe(true);
+      expect(second.dedup_source).toBe("within-run");
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledTimes(2);
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
+    it("should cache repo-level dedup candidates within a run", async () => {
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+
+      const first = await handler({ title: "First unique title" });
+      const second = await handler({ title: "Second unique title" });
+
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(2);
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledTimes(2);
+    });
+
+    it("should paginate repo-level dedup searches", async () => {
+      const openPageOneItems = Array.from({ length: 100 }, (_, index) => ({ title: `Open issue ${index}` }));
+      mockGithub.rest.search.issuesAndPullRequests.mockImplementation(({ q, page = 1 }) => {
+        if (q.includes("is:open")) {
+          if (page === 1) {
+            return Promise.resolve({
+              data: {
+                total_count: 101,
+                items: openPageOneItems,
+              },
+            });
+          }
+          return Promise.resolve({
+            data: {
+              total_count: 101,
+              items: [{ title: "Existing title in repo" }],
+            },
+          });
+        }
+
+        return Promise.resolve({
+          data: {
+            total_count: 0,
+            items: [],
+          },
+        });
+      });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const result = await handler({ title: "Existing title in repo" });
+
+      expect(result.success).toBe(true);
+      expect(result.dropped_duplicate).toBe(true);
+      expect(result.dedup_source).toBe("repo-level");
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith(
+        expect.objectContaining({
+          q: expect.stringContaining("is:open"),
+          page: 2,
+        })
+      );
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+
+    it("should warn when repo-level dedup search is truncated at page cap", async () => {
+      const pageItems = Array.from({ length: 100 }, (_, index) => ({ title: `Open issue ${index}` }));
+      mockGithub.rest.search.issuesAndPullRequests.mockImplementation(({ q, page = 1 }) => {
+        if (q.includes("is:open")) {
+          return Promise.resolve({
+            data: {
+              total_count: 305,
+              items: page <= 2 ? pageItems : [],
+            },
+          });
+        }
+
+        return Promise.resolve({
+          data: {
+            total_count: 0,
+            items: [],
+          },
+        });
+      });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const result = await handler({ title: "Completely new title" });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("truncated"));
+    });
+
+    it("should skip repo-level search when search rate limit is low and still deduplicate within-run", async () => {
+      mockGithub.rest.rateLimit.get.mockResolvedValue({
+        data: {
+          resources: {
+            search: {
+              remaining: 1,
+            },
+          },
+        },
+      });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const first = await handler({ title: "Rate limited title" });
+      const second = await handler({ title: "Rate limited title" });
+
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(true);
+      expect(second.dropped_duplicate).toBe(true);
+      expect(second.dedup_source).toBe("within-run");
+      expect(mockGithub.rest.rateLimit.get).toHaveBeenCalledTimes(1);
+      expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Skipping repo-level title dedup search"));
+    });
+
+    it("should reject invalid deduplicate-by-title configuration", async () => {
+      await expect(main({ deduplicate_by_title: "invalid" })).rejects.toThrow("deduplicate-by-title");
+      await expect(main({ deduplicate_by_title: 101 })).rejects.toThrow("deduplicate-by-title");
+    });
+  });
+
+  describe("repository targeting", () => {
+    it("should create issue in specified repo", async () => {
+      const handler = await main({
+        allowed_repos: "owner/other-repo,test-owner/test-repo",
+      });
+      await handler({
+        title: "Test",
+        repo: "owner/other-repo",
+      });
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: "owner",
+          repo: "other-repo",
+        })
+      );
+    });
+
+    it("should reject disallowed repository", async () => {
+      const handler = await main({
+        allowed_repos: "owner/allowed-repo",
+      });
+      const result = await handler({
+        title: "Test",
+        repo: "owner/disallowed-repo",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("is not in the allowed-repos list");
+    });
+
+    it("should use default repo when message repo is not specified", async () => {
+      const handler = await main({});
+      await handler({ title: "Test" });
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: "test-owner",
+          repo: "test-repo",
+        })
+      );
+    });
+    it("should create issue in specified repo when target-repo is wildcard *", async () => {
+      const handler = await main({
+        "target-repo": "*",
+      });
+      await handler({
+        title: "Test",
+        repo: "any-org/any-repo",
+      });
+
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: "any-org",
+          repo: "any-repo",
+        })
+      );
+    });
+
+    it("should reject invalid repo slug when target-repo is wildcard *", async () => {
+      const handler = await main({
+        "target-repo": "*",
+      });
+      const result = await handler({
+        title: "Test",
+        repo: "bare-repo-without-slash",
+      });
+
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("temporary ID management", () => {
+    it("should generate temporary ID when not provided", async () => {
+      const handler = await main({});
+      const result = await handler({ title: "Test" });
+
+      expect(result.temporaryId).toMatch(/^aw_[A-Za-z0-9]{3,8}$/);
+    });
+
+    it("should use provided temporary ID", async () => {
+      const handler = await main({});
+      const result = await handler({
+        title: "Test",
+        temporary_id: "aw_abc123",
+      });
+
+      expect(result.temporaryId).toBe("aw_abc123");
+    });
+
+    it("should track temporary ID after creating issue", async () => {
+      const handler = await main({});
+
+      const result = await handler({
+        title: "Test Issue",
+        temporary_id: "aw_deadbeef",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.temporaryId).toBe("aw_deadbeef");
+      expect(result.number).toBe(123);
+    });
+  });
+
+  describe("error handling", () => {
+    it("should handle issues disabled error gracefully", async () => {
+      mockGithub.rest.issues.create.mockRejectedValueOnce(new Error("Issues has been disabled in this repository"));
+
+      const handler = await main({});
+      const result = await handler({ title: "Test" });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Issues disabled for repository");
+    });
+
+    it("should handle generic API errors", async () => {
+      mockGithub.rest.issues.create.mockRejectedValueOnce(new Error("API Error"));
+
+      const handler = await main({});
+      const result = await handler({ title: "Test" });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("API Error");
+    });
+  });
+
+  describe("parent issue relationships", () => {
+    it("should add 'Related to' reference when parent is numeric", async () => {
+      const handler = await main({});
+      await handler({
+        title: "Test",
+        parent: 456,
+      });
+
+      const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
+      expect(createCall.body).toContain("Related to #456");
+    });
+
+    it("should add parent reference for numeric parent", async () => {
+      const handler = await main({});
+      await handler({
+        title: "Child Issue",
+        parent: 456,
+      });
+
+      const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
+      expect(createCall.body).toContain("Related to #456");
+    });
+  });
+
+  describe("max limit enforcement", () => {
+    it("should enforce max limit on labels", async () => {
+      const handler = await main({});
+
+      const result = await handler({
+        title: "Test Issue",
+        body: "Test body",
+        labels: [
+          "label1",
+          "label2",
+          "label3",
+          "label4",
+          "label5",
+          "label6",
+          "label7",
+          "label8",
+          "label9",
+          "label10",
+          "label11", // 11th label exceeds limit
+        ],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("E003");
+      expect(result.error).toContain("Cannot add more than 10 labels");
+      expect(result.error).toContain("received 11");
+    });
+
+    it("should enforce max limit on assignees", async () => {
+      const handler = await main({});
+
+      const result = await handler({
+        title: "Test Issue",
+        body: "Test body",
+        assignees: ["user1", "user2", "user3", "user4", "user5", "user6"], // 6 assignees exceeds limit of 5
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("E003");
+      expect(result.error).toContain("Cannot add more than 5 assignees");
+      expect(result.error).toContain("received 6");
+    });
+  });
+
+  describe("group-by-day mode", () => {
+    it("should post new content as a comment if an open issue was already created today", async () => {
+      const today = new Date().toISOString().split("T")[0];
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValueOnce({
+        data: {
+          total_count: 1,
+          items: [
+            {
+              number: 99,
+              title: "[Contribution Check Report] Contribution Check",
+              html_url: "https://github.com/test-owner/test-repo/issues/99",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+              created_at: `${today}T10:00:00Z`,
+              state: "open",
+              pull_request: undefined,
+            },
+          ],
+        },
+      });
+
+      const handler = await main({ group_by_day: true, close_older_issues: true });
+      const result = await handler({ title: "Test Issue", body: "Test body" });
+
+      expect(result.success).toBe(true);
+      expect(result.grouped).toBe(true);
+      expect(result.existingIssueNumber).toBe(99);
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+      expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 99 }));
+    });
+
+    it("should create issue if no open issue was created today", async () => {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValueOnce({
+        data: {
+          total_count: 1,
+          items: [
+            {
+              number: 50,
+              title: "[Contribution Check Report] Contribution Check",
+              html_url: "https://github.com/test-owner/test-repo/issues/50",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+              created_at: `${yesterday}T10:00:00Z`,
+              state: "open",
+              pull_request: undefined,
+            },
+          ],
+        },
+      });
+
+      const handler = await main({ group_by_day: true, close_older_issues: true });
+      const result = await handler({ title: "Test Issue", body: "Test body" });
+
+      expect(result.success).toBe(true);
+      expect(result.grouped).toBeUndefined();
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
+    });
+
+    it("should create issue if no existing issues are found", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValueOnce({
+        data: { total_count: 0, items: [] },
+      });
+
+      const handler = await main({ group_by_day: true, close_older_issues: true });
+      const result = await handler({ title: "Test Issue", body: "Test body" });
+
+      expect(result.success).toBe(true);
+      expect(result.grouped).toBeUndefined();
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
+    });
+
+    it("should proceed with creation if group-by-day pre-check throws", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockRejectedValueOnce(new Error("Search API error"));
+
+      const handler = await main({ group_by_day: true, close_older_issues: true });
+      const result = await handler({ title: "Test Issue", body: "Test body" });
+
+      expect(result.success).toBe(true);
+      expect(result.grouped).toBeUndefined();
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Group-by-day pre-check failed"));
+    });
+
+    it("should not group if group-by-day is false even with today's issue", async () => {
+      const today = new Date().toISOString().split("T")[0];
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          total_count: 1,
+          items: [
+            {
+              number: 77,
+              title: "Existing Issue",
+              html_url: "https://github.com/test-owner/test-repo/issues/77",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+              created_at: `${today}T10:00:00Z`,
+              state: "open",
+              pull_request: undefined,
+            },
+          ],
+        },
+      });
+
+      // group_by_day is false (default) — creation should NOT be grouped
+      const handler = await main({ close_older_issues: false });
+      const result = await handler({ title: "Test Issue", body: "Test body" });
+
+      expect(result.success).toBe(true);
+      expect(result.grouped).toBeUndefined();
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
+    });
+
+    it("should not consume max count slot when grouped", async () => {
+      const today = new Date().toISOString().split("T")[0];
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          total_count: 1,
+          items: [
+            {
+              number: 88,
+              title: "Existing Issue",
+              html_url: "https://github.com/test-owner/test-repo/issues/88",
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+              created_at: `${today}T10:00:00Z`,
+              state: "open",
+              pull_request: undefined,
+            },
+          ],
+        },
+      });
+
+      const handler = await main({ group_by_day: true, close_older_issues: true, max: 1 });
+
+      // First call is grouped — max slot should not be consumed
+      const result1 = await handler({ title: "First Issue", body: "Body" });
+      expect(result1.grouped).toBe(true);
+
+      // Second call also finds today's issue — also grouped
+      const result2 = await handler({ title: "Second Issue", body: "Body" });
+      expect(result2.grouped).toBe(true);
+
+      // Neither call should have created an issue
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("body sanitization", () => {
+    it("should neutralize @mentions in issue body", async () => {
+      const handler = await main({});
+      await handler({
+        title: "Test Issue",
+        body: "This issue was caused by @malicious-user and references @another-user.",
+      });
+
+      const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
+      expect(createCall.body).toContain("`@malicious-user`");
+      expect(createCall.body).toContain("`@another-user`");
+      expect(createCall.body).not.toMatch(/(?<![`])@malicious-user(?![`])/);
+      expect(createCall.body).not.toMatch(/(?<![`])@another-user(?![`])/);
+    });
+
+    it("should sanitize @mentions in body but not affect footer markers", async () => {
+      const handler = await main({});
+      await handler({
+        title: "Test Issue",
+        body: "Please notify @someone about this.",
+      });
+
+      const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
+      expect(createCall.body).toContain("`@someone`");
+      // Footer marker should still be present
+      expect(createCall.body).toContain("gh-aw-workflow-id");
+    });
+
+    it("should preserve allowlisted mentions when mentions config is provided", async () => {
+      const handler = await main({
+        mentions: { allowTeamMembers: false, allowContext: false, allowed: ["copilot"] },
+      });
+      await handler({
+        title: "Test Issue",
+        body: "Please ask @copilot and @someone-else to review this.",
+      });
+
+      const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
+      expect(createCall.body).toContain("@copilot");
+      expect(createCall.body).not.toContain("`@copilot`");
+      expect(createCall.body).toContain("`@someone-else`");
+    });
+  });
+
+  describe("retry on rate limit errors", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("should retry issue creation on transient rate limit error and succeed", async () => {
+      mockGithub.rest.issues.create = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Secondary rate limit hit"))
+        .mockResolvedValue({
+          data: {
+            number: 456,
+            html_url: "https://github.com/owner/repo/issues/456",
+            title: "Retried Issue",
+          },
+        });
+
+      const handler = await main({});
+      const resultPromise = handler({
+        title: "Retried Issue",
+        body: "Test body",
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(456);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(2);
+    });
+
+    it("should fail after exhausting retries on persistent rate limit error", async () => {
+      mockGithub.rest.issues.create = vi.fn().mockRejectedValue(new Error("Secondary rate limit hit"));
+
+      const handler = await main({});
+      const resultPromise = handler({
+        title: "Failing Issue",
+        body: "Test body",
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+      // 1 initial + 5 retries = 6 calls (RATE_LIMIT_RETRY_CONFIG.maxRetries = 5)
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(6);
+    });
+
+    it("should have retry delays that never exceed maxDelayMs + jitterMs", async () => {
+      const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+
+      mockGithub.rest.issues.create = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Secondary rate limit hit"))
+        .mockRejectedValueOnce(new Error("Secondary rate limit hit"))
+        .mockResolvedValue({
+          data: {
+            number: 789,
+            html_url: "https://github.com/owner/repo/issues/789",
+            title: "Bounded Delay Issue",
+          },
+        });
+
+      const handler = await main({});
+      const resultPromise = handler({
+        title: "Bounded Delay Issue",
+        body: "Test body",
+      });
+
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      // create_issue uses RATE_LIMIT_RETRY_CONFIG: { initialDelayMs: 15000, maxDelayMs: 240000, jitterMs: 5000 }
+      // Maximum possible delay per retry = maxDelayMs + jitterMs = 245000ms
+      const maxBound = 245000;
+      // Filter out short setTimeout calls (e.g. from test infrastructure) to isolate retry delays
+      const sleepDelays = setTimeoutSpy.mock.calls.filter(([, ms]) => ms > 1000).map(([, ms]) => ms);
+
+      for (const delay of sleepDelays) {
+        expect(delay).toBeLessThanOrEqual(maxBound);
+      }
+
+      setTimeoutSpy.mockRestore();
+    });
+  });
+});

@@ -1,0 +1,811 @@
+// This file provides repository memory configuration and generation.
+//
+// This file handles:
+//   - Repo-memory configuration structures and defaults
+//   - Repo-memory tool configuration extraction and parsing
+//   - Generation of per-memory GitHub token secrets
+//
+// See repo_memory_validation.go for validation functions.
+
+package workflow
+
+import (
+	"encoding/json"
+	"fmt"
+	"regexp"
+	"sort"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var repoMemoryLog = logger.New("workflow:repo_memory")
+
+const (
+	// defaultRepoMemoryMaxFileSize is the default maximum file size in bytes (100KB).
+	defaultRepoMemoryMaxFileSize = 102400
+	// defaultRepoMemoryMaxPatchSize is the default maximum total patch size in bytes (10KB).
+	defaultRepoMemoryMaxPatchSize = 10240
+	// maxRepoMemoryPatchSize is the maximum allowed value for max-patch-size (1MB).
+	maxRepoMemoryPatchSize = 1048576
+)
+
+// Pre-compiled regexes for performance (avoid recompilation in hot paths)
+var (
+	// branchPrefixValidPattern matches valid branch prefix characters (alphanumeric, hyphens, underscores)
+	branchPrefixValidPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+)
+
+// RepoMemoryConfig holds configuration for repo-memory functionality
+type RepoMemoryConfig struct {
+	BranchPrefix string            `yaml:"branch-prefix,omitempty"` // branch prefix (default: "memory")
+	Memories     []RepoMemoryEntry `yaml:"memories,omitempty"`      // repo-memory configurations
+}
+
+// RepoMemoryEntry represents a single repo-memory configuration
+type RepoMemoryEntry struct {
+	ID                string   `yaml:"id"`                           // memory identifier (required for array notation)
+	TargetRepo        string   `yaml:"target-repo,omitempty"`        // target repository (default: current repo)
+	BranchName        string   `yaml:"branch-name,omitempty"`        // branch name (default: memory/{memory-id})
+	FileGlob          []string `yaml:"file-glob,omitempty"`          // file glob patterns for allowed files
+	MaxFileSize       int      `yaml:"max-file-size,omitempty"`      // maximum size per file in bytes (default: 100KB)
+	MaxFileCount      int      `yaml:"max-file-count,omitempty"`     // maximum file count per commit (default: 100)
+	MaxPatchSize      int      `yaml:"max-patch-size,omitempty"`     // maximum total patch size in bytes (default: 10KB, max: 1MB)
+	Description       string   `yaml:"description,omitempty"`        // optional description for this memory
+	CreateOrphan      bool     `yaml:"create-orphan,omitempty"`      // create orphaned branch if missing (default: true)
+	AllowedExtensions []string `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"])
+	Wiki              bool     `yaml:"wiki,omitempty"`               // use the GitHub Wiki git repository instead of the regular repo
+}
+
+// RepoMemoryToolConfig represents the configuration for repo-memory in tools
+type RepoMemoryToolConfig struct {
+	// Can be boolean, object, or array - handled by this file
+	Raw any `yaml:"-"`
+}
+
+// generateDefaultBranchName generates a default branch name for a given memory ID and prefix
+func generateDefaultBranchName(memoryID string, branchPrefix string) string {
+	if branchPrefix == "" {
+		branchPrefix = "memory"
+	}
+	return fmt.Sprintf("%s/%s", branchPrefix, memoryID)
+}
+
+// extractRepoMemoryConfig extracts repo-memory configuration from tools section.
+// workflowID is used to qualify the default branch name (e.g. "memory/{workflowID}").
+func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig, workflowID string) (*RepoMemoryConfig, error) {
+	// Check if repo-memory tool is configured
+	if toolsConfig == nil || toolsConfig.RepoMemory == nil {
+		return nil, nil
+	}
+
+	repoMemoryLog.Print("Extracting repo-memory configuration from ToolsConfig")
+
+	config := &RepoMemoryConfig{
+		BranchPrefix: "memory", // Default branch prefix
+	}
+	repoMemoryValue := toolsConfig.RepoMemory.Raw
+
+	// defaultMemoryBranchID returns workflowID when set, otherwise "default".
+	// This qualifies the default branch name by workflow, e.g. "memory/repo-assist".
+	defaultMemoryBranchID := func() string {
+		if workflowID != "" {
+			return workflowID
+		}
+		return "default"
+	}
+
+	// Handle nil value (simple enable with defaults) - same as true
+	if repoMemoryValue == nil {
+		repoMemoryLog.Print("Using default repo-memory configuration (nil value)")
+		config.Memories = []RepoMemoryEntry{
+			{
+				ID:                "default",
+				BranchName:        generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
+				MaxFileSize:       defaultRepoMemoryMaxFileSize, // 100KB
+				MaxFileCount:      100,
+				MaxPatchSize:      defaultRepoMemoryMaxPatchSize, // 10KB
+				CreateOrphan:      true,
+				AllowedExtensions: constants.DefaultAllowedMemoryExtensions,
+			},
+		}
+		return config, nil
+	}
+
+	// Handle boolean value (simple enable/disable)
+	if boolValue, ok := repoMemoryValue.(bool); ok {
+		if boolValue {
+			repoMemoryLog.Print("Using default repo-memory configuration (boolean true)")
+			// Create a single default memory entry
+			config.Memories = []RepoMemoryEntry{
+				{
+					ID:                "default",
+					BranchName:        generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
+					MaxFileSize:       defaultRepoMemoryMaxFileSize, // 100KB
+					MaxFileCount:      100,
+					MaxPatchSize:      defaultRepoMemoryMaxPatchSize, // 10KB
+					CreateOrphan:      true,
+					AllowedExtensions: constants.DefaultAllowedMemoryExtensions,
+				},
+			}
+		} else {
+			repoMemoryLog.Print("Repo-memory disabled (boolean false)")
+		}
+		// If false, return empty config (empty array means disabled)
+		return config, nil
+	}
+
+	// Handle array of memory configurations
+	if memoryArray, ok := repoMemoryValue.([]any); ok {
+		repoMemoryLog.Printf("Processing memory array with %d entries", len(memoryArray))
+		config.Memories = make([]RepoMemoryEntry, 0, len(memoryArray))
+
+		// Parse branch-prefix from first item if it's a map with branch-prefix key
+		// This allows branch-prefix to be set at the top level for all memories
+		if len(memoryArray) > 0 {
+			if firstItem, ok := memoryArray[0].(map[string]any); ok {
+				if branchPrefix, exists := firstItem["branch-prefix"]; exists {
+					if prefixStr, ok := branchPrefix.(string); ok {
+						if err := validateBranchPrefix(prefixStr); err != nil {
+							return nil, err
+						}
+						config.BranchPrefix = prefixStr
+						repoMemoryLog.Printf("Using custom branch-prefix: %s", prefixStr)
+					}
+				}
+			}
+		}
+
+		for _, item := range memoryArray {
+			if memoryMap, ok := item.(map[string]any); ok {
+				entry := RepoMemoryEntry{
+					MaxFileSize:  defaultRepoMemoryMaxFileSize,  // 100KB default
+					MaxFileCount: 100,                           // 100 files default
+					MaxPatchSize: defaultRepoMemoryMaxPatchSize, // 10KB default
+					CreateOrphan: true,                          // create orphan by default
+				}
+
+				// ID is required for array notation
+				explicitID := false
+				if id, exists := memoryMap["id"]; exists {
+					if idStr, ok := id.(string); ok {
+						entry.ID = idStr
+						explicitID = true
+					}
+				}
+				// Use "default" if no ID specified
+				if entry.ID == "" {
+					entry.ID = "default"
+				}
+
+				// Parse target-repo
+				if targetRepo, exists := memoryMap["target-repo"]; exists {
+					if repoStr, ok := targetRepo.(string); ok {
+						entry.TargetRepo = repoStr
+					}
+				}
+
+				// Parse branch-name
+				explicitBranchName := false
+				if branchName, exists := memoryMap["branch-name"]; exists {
+					if branchStr, ok := branchName.(string); ok {
+						entry.BranchName = branchStr
+						explicitBranchName = true
+					}
+				}
+				// Set default branch name if not specified.
+				// When no explicit ID was provided (defaulted to "default"), qualify the branch by workflow ID.
+				if entry.BranchName == "" {
+					branchID := entry.ID
+					if !explicitID {
+						branchID = defaultMemoryBranchID()
+					}
+					entry.BranchName = generateDefaultBranchName(branchID, config.BranchPrefix)
+				}
+
+				// Parse file-glob
+				if fileGlob, exists := memoryMap["file-glob"]; exists {
+					if globArray, ok := fileGlob.([]any); ok {
+						entry.FileGlob = make([]string, 0, len(globArray))
+						for _, item := range globArray {
+							if str, ok := item.(string); ok {
+								entry.FileGlob = append(entry.FileGlob, str)
+							}
+						}
+					} else if globStr, ok := fileGlob.(string); ok {
+						// Allow single string to be treated as array of one
+						entry.FileGlob = []string{globStr}
+					}
+				}
+
+				// Parse max-file-size
+				if maxFileSize, exists := memoryMap["max-file-size"]; exists {
+					if sizeInt, ok := maxFileSize.(int); ok {
+						entry.MaxFileSize = sizeInt
+					} else if sizeFloat, ok := maxFileSize.(float64); ok {
+						entry.MaxFileSize = int(sizeFloat)
+					} else if sizeUint64, ok := maxFileSize.(uint64); ok {
+						entry.MaxFileSize = int(sizeUint64)
+					}
+					// Validate max-file-size bounds
+					if err := validateIntRange(entry.MaxFileSize, 1, 104857600, "max-file-size"); err != nil {
+						return nil, err
+					}
+				}
+
+				// Parse max-file-count
+				if maxFileCount, exists := memoryMap["max-file-count"]; exists {
+					if countInt, ok := maxFileCount.(int); ok {
+						entry.MaxFileCount = countInt
+					} else if countFloat, ok := maxFileCount.(float64); ok {
+						entry.MaxFileCount = int(countFloat)
+					} else if countUint64, ok := maxFileCount.(uint64); ok {
+						entry.MaxFileCount = int(countUint64)
+					}
+					// Validate max-file-count bounds
+					if err := validateIntRange(entry.MaxFileCount, 1, 1000, "max-file-count"); err != nil {
+						return nil, err
+					}
+				}
+
+				// Parse max-patch-size
+				if maxPatchSize, exists := memoryMap["max-patch-size"]; exists {
+					if sizeInt, ok := maxPatchSize.(int); ok {
+						entry.MaxPatchSize = sizeInt
+					} else if sizeFloat, ok := maxPatchSize.(float64); ok {
+						entry.MaxPatchSize = int(sizeFloat)
+					} else if sizeUint64, ok := maxPatchSize.(uint64); ok {
+						entry.MaxPatchSize = int(sizeUint64)
+					}
+					// Validate max-patch-size bounds
+					if err := validateIntRange(entry.MaxPatchSize, 1, maxRepoMemoryPatchSize, "max-patch-size"); err != nil {
+						return nil, err
+					}
+				}
+
+				// Parse description
+				if description, exists := memoryMap["description"]; exists {
+					if descStr, ok := description.(string); ok {
+						entry.Description = descStr
+					}
+				}
+
+				// Parse create-orphan
+				if createOrphan, exists := memoryMap["create-orphan"]; exists {
+					if orphanBool, ok := createOrphan.(bool); ok {
+						entry.CreateOrphan = orphanBool
+					}
+				}
+
+				// Parse wiki field
+				if wiki, exists := memoryMap["wiki"]; exists {
+					if wikiBool, ok := wiki.(bool); ok {
+						entry.Wiki = wikiBool
+					}
+				}
+				// Apply wiki-mode defaults: wikis use master branch and never need orphan creation
+				if entry.Wiki {
+					if !explicitBranchName {
+						entry.BranchName = "master"
+					}
+					entry.CreateOrphan = false
+				}
+
+				// Parse allowed-extensions field
+				if allowedExts, exists := memoryMap["allowed-extensions"]; exists {
+					if extArray, ok := allowedExts.([]any); ok {
+						entry.AllowedExtensions = make([]string, 0, len(extArray))
+						for _, ext := range extArray {
+							if extStr, ok := ext.(string); ok {
+								entry.AllowedExtensions = append(entry.AllowedExtensions, extStr)
+							}
+						}
+					}
+				}
+				// Default to standard allowed extensions if not specified
+				if len(entry.AllowedExtensions) == 0 {
+					entry.AllowedExtensions = constants.DefaultAllowedMemoryExtensions
+				}
+
+				config.Memories = append(config.Memories, entry)
+			}
+		}
+
+		// Check for duplicate memory IDs
+		if err := validateNoDuplicateMemoryIDs(config.Memories); err != nil {
+			return nil, err
+		}
+
+		return config, nil
+	}
+
+	// Handle object configuration (single memory, backward compatible)
+	// Convert to array with single entry
+	if configMap, ok := repoMemoryValue.(map[string]any); ok {
+		repoMemoryLog.Print("Processing object-style repo-memory configuration (backward compatible)")
+
+		// Parse branch-prefix if provided
+		if branchPrefix, exists := configMap["branch-prefix"]; exists {
+			if prefixStr, ok := branchPrefix.(string); ok {
+				if err := validateBranchPrefix(prefixStr); err != nil {
+					return nil, err
+				}
+				config.BranchPrefix = prefixStr
+				repoMemoryLog.Printf("Using custom branch-prefix: %s", prefixStr)
+			}
+		}
+
+		entry := RepoMemoryEntry{
+			ID:           "default",
+			BranchName:   generateDefaultBranchName(defaultMemoryBranchID(), config.BranchPrefix),
+			MaxFileSize:  defaultRepoMemoryMaxFileSize,  // 100KB default
+			MaxFileCount: 100,                           // 100 files default
+			MaxPatchSize: defaultRepoMemoryMaxPatchSize, // 10KB default
+			CreateOrphan: true,                          // create orphan by default
+		}
+
+		// Parse target-repo
+		if targetRepo, exists := configMap["target-repo"]; exists {
+			if repoStr, ok := targetRepo.(string); ok {
+				entry.TargetRepo = repoStr
+			}
+		}
+
+		// Parse branch-name
+		explicitBranchName := false
+		if branchName, exists := configMap["branch-name"]; exists {
+			if branchStr, ok := branchName.(string); ok {
+				entry.BranchName = branchStr
+				explicitBranchName = true
+			}
+		}
+
+		// Parse file-glob
+		if fileGlob, exists := configMap["file-glob"]; exists {
+			if globArray, ok := fileGlob.([]any); ok {
+				entry.FileGlob = make([]string, 0, len(globArray))
+				for _, item := range globArray {
+					if str, ok := item.(string); ok {
+						entry.FileGlob = append(entry.FileGlob, str)
+					}
+				}
+			} else if globStr, ok := fileGlob.(string); ok {
+				// Allow single string to be treated as array of one
+				entry.FileGlob = []string{globStr}
+			}
+		}
+
+		// Parse max-file-size
+		if maxFileSize, exists := configMap["max-file-size"]; exists {
+			if sizeInt, ok := maxFileSize.(int); ok {
+				entry.MaxFileSize = sizeInt
+			} else if sizeFloat, ok := maxFileSize.(float64); ok {
+				entry.MaxFileSize = int(sizeFloat)
+			} else if sizeUint64, ok := maxFileSize.(uint64); ok {
+				entry.MaxFileSize = int(sizeUint64)
+			}
+			// Validate max-file-size bounds
+			if err := validateIntRange(entry.MaxFileSize, 1, 104857600, "max-file-size"); err != nil {
+				return nil, err
+			}
+		}
+
+		// Parse max-file-count
+		if maxFileCount, exists := configMap["max-file-count"]; exists {
+			if countInt, ok := maxFileCount.(int); ok {
+				entry.MaxFileCount = countInt
+			} else if countFloat, ok := maxFileCount.(float64); ok {
+				entry.MaxFileCount = int(countFloat)
+			} else if countUint64, ok := maxFileCount.(uint64); ok {
+				entry.MaxFileCount = int(countUint64)
+			}
+			// Validate max-file-count bounds
+			if err := validateIntRange(entry.MaxFileCount, 1, 1000, "max-file-count"); err != nil {
+				return nil, err
+			}
+		}
+
+		// Parse max-patch-size
+		if maxPatchSize, exists := configMap["max-patch-size"]; exists {
+			if sizeInt, ok := maxPatchSize.(int); ok {
+				entry.MaxPatchSize = sizeInt
+			} else if sizeFloat, ok := maxPatchSize.(float64); ok {
+				entry.MaxPatchSize = int(sizeFloat)
+			} else if sizeUint64, ok := maxPatchSize.(uint64); ok {
+				entry.MaxPatchSize = int(sizeUint64)
+			}
+			// Validate max-patch-size bounds
+			if err := validateIntRange(entry.MaxPatchSize, 1, maxRepoMemoryPatchSize, "max-patch-size"); err != nil {
+				return nil, err
+			}
+		}
+
+		// Parse description
+		if description, exists := configMap["description"]; exists {
+			if descStr, ok := description.(string); ok {
+				entry.Description = descStr
+			}
+		}
+
+		// Parse create-orphan
+		if createOrphan, exists := configMap["create-orphan"]; exists {
+			if orphanBool, ok := createOrphan.(bool); ok {
+				entry.CreateOrphan = orphanBool
+			}
+		}
+
+		// Parse wiki field
+		if wiki, exists := configMap["wiki"]; exists {
+			if wikiBool, ok := wiki.(bool); ok {
+				entry.Wiki = wikiBool
+			}
+		}
+		// Apply wiki-mode defaults: wikis use master branch and never need orphan creation
+		if entry.Wiki {
+			if !explicitBranchName {
+				entry.BranchName = "master"
+			}
+			entry.CreateOrphan = false
+		}
+
+		// Parse allowed-extensions field
+		if allowedExts, exists := configMap["allowed-extensions"]; exists {
+			if extArray, ok := allowedExts.([]any); ok {
+				entry.AllowedExtensions = make([]string, 0, len(extArray))
+				for _, ext := range extArray {
+					if extStr, ok := ext.(string); ok {
+						entry.AllowedExtensions = append(entry.AllowedExtensions, extStr)
+					}
+				}
+			}
+		}
+		// Default to standard allowed extensions if not specified
+		if len(entry.AllowedExtensions) == 0 {
+			entry.AllowedExtensions = constants.DefaultAllowedMemoryExtensions
+		}
+
+		config.Memories = []RepoMemoryEntry{entry}
+		return config, nil
+	}
+
+	return nil, nil
+}
+
+// generateRepoMemoryArtifactUpload generates steps to upload repo-memory directories as artifacts.
+// This runs at the end of the agent job (always condition) to save the state.
+// pinAction resolves the upload-artifact action reference; pass c.getActionPin from Compiler methods.
+func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowData, pinAction func(string) string) {
+	if data.RepoMemoryConfig == nil || len(data.RepoMemoryConfig.Memories) == 0 {
+		return
+	}
+
+	repoMemoryLog.Printf("Generating repo-memory artifact upload steps for %d memories", len(data.RepoMemoryConfig.Memories))
+
+	// In workflow_call context, apply the per-invocation prefix to avoid artifact name clashes.
+	prefix := artifactPrefixExprForDownstreamJob(data)
+
+	builder.WriteString("      # Upload repo memory as artifacts for push job\n")
+
+	for _, memory := range data.RepoMemoryConfig.Memories {
+		// Determine the memory directory
+		memoryDir := "/tmp/gh-aw/repo-memory/" + memory.ID
+
+		// Sanitize memory ID for artifact naming (remove hyphens, lowercase)
+		sanitizedID := SanitizeWorkflowIDForCacheKey(memory.ID)
+
+		// Determine the label for step names
+		memoryLabel := "repo-memory"
+		if memory.Wiki {
+			memoryLabel = "wiki-memory"
+		}
+
+		// Step: Sanitize filenames before upload to prevent artifact upload failures.
+		// GitHub Actions artifacts are stored on NTFS-compatible filesystems, so filenames
+		// must not contain: ? : * | < > " (among other characters).
+		// The agent may create files with these characters (e.g. "Can-we-have-a-PR?.md"),
+		// which causes the upload-artifact action to fail with a hard error.
+		// The script uses git commands (git mv for tracked files, mv for untracked) since
+		// repo-memory is backed by a git working tree.
+		fmt.Fprintf(builder, "      - name: Sanitize %s filenames (%s)\n", memoryLabel, memory.ID)
+		builder.WriteString("        if: always()\n")
+		builder.WriteString("        continue-on-error: true\n")
+		builder.WriteString("        env:\n")
+		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
+		builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/sanitize_repo_memory_filenames.sh\"\n")
+
+		// Step: Upload repo-memory directory as artifact
+		fmt.Fprintf(builder, "      - name: Upload %s artifact (%s)\n", memoryLabel, memory.ID)
+		builder.WriteString("        if: always()\n")
+		fmt.Fprintf(builder, "        uses: %s\n", pinAction("actions/upload-artifact"))
+		builder.WriteString("        with:\n")
+		fmt.Fprintf(builder, "          name: %srepo-memory-%s\n", prefix, sanitizedID)
+		fmt.Fprintf(builder, "          path: %s\n", memoryDir)
+		builder.WriteString("          retention-days: 1\n")
+		builder.WriteString("          if-no-files-found: ignore\n")
+	}
+}
+
+// generateRepoMemorySteps generates git steps for the repo-memory configuration
+func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
+	if data.RepoMemoryConfig == nil || len(data.RepoMemoryConfig.Memories) == 0 {
+		return
+	}
+
+	repoMemoryLog.Printf("Generating repo-memory steps for %d memories", len(data.RepoMemoryConfig.Memories))
+
+	builder.WriteString("      # Repo memory git-based storage configuration from frontmatter processed below\n")
+
+	for _, memory := range data.RepoMemoryConfig.Memories {
+		// Determine the target repository
+		targetRepo := memory.TargetRepo
+		if targetRepo == "" {
+			targetRepo = "${{ github.repository }}"
+		}
+		// For wiki mode, append .wiki to the repo path so the clone script uses the wiki git URL
+		if memory.Wiki {
+			targetRepo = targetRepo + ".wiki"
+		}
+
+		// Determine the memory directory
+		memoryDir := "/tmp/gh-aw/repo-memory/" + memory.ID
+
+		// Step 1: Clone the repo-memory branch
+		if memory.Wiki {
+			fmt.Fprintf(builder, "      - name: Clone wiki-memory branch (%s)\n", memory.ID)
+		} else {
+			fmt.Fprintf(builder, "      - name: Clone repo-memory branch (%s)\n", memory.ID)
+		}
+		builder.WriteString("        env:\n")
+		builder.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+		builder.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
+		fmt.Fprintf(builder, "          BRANCH_NAME: %s\n", memory.BranchName)
+		fmt.Fprintf(builder, "          TARGET_REPO: %s\n", targetRepo)
+		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
+		fmt.Fprintf(builder, "          CREATE_ORPHAN: %t\n", memory.CreateOrphan)
+		builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh\"\n")
+	}
+}
+
+// buildPushRepoMemoryConcurrencyGroup builds a concurrency group key that is scoped to the
+// specific (target-repo, branch) pairs being written by this push job.  Using the actual
+// write targets—rather than a single repo-wide key—ensures that workflows pushing to
+// different memory branches do not unnecessarily serialise or cancel each other.
+//
+// Key format: "push-repo-memory-${{ github.repository }}|<key1>[|<key2>…]"
+//
+// Each key component is percent-encoded (only `%` and `|` are encoded) before joining
+// with "|", so the separator is always unambiguous even if a user-supplied branch name
+// or target-repo contains a literal "|".  For memories that target a non-default
+// repository, the target repo is prepended to the branch name
+// (e.g., "other-owner%2Fother-repo:memory%2Fbranch" would be encoded if needed) so that
+// distinct targets produce distinct concurrency groups.  The branches are sorted for a
+// deterministic key regardless of the order memories are declared in the frontmatter.
+func buildPushRepoMemoryConcurrencyGroup(memories []RepoMemoryEntry) string {
+	branchKeys := make([]string, 0, len(memories))
+	for _, m := range memories {
+		key := encodeConcurrencyKeyPart(m.BranchName)
+		if m.TargetRepo != "" {
+			key = encodeConcurrencyKeyPart(m.TargetRepo) + ":" + key
+		}
+		branchKeys = append(branchKeys, key)
+	}
+	sort.Strings(branchKeys)
+	return "push-repo-memory-${{ github.repository }}|" + strings.Join(branchKeys, "|")
+}
+
+// encodeConcurrencyKeyPart percent-encodes the characters that would otherwise make the
+// concurrency group key ambiguous: "%" (to avoid double-encoding) and "|" (the separator).
+// All other characters are left as-is so the key remains human-readable in workflow UIs.
+func encodeConcurrencyKeyPart(s string) string {
+	s = strings.ReplaceAll(s, "%", "%25")
+	s = strings.ReplaceAll(s, "|", "%7C")
+	return s
+}
+
+// buildPushRepoMemoryJob creates a job that downloads repo-memory artifacts and pushes them to git branches
+// This job runs after the agent job completes (even if it fails) and requires contents: write permission
+// If threat detection is enabled, only runs if no threats were detected
+func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEnabled bool) (*Job, error) {
+	if data.RepoMemoryConfig == nil || len(data.RepoMemoryConfig.Memories) == 0 {
+		return nil, nil
+	}
+
+	repoMemoryLog.Printf("Building push_repo_memory job for %d memories (threatDetectionEnabled=%v)", len(data.RepoMemoryConfig.Memories), threatDetectionEnabled)
+
+	var steps []string
+
+	// Add setup step to copy scripts
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" || c.actionMode.IsScript() {
+		// For dev mode (local action path), checkout the actions folder first
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+
+		// Repo memory job doesn't need project support
+		// Repo memory job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
+		repoMemoryTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
+		repoMemoryParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
+		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, repoMemoryTraceID, repoMemoryParentSpanID)...)
+	}
+
+	// Add checkout step to configure git (without checking out files)
+	// We use sparse-checkout to avoid downloading files since we'll checkout the memory branch
+	var checkoutStep strings.Builder
+	checkoutStep.WriteString("      - name: Checkout repository\n")
+	fmt.Fprintf(&checkoutStep, "        uses: %s\n", getActionPin("actions/checkout"))
+	checkoutStep.WriteString("        with:\n")
+	checkoutStep.WriteString("          persist-credentials: false\n")
+	checkoutStep.WriteString("          sparse-checkout: .\n")
+	steps = append(steps, checkoutStep.String())
+
+	// Add git configuration step
+	gitConfigSteps := c.generateGitConfigurationSteps()
+	steps = append(steps, gitConfigSteps...)
+
+	// Build steps as complete YAML strings.
+	// In workflow_call context, use the per-invocation prefix from the agent job.
+	repoMemoryPrefix := artifactPrefixExprForAgentDownstreamJob(data)
+
+	for _, memory := range data.RepoMemoryConfig.Memories {
+		// Sanitize memory ID for artifact naming (remove hyphens, lowercase)
+		sanitizedID := SanitizeWorkflowIDForCacheKey(memory.ID)
+
+		// Download artifact step
+		var step strings.Builder
+		if memory.Wiki {
+			fmt.Fprintf(&step, "      - name: Download wiki-memory artifact (%s)\n", memory.ID)
+		} else {
+			fmt.Fprintf(&step, "      - name: Download repo-memory artifact (%s)\n", memory.ID)
+		}
+		fmt.Fprintf(&step, "        uses: %s\n", getActionPin("actions/download-artifact"))
+		step.WriteString("        continue-on-error: true\n")
+		step.WriteString("        with:\n")
+		fmt.Fprintf(&step, "          name: %srepo-memory-%s\n", repoMemoryPrefix, sanitizedID)
+		fmt.Fprintf(&step, "          path: /tmp/gh-aw/repo-memory/%s\n", memory.ID)
+		steps = append(steps, step.String())
+	}
+
+	// Determine script loading method based on action mode
+	useRequire := setupActionRef != ""
+
+	// Add push steps for each memory
+	for _, memory := range data.RepoMemoryConfig.Memories {
+		targetRepo := memory.TargetRepo
+		if targetRepo == "" {
+			targetRepo = "${{ github.repository }}"
+		}
+		// For wiki mode, append .wiki to the repo path so the push script uses the wiki git URL
+		if memory.Wiki {
+			targetRepo = targetRepo + ".wiki"
+		}
+
+		artifactDir := "/tmp/gh-aw/repo-memory/" + memory.ID
+
+		// Build file glob filter string
+		fileGlobFilter := ""
+		if len(memory.FileGlob) > 0 {
+			fileGlobFilter = strings.Join(memory.FileGlob, " ")
+		}
+
+		// Build step with github-script action
+		var step strings.Builder
+		if memory.Wiki {
+			fmt.Fprintf(&step, "      - name: Push wiki-memory changes (%s)\n", memory.ID)
+		} else {
+			fmt.Fprintf(&step, "      - name: Push repo-memory changes (%s)\n", memory.ID)
+		}
+		fmt.Fprintf(&step, "        id: push_repo_memory_%s\n", memory.ID)
+		step.WriteString("        if: always()\n")
+		fmt.Fprintf(&step, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+		step.WriteString("        env:\n")
+		step.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+		step.WriteString("          GITHUB_RUN_ID: ${{ github.run_id }}\n")
+		step.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
+		fmt.Fprintf(&step, "          ARTIFACT_DIR: %s\n", artifactDir)
+		fmt.Fprintf(&step, "          MEMORY_ID: %s\n", memory.ID)
+		fmt.Fprintf(&step, "          TARGET_REPO: %s\n", targetRepo)
+		fmt.Fprintf(&step, "          BRANCH_NAME: %s\n", memory.BranchName)
+		// For wiki mode, pre-populate the allowed-repos list with the wiki repo so the push
+		// script accepts it (defaultRepo is always the plain github.repository, not .wiki)
+		if memory.Wiki {
+			fmt.Fprintf(&step, "          REPO_MEMORY_ALLOWED_REPOS: %s\n", targetRepo)
+		}
+		fmt.Fprintf(&step, "          MAX_FILE_SIZE: %d\n", memory.MaxFileSize)
+		fmt.Fprintf(&step, "          MAX_FILE_COUNT: %d\n", memory.MaxFileCount)
+		fmt.Fprintf(&step, "          MAX_PATCH_SIZE: %d\n", memory.MaxPatchSize)
+		// Pass allowed extensions as JSON array
+		allowedExtsJSON, _ := json.Marshal(memory.AllowedExtensions)
+		fmt.Fprintf(&step, "          ALLOWED_EXTENSIONS: '%s'\n", allowedExtsJSON)
+		if fileGlobFilter != "" {
+			// Quote the value to prevent YAML alias interpretation of patterns like *.md
+			fmt.Fprintf(&step, "          FILE_GLOB_FILTER: \"%s\"\n", fileGlobFilter)
+		}
+		step.WriteString("        with:\n")
+		step.WriteString("          script: |\n")
+
+		if useRequire {
+			// Use require() to load script from copied files using setup_globals helper
+			step.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+			step.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+			step.WriteString("            const { main } = require('" + SetupActionDestination + "/push_repo_memory.cjs');\n")
+			step.WriteString("            await main();\n")
+		} else {
+			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
+			step.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+			step.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+			// Add the JavaScript script with proper indentation
+			formattedScript := FormatJavaScriptForYAML("const { main } = require('${{ runner.temp }}/gh-aw/actions/push_repo_memory.cjs'); await main();")
+			for _, line := range formattedScript {
+				step.WriteString(line)
+			}
+		}
+
+		steps = append(steps, step.String())
+	}
+
+	// In dev mode the setup action is referenced via a local path (./actions/setup), so its files
+	// live in the workspace. The push_repo_memory.cjs script internally checks out the memory
+	// branch, which replaces the workspace content and removes the actions/setup directory.
+	// Without restoring it, the runner's post-step for Setup Scripts would fail with
+	// "Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under .../actions/setup".
+	// We add a restore checkout step (if: always()) after all push steps so the post-step
+	// can always find action.yml and complete its /tmp/gh-aw cleanup.
+	// Note: no ref is specified in dev mode — use the repository default branch (same pattern
+	// as generateCheckoutActionsFolder in dev mode).
+	if c.actionMode.IsDev() {
+		steps = append(steps, c.generateRestoreActionsSetupStep())
+	}
+
+	// Job condition: only run when the agent succeeded and the workflow was not
+	// cancelled. Using always() so the job still runs even when upstream jobs are
+	// skipped (e.g. detection is skipped when agent produces no outputs).
+	// We check == 'success' so that repo-memory is only pushed on a successful
+	// agent run — pushing memory from a timed-out or failed agent would pollute
+	// the stored memory with incomplete state. Adding !cancelled() prevents the
+	// job from running after workflow cancellation.
+	agentSucceeded := BuildEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
+		BuildStringLiteral("success"),
+	)
+	notCancelled := &NotNode{Child: BuildFunctionCall("cancelled")}
+	jobNeeds := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
+	var jobCondition string
+	if threatDetectionEnabled {
+		// When threat detection is enabled, also require detection passed (succeeded or skipped).
+		jobCondition = RenderCondition(BuildAnd(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), buildDetectionPassedCondition()), agentSucceeded))
+		jobNeeds = append(jobNeeds, string(constants.DetectionJobName))
+	} else {
+		jobCondition = RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), agentSucceeded))
+	}
+
+	// Build outputs map for validation failures from all memory steps
+	outputs := make(map[string]string)
+	for _, memory := range data.RepoMemoryConfig.Memories {
+		stepID := "push_repo_memory_" + memory.ID
+		// Add outputs for each memory's validation status
+		outputs["validation_failed_"+memory.ID] = fmt.Sprintf("${{ steps.%s.outputs.validation_failed }}", stepID)
+		outputs["validation_error_"+memory.ID] = fmt.Sprintf("${{ steps.%s.outputs.validation_error }}", stepID)
+		outputs["patch_size_exceeded_"+memory.ID] = fmt.Sprintf("${{ steps.%s.outputs.patch_size_exceeded }}", stepID)
+	}
+
+	// Build a concurrency key scoped to the actual branches being written.
+	// This prevents false serialisation between workflows that push to different memory
+	// branches while still serialising concurrent pushes to the *same* branch.
+	// cancel-in-progress is false so queued pushes are not dropped.
+	concurrencyGroup := buildPushRepoMemoryConcurrencyGroup(data.RepoMemoryConfig.Memories)
+	concurrency := c.indentYAMLLines(fmt.Sprintf("concurrency:\n  group: %q\n  cancel-in-progress: false", concurrencyGroup), "    ")
+
+	job := &Job{
+		Name:        "push_repo_memory",
+		DisplayName: "", // No display name - job ID is sufficient
+		RunsOn:      c.formatFrameworkJobRunsOn(data),
+		If:          jobCondition,
+		Permissions: "permissions:\n      contents: write",
+		Concurrency: concurrency,
+		Needs:       jobNeeds,
+		Steps:       steps,
+		Outputs:     outputs,
+	}
+
+	return job, nil
+}

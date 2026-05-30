@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/github/gh-aw/schemas/mcp-tools.json",
+  "title": "MCP Tools Schema",
+  "description": "JSON Schema for MCP (Model Context Protocol) tools array based on the MCP specification",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/Tool"
+  },
+  "definitions": {
+    "Tool": {
+      "type": "object",
+      "required": ["name", "inputSchema"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Intended for programmatic or logical use, but used as a display name in past specs or fallback"
+        },
+        "title": {
+          "type": "string",
+          "description": "Tool-level title: Intended for UI and end-user contexts — optimized to be human-readable and easily understood, even by those unfamiliar with domain-specific terminology. If not provided, the name should be used for display."
+        },
+        "description": {
+          "type": "string",
+          "description": "A human-readable description of the tool"
+        },
+        "inputSchema": {
+          "$ref": "#/definitions/InputSchema",
+          "description": "A JSON Schema object defining the expected parameters for the tool"
+        },
+        "outputSchema": {
+          "$ref": "#/definitions/OutputSchema",
+          "description": "An optional JSON Schema object defining the structure of the tool's output"
+        },
+        "annotations": {
+          "$ref": "#/definitions/ToolAnnotations",
+          "description": "Optional annotations providing hints about the tool's behavior"
+        },
+        "handler": {
+          "type": "string",
+          "description": "Optional file path to a handler module that exports a function to handle tool calls. The path can be resolved by require() at runtime. The handler function signature is: async function handler(args: Record<string, unknown>): Promise<unknown>"
+        }
+      },
+      "additionalProperties": false
+    },
+    "InputSchema": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["object"],
+          "description": "Must be 'object' for MCP tool input schemas"
+        },
+        "properties": {
+          "type": "object",
+          "description": "Object properties defining the tool parameters",
+          "additionalProperties": true
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of required property names"
+        },
+        "additionalProperties": {
+          "type": "boolean",
+          "description": "Whether additional properties are allowed"
+        }
+      },
+      "additionalProperties": true
+    },
+    "OutputSchema": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["object"],
+          "description": "Must be 'object' for MCP tool output schemas"
+        },
+        "properties": {
+          "type": "object",
+          "description": "Object properties defining the output structure",
+          "additionalProperties": true
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of required property names"
+        },
+        "additionalProperties": {
+          "type": "boolean",
+          "description": "Whether additional properties are allowed"
+        }
+      },
+      "additionalProperties": true
+    },
+    "ToolAnnotations": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Annotation title hint: A human-readable title for the tool (this is a hint in annotations, distinct from the tool-level title field)"
+        },
+        "readOnlyHint": {
+          "type": "boolean",
+          "description": "If true, the tool does not modify its environment"
+        },
+        "destructiveHint": {
+          "type": "boolean",
+          "description": "If true, the tool may perform destructive updates to its environment"
+        },
+        "idempotentHint": {
+          "type": "boolean",
+          "description": "If true, calling the tool repeatedly with the same arguments will have no additional effect"
+        },
+        "openWorldHint": {
+          "type": "boolean",
+          "description": "If true, this tool may interact with an 'open world' of external systems"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

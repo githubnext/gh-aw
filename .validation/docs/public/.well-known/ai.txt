@@ -1,0 +1,5 @@
+# GitHub Agentic Workflows - AI crawler permissions
+Allow: /
+Llms-txt: https://github.github.com/gh-aw/llms.txt
+Llms-full-txt: https://github.github.com/gh-aw/llms-full.txt
+Summary: https://github.github.com/gh-aw/ai/summary.json

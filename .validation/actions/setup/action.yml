@@ -1,0 +1,48 @@
+name: 'Setup Activation'
+description: 'Copy activation job files to the agent environment'
+author: 'GitHub Next'
+
+inputs:
+  destination:
+    description: 'Destination directory for activation files (default: ${RUNNER_TEMP}/gh-aw/actions)'
+    required: false
+  safe-output-artifact-client:
+    description: 'Install @actions/artifact so upload_artifact.cjs can upload GitHub Actions artifacts via REST API directly'
+    required: false
+    default: 'false'
+  job-name:
+    description: 'Name of the job being set up. When OTEL_EXPORTER_OTLP_ENDPOINT is configured, a gh-aw.<job-name>.setup span is pushed to the OTLP endpoint.'
+    required: false
+    default: ''
+  trace-id:
+    description: 'OTLP trace ID (32-character hexadecimal string) to reuse for cross-job span correlation. Pass the trace-id output of the activation job setup step to correlate all job spans under the same trace. When omitted a new trace ID is generated.'
+    required: false
+    default: ''
+  parent-span-id:
+    description: 'OTLP parent span ID (16-character hexadecimal string) for the setup span. Pass the setup-span-id output of the upstream setup step so job setup spans form a single tree.'
+    required: false
+    default: ''
+  otlp-oidc-token:
+    description: 'Optional pre-minted OIDC bearer token used for OTLP Authorization headers.'
+    required: false
+    default: ''
+
+outputs:
+  files_copied:
+    description: 'Number of files copied'
+  trace-id:
+    description: 'The OTLP trace ID used for the gh-aw.<job-name>.setup span. Pass this to subsequent job setup steps via the trace-id input to correlate all job spans under a single trace.'
+  span-id:
+    description: 'The OTLP span ID used for the gh-aw.<job-name>.setup span. Pass this to subsequent job setup steps via the parent-span-id input so setup spans are properly parented.'
+  parent-span-id:
+    description: 'The OTLP parent span ID used for the gh-aw.<job-name>.setup span. Pass this through downstream jobs so all setup spans share the same global parent span.'
+
+runs:
+  using: 'node24'
+  main: 'index.js'
+  post: 'post.js'
+  post-if: 'always()'
+
+branding:
+  icon: 'play'
+  color: 'blue'

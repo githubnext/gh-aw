@@ -1,0 +1,157 @@
+package workflow
+
+import (
+	"errors"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var labelTriggerParserLog = logger.New("workflow:label_trigger_parser")
+
+// parseLabelTriggerShorthand parses a string in the format
+// "issue labeled label1 label2 ...", "pull_request labeled label1 label2 ...",
+// "pull-request labeled label1 label2 ...", or "discussion labeled label1 label2 ..."
+// and returns the entity type and label names.
+// Returns an empty string for entityType if not a valid label trigger shorthand.
+// When isLabelTrigger is true, entityType is always non-empty even if an error is returned.
+// Returns an error if the format is invalid.
+func parseLabelTriggerShorthand(input string) (entityType string, labelNames []string, isLabelTrigger bool, err error) {
+	input = strings.TrimSpace(input)
+
+	// Split into tokens
+	tokens := strings.Fields(input)
+	if len(tokens) < 3 {
+		// Need at least: "issue/pull_request/discussion labeled label1"
+		return "", nil, false, nil
+	}
+
+	// Check for different patterns:
+	// 1. "issue labeled label1 label2 ..." or "issue labeled label1, label2, ..."
+	// 2. "pull_request labeled label1 label2 ..." or "pull-request labeled label1, label2, ..."
+	// 3. "discussion labeled label1 label2 ..." or "discussion labeled label1, label2, ..."
+
+	var startIdx int
+
+	if tokens[0] == "issue" && tokens[1] == "labeled" {
+		// Pattern 1: "issue labeled label1 label2 ..." or "issue labeled label1, label2, ..."
+		entityType = "issues"
+		startIdx = 2
+	} else if (tokens[0] == "pull_request" || tokens[0] == "pull-request") && tokens[1] == "labeled" {
+		// Pattern 2: "pull_request labeled label1 label2 ..." or "pull-request labeled label1, label2, ..."
+		entityType = "pull_request"
+		startIdx = 2
+	} else if tokens[0] == "discussion" && tokens[1] == "labeled" {
+		// Pattern 3: "discussion labeled label1 label2 ..." or "discussion labeled label1, label2, ..."
+		entityType = "discussion"
+		startIdx = 2
+	} else {
+		// Not a label trigger shorthand
+		labelTriggerParserLog.Printf("Input %q does not match any label trigger pattern (first token: %q)", input, tokens[0])
+		return "", nil, false, nil
+	}
+
+	// Extract label names
+	if len(tokens) <= startIdx {
+		return entityType, nil, true, errors.New("label trigger shorthand requires at least one label name")
+	}
+
+	// Process label names: handle both space-separated and comma-separated formats
+	rawLabels := tokens[startIdx:]
+	for _, token := range rawLabels {
+		// Split on commas to handle "label1,label2,label3" format
+		parts := strings.SplitSeq(token, ",")
+		for part := range parts {
+			cleanLabel := strings.TrimSpace(part)
+			if cleanLabel != "" {
+				labelNames = append(labelNames, cleanLabel)
+			}
+		}
+	}
+
+	// Validate we have at least one label after processing
+	if len(labelNames) == 0 {
+		return entityType, nil, true, errors.New("label trigger shorthand requires at least one label name")
+	}
+
+	labelTriggerParserLog.Printf("Parsed label trigger shorthand: %s -> entity: %s, labels: %v", input, entityType, labelNames)
+
+	return entityType, labelNames, true, nil
+}
+
+// expandLabelTriggerShorthand takes an entity type and label names and returns a map that represents
+// the expanded label trigger + workflow_dispatch configuration with item_number input.
+// Note: GitHub Actions doesn't support native label filtering for any event type,
+// so all labels are filtered via job conditions using the internal `names` field.
+func expandLabelTriggerShorthand(entityType string, labelNames []string) map[string]any {
+	labelTriggerParserLog.Printf("Expanding label trigger shorthand: entity=%s, labels=%v", entityType, labelNames)
+
+	// Create the trigger configuration based on entity type
+	var triggerKey string
+	switch entityType {
+	case "issues":
+		triggerKey = "issues"
+	case "pull_request":
+		triggerKey = "pull_request"
+	case "discussion":
+		triggerKey = "discussion"
+	default:
+		labelTriggerParserLog.Printf("Unknown entity type %q, defaulting to issues trigger key", entityType)
+		triggerKey = "issues" // Default to issues (though this shouldn't happen with our parser)
+	}
+
+	// Build the trigger configuration
+	// GitHub Actions doesn't support native label filtering for any event type,
+	// so we use the `names` field (internal representation) for job condition filtering
+	triggerConfig := map[string]any{
+		"types": []any{"labeled"},
+	}
+
+	// Add label names for filtering
+	// All event types use `names` field for job condition filtering
+	// The `names` field is an internal representation for job condition generation
+	// and won't be rendered in the final GitHub Actions YAML for these event types
+	// Convert []string to []any so applyLabelFilter can type-assert correctly
+	namesAny := make([]any, len(labelNames))
+	for i, name := range labelNames {
+		namesAny[i] = name
+	}
+	triggerConfig["names"] = namesAny
+
+	// Create workflow_dispatch with item_number input (not required so the workflow can be
+	// triggered manually without providing a value; the activation job will fall back to
+	// the event payload when item_number is not supplied).
+	workflowDispatchConfig := map[string]any{
+		"inputs": map[string]any{
+			"item_number": map[string]any{
+				"description": "The number of the " + getItemTypeName(entityType),
+				"required":    false,
+				"default":     "",
+				"type":        "string",
+			},
+		},
+	}
+
+	labelTriggerParserLog.Printf("Expanded to trigger key=%s with %d label(s) and workflow_dispatch", triggerKey, len(labelNames))
+	return map[string]any{
+		triggerKey:          triggerConfig,
+		"workflow_dispatch": workflowDispatchConfig,
+	}
+}
+
+// getItemTypeName returns the human-readable item type name for the entity type
+func getItemTypeName(entityType string) string {
+	var name string
+	switch entityType {
+	case "issues":
+		name = "issue"
+	case "pull_request":
+		name = "pull request"
+	case "discussion":
+		name = "discussion"
+	default:
+		name = "item" // Fallback (though this shouldn't happen with our parser)
+	}
+	labelTriggerParserLog.Printf("Resolved item type name for %q: %q", entityType, name)
+	return name
+}

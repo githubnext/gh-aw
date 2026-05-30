@@ -1,0 +1,136 @@
+//go:build !js && !wasm
+
+package console
+
+import (
+	"fmt"
+
+	"charm.land/bubbles/v2/progress"
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/styles"
+)
+
+var progressLog = logger.New("console:progress")
+
+// ProgressBar provides a reusable progress bar component with TTY detection
+// and graceful fallback to text-based progress for non-TTY environments.
+//
+// Modes:
+//   - Determinate: When total size is known (shows percentage and progress)
+//   - Indeterminate: When total size is unknown (shows activity indicator)
+//
+// Visual Features:
+//   - Scaled color blend effect from purple to cyan (adaptive for light/dark terminals)
+//   - Smooth color transitions using bubbles v2 blend capabilities
+//   - Blend scales with filled portion for enhanced visual feedback
+//   - Works well in both light and dark terminal themes
+//
+// The gradient provides visual appeal without affecting functionality:
+//   - TTY mode: Visual progress bar with smooth gradient transitions
+//   - Non-TTY mode: Text-based percentage with human-readable byte sizes
+type ProgressBar struct {
+	progress      progress.Model
+	total         int64
+	current       int64
+	indeterminate bool
+	updateCount   int64 // Counter for pulsing animation in indeterminate mode
+}
+
+// NewProgressBar creates a new progress bar with the specified total size (determinate mode)
+// The progress bar automatically adapts to TTY/non-TTY environments
+func NewProgressBar(total int64) *ProgressBar {
+	progressLog.Printf("Creating determinate progress bar: total=%d bytes", total)
+	// Use scaled color blend for improved visual effect
+	// The blend transitions from purple to cyan, creating a smooth
+	// color transition as progress advances. WithScaled(true)
+	// ensures the blend scales with the filled portion for better
+	// visual feedback.
+	//
+	// Color choices:
+	// - Start (0%): ColorPurple - vibrant, attention-grabbing (adaptive for light/dark terminals)
+	// - End (100%): ColorInfo - cool, completion feeling (adaptive for light/dark terminals)
+	// These colors adapt to both light and dark terminal themes
+	prog := progress.New(
+		progress.WithColors(styles.ColorPurple, styles.ColorInfo),
+		progress.WithScaled(true),
+		progress.WithWidth(40),
+	)
+
+	// Use muted color for empty portion to maintain focus on progress
+	prog.EmptyColor = styles.ColorComment
+
+	return &ProgressBar{
+		progress:      prog,
+		total:         total,
+		current:       0,
+		indeterminate: false,
+		updateCount:   0,
+	}
+}
+
+// Update updates the current progress and returns a formatted string
+// In determinate mode:
+//   - TTY: Returns a visual progress bar with gradient and percentage
+//   - Non-TTY: Returns text percentage with human-readable sizes
+//
+// In indeterminate mode:
+//   - TTY: Returns a pulsing progress indicator
+//   - Non-TTY: Returns processing indicator with current value
+func (p *ProgressBar) Update(current int64) string {
+	p.current = current
+	p.updateCount++ // Increment counter for animation
+
+	if progressLog.Enabled() && p.updateCount%100 == 0 {
+		// Log every 100 updates to avoid excessive logging
+		if p.indeterminate {
+			progressLog.Printf("Progress update: current=%d bytes, indeterminate mode", current)
+		} else {
+			percent := float64(current) / float64(p.total) * 100
+			progressLog.Printf("Progress update: current=%d bytes, total=%d bytes, percent=%.1f%%", current, p.total, percent)
+		}
+	}
+
+	// Handle indeterminate mode
+	if p.indeterminate {
+		if !isTTY() {
+			// Fallback for non-TTY: "Processing... (512MB)"
+			if current == 0 {
+				return "Processing..."
+			}
+			return fmt.Sprintf("Processing... (%s)", formatBytes(current))
+		}
+		// In TTY mode, show a pulsing indicator by cycling between 30% and 70%
+		// This creates a visual "breathing" effect that's more noticeable
+		// Using sine wave-like progression: 30% -> 50% -> 70% -> 50% -> 30%
+		pulseStep := p.updateCount % 8 // 8 steps for smoother animation
+		var pulsePercent float64
+		if pulseStep < 4 {
+			// Rising: 30% -> 70%
+			pulsePercent = 0.3 + 0.4*float64(pulseStep)/3.0
+		} else {
+			// Falling: 70% -> 30%
+			pulsePercent = 0.7 - 0.4*float64(pulseStep-4)/3.0
+		}
+		return p.progress.ViewAs(pulsePercent)
+	}
+
+	// Handle determinate mode with edge case: avoid division by zero
+	if p.total == 0 {
+		if isTTY() {
+			return p.progress.ViewAs(1.0)
+		}
+		return "100% (0B/0B)"
+	}
+
+	percent := float64(current) / float64(p.total)
+
+	if !isTTY() {
+		// Fallback for non-TTY: "50% (512MB/1024MB)"
+		return fmt.Sprintf("%d%% (%s/%s)",
+			int(percent*100),
+			formatBytes(current),
+			formatBytes(p.total))
+	}
+
+	return p.progress.ViewAs(percent)
+}

@@ -1,0 +1,632 @@
+package cli
+
+import (
+	"errors"
+	"fmt"
+	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
+
+	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var gitLog = logger.New("cli:git")
+
+func isGitRepo() bool {
+	_, err := gitutil.FindGitRoot()
+	return err == nil
+}
+
+// findGitRootForPath finds the root directory of the git repository containing the specified path
+func findGitRootForPath(path string) (string, error) {
+	gitLog.Printf("Finding git root for path: %s", path)
+
+	// Get absolute path first
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	// Validate the absolute path
+	absPath, err = fileutil.ValidateAbsolutePath(absPath)
+	if err != nil {
+		return "", fmt.Errorf("invalid path: %w", err)
+	}
+
+	// Use the directory containing the file
+	dir := filepath.Dir(absPath)
+
+	// Find git root using filesystem traversal from the file's directory
+	gitRoot, err := gitutil.FindGitRootFrom(dir)
+	if err != nil {
+		return "", fmt.Errorf("failed to get repository root for path %s: %w", path, err)
+	}
+	gitLog.Printf("Found git root for path: %s", gitRoot)
+	return gitRoot, nil
+}
+
+// parseGitHubRepoSlugFromURL extracts owner/repo from a GitHub URL
+// Supports both HTTPS (https://github.com/owner/repo) and SSH (git@github.com:owner/repo) formats
+// Also supports GitHub Enterprise URLs
+func parseGitHubRepoSlugFromURL(url string) string {
+	gitLog.Printf("Parsing GitHub repo slug from URL: %s", url)
+
+	// Remove .git suffix if present
+	url = strings.TrimSuffix(url, ".git")
+
+	githubHost := getGitHubHost()
+	githubHostWithoutScheme := strings.TrimPrefix(strings.TrimPrefix(githubHost, "https://"), "http://")
+
+	// Handle HTTPS URLs: https://github.com/owner/repo or https://enterprise.github.com/owner/repo
+	if after, ok := strings.CutPrefix(url, githubHost+"/"); ok {
+		slug := after
+		gitLog.Printf("Extracted slug from HTTPS URL: %s", slug)
+		return slug
+	}
+
+	// Handle SSH URLs: git@github.com:owner/repo or git@enterprise.github.com:owner/repo
+	sshPrefix := "git@" + githubHostWithoutScheme + ":"
+	if after, ok := strings.CutPrefix(url, sshPrefix); ok {
+		slug := after
+		gitLog.Printf("Extracted slug from SSH URL: %s", slug)
+		return slug
+	}
+
+	gitLog.Print("Could not extract slug from URL")
+	return ""
+}
+
+// extractHostFromRemoteURL extracts the host (optionally including port) from a git remote URL.
+// Supports HTTPS (https://host[:port]/path), HTTP (http://host[:port]/path), and SSH (git@host[:port]:path or ssh://git@host[:port]/path) formats.
+// Returns the host portion as "host[:port]" when parsed, or "github.com" as the default if the URL cannot be parsed.
+func extractHostFromRemoteURL(remoteURL string) string {
+	// HTTPS / HTTP format: https://[userinfo@]host/path or http://[userinfo@]host/path
+	// Use net/url.Parse to correctly handle all userinfo variants (user@, user:pass@,
+	// and passwords containing '@') and to extract the bare host without credentials.
+	for _, scheme := range []string{"https://", "http://"} {
+		if strings.HasPrefix(remoteURL, scheme) {
+			if u, err := url.Parse(remoteURL); err == nil && u.Host != "" {
+				return u.Host
+			}
+			// Fallback: strip scheme and any userinfo manually.
+			after := remoteURL[len(scheme):]
+			if host, _, found := strings.Cut(after, "/"); found {
+				// Strip optional userinfo (everything up to and including the last '@').
+				if idx := strings.LastIndex(host, "@"); idx >= 0 {
+					host = host[idx+1:]
+				}
+				return host
+			}
+			if idx := strings.LastIndex(after, "@"); idx >= 0 {
+				return after[idx+1:]
+			}
+			return after
+		}
+	}
+
+	// SSH scp-like format: git@host:path
+	if after, ok := strings.CutPrefix(remoteURL, "git@"); ok {
+		if host, _, found := strings.Cut(after, ":"); found {
+			return host
+		}
+	}
+
+	// SSH URL format: ssh://git@host/path or ssh://host/path
+	if after, ok := strings.CutPrefix(remoteURL, "ssh://"); ok {
+		// Strip optional user info (e.g. "git@")
+		if _, userStripped, hasAt := strings.Cut(after, "@"); hasAt {
+			after = userStripped
+		}
+		if host, _, found := strings.Cut(after, "/"); found {
+			return host
+		}
+		return after
+	}
+
+	return "github.com"
+}
+
+// resolveRemoteURL resolves the best git remote URL to use for a given directory.
+// It first tries the 'origin' remote for backward compatibility. If 'origin' is not
+// configured but exactly one other remote exists, that remote is used instead.
+// Returns the remote URL, the remote name used, and any error.
+// dir may be empty to use the current working directory.
+func resolveRemoteURL(dir string) (string, string, error) {
+	gitArgs := func(args ...string) *exec.Cmd {
+		if dir != "" {
+			return exec.Command("git", append([]string{"-C", dir}, args...)...)
+		}
+		return exec.Command("git", args...)
+	}
+
+	// First try 'origin' for backward compatibility
+	if output, err := gitArgs("config", "--get", "remote.origin.url").Output(); err == nil {
+		url := strings.TrimSpace(string(output))
+		if url != "" {
+			gitLog.Print("Using 'origin' remote")
+			return url, "origin", nil
+		}
+	}
+
+	// Fall back: list all remotes
+	output, err := gitArgs("remote").Output()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to list git remotes: %w", err)
+	}
+
+	remoteNames := strings.Fields(strings.TrimSpace(string(output)))
+	if len(remoteNames) == 0 {
+		return "", "", errors.New("no git remotes configured")
+	}
+	if len(remoteNames) > 1 {
+		return "", "", fmt.Errorf("multiple git remotes configured (%s), no 'origin' remote found", strings.Join(remoteNames, ", "))
+	}
+
+	// Exactly one remote — use it
+	remoteName := remoteNames[0]
+	urlOutput, err := gitArgs("config", "--get", "remote."+remoteName+".url").Output()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get URL for remote %q: %w", remoteName, err)
+	}
+
+	url := strings.TrimSpace(string(urlOutput))
+	gitLog.Printf("No 'origin' remote found; using single configured remote %q", remoteName)
+	return url, remoteName, nil
+}
+
+// getHostFromOriginRemote returns the hostname of the git remote.
+// It prefers the 'origin' remote for backward compatibility. If 'origin' is not
+// configured but exactly one other remote exists, that remote is used instead.
+// For example, a remote URL of "https://ghes.example.com/org/repo.git" returns "ghes.example.com",
+// and "git@github.com:owner/repo.git" returns "github.com".
+// Returns "github.com" as the default if the remote URL cannot be determined.
+func getHostFromOriginRemote() string {
+	remoteURL, remoteName, err := resolveRemoteURL("")
+	if err != nil {
+		gitLog.Printf("Failed to resolve remote URL: %v", err)
+		return "github.com"
+	}
+
+	host := extractHostFromRemoteURL(remoteURL)
+	gitLog.Printf("Detected GitHub host from remote %q: %s", remoteName, host)
+	return host
+}
+
+// getRepositorySlugFromRemote extracts the repository slug (owner/repo) from git remote URL.
+// It prefers the 'origin' remote for backward compatibility. If 'origin' is not
+// configured but exactly one other remote exists, that remote is used instead.
+func getRepositorySlugFromRemote() string {
+	gitLog.Print("Getting repository slug from git remote")
+
+	remoteURL, _, err := resolveRemoteURL("")
+	if err != nil {
+		gitLog.Printf("Failed to resolve remote URL: %v", err)
+		return ""
+	}
+
+	slug := parseGitHubRepoSlugFromURL(remoteURL)
+	if slug != "" {
+		gitLog.Printf("Repository slug: %s", slug)
+	}
+
+	return slug
+}
+
+// getRepositorySlugFromRemotePreferringUpstream extracts the repository slug (owner/repo)
+// from git remotes, preferring the 'upstream' remote when available.
+// This keeps schedule scattering stable for fork checkouts where origin points to the fork.
+func getRepositorySlugFromRemotePreferringUpstream() string {
+	return getRepositorySlugFromDirPreferringUpstream("")
+}
+
+// getRepositorySlugFromDirPreferringUpstream extracts the repository slug (owner/repo)
+// for a git working directory, preferring the 'upstream' remote when available.
+func getRepositorySlugFromDirPreferringUpstream(dir string) string {
+	gitArgs := func(args ...string) *exec.Cmd {
+		if dir != "" {
+			return exec.Command("git", append([]string{"-C", dir}, args...)...)
+		}
+		return exec.Command("git", args...)
+	}
+
+	if output, err := gitArgs("config", "--get", "remote.upstream.url").Output(); err == nil {
+		upstreamURL := strings.TrimSpace(string(output))
+		if upstreamURL != "" {
+			slug := parseGitHubRepoSlugFromURL(upstreamURL)
+			if slug != "" {
+				gitLog.Printf("Repository slug from upstream remote: %s", slug)
+				return slug
+			}
+			gitLog.Printf("Unable to parse repository slug from upstream remote URL %q; falling back", upstreamURL)
+		}
+	}
+
+	remoteURL, _, err := resolveRemoteURL(dir)
+	if err != nil {
+		if dir == "" {
+			gitLog.Printf("Failed to resolve remote URL: %v", err)
+		} else {
+			gitLog.Printf("Failed to resolve remote URL for path: %v", err)
+		}
+		return ""
+	}
+
+	slug := parseGitHubRepoSlugFromURL(remoteURL)
+	if slug != "" {
+		if dir == "" {
+			gitLog.Printf("Repository slug: %s", slug)
+		} else {
+			gitLog.Printf("Repository slug for path: %s", slug)
+		}
+	}
+
+	return slug
+}
+
+// getRepositorySlugFromRemoteForPath extracts the repository slug (owner/repo) from the git remote URL
+// of the repository containing the specified file path.
+// It prefers the 'upstream' remote when available, and otherwise follows standard
+// remote resolution (origin first, then single-remote fallback).
+func getRepositorySlugFromRemoteForPath(path string) string {
+	gitLog.Printf("Getting repository slug for path: %s", path)
+
+	// Get absolute path first
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		gitLog.Printf("Failed to get absolute path: %v", err)
+		return ""
+	}
+
+	// Validate the absolute path
+	absPath, err = fileutil.ValidateAbsolutePath(absPath)
+	if err != nil {
+		gitLog.Printf("Invalid path: %v", err)
+		return ""
+	}
+
+	// Use the directory containing the file
+	dir := filepath.Dir(absPath)
+
+	return getRepositorySlugFromDirPreferringUpstream(dir)
+}
+
+func stageWorkflowChanges() {
+	// Find git root and add .github/workflows relative to it
+	if gitRoot, err := gitutil.FindGitRoot(); err == nil {
+		workflowsPath := filepath.Join(gitRoot, ".github/workflows/")
+		_ = exec.Command("git", "-C", gitRoot, "add", workflowsPath).Run()
+
+		// Also stage .gitattributes if it was modified
+		_ = stageGitAttributesIfChanged()
+	} else {
+		// Fallback to relative path if git root can't be found
+		_ = exec.Command("git", "add", ".github/workflows/").Run()
+		_ = exec.Command("git", "add", ".gitattributes").Run()
+	}
+}
+
+// ensureGitAttributes ensures that .gitattributes contains the entry to mark .lock.yml files as generated.
+// It returns true if the file was modified, false if it was already up to date.
+func ensureGitAttributes() (bool, error) {
+	gitLog.Print("Ensuring .gitattributes is updated")
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return false, err // Not in a git repository, skip
+	}
+
+	gitAttributesPath := filepath.Join(gitRoot, ".gitattributes")
+	lockYmlEntry := ".github/workflows/*.lock.yml linguist-generated=true merge=ours"
+	requiredEntries := []string{lockYmlEntry}
+
+	// Read existing .gitattributes file if it exists
+	var lines []string
+	if content, err := os.ReadFile(gitAttributesPath); err == nil {
+		lines = strings.Split(string(content), "\n")
+		gitLog.Printf("Read existing .gitattributes with %d lines", len(lines))
+	} else {
+		gitLog.Print("No existing .gitattributes file found")
+	}
+
+	modified := false
+	for _, required := range requiredEntries {
+		found := false
+		for i, line := range lines {
+			trimmedLine := strings.TrimSpace(line)
+			if trimmedLine == required {
+				found = true
+				break
+			}
+			// Check for old format entries that need updating
+			if strings.HasPrefix(trimmedLine, ".github/workflows/*.lock.yml") && required == lockYmlEntry {
+				gitLog.Print("Updating old .gitattributes entry format")
+				lines[i] = lockYmlEntry
+				found = true
+				modified = true
+				break
+			}
+		}
+
+		if !found {
+			gitLog.Printf("Adding new .gitattributes entry: %s", required)
+			if len(lines) > 0 && lines[len(lines)-1] != "" {
+				lines = append(lines, "")
+			}
+			lines = append(lines, required)
+			modified = true
+		}
+	}
+
+	if !modified {
+		gitLog.Print(".gitattributes already contains required entries")
+		return false, nil
+	}
+
+	// Write back to file with owner-only read/write permissions (0600) for security best practices
+	content := strings.Join(lines, "\n")
+	if err := os.WriteFile(gitAttributesPath, []byte(content), constants.FilePermSensitive); err != nil {
+		gitLog.Printf("Failed to write .gitattributes: %v", err)
+		return false, fmt.Errorf("failed to write .gitattributes: %w", err)
+	}
+
+	gitLog.Print("Successfully updated .gitattributes")
+	return true, nil
+}
+
+// stageGitAttributesIfChanged stages .gitattributes if it was modified
+func stageGitAttributesIfChanged() error {
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return err
+	}
+	gitAttributesPath := filepath.Join(gitRoot, ".gitattributes")
+	return exec.Command("git", "-C", gitRoot, "add", gitAttributesPath).Run()
+}
+
+// ensureLogsGitignore ensures that .github/aw/logs/.gitignore exists to ignore log files
+func ensureLogsGitignore() error {
+	gitLog.Print("Ensuring .github/aw/logs/.gitignore exists")
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return err // Not in a git repository, skip
+	}
+
+	logsDir := filepath.Join(gitRoot, ".github", "aw", "logs")
+	gitignorePath := filepath.Join(logsDir, ".gitignore")
+
+	// Check if .gitignore already exists
+	if _, err := os.Stat(gitignorePath); err == nil {
+		gitLog.Print(".github/aw/logs/.gitignore already exists")
+		return nil
+	}
+
+	gitLog.Print("Creating .github/aw/logs directory and .gitignore")
+	// Create the logs directory if it doesn't exist
+	if err := os.MkdirAll(logsDir, constants.DirPermPublic); err != nil {
+		gitLog.Printf("Failed to create logs directory: %v", err)
+		return fmt.Errorf("failed to create .github/aw/logs directory: %w", err)
+	}
+
+	// Write the .gitignore file with owner-only read/write permissions (0600) for security best practices
+	gitignoreContent := `# Ignore all downloaded workflow logs
+*
+
+# But keep the .gitignore file itself
+!.gitignore
+`
+	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), constants.FilePermSensitive); err != nil {
+		gitLog.Printf("Failed to write .gitignore: %v", err)
+		return fmt.Errorf("failed to write .github/aw/logs/.gitignore: %w", err)
+	}
+
+	gitLog.Print("Successfully created .github/aw/logs/.gitignore")
+	return nil
+}
+
+// getCurrentBranch gets the current git branch name
+func getCurrentBranch() (string, error) {
+	gitLog.Print("Getting current git branch")
+	cmd := exec.Command("git", "branch", "--show-current")
+	output, err := cmd.Output()
+	if err != nil {
+		gitLog.Printf("Failed to get current branch: %v", err)
+		return "", fmt.Errorf("failed to get current branch: %w", err)
+	}
+
+	branch := strings.TrimSpace(string(output))
+	if branch == "" {
+		gitLog.Print("Could not determine current branch")
+		return "", errors.New("could not determine current branch")
+	}
+
+	gitLog.Printf("Current branch: %s", branch)
+	return branch, nil
+}
+
+// createAndSwitchBranch creates a new branch and switches to it
+func createAndSwitchBranch(branchName string, verbose bool) error {
+	console.LogVerbose(verbose, "Creating and switching to branch: "+branchName)
+
+	cmd := exec.Command("git", "checkout", "-b", branchName)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to create and switch to branch %s: %w", branchName, err)
+	}
+
+	return nil
+}
+
+// switchBranch switches to the specified branch
+func switchBranch(branchName string, verbose bool) error {
+	console.LogVerbose(verbose, "Switching to branch: "+branchName)
+
+	cmd := exec.Command("git", "checkout", branchName)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to switch to branch %s: %w", branchName, err)
+	}
+
+	return nil
+}
+
+// commitChanges commits all staged changes with the given message
+func commitChanges(message string, verbose bool) error {
+	console.LogVerbose(verbose, "Committing changes with message: "+message)
+
+	cmd := exec.Command("git", "commit", "-m", message)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		gitLog.Printf("Failed to commit: %v, output: %s", err, string(output))
+		outputStr := strings.TrimSpace(string(output))
+		return fmt.Errorf("failed to commit changes: %w\n%s", err, outputStr)
+	}
+
+	return nil
+}
+
+// pushBranch pushes the specified branch to origin
+func pushBranch(branchName string, verbose bool) error {
+	console.LogVerbose(verbose, "Pushing branch: "+branchName)
+
+	cmd := exec.Command("git", "push", "-u", "origin", branchName)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to push branch %s: %w", branchName, err)
+	}
+
+	return nil
+}
+
+// checkCleanWorkingDirectory checks if there are uncommitted changes
+func checkCleanWorkingDirectory(verbose bool) error {
+	console.LogVerbose(verbose, "Checking for uncommitted changes...")
+
+	cmd := exec.Command("git", "status", "--porcelain")
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to check git status: %w", err)
+	}
+
+	if len(strings.TrimSpace(string(output))) > 0 {
+		return errors.New("working directory has uncommitted changes, please commit or stash them first")
+	}
+
+	console.LogVerbose(verbose, "Working directory is clean")
+	return nil
+}
+
+// WorkflowFileStatus represents the status of a workflow file in git
+type WorkflowFileStatus struct {
+	IsModified         bool // File has unstaged changes
+	IsStaged           bool // File has staged changes
+	HasUnpushedCommits bool // File has unpushed commits affecting it
+}
+
+// checkWorkflowFileStatus checks if a workflow file has local modifications, staged changes, or unpushed commits
+func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
+	gitLog.Printf("Checking status for workflow file: %s", workflowPath)
+
+	status := &WorkflowFileStatus{}
+
+	// Check if we're in a git repository
+	if !isGitRepo() {
+		gitLog.Print("Not in a git repository")
+		return status, nil
+	}
+
+	// Get the absolute path relative to git root
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		gitLog.Printf("Failed to find git root: %v", err)
+		return status, nil // Not in a git repository, return empty status
+	}
+
+	// Make path relative to git root if it's absolute
+	var relPath string
+	if filepath.IsAbs(workflowPath) {
+		var err error
+		relPath, err = filepath.Rel(gitRoot, workflowPath)
+		if err != nil {
+			gitLog.Printf("Failed to make path relative: %v", err)
+			relPath = workflowPath
+		}
+	} else {
+		relPath = workflowPath
+	}
+
+	gitLog.Printf("Checking git status for: %s", relPath)
+
+	// Check for modified or staged changes using git status --porcelain
+	cmd := exec.Command("git", "-C", gitRoot, "status", "--porcelain", relPath)
+	output, err := cmd.Output()
+	if err != nil {
+		gitLog.Printf("Failed to check git status: %v", err)
+		return status, nil // Ignore error, return empty status
+	}
+
+	statusOutput := string(output) // Don't trim - the leading space is significant!
+	if len(statusOutput) > 0 {
+		gitLog.Printf("Git status output: %q", statusOutput)
+		// Parse the status line (format: XY filename)
+		// X = index (staged) status, Y = working tree (unstaged) status
+		// The format is exactly 2 characters followed by a space and then the filename
+		if len(statusOutput) >= 2 {
+			stagedStatus := statusOutput[0]
+			unstagedStatus := statusOutput[1]
+
+			// Check if file is staged (first character is not space or ?)
+			if stagedStatus != ' ' && stagedStatus != '?' {
+				status.IsStaged = true
+				gitLog.Print("File has staged changes")
+			}
+
+			// Check if file is modified in working tree (second character is M or other modification indicators)
+			if unstagedStatus == 'M' || unstagedStatus == 'D' || unstagedStatus == 'A' {
+				status.IsModified = true
+				gitLog.Print("File has unstaged modifications")
+			}
+		}
+	}
+
+	// Check for unpushed commits that affect this file
+	// First, check if there's a remote tracking branch
+	cmd = exec.Command("git", "-C", gitRoot, "rev-parse", "--abbrev-ref", "@{u}")
+	output, err = cmd.Output()
+	if err != nil {
+		// No upstream branch configured, skip unpushed commits check
+		gitLog.Print("No upstream branch configured")
+		return status, nil
+	}
+
+	upstream := strings.TrimSpace(string(output))
+	gitLog.Printf("Upstream branch: %s", upstream)
+
+	// Check if there are commits in the current branch that affect this file and aren't in upstream
+	cmd = exec.Command("git", "-C", gitRoot, "log", upstream+"..HEAD", "--oneline", "--", relPath)
+	output, err = cmd.Output()
+	if err != nil {
+		gitLog.Printf("Failed to check unpushed commits: %v", err)
+		return status, nil // Ignore error, return current status
+	}
+
+	if len(strings.TrimSpace(string(output))) > 0 {
+		status.HasUnpushedCommits = true
+		gitLog.Print("File has unpushed commits")
+	}
+
+	return status, nil
+}
+
+// stageAllChanges stages all modified files using git add -A
+func stageAllChanges(verbose bool) error {
+	gitLog.Print("Staging all changes")
+	addCmd := exec.Command("git", "add", "-A")
+	if output, err := addCmd.CombinedOutput(); err != nil {
+		gitLog.Printf("Failed to stage changes: %v, output: %s", err, string(output))
+		return fmt.Errorf("failed to stage changes: %w", err)
+	}
+	gitLog.Print("Successfully staged all changes")
+	return nil
+}

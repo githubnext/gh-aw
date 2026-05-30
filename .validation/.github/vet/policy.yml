@@ -1,0 +1,21 @@
+name: OSS Dependency Policy
+description: |
+  Policy rules for OSS dependency vetting in this repository.
+tags:
+  - general
+filters:
+  - name: critical-or-high-vulns
+    check_type: CheckTypeVulnerability
+    summary: Critical or high risk vulnerabilities were found
+    value: |
+      vulns.critical.exists(p, true) || vulns.high.exists(p, true)
+  - name: ossf-unmaintained
+    check_type: CheckTypeMaintenance
+    summary: Component appears to be unmaintained
+    value: |
+      scorecard.scores["Maintained"] == 0
+  - name: osv-malware
+    check_type: CheckTypeMalware
+    summary: Malicious component detected
+    value: |
+      vulns.all.exists(v, v.id.startsWith("MAL-"))

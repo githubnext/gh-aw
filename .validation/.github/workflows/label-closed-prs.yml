@@ -1,0 +1,134 @@
+name: Label Closed PRs
+
+# Trigger when a pull request is closed (either merged or without merging)
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  pull-requests: write
+  issues: write
+  checks: read
+
+jobs:
+  label-closure-reason:
+    name: Label PR Closure Reason
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only label PRs that were closed WITHOUT merging
+    if: github.event.pull_request.merged == false
+    steps:
+      - name: Determine and apply closure reason label
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const prNumber = context.payload.pull_request.number;
+
+            core.info('=================================================');
+            core.info('Label Closed PRs — Closure Reason Classifier');
+            core.info('=================================================');
+            core.info(`PR #${prNumber} closed without merging`);
+
+            // Determine closure reason by inspecting CI checks and review state
+            async function getClosureReason() {
+              // 1. Check the combined CI status for the PR head commit
+              const headSha = context.payload.pull_request.head.sha;
+
+              let ciFailure = false;
+              try {
+                // Fetch check runs for the head commit
+                const checkRunsResp = await github.rest.checks.listForRef({
+                  owner,
+                  repo,
+                  ref: headSha,
+                  per_page: 100,
+                });
+
+                const runs = checkRunsResp.data.check_runs;
+                const failed = runs.filter(
+                  r => r.conclusion === 'failure' || r.conclusion === 'timed_out'
+                );
+                if (failed.length > 0) {
+                  ciFailure = true;
+                  core.info(`CI failure detected: ${failed.map(r => r.name).join(', ')}`);
+                }
+              } catch (err) {
+                core.warning(`Could not fetch check runs: ${err.message}`);
+              }
+
+              if (ciFailure) {
+                return 'closed:ci-failure';
+              }
+
+              // 2. Check if a reviewer explicitly requested changes or left a closing comment
+              let reviewerRejected = false;
+              try {
+                const reviewsResp = await github.rest.pulls.listReviews({
+                  owner,
+                  repo,
+                  pull_number: prNumber,
+                });
+
+                const changesRequested = reviewsResp.data.some(
+                  r => r.state === 'CHANGES_REQUESTED'
+                );
+                if (changesRequested) {
+                  reviewerRejected = true;
+                  core.info('Reviewer requested changes before PR was closed');
+                }
+              } catch (err) {
+                core.warning(`Could not fetch reviews: ${err.message}`);
+              }
+
+              if (reviewerRejected) {
+                return 'closed:reviewer-rejected';
+              }
+
+              // 3. Check for a duplicate/superseded label already applied
+              const existingLabels = context.payload.pull_request.labels.map(l => l.name);
+              if (existingLabels.some(l => l.includes('duplicate') || l.includes('superseded'))) {
+                return 'closed:duplicate';
+              }
+
+              // 4. Fall back to unknown
+              return 'closed:unknown';
+            }
+
+            const label = await getClosureReason();
+            core.info(`Applying label: ${label}`);
+
+            // Ensure the label exists (create it if missing)
+            const labelColors = {
+              'closed:ci-failure':       'e11d48', // red
+              'closed:reviewer-rejected': 'f97316', // orange
+              'closed:duplicate':         '8b5cf6', // purple
+              'closed:unknown':           '94a3b8', // gray
+            };
+
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: label });
+            } catch (err) {
+              if (err.status !== 404) {
+                throw err;
+              }
+              // Label doesn't exist yet — create it
+              await github.rest.issues.createLabel({
+                owner,
+                repo,
+                name: label,
+                color: labelColors[label] || '94a3b8',
+                description: `PR was closed without merging: ${label.replace('closed:', '')}`,
+              });
+              core.info(`Created label: ${label}`);
+            }
+
+            // Apply the label to the PR
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: prNumber,
+              labels: [label],
+            });
+
+            core.info(`✅ Applied label '${label}' to PR #${prNumber}`);

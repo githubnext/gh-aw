@@ -1,0 +1,47 @@
+name: Copilot Setup Steps
+"on":
+  pull_request:
+    paths:
+    - .github/workflows/copilot-setup-steps.yml
+  push:
+    paths:
+    - .github/workflows/copilot-setup-steps.yml
+  workflow_dispatch: null
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - name: Install gh-aw extension
+      run: curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh | bash
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - name: Set up Node.js
+      uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
+      with:
+        cache: npm
+        cache-dependency-path: actions/setup/js/package-lock.json
+        node-version: "24"
+    - name: Set up Go
+      uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
+      with:
+        go-version-file: go.mod
+    - name: Install npm dependencies
+      run: cd actions/setup/js && npm ci
+    - name: Install development dependencies
+      run: make deps-dev
+    - name: Build code
+      run: make build
+    - name: Recompile workflows
+      run: make recompile || true
+      env:
+        GH_TOKEN: ${{ github.token }}
+    - name: Setup uv
+      uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
+    - name: Install Go language server (gopls)
+      run: go install golang.org/x/tools/gopls@latest
+    - name: Install TypeScript language server
+      run: npm install -g typescript-language-server typescript

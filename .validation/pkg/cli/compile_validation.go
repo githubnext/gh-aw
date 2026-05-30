@@ -1,0 +1,266 @@
+package cli
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/goccy/go-yaml"
+)
+
+var compileValidationLog = logger.New("cli:compile_validation")
+
+// CompileValidationOptions holds optional validation flags for workflow compilation.
+type CompileValidationOptions struct {
+	Verbose              bool
+	RunZizmorPerFile     bool
+	RunPoutinePerFile    bool
+	RunActionlintPerFile bool
+	Strict               bool
+	ValidateActionSHAs   bool
+}
+
+// CompileWorkflowWithValidation compiles a workflow with always-on YAML validation for CLI usage
+func CompileWorkflowWithValidation(ctx context.Context, compiler *workflow.Compiler, filePath string, opts CompileValidationOptions) error {
+	compileValidationLog.Printf("Compiling workflow with validation: file=%s, strict=%v, validateSHAs=%v", filePath, opts.Strict, opts.ValidateActionSHAs)
+
+	compiler.SetContext(ctx)
+
+	// Set workflow identifier for schedule scattering (use repository-relative path for stability)
+	relPath, err := getRepositoryRelativePath(filePath)
+	if err != nil {
+		compileValidationLog.Printf("Warning: failed to get repository-relative path for %s: %v", filePath, err)
+		// Fallback to basename if we can't get relative path
+		relPath = filepath.Base(filePath)
+	}
+	compiler.SetWorkflowIdentifier(relPath)
+
+	// Set repository slug for this specific file (may differ from CWD's repo)
+	// Uses SetRepositorySlugIfUnlocked so that an explicit --schedule-seed flag is never overridden.
+	fileRepoSlug := getRepositorySlugFromRemoteForPath(filePath)
+	if fileRepoSlug != "" {
+		if compiler.IsRepositorySlugLocked() {
+			compileValidationLog.Printf("Repository slug from file remote (%s) ignored: overridden via --schedule-seed (%s)", fileRepoSlug, compiler.GetRepositorySlug())
+		} else {
+			compiler.SetRepositorySlugIfUnlocked(fileRepoSlug)
+			compileValidationLog.Printf("Repository slug for file set: %s", fileRepoSlug)
+		}
+	}
+
+	// Compile the workflow first
+	if err := compiler.CompileWorkflow(filePath); err != nil {
+		compileValidationLog.Printf("Workflow compilation failed: %v", err)
+		return err
+	}
+
+	// Always validate that the generated lock file is valid YAML (CLI requirement)
+	lockFile := stringutil.MarkdownToLockFile(filePath)
+	if _, err := os.Stat(lockFile); err != nil {
+		compileValidationLog.Print("Lock file not found, skipping validation (likely no-emit mode)")
+		// Lock file doesn't exist (likely due to no-emit), skip YAML validation
+		return nil
+	}
+
+	compileValidationLog.Print("Validating generated lock file YAML syntax")
+
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		return fmt.Errorf("failed to read generated lock file for validation: %w", err)
+	}
+
+	// Validate the lock file is valid YAML
+	var yamlValidationTest any
+	if err := yaml.Unmarshal(lockContent, &yamlValidationTest); err != nil {
+		return fmt.Errorf("generated lock file is not valid YAML: %w", err)
+	}
+
+	// Validate action SHAs if requested
+	if opts.ValidateActionSHAs {
+		compileValidationLog.Print("Validating action SHAs in lock file")
+		// Use the compiler's shared action cache to benefit from cached resolutions
+		actionCache := compiler.GetSharedActionCache()
+		if err := workflow.ValidateActionSHAsInLockFile(ctx, lockFile, actionCache, opts.Verbose); err != nil {
+			// Action SHA validation warnings are non-fatal
+			compileValidationLog.Printf("Action SHA validation completed with warnings: %v", err)
+		}
+	}
+
+	// Run zizmor on the generated lock file if requested
+	if opts.RunZizmorPerFile {
+		if err := runZizmorOnFile(lockFile, opts.Verbose, opts.Strict); err != nil {
+			return fmt.Errorf("zizmor security scan failed: %w", err)
+		}
+	}
+
+	// Run poutine on the generated lock file if requested
+	if opts.RunPoutinePerFile {
+		if err := runPoutineOnFile(lockFile, opts.Verbose, opts.Strict); err != nil {
+			return fmt.Errorf("poutine security scan failed: %w", err)
+		}
+	}
+
+	// Run actionlint on the generated lock file if requested
+	// Note: For batch processing, use RunActionlintOnFiles instead
+	if opts.RunActionlintPerFile {
+		if err := runActionlintOnFiles(ctx, []string{lockFile}, opts.Verbose, opts.Strict); err != nil {
+			return fmt.Errorf("actionlint linter failed: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// CompileWorkflowDataWithValidation compiles from already-parsed WorkflowData with validation
+// This avoids re-parsing when the workflow data has already been parsed
+func CompileWorkflowDataWithValidation(ctx context.Context, compiler *workflow.Compiler, workflowData *workflow.WorkflowData, filePath string, opts CompileValidationOptions) error {
+	compileValidationLog.Printf("Compiling from parsed WorkflowData: file=%s", filePath)
+
+	compiler.SetContext(ctx)
+
+	// Compile the workflow using already-parsed data
+	if err := compiler.CompileWorkflowData(workflowData, filePath); err != nil {
+		compileValidationLog.Printf("WorkflowData compilation failed: %v", err)
+		return err
+	}
+
+	// Always validate that the generated lock file is valid YAML (CLI requirement)
+	lockFile := stringutil.MarkdownToLockFile(filePath)
+	if _, err := os.Stat(lockFile); err != nil {
+		compileValidationLog.Print("Lock file not found, skipping validation (likely no-emit mode)")
+		// Lock file doesn't exist (likely due to no-emit), skip YAML validation
+		return nil
+	}
+
+	compileValidationLog.Print("Validating generated lock file YAML syntax")
+
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		return fmt.Errorf("failed to read generated lock file for validation: %w", err)
+	}
+
+	// Validate the lock file is valid YAML
+	var yamlValidationTest any
+	if err := yaml.Unmarshal(lockContent, &yamlValidationTest); err != nil {
+		return fmt.Errorf("generated lock file is not valid YAML: %w", err)
+	}
+
+	// Validate action SHAs if requested
+	if opts.ValidateActionSHAs {
+		compileValidationLog.Print("Validating action SHAs in lock file")
+		// Use the compiler's shared action cache to benefit from cached resolutions
+		actionCache := compiler.GetSharedActionCache()
+		if err := workflow.ValidateActionSHAsInLockFile(ctx, lockFile, actionCache, opts.Verbose); err != nil {
+			// Action SHA validation warnings are non-fatal
+			compileValidationLog.Printf("Action SHA validation completed with warnings: %v", err)
+		}
+	}
+
+	// Run zizmor on the generated lock file if requested
+	if opts.RunZizmorPerFile {
+		if err := runZizmorOnFile(lockFile, opts.Verbose, opts.Strict); err != nil {
+			return fmt.Errorf("zizmor security scan failed: %w", err)
+		}
+	}
+
+	// Run poutine on the generated lock file if requested
+	if opts.RunPoutinePerFile {
+		if err := runPoutineOnFile(lockFile, opts.Verbose, opts.Strict); err != nil {
+			return fmt.Errorf("poutine security scan failed: %w", err)
+		}
+	}
+
+	// Run actionlint on the generated lock file if requested
+	// Note: For batch processing, use RunActionlintOnFiles instead
+	if opts.RunActionlintPerFile {
+		if err := runActionlintOnFiles(ctx, []string{lockFile}, opts.Verbose, opts.Strict); err != nil {
+			return fmt.Errorf("actionlint linter failed: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// validateCompileConfig validates the configuration flags before compilation
+// This is extracted for faster testing without full compilation
+func validateCompileConfig(config CompileConfig) error {
+	compileValidationLog.Printf("Validating compile config: files=%d, dependabot=%v, purge=%v, workflowDir=%s", len(config.MarkdownFiles), config.Dependabot, config.Purge, config.WorkflowDir)
+
+	// Validate dependabot flag usage
+	if config.Dependabot {
+		if len(config.MarkdownFiles) > 0 {
+			compileValidationLog.Print("Config validation failed: dependabot flag with specific files")
+			return errors.New("--dependabot flag cannot be used with specific workflow files")
+		}
+		if config.WorkflowDir != "" && config.WorkflowDir != constants.GetWorkflowDir() {
+			compileValidationLog.Printf("Config validation failed: dependabot with custom dir: %s", config.WorkflowDir)
+			return errors.New("--dependabot flag cannot be used with custom --dir")
+		}
+	}
+
+	// Validate purge flag usage
+	if config.Purge && len(config.MarkdownFiles) > 0 {
+		compileValidationLog.Print("Config validation failed: purge flag with specific files")
+		return errors.New("--purge flag can only be used when compiling all markdown files (no specific files specified)")
+	}
+
+	// Validate workflow directory path
+	if config.WorkflowDir != "" && filepath.IsAbs(config.WorkflowDir) {
+		compileValidationLog.Printf("Config validation failed: absolute path in workflowDir: %s", config.WorkflowDir)
+		return fmt.Errorf("--dir must be a relative path, got: %s", config.WorkflowDir)
+	}
+
+	compileValidationLog.Print("Config validation successful")
+	return nil
+}
+
+// validateActionModeConfig validates the action mode configuration
+func validateActionModeConfig(actionMode string) error {
+	if actionMode == "" {
+		return nil
+	}
+
+	mode := workflow.ActionMode(actionMode)
+	if !mode.IsValid() {
+		return fmt.Errorf("invalid action mode '%s'. Must be 'dev', 'release', 'script', or 'action'", actionMode)
+	}
+
+	return nil
+}
+
+// sanitizeValidationResults creates a sanitized copy of validation results with all
+// error and warning messages sanitized to remove potential secret key names.
+// This is applied at the JSON output boundary to ensure no sensitive information
+// is leaked regardless of where error messages originated.
+func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
+	if results == nil {
+		return nil
+	}
+
+	compileValidationLog.Printf("Sanitizing validation results: workflow_count=%d", len(results))
+
+	sanitizeError := func(e CompileValidationError) CompileValidationError {
+		return CompileValidationError{
+			Type:    e.Type,
+			Message: stringutil.SanitizeErrorMessage(e.Message),
+			Line:    e.Line,
+		}
+	}
+
+	return sliceutil.Map(results, func(result ValidationResult) ValidationResult {
+		return ValidationResult{
+			Workflow:     result.Workflow,
+			Valid:        result.Valid,
+			CompiledFile: result.CompiledFile,
+			Errors:       sliceutil.Map(result.Errors, sanitizeError),
+			Warnings:     sliceutil.Map(result.Warnings, sanitizeError),
+			Labels:       result.Labels,
+		}
+	})
+}

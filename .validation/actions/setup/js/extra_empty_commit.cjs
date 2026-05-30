@@ -1,0 +1,205 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
+
+/**
+ * @fileoverview Extra Empty Commit Helper
+ *
+ * Pushes an empty commit to a branch using a different token to trigger CI events.
+ * This works around the GitHub Actions limitation where events created with
+ * GITHUB_TOKEN do not trigger other workflow runs.
+ *
+ * The token comes from `github-token-for-extra-empty-commit` in safe-outputs config
+ * and is passed in as the GH_AW_CI_TRIGGER_TOKEN environment variable.
+ * By the time this script runs, GH_AW_CI_TRIGGER_TOKEN must contain an actual
+ * GitHub authentication token (for example, a GitHub App token or a PAT).
+ * Any selection or defaulting behavior (such as resolving `app`, `default`,
+ * or a specific secret reference) is handled in the workflow compiler/config
+ * layer before this script is invoked.
+ */
+
+/**
+ * Check whether a target repository is a cross-repo target (different from the
+ * workflow's own repository). Comparison is case-insensitive.
+ *
+ * @param {string} repoOwner - Repository owner
+ * @param {string} repoName - Repository name
+ * @returns {boolean} true when the target repo differs from GITHUB_REPOSITORY
+ */
+function isCrossRepoTarget(repoOwner, repoName) {
+  const githubRepository = process.env.GITHUB_REPOSITORY || "";
+  if (!githubRepository) {
+    return false;
+  }
+  const targetRepo = `${repoOwner}/${repoName}`;
+  return targetRepo.toLowerCase() !== githubRepository.toLowerCase();
+}
+
+/**
+ * Push an empty commit to a branch using a dedicated token.
+ * This commit is pushed with different authentication so that push/PR events
+ * are triggered for CI checks to run.
+ *
+ * @param {Object} options - Options for the extra empty commit
+ * @param {string} options.branchName - The branch to push the empty commit to
+ * @param {string} options.repoOwner - Repository owner
+ * @param {string} options.repoName - Repository name
+ * @param {string} [options.commitMessage] - Custom commit message (default: "ci: trigger checks")
+ * @param {number} [options.newCommitCount] - Number of new commits being pushed. Only pushes the
+ *   empty commit when exactly 1 new commit was pushed, preventing accidental workflow-file
+ *   modifications on multi-commit branches and reducing loop risk.
+ * @param {string[]|string} [options.allowedRepos] - Allowed repository patterns for allowlist validation
+ * @returns {Promise<{success: boolean, skipped?: boolean, error?: string}>}
+ */
+async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMessage, newCommitCount, allowedRepos: allowedReposInput }) {
+  const token = process.env.GH_AW_CI_TRIGGER_TOKEN;
+
+  if (!token || !token.trim()) {
+    core.info("No extra empty commit token configured - skipping");
+    return { success: true, skipped: true };
+  }
+
+  // Validate target repository against allowlist before any git operations
+  const allowedRepos = parseAllowedRepos(allowedReposInput);
+  if (allowedRepos.size > 0) {
+    const targetRepo = `${repoOwner}/${repoName}`;
+    const defaultRepo = getDefaultTargetRepo();
+    const validation = validateTargetRepo(targetRepo, defaultRepo, allowedRepos);
+    if (!validation.valid) {
+      core.warning(`ERR_VALIDATION: ${validation.error}`);
+      return { success: false, error: validation.error ?? "" };
+    }
+  }
+
+  // Cross-repo guard: never push an extra empty commit to a different repository.
+  // A token is needed to create the PR and that will trigger events anyway.
+  if (isCrossRepoTarget(repoOwner, repoName)) {
+    core.info(`Skipping extra empty commit: cross-repo target ${repoOwner}/${repoName} differs from workflow repo ${process.env.GITHUB_REPOSITORY}`);
+    return { success: true, skipped: true };
+  }
+
+  if (newCommitCount !== undefined && newCommitCount !== 1) {
+    core.info(`Skipping extra empty commit: ${newCommitCount} new commit(s) pushed (only triggers for exactly 1 commit)`);
+    return { success: true, skipped: true };
+  }
+
+  core.info("Extra empty commit token detected - pushing empty commit to trigger CI events");
+
+  try {
+    // Cycle prevention: count empty commits in the last 60 commits on this branch.
+    // If 30 or more are empty, skip pushing to avoid infinite trigger loops.
+    const MAX_EMPTY_COMMITS = 30;
+    const COMMITS_TO_CHECK = 60;
+    let emptyCommitCount = 0;
+    let mergeCommitCount = 0;
+    let analyzedCommitCount = 0;
+    core.info(`Cycle check: analyzing up to ${COMMITS_TO_CHECK} recent commits on ${branchName}`);
+
+    try {
+      let logOutput = "";
+      // List last N commits: for each, output "COMMIT:<hash> <parents>" then changed file names.
+      // Empty commits will have no files listed after the hash line.
+      await exec.exec("git", ["log", `--max-count=${COMMITS_TO_CHECK}`, "--format=COMMIT:%H %P", "--name-only", "HEAD"], {
+        listeners: {
+          stdout: data => {
+            logOutput += data.toString();
+          },
+        },
+        silent: true,
+      });
+      // Split by COMMIT: markers; each chunk starts with the hash, followed by filenames
+      const chunks = logOutput.split("COMMIT:").filter(c => c.trim());
+      for (const chunk of chunks) {
+        analyzedCommitCount++;
+        const lines = chunk.split("\n").filter(l => l.trim());
+        // First line is hash + parent SHAs, remaining lines are changed files.
+        // Ignore merge commits (2+ parents) so they aren't mistaken for CI-trigger empty commits.
+        // git log format is "COMMIT:<hash> <parent1> <parent2>..."
+        const hashAndParents = (lines[0] || "").trim().split(" ").filter(Boolean);
+        const parentCount = Math.max(0, hashAndParents.length - 1);
+        if (parentCount >= 2) {
+          mergeCommitCount++;
+          continue;
+        }
+
+        // Non-merge commit with no changed files -> empty commit
+        if (lines.length <= 1) {
+          emptyCommitCount++;
+        }
+      }
+    } catch {
+      // If we can't check, default to allowing the push
+      emptyCommitCount = 0;
+      core.warning(`Cycle check unavailable: failed to inspect git history for ${branchName}. Continuing with empty commit count set to 0.`);
+    }
+
+    if (emptyCommitCount >= MAX_EMPTY_COMMITS) {
+      core.warning(`Cycle prevention: found ${emptyCommitCount} empty commits in the last ${COMMITS_TO_CHECK} commits on ${branchName}. ` + `Skipping extra empty commit to avoid potential infinite loop.`);
+      return { success: true, skipped: true };
+    }
+
+    core.info(`Cycle check details: analyzed ${analyzedCommitCount} commit(s), ignored ${mergeCommitCount} merge commit(s), counted ${emptyCommitCount} empty non-merge commit(s)`);
+    core.info(`Cycle check passed: ${emptyCommitCount} empty commit(s) in last ${COMMITS_TO_CHECK} (limit: ${MAX_EMPTY_COMMITS})`);
+
+    // Configure git remote with the token for authentication
+    const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+    const serverHostStripped = githubServerUrl.replace(/^https?:\/\//, "");
+    const remoteUrl = `https://x-access-token:${token}@${serverHostStripped}/${repoOwner}/${repoName}.git`;
+
+    // Add a temporary remote with the token
+    try {
+      await exec.exec("git", ["remote", "remove", "ci-trigger"]);
+    } catch {
+      // Remote doesn't exist yet, that's fine
+    }
+    await exec.exec("git", ["remote", "add", "ci-trigger", remoteUrl]);
+
+    // Fetch and sync with the remote branch. This is required when the PR branch
+    // was created server-side via the GitHub API (e.g. via the createCommitOnBranch
+    // GraphQL mutation used by pushSignedCommits), because the remote branch tip
+    // then has a different SHA than the local branch tip. Without this sync, git
+    // would reject the subsequent push as non-fast-forward.
+    try {
+      await exec.exec("git", ["fetch", "ci-trigger", branchName]);
+      await exec.exec("git", ["reset", "--hard", `ci-trigger/${branchName}`]);
+    } catch (error) {
+      // Non-fatal: if fetch/reset fails (e.g. branch not yet on remote), continue
+      // with the local HEAD and attempt the push anyway.
+      const syncErrorMessage = getErrorMessage(error);
+      core.warning(`Could not sync local branch with remote ${branchName} - will attempt push with local HEAD. Underlying error: ${syncErrorMessage}`);
+    }
+
+    // Create and push an empty commit
+    const message = commitMessage || "ci: trigger checks";
+    await exec.exec("git", ["commit", "--allow-empty", "-m", message]);
+    await exec.exec("git", ["push", "ci-trigger", branchName]);
+
+    core.info(`Extra empty commit pushed to ${branchName} successfully`);
+
+    // Clean up the temporary remote
+    try {
+      await exec.exec("git", ["remote", "remove", "ci-trigger"]);
+    } catch {
+      // Non-fatal cleanup error
+    }
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage = getErrorMessage(error);
+    core.warning(`Failed to push extra empty commit: ${errorMessage}`);
+
+    // Clean up the temporary remote on failure
+    try {
+      await exec.exec("git", ["remote", "remove", "ci-trigger"]);
+    } catch {
+      // Non-fatal cleanup error
+    }
+
+    // Extra empty commit failure is not fatal - the main push already succeeded
+    return { success: false, error: errorMessage };
+  }
+}
+
+module.exports = { pushExtraEmptyCommit, isCrossRepoTarget };

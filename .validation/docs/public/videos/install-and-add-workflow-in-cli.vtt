@@ -1,0 +1,7 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:07.000
+Demo: Install GitHub Agentic Workflows in the GitHub CLI and add a sample workflow.
+
+00:00:07.000 --> 00:00:16.000
+The demo shows setup, creating a workflow file, and triggering the first run.

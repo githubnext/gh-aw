@@ -1,0 +1,76 @@
+---
+title: Authentication (Projects)
+description: Reference for authenticating GitHub Projects read and write operations in gh-aw
+sidebar:
+  order: 655
+---
+
+GitHub Projects operations require additional authentication because the default `GITHUB_TOKEN` is repository-scoped and cannot access the Projects GraphQL API for read or write operations.
+
+## Why a separate token is needed
+
+The standard `GITHUB_TOKEN` provided to every GitHub Actions workflow has repository-level scope only. GitHub Projects (both user-owned and organization-owned) sit outside that scope, so any workflow step that reads project fields or writes updates must supply a token with explicit Projects permissions.
+
+This applies to:
+
+- [GitHub tools `projects` toolset](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools) — reads project items and field values
+- [`update-project` safe output](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) — adds items and updates fields
+- [`create-project` safe output](/gh-aw/reference/safe-outputs/#project-creation-create-project) — creates new project boards
+- [`create-project-status-update` safe output](/gh-aw/reference/safe-outputs/#project-status-updates-create-project-status-update) — posts status updates
+
+## Personal Access Tokens
+
+### User-owned projects
+
+Use a [classic PAT](https://github.com/settings/tokens/new) with the following scopes:
+
+- `project`
+- `repo` (required if the project contains items from private repositories)
+
+### Organization-owned projects
+
+Use a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new?name=GH_AW_WRITE_PROJECT_TOKEN&description=GitHub+Agentic+Workflows+-+Projects+authentication&contents=read&issues=read&pull_requests=read) with these settings:
+
+- **Resource owner**: the organization that owns the project
+- **Repository access**: the repositories that will run the workflow
+- **Repository permissions**: `Contents: Read`, and optionally `Issues: Read` / `Pull requests: Read`
+- **Organization permissions**: `Projects: Read and write`
+
+## GitHub App tokens
+
+For organization-wide standardization, a GitHub App can be used instead of PATs. The app must have **Organization projects: Read and write** permission.
+
+See [Using a GitHub App for Authentication](/gh-aw/reference/auth/#using-a-github-app-for-authentication) for setup instructions.
+
+## Recommended secret layout
+
+Use separate read and write tokens to enforce least privilege:
+
+```bash wrap
+gh aw secrets set GH_AW_READ_PROJECT_TOKEN --value "<read-token>"
+gh aw secrets set GH_AW_WRITE_PROJECT_TOKEN --value "<write-token>"
+```
+
+Reference each token in the workflow where it is needed:
+
+```aw wrap
+tools:
+  github:
+    mode: remote
+    toolsets: [projects]
+    github-token: ${{ secrets.GH_AW_READ_PROJECT_TOKEN }}
+
+safe-outputs:
+  update-project:
+    project-url: https://github.com/orgs/my-org/projects/1
+    github-token: ${{ secrets.GH_AW_WRITE_PROJECT_TOKEN }}
+```
+
+The magic secret `GH_AW_GITHUB_MCP_SERVER_TOKEN` is recognized by GitHub Agentic Workflows and does not need to be explicitly referenced in your workflow — if it is present in the repository, it is used automatically for all GitHub tools toolsets, including `projects`.
+
+## Related documentation
+
+- [Authentication](/gh-aw/reference/auth/) — AI engine secrets and GitHub App setup
+- [GitHub Tools](/gh-aw/reference/github-tools/) — toolset configuration and additional authentication
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) — write operations and token configuration
+- [ProjectOps pattern](/gh-aw/patterns/project-ops/) — end-to-end example with project boards

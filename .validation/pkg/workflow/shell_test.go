@@ -1,0 +1,379 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestShellEscapeArg(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple argument without special characters",
+			input:    "hello",
+			expected: "hello",
+		},
+		{
+			name:     "argument with parentheses",
+			input:    "shell(git add:*)",
+			expected: "'shell(git add:*)'",
+		},
+		{
+			name:     "argument with brackets",
+			input:    "pattern[abc]",
+			expected: "'pattern[abc]'",
+		},
+		{
+			name:     "argument with spaces",
+			input:    "hello world",
+			expected: "'hello world'",
+		},
+		{
+			name:     "argument with single quote",
+			input:    "don't",
+			expected: "'don'\\''t'",
+		},
+		{
+			name:     "argument with asterisk",
+			input:    "*.txt",
+			expected: "'*.txt'",
+		},
+		{
+			name:     "argument with dollar sign",
+			input:    "$HOME",
+			expected: "'$HOME'",
+		},
+		{
+			name:     "simple flag",
+			input:    "--allow-tool",
+			expected: "--allow-tool",
+		},
+		{
+			name:     "already double-quoted argument is now properly escaped",
+			input:    "\"$INSTRUCTION\"",
+			expected: "'\"$INSTRUCTION\"'",
+		},
+		{
+			name:     "already single-quoted argument is now properly escaped",
+			input:    "'hello world'",
+			expected: "''\\''hello world'\\'''",
+		},
+		{
+			name:     "partial double quote should be escaped",
+			input:    "hello\"world",
+			expected: "'hello\"world'",
+		},
+		{
+			name:     "empty double quotes are now properly escaped",
+			input:    "\"\"",
+			expected: "'\"\"'",
+		},
+		{
+			name:     "backslash-b sequence should be preserved",
+			input:    "grep -r '\\bany\\b' pkg",
+			expected: "'grep -r '\\''\\bany\\b'\\'' pkg'",
+		},
+		{
+			name:     "backslash-n sequence should be preserved",
+			input:    "echo '\\n'",
+			expected: "'echo '\\''\\n'\\'''",
+		},
+		{
+			name:     "backslash-t sequence should be preserved",
+			input:    "echo '\\t'",
+			expected: "'echo '\\''\\t'\\'''",
+		},
+		{
+			name:     "literal backslash should be preserved",
+			input:    "path\\to\\file",
+			expected: "'path\\to\\file'",
+		},
+		{
+			name:     "GitHub Actions expression uses double quotes",
+			input:    "${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }},errors.code.visualstudio.com",
+			expected: `"${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }},errors.code.visualstudio.com"`,
+		},
+		{
+			name:     "simple GitHub Actions expression uses double quotes",
+			input:    "${{ env.DOMAINS }}",
+			expected: `"${{ env.DOMAINS }}"`,
+		},
+		{
+			name:     "embedded GitHub Actions expression uses double quotes",
+			input:    "prefix-${{ env.DOMAINS }}-suffix",
+			expected: `"prefix-${{ env.DOMAINS }}-suffix"`,
+		},
+		{
+			name:     "incomplete expression marker is treated as normal shell input",
+			input:    "${{ env.DOMAINS",
+			expected: "'${{ env.DOMAINS'",
+		},
+		{
+			name:     "empty expression body is treated as normal shell input",
+			input:    "${{}}",
+			expected: "'${{}}'",
+		},
+		{
+			name:     "GitHub Actions expression with embedded double quotes escapes them",
+			input:    `${{ env.X == "test" && env.Y || env.Z }}`,
+			expected: `"${{ env.X == \"test\" && env.Y || env.Z }}"`,
+		},
+		// --- $schema / bare-dollar escaping in double-quote mode ---
+		// When a string contains both a GitHub Actions expression and a bare $ (e.g. a
+		// JSON $schema key), the bare $ must be escaped to \$ so bash does not expand
+		// it as a variable inside the double-quoted shell argument.
+		{
+			name:     "JSON with $schema key and GitHub Actions expression escapes bare dollar",
+			input:    `{"$schema":"https://example.com","network":{"allowDomains":["${{ env.DOMAINS }}"]}}`,
+			expected: `"{\"\$schema\":\"https://example.com\",\"network\":{\"allowDomains\":[\"${{ env.DOMAINS }}\"]}}"`,
+		},
+		{
+			name:     "GitHub Actions expression preceded by bare dollar sign escapes the bare dollar",
+			input:    "plain-$var,${{ env.DOMAINS }}",
+			expected: `"plain-\$var,${{ env.DOMAINS }}"`,
+		},
+		{
+			name:     "sole GitHub Actions expression has no bare dollar, no extra escaping needed",
+			input:    "${{ env.DOMAINS }}",
+			expected: `"${{ env.DOMAINS }}"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := shellEscapeArg(tt.input)
+			if result != tt.expected {
+				t.Errorf("shellEscapeArg(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestShellJoinArgs(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected string
+	}{
+		{
+			name:     "simple arguments",
+			input:    []string{"git", "status"},
+			expected: "git status",
+		},
+		{
+			name:     "arguments with special characters",
+			input:    []string{"--allow-tool", "shell(git add:*)", "--allow-tool", "shell(git commit:*)"},
+			expected: "--allow-tool 'shell(git add:*)' --allow-tool 'shell(git commit:*)'",
+		},
+		{
+			name:     "mixed arguments",
+			input:    []string{"copilot", "--add-dir", "/tmp/gh-aw/", "--allow-tool", "shell(*.txt)"},
+			expected: "copilot --add-dir /tmp/gh-aw/ --allow-tool 'shell(*.txt)'",
+		},
+		{
+			name:     "prompt with pre-quoted instruction is now properly escaped by shellJoinArgs",
+			input:    []string{"copilot", "--add-dir", "/tmp/gh-aw/", "--prompt", "\"$INSTRUCTION\""},
+			expected: "copilot --add-dir /tmp/gh-aw/ --prompt '\"$INSTRUCTION\"'",
+		},
+		{
+			name:     "allow-domains with GitHub Actions expression uses double quotes",
+			input:    []string{"--allow-domains", "${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }},errors.code.visualstudio.com"},
+			expected: `--allow-domains "${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }},errors.code.visualstudio.com"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := shellJoinArgs(tt.input)
+			if result != tt.expected {
+				t.Errorf("shellJoinArgs(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestBuildDockerCommandWithExpandableVars(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple command without variables",
+			input:    "docker run hello",
+			expected: "'docker run hello'",
+		},
+		{
+			name:     "command with single GITHUB_WORKSPACE",
+			input:    "docker run -v ${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}",
+			expected: "'docker run -v '\"${GITHUB_WORKSPACE}\"':'\"${GITHUB_WORKSPACE}\"''",
+		},
+		{
+			name:     "command with GITHUB_WORKSPACE at the start",
+			input:    "${GITHUB_WORKSPACE}/file",
+			expected: "''\"${GITHUB_WORKSPACE}\"'/file'",
+		},
+		{
+			name:     "command with GITHUB_WORKSPACE at the end",
+			input:    "path/to/${GITHUB_WORKSPACE}",
+			expected: "'path/to/'\"${GITHUB_WORKSPACE}\"''",
+		},
+		{
+			name:     "command with multiple GITHUB_WORKSPACE references",
+			input:    "${GITHUB_WORKSPACE}/src:${GITHUB_WORKSPACE}/dst",
+			expected: "''\"${GITHUB_WORKSPACE}\"'/src:'\"${GITHUB_WORKSPACE}\"'/dst'",
+		},
+		{
+			name:     "command with GITHUB_WORKSPACE and single quote",
+			input:    "it's in ${GITHUB_WORKSPACE}",
+			expected: "'it'\\''s in '\"${GITHUB_WORKSPACE}\"''",
+		},
+		{
+			name:     "complex docker command",
+			input:    "docker run -v ${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw image",
+			expected: "'docker run -v '\"${GITHUB_WORKSPACE}\"':'\"${GITHUB_WORKSPACE}\"':rw image'",
+		},
+		{
+			name:     "command with spaces and no variables",
+			input:    "docker run hello world",
+			expected: "'docker run hello world'",
+		},
+		{
+			name:     "empty command",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "injection attempt in GITHUB_WORKSPACE context",
+			input:    "${GITHUB_WORKSPACE}; rm -rf /",
+			expected: "''\"${GITHUB_WORKSPACE}\"'; rm -rf /'",
+		},
+		{
+			name:     "multiple different variables",
+			input:    "${GITHUB_WORKSPACE}/src ${OTHER_VAR}/dst",
+			expected: "''\"${GITHUB_WORKSPACE}\"'/src '\"${OTHER_VAR}\"'/dst'",
+		},
+		{
+			name:     "DOCKER_SOCK_GID variable",
+			input:    "docker run --group-add ${DOCKER_SOCK_GID} -v /var/run/docker.sock:/var/run/docker.sock",
+			expected: "'docker run --group-add '\"${DOCKER_SOCK_GID}\"' -v /var/run/docker.sock:/var/run/docker.sock'",
+		},
+		{
+			name:     "mixed DOCKER_SOCK_GID and GITHUB_WORKSPACE",
+			input:    "docker run --group-add ${DOCKER_SOCK_GID} -v ${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw",
+			expected: "'docker run --group-add '\"${DOCKER_SOCK_GID}\"' -v '\"${GITHUB_WORKSPACE}\"':'\"${GITHUB_WORKSPACE}\"':rw'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildDockerCommandWithExpandableVars(tt.input)
+			if result != tt.expected {
+				t.Errorf("buildDockerCommandWithExpandableVars(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestBuildDockerCommandWithExpandableVars_PreservesVariableExpansion(t *testing.T) {
+	// Test that ${GITHUB_WORKSPACE} is properly preserved for shell expansion
+	input := "docker run -v ${GITHUB_WORKSPACE}:/workspace"
+	result := buildDockerCommandWithExpandableVars(input)
+
+	// The result should preserve GITHUB_WORKSPACE variable for expansion
+	if !strings.Contains(result, "${GITHUB_WORKSPACE}") {
+		t.Errorf("Result should preserve GITHUB_WORKSPACE variable for expansion, got: %q", result)
+	}
+
+	// GITHUB_WORKSPACE should be in double quotes for safe expansion
+	if !strings.Contains(result, "\"${GITHUB_WORKSPACE}\"") {
+		t.Errorf("GITHUB_WORKSPACE should be in double quotes for safe expansion, got: %q", result)
+	}
+}
+
+func TestBuildDockerCommandWithExpandableVars_UnbracedVariable(t *testing.T) {
+	// Test that $GITHUB_WORKSPACE (without braces) is handled
+	// The current implementation only handles ${GITHUB_WORKSPACE} (with braces)
+	// and treats $GITHUB_WORKSPACE as a regular shell character that gets quoted
+	input := "docker run -v $GITHUB_WORKSPACE:/workspace"
+	result := buildDockerCommandWithExpandableVars(input)
+
+	// Document current behavior: unbraced $GITHUB_WORKSPACE is quoted normally
+	expected := "'docker run -v $GITHUB_WORKSPACE:/workspace'"
+	if result != expected {
+		t.Errorf("Unbraced $GITHUB_WORKSPACE should be quoted normally (not preserved for expansion), got %q, expected %q", result, expected)
+	}
+}
+
+func TestEscapeBareShellDollarSigns(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "no dollar signs",
+			input:    "no dollars here",
+			expected: "no dollars here",
+		},
+		{
+			name:     "bare dollar followed by identifier",
+			input:    "$schema",
+			expected: `\$schema`,
+		},
+		{
+			name:     "dollar sign at end of string",
+			input:    "trailing$",
+			expected: `trailing\$`,
+		},
+		{
+			name:     "GitHub Actions expression is preserved",
+			input:    "${{ env.DOMAINS }}",
+			expected: "${{ env.DOMAINS }}",
+		},
+		{
+			name:     "multiple GitHub Actions expressions are preserved",
+			input:    "${{ env.A }},${{ env.B }}",
+			expected: "${{ env.A }},${{ env.B }}",
+		},
+		{
+			name:     "bare dollar mixed with GitHub Actions expression",
+			input:    `$schema and ${{ env.X }}`,
+			expected: `\$schema and ${{ env.X }}`,
+		},
+		{
+			name:     "JSON $schema key alongside expression",
+			input:    `{"$schema":"https://example.com","allowDomains":["${{ env.DOMAINS }}"]}`,
+			expected: `{"\$schema":"https://example.com","allowDomains":["${{ env.DOMAINS }}"]}`,
+		},
+		{
+			name:     "dollar followed by single open brace is escaped",
+			input:    "${HOME}",
+			expected: `\${HOME}`,
+		},
+		{
+			name:     "dollar followed by ${{ is preserved",
+			input:    "${{",
+			expected: "${{",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := escapeBareShellDollarSigns(tt.input)
+			if result != tt.expected {
+				t.Errorf("escapeBareShellDollarSigns(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}

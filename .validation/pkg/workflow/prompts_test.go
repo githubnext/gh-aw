@@ -1,0 +1,730 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/github/gh-aw/pkg/stringutil"
+)
+
+// ============================================================================
+// Safe Outputs Prompt Tests
+// ============================================================================
+
+func TestSafeOutputsPromptText_FollowsXMLFormat(t *testing.T) {
+	// This test is for the embedded prompt text which is no longer used
+	// Skip it as we now generate the prompt dynamically
+	t.Skip("Safe outputs prompt is now generated dynamically based on enabled tools")
+}
+
+// ============================================================================
+// Cache Memory Prompt Tests
+// ============================================================================
+
+func TestCacheMemoryPromptIncludedWhenEnabled(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-cache-memory-prompt-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow with cache-memory enabled
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: claude
+tools:
+  cache-memory: true
+---
+
+# Test Workflow with Cache Memory
+
+This is a test workflow with cache-memory enabled.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Test 1: Verify unified prompt creation step is present
+	if !strings.Contains(lockStr, "- name: Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
+	}
+
+	// Test 2: Verify the template file reference and environment variables
+	if !strings.Contains(lockStr, "cache_memory_prompt.md") {
+		t.Error("Expected cache template file reference in generated workflow")
+	}
+	if !strings.Contains(lockStr, "GH_AW_CACHE_DIR: '/tmp/gh-aw/cache-memory/'") {
+		t.Error("Expected GH_AW_CACHE_DIR environment variable in generated workflow")
+	}
+	if !strings.Contains(lockStr, "GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR") {
+		t.Error("Expected GH_AW_CACHE_DIR in substitution step")
+	}
+
+	// Test 3: Verify the template file is used (not inline text)
+	if !strings.Contains(lockStr, "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md") {
+		t.Error("Expected '${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md' reference in generated workflow")
+	}
+
+	// Test 4: Verify the instruction mentions persistent cache
+	if !strings.Contains(lockStr, "persist") {
+		t.Error("Expected 'persist' reference in generated workflow")
+	}
+
+	t.Logf("Successfully verified cache memory instructions are included in generated workflow")
+}
+
+func TestCacheMemoryPromptNotIncludedWhenDisabled(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-no-cache-memory-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow WITHOUT cache-memory
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: claude
+tools:
+  github:
+---
+
+# Test Workflow without Cache Memory
+
+This is a test workflow without cache-memory.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Test: Verify cache memory instructions are NOT included
+	// Note: The "Create prompt with built-in context" step will still exist (for temp_folder etc.)
+	// but the cache-specific content should not be there
+	if strings.Contains(lockStr, "cache_memory_prompt.md") {
+		t.Error("Did not expect cache template file reference in workflow without cache-memory")
+	}
+
+	if strings.Contains(lockStr, "/tmp/gh-aw/cache-memory/") {
+		t.Error("Did not expect '/tmp/gh-aw/cache-memory/' reference in workflow without cache-memory")
+	}
+
+	t.Logf("Successfully verified cache memory instructions are NOT included when cache-memory is disabled")
+}
+
+func TestCacheMemoryPromptMultipleCaches(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-multi-cache-memory-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow with multiple cache-memory entries
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: claude
+tools:
+  cache-memory:
+    - id: default
+      key: cache-1
+    - id: session
+      key: cache-2
+---
+
+# Test Workflow with Multiple Caches
+
+This is a test workflow with multiple cache-memory entries.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Test 1: Verify cache memory prompt step is created
+	if !strings.Contains(lockStr, "- name: Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
+	}
+
+	// Test 2: Verify multi-cache template file is referenced
+	if !strings.Contains(lockStr, "cache_memory_prompt_multi.md") {
+		t.Error("Expected 'cache_memory_prompt_multi.md' template file reference for multiple caches")
+	}
+
+	// Test 3: Verify both cache directories are mentioned in environment variables
+	if !strings.Contains(lockStr, "/tmp/gh-aw/cache-memory/") {
+		t.Error("Expected '/tmp/gh-aw/cache-memory/' reference for default cache")
+	}
+
+	if !strings.Contains(lockStr, "/tmp/gh-aw/cache-memory-session/") {
+		t.Error("Expected '/tmp/gh-aw/cache-memory-session/' reference for session cache")
+	}
+
+	t.Logf("Successfully verified cache memory instructions handle multiple caches")
+}
+
+func TestDailyFunctionNamerColdStartHandling(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-function-namer.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	coldStartGuidance := "**On cold start** (`/tmp/gh-aw/cache-memory/function-namer-state.json` missing): treat this as expected initialization, not a failure. Do **not** call `missing_data` for a missing state file on first run or cold cache; run the Step 1 script as written, accept `LAST_INDEX=-1`, and continue."
+	if !strings.Contains(workflow, coldStartGuidance) {
+		t.Fatal("Expected daily-function-namer workflow to include explicit cold-start guidance")
+	}
+
+	stepFiveGuidance := "If the state file was missing at the start of the run, initialize it from scratch here instead of reporting missing cache data."
+	if !strings.Contains(workflow, stepFiveGuidance) {
+		t.Fatal("Expected daily-function-namer workflow to initialize missing cold-start state instead of reporting missing data")
+	}
+}
+
+// ============================================================================
+// Playwright Prompt Tests
+// ============================================================================
+
+func TestPlaywrightPromptIncludedWhenEnabled(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-playwright-prompt-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow with playwright tool enabled
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: claude
+tools:
+  playwright:
+---
+
+# Test Workflow with Playwright
+
+This is a test workflow with playwright enabled.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Test 1: Verify playwright prompt step is created
+	if !strings.Contains(lockStr, "- name: Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
+	}
+
+	// Test 2: Verify the cat command for playwright prompt file is included
+	if !strings.Contains(lockStr, "cat \"${RUNNER_TEMP}/gh-aw/prompts/playwright_prompt.md\"") {
+		t.Error("Expected cat command for playwright prompt file in generated workflow")
+	}
+
+	t.Logf("Successfully verified playwright output directory instructions are included in generated workflow")
+}
+
+func TestPlaywrightPromptNotIncludedWhenDisabled(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-no-playwright-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow WITHOUT playwright tool
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: codex
+tools:
+  github:
+---
+
+# Test Workflow without Playwright
+
+This is a test workflow without playwright.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Test: Verify playwright instructions are NOT included
+	// Note: The "Create prompt with built-in context" step will still exist (for temp_folder etc.)
+	// but the playwright-specific content should not be there
+	if strings.Contains(lockStr, "Playwright Output Directory") {
+		t.Error("Did not expect 'Playwright Output Directory' header in workflow without playwright")
+	}
+
+	if strings.Contains(lockStr, "playwright_prompt.md") {
+		t.Error("Did not expect 'playwright_prompt.md' reference in workflow without playwright")
+	}
+
+	t.Logf("Successfully verified playwright output directory instructions are NOT included when playwright is disabled")
+}
+
+func TestPlaywrightPromptOrderAfterTempFolder(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-playwright-order-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow with playwright
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: claude
+tools:
+  playwright:
+---
+
+# Test Workflow
+
+This is a test workflow to verify playwright instructions come after temp folder.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Find positions of temp folder and playwright instructions
+	// Both are now in the same unified step, so we check their content order
+	tempFolderPos := strings.Index(lockStr, "temp_folder_prompt.md")
+	playwrightPos := strings.Index(lockStr, "playwright_prompt.md")
+
+	// Test: Verify playwright instructions come after temp folder instructions
+	if tempFolderPos == -1 {
+		t.Error("Expected temporary folder instructions in generated workflow")
+	}
+
+	if playwrightPos == -1 {
+		t.Error("Expected playwright output directory instructions in generated workflow")
+	}
+
+	if tempFolderPos != -1 && playwrightPos != -1 && playwrightPos <= tempFolderPos {
+		t.Errorf("Expected playwright instructions to come after temp folder instructions, but found at positions TempFolder=%d, Playwright=%d", tempFolderPos, playwrightPos)
+	}
+
+	t.Logf("Successfully verified playwright instructions come after temp folder instructions in generated workflow")
+}
+
+// ============================================================================
+// PR Context Prompt Tests
+// ============================================================================
+
+func TestPRContextPromptIncludedForIssueComment(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-pr-context-prompt-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow with issue_comment trigger
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+engine: claude
+---
+
+# Test Workflow with Issue Comment
+
+This is a test workflow with issue_comment trigger.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Test 1: Verify PR context prompt step is created
+	if !strings.Contains(lockStr, "- name: Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
+	}
+
+	// Test 2: Verify the cat command for PR context prompt file is included
+	if !strings.Contains(lockStr, "cat \"${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md\"") {
+		t.Error("Expected cat command for PR context prompt file in generated workflow")
+	}
+
+	t.Logf("Successfully verified PR context instructions are included for issue_comment trigger")
+}
+
+func TestPRContextPromptIncludedForCommand(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-pr-context-command-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow with command trigger
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on:
+  command:
+    name: mybot
+permissions:
+  contents: read
+engine: claude
+---
+
+# Test Workflow with Command
+
+This is a test workflow with command trigger.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Test: Verify PR context prompt step is created for command triggers
+	if !strings.Contains(lockStr, "- name: Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in workflow with command trigger")
+	}
+
+	t.Logf("Successfully verified PR context instructions are included for command trigger")
+}
+
+func TestPRContextPromptNotIncludedForPush(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-no-pr-context-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow with push trigger (no comment triggers)
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+permissions:
+  contents: read
+engine: claude
+---
+
+# Test Workflow without Comment Triggers
+
+This is a test workflow with push trigger only.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Test: Verify PR context prompt content is NOT included for push triggers
+	// Note: The "Create prompt with built-in context" step will still exist (for temp_folder etc.)
+	// but the PR-specific content should not be there
+	if strings.Contains(lockStr, "pr_context_prompt.md") {
+		t.Error("Did not expect 'pr_context_prompt.md' reference for push trigger")
+	}
+
+	t.Logf("Successfully verified PR context instructions are NOT included for push trigger")
+}
+
+func TestPRContextPromptNotIncludedWithoutCheckout(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-pr-no-checkout-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow with comment trigger but no checkout (no contents permission)
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  issues: read
+engine: claude
+---
+
+# Test Workflow without Contents Permission
+
+This is a test workflow without contents read permission.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Test: Verify PR context prompt content is NOT created without contents permission
+	// Note: The "Create prompt with built-in context" step will still exist (for temp_folder etc.)
+	// but the PR-specific content should not be there
+	if strings.Contains(lockStr, "pr_context_prompt.md") {
+		t.Error("Did not expect 'pr_context_prompt.md' reference without contents read permission")
+	}
+
+	t.Logf("Successfully verified PR context instructions are NOT included without contents permission")
+}
+
+// ============================================================================
+// Agentic Workflows Guide Prompt Tests
+// ============================================================================
+
+func TestAgenticWorkflowsGuideIncludedWhenEnabled(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "gh-aw-agentic-guide-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: schedule daily
+engine: claude
+tools:
+  agentic-workflows:
+permissions:
+  actions: read
+---
+
+# Test Workflow with Agentic Workflows
+
+This workflow uses the agentic-workflows MCP server.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	if !strings.Contains(lockStr, "- name: Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
+	}
+
+	if !strings.Contains(lockStr, "cat \"${RUNNER_TEMP}/gh-aw/prompts/agentic_workflows_guide.md\"") {
+		t.Error("Expected cat command for agentic_workflows_guide.md in generated workflow")
+	}
+
+	t.Logf("Successfully verified agentic-workflows guide is included when agentic-workflows tool is enabled")
+}
+
+func TestAgenticWorkflowsGuideNotIncludedWhenDisabled(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "gh-aw-no-agentic-guide-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	testContent := `---
+on: push
+engine: codex
+tools:
+  github:
+---
+
+# Test Workflow without Agentic Workflows
+
+This workflow does not use the agentic-workflows MCP server.
+`
+
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	if strings.Contains(lockStr, "agentic_workflows_guide.md") {
+		t.Error("Did not expect 'agentic_workflows_guide.md' reference in workflow without agentic-workflows tool")
+	}
+
+	t.Logf("Successfully verified agentic-workflows guide is NOT included when agentic-workflows tool is disabled")
+}

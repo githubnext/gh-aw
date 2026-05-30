@@ -1,0 +1,12 @@
+{
+  "id": "skill-optimizer-clean-git",
+  "input": "Our daily skill-optimizer CI job keeps failing with the error: `target.repoPath: target repo has uncommitted changes (optimize.requireCleanGit is enabled)`. The init step runs fine but the run step fails every time. How should I fix this so the optimizer can run successfully in CI?",
+  "ideal": "There are two complementary fixes: (1) Add requireCleanGit set to false in the optimize section of .skill-optimizer/skill-optimizer.json — this disables the clean-git guard so the optimizer can run even when the workspace has uncommitted files (e.g. from a previous make recompile or init step that modifies config files). (2) In the workflow YAML, add a git stash --include-untracked step before invoking the optimizer and a corresponding git stash pop step (with if: always()) after the run to restore any stashed changes. Using requireCleanGit: false is the simplest fix for CI environments where the checkout is ephemeral; adding the stash step is a belt-and-suspenders approach that also works if the flag is not available in your version of the tool.",
+  "criteria": [
+    "Identifies setting requireCleanGit: false in .skill-optimizer/skill-optimizer.json as a fix",
+    "Mentions the optimize section of the config file",
+    "Suggests git stash --include-untracked before the optimizer run",
+    "Mentions git stash pop (with always() condition) to restore changes afterward",
+    "Explains that uncommitted changes can come from init or recompile steps"
+  ]
+}

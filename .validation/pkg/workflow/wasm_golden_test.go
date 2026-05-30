@@ -1,0 +1,331 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"testing"
+
+	"github.com/charmbracelet/x/exp/golden"
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/stretchr/testify/require"
+)
+
+// containerPinRE matches Docker image digest pins of the form @sha256:<64 hex chars>.
+var testContainerPinRE = regexp.MustCompile(`@sha256:[0-9a-f]{64}`)
+var testAWFImageTagDigestRE = regexp.MustCompile(`,[a-z-]+=sha256:[0-9a-f]{64}`)
+
+// normalizeOutput applies all stable-comparison normalizations to compiled workflow output
+// before golden comparison: heredoc delimiter normalization and container pin normalization.
+// Mirrors normalize() in scripts/test-wasm-golden.mjs.
+func normalizeOutput(content string) string {
+	normalized := testContainerPinRE.ReplaceAllString(normalizeHeredocDelimiters(content), "")
+	// Keep golden fixtures stable across copilot default model fallback updates.
+	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.CopilotBYOKDefaultModel), "|| 'default'")
+	// Keep golden fixtures stable across codex default model fallback updates.
+	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.CodexDefaultModel), "|| 'default'")
+	// Keep golden fixtures stable across temporary workspace-path allowlist shape changes.
+	for _, op := range []string{"Edit", "MultiEdit", "Read", "Write"} {
+		normalized = strings.ReplaceAll(normalized, op+"(/tmp/gh-aw/*)", op+"(/tmp/gh-aw/agent/*)")
+	}
+	return testAWFImageTagDigestRE.ReplaceAllString(normalized, "")
+}
+
+// TestWasmGolden_CompileFixtures compiles each workflow fixture using the string API
+// (the same code path used by the wasm compiler) and compares against golden files.
+//
+// To update golden files:
+//
+//	go test -v ./pkg/workflow -run='^TestWasmGolden_' -update
+//
+// Or use the Makefile target:
+//
+//	make update-wasm-golden
+func TestWasmGolden_CompileFixtures(t *testing.T) {
+	fixturesDir := filepath.Join("testdata", "wasm_golden", "fixtures")
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	absFixturesDir, err := filepath.Abs(fixturesDir)
+	require.NoError(t, err)
+
+	// Read fixture list using an absolute path so we don't need to change the
+	// working directory before the subtests start.
+	entries, err := os.ReadDir(absFixturesDir)
+	require.NoError(t, err, "failed to read fixtures directory")
+
+	var fixtures []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".md") {
+			fixtures = append(fixtures, entry.Name())
+		}
+	}
+	require.NotEmpty(t, fixtures, "no .md fixtures found in %s", fixturesDir)
+
+	for _, fixture := range fixtures {
+		testName := strings.TrimSuffix(fixture, ".md")
+		t.Run(testName, func(t *testing.T) {
+			// Change to fixtures dir so relative imports resolve correctly during
+			// compilation. Cleanup always restores to origDir regardless of outcome.
+			require.NoError(t, os.Chdir(absFixturesDir))
+			t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+			content, err := os.ReadFile(fixture)
+			require.NoError(t, err, "failed to read fixture %s", fixture)
+
+			// Use filename-derived identifier for fuzzy cron schedule scattering
+			compiler := NewCompiler(
+				WithNoEmit(true),
+				WithSkipValidation(true),
+				WithWorkflowIdentifier(testName),
+			)
+
+			wd, err := compiler.ParseWorkflowString(string(content), fixture)
+			if err != nil {
+				// Some production workflows cannot compile via string API due to:
+				// - Path security restrictions (imports outside .github/)
+				// - Missing external files (agent definitions, skill files)
+				// - Configuration errors specific to file-based compilation
+				// Skip these gracefully rather than failing the test.
+				t.Skipf("skipping %s: %v", fixture, err)
+			}
+
+			yamlOutput, err := compiler.CompileToYAML(wd, fixture)
+			if err != nil {
+				t.Skipf("skipping %s (compile): %v", fixture, err)
+			}
+			require.NotEmpty(t, yamlOutput, "empty YAML output for %s", fixture)
+
+			// Switch back to the package dir so golden.RequireEqual resolves
+			// testdata/ relative to the package root (not the fixtures dir).
+			require.NoError(t, os.Chdir(origDir))
+
+			// Normalize heredoc delimiters and container pins before comparing so golden files
+			// are stable across compilations (randomized tokens and environment-specific pins
+			// are replaced by stable placeholders).
+			golden.RequireEqual(t, normalizeOutput(yamlOutput))
+		})
+	}
+}
+
+// TestWasmGolden_CompileWithImports tests compilation of a workflow that
+// imports a shared component. The shared component is on disk in the
+// fixtures/shared/ directory. This exercises the import resolution path
+// used by both native and wasm compilers.
+func TestWasmGolden_CompileWithImports(t *testing.T) {
+	fixturesDir := filepath.Join("testdata", "wasm_golden", "fixtures")
+	fixturePath := filepath.Join(fixturesDir, "with-imports.md")
+
+	content, err := os.ReadFile(fixturePath)
+	require.NoError(t, err)
+
+	// Change to fixtures dir so relative imports resolve correctly
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	err = os.Chdir(fixturesDir)
+	require.NoError(t, err)
+	defer func() { _ = os.Chdir(origDir) }()
+
+	t.Run("with-file-imports", func(t *testing.T) {
+		compiler := NewCompiler(
+			WithNoEmit(true),
+			WithSkipValidation(true),
+		)
+
+		wd, err := compiler.ParseWorkflowString(string(content), "with-imports.md")
+		require.NoError(t, err, "ParseWorkflowString failed with file imports")
+
+		yamlOutput, err := compiler.CompileToYAML(wd, "with-imports.md")
+		require.NoError(t, err, "CompileToYAML failed with file imports")
+		require.NotEmpty(t, yamlOutput, "empty YAML output with file imports")
+
+		// Just verify it contains expected content - the import was resolved
+		require.Contains(t, yamlOutput, "name:", "output should contain workflow name")
+		require.Contains(t, yamlOutput, "jobs:", "output should contain jobs section")
+	})
+}
+
+// TestWasmGolden_RoundTrip verifies that compiling the same input twice produces
+// identical output (determinism check for the wasm compiler path).
+func TestWasmGolden_RoundTrip(t *testing.T) {
+	markdown := `---
+name: determinism-test
+description: Verify compilation determinism
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+timeout-minutes: 10
+---
+
+# Mission
+
+This workflow tests that compilation is deterministic.
+`
+
+	results := make([]string, 3)
+	for i := range 3 {
+		compiler := NewCompiler(
+			WithNoEmit(true),
+			WithSkipValidation(true),
+		)
+
+		wd, err := compiler.ParseWorkflowString(markdown, "workflow.md")
+		require.NoError(t, err)
+
+		yamlOutput, err := compiler.CompileToYAML(wd, "workflow.md")
+		require.NoError(t, err)
+
+		results[i] = yamlOutput
+	}
+
+	require.Equal(t, normalizeHeredocDelimiters(results[0]), normalizeHeredocDelimiters(results[1]), "compilation 1 and 2 differ")
+	require.Equal(t, normalizeHeredocDelimiters(results[1]), normalizeHeredocDelimiters(results[2]), "compilation 2 and 3 differ")
+}
+
+// TestWasmGolden_NativeVsStringAPI compiles a workflow using both the native
+// file-based path and the string API path, then reports any differences.
+// This catches cases where the wasm (string API) path diverges from the native path.
+func TestWasmGolden_NativeVsStringAPI(t *testing.T) {
+	fixturesDir := filepath.Join("testdata", "wasm_golden", "fixtures")
+
+	// Resolve absolute fixtures dir before CWD change
+	absFixturesDir, err := filepath.Abs(fixturesDir)
+	require.NoError(t, err)
+
+	// Change to fixtures dir so relative imports resolve
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	err = os.Chdir(absFixturesDir)
+	require.NoError(t, err)
+	defer func() { _ = os.Chdir(origDir) }()
+
+	entries, err := os.ReadDir(".")
+	require.NoError(t, err)
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+
+		testName := strings.TrimSuffix(entry.Name(), ".md")
+		t.Run(testName, func(t *testing.T) {
+			content, err := os.ReadFile(entry.Name())
+			require.NoError(t, err)
+
+			// Compile via string API (wasm path)
+			stringCompiler := NewCompiler(
+				WithNoEmit(true),
+				WithSkipValidation(true),
+				WithWorkflowIdentifier(testName),
+			)
+
+			wd, err := stringCompiler.ParseWorkflowString(string(content), entry.Name())
+			if err != nil {
+				t.Skipf("skipping %s: %v", entry.Name(), err)
+			}
+
+			wasmYAML, err := stringCompiler.CompileToYAML(wd, entry.Name())
+			if err != nil {
+				t.Skipf("skipping %s (compile): %v", entry.Name(), err)
+			}
+
+			// Compile via file-based path (native path)
+			absPath := filepath.Join(absFixturesDir, entry.Name())
+
+			nativeCompiler := NewCompiler(
+				WithNoEmit(true),
+				WithSkipValidation(true),
+				WithWorkflowIdentifier(testName),
+			)
+			nativeCompiler.skipHeader = true
+			nativeCompiler.inlinePrompt = true
+
+			nativeWd, err := nativeCompiler.ParseWorkflowFile(absPath)
+			if err != nil {
+				t.Skipf("skipping native compile for %s: %v", entry.Name(), err)
+			}
+
+			nativeYAML, err := nativeCompiler.CompileToYAML(nativeWd, absPath)
+			if err != nil {
+				t.Skipf("skipping native compile for %s: %v", entry.Name(), err)
+			}
+
+			// Compare and log differences (informational only, does not fail)
+			if wasmYAML == nativeYAML {
+				t.Logf("native and string API output match for %s", entry.Name())
+			} else {
+				wasmLines := strings.Split(wasmYAML, "\n")
+				nativeLines := strings.Split(nativeYAML, "\n")
+				t.Logf("INFO: native vs string API output differs for %s (wasm=%d lines, native=%d lines)",
+					entry.Name(), len(wasmLines), len(nativeLines))
+			}
+		})
+	}
+}
+
+// TestWasmGolden_AllEngines verifies that all engine types compile correctly
+// via the string API and produce valid YAML output.
+func TestWasmGolden_AllEngines(t *testing.T) {
+	engines := []struct {
+		name   string
+		engine string
+		extra  string // additional frontmatter
+	}{
+		{"copilot", "copilot", ""},
+		{"claude", "claude", "network:\n  allowed:\n    - defaults"},
+		{"codex", "codex", "network:\n  allowed:\n    - defaults"},
+		{"gemini", "gemini", "network:\n  allowed:\n    - defaults"},
+		{"pi", "pi", "tools:\n  github:\n    mode: gh-proxy\n  cli-proxy: true\nnetwork:\n  allowed:\n    - defaults"},
+	}
+
+	for _, eng := range engines {
+		t.Run(eng.name, func(t *testing.T) {
+			extra := ""
+			if eng.extra != "" {
+				extra = eng.extra + "\n"
+			}
+			markdown := fmt.Sprintf(`---
+name: engine-%s-test
+description: Test %s engine compilation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: %s
+timeout-minutes: 10
+%s---
+
+# Mission
+
+Test the %s engine compilation path.
+`, eng.engine, eng.engine, eng.engine, extra, eng.engine)
+
+			compiler := NewCompiler(
+				WithNoEmit(true),
+				WithSkipValidation(true),
+			)
+
+			wd, err := compiler.ParseWorkflowString(markdown, "workflow.md")
+			require.NoError(t, err, "%s engine parse failed", eng.name)
+
+			yamlOutput, err := compiler.CompileToYAML(wd, "workflow.md")
+			require.NoError(t, err, "%s engine compile failed", eng.name)
+
+			// Keep codex golden stable across branches where CODEX_API_KEY/OPENAI_API_KEY
+			// may or may not be explicitly excluded in gh-aw firewall args.
+			if eng.name == "codex" {
+				yamlOutput = strings.ReplaceAll(yamlOutput, " --exclude-env CODEX_API_KEY", "")
+				yamlOutput = strings.ReplaceAll(yamlOutput, " --exclude-env OPENAI_API_KEY", "")
+				yamlOutput = strings.TrimRight(yamlOutput, "\n") + "\n"
+			}
+
+			golden.RequireEqual(t, normalizeOutput(yamlOutput))
+		})
+	}
+}

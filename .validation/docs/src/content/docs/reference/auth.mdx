@@ -1,0 +1,293 @@
+---
+title: Authentication
+description: Comprehensive reference for GitHub Actions secrets, GitHub tokens and GitHub Apps in gh-aw
+sidebar:
+  order: 650
+disable-agentic-editing: true
+---
+
+import Video from '../../../components/Video.astro';
+
+This page describes authentication settings for GitHub Agentic Workflows.
+
+## Which secret do I need?
+
+Configure one GitHub Actions secret per engine before running your first workflow:
+
+| Engine | Required secret | Alternative | Notes |
+|--------|----------------|-------------|-------|
+| **Copilot** (default) | [`COPILOT_GITHUB_TOKEN`](#copilot_github_token) | — | Fine-grained PAT with Copilot Requests permission |
+| **Claude** | [`ANTHROPIC_API_KEY`](#anthropic_api_key) | — | API key from Anthropic Console |
+| **Codex** | [`OPENAI_API_KEY`](#openai_api_key) | `CODEX_API_KEY` | Runtime uses `CODEX_API_KEY` if present, otherwise falls back to `OPENAI_API_KEY` |
+| **Gemini** | [`GEMINI_API_KEY`](#gemini_api_key) | — | API key from Google AI Studio |
+
+Most workflows will run without any additional secrets or additional authentication beyond this one engine secret.
+
+## Additional Authentication
+
+Some workflows need additional authentication. These can be tokens added as secrets and referenced in your workflow, or GitHub App can be used.
+
+Workflows using the following **read** operations from GitHub require [Additional Authentication for GitHub Tools](/gh-aw/reference/github-tools/#additional-authentication-for-github-tools), via either a secret containing a PAT or GitHub App:
+- **Read from multiple repositories**
+- **Read from projects**
+- **GitHub tools remote mode**
+
+Workflows using the following features of [Safe Outputs](/gh-aw/reference/safe-outputs/) require additional authentication, via either a secret containing a PAT or GitHub App:
+- [**Safe outputs writing cross-repo**](/gh-aw/reference/safe-outputs/#cross-repository-operations)
+- [**Safe outputs assigning Copilot coding agent to issues/PRs**](/gh-aw/reference/assign-to-copilot/)
+- [**Safe outputs updating GitHub Projects**](/gh-aw/patterns/project-ops/#project-token-authentication)
+- [**Safe outputs triggering CI on PRs**](/gh-aw/reference/triggering-ci/)
+
+Workflows using custom MCP tools or safe outputs may require additional authentication depending on the operations performed.
+
+## How do I add a GitHub Actions secret to my repository?
+
+You can add secrets manually in the GitHub UI or use the CLI for a streamlined experience.
+
+### Adding secrets using the CLI
+
+```bash
+gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
+```
+
+You can also check existing secrets with:
+
+```bash
+gh aw secrets bootstrap
+```
+
+If you're working in Codespaces, use the GitHub UI method below to add secrets.
+
+### Adding secrets using the GitHub UI
+
+1. Go to your repository on GitHub
+2. Click on "Settings" → "Secrets and variables" → "Actions"
+3. Click "New repository secret" and add the token name and value
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcSet="/gh-aw/images/actions-secrets_dark.png" />
+  <img alt="Repository secrets page showing configured tokens" src="/gh-aw/images/actions-secrets_light.png" />
+</picture>
+
+## GitHub Actions secrets for AI engines
+
+A reference for all GitHub Actions secrets used by GitHub Agentic Workflows for AI engine authentication:
+
+### `COPILOT_GITHUB_TOKEN`
+
+If using Copilot as your AI engine, you need a GitHub Actions Secret set to a GitHub Personal Access Token (PAT) to authenticate Copilot CLI.
+
+**Setup**:
+
+[**Create a fine-grained PAT**](https://github.com/settings/personal-access-tokens/new?name=COPILOT_GITHUB_TOKEN&description=GitHub+Agentic+Workflows+-+Copilot+engine+authentication&user_copilot_requests=read) (this link pre-fills the token name, description, and Copilot Requests permission). Verify the following settings before generating:
+
+1. **Resource owner** is your **user account**, not an organization.
+2. Under **Permissions → Account permissions**, **Copilot Requests** is set to **Read**.
+3. Click **Generate token** and copy the token value.
+4. Add the PAT to your GitHub Actions repository secrets as `COPILOT_GITHUB_TOKEN`, either by CLI or GitHub UI.
+
+   ```bash wrap
+   gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
+   ```
+
+**Custom endpoints**:
+
+To route Copilot CLI through a custom endpoint (e.g., a corporate proxy or GHE Cloud data residency instance), set `GITHUB_COPILOT_BASE_URL` in `engine.env`. See [Custom API Endpoints via Environment Variables](/gh-aw/reference/engines/#custom-api-endpoints-via-environment-variables) for details. `COPILOT_GITHUB_TOKEN` must still be a fine-grained PAT — GitHub Apps and OAuth tokens are not supported for this secret.
+
+**Troubleshooting**:
+
+If your workflow fails at the Copilot inference step even with the token set, verify that the token owner's account has an active Copilot license. See [Copilot License or Inference Access Issues](/gh-aw/troubleshooting/common-issues/#copilot-license-or-inference-access-issues) for a local diagnostic step.
+
+---
+
+### `ANTHROPIC_API_KEY`
+
+If using the Claude by Anthropic engine, you need to set a GitHub Actions secret `ANTHROPIC_API_KEY` to be an API key from Anthropic.
+
+**Setup**:
+
+1. Create an API key at https://console.anthropic.com/settings/keys
+
+2. Add it to your repository secrets, either by CLI or GitHub UI:
+
+   ```bash wrap
+   gh aw secrets set ANTHROPIC_API_KEY --value "YOUR_ANTHROPIC_API_KEY"
+   ```
+
+**Custom endpoints**:
+
+To route Claude through a custom Anthropic-compatible endpoint (e.g., an internal proxy or Azure-hosted model), set `ANTHROPIC_BASE_URL` in `engine.env` and store any additional credentials as secrets. See [Custom API Endpoints via Environment Variables](/gh-aw/reference/engines/#custom-api-endpoints-via-environment-variables) for an example.
+
+**`CLAUDE_CODE_OAUTH_TOKEN`**:
+
+`CLAUDE_CODE_OAUTH_TOKEN` is not supported by GitHub Agentic Workflows. The only supported authentication method for the Claude engine is `ANTHROPIC_API_KEY`. Provider-based OAuth authentication (such as billing through a Claude Teams or Claude Max subscription) is not supported. If you have set `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret, it will be ignored — configure `ANTHROPIC_API_KEY` instead.
+
+See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Claude with GitHub MCP.
+
+---
+
+### `OPENAI_API_KEY`
+
+If using the Codex by OpenAI engine, you need to set a GitHub Actions secret `OPENAI_API_KEY` with an API key from OpenAI.
+
+**Setup**:
+
+1. Create an API key at https://platform.openai.com/api-keys
+
+2. Add it to your repository secrets, either by CLI or GitHub UI:
+
+   ```bash wrap
+   gh aw secrets set OPENAI_API_KEY --value "YOUR_OPENAI_API_KEY"
+   ```
+
+**`CODEX_API_KEY` alternative**:
+
+Both `CODEX_API_KEY` and `OPENAI_API_KEY` are accepted. The runtime tries `CODEX_API_KEY` first. If you have already stored the key under `CODEX_API_KEY`, there is no need to add `OPENAI_API_KEY` as well.
+
+**Azure OpenAI and custom endpoints**:
+
+To use Azure OpenAI or an internal LLM router instead of the default OpenAI endpoint, set `OPENAI_BASE_URL` in `engine.env` and store the corresponding key as a GitHub Actions secret referenced from `engine.env`:
+
+```aw wrap
+engine:
+  id: codex
+  model: gpt-4o
+  env:
+    OPENAI_BASE_URL: "https://my-azure-endpoint.openai.azure.com/openai/deployments/gpt-4o"
+    OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+
+network:
+  allowed:
+    - github.com
+    - my-azure-endpoint.openai.azure.com
+```
+
+`AZURE_OPENAI_API_KEY` is a GitHub Actions repository secret you configure separately with `gh aw secrets set AZURE_OPENAI_API_KEY --value "<key>"`. Do not embed raw key values directly in the frontmatter.
+
+See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Codex with GitHub MCP.
+
+---
+
+### `GEMINI_API_KEY`
+
+If using the Gemini by Google engine, you need to set a GitHub Actions secret `GEMINI_API_KEY` with an API key from Google AI Studio.
+
+**Setup**:
+
+1. Create an API key at https://aistudio.google.com/api-keys
+
+2. Add it to your repository secrets, either by CLI or GitHub UI:
+
+   ```bash wrap
+   gh aw secrets set GEMINI_API_KEY --value "YOUR_GEMINI_API_KEY"
+   ```
+
+See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Gemini with GitHub MCP.
+
+---
+
+## Troubleshooting auth errors
+
+Common authentication errors and how to resolve them:
+
+**`403 "Resource not accessible by personal access token"` (Copilot)**
+
+The PAT is missing the required permission. Use a fine-grained PAT with **Account permissions → Copilot Requests: Read**. The resource owner must be your personal account, not an organization. See [`COPILOT_GITHUB_TOKEN`](#copilot_github_token) for the setup link.
+
+**`401 Unauthorized` or `403 Forbidden` (Claude)**
+
+The `ANTHROPIC_API_KEY` secret is missing, expired, or invalid. Verify the key is active in the [Anthropic Console](https://console.anthropic.com/). Re-set the secret with `gh aw secrets set ANTHROPIC_API_KEY --value "<key>"`. Also check that you have not accidentally set `CLAUDE_CODE_OAUTH_TOKEN` instead — it is not supported.
+
+**`401 Unauthorized` or `403 Forbidden` (Codex)**
+
+The `OPENAI_API_KEY` (or `CODEX_API_KEY`) secret is missing, expired, or has insufficient quota. Verify the key at https://platform.openai.com/api-keys. If using a custom endpoint, confirm `OPENAI_BASE_URL` points to a reachable host and that the host is listed under `network.allowed`.
+
+**`401 Unauthorized` (Gemini)**
+
+The `GEMINI_API_KEY` secret is missing or invalid. Generate a new key at https://aistudio.google.com/api-keys.
+
+**Copilot license or inference access errors**
+
+If the token is correctly configured but Copilot fails at the inference step, the PAT owner's account may lack an active Copilot subscription. See [Copilot License or Inference Access Issues](/gh-aw/troubleshooting/common-issues/#copilot-license-or-inference-access-issues) for a local diagnostic command.
+
+**`Error loading models: 400 Bad Request` (Copilot on GHES)**
+
+Copilot is not licensed at the enterprise level or the API proxy is routing incorrectly. See [Copilot Engine Prerequisites on GHES](/gh-aw/troubleshooting/common-issues/#copilot-engine-prerequisites-on-ghes) for the full checklist.
+
+---
+
+## Using a GitHub App for Authentication
+
+For enhanced security with short-lived tokens, you may configure a GitHub App instead of using PATs.
+
+This does not apply to `COPILOT_GITHUB_TOKEN`, which must currently be a PAT. A single GitHub App can be used for all other GitHub authentication needs in GitHub Agentic Workflows, including tool authentication and safe outputs.
+
+After creating your app, configure it in your workflow:
+
+```yaml wrap
+permissions:
+  contents: read
+  issues: read
+
+tools:
+  github:
+    toolsets: [repos, issues, pull_requests]
+    github-app:
+      client-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      owner: "my-org"                    # Optional: defaults to current repo owner
+      repositories: ["repo1", "repo2"]   # Optional: defaults to current repo only
+```
+
+Make sure you set up repository variables and secrets:
+
+```bash wrap
+gh variable set APP_ID --body "123456"
+gh aw secrets set APP_PRIVATE_KEY --value "$(cat path/to/private-key.pem)"
+```
+
+At workflow start, a token is automatically minted with **permissions matching your job's `permissions:` field**. The token is passed to the GitHub MCP server and automatically revoked at workflow end (even on failure).
+
+You can also use GitHub App tokens for safe outputs operations:
+
+```yaml wrap
+safe-outputs:
+  github-app:
+    client-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    owner: "my-org"                    # optional: installation owner
+    repositories: ["repo1", "repo2"]   # optional: scope to specific repos
+  create-issue:
+```
+
+When you configure `github-app:` for safe outputs, tokens are minted with permissions specific to the safe output operations being performed, rather than the broader job-level permissions. This provides enhanced security by ensuring that tokens have the minimum necessary permissions for their specific use case.
+
+For both tool authentication and safe outputs, you can scope the GitHub App token to specific repositories for enhanced security. This limits the token's access to only the repositories it needs to interact with.
+
+- Omit `repositories` field - Current repository only (default)
+- `repositories: ["*"]` - Org-wide access (all repos in the installation)
+- `repositories: ["repo1", "repo2"]` - Specific repositories only
+
+### Gracefully Skip Minting When Keys Are Missing (`ignore-if-missing:`)
+
+By default, jobs fail when `client-id` or `private-key` resolve to empty strings at runtime — for example, on fork pull requests where App secrets are unavailable. Set `ignore-if-missing: true` to skip the token mint step instead and fall back to the standard non-App token chain (`secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN`):
+
+```yaml wrap
+safe-outputs:
+  github-app:
+    client-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    ignore-if-missing: true
+  create-issue:
+```
+
+The same field is accepted under `tools.github.github-app:` and applies consistently to all token mint paths (safe outputs, activation, pre-activation, and checkout). Default behavior (fail when keys are empty) is unchanged when the field is omitted or `false`.
+
+---
+
+## Related Documentation
+
+- [Engines](/gh-aw/reference/engines/) - Engine-specific authentication
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output token configuration
+- [Tools](/gh-aw/reference/tools/) - Tool authentication and modes
+- [Permissions](/gh-aw/reference/permissions/) - Permission model overview

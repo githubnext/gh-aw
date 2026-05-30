@@ -1,0 +1,300 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"errors"
+	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+type testFormattedErrorChainType struct {
+	message string
+}
+
+func (e *testFormattedErrorChainType) Error() string {
+	return e.message
+}
+
+func TestNewErrorCollector(t *testing.T) {
+	tests := []struct {
+		name     string
+		failFast bool
+	}{
+		{
+			name:     "fail-fast enabled",
+			failFast: true,
+		},
+		{
+			name:     "fail-fast disabled",
+			failFast: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := NewErrorCollector(tt.failFast)
+			require.NotNil(t, collector, "Collector should be created")
+			assert.Equal(t, tt.failFast, collector.failFast, "Fail-fast setting should match")
+			assert.Equal(t, 0, collector.Count(), "New collector should have no errors")
+			assert.Equal(t, 0, collector.Count(), "New collector should have zero count")
+		})
+	}
+}
+
+func TestErrorCollectorAdd_FailFast(t *testing.T) {
+	collector := NewErrorCollector(true)
+	err1 := errors.New("first error")
+	err2 := errors.New("second error")
+
+	// First error should be returned immediately
+	result := collector.Add(err1)
+	require.Error(t, result, "Should return error immediately in fail-fast mode")
+	assert.Equal(t, err1, result, "Should return the exact error")
+	assert.Equal(t, 0, collector.Count(), "Should not collect errors in fail-fast mode")
+
+	// Second error should also be returned immediately
+	result = collector.Add(err2)
+	require.Error(t, result, "Should return error immediately in fail-fast mode")
+	assert.Equal(t, err2, result, "Should return the exact error")
+}
+
+func TestErrorCollectorAdd_Aggregate(t *testing.T) {
+	collector := NewErrorCollector(false)
+	err1 := errors.New("first error")
+	err2 := errors.New("second error")
+	err3 := errors.New("third error")
+
+	// Add errors should not return them
+	result := collector.Add(err1)
+	require.NoError(t, result, "Should not return error in aggregate mode")
+	assert.Positive(t, collector.Count(), "Should have errors")
+	assert.Equal(t, 1, collector.Count(), "Should have 1 error")
+
+	result = collector.Add(err2)
+	require.NoError(t, result, "Should not return error in aggregate mode")
+	assert.Equal(t, 2, collector.Count(), "Should have 2 errors")
+
+	result = collector.Add(err3)
+	require.NoError(t, result, "Should not return error in aggregate mode")
+	assert.Equal(t, 3, collector.Count(), "Should have 3 errors")
+}
+
+func TestErrorCollectorAdd_NilError(t *testing.T) {
+	collector := NewErrorCollector(false)
+
+	result := collector.Add(nil)
+	require.NoError(t, result, "Should handle nil error")
+	assert.Equal(t, 0, collector.Count(), "Should not have errors")
+	assert.Equal(t, 0, collector.Count(), "Should have zero count")
+}
+
+func TestErrorCollectorError_NoErrors(t *testing.T) {
+	collector := NewErrorCollector(false)
+
+	err := collector.Error()
+	assert.NoError(t, err, "Should return nil when no errors collected")
+}
+
+func TestErrorCollectorError_SingleError(t *testing.T) {
+	collector := NewErrorCollector(false)
+	err1 := errors.New("single error")
+
+	_ = collector.Add(err1)
+	result := collector.Error()
+
+	require.Error(t, result, "Should return error")
+	assert.Equal(t, err1, result, "Should return the single error as-is")
+}
+
+func TestErrorCollectorError_MultipleErrors(t *testing.T) {
+	collector := NewErrorCollector(false)
+	err1 := errors.New("first error")
+	err2 := errors.New("second error")
+	err3 := errors.New("third error")
+
+	_ = collector.Add(err1)
+	_ = collector.Add(err2)
+	_ = collector.Add(err3)
+
+	result := collector.Error()
+	require.Error(t, result, "Should return aggregated error")
+
+	// Check that all errors are included
+	errStr := result.Error()
+	assert.Contains(t, errStr, "first error", "Should contain first error")
+	assert.Contains(t, errStr, "second error", "Should contain second error")
+	assert.Contains(t, errStr, "third error", "Should contain third error")
+}
+
+// TestErrorCollectorIntegration tests the full flow of error collection
+func TestErrorCollectorIntegration(t *testing.T) {
+	tests := []struct {
+		name          string
+		failFast      bool
+		errors        []error
+		expectError   bool
+		expectCount   int
+		shouldContain []string
+	}{
+		{
+			name:        "no errors collected",
+			failFast:    false,
+			errors:      []error{},
+			expectError: false,
+			expectCount: 0,
+		},
+		{
+			name:          "single error aggregated",
+			failFast:      false,
+			errors:        []error{errors.New("error 1")},
+			expectError:   true,
+			expectCount:   1,
+			shouldContain: []string{"error 1"},
+		},
+		{
+			name:          "multiple errors aggregated",
+			failFast:      false,
+			errors:        []error{errors.New("error 1"), errors.New("error 2"), errors.New("error 3")},
+			expectError:   true,
+			expectCount:   3,
+			shouldContain: []string{"error 1", "error 2", "error 3"},
+		},
+		{
+			name:          "fail-fast stops at first error",
+			failFast:      true,
+			errors:        []error{errors.New("error 1"), errors.New("error 2")},
+			expectError:   true,
+			expectCount:   0, // No errors collected in fail-fast mode
+			shouldContain: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := NewErrorCollector(tt.failFast)
+
+			// Add all errors
+			for _, err := range tt.errors {
+				result := collector.Add(err)
+				if tt.failFast && err != nil {
+					// In fail-fast mode, Add should return error immediately
+					assert.Error(t, result, "Should return error in fail-fast mode")
+					return // Stop test here for fail-fast mode
+				}
+			}
+
+			// Get the aggregated error
+			err := collector.Error()
+
+			if tt.expectError {
+				require.Error(t, err, "Should have aggregated error")
+				errStr := err.Error()
+
+				for _, expected := range tt.shouldContain {
+					assert.Contains(t, errStr, expected, "Should contain expected error message")
+				}
+			} else {
+				require.NoError(t, err, "Should not have error")
+			}
+
+			assert.Equal(t, tt.expectCount, collector.Count(), "Error count should match")
+		})
+	}
+}
+
+// TestErrorCollectorFormattedError tests the FormattedError method
+func TestErrorCollectorFormattedError(t *testing.T) {
+	tests := []struct {
+		name          string
+		errors        []error
+		category      string
+		expectError   bool
+		shouldContain []string
+	}{
+		{
+			name:        "no errors",
+			errors:      []error{},
+			category:    "validation",
+			expectError: false,
+		},
+		{
+			name:          "single error (no formatting)",
+			errors:        []error{errors.New("single error")},
+			category:      "validation",
+			expectError:   true,
+			shouldContain: []string{"single error"},
+		},
+		{
+			name:        "multiple errors with formatted header",
+			errors:      []error{errors.New("error 1"), errors.New("error 2"), errors.New("error 3")},
+			category:    "validation",
+			expectError: true,
+			shouldContain: []string{
+				"Found 3 validation errors:",
+				"error 1",
+				"error 2",
+				"error 3",
+			},
+		},
+		{
+			name:        "errors with newlines preserved",
+			errors:      []error{errors.New("error with\nmultiple\nlines"), errors.New("simple error")},
+			category:    "test",
+			expectError: true,
+			shouldContain: []string{
+				"Found 2 test errors:",
+				"error with",
+				"multiple",
+				"lines",
+				"simple error",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := NewErrorCollector(false)
+
+			// Add all errors
+			for _, err := range tt.errors {
+				_ = collector.Add(err)
+			}
+
+			// Get the formatted error
+			err := collector.FormattedError(tt.category)
+
+			if tt.expectError {
+				require.Error(t, err, "Should have formatted error")
+				errStr := err.Error()
+
+				for _, expected := range tt.shouldContain {
+					assert.Contains(t, errStr, expected, "Should contain expected text")
+				}
+			} else {
+				require.NoError(t, err, "Should not have error")
+			}
+		})
+	}
+}
+
+func TestErrorCollectorFormattedError_PreservesErrorChain(t *testing.T) {
+	collector := NewErrorCollector(false)
+	sentinelErr := errors.New("sentinel")
+	typedErr := &testFormattedErrorChainType{message: "typed"}
+
+	require.NoError(t, collector.Add(fmt.Errorf("wrapped sentinel: %w", sentinelErr)), "Should collect wrapped sentinel error")
+	require.NoError(t, collector.Add(fmt.Errorf("wrapped typed: %w", typedErr)), "Should collect wrapped typed error")
+
+	result := collector.FormattedError("validation")
+	require.Error(t, result, "Should return formatted error")
+
+	require.ErrorIs(t, result, sentinelErr, "FormattedError should preserve errors.Is chain")
+
+	var extractedTypedErr *testFormattedErrorChainType
+	require.ErrorAs(t, result, &extractedTypedErr, "FormattedError should preserve errors.As chain")
+	assert.Equal(t, typedErr, extractedTypedErr, "errors.As should extract the wrapped typed error")
+}

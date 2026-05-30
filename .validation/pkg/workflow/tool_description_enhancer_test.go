@@ -1,0 +1,178 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestEnhanceToolDescriptionCreateIssueAllowedFieldsWildcard(t *testing.T) {
+	description := enhanceToolDescription("create_issue", "Create an issue.", &SafeOutputsConfig{
+		CreateIssues: &CreateIssuesConfig{
+			AllowedFields: []string{"*"},
+		},
+	})
+
+	if !strings.Contains(description, "Any issue field is allowed.") {
+		t.Fatalf("expected wildcard message in description, got: %s", description)
+	}
+	if strings.Contains(description, "Only these issue fields are allowed") {
+		t.Fatalf("did not expect restrictive fields message for wildcard, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionCreateIssueAllowedFieldsList(t *testing.T) {
+	description := enhanceToolDescription("create_issue", "Create an issue.", &SafeOutputsConfig{
+		CreateIssues: &CreateIssuesConfig{
+			AllowedFields: []string{"Priority", "Iteration"},
+		},
+	})
+
+	if !strings.Contains(description, "Only these issue fields are allowed: [\"Priority\" \"Iteration\"].") {
+		t.Fatalf("expected restrictive fields message in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionSetIssueFieldAllowedFieldsWildcard(t *testing.T) {
+	description := enhanceToolDescription("set_issue_field", "Set one issue field.", &SafeOutputsConfig{
+		SetIssueField: &SetIssueFieldConfig{
+			AllowedFields: []string{"*"},
+		},
+	})
+
+	if !strings.Contains(description, "Any issue field is allowed.") {
+		t.Fatalf("expected wildcard message in description, got: %s", description)
+	}
+	if strings.Contains(description, "Only these issue fields are allowed") {
+		t.Fatalf("did not expect restrictive fields message for wildcard, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionSetIssueFieldAllowedFieldsList(t *testing.T) {
+	description := enhanceToolDescription("set_issue_field", "Set one issue field.", &SafeOutputsConfig{
+		SetIssueField: &SetIssueFieldConfig{
+			AllowedFields: []string{"Priority", "Iteration"},
+		},
+	})
+
+	if !strings.Contains(description, "Only these issue fields are allowed: [\"Priority\" \"Iteration\"].") {
+		t.Fatalf("expected restrictive fields message in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionCloseDiscussionAllowBodyFalse(t *testing.T) {
+	f := false
+	description := enhanceToolDescription("close_discussion", "Close a discussion.", &SafeOutputsConfig{
+		CloseDiscussions: &CloseDiscussionsConfig{
+			AllowBody: &f,
+		},
+	})
+
+	if !strings.Contains(description, "Closing comments are disabled: do not include a body field.") {
+		t.Fatalf("expected body-not-allowed constraint in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionCloseDiscussionAllowBodyTrue(t *testing.T) {
+	tr := true
+	description := enhanceToolDescription("close_discussion", "Close a discussion.", &SafeOutputsConfig{
+		CloseDiscussions: &CloseDiscussionsConfig{
+			AllowBody: &tr,
+		},
+	})
+
+	if strings.Contains(description, "Closing comments are disabled") {
+		t.Fatalf("did not expect body-not-allowed constraint when allow-body is true, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionCloseIssueAllowBodyFalse(t *testing.T) {
+	f := false
+	description := enhanceToolDescription("close_issue", "Close an issue.", &SafeOutputsConfig{
+		CloseIssues: &CloseIssuesConfig{
+			AllowBody: &f,
+		},
+	})
+
+	if !strings.Contains(description, "Closing comments are disabled: do not include a body field.") {
+		t.Fatalf("expected body-not-allowed constraint in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionCloseIssueAllowBodyTrue(t *testing.T) {
+	tr := true
+	description := enhanceToolDescription("close_issue", "Close an issue.", &SafeOutputsConfig{
+		CloseIssues: &CloseIssuesConfig{
+			AllowBody: &tr,
+		},
+	})
+
+	if strings.Contains(description, "Closing comments are disabled") {
+		t.Fatalf("did not expect body-not-allowed constraint when allow-body is true, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionCloseDiscussionTargetRepo(t *testing.T) {
+	description := enhanceToolDescription("close_discussion", "Close a discussion.", &SafeOutputsConfig{
+		CloseDiscussions: &CloseDiscussionsConfig{
+			BaseSafeOutputConfig:   BaseSafeOutputConfig{Max: defaultIntStr(5)},
+			SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "myorg/myrepo"},
+		},
+	})
+
+	if !strings.Contains(description, `"myorg/myrepo"`) {
+		t.Fatalf("expected target repo constraint in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionAssignMilestoneTargetRepo(t *testing.T) {
+	description := enhanceToolDescription("assign_milestone", "Assign a milestone.", &SafeOutputsConfig{
+		AssignMilestone: &AssignMilestoneConfig{
+			BaseSafeOutputConfig:   BaseSafeOutputConfig{Max: defaultIntStr(5)},
+			SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "myorg/myrepo"},
+		},
+	})
+
+	if !strings.Contains(description, `"myorg/myrepo"`) {
+		t.Fatalf("expected target repo constraint in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionLinkSubIssueTargetRepo(t *testing.T) {
+	description := enhanceToolDescription("link_sub_issue", "Link a sub-issue.", &SafeOutputsConfig{
+		LinkSubIssue: &LinkSubIssueConfig{
+			BaseSafeOutputConfig:   BaseSafeOutputConfig{Max: defaultIntStr(5)},
+			SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "myorg/myrepo"},
+		},
+	})
+
+	if !strings.Contains(description, `"myorg/myrepo"`) {
+		t.Fatalf("expected target repo constraint in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionMarkPRReadyForReviewTargetRepo(t *testing.T) {
+	description := enhanceToolDescription("mark_pull_request_as_ready_for_review", "Mark PR as ready.", &SafeOutputsConfig{
+		MarkPullRequestAsReadyForReview: &MarkPullRequestAsReadyForReviewConfig{
+			BaseSafeOutputConfig:   BaseSafeOutputConfig{Max: defaultIntStr(10)},
+			SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "myorg/myrepo"},
+		},
+	})
+
+	if !strings.Contains(description, `"myorg/myrepo"`) {
+		t.Fatalf("expected target repo constraint in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionMarkPRReadyForReviewMaxCount(t *testing.T) {
+	description := enhanceToolDescription("mark_pull_request_as_ready_for_review", "Mark PR as ready.", &SafeOutputsConfig{
+		MarkPullRequestAsReadyForReview: &MarkPullRequestAsReadyForReviewConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: defaultIntStr(3)},
+		},
+	})
+
+	if !strings.Contains(description, "Maximum 3 pull request(s) can be marked as ready for review.") {
+		t.Fatalf("expected max count constraint in description, got: %s", description)
+	}
+}

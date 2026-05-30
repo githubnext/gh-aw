@@ -1,0 +1,359 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://docs.github.com/gh-aw/schemas/mcp-gateway-config.schema.json",
+  "title": "MCP Gateway Configuration",
+  "description": "Configuration schema for the Model Context Protocol (MCP) Gateway as defined in the MCP Gateway Specification v1.0.0. The gateway provides transparent HTTP access to multiple MCP servers with protocol translation, server isolation, and authentication capabilities.",
+  "type": "object",
+  "properties": {
+    "mcpServers": {
+      "type": "object",
+      "description": "Map of MCP server configurations. Each key is a unique server identifier, and the value is the server configuration.",
+      "additionalProperties": {
+        "$ref": "#/definitions/mcpServerConfig"
+      }
+    },
+    "gateway": {
+      "$ref": "#/definitions/gatewayConfig",
+      "description": "Gateway-specific configuration for the MCP Gateway service."
+    }
+  },
+  "required": ["mcpServers", "gateway"],
+  "additionalProperties": false,
+  "definitions": {
+    "mcpServerConfig": {
+      "type": "object",
+      "description": "Configuration for an individual MCP server. Supports both containerized stdio servers and HTTP-based servers. Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based servers MUST be containerized.",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/stdioServerConfig"
+        },
+        {
+          "$ref": "#/definitions/httpServerConfig"
+        }
+      ]
+    },
+    "stdioServerConfig": {
+      "type": "object",
+      "description": "Configuration for a containerized stdio-based MCP server. The gateway communicates with the server via standard input/output streams. Per MCP Gateway Specification section 3.2.1, all stdio servers MUST be containerized - direct command execution is not supported.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["stdio"],
+          "description": "Transport type for the MCP server. For containerized servers, use 'stdio'.",
+          "default": "stdio"
+        },
+        "container": {
+          "type": "string",
+          "description": "Container image for the MCP server (e.g., 'ghcr.io/example/mcp-server:latest'). This field is required for stdio servers per MCP Gateway Specification section 4.1.2.",
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9./_-]*(:([a-zA-Z0-9._-]+|latest))?$"
+        },
+        "entrypoint": {
+          "type": "string",
+          "description": "Optional entrypoint override for the container, equivalent to 'docker run --entrypoint'. If not specified, the container's default entrypoint is used.",
+          "minLength": 1
+        },
+        "entrypointArgs": {
+          "type": "array",
+          "description": "Arguments passed to the container entrypoint. These are executed inside the container after the entrypoint command.",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "mounts": {
+          "type": "array",
+          "description": "Volume mounts for the container. Format: 'source:dest' or 'source:dest:mode' where mode is 'ro' (read-only) or 'rw' (read-write). Example: '/host/data:/container/data:ro'",
+          "items": {
+            "type": "string",
+            "pattern": "^[^:]+:[^:]+(:(ro|rw))?$"
+          },
+          "default": []
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables for the server process. Values may contain variable expressions using '${VARIABLE_NAME}' syntax, which will be resolved from the process environment.",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "args": {
+          "type": "array",
+          "description": "Additional Docker runtime arguments passed before the container image (e.g., '--network', 'host').",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "tools": {
+          "type": "array",
+          "description": "Tool filter for the MCP server. Use ['*'] to allow all tools, or specify a list of tool names to allow. This field is passed through to agent configurations.",
+          "items": {
+            "type": "string"
+          },
+          "default": ["*"]
+        },
+        "guard-policies": {
+          "type": "object",
+          "description": "Guard policies for access control at the MCP gateway level. The structure of guard policies is server-specific. For GitHub MCP server, see the GitHub guard policy schema. For other servers (Jira, WorkIQ), different policy schemas will apply.",
+          "additionalProperties": true
+        }
+      },
+      "required": ["container"],
+      "additionalProperties": false
+    },
+    "httpServerConfig": {
+      "type": "object",
+      "description": "Configuration for an HTTP-based MCP server. The gateway forwards requests directly to the specified HTTP endpoint.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["http"],
+          "description": "Transport type for the MCP server. For HTTP servers, use 'http'."
+        },
+        "url": {
+          "type": "string",
+          "description": "HTTP endpoint URL for the MCP server (e.g., 'https://api.example.com/mcp'). This field is required for HTTP servers per MCP Gateway Specification section 4.1.2.",
+          "format": "uri",
+          "pattern": "^https?://.+",
+          "minLength": 1
+        },
+        "headers": {
+          "type": "object",
+          "description": "HTTP headers to include in requests to the external HTTP MCP server. Commonly used for authentication to the external server (e.g., Authorization: 'Bearer ${API_TOKEN}' for servers that require Bearer tokens). Note: This is for authenticating to external HTTP servers, not for gateway client authentication. Values may contain variable expressions using '${VARIABLE_NAME}' syntax.",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "tools": {
+          "type": "array",
+          "description": "Tool filter for the MCP server. Use ['*'] to allow all tools, or specify a list of tool names to allow. This field is passed through to agent configurations.",
+          "items": {
+            "type": "string"
+          },
+          "default": ["*"]
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables to pass through for variable resolution. Values may contain variable expressions using '${VARIABLE_NAME}' syntax, which will be resolved from the process environment.",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "guard-policies": {
+          "type": "object",
+          "description": "Guard policies for access control at the MCP gateway level. The structure of guard policies is server-specific. For GitHub MCP server, see the GitHub guard policy schema. For other servers (Jira, WorkIQ), different policy schemas will apply.",
+          "additionalProperties": true
+        },
+        "auth": {
+          "type": "object",
+          "description": "Upstream authentication configuration for the HTTP MCP server. When configured, the gateway dynamically acquires tokens and injects them as Authorization headers on every outgoing request to this server. Currently only GitHub Actions OIDC is supported.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["github-oidc"],
+              "description": "Authentication type. Currently only 'github-oidc' is supported, which acquires short-lived JWTs from the GitHub Actions OIDC endpoint."
+            },
+            "audience": {
+              "type": "string",
+              "description": "The intended audience for the OIDC token (the 'aud' claim). If omitted, defaults to the server's url field.",
+              "format": "uri"
+            }
+          },
+          "required": ["type"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "url"],
+      "additionalProperties": false
+    },
+    "gatewayConfig": {
+      "type": "object",
+      "description": "Gateway-specific configuration for the MCP Gateway service.",
+      "properties": {
+        "port": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            {
+              "type": "string",
+              "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$"
+            }
+          ],
+          "description": "HTTP server port for the gateway. The gateway exposes endpoints at http://{domain}:{port}/. Can be an integer (1-65535) or a variable expression like '${MCP_GATEWAY_PORT}'."
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API key for authentication. When configured, clients must include 'Authorization: <apiKey>' header in all RPC requests (the API key is used directly without Bearer or other scheme prefix). Per MCP Gateway Specification section 7.1, the authorization header format is 'Authorization: <apiKey>' where the API key is the complete header value. API keys must not be logged in plaintext per section 7.2.",
+          "minLength": 1
+        },
+        "domain": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["localhost", "host.docker.internal"]
+            },
+            {
+              "type": "string",
+              "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$"
+            }
+          ],
+          "description": "Gateway domain for constructing URLs. Use 'localhost' for local development or 'host.docker.internal' when the gateway runs in a container and needs to access the host. Can also be a variable expression like '${MCP_GATEWAY_DOMAIN}'."
+        },
+        "startupTimeout": {
+          "type": "integer",
+          "description": "Server startup timeout in seconds. The gateway enforces this timeout when initializing containerized stdio servers.",
+          "minimum": 1,
+          "default": 30
+        },
+        "toolTimeout": {
+          "type": "integer",
+          "description": "Tool invocation timeout in seconds. The gateway enforces this timeout for individual tool/method calls to MCP servers.",
+          "minimum": 1,
+          "default": 60
+        },
+        "payloadDir": {
+          "type": "string",
+          "description": "Directory path for storing large payload JSON files for authenticated clients. MUST be an absolute path: Unix paths start with '/', Windows paths start with a drive letter followed by ':\\'. Relative paths, empty strings, and paths that don't follow these conventions are not allowed.",
+          "minLength": 1,
+          "pattern": "^(/|[A-Za-z]:\\\\)"
+        },
+        "payloadSizeThreshold": {
+          "type": "integer",
+          "description": "Size threshold in bytes for writing payloads to files instead of inlining them in the response. Payloads larger than this threshold are written to files in payloadDir. Defaults to 524288 (512KB) if not specified.",
+          "minimum": 1
+        },
+        "payloadPathPrefix": {
+          "type": "string",
+          "description": "Optional path prefix for payload file paths as seen from within agent containers. Use this when the payload directory is mounted at a different path inside the container than on the host.",
+          "minLength": 1
+        },
+        "trustedBots": {
+          "type": "array",
+          "description": "Additional trusted bot identity strings passed to the gateway and merged with its built-in internal trusted identity list. This field is additive and cannot remove entries from the gateway's built-in list. Typically GitHub bot usernames such as 'github-actions[bot]' or 'copilot-swe-agent[bot]'.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "keepaliveInterval": {
+          "type": "integer",
+          "description": "Keepalive ping interval in seconds for HTTP MCP backends. Sends periodic pings to prevent session expiry during long-running agent tasks. Set to -1 to disable keepalive pings. Unset or 0 uses the gateway default (1500 seconds = 25 minutes).",
+          "minimum": -1
+        },
+        "opentelemetry": {
+          "$ref": "#/definitions/opentelemetryConfig",
+          "description": "Optional OpenTelemetry configuration for emitting distributed tracing spans for MCP calls. When configured, the gateway exports OTLP/HTTP traces to the specified collector endpoint."
+        }
+      },
+      "required": ["port", "domain", "apiKey"],
+      "additionalProperties": false
+    },
+    "opentelemetryConfig": {
+      "type": "object",
+      "description": "OpenTelemetry configuration for the MCP Gateway. When present, the gateway emits distributed tracing spans for each MCP tool invocation and exports them via OTLP/HTTP to the configured collector endpoint. Per MCP Gateway Specification section 4.1.3.6.",
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "description": "OTLP/HTTP endpoint URL for the OpenTelemetry collector (e.g., 'https://collector.example.com:4318/v1/traces'). MUST be an HTTPS URL. Supports variable expressions using '${VARIABLE_NAME}' syntax.",
+          "pattern": "^(https://.+|\\$\\{[A-Z_][A-Z0-9_]*\\})$",
+          "minLength": 1
+        },
+        "traceId": {
+          "type": "string",
+          "description": "Parent trace ID for W3C trace context propagation. When set, all gateway spans are attached as children of this trace. MUST be a 32-character lowercase hexadecimal string (128-bit W3C trace ID). Supports variable expressions.",
+          "oneOf": [
+            {
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            {
+              "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$"
+            }
+          ]
+        },
+        "spanId": {
+          "type": "string",
+          "description": "Parent span ID for W3C trace context propagation. When set together with traceId, this span becomes the direct parent of the gateway root span. MUST be a 16-character lowercase hexadecimal string (64-bit W3C span ID). Ignored when traceId is not set. Supports variable expressions.",
+          "oneOf": [
+            {
+              "pattern": "^[0-9a-f]{16}$"
+            },
+            {
+              "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$"
+            }
+          ]
+        },
+        "serviceName": {
+          "type": "string",
+          "description": "Logical service name reported in the 'service.name' resource attribute of all emitted spans. Identifies the gateway in the tracing backend. Defaults to 'mcp-gateway' when not specified.",
+          "minLength": 1,
+          "default": "mcp-gateway"
+        }
+      },
+      "required": ["endpoint"],
+      "additionalProperties": false
+    }
+  },
+  "examples": [
+    {
+      "mcpServers": {
+        "github": {
+          "container": "ghcr.io/github/github-mcp-server:latest",
+          "env": {
+            "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+          }
+        }
+      },
+      "gateway": {
+        "port": 8080,
+        "domain": "localhost",
+        "apiKey": "gateway-secret-token"
+      }
+    },
+    {
+      "mcpServers": {
+        "data-server": {
+          "container": "ghcr.io/example/data-mcp:latest",
+          "entrypoint": "/custom/entrypoint.sh",
+          "entrypointArgs": ["--config", "/app/config.json"],
+          "mounts": ["/host/data:/container/data:ro", "/host/config:/container/config:rw"],
+          "type": "stdio"
+        }
+      },
+      "gateway": {
+        "port": 8080,
+        "domain": "localhost",
+        "startupTimeout": 60,
+        "toolTimeout": 120
+      }
+    },
+    {
+      "mcpServers": {
+        "local-server": {
+          "container": "ghcr.io/example/python-mcp:latest",
+          "entrypointArgs": ["--config", "/app/config.json"],
+          "type": "stdio"
+        },
+        "remote-server": {
+          "type": "http",
+          "url": "https://api.example.com/mcp",
+          "headers": {
+            "Authorization": "Bearer ${API_TOKEN}"
+          }
+        }
+      },
+      "gateway": {
+        "port": 8080,
+        "domain": "localhost",
+        "apiKey": "gateway-secret-token"
+      }
+    }
+  ]
+}

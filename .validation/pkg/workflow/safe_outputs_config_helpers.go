@@ -1,0 +1,54 @@
+package workflow
+
+import (
+	"encoding/json"
+	"sort"
+
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
+)
+
+// ========================================
+// Safe Output Configuration Helpers
+// ========================================
+//
+// This file contains helper utilities used by the safe-outputs compiler:
+// - JSON serialisation of custom job/script names for the handler manager
+
+var safeOutputsConfigGenLog = logger.New("workflow:safe_outputs_config_generation_helpers")
+
+// buildCustomSafeOutputJobsJSON builds a JSON mapping of custom safe output job names to empty
+// strings, for use in the GH_AW_SAFE_OUTPUT_JOBS env var of the handler manager step.
+// This allows the handler manager to silently skip messages handled by custom safe-output job
+// steps rather than reporting them as "No handler loaded for message type '...'".
+func buildCustomSafeOutputJobsJSON(data *WorkflowData) string {
+	if data.SafeOutputs == nil || len(data.SafeOutputs.Jobs) == 0 {
+		return ""
+	}
+
+	// Build mapping of normalized job names to empty strings (no URL output for custom jobs)
+	jobMapping := make(map[string]string, len(data.SafeOutputs.Jobs))
+	for jobName := range data.SafeOutputs.Jobs {
+		normalizedName := stringutil.NormalizeSafeOutputIdentifier(jobName)
+		jobMapping[normalizedName] = ""
+	}
+
+	// Sort keys for deterministic output
+	keys := make([]string, 0, len(jobMapping))
+	for k := range jobMapping {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	ordered := make(map[string]string, len(keys))
+	for _, k := range keys {
+		ordered[k] = jobMapping[k]
+	}
+
+	jsonBytes, err := json.Marshal(ordered)
+	if err != nil {
+		safeOutputsConfigGenLog.Printf("Warning: failed to marshal custom safe output jobs: %v", err)
+		return ""
+	}
+	return string(jsonBytes)
+}

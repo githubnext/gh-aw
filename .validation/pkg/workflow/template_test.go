@@ -1,0 +1,74 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+// TestGenerateInterpolationAndTemplateStep_DeduplicatesEnvVars tests that duplicate
+// expression mappings (same EnvVar) are only emitted once in the env section,
+// preventing runtime errors when import and main workflow reference the same variable.
+func TestGenerateInterpolationAndTemplateStep_DeduplicatesEnvVars(t *testing.T) {
+	compiler := &Compiler{}
+	data := &WorkflowData{
+		MarkdownContent: "hello",
+		ParsedTools:     NewTools(map[string]any{}),
+	}
+
+	// Simulate the same variable referenced in both imported content and main workflow
+	expressionMappings := []*ExpressionMapping{
+		{EnvVar: "GH_AW_VARS_MY_VAR", Content: "vars.MY_VAR"},
+		{EnvVar: "GH_AW_VARS_MY_VAR", Content: "vars.MY_VAR"}, // duplicate
+		{EnvVar: "GH_AW_VARS_OTHER_VAR", Content: "vars.OTHER_VAR"},
+	}
+
+	var yaml strings.Builder
+	compiler.generateInterpolationAndTemplateStep(&yaml, expressionMappings, data)
+
+	result := yaml.String()
+
+	// MY_VAR should appear exactly once
+	count := strings.Count(result, "GH_AW_VARS_MY_VAR: ${{ vars.MY_VAR }}")
+	assert.Equal(t, 1, count, "duplicate env var GH_AW_VARS_MY_VAR should appear exactly once")
+
+	// OTHER_VAR should be present
+	assert.Contains(t, result, "GH_AW_VARS_OTHER_VAR: ${{ vars.OTHER_VAR }}", "OTHER_VAR should be present")
+}
+
+// TestGenerateInterpolationAndTemplateStep_SkipPath tests that the step is not generated
+// when there are no expression mappings, no template patterns, and no GitHub context tool.
+func TestGenerateInterpolationAndTemplateStep_SkipPath(t *testing.T) {
+	compiler := &Compiler{}
+	data := &WorkflowData{
+		MarkdownContent: "hello world",
+		ParsedTools:     NewTools(map[string]any{}),
+	}
+
+	var yaml strings.Builder
+	compiler.generateInterpolationAndTemplateStep(&yaml, nil, data)
+
+	assert.Empty(t, yaml.String(), "step YAML should be empty when MarkdownContent has no expressions or template patterns")
+}
+
+// TestGenerateInterpolationAndTemplateStep_GeneratePath tests that the step is generated
+// when the markdown content contains a template pattern.
+func TestGenerateInterpolationAndTemplateStep_GeneratePath(t *testing.T) {
+	compiler := &Compiler{}
+	data := &WorkflowData{
+		MarkdownContent: "{{#if github.event.issue.number}}do something{{/if}}",
+		ParsedTools:     NewTools(map[string]any{}),
+	}
+
+	var yaml strings.Builder
+	compiler.generateInterpolationAndTemplateStep(&yaml, nil, data)
+
+	result := yaml.String()
+	assert.Contains(t, result, "Interpolate variables and render templates", "step name should be present when template patterns exist")
+	assert.Contains(t, result, "GH_AW_PROMPT:", "prompt env var should be set when step is generated")
+	assert.Contains(t, result, "interpolate_prompt.cjs", "interpolate_prompt script should be referenced in the step")
+	assert.Contains(t, result, "setupGlobals", "setupGlobals helper should be called to initialise GitHub Actions objects")
+}

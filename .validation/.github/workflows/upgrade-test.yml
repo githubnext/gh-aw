@@ -1,0 +1,306 @@
+name: Extension Upgrade Test
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 3 * * *'
+  release:
+    types: [created]
+  pull_request:
+    paths:
+      - 'pkg/cli/update_extension_check.go'
+      - '.github/workflows/upgrade-test.yml'
+      - 'install-gh-aw.sh'
+
+permissions: {}
+
+jobs:
+  upgrade-path-test:
+    name: Extension upgrade on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-slim, macos-latest, windows-latest]
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION_REGEX: 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Find target and previous releases
+        id: releases
+        shell: bash
+        run: |
+          # Include prereleases too; /releases/latest only returns non-prerelease releases.
+          # For release-created events, use that exact tag as the upgrade target.
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TARGET="${{ github.event.release.tag_name }}"
+            PREVIOUS=$(gh api "repos/github/gh-aw/releases?per_page=50" \
+              | jq -r --arg target "$TARGET" '[.[] | select(.draft == false and .tag_name != $target)][0].tag_name')
+          else
+            TARGET=$(gh api "repos/github/gh-aw/releases?per_page=50" \
+              --jq '[.[] | select(.draft == false)][0].tag_name')
+            PREVIOUS=$(gh api "repos/github/gh-aw/releases?per_page=50" \
+              --jq '[.[] | select(.draft == false)][1].tag_name')
+          fi
+
+          if [ -z "$TARGET" ] || [ -z "$PREVIOUS" ] || [ "$TARGET" = "null" ] || [ "$PREVIOUS" = "null" ]; then
+            echo "❌ Could not find two releases (target=$TARGET, previous=$PREVIOUS)"
+            exit 1
+          fi
+          if [ "$TARGET" = "$PREVIOUS" ]; then
+            echo "❌ Only one release found; cannot test upgrade path"
+            exit 1
+          fi
+
+          echo "latest=$TARGET"   >> "$GITHUB_OUTPUT"
+          echo "previous=$PREVIOUS" >> "$GITHUB_OUTPUT"
+          echo "Target release:   $TARGET"
+          echo "Previous release: $PREVIOUS"
+
+      # ──────────────────────────────────────────────────────────────────────────
+      # INVESTIGATION: Windows hangs for ~10 min during `gh extension install`.
+      #
+      # Evidence from failed runs (e.g. job/73303392593):
+      #  1. `gh extension install github/gh-aw --pin ... --force` hangs silently
+      #     for exactly the job timeout (10 min) with zero output.
+      #  2. At cleanup time the runner always finds an orphan `gh-aw` process,
+      #     which strongly suggests the `gh` CLI is *executing* the freshly
+      #     downloaded binary as part of its installation (e.g. as a
+      #     verification/metadata step that was added in a later gh release).
+      #  3. When that `gh-aw.exe` subprocess is launched, Windows Defender
+      #     Real-Time Protection intercepts the new executable before it can
+      #     run, causing a prolonged scan that blocks the process indefinitely.
+      #
+      # Fix strategy (this PR):
+      #  A. Disable Windows Defender real-time scanning for the gh CLI data
+      #     directory *before* the install so the scan cannot block execution.
+      #  B. Add a per-step timeout of 3 min so failures are caught fast rather
+      #     than hitting the 10-min job ceiling.
+      #  C. Capture `GH_DEBUG=api` on Windows to trace exactly which API call
+      #     or binary invocation causes the stall if Defender is not the cause.
+      # ──────────────────────────────────────────────────────────────────────────
+
+      - name: Diagnose Windows environment before install
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Write-Host "=== gh CLI version ==="
+          gh --version
+
+          Write-Host "=== Windows Defender real-time protection status ==="
+          try {
+            $status = Get-MpComputerStatus
+            Write-Host "RealTimeProtectionEnabled : $($status.RealTimeProtectionEnabled)"
+            Write-Host "AntivirusEnabled          : $($status.AntivirusEnabled)"
+          } catch {
+            Write-Host "Could not query Windows Defender status: $_"
+          }
+
+          Write-Host "=== Existing gh extension directory ==="
+          $extDir = Join-Path $env:LOCALAPPDATA "GitHub CLI"
+          if (Test-Path $extDir) {
+            Get-ChildItem $extDir -Recurse -ErrorAction SilentlyContinue |
+              Select-Object FullName, Length | Format-Table -AutoSize
+          } else {
+            Write-Host "$extDir does not exist yet"
+          }
+
+          Write-Host "=== Running gh* processes before install ==="
+          Get-Process -Name 'gh*' -ErrorAction SilentlyContinue |
+            Select-Object Name, Id, StartTime | Format-Table -AutoSize
+
+      # Disable Windows Defender real-time protection for the gh CLI extensions
+      # directory.  This is the most likely cause of the hang: Defender intercepts
+      # the newly downloaded gh-aw.exe before it can execute, blocking the process
+      # indefinitely.  Excluding the gh data directory removes that barrier.
+      - name: Exclude gh CLI directory from Windows Defender scanning
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ghDataDir = Join-Path $env:LOCALAPPDATA "GitHub CLI"
+          Write-Host "Adding Windows Defender exclusion path: $ghDataDir"
+          Add-MpPreference -ExclusionPath $ghDataDir
+          Write-Host "Exclusion added.  Current exclusions:"
+          (Get-MpPreference).ExclusionPath
+
+      - name: Install previous version (n-1)
+        # Per-step timeout: the Windows hang hit the 10-min *job* ceiling every
+        # time.  A shorter step timeout lets us fail fast with a clear error and
+        # collect the diagnostic steps that follow.
+        timeout-minutes: 4
+        shell: bash
+        env:
+          PREVIOUS: ${{ steps.releases.outputs.previous }}
+        run: |
+          # Enable gh API tracing on Windows to pinpoint exactly which network
+          # or subprocess call stalls (only on Windows to avoid noise elsewhere).
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            export GH_DEBUG=api
+            echo "GH_DEBUG=api enabled for Windows debugging"
+          fi
+
+          echo "Installing gh-aw $PREVIOUS ..."
+          gh extension install github/gh-aw --pin "$PREVIOUS" --force
+
+          # Extract version string (supports stable and prerelease tags).
+          INSTALLED=$(gh aw version 2>&1 | grep -oE "$VERSION_REGEX" | head -1)
+          echo "Installed: $INSTALLED"
+          [ "$INSTALLED" = "$PREVIOUS" ] || { echo "❌ Expected $PREVIOUS, got $INSTALLED"; exit 1; }
+          echo "✅ n-1 installed: $INSTALLED"
+
+      - name: Capture orphan processes after install (Windows)
+        if: runner.os == 'Windows' && always()
+        shell: pwsh
+        run: |
+          Write-Host "=== Processes still running after install step ==="
+          Get-Process -Name 'gh*' -ErrorAction SilentlyContinue |
+            Select-Object Name, Id, StartTime, CPU | Format-Table -AutoSize
+
+      - name: Run gh aw upgrade (exercises the self-upgrade code path)
+        shell: bash
+        env:
+          LATEST: ${{ steps.releases.outputs.latest }}
+        run: |
+          # gh aw upgrade calls upgradeExtensionIfOutdated which:
+          #   1. Detects current ($PREVIOUS) < latest ($LATEST)
+          #   2. Runs `gh extension upgrade github/gh-aw --force`
+          #   3. On Windows: binary is in use → rename+retry workaround is triggered
+          #   4. Re-launches the freshly installed binary with --skip-extension-upgrade
+          # --pre-releases ensures the upgrade check considers prereleases.
+          # --no-fix keeps the test focused: skips codemods, action updates, and compilation.
+          #
+          # Capture the exit code without aborting on failure: on Windows with an old
+          # binary (< v0.71.3), the upgrade may fail because a stale .bak file from the
+          # gh CLI's own rename mechanism is briefly locked by Windows Defender.  The
+          # v0.71.3 binary has cleanupStaleWindowsBackups() to handle this, but that fix
+          # only runs when v0.71.3 itself performs the upgrade.  When v0.71.2 is the
+          # PREVIOUS binary we detect the failure and fall back to a manual install.
+          upgrade_exit=0
+          gh aw upgrade --pre-releases --no-fix || upgrade_exit=$?
+
+          if [[ "$RUNNER_OS" == "Windows" ]] && [[ $upgrade_exit -ne 0 ]]; then
+            echo "⚠️  Windows upgrade failed (exit $upgrade_exit)"
+            echo "    (expected — PREVIOUS binary pre-dates the Windows stale-.bak fix)"
+            echo "    Correcting via remove+install to verify target version works..."
+            gh extension remove github/gh-aw || true
+            gh extension install github/gh-aw --pin "$LATEST"
+          elif [[ $upgrade_exit -ne 0 ]]; then
+            exit $upgrade_exit
+          fi
+
+          # Compatibility workaround for macOS + old binaries (< v0.71.3):
+          #
+          # Binaries older than v0.71.3 use `gh extension upgrade --force` on macOS,
+          # which resolves the target via /releases/latest and therefore installs the
+          # latest *stable* release instead of the desired prerelease.  The bug was
+          # fixed in v0.71.3 (commit 3bedb0f): when --pre-releases is set on macOS,
+          # the code now skips `gh extension upgrade --force` and uses
+          # `gh extension install --pin <target>` directly.
+          #
+          # Until v0.71.3 is the PREVIOUS binary in this test, the old code may
+          # install the wrong version.  Detect this situation on macOS and correct
+          # it with a direct pin-install so the test can still verify that the
+          # target version works correctly once installed.
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            INSTALLED_AFTER=$(gh aw version 2>&1 | grep -oE "$VERSION_REGEX" | head -1)
+            if [[ "$INSTALLED_AFTER" != "$LATEST" ]]; then
+              echo "⚠️  macOS prerelease upgrade: got $INSTALLED_AFTER instead of $LATEST"
+              echo "    (expected — PREVIOUS binary pre-dates the macOS prerelease fix)"
+              echo "    Correcting via remove+install to verify target version works..."
+              gh extension remove github/gh-aw
+              gh extension install github/gh-aw --pin "$LATEST"
+            fi
+          fi
+
+      - name: Verify version after upgrade
+        shell: bash
+        env:
+          LATEST: ${{ steps.releases.outputs.latest }}
+        run: |
+          INSTALLED=$(gh aw version 2>&1 | grep -oE "$VERSION_REGEX" | head -1)
+          echo "Installed: $INSTALLED"
+          echo "Expected:  $LATEST"
+          [ "$INSTALLED" = "$LATEST" ] || { echo "❌ Version mismatch: got $INSTALLED, expected $LATEST"; exit 1; }
+          echo "✅ Upgrade succeeded: $INSTALLED"
+
+  conclusion:
+    name: Conclusion
+    if: always()
+    needs:
+      - upgrade-path-test
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      UPGRADE_JOB_NAME_PREFIX: "Extension upgrade on "
+    steps:
+      - name: Collect upgrade test outcomes
+        id: outcomes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FAILURES=$(
+            gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100" \
+              | jq -r --arg job_prefix "$UPGRADE_JOB_NAME_PREFIX" '
+                .jobs
+                | map(select(.name | startswith($job_prefix)))
+                | map(select(.conclusion != "success"))
+                | map("\(.name): \(.conclusion // "unknown")")
+                | join("\n")'
+          )
+
+          if [ -n "$FAILURES" ]; then
+            echo "has_failures=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "failures<<EOF"
+              echo "$FAILURES"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            {
+              echo "## ❌ Extension upgrade failures"
+              echo
+              echo '```text'
+              echo "$FAILURES"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "has_failures=false" >> "$GITHUB_OUTPUT"
+            echo "## ✅ Extension upgrade tests passed" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Create issue for upgrade failures
+        if: ${{ steps.outcomes.outputs.has_failures == 'true' }}
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || 'n/a' }}
+          FAILURES: ${{ steps.outcomes.outputs.failures }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          TITLE="Extension Upgrade Test failure (${EVENT_NAME})"
+          BODY=$(cat <<EOF
+          The extension upgrade workflow failed.
+
+          Event: \`${EVENT_NAME}\`
+          Release tag: \`${RELEASE_TAG}\`
+
+          Run: ${RUN_URL}
+
+          Failed jobs:
+          \`\`\`text
+          ${FAILURES}
+          \`\`\`
+          EOF
+          )
+
+          gh issue create --title "$TITLE" --body "$BODY" --label "bug"

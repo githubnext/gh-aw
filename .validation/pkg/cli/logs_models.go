@@ -1,0 +1,333 @@
+package cli
+
+import (
+	"errors"
+	"time"
+
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/types"
+	"github.com/github/gh-aw/pkg/workflow"
+)
+
+var logsModelsLog = logger.New("cli:logs_models")
+
+const (
+	// defaultAgentStdioLogPath is the default log file path for agent stdout/stderr
+	defaultAgentStdioLogPath = "/tmp/gh-aw/agent-stdio.log"
+	// runSummaryFileName is the name of the summary file created in each run folder
+	runSummaryFileName = "run_summary.json"
+	// defaultLogsOutputDir is the default directory for downloaded workflow logs
+	defaultLogsOutputDir = ".github/aw/logs"
+)
+
+// Constants for the iterative algorithm
+const (
+	// MaxIterations limits how many batches we fetch to prevent infinite loops
+	MaxIterations = 20
+	// BatchSize is the number of runs to fetch in each iteration
+	BatchSize = 100
+	// BatchSizeForAllWorkflows is the larger batch size when searching for agentic workflows
+	// There can be a really large number of workflow runs in a repository, so
+	// we are generous in the batch size when used without qualification.
+	BatchSizeForAllWorkflows = 250
+	// MaxConcurrentDownloads limits the number of parallel artifact downloads
+	MaxConcurrentDownloads = 10
+	// APICallCooldown is the minimum pause between successive batch-fetch iterations to
+	// avoid hitting the GitHub API rate limit when processing many runs in a single
+	// invocation.  checkAndWaitForRateLimit always sleeps at least this long.
+	APICallCooldown = 500 * time.Millisecond
+	// RateLimitThreshold is the minimum number of GitHub API core requests that must
+	// remain before the rate-limit helper considers the budget healthy.  When the
+	// remaining count falls at or below this value the helper sleeps until the reset
+	// window so subsequent iterations are not rejected with a 403/429.
+	RateLimitThreshold = 10
+	// rateLimitResetBuffer is the extra duration added on top of the computed wait time
+	// after a rate-limit reset to avoid resuming right on the boundary.
+	rateLimitResetBuffer = 2 * time.Second
+)
+
+// WorkflowRun represents a GitHub Actions workflow run with metrics
+type WorkflowRun struct {
+	DatabaseID          int64     `json:"databaseId"`
+	Number              int       `json:"number"`
+	URL                 string    `json:"url"`
+	Status              string    `json:"status"`
+	Conclusion          string    `json:"conclusion"`
+	WorkflowName        string    `json:"workflowName"`
+	WorkflowPath        string    `json:"workflowPath"` // Workflow file path (e.g., .github/workflows/copilot-swe-agent.yml)
+	CreatedAt           time.Time `json:"createdAt"`
+	StartedAt           time.Time `json:"startedAt"`
+	UpdatedAt           time.Time `json:"updatedAt"`
+	Event               string    `json:"event"`
+	HeadBranch          string    `json:"headBranch"`
+	HeadSha             string    `json:"headSha"`
+	DisplayTitle        string    `json:"displayTitle"`
+	Duration            time.Duration
+	ActionMinutes       float64 // Billable Actions minutes estimated from wall-clock time
+	TokenUsage          int
+	Turns               int
+	ErrorCount          int
+	WarningCount        int
+	MissingToolCount    int
+	MissingDataCount    int
+	NoopCount           int
+	SafeItemsCount      int
+	EffectiveTokens     int           // Cost-normalized token count computed from per-model multipliers
+	AvgTimeBetweenTurns time.Duration // Average time between consecutive LLM API calls (from per-turn timestamps when available)
+	LogsPath            string
+}
+
+// LogMetrics represents extracted metrics from log files
+// This is now an alias to the shared type in workflow package
+type LogMetrics = workflow.LogMetrics
+
+// ToolCallInfo represents statistics for a single tool invocation type
+// This is an alias to the shared type in workflow package
+type ToolCallInfo = workflow.ToolCallInfo
+
+// ProcessedRun represents a workflow run with its associated analysis
+type ProcessedRun struct {
+	Run                     WorkflowRun
+	AwContext               *AwContext
+	TaskDomain              *TaskDomainInfo
+	BehaviorFingerprint     *BehaviorFingerprint
+	AgenticAssessments      []AgenticAssessment
+	AccessAnalysis          *DomainAnalysis
+	FirewallAnalysis        *FirewallAnalysis
+	PolicyAnalysis          *PolicyAnalysis
+	RedactedDomainsAnalysis *RedactedDomainsAnalysis
+	MissingTools            []MissingToolReport
+	MissingData             []MissingDataReport
+	Noops                   []NoopReport
+	MCPFailures             []MCPFailureReport
+	MCPToolUsage            *MCPToolUsageData
+	TokenUsage              *TokenUsageSummary
+	GitHubRateLimitUsage    *GitHubRateLimitUsage
+	JobDetails              []JobInfoWithDuration
+}
+
+// MissingToolReport represents a missing tool reported by an agentic workflow
+type MissingToolReport struct {
+	Tool         string `json:"tool"`
+	Reason       string `json:"reason"`
+	Alternatives string `json:"alternatives,omitempty"`
+	Timestamp    string `json:"timestamp"`
+	WorkflowName string `json:"workflow_name,omitempty"` // Added for tracking which workflow reported this
+	RunID        int64  `json:"run_id,omitempty"`        // Added for tracking which run reported this
+}
+
+// NoopReport represents a noop message reported by an agentic workflow
+type NoopReport struct {
+	Message      string `json:"message"`
+	Timestamp    string `json:"timestamp,omitempty"`
+	WorkflowName string `json:"workflow_name,omitempty"` // Added for tracking which workflow reported this
+	RunID        int64  `json:"run_id,omitempty"`        // Added for tracking which run reported this
+}
+
+// MissingDataReport represents missing data reported by an agentic workflow
+type MissingDataReport struct {
+	DataType     string `json:"data_type"`
+	Reason       string `json:"reason"`
+	Context      string `json:"context,omitempty"`
+	Alternatives string `json:"alternatives,omitempty"`
+	Timestamp    string `json:"timestamp"`
+	WorkflowName string `json:"workflow_name,omitempty"` // Added for tracking which workflow reported this
+	RunID        int64  `json:"run_id,omitempty"`        // Added for tracking which run reported this
+}
+
+// MCPFailureReport represents an MCP server failure detected in a workflow run
+type MCPFailureReport struct {
+	ServerName   string `json:"server_name"`
+	Status       string `json:"status"`
+	Timestamp    string `json:"timestamp,omitempty"`
+	WorkflowName string `json:"workflow_name,omitempty"`
+	RunID        int64  `json:"run_id,omitempty"`
+}
+
+// MissingToolSummary aggregates missing tool reports across runs
+type MissingToolSummary struct {
+	Tool               string   `json:"tool" console:"header:Tool"`
+	Count              int      `json:"count" console:"header:Occurrences"`
+	Workflows          []string `json:"workflows" console:"-"`                     // List of workflow names that reported this tool
+	WorkflowsDisplay   string   `json:"-" console:"header:Workflows,maxlen:40"`    // Formatted display of workflows
+	FirstReason        string   `json:"first_reason" console:"-"`                  // Reason from the first occurrence
+	FirstReasonDisplay string   `json:"-" console:"header:First Reason,maxlen:50"` // Formatted display of first reason
+	RunIDs             []int64  `json:"run_ids" console:"-"`                       // List of run IDs where this tool was reported
+}
+
+// MCPFailureSummary aggregates MCP server failure reports across runs
+type MCPFailureSummary struct {
+	ServerName       string   `json:"server_name" console:"header:Server"`
+	Count            int      `json:"count" console:"header:Failures"`
+	Workflows        []string `json:"workflows" console:"-"`                  // List of workflow names that had this server fail
+	WorkflowsDisplay string   `json:"-" console:"header:Workflows,maxlen:60"` // Formatted display of workflows
+	RunIDs           []int64  `json:"run_ids" console:"-"`                    // List of run IDs where this server failed
+}
+
+// MissingDataSummary aggregates missing data reports across runs
+type MissingDataSummary struct {
+	DataType           string   `json:"data_type" console:"header:Data Type"`
+	Count              int      `json:"count" console:"header:Occurrences"`
+	Workflows          []string `json:"workflows" console:"-"`                     // List of workflow names that reported this data
+	WorkflowsDisplay   string   `json:"-" console:"header:Workflows,maxlen:40"`    // Formatted display of workflows
+	FirstReason        string   `json:"first_reason" console:"-"`                  // Reason from the first occurrence
+	FirstReasonDisplay string   `json:"-" console:"header:First Reason,maxlen:50"` // Formatted display of first reason
+	RunIDs             []int64  `json:"run_ids" console:"-"`                       // List of run IDs where this data was reported
+}
+
+// MCPToolUsageSummary aggregates MCP tool usage across all runs
+type MCPToolUsageSummary struct {
+	Summary        []MCPToolSummary    `json:"summary" console:"title:Tool Statistics"`             // Aggregated statistics per tool
+	Servers        []MCPServerStats    `json:"servers,omitempty" console:"title:Server Statistics"` // Server-level statistics
+	ToolCalls      []MCPToolCall       `json:"tool_calls" console:"-"`                              // Individual tool call records (excluded from console)
+	FilteredEvents []DifcFilteredEvent `json:"filtered_events,omitempty" console:"-"`               // DIFC filtered events (excluded from console display)
+}
+
+// ErrNoArtifacts indicates that a workflow run has no artifacts
+var ErrNoArtifacts = errors.New("no artifacts found for this run")
+
+// RunSummary represents a complete summary of a workflow run's artifacts and metrics.
+// This file is written to each run folder as "run_summary.json" to cache processing results
+// and avoid re-downloading and re-processing already analyzed runs.
+//
+// Key features:
+// - Acts as a marker that a run has been fully processed
+// - Stores all extracted metrics and analysis results
+// - Includes CLI version for cache invalidation when the tool is updated
+// - Enables fast reloading of run data without re-parsing logs
+//
+// Cache invalidation:
+// - If the CLI version in the summary doesn't match the current version, the run is reprocessed
+// - This ensures that bug fixes and improvements in log parsing are automatically applied
+type RunSummary struct {
+	CLIVersion              string                   `json:"cli_version"`                       // CLI version used to process this run
+	RunID                   int64                    `json:"run_id"`                            // Workflow run database ID
+	ProcessedAt             time.Time                `json:"processed_at"`                      // When this summary was created
+	Run                     WorkflowRun              `json:"run"`                               // Full workflow run metadata
+	Metrics                 LogMetrics               `json:"metrics"`                           // Extracted log metrics
+	AwContext               *AwContext               `json:"context,omitempty"`                 // aw_context data from aw_info.json
+	TaskDomain              *TaskDomainInfo          `json:"task_domain,omitempty"`             // Inferred workflow task domain
+	BehaviorFingerprint     *BehaviorFingerprint     `json:"behavior_fingerprint,omitempty"`    // Compact execution profile
+	AgenticAssessments      []AgenticAssessment      `json:"agentic_assessments,omitempty"`     // Derived agentic judgments
+	AccessAnalysis          *DomainAnalysis          `json:"access_analysis"`                   // Network access analysis
+	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis"`                 // Firewall log analysis
+	PolicyAnalysis          *PolicyAnalysis          `json:"policy_analysis,omitempty"`         // Firewall policy rule attribution
+	RedactedDomainsAnalysis *RedactedDomainsAnalysis `json:"redacted_domains_analysis"`         // Redacted URL domains analysis
+	MissingTools            []MissingToolReport      `json:"missing_tools"`                     // Missing tool reports
+	MissingData             []MissingDataReport      `json:"missing_data"`                      // Missing data reports
+	Noops                   []NoopReport             `json:"noops"`                             // Noop messages
+	MCPFailures             []MCPFailureReport       `json:"mcp_failures"`                      // MCP server failures
+	MCPToolUsage            *MCPToolUsageData        `json:"mcp_tool_usage,omitempty"`          // MCP tool usage data
+	TokenUsage              *TokenUsageSummary       `json:"token_usage_summary,omitempty"`     // Token usage from firewall proxy
+	GitHubRateLimitUsage    *GitHubRateLimitUsage    `json:"github_rate_limit_usage,omitempty"` // GitHub API quota consumption
+	ArtifactsList           []string                 `json:"artifacts_list"`                    // List of downloaded artifact files
+	JobDetails              []JobInfoWithDuration    `json:"job_details"`                       // Job execution details
+}
+
+// DownloadResult represents the result of downloading and processing a workflow run
+type DownloadResult struct {
+	Run                     WorkflowRun
+	Metrics                 LogMetrics
+	AwContext               *AwContext
+	TaskDomain              *TaskDomainInfo
+	BehaviorFingerprint     *BehaviorFingerprint
+	AgenticAssessments      []AgenticAssessment
+	AccessAnalysis          *DomainAnalysis
+	FirewallAnalysis        *FirewallAnalysis
+	RedactedDomainsAnalysis *RedactedDomainsAnalysis
+	MissingTools            []MissingToolReport
+	MissingData             []MissingDataReport
+	Noops                   []NoopReport
+	MCPFailures             []MCPFailureReport
+	MCPToolUsage            *MCPToolUsageData
+	TokenUsage              *TokenUsageSummary
+	GitHubRateLimitUsage    *GitHubRateLimitUsage
+	JobDetails              []JobInfoWithDuration
+	Error                   error
+	Skipped                 bool
+	Cached                  bool // True if loaded from cached summary
+	LogsPath                string
+}
+
+// JobInfo represents basic information about a workflow job
+type JobInfo struct {
+	Name        string    `json:"name"`
+	Status      string    `json:"status"`
+	Conclusion  string    `json:"conclusion"`
+	StartedAt   time.Time `json:"started_at,omitzero"`
+	CompletedAt time.Time `json:"completed_at,omitzero"`
+}
+
+// JobInfoWithDuration extends JobInfo with calculated duration
+type JobInfoWithDuration struct {
+	JobInfo
+	Duration time.Duration
+}
+
+// AwInfoSteps represents the steps information in aw_info.json files
+type AwInfoSteps struct {
+	Firewall string `json:"firewall,omitempty"` // Firewall type (e.g., "squid") or empty if no firewall
+}
+
+// AwContext represents the caller-workflow identity injected by dispatch_workflow.cjs
+// into the aw_context input, and stored under the "context" key in aw_info.json.
+// All values are strings (no nested objects) as validated by generate_aw_info.cjs.
+type AwContext struct {
+	Repo           string `json:"repo"`                       // "owner/repo" of the calling workflow
+	RunID          string `json:"run_id"`                     // GitHub Actions run ID of the calling workflow
+	WorkflowID     string `json:"workflow_id"`                // Full workflow ref, e.g. "owner/repo/.github/workflows/foo.yml@refs/heads/main"
+	WorkflowCallID string `json:"workflow_call_id,omitempty"` // Unique call attempt ID (run_id + run_attempt)
+	Time           string `json:"time,omitempty"`             // ISO 8601 timestamp of the dispatch
+	Actor          string `json:"actor,omitempty"`            // GitHub actor that triggered the calling workflow
+	EventType      string `json:"event_type,omitempty"`       // GitHub event name of the calling workflow
+	ItemType       string `json:"item_type,omitempty"`        // Kind of triggering item: "issue", "pull_request", "discussion", "check_run", "check_suite", or ""
+	ItemNumber     string `json:"item_number,omitempty"`      // Number (issue/PR/discussion) or database id (check_run/check_suite) of the triggering item
+	CommentID      string `json:"comment_id,omitempty"`       // ID of the triggering comment or review; empty when not a comment/review event
+}
+
+// AwInfo represents the structure of aw_info.json files
+type AwInfo struct {
+	EngineID        string              `json:"engine_id"`
+	EngineName      string              `json:"engine_name"`
+	Model           string              `json:"model"`
+	Version         string              `json:"version"`
+	CLIVersion      string              `json:"cli_version,omitempty"` // gh-aw CLI version
+	WorkflowName    string              `json:"workflow_name"`
+	Staged          bool                `json:"staged"`
+	AwfVersion      string              `json:"awf_version,omitempty"`      // AWF firewall version (new name)
+	FirewallVersion string              `json:"firewall_version,omitempty"` // AWF firewall version (old name, for backward compatibility)
+	Steps           AwInfoSteps         `json:"steps,omitzero"`             // Steps metadata
+	CreatedAt       string              `json:"created_at"`
+	Context         *AwContext          `json:"context,omitempty"`       // aw_context data passed via workflow_dispatch inputs
+	TokenWeights    *types.TokenWeights `json:"token_weights,omitempty"` // Custom model cost data (from engine.token-weights)
+	// Additional fields that might be present
+	RunID      any    `json:"run_id,omitempty"`
+	RunNumber  any    `json:"run_number,omitempty"`
+	RunAttempt string `json:"run_attempt,omitempty"`
+	Repository string `json:"repository,omitempty"`
+	Ref        string `json:"ref,omitempty"`
+	SHA        string `json:"sha,omitempty"`
+	Actor      string `json:"actor,omitempty"`
+	EventName  string `json:"event_name,omitempty"`
+	TargetRepo string `json:"target_repo,omitempty"`
+}
+
+// GetFirewallVersion returns the AWF firewall version, preferring the new field name
+// (awf_version) but falling back to the old field name (firewall_version) for
+// backward compatibility with older aw_info.json files.
+func (a *AwInfo) GetFirewallVersion() string {
+	if a.AwfVersion != "" {
+		return a.AwfVersion
+	}
+	return a.FirewallVersion
+}
+
+// isFailureConclusion returns true if the conclusion represents a failure state
+// (timed_out, failure, or cancelled) that should be counted as an error
+func isFailureConclusion(conclusion string) bool {
+	isFailure := conclusion == "timed_out" || conclusion == "failure" || conclusion == "cancelled"
+	if logsModelsLog.Enabled() {
+		logsModelsLog.Printf("Checking failure conclusion: conclusion=%s, is_failure=%t", conclusion, isFailure)
+	}
+	return isFailure
+}

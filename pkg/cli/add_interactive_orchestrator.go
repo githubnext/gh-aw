@@ -56,16 +56,11 @@ type AddInteractiveConfig struct {
 // as it will be overwritten by the provided ctx.
 func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error {
 	addInteractiveLog.Print("Starting interactive add workflow")
-
-	// Assert this function is not running in automated unit tests or CI
 	if os.Getenv("GO_TEST_MODE") == "true" || os.Getenv("CI") != "" {
 		return errors.New("interactive add cannot be used in automated tests or CI environments")
 	}
 
-	// Set context on the config
 	config.Ctx = ctx
-
-	// Auto-detect GHES host from git remote if not already set
 	if os.Getenv("GH_HOST") == "" {
 		detectedHost := getHostFromOriginRemote()
 		if detectedHost != "github.com" {
@@ -77,59 +72,26 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		}
 	}
 
-	// Step 1: Welcome message
 	console.ShowWelcomeBanner("This tool will walk you through adding an automated workflow to your repository.")
-
-	// Step 1b: Resolve workflows early to get descriptions and validate specs
 	if err := config.resolveWorkflows(); err != nil {
 		return err
 	}
-
-	// Step 1c: Show workflow descriptions if available
 	config.showWorkflowDescriptions()
-
-	// Step 2: Check gh auth status
-	if err := config.checkGHAuthStatus(); err != nil {
+	if err := runAddInteractivePreChecks(config); err != nil {
 		return err
 	}
-
-	// Step 3: Check git repository and get org/repo
-	if err := config.checkGitRepository(); err != nil {
-		return err
-	}
-
-	// Step 3b: Check working directory is clean (must be clean for PR creation later)
-	if err := config.checkCleanWorkingDirectory(); err != nil {
-		return err
-	}
-
-	// Step 4: Check GitHub Actions is enabled
-	if err := config.checkActionsEnabled(); err != nil {
-		return err
-	}
-
-	// Step 5: Check user permissions
-	if err := config.checkUserPermissions(); err != nil {
-		return err
-	}
-
-	// Step 6: Select coding agent and collect API key
 	if err := config.selectAIEngineAndKey(); err != nil {
 		return err
 	}
 
-	// Step 7: Determine files to add
 	filesToAdd, initFiles, err := config.determineFilesToAdd()
 	if err != nil {
 		return err
 	}
-
-	// Step 7b: Offer schedule frequency selection for scheduled workflows
 	if err := config.selectScheduleFrequency(); err != nil {
 		return err
 	}
 
-	// Step 8: Confirm with user
 	var secretName, secretValue string
 	if config.hasWriteAccess && !config.SkipSecret {
 		secretName, secretValue, err = config.resolveEngineApiKeyCredential()
@@ -137,22 +99,29 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 			return err
 		}
 	}
-
 	if err := config.confirmChanges(filesToAdd, initFiles, secretName, secretValue); err != nil {
 		return err
 	}
-
-	// Step 9: Apply changes (create PR, merge, add secret)
 	if err := config.createWorkflowPRAndConfigureSecret(ctx, filesToAdd, initFiles, secretName, secretValue); err != nil {
 		return err
 	}
+	return config.checkStatusAndOfferRun(ctx)
+}
 
-	// Step 10: Check status and offer to run
-	if err := config.checkStatusAndOfferRun(ctx); err != nil {
+func runAddInteractivePreChecks(config *AddInteractiveConfig) error {
+	if err := config.checkGHAuthStatus(); err != nil {
 		return err
 	}
-
-	return nil
+	if err := config.checkGitRepository(); err != nil {
+		return err
+	}
+	if err := config.checkCleanWorkingDirectory(); err != nil {
+		return err
+	}
+	if err := config.checkActionsEnabled(); err != nil {
+		return err
+	}
+	return config.checkUserPermissions()
 }
 
 // resolveWorkflows resolves workflow specifications by installing repositories,

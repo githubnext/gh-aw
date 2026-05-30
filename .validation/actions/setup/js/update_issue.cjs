@@ -1,0 +1,226 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+/**
+ * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ */
+
+/** @type {string} Safe output type handled by this module */
+const HANDLER_TYPE = "update_issue";
+
+const { resolveTarget, checkRequiredFilter } = require("./safe_output_helpers.cjs");
+const { createUpdateHandlerFactory, createStandardResolveNumber, createStandardFormatResult } = require("./update_handler_factory.cjs");
+const { updateBody } = require("./update_pr_description_helpers.cjs");
+const { loadTemporaryProjectMap, replaceTemporaryProjectReferences } = require("./temporary_id.cjs");
+const { sanitizeTitle } = require("./sanitize_title.cjs");
+const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
+const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { generateHistoryUrl } = require("./generate_history_link.cjs");
+const { fetchIssueState, mergeIssueState } = require("./safe_output_execution_metadata.cjs");
+const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
+
+/**
+ * Execute the issue update API call
+ * @param {any} github - GitHub API client
+ * @param {any} context - GitHub Actions context
+ * @param {number} issueNumber - Issue number to update
+ * @param {any} updateData - Data to update
+ * @returns {Promise<any>} Updated issue
+ */
+async function executeIssueUpdate(github, context, issueNumber, updateData) {
+  // Handle body operation (append/prepend/replace/replace-island)
+  // Default to "append" to add footer with AI attribution
+  const operation = updateData._operation || "append";
+  let rawBody = updateData._rawBody;
+  const includeFooter = updateData._includeFooter !== false; // Default to true
+  const titlePrefix = updateData._titlePrefix || "";
+
+  // Remove internal fields
+  const { _operation, _rawBody, _includeFooter, _titlePrefix, _workflowRepo, ...apiData } = updateData;
+
+  // Fetch current issue if needed (title prefix validation or body update)
+  if (titlePrefix || rawBody !== undefined) {
+    const { data: currentIssue } = await github.rest.issues.get({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: issueNumber,
+    });
+
+    // Validate title prefix if specified
+    if (titlePrefix) {
+      const currentTitle = currentIssue.title || "";
+      if (!currentTitle.startsWith(titlePrefix)) {
+        throw new Error(`${ERR_VALIDATION}: Issue title "${currentTitle}" does not start with required prefix "${titlePrefix}"`);
+      }
+      core.info(`✓ Title prefix validation passed: "${titlePrefix}"`);
+    }
+
+    if (rawBody !== undefined) {
+      // Load and apply temporary project URL replacements FIRST
+      // This resolves any temporary project IDs (e.g., #aw_abc123def456) to actual project URLs
+      const temporaryProjectMap = loadTemporaryProjectMap();
+      if (temporaryProjectMap.size > 0) {
+        rawBody = replaceTemporaryProjectReferences(rawBody, temporaryProjectMap);
+        core.debug(`Applied ${temporaryProjectMap.size} temporary project URL replacement(s)`);
+      }
+
+      const currentBody = currentIssue.body || "";
+
+      // Get workflow run URL for AI attribution.
+      // Use the original workflow repo (_workflowRepo) rather than context.repo, because
+      // context may be effectiveContext with repo overridden to a cross-repo target.
+      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
+      const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
+      const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
+      const workflowRepo = _workflowRepo || context.repo;
+      const runUrl = buildWorkflowRunUrl(context, workflowRepo);
+
+      const historyUrl =
+        generateHistoryUrl({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          itemType: "issue",
+          workflowCallId: callerWorkflowId,
+          workflowId,
+          serverUrl: context.serverUrl,
+        }) || undefined;
+
+      // Use helper to update body (handles all operations including replace)
+      apiData.body = updateBody({
+        currentBody,
+        newContent: rawBody,
+        operation,
+        workflowName,
+        runUrl,
+        workflowId,
+        includeFooter, // Pass footer flag to helper
+        historyUrl,
+      });
+
+      core.info(`Will update body (length: ${apiData.body.length})`);
+    }
+  }
+
+  const { data: issue } = await github.rest.issues.update({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: issueNumber,
+    ...apiData,
+  });
+
+  return issue;
+}
+
+/**
+ * Resolve issue number from message and configuration
+ * Uses the standard resolve helper for consistency with update_pull_request
+ */
+const resolveIssueNumber = createStandardResolveNumber({
+  itemType: "update_issue",
+  itemNumberField: "issue_number",
+  supportsPR: false, // Not used when supportsIssue is true
+  supportsIssue: true, // update_issue only supports issues, not PRs
+});
+
+/**
+ * Build update data from message
+ * @param {Object} item - The message item
+ * @param {Object} config - Configuration object
+ * @returns {{success: true, data: Object} | {success: false, error: string}} Update data result
+ */
+function buildIssueUpdateData(item, config) {
+  const updateData = {};
+
+  if (item.title !== undefined) {
+    // Sanitize title for Unicode security
+    updateData.title = sanitizeTitle(item.title);
+  }
+  // Check if body updates are allowed (defaults to true if not specified)
+  const canUpdateBody = config.allow_body !== false;
+  if (item.body !== undefined && canUpdateBody) {
+    // Store operation information for consistent footer/append behavior.
+    // Default to "append" so we preserve the original issue text.
+    updateData._operation = item.operation || "append";
+    updateData._rawBody = item.body;
+  } else if (item.body !== undefined && !canUpdateBody) {
+    // Body update attempted but not allowed by configuration
+    core.warning("Body update not allowed by safe-outputs configuration");
+  }
+  // The safe-outputs schema uses "status" (open/closed), while the GitHub API uses "state".
+  // Accept both for compatibility.
+  if (item.state !== undefined) {
+    updateData.state = item.state;
+  } else if (item.status !== undefined) {
+    updateData.state = item.status;
+  }
+  if (item.labels !== undefined) {
+    updateData.labels = item.labels;
+  }
+  if (item.assignees !== undefined) {
+    updateData.assignees = item.assignees;
+  }
+  if (item.milestone !== undefined) {
+    updateData.milestone = item.milestone;
+  }
+
+  // Enforce max limits on labels and assignees before API calls
+  const labelsLimitResult = tryEnforceArrayLimit(updateData.labels, MAX_LABELS, "labels");
+  if (!labelsLimitResult.success) {
+    core.warning(`Issue update limit exceeded: ${labelsLimitResult.error}`);
+    return { success: false, error: labelsLimitResult.error };
+  }
+
+  const assigneesLimitResult = tryEnforceArrayLimit(updateData.assignees, MAX_ASSIGNEES, "assignees");
+  if (!assigneesLimitResult.success) {
+    core.warning(`Issue update limit exceeded: ${assigneesLimitResult.error}`);
+    return { success: false, error: assigneesLimitResult.error };
+  }
+
+  // Pass footer config to executeUpdate (default to true)
+  updateData._includeFooter = parseBoolTemplatable(config.footer, true);
+
+  // Store title prefix for validation in executeIssueUpdate
+  if (config.title_prefix) {
+    updateData._titlePrefix = config.title_prefix;
+  }
+
+  return { success: true, data: updateData };
+}
+
+/**
+ * Format success result for issue update
+ * Uses the standard format helper for consistency across update handlers
+ */
+const formatIssueSuccessResult = createStandardFormatResult({
+  numberField: "number",
+  urlField: "url",
+  urlSource: "html_url",
+});
+
+/**
+ * Main handler factory for update_issue
+ * Returns a message handler function that processes individual update_issue messages
+ * @type {HandlerFactoryFunction}
+ */
+const main = createUpdateHandlerFactory({
+  itemType: "update_issue",
+  itemTypeName: "issue",
+  supportsPR: false, // Not used by factory, but kept for documentation
+  resolveItemNumber: resolveIssueNumber,
+  buildUpdateData: buildIssueUpdateData,
+  executeUpdate: executeIssueUpdate,
+  formatSuccessResult: formatIssueSuccessResult,
+  captureExecutionMetadata: {
+    captureBefore: async (githubClient, effectiveContext, issueNumber) => fetchIssueState(githubClient, effectiveContext.repo, issueNumber),
+    captureAfter: async (updatedIssue, beforeState) => mergeIssueState(beforeState, updatedIssue),
+  },
+  itemFilter: async (githubClient, repoParts, issueNumber, config) => {
+    const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+    const requiredTitlePrefix = config.required_title_prefix || "";
+    return checkRequiredFilter(githubClient, repoParts, issueNumber, requiredLabels, requiredTitlePrefix, "update_issue");
+  },
+});
+
+module.exports = { main, buildIssueUpdateData };

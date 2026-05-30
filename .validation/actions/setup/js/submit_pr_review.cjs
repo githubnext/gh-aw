@@ -1,0 +1,213 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+/**
+ * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ */
+
+const { resolveTarget, isStagedMode, logStagedPreviewInfo, checkRequiredFilter } = require("./safe_output_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
+const { parseBoolTemplatable } = require("./templatable.cjs");
+
+/** @type {string} Safe output type handled by this module */
+const HANDLER_TYPE = "submit_pull_request_review";
+
+/** @type {Set<string>} Valid review event types */
+const VALID_EVENTS = new Set(["APPROVE", "REQUEST_CHANGES", "COMMENT"]);
+
+/**
+ * Main handler factory for submit_pull_request_review
+ * Returns a message handler that stores review metadata (body and event)
+ * in the shared PR review buffer. The actual review submission happens
+ * during the handler manager's finalization step.
+ *
+ * The PR review buffer instance is passed via config._prReviewBuffer.
+ *
+ * @type {HandlerFactoryFunction}
+ */
+async function main(config = {}) {
+  const maxCount = config.max || 1;
+  const targetConfig = config.target || "triggering";
+  const buffer = config._prReviewBuffer;
+  const supersedeOlderReviews = parseBoolTemplatable(config.supersede_older_reviews, false);
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const githubClient = await createAuthenticatedGitHubClient(config);
+
+  const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
+  if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
+  if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
+
+  // Build the allowed events set from config (empty set means all events are allowed)
+  const allowedEvents = new Set(Array.isArray(config.allowed_events) && config.allowed_events.length > 0 ? config.allowed_events.map(e => String(e).toUpperCase()) : []);
+
+  if (!buffer) {
+    core.warning("submit_pull_request_review: No PR review buffer provided in config");
+    return async function handleSubmitPRReview() {
+      return { success: false, error: "No PR review buffer available" };
+    };
+  }
+
+  core.info(`Submit PR review handler initialized: max=${maxCount}, target=${targetConfig}`);
+  core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (allowedRepos.size > 0) {
+    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+  }
+  if (allowedEvents.size > 0) {
+    core.info(`Allowed review events: ${Array.from(allowedEvents).join(", ")}`);
+  }
+
+  // Propagate per-handler staged flag to the shared PR review buffer
+  if (config.staged === true) {
+    buffer.setStaged(true);
+  }
+  if (isStagedMode(config)) {
+    logStagedPreviewInfo("PR review will be previewed without being submitted");
+  }
+  if (supersedeOlderReviews) {
+    core.warning("submit_pull_request_review: supersede-older-reviews is best-effort. Prefer allowed-events: [COMMENT] by default and use REQUEST_CHANGES only when merge-blocking is required.");
+    if (typeof buffer.setSupersedeOlderReviews === "function") {
+      buffer.setSupersedeOlderReviews(true);
+    }
+  }
+
+  let processedCount = 0;
+
+  /**
+   * Message handler that stores review metadata
+   * @param {Object} message - The submit_pull_request_review message
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs
+   * @returns {Promise<Object>} Result with success status
+   */
+  return async function handleSubmitPRReview(message, resolvedTemporaryIds) {
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping submit_pull_request_review: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
+    }
+
+    // Validate event field — default to COMMENT when not provided
+    const event = message.event ? message.event.toUpperCase() : "COMMENT";
+    if (!VALID_EVENTS.has(event)) {
+      core.warning(`Invalid review event: ${message.event}. Must be one of: APPROVE, REQUEST_CHANGES, COMMENT`);
+      return {
+        success: false,
+        error: `Invalid review event: ${message.event}. Must be one of: APPROVE, REQUEST_CHANGES, COMMENT`,
+      };
+    }
+
+    // Enforce allowed-events filter (infrastructure-level enforcement)
+    if (allowedEvents.size > 0 && !allowedEvents.has(event)) {
+      const allowedList = Array.from(allowedEvents).join(", ");
+      core.warning(`Review event '${event}' is not allowed. Allowed events: ${allowedList}`);
+      return {
+        success: false,
+        error: `Review event '${event}' is not allowed by safe-outputs configuration. Allowed events: ${allowedList}`,
+      };
+    }
+
+    // Body is required for REQUEST_CHANGES per GitHub API docs;
+    // optional for APPROVE and COMMENT
+    const body = message.body || "";
+    if (event === "REQUEST_CHANGES" && !body) {
+      core.warning("Review body is required for REQUEST_CHANGES");
+      return {
+        success: false,
+        error: "Review body is required for REQUEST_CHANGES",
+      };
+    }
+
+    // Only increment after validation passes
+    processedCount++;
+
+    core.info(`Setting review metadata: event=${event}, bodyLength=${body.length}`);
+
+    // Apply required-labels/required-title-prefix filter if review context is already available
+    const existingReviewCtx = buffer.getReviewContext();
+    if (existingReviewCtx) {
+      const filterResult = await checkRequiredFilter(githubClient, existingReviewCtx.repoParts, existingReviewCtx.pullRequestNumber, requiredLabels, requiredTitlePrefix, "submit_pr_review");
+      if (filterResult) return filterResult;
+    }
+
+    // Store the review metadata in the shared buffer
+    buffer.setReviewMetadata(body, event);
+
+    // Ensure review context is set for body-only reviews (no inline comments).
+    // If create_pull_request_review_comment already set context, this is a no-op.
+    // Use target config as single source of truth (same as add_comment): resolveTarget first, then use payload PR only when it matches.
+    if (!buffer.getReviewContext()) {
+      const targetResult = resolveTarget({
+        targetConfig,
+        item: message,
+        context,
+        itemType: "PR review",
+        supportsPR: false,
+        supportsIssue: false,
+      });
+
+      if (!targetResult.success) {
+        if (targetResult.shouldFail) {
+          core.warning(`Could not resolve PR for review context: ${targetResult.error}`);
+        }
+      } else if (targetResult.number) {
+        const prNum = targetResult.number;
+
+        // Resolve and validate the target repository (supports cross-repo via target-repo config)
+        const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "PR review");
+        if (!repoResult.success) {
+          // Warn and leave context unset; submitReview() will subsequently fail
+          // with "No review context available" — this is not a silent failure.
+          core.warning(`Could not resolve repository for PR review context: ${repoResult.error}`);
+        } else {
+          const { repo, repoParts } = repoResult;
+          const payloadPR = context.payload?.pull_request;
+          const usePayloadPR = payloadPR && payloadPR.number === prNum && payloadPR.head?.sha && repo === `${context.repo.owner}/${context.repo.repo}`;
+
+          if (usePayloadPR) {
+            buffer.setReviewContext({
+              repo,
+              repoParts,
+              pullRequestNumber: payloadPR.number,
+              pullRequest: payloadPR,
+            });
+            core.info(`Set review context from triggering PR: ${repo}#${payloadPR.number}`);
+          } else {
+            try {
+              const { data: fetchedPR } = await githubClient.rest.pulls.get({
+                owner: repoParts.owner,
+                repo: repoParts.repo,
+                pull_number: prNum,
+              });
+              if (fetchedPR?.head?.sha) {
+                buffer.setReviewContext({
+                  repo,
+                  repoParts,
+                  pullRequestNumber: fetchedPR.number,
+                  pullRequest: fetchedPR,
+                });
+                core.info(`Set review context from target: ${repo}#${fetchedPR.number}`);
+              } else {
+                core.warning("Fetched PR missing head.sha - cannot set review context");
+              }
+            } catch (fetchErr) {
+              core.warning(`Could not fetch PR #${prNum} for review context: ${getErrorMessage(fetchErr)}`);
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      success: true,
+      event: event,
+      body_length: body.length,
+      deferred_manifest: true,
+    };
+  };
+}
+
+module.exports = { main };

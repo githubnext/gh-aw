@@ -1,0 +1,187 @@
+package cli
+
+import (
+	"context"
+	"fmt"
+	"math/rand"
+	"os"
+	"regexp"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
+)
+
+var addWorkflowPRLog = logger.New("cli:add_workflow_pr")
+
+// invalidBranchCharsPattern matches characters not allowed in git branch names
+var invalidBranchCharsPattern = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+
+// consecutiveHyphensPattern matches two or more consecutive hyphens
+var consecutiveHyphensPattern = regexp.MustCompile(`-{2,}`)
+
+// sanitizeBranchName sanitizes a string for use in a git branch name.
+// Git branch names cannot contain:
+// - spaces, ~, ^, :, \, ?, *, [, @{
+// - consecutive dots (..)
+// - leading/trailing dots or slashes
+// - control characters
+func sanitizeBranchName(name string) string {
+	// Use base name only (no directory path)
+	name = normalizeWorkflowID(name)
+
+	// Replace problematic characters with hyphens
+	// This regex matches any character that's not alphanumeric, hyphen, or underscore
+	name = invalidBranchCharsPattern.ReplaceAllString(name, "-")
+
+	// Remove consecutive hyphens
+	name = consecutiveHyphensPattern.ReplaceAllString(name, "-")
+
+	// Trim leading/trailing hyphens
+	name = strings.Trim(name, "-")
+
+	// Ensure non-empty (fallback to "workflow")
+	if name == "" {
+		name = "workflow"
+	}
+
+	return name
+}
+
+// addWorkflowsWithPR handles workflow addition with PR creation using pre-resolved workflows.
+func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts AddOptions) (int, string, error) {
+	addWorkflowPRLog.Printf("Adding %d workflow(s) with PR creation (resolved)", len(workflows))
+
+	// Get current branch for restoration later
+	currentBranch, err := getCurrentBranch()
+	if err != nil {
+		addWorkflowPRLog.Printf("Failed to get current branch: %v", err)
+		return 0, "", fmt.Errorf("failed to get current branch: %w", err)
+	}
+
+	addWorkflowPRLog.Printf("Current branch: %s", currentBranch)
+
+	// Create temporary branch with random 4-digit number
+	// Use sanitized workflow name to avoid invalid git ref characters
+	randomNum := rand.Intn(9000) + 1000 // Generate number between 1000-9999
+	sanitizedName := sanitizeBranchName(workflows[0].Spec.WorkflowPath)
+	branchName := fmt.Sprintf("add-workflow-%s-%04d", sanitizedName, randomNum)
+
+	addWorkflowPRLog.Printf("Creating temporary branch: %s", branchName)
+
+	if err := createAndSwitchBranch(branchName, opts.Verbose); err != nil {
+		return 0, "", fmt.Errorf("failed to create branch %s: %w", branchName, err)
+	}
+
+	// Create file tracker for rollback capability
+	tracker := NewFileTracker()
+
+	// Ensure we switch back to original branch on exit
+	defer func() {
+		if switchErr := switchBranch(currentBranch, opts.Verbose); switchErr != nil && opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to switch back to branch %s: %v", currentBranch, switchErr)))
+		}
+	}()
+
+	// Add workflows using the resolved workflow path
+	addWorkflowPRLog.Print("Adding workflows to repository")
+	prOpts := opts
+	prOpts.DisableSecurityScanner = false
+	if err := addWorkflowsWithTracking(ctx, workflows, tracker, prOpts); err != nil {
+		addWorkflowPRLog.Printf("Failed to add workflows: %v", err)
+		// Rollback on error
+		if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil && opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
+		}
+		return 0, "", fmt.Errorf("failed to add workflows: %w", err)
+	}
+
+	// Stage all files before creating PR
+	addWorkflowPRLog.Print("Staging workflow files")
+	if err := tracker.StageAllFiles(opts.Verbose); err != nil {
+		if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil && opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
+		}
+		return 0, "", fmt.Errorf("failed to stage workflow files: %w", err)
+	}
+
+	// Update .gitattributes and stage it if changed
+	if err := stageGitAttributesIfChanged(); err != nil && opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to stage .gitattributes: %v", err)))
+	}
+
+	// Commit changes
+	var commitMessage, prTitle, prBody, joinedNames string
+	if len(workflows) == 1 {
+		joinedNames = workflows[0].Spec.WorkflowName
+		commitMessage = "Add agentic workflow " + joinedNames
+		prTitle = "Add agentic workflow " + joinedNames
+		prBody = "Add agentic workflow " + joinedNames
+	} else {
+		workflowNames := sliceutil.Map(workflows, func(wf *ResolvedWorkflow) string {
+			return wf.Spec.WorkflowName
+		})
+		joinedNames = strings.Join(workflowNames, ", ")
+		commitMessage = "Add agentic workflows: " + joinedNames
+		prTitle = "Add agentic workflows: " + joinedNames
+		prBody = "Add agentic workflows: " + joinedNames
+	}
+
+	if err := commitChanges(commitMessage, opts.Verbose); err != nil {
+		// Don't rollback - leave the workflow files on disk for manual recovery.
+		// Return a richly formatted error with clear instructions so the user can
+		// commit and push manually. The top-level error handler will print this.
+		return 0, "", fmt.Errorf(
+			"failed to commit workflow files: %w\n\n"+
+				"The workflow files have been written to disk and staged in git.\n"+
+				"Please commit the files manually, then either push them to the\n"+
+				"repository or create a pull request:\n\n"+
+				"  git commit -m %q\n"+
+				"  git push\n\n"+
+				"Or to create a pull request:\n\n"+
+				"  git checkout -b %s\n"+
+				"  git commit -m %q\n"+
+				"  git push -u origin %s\n"+
+				"  gh pr create --title %q",
+			err, commitMessage, branchName, commitMessage, branchName, prTitle,
+		)
+	}
+
+	// Push branch
+	addWorkflowPRLog.Printf("Pushing branch %s to remote", branchName)
+	if err := pushBranch(branchName, opts.Verbose); err != nil {
+		addWorkflowPRLog.Printf("Failed to push branch: %v", err)
+		// Treat push failure as a warning: keep the files and commit intact so the
+		// user can push manually. Do NOT rollback.
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to push branch %s: %v", branchName, err)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+			"The workflow files have been committed to local branch "+branchName+".\n"+
+				"  To push the branch and create a pull request, run:\n\n"+
+				"    git push -u origin "+branchName+"\n"+
+				"    gh pr create --title "+fmt.Sprintf("%q", prTitle),
+		))
+		return 0, "", fmt.Errorf("failed to push branch %s: %w", branchName, err)
+	}
+
+	// Create PR
+	addWorkflowPRLog.Printf("Creating pull request: %s", prTitle)
+	prNumber, prURL, err := createPR(branchName, prTitle, prBody, opts.Verbose)
+	if err != nil {
+		addWorkflowPRLog.Printf("Failed to create PR: %v", err)
+		if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil && opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
+		}
+		return 0, "", fmt.Errorf("failed to create PR: %w", err)
+	}
+
+	addWorkflowPRLog.Printf("Successfully created PR #%d: %s", prNumber, prURL)
+
+	// Switch back to original branch
+	if err := switchBranch(currentBranch, opts.Verbose); err != nil {
+		return prNumber, prURL, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created pull request "+prURL))
+	return prNumber, prURL, nil
+}
