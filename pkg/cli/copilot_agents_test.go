@@ -319,7 +319,7 @@ func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
 		t.Fatalf("Failed to create .github/aw directory: %v", err)
 	}
 
-	for _, name := range []string{"zeta.md", "alpha.md", "ignore.txt"} {
+	for _, name := range []string{"workflow-z.md", "workflow-a.md", "ignore.txt"} {
 		if err := os.WriteFile(filepath.Join(awDir, name), []byte("# test"), 0o644); err != nil {
 			t.Fatalf("Failed to create %s: %v", name, err)
 		}
@@ -331,8 +331,8 @@ func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
 	}
 
 	expected := agenticWorkflowsSkillHeader + agenticWorkflowsSkillIntro +
-		"- `.github/aw/alpha.md`\n" +
-		"- `.github/aw/zeta.md`\n" +
+		"- `.github/aw/workflow-a.md`\n" +
+		"- `.github/aw/workflow-z.md`\n" +
 		agenticWorkflowsSkillOutro
 	if content != expected {
 		t.Fatalf("Expected exact skill content:\n%s\ngot:\n%s", expected, content)

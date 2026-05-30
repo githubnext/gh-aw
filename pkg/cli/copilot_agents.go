@@ -158,7 +158,7 @@ func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
 	awRoot := filepath.Join(gitRoot, ".github", "aw")
 	entries, err := os.ReadDir(awRoot)
 	if err != nil {
-		return "", fmt.Errorf("failed to read %s directory: %w", awRoot, err)
+		return "", fmt.Errorf("failed to read .github/aw directory for skill generation (%s): %w", awRoot, err)
 	}
 
 	awFiles := make([]string, 0, len(entries))
@@ -171,7 +171,7 @@ func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
 	sort.Strings(awFiles)
 
 	if len(awFiles) == 0 {
-		return "", fmt.Errorf("no markdown files found in %s", awRoot)
+		return "", fmt.Errorf("no markdown files found in %s - ensure .github/aw contains workflow documentation files", awRoot)
 	}
 
 	var fileList strings.Builder
