@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+set +o histexpand
 mkdir -p /tmp/gh-aw/cache-memory
 echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
 echo "This folder provides persistent file storage across workflow runs"

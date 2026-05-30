@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+set +o histexpand
+set -euo pipefail
 # Print prompt to workflow logs (equivalent to core.info)
 echo "Generated Prompt:"
 cat "$GH_AW_PROMPT"
