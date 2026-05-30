@@ -300,7 +300,7 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 			}
 		}
 
-		line := fmt.Sprintf("  - `%s` → `%s`", absPath, repo)
+		line := fmt.Sprintf("  - repo `%s` → `%s`", repo, absPath)
 		if isRoot {
 			line += " (cwd)"
 		}
@@ -323,6 +323,9 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 		// Annotate additionally fetched refs
 		if len(cfg.Fetch) > 0 {
 			line += fmt.Sprintf(" [additional refs fetched: %s]", strings.Join(cfg.Fetch, ", "))
+		}
+		if strings.TrimSpace(cfg.SparseCheckout) != "" {
+			line += " [sparse checkout enabled]"
 		}
 
 		sb.WriteString(line + "\n")

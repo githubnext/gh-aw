@@ -571,6 +571,7 @@ func TestBuildCheckoutsPromptContent(t *testing.T) {
 		content := buildCheckoutsPromptContent([]*CheckoutConfig{
 			{Repository: "owner/target", Path: "./target"},
 		})
+		assert.Contains(t, content, "repo `owner/target` → `$GITHUB_WORKSPACE/target`", "should present checkout as repo-to-directory mapping")
 		assert.Contains(t, content, "$GITHUB_WORKSPACE/target", "should show full workspace path")
 		assert.Contains(t, content, "owner/target", "should show the configured repo")
 		assert.NotContains(t, content, "github.repository", "should not include github.repository expression for explicit repo")
@@ -637,6 +638,13 @@ func TestBuildCheckoutsPromptContent(t *testing.T) {
 		assert.Contains(t, content, "additional refs fetched", "should mention additional refs")
 		assert.Contains(t, content, "refs/pulls/open/*", "should list the refs/pulls/open/* pattern")
 		assert.Contains(t, content, "main", "should list the main branch")
+	})
+
+	t.Run("sparse checkout is annotated in prompt notes", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/repo", SparseCheckout: ".github/\nsrc/"},
+		})
+		assert.Contains(t, content, "sparse checkout enabled", "should indicate sparse checkout when configured")
 	})
 
 	t.Run("unavailable branch note is always present", func(t *testing.T) {
