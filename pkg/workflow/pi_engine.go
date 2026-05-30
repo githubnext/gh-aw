@@ -460,10 +460,6 @@ touch %s
 const PiStreamingLogFile = "/tmp/gh-aw/pi-streaming.jsonl"
 
 func filterPiArgs(args []string) []string {
-	if len(args) == 0 {
-		return nil
-	}
-
 	filtered := make([]string, 0, len(args))
 	for _, arg := range args {
 		if arg == "--yolo" || strings.HasPrefix(arg, "--yolo=") {
