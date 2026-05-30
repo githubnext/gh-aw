@@ -158,6 +158,10 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected GITHUB_WORKSPACE environment variable in step content:\n%s", stepContent)
 	}
 
+	if !strings.Contains(stepContent, "RUNNER_TEMP: ${{ runner.temp }}") {
+		t.Errorf("Expected RUNNER_TEMP environment variable in step content:\n%s", stepContent)
+	}
+
 	// Test that GITHUB_SERVER_URL and GITHUB_API_URL are present for GitHub Enterprise compatibility
 	if !strings.Contains(stepContent, "GITHUB_SERVER_URL: ${{ github.server_url }}") {
 		t.Errorf("Expected GITHUB_SERVER_URL environment variable in step content:\n%s", stepContent)

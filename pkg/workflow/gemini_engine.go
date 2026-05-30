@@ -252,6 +252,7 @@ touch %s
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW":        "true",
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
+		"RUNNER_TEMP":      "${{ runner.temp }}",
 		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
 		// The runner's original path is unreachable within the AWF isolated filesystem;
 		// we create this file before the agent starts and append it to the real

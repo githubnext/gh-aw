@@ -382,6 +382,7 @@ touch %s
 		"GITHUB_AW":           "true",
 		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
 		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
+		"RUNNER_TEMP":         "${{ runner.temp }}",
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	if modelConfigured {

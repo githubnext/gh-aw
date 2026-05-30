@@ -354,6 +354,7 @@ touch %s
 		"GITHUB_HEAD_REF":     "${{ github.head_ref }}",
 		"GITHUB_REF_NAME":     "${{ github.ref_name }}",
 		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
+		"RUNNER_TEMP":         "${{ runner.temp }}",
 		// Pass GitHub server URL and API URL for GitHub Enterprise compatibility.
 		// In standard GitHub.com environments these resolve to https://github.com and
 		// https://api.github.com. In GitHub Enterprise they resolve to the enterprise
