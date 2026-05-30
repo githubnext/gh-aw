@@ -29,6 +29,16 @@ playwright-cli browser_evaluate --expression "document.title"
 playwright-cli browser_run_code --code "async (page) => { await page.goto('https://example.com'); return await page.title(); }"
 ```
 
+### MCP Mode (Deprecated)
+
+MCP mode is deprecated and emits a compile-time warning. Migrate to `mode: cli` for the reasons listed above. MCP mode runs Playwright in a Docker container with `--network host`, so `localhost` resolves to the Docker host and bridge IP detection is required to reach local servers.
+
+```yaml wrap
+tools:
+  playwright:
+    mode: mcp  # deprecated — use mode: cli instead
+```
+
 ## Configuration
 
 ### Version
