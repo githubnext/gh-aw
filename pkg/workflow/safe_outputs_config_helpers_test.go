@@ -164,12 +164,12 @@ func TestBuildCustomSafeOutputJobsJSON(t *testing.T) {
 
 	jsonStr := buildCustomSafeOutputJobsJSON(data)
 	require.NotEmpty(t, jsonStr)
-	assert.Equal(t, `{"a_job":"","z_job":""}`, jsonStr)
+	assert.JSONEq(t, `{"a_job":"","z_job":""}`, jsonStr)
 
 	var result map[string]string
 	require.NoError(t, json.Unmarshal([]byte(jsonStr), &result))
-	assert.Equal(t, "", result["a_job"])
-	assert.Equal(t, "", result["z_job"])
+	assert.Empty(t, result["a_job"])
+	assert.Empty(t, result["z_job"])
 }
 
 func TestBuildCustomSafeOutputJobsJSONEmpty(t *testing.T) {
