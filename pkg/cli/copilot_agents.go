@@ -28,6 +28,9 @@ const agenticWorkflowsSkillHeader = "---\n" +
 	"---\n\n" +
 	"# Agentic Workflows Router\n\n"
 
+const agenticWorkflowsSkillIntro = "Use this skill when a user asks to create, update, debug, or upgrade GitHub Agentic Workflows.\n\nRead only the files you need:\n"
+const agenticWorkflowsSkillOutro = "\nWhen the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching workflow prompt.\n"
+
 // ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md
 // exists and contains the routing instructions loaded by the Agentic Workflows agent.
 func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error {
@@ -177,9 +180,7 @@ func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
 		fmt.Fprintf(&fileList, "- `.github/aw/%s`\n", file)
 	}
 
-	return agenticWorkflowsSkillHeader + "Use this skill when a user asks to create, update, debug, or upgrade GitHub Agentic Workflows.\n\nRead only the files you need:\n" +
-		fileList.String() +
-		"\nWhen the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching workflow prompt.\n", nil
+	return agenticWorkflowsSkillHeader + agenticWorkflowsSkillIntro + fileList.String() + agenticWorkflowsSkillOutro, nil
 }
 
 // cleanupOldPromptFile removes an old prompt file from .github/prompts/ if it exists

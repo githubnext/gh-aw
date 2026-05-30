@@ -330,10 +330,10 @@ func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
 		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
 	}
 
-	expected := agenticWorkflowsSkillHeader + "Use this skill when a user asks to create, update, debug, or upgrade GitHub Agentic Workflows.\n\nRead only the files you need:\n" +
+	expected := agenticWorkflowsSkillHeader + agenticWorkflowsSkillIntro +
 		"- `.github/aw/alpha.md`\n" +
 		"- `.github/aw/zeta.md`\n" +
-		"\nWhen the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching workflow prompt.\n"
+		agenticWorkflowsSkillOutro
 	if content != expected {
 		t.Fatalf("Expected exact skill content:\n%s\ngot:\n%s", expected, content)
 	}
