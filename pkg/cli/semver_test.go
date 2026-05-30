@@ -6,6 +6,16 @@ import (
 	"testing"
 )
 
+type parseVersionTestCase struct {
+	name      string
+	input     string
+	wantMajor int
+	wantMinor int
+	wantPatch int
+	wantPre   string
+	wantNil   bool
+}
+
 func TestIsSemanticVersionTag(t *testing.T) {
 	tests := []struct {
 		name string
@@ -35,101 +45,49 @@ func TestIsSemanticVersionTag(t *testing.T) {
 }
 
 func TestParseVersion(t *testing.T) {
-	tests := []struct {
-		name      string
-		input     string
-		wantMajor int
-		wantMinor int
-		wantPatch int
-		wantPre   string
-		wantNil   bool
-	}{
-		{
-			name:      "full version with v",
-			input:     "v1.2.3",
-			wantMajor: 1,
-			wantMinor: 2,
-			wantPatch: 3,
-			wantPre:   "",
-			wantNil:   false,
-		},
-		{
-			name:      "full version without v",
-			input:     "1.2.3",
-			wantMajor: 1,
-			wantMinor: 2,
-			wantPatch: 3,
-			wantPre:   "",
-			wantNil:   false,
-		},
-		{
-			name:      "version with prerelease",
-			input:     "v1.2.3-beta.1",
-			wantMajor: 1,
-			wantMinor: 2,
-			wantPatch: 3,
-			wantPre:   "beta.1",
-			wantNil:   false,
-		},
-		{
-			name:      "two-part version",
-			input:     "v1.2",
-			wantMajor: 1,
-			wantMinor: 2,
-			wantPatch: 0,
-			wantPre:   "",
-			wantNil:   false,
-		},
-		{
-			name:      "one-part version",
-			input:     "v1",
-			wantMajor: 1,
-			wantMinor: 0,
-			wantPatch: 0,
-			wantPre:   "",
-			wantNil:   false,
-		},
-		{
-			name:    "invalid version",
-			input:   "not-a-version",
-			wantNil: true,
-		},
-		{
-			name:    "branch name",
-			input:   "main",
-			wantNil: true,
-		},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range parseVersionTestCases() {
 		t.Run(tt.name, func(t *testing.T) {
-			got := parseVersion(tt.input)
-
-			if tt.wantNil {
-				if got != nil {
-					t.Errorf("parseVersion(%q) = %+v, want nil", tt.input, got)
-				}
-				return
-			}
-
-			if got == nil {
-				t.Errorf("parseVersion(%q) = nil, want non-nil", tt.input)
-				return
-			}
-
-			if got.Major != tt.wantMajor {
-				t.Errorf("parseVersion(%q).Major = %d, want %d", tt.input, got.Major, tt.wantMajor)
-			}
-			if got.Minor != tt.wantMinor {
-				t.Errorf("parseVersion(%q).Minor = %d, want %d", tt.input, got.Minor, tt.wantMinor)
-			}
-			if got.Patch != tt.wantPatch {
-				t.Errorf("parseVersion(%q).Patch = %d, want %d", tt.input, got.Patch, tt.wantPatch)
-			}
-			if got.Pre != tt.wantPre {
-				t.Errorf("parseVersion(%q).Pre = %q, want %q", tt.input, got.Pre, tt.wantPre)
-			}
+			assertParsedVersion(t, tt)
 		})
+	}
+}
+
+func parseVersionTestCases() []parseVersionTestCase {
+	return []parseVersionTestCase{
+		{name: "full version with v", input: "v1.2.3", wantMajor: 1, wantMinor: 2, wantPatch: 3},
+		{name: "full version without v", input: "1.2.3", wantMajor: 1, wantMinor: 2, wantPatch: 3},
+		{name: "version with prerelease", input: "v1.2.3-beta.1", wantMajor: 1, wantMinor: 2, wantPatch: 3, wantPre: "beta.1"},
+		{name: "two-part version", input: "v1.2", wantMajor: 1, wantMinor: 2, wantPatch: 0},
+		{name: "one-part version", input: "v1", wantMajor: 1, wantMinor: 0, wantPatch: 0},
+		{name: "invalid version", input: "not-a-version", wantNil: true},
+		{name: "branch name", input: "main", wantNil: true},
+	}
+}
+
+func assertParsedVersion(t *testing.T, tt parseVersionTestCase) {
+	t.Helper()
+	got := parseVersion(tt.input)
+	if tt.wantNil {
+		if got != nil {
+			t.Errorf("parseVersion(%q) = %+v, want nil", tt.input, got)
+		}
+		return
+	}
+	if got == nil {
+		t.Errorf("parseVersion(%q) = nil, want non-nil", tt.input)
+		return
+	}
+	if got.Major != tt.wantMajor {
+		t.Errorf("parseVersion(%q).Major = %d, want %d", tt.input, got.Major, tt.wantMajor)
+	}
+	if got.Minor != tt.wantMinor {
+		t.Errorf("parseVersion(%q).Minor = %d, want %d", tt.input, got.Minor, tt.wantMinor)
+	}
+	if got.Patch != tt.wantPatch {
+		t.Errorf("parseVersion(%q).Patch = %d, want %d", tt.input, got.Patch, tt.wantPatch)
+	}
+	if got.Pre != tt.wantPre {
+		t.Errorf("parseVersion(%q).Pre = %q, want %q", tt.input, got.Pre, tt.wantPre)
 	}
 }
 

@@ -121,72 +121,68 @@ func createAndConfigureCompiler(config CompileConfig) *workflow.Compiler {
 
 // configureCompilerFlags sets various compilation flags on the compiler
 func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
-	compileCompilerSetupLog.Print("Configuring compiler flags")
+compileCompilerSetupLog.Print("Configuring compiler flags")
 
-	// Set validation based on the validate flag (false by default for compatibility)
-	compiler.SetSkipValidation(!config.Validate)
-	compileCompilerSetupLog.Printf("Validation enabled: %v", config.Validate)
+applyCompilerFlagSettings(compiler, config)
+compileCompilerSetupLog.Printf("Validation enabled: %v", config.Validate)
+configureCompilerTrialMode(compiler, config)
+logCompilerFlagConfiguration(config)
+loadCompilerPriorManifest(compiler, config.PriorManifestFile)
+}
 
-	// Set noEmit flag to validate without generating lock files
-	compiler.SetNoEmit(config.NoEmit)
-	if config.NoEmit {
-		compileCompilerSetupLog.Print("No-emit mode enabled: validating without generating lock files")
-	}
+func applyCompilerFlagSettings(compiler *workflow.Compiler, config CompileConfig) {
+compiler.SetSkipValidation(!config.Validate)
+compiler.SetNoEmit(config.NoEmit)
+compiler.SetStrictMode(config.Strict)
+compiler.SetAllowActionRefs(config.AllowActionRefs)
+compiler.SetForceStaged(config.Staged)
+compiler.SetRefreshStopTime(config.RefreshStopTime)
+compiler.SetForceRefreshActionPins(config.ForceRefreshActionPins)
+compiler.SetApprove(config.Approve)
+compiler.SetRequireDocker(config.ValidateImages)
+compiler.SetGHESCompat(config.GHESCompat)
+}
 
-	// Set strict mode if specified
-	compiler.SetStrictMode(config.Strict)
-	compiler.SetAllowActionRefs(config.AllowActionRefs)
-	compiler.SetForceStaged(config.Staged)
+func configureCompilerTrialMode(compiler *workflow.Compiler, config CompileConfig) {
+if !config.TrialMode {
+return
+}
 
-	// Set trial mode if specified
-	if config.TrialMode {
-		compileCompilerSetupLog.Printf("Enabling trial mode: repoSlug=%s", config.TrialLogicalRepoSlug)
-		compiler.SetTrialMode(true)
-		if config.TrialLogicalRepoSlug != "" {
-			compiler.SetTrialLogicalRepoSlug(config.TrialLogicalRepoSlug)
-		}
-	}
+compileCompilerSetupLog.Printf("Enabling trial mode: repoSlug=%s", config.TrialLogicalRepoSlug)
+compiler.SetTrialMode(true)
+if config.TrialLogicalRepoSlug != "" {
+compiler.SetTrialLogicalRepoSlug(config.TrialLogicalRepoSlug)
+}
+}
 
-	// Set refresh stop time flag
-	compiler.SetRefreshStopTime(config.RefreshStopTime)
-	if config.RefreshStopTime {
-		compileCompilerSetupLog.Print("Stop time refresh enabled: will regenerate stop-after times")
-	}
+func logCompilerFlagConfiguration(config CompileConfig) {
+if config.NoEmit {
+compileCompilerSetupLog.Print("No-emit mode enabled: validating without generating lock files")
+}
+if config.RefreshStopTime {
+compileCompilerSetupLog.Print("Stop time refresh enabled: will regenerate stop-after times")
+}
+if config.ForceRefreshActionPins {
+compileCompilerSetupLog.Print("Force refresh action pins enabled: will clear cache and resolve all actions from GitHub API")
+}
+if config.Approve {
+compileCompilerSetupLog.Print("Safe update changes approved via --approve flag: skipping safe update enforcement for new restricted secrets or unapproved action additions/removals")
+}
+if config.ValidateImages {
+compileCompilerSetupLog.Print("Container image validation requires Docker (--validate-images flag)")
+}
+if config.GHESCompat {
+compileCompilerSetupLog.Print("GHES compatibility mode enabled via --ghes flag: artifact actions will use v3.x pins")
+}
+}
 
-	// Set force refresh action pins flag
-	compiler.SetForceRefreshActionPins(config.ForceRefreshActionPins)
-	if config.ForceRefreshActionPins {
-		compileCompilerSetupLog.Print("Force refresh action pins enabled: will clear cache and resolve all actions from GitHub API")
-	}
-
-	// Set safe update flag: when set via CLI it disables/skips safe update enforcement
-	// regardless of the workflow's strict mode setting.
-	compiler.SetApprove(config.Approve)
-	if config.Approve {
-		compileCompilerSetupLog.Print("Safe update changes approved via --approve flag: skipping safe update enforcement for new restricted secrets or unapproved action additions/removals")
-	}
-
-	// Set require docker flag: when set, container image validation fails instead of
-	// silently skipping when Docker is not available.
-	compiler.SetRequireDocker(config.ValidateImages)
-	if config.ValidateImages {
-		compileCompilerSetupLog.Print("Container image validation requires Docker (--validate-images flag)")
-	}
-
-	// Set GHES compatibility mode when the --ghes flag is passed.
-	// When enabled, the compiler emits v3.x artifact action pins for GHES compatibility.
-	compiler.SetGHESCompat(config.GHESCompat)
-	if config.GHESCompat {
-		compileCompilerSetupLog.Print("GHES compatibility mode enabled via --ghes flag: artifact actions will use v3.x pins")
-	}
-
-	// Load pre-cached manifests from file (written by MCP server at startup).
-	// These take precedence over git HEAD / filesystem reads for safe update enforcement.
-	if config.PriorManifestFile != "" {
-		if err := loadPriorManifestFile(compiler, config.PriorManifestFile); err != nil {
-			compileCompilerSetupLog.Printf("Failed to load prior manifest file %s: %v (safe update will fall back to git HEAD / filesystem)", config.PriorManifestFile, err)
-		}
-	}
+func loadCompilerPriorManifest(compiler *workflow.Compiler, priorManifestFile string) {
+if priorManifestFile == "" {
+return
+}
+if err := loadPriorManifestFile(compiler, priorManifestFile); err != nil {
+compileCompilerSetupLog.Printf("Failed to load prior manifest file %s: %v (safe update will fall back to git HEAD / filesystem)", priorManifestFile, err)
+}
 }
 
 // setupActionMode configures the action script inlining mode

@@ -17,67 +17,73 @@ var commandsLog = logger.New("cli:commands")
 
 // CreateWorkflowMarkdownFile creates a new workflow markdown file with template content
 func CreateWorkflowMarkdownFile(workflowName string, verbose bool, force bool, engine string) error {
-	commandsLog.Printf("Creating new workflow: name=%s, force=%v, engine=%s", workflowName, force, engine)
+commandsLog.Printf("Creating new workflow: name=%s, force=%v, engine=%s", workflowName, force, engine)
 
-	// Normalize the workflow name by removing .md extension if present
-	// This ensures consistent behavior whether user provides "my-workflow" or "my-workflow.md"
-	workflowName = strings.TrimSuffix(workflowName, ".md")
-	commandsLog.Printf("Normalized workflow name: %s", workflowName)
+workflowName = normalizeWorkflowMarkdownName(workflowName)
+commandsLog.Printf("Normalized workflow name: %s", workflowName)
+console.LogVerbose(verbose, "Creating new workflow: "+workflowName)
 
-	console.LogVerbose(verbose, "Creating new workflow: "+workflowName)
+destFile, err := prepareWorkflowMarkdownFilePath(workflowName)
+if err != nil {
+return err
+}
+if err := ensureWorkflowMarkdownFileWritable(destFile, force); err != nil {
+return err
+}
 
-	// Get current working directory for .github/workflows
-	workingDir, err := os.Getwd()
-	if err != nil {
-		commandsLog.Printf("Failed to get working directory: %v", err)
-		return fmt.Errorf("failed to get current working directory: %w", err)
-	}
+template := createWorkflowTemplate(workflowName, engine)
+if err := os.WriteFile(destFile, []byte(template), constants.FilePermSensitive); err != nil {
+return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
+}
 
-	// Create .github/workflows directory if it doesn't exist
-	githubWorkflowsDir := filepath.Join(workingDir, constants.GetWorkflowDir())
-	commandsLog.Printf("Creating workflows directory: %s", githubWorkflowsDir)
+printWorkflowMarkdownCreationSuccess(destFile)
+return nil
+}
 
-	// Validate the directory path
-	githubWorkflowsDir, err = fileutil.ValidateAbsolutePath(githubWorkflowsDir)
-	if err != nil {
-		commandsLog.Printf("Invalid workflows directory path: %v", err)
-		return fmt.Errorf("invalid workflows directory path: %w", err)
-	}
+func normalizeWorkflowMarkdownName(workflowName string) string {
+return strings.TrimSuffix(workflowName, ".md")
+}
 
-	if err := os.MkdirAll(githubWorkflowsDir, constants.DirPermPublic); err != nil {
-		commandsLog.Printf("Failed to create workflows directory: %v", err)
-		return fmt.Errorf("failed to create .github/workflows directory: %w", err)
-	}
+func prepareWorkflowMarkdownFilePath(workflowName string) (string, error) {
+workingDir, err := os.Getwd()
+if err != nil {
+commandsLog.Printf("Failed to get working directory: %v", err)
+return "", fmt.Errorf("failed to get current working directory: %w", err)
+}
 
-	// Construct the destination file path
-	destFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
-	commandsLog.Printf("Destination file: %s", destFile)
+githubWorkflowsDir := filepath.Join(workingDir, constants.GetWorkflowDir())
+commandsLog.Printf("Creating workflows directory: %s", githubWorkflowsDir)
+githubWorkflowsDir, err = fileutil.ValidateAbsolutePath(githubWorkflowsDir)
+if err != nil {
+commandsLog.Printf("Invalid workflows directory path: %v", err)
+return "", fmt.Errorf("invalid workflows directory path: %w", err)
+}
+if err := os.MkdirAll(githubWorkflowsDir, constants.DirPermPublic); err != nil {
+commandsLog.Printf("Failed to create workflows directory: %v", err)
+return "", fmt.Errorf("failed to create .github/workflows directory: %w", err)
+}
 
-	// Validate the destination file path
-	destFile, err = fileutil.ValidateAbsolutePath(destFile)
-	if err != nil {
-		commandsLog.Printf("Invalid destination file path: %v", err)
-		return fmt.Errorf("invalid destination file path: %w", err)
-	}
+destFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
+commandsLog.Printf("Destination file: %s", destFile)
+destFile, err = fileutil.ValidateAbsolutePath(destFile)
+if err != nil {
+commandsLog.Printf("Invalid destination file path: %v", err)
+return "", fmt.Errorf("invalid destination file path: %w", err)
+}
+return destFile, nil
+}
 
-	// Check if destination file already exists
-	if _, err := os.Stat(destFile); err == nil && !force {
-		commandsLog.Printf("Workflow file already exists and force=false: %s", destFile)
-		return fmt.Errorf("workflow file '%s' already exists. Use --force to overwrite", destFile)
-	}
+func ensureWorkflowMarkdownFileWritable(destFile string, force bool) error {
+if _, err := os.Stat(destFile); err == nil && !force {
+commandsLog.Printf("Workflow file already exists and force=false: %s", destFile)
+return fmt.Errorf("workflow file '%s' already exists. Use --force to overwrite", destFile)
+}
+return nil
+}
 
-	// Create the template content
-	template := createWorkflowTemplate(workflowName, engine)
-
-	// Write the template to file with restrictive permissions (owner-only)
-	if err := os.WriteFile(destFile, []byte(template), constants.FilePermSensitive); err != nil {
-		return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
-	}
-
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created new workflow: "+destFile))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Edit the file to customize your workflow, then run '%s compile' to generate the GitHub Actions workflow", string(constants.CLIExtensionPrefix))))
-
-	return nil
+func printWorkflowMarkdownCreationSuccess(destFile string) {
+fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created new workflow: "+destFile))
+fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Edit the file to customize your workflow, then run '%s compile' to generate the GitHub Actions workflow", string(constants.CLIExtensionPrefix))))
 }
 
 // createWorkflowTemplate generates a concise workflow template with essential options

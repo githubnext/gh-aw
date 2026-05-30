@@ -10,15 +10,15 @@ import (
 )
 
 // TestExtractWorkflowDescription tests the ExtractWorkflowDescription function
-func TestExtractWorkflowDescription(t *testing.T) {
-	tests := []struct {
-		name     string
-		content  string
-		expected string
-	}{
-		{
-			name: "workflow with description",
-			content: `---
+type workflowDescriptionTestCase struct {
+name     string
+content  string
+expected string
+}
+
+func extractWorkflowDescriptionTests() []workflowDescriptionTestCase {
+return []workflowDescriptionTestCase{
+{name: "workflow with description", content: "---
 name: Test Workflow
 description: This is a test workflow description
 on: push
@@ -26,24 +26,16 @@ on: push
 
 # Test Workflow
 
-This is the workflow content.`,
-			expected: "This is a test workflow description",
-		},
-		{
-			name: "workflow without description",
-			content: `---
+This is the workflow content.", expected: "This is a test workflow description"},
+{name: "workflow without description", content: "---
 name: Test Workflow
 on: push
 ---
 
 # Test Workflow
 
-This is the workflow content.`,
-			expected: "",
-		},
-		{
-			name: "workflow with empty description",
-			content: `---
+This is the workflow content.", expected: ""},
+{name: "workflow with empty description", content: "---
 name: Test Workflow
 description: ""
 on: push
@@ -51,12 +43,8 @@ on: push
 
 # Test Workflow
 
-This is the workflow content.`,
-			expected: "",
-		},
-		{
-			name: "workflow with multi-line description",
-			content: `---
+This is the workflow content.", expected: ""},
+{name: "workflow with multi-line description", content: "---
 name: Test Workflow
 description: |
   This is a multi-line
@@ -66,35 +54,31 @@ on: push
 
 # Test Workflow
 
-This is the workflow content.`,
-			expected: "This is a multi-line\ntest workflow description\n",
-		},
-		{
-			name:     "workflow without frontmatter",
-			content:  "# Test Workflow\n\nThis is the workflow content.",
-			expected: "",
-		},
-		{
-			name: "workflow with non-string description",
-			content: `---
+This is the workflow content.", expected: "This is a multi-line
+test workflow description
+"},
+{name: "workflow without frontmatter", content: "# Test Workflow
+
+This is the workflow content.", expected: ""},
+{name: "workflow with non-string description", content: "---
 name: Test Workflow
 description: 123
 on: push
 ---
 
-# Test Workflow`,
-			expected: "",
-		},
-	}
+# Test Workflow", expected: ""},
+}
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ExtractWorkflowDescription(tt.content)
-			if result != tt.expected {
-				t.Errorf("ExtractWorkflowDescription() = %q, want %q", result, tt.expected)
-			}
-		})
-	}
+func TestExtractWorkflowDescription(t *testing.T) {
+for _, tt := range extractWorkflowDescriptionTests() {
+t.Run(tt.name, func(t *testing.T) {
+result := ExtractWorkflowDescription(tt.content)
+if result != tt.expected {
+t.Errorf("ExtractWorkflowDescription() = %q, want %q", result, tt.expected)
+}
+})
+}
 }
 
 // TestExtractWorkflowDescriptionFromFile tests the ExtractWorkflowDescriptionFromFile function
