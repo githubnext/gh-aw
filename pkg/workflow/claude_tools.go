@@ -145,357 +145,13 @@ func isExplicitlyDisabledTool(tool any) bool {
 func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, safeOutputs *SafeOutputsConfig, cacheMemoryConfig *CacheMemoryConfig, mcpScripts *MCPScriptsConfig, sandboxConfig *SandboxConfig) string {
 	claudeToolsLog.Print("Computing allowed Claude tools string")
 
-	// Initialize tools map if nil
-	if tools == nil {
-		tools = make(map[string]any)
-	}
-
-	// Enforce that only neutral tools are provided - fail if claude section is present
-	if _, hasClaudeSection := tools["claude"]; hasClaudeSection {
-		claudeToolsLog.Print("ERROR: Claude section found in input tools, should only contain neutral tools")
-		panic("BUG: computeAllowedClaudeToolsString should only receive neutral tools, not claude section tools")
-	}
-
-	// Convert neutral tools to Claude-specific tools
-	claudeToolsLog.Print("Converting neutral tools to Claude-specific format")
-	tools = e.expandNeutralToolsToClaudeTools(tools)
-
-	defaultClaudeTools := []string{
-		"Task",
-		"Glob",
-		"Grep",
-		"ExitPlanMode",
-		"TodoWrite",
-		"LS",
-		"Read",
-		"NotebookRead",
-	}
-
-	// Ensure claude section exists with the new format
-	var claudeSection map[string]any
-	if existing, hasClaudeSection := tools["claude"]; hasClaudeSection {
-		if claudeMap, ok := existing.(map[string]any); ok {
-			claudeSection = claudeMap
-		} else {
-			claudeSection = make(map[string]any)
-		}
-	} else {
-		claudeSection = make(map[string]any)
-	}
-
-	// Get existing allowed tools from the new format (map structure)
-	var claudeExistingAllowed map[string]any
-	if allowed, hasAllowed := claudeSection["allowed"]; hasAllowed {
-		if allowedMap, ok := allowed.(map[string]any); ok {
-			claudeExistingAllowed = allowedMap
-		} else {
-			claudeExistingAllowed = make(map[string]any)
-		}
-	} else {
-		claudeExistingAllowed = make(map[string]any)
-	}
-
-	// Add default tools that aren't already present
-	for _, defaultTool := range defaultClaudeTools {
-		if _, exists := claudeExistingAllowed[defaultTool]; !exists {
-			claudeExistingAllowed[defaultTool] = nil // Add tool with null value
-		}
-	}
-
-	// Check if Bash tools are present and add implicit KillBash and BashOutput
-	if _, hasBash := claudeExistingAllowed["Bash"]; hasBash {
-		// Implicitly add KillBash and BashOutput when any Bash tools are allowed
-		if _, exists := claudeExistingAllowed["KillBash"]; !exists {
-			claudeExistingAllowed["KillBash"] = nil
-		}
-		if _, exists := claudeExistingAllowed["BashOutput"]; !exists {
-			claudeExistingAllowed["BashOutput"] = nil
-		}
-	}
-
-	// Update the claude section with the new format
-	claudeSection["allowed"] = claudeExistingAllowed
-	tools["claude"] = claudeSection
-
-	claudeToolsLog.Printf("Added %d default Claude tools to allowed list", len(defaultClaudeTools))
-
-	var allowedTools []string
-
-	// Process claude-specific tools from the claude section (new format only)
-	claudeConfig, ok := typeutil.LookupMap(tools, "claude")
-	if ok {
-		allowedMap, ok := typeutil.LookupMap(claudeConfig, "allowed")
-		if ok {
-			// In the new format, allowed is a map where keys are tool names
-			for toolName, toolValue := range allowedMap {
-				if toolName == "Bash" {
-					// Handle Bash tool with specific commands
-					if bashCommands, ok := toolValue.([]any); ok {
-						// Check for :* wildcard first - if present, ignore all other bash commands
-						for _, cmd := range bashCommands {
-							if cmdStr, ok := cmd.(string); ok && cmdStr == ":*" {
-								// :* means allow all bash and ignore other commands
-								allowedTools = append(allowedTools, "Bash")
-								goto nextClaudeTool
-							}
-						}
-						// Process the allowed bash commands (no :* found)
-						for _, cmd := range bashCommands {
-							if cmdStr, ok := cmd.(string); ok && cmdStr == "*" {
-								// Wildcard means allow all bash
-								allowedTools = append(allowedTools, "Bash")
-								goto nextClaudeTool
-							}
-						}
-						// Add individual bash commands with Bash() prefix
-						for _, cmd := range bashCommands {
-							if cmdStr, ok := cmd.(string); ok {
-								// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
-								// all engines emit the canonical prefix form (Bash(jq)) regardless
-								// of whether the command was written with or without the wildcard.
-								normalized, _ := normalizeBashCommand(cmdStr)
-								allowedTools = append(allowedTools, fmt.Sprintf("Bash(%s)", normalized))
-							}
-						}
-					} else {
-						// Bash with no specific commands or null value - allow all bash
-						allowedTools = append(allowedTools, "Bash")
-					}
-				} else if strings.HasPrefix(toolName, strings.ToUpper(toolName[:1])) {
-					// Tool name starts with uppercase letter - regular Claude tool
-					allowedTools = append(allowedTools, toolName)
-				}
-			nextClaudeTool:
-			}
-		}
-	}
-
-	// Process top-level tools (MCP tools and claude)
-	for toolName, toolValue := range tools {
-		if toolName == "claude" {
-			// Skip the claude section as we've already processed it
-			continue
-		} else {
-			// Handle cache-memory as a special case - it provides file system access but no MCP tool
-			if toolName == "cache-memory" {
-				// Add path-specific Read/Write/Edit/MultiEdit tools for each cache directory.
-				// Pattern: {cacheDir}/* grants access to all files within the directory.
-				if cacheMemoryConfig != nil {
-					for _, cache := range cacheMemoryConfig.Caches {
-						cacheDirPattern := cacheMemoryDirFor(cache.ID) + "/*"
-
-						// Add path-specific tools for cache directory access
-						if !slices.Contains(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern)) {
-							allowedTools = append(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern))
-						}
-						if !slices.Contains(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern)) {
-							allowedTools = append(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern))
-						}
-						if !slices.Contains(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern)) {
-							allowedTools = append(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern))
-						}
-						if !slices.Contains(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern)) {
-							allowedTools = append(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern))
-						}
-
-						// If unrestricted bash is not already granted, inject the minimal bash
-						// permissions needed to manipulate cache files (create subdirs, read, write,
-						// move). This avoids requiring every workflow author to add these manually.
-						if !slices.Contains(allowedTools, "Bash") {
-							cacheDir := cacheMemoryDirFor(cache.ID)
-							cacheDirSlash := cacheDir + "/"
-							bashCacheTools := []string{
-								fmt.Sprintf("Bash(mkdir -p %s)", cacheDirSlash),
-								fmt.Sprintf("Bash(cat %s)", cacheDirSlash),
-								fmt.Sprintf("Bash(cat > %s)", cacheDirSlash),
-								fmt.Sprintf("Bash(mv %s)", cacheDirSlash),
-							}
-							for _, bashTool := range bashCacheTools {
-								if !slices.Contains(allowedTools, bashTool) {
-									allowedTools = append(allowedTools, bashTool)
-								}
-							}
-							// Add BashOutput and KillBash since bash commands are now allowed
-							if !slices.Contains(allowedTools, "BashOutput") {
-								allowedTools = append(allowedTools, "BashOutput")
-							}
-							if !slices.Contains(allowedTools, "KillBash") {
-								allowedTools = append(allowedTools, "KillBash")
-							}
-						}
-					}
-				}
-				continue
-			}
-
-			// agentic-workflows is a known system MCP server whose tool value is a bool (enabled flag),
-			// not a map. Handle it before the generic map check so it does not fall through silently.
-			if toolName == "agentic-workflows" {
-				allowedTools = append(allowedTools, "mcp__"+string(constants.AgenticWorkflowsMCPServerID))
-				continue
-			}
-
-			// Check if this is an MCP tool (has MCP-compatible type) or standard MCP tool (github)
-			if mcpConfig, ok := toolValue.(map[string]any); ok {
-				// Check if it's explicitly marked as MCP type
-				isCustomMCP := false
-				if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
-					isCustomMCP = true
-				}
-
-				// Handle standard MCP tools (github, playwright) or tools with MCP-compatible type
-				if toolName == "github" {
-					// Parse GitHub tool configuration for type safety
-					githubConfig := parseGitHubTool(toolValue)
-					if githubConfig != nil && len(githubConfig.Allowed) > 0 {
-						// Check for wildcard access first
-						hasWildcard := false
-						for _, tool := range githubConfig.Allowed {
-							if string(tool) == "*" {
-								hasWildcard = true
-								break
-							}
-						}
-
-						if hasWildcard {
-							// For wildcard access, just add the server name with mcp__ prefix
-							allowedTools = append(allowedTools, "mcp__"+toolName)
-						} else {
-							// For specific tools, add each one individually
-							for _, tool := range githubConfig.Allowed {
-								allowedTools = append(allowedTools, fmt.Sprintf("mcp__%s__%s", toolName, string(tool)))
-							}
-						}
-					} else {
-						// For GitHub tools without explicit allowed list, use appropriate default GitHub tools based on mode
-						githubMode := getGitHubType(mcpConfig)
-						var defaultTools []string
-						if githubMode == "remote" {
-							defaultTools = constants.DefaultGitHubToolsRemote
-						} else {
-							defaultTools = constants.DefaultGitHubToolsLocal
-						}
-						for _, defaultTool := range defaultTools {
-							allowedTools = append(allowedTools, "mcp__github__"+defaultTool)
-						}
-					}
-				} else if toolName == "playwright" || isCustomMCP {
-					// Handle playwright and custom MCP tools with generic parsing
-					if allowed, hasAllowed := mcpConfig["allowed"]; hasAllowed {
-						if allowedSlice, ok := allowed.([]any); ok {
-							// Check for wildcard access first
-							hasWildcard := false
-							for _, item := range allowedSlice {
-								if str, ok := item.(string); ok && str == "*" {
-									hasWildcard = true
-									break
-								}
-							}
-
-							if hasWildcard {
-								// For wildcard access, just add the server name with mcp__ prefix
-								allowedTools = append(allowedTools, "mcp__"+toolName)
-							} else {
-								// For specific tools, add each one individually
-								for _, item := range allowedSlice {
-									if str, ok := item.(string); ok {
-										allowedTools = append(allowedTools, fmt.Sprintf("mcp__%s__%s", toolName, str))
-									}
-								}
-							}
-						}
-					} else {
-						// No explicit allowed list: default to granting access to all tools from this
-						// MCP server. The user explicitly added the server in their workflow, so they
-						// intend to use its tools. Server-side restrictions still apply.
-						allowedTools = append(allowedTools, "mcp__"+toolName)
-					}
-				}
-			}
-		}
-	}
-
-	// Grant path-scoped file tool access for sandbox writable paths.
-	// Claude workflows should always be able to use /tmp even when not explicitly
-	// listed in sandbox.agent.config.filesystem.allowWrite.
-	if sandboxConfig != nil {
-		writablePaths := []string{defaultClaudeTmpWritePath}
-		if sandboxConfig.Agent != nil && sandboxConfig.Agent.Config != nil && sandboxConfig.Agent.Config.Filesystem != nil {
-			writablePaths = append(writablePaths, sandboxConfig.Agent.Config.Filesystem.AllowWrite...)
-		}
-		seenPatterns := make(map[string]struct{}, len(writablePaths))
-		for _, writablePath := range writablePaths {
-			path := strings.TrimSpace(writablePath)
-			if path == "" {
-				continue
-			}
-			// Claude path-scoped tool permissions must be absolute.
-			if !strings.HasPrefix(path, "/") {
-				continue
-			}
-			pattern := path
-			// Treat plain directory paths as "directory contents" grants to mirror cache-memory behavior.
-			if !strings.ContainsAny(pattern, "*?[]{}") {
-				pattern = strings.TrimRight(pattern, "/") + "/*"
-			}
-			if _, seen := seenPatterns[pattern]; seen {
-				continue
-			}
-			seenPatterns[pattern] = struct{}{}
-			for _, toolPattern := range []string{
-				fmt.Sprintf("Read(%s)", pattern),
-				fmt.Sprintf("Write(%s)", pattern),
-				fmt.Sprintf("Edit(%s)", pattern),
-				fmt.Sprintf("MultiEdit(%s)", pattern),
-			} {
-				if !slices.Contains(allowedTools, toolPattern) {
-					allowedTools = append(allowedTools, toolPattern)
-				}
-			}
-		}
-	}
-
-	// Handle SafeOutputs: grant access to all safe-outputs MCP tools and Write permission.
-	// The safeoutputs MCP server is started whenever safe-outputs is configured; with
-	// --permission-mode acceptEdits its tools must be explicitly listed in --allowed-tools
-	// (unlike bypassPermissions which silently ignores the allowlist).
-	if safeOutputs != nil {
-		allowedTools = append(allowedTools, "mcp__"+string(constants.SafeOutputsMCPServerID))
-
-		// Check if a general "Write" permission is already granted
-		hasGeneralWrite := slices.Contains(allowedTools, "Write")
-
-		// If no general Write permission and SafeOutputs is configured,
-		// add specific write permission for GH_AW_SAFE_OUTPUTS
-		if !hasGeneralWrite {
-			allowedTools = append(allowedTools, "Write")
-			// Ideally we would only give permission to the exact file, but that doesn't seem
-			// to be working with Claude. See https://github.com/github/gh-aw/issues/244#issuecomment-3240319103
-			//allowedTools = append(allowedTools, "Write(${{ env.GH_AW_SAFE_OUTPUTS }})")
-		}
-	}
-
-	// Handle MCPScripts: grant access to all mcpscripts MCP tools.
-	// The mcpscripts server is started when mcp-scripts tools are configured; with
-	// --permission-mode acceptEdits its tools must be explicitly listed in --allowed-tools.
-	if HasMCPScripts(mcpScripts) {
-		allowedTools = append(allowedTools, "mcp__"+string(constants.MCPScriptsMCPServerID))
-	}
-
-	// Deduplicate tools before sorting/joining to avoid duplicate Bash(...) entries
-	// when equivalent wildcard/non-wildcard bash commands normalize to the same form.
-	if len(allowedTools) > 1 {
-		seen := make(map[string]struct{}, len(allowedTools))
-		deduped := make([]string, 0, len(allowedTools))
-		for _, tool := range allowedTools {
-			if _, ok := seen[tool]; ok {
-				continue
-			}
-			seen[tool] = struct{}{}
-			deduped = append(deduped, tool)
-		}
-		allowedTools = deduped
-	}
+	tools = e.prepareClaudeToolsForAllowedList(tools)
+	allowedTools := collectClaudeAllowedTools(tools)
+	allowedTools = appendTopLevelClaudeTools(allowedTools, tools, cacheMemoryConfig)
+	allowedTools = appendSandboxWritableTools(allowedTools, sandboxConfig)
+	allowedTools = appendSafeOutputsTools(allowedTools, safeOutputs)
+	allowedTools = appendMCPScriptsTools(allowedTools, mcpScripts)
+	allowedTools = dedupeAllowedTools(allowedTools)
 
 	// Sort the allowed tools alphabetically for consistent output
 	sort.Strings(allowedTools)
@@ -503,6 +159,302 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 	claudeToolsLog.Printf("Generated allowed tools string with %d tools", len(allowedTools))
 
 	return strings.Join(allowedTools, ",")
+}
+
+func (e *ClaudeEngine) prepareClaudeToolsForAllowedList(tools map[string]any) map[string]any {
+	if tools == nil {
+		tools = make(map[string]any)
+	}
+	if _, hasClaudeSection := tools["claude"]; hasClaudeSection {
+		claudeToolsLog.Print("ERROR: Claude section found in input tools, should only contain neutral tools")
+		panic("BUG: computeAllowedClaudeToolsString should only receive neutral tools, not claude section tools")
+	}
+	claudeToolsLog.Print("Converting neutral tools to Claude-specific format")
+	tools = e.expandNeutralToolsToClaudeTools(tools)
+	defaultClaudeTools := []string{"Task", "Glob", "Grep", "ExitPlanMode", "TodoWrite", "LS", "Read", "NotebookRead"}
+	ensureDefaultClaudeAllowedTools(tools, defaultClaudeTools)
+	claudeToolsLog.Printf("Added %d default Claude tools to allowed list", len(defaultClaudeTools))
+	return tools
+}
+
+func ensureDefaultClaudeAllowedTools(tools map[string]any, defaultClaudeTools []string) {
+	claudeSection := getOrCreateToolMap(tools, "claude")
+	claudeAllowed := getOrCreateToolMap(claudeSection, "allowed")
+	for _, defaultTool := range defaultClaudeTools {
+		if _, exists := claudeAllowed[defaultTool]; !exists {
+			claudeAllowed[defaultTool] = nil
+		}
+	}
+	if _, hasBash := claudeAllowed["Bash"]; hasBash {
+		if _, exists := claudeAllowed["KillBash"]; !exists {
+			claudeAllowed["KillBash"] = nil
+		}
+		if _, exists := claudeAllowed["BashOutput"]; !exists {
+			claudeAllowed["BashOutput"] = nil
+		}
+	}
+}
+
+func getOrCreateToolMap(container map[string]any, key string) map[string]any {
+	if existing, ok := container[key]; ok {
+		if existingMap, ok := existing.(map[string]any); ok {
+			return existingMap
+		}
+	}
+	created := make(map[string]any)
+	container[key] = created
+	return created
+}
+
+func collectClaudeAllowedTools(tools map[string]any) []string {
+	claudeConfig, ok := typeutil.LookupMap(tools, "claude")
+	if !ok {
+		return nil
+	}
+	allowedMap, ok := typeutil.LookupMap(claudeConfig, "allowed")
+	if !ok {
+		return nil
+	}
+	allowedTools := make([]string, 0, len(allowedMap))
+	for toolName, toolValue := range allowedMap {
+		if toolName == "Bash" {
+			allowedTools = appendClaudeBashTools(allowedTools, toolValue)
+			continue
+		}
+		if isClaudeToolName(toolName) {
+			allowedTools = append(allowedTools, toolName)
+		}
+	}
+	return allowedTools
+}
+
+func appendClaudeBashTools(allowedTools []string, toolValue any) []string {
+	bashCommands, ok := toolValue.([]any)
+	if !ok {
+		return append(allowedTools, "Bash")
+	}
+	if hasBashWildcard(bashCommands) {
+		return append(allowedTools, "Bash")
+	}
+	for _, cmd := range bashCommands {
+		if cmdStr, ok := cmd.(string); ok {
+			normalized, _ := normalizeBashCommand(cmdStr)
+			allowedTools = append(allowedTools, fmt.Sprintf("Bash(%s)", normalized))
+		}
+	}
+	return allowedTools
+}
+
+func hasBashWildcard(commands []any) bool {
+	for _, cmd := range commands {
+		if cmdStr, ok := cmd.(string); ok && (cmdStr == ":*" || cmdStr == "*") {
+			return true
+		}
+	}
+	return false
+}
+
+// isClaudeToolName uses the existing Claude naming convention heuristic:
+// valid Claude tool keys are expected to start with an uppercase letter.
+func isClaudeToolName(toolName string) bool {
+	return len(toolName) > 0 && strings.HasPrefix(toolName, strings.ToUpper(toolName[:1]))
+}
+
+func appendTopLevelClaudeTools(allowedTools []string, tools map[string]any, cacheMemoryConfig *CacheMemoryConfig) []string {
+	for toolName, toolValue := range tools {
+		if toolName == "claude" {
+			continue
+		}
+		switch toolName {
+		case "cache-memory":
+			allowedTools = appendCacheMemoryTools(allowedTools, cacheMemoryConfig)
+		case "agentic-workflows":
+			allowedTools = append(allowedTools, "mcp__"+string(constants.AgenticWorkflowsMCPServerID))
+		default:
+			allowedTools = appendMCPToolPermissions(allowedTools, toolName, toolValue)
+		}
+	}
+	return allowedTools
+}
+
+func appendCacheMemoryTools(allowedTools []string, cacheMemoryConfig *CacheMemoryConfig) []string {
+	if cacheMemoryConfig == nil {
+		return allowedTools
+	}
+	for _, cache := range cacheMemoryConfig.Caches {
+		cacheDir := cacheMemoryDirFor(cache.ID)
+		cacheDirPattern := cacheDir + "/*"
+		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern))
+		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern))
+		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern))
+		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern))
+		allowedTools = appendCacheMemoryBashTools(allowedTools, cacheDir)
+	}
+	return allowedTools
+}
+
+func appendCacheMemoryBashTools(allowedTools []string, cacheDir string) []string {
+	if slices.Contains(allowedTools, "Bash") {
+		return allowedTools
+	}
+	cacheDirSlash := cacheDir + "/"
+	bashCacheTools := []string{
+		fmt.Sprintf("Bash(mkdir -p %s)", cacheDirSlash),
+		fmt.Sprintf("Bash(cat %s)", cacheDirSlash),
+		fmt.Sprintf("Bash(cat > %s)", cacheDirSlash),
+		fmt.Sprintf("Bash(mv %s)", cacheDirSlash),
+	}
+	for _, bashTool := range bashCacheTools {
+		allowedTools = appendIfMissing(allowedTools, bashTool)
+	}
+	allowedTools = appendIfMissing(allowedTools, "BashOutput")
+	allowedTools = appendIfMissing(allowedTools, "KillBash")
+	return allowedTools
+}
+
+func appendMCPToolPermissions(allowedTools []string, toolName string, toolValue any) []string {
+	mcpConfig, ok := toolValue.(map[string]any)
+	if !ok {
+		return allowedTools
+	}
+	isCustomMCP := false
+	if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+		isCustomMCP = true
+	}
+	if toolName == "github" {
+		return appendGitHubMCPTools(allowedTools, toolName, toolValue, mcpConfig)
+	}
+	if toolName == "playwright" || isCustomMCP {
+		return appendGenericMCPTools(allowedTools, toolName, mcpConfig)
+	}
+	return allowedTools
+}
+
+func appendGitHubMCPTools(allowedTools []string, toolName string, toolValue any, mcpConfig map[string]any) []string {
+	githubConfig := parseGitHubTool(toolValue)
+	if githubConfig != nil && len(githubConfig.Allowed) > 0 {
+		for _, tool := range githubConfig.Allowed {
+			if string(tool) == "*" {
+				return append(allowedTools, "mcp__"+toolName)
+			}
+		}
+		for _, tool := range githubConfig.Allowed {
+			allowedTools = append(allowedTools, fmt.Sprintf("mcp__%s__%s", toolName, string(tool)))
+		}
+		return allowedTools
+	}
+	githubMode := getGitHubType(mcpConfig)
+	defaultTools := constants.DefaultGitHubToolsLocal
+	if githubMode == "remote" {
+		defaultTools = constants.DefaultGitHubToolsRemote
+	}
+	for _, defaultTool := range defaultTools {
+		allowedTools = append(allowedTools, "mcp__github__"+defaultTool)
+	}
+	return allowedTools
+}
+
+func appendGenericMCPTools(allowedTools []string, toolName string, mcpConfig map[string]any) []string {
+	allowed, hasAllowed := mcpConfig["allowed"]
+	if !hasAllowed {
+		return append(allowedTools, "mcp__"+toolName)
+	}
+	allowedSlice, ok := allowed.([]any)
+	if !ok {
+		return allowedTools
+	}
+	for _, item := range allowedSlice {
+		if str, ok := item.(string); ok && str == "*" {
+			return append(allowedTools, "mcp__"+toolName)
+		}
+	}
+	for _, item := range allowedSlice {
+		if str, ok := item.(string); ok {
+			allowedTools = append(allowedTools, fmt.Sprintf("mcp__%s__%s", toolName, str))
+		}
+	}
+	return allowedTools
+}
+
+func appendSandboxWritableTools(allowedTools []string, sandboxConfig *SandboxConfig) []string {
+	if sandboxConfig == nil {
+		return allowedTools
+	}
+	writablePaths := []string{defaultClaudeTmpWritePath}
+	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Config != nil && sandboxConfig.Agent.Config.Filesystem != nil {
+		writablePaths = append(writablePaths, sandboxConfig.Agent.Config.Filesystem.AllowWrite...)
+	}
+	seenPatterns := make(map[string]struct{}, len(writablePaths))
+	for _, writablePath := range writablePaths {
+		pattern, ok := normalizeSandboxWritablePattern(writablePath)
+		if !ok {
+			continue
+		}
+		if _, seen := seenPatterns[pattern]; seen {
+			continue
+		}
+		seenPatterns[pattern] = struct{}{}
+		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("Read(%s)", pattern))
+		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("Write(%s)", pattern))
+		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("Edit(%s)", pattern))
+		allowedTools = appendIfMissing(allowedTools, fmt.Sprintf("MultiEdit(%s)", pattern))
+	}
+	return allowedTools
+}
+
+func normalizeSandboxWritablePattern(writablePath string) (string, bool) {
+	path := strings.TrimSpace(writablePath)
+	if path == "" || !strings.HasPrefix(path, "/") {
+		return "", false
+	}
+	if strings.ContainsAny(path, "*?[]{}") {
+		return path, true
+	}
+	return strings.TrimRight(path, "/") + "/*", true
+}
+
+func appendSafeOutputsTools(allowedTools []string, safeOutputs *SafeOutputsConfig) []string {
+	if safeOutputs == nil {
+		return allowedTools
+	}
+	allowedTools = append(allowedTools, "mcp__"+string(constants.SafeOutputsMCPServerID))
+	if !slices.Contains(allowedTools, "Write") {
+		// Ideally we would grant Write only for the exact safe outputs file, but Claude
+		// doesn't currently honor that scoped grant reliably.
+		// See: https://github.com/github/gh-aw/issues/244#issuecomment-3240319103
+		allowedTools = append(allowedTools, "Write")
+	}
+	return allowedTools
+}
+
+func appendMCPScriptsTools(allowedTools []string, mcpScripts *MCPScriptsConfig) []string {
+	if HasMCPScripts(mcpScripts) {
+		allowedTools = append(allowedTools, "mcp__"+string(constants.MCPScriptsMCPServerID))
+	}
+	return allowedTools
+}
+
+func dedupeAllowedTools(allowedTools []string) []string {
+	if len(allowedTools) <= 1 {
+		return allowedTools
+	}
+	seen := make(map[string]struct{}, len(allowedTools))
+	deduped := make([]string, 0, len(allowedTools))
+	for _, tool := range allowedTools {
+		if _, ok := seen[tool]; ok {
+			continue
+		}
+		seen[tool] = struct{}{}
+		deduped = append(deduped, tool)
+	}
+	return deduped
+}
+
+func appendIfMissing(items []string, item string) []string {
+	if slices.Contains(items, item) {
+		return items
+	}
+	return append(items, item)
 }
 
 // generateAllowedToolsComment generates a multi-line comment showing each allowed tool
