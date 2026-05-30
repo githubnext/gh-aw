@@ -266,6 +266,20 @@ describe("copilot_harness.cjs", () => {
       expect(alternatives).toContain("Denied commands: go version");
     });
 
+    it("keeps base alternatives when denied command list is empty", () => {
+      const base = "Verify token scopes, repository permissions, and MCP/tool access configuration.";
+      expect(buildMissingToolAlternatives(base, [])).toBe(base);
+    });
+
+    it("caps alternatives to 512 chars and uses compact overflow marker", () => {
+      const base = "base";
+      const deniedCommands = Array.from({ length: 30 }, (_, i) => `command-${i}-${"x".repeat(30)}`);
+      const alternatives = buildMissingToolAlternatives(base, deniedCommands);
+      expect(alternatives.length).toBeLessThanOrEqual(512);
+      expect(alternatives).toContain("Denied commands:");
+      expect(alternatives).toContain("... and");
+    });
+
     it("emitMissingToolPermissionIssue calls safeoutputs CLI when path is configured", () => {
       const calls = [];
       const logs = [];

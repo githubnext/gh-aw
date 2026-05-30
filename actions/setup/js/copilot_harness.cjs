@@ -386,6 +386,9 @@ function runSafeOutputsCLI(toolName, args) {
   const commandArgs = [toolName];
   for (const [key, value] of Object.entries(args)) {
     if (typeof value !== "string" || value.length === 0) continue;
+    if (!/^[a-zA-Z0-9_-]+$/.test(key)) {
+      throw new Error(`invalid safeoutputs argument key: ${key}`);
+    }
     commandArgs.push(`--${key}`);
     commandArgs.push(value);
   }
@@ -395,7 +398,8 @@ function runSafeOutputsCLI(toolName, args) {
     const err = /** @type {{message?: string, stderr?: string | Buffer}} */ error || {};
     const stderr = typeof err.stderr === "string" ? err.stderr.trim() : Buffer.isBuffer(err.stderr) ? err.stderr.toString("utf8").trim() : "";
     const message = typeof err.message === "string" ? err.message : String(error);
-    throw new Error(stderr ? `${message}: ${stderr}` : message);
+    const argSummary = commandArgs.slice(1, 7).join(" ");
+    throw new Error(stderr ? `safeoutputs ${argSummary} failed: ${message}: ${stderr}` : `safeoutputs ${argSummary} failed: ${message}`);
   }
 }
 
@@ -409,8 +413,35 @@ function buildMissingToolAlternatives(baseAlternatives, deniedCommands) {
   if (!Array.isArray(deniedCommands) || deniedCommands.length === 0) {
     return baseAlternatives;
   }
-  const deniedSummary = ` Denied commands: ${deniedCommands.join(" | ")}`;
-  return (baseAlternatives + deniedSummary).slice(0, 512);
+  const maxLength = 512;
+  if (baseAlternatives.length >= maxLength) {
+    return baseAlternatives.slice(0, maxLength);
+  }
+
+  const remaining = maxLength - baseAlternatives.length;
+  const prefix = " Denied commands: ";
+  if (remaining <= prefix.length) {
+    return baseAlternatives.slice(0, maxLength);
+  }
+
+  let suffix = prefix;
+  let appendedCount = 0;
+  for (const command of deniedCommands) {
+    const delimiter = appendedCount === 0 ? "" : " | ";
+    const candidate = `${delimiter}${command}`;
+    if (suffix.length + candidate.length > remaining) {
+      const remainingCount = deniedCommands.length - appendedCount;
+      const more = ` | ... and ${remainingCount} more`;
+      if (remainingCount > 0 && suffix.length + more.length <= remaining) {
+        suffix += more;
+      }
+      break;
+    }
+    suffix += candidate;
+    appendedCount += 1;
+  }
+
+  return (baseAlternatives + suffix).slice(0, maxLength);
 }
 
 /**
