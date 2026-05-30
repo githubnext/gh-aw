@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -616,4 +617,62 @@ func TestAddWorkflowWithTracking_ActionWorkflow_Force(t *testing.T) {
 	written, err := os.ReadFile(destFile)
 	require.NoError(t, err)
 	assert.Equal(t, newContent, written)
+}
+
+func TestAddSkillFileWithTracking_PreservesPathFromSkillsRoot(t *testing.T) {
+	gitRoot := testutil.TempDir(t, "test-add-skill-path-*")
+	resolved := &ResolvedWorkflow{
+		Spec: &WorkflowSpec{
+			WorkflowPath: "vendor/foo/skills/foo/scripts/run.sh",
+		},
+		SkillName: "foo",
+		Content:   []byte("#!/usr/bin/env sh\necho ok\n"),
+	}
+
+	err := addSkillFileWithTracking(resolved, nil, AddOptions{Quiet: true}, gitRoot)
+	require.NoError(t, err)
+
+	skillRoot := filepath.Join(gitRoot, parser.GetEngineSkillDir(""), "foo")
+	expectedFile := filepath.Join(skillRoot, "scripts", "run.sh")
+	unexpectedFile := filepath.Join(skillRoot, "skills", "foo", "scripts", "run.sh")
+
+	_, err = os.Stat(expectedFile)
+	require.NoError(t, err, "expected nested skill file should exist")
+	content, err := os.ReadFile(expectedFile)
+	require.NoError(t, err, "expected nested skill file should be readable")
+	assert.Equal(t, []byte("#!/usr/bin/env sh\necho ok\n"), content, "expected nested skill file content should match")
+	_, err = os.Stat(unexpectedFile)
+	assert.True(t, os.IsNotExist(err), "unexpected first-match path should not be created")
+}
+
+func TestAddSkillFileWithTracking_RejectsInvalidPaths(t *testing.T) {
+	t.Run("rejects path that escapes skill directory", func(t *testing.T) {
+		gitRoot := testutil.TempDir(t, "test-add-skill-traversal-*")
+		resolved := &ResolvedWorkflow{
+			Spec: &WorkflowSpec{
+				WorkflowPath: "skills/foo/../../.github/workflows/evil.yml",
+			},
+			SkillName: "foo",
+			Content:   []byte("malicious"),
+		}
+
+		err := addSkillFileWithTracking(resolved, nil, AddOptions{Quiet: true}, gitRoot)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "escapes destination skill directory")
+	})
+
+	t.Run("rejects source path when skill root cannot be determined", func(t *testing.T) {
+		gitRoot := testutil.TempDir(t, "test-add-skill-missing-root-*")
+		resolved := &ResolvedWorkflow{
+			Spec: &WorkflowSpec{
+				WorkflowPath: "skills/bar/SKILL.md",
+			},
+			SkillName: "foo",
+			Content:   []byte("content"),
+		}
+
+		err := addSkillFileWithTracking(resolved, nil, AddOptions{Quiet: true}, gitRoot)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to determine relative path")
+	})
 }

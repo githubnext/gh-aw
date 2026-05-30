@@ -1164,10 +1164,32 @@ async function main(config = {}) {
     // Update the activation comment with commit link (if a comment was created and changes were pushed)
     // Pass pullNumber so a new comment is created on the PR when no activation comment exists (e.g., schedule triggers)
     //
-    // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created
-    // in the same repo as the activation, so the global client has the correct context for updating the comment.
+    // NOTE: we pass 'github' (global octokit) for updating the activation comment (same repo as workflow).
+    // For the fallback path (no activation comment), we pass githubClient and targetRepo so the comment
+    // is created in the correct target repository with the right authentication.
+    //
+    // Skip the activation comment for empty commits (0 file changes, e.g. CI trigger commits).
+    // These are noise — they don't represent meaningful work and would clutter PRs on every scheduled run.
     if (hasChanges) {
-      await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, { targetIssueNumber: pullNumber });
+      let isEmptyCommit = false;
+      if (rangeBaseRef) {
+        try {
+          const { stdout: diffStat } = await exec.getExecOutput("git", ["diff", "--stat", rangeBaseRef, "HEAD"], baseGitOpts);
+          isEmptyCommit = !diffStat.trim();
+          if (isEmptyCommit) {
+            core.info("Skipping activation comment: pushed commit has no file changes (empty commit)");
+          }
+        } catch {
+          // Non-fatal — proceed with the comment if we can't determine
+        }
+      }
+      if (!isEmptyCommit) {
+        await updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl, {
+          targetIssueNumber: pullNumber,
+          targetRepo: `${repoParts.owner}/${repoParts.repo}`,
+          targetGithubClient: githubClient,
+        });
+      }
     }
 
     // Write summary to GitHub Actions summary

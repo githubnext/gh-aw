@@ -275,7 +275,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 
 	// Append any user-supplied extra args from engine.args
 	if workflowData.EngineConfig != nil {
-		piArgs = append(piArgs, workflowData.EngineConfig.Args...)
+		piArgs = append(piArgs, filterPiArgs(workflowData.EngineConfig.Args)...)
 	}
 
 	// Pi v0.72+ does not support a PI_MODEL env var for CLI model selection; the model must be passed as
@@ -458,3 +458,19 @@ touch %s
 // All Pi tool calls, messages, and metrics are captured here for post-run analysis
 // and step summary rendering.
 const PiStreamingLogFile = "/tmp/gh-aw/pi-streaming.jsonl"
+
+// filterPiArgs removes redundant Pi CLI flags that gh-aw should not pass through.
+// Pi runs in yolo mode by default, so explicit --yolo flags are ignored while all
+// other engine args are preserved in order.
+func filterPiArgs(args []string) []string {
+	filtered := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg == "--yolo" || strings.HasPrefix(arg, "--yolo=") {
+			piLog.Printf("Pi: dropping redundant arg %q because Pi runs in yolo mode by default", arg)
+			continue
+		}
+		filtered = append(filtered, arg)
+	}
+
+	return filtered
+}

@@ -353,6 +353,52 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 			description: "Should reset workflow_run conclusion tracker when entering a new event section",
 		},
 		{
+			name: "top-level on needs array",
+			input: `on:
+  needs:
+    - study_repo
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:`,
+			expected: `on:
+  # needs: # Needs processed as dependency in pre-activation job
+    # - study_repo # Needs processed as dependency in pre-activation job
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:`,
+			description: "Should comment out needs in on section after compiler processing",
+		},
+		{
+			name: "top-level on needs array with compact list indentation",
+			input: `on:
+  needs:
+  - study_repo
+  schedule:
+  - cron: "23 * * * *"
+  workflow_dispatch:`,
+			expected: `on:
+  # needs: # Needs processed as dependency in pre-activation job
+  # - study_repo # Needs processed as dependency in pre-activation job
+  schedule:
+  - cron: "23 * * * *"
+  workflow_dispatch:`,
+			description: "Should comment out needs list items when emitted with compact indentation",
+		},
+		{
+			name: "top-level on needs inline array",
+			input: `on:
+  needs: [study_repo, setup]
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:`,
+			expected: `on:
+  # needs: [study_repo, setup] # Needs processed as dependency in pre-activation job
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:`,
+			description: "Should comment out needs when emitted as an inline YAML array",
+		},
+		{
 			name: "issues with two-space indentation names",
 			input: `on:
   issues:

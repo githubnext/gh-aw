@@ -211,6 +211,42 @@ func TestPiEngine_GetExecutionSteps_WithModel(t *testing.T) {
 	assert.NotContains(t, stepText, "\n          PI_MODEL:", "Step should not set PI_MODEL in the environment when the CLI model is passed via --model")
 }
 
+func TestPiEngine_GetExecutionSteps_IgnoresRedundantYoloArg(t *testing.T) {
+	engine := NewPiEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "pi",
+			Args: []string{"--yolo", "--custom-flag", "value", "--yolo=true"},
+		},
+		ParsedTools: NewTools(map[string]any{}),
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+	require.NotEmpty(t, steps, "Steps should not be empty")
+
+	stepText := strings.Join(steps[0], "\n")
+	assert.NotContains(t, stepText, "--yolo", "Pi should not pass a redundant --yolo flag")
+	assert.Contains(t, stepText, "--custom-flag value", "Pi should preserve non-yolo engine args")
+}
+
+func TestFilterPiArgs(t *testing.T) {
+	t.Run("empty args", func(t *testing.T) {
+		require.Empty(t, filterPiArgs(nil))
+		require.Empty(t, filterPiArgs([]string{}))
+	})
+
+	t.Run("drops yolo variants only", func(t *testing.T) {
+		filtered := filterPiArgs([]string{"--yolo", "--custom-flag", "value", "--yolo=true", "--yolo=false"})
+		assert.Equal(t, []string{"--custom-flag", "value"}, filtered)
+	})
+
+	t.Run("drops all redundant args", func(t *testing.T) {
+		filtered := filterPiArgs([]string{"--yolo", "--yolo=false"})
+		assert.Equal(t, []string{}, filtered)
+	})
+}
+
 func TestPiEngine_GetExecutionSteps_ProviderPrefixCopilot(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{

@@ -50,21 +50,38 @@ func (e *ClaudeEngine) GetAPMTarget() string {
 	return "claude"
 }
 
-// GetRequiredSecretNames returns the list of secrets required by the Claude engine
-// This includes ANTHROPIC_API_KEY and optionally MCP_GATEWAY_API_KEY and mcp-scripts secrets
+// GetRequiredSecretNames returns the list of secrets required by the Claude engine.
+// When Anthropic WIF (github-oidc + provider=anthropic) is configured, no static API key
+// is needed and only common MCP secrets are returned.
 func (e *ClaudeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
+	if isAnthropicWIF(workflowData) {
+		return collectCommonMCPSecrets(workflowData)
+	}
 	return append([]string{"ANTHROPIC_API_KEY"}, collectCommonMCPSecrets(workflowData)...)
 }
 
 // GetSecretValidationStep returns the secret validation step for the Claude engine.
-// Returns an empty step if custom command is specified.
+// Returns an empty step if custom command is specified or if Anthropic WIF is configured.
 func (e *ClaudeEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
+	if isAnthropicWIF(workflowData) {
+		return GitHubActionStep{}
+	}
 	return BuildDefaultSecretValidationStep(
 		workflowData,
 		[]string{"ANTHROPIC_API_KEY"},
 		"Claude Code",
 		"https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
 	)
+}
+
+// isAnthropicWIF returns true when the workflow is configured to use Anthropic
+// Workload Identity Federation (github-oidc auth type with provider=anthropic).
+func isAnthropicWIF(workflowData *WorkflowData) bool {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Auth == nil {
+		return false
+	}
+	auth := workflowData.EngineConfig.Auth
+	return auth.Type == "github-oidc" && auth.Provider == "anthropic"
 }
 
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {

@@ -61,7 +61,7 @@ function extractRepoSlugFromUrl(remoteUrl) {
 }
 
 /**
- * Find all .git directories within a base path (non-recursive into .git dirs)
+ * Find all repositories that contain a .git directory or gitdir-link file
  * @param {string} basePath - The base path to search from
  * @param {number} [maxDepth=5] - Maximum directory depth to search
  * @returns {string[]} Array of paths to .git directories
@@ -81,20 +81,18 @@ function findGitDirectories(basePath, maxDepth = 5) {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
 
       for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-
         const fullPath = path.join(dir, entry.name);
 
-        // Skip common non-repo directories for performance
-        if (entry.name === "node_modules" || entry.name === ".npm" || entry.name === ".cache") {
+        if (entry.name === ".git" && (entry.isDirectory() || entry.isFile())) {
+          // Found a git directory or gitdir-link file - add the parent (repo root)
+          gitDirs.push(dir);
           continue;
         }
 
-        if (entry.name === ".git") {
-          // Found a git directory - add the parent (the repo root)
-          gitDirs.push(dir);
-          // Don't recurse into .git directories or the repo they're in
-          // (to avoid nested repos unless they're actually separate checkouts)
+        if (!entry.isDirectory()) continue;
+
+        // Skip common non-repo directories for performance
+        if (entry.name === "node_modules" || entry.name === ".npm" || entry.name === ".cache") {
           continue;
         }
 

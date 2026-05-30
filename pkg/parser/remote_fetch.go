@@ -43,7 +43,7 @@ var gitListCloneCache = struct {
 func getOrCreateListRepoClone(owner, repo, ref, host string) (string, error) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
-		return "", fmt.Errorf("git fallback requires a non-empty ref")
+		return "", errors.New("git fallback requires a non-empty ref")
 	}
 
 	githubHost := GetGitHubHostForRepo(owner, repo)
@@ -1082,6 +1082,119 @@ func listDirAllFilesViaGitForHost(owner, repo, ref, dirPath, host string) ([]str
 	}
 
 	remoteLog.Printf("Found %d files in dir via git for %s/%s@%s (path: %s)", len(files), owner, repo, ref, dirPath)
+	return files, nil
+}
+
+// ListDirAllFilesRecursivelyForHost lists all files (any extension) that are under the
+// given directory in a remote GitHub repository, including files in subdirectories at any
+// depth. This is used for copying entire skill folders.
+func ListDirAllFilesRecursivelyForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
+	return listDirAllFilesRecursivelyForHost(owner, repo, ref, dirPath, host)
+}
+
+func listDirAllFilesRecursivelyForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
+	remoteLog.Printf("Listing all files recursively in dir for %s/%s@%s (path: %s)", owner, repo, ref, dirPath)
+
+	var (
+		client *api.RESTClient
+		err    error
+	)
+	if host != "" {
+		client, err = api.NewRESTClient(api.ClientOptions{Host: host})
+	} else {
+		client, err = api.DefaultRESTClient()
+	}
+	if err != nil {
+		remoteLog.Printf("Failed to create REST client, attempting git fallback: %v", err)
+		return listDirAllFilesRecursivelyViaGitForHost(owner, repo, ref, dirPath, host)
+	}
+
+	files, err := listContentsRecursively(client, owner, repo, ref, dirPath)
+	if err != nil {
+		errStr := err.Error()
+		if gitutil.IsAuthError(errStr) {
+			remoteLog.Printf("GitHub API auth failed, attempting git fallback for %s/%s@%s", owner, repo, ref)
+			gitFiles, gitErr := listDirAllFilesRecursivelyViaGitForHost(owner, repo, ref, dirPath, host)
+			if gitErr != nil {
+				return nil, fmt.Errorf("failed to list dir files recursively via API (auth error) and git fallback: API error: %w, Git error: %w", err, gitErr)
+			}
+			return gitFiles, nil
+		}
+		return nil, err
+	}
+
+	remoteLog.Printf("Found %d files recursively in dir %s/%s@%s (path: %s)", len(files), owner, repo, ref, dirPath)
+	return files, nil
+}
+
+// listContentsRecursively uses the GitHub Contents API to recursively enumerate all
+// files under dirPath. Each subdirectory triggers an additional API call.
+func listContentsRecursively(client *api.RESTClient, owner, repo, ref, dirPath string) ([]string, error) {
+	const maxSkillDirRecursionDepth = 10
+	return listContentsRecursivelyWithDepth(client, owner, repo, ref, dirPath, 0, maxSkillDirRecursionDepth)
+}
+
+func listContentsRecursivelyWithDepth(client *api.RESTClient, owner, repo, ref, dirPath string, depth, maxDepth int) ([]string, error) {
+	if depth > maxDepth {
+		return nil, fmt.Errorf("maximum skill directory recursion depth exceeded at %q (max depth: %d)", dirPath, maxDepth)
+	}
+
+	var contents []struct {
+		Name string `json:"name"`
+		Path string `json:"path"`
+		Type string `json:"type"`
+	}
+
+	endpoint := fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, dirPath, ref)
+	if err := client.Get(endpoint, &contents); err != nil {
+		return nil, fmt.Errorf("failed to list dir files from %s/%s (path: %s): %w", owner, repo, dirPath, err)
+	}
+
+	var files []string
+	for _, item := range contents {
+		switch item.Type {
+		case "file":
+			files = append(files, item.Path)
+		case "dir":
+			subFiles, err := listContentsRecursivelyWithDepth(client, owner, repo, ref, item.Path, depth+1, maxDepth)
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, subFiles...)
+		}
+	}
+	return files, nil
+}
+
+func listDirAllFilesRecursivelyViaGitForHost(owner, repo, ref, dirPath, host string) ([]string, error) {
+	remoteLog.Printf("Git fallback for listing all dir files recursively: %s/%s@%s (path: %s)", owner, repo, ref, dirPath)
+
+	tmpDir, err := getOrCreateListRepoClone(owner, repo, ref, host)
+	if err != nil {
+		return nil, err
+	}
+
+	// Normalise dirPath so it never has a trailing slash before we append one.
+	cleanDirPath := strings.TrimRight(dirPath, "/")
+	lsTreeCmd := exec.Command("git", "-C", tmpDir, "ls-tree", "-r", "--name-only", "HEAD", cleanDirPath+"/")
+	lsTreeOutput, err := lsTreeCmd.CombinedOutput()
+	if err != nil {
+		remoteLog.Printf("Failed to list dir files recursively: %s", string(lsTreeOutput))
+		return nil, fmt.Errorf("failed to list dir files recursively: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(lsTreeOutput)), "\n")
+	var files []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// git ls-tree already scopes results to dirPrefix; include every non-empty line.
+		files = append(files, line)
+	}
+
+	remoteLog.Printf("Found %d files recursively in dir via git for %s/%s@%s (path: %s)", len(files), owner, repo, ref, dirPath)
 	return files, nil
 }
 

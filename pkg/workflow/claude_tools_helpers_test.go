@@ -79,7 +79,7 @@ func TestAppendGitHubMCPTools(t *testing.T) {
 	t.Run("falls back to remote defaults", func(t *testing.T) {
 		mcpConfig := map[string]any{"mode": "remote"}
 		got := appendGitHubMCPTools(nil, "github", mcpConfig, mcpConfig)
-		assert.Equal(t, len(constants.DefaultGitHubToolsRemote), len(got))
+		assert.Len(t, got, len(constants.DefaultGitHubToolsRemote))
 		assert.Contains(t, got, "mcp__github__issue_read")
 	})
 }

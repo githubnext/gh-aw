@@ -184,7 +184,7 @@ describe("update_activation_comment.cjs", () => {
       });
       const { updateActivationComment } = createFunctionFromScript(mockDependencies);
       await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/testowner/testrepo/pull/42", 42);
-      expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on #10");
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on testowner/testrepo#10");
       expect(mockDependencies.github.request).toHaveBeenCalledWith(
         "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
         expect.objectContaining({
@@ -370,7 +370,7 @@ describe("update_activation_comment.cjs", () => {
           "https://github.com/testowner/testrepo/commit/41b061a0abc1c574c8ca4344bb69961efee7b45c",
           { targetIssueNumber: 225 }
         );
-        expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on #225");
+        expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on testowner/testrepo#225");
         expect(mockDependencies.github.request).toHaveBeenCalledWith(
           "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
           expect.objectContaining({
@@ -390,7 +390,7 @@ describe("update_activation_comment.cjs", () => {
           });
           const { updateActivationCommentWithMessage } = createFunctionFromScript(mockDependencies);
           await updateActivationCommentWithMessage(mockDependencies.github, mockDependencies.context, mockDependencies.core, "\n\n✅ Test message", "test");
-          expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on #100");
+          expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on testowner/testrepo#100");
           expect(mockDependencies.github.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", expect.objectContaining({ issue_number: 100 }));
         }),
         it("should use context.payload.issue.number when no targetIssueNumber and no pull_request", async () => {
@@ -401,7 +401,7 @@ describe("update_activation_comment.cjs", () => {
           });
           const { updateActivationCommentWithMessage } = createFunctionFromScript(mockDependencies);
           await updateActivationCommentWithMessage(mockDependencies.github, mockDependencies.context, mockDependencies.core, "\n\n✅ Test message", "test");
-          expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on #50");
+          expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set), creating new comment on testowner/testrepo#50");
           expect(mockDependencies.github.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", expect.objectContaining({ issue_number: 50 }));
         }),
         it("should not fail if fallback comment creation fails", async () => {
@@ -416,7 +416,7 @@ describe("update_activation_comment.cjs", () => {
             "https://github.com/testowner/testrepo/commit/41b061a0abc1c574c8ca4344bb69961efee7b45c",
             { targetIssueNumber: 225 }
           );
-          expect(mockDependencies.core.warning).toHaveBeenCalledWith("Failed to create comment on #225: API rate limit exceeded");
+          expect(mockDependencies.core.warning).toHaveBeenCalledWith("Failed to create comment on testowner/testrepo#225: API rate limit exceeded");
           expect(mockDependencies.core.setFailed).not.toHaveBeenCalled();
         }),
         it("should log skip message when no activation comment, no targetIssueNumber, and no context payload", async () => {
