@@ -25,9 +25,9 @@ function hasFrontMatter(content) {
 }
 
 /**
- * Returns true when runtime-import frontmatter should be preserved for agent files.
- * Agent frontmatter can carry execution metadata (for example model selection) that
- * must not be stripped before the engine reads the imported definition.
+ * Returns true when runtime-import frontmatter should be preserved for agent/skill files.
+ * Agent/skill frontmatter can carry execution metadata (for example model selection)
+ * that must not be stripped before the engine reads the imported definition.
  *
  * @param {string} filepath - Resolved runtime import path (relative form).
  * @returns {boolean}
@@ -37,7 +37,7 @@ function shouldPreserveFrontMatter(filepath) {
   const segments = normalized.split("/").filter(Boolean);
   // resolveRuntimeImportFilePath() strips ".github/" prefixes, so files imported from
   // ".github/agents/*" arrive here as "agents/*".
-  return segments[0] === "agents" || (segments[0] === ".agents" && segments[1] === "agents");
+  return segments[0] === "agents" || segments[0] === "skills" || (segments[0] === ".agents" && (segments[1] === "agents" || segments[1] === "skills"));
 }
 
 /**
