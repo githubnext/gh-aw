@@ -306,6 +306,6 @@ Use Serena to:
 - Detect complexity hotspots
 
 Begin your analysis now. Find the largest Go source file, assess if it needs refactoring, and create an issue only if necessary.
-{{#endif}}
+{{/if}}
 
 {{#runtime-import shared/noop-reminder.md}}
