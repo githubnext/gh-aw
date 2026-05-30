@@ -223,7 +223,7 @@ func TestBuildMCPCLIPromptSection_PromptFileUsesNonHeadingLabels(t *testing.T) {
 	require.NoError(t, err)
 
 	prompt := string(content)
-	assert.NotContains(t, prompt, "\n## ")
-	assert.NotContains(t, prompt, "\n### ")
+	assert.NotRegexp(t, `(?m)^\s*(>\s*)?##\s+`, prompt, "prompt must not contain H2 Markdown headings")
+	assert.NotRegexp(t, `(?m)^\s*(>\s*)?###\s+`, prompt, "prompt must not contain H3 Markdown headings")
 	assert.Contains(t, prompt, "How to use:")
 }
