@@ -8,6 +8,7 @@ description: Route gh-aw workflow create/debug/upgrade requests to the right pro
 Use this skill when a user asks to create, update, debug, or upgrade GitHub Agentic Workflows.
 
 Read only the files you need:
+Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/agentic-chat.md`
 - `.github/aw/asciicharts.md`
 - `.github/aw/campaign.md`
