@@ -34,6 +34,10 @@ experiments:
 engine:
   id: pi
   model: copilot/gpt-5.4
+  args:
+    - --yolo
+  env:
+    RUNNER_TEMP: "${{ runner.temp }}"
 strict: true
 sandbox:
   agent:
@@ -52,6 +56,7 @@ network:
   allowed:
     - defaults
     - github
+    - go
 tools:
   cache-memory: true
   github:
