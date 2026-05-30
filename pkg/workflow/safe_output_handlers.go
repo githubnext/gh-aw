@@ -1,6 +1,12 @@
 package workflow
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var safeOutputHandlerLog = logger.New("workflow:safe_output_handlers")
 
 type safeOutputHandlerDescriptor struct {
 	Key               string
@@ -587,6 +593,9 @@ func buildSafeOutputFieldMapping() map[string]string {
 
 func getSafeOutputHandlerByKey(key string) (safeOutputHandlerDescriptor, bool) {
 	handler, ok := safeOutputHandlersByKey[key]
+	if !ok {
+		safeOutputHandlerLog.Printf("No safe-output handler registered for key: %s", key)
+	}
 	return handler, ok
 }
 
@@ -621,6 +630,7 @@ func setSafeOutputField(config *SafeOutputsConfig, fieldName string, value any) 
 
 	newValue := reflect.ValueOf(value)
 	if !newValue.IsValid() || !newValue.Type().AssignableTo(field.Type()) {
+		safeOutputHandlerLog.Printf("Cannot set safe-output field %s: value not assignable to field type", fieldName)
 		return false
 	}
 

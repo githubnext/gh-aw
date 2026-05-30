@@ -5,7 +5,11 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var outcomeReviewLog = logger.New("cli:outcome_eval_review")
 
 var outcomeReviewGHAPIGet = ghAPIGet
 var outcomeReviewGHAPIGetArray = ghAPIGetArray
@@ -19,6 +23,7 @@ func evalAddReviewer(item CreatedItemReport, repoOverride string) OutcomeReport 
 		ObjectNumber: num,
 		Repo:         repo,
 	}
+	outcomeReviewLog.Printf("Evaluating add-reviewer outcome: repo=%s, pr=%d", repo, num)
 	if num == 0 || repo == "" {
 		report.Result = OutcomeError
 		report.EvalError = "missing PR number or repo"
@@ -42,6 +47,7 @@ func evalAddReviewer(item CreatedItemReport, repoOverride string) OutcomeReport 
 		return report
 	}
 
+	outcomeReviewLog.Printf("Fetched %d reviews for PR #%d (requested reviewers=%d, teams=%d)", len(reviews), num, len(requestedReviewers), len(requestedTeams))
 	requestedReviewerSet := make(map[string]struct{}, len(requestedReviewers))
 	for _, reviewer := range requestedReviewers {
 		requestedReviewerSet[strings.ToLower(reviewer)] = struct{}{}
@@ -157,6 +163,7 @@ func evalSubmitPullRequestReview(item CreatedItemReport, repoOverride string) Ou
 		ObjectNumber: num,
 		Repo:         repo,
 	}
+	outcomeReviewLog.Printf("Evaluating submit-review outcome: repo=%s, pr=%d", repo, num)
 	if num == 0 || repo == "" {
 		report.Result = OutcomeError
 		report.EvalError = "missing PR number or repo"
@@ -182,6 +189,7 @@ func evalSubmitPullRequestReview(item CreatedItemReport, repoOverride string) Ou
 		review = latestReviewAfterTimestamp(reviews, item.Timestamp)
 	}
 	if review == nil {
+		outcomeReviewLog.Printf("Submitted review not found for PR #%d (reviewID=%d, reviews=%d)", num, reviewID, len(reviews))
 		report.Result = OutcomeUnknown
 		report.Detail = "submitted review not found"
 		report.OutcomeEvaluation = OutcomeEvaluation{
