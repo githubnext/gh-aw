@@ -1542,7 +1542,7 @@ ${diffs}
     expect(global.github.rest.pulls.createReview.mock.calls[1][0].event).toBe("COMMENT");
   });
 
-  it("should use patch-artifact fallback instructions when protected-files fallback skips push", async () => {
+  it("should push branch with compare URL for protected-files fallback (patch transport)", async () => {
     const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
     const promptsDir = path.join(tempDir, "prompts");
     fs.mkdirSync(promptsDir, { recursive: true });
@@ -1567,17 +1567,20 @@ ${diffs}
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
     expect(result.issue_number).toBe(77);
-    expect(pushSignedSpy).not.toHaveBeenCalled();
+    // Branch must be pushed so the fallback issue can include a compare URL
+    expect(pushSignedSpy).toHaveBeenCalled();
     expect(global.github.rest.issues.create).toHaveBeenCalledTimes(1);
-    expect(global.github.rest.issues.update).not.toHaveBeenCalled();
+    // Issue body is updated after creation to add the close-keyword link
+    expect(global.github.rest.issues.update).toHaveBeenCalled();
 
     const createCall = global.github.rest.issues.create.mock.calls[0][0];
-    expect(createCall.body).toContain("gh run download");
-    expect(createCall.body).toContain("git am --3way");
-    expect(createCall.body).not.toContain("/compare/main...");
+    // Should use the create-PR fallback template (compare URL), not the push-failed template
+    expect(createCall.body).toContain("/compare/main...");
+    expect(createCall.body).not.toContain("gh run download");
+    expect(createCall.body).not.toContain("git am --3way");
   });
 
-  it("should use patch-artifact fallback instructions for protected-files fallback in bundle transport", async () => {
+  it("should push branch with compare URL for protected-files fallback (bundle transport)", async () => {
     const patchPath = writePatch(createPatchWithFiles(".github/aw/instructions.md"));
     const bundlePath = path.join(tempDir, "aw-protected.bundle");
     fs.writeFileSync(bundlePath, "bundle content");
@@ -1604,13 +1607,16 @@ ${diffs}
     expect(result.success).toBe(true);
     expect(result.fallback_used).toBe(true);
     expect(result.issue_number).toBe(77);
-    expect(pushSignedSpy).not.toHaveBeenCalled();
-    expect(global.github.rest.issues.update).not.toHaveBeenCalled();
+    // Branch must be pushed so the fallback issue can include a compare URL
+    expect(pushSignedSpy).toHaveBeenCalled();
+    // Issue body is updated after creation to add the close-keyword link
+    expect(global.github.rest.issues.update).toHaveBeenCalled();
 
     const createCall = global.github.rest.issues.create.mock.calls[0][0];
-    expect(createCall.body).toContain("gh run download");
-    expect(createCall.body).toContain("git am --3way");
-    expect(createCall.body).not.toContain("/compare/main...");
+    // Should use the create-PR fallback template (compare URL), not the push-failed template
+    expect(createCall.body).toContain("/compare/main...");
+    expect(createCall.body).not.toContain("gh run download");
+    expect(createCall.body).not.toContain("git am --3way");
   });
 });
 
