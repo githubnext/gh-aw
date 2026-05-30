@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -1356,6 +1357,48 @@ files:
 		assert.Equal(t, "triage", pkg.SkillFiles[2].SkillName)
 		assert.Equal(t, "skills/triage/prompts/detailed.md", pkg.SkillFiles[2].SourcePath)
 		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "Field 'files'")
+	})
+
+	t.Run("auto-scan errors are warnings when manifest skills are explicit", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, filePath, ref, host string) ([]byte, error) {
+			switch filePath {
+			case "aw.yml":
+				return []byte(`name: My Package
+skills:
+  - skills/review
+files:
+  - workflows/review.md
+`), nil
+			case "README.md":
+				return []byte("# My Package\n"), nil
+			case "skills/review/SKILL.md":
+				return []byte("# Review Skill\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(filePath)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			t.Fatalf("unexpected workflow scan of %s", workflowPath)
+			return nil, nil
+		}
+		listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+		listPackageDirFilesRecursivelyForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			if dirPath == "skills/review" {
+				return []string{"skills/review/SKILL.md", "skills/review/prompts/default.md"}, nil
+			}
+			return nil, createRepositoryPackageNotFoundError(dirPath)
+		}
+		listPackageDirSubdirsForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
+			return nil, errors.New("rate limit")
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.NoError(t, err)
+		require.Len(t, pkg.SkillFiles, 2)
+		assert.Equal(t, "skills/review/SKILL.md", pkg.SkillFiles[0].SourcePath)
+		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "failed to auto-scan skills directory")
 	})
 
 	t.Run("skill folder nested files are included recursively", func(t *testing.T) {

@@ -43,7 +43,7 @@ var gitListCloneCache = struct {
 func getOrCreateListRepoClone(owner, repo, ref, host string) (string, error) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
-		return "", fmt.Errorf("git fallback requires a non-empty ref")
+		return "", errors.New("git fallback requires a non-empty ref")
 	}
 
 	githubHost := GetGitHubHostForRepo(owner, repo)
@@ -1130,6 +1130,15 @@ func listDirAllFilesRecursivelyForHost(owner, repo, ref, dirPath, host string) (
 // listContentsRecursively uses the GitHub Contents API to recursively enumerate all
 // files under dirPath. Each subdirectory triggers an additional API call.
 func listContentsRecursively(client *api.RESTClient, owner, repo, ref, dirPath string) ([]string, error) {
+	const maxSkillDirRecursionDepth = 10
+	return listContentsRecursivelyWithDepth(client, owner, repo, ref, dirPath, 0, maxSkillDirRecursionDepth)
+}
+
+func listContentsRecursivelyWithDepth(client *api.RESTClient, owner, repo, ref, dirPath string, depth, maxDepth int) ([]string, error) {
+	if depth > maxDepth {
+		return nil, fmt.Errorf("maximum skill directory recursion depth exceeded at %q (max depth: %d)", dirPath, maxDepth)
+	}
+
 	var contents []struct {
 		Name string `json:"name"`
 		Path string `json:"path"`
@@ -1147,7 +1156,7 @@ func listContentsRecursively(client *api.RESTClient, owner, repo, ref, dirPath s
 		case "file":
 			files = append(files, item.Path)
 		case "dir":
-			subFiles, err := listContentsRecursively(client, owner, repo, ref, item.Path)
+			subFiles, err := listContentsRecursivelyWithDepth(client, owner, repo, ref, item.Path, depth+1, maxDepth)
 			if err != nil {
 				return nil, err
 			}
@@ -1174,7 +1183,6 @@ func listDirAllFilesRecursivelyViaGitForHost(owner, repo, ref, dirPath, host str
 		return nil, fmt.Errorf("failed to list dir files recursively: %w", err)
 	}
 
-	dirPrefix := cleanDirPath + "/"
 	lines := strings.Split(strings.TrimSpace(string(lsTreeOutput)), "\n")
 	var files []string
 	for _, line := range lines {
@@ -1182,11 +1190,8 @@ func listDirAllFilesRecursivelyViaGitForHost(owner, repo, ref, dirPath, host str
 		if line == "" {
 			continue
 		}
-		// Include all files at any depth under dirPath (not just direct children)
-		afterDirPath := strings.TrimPrefix(line, dirPrefix)
-		if afterDirPath != "" {
-			files = append(files, line)
-		}
+		// git ls-tree already scopes results to dirPrefix; include every non-empty line.
+		files = append(files, line)
 	}
 
 	remoteLog.Printf("Found %d files recursively in dir via git for %s/%s@%s (path: %s)", len(files), owner, repo, ref, dirPath)

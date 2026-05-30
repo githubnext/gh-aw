@@ -632,20 +632,43 @@ func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, 
 	engineSkillDir := parser.GetEngineSkillDir(opts.EngineOverride)
 	skillDir := filepath.Join(gitRoot, engineSkillDir, resolved.SkillName)
 
-	// Determine the relative path of the file within the skill directory so that any
-	// nested subdirectories are preserved (e.g. "scripts/query.sh" stays under scripts/).
-	// We search for the skill name as a proper path component (bounded by "/") so that a
-	// skill name that also appears in a subdirectory name does not produce the wrong prefix.
-	skillComponent := "/" + resolved.SkillName + "/"
-	idx := strings.Index(resolved.Spec.WorkflowPath, skillComponent)
-	var relPath string
-	if idx >= 0 {
-		relPath = filepath.FromSlash(resolved.Spec.WorkflowPath[idx+len(skillComponent):])
-	} else {
-		relPath = filepath.Base(resolved.Spec.WorkflowPath)
+	// Determine the relative path under the skill directory so nested files preserve
+	// structure (e.g. "scripts/query.sh"). Match a skill-name path component that is
+	// immediately under skills/ or .github/skills/ to avoid accidental first matches.
+	parts := strings.Split(filepath.ToSlash(resolved.Spec.WorkflowPath), "/")
+	var relParts []string
+	for i, part := range parts {
+		if i >= len(parts)-1 {
+			break
+		}
+		if part != resolved.SkillName {
+			continue
+		}
+		if i > 0 && parts[i-1] == "skills" {
+			relParts = parts[i+1:]
+			break
+		}
+		if i > 1 && parts[i-1] == "skills" && parts[i-2] == ".github" {
+			relParts = parts[i+1:]
+			break
+		}
+	}
+	if len(relParts) == 0 {
+		return fmt.Errorf("failed to determine relative path for skill %q from source path %q", resolved.SkillName, resolved.Spec.WorkflowPath)
+	}
+	relPath := filepath.Clean(filepath.Join(relParts...))
+	if relPath == "." || relPath == "" || relPath == string(os.PathSeparator) {
+		return fmt.Errorf("invalid relative skill path %q from source path %q", relPath, resolved.Spec.WorkflowPath)
 	}
 
 	destFile := filepath.Join(skillDir, relPath)
+	relToSkillDir, err := filepath.Rel(skillDir, destFile)
+	if err != nil {
+		return fmt.Errorf("failed to validate destination path %q for skill %q: %w", destFile, resolved.SkillName, err)
+	}
+	if relToSkillDir == ".." || strings.HasPrefix(relToSkillDir, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("skill file path %q escapes destination skill directory %q", relPath, skillDir)
+	}
 
 	// Ensure the destination directory exists (handles nested subdirectories).
 	if err := os.MkdirAll(filepath.Dir(destFile), constants.DirPermPublic); err != nil {

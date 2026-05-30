@@ -506,9 +506,10 @@ func agentDirectoryRoot(cleaned string) string {
 // contain a SKILL.md file but are not already covered by the manifest. Each skill folder
 // is traversed recursively so that all nested files are included.
 func resolvePackageSkillFiles(owner, repo, packagePath, ref, host string, explicitSkillDirs []string) ([]resolvedPackageSkillFile, []string, error) {
-	// seenSkillNames tracks skill names already added so that auto-scanned duplicates
-	// of manifest-specified skills are not added a second time.
-	seenSkillNames := make(map[string]struct{})
+	// seenSkillDirs tracks full skill directories already added so that auto-scanned
+	// duplicates of manifest-specified skills are not added a second time.
+	seenSkillDirs := make(map[string]struct{})
+	var warnings []string
 
 	// Step 1: resolve manifest skills first (explicit dirs).
 	var manifestSkillDirs []string
@@ -519,15 +520,20 @@ func resolvePackageSkillFiles(owner, repo, packagePath, ref, host string, explic
 	// Step 2: always auto-scan and append any skills not already in the manifest.
 	autoScanned, err := scanPackageSkillDirs(owner, repo, packagePath, ref, host)
 	if err != nil {
-		return nil, nil, err
+		// Auto-scan is supplementary for manifest-declared skills; preserve manifest
+		// resolution even when scan fails transiently.
+		if len(manifestSkillDirs) > 0 {
+			warnings = append(warnings, fmt.Sprintf("failed to auto-scan skills directory, proceeding with manifest skills only: %v", err))
+		} else {
+			return nil, nil, err
+		}
 	}
 
 	// Build the final ordered list: manifest skills first, then auto-scanned extras.
 	var skillDirs []string
 	appendIfNew := func(dir string) {
-		name := filepath.Base(dir)
-		if _, exists := seenSkillNames[name]; !exists {
-			seenSkillNames[name] = struct{}{}
+		if _, exists := seenSkillDirs[dir]; !exists {
+			seenSkillDirs[dir] = struct{}{}
 			skillDirs = append(skillDirs, dir)
 		}
 	}
@@ -545,7 +551,6 @@ func resolvePackageSkillFiles(owner, repo, packagePath, ref, host string, explic
 	}
 
 	var skillFiles []resolvedPackageSkillFile
-	var warnings []string
 	for _, skillDir := range skillDirs {
 		// For skills that came from the manifest, validate that the SKILL.md marker
 		// exists so that typos in the manifest surface as clear warnings.
