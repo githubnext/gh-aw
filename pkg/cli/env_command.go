@@ -11,12 +11,15 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 )
+
+var envCmdLog = logger.New("cli:env_command")
 
 const (
 	defaultsScopeRepo = "repo"
@@ -177,6 +180,7 @@ func newDefaultsUpdateCommand() *cobra.Command {
 }
 
 func defaultsGetToFile(target defaultsTarget, outputFile string) error {
+	envCmdLog.Printf("Getting defaults to file: scope=%s, output=%s", target.scope, outputFile)
 	var file defaultsFile
 
 	for _, binding := range defaultsBindings {
@@ -203,6 +207,7 @@ func defaultsGetToFile(target defaultsTarget, outputFile string) error {
 }
 
 func defaultsUpdateFromFile(target defaultsTarget, inputFile string, skipConfirmation, dryRun bool) error {
+	envCmdLog.Printf("Updating defaults from file: scope=%s, input=%s, dryRun=%t", target.scope, inputFile, dryRun)
 	data, err := os.ReadFile(inputFile)
 	if err != nil {
 		return fmt.Errorf("failed to read defaults file %q: %w", inputFile, err)
@@ -217,6 +222,7 @@ func defaultsUpdateFromFile(target defaultsTarget, inputFile string, skipConfirm
 	}
 
 	changes := defaultsBuildUpdateChanges(&file)
+	envCmdLog.Printf("Built %d default variable changes", len(changes))
 	if dryRun {
 		renderDefaultsUpdatePreview(target, inputFile, changes)
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Dry-run mode enabled; no variables were changed."))
@@ -456,6 +462,7 @@ func (t defaultsTarget) displayName() string {
 }
 
 func runDefaultsGH(args ...string) ([]byte, error) {
+	envCmdLog.Printf("Running gh command: %v", args)
 	cmd := defaultsExecGH(args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -494,6 +501,7 @@ func upsertDefaultsVariable(target defaultsTarget, name, value string) error {
 		return fmt.Errorf("failed to update %s: %w", name, errWithOutput(patchErr, patchOut))
 	}
 
+	envCmdLog.Printf("Variable %s not found via PATCH, creating via POST", name)
 	out, err := runDefaultsGH("api", "-X", "POST", target.variablesEndpoint(), "-f", "name="+name, "-f", "value="+value)
 	if err != nil {
 		return fmt.Errorf("failed to set %s: %w", name, errWithOutput(err, out))

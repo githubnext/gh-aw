@@ -120,23 +120,26 @@ The report must open with an executive-first view. Place the following at the to
 
 | Workflow | Status | Lifecycle health | References |
 |---|---|---|---|
-| {workflow_name} | <span style="white-space: nowrap;">{status_bar}</span> | {lifecycle_emoji} {lifecycle_label} | {reference_links_by_status e.g. `A: [#123](...) [#456](...) · R: [#78](...) · P: [#90](...)`} |
+| {workflow_name} | <span style="white-space: nowrap;">{status_bar}</span> | {lifecycle_emoji} {lifecycle_label} | {status_matched_reference_links e.g. `🟩 [#123](...) · 🟩 [#456](...) · 🟥 [#78](...) · 🟨 [#90](...)`} |
 
 **Legend:**
 - **Status:** 🟩 accepted · 🟥 rejected · 🟨 pending · ⬜ unknown
 - **Lifecycle health:** 🟢 resolving · 🟡 in flight · 🟠 aging · 🔴 stuck · ⚪ underdefined
-- **References:** accepted/rejected/pending/ignored/unknown links for quick verification
+- **References:** one linked item per status emoji, in the same order as the Status column
 ```
 
 **Status bar rules:**
 - Render one emoji per outcome item for each workflow: 🟩 accepted, 🟥 rejected, 🟨 pending, ⬜ unknown.
 - Wrap in `<span style="white-space: nowrap;">...</span>` to prevent line breaks.
 - Do not include numeric counts in the top table — the bar communicates volume.
+- Build the status bar from a single ordered list of workflow outcomes, and preserve that same order when rendering references.
 - Sort rows by management attention: most pending first, then most unknown, then resolved-only workflows last.
 
 **References column rules:**
-- Add grouped links for each status present in that workflow (accepted, rejected, pending, ignored, unknown).
-- Use short status prefixes and compact link lists (example format: `A: [#123](...) [#456](...) · R: [#78](...) · P: [#90](...)`).
+- Render one link token per status emoji in the Status column; do not group or collapse links.
+- Preserve exact left-to-right order from the Status column.
+- Prefix each reference token with its matching status emoji (example: `🟩 [#123](...) · 🟩 [#456](...) · 🟥 [#78](...) · 🟨 [#90](...)`).
+- The number of reference tokens must exactly equal the number of status emojis for that workflow.
 - Link labels must be the real item identifiers when available (issue/PR/discussion/comment number, run id, or short commit SHA), not a synthetic sequence.
 - Include only valid issue/PR/discussion/comment/run URLs from the evaluated outcomes.
 
@@ -229,5 +232,7 @@ If no previous data exists, skip this section.
 - Flag `fallback_exists_only_count` if it exceeds 20% of `total_outcomes` — this indicates many items were evaluated with weak existence-only signals
 - Distinguish `ignored` (no observable follow-up) from `rejected` (explicitly undone) — high ignored rates suggest targeting or output quality issues, not waste
 - Save this report's key metrics **and per-workflow pending/unknown counts** to cache-memory for trend comparison and lifecycle health classification in the next run
+- Before creating the issue, validate every workflow row: Status emoji count == References token count, and each reference token's emoji/status matches the corresponding Status position.
+- If any row fails validation, fix that row before creating the issue; never publish a row with mismatched Status/References.
 - If no outcomes exist, use `noop`
 - Stop immediately after creating the issue
