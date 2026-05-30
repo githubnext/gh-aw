@@ -32,12 +32,6 @@ Use `steps.sanitized.outputs.text/title/body` in your markdown prompts to access
 - `steps.sanitized.outputs.title` — sanitized title of the triggering issue or PR
 - `steps.sanitized.outputs.body` — sanitized body of the triggering issue or PR
 
-:::caution[Deprecated: `needs.activation.outputs.*`]
-Using `${{ needs.activation.outputs.text }}`, `${{ needs.activation.outputs.title }}`, or `${{ needs.activation.outputs.body }}` in workflow markdown is **deprecated**. These expressions still work but produce a deprecation warning during compilation. Use `${{ steps.sanitized.outputs.text }}` etc. directly instead.
-
-**Why:** The prompt is generated _inside_ the activation job, which cannot reference its own `needs.activation.*` outputs in GitHub Actions. The compiler automatically rewrites the deprecated form to `steps.sanitized.outputs.*`, but writing the correct form directly is preferred.
-:::
-
 Other activation outputs like `comment_id`, `comment_repo`, and `slash_command` are available as `needs.activation.outputs.*` in _downstream_ jobs (not in the markdown prompt itself).
 
 ### Prohibited Expressions

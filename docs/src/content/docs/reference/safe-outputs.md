@@ -447,10 +447,6 @@ When using `target: "*"`, the agent must provide `issue_number` or `item_number`
 
 **Required Filters**: When `required-title-prefix` is set, the update is rejected if the target issue's current title does not start with the specified prefix. When `required-labels` is set, the update is rejected unless the issue has **all** of the specified labels. These filters ensure agents can only modify issues that have been explicitly tagged for automated updates.
 
-:::note[Backward compatibility]
-The deprecated `title-prefix` field is still accepted as an alias for `required-title-prefix`. Prefer `required-title-prefix` in new configurations.
-:::
-
 **Operation Types** (for body updates):
 
 - `append` (default): Adds content to the end with separator and attribution
