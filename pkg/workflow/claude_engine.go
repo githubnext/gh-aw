@@ -349,6 +349,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// $GITHUB_STEP_SUMMARY after secret redaction.
 		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
 		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
+		"RUNNER_TEMP":         "${{ runner.temp }}",
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection

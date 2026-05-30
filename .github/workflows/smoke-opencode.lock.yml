@@ -902,6 +902,7 @@ jobs:
           NO_PROXY: localhost,127.0.0.1
           OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           OPENCODE_MODEL: copilot/gpt-5
+          RUNNER_TEMP: ${{ runner.temp }}
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -1402,6 +1403,7 @@ jobs:
           NO_PROXY: localhost,127.0.0.1
           OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           OPENCODE_MODEL: copilot/gpt-5
+          RUNNER_TEMP: ${{ runner.temp }}
       - name: Upload threat detection log
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

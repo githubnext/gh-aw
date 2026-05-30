@@ -879,6 +879,7 @@ jobs:
           GIT_AUTHOR_NAME: github-actions[bot]
           GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
+          RUNNER_TEMP: ${{ runner.temp }}
           XDG_CONFIG_HOME: /home/runner
       - name: Stop CLI Proxy
         if: always()
@@ -1398,6 +1399,7 @@ jobs:
           GIT_AUTHOR_NAME: github-actions[bot]
           GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
+          RUNNER_TEMP: ${{ runner.temp }}
           XDG_CONFIG_HOME: /home/runner
       - name: Upload threat detection log
         if: always() && steps.detection_guard.outputs.run_detection == 'true'

@@ -564,6 +564,7 @@ jobs:
           GIT_COMMITTER_NAME: github-actions[bot]
           MCP_TIMEOUT: 120000
           MCP_TOOL_TIMEOUT: 60000
+          RUNNER_TEMP: ${{ runner.temp }}
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}

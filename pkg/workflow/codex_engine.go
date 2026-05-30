@@ -387,6 +387,7 @@ mkdir -p "$CODEX_HOME/logs"
 		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW":        "true",
+		"RUNNER_TEMP":      "${{ runner.temp }}",
 		"GH_AW_MCP_CONFIG": "${{ runner.temp }}/gh-aw/mcp-config/config.toml",
 		// Keep Codex runtime state in /tmp/gh-aw because ${RUNNER_TEMP}/gh-aw is
 		// mounted read-only inside the AWF chroot sandbox.
