@@ -1,3 +1,4 @@
+set +o histexpand
 # Diagnostic logging: Show environment information
 echo "=== Diagnostic: Environment Information ==="
 echo "GITHUB_SHA: ${GITHUB_SHA@Q}"

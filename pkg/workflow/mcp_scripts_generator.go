@@ -249,6 +249,7 @@ func GenerateMCPScriptShellToolScript(toolConfig *MCPScriptToolConfig) string {
 	sb.WriteString("#!/bin/bash\n")
 	sb.WriteString("# Auto-generated mcp-script tool: " + toolConfig.Name + "\n")
 	sb.WriteString(formatMultiLineComment(toolConfig.Description, "# ") + "\n")
+	sb.WriteString("set +o histexpand\n")
 	sb.WriteString("set -euo pipefail\n\n")
 	sb.WriteString(toolConfig.Run + "\n")
 

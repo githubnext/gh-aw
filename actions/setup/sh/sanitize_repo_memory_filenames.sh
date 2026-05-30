@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set +o histexpand
 set -euo pipefail
 
 # sanitize_repo_memory_filenames.sh
