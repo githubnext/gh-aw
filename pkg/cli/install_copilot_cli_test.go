@@ -33,8 +33,16 @@ func TestInstallCopilotCLIScriptUsesToolcacheBeforeDownload(t *testing.T) {
 	sudoScript := filepath.Join(fakeBinDir, "sudo")
 	curlScript := filepath.Join(fakeBinDir, "curl")
 
-	require.NoError(t, os.WriteFile(sudoScript, []byte("#!/usr/bin/env bash\nif [ \"${1:-}\" = \"chown\" ]; then\n  exit 0\nfi\nexec \"$@\"\n"), 0o755))
-	require.NoError(t, os.WriteFile(curlScript, []byte("#!/usr/bin/env bash\necho curl-invoked >> \""+curlLog+"\"\nexit 97\n"), 0o755))
+	require.NoError(t, os.WriteFile(sudoScript, []byte(`#!/usr/bin/env bash
+if [ "${1:-}" = "chown" ]; then
+  exit 0
+fi
+exec "$@"
+`), 0o755))
+	require.NoError(t, os.WriteFile(curlScript, []byte(`#!/usr/bin/env bash
+echo curl-invoked >> "`+curlLog+`"
+exit 97
+`), 0o755))
 
 	githubPath := filepath.Join(tempDir, "github-path")
 	cmd := exec.Command("bash", installScript, "1.2.3")

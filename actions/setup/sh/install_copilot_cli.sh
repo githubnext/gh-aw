@@ -23,6 +23,7 @@ VERSION="${1:-}"
 COPILOT_REPO="github/copilot-cli"
 INSTALL_DIR="/usr/local/bin"
 COPILOT_DIR="/home/runner/.copilot"
+COPILOT_TOOLCACHE_MAX_DEPTH=4
 
 # Fix directory ownership before installation
 # This is needed because a previous AWF run on the same runner may have used
@@ -100,6 +101,7 @@ version_is_greater() {
     left_part="${left_parts[i]:-0}"
     right_part="${right_parts[i]:-0}"
 
+    # Use base-10 parsing so values like 08 are never treated as invalid octal literals.
     if ((10#$left_part > 10#$right_part)); then
       return 0
     fi
@@ -159,7 +161,7 @@ find_cached_copilot_bin() {
         best_candidate="$candidate"
         best_version="$candidate_version_normalized"
       fi
-    done < <(find "${tool_cache_root}/copilot-cli" -maxdepth 4 -type f -path '*/bin/copilot' 2>/dev/null)
+    done < <(find "${tool_cache_root}/copilot-cli" -maxdepth "${COPILOT_TOOLCACHE_MAX_DEPTH}" -type f -path '*/bin/copilot' 2>/dev/null)
   done
 
   if [ -n "$best_candidate" ]; then
@@ -184,6 +186,8 @@ activate_cached_copilot_bin() {
     return 0
   fi
 
+  # Outside GitHub Actions there is no GITHUB_PATH file, so install a small wrapper
+  # instead of symlinking or copying the cached script and risking broken relative paths.
   wrapper_path="${TEMP_DIR}/copilot"
   cat > "$wrapper_path" <<EOF
 #!/usr/bin/env bash
