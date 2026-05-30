@@ -638,6 +638,9 @@ func TestAddSkillFileWithTracking_PreservesPathFromSkillsRoot(t *testing.T) {
 
 	_, err = os.Stat(expectedFile)
 	require.NoError(t, err, "expected nested skill file should exist")
+	content, err := os.ReadFile(expectedFile)
+	require.NoError(t, err, "expected nested skill file should be readable")
+	assert.Equal(t, []byte("#!/usr/bin/env sh\necho ok\n"), content, "expected nested skill file content should match")
 	_, err = os.Stat(unexpectedFile)
 	assert.True(t, os.IsNotExist(err), "unexpected first-match path should not be created")
 }
