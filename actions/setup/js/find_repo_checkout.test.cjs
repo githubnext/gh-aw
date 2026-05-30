@@ -112,6 +112,16 @@ describe("find_repo_checkout", () => {
       expect(dirs).toContain(path.join(testDir, "actual-repo"));
     });
 
+    it("should detect repos with .git gitdir-link files", () => {
+      const worktreeRepo = path.join(testDir, "worktree-repo");
+      fs.mkdirSync(worktreeRepo, { recursive: true });
+      fs.writeFileSync(path.join(worktreeRepo, ".git"), "gitdir: /tmp/example/.git/worktrees/worktree-repo\n");
+
+      const dirs = findGitDirectories(testDir);
+
+      expect(dirs).toContain(worktreeRepo);
+    });
+
     it("should return empty array when no git dirs found", () => {
       fs.mkdirSync(path.join(testDir, "empty-folder"), { recursive: true });
 

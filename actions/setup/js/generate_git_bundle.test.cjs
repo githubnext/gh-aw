@@ -136,4 +136,18 @@ describe("generateGitBundle (incremental)", () => {
 
     expect(generatedBundleHeads).toBe(naiveBundleHeads);
   });
+
+  it("returns actionable guidance when branch is missing in incremental mode", async () => {
+    const { generateGitBundle } = require("./generate_git_bundle.cjs");
+
+    const result = await generateGitBundle("feature-branch", "main", {
+      mode: "incremental",
+      cwd: "/tmp/nonexistent-repo",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("wrong repository checkout");
+    expect(result.error).toContain("GITHUB_WORKSPACE");
+    expect(result.error).toContain("/tmp/nonexistent-repo");
+  });
 });
