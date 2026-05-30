@@ -126,7 +126,6 @@ describe("create_pull_request bundle integration", () => {
     expect(fs.readFileSync(path.join(targetRepo, "file.txt"), "utf8")).toBe("bundle tip\n");
   });
 
-
   it("applies a bundle when the target branch is currently checked out", async () => {
     const branchName = "autoloop/perf-comparison";
     const sourceRepo = createRepo("create-pr-bundle-source-");

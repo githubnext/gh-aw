@@ -473,17 +473,12 @@ index 0000000..abc1234
 
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ base_branch: "main", preserve_branch_name: true });
-    const result = await handler(
-      { title: "Test PR", body: "Test body", branch: "docs/update-migration-version-2026-05-19-4fe3b9f7f99fc1d6", patch_path: patchPath, bundle_path: bundlePath },
-      {}
-    );
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "docs/update-migration-version-2026-05-19-4fe3b9f7f99fc1d6", patch_path: patchPath, bundle_path: bundlePath }, {});
 
     expect(result.success).toBe(true);
     expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
     // Should have fetched using HEAD:<temp-ref> as the refspec
-    const headFetchCall = global.exec.exec.mock.calls.find(
-      ([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && typeof args[2] === "string" && args[2].startsWith("HEAD:")
-    );
+    const headFetchCall = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && typeof args[2] === "string" && args[2].startsWith("HEAD:"));
     if (!headFetchCall) {
       throw new Error("expected HEAD-based bundle fetch call");
     }
