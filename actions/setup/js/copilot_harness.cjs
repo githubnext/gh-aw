@@ -629,7 +629,8 @@ async function startCopilotSDKServer(options) {
   const failure = new Promise((_, reject) => {
     child.once("error", err => reject(err));
     child.once("exit", (code, signal) => {
-      const exitDetails = `exitCode=${code ?? 1}${signal ? ` signal=${signal}` : ""}`;
+      const exitCode = code !== null ? code : "unknown";
+      const exitDetails = `exitCode=${exitCode}${signal ? ` signal=${signal}` : ""}`;
       reject(new Error(`copilot-sdk headless server exited before ready (${exitDetails})`));
     });
   });
@@ -667,7 +668,8 @@ async function stopCopilotSDKServer(child, options) {
   logger(`copilot-sdk: stopping headless server pid=${child.pid ?? "unknown"}`);
   const closed = new Promise(resolve => {
     child.once("close", (code, signal) => {
-      logger(`copilot-sdk: headless server stopped (exitCode=${code ?? 1}${signal ? ` signal=${signal}` : ""})`);
+      const exitCode = code !== null ? code : "unknown";
+      logger(`copilot-sdk: headless server stopped (exitCode=${exitCode}${signal ? ` signal=${signal}` : ""})`);
       resolve(undefined);
     });
   });
