@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -202,4 +204,26 @@ func TestWithMountedCLIShellCommandsInRestrictedBash_PlaywrightCLIMode(t *testin
 		result := withMountedCLIShellCommandsInRestrictedBash(workflowData)
 		assert.Nil(t, result, "nil tools should be returned unchanged")
 	})
+}
+
+func TestBuildMCPCLIPromptSection_PromptFileUsesNonHeadingLabels(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{},
+		},
+	}
+
+	section := buildMCPCLIPromptSection(data)
+	require.NotNil(t, section)
+	assert.Equal(t, mcpCLIToolsPromptFile, section.Content)
+
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	content, err := os.ReadFile(filepath.Clean(filepath.Join(wd, "../../actions/setup/md", section.Content)))
+	require.NoError(t, err)
+
+	prompt := string(content)
+	assert.NotContains(t, prompt, "\n## ")
+	assert.NotContains(t, prompt, "\n### ")
+	assert.Contains(t, prompt, "How to use:")
 }

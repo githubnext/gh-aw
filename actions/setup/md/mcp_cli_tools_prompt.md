@@ -1,6 +1,4 @@
 <mcp-clis>
-## MCP Servers Mounted as Shell CLI Commands
-
 The following servers are available as CLI commands on `PATH`:
 
 __GH_AW_MCP_CLI_SERVERS_LIST__
@@ -11,7 +9,7 @@ __GH_AW_MCP_CLI_SERVERS_LIST__
 >
 > For all other servers listed here, they are **only** available as CLI commands and are **not** available as MCP tools.
 
-### How to Use
+How to use:
 
 Each server is a standalone executable on your `PATH`. Invoke it from bash like any other shell command:
 
@@ -38,7 +36,7 @@ mcpscripts --help                                  # list all script tools
 mcpscripts mcpscripts-gh --args "pr list --repo owner/repo --limit 5"
 ```
 
-### Passing Multiple or Complex Arguments (Preferred)
+Passing multiple or complex arguments (preferred):
 
 **Preferred approach for any tool call with multiple or complex arguments**: supply a JSON object on stdin using `.` as the sentinel. The bridge parses stdin as the argument object, preserving all native types (numbers, booleans, arrays) without shell-quoting issues.
 
@@ -70,7 +68,7 @@ safeoutputs add_comment . < /tmp/comment.json
 > - Agents can construct the payload as a structured object before emitting the command
 > - File redirection (`< file`) works even when pipes (`|`) are restricted
 
-### Notes
+Notes:
 
 - **Prefer JSON payload mode** (`. < file` or `printf '{...}' | server tool .`) for any call with multiple arguments or complex values
 - All parameters can also be passed as `--name value` pairs; boolean flags can be set with `--flag` (no value) to mean `true`
