@@ -436,7 +436,7 @@ func TestCrushEngineFirewallIntegration(t *testing.T) {
 		require.Len(t, steps, 2, "Should generate config step and execution step")
 
 		stepContent := strings.Join(steps[1], "\n")
-		assert.Contains(t, stepContent, "export PATH=\"${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH\"", "Should add mounted MCP CLI bin directory to PATH in AWF mode")
+		assert.Contains(t, stepContent, "export PATH=\"${RUNNER_TEMP:-/home/runner/work/_temp}/gh-aw/mcp-cli/bin:$PATH\"", "Should add mounted MCP CLI bin directory to PATH in AWF mode")
 	})
 
 	t.Run("firewall disabled", func(t *testing.T) {

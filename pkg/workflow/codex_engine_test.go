@@ -451,7 +451,7 @@ func TestCodexEngineExecutionAddsMountedMCPCLIPathSetup(t *testing.T) {
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
-	if !strings.Contains(stepContent, "export PATH=\"${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH\"") {
+	if !strings.Contains(stepContent, "export PATH=\"${RUNNER_TEMP:-/home/runner/work/_temp}/gh-aw/mcp-cli/bin:$PATH\"") {
 		t.Errorf("Expected mounted MCP CLI bin directory in AWF command, got:\n%s", stepContent)
 	}
 	if !strings.Contains(stepContent, "--exclude-env CODEX_API_KEY") {

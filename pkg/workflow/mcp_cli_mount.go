@@ -294,7 +294,7 @@ func GetMCPCLIPathSetup(data *WorkflowData) string {
 	if getMCPCLIServerNames(data) == nil {
 		return ""
 	}
-	return `export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH"`
+	return `export PATH="${RUNNER_TEMP:-/home/runner/work/_temp}/gh-aw/mcp-cli/bin:$PATH"`
 }
 
 // buildMCPCLIPromptSection returns a PromptSection describing the CLI tools available
