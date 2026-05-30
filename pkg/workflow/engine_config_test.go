@@ -438,6 +438,40 @@ func TestExtractEngineConfig_EngineEnvTakesPrecedenceOverEngineAuth(t *testing.T
 	assert.Equal(t, "from-engine-env", config.Env["AWF_AUTH_OIDC_AUDIENCE"])
 }
 
+func TestExtractEngineConfig_AnthropicWIFMapsToAWFEnv(t *testing.T) {
+	compiler := NewCompiler()
+	_, config := compiler.ExtractEngineConfig(map[string]any{
+		"engine": map[string]any{
+			"id": "claude",
+			"auth": map[string]any{
+				"type":               "github-oidc",
+				"provider":           "anthropic",
+				"federation-rule-id": "fr_01ABC",
+				"organization-id":    "org_01XYZ",
+				"service-account-id": "sa_01DEF",
+				"workspace-id":       "ws_01GHI",
+			},
+		},
+	})
+
+	assert.NotNil(t, config)
+	if assert.NotNil(t, config.Auth) {
+		assert.Equal(t, "github-oidc", config.Auth.Type)
+		assert.Equal(t, "anthropic", config.Auth.Provider)
+		assert.Equal(t, "fr_01ABC", config.Auth.AnthropicFederationRuleID)
+		assert.Equal(t, "org_01XYZ", config.Auth.AnthropicOrganizationID)
+		assert.Equal(t, "sa_01DEF", config.Auth.AnthropicServiceAccountID)
+		assert.Equal(t, "ws_01GHI", config.Auth.AnthropicWorkspaceID)
+	}
+
+	assert.Equal(t, "github-oidc", config.Env["AWF_AUTH_TYPE"])
+	assert.Equal(t, "anthropic", config.Env["AWF_AUTH_PROVIDER"])
+	assert.Equal(t, "fr_01ABC", config.Env["AWF_AUTH_ANTHROPIC_FEDERATION_RULE_ID"])
+	assert.Equal(t, "org_01XYZ", config.Env["AWF_AUTH_ANTHROPIC_ORGANIZATION_ID"])
+	assert.Equal(t, "sa_01DEF", config.Env["AWF_AUTH_ANTHROPIC_SERVICE_ACCOUNT_ID"])
+	assert.Equal(t, "ws_01GHI", config.Env["AWF_AUTH_ANTHROPIC_WORKSPACE_ID"])
+}
+
 func TestCompileWorkflowWithExtendedEngine(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "extended-engine-test")

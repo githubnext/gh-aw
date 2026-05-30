@@ -75,12 +75,19 @@ type EngineConfig struct {
 // EngineAuthConfig represents engine.auth frontmatter settings that map to
 // AWF_AUTH_* environment variables consumed by the AWF API proxy sidecar.
 type EngineAuthConfig struct {
-	Type          string
-	Audience      string
+	Type     string
+	Audience string
+	Provider string // "azure" or "anthropic"
+	// Azure WIF fields
 	AzureTenantID string
 	AzureClientID string
 	AzureScope    string
 	AzureCloud    string
+	// Anthropic WIF fields
+	AnthropicFederationRuleID string
+	AnthropicOrganizationID   string
+	AnthropicServiceAccountID string
+	AnthropicWorkspaceID      string
 }
 
 // NetworkPermissions represents network access permissions for workflow execution
@@ -607,6 +614,9 @@ func parseEngineAuthConfig(authObj map[string]any) *EngineAuthConfig {
 	if s, ok := authObj["audience"].(string); ok {
 		auth.Audience = s
 	}
+	if s, ok := authObj["provider"].(string); ok {
+		auth.Provider = s
+	}
 	if s, ok := authObj["azure-tenant-id"].(string); ok {
 		auth.AzureTenantID = s
 	}
@@ -618,6 +628,18 @@ func parseEngineAuthConfig(authObj map[string]any) *EngineAuthConfig {
 	}
 	if s, ok := authObj["azure-cloud"].(string); ok {
 		auth.AzureCloud = s
+	}
+	if s, ok := authObj["federation-rule-id"].(string); ok {
+		auth.AnthropicFederationRuleID = s
+	}
+	if s, ok := authObj["organization-id"].(string); ok {
+		auth.AnthropicOrganizationID = s
+	}
+	if s, ok := authObj["service-account-id"].(string); ok {
+		auth.AnthropicServiceAccountID = s
+	}
+	if s, ok := authObj["workspace-id"].(string); ok {
+		auth.AnthropicWorkspaceID = s
 	}
 	return auth
 }
@@ -661,6 +683,31 @@ func applyEngineAuthEnv(config *EngineConfig) {
 	if config.Auth.AzureCloud != "" {
 		if _, exists := config.Env["AWF_AUTH_AZURE_CLOUD"]; !exists {
 			config.Env["AWF_AUTH_AZURE_CLOUD"] = config.Auth.AzureCloud
+		}
+	}
+	if config.Auth.Provider != "" {
+		if _, exists := config.Env["AWF_AUTH_PROVIDER"]; !exists {
+			config.Env["AWF_AUTH_PROVIDER"] = config.Auth.Provider
+		}
+	}
+	if config.Auth.AnthropicFederationRuleID != "" {
+		if _, exists := config.Env["AWF_AUTH_ANTHROPIC_FEDERATION_RULE_ID"]; !exists {
+			config.Env["AWF_AUTH_ANTHROPIC_FEDERATION_RULE_ID"] = config.Auth.AnthropicFederationRuleID
+		}
+	}
+	if config.Auth.AnthropicOrganizationID != "" {
+		if _, exists := config.Env["AWF_AUTH_ANTHROPIC_ORGANIZATION_ID"]; !exists {
+			config.Env["AWF_AUTH_ANTHROPIC_ORGANIZATION_ID"] = config.Auth.AnthropicOrganizationID
+		}
+	}
+	if config.Auth.AnthropicServiceAccountID != "" {
+		if _, exists := config.Env["AWF_AUTH_ANTHROPIC_SERVICE_ACCOUNT_ID"]; !exists {
+			config.Env["AWF_AUTH_ANTHROPIC_SERVICE_ACCOUNT_ID"] = config.Auth.AnthropicServiceAccountID
+		}
+	}
+	if config.Auth.AnthropicWorkspaceID != "" {
+		if _, exists := config.Env["AWF_AUTH_ANTHROPIC_WORKSPACE_ID"]; !exists {
+			config.Env["AWF_AUTH_ANTHROPIC_WORKSPACE_ID"] = config.Auth.AnthropicWorkspaceID
 		}
 	}
 }

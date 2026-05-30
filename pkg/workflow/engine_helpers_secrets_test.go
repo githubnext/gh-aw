@@ -221,6 +221,45 @@ func TestGetRequiredSecretNames_Claude(t *testing.T) {
 		assert.Contains(t, secrets, "ANTHROPIC_API_KEY")
 		assert.Contains(t, secrets, "MCP_GATEWAY_API_KEY")
 	})
+
+	t.Run("WIF: skips ANTHROPIC_API_KEY when github-oidc+anthropic configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools:       map[string]any{},
+			ParsedTools: &ToolsConfig{},
+			EngineConfig: &EngineConfig{
+				Auth: &EngineAuthConfig{
+					Type:     "github-oidc",
+					Provider: "anthropic",
+				},
+			},
+		}
+
+		secrets := engine.GetRequiredSecretNames(workflowData)
+
+		assert.NotContains(t, secrets, "ANTHROPIC_API_KEY")
+	})
+
+	t.Run("WIF: still includes MCP secrets when WIF and MCP both configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{},
+			},
+			ParsedTools: &ToolsConfig{
+				GitHub: &GitHubToolConfig{},
+			},
+			EngineConfig: &EngineConfig{
+				Auth: &EngineAuthConfig{
+					Type:     "github-oidc",
+					Provider: "anthropic",
+				},
+			},
+		}
+
+		secrets := engine.GetRequiredSecretNames(workflowData)
+
+		assert.NotContains(t, secrets, "ANTHROPIC_API_KEY")
+		assert.Contains(t, secrets, "MCP_GATEWAY_API_KEY")
+	})
 }
 
 // TestGetRequiredSecretNames_Codex tests CodexEngine.GetRequiredSecretNames

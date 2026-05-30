@@ -111,6 +111,23 @@ func TestClaudeEngineHasSecretValidation(t *testing.T) {
 	}
 }
 
+func TestClaudeEngineWIFSkipsSecretValidation(t *testing.T) {
+	engine := NewClaudeEngine()
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			Auth: &EngineAuthConfig{
+				Type:     "github-oidc",
+				Provider: "anthropic",
+			},
+		},
+	}
+
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) != 0 {
+		t.Errorf("Expected empty secret validation step for Anthropic WIF, got %d entries", len(step))
+	}
+}
+
 func TestCopilotEngineHasSecretValidation(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{}
