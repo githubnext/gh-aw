@@ -2768,10 +2768,7 @@ describe("handle_agent_failure", () => {
           },
         })
       );
-      fs.writeFileSync(
-        path.join(tmpDir, "agent-stdio.log"),
-        "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 Maximum effective tokens exceeded (25296477.30 / 25000000).\n"
-      );
+      fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 Maximum effective tokens exceeded (25296477.30 / 25000000).\n");
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
 
       expect(resolveEffectiveTokensFailureState()).toEqual({

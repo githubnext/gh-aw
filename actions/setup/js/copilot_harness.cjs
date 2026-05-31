@@ -42,6 +42,7 @@ const fs = require("fs");
 const path = require("path");
 const { runProcess, formatDuration, sleep, isCopilotSDKEnabled, buildCopilotSDKEnv } = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
+const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -71,10 +72,6 @@ const PROMPT_FILE_INLINE_THRESHOLD_BYTES = 100 * 1024;
 const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
-// Pattern to detect AWF effective-token hard rails returned by Copilot provider retries.
-// This is not a transient provider 429: once the firewall budget is exhausted, additional
-// inference or `--continue` retries will be refused until the effective-token budget resets.
-const MAX_EFFECTIVE_TOKENS_EXCEEDED_PATTERN = /Maximum effective tokens exceeded/i;
 
 // Pattern to detect MCP servers blocked by enterprise/organization policy.
 // This is a persistent policy configuration error — retrying will not help.
@@ -128,16 +125,6 @@ function log(message) {
  */
 function isTransientCAPIError(output) {
   return CAPI_ERROR_400_PATTERN.test(output);
-}
-
-/**
- * Determines if the collected output indicates the AWF effective-token hard rail was hit.
- * This is non-retryable because the firewall will continue rejecting inference.
- * @param {string} output - Collected stdout+stderr from the process
- * @returns {boolean}
- */
-function isMaxEffectiveTokensExceededError(output) {
-  return MAX_EFFECTIVE_TOKENS_EXCEEDED_PATTERN.test(output);
 }
 
 /**

@@ -10,6 +10,7 @@ const {
   resolveClaudePromptFileArgs,
   stripPromptFileArgs,
   isRateLimitError,
+  isMaxEffectiveTokensExceededError,
   isAuthenticationFailedError,
   isMaxTurnsExit,
   isNoDeferredMarkerError,
@@ -171,6 +172,16 @@ describe("claude_harness.cjs", () => {
   describe("isRateLimitError", () => {
     it("returns true for stream-json api_error_status 429", () => {
       expect(isRateLimitError('{"type":"result","subtype":"success","is_error":true,"api_error_status":429}')).toBe(true);
+    });
+
+    describe("isMaxEffectiveTokensExceededError", () => {
+      it("returns true for AWF effective-token hard rails", () => {
+        expect(isMaxEffectiveTokensExceededError("CAPIError: 429 Maximum effective tokens exceeded (25296477.30 / 25000000).")).toBe(true);
+      });
+
+      it("returns false for ordinary rate-limit output", () => {
+        expect(isMaxEffectiveTokensExceededError('{"type":"error","error":{"type":"rate_limit_error","message":"429 Too Many Requests"}}')).toBe(false);
+      });
     });
 
     it("returns true for stream-json request rejected 429 message", () => {
@@ -423,6 +434,22 @@ process.exit(0);
       expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, false]);
       expect(calls[1].args).toContain("fix the bug");
       expect(result.stderr).toContain("failure_reason=cancelled_or_timed_out");
+    }, 30000);
+
+    it("does not retry maximum effective tokens exceeded hard rails", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+process.stderr.write("CAPIError: 429 Maximum effective tokens exceeded (25296477.30 / 25000000).\\n");
+process.exit(1);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript });
+
+      expect(result.status).toBe(1);
+      expect(calls).toHaveLength(1);
+      expect(result.stderr).toContain("effective-token hard rail hit");
     }, 30000);
 
     it("returns true for normal partial-execution retry", () => {

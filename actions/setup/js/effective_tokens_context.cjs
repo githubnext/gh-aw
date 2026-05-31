@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
 
 const MAX_EFFECTIVE_TOKENS_FIELDS = new Set(["max_effective_tokens", "maxEffectiveTokens"]);
 const EFFECTIVE_TOKENS_FIELDS = new Set(["effective_tokens", "effectiveTokens"]);
@@ -17,7 +18,6 @@ const EFFECTIVE_TOKENS_RATE_LIMIT_PATTERNS = [
   /(?:rate[\s-]*limit|too many requests).*(?:effective[\s_-]*tokens?|et budget)/i,
   /\b429\b[\s\S]{0,120}(?:rate[\s-]*limit|too many requests|effective[\s_-]*tokens?|et budget)/i,
 ];
-const MAX_EFFECTIVE_TOKENS_EXCEEDED_RE = /maximum effective tokens exceeded/i;
 const AWF_REFLECT_RELATIVE_PATH = path.join("sandbox", "firewall", "awf-reflect.json");
 
 /**
@@ -146,7 +146,7 @@ function hasMaxEffectiveTokensExceededSignal(stdioLogPathOverride) {
     const stdioLogPath = resolveAgentStdioLogPath(stdioLogPathOverride);
     if (!fs.existsSync(stdioLogPath)) return false;
     const content = fs.readFileSync(stdioLogPath, "utf8");
-    return MAX_EFFECTIVE_TOKENS_EXCEEDED_RE.test(content);
+    return isMaxEffectiveTokensExceededError(content);
   } catch {
     return false;
   }
@@ -356,8 +356,7 @@ function resolveEffectiveTokensFailureState() {
   // 1) structured firewall audit JSONL metadata when available,
   // 2) the agent stdio hard-rail message seen in Copilot failures,
   // 3) the existing environment override used by upstream workflow steps.
-  const rawEffectiveTokensRateLimitError =
-    parsedEffectiveTokensErrorInfo.rateLimitError || hasMaxEffectiveTokensExceededSignal() || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
+  const rawEffectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || hasMaxEffectiveTokensExceededSignal() || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
   const effectiveTokensRateLimitError = shouldReportEffectiveTokensRateLimitError(rawEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens);
 
   return {

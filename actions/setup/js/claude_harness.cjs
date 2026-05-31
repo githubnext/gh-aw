@@ -33,6 +33,7 @@
 "use strict";
 
 const fs = require("fs");
+const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
 const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
@@ -455,6 +456,11 @@ async function main() {
       break;
     }
 
+    if (isMaxEffectiveTokensExceededError(result.output)) {
+      log(`attempt ${attempt + 1}: AWF effective-token hard rail hit — not retrying or continuing (further inference will be refused until budget resets)`);
+      break;
+    }
+
     // max_turns is a deterministic terminal condition: the session ended cleanly after
     // exhausting the allowed number of turns.  --continue cannot resume it because no
     // deferred tool marker was written.  Retrying would immediately fail with "No deferred
@@ -528,6 +534,7 @@ if (typeof module !== "undefined" && module.exports) {
     resolveClaudePromptFileArgs,
     stripPromptFileArgs,
     isRateLimitError,
+    isMaxEffectiveTokensExceededError,
     isAuthenticationFailedError,
     isMaxTurnsExit,
     isNoDeferredMarkerError,
