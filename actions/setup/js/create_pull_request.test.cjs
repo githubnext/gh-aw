@@ -423,6 +423,68 @@ index 0000000..abc1234
     expect(resolvedFetchCall[1][2]).toMatch(/^refs\/heads\/main:refs\/bundles\/create-pr-ops-review-may09-2026-[a-f0-9]{8}$/);
   });
 
+  it("should fall back to HEAD refspec when bundle contains only HEAD (no refs/heads/* entry)", async () => {
+    const patchPath = path.join(tempDir, "test.patch");
+    fs.writeFileSync(
+      patchPath,
+      `From abc123 Mon Sep 17 00:00:00 2001
+From: Test Author <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Test commit
+
+diff --git a/test.txt b/test.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/test.txt
+@@ -0,0 +1 @@
++Hello World
+--
+2.34.1
+`
+    );
+    const bundlePath = path.join(tempDir, "test.bundle");
+    fs.writeFileSync(bundlePath, "bundle content");
+
+    global.exec.getExecOutput.mockImplementation((cmd, args, options) => {
+      if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+        return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
+      }
+      if (cmd === "git" && args[0] === "rev-list") {
+        return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
+      }
+      // Initial bundle fetch fails because the JSONL branch ref is absent from the bundle
+      if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && options && options.ignoreReturnCode) {
+        return Promise.resolve({ exitCode: 1, stderr: "fatal: couldn't find remote ref refs/heads/docs/update-migration-version-2026-05-19-4fe3b9f7f99fc1d6", stdout: "" });
+      }
+      // Bundle contains only HEAD — no refs/heads/* entry (the bug scenario)
+      if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads" && args[2] === bundlePath) {
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "ac85f4047717ec43c931d750575f5251c45dc705 HEAD\n",
+          stderr: "",
+        });
+      }
+      if (cmd === "git" && args && args[0] === "ls-remote") {
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }
+      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ base_branch: "main", preserve_branch_name: true });
+    const result = await handler({ title: "Test PR", body: "Test body", branch: "docs/update-migration-version-2026-05-19-4fe3b9f7f99fc1d6", patch_path: patchPath, bundle_path: bundlePath }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.exec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath]);
+    // Should have fetched using HEAD:<temp-ref> as the refspec
+    const headFetchCall = global.exec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args[1] === bundlePath && typeof args[2] === "string" && args[2].startsWith("HEAD:"));
+    if (!headFetchCall) {
+      throw new Error("expected HEAD-based bundle fetch call");
+    }
+    expect(headFetchCall[1][2]).toMatch(/^HEAD:refs\/bundles\/create-pr-docs-update-migration-version-2026-05-19-4fe3b9f7f99fc1d6-[a-f0-9]{8}$/);
+  });
+
   it("should fetch prerequisite commits and retry bundle fetch when prerequisites are missing", async () => {
     const patchPath = path.join(tempDir, "test.patch");
     fs.writeFileSync(

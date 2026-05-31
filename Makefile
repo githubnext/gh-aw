@@ -417,17 +417,42 @@ install-golangci-lint:
 	fi; \
 	DOWNLOAD_URL="https://github.com/golangci/golangci-lint/releases/download/$$GOLANGCI_LINT_VERSION/golangci-lint-$${GOLANGCI_LINT_VERSION#v}-$$GOOS-$$GOARCH.tar.gz"; \
 	TEMP_DIR=$$(mktemp -d); \
+	ARCHIVE="$$TEMP_DIR/golangci-lint.tar.gz"; \
+	EXTRACT_DIR="$$TEMP_DIR/extract"; \
+	MAX_ATTEMPTS=3; \
+	RETRY_DELAY=2; \
 	trap "rm -rf $$TEMP_DIR" EXIT; \
 	echo "Downloading golangci-lint $$GOLANGCI_LINT_VERSION for $$GOOS/$$GOARCH..."; \
-	if curl -sSL "$$DOWNLOAD_URL" | tar -xz -C "$$TEMP_DIR"; then \
-		mkdir -p "$$GOPATH/bin"; \
-		mv "$$TEMP_DIR"/golangci-lint-*/$$BINARY_NAME "$$GOPATH/bin/$$BINARY_NAME"; \
-		chmod +x "$$GOPATH/bin/$$BINARY_NAME"; \
-		echo "✓ golangci-lint $$GOLANGCI_LINT_VERSION installed to $$GOPATH/bin/$$BINARY_NAME"; \
-	else \
-		echo "Error: Failed to download golangci-lint from $$DOWNLOAD_URL"; \
-		exit 1; \
-	fi
+	for attempt in $$(seq 1 $$MAX_ATTEMPTS); do \
+		rm -f "$$ARCHIVE"; \
+		rm -rf "$$EXTRACT_DIR"; \
+		mkdir -p "$$EXTRACT_DIR"; \
+		if curl --fail --silent --show-error --location "$$DOWNLOAD_URL" -o "$$ARCHIVE"; then \
+			MAGIC_BYTES=$$(od -An -tx1 -N2 "$$ARCHIVE" | tr -d '[:space:]'); \
+			if [ "$$MAGIC_BYTES" != "1f8b" ]; then \
+				echo "Warning: Downloaded golangci-lint archive is not a gzip stream (attempt $$attempt/$$MAX_ATTEMPTS)"; \
+			elif ! tar -tzf "$$ARCHIVE" >/dev/null 2>&1; then \
+				echo "Warning: Downloaded golangci-lint archive failed validation (attempt $$attempt/$$MAX_ATTEMPTS)"; \
+			elif tar -xzf "$$ARCHIVE" -C "$$EXTRACT_DIR" && \
+				mkdir -p "$$GOPATH/bin" && \
+				mv "$$EXTRACT_DIR"/golangci-lint-*/$$BINARY_NAME "$$GOPATH/bin/$$BINARY_NAME" && \
+				chmod +x "$$GOPATH/bin/$$BINARY_NAME"; then \
+				echo "✓ golangci-lint $$GOLANGCI_LINT_VERSION installed to $$GOPATH/bin/$$BINARY_NAME"; \
+				exit 0; \
+			else \
+				echo "Warning: Failed to extract or install golangci-lint archive (attempt $$attempt/$$MAX_ATTEMPTS)"; \
+			fi; \
+		else \
+			echo "Warning: Failed to download golangci-lint archive (attempt $$attempt/$$MAX_ATTEMPTS)"; \
+		fi; \
+		if [ "$$attempt" -lt "$$MAX_ATTEMPTS" ]; then \
+			echo "Retrying golangci-lint download in $$RETRY_DELAY seconds..."; \
+			sleep $$RETRY_DELAY; \
+			RETRY_DELAY=$$((RETRY_DELAY * 2)); \
+		fi; \
+	done; \
+	echo "Error: Failed to download a valid golangci-lint archive from $$DOWNLOAD_URL after $$MAX_ATTEMPTS attempts"; \
+	exit 1
 
 # License compliance checking
 .PHONY: license-check
