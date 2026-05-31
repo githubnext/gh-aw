@@ -160,6 +160,23 @@ describe("ephemerals", () => {
       // Should use ISO date from HTML comment, not the human-readable date
       expect(result?.toISOString()).toBe("2026-01-25T15:54:08.894Z");
     });
+
+    it("should parse a generated expiration line when project utc is configured", async () => {
+      const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-ephemerals-"));
+      fs.mkdirSync(path.join(workspace, ".github", "workflows"), { recursive: true });
+      fs.writeFileSync(path.join(workspace, ".github", "workflows", "aw.json"), JSON.stringify({ utc: "-08:00" }));
+      process.env.GITHUB_WORKSPACE = workspace;
+
+      const { createExpirationLine, extractExpirationDate } = await import("./ephemerals.cjs");
+      const date = new Date("2026-01-25T15:54:08.894Z");
+      const body = `> ${createExpirationLine(date)}`;
+
+      const result = extractExpirationDate(body);
+
+      expect(body).toContain("UTC-08:00");
+      expect(result).toBeInstanceOf(Date);
+      expect(result?.toISOString()).toBe("2026-01-25T15:54:08.894Z");
+    });
   });
 
   describe("generateFooterWithExpiration", () => {
