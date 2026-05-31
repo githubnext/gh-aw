@@ -2,12 +2,10 @@
 name: Ruflo-backed Task
 description: Runs a repository task inside GitHub Agentic Workflows while delegating inner planning and coordination to Ruflo
 on:
-  workflow_dispatch:
-    inputs:
-      task:
-        description: "Repository task for the agent to complete"
-        required: true
-        type: string
+  slash_command:
+    strategy: centralized
+    name: ruflo
+    events: [issue_comment]
 
 permissions:
   contents: read
@@ -15,7 +13,7 @@ permissions:
   issues: read
   pull-requests: read
 
-engine: copilot
+engine: claude
 
 network:
   allowed:
@@ -67,9 +65,13 @@ You are running inside GitHub Agentic Workflows. Use Ruflo as the inner multi-ag
 
 Complete the requested repository task using Ruflo for planning, memory, task routing, and multi-agent coordination.
 
-User task:
+Triggering context:
 
-"${{ github.event.inputs.task }}"
+- Repository: ${{ github.repository }}
+- Issue: #${{ github.event.issue.number }}
+- Slash command content: "${{ steps.sanitized.outputs.text }}"
+
+Treat the triggering issue plus the sanitized `/ruflo` comment as the task definition. If the comment contains no additional instruction beyond invoking `/ruflo`, infer the task from the issue title and body.
 
 ## Operating model
 
