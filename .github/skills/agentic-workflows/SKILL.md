@@ -14,6 +14,7 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/agentic-chat.md`
 - `.github/aw/asciicharts.md`
 - `.github/aw/campaign.md`
+- `.github/aw/charts-trending.md`
 - `.github/aw/charts.md`
 - `.github/aw/cli-commands.md`
 - `.github/aw/context.md`
@@ -33,10 +34,18 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/pr-reviewer.md`
 - `.github/aw/report.md`
 - `.github/aw/reuse.md`
+- `.github/aw/safe-outputs-automation.md`
+- `.github/aw/safe-outputs-content.md`
+- `.github/aw/safe-outputs-management.md`
+- `.github/aw/safe-outputs-runtime.md`
 - `.github/aw/safe-outputs.md`
 - `.github/aw/serena-tool.md`
+- `.github/aw/shared-safe-jobs.md`
 - `.github/aw/skills.md`
 - `.github/aw/subagents.md`
+- `.github/aw/syntax-agentic.md`
+- `.github/aw/syntax-core.md`
+- `.github/aw/syntax-tools-imports.md`
 - `.github/aw/syntax.md`
 - `.github/aw/test-coverage.md`
 - `.github/aw/test-expression.md`
@@ -45,6 +54,9 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/update-agentic-workflow.md`
 - `.github/aw/upgrade-agentic-workflows.md`
 - `.github/aw/visual-regression.md`
+- `.github/aw/workflow-constraints.md`
+- `.github/aw/workflow-editing.md`
+- `.github/aw/workflow-patterns.md`
 
 After loading the matching workflow prompt, follow it directly:
 - Create new workflows: `.github/aw/create-agentic-workflow.md`
