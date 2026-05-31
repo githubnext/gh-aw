@@ -31,15 +31,33 @@ async function main() {
     return;
   }
   const templateContent = fs.readFileSync(templatePath, "utf-8");
-  // Check if prompt file exists
+  // Check if prompt file exists (soft check; detection can continue with fallback context)
   // The agent artifact is downloaded to /tmp/gh-aw/threat-detection/
   // GitHub Actions preserves the directory structure from the uploaded artifact
   // (stripping the common /tmp/gh-aw/ prefix from the uploaded paths)
   // So /tmp/gh-aw/aw-prompts/prompt.txt becomes /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt
   const threatDetectionDir = "/tmp/gh-aw/threat-detection";
   const promptPath = path.join(threatDetectionDir, "aw-prompts/prompt.txt");
-  if (!checkFileExists(promptPath, threatDetectionDir, "Prompt file", true)) {
-    return;
+  let promptFileInfo;
+  if (!fs.existsSync(promptPath)) {
+    promptFileInfo = `${promptPath} (unavailable)`;
+    core.warning(
+      `⚠️ ${ERR_VALIDATION}: Missing workflow prompt context at ${promptPath}. ` +
+        "Ensure the agent artifact includes /tmp/gh-aw/aw-prompts/prompt.txt. " +
+        "Threat detection will continue with fallback workflow context."
+    );
+  } else {
+    const promptStats = fs.statSync(promptPath);
+    if (promptStats.size === 0) {
+      promptFileInfo = `${promptPath} (unavailable)`;
+      core.warning(
+        `⚠️ ${ERR_VALIDATION}: Workflow prompt context is empty at ${promptPath}. ` +
+          "Threat detection will continue with fallback workflow context."
+      );
+    } else {
+      core.info(`Prompt file found: ${promptPath} (${promptStats.size} bytes)`);
+      promptFileInfo = `${promptPath} (${promptStats.size} bytes)`;
+    }
   }
 
   // Check if agent output file exists
@@ -73,7 +91,6 @@ async function main() {
   }
 
   // Get file info for template replacement
-  const promptFileInfo = promptPath + " (" + fs.statSync(promptPath).size + " bytes)";
   const agentOutputFileInfo = agentOutputPath + " (" + fs.statSync(agentOutputPath).size + " bytes)";
   const commentMemoryDir = path.join(threatDetectionDir, "comment-memory");
   let commentMemoryFileInfo = "No comment-memory files found";

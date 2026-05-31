@@ -70,7 +70,7 @@ description: GitHub context expression variables and Handlebars-style template c
 
 #### Special Pattern Expressions
 
-- **`${{ needs.* }}`** - Any outputs from previous jobs (e.g., `${{ needs.pre_activation.outputs.activated }}`)
+- **`${{ needs.* }}`** - Any outputs from previous jobs (e.g., `${{ needs.pre_activation.outputs.activated }}`, or `${{ needs.activation.outputs.label_command }}` for the triggering label when using a `label_command` trigger). The activation job cannot reference its own outputs—only jobs after activation can.
 - **`${{ steps.* }}`** - Any outputs from previous steps (e.g., `${{ steps.my-step.outputs.result }}`)
 - **`${{ github.event.inputs.* }}`** - Any workflow inputs when triggered by workflow_dispatch (e.g., `${{ github.event.inputs.environment }}`)
 

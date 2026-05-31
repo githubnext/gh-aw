@@ -532,6 +532,41 @@ function rollbackReviewResults(results, errorMessage) {
 }
 
 /**
+ * Determine whether a processing result is a non-skipped, non-deferred, non-cancelled failure.
+ *
+ * @param {{success?: boolean, deferred?: boolean, skipped?: boolean, cancelled?: boolean}|null|undefined} result
+ * @returns {boolean}
+ */
+function isFailedProcessingResult(result) {
+  return Boolean(result?.success === false && !result?.deferred && !result?.skipped && !result?.cancelled);
+}
+
+/**
+ * Determine whether a failed result should be reported without failing the safe_outputs job.
+ * Agent assignment can fail after other safe outputs already succeeded, so those failures
+ * are surfaced through dedicated outputs and summaries instead of failing the entire job.
+ *
+ * @param {{type?: string, success?: boolean, deferred?: boolean, skipped?: boolean, cancelled?: boolean}|null|undefined} result
+ * @returns {boolean}
+ */
+function isReportOnlyFailureResult(result) {
+  return isFailedProcessingResult(result) && result?.type === "assign_to_agent";
+}
+
+/**
+ * Partition processing results into fatal and report-only failures.
+ *
+ * @param {Array<{type?: string, success?: boolean, deferred?: boolean, skipped?: boolean, cancelled?: boolean, error?: string}>} results
+ * @returns {{fatalFailures: Array<any>, reportOnlyFailures: Array<any>}}
+ */
+function partitionFailureResults(results) {
+  const failedResults = results.filter(isFailedProcessingResult);
+  const reportOnlyFailures = failedResults.filter(r => r?.type === "assign_to_agent");
+  const fatalFailures = failedResults.filter(r => r?.type !== "assign_to_agent");
+  return { fatalFailures, reportOnlyFailures };
+}
+
+/**
  * Process all messages from agent output in the order they appear
  * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
  * Tracks outputs created with unresolved temporary IDs and generates synthetic updates after resolution
@@ -1417,7 +1452,9 @@ async function main() {
 
     // Log summary
     const successCount = processingResult.results.filter(r => r.success).length;
-    const failureCount = processingResult.results.filter(r => !r.success && !r.deferred && !r.skipped && !r.cancelled).length;
+    const { fatalFailures, reportOnlyFailures } = partitionFailureResults(processingResult.results);
+    const failureCount = fatalFailures.length;
+    const reportOnlyFailureCount = reportOnlyFailures.length;
     const cancelledCount = processingResult.results.filter(r => r.cancelled).length;
     const deferredCount = processingResult.results.filter(r => r.deferred).length;
     const skippedStandaloneResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
@@ -1429,6 +1466,9 @@ async function main() {
     core.info(`Total messages: ${processingResult.results.length}`);
     core.info(`Successful: ${successCount}`);
     core.info(`Failed: ${failureCount}`);
+    if (reportOnlyFailureCount > 0) {
+      core.info(`Reported assignment failures: ${reportOnlyFailureCount}`);
+    }
     if (cancelledCount > 0) {
       core.info(`Cancelled (code push failed): ${cancelledCount}`);
     }
@@ -1460,11 +1500,12 @@ async function main() {
 
     if (failureCount > 0) {
       core.warning(`${failureCount} message(s) failed to process`);
-      const failedItems = processingResult.results
-        .filter(r => !r.success && !r.deferred && !r.skipped && !r.cancelled)
-        .map(r => `  - ${r.type}: ${r.error || "Unknown error"}`)
-        .join("\n");
+      const failedItemLines = fatalFailures.map(r => `  - ${r.type}: ${r.error || "Unknown error"}`);
+      const failedItems = failedItemLines.join("\n");
       core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);
+    }
+    if (reportOnlyFailureCount > 0) {
+      core.warning(`${reportOnlyFailureCount} agent assignment(s) failed but were reported without failing safe_outputs`);
     }
     if (cancelledCount > 0) {
       core.warning(`${cancelledCount} message(s) were cancelled because a code push operation failed`);
@@ -1574,4 +1615,15 @@ async function main() {
   }
 }
 
-module.exports = { main, loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles, rollbackReviewResults, logCreatedItemFromResult };
+module.exports = {
+  main,
+  loadConfig,
+  loadHandlers,
+  processMessages,
+  buildCommentMemoryMessagesFromFiles,
+  rollbackReviewResults,
+  logCreatedItemFromResult,
+  isFailedProcessingResult,
+  isReportOnlyFailureResult,
+  partitionFailureResults,
+};

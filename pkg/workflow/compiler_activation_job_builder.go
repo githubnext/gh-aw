@@ -159,7 +159,7 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 	data := ctx.data
 	compilerActivationJobLog.Printf("Adding activation feedback/validation steps: reaction=%t, status_comment=%t, remove_label=%t, app_token_for_access=%t",
 		ctx.hasReaction, ctx.hasStatusComment, ctx.shouldRemoveLabel, ctx.needsAppTokenForAccess)
-	if data.ActivationGitHubApp != nil && (ctx.hasReaction || ctx.hasStatusComment || ctx.shouldRemoveLabel || ctx.needsAppTokenForAccess) {
+	if data.ActivationGitHubApp != nil && (ctx.hasReaction || ctx.hasStatusComment || ctx.shouldRemoveLabel || ctx.needsAppTokenForAccess || hasMaxDailyEffectiveTokensGuardrail(data)) {
 		appPerms := NewPermissions()
 		addActivationInteractionPermissions(
 			appPerms,
@@ -186,6 +186,9 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 		if ctx.needsAppTokenForAccess {
 			appPerms.Set(PermissionContents, PermissionRead)
 		}
+		if hasMaxDailyEffectiveTokensGuardrail(data) {
+			appPerms.Set(PermissionActions, PermissionRead)
+		}
 		// Add GitHub App-only permissions inferred from activation job gh CLI commands so the
 		// minted App token includes the scopes those commands require (e.g. codespaces: read
 		// for `gh codespace list`).  Only App-only scopes are passed here — standard GitHub
@@ -199,6 +202,13 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 		}
 		ctx.steps = append(ctx.steps, c.buildActivationAppTokenMintStep(data.ActivationGitHubApp, appPerms)...)
 		ctx.outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
+	}
+
+	if hasMaxDailyEffectiveTokensGuardrail(data) {
+		ctx.steps = append(ctx.steps, c.buildActivationDailyEffectiveWorkflowGuardrailStep(data)...)
+		ctx.outputs["daily_effective_workflow_exceeded"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}"
+		ctx.outputs["daily_effective_workflow_total_effective_tokens"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_total_effective_tokens || '' }}"
+		ctx.outputs["daily_effective_workflow_threshold"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_threshold || '' }}"
 	}
 
 	if ctx.hasReaction {
@@ -242,6 +252,28 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 	}
 
 	return nil
+}
+
+func (c *Compiler) buildActivationDailyEffectiveWorkflowGuardrailStep(data *WorkflowData) []string {
+	var steps []string
+	steps = append(steps, "      - name: Check daily workflow token guardrail\n")
+	steps = append(steps, "        id: daily-effective-workflow-guardrail\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
+	steps = append(steps, "        env:\n")
+	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))
+	steps = append(steps, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
+	steps = append(steps, "          GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}\n")
+	steps = append(steps, fmt.Sprintf("          GH_AW_GITHUB_TOKEN: %s\n", c.resolveActivationToken(data)))
+	steps = append(steps, buildTemplatableIntEnvVar("GH_AW_MAX_DAILY_EFFECTIVE_TOKENS", data.MaxDailyEffectiveTokens)...)
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveActivationToken(data)))
+	steps = append(steps, "          script: |\n")
+	steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+	steps = append(steps, "            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_daily_effective_workflow_guardrail.cjs');\n")
+	steps = append(steps, "            await main();\n")
+	return steps
 }
 
 // addActivationRepositoryAndOutputSteps appends checkout, validation, sanitization, comment, and lock steps.
@@ -538,7 +570,7 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) (s
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead,
 	}
-	if !ctx.data.StaleCheckDisabled {
+	if !ctx.data.StaleCheckDisabled || hasMaxDailyEffectiveTokensGuardrail(ctx.data) {
 		permsMap[PermissionActions] = PermissionRead
 	}
 	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{

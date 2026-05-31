@@ -35,108 +35,126 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		fn, ok := n.(*ast.FuncDecl)
-		if !ok || fn.Body == nil {
-			return
-		}
-
-		pos := pass.Fset.PositionFor(fn.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
-			return
-		}
-
-		// Track file variables: types.Object -> *fileVarState (open position, hasDefer, hasManualClose)
-		// Keyed by types.Object so variable shadowing across inner scopes is handled correctly.
-		fileVars := make(map[types.Object]*fileVarState)
-
-		// Walk all statements in the function body, including nested blocks,
-		// but stop at function literals so closures are analysed independently.
-		ast.Inspect(fn.Body, func(node ast.Node) bool {
-			if node == nil {
-				return false
-			}
-
-			// Do not descend into function literals — closures are independent execution
-			// contexts and should be analyzed separately to avoid false positives.
-			if _, ok := node.(*ast.FuncLit); ok {
-				return false
-			}
-
-			// Look for assignments like: file, err := os.Open(...)
-			if assign, ok := node.(*ast.AssignStmt); ok {
-				for i, rhs := range assign.Rhs {
-					if call, ok := rhs.(*ast.CallExpr); ok && isFileOpenCall(call) {
-						if i < len(assign.Lhs) {
-							if ident, ok := assign.Lhs[i].(*ast.Ident); ok && ident.Name != "_" {
-								obj := pass.TypesInfo.ObjectOf(ident)
-								if obj != nil {
-									// If this object was already tracked from a prior open on the
-									// same binding (plain = reassignment), report any unresolved
-									// violation immediately before overwriting the state.
-									if prev, exists := fileVars[obj]; exists && prev.hasManualClose && !prev.hasDefer {
-										pass.Report(analysis.Diagnostic{
-											Pos:     prev.openPos,
-											Message: "file Close() should be deferred immediately after successful open to prevent resource leaks",
-										})
-									}
-									fileVars[obj] = &fileVarState{
-										openPos: call.Pos(),
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-
-			// Look for defer file.Close()
-			if deferStmt, ok := node.(*ast.DeferStmt); ok {
-				if obj := getCloseCallObj(pass, deferStmt.Call); obj != nil {
-					if state, found := fileVars[obj]; found {
-						state.hasDefer = true
-					}
-				}
-			}
-
-			// Look for non-deferred file.Close() in expression statements
-			if exprStmt, ok := node.(*ast.ExprStmt); ok {
-				if call, ok := exprStmt.X.(*ast.CallExpr); ok {
-					if obj := getCloseCallObj(pass, call); obj != nil {
-						if state, found := fileVars[obj]; found {
-							state.hasManualClose = true
-						}
-					}
-				}
-			}
-
-			// Look for non-deferred file.Close() in assignments (e.g., closeErr := fd.Close())
-			if assign, ok := node.(*ast.AssignStmt); ok {
-				for _, rhs := range assign.Rhs {
-					if call, ok := rhs.(*ast.CallExpr); ok {
-						if obj := getCloseCallObj(pass, call); obj != nil {
-							if state, found := fileVars[obj]; found {
-								state.hasManualClose = true
-							}
-						}
-					}
-				}
-			}
-
-			return true
-		})
-
-		// Report files with manual close but no defer
-		for _, state := range fileVars {
-			if state.hasManualClose && !state.hasDefer {
-				pass.Report(analysis.Diagnostic{
-					Pos:     state.openPos,
-					Message: "file Close() should be deferred immediately after successful open to prevent resource leaks",
-				})
-			}
-		}
+		inspectFileFuncDecl(pass, n)
 	})
 
 	return nil, nil
+}
+
+func inspectFileFuncDecl(pass *analysis.Pass, n ast.Node) {
+	fn, ok := n.(*ast.FuncDecl)
+	if !ok || fn.Body == nil {
+		return
+	}
+
+	pos := pass.Fset.PositionFor(fn.Pos(), false)
+	if filecheck.IsTestFile(pos.Filename) {
+		return
+	}
+
+	// Track file variables: types.Object -> *fileVarState (open position, hasDefer, hasManualClose)
+	// Keyed by types.Object so variable shadowing across inner scopes is handled correctly.
+	fileVars := make(map[types.Object]*fileVarState)
+
+	// Walk all statements in the function body, including nested blocks,
+	// but stop at function literals so closures are analysed independently.
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		return inspectFileNode(pass, fileVars, node)
+	})
+
+	// Report files with manual close but no defer
+	for _, state := range fileVars {
+		if state.hasManualClose && !state.hasDefer {
+			pass.Report(analysis.Diagnostic{
+				Pos:     state.openPos,
+				Message: "file Close() should be deferred immediately after successful open to prevent resource leaks",
+			})
+		}
+	}
+}
+
+func inspectFileNode(pass *analysis.Pass, fileVars map[types.Object]*fileVarState, node ast.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	// Do not descend into function literals — closures are independent execution
+	// contexts and should be analyzed separately to avoid false positives.
+	if _, ok := node.(*ast.FuncLit); ok {
+		return false
+	}
+
+	// Look for assignments like: file, err := os.Open(...)
+	if assign, ok := node.(*ast.AssignStmt); ok {
+		processFileOpenAssign(pass, fileVars, assign)
+	}
+
+	// Look for defer file.Close()
+	if deferStmt, ok := node.(*ast.DeferStmt); ok {
+		if obj := getCloseCallObj(pass, deferStmt.Call); obj != nil {
+			if state, found := fileVars[obj]; found {
+				state.hasDefer = true
+			}
+		}
+	}
+
+	// Look for non-deferred file.Close() in expression statements
+	if exprStmt, ok := node.(*ast.ExprStmt); ok {
+		if call, ok := exprStmt.X.(*ast.CallExpr); ok {
+			markManualClose(pass, fileVars, call)
+		}
+	}
+
+	// Look for non-deferred file.Close() in assignments (e.g., closeErr := fd.Close())
+	if assign, ok := node.(*ast.AssignStmt); ok {
+		for _, rhs := range assign.Rhs {
+			if call, ok := rhs.(*ast.CallExpr); ok {
+				markManualClose(pass, fileVars, call)
+			}
+		}
+	}
+
+	return true
+}
+
+func processFileOpenAssign(pass *analysis.Pass, fileVars map[types.Object]*fileVarState, assign *ast.AssignStmt) {
+	for i, rhs := range assign.Rhs {
+		call, ok := rhs.(*ast.CallExpr)
+		if !ok || !isFileOpenCall(call) {
+			continue
+		}
+		if i >= len(assign.Lhs) {
+			continue
+		}
+		ident, ok := assign.Lhs[i].(*ast.Ident)
+		if !ok || ident.Name == "_" {
+			continue
+		}
+		obj := pass.TypesInfo.ObjectOf(ident)
+		if obj == nil {
+			continue
+		}
+		// If this object was already tracked from a prior open on the
+		// same binding (plain = reassignment), report any unresolved
+		// violation immediately before overwriting the state.
+		if prev, exists := fileVars[obj]; exists && prev.hasManualClose && !prev.hasDefer {
+			pass.Report(analysis.Diagnostic{
+				Pos:     prev.openPos,
+				Message: "file Close() should be deferred immediately after successful open to prevent resource leaks",
+			})
+		}
+		fileVars[obj] = &fileVarState{openPos: call.Pos()}
+	}
+}
+
+func markManualClose(pass *analysis.Pass, fileVars map[types.Object]*fileVarState, call *ast.CallExpr) {
+	obj := getCloseCallObj(pass, call)
+	if obj == nil {
+		return
+	}
+	if state, found := fileVars[obj]; found {
+		state.hasManualClose = true
+	}
 }
 
 type fileVarState struct {

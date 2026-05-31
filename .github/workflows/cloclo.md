@@ -8,6 +8,7 @@ on:
     name: cloclo
     strategy: decentralized
   status-comment: true
+max-daily-effective-tokens: 100M
 permissions:
   contents: read
   pull-requests: read

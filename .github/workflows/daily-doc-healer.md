@@ -3,6 +3,7 @@ on:
   schedule:
   - cron: daily
   workflow_dispatch: null
+max-daily-effective-tokens: 100M
 permissions:
   contents: read
   issues: read

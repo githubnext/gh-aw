@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var managerLog = logger.New("compilerenv:manager")
@@ -15,6 +16,10 @@ const (
 	// DefaultMaxEffectiveTokens is the enterprise override for AWF apiProxy.maxEffectiveTokens
 	// when max-effective-tokens is not explicitly configured in workflow frontmatter.
 	DefaultMaxEffectiveTokens = "GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS"
+	// DefaultMaxDailyEffectiveTokens is the enterprise override for the top-level
+	// max-daily-effective-tokens guardrail when it is not explicitly configured in
+	// workflow frontmatter.
+	DefaultMaxDailyEffectiveTokens = "GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS"
 	// DefaultMaxTurns is the enterprise override for engine.max-turns when it is not
 	// explicitly configured in workflow frontmatter.
 	DefaultMaxTurns = "GH_AW_DEFAULT_MAX_TURNS"
@@ -40,13 +45,36 @@ func ResolveDefaultMaxEffectiveTokens(fallback int64) int64 {
 	if raw == "" {
 		return fallback
 	}
-	parsed, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil {
-		managerLog.Printf("Invalid %s=%q, using fallback=%d", DefaultMaxEffectiveTokens, raw, fallback)
+	if raw == "-1" {
+		managerLog.Printf("Applying enterprise override %s=%q (fallback was %d)", DefaultMaxEffectiveTokens, raw, fallback)
+		return -1
+	}
+	if parsed, ok := typeutil.ParseInt64KMSuffix(raw); ok {
+		managerLog.Printf("Applying enterprise override %s=%d (fallback was %d)", DefaultMaxEffectiveTokens, parsed, fallback)
+		return parsed
+	}
+	managerLog.Printf("Invalid %s=%q, using fallback=%d", DefaultMaxEffectiveTokens, raw, fallback)
+	return fallback
+}
+
+// ResolveDefaultMaxDailyEffectiveTokens returns fallback when the env var is
+// unset/invalid, otherwise returns the parsed override as a normalized string.
+// A value of -1 is preserved to allow explicitly disabling the guardrail.
+func ResolveDefaultMaxDailyEffectiveTokens(fallback string) string {
+	raw := strings.TrimSpace(os.Getenv(DefaultMaxDailyEffectiveTokens))
+	if raw == "" {
 		return fallback
 	}
-	managerLog.Printf("Applying enterprise override %s=%d (fallback was %d)", DefaultMaxEffectiveTokens, parsed, fallback)
-	return parsed
+	if raw == "-1" {
+		managerLog.Printf("Applying enterprise override %s=%q (fallback was %q)", DefaultMaxDailyEffectiveTokens, raw, fallback)
+		return "-1"
+	}
+	if normalized, ok := typeutil.NormalizeInt64KMSuffix(raw); ok {
+		managerLog.Printf("Applying enterprise override %s=%q (fallback was %q)", DefaultMaxDailyEffectiveTokens, normalized, fallback)
+		return normalized
+	}
+	managerLog.Printf("Invalid %s=%q, using fallback=%q", DefaultMaxDailyEffectiveTokens, raw, fallback)
+	return fallback
 }
 
 // ResolveDefaultMaxTurns returns fallback when the env var is unset/invalid,

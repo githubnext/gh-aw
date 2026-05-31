@@ -955,6 +955,26 @@ func TestDetectionGuardStepCondition(t *testing.T) {
 	}
 }
 
+func TestPrepareDetectionFilesStepWarnsWhenPromptContextMissingOrEmpty(t *testing.T) {
+	compiler := NewCompiler()
+
+	steps := compiler.buildPrepareDetectionFilesStep()
+	if len(steps) == 0 {
+		t.Fatal("Expected non-empty prepare detection files steps")
+	}
+
+	joined := strings.Join(steps, "")
+	if !strings.Contains(joined, "if [ ! -s /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt ]; then") {
+		t.Error("Expected prepare step to check for missing or empty detection context prompt")
+	}
+	if !strings.Contains(joined, "ERR_VALIDATION: Missing or empty detection context prompt") {
+		t.Error("Expected prepare step to emit actionable ERR_VALIDATION warning when prompt context is missing")
+	}
+	if !strings.Contains(joined, "Detection will continue with fallback workflow context.") {
+		t.Error("Expected prepare step warning to document fallback behavior")
+	}
+}
+
 // TestDetectionJobLevelCondition verifies that the detection job-level `if:` condition
 // skips the job entirely when the agent produced no outputs and no patch.
 // This prevents the detection job from wasting a runner and ensures safe_outputs is

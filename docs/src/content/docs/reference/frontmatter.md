@@ -203,15 +203,17 @@ timeout-minutes: 30                  # Defaults to 20 minutes
 
 `runs-on` applies to the main agent job only. `runs-on-slim` applies to all framework/generated jobs (activation, safe-outputs, unlock, etc.) and defaults to `ubuntu-slim`. `safe-outputs.runs-on` takes precedence over `runs-on-slim` for safe-output jobs specifically.
 
-`timeout-minutes` accepts either an integer or a GitHub Actions expression string. This allows `workflow_call` reusable workflows to parameterize the timeout via caller inputs:
+`timeout-minutes` accepts either an integer or a GitHub Actions expression string. This allows a compiled workflow that defines `workflow_call` inputs to parameterize its own timeout via caller inputs:
 
 ```yaml wrap
 # Literal integer
 timeout-minutes: 30
 
-# Expression — useful in reusable (workflow_call) workflows
+# Expression — useful inside a reusable (workflow_call) workflow definition
 timeout-minutes: ${{ inputs.timeout }}
 ```
+
+This frontmatter setting applies to the workflow being compiled. It does **not** apply to plain GitHub Actions caller jobs that invoke a reusable workflow with job-level `uses:` — GitHub rejects `timeout-minutes` on those caller jobs.
 
 **Supported runners for `runs-on:`**
 
@@ -245,15 +247,40 @@ Environment variables can be defined at multiple scopes (workflow, job, step, en
 
 ### Effective Token Budget (`max-effective-tokens:`)
 
-Sets the AWF effective-token budget used for cost enforcement. Defaults to `25000000` when omitted. Token steering (budget-warning messages at 80%, 90%, 95%, and 99% of the budget) is enabled by default. Set to a negative value to disable both budget enforcement and token steering.
+Sets the AWF effective-token budget used for cost enforcement. Defaults to `25000000` when omitted. Token steering (budget-warning messages at 80%, 90%, 95%, and 99% of the budget) is enabled by default. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`. Set to a negative value to disable both budget enforcement and token steering.
 
 ```yaml wrap
 max-effective-tokens: 5000000
 ```
 
 ```yaml wrap
+# Equivalent shorthand
+max-effective-tokens: 100M
+```
+
+```yaml wrap
 # Disable budget enforcement and token steering
 max-effective-tokens: -1
+```
+
+### Daily Per-Workflow Effective Token Guardrail (`max-daily-effective-tokens:`)
+
+Sets a 24-hour effective-token cap for a single workflow, aggregated across recent runs of the same workflow started by the triggering user. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and lets the conclusion job report the specialized failure context. Use plain integers or `K`/`M` suffixes such as `100000K` or `100M`.
+
+This guardrail is disabled by default when omitted, and `-1` explicitly disables it. This guardrail is skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs that carry internal `aw_context` dispatch metadata.
+
+```yaml wrap
+max-daily-effective-tokens: 15000000
+```
+
+```yaml wrap
+# Equivalent shorthand
+max-daily-effective-tokens: 100M
+```
+
+```yaml wrap
+# Disable the guardrail explicitly
+max-daily-effective-tokens: -1
 ```
 
 ### Secrets (`secrets:`)

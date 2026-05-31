@@ -256,8 +256,14 @@ func TestMergeTools(t *testing.T) {
 			}
 
 			// Convert result to JSON and back for easier comparison
-			resultJSON, _ := json.Marshal(result)
-			expectedJSON, _ := json.Marshal(tt.expected)
+			resultJSON, err := json.Marshal(result)
+			if err != nil {
+				t.Fatalf("json.Marshal(result) failed: %v", err)
+			}
+			expectedJSON, err := json.Marshal(tt.expected)
+			if err != nil {
+				t.Fatalf("json.Marshal(tt.expected) failed: %v", err)
+			}
 
 			var resultMap, expectedMap map[string]any
 			if err := json.Unmarshal(resultJSON, &resultMap); err != nil {
@@ -366,8 +372,14 @@ func TestMergeToolsFromJSON(t *testing.T) {
 			}
 
 			// Convert back to JSON strings for comparison
-			gotJSON, _ := json.Marshal(gotObj)
-			expectedJSON, _ := json.Marshal(expectedObj)
+			gotJSON, err := json.Marshal(gotObj)
+			if err != nil {
+				t.Fatalf("json.Marshal(gotObj) failed: %v", err)
+			}
+			expectedJSON, err := json.Marshal(expectedObj)
+			if err != nil {
+				t.Fatalf("json.Marshal(expectedObj) failed: %v", err)
+			}
 
 			if string(gotJSON) != string(expectedJSON) {
 				t.Errorf("mergeToolsFromJSON(%q) = %q, want %q", tt.content, string(gotJSON), string(expectedJSON))

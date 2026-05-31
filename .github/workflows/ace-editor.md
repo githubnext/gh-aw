@@ -7,6 +7,7 @@ on:
     strategy: centralized
     name: ace
     events: [pull_request_comment]
+max-daily-effective-tokens: 100M
 timeout-minutes: 10
 strict: false
 permissions:

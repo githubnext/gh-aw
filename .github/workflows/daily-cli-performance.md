@@ -27,6 +27,7 @@ on:
           }
           core.info(`has_changes=${hasChanges}`);
           core.setOutput('has_changes', hasChanges ? 'true' : 'false');
+max-daily-effective-tokens: 100M
 permissions:
   contents: read
   issues: read

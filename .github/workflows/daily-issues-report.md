@@ -2,6 +2,7 @@
 emoji: "📅"
 description: Daily report analyzing repository issues with clustering, metrics, and trend charts
 on: daily
+max-daily-effective-tokens: 100M
 permissions:
   contents: read
   actions: read

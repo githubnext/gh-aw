@@ -57,6 +57,7 @@ type ImportsResult struct {
 	MergedEngineModel             string                // First engine.model found in imports that have no engine.id (model preference without engine selection)
 	MergedMaxRuns                 string                // First max-runs value found across all imports (JSON-encoded, first-wins)
 	MergedMaxEffectiveTokens      string                // First max-effective-tokens value found across all imports (JSON-encoded, first-wins)
+	MergedMaxDailyEffectiveTokens string                // First max-daily-effective-tokens value found across all imports (JSON-encoded, first-wins)
 	ImportedFiles                 []string              // List of imported file paths (for manifest)
 	AgentFile                     string                // Path to custom agent file (if imported)
 	AgentImportSpec               string                // Original import specification for agent file (e.g., "owner/repo/path@ref")

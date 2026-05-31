@@ -40,52 +40,56 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		typeAssert, ok := n.(*ast.TypeAssertExpr)
-		if !ok {
-			return
-		}
-
-		// Type-switch guards have nil Type; skip them.
-		if typeAssert.Type == nil {
-			return
-		}
-
-		pos := pass.Fset.PositionFor(typeAssert.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
-			return
-		}
-
-		// Find the parent map for the file containing this node.
-		var parents map[ast.Node]ast.Node
-		for _, f := range pass.Files {
-			if f.Pos() <= typeAssert.Pos() && typeAssert.Pos() <= f.End() {
-				parents = fileParents[f]
-				break
-			}
-		}
-
-		// Skip the safe two-value form:  v, ok := x.(T)  or  v, ok = x.(T)
-		if parents != nil {
-			if assign, ok := parents[typeAssert].(*ast.AssignStmt); ok {
-				if isSafeTwoValueAssertion(assign) {
-					return
-				}
-			}
-		}
-
-		t := pass.TypesInfo.TypeOf(typeAssert.Type)
-		if t == nil {
-			return
-		}
-
-		pass.ReportRangef(
-			typeAssert,
-			"type assertion x.(%s) is unchecked and may panic; use the two-value form v, ok := x.(%s) instead",
-			t, t,
-		)
+		inspectTypeAssertExpr(pass, fileParents, n)
 	})
 
 	return nil, nil
+}
+
+func inspectTypeAssertExpr(pass *analysis.Pass, fileParents map[*ast.File]map[ast.Node]ast.Node, n ast.Node) {
+	typeAssert, ok := n.(*ast.TypeAssertExpr)
+	if !ok {
+		return
+	}
+
+	// Type-switch guards have nil Type; skip them.
+	if typeAssert.Type == nil {
+		return
+	}
+
+	pos := pass.Fset.PositionFor(typeAssert.Pos(), false)
+	if filecheck.IsTestFile(pos.Filename) {
+		return
+	}
+
+	// Find the parent map for the file containing this node.
+	var parents map[ast.Node]ast.Node
+	for _, f := range pass.Files {
+		if f.Pos() <= typeAssert.Pos() && typeAssert.Pos() <= f.End() {
+			parents = fileParents[f]
+			break
+		}
+	}
+
+	// Skip the safe two-value form:  v, ok := x.(T)  or  v, ok = x.(T)
+	if parents != nil {
+		if assign, ok := parents[typeAssert].(*ast.AssignStmt); ok {
+			if isSafeTwoValueAssertion(assign) {
+				return
+			}
+		}
+	}
+
+	t := pass.TypesInfo.TypeOf(typeAssert.Type)
+	if t == nil {
+		return
+	}
+
+	pass.ReportRangef(
+		typeAssert,
+		"type assertion x.(%s) is unchecked and may panic; use the two-value form v, ok := x.(%s) instead",
+		t, t,
+	)
 }
 
 func isSafeTwoValueAssertion(assign *ast.AssignStmt) bool {

@@ -3,6 +3,7 @@ emoji: "🧩"
 on:
   schedule: daily
   workflow_dispatch:
+max-daily-effective-tokens: 100M
 timeout-minutes: 30
 
 permissions:

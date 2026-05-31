@@ -136,7 +136,7 @@
       "description": "Advanced search across GitHub (keyword and semantic)",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["search_code", "search_orgs", "search_repositories", "search_users", "semantic_issue_similarity_search", "semantic_issues_search"]
+      "tools": ["search_code", "search_commits", "search_orgs", "search_repositories", "search_users", "semantic_issue_similarity_search", "semantic_issues_search"]
     },
     "secret_protection": {
       "description": "Secret scanning",

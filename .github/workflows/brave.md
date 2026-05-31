@@ -6,6 +6,7 @@ on:
     strategy: centralized
     name: brave
     events: [issue_comment]
+max-daily-effective-tokens: 100M
 permissions:
   contents: read
   issues: read

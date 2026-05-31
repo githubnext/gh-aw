@@ -194,7 +194,8 @@ Inference cost scales with prompt size. Write focused prompts, avoid whole-file 
 Use the top-level `max-effective-tokens` frontmatter field to cap
 the effective-token budget for a single workflow run. This provides
 a hard stop for unusually expensive runs and a consistent cost
-guardrail across all supported engines.
+guardrail across all supported engines. The field accepts plain
+integers or `K`/`M` suffixes such as `100M`.
 
 ```aw wrap
 max-effective-tokens: 5000000
@@ -221,6 +222,7 @@ gh aw env get defaults.yml --scope org --org MY_ORG
 
 ```yaml
 default_max_effective_tokens: "5000000"
+default_max_daily_effective_tokens: "15000000"
 default_model_copilot: "gpt-5-mini"
 default_model_claude: "claude-haiku-4-5"
 default_model_codex: "gpt-5.4-mini"
@@ -235,12 +237,13 @@ Pass `--yes` to skip the prompt in automation, or `--dry-run` to preview
 without changing any variables. Set a field to `null` to delete the
 corresponding variable from the target scope. Unknown YAML keys are rejected,
 `default_max_turns` / `default_timeout_minutes` must be positive integers, and
-`default_max_effective_tokens` must be a non-zero integer (negative values
-disable token steering and budget enforcement).
+`default_max_effective_tokens` / `default_max_daily_effective_tokens` must be
+non-zero integers (negative values disable the corresponding guardrail).
 
 3. If you compile workflows in CI, pass compiler-read defaults into
 the compiler process environment (for example via `${{ vars.* }}`):
 `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS`,
+`GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS`,
 `GH_AW_DEFAULT_MAX_TURNS`,
 `GH_AW_DEFAULT_TIMEOUT_MINUTES`,
 `GH_AW_DEFAULT_DETECTION_MODEL`.

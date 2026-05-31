@@ -197,6 +197,17 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "claude", MaxEffectiveTokens: 10000000},
 		},
 		{
+			name: "object format - with top-level max-effective-tokens as suffix string",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+				},
+				"max-effective-tokens": "100M",
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", MaxEffectiveTokens: 100000000},
+		},
+		{
 			name: "object format - with top-level negative max-effective-tokens",
 			frontmatter: map[string]any{
 				"engine": map[string]any{

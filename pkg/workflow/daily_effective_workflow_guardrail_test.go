@@ -1,0 +1,170 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
+)
+
+func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
+	t.Run("prefers top-level literal value", func(t *testing.T) {
+		t.Parallel()
+		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": 1234}, `"999"`)
+		if got == nil || *got != "1234" {
+			t.Fatalf("expected literal top-level value, got %v", got)
+		}
+	})
+
+	t.Run("falls back to imported expression", func(t *testing.T) {
+		t.Parallel()
+		got := resolveMaxDailyEffectiveTokens(map[string]any{}, `"${{ inputs.max-daily-effective-tokens }}"`)
+		if got == nil || *got != "${{ inputs.max-daily-effective-tokens }}" {
+			t.Fatalf("expected imported expression, got %v", got)
+		}
+	})
+
+	t.Run("uses enterprise default when unset", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "2222")
+		got := resolveMaxDailyEffectiveTokens(map[string]any{}, "")
+		if got == nil || *got != "2222" {
+			t.Fatalf("expected enterprise default, got %v", got)
+		}
+	})
+
+	t.Run("normalizes suffix strings", func(t *testing.T) {
+		t.Parallel()
+		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": "100M"}, "")
+		if got == nil || *got != "100000000" {
+			t.Fatalf("expected normalized suffix string, got %v", got)
+		}
+	})
+
+	t.Run("explicit disable overrides enterprise default", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "2222")
+		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": -1}, "")
+		if got != nil {
+			t.Fatalf("expected explicit disable to skip the guardrail, got %v", *got)
+		}
+	})
+}
+
+func TestDailyEffectiveWorkflowGuardrailInCompiledWorkflow(t *testing.T) {
+	testDir := testutil.TempDir(t, "daily-effective-workflow-guardrail-*")
+	workflowFile := filepath.Join(testDir, "daily-guardrail.md")
+
+	workflow := `---
+on:
+  workflow_dispatch:
+  stale-check: false
+max-daily-effective-tokens: 100M
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+Guardrail test workflow`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0o644); err != nil {
+		t.Fatalf("failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("failed to read lock file: %v", err)
+	}
+	lockStr := string(lockContent)
+	activationStart := strings.Index(lockStr, "\n  activation:\n")
+	if activationStart == -1 {
+		t.Fatal("expected compiled workflow to include an activation job")
+	}
+	activationSection := lockStr[activationStart:]
+	if nextJob := strings.Index(activationSection, "\n  agent:\n"); nextJob != -1 {
+		activationSection = activationSection[:nextJob]
+	}
+
+	if !strings.Contains(lockStr, "id: daily-effective-workflow-guardrail") {
+		t.Fatal("expected activation job to include the daily workflow ET guardrail step")
+	}
+	if !strings.Contains(lockStr, "check_daily_effective_workflow_guardrail.cjs") {
+		t.Fatal("expected activation job to call check_daily_effective_workflow_guardrail.cjs")
+	}
+	if !strings.Contains(lockStr, `GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "100000000"`) {
+		t.Fatal("expected activation guardrail step to receive the configured threshold")
+	}
+	if !strings.Contains(lockStr, "daily_effective_workflow_exceeded: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}") {
+		t.Fatal("expected activation job to expose daily_effective_workflow_exceeded output")
+	}
+	if !strings.Contains(lockStr, "daily_effective_workflow_total_effective_tokens: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_total_effective_tokens || '' }}") {
+		t.Fatal("expected activation job to expose the aggregated ET total output")
+	}
+	if strings.Contains(lockStr, "daily_effective_workflow_issue_url") {
+		t.Fatal("expected activation job to avoid surfacing a separate daily workflow ET issue URL")
+	}
+	if !strings.Contains(lockStr, "if: needs.activation.outputs.daily_effective_workflow_exceeded != 'true'") {
+		t.Fatal("expected the agent job to be skipped when the daily workflow ET guardrail is exceeded")
+	}
+	if !strings.Contains(lockStr, "GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.activation.outputs.daily_effective_workflow_exceeded }}") {
+		t.Fatal("expected the conclusion job to receive the daily workflow ET guardrail output")
+	}
+	if !strings.Contains(lockStr, "needs.activation.outputs.daily_effective_workflow_exceeded == 'true'") {
+		t.Fatal("expected the conclusion job condition to allow activation guardrail failures through")
+	}
+	if !strings.Contains(activationSection, "actions: read") {
+		t.Fatal("expected activation permissions to include actions: read for workflow run inspection")
+	}
+	if strings.Contains(activationSection, "issues: write") {
+		t.Fatal("expected activation permissions to avoid issues: write for the daily ET guardrail")
+	}
+}
+
+func TestNoDailyEffectiveWorkflowReferencesWithoutGuardrail(t *testing.T) {
+	testDir := testutil.TempDir(t, "daily-effective-workflow-no-guardrail-*")
+	workflowFile := filepath.Join(testDir, "no-daily-guardrail.md")
+
+	workflow := `---
+on:
+  workflow_dispatch:
+  stale-check: false
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+No daily guardrail`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0o644); err != nil {
+		t.Fatalf("failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+	if strings.Contains(lockStr, "daily_effective_workflow_exceeded") {
+		t.Fatal("expected workflows without the daily ET guardrail to omit daily_effective_workflow_exceeded references")
+	}
+	if strings.Contains(lockStr, "GH_AW_DAILY_EFFECTIVE_WORKFLOW_") {
+		t.Fatal("expected workflows without the daily ET guardrail to omit daily ET env vars")
+	}
+}

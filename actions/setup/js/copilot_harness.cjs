@@ -42,6 +42,7 @@ const fs = require("fs");
 const path = require("path");
 const { runProcess, formatDuration, sleep, isCopilotSDKEnabled, buildCopilotSDKEnv } = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
+const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -558,6 +559,7 @@ async function main() {
       const isAuthErr = isNoAuthInfoError(result.output);
       const isAuthenticationFailed = isAuthenticationFailedError(result.output);
       const isNullTypeToolCall = isNullTypeToolCallError(result.output);
+      const isMaxEffectiveTokensExceeded = isMaxEffectiveTokensExceededError(result.output);
       const permissionDeniedCount = countPermissionDeniedIssues(result.output);
       const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
       log(
@@ -567,6 +569,7 @@ async function main() {
           ` isMCPPolicyError=${isMCPPolicy}` +
           ` isModelNotSupportedError=${isModelNotSupported}` +
           ` isNullTypeToolCallError=${isNullTypeToolCall}` +
+          ` isMaxEffectiveTokensExceededError=${isMaxEffectiveTokensExceeded}` +
           ` isAuthError=${isAuthErr}` +
           ` isAuthenticationFailedError=${isAuthenticationFailed}` +
           ` permissionDeniedCount=${permissionDeniedCount}` +
@@ -609,6 +612,11 @@ async function main() {
           log(`attempt ${attempt + 1}: refreshed awf-reflect does not include model '${configuredModel || "(none)"}' — treating as non-retryable`);
         }
         log(`attempt ${attempt + 1}: model not supported — not retrying (the requested model is unavailable for this subscription tier; specify a supported model in the workflow frontmatter)`);
+        break;
+      }
+
+      if (isMaxEffectiveTokensExceeded) {
+        log(`attempt ${attempt + 1}: AWF effective-token hard rail hit — not retrying or continuing (further inference will be refused until budget resets)`);
         break;
       }
 
@@ -721,6 +729,7 @@ if (typeof module !== "undefined" && module.exports) {
     INFERENCE_ACCESS_ERROR_PATTERN,
     AGENTIC_ENGINE_TIMEOUT_PATTERN,
     buildMissingToolPermissionIssuePayload,
+    isMaxEffectiveTokensExceededError,
     isAuthenticationFailedError,
     startCopilotSDKServer,
     stopCopilotSDKServer,

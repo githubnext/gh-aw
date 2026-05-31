@@ -7,7 +7,6 @@ permissions:
   issues: read
   pull-requests: read
 imports:
-- shared/go-make.md
 - shared/otlp.md
 safe-outputs:
   create-pull-request:
@@ -45,6 +44,7 @@ tools:
   - head -n * pkg/**/*.go
   - wc -l pkg/**/*.go
   - make build
+  - make fmt
   - make recompile
   - ./gh-aw compile *
   - git
@@ -62,13 +62,11 @@ You are an AI agent that improves Go code by adding debug logging statements to 
 
 ## Validation Commands
 
-Use **bash** for all build, test, and validation commands in this workflow. Do **not** use `mcpscripts-make` or `mcpscripts-go` for validation — MCP connections can time out after ~5 minutes of inactivity during long file-exploration phases, causing end-of-session validation to fail with `MCP error -32003: context canceled`.
+Use **bash** for all build and validation commands in this workflow to avoid MCP connection timeouts during long file-exploration phases.
 
 ```bash
-make build          # Build the project
-make test-unit      # Run unit tests
-make recompile      # Recompile workflows
-DEBUG=* ./gh-aw compile dev  # Test workflow compilation with debug logging
+make build && make fmt       # Build the project and check formatting
+make recompile               # Recompile workflows only if you changed .md files
 ```
 
 ## Efficiency First: Check Cache
@@ -101,73 +99,7 @@ Add meaningful debug logging calls to Go files in the `pkg/` directory following
 
 ## Logger Guidelines from AGENTS.md
 
-### Logger Declaration
-
-If a file doesn't have a logger, add this at the top of the file (after imports):
-
-```go
-import "github.com/github/gh-aw/pkg/logger"
-
-var log = logger.New("pkg:filename")
-```
-
-Replace `pkg:filename` with the actual package and filename:
-- For `pkg/workflow/compiler.go` → `"workflow:compiler"`
-- For `pkg/cli/compile.go` → `"cli:compile"`
-- For `pkg/parser/frontmatter.go` → `"parser:frontmatter"`
-
-### Logger Usage Patterns
-
-**Good logging examples:**
-
-```go
-// Log function entry with parameters (no side effects)
-func ProcessFile(path string, count int) error {
-    log.Printf("Processing file: path=%s, count=%d", path, count)
-    // ... function body ...
-}
-
-// Log important state changes
-log.Printf("Compiled %d workflows successfully", len(workflows))
-
-// Log before expensive operations (check if enabled first)
-if log.Enabled() {
-    log.Printf("Starting compilation with config: %+v", config)
-}
-
-// Log control flow decisions
-log.Print("Cache hit, skipping recompilation")
-log.Printf("No matching pattern found, using default: %s", defaultValue)
-```
-
-**What NOT to do:**
-
-```go
-// WRONG - causes side effects
-log.Printf("Files: %s", expensiveOperation())  // Don't call functions in log args
-
-// WRONG - not meaningful
-log.Print("Here")  // Too vague
-
-// WRONG - duplicates user-facing messages
-fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling..."))
-log.Print("Compiling...")  // Redundant with user message above
-```
-
-### When to Add Logging
-
-Add logging for:
-1. **Function entry** - Especially for public functions with parameters
-2. **Important control flow** - Branches, loops, error paths
-3. **State changes** - Before/after modifying important state
-4. **Performance-sensitive sections** - Before/after expensive operations
-5. **Debugging context** - Information that would help troubleshoot issues
-
-Do NOT add logging for:
-1. **Simple getters/setters** - Too verbose
-2. **Already logged operations** - Don't duplicate existing logs
-3. **User-facing messages** - Debug logs are separate from console output
-4. **Test files** - Skip all `*_test.go` files
+Read the **Debug Logging** section of `AGENTS.md` with the read or bash tools, then follow its logger naming convention (`pkg:filename`), usage patterns, and "When to Add Logging" guidance.
 
 ## Task Steps
 
@@ -219,107 +151,29 @@ For each file:
    - Don't over-log - focus on the most useful information
    - Ensure messages are meaningful and helpful for debugging
 
-### 5. Early Validation (After First File)
-
-After editing your **first file**, run a quick build to catch compilation errors early — before spending time on more files:
-
-```bash
-make build
-```
-
-This surfaces syntax errors or import issues immediately, saving time if the first edit has a problem.
-
-### 6. Complete Validation (After All Files)
+### 5. Validation (After All Files)
 
 After adding logging to **all selected files**, validate your changes before creating a PR:
 
-1. **Build the project to ensure no compilation errors:**
+1. **Build the project and check formatting:**
    ```bash
-   make build
+   make build && make fmt
    ```
-   This compiles the Go code and catches any syntax errors or import issues.
+   This catches compilation errors and import formatting issues without the full unit test suite.
 
-2. **Run unit tests to ensure nothing broke:**
-   ```bash
-   make test-unit
-   ```
-   This validates that your changes don't break existing functionality.
-
-3. **Test the workflow compilation with debug logging enabled:**
-   ```bash
-   DEBUG=* ./gh-aw compile dev
-   ```
-   This validates that:
-   - The binary was built successfully
-   - The compile command works correctly
-   - Debug logging from your changes appears in the output
-
-4. **If needed, recompile workflows:**
+2. **If needed, recompile workflows:**
    ```bash
    make recompile
    ```
+   Only run this if you changed any `.md` workflow files during this session.
 
-### 7. Create Pull Request
+### 6. Create Pull Request
 
 After validating your changes:
 
 1. The safe-outputs create-pull-request will automatically create a PR
 2. Ensure your changes follow the guidelines above
 3. The PR title will automatically have the "[log] " prefix
-
-## Example Transformation
-
-**Before:**
-```go
-package workflow
-
-import (
-    "fmt"
-    "os"
-)
-
-func CompileWorkflow(path string) error {
-    data, err := os.ReadFile(path)
-    if err != nil {
-        return err
-    }
-    
-    // Process workflow
-    result := process(data)
-    return nil
-}
-```
-
-**After:**
-```go
-package workflow
-
-import (
-    "fmt"
-    "os"
-    
-    "github.com/github/gh-aw/pkg/logger"
-)
-
-var log = logger.New("workflow:compiler")
-
-func CompileWorkflow(path string) error {
-    log.Printf("Compiling workflow: %s", path)
-    
-    data, err := os.ReadFile(path)
-    if err != nil {
-        log.Printf("Failed to read workflow file: %s", err)
-        return err
-    }
-    
-    log.Printf("Read %d bytes from workflow file", len(data))
-    
-    // Process workflow
-    result := process(data)
-    log.Print("Workflow compilation completed successfully")
-    return nil
-}
-```
 
 ## Quality Checklist
 
@@ -332,9 +186,7 @@ Before creating the PR, verify:
 - [ ] Logging messages are meaningful and helpful
 - [ ] No duplicate logging with existing logs
 - [ ] Import statements are properly formatted
-- [ ] Changes validated with `make build` (no compilation errors)
-- [ ] Changes validated with `make test-unit` (tests pass)
-- [ ] Workflow compilation tested with `DEBUG=* ./gh-aw compile dev`
+- [ ] Changes validated with `make build && make fmt`
 
 ## Important Notes
 

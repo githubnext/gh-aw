@@ -4,6 +4,7 @@ description: Generates a comprehensive summary of GitHub Actions artifacts usage
 on:
   workflow_dispatch:
   schedule: weekly on sunday around 06:00
+max-daily-effective-tokens: 100M
 permissions:
   contents: read
   actions: read

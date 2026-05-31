@@ -2,6 +2,7 @@
 on:
   schedule:
   - cron: daily
+max-daily-effective-tokens: 100M
 permissions:
   actions: read
   contents: read

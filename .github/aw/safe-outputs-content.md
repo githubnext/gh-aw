@@ -1,0 +1,255 @@
+---
+description: Safe-output reference for issue, discussion, comment, and pull request content operations.
+---
+
+# Safe Outputs: GitHub Content
+
+- `create-issue:` - Safe GitHub issue creation (bugs, features)
+
+  ```yaml
+  safe-outputs:
+    create-issue:
+      title-prefix: "[ai] "           # Optional: prefix for issue titles
+      labels: [automation, agentic]    # Optional: labels to attach to issues
+      allowed-labels: [bug, task]     # Optional: restrict which labels the agent can set (any label allowed if omitted)
+      allowed-fields: [Priority, Iteration]  # Optional: restrict which issue fields the agent may set via the `fields` runtime parameter (omit/empty = any field; ["*"] explicitly allows all)
+      assignees: [user1, copilot]     # Optional: assignees (use 'copilot' for bot)
+      max: 5                          # Optional: maximum number of issues (default: 1)
+      expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y, or false)
+      group: true                     # Optional: group as sub-issues under a parent issue (default: false)
+      group-by-day: true              # Optional: group same-day runs into one issue by posting as comments (default: false)
+      close-older-issues: true        # Optional: close previous issues from same workflow (default: false)
+      close-older-key: "my-key"       # Optional: explicit deduplication key for close-older matching (uses gh-aw-close-key marker)
+      footer: false                   # Optional: omit AI-generated footer while preserving XML markers (default: true)
+      target-repo: "owner/repo"       # Optional: cross-repository
+      allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)
+  ```
+
+  **Auto-Expiration**: The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Generates `agentics-maintenance.yml` workflow that runs at minimum required frequency based on shortest expiration time: 1 day or less → every 2 hours, 2 days → every 6 hours, 3-4 days → every 12 hours, 5+ days → daily.
+  **Deduplication for Scheduled Workflows**: When a `schedule:` trigger is combined with `create-issue`, use `skip-if-match:` in the `on:` block to prevent opening a duplicate issue on every run. Pair with `expires:` so stale issues are cleaned up automatically:
+
+  ```yaml
+  on:
+    schedule: daily on weekdays
+    skip-if-match: 'is:issue is:open in:title "[my-workflow] "'
+  safe-outputs:
+    create-issue:
+      title-prefix: "[my-workflow] "
+      expires: 7   # auto-close after 7 days
+  ```
+
+  Without `skip-if-match`, the workflow creates a new issue on every scheduled run even when an identical open issue already exists.
+
+  **Temporary IDs and Sub-Issues:**
+  When creating multiple issues, use `temporary_id` (format: `aw_` + 3-8 alphanumeric chars) to reference parent issues before creation. References like `#aw_abc123` in issue bodies are automatically replaced with actual issue numbers. Use the `parent` field to create sub-issue relationships:
+
+  ```json
+  {"type": "create_issue", "temporary_id": "aw_abc123", "title": "Parent", "body": "Parent issue"}
+  {"type": "create_issue", "parent": "aw_abc123", "title": "Sub-task", "body": "References #aw_abc123"}
+  ```
+
+  **Setting Issue Fields on Creation**: Agents can include a `fields` array in the `create_issue` output to set custom field values immediately after creation. Each item is `{"name": <field-display-name>, "value": <string-or-number>}`. Use a number for numeric fields; string for single-select, iteration title, date `YYYY-MM-DD`, or text. Restrict allowed names with `allowed-fields:`.
+
+  ```json
+  {"type": "create_issue", "title": "Triage: flaky parser", "body": "...", "fields": [{"name": "Priority", "value": "High"}, {"name": "Story Points", "value": 3}]}
+  ```
+
+- `close-issue:` - Close issues with comment (use this to close issues, not update-issue)
+
+  ```yaml
+  safe-outputs:
+    close-issue:
+      target: "triggering"              # Optional: "triggering" (default), "*", or number
+      required-labels: [automated]      # Optional: only close if ALL these labels are present
+      required-title-prefix: "[bot]"    # Optional: only close matching prefix
+      max: 20                           # Optional: max closures (default: 1)
+      state-reason: "not_planned"       # Optional: "completed" (default), "not_planned", "duplicate"
+      allow-body: false                 # Optional: when false, any body the agent emits is dropped (warning logged) and the issue closes without a comment; defaults to true
+      target-repo: "owner/repo"         # Optional: cross-repository
+      allowed-repos: [owner/other]      # Optional: additional repos agent can close issues in
+  ```
+
+  Set `allow-body: false` to guarantee a clean close with no comment — useful when an earlier `add-comment` step already posted the summary and you want to prevent the agent from duplicating it.
+
+- `create-discussion:` - Safe GitHub discussion creation (status, audits, reports, logs)
+
+  ```yaml
+  safe-outputs:
+    create-discussion:
+      title-prefix: "[ai] "           # Optional: prefix for discussion titles
+      category: "General"             # Optional: discussion category name, slug, or ID (defaults to first category if not specified)
+      labels: [status]                # Optional: labels to attach (used for matching when close-older-discussions is enabled)
+      allowed-labels: [status, audit] # Optional: restrict which labels the agent can set (any label allowed if omitted)
+      max: 3                          # Optional: maximum number of discussions (default: 1)
+      close-older-discussions: true   # Optional: close older discussions with same prefix/labels (default: false)
+      close-older-key: "my-key"       # Optional: explicit deduplication key for close-older matching
+      expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y, or false)
+      fallback-to-issue: true         # Optional: create issue if discussion creation fails (default: true)
+      footer: false                   # Optional: omit AI-generated footer while preserving XML markers (default: true)
+      target-repo: "owner/repo"       # Optional: cross-repository
+      allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)
+  ```
+
+  The `category` field is optional and can be specified by name (e.g., "General"), slug (e.g., "general"), or ID (e.g., "DIC_kwDOGFsHUM4BsUn3"). If not specified, discussions will be created in the first available category. Category resolution tries ID first, then name, then slug.
+
+  Set `close-older-discussions: true` to automatically close older discussions matching the same title prefix or labels. Up to 10 older discussions are closed as "OUTDATED" with a comment linking to the new discussion. Requires `title-prefix` or `labels` to identify matching discussions.
+
+- `close-discussion:` - Close discussions with comment and resolution
+
+  ```yaml
+  safe-outputs:
+    close-discussion:
+      target: "triggering"              # Optional: "triggering" (default), "*", or number
+      required-category: "Ideas"        # Optional: only close in category
+      required-labels: [resolved]       # Optional: only close if ALL these labels are present
+      required-title-prefix: "[ai]"     # Optional: only close matching prefix
+      max: 1                            # Optional: max closures (default: 1)
+      allow-body: false                 # Optional: when false, any body the agent emits is dropped (warning logged) and the discussion closes without a comment; defaults to true
+      target-repo: "owner/repo"         # Optional: cross-repository
+  ```
+
+  Resolution reasons: `RESOLVED`, `DUPLICATE`, `OUTDATED`, `ANSWERED`. Set `allow-body: false` to close without a comment when a prior `add-comment` step already posted the summary.
+- `add-comment:` - Safe comment creation on issues/PRs/discussions
+
+  ```yaml
+  safe-outputs:
+    add-comment:
+      max: 3                          # Optional: maximum number of comments (default: 1)
+      target: "*"                     # Optional: target for comments (default: "triggering")
+      required-labels: [approved]     # Optional: ALL of these labels must be present on the issue/PR for the comment to be posted
+      required-title-prefix: "[bot]" # Optional: issue/PR title must start with this prefix
+      hide-older-comments: true       # Optional: minimize previous comments from same workflow
+      allowed-reasons: [outdated]     # Optional: restrict hiding reasons (default: outdated)
+      discussions: true               # Optional: set false to exclude discussions:write permission (default: true)
+      issues: true                    # Optional: set false to exclude issues:write permission (default: true)
+      pull-requests: true             # Optional: set false to exclude pull-requests:write permission (default: true)
+      footer: true                    # Optional: when false, omits visible footer but preserves XML markers (default: true)
+      target-repo: "owner/repo"       # Optional: cross-repository
+      allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)
+  ```
+
+  **Hide Older Comments**: Set `hide-older-comments: true` to minimize previous comments from the same workflow before posting new ones. Useful for status updates. Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated` (default), `resolved`.
+
+  **Discussion Thread Replies**: Agents can include `reply_to_id` in their output to post a threaded reply within a GitHub Discussion (requires `discussions: true`):
+
+  ```json
+  {"type": "add_comment", "body": "Thread reply text", "reply_to_id": 12345}
+  ```
+
+- `comment-memory:` - Persist and update a managed memory comment on the triggering issue/PR. **Configured under `tools:`, not `safe-outputs:`.**
+
+  ```yaml
+  tools:
+    comment-memory:
+      max: 1                          # Optional: max comment_memory updates (default: 1, range: 1-100)
+      target: "triggering"            # Optional: "triggering" (default), "*", or explicit issue/PR number
+      memory-id: "default"            # Optional: default memory identifier when items omit memory_id (default: "default")
+      footer: true                    # Optional: include AI footer in the managed comment (default: true)
+      target-repo: "owner/repo"       # Optional: cross-repository
+      allowed-repos: [owner/other]    # Optional: additional repos agent can target
+  ```
+
+  Boolean shorthand: `comment-memory: true` enables defaults; `false` or `null` disables. The handler materializes memory content to files before agent execution and synchronizes edits back to a single managed comment on the issue/PR after execution, providing durable cross-run state without external storage. See [memory.md](memory.md) for full details.
+
+- `create-pull-request:` - Safe pull request creation with git patches
+
+  ```yaml
+  safe-outputs:
+    create-pull-request:
+      title-prefix: "[ai] "           # Optional: prefix for PR titles
+      branch-prefix: "signed/"        # Optional: prefix prepended to the PR branch name (e.g. for branch-protection conventions)
+      labels: [automation, ai-agent]  # Optional: labels to attach to PRs
+      allowed-labels: [bug, fix]      # Optional: restrict which labels the agent can set (any label allowed if omitted)
+      reviewers: [user1, copilot]     # Optional: reviewers (use 'copilot' for bot)
+      team-reviewers: [platform-team] # Optional: team slugs to assign as reviewers
+      draft: true                     # Optional: create as draft PR (defaults to true)
+      if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
+      allow-empty: false              # Optional: create PR with empty branch, no changes required (default: false)
+      expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y; min: 2h)
+      auto-merge: false               # Optional: enable auto-merge when checks pass (default: false)
+      base-branch: "vnext"            # Optional: base branch for PR (defaults to workflow's branch)
+      preserve-branch-name: true      # Optional: skip random salt suffix on agent-specified branch names (default: false)
+      recreate-ref: false             # Optional: force-recreate existing remote branch when preserve-branch-name is true (default: false)
+      allow-workflows: false          # Optional: add workflows:write permission when allowed-files targets .github/workflows/ paths (default: false; requires github-app)
+      patch-format: "bundle"          # Optional: "bundle" (default, preserves merge commits & per-commit metadata) or "am" (git format-patch/am)
+      signed-commits: true            # Optional: when true (default), push via createCommitOnBranch GraphQL so GitHub signs commits; set false to use plain git push (required for merge commits)
+      assignees: [user1]              # Optional: assignees for fallback issues on PR creation failure
+      fallback-labels: [needs-review] # Optional: labels for fallback issues (defaults to PR labels)
+      fallback-as-issue: false        # Optional: when true (default), creates a fallback issue on PR creation failure; on permission errors, the issue includes a one-click link to create the PR via GitHub's compare URL
+      auto-close-issue: false         # Optional: when true (default), adds "Fixes #N" closing keyword when triggered from an issue; set to false to prevent auto-closing the triggering issue on merge. Accepts a boolean or GitHub Actions expression.
+      target-repo: "owner/repo"       # Optional: cross-repository
+      github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on created PRs
+      allowed-files:                  # Recommended: always restrict to specific paths or extensions to limit agent scope
+        - "src/**/*.ts"               # e.g. restrict to TypeScript source files
+        - "docs/**/*.md"              # e.g. restrict to Markdown docs
+      excluded-files:                 # Optional: glob patterns to strip from the patch entirely
+        - "**/*.lock"
+      protected-files: request_review # Optional: "request_review" (default), "blocked", "fallback-to-issue", or "allowed"
+      allowed-branches:               # Optional: glob patterns for allowed source branch names per run
+        - "feature/*"
+      allowed-base-branches:          # Optional: glob patterns for allowed base branch overrides per run
+        - "release/*"
+        - "main"
+      max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 1024 KB, max: 10240)
+      max-patch-files: 50             # Optional: per-output cap on unique files in the patch (overrides global; default: 100)
+  ```
+
+  **Dynamic Base Branch**: When `allowed-base-branches` is set, the agent can provide a `base` field in its output to override the default base branch for a single run — but only if the value matches one of the configured glob patterns. Without `allowed-base-branches`, only the static `base-branch:` is used. Accepts a literal array or a GitHub Actions expression resolving to a comma-separated list (e.g. `${{ inputs.allowed-base-branches }}`).
+
+  **Allowed Source Branches**: When `allowed-branches` is set, the branch used for PR creation (agent-provided `branch` or the current checkout branch when omitted) must match one of the configured glob patterns.
+
+  **File Restrictions**: **Always specify `allowed-files`** — this is the primary guardrail for `create-pull-request`. Scope it to specific file extensions (e.g., `"**/*.md"`, `"**/*.ts"`) or directory paths (e.g., `"src/**"`, `"docs/**"`) matching the workflow's purpose. Omitting `allowed-files` allows the agent to touch any file in the repository, which significantly expands blast radius. Use `excluded-files` to additionally strip specific files (e.g. lock files) from the patch before any checks. The `protected-files` field controls handling of sensitive files (package manifests, CI configs, agent instruction files): `request_review` (default — create the PR but submit a `REQUEST_CHANGES` review so a human approves before merge), `blocked` (hard-block), `fallback-to-issue` (push branch and create a review issue), or `allowed` (no restriction — use only when the workflow is explicitly designed to manage these files). Object form is also supported: `protected-files: { policy: fallback-to-issue, exclude: [AGENTS.md] }`.
+
+  **Auto-Expiration**: The `expires` field auto-closes PRs after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Minimum duration: 2 hours. Only for same-repo PRs without target-repo. Generates `agentics-maintenance.yml` workflow.
+
+  **Branch Name Preservation**: Set `preserve-branch-name: true` to skip the random salt suffix on agent-specified branch names. Useful when CI enforces branch naming conventions (e.g., Jira keys in uppercase). Invalid characters are still replaced for security; casing is always preserved. Set `recreate-ref: true` alongside this to force-recreate an existing remote branch (e.g., when a previous PR was already merged into the branch).
+
+  **Workflow File Changes**: To modify files under `.github/workflows/`, set `allow-workflows: true`. This adds `workflows: write` to the token used for the PR — a permission that requires `safe-outputs.github-app` to be configured, since `GITHUB_TOKEN` cannot hold this permission.
+
+  **CI Triggering**: By default, PRs created with `GITHUB_TOKEN` do not trigger CI workflow runs. To trigger CI, set `github-token-for-extra-empty-commit` to a PAT with `Contents: Read & Write` permission, or to `"app"` to use the configured GitHub App. Alternatively, set the magic secret `GH_AW_CI_TRIGGER_TOKEN` to a suitable PAT — this is automatically used without requiring explicit configuration in the workflow.
+
+- `create-pull-request-review-comment:` - Safe PR review comment creation on code lines
+
+  ```yaml
+  safe-outputs:
+    create-pull-request-review-comment:
+      max: 3                          # Optional: maximum number of review comments (default: 10)
+      side: "RIGHT"                   # Optional: side of diff ("LEFT" or "RIGHT", default: "RIGHT")
+      target: "*"                     # Optional: "triggering" (default), "*", or number
+      target-repo: "owner/repo"       # Optional: cross-repository
+  ```
+
+- `submit-pull-request-review:` - Submit a PR review with status (APPROVE, REQUEST_CHANGES, COMMENT)
+
+  ```yaml
+  safe-outputs:
+    submit-pull-request-review:
+      max: 1                          # Optional: maximum number of reviews to submit (default: 1)
+      footer: "if-body"               # Optional: footer control ("always", "none", "if-body", default: "always")
+      allowed-events: [COMMENT, REQUEST_CHANGES]  # Optional: restrict allowed review event types; omit to allow all (APPROVE, COMMENT, REQUEST_CHANGES)
+  ```
+
+  **Footer Control**: The `footer` field controls when AI-generated footers appear in the PR review body. Values: `"always"` (default), `"none"`, `"if-body"` (only when body is non-empty). Boolean values supported: `true` → `"always"`, `false` → `"none"`. Useful for clean approval reviews — with `"if-body"`, approvals without explanatory text appear without a footer.
+
+- `reply-to-pull-request-review-comment:` - Reply to existing review comments on PRs
+
+  ```yaml
+  safe-outputs:
+    reply-to-pull-request-review-comment:
+      max: 10                         # Optional: maximum number of replies (default: 10)
+      target-repo: "owner/repo"       # Optional: cross-repository
+      footer: "always"                # Optional: footer control ("always", "none", "if-body", default: "always")
+  ```
+
+  **Footer Control**: The `footer` field controls when AI-generated footers appear. Values: `"always"` (default), `"none"`, `"if-body"` (only when body is non-empty). Boolean values supported: `true` → `"always"`, `false` → `"none"`.
+
+- `resolve-pull-request-review-thread:` - Resolve PR review threads after addressing feedback
+
+  ```yaml
+  safe-outputs:
+    resolve-pull-request-review-thread:
+      max: 10                         # Optional: maximum number of threads to resolve (default: 10)
+      target-repo: "owner/repo"       # Optional: cross-repository
+  ```
+
+  This safe-output type allows agents to programmatically resolve review comment threads after addressing feedback, improving PR review workflows.

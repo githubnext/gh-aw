@@ -168,7 +168,11 @@ func parseMaxEffectiveTokensValue(raw any) int64 {
 		return int64(val)
 	}
 	if rawStr, ok := raw.(string); ok {
-		if parsed, err := strconv.ParseInt(rawStr, 10, 64); err == nil && parsed > 0 {
+		trimmed := strings.TrimSpace(rawStr)
+		if trimmed == "-1" {
+			return -1
+		}
+		if parsed, ok := typeutil.ParseInt64KMSuffix(trimmed); ok {
 			return parsed
 		}
 		engineLog.Printf("Ignoring invalid max-effective-tokens value: %q", rawStr)

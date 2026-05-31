@@ -4,6 +4,7 @@ on:
   schedule:
     - cron: "daily around 12:00 on weekdays"
   workflow_dispatch:
+max-daily-effective-tokens: 100M
 permissions:
   contents: read
   actions: read
