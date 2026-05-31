@@ -333,11 +333,10 @@ The YAML frontmatter supports these fields:
         if: "hashFiles('go.mod') != ''"   # Only install Go when go.mod exists
     ```
 
-- **`run-install-scripts:`** - Allow npm pre/post install scripts to execute during package installation (boolean, default: `false`)
+- **`runtimes.node.run-install-scripts:`** - Allow npm pre/post install scripts to execute during package installation for the Node.js runtime (boolean, default: `false`)
   - By default, `--ignore-scripts` is added to all generated npm install commands to prevent supply chain attacks via malicious install hooks
-  - When `true`, disables this protection globally for all runtimes that generate `npm install` commands
+  - Set `run-install-scripts: true` under `runtimes.node` to allow scripts for Node.js installs
   - A supply chain security warning is emitted at compile time; in strict mode this is an error
-  - Per-runtime control is also available via `runtimes.node.run-install-scripts: true` to limit scope to a specific runtime
 
 - **`checkout:`** - Override how the repository is checked out in the agent job (object, array, or `false`)
   - By default, the workflow automatically checks out the repository. Use this field to customize checkout behavior.

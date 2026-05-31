@@ -184,9 +184,9 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		return nil, fmt.Errorf("failed to merge runtimes: %w", err)
 	}
 
-	// Resolve run-install-scripts setting: true if global run-install-scripts is set, or if the node runtime
-	// has run-install-scripts: true, or if any imported workflow sets run-install-scripts (global or node-level).
-	runInstallScripts := resolveRunInstallScripts(result.Frontmatter, runtimes, importsResult.MergedRunInstallScripts)
+	// Resolve run-install-scripts setting: true if runtimes.node has run-install-scripts: true,
+	// or if any imported workflow sets run-install-scripts at the node-runtime level.
+	runInstallScripts := resolveRunInstallScripts(runtimes, importsResult.MergedRunInstallScripts)
 
 	// Warn on deprecated APM configuration fields that are now ignored
 	if importsVal, hasImports := result.Frontmatter["imports"]; hasImports {

@@ -639,24 +639,10 @@ func (acc *importAccumulator) extractRunInstallScripts(fm map[string]any, fullPa
 	if acc.runInstallScripts {
 		return
 	}
-	if hasTopLevelRunInstallScripts(fm) {
-		acc.runInstallScripts = true
-		parserLog.Printf("Extracted run-install-scripts: true from import: %s", fullPath)
-		return
-	}
 	if hasNodeRuntimeRunInstallScripts(fm) {
 		acc.runInstallScripts = true
 		parserLog.Printf("Extracted runtimes.node.run-install-scripts: true from import: %s", fullPath)
 	}
-}
-
-func hasTopLevelRunInstallScripts(fm map[string]any) bool {
-	rsAny, hasRS := fm["run-install-scripts"]
-	if !hasRS {
-		return false
-	}
-	rsBool, ok := rsAny.(bool)
-	return ok && rsBool
 }
 
 func hasNodeRuntimeRunInstallScripts(fm map[string]any) bool {

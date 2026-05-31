@@ -289,10 +289,9 @@ type FrontmatterConfig struct {
 	TrackerID         string            `json:"tracker-id,omitempty"`
 	Version           string            `json:"version,omitempty"`
 	TimeoutMinutes    *TemplatableInt32 `json:"timeout-minutes,omitempty"`
-	Strict            *bool             `json:"strict,omitempty"`              // Pointer to distinguish unset from false
-	Private           *bool             `json:"private,omitempty"`             // If true, workflow cannot be added to other repositories
-	RunInstallScripts *bool             `json:"run-install-scripts,omitempty"` // If true, allow pre/post install scripts globally (supply chain risk; emits warning or error in strict mode)
-	Labels            []string          `json:"labels,omitempty"`
+	Strict  *bool    `json:"strict,omitempty"`  // Pointer to distinguish unset from false
+	Private *bool    `json:"private,omitempty"` // If true, workflow cannot be added to other repositories
+	Labels  []string `json:"labels,omitempty"`
 
 	// Configuration sections - using strongly-typed structs
 	Tools            *ToolsConfig       `json:"tools,omitempty"`

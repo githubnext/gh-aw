@@ -1408,6 +1408,11 @@ permissions:
   # (optional)
   checks: "read"
 
+  # Permission level for Copilot requests (write/none only). Set to write to allow
+  # Copilot inference via the GitHub Actions token.
+  # (optional)
+  copilot-requests: "write"
+
   # Permission for repository contents (read: view files, write: modify
   # files/branches, none: no access)
   # (optional)
@@ -1669,7 +1674,7 @@ experiments:
   # Storage backend for experiment state. 'repo' (default) persists state to a git
   # branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with
   # hyphens removed, e.g. 'my-workflow' -> 'experiments/myworkflow') for durability
-  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behavior).
+  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behaviour).
   # Repo storage is recommended because experiment data is valuable and more durable
   # than cache.
   # (optional)
@@ -1905,6 +1910,28 @@ sandbox:
       # Enable weaker nested sandbox mode (recommended: true for Docker access)
       # (optional)
       enableWeakerNestedSandbox: true
+
+    # Per-provider API proxy target overrides. Settings are compiled into the AWF
+    # config JSON.
+    # (optional)
+    targets:
+      # AWF API proxy target configuration for a single LLM provider.
+      # (optional)
+      openai:
+        # Custom authentication header name to use when forwarding requests to this
+        # provider's API. Overrides the provider default ("Authorization" for OpenAI,
+        # "x-api-key" for Anthropic). Example: "api-key" for Azure OpenAI gateways.
+        # (optional)
+        authHeader: "example-value"
+
+      # AWF API proxy target configuration for a single LLM provider.
+      # (optional)
+      anthropic:
+        # Custom authentication header name to use when forwarding requests to this
+        # provider's API. Overrides the provider default ("Authorization" for OpenAI,
+        # "x-api-key" for Anthropic). Example: "api-key" for Azure OpenAI gateways.
+        # (optional)
+        authHeader: "example-value"
 
   # Legacy custom Sandbox Runtime configuration (use agent.config instead). Note:
   # Network configuration is controlled by the top-level 'network' field, not here.
@@ -2171,6 +2198,27 @@ engine:
     # (optional)
     azure-cloud: "example-value"
 
+    # Optional WIF provider discriminator. Recognized values are 'azure' and
+    # 'anthropic'.
+    # (optional)
+    provider: "example-value"
+
+    # Anthropic WIF federation rule ID (e.g., fdrl_...).
+    # (optional)
+    federation-rule-id: "example-value"
+
+    # Anthropic WIF organization ID (e.g., org_...).
+    # (optional)
+    organization-id: "example-value"
+
+    # Anthropic WIF service account ID (e.g., svac_...).
+    # (optional)
+    service-account-id: "example-value"
+
+    # Anthropic WIF workspace ID (e.g., ws_...).
+    # (optional)
+    workspace-id: "example-value"
+
   # Additional TOML configuration text that will be appended to the generated
   # config.toml in the action (codex engine only)
   # (optional)
@@ -2258,6 +2306,12 @@ engine:
     # full-text search over large indexes.
     # (optional)
     tool-timeout: "example-value"
+
+  # Enables the experimental GitHub Copilot SDK integration (copilot engine only).
+  # When true, the harness starts a separate headless Copilot CLI sidecar on the
+  # configured localhost port and sets COPILOT_SDK_URI on child processes.
+  # (optional)
+  copilot-sdk: true
 
 # Format 3: Inline engine definition: specifies a runtime adapter and optional
 # provider settings directly in the workflow frontmatter, without requiring a
@@ -4569,7 +4623,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: request_review (default),
     # blocked, allowed, or fallback-to-issue — or a GitHub Actions expression for
-    # reusable workflows. Object form: { policy, exclude } to customize the
+    # reusable workflows. Object form: { policy, exclude } to customise the
     # protected-file set.
     # (optional)
     # Accepted formats:
@@ -4585,7 +4639,7 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed',
     # 'fallback-to-issue', or 'request_review' at runtime. Use in reusable
-    # workflow_call workflows to parameterize the policy per caller.
+    # workflow_call workflows to parameterise the policy per caller.
     protected-files: "example-value"
 
     # Format 3: Object form for granular control over the protected-file set. Use the
@@ -4665,7 +4719,7 @@ safe-outputs:
     patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterize the transport
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -6201,7 +6255,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: blocked (default), allowed, or
     # fallback-to-issue — or a GitHub Actions expression for reusable workflows.
-    # Object form: { policy, exclude } to customize the protected-file set.
+    # Object form: { policy, exclude } to customise the protected-file set.
     # (optional)
     # Accepted formats:
 
@@ -6214,7 +6268,7 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
     # 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to
-    # parameterize the policy per caller.
+    # parameterise the policy per caller.
     protected-files: "example-value"
 
     # Format 3: Object form for granular control over the protected-file set. Use the
@@ -6276,7 +6330,7 @@ safe-outputs:
     patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterize the transport
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -6846,7 +6900,7 @@ safe-outputs:
     # Default values injected when the model omits a field
     # (optional)
     defaults:
-      # Behavior when no files match: 'error' (default) or 'ignore'
+      # Behaviour when no files match: 'error' (default) or 'ignore'
       # (optional)
       if-no-files: "error"
 
@@ -7728,17 +7782,6 @@ private: true
 # https://github.github.com/gh-aw/reference/frontmatter/#check-for-updates
 # (optional)
 check-for-updates: true
-
-# Allow npm pre/post install scripts to execute during package installation. By
-# default, --ignore-scripts is added to all generated npm install commands to
-# prevent supply chain attacks via malicious install hooks. Setting
-# run-install-scripts: true disables this protection globally (all runtimes). A
-# supply chain security warning is emitted at compile time; in strict mode this is
-# an error. Per-runtime control is also available via
-# runtimes.<runtime>.run-install-scripts. See:
-# https://github.github.com/gh-aw/reference/frontmatter/#run-install-scripts
-# (optional)
-run-install-scripts: true
 
 # MCP Scripts configuration for defining custom lightweight MCP tools as
 # JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server
