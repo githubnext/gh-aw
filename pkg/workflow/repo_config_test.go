@@ -223,7 +223,7 @@ func TestLoadRepoConfig_InvalidUTC(t *testing.T) {
 	writeAWJSON(t, dir, `{"utc": "Invalid/Timezone"}`)
 
 	_, err := LoadRepoConfig(dir)
-	assert.Error(t, err, "invalid timezone should return an error")
+	require.Error(t, err, "invalid timezone should return an error")
 	assert.Contains(t, err.Error(), "utc must be a valid IANA timezone")
 }
 
