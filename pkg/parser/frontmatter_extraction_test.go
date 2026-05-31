@@ -3,8 +3,10 @@
 package parser
 
 import (
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestExtractFrontmatterFromContent(t *testing.T) {
@@ -79,34 +81,13 @@ This is a test workflow with empty frontmatter.`,
 			result, err := ExtractFrontmatterFromContent(tt.content)
 
 			if tt.wantErr {
-				if err == nil {
-					t.Errorf("ExtractFrontmatterFromContent() expected error, got nil")
-				}
+				require.Error(t, err, "ExtractFrontmatterFromContent() should return an error")
 				return
 			}
 
-			if err != nil {
-				t.Errorf("ExtractFrontmatterFromContent() error = %v", err)
-				return
-			}
-
-			// Check frontmatter
-			if len(tt.wantYAML) != len(result.Frontmatter) {
-				t.Errorf("ExtractFrontmatterFromContent() frontmatter length = %v, want %v", len(result.Frontmatter), len(tt.wantYAML))
-			}
-
-			for key, expectedValue := range tt.wantYAML {
-				if actualValue, exists := result.Frontmatter[key]; !exists {
-					t.Errorf("ExtractFrontmatterFromContent() missing key %v", key)
-				} else if actualValue != expectedValue {
-					t.Errorf("ExtractFrontmatterFromContent() frontmatter[%v] = %v, want %v", key, actualValue, expectedValue)
-				}
-			}
-
-			// Check markdown
-			if result.Markdown != tt.wantMarkdown {
-				t.Errorf("ExtractFrontmatterFromContent() markdown = %v, want %v", result.Markdown, tt.wantMarkdown)
-			}
+			require.NoError(t, err, "ExtractFrontmatterFromContent() should not return an error")
+			assert.Equal(t, tt.wantYAML, result.Frontmatter, "ExtractFrontmatterFromContent() frontmatter should match expected")
+			assert.Equal(t, tt.wantMarkdown, result.Markdown, "ExtractFrontmatterFromContent() markdown should match expected")
 		})
 	}
 }
@@ -190,20 +171,12 @@ Nested content`,
 			result, err := ExtractMarkdownSection(tt.content, tt.sectionName)
 
 			if tt.wantErr {
-				if err == nil {
-					t.Errorf("ExtractMarkdownSection() expected error, got nil")
-				}
+				require.Error(t, err, "ExtractMarkdownSection() should return an error for missing section")
 				return
 			}
 
-			if err != nil {
-				t.Errorf("ExtractMarkdownSection() error = %v", err)
-				return
-			}
-
-			if result != tt.expected {
-				t.Errorf("ExtractMarkdownSection() = %q, want %q", result, tt.expected)
-			}
+			require.NoError(t, err, "ExtractMarkdownSection() should not return an error")
+			assert.Equal(t, tt.expected, result, "ExtractMarkdownSection() should return the expected section content")
 		})
 	}
 }
@@ -244,9 +217,7 @@ func TestGenerateDefaultWorkflowName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := generateDefaultWorkflowName(tt.filePath)
-			if result != tt.expected {
-				t.Errorf("generateDefaultWorkflowName() = %q, want %q", result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "generateDefaultWorkflowName() should derive name from file path")
 		})
 	}
 }
@@ -280,19 +251,13 @@ This is markdown.`,
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := ExtractMarkdownContent(tt.content)
 
-			if tt.wantErr && err == nil {
-				t.Errorf("ExtractMarkdownContent() expected error, got nil")
+			if tt.wantErr {
+				require.Error(t, err, "ExtractMarkdownContent() should return an error")
 				return
 			}
 
-			if !tt.wantErr && err != nil {
-				t.Errorf("ExtractMarkdownContent() error = %v", err)
-				return
-			}
-
-			if result != tt.expected {
-				t.Errorf("ExtractMarkdownContent() = %q, want %q", result, tt.expected)
-			}
+			require.NoError(t, err, "ExtractMarkdownContent() should not return an error")
+			assert.Equal(t, tt.expected, result, "ExtractMarkdownContent() should return only the markdown body")
 		})
 	}
 }
@@ -350,17 +315,141 @@ permissions:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := ExtractFrontmatterFromContent(tt.content)
-			if err != nil {
-				t.Fatalf("ExtractFrontmatterFromContent() error = %v", err)
+			require.NoError(t, err, "ExtractFrontmatterFromContent() should not return an error")
+
+			assert.Equal(t, tt.wantFrontmatterLines, result.FrontmatterLines, "ExtractFrontmatterFromContent() FrontmatterLines should match expected")
+			assert.Equal(t, tt.wantFrontmatterStart, result.FrontmatterStart, "ExtractFrontmatterFromContent() FrontmatterStart should match expected")
+		})
+	}
+}
+
+func TestExtractWorkflowNameFromMarkdownBody(t *testing.T) {
+	tests := []struct {
+		name        string
+		body        string
+		virtualPath string
+		expected    string
+	}{
+		{
+			name:        "H1 header present",
+			body:        "# My Workflow\n\nSome description.",
+			virtualPath: "fallback.md",
+			expected:    "My Workflow",
+		},
+		{
+			name:        "H1 header with leading/trailing whitespace",
+			body:        "#   Trimmed Name   \n\nContent.",
+			virtualPath: "fallback.md",
+			expected:    "Trimmed Name",
+		},
+		{
+			name:        "no H1 header falls back to filename",
+			body:        "## Not an H1\n\nContent.",
+			virtualPath: "my-workflow.md",
+			expected:    "My Workflow",
+		},
+		{
+			name:        "empty body falls back to filename",
+			body:        "",
+			virtualPath: "deploy-service.md",
+			expected:    "Deploy Service",
+		},
+		{
+			name:        "H1 header after other content",
+			body:        "Some intro text.\n\n# Actual Title\n\nMore content.",
+			virtualPath: "fallback.md",
+			expected:    "Actual Title",
+		},
+		{
+			name:        "full virtual path uses base filename for fallback",
+			body:        "No header here.",
+			virtualPath: "/workflows/release-deploy.md",
+			expected:    "Release Deploy",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ExtractWorkflowNameFromMarkdownBody(tt.body, tt.virtualPath)
+			require.NoError(t, err, "ExtractWorkflowNameFromMarkdownBody() should not return an error")
+			assert.Equal(t, tt.expected, result, "ExtractWorkflowNameFromMarkdownBody() should return the expected workflow name")
+		})
+	}
+}
+
+func TestExtractWorkflowNameFromContent(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		virtualPath string
+		expected    string
+		wantErr     bool
+	}{
+		{
+			name: "H1 header in markdown body",
+			content: `---
+on: push
+---
+
+# My Workflow
+
+Some description.`,
+			virtualPath: "fallback.md",
+			expected:    "My Workflow",
+		},
+		{
+			name: "H1 header without frontmatter",
+			content: `# Standalone Workflow
+
+Content here.`,
+			virtualPath: "fallback.md",
+			expected:    "Standalone Workflow",
+		},
+		{
+			name: "no H1 header falls back to filename",
+			content: `---
+on: push
+---
+
+## Not an H1
+`,
+			virtualPath: "my-workflow.md",
+			expected:    "My Workflow",
+		},
+		{
+			name:        "empty content falls back to filename",
+			content:     "",
+			virtualPath: "deploy-service.md",
+			expected:    "Deploy Service",
+		},
+		{
+			name:    "unclosed frontmatter returns error",
+			content: "---\ntitle: Test\nno closing delimiter",
+			wantErr: true,
+		},
+		{
+			name: "full virtual path uses base filename for fallback",
+			content: `---
+on: push
+---
+
+No H1 here.`,
+			virtualPath: "/workflows/release-deploy.md",
+			expected:    "Release Deploy",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ExtractWorkflowNameFromContent(tt.content, tt.virtualPath)
+
+			if tt.wantErr {
+				require.Error(t, err, "ExtractWorkflowNameFromContent() should return an error")
+				return
 			}
 
-			if !reflect.DeepEqual(result.FrontmatterLines, tt.wantFrontmatterLines) {
-				t.Errorf("ExtractFrontmatterFromContent() FrontmatterLines = %#v, want %#v", result.FrontmatterLines, tt.wantFrontmatterLines)
-			}
-
-			if result.FrontmatterStart != tt.wantFrontmatterStart {
-				t.Errorf("ExtractFrontmatterFromContent() FrontmatterStart = %d, want %d", result.FrontmatterStart, tt.wantFrontmatterStart)
-			}
+			require.NoError(t, err, "ExtractWorkflowNameFromContent() should not return an error")
+			assert.Equal(t, tt.expected, result, "ExtractWorkflowNameFromContent() should return the expected workflow name")
 		})
 	}
 }
