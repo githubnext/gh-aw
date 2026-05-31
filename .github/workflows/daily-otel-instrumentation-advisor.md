@@ -66,16 +66,17 @@ The OTel instrumentation lives primarily in `actions/setup/js/`:
 
 Invoke the `otel-code-inspector` agent (no arguments). It reads the core OTel `.cjs`
 files and returns a structured inventory of span attributes, resource attributes,
-error fields, and trace-context propagation. Use that inventory as the static-code
-basis for Step 3.
+error fields, and trace-context propagation. Save the returned inventory to memory
+and use it as the static-code basis for Step 3.
 
 ### Step 2: Query Live OTel Data from Sentry and Grafana
 
 Invoke the `otel-telemetry-sampler` agent (no arguments). It queries Sentry and
 Grafana for recent gh-aw spans and returns a per-backend attribute-presence table
-plus a sampled trace_id. Cross-check its two backend tables yourself and note any
-discrepancies (attribute present in one backend but absent in the other, or signs of
-ingestion delay vs. auth/config issues). Record the result for Step 3.
+plus a sampled trace_id. After the agent returns its two backend tables, cross-check
+them yourself and note any discrepancies (attribute present in one backend but absent
+in the other, or signs of ingestion delay vs. auth/config issues). Record the result
+to memory for Step 3.
 
 ### Step 3: Evaluate Against DevOps Best Practices
 
