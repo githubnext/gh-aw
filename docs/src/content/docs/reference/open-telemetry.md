@@ -6,10 +6,8 @@ sidebar:
 ---
 
 GitHub Agentic Workflows can export distributed traces to
-OpenTelemetry Protocol (OTLP) compatible backends.
-
-Use this page as the canonical reference for observability
-configuration and runtime behavior.
+OpenTelemetry Protocol (OTLP) compatible backends. This page is the
+canonical reference for observability configuration and runtime behavior.
 
 ## Configure `observability.otlp`
 
@@ -35,17 +33,8 @@ observability:
 
 ### Endpoint forms
 
-The `endpoint` field accepts three forms.
-
-String form (backward-compatible):
-
-```yaml wrap
-observability:
-  otlp:
-    endpoint: ${{ secrets.OTLP_ENDPOINT }}
-    headers:
-      Authorization: ${{ secrets.OTLP_TOKEN }}
-```
+Beyond the plain URL string shown above, `endpoint` also accepts an
+object or an array.
 
 Object form (single endpoint with per-endpoint headers):
 
@@ -78,21 +67,8 @@ for the remaining endpoints.
 
 ### Header forms
 
-The `headers` field applies to the string endpoint form and
-accepts either a map or a comma-separated string.
-
-Map form:
-
-```yaml wrap
-observability:
-  otlp:
-    endpoint: ${{ secrets.OTLP_ENDPOINT }}
-    headers:
-      Authorization: ${{ secrets.OTLP_TOKEN }}
-      X-Tenant: acme
-```
-
-String form:
+For the string endpoint form, `headers` accepts either a map (as shown
+above) or a comma-separated string:
 
 ```yaml wrap
 observability:
@@ -116,10 +92,8 @@ When `observability.otlp` is configured, gh-aw injects:
 
 ## Custom span attributes
 
-Use `observability.otlp.attributes` to attach arbitrary key/value
-attributes to the spans emitted by gh-aw for each workflow run.
-Attributes are applied to the job setup span, the job conclusion
-span, and the outcome summary span.
+`observability.otlp.attributes` attaches arbitrary key/value attributes
+to the job setup, job conclusion, and outcome summary spans:
 
 ```yaml wrap
 observability:
@@ -133,17 +107,13 @@ observability:
       langfuse.user.id: ${{ github.actor }}
 ```
 
-Values are plain strings. For dynamic values, use GitHub Actions
-expressions such as `${{ github.run_id }}`, `${{ github.actor }}`,
-`${{ vars.MY_VAR }}`, or `${{ secrets.MY_SECRET }}`; the
-expression is resolved by GitHub Actions before the workflow runs.
-Attributes whose value resolves to an empty string are omitted.
-
-> [!NOTE]
-> Each non-empty value is masked from GitHub Actions runner logs
-> with the `::add-mask::` workflow command so user-supplied
-> identifiers (session IDs, user IDs) do not appear in plaintext
-> in step logs.
+Values are plain strings; use GitHub Actions expressions
+(`${{ github.run_id }}`, `${{ github.actor }}`, `${{ vars.MY_VAR }}`,
+`${{ secrets.MY_SECRET }}`) for dynamic values, resolved before the
+workflow runs. Attributes resolving to an empty string are omitted, and
+each non-empty value is masked from runner logs with `::add-mask::` so
+user-supplied identifiers (session IDs, user IDs) never appear in
+plaintext.
 
 ## Agent span attributes
 
@@ -215,9 +185,7 @@ steps:
         const otlp = require('/tmp/gh-aw/actions/otlp.cjs');
 
         const startMs = Date.now();
-        // ── do your tool's work here ──────────────────────────────────────
-        // const result = await myTool.run();
-        // ─────────────────────────────────────────────────────────────────
+        // ... do your tool's work here (e.g. const result = await myTool.run()) ...
         const endMs = Date.now();
 
         await otlp.logSpan('my-tool', {
