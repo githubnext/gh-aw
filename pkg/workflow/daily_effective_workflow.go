@@ -17,7 +17,8 @@ import (
 //   - GitHub Actions expressions (${{
 //     ... }}) preserved verbatim for runtime evaluation
 //
-// A nil return value means the field is unset or invalid for runtime use.
+// Returns a pointer to the normalized runtime string when valid; nil means the
+// field is unset or invalid for runtime use.
 func parseMaxDailyEffectiveWorkflowValue(raw any) *string {
 	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
 		s := strconv.Itoa(val)

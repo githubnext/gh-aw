@@ -12,6 +12,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const TOKEN_USAGE_FILENAME = "token-usage.jsonl";
 const TOKEN_USAGE_RELATIVE_PATH = path.join("api-proxy-logs", TOKEN_USAGE_FILENAME);
 const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["firewall-audit-logs", "agent"];
+const DAILY_WORKFLOW_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /**
  * @returns {Promise<import("@actions/artifact").DefaultArtifactClient>}
@@ -26,10 +27,11 @@ async function getArtifactClient() {
  * @returns {number}
  */
 function parsePositiveInt(raw) {
-  if (!raw || !/^\d+$/.test(raw.trim())) {
+  const trimmed = raw?.trim();
+  if (!trimmed || !/^\d+$/.test(trimmed)) {
     return 0;
   }
-  const parsed = Number.parseInt(raw.trim(), 10);
+  const parsed = Number.parseInt(trimmed, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
@@ -271,7 +273,7 @@ async function main() {
     return;
   }
 
-  const cutoffMs = Date.now() - 24 * 60 * 60 * 1000;
+  const cutoffMs = Date.now() - DAILY_WORKFLOW_WINDOW_MS;
   /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string}>} */
   const candidateRuns = [];
   /** @type {Array<any>} */
