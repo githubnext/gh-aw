@@ -284,9 +284,12 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 		t.Fatalf("buildAgenticWorkflowsAgentContent() returned error: %v", err)
 	}
 
-	expected := agenticWorkflowsAgentHeader + "Always load and follow `.github/skills/agentic-workflows/SKILL.md`.\n"
+	expected := agenticWorkflowsAgentHeader + normalizeAgenticWorkflowsContent(agenticWorkflowsAgentBody)
 	if content != expected {
 		t.Fatalf("Expected exact agent content:\n%s\ngot:\n%s", expected, content)
+	}
+	if strings.Contains(content, ".github/skills/agentic-workflows/SKILL.md") {
+		t.Fatalf("expected generated agent content to avoid skill cross-references:\n%s", content)
 	}
 }
 
@@ -339,6 +342,9 @@ func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
 	}
 	if strings.Contains(content, "ignore.txt") {
 		t.Fatalf("expected non-markdown files to be excluded from generated skill content:\n%s", content)
+	}
+	if strings.Contains(content, ".github/agents/agentic-workflows") {
+		t.Fatalf("expected generated skill content to avoid agent cross-references:\n%s", content)
 	}
 }
 
