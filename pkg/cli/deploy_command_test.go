@@ -191,7 +191,7 @@ func TestResolveDeployWorkflowSpecs_ResolvesRelativeWildcardLocalPaths(t *testin
 	assert.Equal(t, filepath.Join(baseDir, "*.md"), workflows[0])
 }
 
-func TestParseDeployCommandOptions_NameFlagWithMultipleWorkflows_Error(t *testing.T) {
+func TestParseDeployCommandOptions_NameFlagWithMultipleWorkflows(t *testing.T) {
 	t.Parallel()
 
 	cmd := NewDeployCommand(func(string) error { return nil })
@@ -210,7 +210,7 @@ func TestParseDeployCommandOptions_NameFlagWithMultipleWorkflows_Error(t *testin
 	assert.False(t, validateEngineCalled)
 }
 
-func TestParseDeployCommandOptions_InvalidCoolDown_Error(t *testing.T) {
+func TestParseDeployCommandOptions_InvalidCoolDown(t *testing.T) {
 	t.Parallel()
 
 	cmd := NewDeployCommand(func(string) error { return nil })

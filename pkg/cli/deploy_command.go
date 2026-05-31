@@ -135,7 +135,7 @@ func parseDeployCommandOptions(cmd *cobra.Command, workflows []string, validateE
 		return AddOptions{}, 0, errors.New("--name flag cannot be used when adding multiple workflows at once")
 	}
 	if err := validateEngine(engineOverride); err != nil {
-		return AddOptions{}, 0, err
+		return AddOptions{}, 0, fmt.Errorf("failed to validate engine: %w", err)
 	}
 
 	coolDown, err := parseCoolDownFlag(coolDownStr)
