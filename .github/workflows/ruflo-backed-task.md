@@ -24,9 +24,10 @@ network:
     - github
     - node
 
+startup-timeout: 300
+
 imports:
   - shared/mcp/ruflo.md
-  - shared/otlp.md
 
 tools:
   cli-proxy: true
