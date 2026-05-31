@@ -3,7 +3,17 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import { createRequire } from "module";
-import { loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles, rollbackReviewResults, logCreatedItemFromResult } from "./safe_output_handler_manager.cjs";
+import {
+  loadConfig,
+  loadHandlers,
+  processMessages,
+  buildCommentMemoryMessagesFromFiles,
+  rollbackReviewResults,
+  logCreatedItemFromResult,
+  isFailedProcessingResult,
+  isReportOnlyFailureResult,
+  partitionFailureResults,
+} from "./safe_output_handler_manager.cjs";
 
 const require = createRequire(import.meta.url);
 
@@ -81,6 +91,60 @@ describe("Safe Output Handler Manager", () => {
     it("should throw error if environment variable contains invalid JSON", () => {
       process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG = "not json";
       expect(() => loadConfig()).toThrow("Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG");
+    });
+  });
+
+  describe("report-only assignment failures", () => {
+    it("recognizes only active failures as failed processing results", () => {
+      expect(isFailedProcessingResult({ success: false })).toBe(true);
+      expect(isFailedProcessingResult({ success: false, deferred: true })).toBe(false);
+      expect(isFailedProcessingResult({ success: false, skipped: true })).toBe(false);
+      expect(isFailedProcessingResult({ success: false, cancelled: true })).toBe(false);
+    });
+
+    it("treats failed assign_to_agent results as report-only", () => {
+      expect(
+        isReportOnlyFailureResult({
+          type: "assign_to_agent",
+          success: false,
+        })
+      ).toBe(true);
+    });
+
+    it("does not treat skipped or cancelled assign_to_agent results as report-only", () => {
+      expect(
+        isReportOnlyFailureResult({
+          type: "assign_to_agent",
+          success: false,
+          skipped: true,
+        })
+      ).toBe(false);
+      expect(
+        isReportOnlyFailureResult({
+          type: "assign_to_agent",
+          success: false,
+          cancelled: true,
+        })
+      ).toBe(false);
+      expect(
+        isReportOnlyFailureResult({
+          type: "assign_to_agent",
+          success: false,
+          deferred: true,
+        })
+      ).toBe(false);
+    });
+
+    it("partitions fatal failures away from assign_to_agent report-only failures", () => {
+      const { fatalFailures, reportOnlyFailures } = partitionFailureResults([
+        { type: "assign_to_agent", success: false, error: "Insufficient permissions" },
+        { type: "create_issue", success: false, error: "Validation failed" },
+        { type: "assign_to_agent", success: false, skipped: true, error: "Handled elsewhere" },
+        { type: "create_discussion", success: true },
+      ]);
+
+      expect(reportOnlyFailures).toEqual([{ type: "assign_to_agent", success: false, error: "Insufficient permissions" }]);
+      expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Validation failed" }]);
     });
   });
 
