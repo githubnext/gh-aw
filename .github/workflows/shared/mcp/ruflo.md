@@ -13,7 +13,7 @@
 mcp-servers:
   ruflo:
     command: "npx"
-    args: ["-y", "ruflo@latest", "mcp", "start"]
+    args: ["-y", "ruflo@latest", "mcp", "start", "--transport", "stdio"]
     allowed:
       - memory_search
       - memory_store

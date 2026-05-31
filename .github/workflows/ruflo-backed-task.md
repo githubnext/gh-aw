@@ -24,12 +24,11 @@ network:
     - github
     - node
 
-startup-timeout: 300
-
 imports:
   - shared/mcp/ruflo.md
 
 tools:
+  startup-timeout: 300
   cli-proxy: true
   github:
     mode: gh-proxy
