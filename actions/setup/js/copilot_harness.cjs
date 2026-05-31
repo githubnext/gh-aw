@@ -71,6 +71,10 @@ const PROMPT_FILE_INLINE_THRESHOLD_BYTES = 100 * 1024;
 const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
+// Pattern to detect AWF effective-token hard rails returned by Copilot provider retries.
+// This is not a transient provider 429: once the firewall budget is exhausted, additional
+// inference or `--continue` retries will be refused until the budget window changes.
+const MAX_EFFECTIVE_TOKENS_EXCEEDED_PATTERN = /Maximum effective tokens exceeded/i;
 
 // Pattern to detect MCP servers blocked by enterprise/organization policy.
 // This is a persistent policy configuration error — retrying will not help.
@@ -124,6 +128,16 @@ function log(message) {
  */
 function isTransientCAPIError(output) {
   return CAPI_ERROR_400_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output indicates the AWF effective-token hard rail was hit.
+ * This is non-retryable because the firewall will continue rejecting inference.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isMaxEffectiveTokensExceededError(output) {
+  return MAX_EFFECTIVE_TOKENS_EXCEEDED_PATTERN.test(output);
 }
 
 /**
@@ -558,6 +572,7 @@ async function main() {
       const isAuthErr = isNoAuthInfoError(result.output);
       const isAuthenticationFailed = isAuthenticationFailedError(result.output);
       const isNullTypeToolCall = isNullTypeToolCallError(result.output);
+      const isMaxEffectiveTokensExceeded = isMaxEffectiveTokensExceededError(result.output);
       const permissionDeniedCount = countPermissionDeniedIssues(result.output);
       const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
       log(
@@ -567,6 +582,7 @@ async function main() {
           ` isMCPPolicyError=${isMCPPolicy}` +
           ` isModelNotSupportedError=${isModelNotSupported}` +
           ` isNullTypeToolCallError=${isNullTypeToolCall}` +
+          ` isMaxEffectiveTokensExceededError=${isMaxEffectiveTokensExceeded}` +
           ` isAuthError=${isAuthErr}` +
           ` isAuthenticationFailedError=${isAuthenticationFailed}` +
           ` permissionDeniedCount=${permissionDeniedCount}` +
@@ -609,6 +625,11 @@ async function main() {
           log(`attempt ${attempt + 1}: refreshed awf-reflect does not include model '${configuredModel || "(none)"}' — treating as non-retryable`);
         }
         log(`attempt ${attempt + 1}: model not supported — not retrying (the requested model is unavailable for this subscription tier; specify a supported model in the workflow frontmatter)`);
+        break;
+      }
+
+      if (isMaxEffectiveTokensExceeded) {
+        log(`attempt ${attempt + 1}: AWF effective-token hard rail hit — not retrying or continuing (further inference will be refused until budget resets)`);
         break;
       }
 
@@ -721,6 +742,7 @@ if (typeof module !== "undefined" && module.exports) {
     INFERENCE_ACCESS_ERROR_PATTERN,
     AGENTIC_ENGINE_TIMEOUT_PATTERN,
     buildMissingToolPermissionIssuePayload,
+    isMaxEffectiveTokensExceededError,
     isAuthenticationFailedError,
     startCopilotSDKServer,
     stopCopilotSDKServer,

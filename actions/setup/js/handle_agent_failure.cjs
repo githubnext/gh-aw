@@ -30,6 +30,7 @@ const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
 // - retry wrapper text that includes the canonical "Failed to get response..." phrase
 const ENGINE_RATE_LIMIT_429_RE =
   /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|rate_limit_(?:error|exceeded)|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
+const MAX_EFFECTIVE_TOKENS_EXCEEDED_RE = /maximum effective tokens exceeded/i;
 
 /**
  * Parse action failure issue expiration from environment.
@@ -1655,6 +1656,11 @@ function buildEngineFailureContext() {
 
     // Special handling for provider-side 429/rate-limit failures. These can appear
     // in agent stdio output or only in mirrored OTLP telemetry payloads.
+    if (MAX_EFFECTIVE_TOKENS_EXCEEDED_RE.test(logContent)) {
+      core.info("Detected maximum effective tokens exceeded signal — deferring to ET budget context");
+      return "";
+    }
+
     if (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror()) {
       core.info("Detected engine HTTP 429/rate-limit signal — using dedicated context message");
       return buildEngineRateLimit429Context(engineLabel);

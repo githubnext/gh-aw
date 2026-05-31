@@ -17,6 +17,7 @@ const EFFECTIVE_TOKENS_RATE_LIMIT_PATTERNS = [
   /(?:rate[\s-]*limit|too many requests).*(?:effective[\s_-]*tokens?|et budget)/i,
   /\b429\b[\s\S]{0,120}(?:rate[\s-]*limit|too many requests|effective[\s_-]*tokens?|et budget)/i,
 ];
+const MAX_EFFECTIVE_TOKENS_EXCEEDED_RE = /maximum effective tokens exceeded/i;
 const AWF_REFLECT_RELATIVE_PATH = path.join("sandbox", "firewall", "awf-reflect.json");
 
 /**
@@ -100,8 +101,10 @@ function resolveFirewallAuditLogPath(auditJsonlPathOverride) {
   const candidateBases = [];
   if (agentOutputFile) {
     candidateBases.push(path.join(path.dirname(agentOutputFile), "sandbox", "firewall", "audit"));
+    candidateBases.push(path.join(path.dirname(agentOutputFile), "sandbox", "firewall", "logs"));
   }
   candidateBases.push("/tmp/gh-aw/sandbox/firewall/audit");
+  candidateBases.push("/tmp/gh-aw/sandbox/firewall/logs");
 
   for (const base of candidateBases) {
     const logPath = path.join(base, "log.jsonl");
@@ -112,6 +115,38 @@ function resolveFirewallAuditLogPath(auditJsonlPathOverride) {
 
   // Default to the latest expected location/name.
   return path.join(candidateBases[0] || "/tmp/gh-aw/sandbox/firewall/audit", "log.jsonl");
+}
+
+/**
+ * Resolve the agent stdio log path used by the conclusion job.
+ *
+ * @param {string} [stdioLogPathOverride]
+ * @returns {string}
+ */
+function resolveAgentStdioLogPath(stdioLogPathOverride) {
+  if (stdioLogPathOverride) return stdioLogPathOverride;
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+  if (agentOutputFile) {
+    return path.join(path.dirname(agentOutputFile), "agent-stdio.log");
+  }
+  return "/tmp/gh-aw/agent-stdio.log";
+}
+
+/**
+ * Detect a hard effective-token budget rail from agent stderr/stdout logs.
+ *
+ * @param {string} [stdioLogPathOverride]
+ * @returns {boolean}
+ */
+function hasMaxEffectiveTokensExceededSignal(stdioLogPathOverride) {
+  try {
+    const stdioLogPath = resolveAgentStdioLogPath(stdioLogPathOverride);
+    if (!fs.existsSync(stdioLogPath)) return false;
+    const content = fs.readFileSync(stdioLogPath, "utf8");
+    return MAX_EFFECTIVE_TOKENS_EXCEEDED_RE.test(content);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -314,7 +349,8 @@ function resolveEffectiveTokensFailureState() {
   const envMaxEffectiveTokens = parsePositiveIntegerString(process.env.GH_AW_MAX_EFFECTIVE_TOKENS);
   const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || parsedEffectiveTokensFromReflect.effectiveTokens || envEffectiveTokens || "";
   const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || parsedEffectiveTokensFromReflect.maxEffectiveTokens || envMaxEffectiveTokens || "";
-  const rawEffectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
+  const rawEffectiveTokensRateLimitError =
+    parsedEffectiveTokensErrorInfo.rateLimitError || hasMaxEffectiveTokensExceededSignal() || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
   const effectiveTokensRateLimitError = shouldReportEffectiveTokensRateLimitError(rawEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens);
 
   return {
@@ -328,5 +364,6 @@ module.exports = {
   resolveFirewallAuditLogPath,
   parseMaxEffectiveTokensFromAuditLog,
   parseEffectiveTokensErrorInfoFromAuditLog,
+  hasMaxEffectiveTokensExceededSignal,
   resolveEffectiveTokensFailureState,
 };
