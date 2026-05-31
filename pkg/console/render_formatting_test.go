@@ -117,6 +117,18 @@ func TestFormatFieldValue_TimeType(t *testing.T) {
 	}
 }
 
+func TestFormatFieldValue_TimeTypeWithConfiguredLocation(t *testing.T) {
+	SetTimeLocation(time.FixedZone("PDT", -7*60*60))
+	t.Cleanup(ResetTimeLocation)
+
+	val := reflect.ValueOf(time.Date(2025, 10, 28, 14, 30, 45, 0, time.UTC))
+	result := formatFieldValue(val)
+
+	if result != "2025-10-28 07:30:45 PDT (UTC-07:00)" {
+		t.Errorf("got %q, want %q", result, "2025-10-28 07:30:45 PDT (UTC-07:00)")
+	}
+}
+
 func TestFormatFieldValue_UnexportedFields(t *testing.T) {
 	// Test handling of unexported fields (can't use Interface())
 	type testStruct struct {

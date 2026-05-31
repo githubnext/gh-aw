@@ -415,7 +415,7 @@ func formatFieldValue(val reflect.Value) string {
 func formatTimeValue(val reflect.Value) string {
 	if val.CanInterface() {
 		if timeVal, ok := val.Interface().(time.Time); ok {
-			return timeVal.Format("2006-01-02 15:04:05")
+			return formatConfiguredTimeValue(timeVal)
 		}
 	}
 	// For unexported time.Time fields, try to call the String method

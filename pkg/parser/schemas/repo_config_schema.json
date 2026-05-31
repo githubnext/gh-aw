@@ -11,6 +11,12 @@
       "description": "Enable GitHub Enterprise Server (GHES) compatibility mode. When true, the compiler emits GHES-compatible artifact action versions (upload-artifact@v3, download-artifact@v3) instead of the latest v7/v8 which are not supported on GHES.",
       "type": "boolean"
     },
+    "utc": {
+      "description": "Project home timezone used when rendering local times in CLI output. Must be a valid IANA timezone name such as UTC or America/Los_Angeles.",
+      "type": "string",
+      "minLength": 1,
+      "examples": ["UTC", "America/Los_Angeles", "Europe/London"]
+    },
     "maintenance": {
       "description": "Configuration for the agentic-maintenance workflow. Set to false to disable maintenance entirely, or provide an object to configure it.",
       "oneOf": [

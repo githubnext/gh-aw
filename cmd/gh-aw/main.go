@@ -96,6 +96,7 @@ Common Tasks:
 For detailed help on any command, use:
   gh aw [command] --help`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		cli.ConfigureProjectTimezone()
 		if bannerFlag {
 			console.PrintBanner()
 		}

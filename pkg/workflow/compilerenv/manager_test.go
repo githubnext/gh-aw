@@ -138,3 +138,15 @@ func TestResolveDefaultDetectionModel(t *testing.T) {
 		assert.Equal(t, "gpt-5.5-mini", ResolveDefaultDetectionModel(""))
 	})
 }
+
+func TestResolveDefaultUTC(t *testing.T) {
+	t.Run("unset uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultUTC, "")
+		assert.Equal(t, "UTC", ResolveDefaultUTC("UTC"))
+	})
+
+	t.Run("set value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultUTC, "America/Los_Angeles")
+		assert.Equal(t, "America/Los_Angeles", ResolveDefaultUTC("UTC"))
+	})
+}

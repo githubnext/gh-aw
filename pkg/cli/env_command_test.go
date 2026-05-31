@@ -76,6 +76,7 @@ func TestDefaultsFileYAMLKeys(t *testing.T) {
 		DefaultMaxTurns:                new("42"),
 		DefaultTimeoutMinutes:          new("90"),
 		DefaultDetectionModel:          new("claude-sonnet-4.6"),
+		DefaultUTC:                     new("America/Los_Angeles"),
 		DefaultModelCopilot:            new("claude-sonnet-4.7"),
 		DefaultModelClaude:             new("claude-opus-4.7"),
 		DefaultModelCodex:              new("gpt-5.5"),
@@ -90,6 +91,7 @@ func TestDefaultsFileYAMLKeys(t *testing.T) {
 	assert.Contains(t, yml, "default_max_turns:")
 	assert.Contains(t, yml, "default_timeout_minutes:")
 	assert.Contains(t, yml, "default_detection_model:")
+	assert.Contains(t, yml, "default_utc:")
 	assert.Contains(t, yml, "default_model_copilot:")
 	assert.Contains(t, yml, "default_model_claude:")
 	assert.Contains(t, yml, "default_model_codex:")
@@ -134,6 +136,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 			DefaultMaxTurns:           new("12"),
 			DefaultTimeoutMinutes:     new("30"),
 			DefaultDetectionModel:     new("claude-sonnet-4.6"),
+			DefaultUTC:                new("America/Los_Angeles"),
 			DefaultModelCopilot:       new("gpt-5-mini"),
 			DefaultModelClaude:        new("claude-haiku-4.5"),
 			DefaultModelCodex:         new("gpt-5.4-mini"),
@@ -147,6 +150,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 			DefaultMaxDailyEffectiveTokens: new("0"),
 			DefaultMaxTurns:                new("abc"),
 			DefaultTimeoutMinutes:          new("0"),
+			DefaultUTC:                     new("   "),
 			DefaultModelCopilot:            new("   "),
 		})
 		require.Error(t, err)
@@ -154,6 +158,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 		assert.Contains(t, err.Error(), "default_max_daily_effective_tokens must be a non-zero integer when set")
 		assert.Contains(t, err.Error(), "default_max_turns must be a positive integer when set")
 		assert.Contains(t, err.Error(), "default_timeout_minutes must be a positive integer when set")
+		assert.Contains(t, err.Error(), "default_utc cannot be empty when set")
 		assert.Contains(t, err.Error(), "default_model_copilot cannot be empty when set")
 	})
 }
@@ -183,6 +188,8 @@ func TestDefaultsBuildUpdateChanges(t *testing.T) {
 	assert.True(t, changes[1].delete)
 	assert.Equal(t, "default_max_turns", changes[2].field)
 	assert.True(t, changes[2].delete)
+	assert.Equal(t, "default_utc", changes[5].field)
+	assert.True(t, changes[5].delete)
 	assert.Equal(t, "default_model_codex", changes[len(changes)-1].field)
 	assert.Equal(t, "gpt-5.5", changes[len(changes)-1].value)
 }

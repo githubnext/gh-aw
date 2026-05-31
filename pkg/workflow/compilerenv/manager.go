@@ -30,6 +30,10 @@ const (
 	// job model when threat-detection.engine.model is not set.
 	DefaultDetectionModel = "GH_AW_DEFAULT_DETECTION_MODEL"
 
+	// DefaultUTC is the enterprise override for the project home timezone used
+	// when rendering local times in CLI output.
+	DefaultUTC = "GH_AW_DEFAULT_UTC"
+
 	// DefaultModelCopilot is the enterprise override for Copilot fallback model selection.
 	DefaultModelCopilot = "GH_AW_DEFAULT_MODEL_COPILOT"
 	// DefaultModelClaude is the enterprise override for Claude fallback model selection.
@@ -103,6 +107,17 @@ func ResolveDefaultDetectionModel(fallback string) string {
 		return fallback
 	}
 	managerLog.Printf("Applying enterprise detection model override %s=%q (fallback was %q)", DefaultDetectionModel, raw, fallback)
+	return raw
+}
+
+// ResolveDefaultUTC returns fallback when the env var is unset, otherwise
+// returns the trimmed override value.
+func ResolveDefaultUTC(fallback string) string {
+	raw := strings.TrimSpace(os.Getenv(DefaultUTC))
+	if raw == "" {
+		return fallback
+	}
+	managerLog.Printf("Applying enterprise timezone override %s=%q (fallback was %q)", DefaultUTC, raw, fallback)
 	return raw
 }
 

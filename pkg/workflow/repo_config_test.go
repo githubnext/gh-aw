@@ -209,6 +209,24 @@ func TestLoadRepoConfig_GHESWithMaintenance(t *testing.T) {
 	assert.Equal(t, RunsOnValue{"self-hosted"}, cfg.Maintenance.RunsOn)
 }
 
+func TestLoadRepoConfig_UTC(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"utc": "America/Los_Angeles"}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json with utc should load without error")
+	assert.Equal(t, "America/Los_Angeles", cfg.UTC)
+}
+
+func TestLoadRepoConfig_InvalidUTC(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"utc": "Invalid/Timezone"}`)
+
+	_, err := LoadRepoConfig(dir)
+	assert.Error(t, err, "invalid timezone should return an error")
+	assert.Contains(t, err.Error(), "utc must be a valid IANA timezone")
+}
+
 // TestFormatRunsOn tests the YAML serialisation of runs-on values.
 func TestFormatRunsOn(t *testing.T) {
 	const def = "ubuntu-slim"
