@@ -1,4 +1,5 @@
 {
+  "utc": "-08:00",
   "maintenance": {
     "action_failure_issue_expires": 12,
     "label_triggers": true
