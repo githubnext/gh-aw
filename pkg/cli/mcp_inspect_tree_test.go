@@ -63,42 +63,10 @@ func TestRenderMCPInspectionTree_SortsServersDeterministically(t *testing.T) {
 	assert.Less(t, githubStdioIdx, playwrightIdx)
 }
 
-func TestResolveWorkflowEngineID(t *testing.T) {
-	tests := []struct {
-		name         string
-		workflowData *workflow.WorkflowData
-		want         string
-	}{
-		{
-			name:         "nil workflow data",
-			workflowData: nil,
-			want:         "unknown",
-		},
-		{
-			name: "engine config id",
-			workflowData: &workflow.WorkflowData{
-				EngineConfig: &workflow.EngineConfig{ID: "copilot"},
-				AI:           "claude",
-			},
-			want: "copilot",
-		},
-		{
-			name: "fallback to ai",
-			workflowData: &workflow.WorkflowData{
-				AI: "claude",
-			},
-			want: "claude",
-		},
-		{
-			name:         "unknown",
-			workflowData: &workflow.WorkflowData{},
-			want:         "unknown",
-		},
-	}
+func TestRenderMCPInspectionTree_UnknownEngineFallback(t *testing.T) {
+	result := renderMCPInspectionTree("/tmp/audit-workflows.md", &workflow.WorkflowData{}, []parser.RegistryMCPServerConfig{
+		{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio"}, Name: "github"},
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, resolveWorkflowEngineID(tt.workflowData))
-		})
-	}
+	assert.Contains(t, result, "Engine: unknown")
 }

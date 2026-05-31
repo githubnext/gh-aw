@@ -36,84 +36,92 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		fn, ok := n.(*ast.FuncDecl)
-		if !ok || fn.Body == nil {
-			return
-		}
-
-		pos := pass.Fset.PositionFor(fn.Pos(), false)
-		if filecheck.IsTestFile(pos.Filename) {
-			return
-		}
-
-		// Track mutex variables: types.Object -> *mutexVarState (lock position, hasDefer, hasManualUnlock)
-		mutexVars := make(map[types.Object]*mutexVarState)
-
-		// Walk all statements in the function body
-		ast.Inspect(fn.Body, func(node ast.Node) bool {
-			if node == nil {
-				return false
-			}
-
-			// Do not descend into function literals — closures are independent
-			if _, ok := node.(*ast.FuncLit); ok {
-				return false
-			}
-
-			// Look for mutex Lock() calls
-			if exprStmt, ok := node.(*ast.ExprStmt); ok {
-				if call, ok := exprStmt.X.(*ast.CallExpr); ok {
-					if obj := getLockCallObj(pass, call); obj != nil {
-						// If this mutex was already tracked from a prior lock on the same
-						// binding, report any unresolved violation before overwriting state.
-						if prev, exists := mutexVars[obj]; exists && prev.hasManualUnlock && !prev.hasDefer {
-							pass.Report(analysis.Diagnostic{
-								Pos:     prev.lockPos,
-								Message: "mutex Unlock() should be deferred immediately after Lock() to prevent deadlocks on panic or early return",
-							})
-						}
-						mutexVars[obj] = &mutexVarState{
-							lockPos: call.Pos(),
-						}
-					}
-				}
-			}
-
-			// Look for defer mu.Unlock()
-			if deferStmt, ok := node.(*ast.DeferStmt); ok {
-				if obj := getUnlockCallObj(pass, deferStmt.Call); obj != nil {
-					if state, found := mutexVars[obj]; found {
-						state.hasDefer = true
-					}
-				}
-			}
-
-			// Look for non-deferred mu.Unlock() in expression statements
-			if exprStmt, ok := node.(*ast.ExprStmt); ok {
-				if call, ok := exprStmt.X.(*ast.CallExpr); ok {
-					if obj := getUnlockCallObj(pass, call); obj != nil {
-						if state, found := mutexVars[obj]; found {
-							state.hasManualUnlock = true
-						}
-					}
-				}
-			}
-
-			return true
-		})
-
-		// Report mutexes with manual unlock but no defer
-		for _, state := range mutexVars {
-			if state.hasManualUnlock && !state.hasDefer {
-				pass.Report(analysis.Diagnostic{
-					Pos:     state.lockPos,
-					Message: "mutex Unlock() should be deferred immediately after Lock() to prevent deadlocks on panic or early return",
-				})
-			}
-		}
+		inspectMutexFuncDecl(pass, n)
 	})
 
 	return nil, nil
+}
+
+func inspectMutexFuncDecl(pass *analysis.Pass, n ast.Node) {
+	fn, ok := n.(*ast.FuncDecl)
+	if !ok || fn.Body == nil {
+		return
+	}
+
+	pos := pass.Fset.PositionFor(fn.Pos(), false)
+	if filecheck.IsTestFile(pos.Filename) {
+		return
+	}
+
+	// Track mutex variables: types.Object -> *mutexVarState (lock position, hasDefer, hasManualUnlock)
+	mutexVars := make(map[types.Object]*mutexVarState)
+
+	// Walk all statements in the function body
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		return inspectMutexNode(pass, mutexVars, node)
+	})
+
+	// Report mutexes with manual unlock but no defer
+	for _, state := range mutexVars {
+		if state.hasManualUnlock && !state.hasDefer {
+			pass.Report(analysis.Diagnostic{
+				Pos:     state.lockPos,
+				Message: "mutex Unlock() should be deferred immediately after Lock() to prevent deadlocks on panic or early return",
+			})
+		}
+	}
+}
+
+func inspectMutexNode(pass *analysis.Pass, mutexVars map[types.Object]*mutexVarState, node ast.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	// Do not descend into function literals — closures are independent
+	if _, ok := node.(*ast.FuncLit); ok {
+		return false
+	}
+
+	// Look for mutex Lock() calls
+	if exprStmt, ok := node.(*ast.ExprStmt); ok {
+		if call, ok := exprStmt.X.(*ast.CallExpr); ok {
+			if obj := getLockCallObj(pass, call); obj != nil {
+				// If this mutex was already tracked from a prior lock on the same
+				// binding, report any unresolved violation before overwriting state.
+				if prev, exists := mutexVars[obj]; exists && prev.hasManualUnlock && !prev.hasDefer {
+					pass.Report(analysis.Diagnostic{
+						Pos:     prev.lockPos,
+						Message: "mutex Unlock() should be deferred immediately after Lock() to prevent deadlocks on panic or early return",
+					})
+				}
+				mutexVars[obj] = &mutexVarState{
+					lockPos: call.Pos(),
+				}
+			}
+		}
+	}
+
+	// Look for defer mu.Unlock()
+	if deferStmt, ok := node.(*ast.DeferStmt); ok {
+		if obj := getUnlockCallObj(pass, deferStmt.Call); obj != nil {
+			if state, found := mutexVars[obj]; found {
+				state.hasDefer = true
+			}
+		}
+	}
+
+	// Look for non-deferred mu.Unlock() in expression statements
+	if exprStmt, ok := node.(*ast.ExprStmt); ok {
+		if call, ok := exprStmt.X.(*ast.CallExpr); ok {
+			if obj := getUnlockCallObj(pass, call); obj != nil {
+				if state, found := mutexVars[obj]; found {
+					state.hasManualUnlock = true
+				}
+			}
+		}
+	}
+
+	return true
 }
 
 type mutexVarState struct {

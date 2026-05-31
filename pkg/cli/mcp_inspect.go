@@ -211,27 +211,19 @@ func renderMCPInspectionTree(workflowPath string, workflowData *workflow.Workflo
 		serversTree.Child(fmt.Sprintf("%s (%s)", config.Name, config.Type))
 	}
 
+	engineID := workflow.ResolveEngineID(workflowData)
+	if engineID == "" {
+		engineID = "unknown"
+	}
+
 	return tree.
 		Root("Workflow: " + workflowLabel).
-		Child("Engine: " + resolveWorkflowEngineID(workflowData)).
+		Child("Engine: " + engineID).
 		Child(serversTree).
 		Enumerator(tree.RoundedEnumerator).
 		EnumeratorStyle(styles.TreeEnumerator).
 		ItemStyle(styles.TreeNode).
 		String()
-}
-
-func resolveWorkflowEngineID(workflowData *workflow.WorkflowData) string {
-	if workflowData == nil {
-		return "unknown"
-	}
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
-		return workflowData.EngineConfig.ID
-	}
-	if workflowData.AI != "" {
-		return workflowData.AI
-	}
-	return "unknown"
 }
 
 // NewMCPInspectSubcommand creates the mcp inspect subcommand

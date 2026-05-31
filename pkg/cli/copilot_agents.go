@@ -1,6 +1,7 @@
 package cli
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,20 +16,13 @@ import (
 
 var copilotAgentsLog = logger.New("cli:copilot_agents")
 
-const agenticWorkflowsAgentHeader = "---\n" +
-	"name: Agentic Workflows\n" +
-	"description: Minimal file index for GitHub Agentic Workflows tasks in this repository.\n" +
-	"---\n\n" +
-	"# Agentic Workflows\n\n"
+const agenticWorkflowsSkillFileListPlaceholder = "{{AW_FILE_LIST}}"
 
-const agenticWorkflowsSkillHeader = "---\n" +
-	"name: agentic-workflows\n" +
-	"description: Route gh-aw workflow create/debug/upgrade requests to the right prompts.\n" +
-	"---\n\n" +
-	"# Agentic Workflows Router\n\n"
+//go:embed data/agentic_workflows_agent.md
+var agenticWorkflowsAgentTemplate string
 
-const agenticWorkflowsSkillIntro = "Use this skill when a user asks to create, update, debug, or upgrade GitHub Agentic Workflows.\n\nRead only the files you need:\nLoad these files from `github/gh-aw` (they are not available locally).\n"
-const agenticWorkflowsSkillOutro = "\nWhen the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching workflow prompt.\n"
+//go:embed data/agentic_workflows_skill.md
+var agenticWorkflowsSkillTemplate string
 
 // ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md
 // exists and contains the routing instructions loaded by the Agentic Workflows agent.
@@ -151,7 +145,7 @@ func ensureAgenticWorkflowsAgent(verbose bool) error {
 }
 
 func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
-	return agenticWorkflowsAgentHeader + "Always load and follow `.github/skills/agentic-workflows/SKILL.md`.\n", nil
+	return agenticWorkflowsAgentTemplate, nil
 }
 
 func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
@@ -160,7 +154,7 @@ func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			// No .github/aw directory yet — emit a minimal skill without the file list.
-			return agenticWorkflowsSkillHeader + agenticWorkflowsSkillIntro + agenticWorkflowsSkillOutro, nil
+			return strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, "", 1), nil
 		}
 		return "", fmt.Errorf("failed to read .github/aw directory for skill generation (%s): %w", awRoot, err)
 	}
@@ -183,7 +177,11 @@ func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
 		fmt.Fprintf(&fileList, "- `.github/aw/%s`\n", file)
 	}
 
-	return agenticWorkflowsSkillHeader + agenticWorkflowsSkillIntro + fileList.String() + agenticWorkflowsSkillOutro, nil
+	if !strings.Contains(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder) {
+		return "", fmt.Errorf("agentic workflows skill template is missing %s placeholder", agenticWorkflowsSkillFileListPlaceholder)
+	}
+
+	return strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, fileList.String(), 1), nil
 }
 
 // cleanupOldPromptFile removes an old prompt file from .github/prompts/ if it exists

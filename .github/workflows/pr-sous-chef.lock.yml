@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"8e9f4f7ce877688379ee33ec67ac77d38a83683a1b3c628426bad6ae31595dd3","body_hash":"f4c452d381208090d0c476ba965d0b748096dd34e2bcc5b8a64200352493e491","strict":true,"agent_id":"copilot","agent_model":"gpt-5-mini"}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"d6e73c60aad4b27fa2ddd50622a9ee84c6db67084acb097d517e1ced8588d170","body_hash":"ea06db64f015ab50d45ae0e9b90a8bcc6d794b88e2cbb9ee4bf3b89900443b05","strict":true,"agent_id":"copilot","agent_model":"gpt-5-mini"}
 # gh-aw-manifest: {"version":1,"secrets":["GH_AW_CI_TRIGGER_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.58"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.22"},{"image":"ghcr.io/github/github-mcp-server:v1.1.0"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -204,23 +204,23 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_2acf41629485b7f3_EOF'
+          cat << 'GH_AW_PROMPT_d28a4e05b8a828ec_EOF'
           <system>
-          GH_AW_PROMPT_2acf41629485b7f3_EOF
+          GH_AW_PROMPT_d28a4e05b8a828ec_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_2acf41629485b7f3_EOF'
+          cat << 'GH_AW_PROMPT_d28a4e05b8a828ec_EOF'
           <safe-output-tools>
           Tools: add_comment(max:20), update_pull_request(max:10), push_to_pull_request_branch(max:10), missing_tool, missing_data, noop
-          GH_AW_PROMPT_2acf41629485b7f3_EOF
+          GH_AW_PROMPT_d28a4e05b8a828ec_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_push_to_pr_branch.md"
-          cat << 'GH_AW_PROMPT_2acf41629485b7f3_EOF'
+          cat << 'GH_AW_PROMPT_d28a4e05b8a828ec_EOF'
           </safe-output-tools>
-          GH_AW_PROMPT_2acf41629485b7f3_EOF
+          GH_AW_PROMPT_d28a4e05b8a828ec_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_2acf41629485b7f3_EOF'
+          cat << 'GH_AW_PROMPT_d28a4e05b8a828ec_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -252,13 +252,13 @@ jobs:
             - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. If the branch is required and not available, exit with an error and ask the user to add it to the `fetch:` option of the `checkout:` configuration (e.g., `fetch: ["refs/pulls/open/*"]` for all open PR refs, or `fetch: ["main", "feature/my-branch"]` for specific branches).
           </github-context>
           
-          GH_AW_PROMPT_2acf41629485b7f3_EOF
+          GH_AW_PROMPT_d28a4e05b8a828ec_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_2acf41629485b7f3_EOF'
+          cat << 'GH_AW_PROMPT_d28a4e05b8a828ec_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/pr-sous-chef.md}}
-          GH_AW_PROMPT_2acf41629485b7f3_EOF
+          GH_AW_PROMPT_d28a4e05b8a828ec_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -435,21 +435,21 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Setup Go
+      - env:
+          EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        id: fetch-prs
+        name: Fetch open non-draft PR queue
+        run: "mkdir -p /tmp/gh-aw/agent\ncandidate_file=/tmp/gh-aw/agent/pr-sous-chef-candidates.json\neligible_file=/tmp/gh-aw/agent/pr-sous-chef-eligible.json\nsous_chef_nudge_marker='<!-- gh-aw-pr-sous-chef-nudge -->'\nfiltered_checks_pending=0\nfiltered_last_comment_from_sous_chef=0\n\ngh pr list --repo \"$EXPR_GITHUB_REPOSITORY\" \\\n  --state open \\\n  --search \"is:pr is:open -is:draft sort:updated-desc\" \\\n  --limit 30 \\\n  --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus \\\n  > \"$candidate_file\"\n\njq -n '[]' > \"$eligible_file\"\n\nwhile IFS= read -r pr; do\n  pr_number=\"$(jq -r '.number' <<<\"$pr\")\"\n  if [ -z \"$pr_number\" ] || [ \"$pr_number\" = \"null\" ]; then\n    continue\n  fi\n\n  checks_state=\"$(\n    {\n      gh aw checks \"$pr_number\" --repo \"$EXPR_GITHUB_REPOSITORY\" --json \\\n        | jq -r '.required_state // .state // \"unknown\"'\n    } 2>/dev/null || echo \"unknown\"\n  )\"\n  if [ \"$checks_state\" = \"pending\" ]; then\n    filtered_checks_pending=$((filtered_checks_pending + 1))\n    continue\n  fi\n\n  last_comment_is_sous_chef=\"$(\n    gh api \"repos/$EXPR_GITHUB_REPOSITORY/issues/$pr_number/comments?per_page=1&sort=created&direction=desc\" \\\n      --jq '\n        if length == 0 then false\n        else (\n          ((.[0].body // \"\" | contains($marker)))\n         ) end\n      ' --arg marker \"$sous_chef_nudge_marker\" 2>/dev/null || echo \"false\"\n  )\"\n  if [ \"$last_comment_is_sous_chef\" = \"true\" ]; then\n    filtered_last_comment_from_sous_chef=$((filtered_last_comment_from_sous_chef + 1))\n    continue\n  fi\n\n  jq --argjson pr \"$pr\" '. + [$pr]' \"$eligible_file\" > \"${eligible_file}.tmp\" && mv \"${eligible_file}.tmp\" \"$eligible_file\"\n# Process substitution keeps the loop in the current shell so counters persist.\ndone < <(jq -c '.[]' \"$candidate_file\")\n\njq --argjson filtered_checks_pending \"$filtered_checks_pending\" \\\n   --argjson filtered_last_comment_from_sous_chef \"$filtered_last_comment_from_sous_chef\" '{\n  fetched: (length),\n  generated_at: (now | todate),\n  filtered_checks_pending: $filtered_checks_pending,\n  filtered_last_comment_from_sous_chef: $filtered_last_comment_from_sous_chef,\n  prs: map({\n    number,\n    title,\n    url,\n    headRefOid,\n    headRefName,\n    updatedAt,\n    author: (.author.login // \"unknown\"),\n    mergeStateStatus\n  })\n}' \"$eligible_file\" \\\n  > /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json\necho \"eligible_count=$(jq '.prs | length' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)\" >> \"$GITHUB_OUTPUT\"\n"
+      - if: steps.fetch-prs.outputs.eligible_count != '0'
+        name: Setup Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           cache: true
           go-version-file: go.mod
-      - name: Install npm dependencies
-        run: npm ci
-        working-directory: ./actions/setup/js
-      - name: Install development dependencies
-        run: make deps-dev
-      - env:
-          EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-        name: Fetch open non-draft PR queue
-        run: "mkdir -p /tmp/gh-aw/agent\ncandidate_file=/tmp/gh-aw/agent/pr-sous-chef-candidates.json\neligible_file=/tmp/gh-aw/agent/pr-sous-chef-eligible.json\nsous_chef_nudge_marker='<!-- gh-aw-pr-sous-chef-nudge -->'\nfiltered_checks_pending=0\nfiltered_last_comment_from_sous_chef=0\n\ngh pr list --repo \"$EXPR_GITHUB_REPOSITORY\" \\\n  --state open \\\n  --search \"is:pr is:open -is:draft sort:updated-desc\" \\\n  --limit 30 \\\n  --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus \\\n  > \"$candidate_file\"\n\njq -n '[]' > \"$eligible_file\"\n\nwhile IFS= read -r pr; do\n  pr_number=\"$(jq -r '.number' <<<\"$pr\")\"\n  if [ -z \"$pr_number\" ] || [ \"$pr_number\" = \"null\" ]; then\n    continue\n  fi\n\n  checks_state=\"$(\n    {\n      gh aw checks \"$pr_number\" --repo \"$EXPR_GITHUB_REPOSITORY\" --json \\\n        | jq -r '.required_state // .state // \"unknown\"'\n    } 2>/dev/null || echo \"unknown\"\n  )\"\n  if [ \"$checks_state\" = \"pending\" ]; then\n    filtered_checks_pending=$((filtered_checks_pending + 1))\n    continue\n  fi\n\n  last_comment_is_sous_chef=\"$(\n    gh api \"repos/$EXPR_GITHUB_REPOSITORY/issues/$pr_number/comments?per_page=1&sort=created&direction=desc\" \\\n      --jq '\n        if length == 0 then false\n        else (\n          ((.[0].body // \"\" | contains($marker)))\n         ) end\n      ' --arg marker \"$sous_chef_nudge_marker\" 2>/dev/null || echo \"false\"\n  )\"\n  if [ \"$last_comment_is_sous_chef\" = \"true\" ]; then\n    filtered_last_comment_from_sous_chef=$((filtered_last_comment_from_sous_chef + 1))\n    continue\n  fi\n\n  jq --argjson pr \"$pr\" '. + [$pr]' \"$eligible_file\" > \"${eligible_file}.tmp\" && mv \"${eligible_file}.tmp\" \"$eligible_file\"\n# Process substitution keeps the loop in the current shell so counters persist.\ndone < <(jq -c '.[]' \"$candidate_file\")\n\njq --argjson filtered_checks_pending \"$filtered_checks_pending\" \\\n   --argjson filtered_last_comment_from_sous_chef \"$filtered_last_comment_from_sous_chef\" '{\n  fetched: (length),\n  generated_at: (now | todate),\n  filtered_checks_pending: $filtered_checks_pending,\n  filtered_last_comment_from_sous_chef: $filtered_last_comment_from_sous_chef,\n  prs: map({\n    number,\n    title,\n    url,\n    headRefOid,\n    headRefName,\n    updatedAt,\n    author: (.author.login // \"unknown\"),\n    mergeStateStatus\n  })\n}' \"$eligible_file\" \\\n  > /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json\n"
+      - if: steps.fetch-prs.outputs.eligible_count != '0'
+        name: Install formatter dependencies
+        run: npm ci --prefix actions/setup/js
 
       - name: Configure Git credentials
         env:
@@ -521,9 +521,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_f50563ca90cc3ae1_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_b780849678a5e0c1_EOF'
           {"add_comment":{"max":20,"target":"*"},"create_report_incomplete_issue":{},"mentions":{"allowed":["copilot"]},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_to_pull_request_branch":{"commit_title_suffix":" [pr-sous-chef]","excluded_files":[".github/workflows/**"],"if_no_changes":"ignore","max":10,"max_patch_size":1024,"protect_top_level_dot_folders":true,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","DESIGN.md","README.md","CONTRIBUTING.md","CHANGELOG.md","SECURITY.md","CODE_OF_CONDUCT.md","AGENTS.md","CLAUDE.md","GEMINI.md"],"target":"*"},"report_incomplete":{},"update_pull_request":{"allow_body":true,"allow_title":false,"default_operation":"append","max":10,"target":"*","update_branch":true}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_f50563ca90cc3ae1_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_b780849678a5e0c1_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -775,7 +775,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_3ccf7f6e439f0e7d_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_0e6511400f98b3cc_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "safeoutputs": {
@@ -805,7 +805,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_3ccf7f6e439f0e7d_EOF
+          GH_AW_MCP_CONFIG_0e6511400f98b3cc_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

@@ -105,8 +105,15 @@ The YAML frontmatter supports these fields:
   - Exception: `id-token: write` is allowed to enable OIDC token minting for external authentication, but use with caution and follow security best practices
 - **`runs-on:`** - Runner type for the main agent job (string, array, or object)
 - **`runs-on-slim:`** - Runner type for all framework/generated jobs (activation, safe-outputs, unlock, etc.). Defaults to `ubuntu-slim`. `safe-outputs.runs-on` takes precedence for safe-output jobs specifically.
-- **`timeout-minutes:`** - Agent execution step timeout in minutes (integer or GitHub Actions expression, defaults to 20 minutes; custom and safe-output jobs use the GitHub Actions platform default of 360 minutes unless explicitly set). Expressions enable `workflow_call` reusable workflows to parameterize timeouts: `timeout-minutes: ${{ inputs.timeout }}`
+- **`timeout-minutes:`** - Agent execution step timeout in minutes (integer or GitHub Actions expression, defaults to 20 minutes; custom and safe-output jobs use the GitHub Actions platform default of 360 minutes unless explicitly set). Expressions are useful in compiled workflows that define `workflow_call` inputs, for example `timeout-minutes: ${{ inputs.timeout }}`. This setting applies to the workflow being compiled, not to plain GitHub Actions caller jobs that use job-level `uses:` (GitHub does not allow `timeout-minutes` on those caller jobs).
 - **`concurrency:`** - Concurrency control (string or object)
+  - **`queue:`** - Pending run queue behavior for the concurrency group (`single` or `max`, defaults to `single`). `single` keeps one pending run and replaces older pending runs; `max` allows up to 100 pending runs in FIFO order (useful for conclusion jobs that must not be dropped).
+
+    ```yaml
+    concurrency:
+      group: "my-workflow"
+      queue: max
+    ```
   - **`job-discriminator:`** - Expression appended to compiler-generated job-level concurrency groups (`agent`, `output`, and `conclusion` jobs), preventing fan-out cancellations when multiple workflow instances run concurrently with different inputs. Common usage:
 
     ```yaml
@@ -152,6 +159,7 @@ The YAML frontmatter supports these fields:
 ### Agentic Workflow Specific Fields
 
 - **`description:`** - Human-readable workflow description (string)
+- **`emoji:`** - Optional single emoji used to represent the workflow visually; recommended for quicker recognition in workflow lists and status output (string)
 - **`source:`** - Workflow origin tracking in format `owner/repo/path@ref` (string)
 - **`labels:`** - Array of labels to categorize and organize workflows (array)
   - Labels filter workflows in status/list commands
@@ -333,11 +341,10 @@ The YAML frontmatter supports these fields:
         if: "hashFiles('go.mod') != ''"   # Only install Go when go.mod exists
     ```
 
-- **`run-install-scripts:`** - Allow npm pre/post install scripts to execute during package installation (boolean, default: `false`)
+- **`runtimes.node.run-install-scripts:`** - Allow npm pre/post install scripts to execute during package installation for the Node.js runtime (boolean, default: `false`)
   - By default, `--ignore-scripts` is added to all generated npm install commands to prevent supply chain attacks via malicious install hooks
-  - When `true`, disables this protection globally for all runtimes that generate `npm install` commands
+  - Set `run-install-scripts: true` under `runtimes.node` to allow scripts for Node.js installs
   - A supply chain security warning is emitted at compile time; in strict mode this is an error
-  - Per-runtime control is also available via `runtimes.node.run-install-scripts: true` to limit scope to a specific runtime
 
 - **`checkout:`** - Override how the repository is checked out in the agent job (object, array, or `false`)
   - By default, the workflow automatically checks out the repository. Use this field to customize checkout behavior.
@@ -474,6 +481,7 @@ The YAML frontmatter supports these fields:
       agent:
         id: awf                     # Required in strict mode
         version: "v0.25.29"         # Optional: pin AWF version
+        model-fallback: false       # Optional: disable model fallback (default true); set false for BYOK Azure OpenAI to prevent deployment-name rewriting
     ```
 
   - To disable the agent firewall while keeping MCP gateway enabled (not allowed in strict mode):

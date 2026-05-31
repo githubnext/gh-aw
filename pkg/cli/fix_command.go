@@ -187,6 +187,10 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 		fixLog.Printf("Failed to update dispatcher skill: %v", err)
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update dispatcher skill: %v", err)))
 	}
+	if err := ensureAgenticWorkflowsAgent(verbose); err != nil {
+		fixLog.Printf("Failed to update agentic workflows custom agent: %v", err)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update agentic workflows custom agent: %v", err)))
+	}
 
 	// Delete old template files from pkg/cli/templates/ (only with --write)
 	if write {

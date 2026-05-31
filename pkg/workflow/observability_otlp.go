@@ -19,12 +19,6 @@ var otlpLog = logger.New("workflow:observability_otlp")
 // equals (`=`) per the OpenTelemetry env-var resource attribute grammar.
 var otelResourceValueEscaper = strings.NewReplacer(`\`, `\\`, ",", `\,`, "=", `\=`)
 
-// escapeYAMLSingleQuotedScalar escapes single quotes for YAML single-quoted
-// scalars by doubling each `'` per YAML 1.2.
-func escapeYAMLSingleQuotedScalar(value string) string {
-	return strings.ReplaceAll(value, "'", "''")
-}
-
 var sentryEndpointExpressionPattern = regexp.MustCompile(`(?i)^\$\{\{\s*secrets\.` + regexp.QuoteMeta(constants.OTELSentryEndpointSecretName) + `\s*\}\}$`)
 
 func normalizeOTLPHeadersForEndpoint(raw any, endpoint string) string {
@@ -688,7 +682,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	//    compatibility (MCP gateway, legacy scripts). OTEL_SERVICE_NAME is
 	//    workflow-specific when WorkflowID is available.
 	otlpEnvLines := fmt.Sprintf("  OTEL_EXPORTER_OTLP_ENDPOINT: %s\n  OTEL_SERVICE_NAME: %s", firstEndpoint, serviceName)
-	otlpEnvLines += "\n  OTEL_RESOURCE_ATTRIBUTES: '" + escapeYAMLSingleQuotedScalar(otelResourceAttributes(workflowData)) + "'"
+	otlpEnvLines += "\n  OTEL_RESOURCE_ATTRIBUTES: '" + escapeYAMLSingleQuoted(otelResourceAttributes(workflowData)) + "'"
 
 	// 3. Inject per-endpoint headers env vars.
 	//    OTEL_EXPORTER_OTLP_HEADERS = first endpoint headers (backward compat).
@@ -706,7 +700,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	// The value is single-quoted to prevent YAML parsers from interpreting the
 	// leading '[' as a YAML sequence node rather than a plain string.
 	if encoded := encodeOTLPEndpoints(entries); encoded != "" {
-		escapedEncoded := escapeYAMLSingleQuotedScalar(encoded)
+		escapedEncoded := escapeYAMLSingleQuoted(encoded)
 		otlpEnvLines += "\n  GH_AW_OTLP_ENDPOINTS: '" + escapedEncoded + "'"
 		otlpLog.Printf("Injected GH_AW_OTLP_ENDPOINTS env var")
 	}
@@ -729,7 +723,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 		customAttrs = workflowData.ParsedFrontmatter.Observability.OTLP.Attributes
 	}
 	if encoded := encodeOTLPCustomAttributes(customAttrs); encoded != "" {
-		escapedEncoded := escapeYAMLSingleQuotedScalar(encoded)
+		escapedEncoded := escapeYAMLSingleQuoted(encoded)
 		otlpEnvLines += "\n  GH_AW_OTLP_ATTRIBUTES: '" + escapedEncoded + "'"
 		otlpLog.Printf("Injected GH_AW_OTLP_ATTRIBUTES env var (%d custom attributes)", len(customAttrs))
 	}
@@ -773,16 +767,6 @@ func otelServiceName(workflowData *WorkflowData) string {
 	return defaultServiceName + "." + sanitizedWorkflowName
 }
 
-func resolveWorkflowEngineID(workflowData *WorkflowData) string {
-	if workflowData == nil {
-		return ""
-	}
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
-		return workflowData.EngineConfig.ID
-	}
-	return workflowData.AI
-}
-
 func escapeOTELResourceAttributeValue(value string) string {
 	return otelResourceValueEscaper.Replace(value)
 }
@@ -801,7 +785,7 @@ func otelResourceAttributes(workflowData *WorkflowData) string {
 		"gh-aw.run.id=${{ github.run_id }}",
 		"github.run_id=${{ github.run_id }}",
 	}
-	if engineID := resolveWorkflowEngineID(workflowData); engineID != "" {
+	if engineID := ResolveEngineID(workflowData); engineID != "" {
 		attrs = append(attrs, "gh-aw.engine.id="+escapeOTELResourceAttributeValue(engineID))
 	}
 	return strings.Join(attrs, ",")

@@ -62,7 +62,14 @@ describe("update_pull_request_branches", () => {
     });
     mockGithub.rest.pulls.updateBranch.mockResolvedValue({ data: {} });
 
-    await moduleUnderTest.main();
+    vi.useFakeTimers();
+    try {
+      const mainPromise = moduleUnderTest.main();
+      await vi.runAllTimersAsync();
+      await mainPromise;
+    } finally {
+      vi.useRealTimers();
+    }
 
     expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(2);
     expect(mockGithub.rest.pulls.updateBranch).toHaveBeenNthCalledWith(1, {
@@ -139,5 +146,85 @@ describe("update_pull_request_branches", () => {
     expect(result).toEqual([]);
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("reason=head_repository_missing"));
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("head_repo=unknown"));
+  });
+
+  it("returns early when there are no open pull requests", async () => {
+    mockGithub.paginate.mockResolvedValue([]);
+
+    await moduleUnderTest.main();
+
+    expect(mockGithub.rest.pulls.get).not.toHaveBeenCalled();
+    expect(mockGithub.rest.pulls.updateBranch).not.toHaveBeenCalled();
+  });
+
+  it("returns early when no pull requests are mergeable", async () => {
+    mockGithub.paginate.mockResolvedValue([{ number: 1 }]);
+    mockGithub.rest.pulls.get.mockResolvedValue({
+      data: { state: "open", mergeable: false, draft: false, head: { repo: { full_name: "owner/repo" } } },
+    });
+
+    await moduleUnderTest.main();
+
+    expect(mockGithub.rest.pulls.updateBranch).not.toHaveBeenCalled();
+  });
+
+  it("counts fatal errors separately from non-fatal errors", async () => {
+    mockGithub.paginate.mockResolvedValue([{ number: 10 }, { number: 11 }]);
+    mockGithub.rest.pulls.get.mockResolvedValue({
+      data: { state: "open", mergeable: true, draft: false, head: { repo: { full_name: "owner/repo" } } },
+    });
+    const fatalErr = new Error("Something unexpected");
+    const nonFatalErr = Object.assign(new Error("update branch failed"), { status: 422 });
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(fatalErr).mockRejectedValueOnce(nonFatalErr);
+
+    vi.useFakeTimers();
+    try {
+      const mainPromise = moduleUnderTest.main();
+      await vi.runAllTimersAsync();
+      await expect(mainPromise).resolves.not.toThrow();
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to update branch for PR #10"));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Skipping PR #11"));
+    expect(mockCore.notice).toHaveBeenCalledWith(expect.stringContaining("updated=0, skipped=1, failed=1"));
+  });
+
+  it("identifies non-fatal error by status 422", () => {
+    const err = Object.assign(new Error("Unprocessable"), { status: 422 });
+    expect(moduleUnderTest.isNonFatalUpdateBranchError(err)).toBe(true);
+  });
+
+  it("identifies non-fatal error by message 'update branch failed'", () => {
+    expect(moduleUnderTest.isNonFatalUpdateBranchError(new Error("Update branch failed"))).toBe(true);
+  });
+
+  it("identifies non-fatal error by message 'head branch is not behind'", () => {
+    expect(moduleUnderTest.isNonFatalUpdateBranchError(new Error("Head branch is not behind base branch"))).toBe(true);
+  });
+
+  it("does not treat other errors as non-fatal", () => {
+    expect(moduleUnderTest.isNonFatalUpdateBranchError(new Error("Something else went wrong"))).toBe(false);
+  });
+
+  it("filters out non-integer pull request numbers", async () => {
+    mockGithub.paginate.mockResolvedValue([{ number: 1 }, { number: "bad" }, { number: null }, { number: 2 }]);
+    mockGithub.rest.pulls.get.mockResolvedValue({
+      data: { state: "open", mergeable: true, draft: false, head: { repo: { full_name: "owner/repo" } } },
+    });
+    mockGithub.rest.pulls.updateBranch.mockResolvedValue({ data: {} });
+
+    vi.useFakeTimers();
+    try {
+      const mainPromise = moduleUnderTest.main();
+      await vi.runAllTimersAsync();
+      await mainPromise;
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(2);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 1 }));
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 2 }));
   });
 });

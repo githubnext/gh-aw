@@ -55,6 +55,10 @@ func NewJobManager() *JobManager {
 
 // AddJob adds a job to the manager
 func (jm *JobManager) AddJob(job *Job) error {
+	if err := validateJobDefinition(job); err != nil {
+		return err
+	}
+
 	if job.Name == "" {
 		return errors.New("job name cannot be empty")
 	}

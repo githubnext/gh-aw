@@ -498,5 +498,5 @@ func uniqueSorted(values []string) []string {
 }
 
 func escapeSingleQuotedYAMLString(input string) string {
-	return strings.ReplaceAll(input, "'", "''")
+	return escapeYAMLSingleQuoted(input)
 }

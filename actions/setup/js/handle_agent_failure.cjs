@@ -13,6 +13,7 @@ const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { resolveFirewallAuditLogPath, parseMaxEffectiveTokensFromAuditLog, parseEffectiveTokensErrorInfoFromAuditLog, resolveEffectiveTokensFailureState } = require("./effective_tokens_context.cjs");
 const { formatET, buildETComputationTable } = require("./effective_tokens.cjs");
+const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
 const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp_gateway_log.cjs");
 const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
 const fs = require("fs");
@@ -1681,6 +1682,11 @@ function buildEngineFailureContext() {
 
     // Special handling for provider-side 429/rate-limit failures. These can appear
     // in agent stdio output or only in mirrored OTLP telemetry payloads.
+    if (isMaxEffectiveTokensExceededError(logContent)) {
+      core.info("Detected maximum effective tokens exceeded signal — deferring to ET budget context");
+      return "";
+    }
+
     if (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror()) {
       core.info("Detected engine HTTP 429/rate-limit signal — using dedicated context message");
       return buildEngineRateLimit429Context(engineLabel);

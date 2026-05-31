@@ -40,23 +40,8 @@ tools:
     - "git restore:*"
     - "make fmt"
 steps:
-  - name: Setup Go
-    uses: actions/setup-go@v6.4.0
-    with:
-      go-version-file: go.mod
-      cache: true
-  - name: Setup Node.js
-    uses: actions/setup-node@v6.4.0
-    with:
-      node-version: "24"
-      cache: npm
-      cache-dependency-path: actions/setup/js/package-lock.json
-  - name: Install npm dependencies
-    run: npm ci
-    working-directory: ./actions/setup/js
-  - name: Install development dependencies
-    run: make deps-dev
   - name: Fetch open non-draft PR queue
+    id: fetch-prs
     env:
       GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
@@ -130,6 +115,23 @@ steps:
         })
       }' "$eligible_file" \
         > /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json
+      echo "eligible_count=$(jq '.prs | length' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)" >> "$GITHUB_OUTPUT"
+  - name: Setup Go
+    if: steps.fetch-prs.outputs.eligible_count != '0'
+    uses: actions/setup-go@v6.4.0
+    with:
+      go-version-file: go.mod
+      cache: true
+  - name: Setup Node.js
+    if: steps.fetch-prs.outputs.eligible_count != '0'
+    uses: actions/setup-node@v6.4.0
+    with:
+      node-version: "24"
+      cache: npm
+      cache-dependency-path: actions/setup/js/package-lock.json
+  - name: Install formatter dependencies
+    if: steps.fetch-prs.outputs.eligible_count != '0'
+    run: npm ci --prefix actions/setup/js
 safe-outputs:
   add-comment:
     max: 20
@@ -171,10 +173,11 @@ Move open non-draft PRs toward a state where a maintainer can investigate quickl
 1. Read `/tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json` first.
 2. If `prs` is empty, call `noop` with `"No open non-draft PRs to process"` and stop.
 3. Process PRs in `updatedAt` descending order.
-4. Process at most **10 PRs** per run.
+4. Process at most **5 PRs** per run. Remaining eligible PRs will be handled in the next scheduled run.
 5. Use the `pr-processor` sub-agent for each PR; pass only the PR number and compact context.
-6. Do not fetch full PR diffs or large file lists unless absolutely required for a skip decision.
-7. **Never finish without at least one safe-output tool call.** If you have not called `add_comment` or `update_pull_request`, you must call the run-summary `noop` (see **Run summary** below) before finishing.
+6. If a `pr-processor` call returns non-JSON or an error, record `{pr_number: <N>, skip_reason: "sub_agent_error"}` in the `skipped` array of the run-summary noop payload and move to the next PR without retrying.
+7. Do not fetch full PR diffs or large file lists unless absolutely required for a skip decision.
+8. **Never finish without at least one safe-output tool call.** If you have not called `add_comment` or `update_pull_request`, you must call the run-summary `noop` (see **Run summary** below) before finishing.
 
 ## Required skip rules per PR
 
@@ -267,4 +270,6 @@ Given one PR number and compact metadata:
    - whether branch update should be attempted
    - whether unresolved review feedback exists
    - one concise additional progress nudge recommendation
-4. Keep output compact JSON only.
+4. Make at most 8 tool calls total. If 8 calls are insufficient to reach a confident decision, set all fields to `null` and set `skip_reason: "insufficient_context"`.
+5. Keep output compact JSON only — a single object, no prose.
+6. If you cannot determine a field, set it to `null`.

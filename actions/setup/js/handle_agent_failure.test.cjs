@@ -1376,6 +1376,11 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Last agent output");
     });
 
+    it("suppresses generic 429 context for maximum effective tokens exceeded failures", () => {
+      fs.writeFileSync(stdioLogPath, "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 Maximum effective tokens exceeded (25296477.30 / 25000000).\n");
+      expect(buildEngineFailureContext()).toBe("");
+    });
+
     it("returns dedicated context when 429/rate-limit is only present in OTLP mirror", () => {
       fs.writeFileSync(stdioLogPath, "Agent terminated unexpectedly without clear error details\n");
       fs.writeFileSync(
@@ -2618,6 +2623,14 @@ describe("handle_agent_failure", () => {
       expect(result).toBe("2222");
     });
 
+    it("falls back to sandbox/firewall/logs/audit.jsonl when the audit directory JSONL is absent", () => {
+      const logsDir = path.join(tmpDir, "sandbox", "firewall", "logs");
+      fs.mkdirSync(logsDir, { recursive: true });
+      fs.writeFileSync(path.join(logsDir, "audit.jsonl"), JSON.stringify({ _schema: "audit/v0.26.0", ts: 1, max_effective_tokens: 3333 }));
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      expect(parseMaxEffectiveTokensFromAuditLog()).toBe("3333");
+    });
+
     it("parses effective token rate-limit metadata from audit log entries", () => {
       const jsonlPath = path.join(tmpDir, "log.jsonl");
       fs.writeFileSync(
@@ -2746,6 +2759,28 @@ describe("handle_agent_failure", () => {
       expect(resolveEffectiveTokensFailureState()).toEqual({
         effectiveTokens: "2097968",
         maxEffectiveTokens: "",
+        effectiveTokensRateLimitError: true,
+      });
+    });
+
+    it("treats maximum effective tokens exceeded in agent logs as ET budget exhaustion when reflect shows the budget is spent", () => {
+      const firewallDir = path.join(tmpDir, "sandbox", "firewall");
+      fs.mkdirSync(firewallDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(firewallDir, "awf-reflect.json"),
+        JSON.stringify({
+          effective_tokens: {
+            total_effective_tokens: 25000000,
+            max_effective_tokens: 25000000,
+          },
+        })
+      );
+      fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 Maximum effective tokens exceeded (25296477.30 / 25000000).\n");
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+
+      expect(resolveEffectiveTokensFailureState()).toEqual({
+        effectiveTokens: "25000000",
+        maxEffectiveTokens: "25000000",
         effectiveTokensRateLimitError: true,
       });
     });

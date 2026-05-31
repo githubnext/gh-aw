@@ -3,12 +3,15 @@
 package jsonmarshalignoredeerror
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the json-marshal-ignored-error analysis pass.
@@ -21,7 +24,11 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	if !ok {
+		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
+	}
+	noLintLinesByFile := nolint.BuildLineIndex(pass, "jsonmarshalignoredeerror")
 	nodeFilter := []ast.Node{(*ast.AssignStmt)(nil)}
 	insp.Preorder(nodeFilter, func(n ast.Node) {
 		assign, ok := n.(*ast.AssignStmt)
@@ -36,6 +43,10 @@ func run(pass *analysis.Pass) (any, error) {
 				call, ok := assign.Rhs[0].(*ast.CallExpr)
 				if ok {
 					if isJSONFunc(pass, call, "Marshal") {
+						position := pass.Fset.PositionFor(call.Pos(), false)
+						if nolint.HasDirective(position, noLintLinesByFile) {
+							return
+						}
 						pass.ReportRangef(call, "error return from json.Marshal is discarded; marshal failures produce nil bytes silently")
 					}
 				}
@@ -49,6 +60,10 @@ func run(pass *analysis.Pass) (any, error) {
 				call, ok := assign.Rhs[0].(*ast.CallExpr)
 				if ok {
 					if isJSONFunc(pass, call, "Unmarshal") {
+						position := pass.Fset.PositionFor(call.Pos(), false)
+						if nolint.HasDirective(position, noLintLinesByFile) {
+							return
+						}
 						pass.ReportRangef(call, "error return from json.Unmarshal is discarded; unmarshal failures leave the target value in a partial state")
 					}
 				}

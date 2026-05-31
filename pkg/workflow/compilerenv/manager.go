@@ -6,8 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/typeutil"
 )
+
+var managerLog = logger.New("compilerenv:manager")
 
 const (
 	// DefaultMaxEffectiveTokens is the enterprise override for AWF apiProxy.maxEffectiveTokens
@@ -43,11 +46,14 @@ func ResolveDefaultMaxEffectiveTokens(fallback int64) int64 {
 		return fallback
 	}
 	if raw == "-1" {
+		managerLog.Printf("Applying enterprise override %s=%q (fallback was %d)", DefaultMaxEffectiveTokens, raw, fallback)
 		return -1
 	}
 	if parsed, ok := typeutil.ParseInt64KMSuffix(raw); ok {
+		managerLog.Printf("Applying enterprise override %s=%d (fallback was %d)", DefaultMaxEffectiveTokens, parsed, fallback)
 		return parsed
 	}
+	managerLog.Printf("Invalid %s=%q, using fallback=%d", DefaultMaxEffectiveTokens, raw, fallback)
 	return fallback
 }
 
@@ -60,11 +66,14 @@ func ResolveDefaultMaxDailyEffectiveTokens(fallback string) string {
 		return fallback
 	}
 	if raw == "-1" {
+		managerLog.Printf("Applying enterprise override %s=%q (fallback was %q)", DefaultMaxDailyEffectiveTokens, raw, fallback)
 		return "-1"
 	}
 	if normalized, ok := typeutil.NormalizeInt64KMSuffix(raw); ok {
+		managerLog.Printf("Applying enterprise override %s=%q (fallback was %q)", DefaultMaxDailyEffectiveTokens, normalized, fallback)
 		return normalized
 	}
+	managerLog.Printf("Invalid %s=%q, using fallback=%q", DefaultMaxDailyEffectiveTokens, raw, fallback)
 	return fallback
 }
 
@@ -93,6 +102,7 @@ func ResolveDefaultDetectionModel(fallback string) string {
 	if raw == "" {
 		return fallback
 	}
+	managerLog.Printf("Applying enterprise detection model override %s=%q (fallback was %q)", DefaultDetectionModel, raw, fallback)
 	return raw
 }
 

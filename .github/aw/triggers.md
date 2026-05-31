@@ -147,6 +147,8 @@ on:
 
 By default, the triggering label is automatically removed after the workflow activates (`remove_label: true`). Set `remove_label: false` to keep the label.
 
+The activated label name is exposed to downstream jobs as `${{ needs.activation.outputs.label_command }}`.
+
 ### Semi-Active Agent Pattern
 
 ```yaml

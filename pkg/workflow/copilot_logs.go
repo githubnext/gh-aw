@@ -94,7 +94,7 @@ func (e *CopilotEngine) parseSessionJSONL(logContent string, verbose bool) (LogM
 						// Calculate input size
 						inputSize := 0
 						if content.Input != nil {
-							inputJSON, _ := json.Marshal(content.Input)
+							inputJSON, _ := json.Marshal(content.Input) //nolint:jsonmarshalignoredeerror // used only for len() size metric; failure yields len(nil)==0 which is acceptable
 							inputSize = len(inputJSON)
 						}
 

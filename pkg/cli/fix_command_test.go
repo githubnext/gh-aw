@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -668,7 +669,7 @@ This is a test workflow.
 
 	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644), "Failed to create test file")
 
-	// Run fix command (which checks prompt and agent files exist)
+	// Run fix command (which refreshes the generated skill and agent files)
 	config := FixConfig{
 		WorkflowIDs: []string{"test-workflow"},
 		Write:       false,
@@ -678,10 +679,13 @@ This is a test workflow.
 
 	require.NoError(t, RunFix(config), "RunFix failed")
 
-	// Note: The ensure functions no longer create files from templates.
-	// They just check if files exist. Since we're in a temp directory,
-	// the files won't exist, but that's expected behavior.
-	// This test now just verifies that RunFix completes without error.
+	_, err = os.Stat(filepath.Join(tmpDir, ".github", "skills", "agentic-workflows", "SKILL.md"))
+	require.NoError(t, err, "Expected generated skill file to exist after RunFix")
+
+	agentContent, err := os.ReadFile(filepath.Join(tmpDir, ".github", "agents", "agentic-workflows.md"))
+	require.NoError(t, err, "Expected generated agent file to exist after RunFix")
+	assert.Contains(t, string(agentContent), ".github/aw/create-agentic-workflow.md")
+	assert.NotContains(t, string(agentContent), ".github/skills/agentic-workflows/SKILL.md")
 }
 
 func TestFixCommand_GrepToolRemoval(t *testing.T) {

@@ -11,65 +11,79 @@ import (
 	"golang.org/x/tools/go/analysis"
 
 	"github.com/github/gh-aw/pkg/linters"
+	"github.com/github/gh-aw/pkg/linters/ctxbackground"
 	"github.com/github/gh-aw/pkg/linters/errormessage"
+	"github.com/github/gh-aw/pkg/linters/errstringmatch"
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
+	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
+	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
+	"github.com/github/gh-aw/pkg/linters/manualmutexunlock"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
+	"github.com/github/gh-aw/pkg/linters/ossetenvlibrary"
+	panicinlibrarycode "github.com/github/gh-aw/pkg/linters/panic-in-library-code"
+	"github.com/github/gh-aw/pkg/linters/rawloginlib"
+	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
+	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
 )
 
 // TestSpec tests derive from pkg/linters/README.md. They enforce the documented
-// public surface of the linters namespace (Analyzer entry points and default
-// thresholds for each subpackage) without coupling to analyzer internals.
+// public surface of the linters namespace (the Analyzer entry point exposed by
+// each documented subpackage and the documented default thresholds) without
+// coupling to analyzer internals.
 
-// TestSpec_PublicAPI_ExcessiveFuncParamsAnalyzer validates that the
-// excessivefuncparams subpackage exposes an Analyzer entry point per the README.
-func TestSpec_PublicAPI_ExcessiveFuncParamsAnalyzer(t *testing.T) {
-	a := excessivefuncparams.Analyzer
-	require.NotNil(t, a, "excessivefuncparams.Analyzer must be a non-nil *analysis.Analyzer")
-	assert.IsType(t, (*analysis.Analyzer)(nil), a, "Analyzer should be *analysis.Analyzer for go/analysis drivers")
-	assert.NotEmpty(t, a.Name, "Analyzer.Name should be set so go/analysis drivers can identify it")
-	assert.NotNil(t, a.Run, "Analyzer.Run must be wired so the analyzer is executable")
+// docAnalyzer pairs a README "Subpackages" table label with the Analyzer value
+// that subpackage is documented to expose.
+type docAnalyzer struct {
+	label    string
+	analyzer *analysis.Analyzer
 }
 
-// TestSpec_PublicAPI_LargeFuncAnalyzer validates that the largefunc subpackage
-// exposes an Analyzer entry point per the README.
-func TestSpec_PublicAPI_LargeFuncAnalyzer(t *testing.T) {
-	a := largefunc.Analyzer
-	require.NotNil(t, a, "largefunc.Analyzer must be a non-nil *analysis.Analyzer")
-	assert.IsType(t, (*analysis.Analyzer)(nil), a, "Analyzer should be *analysis.Analyzer for go/analysis drivers")
-	assert.NotEmpty(t, a.Name, "Analyzer.Name should be set so go/analysis drivers can identify it")
-	assert.NotNil(t, a.Run, "Analyzer.Run must be wired so the analyzer is executable")
+// documentedAnalyzers returns the analyzer subpackages documented in the README
+// "Public API > Subpackages" table. The README documents 15 analyzer
+// subpackages (the non-analyzer `internal` helper subpackage is excluded because
+// it exposes no Analyzer).
+//
+// Spec (README "Public API > Subpackages"):
+//
+//	ctxbackground, excessivefuncparams, errormessage, errstringmatch,
+//	fileclosenotdeferred, fprintlnsprintf, largefunc, manualmutexunlock,
+//	osexitinlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
+//	regexpcompileinfunction, ssljson, uncheckedtypeassertion
+func documentedAnalyzers() []docAnalyzer {
+	return []docAnalyzer{
+		{"ctxbackground", ctxbackground.Analyzer},
+		{"excessivefuncparams", excessivefuncparams.Analyzer},
+		{"errormessage", errormessage.Analyzer},
+		{"errstringmatch", errstringmatch.Analyzer},
+		{"fileclosenotdeferred", fileclosenotdeferred.Analyzer},
+		{"fprintlnsprintf", fprintlnsprintf.Analyzer},
+		{"largefunc", largefunc.Analyzer},
+		{"manualmutexunlock", manualmutexunlock.Analyzer},
+		{"osexitinlibrary", osexitinlibrary.Analyzer},
+		{"ossetenvlibrary", ossetenvlibrary.Analyzer},
+		{"panic-in-library-code", panicinlibrarycode.Analyzer},
+		{"rawloginlib", rawloginlib.Analyzer},
+		{"regexpcompileinfunction", regexpcompileinfunction.Analyzer},
+		{"ssljson", ssljson.Analyzer},
+		{"uncheckedtypeassertion", uncheckedtypeassertion.Analyzer},
+	}
 }
 
-// TestSpec_PublicAPI_OsExitInLibraryAnalyzer validates that the osexitinlibrary
-// subpackage exposes an Analyzer entry point per the README.
-func TestSpec_PublicAPI_OsExitInLibraryAnalyzer(t *testing.T) {
-	a := osexitinlibrary.Analyzer
-	require.NotNil(t, a, "osexitinlibrary.Analyzer must be a non-nil *analysis.Analyzer")
-	assert.IsType(t, (*analysis.Analyzer)(nil), a, "Analyzer should be *analysis.Analyzer for go/analysis drivers")
-	assert.NotEmpty(t, a.Name, "Analyzer.Name should be set so go/analysis drivers can identify it")
-	assert.NotNil(t, a.Run, "Analyzer.Run must be wired so the analyzer is executable")
-}
-
-// TestSpec_PublicAPI_ErrorMessageAnalyzer validates that the errormessage
-// subpackage exposes an Analyzer entry point per the README Subpackages table.
-func TestSpec_PublicAPI_ErrorMessageAnalyzer(t *testing.T) {
-	a := errormessage.Analyzer
-	require.NotNil(t, a, "errormessage.Analyzer must be a non-nil *analysis.Analyzer")
-	assert.IsType(t, (*analysis.Analyzer)(nil), a, "Analyzer should be *analysis.Analyzer for go/analysis drivers")
-	assert.NotEmpty(t, a.Name, "Analyzer.Name should be set so go/analysis drivers can identify it")
-	assert.NotNil(t, a.Run, "Analyzer.Run must be wired so the analyzer is executable")
-}
-
-// TestSpec_PublicAPI_SSLJsonAnalyzer validates that the ssljson subpackage
-// exposes an Analyzer entry point per the README Subpackages table.
-func TestSpec_PublicAPI_SSLJsonAnalyzer(t *testing.T) {
-	a := ssljson.Analyzer
-	require.NotNil(t, a, "ssljson.Analyzer must be a non-nil *analysis.Analyzer")
-	assert.IsType(t, (*analysis.Analyzer)(nil), a, "Analyzer should be *analysis.Analyzer for go/analysis drivers")
-	assert.NotEmpty(t, a.Name, "Analyzer.Name should be set so go/analysis drivers can identify it")
-	assert.NotNil(t, a.Run, "Analyzer.Run must be wired so the analyzer is executable")
+// TestSpec_PublicAPI_SubpackageAnalyzers validates that every analyzer
+// subpackage documented in the README "Subpackages" table exposes a non-nil
+// `Analyzer` entry point of type *analysis.Analyzer with its Name and Run wired,
+// so each can be consumed by a go/analysis driver (multichecker/singlechecker).
+func TestSpec_PublicAPI_SubpackageAnalyzers(t *testing.T) {
+	for _, d := range documentedAnalyzers() {
+		t.Run(d.label, func(t *testing.T) {
+			require.NotNil(t, d.analyzer, "%s must expose a non-nil *analysis.Analyzer per the README Subpackages table", d.label)
+			assert.IsType(t, (*analysis.Analyzer)(nil), d.analyzer, "%s.Analyzer should be *analysis.Analyzer for go/analysis drivers", d.label)
+			assert.NotEmpty(t, d.analyzer.Name, "%s.Analyzer.Name should be set so go/analysis drivers can identify it", d.label)
+			assert.NotNil(t, d.analyzer.Run, "%s.Analyzer.Run must be wired so the analyzer is executable", d.label)
+		})
+	}
 }
 
 // TestSpec_NamespaceExports_ErrorMessageAnalyzer validates the documented
@@ -116,24 +130,13 @@ func TestSpec_DesignDecision_MaxLinesFlag(t *testing.T) {
 }
 
 // TestSpec_UsageExample_AnalyzersUsable validates the documented usage pattern:
-// each Analyzer can be referenced (e.g. passed to multichecker/singlechecker).
-// Spec usage example imports all five documented subpackages:
-//
-//	_ = excessivefuncparams.Analyzer
-//	_ = errormessage.Analyzer
-//	_ = largefunc.Analyzer
-//	_ = osexitinlibrary.Analyzer
-//	_ = ssljson.Analyzer
+// each documented Analyzer can be referenced (e.g. passed to a
+// multichecker/singlechecker slice). The README "Usage Examples" block assigns
+// `_ = <subpackage>.Analyzer` for the documented analyzers; this test exercises
+// the same pattern across all documented subpackages.
 func TestSpec_UsageExample_AnalyzersUsable(t *testing.T) {
-	analyzers := []*analysis.Analyzer{
-		excessivefuncparams.Analyzer,
-		errormessage.Analyzer,
-		largefunc.Analyzer,
-		osexitinlibrary.Analyzer,
-		ssljson.Analyzer,
-	}
-	for _, a := range analyzers {
-		assert.NotNil(t, a, "each documented Analyzer should be usable in a multichecker/singlechecker slice")
+	for _, d := range documentedAnalyzers() {
+		assert.NotNil(t, d.analyzer, "documented Analyzer %q should be usable in a multichecker/singlechecker slice", d.label)
 	}
 }
 
@@ -143,12 +146,11 @@ func TestSpec_UsageExample_AnalyzersUsable(t *testing.T) {
 // Spec: "intentionally organized as a namespace ... so individual analyzers
 // remain isolated and independently testable."
 func TestSpec_DesignDecision_UniqueAnalyzerNames(t *testing.T) {
-	names := map[string]bool{
-		excessivefuncparams.Analyzer.Name: true,
-		errormessage.Analyzer.Name:        true,
-		largefunc.Analyzer.Name:           true,
-		osexitinlibrary.Analyzer.Name:     true,
-		ssljson.Analyzer.Name:             true,
+	documented := documentedAnalyzers()
+	names := make(map[string]bool, len(documented))
+	for _, d := range documented {
+		names[d.analyzer.Name] = true
 	}
-	assert.Len(t, names, 5, "each documented subpackage should expose a distinct Analyzer.Name")
+	assert.Len(t, names, len(documented),
+		"each documented subpackage should expose a distinct Analyzer.Name")
 }

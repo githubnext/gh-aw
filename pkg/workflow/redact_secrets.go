@@ -17,9 +17,9 @@ const secretsPrefix = "secrets."
 // actionReferencePattern is replaced by a fast string scan in CollectActionReferences.
 // Pattern (informational): `(?m)^\s+(?:-\s+)?uses:\s+(\S+)(?:\s+#\s*(.+?))?$`
 
-// escapeSingleQuote escapes single quotes and backslashes in a string to prevent injection
-// when embedding data in single-quoted YAML strings
-func escapeSingleQuote(s string) string {
+// escapeSingleQuoteBackslash escapes single quotes and backslashes in a string to prevent
+// injection when embedding data in single-quoted YAML strings using backslash escaping.
+func escapeSingleQuoteBackslash(s string) string {
 	// First escape backslashes, then escape single quotes
 	s = strings.ReplaceAll(s, `\`, `\\`)
 	s = strings.ReplaceAll(s, `'`, `\'`)
@@ -185,7 +185,7 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 		// Escape each secret reference to prevent injection when embedding in YAML
 		escapedRefs := make([]string, len(secretReferences))
 		for i, ref := range secretReferences {
-			escapedRefs[i] = escapeSingleQuote(ref)
+			escapedRefs[i] = escapeSingleQuoteBackslash(ref)
 		}
 		fmt.Fprintf(yaml, "          GH_AW_SECRET_NAMES: '%s'\n", strings.Join(escapedRefs, ","))
 
@@ -193,7 +193,7 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 		// Each secret will be available as an environment variable
 		for _, secretName := range secretReferences {
 			// Escape secret name to prevent injection in YAML
-			escapedSecretName := escapeSingleQuote(secretName)
+			escapedSecretName := escapeSingleQuoteBackslash(secretName)
 			// Use original secretName in GitHub Actions expression since it's already validated
 			// to only contain safe characters (uppercase letters, numbers, underscores)
 			fmt.Fprintf(yaml, "          SECRET_%s: ${{ secrets.%s }}\n", escapedSecretName, secretName)

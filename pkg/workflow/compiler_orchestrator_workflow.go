@@ -10,336 +10,353 @@ import (
 
 var orchestratorWorkflowLog = logger.New("workflow:compiler_orchestrator_workflow")
 
+// workflowBuildContext captures the shared state across parse setup, validation,
+// and workflow population phases.
+//
+// setupWorkflowBuildContext must run before validateWorkflowBuildContext or
+// populateWorkflowBuildContext. engineSetup, toolsResult, and workflowData stay
+// nil until setup completes successfully.
+type workflowBuildContext struct {
+	cleanPath   string
+	content     []byte
+	frontmatter *parser.FrontmatterResult
+	markdownDir string
+
+	engineSetup  *engineSetupResult
+	toolsResult  *toolsProcessingResult
+	workflowData *WorkflowData
+}
+
 // ParseWorkflowFile parses a workflow markdown file and returns a WorkflowData structure.
 // This is the main orchestration function that coordinates all compilation phases.
 func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
 	orchestratorWorkflowLog.Printf("Starting workflow file parsing: %s", markdownPath)
 
-	// Parse frontmatter section
 	parseResult, err := c.parseFrontmatterSection(markdownPath)
 	if err != nil {
 		return nil, err
 	}
 
-	// Handle shared workflows
+	if err := validateParseResultWorkflowType(parseResult); err != nil {
+		return nil, err
+	}
+	ctx := newWorkflowBuildContext(parseResult)
+	if err := c.setupWorkflowBuildContext(ctx); err != nil {
+		return nil, err
+	}
+	if err := c.validateWorkflowBuildContext(ctx); err != nil {
+		return nil, err
+	}
+	if err := c.populateWorkflowBuildContext(ctx); err != nil {
+		return nil, err
+	}
+	orchestratorWorkflowLog.Printf("Workflow file parsing completed successfully: %s", markdownPath)
+	return ctx.workflowData, nil
+}
+
+func validateParseResultWorkflowType(parseResult *frontmatterParseResult) error {
 	if parseResult.isSharedWorkflow {
-		return nil, &SharedWorkflowError{Path: parseResult.cleanPath}
+		return &SharedWorkflowError{Path: parseResult.cleanPath}
 	}
-
-	// Handle redirect-only workflows (have a redirect field but no 'on' trigger).
-	// These are distinct from shared workflows: they are move placeholders, not importable components.
 	if parseResult.isRedirectOnly {
-		return nil, &RedirectOnlyWorkflowError{Path: parseResult.cleanPath, Target: parseResult.redirectTarget}
+		return &RedirectOnlyWorkflowError{Path: parseResult.cleanPath, Target: parseResult.redirectTarget}
 	}
+	return nil
+}
 
-	// Unpack parse result for convenience
-	cleanPath := parseResult.cleanPath
-	content := parseResult.content
-	result := parseResult.frontmatterResult
-	markdownDir := parseResult.markdownDir
+// newWorkflowBuildContext initializes build context from frontmatter parse results.
+func newWorkflowBuildContext(parseResult *frontmatterParseResult) *workflowBuildContext {
+	return &workflowBuildContext{
+		cleanPath:   parseResult.cleanPath,
+		content:     parseResult.content,
+		frontmatter: parseResult.frontmatterResult,
+		markdownDir: parseResult.markdownDir,
+	}
+}
 
-	// Setup engine and process imports
-	engineSetup, err := c.setupEngineAndImports(result, cleanPath, content, markdownDir)
+// setupWorkflowBuildContext initializes engine/tools processing and builds base workflow data.
+func (c *Compiler) setupWorkflowBuildContext(ctx *workflowBuildContext) error {
+	engineSetup, err := c.setupEngineAndImports(ctx.frontmatter, ctx.cleanPath, ctx.content, ctx.markdownDir)
 	if err != nil {
-		// Wrap unformatted errors with file location.  Errors produced by
-		// formatCompilerError/formatCompilerErrorWithPosition are already
-		// console-formatted and must not be double-wrapped.
-		if isFormattedCompilerError(err) {
-			return nil, err
-		}
-		// Try to point at the exact line of the "engine:" field so the user can
-		// navigate directly to the problem location.
-		engineLine := findFrontmatterFieldLine(result.FrontmatterLines, result.FrontmatterStart, "engine")
-		if engineLine > 0 {
-			// Read source context lines (±3 lines around the error) for Rust-style rendering
-			contextLines := readSourceContextLines(content, engineLine)
-			return nil, formatCompilerErrorWithContext(cleanPath, engineLine, 1, "error", err.Error(), err, contextLines)
-		}
-		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
+		return c.formatEngineSetupError(ctx, err)
 	}
-
-	// Process tools and markdown
-	toolsResult, err := c.processToolsAndMarkdown(result, cleanPath, markdownDir, engineSetup.agenticEngine, engineSetup.engineSetting, engineSetup.importsResult)
+	toolsResult, err := c.processToolsAndMarkdown(
+		ctx.frontmatter,
+		ctx.cleanPath,
+		ctx.markdownDir,
+		engineSetup.agenticEngine,
+		engineSetup.engineSetting,
+		engineSetup.importsResult,
+	)
 	if err != nil {
-		if isFormattedCompilerError(err) {
-			return nil, err
+		return c.formatToolsProcessingError(ctx.cleanPath, err)
+	}
+	ctx.engineSetup = engineSetup
+	ctx.toolsResult = toolsResult
+	ctx.workflowData = c.buildInitialWorkflowData(ctx.frontmatter, toolsResult, engineSetup, engineSetup.importsResult)
+	ctx.workflowData.WorkflowID = GetWorkflowIDFromPath(ctx.cleanPath)
+	return nil
+}
+
+func (c *Compiler) formatEngineSetupError(ctx *workflowBuildContext, err error) error {
+	if isFormattedCompilerError(err) {
+		return err
+	}
+	engineLine := findFrontmatterFieldLine(ctx.frontmatter.FrontmatterLines, ctx.frontmatter.FrontmatterStart, "engine")
+	if engineLine > 0 {
+		contextLines := readSourceContextLines(ctx.content, engineLine)
+		return formatCompilerErrorWithContext(ctx.cleanPath, engineLine, 1, "error", err.Error(), err, contextLines)
+	}
+	return formatCompilerError(ctx.cleanPath, "error", err.Error(), err)
+}
+
+func (c *Compiler) formatToolsProcessingError(cleanPath string, err error) error {
+	if isFormattedCompilerError(err) {
+		return err
+	}
+	return formatCompilerError(cleanPath, "error", err.Error(), err)
+}
+
+// validateWorkflowBuildContext runs model, engine, and tool validations for the workflow.
+func (c *Compiler) validateWorkflowBuildContext(ctx *workflowBuildContext) error {
+	if err := c.validateWorkflowModelAliasMap(ctx); err != nil {
+		return err
+	}
+	if err := c.validateWorkflowEngineSettings(ctx.cleanPath, ctx.workflowData); err != nil {
+		return err
+	}
+	return c.validateWorkflowToolConfigurations(ctx)
+}
+
+func (c *Compiler) validateWorkflowModelAliasMap(ctx *workflowBuildContext) error {
+	var frontmatterModels map[string][]string
+	if ctx.toolsResult.parsedFrontmatter != nil {
+		frontmatterModels = ctx.toolsResult.parsedFrontmatter.Models
+	}
+	var engineModel string
+	if ctx.workflowData.EngineConfig != nil {
+		engineModel = ctx.workflowData.EngineConfig.Model
+	}
+	return c.validateModelAliasMap(ctx.workflowData.ModelMappings, frontmatterModels, engineModel, ctx.cleanPath)
+}
+
+func (c *Compiler) validateWorkflowEngineSettings(cleanPath string, workflowData *WorkflowData) error {
+	// Preserve legacy ParseWorkflowFile error precedence: return the first
+	// engine-setting validation failure in the same order the monolithic
+	// implementation executed these checks.
+	checks := []func(*WorkflowData) error{
+		c.validateRunInstallScripts,
+		c.validateEngineVersion,
+		c.validateGeminiDeprecation,
+		c.validatePlaywrightMode,
+		c.validateEngineHarnessScript,
+		c.validateEngineMCPSessionTimeout,
+		c.validateEngineMCPToolTimeout,
+	}
+	for _, check := range checks {
+		if err := check(workflowData); err != nil {
+			return fmt.Errorf("%s: %w", cleanPath, err)
 		}
-		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
 	}
+	return nil
+}
 
-	// Build initial workflow data structure
-	workflowData := c.buildInitialWorkflowData(result, toolsResult, engineSetup, engineSetup.importsResult)
-	// Store a stable workflow identifier derived from the file name.
-	workflowData.WorkflowID = GetWorkflowIDFromPath(cleanPath)
-
-	// Validate model alias map: identifier syntax, parameter values, glob-in-engine.model,
-	// alias key format, and circular references (V-MAF-001..006, V-MAF-010, V-MAF-011).
-	{
-		var frontmatterModels map[string][]string
-		if toolsResult.parsedFrontmatter != nil {
-			frontmatterModels = toolsResult.parsedFrontmatter.Models
-		}
-		var engineModel string
-		if workflowData.EngineConfig != nil {
-			engineModel = workflowData.EngineConfig.Model
-		}
-		if err := c.validateModelAliasMap(
-			workflowData.ModelMappings,
-			frontmatterModels,
-			engineModel,
-			cleanPath,
-		); err != nil {
-			return nil, err
-		}
-	}
-
-	// Validate run-install-scripts setting (warning in non-strict mode, error in strict mode)
-	if err := c.validateRunInstallScripts(workflowData); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
-	}
-
-	// Validate engine version: warn when engine.version is explicitly set to "latest"
-	if err := c.validateEngineVersion(workflowData); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
-	}
-
-	// Warn when the deprecated Gemini engine is used.
-	if err := c.validateGeminiDeprecation(workflowData); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
-	}
-
-	// Validate playwright tool mode: warn when MCP mode is used (deprecated in favour of CLI mode)
-	if err := c.validatePlaywrightMode(workflowData); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
-	}
-
-	// Validate optional custom engine harness script configuration.
-	if err := c.validateEngineHarnessScript(workflowData); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
-	}
-
-	// Validate optional engine.mcp.session-timeout configuration.
-	if err := c.validateEngineMCPSessionTimeout(workflowData); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
-	}
-
-	// Validate optional engine.mcp.tool-timeout configuration.
-	if err := c.validateEngineMCPToolTimeout(workflowData); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
-	}
-
-	// Validate that inlined-imports is not used with agent file imports.
-	// Agent files require runtime access and cannot be resolved without sources.
-	if workflowData.InlinedImports && engineSetup.importsResult.AgentFile != "" {
-		return nil, formatCompilerError(cleanPath, "error",
+func (c *Compiler) validateWorkflowToolConfigurations(ctx *workflowBuildContext) error {
+	if ctx.workflowData.InlinedImports && ctx.engineSetup.importsResult.AgentFile != "" {
+		return formatCompilerError(ctx.cleanPath, "error",
 			fmt.Sprintf("inlined-imports cannot be used with agent file imports: '%s'. "+
 				"Agent files require runtime access and will not be resolved without sources. "+
 				"Remove 'inlined-imports: true' or do not import agent files.",
-				engineSetup.importsResult.AgentFile), nil)
+				ctx.engineSetup.importsResult.AgentFile), nil)
 	}
-
-	// Validate bash tool configuration BEFORE applying defaults
-	// This must happen before applyDefaults() which converts nil bash to default commands
-	if err := validateBashToolConfig(workflowData.ParsedTools, workflowData.Name); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	if err := validateBashToolConfig(ctx.workflowData.ParsedTools, ctx.workflowData.Name); err != nil {
+		return fmt.Errorf("%s: %w", ctx.cleanPath, err)
 	}
-
-	// Validate GitHub tool configuration
-	if err := validateGitHubToolConfig(workflowData.ParsedTools, workflowData.Name); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	if err := validateGitHubToolConfig(ctx.workflowData.ParsedTools, ctx.workflowData.Name); err != nil {
+		return fmt.Errorf("%s: %w", ctx.cleanPath, err)
 	}
-
-	// Validate GitHub tool read-only configuration
-	if err := validateGitHubReadOnly(workflowData.ParsedTools, workflowData.Name); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	if err := validateGitHubReadOnly(ctx.workflowData.ParsedTools, ctx.workflowData.Name); err != nil {
+		return fmt.Errorf("%s: %w", ctx.cleanPath, err)
 	}
-
-	// Validate GitHub guard policy configuration
-	if err := validateGitHubGuardPolicy(workflowData.ParsedTools, workflowData.Name); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	if err := validateGitHubGuardPolicy(ctx.workflowData.ParsedTools, ctx.workflowData.Name); err != nil {
+		return fmt.Errorf("%s: %w", ctx.cleanPath, err)
 	}
-
-	// Validate integrity-reactions feature configuration
 	var gatewayConfig *MCPGatewayRuntimeConfig
-	if workflowData.SandboxConfig != nil {
-		gatewayConfig = workflowData.SandboxConfig.MCP
+	if ctx.workflowData.SandboxConfig != nil {
+		gatewayConfig = ctx.workflowData.SandboxConfig.MCP
 	}
-	if err := validateIntegrityReactions(workflowData.ParsedTools, workflowData.Name, workflowData, gatewayConfig); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	if err := validateIntegrityReactions(ctx.workflowData.ParsedTools, ctx.workflowData.Name, ctx.workflowData, gatewayConfig); err != nil {
+		return fmt.Errorf("%s: %w", ctx.cleanPath, err)
 	}
+	return nil
+}
 
-	// Use shared action cache and resolver from the compiler
+// populateWorkflowBuildContext merges imported configuration and finalizes workflow data.
+func (c *Compiler) populateWorkflowBuildContext(ctx *workflowBuildContext) error {
+	c.attachSharedActionResolver(ctx.workflowData)
+	if err := c.extractYAMLSections(ctx.frontmatter.Frontmatter, ctx.workflowData); err != nil {
+		return formatCompilerError(ctx.cleanPath, "error", err.Error(), err)
+	}
+	if err := c.mergeImportedWorkflowConfiguration(ctx); err != nil {
+		return err
+	}
+	c.processAndMergeSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
+	c.processAndMergePreSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
+	c.processAndMergePreAgentSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
+	c.processAndMergePostSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
+	c.processAndMergeServices(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
+	ctx.workflowData.KnownActionCredentialEnvVars = DetectKnownCredentialLeakingActionsFromWorkflowData(ctx.workflowData)
+	if err := c.extractAdditionalConfigurations(ctx.frontmatter.Frontmatter, ctx.toolsResult.tools, ctx.markdownDir, ctx.workflowData, ctx.engineSetup.importsResult, ctx.toolsResult.rawMainMarkdown, ctx.toolsResult.safeOutputs); err != nil {
+		return err
+	}
+	if err := c.mergeImportedOnFields(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
+		return err
+	}
+	return c.processOnSectionAndFilters(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.cleanPath)
+}
+
+func (c *Compiler) attachSharedActionResolver(workflowData *WorkflowData) {
 	actionCache, actionResolver := c.getSharedActionResolver()
 	workflowData.Ctx = c.ctx
 	workflowData.ActionCache = actionCache
 	workflowData.ActionResolver = actionResolver
 	workflowData.ActionPinWarnings = c.actionPinWarnings
+}
 
-	// Extract YAML configuration sections from frontmatter
-	if err := c.extractYAMLSections(result.Frontmatter, workflowData); err != nil {
-		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
+func (c *Compiler) mergeImportedWorkflowConfiguration(ctx *workflowBuildContext) error {
+	c.mergeImportedObservability(ctx.workflowData, ctx.engineSetup.importsResult.MergedObservability)
+	if err := c.mergeWorkflowEnv(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
+		return err
 	}
+	c.injectOTLPConfig(ctx.workflowData)
+	if len(ctx.engineSetup.importsResult.MergedFeatures) == 0 {
+		return nil
+	}
+	mergedFeatures, err := c.MergeFeatures(ctx.workflowData.Features, ctx.engineSetup.importsResult.MergedFeatures)
+	if err != nil {
+		return fmt.Errorf("failed to merge features from imports: %w", err)
+	}
+	ctx.workflowData.Features = mergedFeatures
+	return nil
+}
 
-	// Merge observability endpoints and custom attributes from imports with those
-	// from the main workflow.  All OTLP endpoints from both sources are combined
-	// into an array, deduplicating by URL (main workflow endpoints take precedence).
-	// Custom attributes follow the same precedence: main workflow values override
-	// imported ones for the same key.
-	if obs := engineSetup.importsResult.MergedObservability; obs != "" {
-		var importedObs map[string]any
-		if err := json.Unmarshal([]byte(obs), &importedObs); err == nil {
-			seen := make(map[string]bool)
-			var mergedEndpoints []any
+// mergeImportedObservability merges imported OTLP config into raw frontmatter with main precedence.
+func (c *Compiler) mergeImportedObservability(workflowData *WorkflowData, mergedObservability string) {
+	if mergedObservability == "" {
+		return
+	}
+	var importedObs map[string]any
+	if err := json.Unmarshal([]byte(mergedObservability), &importedObs); err != nil {
+		orchestratorWorkflowLog.Printf("Skipping imported observability merge: invalid JSON: %v", err)
+		return
+	}
+	mainObs := extractRawObservabilityMap(workflowData.RawFrontmatter)
+	mergedEndpoints, mainCount, importAdded := mergeRawOTLPEndpoints(mainObs, importedObs)
+	mergedAttrs := mergeOTLPCustomAttributes(
+		extractOTLPCustomAttributesFromObsMap(mainObs),
+		extractOTLPCustomAttributesFromObsMap(importedObs),
+	)
+	githubApp := extractRawOTLPGitHubAppMap(mainObs)
+	if githubApp == nil {
+		githubApp = extractRawOTLPGitHubAppMap(importedObs)
+	}
+	applyMergedRawObservability(workflowData.RawFrontmatter, mergedEndpoints, mergedAttrs, githubApp, mainCount, importAdded)
+}
 
-			// Main workflow endpoints take precedence (first in, first wins dedup).
-			var mainObs map[string]any
-			if v, ok := workflowData.RawFrontmatter["observability"]; ok {
-				mainObs, _ = v.(map[string]any)
-			}
-			for _, ep := range extractRawOTLPEndpointMaps(mainObs) {
-				if url, _ := ep["url"].(string); url != "" && !seen[url] {
-					seen[url] = true
-					mergedEndpoints = append(mergedEndpoints, ep)
-				}
-			}
+func extractRawObservabilityMap(rawFrontmatter map[string]any) map[string]any {
+	if rawFrontmatter == nil {
+		return nil
+	}
+	obs, _ := rawFrontmatter["observability"].(map[string]any)
+	return obs
+}
 
-			// Append import endpoints that aren't already present.
-			importAdded := 0
-			for _, ep := range extractRawOTLPEndpointMaps(importedObs) {
-				if url, _ := ep["url"].(string); url != "" && !seen[url] {
-					seen[url] = true
-					mergedEndpoints = append(mergedEndpoints, ep)
-					importAdded++
-				}
-			}
-
-			// Merge custom OTLP attributes: import attrs provide defaults, main
-			// workflow attrs override them.
-			mainAttrs := extractOTLPCustomAttributesFromObsMap(mainObs)
-			importAttrs := extractOTLPCustomAttributesFromObsMap(importedObs)
-			// mergeOTLPCustomAttributes(base, override) — base wins, so pass main as base.
-			mergedAttrs := mergeOTLPCustomAttributes(mainAttrs, importAttrs)
-
-			// Preserve OTLP github-app auth config so the compiler can emit the
-			// pre-setup OIDC mint step and validate id-token permissions.
-			// Main workflow takes precedence over imported defaults.
-			githubApp := extractRawOTLPGitHubAppMap(mainObs)
-			if githubApp == nil {
-				githubApp = extractRawOTLPGitHubAppMap(importedObs)
-			}
-
-			if len(mergedEndpoints) > 0 || len(mergedAttrs) > 0 || githubApp != nil {
-				mainCount := len(mergedEndpoints) - importAdded
-				newOTLP := map[string]any{}
-				if len(mergedEndpoints) > 0 {
-					newOTLP["endpoint"] = mergedEndpoints
-				}
-				if len(mergedAttrs) > 0 {
-					newOTLP["attributes"] = mergedAttrs
-				}
-				if githubApp != nil {
-					newOTLP["github-app"] = githubApp
-				}
-				workflowData.RawFrontmatter["observability"] = map[string]any{
-					"otlp": newOTLP,
-				}
-				orchestratorWorkflowLog.Printf("Merged OTLP endpoints into RawFrontmatter: %d from main workflow, %d from imports (%d total)", mainCount, importAdded, len(mergedEndpoints))
-				if len(mergedAttrs) > 0 {
-					orchestratorWorkflowLog.Printf("Merged %d custom OTLP attributes into RawFrontmatter", len(mergedAttrs))
-				}
-			}
+func mergeRawOTLPEndpoints(mainObs map[string]any, importedObs map[string]any) (mergedEndpoints []any, mainCount int, importAdded int) {
+	seen := make(map[string]bool)
+	for _, ep := range extractRawOTLPEndpointMaps(mainObs) {
+		if url, _ := ep["url"].(string); url != "" && !seen[url] {
+			seen[url] = true
+			mergedEndpoints = append(mergedEndpoints, ep)
 		}
 	}
+	mainCount = len(mergedEndpoints)
+	for _, ep := range extractRawOTLPEndpointMaps(importedObs) {
+		if url, _ := ep["url"].(string); url != "" && !seen[url] {
+			seen[url] = true
+			mergedEndpoints = append(mergedEndpoints, ep)
+			importAdded++
+		}
+	}
+	return mergedEndpoints, mainCount, importAdded
+}
 
-	// Merge env from imports (main workflow env vars take precedence over imported env vars)
-	if engineSetup.importsResult.MergedEnv != "" {
-		topEnv := ExtractMapField(result.Frontmatter, "env")
-		mergedEnvMap, err := mergeEnv(topEnv, engineSetup.importsResult.MergedEnv)
-		if err != nil {
-			return nil, fmt.Errorf("failed to merge env from imports: %w", err)
-		}
-		if len(mergedEnvMap) > 0 {
-			workflowData.Env = c.extractTopLevelYAMLSection(map[string]any{"env": mergedEnvMap}, "env")
-			// Build source attribution: imported vars get the import path; main-workflow vars are labelled accordingly
-			envSources := make(map[string]string, len(mergedEnvMap))
-			for key := range mergedEnvMap {
-				if _, inTop := topEnv[key]; inTop {
-					envSources[key] = "(main workflow)"
-				} else if src, ok := engineSetup.importsResult.MergedEnvSources[key]; ok {
-					envSources[key] = src
-				}
-			}
-			workflowData.EnvSources = envSources
-		}
-	} else if topEnv := ExtractMapField(result.Frontmatter, "env"); len(topEnv) > 0 {
-		// No imports provided env — still label main workflow vars so the header can show them
-		envSources := make(map[string]string, len(topEnv))
-		for key := range topEnv {
+func applyMergedRawObservability(
+	rawFrontmatter map[string]any,
+	mergedEndpoints []any,
+	mergedAttrs map[string]string,
+	githubApp map[string]any,
+	mainCount int,
+	importAdded int,
+) {
+	if len(mergedEndpoints) == 0 && len(mergedAttrs) == 0 && githubApp == nil {
+		return
+	}
+	newOTLP := map[string]any{}
+	if len(mergedEndpoints) > 0 {
+		newOTLP["endpoint"] = mergedEndpoints
+	}
+	if len(mergedAttrs) > 0 {
+		newOTLP["attributes"] = mergedAttrs
+	}
+	if githubApp != nil {
+		newOTLP["github-app"] = githubApp
+	}
+	rawFrontmatter["observability"] = map[string]any{"otlp": newOTLP}
+	orchestratorWorkflowLog.Printf("Merged OTLP endpoints into RawFrontmatter: %d from main workflow, %d from imports (%d total)", mainCount, importAdded, len(mergedEndpoints))
+	if len(mergedAttrs) > 0 {
+		orchestratorWorkflowLog.Printf("Merged %d custom OTLP attributes into RawFrontmatter", len(mergedAttrs))
+	}
+}
+
+func (c *Compiler) mergeWorkflowEnv(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) error {
+	topEnv := ExtractMapField(frontmatter, "env")
+	if importsResult.MergedEnv == "" {
+		setMainWorkflowEnvSources(workflowData, topEnv)
+		return nil
+	}
+	mergedEnvMap, err := mergeEnv(topEnv, importsResult.MergedEnv)
+	if err != nil {
+		return fmt.Errorf("failed to merge env from imports: %w", err)
+	}
+	if len(mergedEnvMap) == 0 {
+		return nil
+	}
+	workflowData.Env = c.extractTopLevelYAMLSection(map[string]any{"env": mergedEnvMap}, "env")
+	workflowData.EnvSources = buildMergedEnvSources(mergedEnvMap, topEnv, importsResult.MergedEnvSources)
+	return nil
+}
+
+func setMainWorkflowEnvSources(workflowData *WorkflowData, topEnv map[string]any) {
+	if len(topEnv) == 0 {
+		return
+	}
+	envSources := make(map[string]string, len(topEnv))
+	for key := range topEnv {
+		envSources[key] = "(main workflow)"
+	}
+	workflowData.EnvSources = envSources
+}
+
+func buildMergedEnvSources(mergedEnv map[string]any, topEnv map[string]any, importedSources map[string]string) map[string]string {
+	envSources := make(map[string]string, len(mergedEnv))
+	for key := range mergedEnv {
+		if _, inTop := topEnv[key]; inTop {
 			envSources[key] = "(main workflow)"
+		} else if src, ok := importedSources[key]; ok {
+			envSources[key] = src
 		}
-		workflowData.EnvSources = envSources
 	}
-
-	// Inject OTLP configuration: add endpoint domain to firewall allowlist and
-	// set OTEL env vars in the workflow env block (no-op when not configured).
-	c.injectOTLPConfig(workflowData)
-
-	// Merge features from imports
-	if len(engineSetup.importsResult.MergedFeatures) > 0 {
-		mergedFeatures, err := c.MergeFeatures(workflowData.Features, engineSetup.importsResult.MergedFeatures)
-		if err != nil {
-			return nil, fmt.Errorf("failed to merge features from imports: %w", err)
-		}
-		workflowData.Features = mergedFeatures
-	}
-
-	// Process and merge custom steps with imported steps
-	c.processAndMergeSteps(result.Frontmatter, workflowData, engineSetup.importsResult)
-
-	// Process and merge pre-steps
-	c.processAndMergePreSteps(result.Frontmatter, workflowData, engineSetup.importsResult)
-
-	// Process and merge pre-agent-steps
-	c.processAndMergePreAgentSteps(result.Frontmatter, workflowData, engineSetup.importsResult)
-
-	// Process and merge post-steps
-	c.processAndMergePostSteps(result.Frontmatter, workflowData, engineSetup.importsResult)
-
-	// Process and merge services
-	c.processAndMergeServices(result.Frontmatter, workflowData, engineSetup.importsResult)
-
-	// Detect known credential-leaking actions in all merged step collections so that the
-	// compiler can inject a targeted cleanup step before the agentic engine executes.
-	workflowData.KnownActionCredentialEnvVars = DetectKnownCredentialLeakingActionsFromWorkflowData(workflowData)
-
-	// Extract additional configurations (cache, mcp-scripts, safe-outputs, etc.)
-	if err := c.extractAdditionalConfigurations(
-		result.Frontmatter,
-		toolsResult.tools,
-		markdownDir,
-		workflowData,
-		engineSetup.importsResult,
-		toolsResult.rawMainMarkdown,
-		toolsResult.safeOutputs,
-	); err != nil {
-		return nil, err
-	}
-
-	// Note: Git commands are automatically injected when safe-outputs needs them (see compiler_safe_outputs.go)
-	// No validation needed here - the compiler handles adding git to bash allowlist
-
-	// Merge import-safe on.* fields from imports before on-section processing.
-	if err := c.mergeImportedOnFields(result.Frontmatter, workflowData, engineSetup.importsResult); err != nil {
-		return nil, err
-	}
-
-	// Process on section configuration and apply filters
-	if err := c.processOnSectionAndFilters(result.Frontmatter, workflowData, cleanPath); err != nil {
-		return nil, err
-	}
-
-	orchestratorWorkflowLog.Printf("Workflow file parsing completed successfully: %s", markdownPath)
-	return workflowData, nil
+	return envSources
 }
 
 // extractAdditionalConfigurations extracts cache-memory, repo-memory, mcp-scripts, and safe-outputs configurations

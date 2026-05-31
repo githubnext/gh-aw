@@ -185,5 +185,6 @@ func expectedCodemodOrder() []string {
 		"sandbox-mcp-version-removal",
 		"sandbox-agent-false-removal",
 		"infer-to-disable-model-invocation",
+		"run-install-scripts-to-runtimes-node",
 	}
 }

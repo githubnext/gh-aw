@@ -3,9 +3,11 @@
 package workflow
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUsesPatchesAndCheckouts(t *testing.T) {
@@ -148,4 +150,29 @@ func TestUsesPatchesAndCheckouts(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "usesPatchesAndCheckouts should return expected value")
 		})
 	}
+}
+
+func TestBuildCustomSafeOutputJobsJSON(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			Jobs: map[string]*SafeJobConfig{
+				"z-job": {},
+				"a-job": {},
+			},
+		},
+	}
+
+	jsonStr := buildCustomSafeOutputJobsJSON(data)
+	require.NotEmpty(t, jsonStr)
+	assert.JSONEq(t, `{"a_job":"","z_job":""}`, jsonStr)
+
+	var result map[string]string
+	require.NoError(t, json.Unmarshal([]byte(jsonStr), &result))
+	assert.Empty(t, result["a_job"])
+	assert.Empty(t, result["z_job"])
+}
+
+func TestBuildCustomSafeOutputJobsJSONEmpty(t *testing.T) {
+	assert.Empty(t, buildCustomSafeOutputJobsJSON(&WorkflowData{SafeOutputs: &SafeOutputsConfig{}}))
+	assert.Empty(t, buildCustomSafeOutputJobsJSON(&WorkflowData{SafeOutputs: nil}))
 }

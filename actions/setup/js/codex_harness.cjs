@@ -32,6 +32,7 @@
 "use strict";
 
 const fs = require("fs");
+const { isMaxEffectiveTokensExceededError } = require("./effective_tokens_hard_rail.cjs");
 const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
@@ -488,6 +489,11 @@ async function main() {
       break;
     }
 
+    if (isMaxEffectiveTokensExceededError(result.output)) {
+      log(`attempt ${attempt + 1}: AWF effective-token hard rail hit — not retrying (further inference will be refused until budget resets)`);
+      break;
+    }
+
     // Retry when the session was partially executed (has output) or on well-known
     // transient errors (rate limit, server error) even without output.
     const isTransient = isRateLimit || isServer;
@@ -518,6 +524,7 @@ if (typeof module !== "undefined" && module.exports) {
     resolveCodexPromptFileArgs,
     injectJsonFlag,
     isRateLimitError,
+    isMaxEffectiveTokensExceededError,
     isAuthenticationFailedError,
     isMissingApiKeyError,
     isServerError,

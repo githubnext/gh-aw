@@ -1,6 +1,12 @@
 package cli
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var outcomeEvaluationLog = logger.New("cli:outcome_evaluation")
 
 // OutcomeStatus is the normalized classification for a safe output outcome.
 type OutcomeStatus string
@@ -35,6 +41,8 @@ func normalizeOutcomeEvaluation(report OutcomeReport) OutcomeEvaluation {
 	if report.OutcomeStatus != "" && report.EvidenceStrength != "" {
 		return report.OutcomeEvaluation
 	}
+
+	outcomeEvaluationLog.Printf("Normalizing outcome from heuristics: type=%s, result=%s, detail=%q", report.Type, report.Result, report.Detail)
 
 	if report.EvalError != "" || report.Result == OutcomeError {
 		return OutcomeEvaluation{
