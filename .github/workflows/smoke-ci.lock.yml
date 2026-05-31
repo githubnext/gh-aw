@@ -1277,7 +1277,7 @@ jobs:
       - safe_outputs
     if: >
       always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true' ||
-      needs.activation.outputs.stale_lock_file_failed == 'true' || needs.activation.outputs.daily_effective_workflow_exceeded == 'true')
+      needs.activation.outputs.stale_lock_file_failed == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1400,9 +1400,6 @@ jobs:
           GH_AW_ENGINE_API_HOSTS: "api.enterprise.githubcopilot.com,api.githubcopilot.com,api.business.githubcopilot.com,api.individual.githubcopilot.com"
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
           GH_AW_STALE_LOCK_FILE_FAILED: ${{ needs.activation.outputs.stale_lock_file_failed }}
-          GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.activation.outputs.daily_effective_workflow_exceeded }}
-          GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS: ${{ needs.activation.outputs.daily_effective_workflow_total_effective_tokens }}
-          GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD: ${{ needs.activation.outputs.daily_effective_workflow_threshold }}
           GH_AW_PUSH_REPO_MEMORY_RESULT: ${{ needs.push_repo_memory.result }}
           GH_AW_REPO_MEMORY_VALIDATION_FAILED_default: ${{ needs.push_repo_memory.outputs.validation_failed_default }}
           GH_AW_REPO_MEMORY_VALIDATION_ERROR_default: ${{ needs.push_repo_memory.outputs.validation_error_default }}
