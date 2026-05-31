@@ -1,7 +1,6 @@
 ---
 description: Full trending-analysis patterns, best practices, and reporting guidance for chart workflows.
 ---
-
 # Charts with Trending
 
 ## Option C: Charts with Trending (Full Guide)
@@ -334,4 +333,3 @@ For workflows tracking Copilot coding agent session data:
 **Error handling**: If fewer than 7 days of data, use bar charts instead of line charts and note the limited range.
 
 ---
-

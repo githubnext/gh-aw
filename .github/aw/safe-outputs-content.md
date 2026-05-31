@@ -253,4 +253,3 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
   ```
 
   This safe-output type allows agents to programmatically resolve review comment threads after addressing feedback, improving PR review workflows.
-

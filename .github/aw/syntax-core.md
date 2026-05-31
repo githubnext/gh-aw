@@ -155,4 +155,3 @@ The YAML frontmatter supports these fields:
 
   - Never commit plaintext secrets
   - For reusable workflows, use `jobs.<job_id>.secrets` instead
-

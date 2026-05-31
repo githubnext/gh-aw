@@ -484,5 +484,3 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 - **`cache-memory:`** - Memory MCP server with persistent cache storage (boolean or object)
 - **`repo-memory:`** - Repository-specific memory storage (boolean)
 - **`comment-memory:`** - Managed issue/PR comment memory with file-based agent editing (boolean or object, under `tools:`)
-
-
