@@ -256,14 +256,19 @@ max-effective-tokens: 5000000
 max-effective-tokens: -1
 ```
 
-### Daily Per-Workflow Effective Token Guardrail (`max-daily-effective-workflow:`)
+### Daily Per-Workflow Effective Token Guardrail (`max-daily-effective-tokens:`)
 
 Sets a 24-hour effective-token cap for a single workflow, aggregated across recent runs of the same workflow started by the triggering user. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and lets the conclusion job report the specialized failure context.
 
-This guardrail is skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs that carry internal `aw_context` dispatch metadata.
+This guardrail is disabled by default when omitted, and `-1` explicitly disables it. This guardrail is skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs that carry internal `aw_context` dispatch metadata.
 
 ```yaml wrap
-max-daily-effective-workflow: 15000000
+max-daily-effective-tokens: 15000000
+```
+
+```yaml wrap
+# Disable the guardrail explicitly
+max-daily-effective-tokens: -1
 ```
 
 ### Secrets (`secrets:`)

@@ -159,7 +159,7 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 	data := ctx.data
 	compilerActivationJobLog.Printf("Adding activation feedback/validation steps: reaction=%t, status_comment=%t, remove_label=%t, app_token_for_access=%t",
 		ctx.hasReaction, ctx.hasStatusComment, ctx.shouldRemoveLabel, ctx.needsAppTokenForAccess)
-	if data.ActivationGitHubApp != nil && (ctx.hasReaction || ctx.hasStatusComment || ctx.shouldRemoveLabel || ctx.needsAppTokenForAccess || hasMaxDailyEffectiveWorkflowGuardrail(data)) {
+	if data.ActivationGitHubApp != nil && (ctx.hasReaction || ctx.hasStatusComment || ctx.shouldRemoveLabel || ctx.needsAppTokenForAccess || hasMaxDailyEffectiveTokensGuardrail(data)) {
 		appPerms := NewPermissions()
 		addActivationInteractionPermissions(
 			appPerms,
@@ -186,7 +186,7 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 		if ctx.needsAppTokenForAccess {
 			appPerms.Set(PermissionContents, PermissionRead)
 		}
-		if hasMaxDailyEffectiveWorkflowGuardrail(data) {
+		if hasMaxDailyEffectiveTokensGuardrail(data) {
 			appPerms.Set(PermissionActions, PermissionRead)
 			appPerms.Set(PermissionIssues, PermissionWrite)
 		}
@@ -205,7 +205,7 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 		ctx.outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
 	}
 
-	if hasMaxDailyEffectiveWorkflowGuardrail(data) {
+	if hasMaxDailyEffectiveTokensGuardrail(data) {
 		ctx.steps = append(ctx.steps, c.buildActivationDailyEffectiveWorkflowGuardrailStep(data)...)
 		ctx.outputs["daily_effective_workflow_exceeded"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}"
 		ctx.outputs["daily_effective_workflow_total_effective_tokens"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_total_effective_tokens || '' }}"
@@ -267,7 +267,7 @@ func (c *Compiler) buildActivationDailyEffectiveWorkflowGuardrailStep(data *Work
 	steps = append(steps, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 	steps = append(steps, "          GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}\n")
 	steps = append(steps, fmt.Sprintf("          GH_AW_GITHUB_TOKEN: %s\n", c.resolveActivationToken(data)))
-	steps = append(steps, buildTemplatableIntEnvVar("GH_AW_MAX_DAILY_EFFECTIVE_WORKFLOW", data.MaxDailyEffectiveWorkflow)...)
+	steps = append(steps, buildTemplatableIntEnvVar("GH_AW_MAX_DAILY_EFFECTIVE_TOKENS", data.MaxDailyEffectiveTokens)...)
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          github-token: %s\n", c.resolveActivationToken(data)))
 	steps = append(steps, "          script: |\n")
@@ -572,10 +572,10 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) (s
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead,
 	}
-	if !ctx.data.StaleCheckDisabled || hasMaxDailyEffectiveWorkflowGuardrail(ctx.data) {
+	if !ctx.data.StaleCheckDisabled || hasMaxDailyEffectiveTokensGuardrail(ctx.data) {
 		permsMap[PermissionActions] = PermissionRead
 	}
-	if hasMaxDailyEffectiveWorkflowGuardrail(ctx.data) {
+	if hasMaxDailyEffectiveTokensGuardrail(ctx.data) {
 		permsMap[PermissionIssues] = PermissionWrite
 	}
 	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{

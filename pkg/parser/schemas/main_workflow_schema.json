@@ -3726,16 +3726,26 @@
       "default": 25000000,
       "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted. Set to a negative value to disable budget enforcement and token steering."
     },
-    "max-daily-effective-workflow": {
+    "max-daily-effective-tokens": {
       "oneOf": [
         {
           "type": "integer",
-          "minimum": 1,
-          "description": "Maximum effective-token budget allowed across the last 24 hours for runs of this workflow by the triggering user."
+          "oneOf": [
+            {
+              "const": -1
+            },
+            {
+              "minimum": 1
+            }
+          ],
+          "description": "Maximum effective-token budget allowed across the last 24 hours for runs of this workflow by the triggering user. Set to -1 to disable."
         },
         {
           "type": "string",
           "oneOf": [
+            {
+              "pattern": "^-1$"
+            },
             {
               "pattern": "^[1-9][0-9]*$"
             },
@@ -3743,10 +3753,10 @@
               "pattern": "^\\$\\{\\{.*\\}\\}$"
             }
           ],
-          "description": "Maximum 24-hour per-workflow effective-token budget as a numeric string or GitHub Actions expression."
+          "description": "Maximum 24-hour per-workflow effective-token budget as a numeric string or GitHub Actions expression. Use -1 to disable."
         }
       ],
-      "description": "When set, activation checks the triggering user's runs of this workflow over the last 24 hours and prevents execution once the aggregated effective-token total exceeds this threshold."
+      "description": "When set, activation checks the triggering user's runs of this workflow over the last 24 hours and prevents execution once the aggregated effective-token total exceeds this threshold. Omit the field or set it to -1 to leave the guardrail disabled."
     },
     "max-runs": {
       "oneOf": [

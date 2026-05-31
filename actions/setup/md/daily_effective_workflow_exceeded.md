@@ -3,4 +3,4 @@
 - Aggregated 24-hour ET usage: `{total_effective_tokens}`
 - Configured threshold: `{threshold}`{issue_line}
 
-Wait for the 24-hour window to age out or raise `max-daily-effective-workflow` in the workflow frontmatter if the higher budget is intentional.
+Wait for the 24-hour window to age out or raise `max-daily-effective-tokens` in the workflow frontmatter if the higher budget is intentional.

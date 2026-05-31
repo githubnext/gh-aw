@@ -247,7 +247,7 @@ async function main() {
   core.setOutput("daily_effective_workflow_threshold", "");
   core.setOutput("daily_effective_workflow_issue_url", "");
 
-  const threshold = parsePositiveInt(process.env.GH_AW_MAX_DAILY_EFFECTIVE_WORKFLOW);
+  const threshold = parsePositiveInt(process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS);
   if (threshold <= 0) {
     return;
   }

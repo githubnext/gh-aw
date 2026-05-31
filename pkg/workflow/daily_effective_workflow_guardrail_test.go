@@ -10,14 +10,13 @@ import (
 
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
-func TestResolveMaxDailyEffectiveWorkflow(t *testing.T) {
-	t.Parallel()
-
+func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 	t.Run("prefers top-level literal value", func(t *testing.T) {
 		t.Parallel()
-		got := resolveMaxDailyEffectiveWorkflow(map[string]any{"max-daily-effective-workflow": 1234}, `"999"`)
+		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": 1234}, `"999"`)
 		if got == nil || *got != "1234" {
 			t.Fatalf("expected literal top-level value, got %v", got)
 		}
@@ -25,9 +24,25 @@ func TestResolveMaxDailyEffectiveWorkflow(t *testing.T) {
 
 	t.Run("falls back to imported expression", func(t *testing.T) {
 		t.Parallel()
-		got := resolveMaxDailyEffectiveWorkflow(map[string]any{}, `"${{ inputs.max-daily-effective-workflow }}"`)
-		if got == nil || *got != "${{ inputs.max-daily-effective-workflow }}" {
+		got := resolveMaxDailyEffectiveTokens(map[string]any{}, `"${{ inputs.max-daily-effective-tokens }}"`)
+		if got == nil || *got != "${{ inputs.max-daily-effective-tokens }}" {
 			t.Fatalf("expected imported expression, got %v", got)
+		}
+	})
+
+	t.Run("uses enterprise default when unset", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "2222")
+		got := resolveMaxDailyEffectiveTokens(map[string]any{}, "")
+		if got == nil || *got != "2222" {
+			t.Fatalf("expected enterprise default, got %v", got)
+		}
+	})
+
+	t.Run("explicit disable overrides enterprise default", func(t *testing.T) {
+		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "2222")
+		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": -1}, "")
+		if got != nil {
+			t.Fatalf("expected explicit disable to skip the guardrail, got %v", *got)
 		}
 	})
 }
@@ -40,7 +55,7 @@ func TestDailyEffectiveWorkflowGuardrailInCompiledWorkflow(t *testing.T) {
 on:
   workflow_dispatch:
   stale-check: false
-max-daily-effective-workflow: 1234
+max-daily-effective-tokens: 1234
 safe-outputs:
   add-comment:
     max: 1
@@ -70,7 +85,7 @@ Guardrail test workflow`
 	if !strings.Contains(lockStr, "check_daily_effective_workflow_guardrail.cjs") {
 		t.Fatal("expected activation job to call check_daily_effective_workflow_guardrail.cjs")
 	}
-	if !strings.Contains(lockStr, `GH_AW_MAX_DAILY_EFFECTIVE_WORKFLOW: "1234"`) {
+	if !strings.Contains(lockStr, `GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "1234"`) {
 		t.Fatal("expected activation guardrail step to receive the configured threshold")
 	}
 	if !strings.Contains(lockStr, "daily_effective_workflow_exceeded: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}") {

@@ -71,13 +71,13 @@ type importAccumulator struct {
 	// First engine.model found in imports that have no engine.id (first-wins strategy).
 	// These express a model preference without selecting a specific engine.
 	mergedEngineModel string
-	// First top-level max-runs / max-effective-tokens / max-daily-effective-workflow
+	// First top-level max-runs / max-effective-tokens / max-daily-effective-tokens
 	// found across imports (first-wins).
 	// Values are stored as JSON-encoded raw values so numeric literals and strings
 	// round-trip consistently through import processing.
-	mergedMaxRuns                   string
-	mergedMaxEffectiveTokens        string
-	mergedMaxDailyEffectiveWorkflow string
+	mergedMaxRuns                 string
+	mergedMaxEffectiveTokens      string
+	mergedMaxDailyEffectiveTokens string
 	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
 	warnings []string
 }
@@ -347,7 +347,7 @@ func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath st
 // frontmatter map and writes them into the appropriate accumulator builders and slices.
 //
 // Side effects: acc.mergedMaxRuns, acc.mergedMaxEffectiveTokens,
-// acc.mergedMaxDailyEffectiveWorkflow, acc.mcpServersBuilder,
+// acc.mergedMaxDailyEffectiveTokens, acc.mcpServersBuilder,
 // acc.safeOutputs, acc.mcpScripts, acc.stepsBuilder, acc.runtimesBuilder,
 // acc.servicesBuilder, acc.networkBuilder, acc.permissionsBuilder,
 // acc.secretMaskingBuilder.
@@ -370,12 +370,12 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 		}
 	}
 
-	// Extract max-daily-effective-workflow (first-wins across imports).
-	if acc.mergedMaxDailyEffectiveWorkflow == "" {
-		if maxDailyJSON, merr := extractFieldJSONFromMap(fm, "max-daily-effective-workflow", ""); merr == nil &&
+	// Extract max-daily-effective-tokens (first-wins across imports).
+	if acc.mergedMaxDailyEffectiveTokens == "" {
+		if maxDailyJSON, merr := extractFieldJSONFromMap(fm, "max-daily-effective-tokens", ""); merr == nil &&
 			maxDailyJSON != "" && maxDailyJSON != "null" {
-			acc.mergedMaxDailyEffectiveWorkflow = maxDailyJSON
-			parserLog.Printf("Extracted max-daily-effective-workflow from import: %s", fullPath)
+			acc.mergedMaxDailyEffectiveTokens = maxDailyJSON
+			parserLog.Printf("Extracted max-daily-effective-tokens from import: %s", fullPath)
 		}
 	}
 
@@ -711,53 +711,53 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 	parserLog.Printf("Building ImportsResult: importedFiles=%d, importPaths=%d, engines=%d, bots=%d, labels=%d",
 		len(topologicalOrder), len(acc.importPaths), len(acc.engines), len(acc.bots), len(acc.labels))
 	return &ImportsResult{
-		MergedTools:                     acc.toolsBuilder.String(),
-		MergedMCPServers:                acc.mcpServersBuilder.String(),
-		MergedEngines:                   acc.engines,
-		MergedSafeOutputs:               acc.safeOutputs,
-		MergedMCPScripts:                acc.mcpScripts,
-		MergedMarkdown:                  acc.markdownBuilder.String(),
-		ImportPaths:                     acc.importPaths,
-		MergedSteps:                     acc.stepsBuilder.String(),
-		CopilotSetupSteps:               acc.copilotSetupStepsBuilder.String(),
-		MergedPreSteps:                  acc.preStepsBuilder.String(),
-		MergedPreAgentSteps:             acc.preAgentStepsBuilder.String(),
-		MergedRuntimes:                  acc.runtimesBuilder.String(),
-		MergedRunInstallScripts:         acc.runInstallScripts,
-		MergedServices:                  acc.servicesBuilder.String(),
-		MergedNetwork:                   acc.networkBuilder.String(),
-		MergedPermissions:               acc.permissionsBuilder.String(),
-		MergedSecretMasking:             acc.secretMaskingBuilder.String(),
-		MergedBots:                      acc.bots,
-		MergedSkipRoles:                 acc.skipRoles,
-		MergedSkipBots:                  acc.skipBots,
-		MergedSkipIfMatch:               acc.skipIfMatch,
-		MergedSkipIfNoMatch:             acc.skipIfNoMatch,
-		MergedPostSteps:                 acc.postStepsBuilder.String(),
-		MergedLabels:                    acc.labels,
-		MergedCaches:                    acc.caches,
-		MergedJobs:                      acc.jobsBuilder.String(),
-		MergedEnv:                       acc.envBuilder.String(),
-		MergedEnvSources:                acc.envSources,
-		MergedFeatures:                  acc.features,
-		MergedModels:                    acc.models,
-		MergedObservability:             mergeObservabilityConfigs(acc.observabilityConfigs),
-		ImportedFiles:                   topologicalOrder,
-		AgentFile:                       acc.agentFile,
-		AgentImportSpec:                 acc.agentImportSpec,
-		RepositoryImports:               acc.repositoryImports,
-		ImportInputs:                    acc.importInputs,
-		MergedActivationGitHubToken:     acc.activationGitHubToken,
-		MergedActivationGitHubApp:       acc.activationGitHubApp,
-		MergedTopLevelGitHubApp:         acc.topLevelGitHubApp,
-		MergedCheckout:                  strings.Join(acc.checkouts, "\n"),
-		MergedEngineMCPToolTimeout:      acc.mergedEngineMCPToolTimeout,
-		MergedEngineMCPSessionTimeout:   acc.mergedEngineMCPSessionTimeout,
-		MergedEngineModel:               acc.mergedEngineModel,
-		MergedMaxRuns:                   acc.mergedMaxRuns,
-		MergedMaxEffectiveTokens:        acc.mergedMaxEffectiveTokens,
-		MergedMaxDailyEffectiveWorkflow: acc.mergedMaxDailyEffectiveWorkflow,
-		Warnings:                        acc.warnings,
+		MergedTools:                   acc.toolsBuilder.String(),
+		MergedMCPServers:              acc.mcpServersBuilder.String(),
+		MergedEngines:                 acc.engines,
+		MergedSafeOutputs:             acc.safeOutputs,
+		MergedMCPScripts:              acc.mcpScripts,
+		MergedMarkdown:                acc.markdownBuilder.String(),
+		ImportPaths:                   acc.importPaths,
+		MergedSteps:                   acc.stepsBuilder.String(),
+		CopilotSetupSteps:             acc.copilotSetupStepsBuilder.String(),
+		MergedPreSteps:                acc.preStepsBuilder.String(),
+		MergedPreAgentSteps:           acc.preAgentStepsBuilder.String(),
+		MergedRuntimes:                acc.runtimesBuilder.String(),
+		MergedRunInstallScripts:       acc.runInstallScripts,
+		MergedServices:                acc.servicesBuilder.String(),
+		MergedNetwork:                 acc.networkBuilder.String(),
+		MergedPermissions:             acc.permissionsBuilder.String(),
+		MergedSecretMasking:           acc.secretMaskingBuilder.String(),
+		MergedBots:                    acc.bots,
+		MergedSkipRoles:               acc.skipRoles,
+		MergedSkipBots:                acc.skipBots,
+		MergedSkipIfMatch:             acc.skipIfMatch,
+		MergedSkipIfNoMatch:           acc.skipIfNoMatch,
+		MergedPostSteps:               acc.postStepsBuilder.String(),
+		MergedLabels:                  acc.labels,
+		MergedCaches:                  acc.caches,
+		MergedJobs:                    acc.jobsBuilder.String(),
+		MergedEnv:                     acc.envBuilder.String(),
+		MergedEnvSources:              acc.envSources,
+		MergedFeatures:                acc.features,
+		MergedModels:                  acc.models,
+		MergedObservability:           mergeObservabilityConfigs(acc.observabilityConfigs),
+		ImportedFiles:                 topologicalOrder,
+		AgentFile:                     acc.agentFile,
+		AgentImportSpec:               acc.agentImportSpec,
+		RepositoryImports:             acc.repositoryImports,
+		ImportInputs:                  acc.importInputs,
+		MergedActivationGitHubToken:   acc.activationGitHubToken,
+		MergedActivationGitHubApp:     acc.activationGitHubApp,
+		MergedTopLevelGitHubApp:       acc.topLevelGitHubApp,
+		MergedCheckout:                strings.Join(acc.checkouts, "\n"),
+		MergedEngineMCPToolTimeout:    acc.mergedEngineMCPToolTimeout,
+		MergedEngineMCPSessionTimeout: acc.mergedEngineMCPSessionTimeout,
+		MergedEngineModel:             acc.mergedEngineModel,
+		MergedMaxRuns:                 acc.mergedMaxRuns,
+		MergedMaxEffectiveTokens:      acc.mergedMaxEffectiveTokens,
+		MergedMaxDailyEffectiveTokens: acc.mergedMaxDailyEffectiveTokens,
+		Warnings:                      acc.warnings,
 	}
 }
 

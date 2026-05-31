@@ -11,6 +11,10 @@ const (
 	// DefaultMaxEffectiveTokens is the enterprise override for AWF apiProxy.maxEffectiveTokens
 	// when max-effective-tokens is not explicitly configured in workflow frontmatter.
 	DefaultMaxEffectiveTokens = "GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS"
+	// DefaultMaxDailyEffectiveTokens is the enterprise override for the top-level
+	// max-daily-effective-tokens guardrail when it is not explicitly configured in
+	// workflow frontmatter.
+	DefaultMaxDailyEffectiveTokens = "GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS"
 	// DefaultMaxTurns is the enterprise override for engine.max-turns when it is not
 	// explicitly configured in workflow frontmatter.
 	DefaultMaxTurns = "GH_AW_DEFAULT_MAX_TURNS"
@@ -41,6 +45,21 @@ func ResolveDefaultMaxEffectiveTokens(fallback int64) int64 {
 		return fallback
 	}
 	return parsed
+}
+
+// ResolveDefaultMaxDailyEffectiveTokens returns fallback when the env var is
+// unset/invalid, otherwise returns the parsed override as a normalized string.
+// A value of -1 is preserved to allow explicitly disabling the guardrail.
+func ResolveDefaultMaxDailyEffectiveTokens(fallback string) string {
+	raw := strings.TrimSpace(os.Getenv(DefaultMaxDailyEffectiveTokens))
+	if raw == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || parsed == 0 {
+		return fallback
+	}
+	return strconv.FormatInt(parsed, 10)
 }
 
 // ResolveDefaultMaxTurns returns fallback when the env var is unset/invalid,
