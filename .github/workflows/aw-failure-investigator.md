@@ -12,6 +12,22 @@ permissions:
   pull-requests: read
 tracker-id: aw-failure-investigator
 engine: claude
+experiments:
+  tone_variant:
+    variants: [clinical, assertive, narrative]
+    description: "Tests whether report tone (clinical/assertive/narrative) affects output efficiency and engineer engagement on failure investigation issues"
+    hypothesis: "H0: no change in output_length_chars across tone variants. H1: assertive tone produces shorter, more actionable outputs than clinical or narrative, with equivalent or better sub-issue quality."
+    metric: output_length_chars
+    secondary_metrics: [issue_creation_rate, sub_issue_link_count, run_duration_seconds]
+    guardrail_metrics:
+      - name: run_success_rate
+        threshold: ">=0.85"
+    min_samples: 50
+    weight: [34, 33, 33]
+    start_date: "2026-05-31"
+    analysis_type: mann_whitney
+    tags: [tone, output-quality, triage]
+    issue: 36105
 tools:
   bash: ["*"]
 cache:
@@ -285,6 +301,16 @@ Each new sub-issue must include:
 - probable root cause
 - specific proposed remediation
 - success criteria / verification
+
+## Tone Variant Instructions
+
+{{#if experiments.tone_variant == 'assertive'}}
+Tone instruction: Write in assertive, action-first style. Open every section with a direct imperative recommendation (e.g., "Fix the retry loop in workflow X — it causes 40% of P0 failures"). Keep rationale to one sentence. Prioritize brevity and actionability over completeness.
+{{else if experiments.tone_variant == 'narrative'}}
+Tone instruction: Write in narrative style. Use flowing prose paragraphs to explain what happened, why it matters, and what the broader context is. Readers should finish each section with a clear mental model of the failure, not just a list of facts.
+{{else}}
+Tone instruction: Write in clinical, neutral style. Use numbered lists, avoid editorializing, and anchor every claim to a metric or log reference. This is the baseline behavior.
+{{/if}}
 
 ## Output Requirements
 
