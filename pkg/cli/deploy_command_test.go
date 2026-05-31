@@ -189,3 +189,31 @@ func TestResolveDeployWorkflowSpecs_ResolvesRelativeWildcardLocalPaths(t *testin
 
 	assert.Equal(t, filepath.Join(baseDir, "*.md"), workflows[0])
 }
+
+func TestParseDeployCommandOptions_NameFlagWithMultipleWorkflows_Error(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewDeployCommand(func(string) error { return nil })
+	require.NotNil(t, cmd)
+	require.NoError(t, cmd.Flags().Set("name", "custom-workflow"))
+
+	opts, coolDown, err := parseDeployCommandOptions(cmd, []string{"a", "b"}, func(string) error { return nil })
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--name flag cannot be used when adding multiple workflows at once")
+	assert.Equal(t, AddOptions{}, opts)
+	assert.Zero(t, coolDown)
+}
+
+func TestParseDeployCommandOptions_InvalidCoolDown_Error(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewDeployCommand(func(string) error { return nil })
+	require.NotNil(t, cmd)
+	require.NoError(t, cmd.Flags().Set("cool-down", "not-a-duration"))
+
+	opts, coolDown, err := parseDeployCommandOptions(cmd, []string{"a"}, func(string) error { return nil })
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid --cool-down value")
+	assert.Equal(t, AddOptions{}, opts)
+	assert.Zero(t, coolDown)
+}

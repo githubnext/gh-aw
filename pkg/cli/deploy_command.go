@@ -34,61 +34,60 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/ci-doctor --repo owner/repo
   ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/repo-assist githubnext/agentics/ci-doctor --repo owner/repo --force
   ` + string(constants.CLIExtensionPrefix) + ` deploy ./my-workflow.md --repo owner/repo`,
-		Args: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 {
-				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow>...\n\nExamples:\n  %[1]s githubnext/agentics/ci-doctor --repo owner/repo\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
-			}
-			return nil
-		},
+		Args: validateDeployArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			workflows := args
-			targetRepo, _ := cmd.Flags().GetString("repo")
-			if strings.TrimSpace(targetRepo) == "" {
-				return errors.New("--repo flag is required (target repository in owner/repo format)")
-			}
-
-			engineOverride, _ := cmd.Flags().GetString("engine")
-			nameFlag, _ := cmd.Flags().GetString("name")
-			forceFlag, _ := cmd.Flags().GetBool("force")
-			appendText, _ := cmd.Flags().GetString("append")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
-			workflowDir, _ := cmd.Flags().GetString("dir")
-			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
-			stopAfter, _ := cmd.Flags().GetString("stop-after")
-			disableSecurityScanner, _ := cmd.Flags().GetBool("disable-security-scanner")
-			coolDownStr, _ := cmd.Flags().GetString("cool-down")
-
-			if nameFlag != "" && len(workflows) > 1 {
-				return errors.New("--name flag cannot be used when adding multiple workflows at once")
-			}
-
-			if err := validateEngine(engineOverride); err != nil {
-				return err
-			}
-
-			coolDown, err := parseCoolDownFlag(coolDownStr)
-			if err != nil {
-				return fmt.Errorf("invalid --cool-down value: %w", err)
-			}
-
-			opts := AddOptions{
-				Verbose:                verbose,
-				EngineOverride:         engineOverride,
-				Name:                   nameFlag,
-				Force:                  forceFlag,
-				AppendText:             appendText,
-				NoGitattributes:        noGitattributes,
-				WorkflowDir:            workflowDir,
-				NoStopAfter:            noStopAfter,
-				StopAfter:              stopAfter,
-				DisableSecurityScanner: disableSecurityScanner,
-			}
-
-			return runDeploy(cmd.Context(), targetRepo, workflows, opts, coolDown)
+			return runDeployCommand(cmd, args, validateEngine)
 		},
 	}
 
+	registerDeployFlags(cmd)
+
+	return cmd
+}
+
+func runDeploy(ctx context.Context, targetRepo string, workflows []string, addOpts AddOptions, coolDown time.Duration) error {
+	checkoutDir, originalDir, err := prepareDeployCheckout(ctx, targetRepo)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	resolvedWorkflows := resolveDeployWorkflowSpecs(workflows, originalDir)
+
+	if err := os.Chdir(checkoutDir); err != nil {
+		return fmt.Errorf("failed to change directory to checkout %s: %w", checkoutDir, err)
+	}
+
+	if err := runDeployUpdatePass(ctx, addOpts, coolDown); err != nil {
+		return err
+	}
+
+	if err := runDeployAddPass(ctx, resolvedWorkflows, addOpts); err != nil {
+		return err
+	}
+
+	if err := runDeployCompilePass(ctx, addOpts); err != nil {
+		return err
+	}
+
+	if err := createDeployPR(resolvedWorkflows, targetRepo, addOpts.Verbose); err != nil {
+		return err
+	}
+
+	deployLog.Printf("Successfully deployed workflows to %s", targetRepo)
+	return nil
+}
+
+func validateDeployArgs(cmd *cobra.Command, args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow>...\n\nExamples:\n  %[1]s githubnext/agentics/ci-doctor --repo owner/repo\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
+	}
+	return nil
+}
+
+func registerDeployFlags(cmd *cobra.Command) {
 	addRepoFlag(cmd)
 	cmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
 	addEngineFlag(cmd)
@@ -103,40 +102,86 @@ Examples:
 
 	RegisterEngineFlagCompletion(cmd)
 	RegisterDirFlagCompletion(cmd, "dir")
-
-	return cmd
 }
 
-func runDeploy(ctx context.Context, targetRepo string, workflows []string, addOpts AddOptions, coolDown time.Duration) error {
+func runDeployCommand(cmd *cobra.Command, workflows []string, validateEngine func(string) error) error {
+	targetRepo, _ := cmd.Flags().GetString("repo")
+	if strings.TrimSpace(targetRepo) == "" {
+		return errors.New("--repo flag is required (target repository in owner/repo format)")
+	}
+
+	opts, coolDown, err := parseDeployCommandOptions(cmd, workflows, validateEngine)
+	if err != nil {
+		return err
+	}
+
+	return runDeploy(cmd.Context(), targetRepo, workflows, opts, coolDown)
+}
+
+func parseDeployCommandOptions(cmd *cobra.Command, workflows []string, validateEngine func(string) error) (AddOptions, time.Duration, error) {
+	engineOverride, _ := cmd.Flags().GetString("engine")
+	nameFlag, _ := cmd.Flags().GetString("name")
+	forceFlag, _ := cmd.Flags().GetBool("force")
+	appendText, _ := cmd.Flags().GetString("append")
+	verbose, _ := cmd.Flags().GetBool("verbose")
+	noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
+	workflowDir, _ := cmd.Flags().GetString("dir")
+	noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
+	stopAfter, _ := cmd.Flags().GetString("stop-after")
+	disableSecurityScanner, _ := cmd.Flags().GetBool("disable-security-scanner")
+	coolDownStr, _ := cmd.Flags().GetString("cool-down")
+
+	if nameFlag != "" && len(workflows) > 1 {
+		return AddOptions{}, 0, errors.New("--name flag cannot be used when adding multiple workflows at once")
+	}
+	if err := validateEngine(engineOverride); err != nil {
+		return AddOptions{}, 0, err
+	}
+
+	coolDown, err := parseCoolDownFlag(coolDownStr)
+	if err != nil {
+		return AddOptions{}, 0, fmt.Errorf("invalid --cool-down value: %w", err)
+	}
+
+	return AddOptions{
+		Verbose:                verbose,
+		EngineOverride:         engineOverride,
+		Name:                   nameFlag,
+		Force:                  forceFlag,
+		AppendText:             appendText,
+		NoGitattributes:        noGitattributes,
+		WorkflowDir:            workflowDir,
+		NoStopAfter:            noStopAfter,
+		StopAfter:              stopAfter,
+		DisableSecurityScanner: disableSecurityScanner,
+	}, coolDown, nil
+}
+
+func prepareDeployCheckout(ctx context.Context, targetRepo string) (string, string, error) {
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
-		return fmt.Errorf("deploy command requires running inside a git repository: %w", err)
+		return "", "", fmt.Errorf("deploy command requires running inside a git repository: %w", err)
 	}
 
 	updatesDir, err := ensureUpdateTargetRepoGitignore(gitRoot)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 
 	checkoutDir := filepath.Join(updatesDir, sanitizeRepoPath(targetRepo))
 	if err := shallowCloneTargetRepo(ctx, targetRepo, checkoutDir); err != nil {
-		return err
+		return "", "", err
 	}
 
 	originalDir, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("failed to read current directory: %w", err)
-	}
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	resolvedWorkflows := resolveDeployWorkflowSpecs(workflows, originalDir)
-
-	if err := os.Chdir(checkoutDir); err != nil {
-		return fmt.Errorf("failed to change directory to checkout %s: %w", checkoutDir, err)
+		return "", "", fmt.Errorf("failed to read current directory: %w", err)
 	}
 
+	return checkoutDir, originalDir, nil
+}
+
+func runDeployUpdatePass(ctx context.Context, addOpts AddOptions, coolDown time.Duration) error {
 	if err := PreflightCheckForCreatePR(addOpts.Verbose); err != nil {
 		return err
 	}
@@ -153,7 +198,10 @@ func runDeploy(ctx context.Context, targetRepo string, workflows []string, addOp
 	if err := RunUpdateWorkflows(ctx, updateOpts); err != nil {
 		return fmt.Errorf("failed to update existing workflows: %w", err)
 	}
+	return nil
+}
 
+func runDeployAddPass(ctx context.Context, resolvedWorkflows []string, addOpts AddOptions) error {
 	workflowsToAdd, skippedWorkflows, err := excludeExistingSourcedWorkflows(resolvedWorkflows, addOpts)
 	if err != nil {
 		return fmt.Errorf("failed to inspect existing workflows: %w", err)
@@ -161,15 +209,18 @@ func runDeploy(ctx context.Context, targetRepo string, workflows []string, addOp
 	if len(skippedWorkflows) > 0 {
 		deployLog.Printf("Skipping add for existing sourced workflows (already handled by update): %s", strings.Join(skippedWorkflows, ", "))
 	}
-
-	if len(workflowsToAdd) > 0 {
-		if _, err := AddWorkflows(ctx, workflowsToAdd, addOpts); err != nil {
-			return fmt.Errorf("failed to add workflows: %w", err)
-		}
-	} else {
+	if len(workflowsToAdd) == 0 {
 		deployLog.Print("No new workflows to add after update pass")
+		return nil
 	}
 
+	if _, err := AddWorkflows(ctx, workflowsToAdd, addOpts); err != nil {
+		return fmt.Errorf("failed to add workflows: %w", err)
+	}
+	return nil
+}
+
+func runDeployCompilePass(ctx context.Context, addOpts AddOptions) error {
 	compileConfig := CompileConfig{
 		Verbose:        addOpts.Verbose,
 		EngineOverride: addOpts.EngineOverride,
@@ -179,14 +230,15 @@ func runDeploy(ctx context.Context, targetRepo string, workflows []string, addOp
 	if _, err := CompileWorkflows(ctx, compileConfig); err != nil {
 		return fmt.Errorf("failed to compile workflows with purge: %w", err)
 	}
+	return nil
+}
 
+func createDeployPR(resolvedWorkflows []string, targetRepo string, verbose bool) error {
 	prTitle, prBody := buildDeployPRMetadata(resolvedWorkflows, targetRepo)
-	_, err = CreatePRWithChanges("deploy-workflows", deployCommitMessage, prTitle, prBody, addOpts.Verbose)
+	_, err := CreatePRWithChanges("deploy-workflows", deployCommitMessage, prTitle, prBody, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to create deploy pull request: %w", err)
 	}
-
-	deployLog.Printf("Successfully deployed workflows to %s", targetRepo)
 	return nil
 }
 
