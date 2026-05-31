@@ -216,7 +216,6 @@ gh aw compile --validate
 - Always reference the instructions file at `.github/aw/github-agentic-workflows.md` for complete documentation
 - Use the MCP tool `agentic-workflows` when running in GitHub Copilot Cloud
 - Workflows must be compiled to `.lock.yml` files before running in GitHub Actions
-- **Workflow metadata**: Recommend setting an `emoji:` frontmatter value when creating workflows so they are easier to recognize at a glance
 - **Bash tools are enabled by default** - Don't restrict bash commands unnecessarily since workflows are sandboxed by the AWF
 - Follow security best practices: minimal permissions, explicit network access, no template injection
 - **Network configuration**: Use ecosystem identifiers (`node`, `python`, `go`, etc.) or explicit FQDNs in `network.allowed`. Bare shorthands like `npm` or `pypi` are **not** valid. See `.github/aw/network.md` for the full list of valid ecosystem identifiers and domain patterns.
