@@ -1502,6 +1502,43 @@ Test content`
 	}
 }
 
+func TestBuildJobsWithReusableWorkflowTimeoutMinutesFails(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "reusable-workflow-timeout-test")
+
+	frontmatter := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+jobs:
+  call-other:
+    uses: owner/repo/.github/workflows/reusable.yml@main
+    timeout-minutes: 10
+---
+
+# Test Workflow
+
+Test content`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	if err == nil {
+		t.Fatal("CompileWorkflow() expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "call-other") {
+		t.Fatalf("CompileWorkflow() error = %v, want error mentioning job name", err)
+	}
+	if !strings.Contains(err.Error(), "cannot set timeout-minutes") {
+		t.Fatalf("CompileWorkflow() error = %v, want error mentioning timeout-minutes restriction", err)
+	}
+}
+
 func TestBuildJobsJobConditionExtraction(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "job-condition-test")
 

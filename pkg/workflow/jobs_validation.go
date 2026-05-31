@@ -23,6 +23,21 @@ import (
 	"strings"
 )
 
+func validateJobDefinition(job *Job) error {
+	if job == nil {
+		return fmt.Errorf("job definition cannot be nil")
+	}
+
+	if job.Uses != "" && job.TimeoutMinutes > 0 {
+		return fmt.Errorf(
+			"job '%s' uses a reusable workflow and cannot set timeout-minutes; remove timeout-minutes from the caller job or move it into the called workflow",
+			job.Name,
+		)
+	}
+
+	return nil
+}
+
 // ValidateDependencies checks that all job dependencies exist and there are no cycles
 func (jm *JobManager) ValidateDependencies() error {
 	jobLog.Printf("Validating dependencies for %d jobs", len(jm.jobs))

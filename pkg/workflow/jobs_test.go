@@ -42,6 +42,16 @@ func TestJobManager_AddJob(t *testing.T) {
 			wantErr: true,
 			errMsg:  "job 'test-job' already exists",
 		},
+		{
+			name: "reusable workflow caller cannot set timeout-minutes",
+			job: &Job{
+				Name:           "call-reusable",
+				Uses:           "./.github/workflows/reusable.yml",
+				TimeoutMinutes: 10,
+			},
+			wantErr: true,
+			errMsg:  "uses a reusable workflow and cannot set timeout-minutes",
+		},
 	}
 
 	for _, tt := range tests {
