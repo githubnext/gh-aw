@@ -5,12 +5,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const {
-  calculateDailyEffectiveWorkflowStats,
-  findTokenUsageFile,
-  formatEffectiveTokens,
-  sumEffectiveTokensFromTokenUsageFile,
-} = require("./daily_effective_workflow_helpers.cjs");
+const { calculateDailyEffectiveWorkflowStats, findTokenUsageFile, formatEffectiveTokens, sumEffectiveTokensFromTokenUsageFile } = require("./daily_effective_workflow_helpers.cjs");
 const { parsePositiveEffectiveTokenLimitNumber } = require("./effective_token_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
@@ -160,10 +155,7 @@ function renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold
       ? countedRuns
           .slice()
           .sort((a, b) => Date.parse(b.created_at || "") - Date.parse(a.created_at || ""))
-          .map(
-            run =>
-              `| [#${run.id}](${run.html_url || ""}) | ${escapeMarkdownCell(run.created_at || "")} | ${escapeMarkdownCell(run.conclusion || "unknown")} | ${formatEffectiveTokens(run.effective_tokens)} |`
-          )
+          .map(run => `| [#${run.id}](${run.html_url || ""}) | ${escapeMarkdownCell(run.created_at || "")} | ${escapeMarkdownCell(run.conclusion || "unknown")} | ${formatEffectiveTokens(run.effective_tokens)} |`)
           .join("\n")
       : "| _none_ | — | — | 0 |";
 

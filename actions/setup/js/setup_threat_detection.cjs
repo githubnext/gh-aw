@@ -41,19 +41,12 @@ async function main() {
   let promptFileInfo;
   if (!fs.existsSync(promptPath)) {
     promptFileInfo = `${promptPath} (unavailable)`;
-    core.warning(
-      `⚠️ ${ERR_VALIDATION}: Missing workflow prompt context at ${promptPath}. ` +
-        "Ensure the agent artifact includes /tmp/gh-aw/aw-prompts/prompt.txt. " +
-        "Threat detection will continue with fallback workflow context."
-    );
+    core.warning(`⚠️ ${ERR_VALIDATION}: Missing workflow prompt context at ${promptPath}. ` + "Ensure the agent artifact includes /tmp/gh-aw/aw-prompts/prompt.txt. " + "Threat detection will continue with fallback workflow context.");
   } else {
     const promptStats = fs.statSync(promptPath);
     if (promptStats.size === 0) {
       promptFileInfo = `${promptPath} (unavailable)`;
-      core.warning(
-        `⚠️ ${ERR_VALIDATION}: Workflow prompt context is empty at ${promptPath}. ` +
-          "Threat detection will continue with fallback workflow context."
-      );
+      core.warning(`⚠️ ${ERR_VALIDATION}: Workflow prompt context is empty at ${promptPath}. ` + "Threat detection will continue with fallback workflow context.");
     } else {
       core.info(`Prompt file found: ${promptPath} (${promptStats.size} bytes)`);
       promptFileInfo = `${promptPath} (${promptStats.size} bytes)`;

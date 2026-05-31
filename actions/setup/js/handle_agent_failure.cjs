@@ -2498,11 +2498,7 @@ async function main() {
 
         // Build stale lock file failure context
         const staleLockFileFailedContext = buildStaleLockFileFailedContext(hasStaleLockFileFailed);
-        const dailyEffectiveWorkflowExceededContext = buildDailyEffectiveWorkflowExceededContext(
-          hasDailyEffectiveWorkflowExceeded,
-          dailyEffectiveWorkflowTotalEffectiveTokens,
-          dailyEffectiveWorkflowThreshold
-        );
+        const dailyEffectiveWorkflowExceededContext = buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExceeded, dailyEffectiveWorkflowTotalEffectiveTokens, dailyEffectiveWorkflowThreshold);
 
         // Build copilot assignment failure context for created issues
         const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
@@ -2690,11 +2686,7 @@ async function main() {
 
         // Build stale lock file failure context
         const staleLockFileFailedContext = buildStaleLockFileFailedContext(hasStaleLockFileFailed);
-        const dailyEffectiveWorkflowExceededContext = buildDailyEffectiveWorkflowExceededContext(
-          hasDailyEffectiveWorkflowExceeded,
-          dailyEffectiveWorkflowTotalEffectiveTokens,
-          dailyEffectiveWorkflowThreshold
-        );
+        const dailyEffectiveWorkflowExceededContext = buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExceeded, dailyEffectiveWorkflowTotalEffectiveTokens, dailyEffectiveWorkflowThreshold);
 
         // Build copilot assignment failure context for created issues
         const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
