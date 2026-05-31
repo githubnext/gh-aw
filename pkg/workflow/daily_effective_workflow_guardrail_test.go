@@ -129,3 +129,42 @@ Guardrail test workflow`
 		t.Fatal("expected activation permissions to avoid issues: write for the daily ET guardrail")
 	}
 }
+
+func TestNoDailyEffectiveWorkflowReferencesWithoutGuardrail(t *testing.T) {
+	testDir := testutil.TempDir(t, "daily-effective-workflow-no-guardrail-*")
+	workflowFile := filepath.Join(testDir, "no-daily-guardrail.md")
+
+	workflow := `---
+on:
+  workflow_dispatch:
+  stale-check: false
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+No daily guardrail`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0o644); err != nil {
+		t.Fatalf("failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+	if strings.Contains(lockStr, "daily_effective_workflow_exceeded") {
+		t.Fatal("expected workflows without the daily ET guardrail to omit daily_effective_workflow_exceeded references")
+	}
+	if strings.Contains(lockStr, "GH_AW_DAILY_EFFECTIVE_WORKFLOW_") {
+		t.Fatal("expected workflows without the daily ET guardrail to omit daily ET env vars")
+	}
+}
