@@ -115,7 +115,7 @@ steps:
         })
       }' "$eligible_file" \
         > /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json
-      echo "eligible_count=$(jq '.prs | length' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json)" >> "$GITHUB_OUTPUT"
+      echo "eligible_count=$(jq '.prs | length' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)" >> "$GITHUB_OUTPUT"
   - name: Setup Go
     if: steps.fetch-prs.outputs.eligible_count != '0'
     uses: actions/setup-go@v6.4.0
@@ -175,7 +175,7 @@ Move open non-draft PRs toward a state where a maintainer can investigate quickl
 3. Process PRs in `updatedAt` descending order.
 4. Process at most **5 PRs** per run. Remaining eligible PRs will be handled in the next scheduled run.
 5. Use the `pr-processor` sub-agent for each PR; pass only the PR number and compact context.
-6. If a `pr-processor` call returns non-JSON or an error, record `skip_reason: "sub_agent_error"` and move to the next PR without retrying.
+6. If a `pr-processor` call returns non-JSON or an error, record `{pr_number: <N>, skip_reason: "sub_agent_error"}` in the `skipped` array of the run-summary noop payload and move to the next PR without retrying.
 7. Do not fetch full PR diffs or large file lists unless absolutely required for a skip decision.
 8. **Never finish without at least one safe-output tool call.** If you have not called `add_comment` or `update_pull_request`, you must call the run-summary `noop` (see **Run summary** below) before finishing.
 
@@ -270,6 +270,6 @@ Given one PR number and compact metadata:
    - whether branch update should be attempted
    - whether unresolved review feedback exists
    - one concise additional progress nudge recommendation
-4. Make at most 4 tool calls total.
+4. Make at most 8 tool calls total. If 8 calls are insufficient to reach a confident decision, set all fields to `null` and set `skip_reason: "insufficient_context"`.
 5. Keep output compact JSON only — a single object, no prose.
 6. If you cannot determine a field, set it to `null`.
