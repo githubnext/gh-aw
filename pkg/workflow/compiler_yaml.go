@@ -811,7 +811,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	// Allowed domains as JSON array string
 	domainsJSON := "[]"
 	if len(allowedDomains) > 0 {
-		b, _ := json.Marshal(allowedDomains)
+		b, _ := json.Marshal(allowedDomains) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
 		domainsJSON = string(b)
 	}
 

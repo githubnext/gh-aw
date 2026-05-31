@@ -56,8 +56,8 @@ func ensureMCPConfig(verbose bool) error {
 
 		// Check if the server is already configured correctly
 		if existingConfig, exists := config.MCPServers[ghAwServerName]; exists {
-			existingJSON, _ := json.Marshal(existingConfig)
-			newJSON, _ := json.Marshal(ghAwConfig)
+			existingJSON, _ := json.Marshal(existingConfig) //nolint:jsonmarshalignoredeerror // VSCodeMCPServer contains only JSON-safe types (string, []string)
+			newJSON, _ := json.Marshal(ghAwConfig)           //nolint:jsonmarshalignoredeerror // VSCodeMCPServer contains only JSON-safe types (string, []string)
 			if string(existingJSON) == string(newJSON) {
 				mcpConfigLog.Print("Configuration is identical, skipping")
 				if verbose {

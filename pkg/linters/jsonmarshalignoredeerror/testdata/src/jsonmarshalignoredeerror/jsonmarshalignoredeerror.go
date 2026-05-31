@@ -27,3 +27,9 @@ func Good() error {
 	}
 	return nil
 }
+
+func Suppressed() {
+	f := Foo{X: 1}
+	val, _ := json.Marshal(f) //nolint:jsonmarshalignoredeerror // Foo contains only JSON-safe types
+	_ = val
+}

@@ -246,7 +246,7 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	if len(options.CustomArgs) > 0 {
 		yaml.WriteString("                \"args\": [\n")
 		for _, arg := range options.CustomArgs {
-			quotedArg, _ := json.Marshal(arg)
+			quotedArg, _ := json.Marshal(arg) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
 			yaml.WriteString("                  " + string(quotedArg) + ",\n")
 		}
 		yaml.WriteString("                ],\n")

@@ -70,21 +70,21 @@ var mcpPlaywrightLog = logger.New("workflow:mcp_config_playwright_renderer")
 // If inline is true, it writes on a single line; otherwise uses multi-line formatting.
 // Always appends a trailing comma after the closing bracket.
 func writeJSONStringArray(b *strings.Builder, indent, key string, values []string, inline bool) {
-	jsonKey, _ := json.Marshal(key)
+	jsonKey, _ := json.Marshal(key) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
 	if inline {
 		b.WriteString(indent + string(jsonKey) + ": [")
 		for i, v := range values {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			jsonVal, _ := json.Marshal(v)
+			jsonVal, _ := json.Marshal(v) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
 			b.Write(jsonVal)
 		}
 		b.WriteString("],\n")
 	} else {
 		b.WriteString(indent + string(jsonKey) + ": [\n")
 		for i, v := range values {
-			jsonVal, _ := json.Marshal(v)
+			jsonVal, _ := json.Marshal(v) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
 			b.WriteString(indent + "  " + string(jsonVal))
 			if i < len(values)-1 {
 				b.WriteString(",")
