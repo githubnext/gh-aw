@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsGitHubAppNestedField(t *testing.T) {
@@ -211,9 +212,9 @@ func TestExtractWorkflowRunConclusionConditionHelper(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := extractWorkflowRunConclusionCondition(tt.frontmatter)
 			if tt.wantErr {
-				assert.Error(t, err, "extractWorkflowRunConclusionCondition should reject invalid conclusion for %q", tt.name)
+				require.Error(t, err, "extractWorkflowRunConclusionCondition should reject invalid conclusion for %q", tt.name)
 			} else {
-				assert.NoError(t, err, "extractWorkflowRunConclusionCondition should not return error for %q", tt.name)
+				require.NoError(t, err, "extractWorkflowRunConclusionCondition should not return error for %q", tt.name)
 			}
 			assert.Equal(t, tt.want, got, "extractWorkflowRunConclusionCondition should return expected expression for %q", tt.name)
 		})

@@ -283,15 +283,15 @@ type FrontmatterConfig struct {
 	// configuration (e.g. {id: copilot, max-continuations: 2}).  Using any prevents
 	// JSON unmarshal failures when the engine is an object, which would otherwise cause
 	// ParseFrontmatterConfig to return nil and break features that depend on it (e.g. OTLP).
-	Engine            any               `json:"engine,omitempty"`
-	Source            string            `json:"source,omitempty"`
-	Redirect          string            `json:"redirect,omitempty"`
-	TrackerID         string            `json:"tracker-id,omitempty"`
-	Version           string            `json:"version,omitempty"`
-	TimeoutMinutes    *TemplatableInt32 `json:"timeout-minutes,omitempty"`
-	Strict  *bool    `json:"strict,omitempty"`  // Pointer to distinguish unset from false
-	Private *bool    `json:"private,omitempty"` // If true, workflow cannot be added to other repositories
-	Labels  []string `json:"labels,omitempty"`
+	Engine         any               `json:"engine,omitempty"`
+	Source         string            `json:"source,omitempty"`
+	Redirect       string            `json:"redirect,omitempty"`
+	TrackerID      string            `json:"tracker-id,omitempty"`
+	Version        string            `json:"version,omitempty"`
+	TimeoutMinutes *TemplatableInt32 `json:"timeout-minutes,omitempty"`
+	Strict         *bool             `json:"strict,omitempty"`  // Pointer to distinguish unset from false
+	Private        *bool             `json:"private,omitempty"` // If true, workflow cannot be added to other repositories
+	Labels         []string          `json:"labels,omitempty"`
 
 	// Configuration sections - using strongly-typed structs
 	Tools            *ToolsConfig       `json:"tools,omitempty"`

@@ -108,7 +108,7 @@ func migrateRunInstallScriptsLines(lines []string, risStr string, alreadyNested 
 		// No runtimes block – append a new one at the end
 		newLines := []string{
 			"runtimes:",
-			fmt.Sprintf("%snode:", indent),
+			indent + "node:",
 			fmt.Sprintf("%s%srun-install-scripts: %s", indent, indent, risStr),
 		}
 		runInstallScriptsCodemodLog.Print("No 'runtimes:' block found – appending new block")
@@ -140,7 +140,7 @@ func migrateRunInstallScriptsLines(lines []string, risStr string, alreadyNested 
 		// No node: sub-block – insert one right after runtimes:
 		nodeIndent := runtimesIndent + indent
 		nodeLines := []string{
-			fmt.Sprintf("%snode:", nodeIndent),
+			nodeIndent + "node:",
 			fmt.Sprintf("%s%srun-install-scripts: %s", nodeIndent, indent, risStr),
 		}
 		newResult := make([]string, 0, len(result)+2)
