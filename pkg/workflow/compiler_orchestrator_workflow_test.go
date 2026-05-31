@@ -212,6 +212,91 @@ func TestExtractYAMLSections_MissingSections(t *testing.T) {
 	assert.Empty(t, workflowData.Cache)
 }
 
+func TestValidateWorkflowEngineSettings_PreservesLegacyErrorOrder(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.strictMode = true
+
+	workflowData := &WorkflowData{
+		RunInstallScripts: true,
+		EngineConfig: &EngineConfig{
+			HarnessScript: "invalid/path.js",
+		},
+	}
+
+	err := compiler.validateWorkflowEngineSettings("workflow.md", workflowData)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "workflow.md: strict mode: run-install-scripts: true is set")
+	assert.NotContains(t, err.Error(), "engine.harness")
+}
+
+func TestMergeRawOTLPEndpoints_DedupesAndCountsSources(t *testing.T) {
+	mainObs := map[string]any{
+		"otlp": map[string]any{
+			"endpoint": []any{
+				map[string]any{"url": "https://main.example/otlp"},
+				map[string]any{"url": "https://main.example/otlp"},
+				map[string]any{"url": "https://shared.example/otlp"},
+			},
+		},
+	}
+	importedObs := map[string]any{
+		"otlp": map[string]any{
+			"endpoint": []any{
+				map[string]any{"url": "https://shared.example/otlp"},
+				map[string]any{"url": "https://import.example/otlp"},
+				map[string]any{"url": "https://import.example/otlp"},
+			},
+		},
+	}
+
+	mergedEndpoints, mainCount, importAdded := mergeRawOTLPEndpoints(mainObs, importedObs)
+
+	require.Len(t, mergedEndpoints, 3)
+	assert.Equal(t, 2, mainCount)
+	assert.Equal(t, 1, importAdded)
+	assert.Equal(t, "https://main.example/otlp", mergedEndpoints[0].(map[string]any)["url"])
+	assert.Equal(t, "https://shared.example/otlp", mergedEndpoints[1].(map[string]any)["url"])
+	assert.Equal(t, "https://import.example/otlp", mergedEndpoints[2].(map[string]any)["url"])
+}
+
+func TestBuildMergedEnvSources_MainWorkflowWins(t *testing.T) {
+	mergedEnv := map[string]any{
+		"MAIN_ONLY":   "1",
+		"IMPORT_ONLY": "2",
+		"BOTH":        "3",
+	}
+	topEnv := map[string]any{
+		"MAIN_ONLY": "1",
+		"BOTH":      "3",
+	}
+	importedSources := map[string]string{
+		"IMPORT_ONLY": "imports/shared.md",
+		"BOTH":        "imports/overridden.md",
+	}
+
+	envSources := buildMergedEnvSources(mergedEnv, topEnv, importedSources)
+
+	assert.Equal(t, map[string]string{
+		"MAIN_ONLY":   "(main workflow)",
+		"IMPORT_ONLY": "imports/shared.md",
+		"BOTH":        "(main workflow)",
+	}, envSources)
+}
+
+func TestSetMainWorkflowEnvSources_OnlyTracksPresentKeys(t *testing.T) {
+	workflowData := &WorkflowData{}
+
+	setMainWorkflowEnvSources(workflowData, map[string]any{
+		"FOO": "1",
+		"BAR": "2",
+	})
+
+	assert.Equal(t, map[string]string{
+		"FOO": "(main workflow)",
+		"BAR": "(main workflow)",
+	}, workflowData.EnvSources)
+}
+
 // TestProcessAndMergeSteps_NoSteps tests processAndMergeSteps with no steps
 func TestProcessAndMergeSteps_NoSteps(t *testing.T) {
 	compiler := NewCompiler()

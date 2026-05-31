@@ -12,10 +12,14 @@ var orchestratorWorkflowLog = logger.New("workflow:compiler_orchestrator_workflo
 
 // workflowBuildContext captures the shared state across parse setup, validation,
 // and workflow population phases.
+//
+// setupWorkflowBuildContext must run before validateWorkflowBuildContext or
+// populateWorkflowBuildContext. engineSetup, toolsResult, and workflowData stay
+// nil until setup completes successfully.
 type workflowBuildContext struct {
 	cleanPath   string
 	content     []byte
-	result      *parser.FrontmatterResult
+	frontmatter *parser.FrontmatterResult
 	markdownDir string
 
 	engineSetup  *engineSetupResult
@@ -65,19 +69,19 @@ func newWorkflowBuildContext(parseResult *frontmatterParseResult) *workflowBuild
 	return &workflowBuildContext{
 		cleanPath:   parseResult.cleanPath,
 		content:     parseResult.content,
-		result:      parseResult.frontmatterResult,
+		frontmatter: parseResult.frontmatterResult,
 		markdownDir: parseResult.markdownDir,
 	}
 }
 
 // setupWorkflowBuildContext initializes engine/tools processing and builds base workflow data.
 func (c *Compiler) setupWorkflowBuildContext(ctx *workflowBuildContext) error {
-	engineSetup, err := c.setupEngineAndImports(ctx.result, ctx.cleanPath, ctx.content, ctx.markdownDir)
+	engineSetup, err := c.setupEngineAndImports(ctx.frontmatter, ctx.cleanPath, ctx.content, ctx.markdownDir)
 	if err != nil {
 		return c.formatEngineSetupError(ctx, err)
 	}
 	toolsResult, err := c.processToolsAndMarkdown(
-		ctx.result,
+		ctx.frontmatter,
 		ctx.cleanPath,
 		ctx.markdownDir,
 		engineSetup.agenticEngine,
@@ -89,7 +93,7 @@ func (c *Compiler) setupWorkflowBuildContext(ctx *workflowBuildContext) error {
 	}
 	ctx.engineSetup = engineSetup
 	ctx.toolsResult = toolsResult
-	ctx.workflowData = c.buildInitialWorkflowData(ctx.result, toolsResult, engineSetup, engineSetup.importsResult)
+	ctx.workflowData = c.buildInitialWorkflowData(ctx.frontmatter, toolsResult, engineSetup, engineSetup.importsResult)
 	ctx.workflowData.WorkflowID = GetWorkflowIDFromPath(ctx.cleanPath)
 	return nil
 }
@@ -98,7 +102,7 @@ func (c *Compiler) formatEngineSetupError(ctx *workflowBuildContext, err error) 
 	if isFormattedCompilerError(err) {
 		return err
 	}
-	engineLine := findFrontmatterFieldLine(ctx.result.FrontmatterLines, ctx.result.FrontmatterStart, "engine")
+	engineLine := findFrontmatterFieldLine(ctx.frontmatter.FrontmatterLines, ctx.frontmatter.FrontmatterStart, "engine")
 	if engineLine > 0 {
 		contextLines := readSourceContextLines(ctx.content, engineLine)
 		return formatCompilerErrorWithContext(ctx.cleanPath, engineLine, 1, "error", err.Error(), err, contextLines)
@@ -137,7 +141,9 @@ func (c *Compiler) validateWorkflowModelAliasMap(ctx *workflowBuildContext) erro
 }
 
 func (c *Compiler) validateWorkflowEngineSettings(cleanPath string, workflowData *WorkflowData) error {
-	// Keep this order aligned with legacy ParseWorkflowFile behavior.
+	// Preserve legacy ParseWorkflowFile error precedence: return the first
+	// engine-setting validation failure in the same order the monolithic
+	// implementation executed these checks.
 	checks := []func(*WorkflowData) error{
 		c.validateRunInstallScripts,
 		c.validateEngineVersion,
@@ -188,25 +194,25 @@ func (c *Compiler) validateWorkflowToolConfigurations(ctx *workflowBuildContext)
 // populateWorkflowBuildContext merges imported configuration and finalizes workflow data.
 func (c *Compiler) populateWorkflowBuildContext(ctx *workflowBuildContext) error {
 	c.attachSharedActionResolver(ctx.workflowData)
-	if err := c.extractYAMLSections(ctx.result.Frontmatter, ctx.workflowData); err != nil {
+	if err := c.extractYAMLSections(ctx.frontmatter.Frontmatter, ctx.workflowData); err != nil {
 		return formatCompilerError(ctx.cleanPath, "error", err.Error(), err)
 	}
 	if err := c.mergeImportedWorkflowConfiguration(ctx); err != nil {
 		return err
 	}
-	c.processAndMergeSteps(ctx.result.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
-	c.processAndMergePreSteps(ctx.result.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
-	c.processAndMergePreAgentSteps(ctx.result.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
-	c.processAndMergePostSteps(ctx.result.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
-	c.processAndMergeServices(ctx.result.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
+	c.processAndMergeSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
+	c.processAndMergePreSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
+	c.processAndMergePreAgentSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
+	c.processAndMergePostSteps(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
+	c.processAndMergeServices(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult)
 	ctx.workflowData.KnownActionCredentialEnvVars = DetectKnownCredentialLeakingActionsFromWorkflowData(ctx.workflowData)
-	if err := c.extractAdditionalConfigurations(ctx.result.Frontmatter, ctx.toolsResult.tools, ctx.markdownDir, ctx.workflowData, ctx.engineSetup.importsResult, ctx.toolsResult.rawMainMarkdown, ctx.toolsResult.safeOutputs); err != nil {
+	if err := c.extractAdditionalConfigurations(ctx.frontmatter.Frontmatter, ctx.toolsResult.tools, ctx.markdownDir, ctx.workflowData, ctx.engineSetup.importsResult, ctx.toolsResult.rawMainMarkdown, ctx.toolsResult.safeOutputs); err != nil {
 		return err
 	}
-	if err := c.mergeImportedOnFields(ctx.result.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
+	if err := c.mergeImportedOnFields(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
 		return err
 	}
-	return c.processOnSectionAndFilters(ctx.result.Frontmatter, ctx.workflowData, ctx.cleanPath)
+	return c.processOnSectionAndFilters(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.cleanPath)
 }
 
 func (c *Compiler) attachSharedActionResolver(workflowData *WorkflowData) {
@@ -219,7 +225,7 @@ func (c *Compiler) attachSharedActionResolver(workflowData *WorkflowData) {
 
 func (c *Compiler) mergeImportedWorkflowConfiguration(ctx *workflowBuildContext) error {
 	c.mergeImportedObservability(ctx.workflowData, ctx.engineSetup.importsResult.MergedObservability)
-	if err := c.mergeWorkflowEnv(ctx.result.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
+	if err := c.mergeWorkflowEnv(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
 		return err
 	}
 	c.injectOTLPConfig(ctx.workflowData)
@@ -241,6 +247,7 @@ func (c *Compiler) mergeImportedObservability(workflowData *WorkflowData, merged
 	}
 	var importedObs map[string]any
 	if err := json.Unmarshal([]byte(mergedObservability), &importedObs); err != nil {
+		orchestratorWorkflowLog.Printf("Skipping imported observability merge: invalid JSON: %v", err)
 		return
 	}
 	mainObs := extractRawObservabilityMap(workflowData.RawFrontmatter)
@@ -264,17 +271,15 @@ func extractRawObservabilityMap(rawFrontmatter map[string]any) map[string]any {
 	return obs
 }
 
-func mergeRawOTLPEndpoints(mainObs map[string]any, importedObs map[string]any) ([]any, int, int) {
+func mergeRawOTLPEndpoints(mainObs map[string]any, importedObs map[string]any) (mergedEndpoints []any, mainCount int, importAdded int) {
 	seen := make(map[string]bool)
-	mergedEndpoints := make([]any, 0)
 	for _, ep := range extractRawOTLPEndpointMaps(mainObs) {
 		if url, _ := ep["url"].(string); url != "" && !seen[url] {
 			seen[url] = true
 			mergedEndpoints = append(mergedEndpoints, ep)
 		}
 	}
-	mainCount := len(mergedEndpoints)
-	importAdded := 0
+	mainCount = len(mergedEndpoints)
 	for _, ep := range extractRawOTLPEndpointMaps(importedObs) {
 		if url, _ := ep["url"].(string); url != "" && !seen[url] {
 			seen[url] = true
