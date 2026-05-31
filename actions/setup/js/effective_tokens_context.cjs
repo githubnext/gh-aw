@@ -101,6 +101,8 @@ function resolveFirewallAuditLogPath(auditJsonlPathOverride) {
   const candidateBases = [];
   if (agentOutputFile) {
     candidateBases.push(path.join(path.dirname(agentOutputFile), "sandbox", "firewall", "audit"));
+    // AWF artifacts have used both sandbox/firewall/audit/ and sandbox/firewall/logs/
+    // for JSONL exports across versions/configurations, so probe both before falling back.
     candidateBases.push(path.join(path.dirname(agentOutputFile), "sandbox", "firewall", "logs"));
   }
   candidateBases.push("/tmp/gh-aw/sandbox/firewall/audit");
@@ -349,6 +351,10 @@ function resolveEffectiveTokensFailureState() {
   const envMaxEffectiveTokens = parsePositiveIntegerString(process.env.GH_AW_MAX_EFFECTIVE_TOKENS);
   const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || parsedEffectiveTokensFromReflect.effectiveTokens || envEffectiveTokens || "";
   const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || parsedEffectiveTokensFromReflect.maxEffectiveTokens || envMaxEffectiveTokens || "";
+  // Combine ET-specific signals from:
+  // 1) structured firewall audit JSONL metadata when available,
+  // 2) the agent stdio hard-rail message seen in Copilot failures,
+  // 3) the existing environment override used by upstream workflow steps.
   const rawEffectiveTokensRateLimitError =
     parsedEffectiveTokensErrorInfo.rateLimitError || hasMaxEffectiveTokensExceededSignal() || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";
   const effectiveTokensRateLimitError = shouldReportEffectiveTokensRateLimitError(rawEffectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens);
