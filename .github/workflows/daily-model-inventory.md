@@ -484,25 +484,23 @@ This file contains the authoritative ET multipliers per model extracted from
 `https://docs.github.com/en/copilot/reference/copilot-billing/model-multipliers-for-annual-plans`,
 with columns `Model`, `Current multiplier`, and `New multiplier`.
 
-**Use the docs table as the primary (authoritative) source of ET multipliers.** Prefer the
-**New multiplier** column for upcoming billing schedule comparisons. If the docs table fetch
-failed or returned an empty model list, fall back to the heuristics below.
+**Use the `billing.multiplier` field from the Copilot reflect endpoint as the primary (authoritative) source of ET multipliers.** For each model returned by the Copilot reflect endpoint, the `billing.multiplier` value is the ground truth. If the reflect endpoint is unavailable or a model is absent from the Copilot reflect data, fall back to the docs table (prefer the **New multiplier** column). If the docs table fetch also failed or returned an empty model list, fall back to the heuristics below.
 
 Treat `gpt-4o-mini`, `gpt-4.1`, `gpt-4o`, and `gpt-5.4-nano` as intentionally deprecated
-Copilot-facing model IDs. Keep ignoring them even if they appear in the docs table, `models.dev`,
-or live provider inventories: do not propose adding or restoring them in
+Copilot-facing model IDs. Keep ignoring them even if they appear in the reflect data, docs table,
+`models.dev`, or live provider inventories: do not propose adding or restoring them in
 `pkg/cli/data/model_multipliers.json`, and exclude them from missing/discrepancy tables.
 
 Use `models.dev/api.json` as an additional reference for missing model IDs and family naming, but
-do not treat it as the primary multiplier authority over the GitHub docs table.
+do not treat it as the primary multiplier authority.
 
 For each provider's enriched data, attempt to infer or validate the ET multiplier for each model:
 
 1. **Copilot reflect data** — use the `copilot` endpoint's `models` list from
-   `/tmp/gh-aw/agent/model-inventory/reflect.json` as the live model source, then match model
-   names/IDs against the official docs table first. If a match is found,
-   use the `New multiplier` as the authoritative value. Compare against the matching entry in
-   `model_multipliers.json`, and list discrepancies or missing models.
+   `/tmp/gh-aw/agent/model-inventory/reflect.json` as the primary source. For each model, use
+   the `billing.multiplier` field as the authoritative ET multiplier value. Compare against the
+   matching entry in `model_multipliers.json`, and list discrepancies or missing models.
+   Cross-reference against the docs table as a secondary validation source.
 
 2. **Gemini API** — use `inputTokenLimit` / `outputTokenLimit` as an approximate proxy for model
    complexity (this is an inference heuristic, not a definitive billing mapping).
