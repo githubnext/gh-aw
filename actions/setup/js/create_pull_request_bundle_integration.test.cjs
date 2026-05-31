@@ -84,6 +84,48 @@ describe("create_pull_request bundle integration", () => {
     vi.clearAllMocks();
   });
 
+  it("applies a HEAD-only bundle (no refs/heads/* entry) using HEAD refspec fallback", async () => {
+    const branchName = "docs/update-migration-version-2026-05-19";
+    const sourceRepo = createRepo("create-pr-bundle-head-only-source-");
+    const targetRepo = createRepo("create-pr-bundle-head-only-target-");
+    tempDirs.push(sourceRepo, targetRepo);
+
+    // Set up source with a shared base commit so target can accept the bundle
+    fs.writeFileSync(path.join(sourceRepo, "file.txt"), "base\n");
+    execGit(["add", "file.txt"], { cwd: sourceRepo });
+    execGit(["commit", "-m", "base"], { cwd: sourceRepo });
+    execGit(["branch", "-M", "main"], { cwd: sourceRepo });
+    execGit(["checkout", "-b", branchName], { cwd: sourceRepo });
+    fs.writeFileSync(path.join(sourceRepo, "file.txt"), "bundle tip\n");
+    execGit(["commit", "-am", "bundle tip"], { cwd: sourceRepo });
+    const expectedHead = execGit(["rev-parse", "HEAD"], { cwd: sourceRepo }).stdout.trim();
+    const bundlePath = path.join(sourceRepo, "head-only.bundle");
+    // Create a bundle with only HEAD — no named branch ref (reproduces the bug scenario)
+    execGit(["bundle", "create", bundlePath, "HEAD"], { cwd: sourceRepo });
+
+    // Verify that the bundle indeed contains only HEAD and no refs/heads/* entry
+    const listHeadsOutput = execGit(["bundle", "list-heads", bundlePath], { cwd: sourceRepo }).stdout;
+    expect(listHeadsOutput).toContain("HEAD");
+    expect(listHeadsOutput).not.toMatch(/refs\/heads\//);
+
+    // Target repo starts from the same base so bundle prerequisites are satisfied.
+    // Fetch main from the source repo so the prerequisite commit is reachable.
+    fs.writeFileSync(path.join(targetRepo, "file.txt"), "base\n");
+    execGit(["add", "file.txt"], { cwd: targetRepo });
+    execGit(["remote", "add", "origin", sourceRepo], { cwd: targetRepo });
+    execGit(["fetch", "origin", "main"], { cwd: targetRepo });
+    execGit(["checkout", "-b", branchName, "FETCH_HEAD"], { cwd: targetRepo });
+
+    const { applyBundleToBranch } = require("./create_pull_request.cjs");
+    // Pass a mismatched originalAgentBranch to trigger the fallback (as if the JSONL branch
+    // name were different from any ref stored in the bundle)
+    await applyBundleToBranch(bundlePath, branchName, "refs-that-dont-exist-in-bundle", createExecApi(targetRepo));
+
+    const actualHead = execGit(["rev-parse", "HEAD"], { cwd: targetRepo }).stdout.trim();
+    expect(actualHead).toBe(expectedHead);
+    expect(fs.readFileSync(path.join(targetRepo, "file.txt"), "utf8")).toBe("bundle tip\n");
+  });
+
   it("applies a bundle when the target branch is currently checked out", async () => {
     const branchName = "autoloop/perf-comparison";
     const sourceRepo = createRepo("create-pr-bundle-source-");

@@ -42,12 +42,12 @@
         },
         "parent": {
           "type": ["number", "string"],
-          "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123', 'aw_Test123') from a previously created issue in the same workflow run."
+          "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form (e.g., '#aw_Test123'); the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'."
         },
         "temporary_id": {
           "type": "string",
-          "pattern": "^aw_[A-Za-z0-9]{3,12}$",
-          "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 3 to 12 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation."
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Unique temporary identifier for this issue. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) \u2014 e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted and normalised to '#aw_abc1'. Use this same '#aw_ID' form in body text to cross-reference the issue; these references are replaced with the real issue number after creation."
         },
         "secrecy": {
           "type": "string",
@@ -101,7 +101,7 @@
         },
         "category": {
           "type": "string",
-          "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository."
+          "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository. NOTE: the field is named category (not categoryId or category_id as in the GitHub GraphQL API) \u2014 alternate spellings are silently stripped."
         },
         "secrecy": {
           "type": "string",
@@ -117,7 +117,7 @@
   },
   {
     "name": "update_discussion",
-    "description": "Update an existing GitHub discussion's title, body, or labels. Use this to modify discussion properties after creation. Only the fields you specify will be updated; other fields remain unchanged.",
+    "description": "Update an existing GitHub discussion's title, body, and/or labels. Use this to modify discussion properties after creation. Only the fields you specify will be updated; other fields remain unchanged.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -134,7 +134,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Replace the discussion labels with this list (e.g., [\"bug\", \"tracking:foo\"]). Labels must exist in the repository."
+          "description": "Replace the discussion labels with this list (e.g., ['bug', 'help wanted']). Labels must exist in the repository. This replaces all existing labels on the discussion."
         },
         "discussion_number": {
           "type": ["number", "string"],
@@ -154,7 +154,7 @@
   },
   {
     "name": "close_discussion",
-    "description": "Close a GitHub discussion with a resolution comment and optional reason. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed.",
+    "description": "Close a GitHub discussion with a resolution comment and optional reason. You can and should always add a comment when closing a discussion to explain the action or provide context. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed. If the discussion is already closed, a comment will still be posted.",
     "inputSchema": {
       "type": "object",
       "required": ["body"],
@@ -186,7 +186,7 @@
   },
   {
     "name": "close_issue",
-    "description": "Close a GitHub issue with a closing comment. Use this when work is complete, the issue is no longer relevant, or it's a duplicate. The closing comment should explain the resolution or reason for closing.",
+    "description": "Close a GitHub issue with a closing comment. You can and should always add a comment when closing an issue to explain the action or provide context. This tool is ONLY for closing issues - use update_issue if you need to change the title, body, labels, or other metadata without closing. Use close_issue when work is complete, the issue is no longer relevant, or it's a duplicate. The closing comment should explain the resolution or reason for closing. If the issue is already closed, a comment will still be posted.",
     "inputSchema": {
       "type": "object",
       "required": ["body"],
@@ -198,11 +198,6 @@
         "issue_number": {
           "type": ["number", "string"],
           "description": "Issue number to close. This is the numeric ID from the GitHub URL (e.g., 901 in github.com/owner/repo/issues/901). If omitted, closes the issue that triggered this workflow (requires an issue event trigger)."
-        },
-        "state_reason": {
-          "type": "string",
-          "enum": ["COMPLETED", "NOT_PLANNED", "DUPLICATE"],
-          "description": "The reason for closing the issue. Use 'COMPLETED' for resolved issues, 'NOT_PLANNED' for issues that won't be addressed, or 'DUPLICATE' for duplicate issues. Defaults to 'COMPLETED'."
         },
         "secrecy": {
           "type": "string",
@@ -218,7 +213,7 @@
   },
   {
     "name": "close_pull_request",
-    "description": "Close a pull request WITHOUT merging, adding a closing comment. Use this for PRs that should be abandoned, superseded, or closed for other reasons. The closing comment should explain why the PR is being closed. This does NOT merge the changes.",
+    "description": "Close a pull request WITHOUT merging, adding a closing comment. You can and should always add a comment when closing a PR to explain the action or provide context. Use this for PRs that should be abandoned, superseded, or closed for other reasons. The closing comment should explain why the PR is being closed. This does NOT merge the changes. If the PR is already closed, a comment will still be posted.",
     "inputSchema": {
       "type": "object",
       "required": ["body"],
@@ -245,7 +240,7 @@
   },
   {
     "name": "add_comment",
-    "description": "WRITE-ONCE: do NOT call this tool with empty or placeholder arguments to probe or discover its schema \u2014 the required `body` field is listed in this schema; if you are not ready to post a real comment, call `noop` instead. Adds a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.",
+    "description": "WRITE-ONCE: do NOT call this tool with empty or placeholder arguments to probe or discover its schema \u2014 the required `body` field is listed in this schema; if you are not ready to post a real comment, call `noop` instead. Adds a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance. NOTE: By default, this tool requires discussions:write permission. If your GitHub App lacks Discussions permission, set 'discussions: false' in the workflow's safe-outputs.add-comment configuration to exclude this permission.",
     "inputSchema": {
       "type": "object",
       "required": ["body"],
@@ -253,11 +248,11 @@
         "body": {
           "type": "string",
           "maxLength": 65536,
-          "description": "The comment text in Markdown format. Must be the final intended comment \u2014 not a placeholder or test value. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation."
+          "description": "The comment text in Markdown format. Must be the final intended comment \u2014 not a placeholder or test value. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username), maximum 50 links (http/https URLs). A footer (~200-500 characters) is automatically appended with workflow attribution, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
         },
         "item_number": {
           "type": ["number", "string"],
-          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id (e.g., 'aw_abc123') from a previously created issue in the same workflow run. If omitted, the tool will attempt to resolve the target from the current workflow context (triggering issue, PR, or discussion). If auto-targeting fails (e.g., for schedule or workflow_dispatch triggers), the tool call will fail with an error."
+          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, the tool auto-targets the issue, PR, or discussion that triggered this workflow. Auto-targeting only works for issue, pull_request, discussion, and comment event triggers \u2014 it does NOT work for schedule, workflow_dispatch, push, or workflow_run triggers. For those trigger types, always provide item_number explicitly, or the tool call will fail with an error. NOTE: this field is named item_number, NOT issue_number \u2014 issue_number is silently stripped."
         },
         "pr_number": {
           "type": ["number", "string"],
@@ -269,12 +264,21 @@
         },
         "temporary_id": {
           "type": "string",
-          "pattern": "^aw_[A-Za-z0-9]{3,12}$",
-          "description": "Unique temporary identifier for this comment. Format: 'aw_' followed by 3 to 12 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). Auto-generated if not provided. The temporary ID is returned in the tool response so you can reference this comment later."
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Unique temporary identifier for this comment. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) \u2014 e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted and normalised to '#aw_abc1'. Auto-generated if not provided. The temporary ID is returned in the tool response so you can reference this comment later."
         },
         "reply_to_id": {
           "type": "string",
           "description": "Node ID of the discussion comment to reply to, enabling threaded discussion comments. When provided, the new comment is posted as a reply to the specified top-level discussion comment. If the given node ID belongs to a nested reply, the handler automatically resolves it to the top-level parent. Only applicable for discussion comments \u2014 ignored for issue and pull request comments."
+        },
+        "comment_id": {
+          "type": ["number", "string"],
+          "description": "Existing issue or pull request comment ID to update instead of creating a new comment."
+        },
+        "target": {
+          "type": "string",
+          "enum": ["status"],
+          "description": "When set to 'status', updates the activation status comment for this run (if available) instead of creating a new comment."
         },
         "secrecy": {
           "type": "string",
@@ -324,7 +328,7 @@
         },
         "repo": {
           "type": "string",
-          "description": "Target repository in 'owner/repo' format. Required when changes are in a subdirectory checkout (e.g., 'repos/repo-a/'). Must be in the allowed-repos list. If omitted, uses the repository at the workspace root."
+          "description": "Target repository in 'owner/repo' format. For multi-repo workflows where the target repo differs from the workflow repo, this must match a repo in the allowed-repos list or the configured target-repo. If omitted, defaults to the configured target-repo (from safe-outputs config), NOT the workflow repository. In most cases, you should omit this parameter and let the system use the configured default."
         },
         "secrecy": {
           "type": "string",
@@ -388,7 +392,7 @@
   },
   {
     "name": "submit_pull_request_review",
-    "description": "Submit a pull request review with a status decision. REQUIRED: every call must include either a non-empty body or be preceded by at least one create_pull_request_review_comment call; calling with no body and no prior comments is rejected with ERR_VALIDATION. All preceding create_pull_request_review_comment outputs are automatically attached as inline comments. If this tool is not called, buffered review comments are submitted as a COMMENT review at workflow end. Use COMMENT for non-blocking feedback; use REQUEST_CHANGES only for merge-blocking. Example (inline-only review): call create_pull_request_review_comment one or more times, then call this tool with event: COMMENT and no body.",
+    "description": "Submit a pull request review with a status decision. This tool auto-targets the pull request that triggered the workflow \u2014 do NOT pass pull_request_number (unlike create_pull_request_review_comment and reply_to_pull_request_review_comment, which accept it; this tool will silently strip it). REQUIRED: every call must include either a non-empty body or be preceded by at least one create_pull_request_review_comment call; calling with no body and no prior comments is rejected with ERR_VALIDATION. All preceding create_pull_request_review_comment outputs are automatically attached as inline comments. If this tool is not called, buffered review comments are submitted as a COMMENT review at workflow end. Use COMMENT for non-blocking feedback; use REQUEST_CHANGES only for merge-blocking. Example (inline-only review): call create_pull_request_review_comment one or more times, then call this tool with event: COMMENT and no body.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -525,8 +529,9 @@
           "description": "Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository. This field is required \u2014 omitting it will cause a validation error."
         },
         "item_number": {
-          "type": "number",
-          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the item that triggered this workflow."
+          "type": ["number", "string"],
+          "pattern": "^(\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
+          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, adds labels to the issue or PR that triggered this workflow. Only works for issue or pull_request event triggers. For schedule, workflow_dispatch, or other triggers, item_number is required \u2014 omitting it will silently skip the label operation."
         },
         "secrecy": {
           "type": "string",
@@ -543,7 +548,7 @@
   },
   {
     "name": "remove_labels",
-    "description": "Remove labels from an existing GitHub issue or pull request. If a label is not present on the item, it will be silently skipped. Use this to clean up labels that are no longer applicable.",
+    "description": "Remove labels from an existing GitHub issue or pull request. Silently skips labels that don't exist on the item. Use this to clean up labels or manage label lifecycles (e.g., removing 'needs-review' after review is complete).",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -552,12 +557,12 @@
           "items": {
             "type": "string"
           },
-          "minItems": 1,
-          "description": "Label names to remove (e.g., ['bug', 'needs-triage']). Labels that don't exist on the item are silently skipped. At least one label must be provided."
+          "description": "Label names to remove (e.g., ['smoke', 'needs-triage']). Non-existent labels are silently skipped."
         },
         "item_number": {
-          "type": "number",
-          "description": "Issue or PR number to remove labels from. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, removes labels from the item that triggered this workflow."
+          "type": ["number", "string"],
+          "pattern": "^(\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
+          "description": "Issue or PR number to remove labels from. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. If omitted, removes labels from the item that triggered this workflow."
         },
         "secrecy": {
           "type": "string",
@@ -610,18 +615,22 @@
   },
   {
     "name": "assign_milestone",
-    "description": "Assign an issue to a milestone for release planning and progress tracking. Milestones must exist in the repository before assignment.",
+    "description": "Assign an issue to a milestone for release planning and progress tracking. Milestones can be specified by number or title. When auto_create is configured, missing milestones are created automatically.",
     "inputSchema": {
       "type": "object",
-      "required": ["issue_number", "milestone_number"],
+      "required": ["issue_number"],
       "properties": {
         "issue_number": {
           "type": ["number", "string"],
-          "description": "Issue number to assign to the milestone. This is the numeric ID from the GitHub URL (e.g., 567 in github.com/owner/repo/issues/567). Can also be a temporary_id (e.g., 'aw_abc123') from a previously created issue in the same workflow run."
+          "description": "Issue number to assign to the milestone. This is the numeric ID from the GitHub URL (e.g., 567 in github.com/owner/repo/issues/567). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form; the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'."
         },
         "milestone_number": {
           "type": ["number", "string"],
-          "description": "Milestone number (not title) to assign the issue to. This is the numeric ID from the milestone URL (e.g., 12 in github.com/owner/repo/milestone/12). Find milestone numbers in the repository's Milestones page."
+          "description": "Milestone number to assign the issue to. This is the numeric ID from the milestone URL (e.g., 12 in github.com/owner/repo/milestone/12). Either milestone_number or milestone_title must be provided."
+        },
+        "milestone_title": {
+          "type": "string",
+          "description": "Milestone title to assign the issue to (e.g., \"v1.0\"). Used as an alternative to milestone_number \u2014 the handler looks up the milestone by title. Either milestone_number or milestone_title must be provided."
         },
         "secrecy": {
           "type": "string",
@@ -637,13 +646,13 @@
   },
   {
     "name": "assign_to_agent",
-    "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\")",
+    "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\", pull_request_repo=\"owner/repo\")",
     "inputSchema": {
       "type": "object",
       "properties": {
         "issue_number": {
           "type": ["number", "string"],
-          "description": "Issue number to assign the Copilot coding agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both."
+          "description": "Issue number to assign the Copilot coding agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). Can also be a temporary_id from an issue created earlier in the same workflow run \u2014 use the '#aw_abc123' form (e.g., '#aw_Test123'); the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'. The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both."
         },
         "pull_number": {
           "type": ["number", "string"],
@@ -742,7 +751,7 @@
   },
   {
     "name": "update_issue",
-    "description": "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged. IMPORTANT: The behavior of this tool depends on the workflow's `update-issue: target:` configuration. When `target: triggering` (the default), the tool always updates the issue that triggered the workflow and `issue_number` is ignored. When `target: '*'`, the `issue_number` field controls which issue is updated. The tool will fail (not skip silently) when `target: triggering` and there is no triggering issue (e.g., in scheduled or workflow_dispatch workflows).",
+    "description": "Update an existing GitHub issue's title, body, labels, assignees, or milestone WITHOUT closing it. This tool is primarily for editing issue metadata and content. While it supports changing status between 'open' and 'closed', use close_issue instead when you want to close an issue with a closing comment. Body updates support replacing, appending to, prepending content, or updating a per-run \"island\" section. IMPORTANT: The behavior of this tool depends on the workflow's `update-issue: target:` configuration. When `target: triggering` (the default), the tool always updates the issue that triggered the workflow and `issue_number` is ignored. When `target: '*'`, the `issue_number` field controls which issue is updated. The tool will fail (not skip silently) when `target: triggering` and there is no triggering issue (e.g., in scheduled or workflow_dispatch workflows).",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -757,11 +766,7 @@
         },
         "body": {
           "type": "string",
-          "description": "New issue body to replace the existing content. Use Markdown formatting."
-        },
-        "issue_number": {
-          "type": ["number", "string"],
-          "description": "Issue number to update. This is the numeric ID from the GitHub URL (e.g., 789 in github.com/owner/repo/issues/789). ONLY effective when the workflow is configured with `update-issue: target: '*'` in the frontmatter. When the workflow uses `target: triggering` (the default), this field is ignored and the tool updates the issue that triggered the workflow instead. If you need to update a specific issue in a scheduled or workflow_dispatch workflow, the workflow frontmatter must include `update-issue: target: '*'`."
+          "description": "Issue body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this content is added with a separator and an attribution footer. For 'replace-island', only the run-specific section is updated."
         },
         "operation": {
           "type": "string",
@@ -785,6 +790,10 @@
         "milestone": {
           "type": ["number", "string"],
           "description": "Milestone number to assign (e.g., 1). Use null to clear."
+        },
+        "issue_number": {
+          "type": ["number", "string"],
+          "description": "Issue number to update. This is the numeric ID from the GitHub URL (e.g., 789 in github.com/owner/repo/issues/789). ONLY effective when the workflow is configured with `update-issue: target: '*'` in the frontmatter. When the workflow uses `target: triggering` (the default), this field is ignored and the tool updates the issue that triggered the workflow instead. If you need to update a specific issue in a scheduled or workflow_dispatch workflow, the workflow frontmatter must include `update-issue: target: '*'`."
         },
         "secrecy": {
           "type": "string",
@@ -890,7 +899,7 @@
   },
   {
     "name": "push_to_pull_request_branch",
-    "description": "Push committed changes to a pull request's branch. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. This is a write-once declaration for a real intended PR branch update, not a sandbox or probe: do not call it with probe branches, placeholder commit messages, or auth experiments. If you are not ready to push the real update, use noop or report_incomplete instead. Changes must be committed locally before calling this tool.",
+    "description": "Push committed changes to a pull request's branch. APPEND-ONLY: this tool adds new commits on top of the existing PR branch — force-push is NOT supported and will be rejected. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. This is a write-once declaration for a real intended PR branch update, not a sandbox or probe: do not call it with probe branches, placeholder commit messages, or auth experiments. If you are not ready to push the real update, use noop or report_incomplete instead. Changes must be committed locally before calling this tool. IMPORTANT: do NOT use 'git merge' to update the branch against another branch — merge commits cannot be signed; the action will attempt to squash them into a single linear commit before pushing, but this rewrites history. Use 'git rebase' instead to avoid the rewrite.",
     "inputSchema": {
       "type": "object",
       "required": ["message"],
@@ -975,8 +984,8 @@
         },
         "temporary_id": {
           "type": "string",
-          "pattern": "^aw_[A-Za-z0-9_]{3,12}$",
-          "description": "Optional temporary identifier for this artifact upload. Format: 'aw_' followed by 3 to 12 alphanumeric or underscore characters (e.g., 'aw_chart1', 'aw_img_out'). Declare this ID here if you plan to embed the artifact URL in a subsequent message body using '#aw_ID' \u2014 for example '![chart](#aw_chart1)' in a create_discussion body. The safe-outputs processor replaces '#aw_ID' references with the actual artifact download URL after upload. When skip-archive is true the URL points directly to the file and is suitable for inline images."
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Optional temporary identifier for this artifact upload. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) \u2014 e.g., '#aw_chart1', '#aw_img_out'. The bare 'aw_chart1' form is also accepted. Declare this ID here if you plan to embed the artifact URL in a subsequent message body using '#aw_ID' \u2014 for example '![chart](#aw_chart1)' in a create_discussion body. The safe-outputs processor replaces '#aw_ID' references with the actual artifact download URL after upload. When skip-archive is true the URL points directly to the file and is suitable for inline images."
         },
         "secrecy": {
           "type": "string",
@@ -1105,7 +1114,7 @@
   },
   {
     "name": "hide_comment",
-    "description": "Hide a comment on a GitHub issue, pull request, or discussion. This collapses the comment and marks it as spam, abuse, off-topic, outdated, resolved, or low-quality. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID.",
+    "description": "Hide a comment on a GitHub issue, pull request, or discussion. This collapses the comment and marks it as spam, abuse, off-topic, outdated, resolved, or low-quality. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID. NOTE: By default, this tool requires discussions:write permission. If your GitHub App lacks Discussions permission, set 'discussions: false' in the workflow's safe-outputs.hide-comment configuration to exclude this permission.",
     "inputSchema": {
       "type": "object",
       "required": ["comment_id"],
@@ -1202,8 +1211,8 @@
       "properties": {
         "project": {
           "type": "string",
-          "pattern": "^(https://github\\.com/(orgs|users)/[^/]+/projects/\\d+|#?aw_[A-Za-z0-9]{3,12})$",
-          "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'), or a temporary project ID from a recent create_project call (e.g., '#aw_abc1', 'aw_Test123'). Project names or numbers alone are NOT accepted."
+          "pattern": "^(https://github\\.com/(orgs|users)/[^/]+/projects/\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
+          "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'), or a temporary project ID from a recent create_project call \u2014 use '#aw_abc1' (canonical) or bare 'aw_abc1' (also accepted). Project names or numbers alone are NOT accepted."
         },
         "operation": {
           "type": "string",
@@ -1217,16 +1226,16 @@
         },
         "content_number": {
           "type": ["number", "string"],
-          "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456), or a temporary ID from a recent create_issue call (e.g., 'aw_abc123', '#aw_Test123'). Required when content_type is 'issue' or 'pull_request'."
+          "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456), or a temporary ID from a recent create_issue call \u2014 use '#aw_abc123' (canonical); bare 'aw_abc123' is also accepted. Required when content_type is 'issue' or 'pull_request'."
         },
         "target_repo": {
           "type": "string",
           "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-          "description": "Repository containing the issue or pull request, in \"owner/repo\" format (e.g., \"github/docs\"). Use this when the issue or PR belongs to a different repository than the one running the workflow. Requires safe-outputs.update-project.target-repo to match, or safe-outputs.update-project.allowed-repos to include this repository."
+          "description": "Repository containing the issue or pull request, in \"owner/repo\" format (e.g., \"github/docs\"). Use this when the issue or PR belongs to a different repository than the one running the workflow. The repository must be permitted by either safe-outputs.update-project.target-repo (including the default host repository) or safe-outputs.update-project.allowed-repos."
         },
         "draft_title": {
           "type": "string",
-          "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue' and creating a new draft (when draft_issue_id is not provided)."
+          "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'."
         },
         "draft_body": {
           "type": "string",
@@ -1234,13 +1243,13 @@
         },
         "draft_issue_id": {
           "type": "string",
-          "pattern": "^#?aw_[A-Za-z0-9]{3,12}$",
-          "description": "Temporary ID of an existing draft issue to update (e.g., 'aw_abc1', '#aw_Test123'). Use this to reference a draft created earlier with a matching temporary_id. When provided, draft_title is not required for updates."
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Temporary ID of an existing draft issue to update \u2014 use '#aw_abc1' (canonical); bare 'aw_abc1' is also accepted. Use this to reference a draft created earlier with a matching temporary_id. When provided, draft_title is not required for updates."
         },
         "temporary_id": {
           "type": "string",
-          "pattern": "^#?aw_[A-Za-z0-9]{3,12}$",
-          "description": "Unique temporary identifier for this draft issue (e.g., 'aw_abc1', '#aw_Test123'). Provide this when creating a new draft to enable future updates via draft_issue_id. Format: optional leading '#', then 'aw_' followed by 3 to 12 alphanumeric characters."
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Unique temporary identifier for this draft issue. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) \u2014 e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted. Provide this when creating a new draft to enable future updates via draft_issue_id."
         },
         "fields": {
           "type": "object",
@@ -1370,7 +1379,7 @@
   },
   {
     "name": "create_project",
-    "description": "Create a new GitHub Project for organizing and tracking work across issues and pull requests. You can optionally provide a title, owner, owner_type, and an initial issue item_url to add to the project. You may also provide a temporary_id to reference this project before it is created; if not provided, a temporary_id will be auto-generated and returned, and can be used in subsequent update_project calls via the '#aw_ID' syntax.",
+    "description": "Create a new GitHub Project board. Use this to create a new project for organizing and tracking work across issues and pull requests, owned by a specific user or organization. You can optionally provide a custom title and add an initial issue item to the project via item_url.",
     "inputSchema": {
       "type": "object",
       "required": [],
@@ -1390,13 +1399,13 @@
         },
         "item_url": {
           "type": "string",
-          "pattern": "^(https://github\\\\.com/[^/]+/[^/]+/issues/(\\\\d+|#?aw_[A-Za-z0-9]{3,12})|#?aw_[A-Za-z0-9]{3,12})$",
-          "description": "Optional GitHub issue URL or temporary ID to add as the first item to the project. Accepts either a full URL (e.g., 'https://github.com/owner/repo/issues/123'), a URL with temporary ID (e.g., 'https://github.com/owner/repo/issues/aw_abc1'), or a plain temporary ID (e.g., 'aw_abc1', '#aw_Test123') from a previously created issue in the same workflow run."
+          "pattern": "^(https://github\\\\.com/[^/]+/[^/]+/issues/(\\\\d+|#?aw_[A-Za-z0-9_]{3,12})|#?aw_[A-Za-z0-9_]{3,12})$",
+          "description": "Optional GitHub issue URL or temporary ID to add as the first item to the project. Accepts either a full URL (e.g., 'https://github.com/owner/repo/issues/123'), a URL with temporary ID (e.g., 'https://github.com/owner/repo/issues/#aw_abc1'), or a plain temporary ID \u2014 use '#aw_abc1' (canonical); bare 'aw_abc1' is also accepted."
         },
         "temporary_id": {
           "type": "string",
-          "pattern": "^aw_[A-Za-z0-9]{3,12}$",
-          "description": "Optional temporary identifier for referencing this project before it's created. Format: 'aw_' followed by 3 to 12 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). If not provided, one will be auto-generated and returned in the response. Use '#aw_ID' in update_project to reference this project by its temporary_id."
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Optional temporary identifier for this project. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) \u2014 e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted. If not provided, one will be auto-generated and returned in the response. Use this same '#aw_ID' form in add_project_item to reference this project."
         },
         "secrecy": {
           "type": "string",
@@ -1528,7 +1537,7 @@
   },
   {
     "name": "create_check_run",
-    "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter.",
+    "description": "Create a GitHub Check Run to report agent analysis results on a commit or pull request. Check Runs appear in the PR checks UI and on commits with a pass/fail status. Use this to surface structured analysis results as a first-class GitHub check. The check run name is configured in the workflow frontmatter and is NOT accepted as a parameter \u2014 do not pass name, it will be silently stripped.",
     "inputSchema": {
       "type": "object",
       "required": ["conclusion", "title", "summary"],

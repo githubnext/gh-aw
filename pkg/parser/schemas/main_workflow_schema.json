@@ -12112,6 +12112,26 @@
                 "azure-cloud": {
                   "type": "string",
                   "description": "Optional Azure cloud name (for example, public, usgovernment, china)."
+                },
+                "provider": {
+                  "type": "string",
+                  "description": "Optional WIF provider discriminator. Recognized values are 'azure' and 'anthropic'."
+                },
+                "federation-rule-id": {
+                  "type": "string",
+                  "description": "Anthropic WIF federation rule ID (e.g., fdrl_...)."
+                },
+                "organization-id": {
+                  "type": "string",
+                  "description": "Anthropic WIF organization ID (e.g., org_...)."
+                },
+                "service-account-id": {
+                  "type": "string",
+                  "description": "Anthropic WIF service account ID (e.g., svac_...)."
+                },
+                "workspace-id": {
+                  "type": "string",
+                  "description": "Anthropic WIF workspace ID (e.g., ws_...)."
                 }
               },
               "required": [

@@ -1023,28 +1023,6 @@
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
         }
       },
-      "anyOf": [
-        {
-          "required": [
-            "title"
-          ]
-        },
-        {
-          "required": [
-            "body"
-          ]
-        },
-        {
-          "required": [
-            "update_branch"
-          ],
-          "properties": {
-            "update_branch": {
-              "const": true
-            }
-          }
-        }
-      ],
       "additionalProperties": false
     }
   },
