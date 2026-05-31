@@ -63,10 +63,11 @@ function findMarkdownFiles(dir, results = []) {
 
 /**
  * Detect and return the indentation string used in the YAML frontmatter (e.g.
- * "  " for two-space indent).  Defaults to two spaces.
+ * "  " for two-space indent, "\t" for tab indent).  Defaults to two spaces.
  */
 function detectIndent(frontmatter) {
-  const match = frontmatter.match(/^( +)\S/m);
+  // Match the first indented line: leading tabs or spaces followed by a non-space char.
+  const match = frontmatter.match(/^([ \t]+)\S/m);
   return match ? match[1] : "  ";
 }
 
@@ -96,12 +97,17 @@ function transformFrontmatter(fm) {
   const risValue = risMatch[2].trim(); // "true" or "false"
   const indent = detectIndent(fm);
 
-  // Remove the top-level line (and the blank line immediately after it, if any).
-  let updated = fm.replace(/^run-install-scripts\s*:[^\n]*\n?/m, "");
+  // Remove the top-level line (and any immediately-following blank lines).
+  let updated = fm.replace(/^run-install-scripts\s*:[^\n]*\n(\s*\n)*/m, "");
 
   // Check whether `runtimes.node.run-install-scripts` already exists so we
-  // can be idempotent.
-  const alreadyPresent = /^( +)run-install-scripts\s*:/m.test(updated);
+  // can be idempotent.  We look specifically inside the node sub-block to
+  // avoid falsely matching the field under a different runtime (e.g. python).
+  const nodeBlockPattern = new RegExp(
+    `^[ \\t]+node\\s*:[\\s\\S]*?^[ \\t]+run-install-scripts\\s*:`,
+    "m"
+  );
+  const alreadyPresent = nodeBlockPattern.test(updated);
   if (alreadyPresent) {
     // The per-node field is already there; we only removed the top-level line.
     return { changed: true, frontmatter: updated };
