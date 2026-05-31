@@ -10,6 +10,8 @@ import (
 
 var orchestratorWorkflowLog = logger.New("workflow:compiler_orchestrator_workflow")
 
+// workflowBuildContext captures the shared state across parse setup, validation,
+// and workflow population phases.
 type workflowBuildContext struct {
 	cleanPath   string
 	content     []byte
@@ -58,6 +60,7 @@ func validateParseResultWorkflowType(parseResult *frontmatterParseResult) error 
 	return nil
 }
 
+// newWorkflowBuildContext initializes build context from frontmatter parse results.
 func newWorkflowBuildContext(parseResult *frontmatterParseResult) *workflowBuildContext {
 	return &workflowBuildContext{
 		cleanPath:   parseResult.cleanPath,
@@ -67,6 +70,7 @@ func newWorkflowBuildContext(parseResult *frontmatterParseResult) *workflowBuild
 	}
 }
 
+// setupWorkflowBuildContext initializes engine/tools processing and builds base workflow data.
 func (c *Compiler) setupWorkflowBuildContext(ctx *workflowBuildContext) error {
 	engineSetup, err := c.setupEngineAndImports(ctx.result, ctx.cleanPath, ctx.content, ctx.markdownDir)
 	if err != nil {
@@ -109,6 +113,7 @@ func (c *Compiler) formatToolsProcessingError(cleanPath string, err error) error
 	return formatCompilerError(cleanPath, "error", err.Error(), err)
 }
 
+// validateWorkflowBuildContext runs model, engine, and tool validations for the workflow.
 func (c *Compiler) validateWorkflowBuildContext(ctx *workflowBuildContext) error {
 	if err := c.validateWorkflowModelAliasMap(ctx); err != nil {
 		return err
@@ -132,6 +137,7 @@ func (c *Compiler) validateWorkflowModelAliasMap(ctx *workflowBuildContext) erro
 }
 
 func (c *Compiler) validateWorkflowEngineSettings(cleanPath string, workflowData *WorkflowData) error {
+	// Keep this order aligned with legacy ParseWorkflowFile behavior.
 	checks := []func(*WorkflowData) error{
 		c.validateRunInstallScripts,
 		c.validateEngineVersion,
@@ -179,6 +185,7 @@ func (c *Compiler) validateWorkflowToolConfigurations(ctx *workflowBuildContext)
 	return nil
 }
 
+// populateWorkflowBuildContext merges imported configuration and finalizes workflow data.
 func (c *Compiler) populateWorkflowBuildContext(ctx *workflowBuildContext) error {
 	c.attachSharedActionResolver(ctx.workflowData)
 	if err := c.extractYAMLSections(ctx.result.Frontmatter, ctx.workflowData); err != nil {
@@ -227,6 +234,7 @@ func (c *Compiler) mergeImportedWorkflowConfiguration(ctx *workflowBuildContext)
 	return nil
 }
 
+// mergeImportedObservability merges imported OTLP config into raw frontmatter with main precedence.
 func (c *Compiler) mergeImportedObservability(workflowData *WorkflowData, mergedObservability string) {
 	if mergedObservability == "" {
 		return
@@ -308,13 +316,7 @@ func applyMergedRawObservability(
 func (c *Compiler) mergeWorkflowEnv(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) error {
 	topEnv := ExtractMapField(frontmatter, "env")
 	if importsResult.MergedEnv == "" {
-		if len(topEnv) > 0 {
-			envSources := make(map[string]string, len(topEnv))
-			for key := range topEnv {
-				envSources[key] = "(main workflow)"
-			}
-			workflowData.EnvSources = envSources
-		}
+		setMainWorkflowEnvSources(workflowData, topEnv)
 		return nil
 	}
 	mergedEnvMap, err := mergeEnv(topEnv, importsResult.MergedEnv)
@@ -327,6 +329,17 @@ func (c *Compiler) mergeWorkflowEnv(frontmatter map[string]any, workflowData *Wo
 	workflowData.Env = c.extractTopLevelYAMLSection(map[string]any{"env": mergedEnvMap}, "env")
 	workflowData.EnvSources = buildMergedEnvSources(mergedEnvMap, topEnv, importsResult.MergedEnvSources)
 	return nil
+}
+
+func setMainWorkflowEnvSources(workflowData *WorkflowData, topEnv map[string]any) {
+	if len(topEnv) == 0 {
+		return
+	}
+	envSources := make(map[string]string, len(topEnv))
+	for key := range topEnv {
+		envSources[key] = "(main workflow)"
+	}
+	workflowData.EnvSources = envSources
 }
 
 func buildMergedEnvSources(mergedEnv map[string]any, topEnv map[string]any, importedSources map[string]string) map[string]string {
