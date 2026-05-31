@@ -76,7 +76,7 @@ To build and test repository custom linters:
 - @ajfeldman6: #23924 _(direct issue)_
 - @AkshatRaj00: #34302 _(direct issue)_
 - @AlexDeMichieli: #26645 _(direct issue)_
-- @alexsiilvaa: #20781 _(direct issue)_, #20664 _(direct issue)_
+- @alexsiilvaa: #20781 _(direct issue)_
 - @alondahari: #21207 _(direct issue)_
 - @anthonymastreanvae: #32481 _(direct issue)_, #32479 _(direct issue)_, #30897 _(direct issue)_, #30841 _(direct issue)_
 - @apenab: #25626 _(direct issue)_
@@ -86,9 +86,10 @@ To build and test repository custom linters:
 - @b2pacific: #28720 _(direct issue)_
 - @bartul: #29499 _(direct issue)_
 - @bbonafed: #29174 _(direct issue)_, #29173 _(direct issue)_, #29172 _(direct issue)_, #29171 _(direct issue)_, #27670 _(direct issue)_, #27472 _(direct issue)_, #26719 _(direct issue)_, #26045 _(direct issue)_, #26043 _(direct issue)_, #25646 _(direct issue)_, #25224 _(direct issue)_, #24949 _(direct issue)_, #24918 _(direct issue)_, #24896 _(direct issue)_, #24323 _(direct issue)_, #23900 _(direct issue)_, #23724 _(direct issue)_, #23566 _(direct issue)_, #22564 _(direct issue)_, #21990 _(direct issue)_, #20801 _(direct issue)_
+- @benissimo: #36003 _(direct issue)_, #35561 _(direct issue)_
 - @benvillalobos: #25717 _(direct issue)_, #20885 _(direct issue)_
 - @bmerkle: #31689 _(direct issue)_, #26621 _(direct issue)_
-- @boydj: #33777 _(direct issue)_
+- @boydj: #33777 _(direct issue)_, #33605 _(direct issue)_
 - @Bra1nFartz: #35192 _(direct issue)_
 - @bryanchen-d: #35284 _(direct issue)_, #35283 _(direct issue)_, #35075 _(direct issue)_, #34109 _(direct issue)_, #34108 _(direct issue)_, #30866 _(direct issue)_, #30704 _(direct issue)_, #30695 _(direct issue)_, #30472 _(direct issue)_, #28774 _(direct issue)_, #26696 _(direct issue)_, #26487 _(direct issue)_, #25719 _(direct issue)_, #23265 _(direct issue)_
 - @bryanknox: #25351 _(direct issue)_
@@ -138,7 +139,7 @@ To build and test repository custom linters:
 - @insop: #21686 _(direct issue)_
 - @j-srodka: #25199 _(direct issue)_, #23485 _(direct issue)_, #23484 _(direct issue)_, #23483 _(direct issue)_, #23482 _(direct issue)_, #23461 _(direct issue)_
 - @jamesadevine: #28957 _(direct issue)_, #26407 _(direct issue)_, #26406 _(direct issue)_
-- @JamesNK: #29310 _(direct issue)_, #28867 _(direct issue)_, #28704 _(direct issue)_, #28868
+- @JamesNK: #29310 _(direct issue)_, #28867 _(direct issue)_, #28704 _(direct issue)_
 - @JanKrivanek: #25656 _(direct issue)_, #25439 _(direct issue)_
 - @jaroslawgajewski: #34917 _(direct issue)_, #33644 _(direct issue)_, #33640 _(direct issue)_, #31678 _(direct issue)_, #31658 _(direct issue)_, #25593 _(direct issue)_, #24373 _(direct issue)_, #24372 _(direct issue)_, #24371 _(direct issue)_, #24259 _(direct issue)_, #24036 _(direct issue)_, #23779 _(direct issue)_, #23558 _(direct issue)_, #22647 _(direct issue)_, #21816 _(direct issue)_, #20813 _(direct issue)_, #20811 _(direct issue)_
 - @JasonYeMSFT: #27424 _(direct issue)_
@@ -146,9 +147,8 @@ To build and test repository custom linters:
 - @jeffhandley: #30232 _(direct issue)_, #30204 _(direct issue)_, #26799 _(direct issue)_, #26788 _(direct issue)_, #24384 _(direct issue)_
 - @jfomhover: #25420 _(direct issue)_
 - @jitran: #33649 _(direct issue)_
-- @jobayer-4: #32608
 - @johnpreed: #25687 _(direct issue)_, #23777 _(direct issue)_, #23212 _(direct issue)_, #21334 _(direct issue)_
-- @johnwilliams-12: #21205 _(direct issue)_, #21074 _(direct issue)_, #21071 _(direct issue)_, #21062 _(direct issue)_, #20821 _(direct issue)_, #20779 _(direct issue)_, #20697 _(direct issue)_, #20694 _(direct issue)_
+- @johnwilliams-12: #21205 _(direct issue)_, #21074 _(direct issue)_, #21071 _(direct issue)_, #21062 _(direct issue)_, #20821 _(direct issue)_, #20779 _(direct issue)_, #20697 _(direct issue)_
 - @jonathanpeppers: #30662 _(direct issue)_
 - @jsoref: #27230 _(direct issue)_
 - @jtracey93: #26176 _(direct issue)_
@@ -160,7 +160,7 @@ To build and test repository custom linters:
 - @ladamski: #33641 _(direct issue)_
 - @lindeberg: #34006 _(direct issue)_
 - @look: #23258 _(direct issue)_
-- @lpcox: #30634 _(direct issue)_, #29353 _(direct issue)_, #29191 _(direct issue)_, #22281 _(direct issue)_
+- @lpcox: #35972 _(direct issue)_, #35937 _(direct issue)_, #30634 _(direct issue)_, #29353 _(direct issue)_, #29191 _(direct issue)_, #22281 _(direct issue)_
 - @lupinthe14th: #26542 _(direct issue)_, #26441 _(direct issue)_
 - @mason-tim: #33084 _(direct issue)_, #33074 _(direct issue)_, #31489 _(direct issue)_, #30336 _(direct issue)_, #29301 _(direct issue)_, #21562 _(direct issue)_
 - @MatthewLabasan-NBCU: #26289 _(direct issue)_
@@ -179,16 +179,17 @@ To build and test repository custom linters:
 - @neta-vega: #26447 _(direct issue)_, #25895 _(direct issue)_
 - @NicoAvanzDev: #21542 _(direct issue)_
 - @NicolasRannou: #31701 _(direct issue)_
-- @NikolajBjorner: #28812 _(direct issue)_
+- @NikolajBjorner: #35762 _(direct issue)_, #28812 _(direct issue)_
 - @norrietaylor: #33199 _(direct issue)_, #32312 _(direct issue)_, #32310 _(direct issue)_, #30733 _(direct issue)_, #30392 _(direct issue)_
 - @octatone: #31918 _(direct issue)_
+- @PaulAylward2: #34844 _(direct issue)_
 - @petercort: #28281 _(direct issue)_
 - @pethers: #28470 _(direct issue)_
 - @pgaskin: #26156 _(direct issue)_
 - @pholleran: #25313 _(direct issue)_, #23572 _(direct issue)_, #21313 _(direct issue)_
 - @polmichel: #34904 _(direct issue)_, #32991 _(direct issue)_
 - @PureWeen: #28767 _(direct issue)_, #27655 _(direct issue)_, #23769 _(direct issue)_, #23567 _(direct issue)_
-- @rabo-unumed: #31660 _(direct issue)_, #31578 _(direct issue)_, #31513 _(direct issue)_, #20679 _(direct issue)_
+- @rabo-unumed: #31660 _(direct issue)_, #31578 _(direct issue)_, #31513 _(direct issue)_
 - @rhardouin: #30840 _(direct issue)_, #30838 _(direct issue)_
 - @romainh-betclic: #28143 _(direct issue)_
 - @rspurgeon: #26475 _(direct issue)_
@@ -212,7 +213,7 @@ To build and test repository custom linters:
 - @theletterf: #33963 _(direct issue)_, #32846 _(direct issue)_, #30964 _(direct issue)_, #30365 _(direct issue)_, #30327 _(direct issue)_, #28898 _(direct issue)_, #28895 _(direct issue)_, #28691 _(direct issue)_, #28672 _(direct issue)_, #28221 _(direct issue)_, #27566 _(direct issue)_, #25494 _(direct issue)_
 - @thi-feonir: #21426 _(direct issue)_
 - @tinytelly: #27282 _(direct issue)_
-- @tore-unumed: #35159 _(direct issue)_, #33545 _(direct issue)_, #31909 _(direct issue)_, #31650 _(direct issue)_, #30550 _(direct issue)_, #30324 _(direct issue)_, #29312 _(direct issue)_, #28019 _(direct issue)_, #20780 _(direct issue)_
+- @tore-unumed: #35446 _(direct issue)_, #35159 _(direct issue)_, #33545 _(direct issue)_, #31909 _(direct issue)_, #31650 _(direct issue)_, #30550 _(direct issue)_, #30324 _(direct issue)_, #29312 _(direct issue)_, #28019 _(direct issue)_, #20780 _(direct issue)_
 - @trask: #31612 _(direct issue)_, #31241 _(direct issue)_, #31098 _(direct issue)_, #31097 _(direct issue)_
 - @tsm-harmoney: #31695 _(direct issue)_, #27880 _(direct issue)_
 - @tvu4-wowcorp: #34556 _(direct issue)_
@@ -223,7 +224,7 @@ To build and test repository custom linters:
 - @wtgodbe: #32834 _(direct issue)_, #26057 _(direct issue)_, #25130 _(direct issue)_, #24921 _(direct issue)_
 - @yaananth: #24125 _(direct issue)_
 - @yskopets: #34772 _(direct issue)_, #34256 _(direct issue)_, #34250 _(direct issue)_, #34166 _(direct issue)_, #34134 _(direct issue)_, #32022 _(direct issue)_, #31831 _(direct issue)_, #31086 _(direct issue)_, #31073 _(direct issue)_, #30872 _(direct issue)_, #30705 _(direct issue)_, #27935 _(direct issue)_, #27898 _(direct issue)_, #27881 _(direct issue)_, #27773 _(direct issue)_, #27757 _(direct issue)_, #26922 _(direct issue)_, #26569 _(direct issue)_, #26468 _(direct issue)_, #26358 _(direct issue)_, #26346 _(direct issue)_, #26345 _(direct issue)_, #26280 _(direct issue)_, #26279 _(direct issue)_, #26120 _(direct issue)_, #26101 _(direct issue)_, #26085 _(direct issue)_, #26080 _(direct issue)_, #26067 _(direct issue)_, #25959 _(direct issue)_, #25946 _(direct issue)_, #25833 _(direct issue)_, #25363 _(direct issue)_, #25362 _(direct issue)_, #25125 _(direct issue)_, #24897 _(direct issue)_, #24573 _(direct issue)_, #23914 _(direct issue)_
-- @zarenner: #35577 _(direct issue)_, #35576 _(direct issue)_
+- @zarenner: #35577 _(direct issue)_, #35576 _(direct issue)_, #35575 _(direct issue)_, #35575 _(direct issue)_
 - @zkoppert: #27741 _(direct issue)_
 
 
@@ -232,6 +233,9 @@ To build and test repository custom linters:
 The following community issues were closed during this period but could not be automatically linked to a specific merged PR. Please verify whether they should be credited:
 
 - **@arthurfvives** for Dry-Run Mode with imports (APM) ([#32974](https://github.com/github/gh-aw/issues/32974)) — closed 2026-05-22, no confirmed PR linkage found
+- **@jobayer-4** for Poor README ([#32608](https://github.com/github/gh-aw/issues/32608)) — closed 2026-05-16, no confirmed PR linkage found
+- **@app/github-actions** for [deep-report] Quick Start sample workflow defaults to Copilot — Claude-only users will fail their first run ([#32423](https://github.com/github/gh-aw/issues/32423)) — closed 2026-05-15, no confirmed PR linkage found
+- **@app/github-actions** for [aw-failures] Claude workflows hit max-turns burning every turn on Bash permission denials (Step Name Alignment, Design Decision Gate) ([#31178](https://github.com/github/gh-aw/issues/31178)) — closed 2026-05-14, no confirmed PR linkage found
 
 </details>
 
