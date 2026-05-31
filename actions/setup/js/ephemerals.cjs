@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { formatDateInProjectTimeZone, resolveProjectTimeZone } = require("./project_timezone.cjs");
+
 /**
  * Regex pattern to match expiration marker with checked checkbox and HTML comment (new format)
  * Format: > - [x] expires <!-- gh-aw-expires: ISO_DATE --> on HUMAN_DATE UTC
@@ -22,6 +24,11 @@ const LEGACY_EXPIRATION_PATTERN = /^>\s*-\s*\[x\]\s+expires\s+on\s+(.+?)\s+UTC\s
  * @returns {string} Human-readable date string (e.g., "Jan 25, 2026, 1:53 PM")
  */
 function formatExpirationDate(date) {
+  const projectDate = formatDateInProjectTimeZone(date);
+  if (projectDate) {
+    return projectDate;
+  }
+
   return date.toLocaleString("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -37,6 +44,9 @@ function formatExpirationDate(date) {
 function createExpirationLine(expirationDate) {
   const expirationISO = expirationDate.toISOString();
   const humanReadableDate = formatExpirationDate(expirationDate);
+  if (resolveProjectTimeZone()) {
+    return `- [x] expires <!-- gh-aw-expires: ${expirationISO} --> on ${humanReadableDate}`;
+  }
   return `- [x] expires <!-- gh-aw-expires: ${expirationISO} --> on ${humanReadableDate} UTC`;
 }
 

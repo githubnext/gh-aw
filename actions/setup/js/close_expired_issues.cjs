@@ -3,6 +3,7 @@
 
 const { executeExpiredEntityCleanup } = require("./expired_entity_main_flow.cjs");
 const { generateExpiredEntityFooter, getExpiredEntityCautionAlert } = require("./generate_footer.cjs");
+const { formatDateInProjectTimeZone } = require("./project_timezone.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getWorkflowMetadata } = require("./workflow_metadata_helpers.cjs");
 const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
@@ -62,7 +63,7 @@ async function main() {
     summaryHeading: "Expired Issues Cleanup",
     processEntity: async issue => {
       const cautionAlert = getExpiredEntityCautionAlert(workflowName, runUrl);
-      const expirationText = `This issue was automatically closed because it expired on ${issue.expirationDate.toISOString()}.`;
+      const expirationText = `This issue was automatically closed because it expired on ${formatDateInProjectTimeZone(issue.expirationDate) || issue.expirationDate.toISOString()}.`;
       const closingMessage = (cautionAlert ? cautionAlert + "\n\n" : "") + expirationText + generateExpiredEntityFooter(workflowName, runUrl, workflowId);
 
       await addIssueComment(github, owner, repo, issue.number, closingMessage);
