@@ -107,6 +107,13 @@ The YAML frontmatter supports these fields:
 - **`runs-on-slim:`** - Runner type for all framework/generated jobs (activation, safe-outputs, unlock, etc.). Defaults to `ubuntu-slim`. `safe-outputs.runs-on` takes precedence for safe-output jobs specifically.
 - **`timeout-minutes:`** - Agent execution step timeout in minutes (integer or GitHub Actions expression, defaults to 20 minutes; custom and safe-output jobs use the GitHub Actions platform default of 360 minutes unless explicitly set). Expressions enable `workflow_call` reusable workflows to parameterize timeouts: `timeout-minutes: ${{ inputs.timeout }}`
 - **`concurrency:`** - Concurrency control (string or object)
+  - **`queue:`** - Pending run queue behavior for the concurrency group (`single` or `max`, defaults to `single`). `single` keeps one pending run and replaces older pending runs; `max` allows up to 100 pending runs in FIFO order (useful for conclusion jobs that must not be dropped).
+
+    ```yaml
+    concurrency:
+      group: "my-workflow"
+      queue: max
+    ```
   - **`job-discriminator:`** - Expression appended to compiler-generated job-level concurrency groups (`agent`, `output`, and `conclusion` jobs), preventing fan-out cancellations when multiple workflow instances run concurrently with different inputs. Common usage:
 
     ```yaml
@@ -474,6 +481,7 @@ The YAML frontmatter supports these fields:
       agent:
         id: awf                     # Required in strict mode
         version: "v0.25.29"         # Optional: pin AWF version
+        model-fallback: false       # Optional: disable model fallback (default true); set false for BYOK Azure OpenAI to prevent deployment-name rewriting
     ```
 
   - To disable the agent firewall while keeping MCP gateway enabled (not allowed in strict mode):
