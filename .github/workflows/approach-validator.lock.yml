@@ -133,6 +133,7 @@ jobs:
           job-name: ${{ github.job }}
           trace-id: ${{ needs.pre_activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.pre_activation.outputs.setup-parent-span-id || needs.pre_activation.outputs.setup-span-id }}
+          safe-output-artifact-client: 'true'
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Approach Validator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/approach-validator.lock.yml@${{ github.ref }}

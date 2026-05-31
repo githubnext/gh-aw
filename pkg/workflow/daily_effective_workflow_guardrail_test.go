@@ -128,6 +128,9 @@ Guardrail test workflow`
 	if strings.Contains(activationSection, "issues: write") {
 		t.Fatal("expected activation permissions to avoid issues: write for the daily ET guardrail")
 	}
+	if !strings.Contains(activationSection, "safe-output-artifact-client: 'true'") {
+		t.Fatal("expected setup step to install @actions/artifact when the daily ET guardrail is configured")
+	}
 }
 
 func TestNoDailyEffectiveWorkflowReferencesWithoutGuardrail(t *testing.T) {
