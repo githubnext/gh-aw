@@ -152,6 +152,7 @@ The YAML frontmatter supports these fields:
 ### Agentic Workflow Specific Fields
 
 - **`description:`** - Human-readable workflow description (string)
+- **`emoji:`** - Optional single emoji used to represent the workflow visually; recommended for quicker recognition in workflow lists and status output (string)
 - **`source:`** - Workflow origin tracking in format `owner/repo/path@ref` (string)
 - **`labels:`** - Array of labels to categorize and organize workflows (array)
   - Labels filter workflows in status/list commands
