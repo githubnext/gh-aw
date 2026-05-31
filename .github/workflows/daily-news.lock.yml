@@ -560,7 +560,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: steps.check-cache.outputs.cache_valid != 'true'
-        name: Cache downloaded data
+        name: Save downloaded data to cache
         run: |
           set -e
           echo "💾 Caching data for future runs..."

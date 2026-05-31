@@ -22,12 +22,12 @@ steps:
   - name: Install Drain3 dependencies
     run: |
       pip install fastmcp drain3
-  - name: Copy Drain3 MCP server script
+  - name: Copy Drain3 MCP Server script
     run: |
       mkdir -p /tmp/gh-aw/agent/mcp-servers/drain3/
       cp .github/workflows/shared/mcp/drain3_server.py /tmp/gh-aw/agent/mcp-servers/drain3/
       chmod +x /tmp/gh-aw/agent/mcp-servers/drain3/drain3_server.py
-  - name: Start Drain3 MCP server
+  - name: Start Drain3 MCP Server
     run: |
       set -e
       mkdir -p /tmp/gh-aw/mcp-logs/drain3/
