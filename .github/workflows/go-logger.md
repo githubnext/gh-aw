@@ -44,6 +44,7 @@ tools:
   - head -n * pkg/**/*.go
   - wc -l pkg/**/*.go
   - make build
+  - make fmt
   - make recompile
   - ./gh-aw compile *
   - git
