@@ -22,6 +22,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/errstringmatch"
 	"github.com/github/gh-aw/pkg/linters/excessivefuncparams"
 	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
+	"github.com/github/gh-aw/pkg/linters/fmterrorfnoverbs"
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
 	"github.com/github/gh-aw/pkg/linters/jsonmarshalignoredeerror"
 	"github.com/github/gh-aw/pkg/linters/largefunc"
@@ -45,6 +46,7 @@ func main() {
 		errstringmatch.Analyzer,
 		excessivefuncparams.Analyzer,
 		fileclosenotdeferred.Analyzer,
+		fmterrorfnoverbs.Analyzer,
 		largefunc.Analyzer,
 		manualmutexunlock.Analyzer,
 		osexitinlibrary.Analyzer,
