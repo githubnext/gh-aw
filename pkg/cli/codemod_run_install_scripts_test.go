@@ -217,6 +217,7 @@ runtimes:
 	assert.Contains(t, result, "    run-install-scripts: true")
 }
 
+
 func TestRunInstallScriptsToRuntimesNode_PreservesOtherFields(t *testing.T) {
 	codemod := getRunInstallScriptsToRuntimesNodeCodemod()
 
