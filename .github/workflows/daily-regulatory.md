@@ -19,6 +19,9 @@ tools:
   bash:
     - "*"
   edit:
+safe-outputs:
+  close-discussion:
+    required-title-prefix: "[daily regulatory] "
 timeout-minutes: 30
 imports:
   - uses: shared/daily-audit-base.md
