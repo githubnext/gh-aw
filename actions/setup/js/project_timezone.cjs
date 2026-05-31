@@ -60,7 +60,7 @@ function readDefaultTimeZone() {
     return "";
   }
   if (!isValidTimeZone(timeZone)) {
-    warn(`Ignoring invalid ${"GH_AW_DEFAULT_UTC"} timezone: ${timeZone}`);
+    warn(`Ignoring invalid GH_AW_DEFAULT_UTC timezone: ${timeZone}`);
     return "";
   }
   return timeZone;
