@@ -61,7 +61,10 @@ describe("setup_threat_detection", () => {
 
     const generatedPromptPath = "/tmp/gh-aw/aw-prompts/prompt.txt";
     expect(fs.existsSync(generatedPromptPath)).toBe(true);
-    expect(fs.readFileSync(generatedPromptPath, "utf8")).toContain("prompt=/tmp/gh-aw/threat-detection/aw-prompts/prompt.txt (unavailable)");
+    const generatedPrompt = fs.readFileSync(generatedPromptPath, "utf8");
+    expect(generatedPrompt).toContain("name=Test Workflow");
+    expect(generatedPrompt).toContain("description=Test Description");
+    expect(generatedPrompt).toContain("prompt=/tmp/gh-aw/threat-detection/aw-prompts/prompt.txt (unavailable)");
   });
 
   it("warns but continues when prompt artifact is empty", async () => {

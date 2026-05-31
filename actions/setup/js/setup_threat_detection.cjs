@@ -38,8 +38,9 @@ async function main() {
   // So /tmp/gh-aw/aw-prompts/prompt.txt becomes /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt
   const threatDetectionDir = "/tmp/gh-aw/threat-detection";
   const promptPath = path.join(threatDetectionDir, "aw-prompts/prompt.txt");
-  let promptFileInfo = `${promptPath} (unavailable)`;
+  let promptFileInfo;
   if (!fs.existsSync(promptPath)) {
+    promptFileInfo = `${promptPath} (unavailable)`;
     core.warning(
       `⚠️ ${ERR_VALIDATION}: Missing workflow prompt context at ${promptPath}. ` +
         "Ensure the agent artifact includes /tmp/gh-aw/aw-prompts/prompt.txt. " +
@@ -48,14 +49,15 @@ async function main() {
   } else {
     const promptStats = fs.statSync(promptPath);
     if (promptStats.size === 0) {
+      promptFileInfo = `${promptPath} (unavailable)`;
       core.warning(
         `⚠️ ${ERR_VALIDATION}: Workflow prompt context is empty at ${promptPath}. ` +
           "Threat detection will continue with fallback workflow context."
       );
     } else {
       core.info(`Prompt file found: ${promptPath} (${promptStats.size} bytes)`);
+      promptFileInfo = `${promptPath} (${promptStats.size} bytes)`;
     }
-    promptFileInfo = `${promptPath} (${promptStats.size} bytes)`;
   }
 
   // Check if agent output file exists
