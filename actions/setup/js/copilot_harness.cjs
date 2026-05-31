@@ -73,7 +73,7 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 // Pattern to detect AWF effective-token hard rails returned by Copilot provider retries.
 // This is not a transient provider 429: once the firewall budget is exhausted, additional
-// inference or `--continue` retries will be refused until the budget window changes.
+// inference or `--continue` retries will be refused until the effective-token budget resets.
 const MAX_EFFECTIVE_TOKENS_EXCEEDED_PATTERN = /Maximum effective tokens exceeded/i;
 
 // Pattern to detect MCP servers blocked by enterprise/organization policy.
