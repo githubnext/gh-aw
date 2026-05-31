@@ -71,11 +71,13 @@ type importAccumulator struct {
 	// First engine.model found in imports that have no engine.id (first-wins strategy).
 	// These express a model preference without selecting a specific engine.
 	mergedEngineModel string
-	// First top-level max-runs / max-effective-tokens found across imports (first-wins).
+	// First top-level max-runs / max-effective-tokens / max-daily-effective-workflow
+	// found across imports (first-wins).
 	// Values are stored as JSON-encoded raw values so numeric literals and strings
 	// round-trip consistently through import processing.
-	mergedMaxRuns            string
-	mergedMaxEffectiveTokens string
+	mergedMaxRuns                 string
+	mergedMaxEffectiveTokens      string
+	mergedMaxDailyEffectiveWorkflow string
 	// Best-effort sub-agent frontmatter warnings collected during BFS traversal.
 	warnings []string
 }
@@ -344,7 +346,8 @@ func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath st
 // extractConfigFields extracts scalar and builder-based configuration fields from the
 // frontmatter map and writes them into the appropriate accumulator builders and slices.
 //
-// Side effects: acc.mergedMaxRuns, acc.mergedMaxEffectiveTokens, acc.mcpServersBuilder,
+// Side effects: acc.mergedMaxRuns, acc.mergedMaxEffectiveTokens,
+// acc.mergedMaxDailyEffectiveWorkflow, acc.mcpServersBuilder,
 // acc.safeOutputs, acc.mcpScripts, acc.stepsBuilder, acc.runtimesBuilder,
 // acc.servicesBuilder, acc.networkBuilder, acc.permissionsBuilder,
 // acc.secretMaskingBuilder.
@@ -364,6 +367,15 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 			maxTokensJSON != "" && maxTokensJSON != "null" {
 			acc.mergedMaxEffectiveTokens = maxTokensJSON
 			parserLog.Printf("Extracted max-effective-tokens from import: %s", fullPath)
+		}
+	}
+
+	// Extract max-daily-effective-workflow (first-wins across imports).
+	if acc.mergedMaxDailyEffectiveWorkflow == "" {
+		if maxDailyJSON, merr := extractFieldJSONFromMap(fm, "max-daily-effective-workflow", ""); merr == nil &&
+			maxDailyJSON != "" && maxDailyJSON != "null" {
+			acc.mergedMaxDailyEffectiveWorkflow = maxDailyJSON
+			parserLog.Printf("Extracted max-daily-effective-workflow from import: %s", fullPath)
 		}
 	}
 
@@ -744,6 +756,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedEngineModel:             acc.mergedEngineModel,
 		MergedMaxRuns:                 acc.mergedMaxRuns,
 		MergedMaxEffectiveTokens:      acc.mergedMaxEffectiveTokens,
+		MergedMaxDailyEffectiveWorkflow: acc.mergedMaxDailyEffectiveWorkflow,
 		Warnings:                      acc.warnings,
 	}
 }

@@ -256,6 +256,16 @@ max-effective-tokens: 5000000
 max-effective-tokens: -1
 ```
 
+### Daily Per-Workflow Effective Token Guardrail (`max-daily-effective-workflow:`)
+
+Sets a 24-hour effective-token cap for a single workflow, aggregated across recent runs of the same workflow started by the triggering user. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and lets the conclusion job report the specialized failure context.
+
+This guardrail is skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs that carry internal `aw_context` dispatch metadata.
+
+```yaml wrap
+max-daily-effective-workflow: 15000000
+```
+
 ### Secrets (`secrets:`)
 
 Defines secret values passed to workflow execution. Secrets are typically used to provide sensitive configuration to MCP servers or workflow components. Values must be GitHub Actions expressions that reference secrets (e.g., `${{ secrets.API_KEY }}`).
