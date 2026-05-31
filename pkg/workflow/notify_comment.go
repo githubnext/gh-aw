@@ -319,9 +319,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// This output is only set when stale-check is enabled (the default); when disabled the
 	// expression evaluates to "" which handle_agent_failure treats as "not failed".
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_STALE_LOCK_FILE_FAILED: ${{ needs.%s.outputs.stale_lock_file_failed }}\n", string(constants.ActivationJobName)))
-	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.%s.outputs.daily_effective_workflow_exceeded }}\n", string(constants.ActivationJobName)))
-	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS: ${{ needs.%s.outputs.daily_effective_workflow_total_effective_tokens }}\n", string(constants.ActivationJobName)))
-	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD: ${{ needs.%s.outputs.daily_effective_workflow_threshold }}\n", string(constants.ActivationJobName)))
+	if hasMaxDailyEffectiveTokensGuardrail(data) {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.%s.outputs.daily_effective_workflow_exceeded }}\n", string(constants.ActivationJobName)))
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS: ${{ needs.%s.outputs.daily_effective_workflow_total_effective_tokens }}\n", string(constants.ActivationJobName)))
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD: ${{ needs.%s.outputs.daily_effective_workflow_threshold }}\n", string(constants.ActivationJobName)))
+	}
 
 	// Pass custom messages config if present (JSON computed once above)
 	if messagesJSON != "" {
@@ -524,15 +526,14 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.stale_lock_file_failed", string(constants.ActivationJobName))),
 		BuildStringLiteral("true"),
 	)
-	dailyEffectiveWorkflowExceeded := BuildEquals(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.daily_effective_workflow_exceeded", string(constants.ActivationJobName))),
-		BuildStringLiteral("true"),
-	)
-
-	activationGuardrailsFailed := BuildOr(
-		BuildOr(lockdownCheckFailed, staleLockFileFailed),
-		dailyEffectiveWorkflowExceeded,
-	)
+	activationGuardrailsFailed := BuildOr(lockdownCheckFailed, staleLockFileFailed)
+	if hasMaxDailyEffectiveTokensGuardrail(data) {
+		dailyEffectiveWorkflowExceeded := BuildEquals(
+			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.daily_effective_workflow_exceeded", string(constants.ActivationJobName))),
+			BuildStringLiteral("true"),
+		)
+		activationGuardrailsFailed = BuildOr(activationGuardrailsFailed, dailyEffectiveWorkflowExceeded)
+	}
 
 	// Agent not skipped OR an activation guardrail failed and intentionally skipped the agent.
 	agentNotSkippedOrActivationFailed := BuildOr(agentNotSkipped, activationGuardrailsFailed)
