@@ -49,4 +49,63 @@ describe("check_daily_effective_workflow_guardrail", () => {
 
     expect(exports.sumEffectiveTokensFromTokenUsageFile(filePath)).toBe(200);
   });
+
+  it("computes aggregate ET statistics for prior runs", () => {
+    expect(exports.calculateDailyEffectiveWorkflowStats([{ effective_tokens: 100 }, { effective_tokens: 200 }, { effective_tokens: 300 }])).toEqual({
+      count: 3,
+      total: 600,
+      average: 200,
+      min: 100,
+      max: 300,
+      stddev: 100,
+    });
+  });
+
+  it("caps inspection when GitHub API rate limit headroom is low", () => {
+    expect(exports.computeMaxInspectableRuns(110)).toBe(0);
+    expect(exports.computeMaxInspectableRuns(120)).toBeGreaterThan(0);
+  });
+
+  it("renders a daily ET details summary with stats and prior runs", () => {
+    const markdown = exports.renderDailyEffectiveWorkflowSummary(
+      "Nightly triage",
+      "copilot-swe-agent[bot]",
+      1000,
+      [
+        {
+          id: 11,
+          html_url: "https://example.test/runs/11",
+          created_at: "2026-05-31T10:00:00Z",
+          conclusion: "success",
+          effective_tokens: 400,
+        },
+        {
+          id: 10,
+          html_url: "https://example.test/runs/10",
+          created_at: "2026-05-31T09:00:00Z",
+          conclusion: "failure",
+          effective_tokens: 200,
+        },
+      ],
+      {
+        remaining: 4321,
+        limit: 5000,
+        used: 679,
+        reset: "2026-05-31T12:00:00.000Z",
+      },
+      {
+        candidateRunsCount: 5,
+        inspectedRunsCount: 2,
+        truncatedByRateLimit: true,
+        issueUrl: "https://example.test/issues/1",
+      }
+    );
+
+    expect(markdown).toContain("| 24h total ET | 600 |");
+    expect(markdown).toContain("| Avg ET / run | 300 |");
+    expect(markdown).toContain("| Std dev ET | 141 |");
+    expect(markdown).toContain("| [#11](https://example.test/runs/11) | 2026-05-31T10:00:00Z | success | 400 |");
+    expect(markdown).toContain("Stopped early to preserve GitHub API rate limit headroom");
+    expect(markdown).toContain("Guardrail issue: https://example.test/issues/1");
+  });
 });

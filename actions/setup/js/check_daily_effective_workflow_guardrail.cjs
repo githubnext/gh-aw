@@ -7,6 +7,7 @@ const path = require("path");
 
 const { computeEffectiveTokens } = require("./effective_tokens.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { createRateLimitAwareGithub, fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
 const TOKEN_USAGE_FILENAME = "token-usage.jsonl";
@@ -15,6 +16,8 @@ const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["firewall-audit-logs", "agent"];
 const DAILY_WORKFLOW_WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_RECENT_RUNS_IN_ISSUE = 10;
 const MAX_WORKFLOW_RUN_PAGES = 10;
+const RATE_LIMIT_RESERVE = 100;
+const REQUEST_OVERHEAD_BUDGET = MAX_WORKFLOW_RUN_PAGES + 4;
 
 /**
  * @returns {Promise<import("@actions/artifact").DefaultArtifactClient>}
@@ -183,6 +186,153 @@ async function getRunEffectiveTokens(artifactClient, runId, token, owner, repo) 
 }
 
 /**
+ * @param {number | undefined} value
+ * @returns {string}
+ */
+function formatInteger(value) {
+  const safeValue = Number.isFinite(value) ? Math.round(value || 0) : 0;
+  return new Intl.NumberFormat("en-US").format(safeValue);
+}
+
+/**
+ * @param {string} raw
+ * @returns {string}
+ */
+function escapeMarkdownCell(raw) {
+  return String(raw || "")
+    .replace(/\|/g, "\\|")
+    .replace(/\n/g, " ");
+}
+
+/**
+ * @param {Array<{effective_tokens:number}>} runs
+ * @returns {{count:number,total:number,average:number,min:number,max:number,stddev:number}}
+ */
+function calculateDailyEffectiveWorkflowStats(runs) {
+  const values = runs.map(run => Number(run?.effective_tokens || 0)).filter(value => Number.isFinite(value) && value > 0);
+  if (values.length === 0) {
+    return { count: 0, total: 0, average: 0, min: 0, max: 0, stddev: 0 };
+  }
+
+  const total = values.reduce((sum, value) => sum + value, 0);
+  const average = total / values.length;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const variance = values.length > 1 ? values.reduce((sum, value) => sum + (value - average) ** 2, 0) / (values.length - 1) : 0;
+
+  return {
+    count: values.length,
+    total,
+    average,
+    min,
+    max,
+    stddev: Math.sqrt(variance),
+  };
+}
+
+/**
+ * @param {number} remaining
+ * @returns {number}
+ */
+function computeMaxInspectableRuns(remaining) {
+  if (!Number.isFinite(remaining) || remaining <= 0) {
+    return 0;
+  }
+  return Math.max(0, Math.floor((remaining - RATE_LIMIT_RESERVE - REQUEST_OVERHEAD_BUDGET) / 2));
+}
+
+/**
+ * @param {any} githubClient
+ * @returns {Promise<{remaining:number,limit:number,used:number,reset:string}>}
+ */
+async function getCoreRateLimitSnapshot(githubClient) {
+  const response = await githubClient.rest.rateLimit.get();
+  const coreRate = response?.data?.resources?.core || response?.data?.rate || {};
+  const reset = coreRate?.reset ? new Date(coreRate.reset * 1000).toISOString() : "";
+  return {
+    remaining: Number(coreRate?.remaining || 0),
+    limit: Number(coreRate?.limit || 0),
+    used: Number(coreRate?.used || 0),
+    reset,
+  };
+}
+
+/**
+ * @param {string} workflowName
+ * @param {string} actorLogin
+ * @param {number} threshold
+ * @param {Array<{id:number, html_url:string, created_at:string, conclusion:string, effective_tokens:number}>} countedRuns
+ * @param {{remaining:number,limit:number,used:number,reset:string}} rateLimit
+ * @param {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean,issueUrl?:string}} meta
+ * @returns {string}
+ */
+function renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta) {
+  const stats = calculateDailyEffectiveWorkflowStats(countedRuns);
+  const remainingBudget = Math.max(0, threshold - stats.total);
+  const usagePercent = threshold > 0 ? ((stats.total / threshold) * 100).toFixed(2) : "0.00";
+  const runRows =
+    countedRuns.length > 0
+      ? countedRuns
+          .slice()
+          .sort((a, b) => Date.parse(b.created_at || "") - Date.parse(a.created_at || ""))
+          .map(run => `| [#${run.id}](${run.html_url || ""}) | ${escapeMarkdownCell(run.created_at || "")} | ${escapeMarkdownCell(run.conclusion || "unknown")} | ${formatInteger(run.effective_tokens)} |`)
+          .join("\n")
+      : "| _none_ | — | — | 0 |";
+
+  const noteLines = [];
+  if (meta.truncatedByRateLimit) {
+    noteLines.push(`- Stopped early to preserve GitHub API rate limit headroom (${rateLimit.remaining} remaining, reserve ${RATE_LIMIT_RESERVE}).`);
+  }
+  if (meta.candidateRunsCount > meta.inspectedRunsCount) {
+    noteLines.push(`- Considered ${meta.candidateRunsCount} prior runs in the 24h window and inspected ${meta.inspectedRunsCount}.`);
+  }
+  if (meta.issueUrl) {
+    noteLines.push(`- Guardrail issue: ${meta.issueUrl}`);
+  }
+
+  return [
+    `**Workflow:** ${workflowName || "workflow"}`,
+    `**Actor:** ${actorLogin || "unknown"}`,
+    "",
+    "| Statistic | Value |",
+    "| --- | ---: |",
+    `| 24h total ET | ${formatInteger(stats.total)} |`,
+    `| Threshold | ${formatInteger(threshold)} |`,
+    `| Threshold used | ${usagePercent}% |`,
+    `| Remaining headroom | ${formatInteger(remainingBudget)} |`,
+    `| Runs counted | ${formatInteger(stats.count)} |`,
+    `| Avg ET / run | ${formatInteger(stats.average)} |`,
+    `| Std dev ET | ${formatInteger(stats.stddev)} |`,
+    `| Min / Max ET | ${formatInteger(stats.min)} / ${formatInteger(stats.max)} |`,
+    `| API remaining | ${formatInteger(rateLimit.remaining)} / ${formatInteger(rateLimit.limit)} |`,
+    `| API used | ${formatInteger(rateLimit.used)} |`,
+    `| API reset | ${rateLimit.reset || "unknown"} |`,
+    "",
+    "Previous runs counted in the last 24 hours:",
+    "",
+    "| Run | Created | Conclusion | ET |",
+    "| --- | --- | --- | ---: |",
+    runRows,
+    ...(noteLines.length > 0 ? ["", ...noteLines] : []),
+  ].join("\n");
+}
+
+/**
+ * @param {string} workflowName
+ * @param {string} actorLogin
+ * @param {number} threshold
+ * @param {Array<{id:number, html_url:string, created_at:string, conclusion:string, effective_tokens:number}>} countedRuns
+ * @param {{remaining:number,limit:number,used:number,reset:string}} rateLimit
+ * @param {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean,issueUrl?:string}} meta
+ * @returns {Promise<void>}
+ */
+async function appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta) {
+  const markdown = renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta);
+  core.summary.addDetails("Daily Effective Token Usage (24h)", "\n\n" + markdown);
+  await core.summary.write();
+}
+
+/**
  * @param {string} owner
  * @param {string} repo
  * @param {string} workflowName
@@ -190,17 +340,17 @@ async function getRunEffectiveTokens(artifactClient, runId, token, owner, repo) 
  * @param {string} runUrl
  * @param {number} totalEffectiveTokens
  * @param {number} threshold
- * @param {Array<{id:number, html_url:string, created_at:string, conclusion:string}>} runs
+ * @param {Array<{id:number, html_url:string, created_at:string, conclusion:string, effective_tokens:number}>} runs
  * @returns {Promise<string>}
  *
  * Requires the github-script global `github` client provided by setupGlobals().
  */
-async function ensureDailyEffectiveWorkflowIssue(owner, repo, workflowName, workflowID, runUrl, totalEffectiveTokens, threshold, runs) {
+async function ensureDailyEffectiveWorkflowIssue(githubClient, owner, repo, workflowName, workflowID, runUrl, totalEffectiveTokens, threshold, runs) {
   const sanitizedWorkflowName = sanitizeContent(workflowName || workflowID || "workflow", { maxLength: 100 });
   const title = `[aw] ${sanitizedWorkflowName} daily ET guardrail exceeded`;
   const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows in:title "${title}"`;
 
-  const search = await github.rest.search.issuesAndPullRequests({
+  const search = await githubClient.rest.search.issuesAndPullRequests({
     q: searchQuery,
     per_page: 1,
   });
@@ -210,7 +360,7 @@ async function ensureDailyEffectiveWorkflowIssue(owner, repo, workflowName, work
 
   const runLines = runs
     .slice(0, MAX_RECENT_RUNS_IN_ISSUE)
-    .map(run => `- [Run #${run.id}](${run.html_url}) — ${run.created_at} (${run.conclusion || "unknown"})`)
+    .map(run => `- [Run #${run.id}](${run.html_url}) — ${run.created_at} (${run.conclusion || "unknown"}) — ${formatInteger(run.effective_tokens)} ET`)
     .join("\n");
   const body = [
     "### Daily Workflow ET Guardrail Exceeded",
@@ -226,7 +376,7 @@ async function ensureDailyEffectiveWorkflowIssue(owner, repo, workflowName, work
     `<!-- gh-aw-daily-effective-workflow-guardrail: ${workflowID} -->`,
   ].join("\n");
 
-  const created = await github.rest.issues.create({
+  const created = await githubClient.rest.issues.create({
     owner,
     repo,
     title,
@@ -262,12 +412,15 @@ async function main() {
     return;
   }
 
+  const githubClient = createRateLimitAwareGithub(github);
   const { owner, repo } = context.repo;
-  const currentRun = await github.rest.actions.getWorkflowRun({
+  const currentRun = await githubClient.rest.actions.getWorkflowRun({
     owner,
     repo,
     run_id: context.runId,
   });
+  const rateLimit = await getCoreRateLimitSnapshot(githubClient);
+  await fetchAndLogRateLimit(githubClient, "daily_effective_workflow_guardrail_start");
 
   const workflowID = process.env.GH_AW_WORKFLOW_ID || "";
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || workflowID || "workflow";
@@ -279,14 +432,21 @@ async function main() {
     return;
   }
 
+  const maxInspectableRuns = computeMaxInspectableRuns(rateLimit.remaining);
+  if (maxInspectableRuns <= 0) {
+    core.warning(`Skipping daily workflow ET guardrail because the GitHub API rate limit is too low (${rateLimit.remaining} remaining, reserve ${RATE_LIMIT_RESERVE}).`);
+    return;
+  }
+
   const cutoffMs = Date.now() - DAILY_WORKFLOW_WINDOW_MS;
   /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string}>} */
   const candidateRuns = [];
   /** @type {Array<any>} */
   let runs = [];
   let page = 1;
+  let truncatedByRateLimit = false;
   while (page <= MAX_WORKFLOW_RUN_PAGES) {
-    const response = await github.rest.actions.listWorkflowRuns({
+    const response = await githubClient.rest.actions.listWorkflowRuns({
       owner,
       repo,
       workflow_id: currentRun.data.workflow_id,
@@ -308,8 +468,12 @@ async function main() {
         continue;
       }
       candidateRuns.push(run);
+      if (candidateRuns.length >= maxInspectableRuns) {
+        truncatedByRateLimit = true;
+        break;
+      }
     }
-    if (runs.length < 100) {
+    if (candidateRuns.length >= maxInspectableRuns || runs.length < 100) {
       break;
     }
     page += 1;
@@ -317,9 +481,13 @@ async function main() {
 
   const artifactClient = await getArtifactClient();
   let totalEffectiveTokens = 0;
-  /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string}>} */
+  /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string, effective_tokens:number}>} */
   const countedRuns = [];
   for (const run of candidateRuns) {
+    if (countedRuns.length >= maxInspectableRuns) {
+      truncatedByRateLimit = true;
+      break;
+    }
     try {
       const runEffectiveTokens = await getRunEffectiveTokens(artifactClient, run.id, token, owner, repo);
       if (runEffectiveTokens <= 0) {
@@ -331,6 +499,7 @@ async function main() {
         html_url: run.html_url || "",
         created_at: run.created_at || "",
         conclusion: run.conclusion || "",
+        effective_tokens: runEffectiveTokens,
       });
     } catch (error) {
       core.warning(`Failed to inspect token usage for run ${run.id}: ${getErrorMessage(error)}`);
@@ -340,16 +509,26 @@ async function main() {
   core.setOutput("daily_effective_workflow_total_effective_tokens", String(totalEffectiveTokens));
   core.setOutput("daily_effective_workflow_threshold", String(threshold));
 
+  /** @type {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean,issueUrl?:string}} */
+  const summaryMeta = {
+    candidateRunsCount: candidateRuns.length,
+    inspectedRunsCount: countedRuns.length,
+    truncatedByRateLimit,
+  };
+
   if (totalEffectiveTokens <= threshold) {
+    await appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
     core.info(`Daily workflow ET guardrail not exceeded (${totalEffectiveTokens}/${threshold}).`);
     return;
   }
 
   core.setOutput("daily_effective_workflow_exceeded", "true");
-  const issueUrl = await ensureDailyEffectiveWorkflowIssue(owner, repo, workflowName, workflowID, runUrl, totalEffectiveTokens, threshold, countedRuns);
+  const issueUrl = await ensureDailyEffectiveWorkflowIssue(githubClient, owner, repo, workflowName, workflowID, runUrl, totalEffectiveTokens, threshold, countedRuns);
   if (issueUrl) {
     core.setOutput("daily_effective_workflow_issue_url", issueUrl);
+    summaryMeta.issueUrl = issueUrl;
   }
+  await appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
   core.warning(`Daily workflow ET guardrail exceeded for ${workflowName}: ${totalEffectiveTokens}/${threshold}.`);
 }
 
@@ -359,4 +538,7 @@ module.exports = {
   matchesGuardrailArtifactName,
   findTokenUsageFile,
   sumEffectiveTokensFromTokenUsageFile,
+  calculateDailyEffectiveWorkflowStats,
+  computeMaxInspectableRuns,
+  renderDailyEffectiveWorkflowSummary,
 };
