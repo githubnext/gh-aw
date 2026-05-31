@@ -190,6 +190,8 @@ async function getRunEffectiveTokens(artifactClient, runId, token, owner, repo) 
  * @param {number} threshold
  * @param {Array<{id:number, html_url:string, created_at:string, conclusion:string}>} runs
  * @returns {Promise<string>}
+ *
+ * Requires the github-script global `github` client provided by setupGlobals().
  */
 async function ensureDailyEffectiveWorkflowIssue(owner, repo, workflowName, workflowID, runUrl, totalEffectiveTokens, threshold, runs) {
   const sanitizedWorkflowName = sanitizeContent(workflowName || workflowID || "workflow", { maxLength: 100 });
@@ -234,6 +236,8 @@ async function ensureDailyEffectiveWorkflowIssue(owner, repo, workflowName, work
 
 /**
  * @returns {Promise<void>}
+ *
+ * Requires github-script globals (`core`, `github`, `context`) provided by setupGlobals().
  */
 async function main() {
   core.setOutput("daily_effective_workflow_exceeded", "false");
