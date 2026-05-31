@@ -422,6 +422,13 @@ jobs:
           gh aw version
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: 'actions/setup/js/package-lock.json'
+          package-manager-cache: false
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise
@@ -434,14 +441,6 @@ jobs:
         id: fetch-prs
         name: Fetch open non-draft PR queue
         run: "mkdir -p /tmp/gh-aw/agent\ncandidate_file=/tmp/gh-aw/agent/pr-sous-chef-candidates.json\neligible_file=/tmp/gh-aw/agent/pr-sous-chef-eligible.json\nsous_chef_nudge_marker='<!-- gh-aw-pr-sous-chef-nudge -->'\nfiltered_checks_pending=0\nfiltered_last_comment_from_sous_chef=0\n\ngh pr list --repo \"$EXPR_GITHUB_REPOSITORY\" \\\n  --state open \\\n  --search \"is:pr is:open -is:draft sort:updated-desc\" \\\n  --limit 30 \\\n  --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus \\\n  > \"$candidate_file\"\n\njq -n '[]' > \"$eligible_file\"\n\nwhile IFS= read -r pr; do\n  pr_number=\"$(jq -r '.number' <<<\"$pr\")\"\n  if [ -z \"$pr_number\" ] || [ \"$pr_number\" = \"null\" ]; then\n    continue\n  fi\n\n  checks_state=\"$(\n    {\n      gh aw checks \"$pr_number\" --repo \"$EXPR_GITHUB_REPOSITORY\" --json \\\n        | jq -r '.required_state // .state // \"unknown\"'\n    } 2>/dev/null || echo \"unknown\"\n  )\"\n  if [ \"$checks_state\" = \"pending\" ]; then\n    filtered_checks_pending=$((filtered_checks_pending + 1))\n    continue\n  fi\n\n  last_comment_is_sous_chef=\"$(\n    gh api \"repos/$EXPR_GITHUB_REPOSITORY/issues/$pr_number/comments?per_page=1&sort=created&direction=desc\" \\\n      --jq '\n        if length == 0 then false\n        else (\n          ((.[0].body // \"\" | contains($marker)))\n         ) end\n      ' --arg marker \"$sous_chef_nudge_marker\" 2>/dev/null || echo \"false\"\n  )\"\n  if [ \"$last_comment_is_sous_chef\" = \"true\" ]; then\n    filtered_last_comment_from_sous_chef=$((filtered_last_comment_from_sous_chef + 1))\n    continue\n  fi\n\n  jq --argjson pr \"$pr\" '. + [$pr]' \"$eligible_file\" > \"${eligible_file}.tmp\" && mv \"${eligible_file}.tmp\" \"$eligible_file\"\n# Process substitution keeps the loop in the current shell so counters persist.\ndone < <(jq -c '.[]' \"$candidate_file\")\n\njq --argjson filtered_checks_pending \"$filtered_checks_pending\" \\\n   --argjson filtered_last_comment_from_sous_chef \"$filtered_last_comment_from_sous_chef\" '{\n  fetched: (length),\n  generated_at: (now | todate),\n  filtered_checks_pending: $filtered_checks_pending,\n  filtered_last_comment_from_sous_chef: $filtered_last_comment_from_sous_chef,\n  prs: map({\n    number,\n    title,\n    url,\n    headRefOid,\n    headRefName,\n    updatedAt,\n    author: (.author.login // \"unknown\"),\n    mergeStateStatus\n  })\n}' \"$eligible_file\" \\\n  > /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json\necho \"eligible_count=$(jq '.prs | length' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json)\" >> \"$GITHUB_OUTPUT\"\n"
-      - if: steps.fetch-prs.outputs.eligible_count != '0'
-        name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: 'actions/setup/js/package-lock.json'
-          package-manager-cache: false
       - if: steps.fetch-prs.outputs.eligible_count != '0'
         name: Setup Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
@@ -1708,3 +1707,4 @@ jobs:
             actions/setup
           sparse-checkout-cone-mode: true
           persist-credentials: false
+
