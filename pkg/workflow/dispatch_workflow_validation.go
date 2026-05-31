@@ -3,12 +3,10 @@ package workflow
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/goccy/go-yaml"
 )
 
 var dispatchWorkflowValidationLog = newValidationLogger("dispatch_workflow")
@@ -60,38 +58,47 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 			githubDir := filepath.Dir(currentDir)
 			repoRoot := filepath.Dir(githubDir)
 			workflowsDir := filepath.Join(repoRoot, constants.GetWorkflowDir())
-			notFoundErr := fmt.Errorf("dispatch-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in %s/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, workflowName, workflowsDir)
+			notFoundErr := formatWorkflowNotFoundError("dispatch-workflow", workflowName, workflowsDir)
 			if returnErr := collector.Add(notFoundErr); returnErr != nil {
 				return returnErr
 			}
 			continue
 		}
 
-		var workflowContent []byte // #nosec G304 -- All file paths are validated via isPathWithinDir before use
-		var workflowFile string
-		var readErr error
-
-		if fileResult.lockExists {
-			workflowFile = fileResult.lockPath
-			workflowContent, readErr = os.ReadFile(fileResult.lockPath) // #nosec G304 -- Path is validated via isPathWithinDir in findWorkflowFile
-			if readErr != nil {
-				fileReadErr := fmt.Errorf("dispatch-workflow: failed to read workflow file %s: %w", fileResult.lockPath, readErr)
+		v := readAndValidateWorkflowFileTrigger(fileResult, "workflow_dispatch")
+		if v.filePath != "" {
+			// A compiled file (.lock.yml or .yml) was found
+			if v.readErr != nil {
+				fileReadErr := fmt.Errorf("dispatch-workflow: failed to read workflow file %s: %w", v.filePath, v.readErr)
 				if returnErr := collector.Add(fileReadErr); returnErr != nil {
 					return returnErr
 				}
 				continue
 			}
-		} else if fileResult.ymlExists {
-			workflowFile = fileResult.ymlPath
-			workflowContent, readErr = os.ReadFile(fileResult.ymlPath) // #nosec G304 -- Path is validated via isPathWithinDir in findWorkflowFile
-			if readErr != nil {
-				fileReadErr := fmt.Errorf("dispatch-workflow: failed to read workflow file %s: %w", fileResult.ymlPath, readErr)
-				if returnErr := collector.Add(fileReadErr); returnErr != nil {
+			if v.parseErr != nil {
+				parseErr := fmt.Errorf("dispatch-workflow: failed to parse workflow file %s: %w", v.filePath, v.parseErr)
+				if returnErr := collector.Add(parseErr); returnErr != nil {
 					return returnErr
 				}
 				continue
 			}
+			if v.noOnSection {
+				onSectionErr := fmt.Errorf("dispatch-workflow: workflow '%s' does not have an 'on' trigger section", workflowName)
+				if returnErr := collector.Add(onSectionErr); returnErr != nil {
+					return returnErr
+				}
+				continue
+			}
+			if !v.hasTrigger {
+				dispatchErr := formatMissingTriggerError("dispatch-workflow", workflowName, "workflow_dispatch")
+				if returnErr := collector.Add(dispatchErr); returnErr != nil {
+					return returnErr
+				}
+				continue
+			}
+			dispatchWorkflowValidationLog.Printf("Workflow '%s' is valid for dispatch (found in %s)", workflowName, v.filePath)
 		} else {
+			// Only .md exists — it may be a same-batch compilation target.
 			mdHasDispatch, checkErr := mdHasWorkflowDispatch(fileResult.mdPath)
 			if checkErr != nil {
 				readErr := fmt.Errorf("dispatch-workflow: failed to read workflow source %s: %w", fileResult.mdPath, checkErr)
@@ -101,43 +108,14 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 				continue
 			}
 			if !mdHasDispatch {
-				dispatchErr := fmt.Errorf("dispatch-workflow: workflow '%s' does not support workflow_dispatch trigger (must include 'workflow_dispatch' in the 'on' section)", workflowName)
+				dispatchErr := formatMissingTriggerError("dispatch-workflow", workflowName, "workflow_dispatch")
 				if returnErr := collector.Add(dispatchErr); returnErr != nil {
 					return returnErr
 				}
 				continue
 			}
 			dispatchWorkflowValidationLog.Printf("Workflow '%s' is valid for dispatch (found .md source at %s with workflow_dispatch trigger)", workflowName, fileResult.mdPath)
-			continue
 		}
-
-		var workflow map[string]any
-		if err := yaml.Unmarshal(workflowContent, &workflow); err != nil {
-			parseErr := fmt.Errorf("dispatch-workflow: failed to parse workflow file %s: %w", workflowFile, err)
-			if returnErr := collector.Add(parseErr); returnErr != nil {
-				return returnErr
-			}
-			continue
-		}
-
-		onSection, hasOn := workflow["on"]
-		if !hasOn {
-			onSectionErr := fmt.Errorf("dispatch-workflow: workflow '%s' does not have an 'on' trigger section", workflowName)
-			if returnErr := collector.Add(onSectionErr); returnErr != nil {
-				return returnErr
-			}
-			continue
-		}
-
-		if !containsWorkflowDispatch(onSection) {
-			dispatchErr := fmt.Errorf("dispatch-workflow: workflow '%s' does not support workflow_dispatch trigger (must include 'workflow_dispatch' in the 'on' section)", workflowName)
-			if returnErr := collector.Add(dispatchErr); returnErr != nil {
-				return returnErr
-			}
-			continue
-		}
-
-		dispatchWorkflowValidationLog.Printf("Workflow '%s' is valid for dispatch (found in %s)", workflowName, workflowFile)
 	}
 
 	dispatchWorkflowValidationLog.Printf("Dispatch workflow validation completed: error_count=%d, total_workflows=%d", collector.Count(), len(config.Workflows))

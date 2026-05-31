@@ -169,7 +169,7 @@ type StringLiteralNode struct {
 
 func (s *StringLiteralNode) Render() string {
 	// GitHub Actions single-quoted strings escape embedded single quotes by doubling them.
-	escaped := strings.ReplaceAll(s.Value, "'", "''")
+	escaped := escapeYAMLSingleQuotedScalar(s.Value)
 	return "'" + escaped + "'"
 }
 

@@ -8,7 +8,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/parser"
-	"github.com/goccy/go-yaml"
 )
 
 var callWorkflowValidationLog = newValidationLogger("call_workflow")
@@ -74,75 +73,40 @@ func (c *Compiler) validateCallWorkflow(data *WorkflowData, workflowPath string)
 			githubDir := filepath.Dir(currentDir)
 			repoRoot := filepath.Dir(githubDir)
 			workflowsDir := filepath.Join(repoRoot, constants.GetWorkflowDir())
-
-			notFoundErr := fmt.Errorf("call-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in %s/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, workflowName, workflowsDir)
+			notFoundErr := formatWorkflowNotFoundError("call-workflow", workflowName, workflowsDir)
 			if returnErr := collector.Add(notFoundErr); returnErr != nil {
 				return returnErr
 			}
 			continue
 		}
 
-		// Validate that the workflow supports workflow_call.
-		// Priority: .lock.yml > .yml > .md (same-batch compilation target)
-		if fileResult.lockExists {
-			workflowContent, readErr := os.ReadFile(fileResult.lockPath) // #nosec G304 -- lockPath is validated via isPathWithinDir() in findWorkflowFile() before being returned
-			if readErr != nil {
-				fileReadErr := fmt.Errorf("call-workflow: failed to read workflow file %s: %w", fileResult.lockPath, readErr)
+		// Validate trigger: .lock.yml and .yml take priority over .md
+		v := readAndValidateWorkflowFileTrigger(fileResult, "workflow_call")
+		if v.filePath != "" {
+			// A compiled file (.lock.yml or .yml) was found
+			if v.readErr != nil {
+				fileReadErr := fmt.Errorf("call-workflow: failed to read workflow file %s: %w", v.filePath, v.readErr)
 				if returnErr := collector.Add(fileReadErr); returnErr != nil {
 					return returnErr
 				}
 				continue
 			}
-			var workflow map[string]any
-			if err := yaml.Unmarshal(workflowContent, &workflow); err != nil {
-				parseErr := fmt.Errorf("call-workflow: failed to parse workflow file %s: %w", fileResult.lockPath, err)
+			if v.parseErr != nil {
+				parseErr := fmt.Errorf("call-workflow: failed to parse workflow file %s: %w", v.filePath, v.parseErr)
 				if returnErr := collector.Add(parseErr); returnErr != nil {
 					return returnErr
 				}
 				continue
 			}
-			onSection, hasOn := workflow["on"]
-			if !hasOn {
+			if v.noOnSection {
 				onErr := fmt.Errorf("call-workflow: workflow '%s' does not have an 'on' trigger section", workflowName)
 				if returnErr := collector.Add(onErr); returnErr != nil {
 					return returnErr
 				}
 				continue
 			}
-			if !containsWorkflowCall(onSection) {
-				callErr := fmt.Errorf("call-workflow: workflow '%s' does not support workflow_call trigger (must include 'workflow_call' in the 'on' section)", workflowName)
-				if returnErr := collector.Add(callErr); returnErr != nil {
-					return returnErr
-				}
-				continue
-			}
-		} else if fileResult.ymlExists {
-			workflowContent, readErr := os.ReadFile(fileResult.ymlPath) // #nosec G304 -- ymlPath is validated via isPathWithinDir() in findWorkflowFile() before being returned
-			if readErr != nil {
-				fileReadErr := fmt.Errorf("call-workflow: failed to read workflow file %s: %w", fileResult.ymlPath, readErr)
-				if returnErr := collector.Add(fileReadErr); returnErr != nil {
-					return returnErr
-				}
-				continue
-			}
-			var workflow map[string]any
-			if err := yaml.Unmarshal(workflowContent, &workflow); err != nil {
-				parseErr := fmt.Errorf("call-workflow: failed to parse workflow file %s: %w", fileResult.ymlPath, err)
-				if returnErr := collector.Add(parseErr); returnErr != nil {
-					return returnErr
-				}
-				continue
-			}
-			onSection, hasOn := workflow["on"]
-			if !hasOn {
-				onErr := fmt.Errorf("call-workflow: workflow '%s' does not have an 'on' trigger section", workflowName)
-				if returnErr := collector.Add(onErr); returnErr != nil {
-					return returnErr
-				}
-				continue
-			}
-			if !containsWorkflowCall(onSection) {
-				callErr := fmt.Errorf("call-workflow: workflow '%s' does not support workflow_call trigger (must include 'workflow_call' in the 'on' section)", workflowName)
+			if !v.hasTrigger {
+				callErr := formatMissingTriggerError("call-workflow", workflowName, "workflow_call")
 				if returnErr := collector.Add(callErr); returnErr != nil {
 					return returnErr
 				}
@@ -160,7 +124,7 @@ func (c *Compiler) validateCallWorkflow(data *WorkflowData, workflowPath string)
 				continue
 			}
 			if !mdHasCall {
-				callErr := fmt.Errorf("call-workflow: workflow '%s' does not support workflow_call trigger (must include 'workflow_call' in the 'on' section)", workflowName)
+				callErr := formatMissingTriggerError("call-workflow", workflowName, "workflow_call")
 				if returnErr := collector.Add(callErr); returnErr != nil {
 					return returnErr
 				}
@@ -178,6 +142,7 @@ func (c *Compiler) validateCallWorkflow(data *WorkflowData, workflowPath string)
 
 	return collector.FormattedError("call-workflow")
 }
+
 
 // extractWorkflowCallInputs parses a workflow file and extracts the workflow_call inputs schema.
 // Returns a map of input definitions that can be used to generate MCP tool schemas.

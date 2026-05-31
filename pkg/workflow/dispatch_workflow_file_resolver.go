@@ -9,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/goccy/go-yaml"
 )
 
 // getCurrentWorkflowName extracts the workflow name from the file path
@@ -126,3 +127,58 @@ func extractMDWorkflowDispatchInputs(mdPath string) (map[string]any, error) {
 	dispatchWorkflowValidationLog.Printf("Extracted %d workflow_dispatch input(s) from: %s", len(inputs), mdPath)
 	return inputs, nil
 }
+
+// workflowFileValidation holds the result of readAndValidateWorkflowFileTrigger.
+type workflowFileValidation struct {
+	// filePath is the compiled file that was read (.lock.yml or .yml).
+	// Empty when neither file exists (md-only case).
+	filePath string
+	// readErr is set when the file could not be read.
+	readErr error
+	// parseErr is set when the file content could not be parsed as YAML.
+	parseErr error
+	// noOnSection is true when the workflow has no 'on:' section at all.
+	noOnSection bool
+	// hasTrigger is true when the workflow's 'on:' section includes triggerName.
+	hasTrigger bool
+}
+
+// readAndValidateWorkflowFileTrigger reads the compiled workflow file (preferring
+// .lock.yml over .yml) from fileResult and checks whether it declares triggerName.
+// Returns an empty workflowFileValidation (filePath == "") when neither compiled
+// file exists; callers handle the .md-only case separately.
+func readAndValidateWorkflowFileTrigger(fileResult *findWorkflowFileResult, triggerName string) *workflowFileValidation {
+	result := &workflowFileValidation{}
+
+	if !fileResult.lockExists && !fileResult.ymlExists {
+		return result // md-only case — caller handles it
+	}
+
+	if fileResult.lockExists {
+		result.filePath = fileResult.lockPath
+	} else {
+		result.filePath = fileResult.ymlPath
+	}
+
+	content, err := os.ReadFile(result.filePath) // #nosec G304 -- paths are validated via isPathWithinDir() in findWorkflowFile()
+	if err != nil {
+		result.readErr = err
+		return result
+	}
+
+	var workflow map[string]any
+	if err = yaml.Unmarshal(content, &workflow); err != nil {
+		result.parseErr = err
+		return result
+	}
+
+	onSection, hasOn := workflow["on"]
+	if !hasOn {
+		result.noOnSection = true
+		return result
+	}
+
+	result.hasTrigger = containsTrigger(onSection, triggerName)
+	return result
+}
+

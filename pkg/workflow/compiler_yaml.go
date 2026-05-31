@@ -899,7 +899,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	if data.EngineConfig != nil && data.EngineConfig.TokenWeights != nil && len(data.EngineConfig.TokenWeights.Multipliers) > 0 {
 		if tokenWeightsJSON, err := json.Marshal(data.EngineConfig.TokenWeights); err == nil {
 			// Escape single quotes for YAML single-quoted scalar safety
-			escapedTokenWeightsJSON := strings.ReplaceAll(string(tokenWeightsJSON), "'", "''")
+			escapedTokenWeightsJSON := escapeYAMLSingleQuotedScalar(string(tokenWeightsJSON))
 			fmt.Fprintf(yaml, "          GH_AW_INFO_TOKEN_WEIGHTS: '%s'\n", escapedTokenWeightsJSON)
 		}
 	}

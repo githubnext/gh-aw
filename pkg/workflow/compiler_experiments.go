@@ -403,7 +403,7 @@ func (c *Compiler) generatePickExperimentStep(data *WorkflowData, experimentName
 		"        id: pick-experiment\n",
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
-		fmt.Sprintf("          GH_AW_EXPERIMENT_SPEC: '%s'\n", strings.ReplaceAll(specJSON, "'", "''")),
+		fmt.Sprintf("          GH_AW_EXPERIMENT_SPEC: '%s'\n", escapeYAMLSingleQuotedScalar(specJSON)),
 		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_FILE: %s\n", experimentStateFile),
 		fmt.Sprintf("          GH_AW_EXPERIMENT_STATE_DIR: %s\n", experimentsCacheDir),
 		"        with:\n",

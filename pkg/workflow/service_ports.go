@@ -122,7 +122,7 @@ func ExtractServicePortExpressions(servicesYAML string) (string, []string) {
 				warnings = append(warnings, fmt.Sprintf("service %q: %s", serviceID, w))
 			}
 			for _, cp := range containerPorts {
-				escapedServiceID := strings.ReplaceAll(serviceID, "'", "''")
+				escapedServiceID := escapeYAMLSingleQuotedScalar(serviceID)
 				expr := fmt.Sprintf("${{ job.services['%s'].ports['%d'] }}", escapedServiceID, cp)
 				expressions = append(expressions, expr)
 			}

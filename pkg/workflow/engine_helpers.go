@@ -271,7 +271,7 @@ func yamlStringValue(value string) string {
 		return value
 	}
 	// Single-quote the value, escaping any embedded single quotes by doubling them.
-	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+	return "'" + escapeYAMLSingleQuotedScalar(value) + "'"
 }
 
 // FilterEnvForSecrets filters environment variables to only include allowed secrets.

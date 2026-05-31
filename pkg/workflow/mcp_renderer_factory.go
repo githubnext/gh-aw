@@ -110,6 +110,14 @@ func renderDefaultJSONMCPConfig(
 	})
 }
 
+// renderJSONMCPConfigForEngine is a shared base used by the 5 standard JSON-MCP engines
+// (Claude, Gemini, Antigravity, Crush, OpenCode). It logs the engine name and tool counts,
+// then delegates to renderDefaultJSONMCPConfig with the engine-specific config path.
+func renderJSONMCPConfigForEngine(engineName string, sb *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData, configPath string) error {
+	mcpRenderingLog.Printf("Rendering MCP config for %s: tool_count=%d, mcp_tool_count=%d", engineName, len(tools), len(mcpTools))
+	return renderDefaultJSONMCPConfig(sb, tools, mcpTools, workflowData, configPath)
+}
+
 // renderStandardJSONMCPConfig is a shared helper for JSON MCP config rendering used by
 // Claude, Gemini, Copilot, and Codex engines. It consolidates the repeated sequence of:
 // buildMCPRendererFactory → buildMCPGatewayConfig → buildStandardJSONMCPRenderers → RenderJSONMCPConfig.

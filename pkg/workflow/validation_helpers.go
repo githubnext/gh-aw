@@ -221,3 +221,19 @@ func containsTrigger(onSection any, triggerName string) bool {
 	validationHelpersLog.Printf("containsTrigger: trigger=%s, found=%t", triggerName, found)
 	return found
 }
+
+// formatWorkflowNotFoundError returns the standard "workflow not found" error used by
+// call-workflow and dispatch-workflow validators. workflowType is the human-readable
+// prefix (e.g. "call-workflow" or "dispatch-workflow").
+func formatWorkflowNotFoundError(workflowType, workflowName, workflowsDir string) error {
+	return fmt.Errorf("%s: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in %s/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration",
+		workflowType, workflowName, workflowsDir, workflowName, workflowName, workflowName, workflowsDir)
+}
+
+// formatMissingTriggerError returns the standard error for a workflow that lacks the
+// expected GitHub Actions trigger in its 'on:' section. workflowType is the prefix
+// (e.g. "call-workflow"), triggerName is the expected trigger (e.g. "workflow_call").
+func formatMissingTriggerError(workflowType, workflowName, triggerName string) error {
+	return fmt.Errorf("%s: workflow '%s' does not support %s trigger (must include '%s' in the 'on' section)",
+		workflowType, workflowName, triggerName, triggerName)
+}

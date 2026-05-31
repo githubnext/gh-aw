@@ -11,6 +11,12 @@ import (
 
 var envLog = logger.New("workflow:env")
 
+// escapeYAMLSingleQuotedScalar escapes single quotes for YAML single-quoted
+// scalars by doubling each ' per YAML 1.2.
+func escapeYAMLSingleQuotedScalar(value string) string {
+	return strings.ReplaceAll(value, "'", "''")
+}
+
 // writeYAMLEnv emits a single YAML env variable with proper escaping.
 // Uses %q to produce a valid YAML double-quoted scalar that escapes ", \, newlines, and control characters,
 // preventing YAML structure injection from frontmatter-derived values.

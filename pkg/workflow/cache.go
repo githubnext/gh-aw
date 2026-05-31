@@ -567,7 +567,7 @@ func generateCacheMemoryGitSetupStep(builder *strings.Builder, cache CacheMemory
 	// Single quotes in the value are escaped ('' in YAML single-quoted scalars) as defense-in-depth,
 	// even though isValidFileExtension already rejects values containing single quotes at parse time.
 	if len(cache.AllowedExtensions) > 0 {
-		escaped := strings.ReplaceAll(strings.Join(cache.AllowedExtensions, ":"), "'", "''")
+		escaped := escapeYAMLSingleQuotedScalar(strings.Join(cache.AllowedExtensions, ":"))
 		fmt.Fprintf(builder, "          GH_AW_ALLOWED_EXTENSIONS: '%s'\n", escaped)
 	}
 	builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh\"\n")
