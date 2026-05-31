@@ -86,6 +86,14 @@ Guardrail test workflow`
 		t.Fatalf("failed to read lock file: %v", err)
 	}
 	lockStr := string(lockContent)
+	activationStart := strings.Index(lockStr, "\n  activation:\n")
+	if activationStart == -1 {
+		t.Fatal("expected compiled workflow to include an activation job")
+	}
+	activationSection := lockStr[activationStart:]
+	if nextJob := strings.Index(activationSection, "\n  agent:\n"); nextJob != -1 {
+		activationSection = activationSection[:nextJob]
+	}
 
 	if !strings.Contains(lockStr, "id: daily-effective-workflow-guardrail") {
 		t.Fatal("expected activation job to include the daily workflow ET guardrail step")
@@ -102,6 +110,9 @@ Guardrail test workflow`
 	if !strings.Contains(lockStr, "daily_effective_workflow_total_effective_tokens: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_total_effective_tokens || '' }}") {
 		t.Fatal("expected activation job to expose the aggregated ET total output")
 	}
+	if strings.Contains(lockStr, "daily_effective_workflow_issue_url") {
+		t.Fatal("expected activation job to avoid surfacing a separate daily workflow ET issue URL")
+	}
 	if !strings.Contains(lockStr, "if: needs.activation.outputs.daily_effective_workflow_exceeded != 'true'") {
 		t.Fatal("expected the agent job to be skipped when the daily workflow ET guardrail is exceeded")
 	}
@@ -111,10 +122,10 @@ Guardrail test workflow`
 	if !strings.Contains(lockStr, "needs.activation.outputs.daily_effective_workflow_exceeded == 'true'") {
 		t.Fatal("expected the conclusion job condition to allow activation guardrail failures through")
 	}
-	if !strings.Contains(lockStr, "actions: read") {
+	if !strings.Contains(activationSection, "actions: read") {
 		t.Fatal("expected activation permissions to include actions: read for workflow run inspection")
 	}
-	if !strings.Contains(lockStr, "issues: write") {
-		t.Fatal("expected activation permissions to include issues: write for guardrail issue creation")
+	if strings.Contains(activationSection, "issues: write") {
+		t.Fatal("expected activation permissions to avoid issues: write for the daily ET guardrail")
 	}
 }

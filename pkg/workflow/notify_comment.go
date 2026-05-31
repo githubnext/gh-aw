@@ -322,7 +322,6 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.%s.outputs.daily_effective_workflow_exceeded }}\n", string(constants.ActivationJobName)))
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS: ${{ needs.%s.outputs.daily_effective_workflow_total_effective_tokens }}\n", string(constants.ActivationJobName)))
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD: ${{ needs.%s.outputs.daily_effective_workflow_threshold }}\n", string(constants.ActivationJobName)))
-	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_DAILY_EFFECTIVE_WORKFLOW_ISSUE_URL: ${{ needs.%s.outputs.daily_effective_workflow_issue_url }}\n", string(constants.ActivationJobName)))
 
 	// Pass custom messages config if present (JSON computed once above)
 	if messagesJSON != "" {

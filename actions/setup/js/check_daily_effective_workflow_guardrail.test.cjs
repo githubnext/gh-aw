@@ -97,7 +97,6 @@ describe("check_daily_effective_workflow_guardrail", () => {
         candidateRunsCount: 5,
         inspectedRunsCount: 2,
         truncatedByRateLimit: true,
-        issueUrl: "https://example.test/issues/1",
       }
     );
 
@@ -107,6 +106,6 @@ describe("check_daily_effective_workflow_guardrail", () => {
     expect(markdown).toContain("| Std dev ET | 636.4K |");
     expect(markdown).toContain("| [#11](https://example.test/runs/11) | 2026-05-31T10:00:00Z | success | 1.2M |");
     expect(markdown).toContain("Stopped early to preserve GitHub API rate limit headroom");
-    expect(markdown).toContain("Guardrail issue: https://example.test/issues/1");
+    expect(markdown).not.toContain("Guardrail issue:");
   });
 });

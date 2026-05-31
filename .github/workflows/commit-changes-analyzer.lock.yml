@@ -91,12 +91,10 @@ jobs:
     permissions:
       actions: read
       contents: read
-      issues: write
     outputs:
       comment_id: ""
       comment_repo: ""
       daily_effective_workflow_exceeded: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}
-      daily_effective_workflow_issue_url: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_issue_url || '' }}
       daily_effective_workflow_threshold: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_threshold || '' }}
       daily_effective_workflow_total_effective_tokens: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_total_effective_tokens || '' }}
       engine_id: ${{ steps.generate_aw_info.outputs.engine_id }}
@@ -1203,7 +1201,6 @@ jobs:
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.activation.outputs.daily_effective_workflow_exceeded }}
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS: ${{ needs.activation.outputs.daily_effective_workflow_total_effective_tokens }}
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD: ${{ needs.activation.outputs.daily_effective_workflow_threshold }}
-          GH_AW_DAILY_EFFECTIVE_WORKFLOW_ISSUE_URL: ${{ needs.activation.outputs.daily_effective_workflow_issue_url }}
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
           GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"

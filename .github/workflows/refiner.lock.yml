@@ -1261,7 +1261,6 @@ jobs:
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.activation.outputs.daily_effective_workflow_exceeded }}
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS: ${{ needs.activation.outputs.daily_effective_workflow_total_effective_tokens }}
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD: ${{ needs.activation.outputs.daily_effective_workflow_threshold }}
-          GH_AW_DAILY_EFFECTIVE_WORKFLOW_ISSUE_URL: ${{ needs.activation.outputs.daily_effective_workflow_issue_url }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🔍 Starting code refinement... [{workflow_name}]({run_url}) is analyzing PR #${{ github.event.pull_request.number }} for style alignment and security issues\",\"runSuccess\":\"✅ Refinement complete! [{workflow_name}]({run_url}) has created a PR with improvements for PR #${{ github.event.pull_request.number }}\",\"runFailure\":\"❌ Refinement failed! [{workflow_name}]({run_url}) {status} while processing PR #${{ github.event.pull_request.number }}\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"

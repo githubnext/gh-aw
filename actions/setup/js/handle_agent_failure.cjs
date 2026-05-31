@@ -1385,10 +1385,9 @@ function buildStaleLockFileFailedContext(hasStaleLockFileFailed) {
  * @param {boolean} hasDailyEffectiveWorkflowExceeded - Whether the daily workflow quota was exceeded
  * @param {string} totalEffectiveTokens - Aggregated ET usage across the last 24 hours
  * @param {string} threshold - Configured daily workflow threshold
- * @param {string} issueUrl - Optional URL of the issue created during activation
  * @returns {string} Formatted context string, or empty string if no failure
  */
-function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExceeded, totalEffectiveTokens, threshold, issueUrl) {
+function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExceeded, totalEffectiveTokens, threshold) {
   if (!hasDailyEffectiveWorkflowExceeded) {
     return "";
   }
@@ -1399,7 +1398,6 @@ function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExc
     renderTemplateFromFile(templatePath, {
       total_effective_tokens: totalEffectiveTokens || "unknown",
       threshold: threshold || "unknown",
-      issue_line: issueUrl ? `\n**Activation Issue:** ${issueUrl}` : "",
     })
   );
 }
@@ -2073,7 +2071,6 @@ async function main() {
     const hasDailyEffectiveWorkflowExceeded = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED === "true";
     const dailyEffectiveWorkflowTotalEffectiveTokens = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS || "";
     const dailyEffectiveWorkflowThreshold = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD || "";
-    const dailyEffectiveWorkflowIssueUrl = process.env.GH_AW_DAILY_EFFECTIVE_WORKFLOW_ISSUE_URL || "";
     // Cache-memory availability flag — set when cache-memory is configured for the workflow.
     // Used to detect cache-miss misconfigurations reported by the agent.
     const cacheMemoryEnabled = process.env.GH_AW_CACHE_MEMORY_ENABLED === "true";
@@ -2504,8 +2501,7 @@ async function main() {
         const dailyEffectiveWorkflowExceededContext = buildDailyEffectiveWorkflowExceededContext(
           hasDailyEffectiveWorkflowExceeded,
           dailyEffectiveWorkflowTotalEffectiveTokens,
-          dailyEffectiveWorkflowThreshold,
-          dailyEffectiveWorkflowIssueUrl
+          dailyEffectiveWorkflowThreshold
         );
 
         // Build copilot assignment failure context for created issues
@@ -2697,8 +2693,7 @@ async function main() {
         const dailyEffectiveWorkflowExceededContext = buildDailyEffectiveWorkflowExceededContext(
           hasDailyEffectiveWorkflowExceeded,
           dailyEffectiveWorkflowTotalEffectiveTokens,
-          dailyEffectiveWorkflowThreshold,
-          dailyEffectiveWorkflowIssueUrl
+          dailyEffectiveWorkflowThreshold
         );
 
         // Build copilot assignment failure context for created issues

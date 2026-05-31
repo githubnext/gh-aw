@@ -20,11 +20,11 @@ describe("handle_agent_failure daily workflow ET context", () => {
   });
 
   it("renders the daily workflow ET guardrail context when exceeded", () => {
-    const rendered = buildDailyEffectiveWorkflowExceededContext(true, "2500", "2000", "https://github.com/octo/repo/issues/1");
+    const rendered = buildDailyEffectiveWorkflowExceededContext(true, "2500", "2000");
     expect(rendered).toContain("Daily Workflow ET Guardrail Exceeded");
     expect(rendered).toContain("2500");
     expect(rendered).toContain("2000");
-    expect(rendered).toContain("https://github.com/octo/repo/issues/1");
+    expect(rendered).not.toContain("Activation Issue:");
   });
 
   it("returns empty string when the guardrail did not trigger", () => {

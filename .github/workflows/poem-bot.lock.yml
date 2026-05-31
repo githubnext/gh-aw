@@ -1569,7 +1569,6 @@ jobs:
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.activation.outputs.daily_effective_workflow_exceeded }}
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS: ${{ needs.activation.outputs.daily_effective_workflow_total_effective_tokens }}
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD: ${{ needs.activation.outputs.daily_effective_workflow_threshold }}
-          GH_AW_DAILY_EFFECTIVE_WORKFLOW_ISSUE_URL: ${{ needs.activation.outputs.daily_effective_workflow_issue_url }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"runSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"runFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"

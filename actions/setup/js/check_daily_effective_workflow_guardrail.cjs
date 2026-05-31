@@ -14,11 +14,9 @@ const {
 const { parsePositiveEffectiveTokenLimitNumber } = require("./effective_token_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
-const { sanitizeContent } = require("./sanitize_content.cjs");
 
 const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["firewall-audit-logs", "agent"];
 const DAILY_WORKFLOW_WINDOW_MS = 24 * 60 * 60 * 1000;
-const MAX_RECENT_RUNS_IN_ISSUE = 10;
 const MAX_WORKFLOW_RUN_PAGES = 10;
 const RATE_LIMIT_RESERVE = 100;
 const REQUEST_OVERHEAD_BUDGET = MAX_WORKFLOW_RUN_PAGES + 4;
@@ -150,7 +148,7 @@ async function getCoreRateLimitSnapshot(githubClient) {
  * @param {number} threshold
  * @param {Array<{id:number, html_url:string, created_at:string, conclusion:string, effective_tokens:number}>} countedRuns
  * @param {{remaining:number,limit:number,used:number,reset:string}} rateLimit
- * @param {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean,issueUrl?:string}} meta
+ * @param {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} meta
  * @returns {string}
  */
 function renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta) {
@@ -176,10 +174,6 @@ function renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold
   if (meta.candidateRunsCount > meta.inspectedRunsCount) {
     noteLines.push(`- Considered ${meta.candidateRunsCount} prior runs in the 24h window and inspected ${meta.inspectedRunsCount}.`);
   }
-  if (meta.issueUrl) {
-    noteLines.push(`- Guardrail issue: ${meta.issueUrl}`);
-  }
-
   return [
     `**Workflow:** ${workflowName || "workflow"}`,
     `**Actor:** ${actorLogin || "unknown"}`,
@@ -213,67 +207,13 @@ function renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold
  * @param {number} threshold
  * @param {Array<{id:number, html_url:string, created_at:string, conclusion:string, effective_tokens:number}>} countedRuns
  * @param {{remaining:number,limit:number,used:number,reset:string}} rateLimit
- * @param {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean,issueUrl?:string}} meta
+ * @param {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} meta
  * @returns {Promise<void>}
  */
 async function appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta) {
   const markdown = renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, meta);
   core.summary.addDetails("Daily Effective Token Usage (24h)", "\n\n" + markdown);
   await core.summary.write();
-}
-
-/**
- * @param {string} owner
- * @param {string} repo
- * @param {string} workflowName
- * @param {string} workflowID
- * @param {string} runUrl
- * @param {number} totalEffectiveTokens
- * @param {number} threshold
- * @param {Array<{id:number, html_url:string, created_at:string, conclusion:string, effective_tokens:number}>} runs
- * @returns {Promise<string>}
- *
- * Requires the github-script global `github` client provided by setupGlobals().
- */
-async function ensureDailyEffectiveWorkflowIssue(githubClient, owner, repo, workflowName, workflowID, runUrl, totalEffectiveTokens, threshold, runs) {
-  const sanitizedWorkflowName = sanitizeContent(workflowName || workflowID || "workflow", { maxLength: 100 });
-  const title = `[aw] ${sanitizedWorkflowName} daily ET guardrail exceeded`;
-  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows in:title "${title}"`;
-
-  const search = await githubClient.rest.search.issuesAndPullRequests({
-    q: searchQuery,
-    per_page: 1,
-  });
-  if (search.data.total_count > 0) {
-    return search.data.items[0]?.html_url || "";
-  }
-
-  const runLines = runs
-    .slice(0, MAX_RECENT_RUNS_IN_ISSUE)
-    .map(run => `- [Run #${run.id}](${run.html_url}) — ${run.created_at} (${run.conclusion || "unknown"}) — ${formatEffectiveTokens(run.effective_tokens)} ET`)
-    .join("\n");
-  const body = [
-    "### Daily Workflow ET Guardrail Exceeded",
-    "",
-    `**Workflow:** ${workflowName || workflowID}`,
-    `**Run:** ${runUrl}`,
-    `**24h effective tokens:** ${formatEffectiveTokens(totalEffectiveTokens)}`,
-    `**Threshold:** ${formatEffectiveTokens(threshold)}`,
-    "",
-    "Recent runs counted toward this total:",
-    runLines || "- No completed runs with downloadable token-usage artifacts were found.",
-    "",
-    `<!-- gh-aw-daily-effective-workflow-guardrail: ${workflowID} -->`,
-  ].join("\n");
-
-  const created = await githubClient.rest.issues.create({
-    owner,
-    repo,
-    title,
-    body,
-    labels: ["agentic-workflows"],
-  });
-  return created.data.html_url || "";
 }
 
 /**
@@ -285,8 +225,6 @@ async function main() {
   core.setOutput("daily_effective_workflow_exceeded", "false");
   core.setOutput("daily_effective_workflow_total_effective_tokens", "");
   core.setOutput("daily_effective_workflow_threshold", "");
-  core.setOutput("daily_effective_workflow_issue_url", "");
-
   const threshold = parsePositiveEffectiveTokenLimitNumber(process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS);
   if (threshold <= 0) {
     return;
@@ -398,7 +336,7 @@ async function main() {
   core.setOutput("daily_effective_workflow_total_effective_tokens", String(totalEffectiveTokens));
   core.setOutput("daily_effective_workflow_threshold", String(threshold));
 
-  /** @type {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean,issueUrl?:string}} */
+  /** @type {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} */
   const summaryMeta = {
     candidateRunsCount: candidateRuns.length,
     inspectedRunsCount: countedRuns.length,
@@ -412,11 +350,6 @@ async function main() {
   }
 
   core.setOutput("daily_effective_workflow_exceeded", "true");
-  const issueUrl = await ensureDailyEffectiveWorkflowIssue(githubClient, owner, repo, workflowName, workflowID, runUrl, totalEffectiveTokens, threshold, countedRuns);
-  if (issueUrl) {
-    core.setOutput("daily_effective_workflow_issue_url", issueUrl);
-    summaryMeta.issueUrl = issueUrl;
-  }
   await appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
   core.warning(`Daily workflow ET guardrail exceeded for ${workflowName}: ${totalEffectiveTokens}/${threshold}.`);
 }

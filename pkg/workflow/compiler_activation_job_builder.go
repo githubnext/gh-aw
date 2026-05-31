@@ -188,7 +188,6 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 		}
 		if hasMaxDailyEffectiveTokensGuardrail(data) {
 			appPerms.Set(PermissionActions, PermissionRead)
-			appPerms.Set(PermissionIssues, PermissionWrite)
 		}
 		// Add GitHub App-only permissions inferred from activation job gh CLI commands so the
 		// minted App token includes the scopes those commands require (e.g. codespaces: read
@@ -210,7 +209,6 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 		ctx.outputs["daily_effective_workflow_exceeded"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}"
 		ctx.outputs["daily_effective_workflow_total_effective_tokens"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_total_effective_tokens || '' }}"
 		ctx.outputs["daily_effective_workflow_threshold"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_threshold || '' }}"
-		ctx.outputs["daily_effective_workflow_issue_url"] = "${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_issue_url || '' }}"
 	}
 
 	if ctx.hasReaction {
@@ -574,9 +572,6 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) (s
 	}
 	if !ctx.data.StaleCheckDisabled || hasMaxDailyEffectiveTokensGuardrail(ctx.data) {
 		permsMap[PermissionActions] = PermissionRead
-	}
-	if hasMaxDailyEffectiveTokensGuardrail(ctx.data) {
-		permsMap[PermissionIssues] = PermissionWrite
 	}
 	addActivationInteractionPermissionsMap(permsMap, activationInteractionPermissionsOptions{
 		onSection:                         ctx.data.On,

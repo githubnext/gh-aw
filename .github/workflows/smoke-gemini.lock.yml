@@ -1297,7 +1297,6 @@ jobs:
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.activation.outputs.daily_effective_workflow_exceeded }}
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_TOTAL_EFFECTIVE_TOKENS: ${{ needs.activation.outputs.daily_effective_workflow_total_effective_tokens }}
           GH_AW_DAILY_EFFECTIVE_WORKFLOW_THRESHOLD: ${{ needs.activation.outputs.daily_effective_workflow_threshold }}
-          GH_AW_DAILY_EFFECTIVE_WORKFLOW_ISSUE_URL: ${{ needs.activation.outputs.daily_effective_workflow_issue_url }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ✨ *[{workflow_name}]({run_url}) — Powered by Gemini*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"✨ Gemini awakens... [{workflow_name}]({run_url}) begins its journey on this {event_type}...\",\"runSuccess\":\"🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Gemini has spoken. ✨\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status}. Gemini encountered unexpected challenges...\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
