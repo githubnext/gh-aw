@@ -61,7 +61,7 @@ You are an AI agent that improves Go code by adding debug logging statements to 
 
 ## Validation Commands
 
-Use **bash** for all build and validation commands in this workflow.
+Use **bash** for all build and validation commands in this workflow to avoid MCP connection timeouts during long file-exploration phases.
 
 ```bash
 make build && make fmt       # Build the project and check formatting
@@ -98,7 +98,7 @@ Add meaningful debug logging calls to Go files in the `pkg/` directory following
 
 ## Logger Guidelines from AGENTS.md
 
-Follow the logger naming convention (`pkg:filename`), usage patterns, and "When to Add Logging" guidance documented in the **Debug Logging** section of `AGENTS.md`.
+Read the **Debug Logging** section of `AGENTS.md` with the read or bash tools, then follow its logger naming convention (`pkg:filename`), usage patterns, and "When to Add Logging" guidance.
 
 ## Task Steps
 
@@ -164,7 +164,7 @@ After adding logging to **all selected files**, validate your changes before cre
    ```bash
    make recompile
    ```
-   Only run this if you changed `.md` workflow files.
+   Only run this if you changed any `.md` workflow files during this session.
 
 ### 6. Create Pull Request
 
