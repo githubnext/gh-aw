@@ -18,6 +18,8 @@ const MAX_RECENT_RUNS_IN_ISSUE = 10;
 const MAX_WORKFLOW_RUN_PAGES = 10;
 const RATE_LIMIT_RESERVE = 100;
 const REQUEST_OVERHEAD_BUDGET = MAX_WORKFLOW_RUN_PAGES + 4;
+const ESTIMATED_API_OPERATIONS_PER_RUN = 2;
+const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
 
 /**
  * @returns {Promise<import("@actions/artifact").DefaultArtifactClient>}
@@ -191,7 +193,7 @@ async function getRunEffectiveTokens(artifactClient, runId, token, owner, repo) 
  */
 function formatInteger(value) {
   const safeValue = Number.isFinite(value) ? Math.round(value || 0) : 0;
-  return new Intl.NumberFormat("en-US").format(safeValue);
+  return INTEGER_FORMATTER.format(safeValue);
 }
 
 /**
@@ -238,9 +240,11 @@ function computeMaxInspectableRuns(remaining) {
   if (!Number.isFinite(remaining) || remaining <= 0) {
     return 0;
   }
-  // Reserve headroom for the workflow-run listing overhead plus roughly two API
-  // operations per inspected run (artifact lookup and artifact download).
-  return Math.max(0, Math.floor((remaining - RATE_LIMIT_RESERVE - REQUEST_OVERHEAD_BUDGET) / 2));
+  // Reserve headroom for the workflow-run listing overhead plus a conservative
+  // estimate of two API operations per inspected run (artifact lookup and
+  // artifact download). Adjust ESTIMATED_API_OPERATIONS_PER_RUN if observed
+  // usage changes.
+  return Math.max(0, Math.floor((remaining - RATE_LIMIT_RESERVE - REQUEST_OVERHEAD_BUDGET) / ESTIMATED_API_OPERATIONS_PER_RUN));
 }
 
 /**
