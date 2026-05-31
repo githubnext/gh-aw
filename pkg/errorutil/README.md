@@ -37,7 +37,7 @@ if errorutil.IsGoneError(err) {
 ## Dependencies
 
 **Internal**:
-- `pkg/logger` — package-scoped logging used for error-classification diagnostics.
+- `github.com/github/gh-aw/pkg/logger` — package-scoped logging used for error-classification diagnostics.
 
 **External**:
 - None beyond the Go standard library (`strings`).
