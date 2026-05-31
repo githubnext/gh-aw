@@ -538,7 +538,7 @@ function rollbackReviewResults(results, errorMessage) {
  * @returns {boolean}
  */
 function isFailedProcessingResult(result) {
-  return Boolean(result && result.success === false && !result.deferred && !result.skipped && !result.cancelled);
+  return Boolean(result?.success === false && !result?.deferred && !result?.skipped && !result?.cancelled);
 }
 
 /**
@@ -560,8 +560,9 @@ function isReportOnlyFailureResult(result) {
  * @returns {{fatalFailures: Array<any>, reportOnlyFailures: Array<any>}}
  */
 function partitionFailureResults(results) {
-  const reportOnlyFailures = results.filter(isReportOnlyFailureResult);
-  const fatalFailures = results.filter(r => isFailedProcessingResult(r) && !isReportOnlyFailureResult(r));
+  const failedResults = results.filter(isFailedProcessingResult);
+  const reportOnlyFailures = failedResults.filter(r => r?.type === "assign_to_agent");
+  const fatalFailures = failedResults.filter(r => r?.type !== "assign_to_agent");
   return { fatalFailures, reportOnlyFailures };
 }
 
@@ -1499,7 +1500,8 @@ async function main() {
 
     if (failureCount > 0) {
       core.warning(`${failureCount} message(s) failed to process`);
-      const failedItems = fatalFailures.map(r => `  - ${r.type}: ${r.error || "Unknown error"}`).join("\n");
+      const failedItemLines = fatalFailures.map(r => `  - ${r.type}: ${r.error || "Unknown error"}`);
+      const failedItems = failedItemLines.join("\n");
       core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);
     }
     if (reportOnlyFailureCount > 0) {
