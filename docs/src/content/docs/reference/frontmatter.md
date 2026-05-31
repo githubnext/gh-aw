@@ -203,15 +203,17 @@ timeout-minutes: 30                  # Defaults to 20 minutes
 
 `runs-on` applies to the main agent job only. `runs-on-slim` applies to all framework/generated jobs (activation, safe-outputs, unlock, etc.) and defaults to `ubuntu-slim`. `safe-outputs.runs-on` takes precedence over `runs-on-slim` for safe-output jobs specifically.
 
-`timeout-minutes` accepts either an integer or a GitHub Actions expression string. This allows `workflow_call` reusable workflows to parameterize the timeout via caller inputs:
+`timeout-minutes` accepts either an integer or a GitHub Actions expression string. This allows a compiled workflow that defines `workflow_call` inputs to parameterize its own timeout via caller inputs:
 
 ```yaml wrap
 # Literal integer
 timeout-minutes: 30
 
-# Expression — useful in reusable (workflow_call) workflows
+# Expression — useful inside a reusable (workflow_call) workflow definition
 timeout-minutes: ${{ inputs.timeout }}
 ```
+
+This frontmatter setting applies to the workflow being compiled. It does **not** apply to plain GitHub Actions caller jobs that invoke a reusable workflow with job-level `uses:` — GitHub rejects `timeout-minutes` on those caller jobs.
 
 **Supported runners for `runs-on:`**
 
