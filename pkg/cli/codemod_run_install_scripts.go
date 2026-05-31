@@ -39,10 +39,16 @@ func getRunInstallScriptsToRuntimesNodeCodemod() Codemod {
 			}
 
 			// Determine the string representation of the value
-			risBool, isBool := risValue.(bool)
 			risStr := "true"
-			if isBool && !risBool {
-				risStr = "false"
+			switch v := risValue.(type) {
+			case bool:
+				if !v {
+					risStr = "false"
+				}
+			case string:
+				if strings.EqualFold(v, "false") {
+					risStr = "false"
+				}
 			}
 
 			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
