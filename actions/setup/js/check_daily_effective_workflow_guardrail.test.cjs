@@ -70,21 +70,21 @@ describe("check_daily_effective_workflow_guardrail", () => {
     const markdown = exports.renderDailyEffectiveWorkflowSummary(
       "Nightly triage",
       "copilot-swe-agent[bot]",
-      1000,
+      1_500_000,
       [
         {
           id: 11,
           html_url: "https://example.test/runs/11",
           created_at: "2026-05-31T10:00:00Z",
           conclusion: "success",
-          effective_tokens: 400,
+          effective_tokens: 1_200_000,
         },
         {
           id: 10,
           html_url: "https://example.test/runs/10",
           created_at: "2026-05-31T09:00:00Z",
           conclusion: "failure",
-          effective_tokens: 200,
+          effective_tokens: 300_000,
         },
       ],
       {
@@ -101,10 +101,11 @@ describe("check_daily_effective_workflow_guardrail", () => {
       }
     );
 
-    expect(markdown).toContain("| 24h total ET | 600 |");
-    expect(markdown).toContain("| Avg ET / run | 300 |");
-    expect(markdown).toContain("| Std dev ET | 141 |");
-    expect(markdown).toContain("| [#11](https://example.test/runs/11) | 2026-05-31T10:00:00Z | success | 400 |");
+    expect(markdown).toContain("| 24h total ET | 1.5M |");
+    expect(markdown).toContain("| Threshold | 1.5M |");
+    expect(markdown).toContain("| Avg ET / run | 750K |");
+    expect(markdown).toContain("| Std dev ET | 636.4K |");
+    expect(markdown).toContain("| [#11](https://example.test/runs/11) | 2026-05-31T10:00:00Z | success | 1.2M |");
     expect(markdown).toContain("Stopped early to preserve GitHub API rate limit headroom");
     expect(markdown).toContain("Guardrail issue: https://example.test/issues/1");
   });

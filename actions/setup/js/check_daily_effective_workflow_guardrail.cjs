@@ -5,13 +5,16 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { computeEffectiveTokens } = require("./effective_tokens.cjs");
+const {
+  calculateDailyEffectiveWorkflowStats,
+  findTokenUsageFile,
+  formatEffectiveTokens,
+  sumEffectiveTokensFromTokenUsageFile,
+} = require("./daily_effective_workflow_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
-const TOKEN_USAGE_FILENAME = "token-usage.jsonl";
-const TOKEN_USAGE_RELATIVE_PATH = path.join("api-proxy-logs", TOKEN_USAGE_FILENAME);
 const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["firewall-audit-logs", "agent"];
 const DAILY_WORKFLOW_WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_RECENT_RUNS_IN_ISSUE = 10;
@@ -62,90 +65,6 @@ function matchesGuardrailArtifactName(artifactName) {
     return false;
   }
   return PRIMARY_GUARDRAIL_ARTIFACT_NAMES.some(name => artifactName === name || artifactName.endsWith(`-${name}`));
-}
-
-/**
- * @param {string} root
- * @returns {string}
- */
-function findTokenUsageFile(root) {
-  const direct = path.join(root, TOKEN_USAGE_RELATIVE_PATH);
-  if (fs.existsSync(direct)) {
-    return direct;
-  }
-
-  /** @type {string[]} */
-  const queue = [root];
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) continue;
-    /** @type {fs.Dirent[]} */
-    let entries = [];
-    try {
-      entries = fs.readdirSync(current, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const entry of entries) {
-      const fullPath = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        queue.push(fullPath);
-        continue;
-      }
-      if (entry.isFile() && entry.name === TOKEN_USAGE_FILENAME) {
-        return fullPath;
-      }
-    }
-  }
-  return "";
-}
-
-/**
- * @param {string} filePath
- * @returns {number}
- */
-function sumEffectiveTokensFromTokenUsageFile(filePath) {
-  if (!filePath || !fs.existsSync(filePath)) {
-    return 0;
-  }
-
-  const content = fs.readFileSync(filePath, "utf8");
-  if (!content.trim()) {
-    return 0;
-  }
-
-  let total = 0;
-  for (const rawLine of content.split("\n")) {
-    const line = rawLine.trim();
-    if (!line || line[0] !== "{") {
-      continue;
-    }
-
-    try {
-      const parsed = JSON.parse(line);
-      const explicit = Number(parsed?.effective_tokens);
-      if (Number.isFinite(explicit) && explicit > 0) {
-        total += Math.round(explicit);
-        continue;
-      }
-
-      const computed = computeEffectiveTokens(
-        String(parsed?.model || ""),
-        Number(parsed?.input_tokens || 0),
-        Number(parsed?.output_tokens || 0),
-        Number(parsed?.cache_read_tokens || 0),
-        Number(parsed?.cache_write_tokens || 0),
-        Number(parsed?.reasoning_tokens || 0)
-      );
-      if (Number.isFinite(computed) && computed > 0) {
-        total += Math.round(computed);
-      }
-    } catch {
-      // Ignore malformed lines.
-    }
-  }
-
-  return total;
 }
 
 /**
@@ -207,32 +126,6 @@ function escapeMarkdownCell(raw) {
 }
 
 /**
- * @param {Array<{effective_tokens:number}>} runs
- * @returns {{count:number,total:number,average:number,min:number,max:number,stddev:number}}
- */
-function calculateDailyEffectiveWorkflowStats(runs) {
-  const values = runs.map(run => Number(run?.effective_tokens || 0)).filter(value => Number.isFinite(value) && value > 0);
-  if (values.length === 0) {
-    return { count: 0, total: 0, average: 0, min: 0, max: 0, stddev: 0 };
-  }
-
-  const total = values.reduce((sum, value) => sum + value, 0);
-  const average = total / values.length;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const variance = values.length > 1 ? values.reduce((sum, value) => sum + (value - average) ** 2, 0) / (values.length - 1) : 0;
-
-  return {
-    count: values.length,
-    total,
-    average,
-    min,
-    max,
-    stddev: Math.sqrt(variance),
-  };
-}
-
-/**
  * @param {number} remaining
  * @returns {number}
  */
@@ -281,7 +174,10 @@ function renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold
       ? countedRuns
           .slice()
           .sort((a, b) => Date.parse(b.created_at || "") - Date.parse(a.created_at || ""))
-          .map(run => `| [#${run.id}](${run.html_url || ""}) | ${escapeMarkdownCell(run.created_at || "")} | ${escapeMarkdownCell(run.conclusion || "unknown")} | ${formatInteger(run.effective_tokens)} |`)
+          .map(
+            run =>
+              `| [#${run.id}](${run.html_url || ""}) | ${escapeMarkdownCell(run.created_at || "")} | ${escapeMarkdownCell(run.conclusion || "unknown")} | ${formatEffectiveTokens(run.effective_tokens)} |`
+          )
           .join("\n")
       : "| _none_ | — | — | 0 |";
 
@@ -302,14 +198,14 @@ function renderDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold
     "",
     "| Statistic | Value |",
     "| --- | ---: |",
-    `| 24h total ET | ${formatInteger(stats.total)} |`,
-    `| Threshold | ${formatInteger(threshold)} |`,
+    `| 24h total ET | ${formatEffectiveTokens(stats.total)} |`,
+    `| Threshold | ${formatEffectiveTokens(threshold)} |`,
     `| Threshold used | ${usagePercent}% |`,
-    `| Remaining headroom | ${formatInteger(remainingBudget)} |`,
+    `| Remaining headroom | ${formatEffectiveTokens(remainingBudget)} |`,
     `| Runs counted | ${formatInteger(stats.count)} |`,
-    `| Avg ET / run | ${formatInteger(stats.average)} |`,
-    `| Std dev ET | ${formatInteger(stats.stddev)} |`,
-    `| Min / Max ET | ${formatInteger(stats.min)} / ${formatInteger(stats.max)} |`,
+    `| Avg ET / run | ${formatEffectiveTokens(stats.average)} |`,
+    `| Std dev ET | ${formatEffectiveTokens(stats.stddev)} |`,
+    `| Min / Max ET | ${formatEffectiveTokens(stats.min)} / ${formatEffectiveTokens(stats.max)} |`,
     `| API remaining | ${formatInteger(rateLimit.remaining)} / ${formatInteger(rateLimit.limit)} |`,
     `| API used | ${formatInteger(rateLimit.used)} |`,
     `| API reset | ${rateLimit.reset || "unknown"} |`,
@@ -366,15 +262,15 @@ async function ensureDailyEffectiveWorkflowIssue(githubClient, owner, repo, work
 
   const runLines = runs
     .slice(0, MAX_RECENT_RUNS_IN_ISSUE)
-    .map(run => `- [Run #${run.id}](${run.html_url}) — ${run.created_at} (${run.conclusion || "unknown"}) — ${formatInteger(run.effective_tokens)} ET`)
+    .map(run => `- [Run #${run.id}](${run.html_url}) — ${run.created_at} (${run.conclusion || "unknown"}) — ${formatEffectiveTokens(run.effective_tokens)} ET`)
     .join("\n");
   const body = [
     "### Daily Workflow ET Guardrail Exceeded",
     "",
     `**Workflow:** ${workflowName || workflowID}`,
     `**Run:** ${runUrl}`,
-    `**24h effective tokens:** ${totalEffectiveTokens}`,
-    `**Threshold:** ${threshold}`,
+    `**24h effective tokens:** ${formatEffectiveTokens(totalEffectiveTokens)}`,
+    `**Threshold:** ${formatEffectiveTokens(threshold)}`,
     "",
     "Recent runs counted toward this total:",
     runLines || "- No completed runs with downloadable token-usage artifacts were found.",
