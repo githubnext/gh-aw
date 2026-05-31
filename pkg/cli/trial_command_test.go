@@ -27,6 +27,24 @@ func TestNewTrialCommandCloneRepoFlagDescription(t *testing.T) {
 	}
 }
 
+func TestNewTrialCommandNoArgsErrorIncludesExample(t *testing.T) {
+	cmd := NewTrialCommand(func(string) error { return nil })
+	cmd.SetArgs(nil)
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected an error when no workflow specification is provided")
+	}
+
+	if !strings.Contains(err.Error(), "missing workflow specification") {
+		t.Fatalf("expected missing workflow specification error, got: %s", err)
+	}
+
+	if !strings.Contains(err.Error(), "Example:") {
+		t.Fatalf("expected trial usage error to include an Example section, got: %s", err)
+	}
+}
+
 // Test the host repo slug processing logic with dot notation
 func TestHostRepoSlugProcessing(t *testing.T) {
 	testCases := []struct {

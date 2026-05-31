@@ -45,7 +45,7 @@ The host repository will be created as private and kept by default unless --dele
 Trial results are saved both locally (in trials/ directory) and in the host repository for future reference.`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
-				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow-spec>...\n\nExamples:\n  %[1]s githubnext/agentics/daily-plan             Trial a workflow from a repository\n  %[1]s ./local-workflow.md                         Trial a local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
+				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow-spec>...\n\nExample:\n  %[1]s githubnext/agentics/daily-plan             Trial a workflow from a repository\n  %[1]s ./local-workflow.md                         Trial a local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
 			}
 			return nil
 		},
