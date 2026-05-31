@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -214,6 +215,25 @@ func TestParseDeployCommandOptions_InvalidCoolDown_Error(t *testing.T) {
 	opts, coolDown, err := parseDeployCommandOptions(cmd, []string{"a"}, func(string) error { return nil })
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid --cool-down value")
+	assert.Equal(t, AddOptions{}, opts)
+	assert.Zero(t, coolDown)
+}
+
+func TestParseDeployCommandOptions_EngineValidationError(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewDeployCommand(func(string) error { return nil })
+	require.NotNil(t, cmd)
+
+	var validatedEngine string
+	expectedErr := errors.New("engine invalid")
+	opts, coolDown, err := parseDeployCommandOptions(cmd, []string{"a"}, func(engine string) error {
+		validatedEngine = engine
+		return expectedErr
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, expectedErr)
+	assert.Equal(t, "", validatedEngine)
 	assert.Equal(t, AddOptions{}, opts)
 	assert.Zero(t, coolDown)
 }
