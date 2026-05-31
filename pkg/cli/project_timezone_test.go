@@ -66,7 +66,19 @@ func TestConfigureProjectTimezone_UsesEnvFallback(t *testing.T) {
 }
 
 func TestConfigureProjectTimezone_InvalidTimezoneResetsOverride(t *testing.T) {
+	originalFind := findGitRootForProjectTimezone
+	originalLoad := loadRepoConfigForProjectTimezone
+	t.Cleanup(func() {
+		findGitRootForProjectTimezone = originalFind
+		loadRepoConfigForProjectTimezone = originalLoad
+	})
+
 	t.Setenv(compilerenv.DefaultUTC, "west")
+	findGitRootForProjectTimezone = func() (string, error) { return "", assert.AnError }
+	loadRepoConfigForProjectTimezone = func(string) (*workflow.RepoConfig, error) {
+		t.Fatal("repo config should not be loaded when git root lookup fails")
+		return nil, nil
+	}
 	console.SetTimeLocation(time.FixedZone("UTC-07:00", -7*60*60))
 	t.Cleanup(console.ResetTimeLocation)
 

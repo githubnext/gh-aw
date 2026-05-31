@@ -29,16 +29,16 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 			name:               "ai-inference v1 resolves to v2 pin with source annotation",
 			repo:               "actions/ai-inference",
 			requestedVer:       "v1",
-			expectedCommentVer: "v2.1.0",
-			fallbackPinVer:     "v2.1.0", // Falls back to hardcoded pin
+			expectedCommentVer: "v2.1.1",
+			fallbackPinVer:     "v2.1.1", // Falls back to hardcoded pin
 			expectMismatch:     true,
 		},
 		{
-			name:               "setup-dotnet v5 resolves to v5.2.0 pin with source annotation",
+			name:               "setup-dotnet v5 resolves to v5.3.0 pin with source annotation",
 			repo:               "actions/setup-dotnet",
 			requestedVer:       "v5",
-			expectedCommentVer: "v5.2.0",
-			fallbackPinVer:     "v5.2.0",
+			expectedCommentVer: "v5.3.0",
+			fallbackPinVer:     "v5.3.0",
 			expectMismatch:     true,
 		},
 		{

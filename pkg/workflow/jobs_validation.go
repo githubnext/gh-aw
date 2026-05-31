@@ -19,13 +19,14 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
 
 func validateJobDefinition(job *Job) error {
 	if job == nil {
-		return fmt.Errorf("job definition cannot be nil")
+		return errors.New("job definition cannot be nil")
 	}
 
 	if job.Uses != "" && job.TimeoutMinutes > 0 {
