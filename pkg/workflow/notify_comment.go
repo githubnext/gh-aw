@@ -530,11 +530,13 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		BuildStringLiteral("true"),
 	)
 
-	// Agent not skipped OR an activation guardrail failed and intentionally skipped the agent.
-	agentNotSkippedOrActivationFailed := BuildOr(
-		BuildOr(BuildOr(agentNotSkipped, lockdownCheckFailed), staleLockFileFailed),
+	activationGuardrailsFailed := BuildOr(
+		BuildOr(lockdownCheckFailed, staleLockFileFailed),
 		dailyEffectiveWorkflowExceeded,
 	)
+
+	// Agent not skipped OR an activation guardrail failed and intentionally skipped the agent.
+	agentNotSkippedOrActivationFailed := BuildOr(agentNotSkipped, activationGuardrailsFailed)
 
 	// Check if add_comment job exists in the safe output jobs
 	hasAddCommentJob := slices.Contains(safeOutputJobNames, "add_comment")

@@ -13,6 +13,8 @@ const TOKEN_USAGE_FILENAME = "token-usage.jsonl";
 const TOKEN_USAGE_RELATIVE_PATH = path.join("api-proxy-logs", TOKEN_USAGE_FILENAME);
 const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["firewall-audit-logs", "agent"];
 const DAILY_WORKFLOW_WINDOW_MS = 24 * 60 * 60 * 1000;
+const MAX_RECENT_RUNS_IN_ISSUE = 10;
+const MAX_WORKFLOW_RUN_PAGES = 10;
 
 /**
  * @returns {Promise<import("@actions/artifact").DefaultArtifactClient>}
@@ -207,7 +209,7 @@ async function ensureDailyEffectiveWorkflowIssue(owner, repo, workflowName, work
   }
 
   const runLines = runs
-    .slice(0, 10)
+    .slice(0, MAX_RECENT_RUNS_IN_ISSUE)
     .map(run => `- [Run #${run.id}](${run.html_url}) — ${run.created_at} (${run.conclusion || "unknown"})`)
     .join("\n");
   const body = [
@@ -283,7 +285,7 @@ async function main() {
   /** @type {Array<any>} */
   let runs = [];
   let page = 1;
-  while (page <= 10) {
+  while (page <= MAX_WORKFLOW_RUN_PAGES) {
     const response = await github.rest.actions.listWorkflowRuns({
       owner,
       repo,
