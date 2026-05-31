@@ -7,7 +7,7 @@ const path = require("path");
 
 const { computeEffectiveTokens } = require("./effective_tokens.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { createRateLimitAwareGithub, fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
+const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
 const TOKEN_USAGE_FILENAME = "token-usage.jsonl";
@@ -238,6 +238,8 @@ function computeMaxInspectableRuns(remaining) {
   if (!Number.isFinite(remaining) || remaining <= 0) {
     return 0;
   }
+  // Reserve headroom for the workflow-run listing overhead plus roughly two API
+  // operations per inspected run (artifact lookup and artifact download).
   return Math.max(0, Math.floor((remaining - RATE_LIMIT_RESERVE - REQUEST_OVERHEAD_BUDGET) / 2));
 }
 
@@ -420,7 +422,6 @@ async function main() {
     run_id: context.runId,
   });
   const rateLimit = await getCoreRateLimitSnapshot(githubClient);
-  await fetchAndLogRateLimit(githubClient, "daily_effective_workflow_guardrail_start");
 
   const workflowID = process.env.GH_AW_WORKFLOW_ID || "";
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || workflowID || "workflow";
