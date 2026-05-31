@@ -8,7 +8,7 @@
 //
 //	{
 //	  "ghes": true,               // enables GHES compatibility mode (v3 artifact pins)
-//	  "utc": "America/Los_Angeles", // project home timezone for rendered local times
+//	  "utc": "-08:00", // project home UTC offset for rendered local times
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
 //	    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
@@ -32,7 +32,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
@@ -119,9 +118,8 @@ type RepoConfig struct {
 	// which are not supported on GHES.
 	GHES bool
 
-	// UTC is the project's home timezone used for rendering local times in CLI output.
-	// The value must be a valid IANA timezone name such as "UTC" or
-	// "America/Los_Angeles".
+	// UTC is the project's home UTC offset used for rendering local times in CLI output.
+	// The value must be a numeric UTC offset such as "+00:00" or "-08:00".
 	UTC string
 
 	// MaintenanceDisabled is true when maintenance has been explicitly set to false
@@ -235,9 +233,11 @@ func validateRepoConfigValues(cfg *RepoConfig) error {
 		return nil
 	}
 	if cfg.UTC != "" {
-		if _, err := time.LoadLocation(cfg.UTC); err != nil {
-			return fmt.Errorf("invalid %s: utc must be a valid IANA timezone: %w", RepoConfigFileName, err)
+		normalized, err := NormalizeUTCOffset(cfg.UTC)
+		if err != nil {
+			return fmt.Errorf("invalid %s: utc %s", RepoConfigFileName, err)
 		}
+		cfg.UTC = normalized
 	}
 
 	if cfg.Maintenance == nil || cfg.Maintenance.Compile == nil {

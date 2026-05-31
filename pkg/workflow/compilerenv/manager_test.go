@@ -142,11 +142,11 @@ func TestResolveDefaultDetectionModel(t *testing.T) {
 func TestResolveDefaultUTC(t *testing.T) {
 	t.Run("unset uses fallback", func(t *testing.T) {
 		t.Setenv(DefaultUTC, "")
-		assert.Equal(t, "UTC", ResolveDefaultUTC("UTC"))
+		assert.Equal(t, "+00:00", ResolveDefaultUTC("+00:00"))
 	})
 
 	t.Run("set value overrides fallback", func(t *testing.T) {
-		t.Setenv(DefaultUTC, "America/Los_Angeles")
-		assert.Equal(t, "America/Los_Angeles", ResolveDefaultUTC("UTC"))
+		t.Setenv(DefaultUTC, "-08:00")
+		assert.Equal(t, "-08:00", ResolveDefaultUTC("+00:00"))
 	})
 }

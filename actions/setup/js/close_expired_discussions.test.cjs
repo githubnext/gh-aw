@@ -243,7 +243,7 @@ describe("close_expired_discussions", () => {
 
     it("should format the closing comment in the configured project timezone", async () => {
       const module = await import("./close_expired_discussions.cjs");
-      process.env.GH_AW_DEFAULT_UTC = "America/Los_Angeles";
+      process.env.GH_AW_DEFAULT_UTC = "-08:00";
 
       mockGithub.graphql
         .mockResolvedValueOnce({
@@ -294,7 +294,7 @@ describe("close_expired_discussions", () => {
       await module.main();
 
       const addCommentVariables = mockGithub.graphql.mock.calls[2][1];
-      expect(addCommentVariables.body).toContain("This discussion was automatically closed because it expired on Jan 20, 2020, 1:20 AM PST (UTC-08:00).");
+      expect(addCommentVariables.body).toContain("This discussion was automatically closed because it expired on Jan 20, 2020, 1:20 AM UTC-08:00.");
     });
 
     it("should handle empty comments gracefully", async () => {

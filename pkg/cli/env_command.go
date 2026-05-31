@@ -291,13 +291,21 @@ func defaultsValidateFile(file *defaultsFile) error {
 			validationErrors = append(validationErrors, field+" cannot be empty when set")
 		}
 	}
+	validateUTCOffset := func(field string, value *string) {
+		if value == nil {
+			return
+		}
+		if _, err := workflow.NormalizeUTCOffset(*value); err != nil {
+			validationErrors = append(validationErrors, field+" "+err.Error())
+		}
+	}
 
 	validateNonZeroInt("default_max_effective_tokens", file.DefaultMaxEffectiveTokens)
 	validateNonZeroInt("default_max_daily_effective_tokens", file.DefaultMaxDailyEffectiveTokens)
 	validatePositiveInt("default_max_turns", file.DefaultMaxTurns)
 	validatePositiveInt("default_timeout_minutes", file.DefaultTimeoutMinutes)
 	validateNonEmpty("default_detection_model", file.DefaultDetectionModel)
-	validateNonEmpty("default_utc", file.DefaultUTC)
+	validateUTCOffset("default_utc", file.DefaultUTC)
 	validateNonEmpty("default_model_copilot", file.DefaultModelCopilot)
 	validateNonEmpty("default_model_claude", file.DefaultModelClaude)
 	validateNonEmpty("default_model_codex", file.DefaultModelCodex)

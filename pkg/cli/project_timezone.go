@@ -2,7 +2,6 @@ package cli
 
 import (
 	"strings"
-	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
@@ -19,31 +18,31 @@ var loadRepoConfigForProjectTimezone = workflow.LoadRepoConfig
 // ConfigureProjectTimezone applies the configured project timezone to CLI time rendering.
 // Repo-level aw.json takes precedence over the enterprise default env var.
 func ConfigureProjectTimezone() {
-	timezoneName := strings.TrimSpace(compilerenv.ResolveDefaultUTC(""))
+	utcOffset := strings.TrimSpace(compilerenv.ResolveDefaultUTC(""))
 
 	gitRoot, err := findGitRootForProjectTimezone()
 	if err == nil {
 		if repoConfig, loadErr := loadRepoConfigForProjectTimezone(gitRoot); loadErr == nil && repoConfig != nil && strings.TrimSpace(repoConfig.UTC) != "" {
-			timezoneName = strings.TrimSpace(repoConfig.UTC)
+			utcOffset = strings.TrimSpace(repoConfig.UTC)
 		} else if loadErr != nil {
-			projectTimezoneLog.Printf("Failed to load repo config for timezone resolution: %v", loadErr)
+			projectTimezoneLog.Printf("Failed to load repo config for UTC offset resolution: %v", loadErr)
 		}
 	} else {
-		projectTimezoneLog.Printf("Failed to find git root for timezone resolution: %v", err)
+		projectTimezoneLog.Printf("Failed to find git root for UTC offset resolution: %v", err)
 	}
 
-	if timezoneName == "" {
+	if utcOffset == "" {
 		console.ResetTimeLocation()
 		return
 	}
 
-	location, err := time.LoadLocation(timezoneName)
+	location, err := workflow.ParseUTCOffsetLocation(utcOffset)
 	if err != nil {
-		projectTimezoneLog.Printf("Invalid configured timezone %q: %v", timezoneName, err)
+		projectTimezoneLog.Printf("Invalid configured UTC offset %q: %v", utcOffset, err)
 		console.ResetTimeLocation()
 		return
 	}
 
-	projectTimezoneLog.Printf("Configuring CLI rendered times to use timezone %q", timezoneName)
+	projectTimezoneLog.Printf("Configuring CLI rendered times to use UTC offset %q", utcOffset)
 	console.SetTimeLocation(location)
 }

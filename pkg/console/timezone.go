@@ -37,7 +37,7 @@ func formatConfiguredTimeValue(timeVal time.Time) string {
 
 	localTime := timeVal.In(location)
 	_, offsetSeconds := localTime.Zone()
-	return fmt.Sprintf("%s (UTC%s)", localTime.Format("2006-01-02 15:04:05 MST"), formatUTCOffset(offsetSeconds))
+	return fmt.Sprintf("%s UTC%s", localTime.Format("2006-01-02 15:04:05"), formatUTCOffset(offsetSeconds))
 }
 
 func formatUTCOffset(offsetSeconds int) string {

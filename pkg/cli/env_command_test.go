@@ -76,7 +76,7 @@ func TestDefaultsFileYAMLKeys(t *testing.T) {
 		DefaultMaxTurns:                new("42"),
 		DefaultTimeoutMinutes:          new("90"),
 		DefaultDetectionModel:          new("claude-sonnet-4.6"),
-		DefaultUTC:                     new("America/Los_Angeles"),
+		DefaultUTC:                     new("-08:00"),
 		DefaultModelCopilot:            new("claude-sonnet-4.7"),
 		DefaultModelClaude:             new("claude-opus-4.7"),
 		DefaultModelCodex:              new("gpt-5.5"),
@@ -136,7 +136,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 			DefaultMaxTurns:           new("12"),
 			DefaultTimeoutMinutes:     new("30"),
 			DefaultDetectionModel:     new("claude-sonnet-4.6"),
-			DefaultUTC:                new("America/Los_Angeles"),
+			DefaultUTC:                new("-08:00"),
 			DefaultModelCopilot:       new("gpt-5-mini"),
 			DefaultModelClaude:        new("claude-haiku-4.5"),
 			DefaultModelCodex:         new("gpt-5.4-mini"),
@@ -150,7 +150,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 			DefaultMaxDailyEffectiveTokens: new("0"),
 			DefaultMaxTurns:                new("abc"),
 			DefaultTimeoutMinutes:          new("0"),
-			DefaultUTC:                     new("   "),
+			DefaultUTC:                     new("west"),
 			DefaultModelCopilot:            new("   "),
 		})
 		require.Error(t, err)
@@ -158,7 +158,7 @@ func TestDefaultsValidateFile(t *testing.T) {
 		assert.Contains(t, err.Error(), "default_max_daily_effective_tokens must be a non-zero integer when set")
 		assert.Contains(t, err.Error(), "default_max_turns must be a positive integer when set")
 		assert.Contains(t, err.Error(), "default_timeout_minutes must be a positive integer when set")
-		assert.Contains(t, err.Error(), "default_utc cannot be empty when set")
+		assert.Contains(t, err.Error(), "default_utc must be a numeric UTC offset")
 		assert.Contains(t, err.Error(), "default_model_copilot cannot be empty when set")
 	})
 }

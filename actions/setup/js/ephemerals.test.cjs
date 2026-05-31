@@ -28,14 +28,13 @@ describe("ephemerals", () => {
     });
 
     it("should use configured default timezone when present", async () => {
-      process.env.GH_AW_DEFAULT_UTC = "America/Los_Angeles";
+      process.env.GH_AW_DEFAULT_UTC = "-08:00";
       const { formatExpirationDate } = await import("./ephemerals.cjs");
       const date = new Date("2026-01-25T15:54:08.894Z");
 
       const result = formatExpirationDate(date);
 
       expect(result).toContain("Jan 25, 2026");
-      expect(result).toContain("PST");
       expect(result).toContain("UTC-08:00");
     });
   });
@@ -55,15 +54,14 @@ describe("ephemerals", () => {
     it("should use repo timezone ahead of the default timezone", async () => {
       const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-ephemerals-"));
       fs.mkdirSync(path.join(workspace, ".github", "workflows"), { recursive: true });
-      fs.writeFileSync(path.join(workspace, ".github", "workflows", "aw.json"), JSON.stringify({ utc: "America/Los_Angeles" }));
+      fs.writeFileSync(path.join(workspace, ".github", "workflows", "aw.json"), JSON.stringify({ utc: "-08:00" }));
       process.env.GITHUB_WORKSPACE = workspace;
-      process.env.GH_AW_DEFAULT_UTC = "Europe/London";
+      process.env.GH_AW_DEFAULT_UTC = "+00:00";
 
       const { createExpirationLine } = await import("./ephemerals.cjs");
       const date = new Date("2026-01-25T15:54:08.894Z");
       const result = createExpirationLine(date);
 
-      expect(result).toContain("PST");
       expect(result).toContain("UTC-08:00");
       expect(result).not.toContain("UTC+00:00");
       expect(result).not.toMatch(/\sUTC$/);

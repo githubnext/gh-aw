@@ -211,20 +211,20 @@ func TestLoadRepoConfig_GHESWithMaintenance(t *testing.T) {
 
 func TestLoadRepoConfig_UTC(t *testing.T) {
 	dir := t.TempDir()
-	writeAWJSON(t, dir, `{"utc": "America/Los_Angeles"}`)
+	writeAWJSON(t, dir, `{"utc": "-08:00"}`)
 
 	cfg, err := LoadRepoConfig(dir)
 	require.NoError(t, err, "valid aw.json with utc should load without error")
-	assert.Equal(t, "America/Los_Angeles", cfg.UTC)
+	assert.Equal(t, "-08:00", cfg.UTC)
 }
 
 func TestLoadRepoConfig_InvalidUTC(t *testing.T) {
 	dir := t.TempDir()
-	writeAWJSON(t, dir, `{"utc": "Invalid/Timezone"}`)
+	writeAWJSON(t, dir, `{"utc": "+14:30"}`)
 
 	_, err := LoadRepoConfig(dir)
 	require.Error(t, err, "invalid timezone should return an error")
-	assert.Contains(t, err.Error(), "utc must be a valid IANA timezone")
+	assert.Contains(t, err.Error(), "utc must be a numeric UTC offset")
 }
 
 // TestFormatRunsOn tests the YAML serialisation of runs-on values.

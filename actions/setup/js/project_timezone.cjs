@@ -5,17 +5,33 @@ const path = require("path");
 
 const REPO_CONFIG_PATH = [".github", "workflows", "aw.json"];
 
-function isValidTimeZone(timeZone) {
-  if (!timeZone) {
-    return false;
+function normalizeUTCOffset(utcOffset) {
+  const trimmed = typeof utcOffset === "string" ? utcOffset.trim() : "";
+  const match = trimmed.match(/^([+-])(\d{2}):(\d{2})$/);
+  if (!match) {
+    return "";
   }
 
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone }).format(new Date());
-    return true;
-  } catch {
-    return false;
+  const [, sign, hours, minutes] = match;
+  const hourValue = Number.parseInt(hours, 10);
+  const minuteValue = Number.parseInt(minutes, 10);
+  if (hourValue > 14 || minuteValue > 59 || (hourValue === 14 && minuteValue !== 0)) {
+    return "";
   }
+
+  return `${sign}${hours}:${minutes}`;
+}
+
+function parseUTCOffsetMinutes(utcOffset) {
+  const normalized = normalizeUTCOffset(utcOffset);
+  if (!normalized) {
+    return Number.NaN;
+  }
+
+  const sign = normalized.startsWith("-") ? -1 : 1;
+  const hours = Number.parseInt(normalized.slice(1, 3), 10);
+  const minutes = Number.parseInt(normalized.slice(4, 6), 10);
+  return sign * (hours * 60 + minutes);
 }
 
 function getRepoConfigPath() {
@@ -32,15 +48,16 @@ function readRepoConfigTimeZone() {
   try {
     const raw = fs.readFileSync(repoConfigPath, "utf8");
     const parsed = JSON.parse(raw);
-    const timeZone = typeof parsed?.utc === "string" ? parsed.utc.trim() : "";
-    if (!timeZone) {
+    const rawUTCOffset = typeof parsed?.utc === "string" ? parsed.utc.trim() : "";
+    if (!rawUTCOffset) {
       return "";
     }
-    if (!isValidTimeZone(timeZone)) {
-      warn(`Ignoring invalid repo timezone in ${repoConfigPath}: ${timeZone}`);
+    const utcOffset = normalizeUTCOffset(rawUTCOffset);
+    if (!utcOffset) {
+      warn(`Ignoring invalid repo UTC offset in ${repoConfigPath}: ${rawUTCOffset}`);
       return "";
     }
-    return timeZone;
+    return utcOffset;
   } catch (error) {
     if (error && typeof error === "object" && "code" in error && (error.code === "ENOENT" || error.code === "ENOTDIR")) {
       return "";
@@ -55,64 +72,43 @@ function readRepoConfigTimeZone() {
 }
 
 function readDefaultTimeZone() {
-  const timeZone = (process.env.GH_AW_DEFAULT_UTC || "").trim();
-  if (!timeZone) {
+  const raw = process.env.GH_AW_DEFAULT_UTC || "";
+  if (!raw.trim()) {
     return "";
   }
-  if (!isValidTimeZone(timeZone)) {
-    warn(`Ignoring invalid GH_AW_DEFAULT_UTC timezone: ${timeZone}`);
+  const utcOffset = normalizeUTCOffset(raw);
+  if (!utcOffset) {
+    warn(`Ignoring invalid GH_AW_DEFAULT_UTC offset: ${raw.trim()}`);
     return "";
   }
-  return timeZone;
+  return utcOffset;
 }
 
 function resolveProjectTimeZone() {
   return readRepoConfigTimeZone() || readDefaultTimeZone();
 }
 
-function normalizeUTCOffset(timeZoneName) {
-  if (!timeZoneName || timeZoneName === "GMT" || timeZoneName === "UTC") {
-    return "+00:00";
-  }
-
-  const match = timeZoneName.match(/^(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?$/);
-  if (!match) {
-    return "+00:00";
-  }
-
-  const [, sign, hours, minutes = "00"] = match;
-  return `${sign}${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}`;
-}
-
-function formatProjectTimeZoneOffset(date, timeZone) {
-  const timeZonePart = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    timeZoneName: "shortOffset",
-    hour: "numeric",
-  })
-    .formatToParts(date)
-    .find(part => part.type === "timeZoneName");
-
-  return normalizeUTCOffset(timeZonePart?.value || "UTC");
-}
-
 function formatDateInProjectTimeZone(date) {
-  const timeZone = resolveProjectTimeZone();
-  if (!timeZone) {
+  const utcOffset = resolveProjectTimeZone();
+  if (!utcOffset) {
     return "";
   }
 
+  const offsetMinutes = parseUTCOffsetMinutes(utcOffset);
+  if (Number.isNaN(offsetMinutes)) {
+    return "";
+  }
+
+  const shiftedDate = new Date(date.getTime() + offsetMinutes * 60 * 1000);
   const formatted = new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    timeZone,
-    timeZoneName: "short",
-  }).format(date);
-  const offset = formatProjectTimeZoneOffset(date, timeZone);
-  return `${formatted} (UTC${offset})`;
+    timeZone: "UTC",
+  }).format(shiftedDate);
+  return `${formatted} UTC${utcOffset}`;
 }
 
 module.exports = {
