@@ -139,7 +139,7 @@ steps:
     run: make deps-dev
   - name: Install binary as 'gh-aw'
     run: make build
-  - name: Start MCP server
+  - name: Start MCP Server
     run: |
       set -e
       ./gh-aw mcp-server --cmd ./gh-aw --port 8765 &
