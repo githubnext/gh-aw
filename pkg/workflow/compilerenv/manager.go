@@ -5,7 +5,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var managerLog = logger.New("compilerenv:manager")
 
 const (
 	// DefaultMaxEffectiveTokens is the enterprise override for AWF apiProxy.maxEffectiveTokens
@@ -38,8 +42,10 @@ func ResolveDefaultMaxEffectiveTokens(fallback int64) int64 {
 	}
 	parsed, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
+		managerLog.Printf("Invalid %s=%q, using fallback=%d", DefaultMaxEffectiveTokens, raw, fallback)
 		return fallback
 	}
+	managerLog.Printf("Applying enterprise override %s=%d (fallback was %d)", DefaultMaxEffectiveTokens, parsed, fallback)
 	return parsed
 }
 
@@ -68,6 +74,7 @@ func ResolveDefaultDetectionModel(fallback string) string {
 	if raw == "" {
 		return fallback
 	}
+	managerLog.Printf("Applying enterprise detection model override %s=%q (fallback was %q)", DefaultDetectionModel, raw, fallback)
 	return raw
 }
 

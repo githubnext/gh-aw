@@ -6,7 +6,11 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var outcomeEvalUpdateLog = logger.New("cli:outcome_eval_update")
 
 var outcomeUpdateGHAPIGet = ghAPIGet
 
@@ -23,6 +27,7 @@ type mutableStateLoader func(repo string, number int) (map[string]any, bool, err
 func evalRetainedUpdate(item CreatedItemReport, repoOverride string, objectKind string, load mutableStateLoader, strongOnMerge bool) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
+	outcomeEvalUpdateLog.Printf("Evaluating retained update: kind=%s, type=%s, repo=%s, num=%d", objectKind, item.Type, repo, num)
 	report := OutcomeReport{
 		Type:         item.Type,
 		ObjectURL:    item.URL,
@@ -30,6 +35,7 @@ func evalRetainedUpdate(item CreatedItemReport, repoOverride string, objectKind 
 		Repo:         repo,
 	}
 	if num == 0 || repo == "" {
+		outcomeEvalUpdateLog.Printf("Missing execution state: num=%d, repo=%s", num, repo)
 		report.Result = OutcomeUnknown
 		report.Detail = "missing execution state"
 		report.OutcomeEvaluation = OutcomeEvaluation{
@@ -58,6 +64,8 @@ func evalRetainedUpdate(item CreatedItemReport, repoOverride string, objectKind 
 	}
 
 	comparison := compareRetainedUpdateState(item.BeforeState, item.AfterState, currentState, mutableTrackedFields(item.Type))
+	outcomeEvalUpdateLog.Printf("State comparison for %s #%d: changed=%d, retained=%d, reverted=%d, replaced=%d, merged=%v",
+		objectKind, num, len(comparison.Changed), len(comparison.Retained), len(comparison.Reverted), len(comparison.Replaced), merged)
 	if len(comparison.Changed) == 0 {
 		report.Result = OutcomeUnknown
 		report.Detail = "no persisted state delta"
