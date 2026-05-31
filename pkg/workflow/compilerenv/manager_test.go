@@ -36,7 +36,7 @@ func TestResolveDefaultMaxEffectiveTokens(t *testing.T) {
 func TestResolveDefaultMaxDailyEffectiveTokens(t *testing.T) {
 	t.Run("unset uses fallback", func(t *testing.T) {
 		t.Setenv(DefaultMaxDailyEffectiveTokens, "")
-		assert.Equal(t, "", ResolveDefaultMaxDailyEffectiveTokens(""))
+		assert.Empty(t, ResolveDefaultMaxDailyEffectiveTokens(""))
 	})
 
 	t.Run("invalid uses fallback", func(t *testing.T) {
