@@ -50,9 +50,6 @@ This is a **dispatcher agent** that routes your request to the appropriate speci
 - **Reducing token consumption / cost optimization**: Routes to {{BT}}token-optimization{{BT}} guide — consult this whenever the user asks how to reduce token usage, lower costs, speed up workflows, or measure the impact of prompt changes with experiments
 - **Choosing workflow architectures and design patterns**: Routes to {{BT}}patterns{{BT}} guide — consult this whenever the user asks for strategy, architecture, operating models, or pattern selection for agentic workflows
 
-> [!IMPORTANT]
-> For architecture/pattern-selection requests, load {{BT}}.github/aw/patterns.md{{BT}} first.
-
 Workflows may optionally include:
 
 - **Project tracking / monitoring** (GitHub Projects updates, status reporting)
@@ -161,16 +158,6 @@ When you interact with this agent, it will:
 - "Create a workflow that comments coverage on PRs"
 - "Analyze coverage trends over time"
 - "Add a coverage gate that blocks PRs below a threshold"
-
-### Render ASCII Charts in Markdown
-**Load when**: The workflow needs in-markdown charts (sparklines, bars, table+trend views) that must align cleanly and render reliably across GitHub surfaces, including mobile.
-
-**Reference file**: {{BT}}.github/aw/asciicharts.md{{BT}}
-
-**Use cases**:
-- "Show a compact trend chart in an issue comment"
-- "Render a dashboard table with sparkline trends"
-- "Generate aligned ASCII bars for service metrics"
 
 ### CLI Commands Reference
 **Load when**: The user asks how to run, compile, debug, or manage workflows from the command line; needs the MCP tool equivalent of a {{BT}}gh aw{{BT}} command; or is in a restricted environment (e.g., Copilot Cloud) without direct CLI access.
