@@ -532,6 +532,16 @@ function rollbackReviewResults(results, errorMessage) {
 }
 
 /**
+ * Determine whether a processing result is a non-skipped, non-deferred, non-cancelled failure.
+ *
+ * @param {{success?: boolean, deferred?: boolean, skipped?: boolean, cancelled?: boolean}|null|undefined} result
+ * @returns {boolean}
+ */
+function isFailedProcessingResult(result) {
+  return Boolean(result && result.success === false && !result.deferred && !result.skipped && !result.cancelled);
+}
+
+/**
  * Determine whether a failed result should be reported without failing the safe_outputs job.
  * Agent assignment can fail after other safe outputs already succeeded, so those failures
  * are surfaced through dedicated outputs and summaries instead of failing the entire job.
@@ -540,7 +550,7 @@ function rollbackReviewResults(results, errorMessage) {
  * @returns {boolean}
  */
 function isReportOnlyFailureResult(result) {
-  return Boolean(result && result.type === "assign_to_agent" && result.success === false && !result.deferred && !result.skipped && !result.cancelled);
+  return isFailedProcessingResult(result) && result?.type === "assign_to_agent";
 }
 
 /**
@@ -551,7 +561,7 @@ function isReportOnlyFailureResult(result) {
  */
 function partitionFailureResults(results) {
   const reportOnlyFailures = results.filter(isReportOnlyFailureResult);
-  const fatalFailures = results.filter(r => !r.success && !r.deferred && !r.skipped && !r.cancelled && !isReportOnlyFailureResult(r));
+  const fatalFailures = results.filter(r => isFailedProcessingResult(r) && !isReportOnlyFailureResult(r));
   return { fatalFailures, reportOnlyFailures };
 }
 
@@ -1603,4 +1613,15 @@ async function main() {
   }
 }
 
-module.exports = { main, loadConfig, loadHandlers, processMessages, buildCommentMemoryMessagesFromFiles, rollbackReviewResults, logCreatedItemFromResult, isReportOnlyFailureResult, partitionFailureResults };
+module.exports = {
+  main,
+  loadConfig,
+  loadHandlers,
+  processMessages,
+  buildCommentMemoryMessagesFromFiles,
+  rollbackReviewResults,
+  logCreatedItemFromResult,
+  isFailedProcessingResult,
+  isReportOnlyFailureResult,
+  partitionFailureResults,
+};

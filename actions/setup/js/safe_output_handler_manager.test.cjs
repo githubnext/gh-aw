@@ -10,6 +10,7 @@ import {
   buildCommentMemoryMessagesFromFiles,
   rollbackReviewResults,
   logCreatedItemFromResult,
+  isFailedProcessingResult,
   isReportOnlyFailureResult,
   partitionFailureResults,
 } from "./safe_output_handler_manager.cjs";
@@ -94,6 +95,13 @@ describe("Safe Output Handler Manager", () => {
   });
 
   describe("report-only assignment failures", () => {
+    it("recognizes only active failures as failed processing results", () => {
+      expect(isFailedProcessingResult({ success: false })).toBe(true);
+      expect(isFailedProcessingResult({ success: false, deferred: true })).toBe(false);
+      expect(isFailedProcessingResult({ success: false, skipped: true })).toBe(false);
+      expect(isFailedProcessingResult({ success: false, cancelled: true })).toBe(false);
+    });
+
     it("treats failed assign_to_agent results as report-only", () => {
       expect(
         isReportOnlyFailureResult({
@@ -116,6 +124,13 @@ describe("Safe Output Handler Manager", () => {
           type: "assign_to_agent",
           success: false,
           cancelled: true,
+        })
+      ).toBe(false);
+      expect(
+        isReportOnlyFailureResult({
+          type: "assign_to_agent",
+          success: false,
+          deferred: true,
         })
       ).toBe(false);
     });
