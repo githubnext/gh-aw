@@ -633,7 +633,7 @@ func generateCacheMemoryValidation(builder *strings.Builder, data *WorkflowData)
 		cacheDir := cacheMemoryDirFor(cache.ID)
 
 		// Prepare allowed extensions array for JavaScript
-		allowedExtsJSON, _ := json.Marshal(cache.AllowedExtensions)
+		allowedExtsJSON, _ := json.Marshal(cache.AllowedExtensions) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
 
 		// Build validation script
 		var validationScript strings.Builder
@@ -914,7 +914,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 			cacheLog.Printf("Skipping validation step for cache %s in update job (empty allowed-extensions means all files are allowed)", cache.ID)
 		} else {
 			// Prepare allowed extensions array for JavaScript
-			allowedExtsJSON, _ := json.Marshal(cache.AllowedExtensions)
+			allowedExtsJSON, _ := json.Marshal(cache.AllowedExtensions) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
 
 			// Build validation script
 			var validationScript strings.Builder

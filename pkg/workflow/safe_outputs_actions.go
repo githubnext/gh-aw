@@ -3,7 +3,6 @@ package workflow
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -466,30 +465,19 @@ func buildCustomSafeOutputActionsJSON(data *WorkflowData) string {
 		return ""
 	}
 
-	actionMapping := make(map[string]string, len(data.SafeOutputs.Actions))
+	actionNames := make([]string, 0, len(data.SafeOutputs.Actions))
 	for actionName := range data.SafeOutputs.Actions {
-		normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
-		actionMapping[normalizedName] = normalizedName
+		actionNames = append(actionNames, actionName)
 	}
 
-	// Sort keys for deterministic output
-	keys := make([]string, 0, len(actionMapping))
-	for k := range actionMapping {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	ordered := make(map[string]string, len(keys))
-	for _, k := range keys {
-		ordered[k] = actionMapping[k]
-	}
-
-	jsonBytes, err := json.Marshal(ordered)
+	jsonStr, err := buildNormalizedSortedJSON(actionNames, func(normalizedName string) string {
+		return normalizedName
+	})
 	if err != nil {
 		safeOutputActionsLog.Printf("Warning: failed to marshal custom safe output actions: %v", err)
 		return ""
 	}
-	return string(jsonBytes)
+	return jsonStr
 }
 
 // actionOutputKey returns the step output key for a given normalized action name.

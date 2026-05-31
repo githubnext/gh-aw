@@ -59,7 +59,7 @@ func writeArgsToYAML(yaml *strings.Builder, args []string, indent string) {
 	for _, arg := range args {
 		yaml.WriteString(",\n")
 		// Use json.Marshal to properly quote and escape the argument
-		quotedArg, _ := json.Marshal(arg)
+		quotedArg, _ := json.Marshal(arg) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
 		yaml.WriteString(indent + string(quotedArg))
 	}
 }

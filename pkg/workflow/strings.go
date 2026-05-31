@@ -150,6 +150,12 @@ func ShortenCommand(command string) string {
 	return shortened
 }
 
+// escapeYAMLSingleQuoted escapes single quotes for YAML single-quoted scalars by doubling each
+// apostrophe per YAML 1.2.
+func escapeYAMLSingleQuoted(value string) string {
+	return strings.ReplaceAll(value, "'", "''")
+}
+
 // GenerateHeredocDelimiterFromSeed creates a stable heredoc delimiter derived from a seed
 // (typically the workflow frontmatter hash hex string) so that repeated compilations of the
 // same workflow produce identical lock files.

@@ -288,7 +288,7 @@ steps:
       fi
       echo "✅ Changeset check complete"
 
-  - name: Cache downloaded data
+  - name: Save downloaded data to cache
     if: steps.check-cache.outputs.cache_valid != 'true'
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

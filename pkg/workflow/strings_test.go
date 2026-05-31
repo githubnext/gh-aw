@@ -277,6 +277,11 @@ func TestShortenCommand(t *testing.T) {
 	}
 }
 
+func TestEscapeYAMLSingleQuoted(t *testing.T) {
+	assert.Equal(t, "owner''s workflow", escapeYAMLSingleQuoted("owner's workflow"))
+	assert.Equal(t, "plain", escapeYAMLSingleQuoted("plain"))
+}
+
 func TestSanitizeName(t *testing.T) {
 	tests := []struct {
 		name     string

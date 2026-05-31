@@ -448,17 +448,17 @@ func buildExperimentSpecJSON(experiments map[string][]string, configs map[string
 		if i > 0 {
 			sb.WriteString(",")
 		}
-		keyBytes, _ := json.Marshal(name)
+		keyBytes, _ := json.Marshal(name) //nolint:jsonmarshalignoredeerror // marshaling a string cannot fail
 		sb.Write(keyBytes)
 		sb.WriteString(":")
 
 		// Use the full config when available so the JS can consume metadata.
 		if cfg, ok := configs[name]; ok && cfg != nil {
-			cfgBytes, _ := json.Marshal(cfg)
+			cfgBytes, _ := json.Marshal(cfg) //nolint:jsonmarshalignoredeerror // ExperimentConfig contains only JSON-safe types (strings, ints, []string)
 			sb.Write(cfgBytes)
 		} else {
 			// Fallback: bare variants array (legacy behaviour).
-			varBytes, _ := json.Marshal(experiments[name])
+			varBytes, _ := json.Marshal(experiments[name]) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
 			sb.Write(varBytes)
 		}
 	}

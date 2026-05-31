@@ -64,64 +64,19 @@ The OTel instrumentation lives primarily in `actions/setup/js/`:
 
 ### Step 1: Read and Understand the Current Instrumentation
 
-```bash
-# Read the core OTel files
-cat actions/setup/js/send_otlp_span.cjs
-cat actions/setup/js/action_setup_otlp.cjs
-cat actions/setup/js/action_conclusion_otlp.cjs
-cat actions/setup/js/generate_observability_summary.cjs
-cat actions/setup/js/aw_context.cjs
-```
-
-Also check how spans are used in the broader flow:
-
-```bash
-# Find all files referencing OTLP/otel patterns
-grep -rl "otlp\|OTLP\|otel\|OTEL\|sendJobSetupSpan\|sendJobConclusionSpan\|buildOTLPPayload" \
-  actions/setup/js --include="*.cjs" | grep -v node_modules | grep -v "\.test\.cjs" | sort
-
-# Look at span attributes being set
-grep -n "buildAttr\|attributes\|spanName\|serviceName\|scopeVersion" \
-  actions/setup/js/send_otlp_span.cjs
-
-# Check if error spans carry sufficient diagnostic data
-grep -n "STATUS_CODE_ERROR\|statusCode.*2\|statusMessage\|GH_AW_AGENT_CONCLUSION" \
-  actions/setup/js/send_otlp_span.cjs \
-  actions/setup/js/action_conclusion_otlp.cjs
-
-# Examine resource attributes — are they rich enough for filtering in backends?
-grep -n "resource\|service\.name\|service\.version\|deployment\." \
-  actions/setup/js/send_otlp_span.cjs
-
-# Check trace context propagation completeness
-grep -n "traceId\|spanId\|parentSpanId\|GITHUB_AW_OTEL" \
-  actions/setup/js/action_setup_otlp.cjs \
-  actions/setup/js/action_conclusion_otlp.cjs
-
-# Understand what context aw_context carries
-grep -n "otel_trace_id\|workflow_call_id\|context" actions/setup/js/aw_context.cjs | head -40
-```
+Invoke the `otel-code-inspector` agent (no arguments). It reads the core OTel `.cjs`
+files and returns a structured inventory of span attributes, resource attributes,
+error fields, and trace-context propagation. Save the returned inventory to memory
+and use it as the static-code basis for Step 3.
 
 ### Step 2: Query Live OTel Data from Sentry and Grafana
 
-Before evaluating the code statically, ground your analysis in real telemetry from both Sentry and Grafana.
-
-1. **Query Sentry spans first** — call `find_organizations` to identify the org, then `find_projects` to find the project for this repository. Use `search_events` with `dataset: spans` over the last 24 hours. If the spans dataset returns no results, fall back to `dataset: transactions`.
-
-2. **Inspect one Sentry trace** — take a `trace_id` from sampled Sentry data and call `get_trace_details` to verify end-to-end trace continuity.
-
-3. **Query Grafana traces** — use Grafana MCP tools (`list_datasources`, `tempo_traceql-search`, `tempo_get-trace`) to retrieve recent `gh-aw` telemetry from the last 24 hours and inspect one full trace using a trace ID.
-
-4. **Cross-check Sentry and Grafana evidence** — compare attribute presence and trace continuity between both backends. If one backend has no data, explicitly note whether that appears to be ingestion delay, auth/config issues, or query limitations.
-
-5. **Document real vs. expected attributes** — for each backend, record whether each attribute is actually present in live span payloads (not just whether the code sets it):
-   - `service.version`
-   - `github.repository`
-   - `github.event_name`
-   - `github.run_id`
-   - `deployment.environment`
-
-Record your findings in memory for use in the evaluation step below.
+Invoke the `otel-telemetry-sampler` agent (no arguments). It queries Sentry and
+Grafana for recent gh-aw spans and returns a per-backend attribute-presence table
+plus a sampled trace_id. After the agent returns its two backend tables, cross-check
+them yourself and note any discrepancies (attribute present in one backend but absent
+in the other, or signs of ingestion delay vs. auth/config issues). Record the result
+to memory for Step 3.
 
 ### Step 3: Evaluate Against DevOps Best Practices
 
@@ -270,3 +225,41 @@ Failing to call a safe-output tool is the most common cause of workflow failures
 ```json
 {"noop": {"message": "No action needed: [explanation of what was analyzed and why no improvement was found]"}}
 ```
+
+## agent: `otel-code-inspector`
+---
+description: Read the core OTel instrumentation files and report which attributes and trace fields the code currently sets
+model: small
+---
+You receive no arguments. Inspect the gh-aw JavaScript OTel instrumentation and report findings only — do not recommend changes.
+
+Read these files:
+
+- `actions/setup/js/send_otlp_span.cjs`
+- `actions/setup/js/action_setup_otlp.cjs`
+- `actions/setup/js/action_conclusion_otlp.cjs`
+- `actions/setup/js/generate_observability_summary.cjs`
+- `actions/setup/js/aw_context.cjs`
+
+Also inspect broader usage with targeted `grep -n` commands under `actions/setup/js/` for OTLP/otel references.
+
+Return a concise markdown report with these sections:
+
+1. **Span attributes** — list the span attributes the code sets, with file:line evidence.
+2. **Resource attributes** — list the resource attributes the code sets, with file:line evidence.
+3. **Error fields** — list any error/status fields attached to spans, with file:line evidence.
+4. **Trace-context propagation** — summarize how `traceId`, `spanId`, `parentSpanId`, workflow context, and any `GITHUB_AW_OTEL`-related fields flow between setup, agent, and conclusion code, with file:line evidence.
+
+Be extractive and factual. If a category appears absent, say so explicitly.
+
+## agent: `otel-telemetry-sampler`
+---
+description: Sample recent Sentry and Grafana gh-aw spans and report which expected attributes are present per backend
+model: small
+---
+You receive no arguments. Sample live telemetry from the last 24 hours and report attribute presence — do not recommend changes.
+
+1. **Sentry**: call `find_organizations`, then `find_projects`, then `search_events` with `dataset: spans` (fall back to `dataset: transactions` if empty). Take one `trace_id` and call `get_trace_details`.
+2. **Grafana**: use `list_datasources`, `tempo_traceql-search`, then `tempo_get-trace` on one trace ID.
+
+For each backend, return a markdown table with one row per attribute — `service.version`, `github.repository`, `github.event_name`, `github.run_id`, `deployment.environment` — and a Present/Absent column. Include the sampled `trace_id` and span `name`. If a backend returned no data, state whether it looks like ingestion delay, auth/config, or query limits. Report findings only.

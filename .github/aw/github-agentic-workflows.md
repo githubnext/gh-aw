@@ -11,6 +11,7 @@ Agentic workflows use **markdown + YAML frontmatter**:
 
 ```markdown
 ---
+emoji: 🧠
 name: My Workflow
 description: Short description of what this workflow does
 on:
@@ -84,6 +85,7 @@ Always run `gh aw compile` after modifying frontmatter. Markdown body changes ta
 
 ## Key Principles
 
+- **Set `emoji:` for recognition**: Give each workflow a single emoji in frontmatter so it is easier to spot in workflow lists, status output, and reviews.
 - **No write permissions on main job**: Never use `issues: write`, `pull-requests: write`, or `contents: write`. Use `safe-outputs:` instead — it handles write operations (including attachment-style `upload-artifact`) in a separate secured job.
 - **Use `gh-proxy` mode**: `tools.github.mode: gh-proxy` is faster than `local` (no MCP server startup).
 - **Prefer sanitized context**: Use `${{ steps.sanitized.outputs.text }}` for issue/PR content access — it neutralizes @mentions, bot triggers, and injection attacks.

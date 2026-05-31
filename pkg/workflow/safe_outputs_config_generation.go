@@ -195,7 +195,10 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	if len(safeOutputsConfig) == 0 {
 		return "", nil
 	}
-	configJSON, _ := json.Marshal(safeOutputsConfig)
+	configJSON, err := json.Marshal(safeOutputsConfig)
+	if err != nil {
+		return "", fmt.Errorf("marshaling safe-outputs config: %w", err)
+	}
 	safeOutputsConfigLog.Printf("Safe outputs config generation complete: %d tool types configured", len(safeOutputsConfig))
 	return string(configJSON), nil
 }

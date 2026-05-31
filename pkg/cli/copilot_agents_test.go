@@ -284,9 +284,12 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 		t.Fatalf("buildAgenticWorkflowsAgentContent() returned error: %v", err)
 	}
 
-	expected := agenticWorkflowsAgentHeader + "Always load and follow `.github/skills/agentic-workflows/SKILL.md`.\n"
+	expected := agenticWorkflowsAgentTemplate
 	if content != expected {
 		t.Fatalf("Expected exact agent content:\n%s\ngot:\n%s", expected, content)
+	}
+	if strings.Contains(content, ".github/skills/agentic-workflows/SKILL.md") {
+		t.Fatalf("expected generated agent content to avoid skill cross-references:\n%s", content)
 	}
 }
 
@@ -330,15 +333,37 @@ func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
 		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
 	}
 
-	expected := agenticWorkflowsSkillHeader + agenticWorkflowsSkillIntro +
-		"- `.github/aw/workflow-a.md`\n" +
-		"- `.github/aw/workflow-z.md`\n" +
-		agenticWorkflowsSkillOutro
+	expected := strings.Replace(
+		agenticWorkflowsSkillTemplate,
+		agenticWorkflowsSkillFileListPlaceholder,
+		"- `.github/aw/workflow-a.md`\n- `.github/aw/workflow-z.md`\n",
+		1,
+	)
 	if content != expected {
 		t.Fatalf("Expected exact skill content:\n%s\ngot:\n%s", expected, content)
 	}
 	if strings.Contains(content, "ignore.txt") {
 		t.Fatalf("expected non-markdown files to be excluded from generated skill content:\n%s", content)
+	}
+	if strings.Contains(content, ".github/agents/agentic-workflows") {
+		t.Fatalf("expected generated skill content to avoid agent cross-references:\n%s", content)
+	}
+}
+
+func TestBuildAgenticWorkflowsSkillContentWithoutAWDirectory(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	content, err := buildAgenticWorkflowsSkillContent(tempDir)
+	if err != nil {
+		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
+	}
+
+	expected := strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, "", 1)
+	if content != expected {
+		t.Fatalf("Expected exact skill content without .github/aw directory:\n%s\ngot:\n%s", expected, content)
+	}
+	if strings.Contains(content, agenticWorkflowsSkillFileListPlaceholder) {
+		t.Fatalf("expected generated skill content to replace the file-list placeholder:\n%s", content)
 	}
 }
 

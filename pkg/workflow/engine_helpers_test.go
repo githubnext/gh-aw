@@ -12,7 +12,48 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/stretchr/testify/assert"
 )
+
+func TestResolveEngineID(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		want         string
+	}{
+		{
+			name:         "nil workflow data",
+			workflowData: nil,
+			want:         "",
+		},
+		{
+			name: "engine config id",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				AI:           "claude",
+			},
+			want: "copilot",
+		},
+		{
+			name: "fallback to ai",
+			workflowData: &WorkflowData{
+				AI: "claude",
+			},
+			want: "claude",
+		},
+		{
+			name:         "empty when unavailable",
+			workflowData: &WorkflowData{},
+			want:         "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ResolveEngineID(tt.workflowData))
+		})
+	}
+}
 
 func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 	tests := []struct {

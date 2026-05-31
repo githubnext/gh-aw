@@ -165,11 +165,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		if len(data.SkipIfCheckFailing.Include) > 0 || len(data.SkipIfCheckFailing.Exclude) > 0 || data.SkipIfCheckFailing.Branch != "" || data.SkipIfCheckFailing.AllowPending {
 			steps = append(steps, "        env:\n")
 			if len(data.SkipIfCheckFailing.Include) > 0 {
-				includeJSON, _ := json.Marshal(data.SkipIfCheckFailing.Include)
+				includeJSON, _ := json.Marshal(data.SkipIfCheckFailing.Include) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
 				steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_CHECK_INCLUDE: %q\n", string(includeJSON)))
 			}
 			if len(data.SkipIfCheckFailing.Exclude) > 0 {
-				excludeJSON, _ := json.Marshal(data.SkipIfCheckFailing.Exclude)
+				excludeJSON, _ := json.Marshal(data.SkipIfCheckFailing.Exclude) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
 				steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_CHECK_EXCLUDE: %q\n", string(excludeJSON)))
 			}
 			if data.SkipIfCheckFailing.Branch != "" {
@@ -227,7 +227,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 		steps = append(steps, "        env:\n")
 		// Pass commands as JSON array
-		commandsJSON, _ := json.Marshal(data.Command)
+		commandsJSON, _ := json.Marshal(data.Command) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
 		steps = append(steps, fmt.Sprintf("          GH_AW_COMMANDS: %q\n", string(commandsJSON)))
 		if data.CommandPlaceholder != "" {
 			steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND_PLACEHOLDER: %q\n", data.CommandPlaceholder))

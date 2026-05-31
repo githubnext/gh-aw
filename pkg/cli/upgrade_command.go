@@ -354,6 +354,10 @@ func updateCopilotArtifacts(ctx context.Context, verbose bool) error {
 		upgradeLog.Printf("Failed to update dispatcher skill: %v", err)
 		return fmt.Errorf("failed to update dispatcher skill: %w", err)
 	}
+	if err := ensureAgenticWorkflowsAgent(verbose); err != nil {
+		upgradeLog.Printf("Failed to update Agentic Workflows custom agent: %v", err)
+		return fmt.Errorf("failed to update Agentic Workflows custom agent: %w", err)
+	}
 	if err := deleteLegacyAgentFiles(verbose); err != nil {
 		upgradeLog.Printf("Failed to delete legacy agent files: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to delete legacy agent files: %v", err)))

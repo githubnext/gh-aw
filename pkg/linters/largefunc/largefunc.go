@@ -9,6 +9,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+
+	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 )
 
 // DefaultMaxLines is the default maximum number of lines allowed in a function body.
@@ -59,6 +61,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		if body == nil {
+			return
+		}
+
+		if filecheck.IsTestFile(pass.Fset.Position(body.Pos()).Filename) {
 			return
 		}
 

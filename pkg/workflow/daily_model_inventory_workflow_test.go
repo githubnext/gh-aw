@@ -33,4 +33,8 @@ func TestDailyModelInventoryWorkflowFetchesReflectInAgentPrompt(t *testing.T) {
 	if !strings.Contains(sourceContentStr, "curl -fsS http://api-proxy:10000/reflect") {
 		t.Fatalf("expected workflow prompt to fetch Copilot reflect data from api-proxy")
 	}
+
+	if !strings.Contains(sourceContentStr, "`billing.multiplier` field from the Copilot reflect endpoint as the primary") {
+		t.Fatalf("expected workflow prompt to use billing.multiplier from reflect as the primary source of truth")
+	}
 }

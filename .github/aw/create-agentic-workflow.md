@@ -55,6 +55,7 @@ When triggered from a GitHub issue created via the "Create an Agentic Workflow" 
    - Analyze requirements and determine appropriate triggers (issues, pull_requests, schedule, workflow_dispatch)
    - Determine required tools and MCP servers (see conversational mode for selection guidelines)
    - Configure safe outputs for any write operations
+   - Pick a single `emoji:` frontmatter value that matches the workflow's purpose so it is easier to recognize in workflow listings and status views
    - Apply security best practices (minimal permissions, network restrictions)
    - Generate a clear, actionable prompt for the AI agent
 
@@ -62,6 +63,7 @@ When triggered from a GitHub issue created via the "Create an Agentic Workflow" 
    - Use a kebab-case workflow ID derived from the workflow name (e.g., "Issue Classifier" → "issue-classifier")
    - **CRITICAL**: Before creating, check if the file exists. If it does, append a suffix like `-v2` or a timestamp
    - Include complete frontmatter with all necessary configuration
+   - Include an `emoji:` frontmatter entry unless the user explicitly prefers not to set one
    - Write a clear prompt body with instructions for the AI agent
 
 4. **Generate the lock file for the Workflow** using `gh aw compile <workflow-id>` to generate the `.lock.yml` file
@@ -545,6 +547,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
      - ⚙️ **DO NOT include `engine: copilot`** - Copilot is the default engine. Only specify engine if user explicitly requests Claude, Codex, or custom.
      - ⏱️ **DO NOT include `timeout-minutes:`** unless user needs a specific timeout - the default is sensible.
      - 📋 **DO NOT include other fields with good defaults** - Let the compiler use sensible defaults unless customization is needed.
+     - 😀 **Do include `emoji:`** - Recommend a single emoji that helps humans quickly recognize the workflow in lists and status output.
    - Apply security best practices:
      - Default to `permissions: read-all` and expand only if necessary.
      - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue` for editing, `close-issue` for closing, `add-labels` for labeling, `upload-artifact` for attachment-style outputs, `dispatch-workflow`) over granting write perms.
@@ -1001,6 +1004,7 @@ This file contains YAML frontmatter (configuration) followed by the markdown bod
 
 ```markdown
 ---
+emoji: 🏷️
 description: <Brief description of what this workflow does>
 on:
   issues:
@@ -1044,6 +1048,7 @@ When you successfully complete your work:
 
 **Key points**:
 
+- Include an `emoji:` in frontmatter when creating new workflows so they are easier to spot in `gh aw` and GitHub workflow views
 - Complete YAML frontmatter with all configuration (between `---` markers)
 - Markdown body with all agent instructions (after frontmatter)
 - Users can edit the markdown body to change agent behavior without recompilation
