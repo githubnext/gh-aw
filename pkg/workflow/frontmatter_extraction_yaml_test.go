@@ -217,5 +217,5 @@ func TestExtractWorkflowRunConclusionConditionHelper(t *testing.T) {
 			}
 			assert.Equal(t, tt.want, got, "extractWorkflowRunConclusionCondition should return expected expression for %q", tt.name)
 		})
-	})
+	}
 }
