@@ -284,7 +284,7 @@ func TestBuildAgenticWorkflowsAgentContent(t *testing.T) {
 		t.Fatalf("buildAgenticWorkflowsAgentContent() returned error: %v", err)
 	}
 
-	expected := agenticWorkflowsAgentHeader + normalizeAgenticWorkflowsContent(agenticWorkflowsAgentBody)
+	expected := agenticWorkflowsAgentHeader + replaceBacktickPlaceholders(agenticWorkflowsAgentBody)
 	if content != expected {
 		t.Fatalf("Expected exact agent content:\n%s\ngot:\n%s", expected, content)
 	}

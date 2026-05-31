@@ -262,7 +262,7 @@ gh aw compile --validate
 - **CLI commands reference**: For a complete guide on all {{BT}}gh aw{{BT}} commands and their MCP tool equivalents (for restricted environments), see {{BT}}.github/aw/cli-commands.md{{BT}}
 `
 
-func normalizeAgenticWorkflowsContent(content string) string {
+func replaceBacktickPlaceholders(content string) string {
 	return strings.ReplaceAll(content, "{{BT}}", "`")
 }
 
@@ -387,7 +387,7 @@ func ensureAgenticWorkflowsAgent(verbose bool) error {
 }
 
 func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
-	return agenticWorkflowsAgentHeader + normalizeAgenticWorkflowsContent(agenticWorkflowsAgentBody), nil
+	return agenticWorkflowsAgentHeader + replaceBacktickPlaceholders(agenticWorkflowsAgentBody), nil
 }
 
 func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
