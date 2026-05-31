@@ -11,6 +11,7 @@ const {
   formatEffectiveTokens,
   sumEffectiveTokensFromTokenUsageFile,
 } = require("./daily_effective_workflow_helpers.cjs");
+const { parsePositiveEffectiveTokenLimitNumber } = require("./effective_token_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
@@ -30,19 +31,6 @@ const INTEGER_FORMATTER = new Intl.NumberFormat("en-US");
 async function getArtifactClient() {
   const { DefaultArtifactClient } = await import("@actions/artifact");
   return new DefaultArtifactClient();
-}
-
-/**
- * @param {string | undefined} raw
- * @returns {number}
- */
-function parsePositiveInt(raw) {
-  const trimmed = raw?.trim();
-  if (!trimmed || !/^\d+$/.test(trimmed)) {
-    return 0;
-  }
-  const parsed = Number.parseInt(trimmed, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
 /**
@@ -299,7 +287,7 @@ async function main() {
   core.setOutput("daily_effective_workflow_threshold", "");
   core.setOutput("daily_effective_workflow_issue_url", "");
 
-  const threshold = parsePositiveInt(process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS);
+  const threshold = parsePositiveEffectiveTokenLimitNumber(process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS);
   if (threshold <= 0) {
     return;
   }

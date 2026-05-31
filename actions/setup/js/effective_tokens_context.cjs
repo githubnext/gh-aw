@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { parsePositiveEffectiveTokenLimitString } = require("./effective_token_limits.cjs");
 
 const MAX_EFFECTIVE_TOKENS_FIELDS = new Set(["max_effective_tokens", "maxEffectiveTokens"]);
 const EFFECTIVE_TOKENS_FIELDS = new Set(["effective_tokens", "effectiveTokens"]);
@@ -146,7 +147,7 @@ function parseEffectiveTokensFromReflectFile() {
 
     const parsed = JSON.parse(content);
     const effectiveTokens = parsePositiveIntegerString(parsed?.effective_tokens?.total_effective_tokens);
-    const maxEffectiveTokens = parsePositiveIntegerString(parsed?.effective_tokens?.max_effective_tokens);
+    const maxEffectiveTokens = parsePositiveEffectiveTokenLimitString(parsed?.effective_tokens?.max_effective_tokens);
     return { effectiveTokens, maxEffectiveTokens };
   } catch {
     return { effectiveTokens: "", maxEffectiveTokens: "" };
@@ -170,7 +171,7 @@ function parseMaxEffectiveTokensFromAuditEntry(entry) {
     if (!node || typeof node !== "object") continue;
     for (const [key, value] of Object.entries(node)) {
       if (MAX_EFFECTIVE_TOKENS_FIELDS.has(key)) {
-        const parsed = parsePositiveIntegerString(value);
+        const parsed = parsePositiveEffectiveTokenLimitString(value);
         if (parsed) return parsed;
       }
       if (value && typeof value === "object") {
@@ -311,7 +312,7 @@ function resolveEffectiveTokensFailureState() {
   const parsedEffectiveTokensFromReflect = parseEffectiveTokensFromReflectFile();
   // Treat invalid env fallbacks as missing so they do not produce misleading ET math.
   const envEffectiveTokens = parsePositiveIntegerString(process.env.GH_AW_EFFECTIVE_TOKENS);
-  const envMaxEffectiveTokens = parsePositiveIntegerString(process.env.GH_AW_MAX_EFFECTIVE_TOKENS);
+  const envMaxEffectiveTokens = parsePositiveEffectiveTokenLimitString(process.env.GH_AW_MAX_EFFECTIVE_TOKENS);
   const effectiveTokens = parsedEffectiveTokensErrorInfo.effectiveTokens || parsedEffectiveTokensFromReflect.effectiveTokens || envEffectiveTokens || "";
   const maxEffectiveTokens = parseMaxEffectiveTokensFromAuditLog() || parsedEffectiveTokensFromReflect.maxEffectiveTokens || envMaxEffectiveTokens || "";
   const rawEffectiveTokensRateLimitError = parsedEffectiveTokensErrorInfo.rateLimitError || process.env.GH_AW_EFFECTIVE_TOKENS_RATE_LIMIT_ERROR === "true";

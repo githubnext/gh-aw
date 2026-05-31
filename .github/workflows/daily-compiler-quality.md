@@ -2,6 +2,7 @@
 on:
   schedule: daily
   workflow_dispatch: null
+max-daily-effective-tokens: 100M
 permissions:
   contents: read
   discussions: read

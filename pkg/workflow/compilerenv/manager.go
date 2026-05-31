@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 const (
@@ -40,11 +42,13 @@ func ResolveDefaultMaxEffectiveTokens(fallback int64) int64 {
 	if raw == "" {
 		return fallback
 	}
-	parsed, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil {
-		return fallback
+	if raw == "-1" {
+		return -1
 	}
-	return parsed
+	if parsed, ok := typeutil.ParseInt64KMSuffix(raw); ok {
+		return parsed
+	}
+	return fallback
 }
 
 // ResolveDefaultMaxDailyEffectiveTokens returns fallback when the env var is
@@ -55,11 +59,13 @@ func ResolveDefaultMaxDailyEffectiveTokens(fallback string) string {
 	if raw == "" {
 		return fallback
 	}
-	parsed, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil || parsed == 0 {
-		return fallback
+	if raw == "-1" {
+		return "-1"
 	}
-	return strconv.FormatInt(parsed, 10)
+	if normalized, ok := typeutil.NormalizeInt64KMSuffix(raw); ok {
+		return normalized
+	}
+	return fallback
 }
 
 // ResolveDefaultMaxTurns returns fallback when the env var is unset/invalid,

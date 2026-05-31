@@ -42,6 +42,7 @@ For max effective tokens, precedence is:
 
 A negative `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS` disables AWF token steering and
 omits the budget limit when frontmatter does not set `max-effective-tokens`.
+Positive values also accept `K`/`M` suffixes such as `100M`.
 
 For daily effective-token workflow guardrails, precedence is:
 
@@ -50,6 +51,7 @@ For daily effective-token workflow guardrails, precedence is:
 
 When both are unset, the daily guardrail stays disabled. A value of `-1`
 explicitly disables the guardrail.
+Positive values also accept `K`/`M` suffixes such as `100M`.
 
 For default timeout-minutes, precedence is:
 
@@ -81,6 +83,10 @@ Set an org-wide default max-effective-tokens guardrail:
 
 ```bash
 gh variable set GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS --org my-org --body "15000000"
+```
+
+```bash
+gh variable set GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS --org my-org --body "100M"
 ```
 
 Set an org-wide default daily workflow ET guardrail:

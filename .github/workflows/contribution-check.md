@@ -4,6 +4,7 @@ name: "Contribution Check"
 on:
   schedule: "every 4 hours"
   workflow_dispatch:
+max-daily-effective-tokens: 100M
 timeout-minutes: 30
 
 permissions:

@@ -2601,6 +2601,13 @@ describe("handle_agent_failure", () => {
       expect(result).toBe("9999");
     });
 
+    it("normalizes suffix maxEffectiveTokens values", () => {
+      const jsonlPath = path.join(tmpDir, "log.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ _schema: "audit/v0.26.0", ts: 1, awf: { budget: { maxEffectiveTokens: "100M" } } }));
+      const result = parseMaxEffectiveTokensFromAuditLog(jsonlPath);
+      expect(result).toBe("100000000");
+    });
+
     it("uses derived default path and prefers log.jsonl", () => {
       const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
       fs.mkdirSync(auditDir, { recursive: true });
@@ -2762,6 +2769,17 @@ describe("handle_agent_failure", () => {
       expect(resolveEffectiveTokensFailureState()).toEqual({
         effectiveTokens: "10000000",
         maxEffectiveTokens: "10000000",
+        effectiveTokensRateLimitError: false,
+      });
+    });
+
+    it("normalizes ET suffix env maximums before reconciliation", () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "10000000";
+      process.env.GH_AW_MAX_EFFECTIVE_TOKENS = "100M";
+
+      expect(resolveEffectiveTokensFailureState()).toEqual({
+        effectiveTokens: "10000000",
+        maxEffectiveTokens: "100000000",
         effectiveTokensRateLimitError: false,
       });
     });

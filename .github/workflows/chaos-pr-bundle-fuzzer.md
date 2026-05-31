@@ -4,6 +4,7 @@ description: Stress-tests safe-output create-pull-request git patch/bundle handl
 on:
   schedule: "every 4 hours"
   workflow_dispatch:
+max-daily-effective-tokens: 100M
 permissions:
   contents: read
   pull-requests: read

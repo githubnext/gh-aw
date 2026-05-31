@@ -422,6 +422,21 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowExpr
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxLimitsAllowSuffixStrings(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on":                         "push",
+		"max-effective-tokens":       "100M",
+		"max-daily-effective-tokens": "100000K",
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/max-limits-suffix-test.md")
+	if err != nil {
+		t.Fatalf("expected max-effective-tokens/max-daily-effective-tokens suffix strings to pass schema validation, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxEffectiveTokensNegativeDisable(t *testing.T) {
 	t.Parallel()
 

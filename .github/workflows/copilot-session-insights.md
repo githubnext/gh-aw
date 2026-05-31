@@ -8,6 +8,7 @@ on:
     - cron: daily
   workflow_dispatch:
 
+max-daily-effective-tokens: 100M
 permissions:
   contents: read
   actions: read

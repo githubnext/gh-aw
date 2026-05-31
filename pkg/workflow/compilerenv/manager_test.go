@@ -22,6 +22,11 @@ func TestResolveDefaultMaxEffectiveTokens(t *testing.T) {
 		assert.Equal(t, int64(424242), ResolveDefaultMaxEffectiveTokens(10))
 	})
 
+	t.Run("suffix value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxEffectiveTokens, "100M")
+		assert.Equal(t, int64(100000000), ResolveDefaultMaxEffectiveTokens(10))
+	})
+
 	t.Run("negative value overrides fallback", func(t *testing.T) {
 		t.Setenv(DefaultMaxEffectiveTokens, "-1")
 		assert.Equal(t, int64(-1), ResolveDefaultMaxEffectiveTokens(10))
@@ -47,6 +52,11 @@ func TestResolveDefaultMaxDailyEffectiveTokens(t *testing.T) {
 	t.Run("valid value overrides fallback", func(t *testing.T) {
 		t.Setenv(DefaultMaxDailyEffectiveTokens, "424242")
 		assert.Equal(t, "424242", ResolveDefaultMaxDailyEffectiveTokens(""))
+	})
+
+	t.Run("suffix value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultMaxDailyEffectiveTokens, "100M")
+		assert.Equal(t, "100000000", ResolveDefaultMaxDailyEffectiveTokens(""))
 	})
 
 	t.Run("negative value disables guardrail", func(t *testing.T) {

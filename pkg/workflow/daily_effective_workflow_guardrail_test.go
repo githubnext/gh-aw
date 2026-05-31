@@ -38,6 +38,14 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 		}
 	})
 
+	t.Run("normalizes suffix strings", func(t *testing.T) {
+		t.Parallel()
+		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": "100M"}, "")
+		if got == nil || *got != "100000000" {
+			t.Fatalf("expected normalized suffix string, got %v", got)
+		}
+	})
+
 	t.Run("explicit disable overrides enterprise default", func(t *testing.T) {
 		t.Setenv(compilerenv.DefaultMaxDailyEffectiveTokens, "2222")
 		got := resolveMaxDailyEffectiveTokens(map[string]any{"max-daily-effective-tokens": -1}, "")
@@ -55,7 +63,7 @@ func TestDailyEffectiveWorkflowGuardrailInCompiledWorkflow(t *testing.T) {
 on:
   workflow_dispatch:
   stale-check: false
-max-daily-effective-tokens: 1234
+max-daily-effective-tokens: 100M
 safe-outputs:
   add-comment:
     max: 1
@@ -85,7 +93,7 @@ Guardrail test workflow`
 	if !strings.Contains(lockStr, "check_daily_effective_workflow_guardrail.cjs") {
 		t.Fatal("expected activation job to call check_daily_effective_workflow_guardrail.cjs")
 	}
-	if !strings.Contains(lockStr, `GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "1234"`) {
+	if !strings.Contains(lockStr, `GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "100000000"`) {
 		t.Fatal("expected activation guardrail step to receive the configured threshold")
 	}
 	if !strings.Contains(lockStr, "daily_effective_workflow_exceeded: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_exceeded == 'true' }}") {

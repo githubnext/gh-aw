@@ -40,8 +40,8 @@ func parseMaxDailyEffectiveTokensValue(raw any) *string {
 	if isExpression(rawStr) {
 		return &rawStr
 	}
-	if parsed, err := strconv.Atoi(rawStr); err == nil && parsed > 0 {
-		s := strconv.Itoa(parsed)
+	if normalized, ok := typeutil.NormalizeInt64KMSuffix(rawStr); ok {
+		s := normalized
 		return &s
 	}
 	return nil

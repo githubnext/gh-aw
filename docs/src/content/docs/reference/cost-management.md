@@ -194,7 +194,8 @@ Inference cost scales with prompt size. Write focused prompts, avoid whole-file 
 Use the top-level `max-effective-tokens` frontmatter field to cap
 the effective-token budget for a single workflow run. This provides
 a hard stop for unusually expensive runs and a consistent cost
-guardrail across all supported engines.
+guardrail across all supported engines. The field accepts plain
+integers or `K`/`M` suffixes such as `100M`.
 
 ```aw wrap
 max-effective-tokens: 5000000
