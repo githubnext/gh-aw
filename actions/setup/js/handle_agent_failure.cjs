@@ -1393,12 +1393,14 @@ function buildDailyEffectiveWorkflowExceededContext(hasDailyEffectiveWorkflowExc
   }
 
   const templatePath = getPromptPath("daily_effective_workflow_exceeded.md");
-  return "\n" +
+  return (
+    "\n" +
     renderTemplateFromFile(templatePath, {
       total_effective_tokens: totalEffectiveTokens || "unknown",
       threshold: threshold || "unknown",
       issue_line: issueUrl ? `\n**Activation Issue:** ${issueUrl}` : "",
-    });
+    })
+  );
 }
 
 // Maps engine ID (GH_AW_ENGINE_ID) to credential name for use with GH_AW_ENGINE_API_HOSTS.

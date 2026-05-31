@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import path from "path";
+import { fileURLToPath } from "url";
 
 let buildDailyEffectiveWorkflowExceededContext;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("handle_agent_failure daily workflow ET context", () => {
   beforeEach(async () => {
     vi.resetModules();
+    process.env.GH_AW_PROMPTS_DIR = path.join(__dirname, "../md");
     const mod = await import("./handle_agent_failure.cjs");
     const exports = mod.default || mod;
     buildDailyEffectiveWorkflowExceededContext = exports.buildDailyEffectiveWorkflowExceededContext;
@@ -12,6 +16,7 @@ describe("handle_agent_failure daily workflow ET context", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    delete process.env.GH_AW_PROMPTS_DIR;
   });
 
   it("renders the daily workflow ET guardrail context when exceeded", () => {
@@ -26,4 +31,3 @@ describe("handle_agent_failure daily workflow ET context", () => {
     expect(buildDailyEffectiveWorkflowExceededContext(false, "2500", "2000", "")).toBe("");
   });
 });
-

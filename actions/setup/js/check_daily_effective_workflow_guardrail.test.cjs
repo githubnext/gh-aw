@@ -45,14 +45,7 @@ describe("check_daily_effective_workflow_guardrail", () => {
   it("sums effective tokens from explicit token-usage entries", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "daily-guardrail-token-usage-"));
     const filePath = path.join(tmpDir, "token-usage.jsonl");
-    fs.writeFileSync(
-      filePath,
-      [
-        JSON.stringify({ model: "gpt-5.5", effective_tokens: 125 }),
-        JSON.stringify({ model: "gpt-5.5", effective_tokens: 75 }),
-      ].join("\n"),
-      "utf8"
-    );
+    fs.writeFileSync(filePath, [JSON.stringify({ model: "gpt-5.5", effective_tokens: 125 }), JSON.stringify({ model: "gpt-5.5", effective_tokens: 75 })].join("\n"), "utf8");
 
     expect(exports.sumEffectiveTokensFromTokenUsageFile(filePath)).toBe(200);
   });

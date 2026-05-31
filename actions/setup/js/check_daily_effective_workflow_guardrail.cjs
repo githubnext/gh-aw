@@ -264,12 +264,7 @@ async function main() {
   const workflowID = process.env.GH_AW_WORKFLOW_ID || "";
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || workflowID || "workflow";
   const runUrl = process.env.GH_AW_RUN_URL || currentRun.data.html_url || "";
-  const actorLogin =
-    process.env.GITHUB_TRIGGERING_ACTOR ||
-    currentRun.data.triggering_actor?.login ||
-    currentRun.data.actor?.login ||
-    process.env.GITHUB_ACTOR ||
-    "";
+  const actorLogin = process.env.GITHUB_TRIGGERING_ACTOR || currentRun.data.triggering_actor?.login || currentRun.data.actor?.login || process.env.GITHUB_ACTOR || "";
 
   if (!currentRun.data.workflow_id || !actorLogin) {
     core.warning("Skipping daily workflow ET guardrail because the current workflow or actor could not be resolved.");
@@ -357,4 +352,3 @@ module.exports = {
   findTokenUsageFile,
   sumEffectiveTokensFromTokenUsageFile,
 };
-

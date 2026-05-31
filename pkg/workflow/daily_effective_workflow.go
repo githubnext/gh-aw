@@ -60,4 +60,3 @@ func resolveMaxDailyEffectiveWorkflow(frontmatter map[string]any, importedJSON s
 func hasMaxDailyEffectiveWorkflowGuardrail(data *WorkflowData) bool {
 	return data != nil && data.MaxDailyEffectiveWorkflow != nil && strings.TrimSpace(*data.MaxDailyEffectiveWorkflow) != ""
 }
-

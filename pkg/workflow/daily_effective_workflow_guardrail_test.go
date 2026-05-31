@@ -79,7 +79,7 @@ Guardrail test workflow`
 	if !strings.Contains(lockStr, "daily_effective_workflow_total_effective_tokens: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_effective_workflow_total_effective_tokens || '' }}") {
 		t.Fatal("expected activation job to expose the aggregated ET total output")
 	}
-	if !strings.Contains(lockStr, "if: ${{ needs.activation.outputs.daily_effective_workflow_exceeded != 'true' }}") {
+	if !strings.Contains(lockStr, "if: needs.activation.outputs.daily_effective_workflow_exceeded != 'true'") {
 		t.Fatal("expected the agent job to be skipped when the daily workflow ET guardrail is exceeded")
 	}
 	if !strings.Contains(lockStr, "GH_AW_DAILY_EFFECTIVE_WORKFLOW_EXCEEDED: ${{ needs.activation.outputs.daily_effective_workflow_exceeded }}") {
@@ -95,4 +95,3 @@ Guardrail test workflow`
 		t.Fatal("expected activation permissions to include issues: write for guardrail issue creation")
 	}
 }
-
