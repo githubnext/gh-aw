@@ -9,17 +9,17 @@ Use this skill when adding or updating codemods used by `gh aw fix`.
 
 ## Understand the fix pipeline first
 
-1. Review `/home/runner/work/gh-aw/gh-aw/pkg/cli/fix_command.go` to understand execution flow:
+1. Review `pkg/cli/fix_command.go` to understand execution flow:
    - codemods are loaded once via `GetAllCodemods()`
    - each codemod is applied in registry order
    - frontmatter is re-parsed before each codemod
    - codemods must return `(newContent, applied, error)` and be safe for no-op input
-2. Review the codemod registry in `/home/runner/work/gh-aw/gh-aw/pkg/cli/fix_codemods.go`.
-3. Review helper utilities in `/home/runner/work/gh-aw/gh-aw/pkg/cli/yaml_frontmatter_utils.go` and reusable codemod factories in `/home/runner/work/gh-aw/gh-aw/pkg/cli/codemod_factory.go`.
+2. Review the codemod registry in `pkg/cli/fix_codemods.go`.
+3. Review helper utilities in `pkg/cli/yaml_frontmatter_utils.go` and reusable codemod helper constructors in `pkg/cli/codemod_factory.go`.
 
 ## Implementation steps
 
-1. Create a new codemod file in `/home/runner/work/gh-aw/gh-aw/pkg/cli/` named `codemod_<feature>.go`.
+1. Create a new codemod file in `pkg/cli/` named `codemod_<feature>.go`.
 2. Add a package logger with `logger.New("cli:codemod_<feature>")`.
 3. Implement `get<Feature>Codemod() Codemod` and populate all metadata fields:
    - `ID` (stable, unique)
@@ -29,7 +29,7 @@ Use this skill when adding or updating codemods used by `gh aw fix`.
 4. In `Apply`:
    - check frontmatter preconditions first
    - return unchanged content and `applied=false` when migration is not needed
-   - transform only frontmatter using `applyFrontmatterLineTransform`
+   - transform only frontmatter using `applyFrontmatterLineTransform` from `pkg/cli/yaml_frontmatter_utils.go`
    - preserve comments/formatting/markdown body
    - avoid lossy rewrites and avoid touching unrelated keys
 5. Prefer existing helpers before writing custom parsing logic:
@@ -39,11 +39,11 @@ Use this skill when adding or updating codemods used by `gh aw fix`.
    - `newFieldRemovalCodemod`
    - `newMoveTopLevelKeyToOnBlockCodemod`
 6. If the codemod depends on external data or side effects, inject dependencies through a `...WithDeps` constructor so tests can mock behavior.
-7. Register the codemod in `/home/runner/work/gh-aw/gh-aw/pkg/cli/fix_codemods.go` within `GetAllCodemods()`.
+7. Register the codemod in `pkg/cli/fix_codemods.go` within `GetAllCodemods()`.
 
 ## Testing requirements
 
-Create `/home/runner/work/gh-aw/gh-aw/pkg/cli/codemod_<feature>_test.go` and cover:
+Create `pkg/cli/codemod_<feature>_test.go` and cover:
 
 1. Metadata correctness (`ID`, `Name`, `Description`, `IntroducedIn`, `Apply != nil`).
 2. Happy path migration with expected output.
@@ -56,11 +56,11 @@ Create `/home/runner/work/gh-aw/gh-aw/pkg/cli/codemod_<feature>_test.go` and cov
 6. Edge cases specific to the codemod (nested fields, mixed forms, ordering constraints, strict-mode checks, etc.).
 7. Dependency-injection behavior if `...WithDeps` exists (success and fallback/error paths).
 
-When complexity is high (expression rewriting, parser-like behavior), add fuzz tests in `codemod_<feature>_fuzz_test.go` using the pattern in `/home/runner/work/gh-aw/gh-aw/pkg/cli/codemod_steps_run_secrets_env_fuzz_test.go`.
+When complexity is high (expression rewriting, parser-like behavior), add fuzz tests in `codemod_<feature>_fuzz_test.go` using the pattern in `pkg/cli/codemod_steps_run_secrets_env_fuzz_test.go`.
 
 ## Registry/order tests
 
-After adding a codemod, update `/home/runner/work/gh-aw/gh-aw/pkg/cli/fix_codemods_test.go`:
+After adding a codemod, update `pkg/cli/fix_codemods_test.go`:
 
 1. Expected codemod IDs list.
 2. Expected codemod order list.
@@ -71,8 +71,8 @@ Order matters because codemods run sequentially and later codemods observe prior
 
 Run targeted checks first:
 
-1. `go test ./pkg/cli -run Codemod -count=1`
-2. `go test ./pkg/cli -run Fix -count=1`
+1. `go test -v ./pkg/cli -run Codemod -count=1`
+2. `go test -v ./pkg/cli -run Fix -count=1`
 
 Then run repository standards:
 
