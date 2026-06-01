@@ -63,13 +63,18 @@ function extractPromptFromArgs(args) {
  *   prompt: string,
  *   logger: (msg: string) => void,
  *   attempt?: number,
+ *   sdkModule?: {
+ *     CopilotClient: typeof import("@github/copilot-sdk").CopilotClient,
+ *     RuntimeConnection: typeof import("@github/copilot-sdk").RuntimeConnection,
+ *     approveAll: typeof import("@github/copilot-sdk").approveAll
+ *   },
  * }} options
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0 }) {
+async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModule }) {
   // Lazy-require to avoid loading the SDK when it is not needed.
   // The SDK is large and has side-effects on import (worker threads, etc.).
-  const { CopilotClient, RuntimeConnection, approveAll } = require("@github/copilot-sdk");
+  const { CopilotClient, RuntimeConnection, approveAll } = sdkModule ?? require("@github/copilot-sdk");
 
   const startTime = Date.now();
   let output = "";
@@ -93,12 +98,18 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0 }) {
     workingDirectory: process.env.GITHUB_WORKSPACE || process.cwd(),
     logLevel,
   });
+  /** @type {Awaited<ReturnType<typeof client.createSession>> | null} */
+  let session = null;
+  /** @type {fs.WriteStream | null} */
+  let eventsStream = null;
+  let clientStarted = false;
 
   try {
     await client.start();
+    clientStarted = true;
     log("client started");
 
-    const session = await client.createSession({
+    session = await client.createSession({
       model: process.env.COPILOT_MODEL || undefined,
       onPermissionRequest: approveAll,
     });
@@ -108,7 +119,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0 }) {
     const sessionDir = path.join(sessionStateBase, session.sessionId);
     fs.mkdirSync(sessionDir, { recursive: true });
     const eventsPath = path.join(sessionDir, "events.jsonl");
-    const eventsStream = fs.createWriteStream(eventsPath, { flags: "a" });
+    eventsStream = fs.createWriteStream(eventsPath, { flags: "a" });
     log(`serialising SDK events to ${eventsPath}`);
 
     /**
@@ -197,27 +208,34 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0 }) {
     const durationMs = Date.now() - startTime;
     log(`session completed: hasOutput=${hasOutput} durationMs=${durationMs}`);
 
-    // Flush and close the events file before disconnecting.
-    await new Promise(resolve => eventsStream.end(resolve));
-
-    await session.disconnect();
-    await client.stop();
-
     return { exitCode: 0, output, hasOutput, durationMs };
   } catch (err) {
     const durationMs = Date.now() - startTime;
     log(`error: ${err instanceof Error ? err.message : String(err)}`);
-    try {
-      await client.stop();
-    } catch {
-      // best-effort cleanup
-    }
     return {
       exitCode: 1,
       output: err instanceof Error ? err.message : String(err),
       hasOutput: false,
       durationMs,
     };
+  } finally {
+    if (eventsStream) {
+      await new Promise(resolve => eventsStream.end(resolve));
+    }
+    if (session) {
+      try {
+        await session.disconnect();
+      } catch {
+        // best-effort cleanup
+      }
+    }
+    if (clientStarted) {
+      try {
+        await client.stop();
+      } catch {
+        // best-effort cleanup
+      }
+    }
   }
 }
 

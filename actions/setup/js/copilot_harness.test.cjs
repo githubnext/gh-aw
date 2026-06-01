@@ -35,6 +35,7 @@ const {
   GEMINI_MODEL_NAME_PREFIX,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
+  runWithCopilotSDK,
   writeCopilotOutputs,
   readSDKOptionsFromStdin,
 } = require("./copilot_harness.cjs");
@@ -198,6 +199,84 @@ describe("copilot_harness.cjs", () => {
       ).toBe("3002");
     });
 
+    describe("copilot-sdk driver lifecycle", () => {
+      it("disconnects session and stops client on success", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        let onEvent = () => {};
+        const session = {
+          sessionId: "session-success",
+          on: handler => {
+            onEvent = handler;
+          },
+          sendAndWait: vi.fn().mockImplementation(async () => {
+            onEvent({
+              type: "assistant.message",
+              ephemeral: false,
+              timestamp: new Date().toISOString(),
+              data: { content: "hello from sdk" },
+            });
+            return { data: { content: "hello from sdk" } };
+          }),
+          disconnect,
+        };
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = vi.fn().mockResolvedValue(session);
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.hasOutput).toBe(true);
+        expect(result.output).toContain("hello from sdk");
+        expect(disconnect).toHaveBeenCalledTimes(1);
+        expect(stop).toHaveBeenCalledTimes(1);
+      });
+
+      it("disconnects session and stops client on send failure", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const session = {
+          sessionId: "session-failure",
+          on: () => {},
+          sendAndWait: vi.fn().mockRejectedValue(new Error("send failed")),
+          disconnect,
+        };
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = vi.fn().mockResolvedValue(session);
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(1);
+        expect(result.output).toContain("send failed");
+        expect(disconnect).toHaveBeenCalledTimes(1);
+        expect(stop).toHaveBeenCalledTimes(1);
+      });
+    });
+
     it("builds headless Copilot CLI sidecar args", () => {
       expect(
         buildCopilotSDKServerArgs({
@@ -331,11 +410,7 @@ describe("copilot_harness.cjs", () => {
         waitForReady,
       });
 
-      expect(spawnImpl).toHaveBeenCalledWith(
-        "copilot",
-        engineGeneratedArgs,
-        expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"] })
-      );
+      expect(spawnImpl).toHaveBeenCalledWith("copilot", engineGeneratedArgs, expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"] }));
     });
 
     it("uses only base headless args when extraArgs is empty or omitted", async () => {
@@ -358,11 +433,7 @@ describe("copilot_harness.cjs", () => {
         waitForReady,
       });
 
-      expect(spawnImpl).toHaveBeenCalledWith(
-        "copilot",
-        ["--headless", "--no-auto-update", "--port", "3002"],
-        expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"] })
-      );
+      expect(spawnImpl).toHaveBeenCalledWith("copilot", ["--headless", "--no-auto-update", "--port", "3002"], expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"] }));
     });
 
     it("stops the headless Copilot CLI sidecar with SIGTERM", async () => {
