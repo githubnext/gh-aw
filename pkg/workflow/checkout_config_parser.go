@@ -337,7 +337,7 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 
 	// General guidance about unavailable branches
 	sb.WriteString("  - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, " +
-		"it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. " +
+		"it has NOT been checked out. For private repositories you cannot fetch it. " +
 		"If the branch is required and not available, exit with an error and ask the user to add it to the " +
 		"`fetch:` option of the `checkout:` configuration (e.g., `fetch: [\"refs/pulls/open/*\"]` for all open PR refs, " +
 		"or `fetch: [\"main\", \"feature/my-branch\"]` for specific branches).\n")

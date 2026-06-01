@@ -10147,10 +10147,7 @@
               "type": "boolean",
               "default": false,
               "description": "Allow npm pre/post install scripts to execute for this runtime during package installation. Overrides the global run-install-scripts setting for this specific runtime. Only affects runtimes that generate npm install commands (node). A supply chain security warning is emitted at compile time; in strict mode this is an error. See: https://github.github.com/gh-aw/reference/frontmatter/#run-install-scripts",
-              "examples": [
-                false,
-                true
-              ]
+              "examples": [false, true]
             }
           },
           "additionalProperties": false

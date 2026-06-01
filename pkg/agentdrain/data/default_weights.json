@@ -111,23 +111,13 @@
         "id": 3,
         "size": 3,
         "stage": "error",
-        "template": [
-          "stage=error",
-          "data_type=cache_memory",
-          "reason=cache_memory_miss",
-          "type=missing_data"
-        ]
+        "template": ["stage=error", "data_type=cache_memory", "reason=cache_memory_miss", "type=missing_data"]
       },
       {
         "id": 4,
         "size": 1,
         "stage": "error",
-        "template": [
-          "stage=error",
-          "reason=security",
-          "tool=",
-          "type=missing_tool"
-        ]
+        "template": ["stage=error", "reason=security", "tool=", "type=missing_tool"]
       },
       {
         "id": 5,
@@ -165,38 +155,13 @@
         "id": 6,
         "size": 1,
         "stage": "error",
-        "template": [
-          "stage=error",
-          "reason=web-fetch",
-          "MCP",
-          "tool",
-          "is",
-          "not",
-          "available",
-          "in",
-          "this",
-          "runtime",
-          "tool=web-fetch",
-          "type=missing_tool"
-        ]
+        "template": ["stage=error", "reason=web-fetch", "MCP", "tool", "is", "not", "available", "in", "this", "runtime", "tool=web-fetch", "type=missing_tool"]
       },
       {
         "id": 1,
         "size": 2,
         "stage": "error",
-        "template": [
-          "stage=error",
-          "reason=missing",
-          "tool/permission",
-          "issue:",
-          "numerous",
-          "permission",
-          "denied",
-          "errors",
-          "detected",
-          "tool=tool/permission",
-          "type=missing_tool"
-        ]
+        "template": ["stage=error", "reason=missing", "tool/permission", "issue:", "numerous", "permission", "denied", "errors", "detected", "tool=tool/permission", "type=missing_tool"]
       },
       {
         "id": 2,
@@ -248,12 +213,7 @@
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -299,21 +259,12 @@
         "id": 1,
         "size": 500,
         "stage": "finish",
-        "template": [
-          "stage=finish",
-          "\u003c*\u003e",
-          "tokens=\u003cNUM\u003e"
-        ]
+        "template": ["stage=finish", "\u003c*\u003e", "tokens=\u003cNUM\u003e"]
       }
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -359,21 +310,12 @@
         "id": 1,
         "size": 449,
         "stage": "plan",
-        "template": [
-          "stage=plan",
-          "errors=\u003cNUM\u003e",
-          "turns=\u003cNUM\u003e"
-        ]
+        "template": ["stage=plan", "errors=\u003cNUM\u003e", "turns=\u003cNUM\u003e"]
       }
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -417,12 +359,7 @@
     "clusters": [],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -466,12 +403,7 @@
     "clusters": [],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -542,27 +474,7 @@
         "id": 11,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "action",
-          "needed:",
-          "unlabeled",
-          "issue",
-          "data",
-          "was",
-          "not",
-          "accessible",
-          "in",
-          "this",
-          "run,",
-          "so",
-          "no",
-          "labels",
-          "were",
-          "applied.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "action", "needed:", "unlabeled", "issue", "data", "was", "not", "accessible", "in", "this", "run,", "so", "no", "labels", "were", "applied.", "status=noop"]
       },
       {
         "id": 16,
@@ -1040,19 +952,7 @@
         "id": 89,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "open",
-          "non-draft",
-          "PRs",
-          "to",
-          "process",
-          "after",
-          "reading",
-          "/tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "open", "non-draft", "PRs", "to", "process", "after", "reading", "/tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json.", "status=noop"]
       },
       {
         "id": 90,
@@ -1406,16 +1306,7 @@
         "id": 41,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "open",
-          "non-draft",
-          "PRs",
-          "to",
-          "process",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "open", "non-draft", "PRs", "to", "process", "status=noop"]
       },
       {
         "id": 53,
@@ -1498,29 +1389,7 @@
         "id": 60,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "action",
-          "needed:",
-          "the",
-          "pre-fetched",
-          "unlabeled",
-          "issue",
-          "list",
-          "was",
-          "empty,",
-          "so",
-          "there",
-          "were",
-          "no",
-          "issues",
-          "to",
-          "classify",
-          "or",
-          "label.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "action", "needed:", "the", "pre-fetched", "unlabeled", "issue", "list", "was", "empty,", "so", "there", "were", "no", "issues", "to", "classify", "or", "label.", "status=noop"]
       },
       {
         "id": 105,
@@ -4207,21 +4076,7 @@
         "id": 97,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "action",
-          "needed:",
-          "/tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json",
-          "contained",
-          "no",
-          "open",
-          "non-draft",
-          "PRs",
-          "to",
-          "process.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "action", "needed:", "/tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json", "contained", "no", "open", "non-draft", "PRs", "to", "process.", "status=noop"]
       },
       {
         "id": 98,
@@ -4317,18 +4172,7 @@
         "id": 113,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "unlabeled",
-          "issues",
-          "found",
-          "—",
-          "no",
-          "action",
-          "needed",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "unlabeled", "issues", "found", "—", "no", "action", "needed", "status=noop"]
       },
       {
         "id": 12,
@@ -4543,20 +4387,7 @@
         "id": 2,
         "size": 45,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=smoke-ci:",
-          "push",
-          "event",
-          "-",
-          "no",
-          "PR",
-          "context,",
-          "no",
-          "action",
-          "needed",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=smoke-ci:", "push", "event", "-", "no", "PR", "context,", "no", "action", "needed", "status=noop"]
       },
       {
         "id": 4,
@@ -4777,27 +4608,7 @@
         "id": 36,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "action",
-          "needed:",
-          "PR",
-          "36084",
-          "already",
-          "has",
-          "a",
-          "recent",
-          "update",
-          "and",
-          "no",
-          "new",
-          "issue",
-          "requiring",
-          "a",
-          "comment.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "action", "needed:", "PR", "36084", "already", "has", "a", "recent", "update", "and", "no", "new", "issue", "requiring", "a", "comment.", "status=noop"]
       },
       {
         "id": 94,
@@ -4867,27 +4678,7 @@
         "id": 31,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "action",
-          "needed:",
-          "PR",
-          "#36145",
-          "reviewed;",
-          "writes",
-          "unavailable",
-          "in",
-          "this",
-          "environment,",
-          "so",
-          "no",
-          "branch/comment",
-          "update",
-          "was",
-          "performed.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "action", "needed:", "PR", "#36145", "reviewed;", "writes", "unavailable", "in", "this", "environment,", "so", "no", "branch/comment", "update", "was", "performed.", "status=noop"]
       },
       {
         "id": 75,
@@ -6148,18 +5939,7 @@
         "id": 95,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=Issue",
-          "#35947",
-          "already",
-          "has",
-          "labels:",
-          "bug,",
-          "workflows,",
-          "compiler",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=Issue", "#35947", "already", "has", "labels:", "bug,", "workflows,", "compiler", "status=noop"]
       },
       {
         "id": 74,
@@ -6720,28 +6500,7 @@
         "id": 88,
         "size": 1,
         "stage": "tool_result",
-        "template": [
-          "stage=tool_result",
-          "message=No",
-          "action",
-          "needed:",
-          "pre-fetched",
-          "unlabeled",
-          "issues",
-          "file",
-          "was",
-          "empty,",
-          "so",
-          "there",
-          "were",
-          "no",
-          "issues",
-          "to",
-          "label",
-          "or",
-          "report.",
-          "status=noop"
-        ]
+        "template": ["stage=tool_result", "message=No", "action", "needed:", "pre-fetched", "unlabeled", "issues", "file", "was", "empty,", "so", "there", "were", "no", "issues", "to", "label", "or", "report.", "status=noop"]
       },
       {
         "id": 18,
@@ -6892,12 +6651,7 @@
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
