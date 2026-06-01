@@ -235,10 +235,15 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		}
 		optionsJSON, err := json.Marshal(sdkOptions)
 		if err != nil {
-			// This should never happen; fall back to minimal payload.
+			// This should never happen with a plain struct of strings and booleans,
+			// but log and fall back to a minimal payload so the run is not blocked.
+			copilotExecLog.Printf("warning: failed to marshal SDK stdin options: %v; falling back to minimal payload", err)
 			optionsJSON = []byte(`{"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt"}`)
 		}
-		// Escape any single quotes in the JSON so it is safe to embed in a single-quoted shell string.
+		// Escape single quotes in the JSON for safe embedding in a single-quoted shell string.
+		// JSON marshaling never produces actual newlines, null bytes, or backslash sequences that
+		// would confuse `printf '%s'`; single quotes are the only character that can appear in a
+		// JSON string (from user-supplied args) and that breaks single-quote shell quoting.
 		jsonStr := strings.ReplaceAll(string(optionsJSON), "'", `'\''`)
 		// No copilot CLI args are appended to the harness invocation: all options live in the
 		// JSON payload, so the harness command is simply `node harness copilot`.
