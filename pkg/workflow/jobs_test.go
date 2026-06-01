@@ -52,6 +52,16 @@ func TestJobManager_AddJob(t *testing.T) {
 			wantErr: true,
 			errMsg:  "uses a reusable workflow and cannot set timeout-minutes",
 		},
+		{
+			name: "reusable workflow caller cannot set templated timeout-minutes",
+			job: &Job{
+				Name:                     "call-reusable-templated",
+				Uses:                     "./.github/workflows/reusable.yml",
+				TimeoutMinutesExpression: "${{ inputs.timeout }}",
+			},
+			wantErr: true,
+			errMsg:  "uses a reusable workflow and cannot set timeout-minutes",
+		},
 	}
 
 	for _, tt := range tests {

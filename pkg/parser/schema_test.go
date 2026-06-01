@@ -1537,6 +1537,32 @@ func TestValidateWithSchema_YAMLIntegerTypes(t *testing.T) {
 		"name":            "test",
 	}
 
+	func TestValidateMainWorkflowSchema_TimeoutMinutesTemplatableInteger(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"name": "templated-timeout-test",
+			"on": []any{
+				"workflow_dispatch",
+			},
+			"timeout-minutes": "${{ inputs.workflow_timeout }}",
+			"jobs": map[string]any{
+				"build": map[string]any{
+					"runs-on":         "ubuntu-latest",
+					"timeout-minutes": "${{ inputs.job_timeout }}",
+					"steps": []any{
+						map[string]any{"run": "echo hello"},
+					},
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/timeout-templatable.md")
+		if err != nil {
+			t.Fatalf("expected templated timeout-minutes values to pass schema validation, got: %v", err)
+		}
+	}
+
 	err := validateWithSchema(frontmatter, schema, "yaml integer types")
 	if err != nil {
 		t.Errorf("validateWithSchema should accept YAML integer types, got: %v", err)

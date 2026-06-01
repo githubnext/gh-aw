@@ -2481,8 +2481,7 @@
             "description": "GitHub token permissions for this specific job. Overrides workflow-level permissions. Can be a string (shorthand) or object (detailed)."
           },
           "timeout-minutes": {
-            "type": "integer",
-            "minimum": 1,
+            "$ref": "#/definitions/templatable_integer",
             "description": "Job timeout in minutes"
           },
           "strategy": {
@@ -2643,6 +2642,9 @@
           "type": "string",
           "pattern": "^\\$\\{\\{.*\\}\\}$",
           "description": "GitHub Actions expression that resolves to an integer (e.g. '${{ inputs.timeout }}')"
+        },
+        {
+          "$ref": "#/definitions/template_string"
         }
       ]
     },

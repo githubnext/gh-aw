@@ -3277,6 +3277,52 @@ func TestBuildCustomJobsAllNewFieldsViaWorkflowData(t *testing.T) {
 		},
 	}
 
+	func TestBuildCustomJobsTimeoutMinutesExpressionViaWorkflowData(t *testing.T) {
+		t.Parallel()
+
+		compiler := NewCompiler()
+		compiler.jobManager = NewJobManager()
+
+		data := &WorkflowData{
+			Name:   "Test Workflow",
+			AI:     "copilot",
+			RunsOn: "runs-on: ubuntu-latest",
+			Jobs: map[string]any{
+				"templated_timeout_job": map[string]any{
+					"runs-on":         "ubuntu-latest",
+					"timeout-minutes": "${{ inputs.timeout }}",
+					"steps": []any{
+						map[string]any{"run": "echo 'test'"},
+					},
+				},
+			},
+		}
+
+		err := compiler.buildCustomJobs(data, false)
+		if err != nil {
+			t.Fatalf("buildCustomJobs() returned error: %v", err)
+		}
+
+		job, exists := compiler.jobManager.GetJob("templated_timeout_job")
+		if !exists {
+			t.Fatal("Expected templated_timeout_job to be added")
+		}
+
+		if job.TimeoutMinutesExpression != "${{ inputs.timeout }}" {
+			t.Errorf("TimeoutMinutesExpression = %q, want %q", job.TimeoutMinutesExpression, "${{ inputs.timeout }}")
+		}
+		if job.TimeoutMinutes != 0 {
+			t.Errorf("TimeoutMinutes = %d, want 0 when expression is used", job.TimeoutMinutes)
+		}
+
+		var renderedBuf strings.Builder
+		compiler.jobManager.WriteJobsYAML(&renderedBuf)
+		rendered := renderedBuf.String()
+		if !strings.Contains(rendered, "timeout-minutes: ${{ inputs.timeout }}") {
+			t.Errorf("Expected templated timeout-minutes in rendered YAML, got:\n%s", rendered)
+		}
+	}
+
 	err := compiler.buildCustomJobs(data, false)
 	if err != nil {
 		t.Fatalf("buildCustomJobs() returned error: %v", err)

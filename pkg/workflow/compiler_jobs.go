@@ -660,6 +660,10 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 					}
 				case float64:
 					job.TimeoutMinutes = int(v)
+				case string:
+					if isExpression(v) {
+						job.TimeoutMinutesExpression = v
+					}
 				}
 			}
 
