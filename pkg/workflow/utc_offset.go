@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -20,20 +21,20 @@ func NormalizeUTCOffset(raw string) (string, error) {
 	matches := utcOffsetPattern.FindStringSubmatch(trimmed)
 	if matches == nil {
 		utcOffsetLog.Printf("UTC offset %q does not match expected +HH:MM/-HH:MM format", trimmed)
-		return "", fmt.Errorf("must be a numeric UTC offset like +00:00 or -08:00")
+		return "", errors.New("must be a numeric UTC offset like +00:00 or -08:00")
 	}
 
 	hours, err := strconv.Atoi(matches[2])
 	if err != nil {
-		return "", fmt.Errorf("must be a numeric UTC offset like +00:00 or -08:00")
+		return "", errors.New("must be a numeric UTC offset like +00:00 or -08:00")
 	}
 	minutes, err := strconv.Atoi(matches[3])
 	if err != nil {
-		return "", fmt.Errorf("must be a numeric UTC offset like +00:00 or -08:00")
+		return "", errors.New("must be a numeric UTC offset like +00:00 or -08:00")
 	}
 	if hours > 14 || minutes > 59 || (hours == 14 && minutes != 0) {
 		utcOffsetLog.Printf("UTC offset %q out of range (hours=%d, minutes=%d)", trimmed, hours, minutes)
-		return "", fmt.Errorf("must be a numeric UTC offset like +00:00 or -08:00")
+		return "", errors.New("must be a numeric UTC offset like +00:00 or -08:00")
 	}
 
 	normalized := fmt.Sprintf("%s%02d:%02d", matches[1], hours, minutes)

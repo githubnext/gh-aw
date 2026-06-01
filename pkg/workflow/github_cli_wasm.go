@@ -5,7 +5,7 @@ package workflow
 import (
 	"bytes"
 	"context"
-	"fmt"
+	"errors"
 	"os/exec"
 )
 
@@ -28,17 +28,17 @@ func ExecGHContext(ctx context.Context, args ...string) *exec.Cmd {
 }
 
 func ExecGHWithOutput(args ...string) (stdout, stderr bytes.Buffer, err error) {
-	return stdout, stderr, fmt.Errorf("gh CLI not available in Wasm")
+	return stdout, stderr, errors.New("gh CLI not available in Wasm")
 }
 
 func RunGH(spinnerMessage string, args ...string) ([]byte, error) {
-	return nil, fmt.Errorf("gh CLI not available in Wasm")
+	return nil, errors.New("gh CLI not available in Wasm")
 }
 
 func RunGHContext(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
-	return nil, fmt.Errorf("gh CLI not available in Wasm")
+	return nil, errors.New("gh CLI not available in Wasm")
 }
 
 func RunGHCombined(spinnerMessage string, args ...string) ([]byte, error) {
-	return nil, fmt.Errorf("gh CLI not available in Wasm")
+	return nil, errors.New("gh CLI not available in Wasm")
 }
