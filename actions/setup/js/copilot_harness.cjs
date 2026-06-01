@@ -110,14 +110,13 @@ const PERMISSION_DENIED_PATTERN = /\b(?:permission denied|permissions denied|EAC
 const NUMEROUS_PERMISSION_DENIED_THRESHOLD = 3;
 
 /**
- * Emit a timestamped diagnostic log line to stderr.
+ * Emit a diagnostic log line to stderr.
  * All driver messages are prefixed with "[copilot-harness]" so they are easy to
  * grep out of the combined agent-stdio.log.
  * @param {string} message
  */
 function log(message) {
-  const ts = new Date().toISOString();
-  process.stderr.write(`[copilot-harness] ${ts} ${message}\n`);
+  process.stderr.write(`[copilot-harness] ${message}\n`);
 }
 
 /**

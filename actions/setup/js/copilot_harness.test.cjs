@@ -1204,11 +1204,10 @@ describe("copilot_harness.cjs", () => {
   });
 
   describe("log format", () => {
-    it("log lines include [copilot-harness] prefix and ISO timestamp", () => {
+    it("log lines include [copilot-harness] prefix without rendered timestamp", () => {
       // Verify the format matches what we expect in agent-stdio.log
-      const ts = new Date().toISOString();
-      const logLine = `[copilot-harness] ${ts} test message`;
-      expect(logLine).toMatch(/^\[copilot-harness\] \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      const logLine = "[copilot-harness] test message";
+      expect(logLine).toBe("[copilot-harness] test message");
     });
   });
 

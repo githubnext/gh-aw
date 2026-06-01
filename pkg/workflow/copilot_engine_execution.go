@@ -255,7 +255,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		jsonStr := strings.ReplaceAll(string(optionsJSON), "'", `'\''`)
 		// No copilot CLI args are appended to the harness invocation: all options live in the
 		// JSON payload, so the harness command is simply `node harness copilot`.
-		copilotCommand = fmt.Sprintf(`printf '%%s' '%s' | %s`, jsonStr, execPrefix)
+		// Wrap the right-hand side in a shell group so stdin from the pipe reaches the harness
+		// command after node runtime resolution statements execute.
+		copilotCommand = fmt.Sprintf(`printf '%%s' '%s' | { %s; }`, jsonStr, execPrefix)
 	} else if sandboxEnabled {
 		// Sandbox mode: add workspace dir and pass prompt file path directly
 		copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))

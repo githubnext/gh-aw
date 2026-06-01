@@ -277,6 +277,9 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	}
 	// Copilot CLI args must NOT be passed as CLI args to the harness after the command name.
 	// In SDK mode the harness invocation is `... copilot` with no trailing flags.
+	if !strings.Contains(stepContent, "| { ") {
+		t.Fatalf("Expected SDK mode command to group runtime resolution after pipe so stdin reaches harness, got:\n%s", stepContent)
+	}
 	// Verify by checking that known CLI flags do not appear *after* the pipe character.
 	pipeIdx := strings.LastIndex(stepContent, "| ")
 	if pipeIdx >= 0 {
