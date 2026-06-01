@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/styles"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var addInteractiveLog = logger.New("cli:add_interactive")
@@ -48,6 +49,10 @@ type AddInteractiveConfig struct {
 	// resolvedWorkflows holds the pre-resolved workflow data including descriptions
 	// This is populated early in the flow by resolveWorkflows()
 	resolvedWorkflows *ResolvedWorkflows
+
+	// ghHost is the GitHub host for enterprise instances, detected from git remote.
+	// Empty string or "github.com" means public GitHub.
+	ghHost string
 }
 
 // RunAddInteractive runs the interactive add workflow
@@ -70,7 +75,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		detectedHost := getHostFromOriginRemote()
 		if detectedHost != "github.com" {
 			addInteractiveLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
-			os.Setenv("GH_HOST", detectedHost)
+			config.ghHost = detectedHost
 			if config.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-detected GitHub Enterprise host: "+detectedHost))
 			}
@@ -330,4 +335,17 @@ func (c *AddInteractiveConfig) showFinalInstructions() {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Learn more at: https://github.github.com/gh-aw/")
 	fmt.Fprintln(os.Stderr, "")
+}
+
+// runGH executes a gh CLI command, automatically passing the detected GHES host
+// via per-command environment so the process environment is not mutated.
+func (c *AddInteractiveConfig) runGH(spinnerMessage string, args ...string) ([]byte, error) {
+	return workflow.RunGHWithHost(spinnerMessage, c.ghHost, args...)
+}
+
+// runGHCombined executes a gh CLI command and returns combined stdout+stderr,
+// automatically passing the detected GHES host via per-command environment so
+// the process environment is not mutated.
+func (c *AddInteractiveConfig) runGHCombined(spinnerMessage string, args ...string) ([]byte, error) {
+	return workflow.RunGHCombinedWithHost(spinnerMessage, c.ghHost, args...)
 }

@@ -22,9 +22,12 @@ func TestParseAwInfo(t *testing.T) {
 			"staged":        true,
 			"workflow_name": "test-workflow",
 		}
-		infoBytes, _ := json.Marshal(infoData)
+		infoBytes, err := json.Marshal(infoData)
+		if err != nil {
+			t.Fatalf("Failed to marshal test data: %v", err)
+		}
 		infoPath := filepath.Join(tmpDir, "aw_info_staged_true.json")
-		err := os.WriteFile(infoPath, infoBytes, 0644)
+		err = os.WriteFile(infoPath, infoBytes, 0644)
 		if err != nil {
 			t.Fatalf("Failed to write test file: %v", err)
 		}
@@ -51,9 +54,12 @@ func TestParseAwInfo(t *testing.T) {
 			"staged":        false,
 			"workflow_name": "test-workflow",
 		}
-		infoBytes, _ := json.Marshal(infoData)
+		infoBytes, err := json.Marshal(infoData)
+		if err != nil {
+			t.Fatalf("Failed to marshal test data: %v", err)
+		}
 		infoPath := filepath.Join(tmpDir, "aw_info_staged_false.json")
-		err := os.WriteFile(infoPath, infoBytes, 0644)
+		err = os.WriteFile(infoPath, infoBytes, 0644)
 		if err != nil {
 			t.Fatalf("Failed to write test file: %v", err)
 		}
@@ -73,9 +79,12 @@ func TestParseAwInfo(t *testing.T) {
 			"engine_id":     "claude",
 			"workflow_name": "test-workflow",
 		}
-		infoBytes, _ := json.Marshal(infoData)
+		infoBytes, err := json.Marshal(infoData)
+		if err != nil {
+			t.Fatalf("Failed to marshal test data: %v", err)
+		}
 		infoPath := filepath.Join(tmpDir, "aw_info_no_staged.json")
-		err := os.WriteFile(infoPath, infoBytes, 0644)
+		err = os.WriteFile(infoPath, infoBytes, 0644)
 		if err != nil {
 			t.Fatalf("Failed to write test file: %v", err)
 		}
@@ -126,7 +135,10 @@ func TestParseAwInfo(t *testing.T) {
 			"staged":        true,
 			"workflow_name": "test-workflow",
 		}
-		infoBytes, _ := json.Marshal(infoData)
+		infoBytes, err := json.Marshal(infoData)
+		if err != nil {
+			t.Fatalf("Failed to marshal test data: %v", err)
+		}
 		nestedPath := filepath.Join(dirPath, "aw_info.json")
 		err = os.WriteFile(nestedPath, infoBytes, 0644)
 		if err != nil {
@@ -156,9 +168,12 @@ func TestParseAwInfo(t *testing.T) {
 			"run_number":    67,
 			"repository":    "owner/repo",
 		}
-		infoBytes, _ := json.Marshal(infoData)
+		infoBytes, err := json.Marshal(infoData)
+		if err != nil {
+			t.Fatalf("Failed to marshal test data: %v", err)
+		}
 		infoPath := filepath.Join(tmpDir, "aw_info_complete.json")
-		err := os.WriteFile(infoPath, infoBytes, 0644)
+		err = os.WriteFile(infoPath, infoBytes, 0644)
 		if err != nil {
 			t.Fatalf("Failed to write test file: %v", err)
 		}

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/sliceutil"
-	"github.com/github/gh-aw/pkg/workflow"
 )
 
 // checkExistingSecrets fetches which secrets already exist in the repository or its organization
@@ -16,7 +15,7 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	c.existingSecrets = make(map[string]bool)
 
 	// Use gh api to list repository secrets
-	output, err := workflow.RunGH("Checking repository secrets...", "api", fmt.Sprintf("/repos/%s/actions/secrets", c.RepoOverride), "--jq", ".secrets[].name")
+	output, err := c.runGH("Checking repository secrets...", "api", fmt.Sprintf("/repos/%s/actions/secrets", c.RepoOverride), "--jq", ".secrets[].name")
 	if err != nil {
 		addInteractiveLog.Printf("Could not fetch existing secrets: %v", err)
 		// Continue without error - we'll just assume no secrets exist
@@ -29,7 +28,7 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 
 	// Also check org-level secrets if the repo belongs to an organization
 	if org, _, found := strings.Cut(c.RepoOverride, "/"); found && org != "" {
-		orgOutput, orgErr := workflow.RunGH("Checking organization secrets...", "api", fmt.Sprintf("/orgs/%s/actions/secrets", org), "--jq", ".secrets[].name")
+		orgOutput, orgErr := c.runGH("Checking organization secrets...", "api", fmt.Sprintf("/orgs/%s/actions/secrets", org), "--jq", ".secrets[].name")
 		if orgErr != nil {
 			addInteractiveLog.Printf("Could not fetch org secrets (this is expected for personal repos or if org access is restricted): %v", orgErr)
 		} else {
@@ -49,7 +48,7 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 
 // addRepositorySecret adds a secret to the repository
 func (c *AddInteractiveConfig) addRepositorySecret(name, value string) error {
-	output, err := workflow.RunGHCombined("Adding repository secret...", "secret", "set", name, "--repo", c.RepoOverride, "--body", value)
+	output, err := c.runGHCombined("Adding repository secret...", "secret", "set", name, "--repo", c.RepoOverride, "--body", value)
 	if err != nil {
 		return fmt.Errorf("failed to set secret: %w (output: %s)", err, string(output))
 	}

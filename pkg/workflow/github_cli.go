@@ -189,6 +189,28 @@ func RunGHWithHost(spinnerMessage string, host string, args ...string) ([]byte, 
 	return output, enrichGHError(err)
 }
 
+// RunGHCombinedWithHost executes a gh CLI command with a spinner and returns combined
+// stdout+stderr output, targeting a specific GitHub host. For non-github.com hosts
+// (GHES, Proxima/data residency), the GH_HOST environment variable is set on the command.
+//
+// Usage:
+//
+//	output, err := RunGHCombinedWithHost("Creating PR...", "myorg.ghe.com", "pr", "create", "--title", "My PR")
+func RunGHCombinedWithHost(spinnerMessage string, host string, args ...string) ([]byte, error) {
+	cmd := ExecGH(args...)
+	SetGHHostEnv(cmd, host)
+
+	if tty.IsStderrTerminal() {
+		spinner := console.NewSpinner(spinnerMessage)
+		spinner.Start()
+		output, err := cmd.CombinedOutput()
+		spinner.Stop()
+		return output, err
+	}
+
+	return cmd.CombinedOutput()
+}
+
 // SetGHHostEnv sets the GH_HOST environment variable on the command for non-github.com hosts.
 // This is needed for GitHub Enterprise Server (GHES) and Proxima (data residency) instances
 // because commands like `gh repo view`, `gh pr create`, and `gh run view` do not accept a
