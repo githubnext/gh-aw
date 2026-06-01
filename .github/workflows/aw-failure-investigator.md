@@ -75,8 +75,10 @@ steps:
       TRACKER_ID = "aw-failure-investigator"
       LOOKBACK = "-6h"
       MAX_FAILED_RUNS = 20
-      MAX_RUNS_TO_FETCH = 200
-      MAX_LOG_TAIL_LINES = 200
+      # 6-hour windows rarely exceed this while still covering bursts.
+      MAX_RUNS_TO_FETCH = 75
+      # Most dominant signatures appear in the final 30-60 lines.
+      MAX_LOG_TAIL_LINES = 80
       
       def cmd_display(args):
           return " ".join(args)
@@ -183,7 +185,7 @@ steps:
                                   "job_id": job_id,
                                   "job_name": job.get("name"),
                                   "line_count": len(tail_lines),
-                                  "tail_200_lines": "\n".join(tail_lines),
+                                  "tail_lines": "\n".join(tail_lines),
                               }
                           )
       
@@ -257,30 +259,25 @@ Investigate agentic workflow failures from the last 6 hours and produce actionab
 
 ## Required Investigation Steps
 
-### 0) Use deterministic pre-fetch payload first (required)
+### 0) Read deterministic pre-fetch payload first (required)
 
-Read `/tmp/gh-aw/agent/failure-investigator/prefetch.json` first. It already includes:
-- recent failed run IDs for the 6-hour window
-- failed step names
-- truncated error logs (up to last 200 lines per failed job)
-- existing open tracking issues filtered by `gh-aw-tracker-id: aw-failure-investigator`
+Read `failed_run_ids`, `failures`, and `existing_tracking_issues` from `/tmp/gh-aw/agent/failure-investigator/prefetch.json` first.
+Use this payload as the primary discovery dataset and build clustered failure rows with representative + comparator run IDs.
+Definitions for step 0 clustering:
+- representative run ID: failed run that best captures the dominant signature in a cluster
+- comparator run ID: nearest successful run of the same workflow when available, otherwise nearest prior failed run
+Only call additional logs/list APIs when a required field is missing or stale.
 
-Use this payload as the primary discovery dataset. Only call additional logs/list APIs when a field is missing or stale.
+### 1) Correlate with existing issue context
 
-### 1) Fetch and review existing issue context
+Using `existing_tracking_issues` already loaded from `/tmp/gh-aw/agent/failure-investigator/prefetch.json` in step 0, group issues into clusters by label/title pattern, identify tracking gaps, and flag potential duplicates. Merge with the failure data from step 0.
+Structure issue context in three internal buckets: `clusters` (name + issue numbers), `gaps` (failure signature + reason), and `potential_duplicates` (issue numbers + reason).
 
-Use the `issue-context-fetcher` agent to retrieve open `agentic-workflows` issues grouped into clusters, gaps, and potential duplicates. Merge that with `existing_tracking_issues` from the pre-fetch payload when correlating failures.
+### 2) Deep-dive each failure cluster with `audit`
 
-### 2) Collect workflow runs and isolate failures (last 6h)
+Use the `cluster-evidence-extractor` agent, passing the clusters from steps 0-1, to retrieve per-cluster evidence (dominant error, tool-failure pattern, anomalies, failure class).
 
-Start from `failed_run_ids` and `failures` in the pre-fetch payload to build clustered failure rows with representative + comparator run IDs.
-Only run additional logs queries if the pre-fetch payload cannot support a cluster decision.
-
-### 3) Deep-dive each failure cluster with `audit`
-
-Use the `cluster-evidence-extractor` agent, passing the clusters from step 2, to retrieve per-cluster evidence (dominant error, tool-failure pattern, anomalies, failure class).
-
-### 4) Compare behavior with `audit-diff`
+### 3) Compare behavior with `audit-diff`
 
 Use `agentic-workflows` MCP `audit-diff` to compare:
 - failed run vs nearest successful run of the same workflow, or
@@ -288,7 +285,7 @@ Use `agentic-workflows` MCP `audit-diff` to compare:
 
 Identify regressions and deltas (metrics/tooling/firewall/MCP behavior) that support fix recommendations.
 
-### 5) Close fixed issues first, then add focused sub-issues
+### 4) Close fixed issues first, then add focused sub-issues
 
 First, identify currently open `agentic-workflows` issues that are now fixed, stale, or no longer actionable based on fresh evidence, and close them using `update-issue`.
 
@@ -333,50 +330,10 @@ Include these sections:
 - Avoid duplicates of already-open issues unless new evidence materially changes scope.
 - Reference the parent issue and the concrete run IDs analyzed.
 
-## Decision Rules
-
-- If there are **no failures** in the last 6h, or no actionable delta vs existing issues, call `noop` with a concise reason.
-- If failures exist but are already fully tracked, prefer closing stale/fixed issues and avoid creating new issues.
-- Only create a new parent report issue when P0 failures have no existing tracking coverage.
-- Prefer closing stale/fixed issues over creating new issues when issue volume is high.
-- Always be explicit about confidence and unknowns.
-
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation.
 
 ```json
 {"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
-
-## agent: `issue-context-fetcher`
----
-description: Fetches open agentic-workflows issues and groups them into clusters, gaps, and duplicate candidates
-model: small
----
-Find open issues labeled `agentic-workflows` for `${{ github.repository }}`.
-Group findings into existing tracked clusters, tracking gaps, and potential duplicates.
-
-Return only JSON:
-```json
-{
-  "clusters": [{"name":"", "issue_numbers":[]}],
-  "gaps": [{"failure_signature":"", "reason":""}],
-  "potential_duplicates": [{"issue_numbers":[], "reason":""}]
-}
-```
-
-## agent: `failure-dataset-builder`
----
-description: Fetches the last 6h workflow logs and builds clustered failure rows with representative and comparator run IDs
-model: small
----
-Use `agentic-workflows` MCP `logs` for the last 6 hours (for example `start_date: "-6h"`), including enough runs to cover the window.
-Cluster failures by signature and include representative and comparator run IDs.
-
-Return only JSON:
-```json
-{
-  "failure_rows": [{"cluster_id":"", "workflow":"", "engine":"", "failure_signature":"", "representative_failed_run_id":"", "comparator_success_run_id":"", "run_ids":[]}]
-}
 ```
 
 ## agent: `cluster-evidence-extractor`
