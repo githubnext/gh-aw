@@ -614,7 +614,7 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << GH_AW_SAFE_OUTPUTS_CONFIG_fb6f878bbb6c0338_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_fb6f878bbb6c0338_EOF'
           {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":72,"fallback_to_issue":true,"max":1,"title_prefix":"[daily-code-metrics] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":131072}]},"report_incomplete":{},"upload_asset":{"allowed-exts":[".png",".jpg",".jpeg",".svg"],"branch":"assets/${GITHUB_WORKFLOW}","max":5,"max-size":10240}}
           GH_AW_SAFE_OUTPUTS_CONFIG_fb6f878bbb6c0338_EOF
       - name: Generate Safe Outputs Tools
@@ -775,6 +775,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS_TOOLS_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/tools.json
           GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/config.json
           GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+          GITHUB_WORKFLOW: ${{ github.workflow }}
         run: |
           # Environment variables are set above to prevent template injection
           export DEBUG
@@ -784,6 +785,7 @@ jobs:
           export GH_AW_SAFE_OUTPUTS_TOOLS_PATH
           export GH_AW_SAFE_OUTPUTS_CONFIG_PATH
           export GH_AW_MCP_LOG_DIR
+          export GITHUB_WORKFLOW
           
           bash "${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh"
           

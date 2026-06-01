@@ -591,7 +591,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts"
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << GH_AW_SAFE_OUTPUTS_CONFIG_380efcf3b2cc7d1e_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_380efcf3b2cc7d1e_EOF'
           {"create_discussion":{"category":"artifacts","expires":24,"fallback_to_issue":true,"max":1},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"upload_artifact":{"max-size-bytes":104857600,"max-uploads":3,"retention-days":30,"skip-archive":true},"upload_asset":{"allowed-exts":[".png",".jpg",".jpeg",".svg"],"branch":"assets/${GITHUB_WORKFLOW}","max":5,"max-size":10240}}
           GH_AW_SAFE_OUTPUTS_CONFIG_380efcf3b2cc7d1e_EOF
       - name: Generate Safe Outputs Tools
@@ -752,6 +752,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS_TOOLS_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/tools.json
           GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/config.json
           GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+          GITHUB_WORKFLOW: ${{ github.workflow }}
         run: |
           # Environment variables are set above to prevent template injection
           export DEBUG
@@ -761,6 +762,7 @@ jobs:
           export GH_AW_SAFE_OUTPUTS_TOOLS_PATH
           export GH_AW_SAFE_OUTPUTS_CONFIG_PATH
           export GH_AW_MCP_LOG_DIR
+          export GITHUB_WORKFLOW
           
           bash "${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh"
           
