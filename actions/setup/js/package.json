@@ -7,6 +7,7 @@
     "@actions/github-script": "github:actions/github-script#v9.0.0",
     "@actions/glob": "^0.7.0",
     "@actions/io": "^3.0.2",
+    "@github/copilot-sdk": "^1.0.0-beta.9",
     "@types/node": "^25.9.1",
     "@vitest/coverage-v8": "^4.1.7",
     "@vitest/ui": "^4.1.7",
