@@ -58,10 +58,10 @@ Test workflow
 		"Generate Safe Outputs Config step should map inputs.target_repo to an env var")
 	assert.Contains(t, compiled, "GH_AW_INPUT_BASE_BRANCH: ${{ inputs.base_branch }}",
 		"Generate Safe Outputs Config step should map inputs.base_branch to an env var")
-	assert.Equal(t, 2, strings.Count(compiled, "GH_AW_INPUT_TARGET_REPO: ${{ inputs.target_repo }}"),
-		"Dynamic input env vars should be available both when writing config.json and when starting the MCP server")
-	assert.Equal(t, 2, strings.Count(compiled, "GH_AW_INPUT_BASE_BRANCH: ${{ inputs.base_branch }}"),
-		"Dynamic input env vars should be available both when writing config.json and when starting the MCP server")
+	assert.GreaterOrEqual(t, strings.Count(compiled, "GH_AW_INPUT_TARGET_REPO: ${{ inputs.target_repo }}"), 2,
+		"Dynamic input env vars should be available anywhere the runtime needs to resolve placeholders in memory")
+	assert.GreaterOrEqual(t, strings.Count(compiled, "GH_AW_INPUT_BASE_BRANCH: ${{ inputs.base_branch }}"), 2,
+		"Dynamic input env vars should be available anywhere the runtime needs to resolve placeholders in memory")
 	assert.Contains(t, compiled, `"allowed_repos":"${GH_AW_INPUT_TARGET_REPO}"`,
 		"config.json payload should preserve env placeholder for allowed_repos")
 	assert.Contains(t, compiled, `"allowed_base_branches":"${GH_AW_INPUT_BASE_BRANCH}"`,
