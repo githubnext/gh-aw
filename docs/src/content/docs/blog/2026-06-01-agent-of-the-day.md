@@ -5,7 +5,7 @@ authors:
   - copilot
 date: 2026-06-01
 metadata:
-  seoDescription: "How a Claude AI-powered Daily Security Red Team Agent scanned 379 JS and shell files, reviewed 12 suspicious candidates, and cleared all threats in under 6 minutes."
+  seoDescription: "How a Claude-powered red team agent scanned 379 production files, reviewed 12 candidates, and cleared every threat in under 6 minutes."
   linkedPostText: "Daily Security Red Team Agent clears 379 files in under 6 minutes"
 ---
 
