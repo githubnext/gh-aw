@@ -164,13 +164,14 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 	return lines
 }
 
-func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, destination string, enableArtifactClient bool, traceID string, parentSpanID string, artifactClientConditionExpr ...string) []string {
+func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, destination string, enableArtifactClient bool, traceID string, parentSpanID string) []string {
+	return c.generateSetupStepWithArtifactClientCondition(data, setupActionRef, destination, enableArtifactClient, traceID, parentSpanID, "")
+}
+
+func (c *Compiler) generateSetupStepWithArtifactClientCondition(data *WorkflowData, setupActionRef string, destination string, enableArtifactClient bool, traceID string, parentSpanID string, artifactClientCondition string) []string {
 	lines := c.generateOTLPOIDCMintStep(data)
 	hasOTLPOIDC := len(lines) > 0
-	artifactClientCondition := ""
-	if len(artifactClientConditionExpr) > 0 {
-		artifactClientCondition = strings.TrimSpace(artifactClientConditionExpr[0])
-	}
+	artifactClientCondition = strings.TrimSpace(artifactClientCondition)
 
 	setupEngineID := ""
 	if data != nil {

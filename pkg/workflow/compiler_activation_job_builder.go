@@ -108,7 +108,7 @@ func (c *Compiler) newActivationJobBuildContext(
 	if enableArtifactClient {
 		artifactClientCondition = maxDailyEffectiveTokensConfiguredIfExpr
 	}
-	ctx.steps = append(ctx.steps, c.generateSetupStep(ctx.data, setupActionRef, SetupActionDestination, enableArtifactClient, activationSetupTraceID, activationSetupParentSpanID, artifactClientCondition)...)
+	ctx.steps = append(ctx.steps, c.generateSetupStepWithArtifactClientCondition(ctx.data, setupActionRef, SetupActionDestination, enableArtifactClient, activationSetupTraceID, activationSetupParentSpanID, artifactClientCondition)...)
 	ctx.outputs["setup-trace-id"] = "${{ steps.setup.outputs.trace-id }}"
 	ctx.outputs["setup-span-id"] = "${{ steps.setup.outputs.span-id }}"
 	ctx.outputs["setup-parent-span-id"] = "${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}"
