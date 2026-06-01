@@ -7,8 +7,8 @@ To push changes to the branch of a pull request:
 3. Push the branch to the repo by using the push_to_pull_request_branch tool from safeoutputs.
 
 **Multi-checkout workflows (`checkout:` with multiple repositories):**
-- `push_to_pull_request_branch` operates on the checkout for the target repository (for example `$GITHUB_WORKSPACE/github` when `path: ./github`).
-- Run all `git` commands from that checkout directory before calling the tool (for example `cd <target-checkout-path>`).
+- `push_to_pull_request_branch` operates on the checkout for the target repository (the directory matching the `path:` value in your workflow's checkout step).
+- Run all `git` commands from that checkout directory before calling the tool. Use a subshell (`(cd <target-checkout-path> && git ...)`) or `pushd`/`popd` to avoid changing the working directory for subsequent commands in the same step.
 - If needed, check out the PR branch locally from `origin/<pr-branch>` first.
 **Important constraints:**
 - This tool is **append-only**: it adds new commits on top of the existing PR branch. Force-push is NOT supported.
