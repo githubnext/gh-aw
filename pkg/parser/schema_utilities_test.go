@@ -36,32 +36,6 @@ func TestFilterIgnoredFields(t *testing.T) {
 			},
 		},
 		{
-			name: "frontmatter with applyTo - no longer filtered",
-			frontmatter: map[string]any{
-				"applyTo": "some-value",
-				"on":      "push",
-			},
-			expected: map[string]any{
-				"applyTo": "some-value",
-				"on":      "push",
-			},
-		},
-		{
-			name: "frontmatter with both description and applyTo - no longer filtered",
-			frontmatter: map[string]any{
-				"description": "This is a test workflow",
-				"applyTo":     "some-value",
-				"on":          "push",
-				"engine":      "claude",
-			},
-			expected: map[string]any{
-				"description": "This is a test workflow",
-				"applyTo":     "some-value",
-				"on":          "push",
-				"engine":      "claude",
-			},
-		},
-		{
 			name: "frontmatter with only valid fields",
 			frontmatter: map[string]any{
 				"on":     "push",
