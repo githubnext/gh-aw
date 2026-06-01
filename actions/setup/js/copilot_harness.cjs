@@ -395,6 +395,35 @@ async function checkCommandAccessible(command) {
 }
 
 /**
+ * Read and parse the JSON options payload piped to stdin by the engine command.
+ * Called in SDK mode where the Go engine pipes options via `printf '%s' '{"promptFile":"..."}' | node harness`.
+ * Returns null when stdin is a TTY, empty, or contains invalid JSON.
+ * @returns {Promise<{promptFile?: string} | null>}
+ */
+async function readSDKOptionsFromStdin() {
+  if (process.stdin.isTTY) return null;
+  return new Promise(resolve => {
+    /** @type {Buffer[]} */
+    const chunks = [];
+    process.stdin.on("data", chunk => chunks.push(/** @type {Buffer} */ (chunk)));
+    process.stdin.on("end", () => {
+      const text = Buffer.concat(chunks).toString("utf8").trim();
+      if (!text) {
+        resolve(null);
+        return;
+      }
+      try {
+        resolve(JSON.parse(text));
+      } catch {
+        log(`warning: failed to parse SDK options from stdin: ${text.slice(0, 100)}`);
+        resolve(null);
+      }
+    });
+    process.stdin.on("error", () => resolve(null));
+  });
+}
+
+/**
  * Build a compact fallback prompt that asks the agent to read instructions from disk.
  * @param {string} promptFile
  * @returns {string}
@@ -465,7 +494,6 @@ async function main() {
   log(`starting: command=${command} maxRetries=${MAX_RETRIES} initialDelayMs=${INITIAL_DELAY_MS}` + ` backoffMultiplier=${BACKOFF_MULTIPLIER} maxDelayMs=${MAX_DELAY_MS}` + ` nodeVersion=${process.version} platform=${process.platform}`);
 
   await checkCommandAccessible(command);
-  const resolvedArgs = resolvePromptFileArgs(args);
 
   // Build SDK env additions. When COPILOT_SDK_URI is set the harness will start a separate
   // headless Copilot CLI sidecar and this helper merges COPILOT_SDK_URI into the child
@@ -480,6 +508,23 @@ async function main() {
   // returned at least one variable; otherwise leave the env undefined so that
   // runProcess inherits the full process.env (the common case).
   const childEnv = Object.keys(sdkEnv).length > 0 ? { ...process.env, ...sdkEnv } : undefined;
+
+  // In SDK mode, the engine pipes a JSON options payload via stdin containing the promptFile
+  // path.  Read it before doing anything else so stdin is consumed before the process runs.
+  // In CLI mode, args are resolved normally (--prompt-file is inlined into -p <text>).
+  /** @type {{promptFile?: string} | null} */
+  let sdkOptions = null;
+  let resolvedArgs;
+  if (copilotSDKMode) {
+    sdkOptions = await readSDKOptionsFromStdin();
+    if (sdkOptions) {
+      log(`sdk-options: promptFile=${sdkOptions.promptFile || "(none)"}`);
+    }
+    // SDK mode does not use CLI prompt args; pass args through unmodified.
+    resolvedArgs = args;
+  } else {
+    resolvedArgs = resolvePromptFileArgs(args);
+  }
 
   // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
   // This is best-effort: failures are logged but do not affect the agent run.
@@ -505,14 +550,33 @@ async function main() {
     agenticEngineTimeout: false,
     modelNotSupportedError: false,
   };
-  // In SDK mode the prompt is required; extract it early so the retry loop can use it.
-  const sdkPrompt = copilotSDKMode ? extractPromptFromArgs(resolvedArgs) : null;
+  // In SDK mode the prompt is required; read it from the promptFile in sdkOptions (piped via
+  // stdin by the engine command).  Fall back to extracting from CLI args for backward compatibility.
+  let sdkPrompt = null;
+  if (copilotSDKMode) {
+    if (sdkOptions && sdkOptions.promptFile) {
+      try {
+        sdkPrompt = fs.readFileSync(sdkOptions.promptFile, "utf8");
+        log(`sdk-mode: read prompt from ${sdkOptions.promptFile} (${sdkPrompt.length} chars)`);
+      } catch (err) {
+        const readErr = /** @type {Error} */ err;
+        log(`sdk-mode: failed to read prompt from ${sdkOptions.promptFile}: ${readErr.message}`);
+      }
+    }
+    if (!sdkPrompt) {
+      // Fallback: try to extract from CLI args (backward compatibility with older engine versions)
+      sdkPrompt = extractPromptFromArgs(resolvedArgs);
+      if (sdkPrompt) {
+        log("sdk-mode: prompt extracted from CLI args (fallback)");
+      }
+    }
+  }
   /** @type {Awaited<ReturnType<typeof startCopilotSDKServer>>} */
   let copilotSDKServer = null;
   try {
     if (copilotSDKMode) {
       if (!sdkPrompt) {
-        log("copilot-sdk mode: no prompt found in args (-p/--prompt is required for SDK mode)");
+        log("copilot-sdk mode: no prompt found (expected promptFile in stdin JSON payload or -p/--prompt in args)");
         lastExitCode = 1;
       } else {
         copilotSDKServer = await startCopilotSDKServer({
@@ -757,6 +821,7 @@ if (typeof module !== "undefined" && module.exports) {
     writeCopilotOutputs,
     resolvePromptFileArgs,
     extractPromptFromArgs,
+    readSDKOptionsFromStdin,
     runWithCopilotSDK,
   };
 }

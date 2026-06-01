@@ -248,6 +248,14 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	if !strings.Contains(stepContent, expectedURI) {
 		t.Fatalf("Expected %s in step env, got:\n%s", expectedURI, stepContent)
 	}
+
+	// SDK mode pipes a JSON options payload via stdin instead of --prompt-file
+	if !strings.Contains(stepContent, `printf '%s' '{"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt"}'`) {
+		t.Fatalf("Expected SDK mode to pipe JSON options via stdin, got:\n%s", stepContent)
+	}
+	if strings.Contains(stepContent, "--prompt-file") {
+		t.Fatalf("Expected SDK mode to omit --prompt-file CLI arg (prompt is read from stdin JSON), got:\n%s", stepContent)
+	}
 }
 
 func TestCopilotEngineExecutionStepsAlwaysInjectsIntegrationIDAfterEnvMerges(t *testing.T) {

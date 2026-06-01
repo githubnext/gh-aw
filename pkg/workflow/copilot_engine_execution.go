@@ -203,12 +203,26 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		execPrefix = commandName
 	}
 
+	isCopilotSDKMode := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK
+
 	if sandboxEnabled {
-		// Sandbox mode: add workspace dir and pass prompt file path directly
-		copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
+		if isCopilotSDKMode {
+			// SDK mode: pipe a JSON options payload via stdin so the harness reads the
+			// prompt file directly from disk instead of parsing --prompt-file CLI args back.
+			copilotCommand = fmt.Sprintf(`printf '%%s' '{"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt"}' | %s %s --add-dir "${GITHUB_WORKSPACE}"`, execPrefix, shellJoinArgs(copilotArgs))
+		} else {
+			// Sandbox mode: add workspace dir and pass prompt file path directly
+			copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
+		}
 	} else {
-		// Non-sandbox mode: pass prompt file path directly
-		copilotCommand = fmt.Sprintf(`%s %s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
+		if isCopilotSDKMode {
+			// SDK mode: pipe a JSON options payload via stdin so the harness reads the
+			// prompt file directly from disk instead of parsing --prompt-file CLI args back.
+			copilotCommand = fmt.Sprintf(`printf '%%s' '{"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt"}' | %s %s`, execPrefix, shellJoinArgs(copilotArgs))
+		} else {
+			// Non-sandbox mode: pass prompt file path directly
+			copilotCommand = fmt.Sprintf(`%s %s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
+		}
 	}
 
 	// Conditionally wrap with sandbox (AWF only)

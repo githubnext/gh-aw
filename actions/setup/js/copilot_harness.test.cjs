@@ -36,6 +36,7 @@ const {
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
   writeCopilotOutputs,
+  readSDKOptionsFromStdin,
 } = require("./copilot_harness.cjs");
 
 describe("copilot_harness.cjs", () => {
@@ -1325,8 +1326,60 @@ describe("copilot_harness.cjs", () => {
     });
   });
 
-  describe("fetchAWFReflect enriches models via fallback", () => {
-    afterEach(() => {
+  describe("readSDKOptionsFromStdin", () => {
+    const { PassThrough } = require("stream");
+
+    /**
+     * Helper: run readSDKOptionsFromStdin with a fake stdin backed by a PassThrough stream.
+     * @param {string | null} data - JSON string to push into stdin, or null to simulate TTY.
+     * @param {boolean} [isTTY]
+     */
+    async function runWithFakeStdin(data, isTTY = false) {
+      const fakeStdin = new PassThrough();
+      fakeStdin.isTTY = isTTY;
+
+      const originalStdin = process.stdin;
+      // Replace process.stdin temporarily by patching the relevant properties
+      Object.defineProperty(process, "stdin", { value: fakeStdin, writable: true, configurable: true });
+      try {
+        const promise = readSDKOptionsFromStdin();
+        if (data !== null) {
+          fakeStdin.push(data);
+        }
+        fakeStdin.end();
+        return await promise;
+      } finally {
+        Object.defineProperty(process, "stdin", { value: originalStdin, writable: true, configurable: true });
+      }
+    }
+
+    it("returns null when stdin is a TTY", async () => {
+      const result = await runWithFakeStdin(null, /* isTTY */ true);
+      expect(result).toBeNull();
+    });
+
+    it("parses valid JSON payload with promptFile", async () => {
+      const result = await runWithFakeStdin('{"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt"}');
+      expect(result).toEqual({ promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt" });
+    });
+
+    it("returns null on empty stdin", async () => {
+      const result = await runWithFakeStdin("");
+      expect(result).toBeNull();
+    });
+
+    it("returns null on invalid JSON", async () => {
+      const result = await runWithFakeStdin("not-json{");
+      expect(result).toBeNull();
+    });
+
+    it("handles extra whitespace around JSON", async () => {
+      const result = await runWithFakeStdin('\n  {"promptFile":"/tmp/prompt.txt"}  \n');
+      expect(result).toEqual({ promptFile: "/tmp/prompt.txt" });
+    });
+  });
+
+  describe("fetchAWFReflect enriches models via fallback", () => {    afterEach(() => {
       vi.unstubAllGlobals();
     });
 
