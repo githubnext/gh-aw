@@ -176,16 +176,7 @@ func validateSubAgentFrontmatterFields(agent InlineSubAgent) []string {
 //	gemini   → .gemini/agents
 //	others   → .github/agents  (Copilot default)
 func GetEngineSubAgentDir(engineID string) string {
-	switch strings.ToLower(engineID) {
-	case "claude":
-		return ".claude/agents"
-	case "codex":
-		return ".codex/agents"
-	case "gemini":
-		return ".gemini/agents"
-	default:
-		return ".github/agents"
-	}
+	return engineConfigDir(engineID, "agents")
 }
 
 // GetEngineSubAgentExt returns the file extension used for inline sub-agent files
@@ -231,10 +222,6 @@ type InlineSubAgent struct {
 //   - Optional trailing whitespace
 var subAgentSeparatorRegex = regexp.MustCompile("(?m)^##[ \t]+agent:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$")
 
-// h2HeadingRegex matches the start of any level-2 Markdown heading (## space/tab).
-// An agent block extends from its start marker to the next H2 heading or EOF.
-var h2HeadingRegex = regexp.MustCompile(`(?m)^##[ \t]`)
-
 // ExtractInlineSubAgents splits markdown into the main workflow section and any
 // inline sub-agent definitions.
 //
@@ -261,7 +248,7 @@ func ExtractInlineSubAgents(markdown string) (mainMarkdown string, agents []Inli
 	mainMarkdown = strings.TrimRight(markdown[:allStarts[0][0]], "\n")
 	h2Positions := collectH2Positions(markdown)
 	for _, m := range allStarts {
-		name, content := extractInlineSubAgent(markdown, m, h2Positions)
+		name, content := extractInlineSection(markdown, m, h2Positions)
 		subAgentLog.Printf("Extracted sub-agent %q (content length: %d)", name, len(content))
 		agents = append(agents, InlineSubAgent{Name: name, Content: content})
 	}
@@ -271,42 +258,8 @@ func ExtractInlineSubAgents(markdown string) (mainMarkdown string, agents []Inli
 }
 
 func validateUniqueSubAgentNames(markdown string, allStarts [][]int) error {
-	seen := make(map[string]struct{})
-	for _, m := range allStarts {
-		name := markdown[m[2]:m[3]]
-		if _, exists := seen[name]; exists {
+	return validateUniqueInlineSectionNames(markdown, allStarts, func(name string) error {
 			subAgentLog.Printf("Duplicate sub-agent name: %q", name)
 			return fmt.Errorf("duplicate inline sub-agent name %q", name)
-		}
-		seen[name] = struct{}{}
-	}
-	return nil
-}
-
-func collectH2Positions(markdown string) []int {
-	var h2Positions []int
-	for _, m := range h2HeadingRegex.FindAllStringIndex(markdown, -1) {
-		h2Positions = append(h2Positions, m[0])
-	}
-	return h2Positions
-}
-
-func extractInlineSubAgent(markdown string, marker []int, h2Positions []int) (string, string) {
-	name := markdown[marker[2]:marker[3]]
-	lineEnd := marker[1]
-	if lineEnd < len(markdown) && markdown[lineEnd] == '\n' {
-		lineEnd++
-	}
-	contentEnd := nextH2After(lineEnd, h2Positions, len(markdown))
-	content := strings.TrimSpace(markdown[lineEnd:contentEnd])
-	return name, content
-}
-
-func nextH2After(offset int, h2Positions []int, markdownLength int) int {
-	for _, pos := range h2Positions {
-		if pos >= offset {
-			return pos
-		}
-	}
-	return markdownLength
+	})
 }

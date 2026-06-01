@@ -68,16 +68,7 @@ func validateInlineSkillFrontmatterFields(skill InlineSkill) []string {
 }
 
 func GetEngineSkillDir(engineID string) string {
-	switch strings.ToLower(engineID) {
-	case "claude":
-		return ".claude/skills"
-	case "codex":
-		return ".codex/skills"
-	case "gemini":
-		return ".gemini/skills"
-	default:
-		return ".github/skills"
-	}
+	return engineConfigDir(engineID, "skills")
 }
 
 type InlineSkill struct {
@@ -86,7 +77,6 @@ type InlineSkill struct {
 }
 
 var inlineSkillSeparatorRegex = regexp.MustCompile("(?m)^##[ \t]+skill:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$")
-var inlineSkillH2HeadingRegex = regexp.MustCompile(`(?m)^##[ \t]`)
 
 func ExtractInlineSkills(markdown string) (mainMarkdown string, skills []InlineSkill, err error) {
 	inlineSkillLog.Printf("Extracting inline skills from markdown (length: %d)", len(markdown))
@@ -102,9 +92,9 @@ func ExtractInlineSkills(markdown string) (mainMarkdown string, skills []InlineS
 	}
 
 	mainMarkdown = strings.TrimRight(markdown[:allStarts[0][0]], "\n")
-	h2Positions := collectInlineSkillH2Positions(markdown)
+	h2Positions := collectH2Positions(markdown)
 	for _, m := range allStarts {
-		name, content := extractInlineSkill(markdown, m, h2Positions)
+		name, content := extractInlineSection(markdown, m, h2Positions)
 		inlineSkillLog.Printf("Extracted inline skill %q (content length: %d)", name, len(content))
 		skills = append(skills, InlineSkill{Name: name, Content: content})
 	}
@@ -114,42 +104,8 @@ func ExtractInlineSkills(markdown string) (mainMarkdown string, skills []InlineS
 }
 
 func validateUniqueInlineSkillNames(markdown string, allStarts [][]int) error {
-	seen := make(map[string]struct{})
-	for _, m := range allStarts {
-		name := markdown[m[2]:m[3]]
-		if _, exists := seen[name]; exists {
+	return validateUniqueInlineSectionNames(markdown, allStarts, func(name string) error {
 			inlineSkillLog.Printf("Duplicate inline skill name: %q", name)
 			return fmt.Errorf("duplicate inline skill name %q", name)
-		}
-		seen[name] = struct{}{}
-	}
-	return nil
-}
-
-func collectInlineSkillH2Positions(markdown string) []int {
-	var h2Positions []int
-	for _, m := range inlineSkillH2HeadingRegex.FindAllStringIndex(markdown, -1) {
-		h2Positions = append(h2Positions, m[0])
-	}
-	return h2Positions
-}
-
-func extractInlineSkill(markdown string, marker []int, h2Positions []int) (string, string) {
-	name := markdown[marker[2]:marker[3]]
-	lineEnd := marker[1]
-	if lineEnd < len(markdown) && markdown[lineEnd] == '\n' {
-		lineEnd++
-	}
-	contentEnd := nextInlineSkillH2After(lineEnd, h2Positions, len(markdown))
-	content := strings.TrimSpace(markdown[lineEnd:contentEnd])
-	return name, content
-}
-
-func nextInlineSkillH2After(offset int, h2Positions []int, markdownLength int) int {
-	for _, pos := range h2Positions {
-		if pos >= offset {
-			return pos
-		}
-	}
-	return markdownLength
+	})
 }
