@@ -111,15 +111,6 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	if err := validateUniqueManifestWorkflowFilenames(installationSources, manifestPath); err != nil {
 		return nil, err
 	}
-	if err := validateManifestInstallableWorkflowPrivacy(manifestPath, installationSources, func(sourcePath string) ([]byte, error) {
-		content, err := downloadPackageFileFromGitHubForHost(owner, repo, sourcePath, ref, host)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read workflow %q from %s/%s@%s: %w", sourcePath, owner, repo, ref, err)
-		}
-		return content, nil
-	}); err != nil {
-		return nil, err
-	}
 
 	docsPath, err := resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host)
 	if err != nil {
