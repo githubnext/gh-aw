@@ -3,7 +3,11 @@ package types
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var inputDefinitionLog = logger.New("types:input_definition")
 
 // InputDefinition defines an input parameter for workflows, safe-jobs, and imported workflows.
 // The structure follows the workflow_dispatch input schema from GitHub Actions:
@@ -41,6 +45,7 @@ func (i *InputDefinition) GetDefaultAsString() string {
 		}
 		return fmt.Sprintf("%g", v)
 	default:
+		inputDefinitionLog.Printf("Coercing default value of unexpected type %T to string via fallback formatting", v)
 		return fmt.Sprintf("%v", v)
 	}
 }

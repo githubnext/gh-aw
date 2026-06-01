@@ -30,9 +30,11 @@ func ParseInt64KMSuffix(raw string) (int64, bool) {
 
 	parsed, err := strconv.ParseInt(trimmed, 10, 64)
 	if err != nil || parsed <= 0 {
+		typeutilLog.Printf("Rejected K/M-suffixed value %q: not a positive base-10 integer", raw)
 		return 0, false
 	}
 	if parsed > math.MaxInt64/multiplier {
+		typeutilLog.Printf("Rejected K/M-suffixed value %q: would overflow int64 (multiplier=%d)", raw, multiplier)
 		return 0, false
 	}
 	return parsed * multiplier, true
