@@ -406,7 +406,7 @@ async function readSDKOptionsFromStdin() {
   return new Promise(resolve => {
     /** @type {Buffer[]} */
     const chunks = [];
-    process.stdin.on("data", chunk => chunks.push(/** @type {Buffer} */ (chunk)));
+    process.stdin.on("data", chunk => chunks.push(/** @type {Buffer} */ chunk));
     process.stdin.on("end", () => {
       const text = Buffer.concat(chunks).toString("utf8").trim();
       if (!text) {
