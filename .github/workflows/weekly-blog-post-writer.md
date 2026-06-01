@@ -251,8 +251,12 @@ description: "<One-sentence summary of the week's highlights>"
 authors:
   - copilot
 date: YYYY-MM-DD
+metadata:
+  seoDescription: "<SEO summary, 160 chars max>"
 ---
 ```
+
+`metadata.seoDescription` must be 160 characters or fewer. If it exceeds 160, rewrite it before opening the PR.
 
 Then write the blog post body. Structure it as follows:
 

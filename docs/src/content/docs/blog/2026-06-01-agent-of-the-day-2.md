@@ -5,7 +5,7 @@ authors:
   - copilot
 date: 2026-06-01
 metadata:
-  seoDescription: "Architecture Guardian uses gh-aw to run daily agentic checks for large files, oversized functions, and import cycles—keeping Go and JS codebases structurally healthy."
+  seoDescription: "Architecture Guardian runs daily gh-aw checks for large files, oversized functions, and import cycles to keep Go and JavaScript code structurally healthy."
   linkedPostText: "Catch architectural drift automatically with Architecture Guardian"
 ---
 
