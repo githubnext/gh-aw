@@ -29,10 +29,19 @@ func validateJobDefinition(job *Job) error {
 		return errors.New("job definition cannot be nil")
 	}
 
-	if job.Uses != "" && job.TimeoutMinutes > 0 {
+	if job.Uses != "" && (job.TimeoutMinutes > 0 || job.TimeoutMinutesExpression != "") {
 		return fmt.Errorf(
 			"job '%s' uses a reusable workflow and cannot set timeout-minutes; remove timeout-minutes from the caller job or move it into the called workflow",
 			job.Name,
+		)
+	}
+
+	if job.TimeoutMinutes > 0 && job.TimeoutMinutesExpression != "" {
+		return fmt.Errorf(
+			"job '%s' has timeout-minutes set as both integer (%d) and expression (%q); specify only one",
+			job.Name,
+			job.TimeoutMinutes,
+			job.TimeoutMinutesExpression,
 		)
 	}
 

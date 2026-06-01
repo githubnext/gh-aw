@@ -22,6 +22,7 @@ type Job struct {
 	HasWorkflowRunSafetyChecks bool // If true, the job's if condition includes workflow_run safety checks
 	Permissions                string
 	TimeoutMinutes             int
+	TimeoutMinutesExpression   string
 	Concurrency                string            // Job-level concurrency configuration
 	Environment                string            // Job environment configuration
 	Strategy                   string            // Job strategy configuration (matrix strategy)
@@ -279,7 +280,10 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 	}
 
 	// Add timeout-minutes if specified
-	if job.TimeoutMinutes > 0 {
+	if job.TimeoutMinutesExpression != "" {
+		// TimeoutMinutesExpression is validated when parsed from frontmatter in compiler_jobs.go.
+		fmt.Fprintf(b, "    timeout-minutes: %s\n", job.TimeoutMinutesExpression)
+	} else if job.TimeoutMinutes > 0 {
 		fmt.Fprintf(b, "    timeout-minutes: %d\n", job.TimeoutMinutes)
 	}
 

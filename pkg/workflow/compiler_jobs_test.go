@@ -3347,6 +3347,82 @@ func TestBuildCustomJobsAllNewFieldsViaWorkflowData(t *testing.T) {
 	}
 }
 
+func TestBuildCustomJobsTimeoutMinutesExpressionViaWorkflowData(t *testing.T) {
+	t.Parallel()
+
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:   "Test Workflow",
+		AI:     "copilot",
+		RunsOn: "runs-on: ubuntu-latest",
+		Jobs: map[string]any{
+			"templated_timeout_job": map[string]any{
+				"runs-on":         "ubuntu-latest",
+				"timeout-minutes": "${{ inputs.timeout }}",
+				"steps": []any{
+					map[string]any{"run": "echo 'test'"},
+				},
+			},
+		},
+	}
+
+	err := compiler.buildCustomJobs(data, false)
+	if err != nil {
+		t.Fatalf("buildCustomJobs() returned error: %v", err)
+	}
+
+	job, exists := compiler.jobManager.GetJob("templated_timeout_job")
+	if !exists {
+		t.Fatal("Expected templated_timeout_job to be added")
+	}
+
+	if job.TimeoutMinutesExpression != "${{ inputs.timeout }}" {
+		t.Errorf("TimeoutMinutesExpression = %q, want %q", job.TimeoutMinutesExpression, "${{ inputs.timeout }}")
+	}
+	if job.TimeoutMinutes != 0 {
+		t.Errorf("TimeoutMinutes = %d, want 0 when expression is used", job.TimeoutMinutes)
+	}
+
+	var renderedBuf strings.Builder
+	compiler.jobManager.WriteJobsYAML(&renderedBuf)
+	rendered := renderedBuf.String()
+	if !strings.Contains(rendered, "timeout-minutes: ${{ inputs.timeout }}") {
+		t.Errorf("Expected templated timeout-minutes in rendered YAML, got:\n%s", rendered)
+	}
+}
+
+func TestBuildCustomJobsTimeoutMinutesInvalidStringViaWorkflowData(t *testing.T) {
+	t.Parallel()
+
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:   "Test Workflow",
+		AI:     "copilot",
+		RunsOn: "runs-on: ubuntu-latest",
+		Jobs: map[string]any{
+			"invalid_timeout_job": map[string]any{
+				"runs-on":         "ubuntu-latest",
+				"timeout-minutes": "not-an-expression",
+				"steps": []any{
+					map[string]any{"run": "echo 'test'"},
+				},
+			},
+		},
+	}
+
+	err := compiler.buildCustomJobs(data, false)
+	if err == nil {
+		t.Fatal("expected error for non-expression timeout-minutes string")
+	}
+	if !strings.Contains(err.Error(), "timeout-minutes must be an integer or a GitHub Actions expression") {
+		t.Fatalf("expected timeout-minutes validation error, got: %v", err)
+	}
+}
+
 // TestPushRepoMemoryJobConditionalDetection verifies that push_repo_memory already uses
 // always() and buildDetectionPassedCondition() (accepting 'success' or 'skipped') when
 // detection is expression-controlled, so the job still runs when detection is skipped at runtime.

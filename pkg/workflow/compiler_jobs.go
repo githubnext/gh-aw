@@ -660,6 +660,18 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 					}
 				case float64:
 					job.TimeoutMinutes = int(v)
+				case string:
+					// isExpression validates full GitHub Actions expression syntax (${{
+					// ... }}) and is defined in expression_patterns.go.
+					if isExpression(v) {
+						job.TimeoutMinutesExpression = v
+					} else {
+						return fmt.Errorf(
+							"job '%s' timeout-minutes must be an integer or a GitHub Actions expression (e.g. '${{ inputs.timeout }}'), got %q",
+							jobName,
+							v,
+						)
+					}
 				}
 			}
 
