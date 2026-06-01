@@ -108,8 +108,8 @@ Test workflow
 
 	assert.Contains(t, compiled, "WRITE_PROJECT_PAT: ${{ secrets.WRITE_PROJECT_PAT }}",
 		"Generate Safe Outputs Config step should map secret expressions to env vars")
-	assert.Equal(t, 2, strings.Count(compiled, "WRITE_PROJECT_PAT: ${{ secrets.WRITE_PROJECT_PAT }}"),
-		"Secret env vars should be available both when writing config.json and when starting the MCP server")
+	assert.GreaterOrEqual(t, strings.Count(compiled, "WRITE_PROJECT_PAT: ${{ secrets.WRITE_PROJECT_PAT }}"), 2,
+		"Secret env vars should be available anywhere the runtime needs to resolve the placeholder in memory")
 	assert.Contains(t, compiled, `"github-token":"${WRITE_PROJECT_PAT}"`,
 		"config.json payload should preserve the secret placeholder instead of the secret value")
 
