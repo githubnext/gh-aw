@@ -215,12 +215,12 @@ func parseOptionalInt(value any) *int {
 		if floatValue != math.Trunc(floatValue) {
 			return nil
 		}
+		if floatValue < float64(math.MinInt) || floatValue > float64(math.MaxInt) {
+			return nil
+		}
 		// float64 can exactly represent integers only in [-2^53, 2^53].
 		const maxExactFloatInt = float64(1 << 53)
 		if floatValue < -maxExactFloatInt || floatValue > maxExactFloatInt {
-			return nil
-		}
-		if floatValue < float64(math.MinInt) || floatValue > float64(math.MaxInt) {
 			return nil
 		}
 		intValue := int(floatValue)
