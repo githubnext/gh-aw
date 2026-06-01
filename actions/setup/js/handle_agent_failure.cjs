@@ -1232,7 +1232,7 @@ function detectZeroTokenEarlyCliExit(options) {
   }
 
   const parsedEffectiveTokens = Number.parseInt(options.effectiveTokens || "", 10);
-  if (Number.isInteger(parsedEffectiveTokens) && parsedEffectiveTokens > 0) {
+  if (!Number.isNaN(parsedEffectiveTokens) && Number.isInteger(parsedEffectiveTokens) && parsedEffectiveTokens > 0) {
     return false;
   }
 
