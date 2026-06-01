@@ -269,6 +269,7 @@ SAFE_OUTPUTS_FILES=(
   "safe_outputs_bootstrap.cjs"
   "safe_outputs_tools_loader.cjs"
   "safe_outputs_config.cjs"
+  "safe_outputs_config_redact.cjs"
   "safe_outputs_handlers.cjs"
   "intent_probe.cjs"
   "allowed_extensions_helpers.cjs"
