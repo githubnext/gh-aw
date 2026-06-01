@@ -48,332 +48,369 @@ type toolsProcessingResult struct {
 // - Workflow name extraction
 func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cleanPath string, markdownDir string,
 	agenticEngine CodingAgentEngine, engineSetting string, importsResult *parser.ImportsResult) (*toolsProcessingResult, error) {
-
 	orchestratorToolsLog.Printf("Processing tools and markdown")
 	workflowLog.Print("Processing tools and includes...")
-
-	// Extract inline sub-agents from the markdown body before any other processing.
-	// This strips sub-agent sections from the effective markdown so they do not affect
-	// include expansion, name extraction, or prompt generation at compile time.
-	// The actual writing of agent files happens at runtime in JavaScript (interpolate_prompt.cjs)
-	// after {{#runtime-import}} macros have been fully inlined.
-	effectiveMarkdown, subAgents, err := parser.ExtractInlineSubAgents(result.Markdown)
+	effectiveMarkdown, err := c.extractEffectiveMarkdown(importsResult, result.Markdown)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract inline sub-agents: %w", err)
+		return nil, err
 	}
-	effectiveMarkdown, inlineSkills, err := parser.ExtractInlineSkills(effectiveMarkdown)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract inline skills: %w", err)
-	}
-	orchestratorToolsLog.Printf("Effective markdown after stripping sub-agent and skill sections: %d bytes", len(effectiveMarkdown))
-	orchestratorToolsLog.Printf("Extracted inline sub-agents: count=%d", len(subAgents))
-	orchestratorToolsLog.Printf("Extracted inline skills: count=%d", len(inlineSkills))
-	// Surface best-effort sub-agent frontmatter warnings collected during import BFS traversal.
-	for _, w := range importsResult.Warnings {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
-		c.IncrementWarningCount()
-	}
-
-	// Emit schema-driven deprecation warnings for any deprecated frontmatter fields.
 	c.warnDeprecatedFrontmatterFields(result.Frontmatter)
-
-	// Extract SafeOutputs configuration early so we can use it when applying default tools
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
-
-	// Extract SecretMasking configuration
-	secretMasking := c.extractSecretMaskingConfig(result.Frontmatter)
-
-	// Merge secret-masking from imports with top-level secret-masking
-	if importsResult.MergedSecretMasking != "" {
-		orchestratorToolsLog.Printf("Merging secret-masking from imports")
-		var err error
-		secretMasking, err = c.MergeSecretMasking(secretMasking, importsResult.MergedSecretMasking)
-		if err != nil {
-			orchestratorToolsLog.Printf("Secret-masking merge failed: %v", err)
-			return nil, fmt.Errorf("failed to merge secret-masking: %w", err)
-		}
-	}
-
-	var tools map[string]any
-
-	// Extract tools from the main file
-	topTools := extractToolsFromFrontmatter(result.Frontmatter)
-
-	// Validate that the tools: section only contains known built-in tool names.
-	// Custom MCP servers must be placed under mcp-servers: instead.
-	if err := ValidateToolsSection(topTools); err != nil {
+	secretMasking, err := c.resolveSecretMasking(result.Frontmatter, importsResult)
+	if err != nil {
 		return nil, err
 	}
-
-	// Extract mcp-servers from the main file and merge them into tools
-	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
-
-	// Process @include directives to extract additional tools
-	orchestratorToolsLog.Printf("Expanding includes for tools")
-	includedTools, includedToolFiles, err := parser.ExpandIncludesWithManifest(effectiveMarkdown, markdownDir, true)
+	toolsData, err := c.resolveToolsConfiguration(result, effectiveMarkdown, markdownDir, importsResult, agenticEngine)
 	if err != nil {
-		orchestratorToolsLog.Printf("Failed to expand includes for tools: %v", err)
-		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
-	}
-
-	// Combine imported tools with included tools
-	var toolsParts []string
-	if importsResult.MergedTools != "" {
-		toolsParts = append(toolsParts, importsResult.MergedTools)
-	}
-	if includedTools != "" {
-		toolsParts = append(toolsParts, includedTools)
-	}
-	allIncludedTools := strings.Join(toolsParts, "\n")
-
-	// Combine imported mcp-servers with top-level mcp-servers
-	// Imported mcp-servers are in JSON format (newline-separated), need to merge them
-	allMCPServers := mcpServers
-	if importsResult.MergedMCPServers != "" {
-		orchestratorToolsLog.Printf("Merging imported mcp-servers")
-		// Parse and merge imported MCP servers
-		mergedMCPServers, err := c.MergeMCPServers(mcpServers, importsResult.MergedMCPServers)
-		if err != nil {
-			orchestratorToolsLog.Printf("MCP servers merge failed: %v", err)
-			return nil, fmt.Errorf("failed to merge imported mcp-servers: %w", err)
-		}
-		allMCPServers = mergedMCPServers
-	}
-
-	// Merge tools including mcp-servers
-	orchestratorToolsLog.Printf("Merging tools and MCP servers")
-	tools, err = c.mergeToolsAndMCPServers(topTools, allMCPServers, allIncludedTools)
-	if err != nil {
-		orchestratorToolsLog.Printf("Tools merge failed: %v", err)
-		return nil, fmt.Errorf("failed to merge tools: %w", err)
-	}
-
-	// Check if GitHub tool was explicitly configured in the original frontmatter
-	// This is needed to determine if permissions validation should be skipped.
-	// In Go, reading from a nil map returns zero-value, so these are nil-safe.
-	_, inMergedTools := tools["github"]
-	_, inTopTools := topTools["github"]
-	hasExplicitGitHubTool := inMergedTools && inTopTools
-	if hasExplicitGitHubTool {
-		orchestratorToolsLog.Print("GitHub tool was explicitly configured in frontmatter")
-	}
-	orchestratorToolsLog.Printf("hasExplicitGitHubTool: %v", hasExplicitGitHubTool)
-
-	// Extract and validate tools timeout settings
-	toolsTimeout, err := c.extractToolsTimeout(tools)
-	if err != nil {
-		return nil, fmt.Errorf("invalid tools timeout configuration: %w", err)
-	}
-
-	toolsStartupTimeout, err := c.extractToolsStartupTimeout(tools)
-	if err != nil {
-		return nil, fmt.Errorf("invalid tools startup timeout configuration: %w", err)
-	}
-
-	// Remove meta fields (timeout, startup-timeout) from merged tools map
-	// These are configuration fields, not actual tools
-	delete(tools, "timeout")
-	delete(tools, "startup-timeout")
-
-	// Extract and merge runtimes from frontmatter and imports
-	topRuntimes := extractRuntimesFromFrontmatter(result.Frontmatter)
-	orchestratorToolsLog.Printf("Merging runtimes")
-	runtimes, err := mergeRuntimes(topRuntimes, importsResult.MergedRuntimes)
-	if err != nil {
-		orchestratorToolsLog.Printf("Runtimes merge failed: %v", err)
-		return nil, fmt.Errorf("failed to merge runtimes: %w", err)
-	}
-
-	// Resolve run-install-scripts setting: true if runtimes.node has run-install-scripts: true,
-	// or if any imported workflow sets run-install-scripts at the node-runtime level.
-	runInstallScripts := resolveRunInstallScripts(runtimes, importsResult.MergedRunInstallScripts)
-
-	// Warn on deprecated APM configuration fields that are now ignored
-	if importsVal, hasImports := result.Frontmatter["imports"]; hasImports {
-		if importsMap, ok := importsVal.(map[string]any); ok {
-			if _, hasAPMPackages := importsMap["apm-packages"]; hasAPMPackages {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("The 'imports.apm-packages' field is deprecated and no longer supported. Migrate to 'imports: - uses: shared/apm.md' to configure APM packages."))
-				c.IncrementWarningCount()
-			}
-		}
-	}
-
-	// Validate MCP configurations for entries coming from mcp-servers
-	orchestratorToolsLog.Printf("Validating MCP configurations")
-	if err := ValidateMCPConfigs(tools); err != nil {
-		orchestratorToolsLog.Printf("MCP configuration validation failed: %v", err)
 		return nil, err
 	}
-
-	if !agenticEngine.GetCapabilities().ToolsAllowlist {
-		// For engines that don't support tool allowlists (like custom engine), ignore tools section and provide warnings
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), agenticEngine.GetID())))
-		c.IncrementWarningCount()
-		if _, hasTools := result.Frontmatter["tools"]; hasTools {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", agenticEngine.GetID(), agenticEngine.GetDisplayName())))
-			c.IncrementWarningCount()
-		}
-		tools = map[string]any{}
-		// For now, we'll add a basic github tool (always uses docker MCP)
-		githubConfig := map[string]any{}
-		tools["github"] = githubConfig
-	}
-
-	// Validate max-turns support for the current engine
-	if err := c.validateMaxTurnsSupport(result.Frontmatter, agenticEngine); err != nil {
-		return nil, err
-	}
-
-	// Validate max-continuations support for the current engine
-	if err := c.validateMaxContinuationsSupport(result.Frontmatter, agenticEngine); err != nil {
-		return nil, err
-	}
-
-	// Validate universal consumer model requirements (OpenCode/Crush)
-	if err := c.validateUniversalLLMConsumerModel(result.Frontmatter, agenticEngine); err != nil {
-		return nil, err
-	}
-
-	if err := c.validatePiEngineRequirements(NewTools(tools), agenticEngine); err != nil {
-		return nil, err
-	}
-
-	// Validate web-search support for the current engine (warning only)
-	c.validateWebSearchSupport(tools, agenticEngine)
-
-	// Validate bare mode support for the current engine (warning only)
-	c.validateBareModeSupport(result.Frontmatter, agenticEngine)
-
-	// Process @include directives in markdown content
-	markdownContent, includedMarkdownFiles, err := parser.ExpandIncludesWithManifest(effectiveMarkdown, markdownDir, false)
+	runtimes, runInstallScripts, err := c.resolveRuntimes(result.Frontmatter, importsResult)
 	if err != nil {
-		return nil, fmt.Errorf("failed to expand includes in markdown: %w", err)
+		return nil, err
 	}
-
-	// Store the main workflow markdown (before prepending imports)
-	mainWorkflowMarkdown := markdownContent
-	orchestratorToolsLog.Printf("Main workflow markdown: %d bytes", len(mainWorkflowMarkdown))
-
-	// Get import paths for runtime-import macro generation
-	var importPaths []string
-	if len(importsResult.ImportPaths) > 0 {
-		importPaths = importsResult.ImportPaths
-		orchestratorToolsLog.Printf("Found %d import paths for runtime-import macros", len(importPaths))
-	}
-
-	// Extract body-level {{#runtime-import}} directives and append them to importPaths so they
-	// appear as explicit macros in the compiled lock file (before the main workflow-file macro).
-	// This makes imported files visible in the lock file at a glance and ensures they are
-	// fetched before the main workflow body is processed.
-	// At runtime, runtime_import.cjs deduplicates via an importedFiles Set, so files listed
-	// here won't be imported a second time when the main workflow file body is processed.
-	bodyImports := parser.ExtractBodyLevelImportPaths(effectiveMarkdown, markdownDir)
-	if len(bodyImports) > 0 {
-		orchestratorToolsLog.Printf("Found %d body-level {{#runtime-import}} directive(s) to promote to lock-file macros", len(bodyImports))
-		for _, bi := range bodyImports {
-			importPaths = append(importPaths, bi.Path)
-		}
-	}
-
-	// Handle imported markdown from frontmatter imports field
-	// Only imports WITH inputs will have markdown content (for compile-time substitution)
-	var importedMarkdown string
-	if importsResult.MergedMarkdown != "" {
-		importedMarkdown = importsResult.MergedMarkdown
-		markdownContent = importsResult.MergedMarkdown + markdownContent
-		orchestratorToolsLog.Printf("Stored imported markdown with inputs: %d bytes, combined markdown: %d bytes", len(importedMarkdown), len(markdownContent))
-	} else {
-		orchestratorToolsLog.Print("No imported markdown with inputs")
-	}
-
-	workflowLog.Print("Expanded includes in markdown content")
-
-	// Combine all included files (from tools and markdown)
-	// Use a map to deduplicate files
-	allIncludedFilesMap := make(map[string]bool)
-	for _, file := range includedToolFiles {
-		allIncludedFilesMap[file] = true
-	}
-	for _, file := range includedMarkdownFiles {
-		allIncludedFilesMap[file] = true
-	}
-	var allIncludedFiles []string
-	for file := range allIncludedFilesMap {
-		allIncludedFiles = append(allIncludedFiles, file)
-	}
-	// Sort files alphabetically to ensure consistent ordering in lock files
-	sort.Strings(allIncludedFiles)
-
-	// Extract workflow name — use content-based extraction when content is pre-loaded (Wasm)
-	var workflowName string
-	if c.contentOverride != "" {
-		workflowName, err = parser.ExtractWorkflowNameFromContent(c.contentOverride, cleanPath)
-	} else {
-		// Use the already-parsed markdown body to avoid a redundant file read and YAML parse.
-		workflowName, err = parser.ExtractWorkflowNameFromMarkdownBody(effectiveMarkdown, cleanPath)
-	}
+	markdownData, err := c.resolveMarkdownArtifacts(effectiveMarkdown, markdownDir, cleanPath, result, importsResult, toolsData.includedToolFiles)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract workflow name: %w", err)
+		return nil, err
 	}
-
-	// Check if frontmatter specifies a custom name and use it instead
-	frontmatterName := extractStringFromMap(result.Frontmatter, "name", nil)
-	if frontmatterName != "" {
-		workflowName = frontmatterName
-	}
-
-	// Extract emoji from frontmatter for use in footers and UI
-	frontmatterEmoji := extractStringFromMap(result.Frontmatter, "emoji", nil)
-
-	workflowLog.Printf("Extracted workflow name: '%s'", workflowName)
-
-	// Check if the markdown content uses the text output OR if the workflow is triggered by
-	// events that have content (issues, discussions, PRs, comments). The sanitized step should
-	// be added in either case to make text/title/body outputs available.
-	explicitUsage := c.detectTextOutputUsage(markdownContent)
-	hasContext := c.hasContentContext(result.Frontmatter)
-	needsTextOutput := explicitUsage || hasContext
-
-	orchestratorToolsLog.Printf("Text output needed: explicit=%v, context=%v, final=%v",
-		explicitUsage, hasContext, needsTextOutput)
-
-	// Extract and validate tracker-id
+	needsTextOutput := c.logAndDetectTextOutput(markdownData.markdownContent, result.Frontmatter)
 	trackerID, err := c.extractTrackerID(result.Frontmatter)
 	if err != nil {
 		return nil, err
 	}
-
-	// Parse frontmatter config once for performance optimization
-	parsedFrontmatter, err := ParseFrontmatterConfig(result.Frontmatter)
-	if err != nil {
-		orchestratorToolsLog.Printf("Failed to parse frontmatter config: %v", err)
-		// Non-fatal error - continue with nil ParsedFrontmatter
-		parsedFrontmatter = nil
-	}
+	parsedFrontmatter := c.tryParseFrontmatterConfig(result.Frontmatter)
 
 	return &toolsProcessingResult{
-		tools:                 tools,
-		resolvedMCPServers:    allMCPServers,
+		tools:                 toolsData.tools,
+		resolvedMCPServers:    toolsData.allMCPServers,
 		runtimes:              runtimes,
 		runInstallScripts:     runInstallScripts,
-		toolsTimeout:          toolsTimeout,
-		toolsStartupTimeout:   toolsStartupTimeout,
-		markdownContent:       markdownContent,
-		importedMarkdown:      importedMarkdown, // Only imports WITH inputs
-		importPaths:           importPaths,      // Import paths for runtime-import macros (imports without inputs)
-		mainWorkflowMarkdown:  mainWorkflowMarkdown,
-		rawMainMarkdown:       effectiveMarkdown, // raw main markdown before include expansion, without sub-agents
-		allIncludedFiles:      allIncludedFiles,
-		workflowName:          workflowName,
-		frontmatterName:       frontmatterName,
-		frontmatterEmoji:      frontmatterEmoji,
+		toolsTimeout:          toolsData.toolsTimeout,
+		toolsStartupTimeout:   toolsData.toolsStartupTimeout,
+		markdownContent:       markdownData.markdownContent,
+		importedMarkdown:      markdownData.importedMarkdown,
+		importPaths:           markdownData.importPaths,
+		mainWorkflowMarkdown:  markdownData.mainWorkflowMarkdown,
+		rawMainMarkdown:       effectiveMarkdown,
+		allIncludedFiles:      markdownData.allIncludedFiles,
+		workflowName:          markdownData.workflowName,
+		frontmatterName:       markdownData.frontmatterName,
+		frontmatterEmoji:      markdownData.frontmatterEmoji,
 		needsTextOutput:       needsTextOutput,
 		trackerID:             trackerID,
 		safeOutputs:           safeOutputs,
 		secretMasking:         secretMasking,
 		parsedFrontmatter:     parsedFrontmatter,
+		hasExplicitGitHubTool: toolsData.hasExplicitGitHubTool,
+	}, nil
+}
+
+type mergedToolsData struct {
+	tools                 map[string]any
+	allMCPServers         map[string]any
+	includedToolFiles     []string
+	toolsTimeout          string
+	toolsStartupTimeout   string
+	hasExplicitGitHubTool bool
+}
+
+type markdownArtifacts struct {
+	markdownContent      string
+	importedMarkdown     string
+	importPaths          []string
+	mainWorkflowMarkdown string
+	allIncludedFiles     []string
+	workflowName         string
+	frontmatterName      string
+	frontmatterEmoji     string
+}
+
+func (c *Compiler) extractEffectiveMarkdown(importsResult *parser.ImportsResult, markdown string) (string, error) {
+	effectiveMarkdown, subAgents, err := parser.ExtractInlineSubAgents(markdown)
+	if err != nil {
+		return "", fmt.Errorf("failed to extract inline sub-agents: %w", err)
+	}
+	effectiveMarkdown, inlineSkills, err := parser.ExtractInlineSkills(effectiveMarkdown)
+	if err != nil {
+		return "", fmt.Errorf("failed to extract inline skills: %w", err)
+	}
+	orchestratorToolsLog.Printf("Effective markdown after stripping sub-agent and skill sections: %d bytes", len(effectiveMarkdown))
+	orchestratorToolsLog.Printf("Extracted inline sub-agents: count=%d", len(subAgents))
+	orchestratorToolsLog.Printf("Extracted inline skills: count=%d", len(inlineSkills))
+	for _, w := range importsResult.Warnings {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+		c.IncrementWarningCount()
+	}
+	return effectiveMarkdown, nil
+}
+
+func (c *Compiler) resolveSecretMasking(frontmatter map[string]any, importsResult *parser.ImportsResult) (*SecretMaskingConfig, error) {
+	secretMasking := c.extractSecretMaskingConfig(frontmatter)
+	if importsResult.MergedSecretMasking == "" {
+		return secretMasking, nil
+	}
+	orchestratorToolsLog.Printf("Merging secret-masking from imports")
+	merged, err := c.MergeSecretMasking(secretMasking, importsResult.MergedSecretMasking)
+	if err != nil {
+		orchestratorToolsLog.Printf("Secret-masking merge failed: %v", err)
+		return nil, fmt.Errorf("failed to merge secret-masking: %w", err)
+	}
+	return merged, nil
+}
+
+func (c *Compiler) resolveToolsConfiguration(
+	result *parser.FrontmatterResult,
+	effectiveMarkdown string,
+	markdownDir string,
+	importsResult *parser.ImportsResult,
+	agenticEngine CodingAgentEngine,
+) (*mergedToolsData, error) {
+	topTools := extractToolsFromFrontmatter(result.Frontmatter)
+	if err := ValidateToolsSection(topTools); err != nil {
+		return nil, err
+	}
+	includedTools, includedToolFiles, err := parser.ExpandIncludesWithManifest(effectiveMarkdown, markdownDir, true)
+	if err != nil {
+		orchestratorToolsLog.Printf("Failed to expand includes for tools: %v", err)
+		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
+	}
+	allIncludedTools := strings.Join(compactStrings(importsResult.MergedTools, includedTools), "\n")
+	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
+	allMCPServers, err := c.mergeImportedMCPServers(mcpServers, importsResult.MergedMCPServers)
+	if err != nil {
+		return nil, err
+	}
+	orchestratorToolsLog.Printf("Merging tools and MCP servers")
+	tools, err := c.mergeToolsAndMCPServers(topTools, allMCPServers, allIncludedTools)
+	if err != nil {
+		orchestratorToolsLog.Printf("Tools merge failed: %v", err)
+		return nil, fmt.Errorf("failed to merge tools: %w", err)
+	}
+	hasExplicitGitHubTool := hasExplicitGitHubTool(tools, topTools)
+	toolsTimeout, toolsStartupTimeout, err := c.extractToolTimeouts(tools)
+	if err != nil {
+		return nil, err
+	}
+	c.warnDeprecatedAPMImports(result.Frontmatter)
+	if err := ValidateMCPConfigs(tools); err != nil {
+		orchestratorToolsLog.Printf("MCP configuration validation failed: %v", err)
+		return nil, err
+	}
+	tools = c.adjustToolsForEngineCapabilities(result.Frontmatter, agenticEngine, tools)
+	if err := c.validateEngineToolRequirements(result.Frontmatter, agenticEngine, tools); err != nil {
+		return nil, err
+	}
+	return &mergedToolsData{
+		tools:                 tools,
+		allMCPServers:         allMCPServers,
+		includedToolFiles:     includedToolFiles,
+		toolsTimeout:          toolsTimeout,
+		toolsStartupTimeout:   toolsStartupTimeout,
 		hasExplicitGitHubTool: hasExplicitGitHubTool,
 	}, nil
+}
+
+func compactStrings(values ...string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func (c *Compiler) mergeImportedMCPServers(mcpServers map[string]any, mergedImportMCPServers string) (map[string]any, error) {
+	if mergedImportMCPServers == "" {
+		return mcpServers, nil
+	}
+	orchestratorToolsLog.Printf("Merging imported mcp-servers")
+	mergedMCPServers, err := c.MergeMCPServers(mcpServers, mergedImportMCPServers)
+	if err != nil {
+		orchestratorToolsLog.Printf("MCP servers merge failed: %v", err)
+		return nil, fmt.Errorf("failed to merge imported mcp-servers: %w", err)
+	}
+	return mergedMCPServers, nil
+}
+
+func hasExplicitGitHubTool(tools map[string]any, topTools map[string]any) bool {
+	_, inMergedTools := tools["github"]
+	_, inTopTools := topTools["github"]
+	return inMergedTools && inTopTools
+}
+
+func (c *Compiler) extractToolTimeouts(tools map[string]any) (string, string, error) {
+	toolsTimeout, err := c.extractToolsTimeout(tools)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid tools timeout configuration: %w", err)
+	}
+	toolsStartupTimeout, err := c.extractToolsStartupTimeout(tools)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid tools startup timeout configuration: %w", err)
+	}
+	delete(tools, "timeout")
+	delete(tools, "startup-timeout")
+	return toolsTimeout, toolsStartupTimeout, nil
+}
+
+func (c *Compiler) resolveRuntimes(frontmatter map[string]any, importsResult *parser.ImportsResult) (map[string]any, bool, error) {
+	topRuntimes := extractRuntimesFromFrontmatter(frontmatter)
+	orchestratorToolsLog.Printf("Merging runtimes")
+	runtimes, err := mergeRuntimes(topRuntimes, importsResult.MergedRuntimes)
+	if err != nil {
+		orchestratorToolsLog.Printf("Runtimes merge failed: %v", err)
+		return nil, false, fmt.Errorf("failed to merge runtimes: %w", err)
+	}
+	runInstallScripts := resolveRunInstallScripts(runtimes, importsResult.MergedRunInstallScripts)
+	return runtimes, runInstallScripts, nil
+}
+
+func (c *Compiler) warnDeprecatedAPMImports(frontmatter map[string]any) {
+	importsVal, hasImports := frontmatter["imports"]
+	if !hasImports {
+		return
+	}
+	importsMap, ok := importsVal.(map[string]any)
+	if !ok {
+		return
+	}
+	if _, hasAPMPackages := importsMap["apm-packages"]; hasAPMPackages {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("The 'imports.apm-packages' field is deprecated and no longer supported. Migrate to 'imports: - uses: shared/apm.md' to configure APM packages."))
+		c.IncrementWarningCount()
+	}
+}
+
+func (c *Compiler) adjustToolsForEngineCapabilities(frontmatter map[string]any, agenticEngine CodingAgentEngine, tools map[string]any) map[string]any {
+	if agenticEngine.GetCapabilities().ToolsAllowlist {
+		return tools
+	}
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), agenticEngine.GetID())))
+	c.IncrementWarningCount()
+	if _, hasTools := frontmatter["tools"]; hasTools {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", agenticEngine.GetID(), agenticEngine.GetDisplayName())))
+		c.IncrementWarningCount()
+	}
+	return map[string]any{"github": map[string]any{}}
+}
+
+func (c *Compiler) validateEngineToolRequirements(frontmatter map[string]any, agenticEngine CodingAgentEngine, tools map[string]any) error {
+	validators := []func() error{
+		func() error { return c.validateMaxTurnsSupport(frontmatter, agenticEngine) },
+		func() error { return c.validateMaxContinuationsSupport(frontmatter, agenticEngine) },
+		func() error { return c.validateUniversalLLMConsumerModel(frontmatter, agenticEngine) },
+		func() error { return c.validatePiEngineRequirements(NewTools(tools), agenticEngine) },
+	}
+	for _, validator := range validators {
+		if err := validator(); err != nil {
+			return err
+		}
+	}
+	c.validateWebSearchSupport(tools, agenticEngine)
+	c.validateBareModeSupport(frontmatter, agenticEngine)
+	return nil
+}
+
+func (c *Compiler) resolveMarkdownArtifacts(
+	effectiveMarkdown string,
+	markdownDir string,
+	cleanPath string,
+	result *parser.FrontmatterResult,
+	importsResult *parser.ImportsResult,
+	includedToolFiles []string,
+) (*markdownArtifacts, error) {
+	markdownContent, includedMarkdownFiles, err := parser.ExpandIncludesWithManifest(effectiveMarkdown, markdownDir, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand includes in markdown: %w", err)
+	}
+	mainWorkflowMarkdown := markdownContent
+	orchestratorToolsLog.Printf("Main workflow markdown: %d bytes", len(mainWorkflowMarkdown))
+	importPaths := append([]string{}, importsResult.ImportPaths...)
+	if len(importPaths) > 0 {
+		orchestratorToolsLog.Printf("Found %d import paths for runtime-import macros", len(importPaths))
+	}
+	bodyImports := parser.ExtractBodyLevelImportPaths(effectiveMarkdown, markdownDir)
+	if len(bodyImports) > 0 {
+		orchestratorToolsLog.Printf("Found %d body-level {{#runtime-import}} directive(s) to promote to lock-file macros", len(bodyImports))
+		for _, bodyImport := range bodyImports {
+			importPaths = append(importPaths, bodyImport.Path)
+		}
+	}
+	importedMarkdown := ""
+	if importsResult.MergedMarkdown != "" {
+		importedMarkdown = importsResult.MergedMarkdown
+		markdownContent = importedMarkdown + markdownContent
+		orchestratorToolsLog.Printf("Stored imported markdown with inputs: %d bytes, combined markdown: %d bytes", len(importedMarkdown), len(markdownContent))
+	} else {
+		orchestratorToolsLog.Print("No imported markdown with inputs")
+	}
+	workflowLog.Print("Expanded includes in markdown content")
+	workflowName, err := c.extractWorkflowName(cleanPath, effectiveMarkdown)
+	if err != nil {
+		return nil, err
+	}
+	frontmatterName := extractStringFromMap(result.Frontmatter, "name", nil)
+	if frontmatterName != "" {
+		workflowName = frontmatterName
+	}
+	frontmatterEmoji := extractStringFromMap(result.Frontmatter, "emoji", nil)
+	workflowLog.Printf("Extracted workflow name: '%s'", workflowName)
+	return &markdownArtifacts{
+		markdownContent:      markdownContent,
+		importedMarkdown:     importedMarkdown,
+		importPaths:          importPaths,
+		mainWorkflowMarkdown: mainWorkflowMarkdown,
+		allIncludedFiles:     mergeAndSortIncludedFiles(includedToolFiles, includedMarkdownFiles),
+		workflowName:         workflowName,
+		frontmatterName:      frontmatterName,
+		frontmatterEmoji:     frontmatterEmoji,
+	}, nil
+}
+
+func mergeAndSortIncludedFiles(files1 []string, files2 []string) []string {
+	allIncludedFilesMap := make(map[string]bool)
+	for _, file := range files1 {
+		allIncludedFilesMap[file] = true
+	}
+	for _, file := range files2 {
+		allIncludedFilesMap[file] = true
+	}
+	allIncludedFiles := make([]string, 0, len(allIncludedFilesMap))
+	for file := range allIncludedFilesMap {
+		allIncludedFiles = append(allIncludedFiles, file)
+	}
+	sort.Strings(allIncludedFiles)
+	return allIncludedFiles
+}
+
+func (c *Compiler) extractWorkflowName(cleanPath string, effectiveMarkdown string) (string, error) {
+	if c.contentOverride != "" {
+		workflowName, err := parser.ExtractWorkflowNameFromContent(c.contentOverride, cleanPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to extract workflow name: %w", err)
+		}
+		return workflowName, nil
+	}
+	workflowName, err := parser.ExtractWorkflowNameFromMarkdownBody(effectiveMarkdown, cleanPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to extract workflow name: %w", err)
+	}
+	return workflowName, nil
+}
+
+func (c *Compiler) logAndDetectTextOutput(markdownContent string, frontmatter map[string]any) bool {
+	explicitUsage := c.detectTextOutputUsage(markdownContent)
+	hasContext := c.hasContentContext(frontmatter)
+	needsTextOutput := explicitUsage || hasContext
+	orchestratorToolsLog.Printf("Text output needed: explicit=%v, context=%v, final=%v", explicitUsage, hasContext, needsTextOutput)
+	return needsTextOutput
+}
+
+func (c *Compiler) tryParseFrontmatterConfig(frontmatter map[string]any) *FrontmatterConfig {
+	parsedFrontmatter, err := ParseFrontmatterConfig(frontmatter)
+	if err != nil {
+		orchestratorToolsLog.Printf("Failed to parse frontmatter config: %v", err)
+		return nil
+	}
+	return parsedFrontmatter
 }
 
 // detectTextOutputUsage checks if the markdown content uses ${{ steps.sanitized.outputs.text }},

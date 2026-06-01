@@ -35,146 +35,185 @@ type engineSetupResult struct {
 // - Strict mode validations
 func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, cleanPath string, content []byte, markdownDir string) (*engineSetupResult, error) {
 	orchestratorEngineLog.Printf("Setting up engine and processing imports")
-
-	// Extract AI engine setting from frontmatter
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
-	// Preserve the top-level ET budget before string-form engine handling may
-	// intentionally clear engineConfig while converting "engine: <id>" into an import.
-	preservedMaxEffectiveTokens := int64(0)
-	preservedMaxRuns := 0
-	if engineConfig != nil {
-		preservedMaxEffectiveTokens = engineConfig.MaxEffectiveTokens
-		preservedMaxRuns = engineConfig.MaxRuns
+	preservedMaxEffectiveTokens, preservedMaxRuns := preserveEngineBudget(engineConfig)
+	if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
+		return nil, err
 	}
-
-	// Validate and register inline engine definitions (engine.runtime sub-object).
-	// Must happen before catalog resolution so the inline definition is visible to Resolve().
-	if engineConfig != nil && engineConfig.IsInlineDefinition {
-		if err := c.validateEngineInlineDefinition(engineConfig); err != nil {
-			return nil, err
-		}
-		if err := c.validateEngineAuthDefinition(engineConfig); err != nil {
-			return nil, err
-		}
-		c.registerInlineEngineDefinition(engineConfig)
-	}
-
-	// Extract network permissions from frontmatter
-	networkPermissions := c.extractNetworkPermissions(result.Frontmatter)
-
-	// Default to 'defaults' ecosystem if no network permissions specified
-	if networkPermissions == nil {
-		networkPermissions = &NetworkPermissions{
-			Allowed: []string{"defaults"},
-		}
-	}
-
-	// Extract sandbox configuration from frontmatter
+	networkPermissions := defaultNetworkPermissions(c.extractNetworkPermissions(result.Frontmatter))
 	sandboxConfig := c.extractSandboxConfig(result.Frontmatter)
+	if err := c.runStrictFrontmatterValidations(result.Frontmatter, networkPermissions); err != nil {
+		return nil, err
+	}
+	engineSetting, engineConfig = c.applyEngineOverride(engineSetting, engineConfig)
+	engineSetting, engineConfig = c.injectBuiltinEngineImportIfNeeded(result.Frontmatter, engineSetting, engineConfig)
+	importsResult, networkPermissions, err := c.processEngineImportsAndMerge(result, cleanPath, content, markdownDir, engineSetting, networkPermissions)
+	if err != nil {
+		return nil, err
+	}
+	engineSetting, engineConfig, err = c.resolveEngineFromIncludesAndImports(result, markdownDir, importsResult, engineSetting, engineConfig)
+	if err != nil {
+		return nil, err
+	}
+	c.applyEngineImportDefaults(engineConfig, engineSetting, importsResult, preservedMaxEffectiveTokens, preservedMaxRuns)
+	agenticEngine, configSteps, err := c.resolveEngineRuntimeConfig(engineSetting, engineConfig)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.runPostEngineValidations(result.Frontmatter, engineSetting, engineConfig, networkPermissions, sandboxConfig, agenticEngine, importsResult); err != nil {
+		return nil, err
+	}
+	return &engineSetupResult{
+		engineSetting:      engineSetting,
+		engineConfig:       engineConfig,
+		agenticEngine:      agenticEngine,
+		networkPermissions: networkPermissions,
+		sandboxConfig:      sandboxConfig,
+		importsResult:      importsResult,
+		configSteps:        configSteps,
+	}, nil
+}
 
-	// Save the initial strict mode state to restore it after this workflow is processed
-	// This ensures that strict mode from one workflow doesn't affect other workflows
+func preserveEngineBudget(engineConfig *EngineConfig) (int64, int) {
+	if engineConfig == nil {
+		return 0, 0
+	}
+	return engineConfig.MaxEffectiveTokens, engineConfig.MaxRuns
+}
+
+func defaultNetworkPermissions(networkPermissions *NetworkPermissions) *NetworkPermissions {
+	if networkPermissions != nil {
+		return networkPermissions
+	}
+	return &NetworkPermissions{Allowed: []string{"defaults"}}
+}
+
+func (c *Compiler) validateAndRegisterInlineEngineConfig(engineConfig *EngineConfig) error {
+	if engineConfig == nil || !engineConfig.IsInlineDefinition {
+		return nil
+	}
+	if err := c.validateEngineInlineDefinition(engineConfig); err != nil {
+		return err
+	}
+	if err := c.validateEngineAuthDefinition(engineConfig); err != nil {
+		return err
+	}
+	c.registerInlineEngineDefinition(engineConfig)
+	return nil
+}
+
+func (c *Compiler) runStrictFrontmatterValidations(frontmatter map[string]any, networkPermissions *NetworkPermissions) error {
+	return c.withEffectiveStrictMode(frontmatter, func() error {
+		orchestratorEngineLog.Printf("Performing strict mode validation (strict=%v)", c.strictMode)
+		if err := c.validateStrictMode(frontmatter, networkPermissions); err != nil {
+			orchestratorEngineLog.Printf("Strict mode validation failed: %v", err)
+			return err
+		}
+		validations := []struct {
+			name string
+			fn   func(map[string]any) error
+		}{
+			{name: "Env secrets", fn: c.validateEnvSecrets},
+			{name: "Steps secrets", fn: c.validateStepsSecrets},
+			{name: "Update check", fn: c.validateUpdateCheck},
+		}
+		for _, validation := range validations {
+			if err := validation.fn(frontmatter); err != nil {
+				orchestratorEngineLog.Printf("%s validation failed: %v", validation.name, err)
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (c *Compiler) withEffectiveStrictMode(frontmatter map[string]any, fn func() error) error {
 	initialStrictMode := c.strictMode
-
-	// Resolve effective strict mode: CLI flag > frontmatter > schema default (true)
-	c.strictMode = c.effectiveStrictMode(result.Frontmatter)
-
-	// Perform strict mode validations
-	orchestratorEngineLog.Printf("Performing strict mode validation (strict=%v)", c.strictMode)
-	if err := c.validateStrictMode(result.Frontmatter, networkPermissions); err != nil {
-		orchestratorEngineLog.Printf("Strict mode validation failed: %v", err)
-		// Restore strict mode before returning error
+	c.strictMode = c.effectiveStrictMode(frontmatter)
+	defer func() {
 		c.strictMode = initialStrictMode
-		return nil, err
+	}()
+	return fn()
+}
+
+func (c *Compiler) applyEngineOverride(engineSetting string, engineConfig *EngineConfig) (string, *EngineConfig) {
+	if c.engineOverride == "" {
+		return engineSetting, engineConfig
 	}
-
-	// Validate env secrets regardless of strict mode (error in strict, warning in non-strict)
-	if err := c.validateEnvSecrets(result.Frontmatter); err != nil {
-		orchestratorEngineLog.Printf("Env secrets validation failed: %v", err)
-		// Restore strict mode before returning error
-		c.strictMode = initialStrictMode
-		return nil, err
+	if engineSetting != "" && engineSetting != c.engineOverride {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Command line --engine %s overrides markdown file engine: %s", c.engineOverride, engineSetting)))
+		c.IncrementWarningCount()
 	}
-
-	// Validate steps/post-steps secrets regardless of strict mode (error in strict, warning in non-strict)
-	if err := c.validateStepsSecrets(result.Frontmatter); err != nil {
-		orchestratorEngineLog.Printf("Steps secrets validation failed: %v", err)
-		// Restore strict mode before returning error
-		c.strictMode = initialStrictMode
-		return nil, err
+	if engineConfig != nil {
+		engineConfig.ID = c.engineOverride
 	}
+	return c.engineOverride, engineConfig
+}
 
-	// Validate check-for-updates flag regardless of strict mode (error in strict, warning in non-strict)
-	if err := c.validateUpdateCheck(result.Frontmatter); err != nil {
-		orchestratorEngineLog.Printf("Update check validation failed: %v", err)
-		// Restore strict mode before returning error
-		c.strictMode = initialStrictMode
-		return nil, err
+func (c *Compiler) injectBuiltinEngineImportIfNeeded(frontmatter map[string]any, engineSetting string, engineConfig *EngineConfig) (string, *EngineConfig) {
+	if c.engineOverride != "" || !isStringFormEngine(frontmatter) || engineSetting == "" {
+		return engineSetting, engineConfig
 	}
-
-	// Restore the initial strict mode state after validation
-	// This ensures strict mode doesn't leak to other workflows being compiled
-	c.strictMode = initialStrictMode
-
-	// Override with command line AI engine setting if provided
-	if c.engineOverride != "" {
-		originalEngineSetting := engineSetting
-		if originalEngineSetting != "" && originalEngineSetting != c.engineOverride {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Command line --engine %s overrides markdown file engine: %s", c.engineOverride, originalEngineSetting)))
-			c.IncrementWarningCount()
-		}
-		engineSetting = c.engineOverride
-		// Update engineConfig.ID so that downstream code (e.g. generateCreateAwInfo) uses
-		// the override engine ID, not the one parsed from the frontmatter.
-		if engineConfig != nil {
-			engineConfig.ID = c.engineOverride
-		}
+	builtinPath := builtinEnginePath(engineSetting)
+	if !parser.BuiltinVirtualFileExists(builtinPath) {
+		return engineSetting, engineConfig
 	}
+	orchestratorEngineLog.Printf("Injecting builtin engine import: %s", builtinPath)
+	addImportToFrontmatter(frontmatter, builtinPath)
+	delete(frontmatter, "engine")
+	return "", nil
+}
 
-	// When the engine is specified in short/string form ("engine: copilot") and no CLI
-	// override is active, inject the corresponding builtin shared-workflow .md as an
-	// import. This makes "engine: copilot" syntactic sugar for importing the builtin
-	// copilot.md, which carries the full engine definition. The engine field is removed
-	// from the frontmatter so the definition comes entirely from the import.
-	if c.engineOverride == "" && isStringFormEngine(result.Frontmatter) && engineSetting != "" {
-		builtinPath := builtinEnginePath(engineSetting)
-		if parser.BuiltinVirtualFileExists(builtinPath) {
-			orchestratorEngineLog.Printf("Injecting builtin engine import: %s", builtinPath)
-			addImportToFrontmatter(result.Frontmatter, builtinPath)
-			delete(result.Frontmatter, "engine")
-			engineSetting = ""
-			engineConfig = nil
-		}
-	}
-
-	// Process imports from frontmatter first (before @include directives)
+func (c *Compiler) processEngineImportsAndMerge(
+	result *parser.FrontmatterResult,
+	cleanPath string,
+	content []byte,
+	markdownDir string,
+	engineSetting string,
+	networkPermissions *NetworkPermissions,
+) (*parser.ImportsResult, *NetworkPermissions, error) {
 	orchestratorEngineLog.Printf("Processing imports from frontmatter")
 	importCache := c.getSharedImportCache()
-	// Pass the full file content for accurate line/column error reporting
 	importsResult, err := parser.ProcessImportsFromFrontmatterWithSource(result.Frontmatter, markdownDir, importCache, cleanPath, string(content))
 	if err != nil {
 		orchestratorEngineLog.Printf("Import processing failed: %v", err)
-		// Format ImportCycleError with detailed chain display
 		var cycleErr *parser.ImportCycleError
 		if errors.As(err, &cycleErr) {
-			return nil, parser.FormatImportCycleError(cycleErr)
+			return nil, nil, parser.FormatImportCycleError(cycleErr)
 		}
-		return nil, err // Error is already formatted with source location
+		return nil, nil, err
 	}
+	if err := scanImportedMarkdownFiles(importsResult.ImportedFiles, markdownDir, importCache); err != nil {
+		return nil, nil, err
+	}
+	if importsResult.MergedNetwork != "" {
+		orchestratorEngineLog.Printf("Merging network permissions from imports")
+		networkPermissions, err = c.MergeNetworkPermissions(networkPermissions, importsResult.MergedNetwork)
+		if err != nil {
+			orchestratorEngineLog.Printf("Network permissions merge failed: %v", err)
+			return nil, nil, fmt.Errorf("failed to merge network permissions: %w", err)
+		}
+	}
+	if importsResult.MergedPermissions != "" {
+		orchestratorEngineLog.Printf("Validating included permissions")
+		topLevelPermissions := c.extractPermissions(result.Frontmatter)
+		if err := c.ValidateIncludedPermissions(topLevelPermissions, importsResult.MergedPermissions); err != nil {
+			orchestratorEngineLog.Printf("Included permissions validation failed: %v", err)
+			return nil, nil, fmt.Errorf("permission validation failed: %w", err)
+		}
+	}
+	return importsResult, networkPermissions, nil
+}
 
-	// Security scan imported markdown files' content (skip non-markdown imports like .yml)
-	for _, importedFile := range importsResult.ImportedFiles {
-		// Strip section references (e.g., "shared/foo.md#Section")
+func scanImportedMarkdownFiles(importedFiles []string, markdownDir string, importCache *parser.ImportCache) error {
+	for _, importedFile := range importedFiles {
 		importFilePath := importedFile
 		if idx := strings.Index(importFilePath, "#"); idx >= 0 {
 			importFilePath = importFilePath[:idx]
 		}
-		// Only scan non-builtin markdown imports.
-		// Builtin imports are trusted project assets and are validated in-source.
 		if !shouldScanImportedMarkdown(importFilePath) {
 			continue
 		}
-		// Resolve the import path to a full filesystem path
 		fullPath, resolveErr := parser.ResolveIncludePath(importFilePath, markdownDir, importCache)
 		if resolveErr != nil {
 			orchestratorEngineLog.Printf("Skipping security scan for unresolvable import: %s: %v", importedFile, resolveErr)
@@ -189,106 +228,67 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		}
 		if findings := ScanMarkdownSecurity(string(importContent)); len(findings) > 0 {
 			orchestratorEngineLog.Printf("Security scan failed for imported file: %s (%d findings)", importedFile, len(findings))
-			return nil, fmt.Errorf("imported workflow '%s' failed security scan: %s", importedFile, FormatSecurityFindings(findings, importedFile))
+			return fmt.Errorf("imported workflow '%s' failed security scan: %s", importedFile, FormatSecurityFindings(findings, importedFile))
 		}
 	}
+	return nil
+}
 
-	// Merge network permissions from imports with top-level network permissions
-	if importsResult.MergedNetwork != "" {
-		orchestratorEngineLog.Printf("Merging network permissions from imports")
-		networkPermissions, err = c.MergeNetworkPermissions(networkPermissions, importsResult.MergedNetwork)
-		if err != nil {
-			orchestratorEngineLog.Printf("Network permissions merge failed: %v", err)
-			return nil, fmt.Errorf("failed to merge network permissions: %w", err)
-		}
-	}
-
-	// Validate permissions from imports against top-level permissions
-	// Only extract and validate when imports actually contributed permissions — avoids
-	// the YAML marshaling cost of extractPermissions in the common case of no imports.
-	if importsResult.MergedPermissions != "" {
-		orchestratorEngineLog.Printf("Validating included permissions")
-		topLevelPermissions := c.extractPermissions(result.Frontmatter)
-		if err := c.ValidateIncludedPermissions(topLevelPermissions, importsResult.MergedPermissions); err != nil {
-			orchestratorEngineLog.Printf("Included permissions validation failed: %v", err)
-			return nil, fmt.Errorf("permission validation failed: %w", err)
-		}
-	}
-
-	// Process @include directives to extract engine configurations and check for conflicts
+func (c *Compiler) resolveEngineFromIncludesAndImports(
+	result *parser.FrontmatterResult,
+	markdownDir string,
+	importsResult *parser.ImportsResult,
+	engineSetting string,
+	engineConfig *EngineConfig,
+) (string, *EngineConfig, error) {
 	orchestratorEngineLog.Printf("Expanding includes for engine configurations")
 	includedEngines, err := parser.ExpandIncludesForEngines(result.Markdown, markdownDir)
 	if err != nil {
 		orchestratorEngineLog.Printf("Failed to expand includes for engines: %v", err)
-		return nil, fmt.Errorf("failed to expand includes for engines: %w", err)
+		return "", nil, fmt.Errorf("failed to expand includes for engines: %w", err)
 	}
-
-	// Combine imported engines with included engines
 	allEngines := append(importsResult.MergedEngines, includedEngines...)
-
-	// Validate that only one engine field exists across all files
 	orchestratorEngineLog.Printf("Validating single engine specification")
 	finalEngineSetting, err := c.validateSingleEngineSpecification(engineSetting, allEngines)
 	if err != nil {
 		orchestratorEngineLog.Printf("Engine specification validation failed: %v", err)
-		return nil, err
+		return "", nil, err
 	}
 	if finalEngineSetting != "" {
 		engineSetting = finalEngineSetting
 	}
-
-	// If engineConfig is nil (engine was in an included file), extract it from the included engine JSON
 	if engineConfig == nil && len(allEngines) > 0 {
 		orchestratorEngineLog.Printf("Extracting engine config from included file")
-		extractedConfig, err := c.extractEngineConfigFromJSON(allEngines[0])
+		engineConfig, err = c.extractEngineConfigFromJSON(allEngines[0])
 		if err != nil {
 			orchestratorEngineLog.Printf("Failed to extract engine config: %v", err)
-			return nil, fmt.Errorf("failed to extract engine config from included file: %w", err)
+			return "", nil, fmt.Errorf("failed to extract engine config from included file: %w", err)
 		}
-		engineConfig = extractedConfig
-
-		// If the imported engine is an inline definition (engine.runtime sub-object),
-		// validate and register it in the catalog. This mirrors the handling for inline
-		// definitions declared directly in the main workflow (above).
-		if engineConfig != nil && engineConfig.IsInlineDefinition {
-			if err := c.validateEngineInlineDefinition(engineConfig); err != nil {
-				return nil, err
-			}
-			if err := c.validateEngineAuthDefinition(engineConfig); err != nil {
-				return nil, err
-			}
-			c.registerInlineEngineDefinition(engineConfig)
+		if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
+			return "", nil, err
 		}
 	}
-
-	// Apply the default AI engine setting if not specified
 	if engineSetting == "" {
 		defaultEngine := c.engineRegistry.GetDefaultEngine()
 		engineSetting = defaultEngine.GetID()
 		workflowLog.Printf("No 'engine:' setting found, defaulting to: %s", engineSetting)
-		// Create a default EngineConfig with the default engine ID if not already set
-		if engineConfig == nil {
-			engineConfig = &EngineConfig{ID: engineSetting}
-		} else if engineConfig.ID == "" {
-			engineConfig.ID = engineSetting
-		}
 	}
-
-	// Normalize: if the main workflow declared a preference-only engine object (e.g.
-	// engine: {model: small}) then engineConfig is non-nil but has an empty ID.
-	// Set the ID from the resolved engineSetting so that downstream code which reads
-	// engineConfig.ID (e.g. metadata env vars, threat-detection engine selection) gets
-	// the correct engine identifier rather than an empty string.
-	if engineConfig != nil && engineConfig.ID == "" && engineSetting != "" {
+	if engineConfig == nil {
+		engineConfig = &EngineConfig{ID: engineSetting}
+	} else if engineConfig.ID == "" && engineSetting != "" {
 		engineConfig.ID = engineSetting
 		orchestratorEngineLog.Printf("Normalized engineConfig.ID from engineSetting: %s", engineSetting)
 	}
+	return engineSetting, engineConfig, nil
+}
 
-	// Merge engine.mcp.* settings from imports (consumer-specified values take precedence).
-	// Shared workflows can declare engine.mcp.tool-timeout / engine.mcp.session-timeout to
-	// propagate MCP gateway timeout configuration to consumers without requiring consumers
-	// to also set these values explicitly.  If the main workflow already set a value, it
-	// wins (consumer override).
+func (c *Compiler) applyEngineImportDefaults(
+	engineConfig *EngineConfig,
+	engineSetting string,
+	importsResult *parser.ImportsResult,
+	preservedMaxEffectiveTokens int64,
+	preservedMaxRuns int,
+) {
 	if engineConfig == nil {
 		engineConfig = &EngineConfig{ID: engineSetting}
 	}
@@ -324,115 +324,76 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		engineConfig.MCPSessionTimeout = importsResult.MergedEngineMCPSessionTimeout
 		orchestratorEngineLog.Printf("Applied engine.mcp.session-timeout from import: %s", engineConfig.MCPSessionTimeout)
 	}
-	// Apply model preference from imports that declare engine.model without engine.id.
-	// The consuming workflow's own model setting takes precedence (first-wins).
 	if engineConfig.Model == "" && importsResult.MergedEngineModel != "" {
 		engineConfig.Model = importsResult.MergedEngineModel
 		orchestratorEngineLog.Printf("Applied engine.model preference from import: %s", engineConfig.Model)
 	}
+}
 
-	// Validate the engine setting and resolve the runtime adapter via the catalog.
-	// This performs exact catalog lookup, prefix fallback, and returns a formatted
-	// validation error for unknown engines — replacing the separate validateEngine
-	// and getAgenticEngine calls.
+func (c *Compiler) resolveEngineRuntimeConfig(engineSetting string, engineConfig *EngineConfig) (CodingAgentEngine, []map[string]any, error) {
 	orchestratorEngineLog.Printf("Resolving engine setting: %s", engineSetting)
 	resolvedEngine, err := c.engineCatalog.Resolve(engineSetting, engineConfig)
 	if err != nil {
 		orchestratorEngineLog.Printf("Engine resolution failed: %v", err)
-		return nil, err
+		return nil, nil, err
 	}
 	agenticEngine := resolvedEngine.Runtime
-
 	const noDefaultMaxTurns = ""
 	if engineConfig != nil && engineConfig.MaxTurns == "" && agenticEngine.GetCapabilities().MaxTurns {
-		// No built-in max-turns default exists.
-		// ResolveDefaultMaxTurns(noDefaultMaxTurns) only injects a value when GH_AW_DEFAULT_MAX_TURNS
-		// is configured; otherwise MaxTurns stays unset.
 		engineConfig.MaxTurns = compilerenv.ResolveDefaultMaxTurns(noDefaultMaxTurns)
 	}
-
-	// Call RenderConfig to allow the runtime adapter to emit config files or metadata.
-	// Most engines return nil, nil here; engines like Crush use this to write
-	// provider/model config files before the execution steps run.
 	orchestratorEngineLog.Printf("Calling RenderConfig for engine: %s", engineSetting)
 	configSteps, err := agenticEngine.RenderConfig(resolvedEngine)
 	if err != nil {
 		orchestratorEngineLog.Printf("RenderConfig failed for engine %s: %v", engineSetting, err)
-		return nil, fmt.Errorf("engine %s RenderConfig failed: %w", engineSetting, err)
+		return nil, nil, fmt.Errorf("engine %s RenderConfig failed: %w", engineSetting, err)
 	}
-
 	workflowLog.Printf("AI engine: %s (%s)", agenticEngine.GetDisplayName(), engineSetting)
 	if agenticEngine.IsExperimental() && c.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental engine: "+agenticEngine.GetDisplayName()))
 		c.IncrementWarningCount()
 	}
+	return agenticEngine, configSteps, nil
+}
 
-	// Enable firewall by default for copilot engine when network restrictions are present
-	// (unless SRT sandbox is configured, since AWF and SRT are mutually exclusive)
+func (c *Compiler) runPostEngineValidations(
+	frontmatter map[string]any,
+	engineSetting string,
+	engineConfig *EngineConfig,
+	networkPermissions *NetworkPermissions,
+	sandboxConfig *SandboxConfig,
+	agenticEngine CodingAgentEngine,
+	importsResult *parser.ImportsResult,
+) error {
 	enableFirewallByDefaultForCopilot(engineSetting, networkPermissions, sandboxConfig)
-
-	// Enable firewall by default for claude engine when network restrictions are present
 	enableFirewallByDefaultForClaude(engineSetting, networkPermissions, sandboxConfig)
-
-	// Re-evaluate strict mode for firewall and network validation
-	// (it was restored after validateStrictMode but we need it again)
-	initialStrictModeForFirewall := c.strictMode
-	c.strictMode = c.effectiveStrictMode(result.Frontmatter)
-
-	// Validate firewall is enabled in strict mode for copilot with network restrictions
-	orchestratorEngineLog.Printf("Validating strict firewall (strict=%v)", c.strictMode)
-	if err := c.validateStrictFirewall(engineSetting, networkPermissions, sandboxConfig); err != nil {
-		orchestratorEngineLog.Printf("Strict firewall validation failed: %v", err)
-		c.strictMode = initialStrictModeForFirewall
-		return nil, err
-	}
-
-	// Validate that internal sandbox customization fields are not used in strict mode
-	orchestratorEngineLog.Printf("Validating strict sandbox customization (strict=%v)", c.strictMode)
-	if err := c.validateStrictSandboxCustomization(sandboxConfig); err != nil {
-		orchestratorEngineLog.Printf("Strict sandbox customization validation failed: %v", err)
-		c.strictMode = initialStrictModeForFirewall
-		return nil, err
-	}
-
-	// Check if the engine supports network restrictions when they are defined
-	if err := c.checkNetworkSupport(agenticEngine, networkPermissions); err != nil {
-		orchestratorEngineLog.Printf("Network support check failed: %v", err)
-		// Restore strict mode before returning error
-		c.strictMode = initialStrictModeForFirewall
-		return nil, err
-	}
-
-	// Validate that imported custom engine steps don't use agentic engine secrets
-	orchestratorEngineLog.Printf("Validating imported steps for agentic secrets (strict=%v)", c.strictMode)
-	if err := c.validateImportedStepsNoAgenticSecrets(engineConfig, engineSetting); err != nil {
-		orchestratorEngineLog.Printf("Imported steps validation failed: %v", err)
-		// Restore strict mode before returning error
-		c.strictMode = initialStrictModeForFirewall
-		return nil, err
-	}
-
-	// Validate that actions/checkout steps in the agent job include persist-credentials: false
-	orchestratorEngineLog.Printf("Validating checkout persist-credentials (strict=%v)", c.strictMode)
-	if err := c.validateCheckoutPersistCredentials(result.Frontmatter, importsResult.MergedSteps); err != nil {
-		orchestratorEngineLog.Printf("Checkout persist-credentials validation failed: %v", err)
-		// Restore strict mode before returning error
-		c.strictMode = initialStrictModeForFirewall
-		return nil, err
-	}
-
-	// Restore the strict mode state after network check
-	c.strictMode = initialStrictModeForFirewall
-
-	return &engineSetupResult{
-		engineSetting:      engineSetting,
-		engineConfig:       engineConfig,
-		agenticEngine:      agenticEngine,
-		networkPermissions: networkPermissions,
-		sandboxConfig:      sandboxConfig,
-		importsResult:      importsResult,
-		configSteps:        configSteps,
-	}, nil
+	return c.withEffectiveStrictMode(frontmatter, func() error {
+		orchestratorEngineLog.Printf("Validating strict firewall (strict=%v)", c.strictMode)
+		if err := c.validateStrictFirewall(engineSetting, networkPermissions, sandboxConfig); err != nil {
+			orchestratorEngineLog.Printf("Strict firewall validation failed: %v", err)
+			return err
+		}
+		orchestratorEngineLog.Printf("Validating strict sandbox customization (strict=%v)", c.strictMode)
+		if err := c.validateStrictSandboxCustomization(sandboxConfig); err != nil {
+			orchestratorEngineLog.Printf("Strict sandbox customization validation failed: %v", err)
+			return err
+		}
+		if err := c.checkNetworkSupport(agenticEngine, networkPermissions); err != nil {
+			orchestratorEngineLog.Printf("Network support check failed: %v", err)
+			return err
+		}
+		orchestratorEngineLog.Printf("Validating imported steps for agentic secrets (strict=%v)", c.strictMode)
+		if err := c.validateImportedStepsNoAgenticSecrets(engineConfig, engineSetting); err != nil {
+			orchestratorEngineLog.Printf("Imported steps validation failed: %v", err)
+			return err
+		}
+		orchestratorEngineLog.Printf("Validating checkout persist-credentials (strict=%v)", c.strictMode)
+		if err := c.validateCheckoutPersistCredentials(frontmatter, importsResult.MergedSteps); err != nil {
+			orchestratorEngineLog.Printf("Checkout persist-credentials validation failed: %v", err)
+			return err
+		}
+		return nil
+	})
 }
 
 // shouldScanImportedMarkdown reports whether an import path should be processed by
