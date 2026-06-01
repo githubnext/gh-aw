@@ -1,10 +1,14 @@
 package workflow
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"strings"
 )
+
+//go:embed prompts/checkouts_no_credentials_warning.md
+var checkoutsNoCredentialsWarning string
 
 // ParseCheckoutConfigs converts a raw frontmatter value (single map or array of maps)
 // into a slice of CheckoutConfig entries.
@@ -339,18 +343,7 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 		"or `fetch: [\"main\", \"feature/my-branch\"]` for specific branches).\n")
 
 	// Credential warning — always present for any checkout-enabled workflow.
-	// Git credentials are intentionally stripped after the checkout step for security,
-	// so any operation that requires network access to the remote will fail.
-	sb.WriteString("  - **Warning: No git credentials are available to the agent.** " +
-		"Credentials are intentionally removed after the checkout step for security. " +
-		"This means any git operation that needs to authenticate to the remote will fail. In private repositories, that includes:\n" +
-		"    - `git fetch`, `git pull`, `git clone`, and `git push` (direct push, not via safe-output tools)\n" +
-		"    - Checking out or switching to a remote branch that is not already fetched\n" +
-		"    - Deepening a shallow clone (`git fetch --unshallow`)\n" +
-		"    - On-demand blob fetches in partial/blobless clones (operations on files not in the initial checkout)\n" +
-		"    Do NOT attempt to configure credentials, run `git credential fill`, or modify `.gitconfig` — " +
-		"authentication will not succeed. If you encounter credential prompts or authentication errors, " +
-		"stop immediately and report the limitation rather than spending turns trying to work around it.\n")
+	sb.WriteString(checkoutsNoCredentialsWarning)
 
 	return sb.String()
 }
