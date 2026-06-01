@@ -283,6 +283,12 @@ jobs:
           - **checkouts**: The following repositories have been checked out and are available in the workspace:
             - repo `github/gh-aw-side-repo` → `$GITHUB_WORKSPACE` (cwd) [shallow clone, fetch-depth=1 (default)]
             - **Note**: If a branch you need is not in the list above and is not listed as an additional fetched ref, it has NOT been checked out. For private repositories you cannot fetch it without proper authentication. If the branch is required and not available, exit with an error and ask the user to add it to the `fetch:` option of the `checkout:` configuration (e.g., `fetch: ["refs/pulls/open/*"]` for all open PR refs, or `fetch: ["main", "feature/my-branch"]` for specific branches).
+            - **Warning: No git credentials are available to the agent.** Credentials are intentionally removed after the checkout step for security. This means all git operations that require network access will fail, including:
+              - `git fetch`, `git pull`, `git clone`, and `git push` (direct push, not via safe-output tools)
+              - Checking out or switching to a remote branch that is not already fetched
+              - Deepening a shallow clone (`git fetch --unshallow`)
+              - On-demand blob fetches in partial/blobless clones (operations on files not in the initial checkout)
+            Do NOT attempt to configure credentials, run `git credential fill`, or modify `.gitconfig` — authentication will not succeed. If you encounter credential prompts or authentication errors, stop immediately and report the limitation rather than spending turns trying to work around it.
           </github-context>
           
           GH_AW_PROMPT_02fb09199cdd433a_EOF
