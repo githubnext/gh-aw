@@ -18,7 +18,7 @@ Run `gh aw compile --dependabot` to compile all workflows and generate manifests
 
 ## Compiler-managed `gh-aw-actions` ignore rule
 
-`gh aw compile` always reconciles the compiler-managed ignore rule for `github/gh-aw-actions/**` when your repository already has a `github-actions` update block in `.github/dependabot.yml` (this is not limited to `--dependabot` runs).
+`gh aw compile` always reconciles the compiler-managed ignore rule for `github/gh-aw-actions` when your repository already has a `github-actions` update block in `.github/dependabot.yml` (this is not limited to `--dependabot` runs).
 
 - No-op if `.github/dependabot.yml` does not exist
 - No-op if there is no `package-ecosystem: github-actions` update block
@@ -31,7 +31,7 @@ updates:
     schedule:
       interval: weekly
     ignore:
-      - dependency-name: "github/gh-aw-actions/**" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
+      - dependency-name: "github/gh-aw-actions" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
       - dependency-name: "actions/checkout" # user-defined, preserved
 ```
 
