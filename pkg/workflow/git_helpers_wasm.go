@@ -2,12 +2,12 @@
 
 package workflow
 
-import "fmt"
+import "errors"
 
 func findGitRoot() string {
 	return "."
 }
 
 func RunGitCombined(spinnerMessage string, args ...string) ([]byte, error) {
-	return nil, fmt.Errorf("git commands not available in Wasm")
+	return nil, errors.New("git commands not available in Wasm")
 }

@@ -2,8 +2,8 @@
 
 package console
 
-import "fmt"
+import "errors"
 
 func RunForm(fields []FormField) error {
-	return fmt.Errorf("interactive forms not available in Wasm")
+	return errors.New("interactive forms not available in Wasm")
 }
