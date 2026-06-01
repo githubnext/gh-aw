@@ -683,6 +683,23 @@ func TestBuildCheckoutsPromptContent(t *testing.T) {
 		assert.Contains(t, content, "has NOT been checked out", "should mention branches that are not checked out")
 		assert.Contains(t, content, "fetch:", "should mention the fetch option for resolution")
 	})
+
+	t.Run("no credentials warning is always present", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/repo"},
+		})
+		assert.Contains(t, content, "No git credentials are available", "should warn that git credentials are absent")
+		assert.Contains(t, content, "git fetch", "should mention that git fetch will fail")
+		assert.Contains(t, content, "authentication will not succeed", "should explain that authentication attempts will fail")
+	})
+
+	t.Run("no credentials warning present for sparse checkout", func(t *testing.T) {
+		content := buildCheckoutsPromptContent([]*CheckoutConfig{
+			{Repository: "owner/repo", SparseCheckout: ".github/\nsrc/"},
+		})
+		assert.Contains(t, content, "No git credentials are available", "should warn about credentials even for sparse checkouts")
+		assert.Contains(t, content, "partial/blobless clones", "should mention partial clone risk for sparse checkouts")
+	})
 }
 
 // TestParseFetchField verifies parsing of the fetch field in checkout configuration.

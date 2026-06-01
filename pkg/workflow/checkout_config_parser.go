@@ -338,5 +338,19 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 		"`fetch:` option of the `checkout:` configuration (e.g., `fetch: [\"refs/pulls/open/*\"]` for all open PR refs, " +
 		"or `fetch: [\"main\", \"feature/my-branch\"]` for specific branches).\n")
 
+	// Credential warning — always present for any checkout-enabled workflow.
+	// Git credentials are intentionally stripped after the checkout step for security,
+	// so any operation that requires network access to the remote will fail.
+	sb.WriteString("  - **Warning: No git credentials are available to the agent.** " +
+		"Credentials are intentionally removed after the checkout step for security. " +
+		"This means all git operations that require network access will fail, including:\n" +
+		"    - `git fetch`, `git pull`, `git clone`, and `git push` (direct push, not via safe-output tools)\n" +
+		"    - Checking out or switching to a remote branch that is not already fetched\n" +
+		"    - Deepening a shallow clone (`git fetch --unshallow`)\n" +
+		"    - On-demand blob fetches in partial/blobless clones (operations on files not in the initial checkout)\n" +
+		"  Do NOT attempt to configure credentials, run `git credential fill`, or modify `.gitconfig` — " +
+		"authentication will not succeed. If you encounter credential prompts or authentication errors, " +
+		"stop immediately and report the limitation rather than spending turns trying to work around it.\n")
+
 	return sb.String()
 }
