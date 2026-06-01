@@ -111,6 +111,15 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	if err := validateUniqueManifestWorkflowFilenames(installationSources, manifestPath); err != nil {
 		return nil, err
 	}
+	if err := validateManifestInstallableWorkflowPrivacy(manifestPath, installationSources, func(sourcePath string) ([]byte, error) {
+		content, err := downloadPackageFileFromGitHubForHost(owner, repo, sourcePath, ref, host)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read workflow %q from %s/%s@%s: %w", sourcePath, owner, repo, ref, err)
+		}
+		return content, nil
+	}); err != nil {
+		return nil, err
+	}
 
 	docsPath, err := resolveRepositoryPackageDocsPath(owner, repo, packagePath, ref, host)
 	if err != nil {
@@ -703,6 +712,30 @@ func normalizePackageInstallablePaths(paths []string, packagePath string) []stri
 		normalized = append(normalized, path)
 	}
 	return normalized
+}
+
+func validateManifestInstallableWorkflowPrivacy(manifestPath string, installationSources []string, readWorkflow func(string) ([]byte, error)) error {
+	for _, installationSource := range installationSources {
+		if isActionWorkflowPath(installationSource) {
+			continue
+		}
+
+		content, err := readWorkflow(installationSource)
+		if err != nil {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: %w", manifestPath, err)
+		}
+
+		privateValue, hasPrivate := ExtractWorkflowPrivateSetting(string(content))
+		if !hasPrivate {
+			continue
+		}
+		if privateValue {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: true and cannot be included because private workflows cannot be added", manifestPath, installationSource)
+		}
+		return fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: false; remove the private field because manifest-listed workflows must not declare it", manifestPath, installationSource)
+	}
+
+	return nil
 }
 
 func isSupportedPackageInstallablePath(p string) bool {

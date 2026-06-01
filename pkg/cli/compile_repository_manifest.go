@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -102,10 +103,75 @@ func findLocalRepositoryPackageManifest(gitRoot string) (string, error) {
 func validateLocalRepositoryPackageContents(manifestPath string) error {
 	readmePath := filepath.Join(filepath.Dir(manifestPath), "README.md")
 	if _, err := os.Stat(readmePath); err == nil {
-		return nil
+		manifestContent, err := os.ReadFile(manifestPath)
+		if err != nil {
+			return fmt.Errorf("failed to read Agentic Workflow manifest %q: %w", manifestPath, err)
+		}
+		manifest, _, err := parseRepositoryPackageManifest(manifestPath, manifestContent)
+		if err != nil {
+			return err
+		}
+
+		includeInstallablePaths, _, _ := splitManifestIncludePaths(manifest.Includes)
+		includeInstallablePaths = append(includeInstallablePaths, manifest.Files...)
+		installationSources := normalizePackageInstallablePaths(includeInstallablePaths, "")
+		if len(installationSources) == 0 {
+			installationSources, err = scanLocalRepositoryPackageInstallablePaths(filepath.Dir(manifestPath))
+			if err != nil {
+				return err
+			}
+		}
+
+		return validateManifestInstallableWorkflowPrivacy(manifestPath, installationSources, func(sourcePath string) ([]byte, error) {
+			content, err := os.ReadFile(filepath.Join(filepath.Dir(manifestPath), filepath.FromSlash(sourcePath)))
+			if err != nil {
+				return nil, fmt.Errorf("failed to read workflow %q: %w", sourcePath, err)
+			}
+			return content, nil
+		})
 	} else if os.IsNotExist(err) {
 		return fmt.Errorf("invalid Agentic Workflow manifest %q: missing required README.md", manifestPath)
 	} else {
 		return fmt.Errorf("failed to read package README %q: %w", readmePath, err)
 	}
+}
+
+func scanLocalRepositoryPackageInstallablePaths(packageDir string) ([]string, error) {
+	var collected []string
+	seen := make(map[string]struct{})
+
+	for _, sourceDir := range packageSourceDirectories {
+		sourcePath := filepath.Join(packageDir, filepath.FromSlash(sourceDir))
+		err := filepath.WalkDir(sourcePath, func(currentPath string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if d.IsDir() {
+				return nil
+			}
+
+			relativePath, err := filepath.Rel(packageDir, currentPath)
+			if err != nil {
+				return err
+			}
+			relativePath = filepath.ToSlash(relativePath)
+			if !isSupportedPackageInstallablePath(relativePath) {
+				return nil
+			}
+			if _, exists := seen[relativePath]; exists {
+				return nil
+			}
+			seen[relativePath] = struct{}{}
+			collected = append(collected, relativePath)
+			return nil
+		})
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, fmt.Errorf("failed to scan %q: %w", sourcePath, err)
+		}
+	}
+
+	return collected, nil
 }
