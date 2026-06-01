@@ -1379,7 +1379,8 @@ describe("copilot_harness.cjs", () => {
     });
   });
 
-  describe("fetchAWFReflect enriches models via fallback", () => {    afterEach(() => {
+  describe("fetchAWFReflect enriches models via fallback", () => {
+    afterEach(() => {
       vi.unstubAllGlobals();
     });
 

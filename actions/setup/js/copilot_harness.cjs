@@ -568,6 +568,8 @@ async function main() {
       sdkPrompt = extractPromptFromArgs(resolvedArgs);
       if (sdkPrompt) {
         log("sdk-mode: prompt extracted from CLI args (fallback)");
+      } else {
+        log("sdk-mode: no prompt found in stdin JSON payload or CLI args");
       }
     }
   }
