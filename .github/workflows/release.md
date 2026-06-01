@@ -828,8 +828,6 @@ The following community issues were closed during this release window but could 
 - **@[author]** for [issue title] ([#number](url)) — closed [date], no confirmed PR linkage found
 [Omit this section entirely if all closed community issues have confirmed attribution.]
 
----
-For complete details, see [CHANGELOG](https://github.com/github/gh-aw/blob/main/CHANGELOG.md).
 ```
 
 **Writing Guidelines:**

@@ -7,7 +7,7 @@ sidebar:
 
 # Model Alias Format Specification
 
-**Version**: 1.1.0  
+**Version**: 1.2.0  
 **Status**: Draft  
 **Publication Date**: 2026-05-03  
 **Editor**: GitHub Agentic Workflows Team  
@@ -40,9 +40,12 @@ This document is governed by the GitHub Agentic Workflows project specifications
 10. [Merge Precedence](#10-merge-precedence)
 11. [Validation Rules](#11-validation-rules)
 12. [Compliance Testing](#12-compliance-testing)
-13. [Appendices](#appendices)
-14. [References](#references)
-15. [Change Log](#change-log)
+13. [Safeguards](#13-safeguards)
+14. [Sync Notes](#14-sync-notes)
+15. [Norms](#15-norms)
+16. [Appendices](#appendices)
+17. [References](#references)
+18. [Change Log](#change-log)
 
 ---
 
@@ -725,6 +728,113 @@ At compile time, an implementation SHOULD:
 
 ---
 
+## 13. Safeguards
+
+This section defines normative safeguards that conforming implementations MUST apply to protect against malformed inputs, configuration errors, and resource exhaustion in model alias handling.
+
+### 13.1 Alias Chain Depth Limit
+
+**R-MAF-S001**: Implementations MUST enforce a maximum alias chain resolution depth. The default maximum chain depth is **10** hops. If recursive resolution exceeds this depth, the implementation MUST abort resolution with a descriptive error that names the alias key that triggered the depth limit and MUST NOT silently return an empty candidate list.
+
+This limit prevents runaway resolution in pathological alias maps and bounds the worst-case cost of compile-time alias expansion.
+
+### 13.2 UTF-8 Validity of Model Name Strings
+
+**R-MAF-S002**: All model identifier strings — including alias keys, provider names, model names, parameter keys, and parameter values — MUST be valid UTF-8 byte sequences. Implementations MUST reject any identifier that contains ill-formed UTF-8 bytes with a parse error that identifies the invalid byte position.
+
+**R-MAF-S003**: Even when a string is valid UTF-8, implementations MUST further restrict the allowed code points to the character set defined in Section 4.1. Valid UTF-8 characters outside that allowed set (for example, Unicode letters or non-ASCII punctuation) MUST be rejected as a V-MAF-006 violation, naming the offending code point in the error message.
+
+### 13.3 Out-of-Range `effort` and `temperature` Handling
+
+**R-MAF-S004**: Implementations MUST reject `effort` values that are not one of the literals `low`, `medium`, or `high` (case-sensitive). The rejection MUST occur at compile time (V-MAF-002) with an error message that identifies the offending value and the set of valid values.
+
+**R-MAF-S005**: Implementations MUST reject `temperature` values that cannot be parsed as a decimal float in the closed interval `[0.0, 2.0]`. The rejection MUST occur at compile time (V-MAF-003) with an error message that identifies the offending value and the valid range. Values that parse as a float but fall outside `[0.0, 2.0]` are a range error distinct from non-numeric values; both MUST produce a rejection.
+
+### 13.4 Corrupt or Malformed Builtin Alias Map
+
+**R-MAF-S006**: The builtin alias map shipped with AWF MUST be validated at process startup before any resolution request is processed. If the builtin map fails validation (for example, due to a corrupt embed, schema mismatch, or presence of a cycle), the implementation MUST fail with a fatal startup error rather than silently continuing with a partial or empty builtin map.
+
+**R-MAF-S007**: If the builtin alias map cannot be loaded (for example, due to a missing embed or an unexpected format change), implementations MUST surface a clear error that distinguishes builtin-map corruption from user configuration errors. The error MUST NOT be masked as a "model not found" resolution failure.
+
+---
+
+## 14. Sync Notes
+
+This section maps normative sections of this specification to the implementation files in `pkg/workflow/` that realize each requirement. Use this mapping to identify which files must be reviewed or updated when specification sections change.
+
+**Last verified**: 2026-06-01
+
+### §4–§6 Parsing and Parameter Encoding
+
+| Spec Section | Description | Implementation File(s) |
+|---|---|---|
+| §4 Model Identifier Syntax | Grammar for bare names, provider-scoped names, glob patterns, parameter encoding | `pkg/workflow/model_aliases.go` (`parseModelIdentifier`) |
+| §5 URL-Style Parameter Encoding | `?key=value` parsing, percent-decoding, duplicate key handling | `pkg/workflow/model_aliases.go` (`parseModelIdentifier`) |
+| §6 Defined Parameters | `effort` and `temperature` normalization and validation | `pkg/workflow/model_alias_validation.go` (V-MAF-002, V-MAF-003) |
+
+### §7–§10 Alias Map and Resolution
+
+| Spec Section | Description | Implementation File(s) |
+|---|---|---|
+| §7 Alias Map Format | YAML `models:` key parsing; alias list ingestion | `pkg/workflow/model_aliases.go` (`buildAliasMap`), `pkg/workflow/claude_engine.go` |
+| §8 Fallback Resolution Algorithm | Recursive resolution, parameter merge, glob matching, semver ranking, cycle guard | `pkg/workflow/model_aliases.go` (`resolveModel`, `scatterSchedule`), `pkg/workflow/model_alias_validation.go` |
+| §8.6 Loop Detection | Compile-time DFS cycle detection (§8.6.1) and runtime visited-set guard (§8.6.2) | `pkg/workflow/model_alias_validation.go` (`detectCircularModelAliases`, `dfsCycleCheck`) |
+| §9 Builtin Aliases | Builtin alias map definition and embed | `pkg/workflow/model_aliases.go` (builtin alias initialization) |
+| §10 Merge Precedence | Three-layer merge algorithm (builtins → imports → main) | `pkg/workflow/model_aliases.go` (`mergeImportedModelAliases`), `pkg/workflow/model_aliases_import_test.go` |
+
+### §11 Validation Rules
+
+| Spec Section | Description | Implementation File(s) |
+|---|---|---|
+| §11.1 Syntax Validation | V-MAF-001 through V-MAF-006 compile-time checks | `pkg/workflow/model_alias_validation.go`, `pkg/workflow/model_aliases.go` |
+| §11.2 Semantic Validation | V-MAF-010 cycle detection, V-MAF-011 unknown param warning, V-MAF-012 effort warning | `pkg/workflow/model_alias_validation.go` |
+| §11.3 Resolution Validation | V-MAF-020 empty catalog warning | `pkg/workflow/claude_engine.go`, `pkg/workflow/codex_tools.go` |
+
+### Loop Detection Test Reference (§8.6 / V-MAF-010)
+
+The compile-time loop-detection safeguard (§8.6.1 / V-MAF-010) is tested in:
+
+- **File**: `pkg/workflow/model_alias_validation_test.go`
+- **Direct-cycle test** (T-MAF-040): `TestParseModelIdentifier_T_MAF_040` — validates that a two-node cycle `a → b → a` is detected and reported as a compile-time error.
+- **Three-node cycle test** (T-MAF-041): `TestParseModelIdentifier_T_MAF_041` — validates that a three-node cycle `a → b → c → a` is detected and all three alias names appear in the error message.
+- **Frontmatter integration**: cycle detection through the full frontmatter merge path is covered by a test that asserts V-MAF-010 fires on cyclic frontmatter `models:` entries.
+
+---
+
+## 15. Norms
+
+This section provides a normative reference table for all MUST/SHALL requirements defined in §§4–13 of this specification. The table covers both validation rule identifiers (`V-MAF-*`, defined in §11) and safeguard identifiers (`R-MAF-S*`, defined in §13). Use this section as a quick-reference index for verifying implementation compliance or mapping a requirement to its definitive section.
+
+### 15.1 Validation Rule Norms (§11)
+
+| ID | Section | Normative Requirement |
+|---|---|---|
+| V-MAF-001 | §11.1 | MUST reject model identifiers that do not conform to the §4.1 grammar |
+| V-MAF-002 | §11.1 | MUST reject `effort` values not in `{low, medium, high}` |
+| V-MAF-003 | §11.1 | MUST reject `temperature` values not parseable as float in `[0.0, 2.0]` |
+| V-MAF-004 | §11.1 | MUST reject glob patterns used as `engine.model` |
+| V-MAF-005 | §11.1 | MUST reject alias keys containing `/`, `?`, or `&` |
+| V-MAF-006 | §11.1 | MUST reject identifiers with characters outside the §4.1 allowed set; MUST name the offending character and segment type in the error |
+| V-MAF-010 | §11.2 | MUST detect and report all circular alias references at compile time using DFS; MUST abort compilation on any cycle |
+| V-MAF-011 | §11.2 | MUST emit a warning for unrecognized parameter keys |
+| V-MAF-012 | §11.2 | MUST emit a warning when `effort` is attached to a model known not to support extended reasoning |
+| V-MAF-013 | §11.2 | MUST guard against runtime cycles using a per-call visited set; a runtime cycle MUST cause an immediate resolution failure with a descriptive error naming the cycle chain |
+| V-MAF-020 | §11.3 | SHOULD warn when a model alias resolves to zero entries in the engine catalog |
+
+### 15.2 Safeguard Norms (§13)
+
+| ID | Section | Normative Requirement |
+|---|---|---|
+| R-MAF-S001 | §13.1 | MUST enforce a maximum alias chain resolution depth of 10 hops; MUST abort with a descriptive error on overflow |
+| R-MAF-S002 | §13.2 | MUST reject model identifier strings containing ill-formed UTF-8 bytes |
+| R-MAF-S003 | §13.2 | MUST reject valid-UTF-8 characters outside the §4.1 allowed code-point set as a V-MAF-006 violation |
+| R-MAF-S004 | §13.3 | MUST reject `effort` values not in `{low, medium, high}` at compile time with a message identifying the offending value |
+| R-MAF-S005 | §13.3 | MUST reject `temperature` values outside `[0.0, 2.0]` at compile time, distinguishing non-numeric values from out-of-range floats |
+| R-MAF-S006 | §13.4 | MUST validate the builtin alias map at process startup; MUST fail fatally if the builtin map is corrupt or contains a cycle |
+| R-MAF-S007 | §13.4 | MUST surface a clear error distinguishing builtin-map load failure from user configuration errors |
+
+---
+
 ## Appendices
 
 ### Appendix A: Complete Resolution Example
@@ -843,6 +953,13 @@ Model parameters are compile-time configuration values and are not derived from 
 ---
 
 ## Change Log
+
+### Version 1.2.0 (Draft)
+
+- **Added**: §13 Safeguards covering max alias-chain depth (R-MAF-S001), UTF-8 validity requirements (R-MAF-S002, R-MAF-S003), out-of-range `effort`/`temperature` handling (R-MAF-S004, R-MAF-S005), and corrupt builtin-alias-map behaviour (R-MAF-S006, R-MAF-S007).
+- **Added**: §14 Sync Notes mapping §§4–11 to implementation files in `pkg/workflow/` with loop-detection test references (last verified 2026-06-01).
+- **Added**: §15 Norms reference table (`V-MAF-*` and `R-MAF-S*` IDs) for all MUST/SHALL requirements in §§4–13.
+- **Updated**: Table of Contents to include §§13–15.
 
 ### Version 1.1.0 (Draft)
 

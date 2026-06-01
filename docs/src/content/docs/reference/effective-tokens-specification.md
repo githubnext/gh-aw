@@ -7,7 +7,7 @@ sidebar:
 
 # Effective Tokens Specification
 
-**Version**: 0.2.0
+**Version**: 0.3.0
 **Status**: Draft
 **Publication Date**: 2026-04-02
 **Editor**: GitHub Agentic Workflows Team
@@ -41,8 +41,9 @@ This document is governed by the GitHub Agentic Workflows project specifications
 11. [Appendices](#appendices)
 12. [Model Multiplier Registry](#model-multiplier-registry)
 13. [Sync Notes](#sync-notes)
-14. [References](#references)
-15. [Change Log](#change-log)
+14. [Norms](#norms)
+15. [References](#references)
+16. [Change Log](#change-log)
 
 ---
 
@@ -924,6 +925,54 @@ NaN, or Inf multiplier values before any release.
 
 ---
 
+## Norms
+
+This section provides a normative reference table for all `R-OTL-*`, `R-SAFE-*`, and `R-REG-*` identifiers used in this specification. Each table maps an identifier to the section where it is defined and summarizes the MUST/SHALL clause it represents. Use this section as a quick-reference index for verifying implementation compliance, tracking which rules are exercised by a given test, or identifying the definitive section for a given requirement.
+
+### OTel Attribute Norms (§7.1)
+
+| ID | Section | Normative Requirement |
+|---|---|---|
+| R-OTL-001 | §7.1 | MUST use `llm.token.effective_total` as the OTel attribute key for ET; MUST NOT use alternative key names |
+| R-OTL-002 | §7.1 | MUST emit `llm.token.input`, `llm.token.output`, and `llm.token.cached_input` as separate span attributes when per-class counts are available; these MUST reflect raw (unweighted) counts |
+| R-OTL-003 | §7.1 | MUST emit `llm.token.base_weighted` when base weighted token value is computed |
+| R-OTL-004 | §7.1 | When `llm.model.multiplier` is emitted, its value MUST match the multiplier used for `llm.token.effective_total`; MUST NOT omit `llm.model.multiplier` if `llm.token.effective_total` is present |
+| R-OTL-005 | §7.1 | MUST NOT rename or reuse defined OTel attribute keys with different semantics without a specification revision |
+| R-OTL-006 | §7.1 | MUST reject and MUST NOT export negative values for `llm.token.effective_total`; MUST fail or drop the span with an explicit error |
+
+### Safeguard Norms (§8.5)
+
+| ID | Section | Normative Requirement |
+|---|---|---|
+| R-SAFE-001 | §8.5 S-1, S-6a | MUST detect overflow and non-finite arithmetic states (`NaN`, `+Inf`, `-Inf`) before serializing output |
+| R-SAFE-002 | §8.5 S-1, S-6b | MUST enforce a maximum ET ceiling of `9007199254740991` (`2^53 − 1`) for serialized numeric fields |
+| R-SAFE-003 | §8.5 S-1 | When computed ET exceeds the ceiling, MUST clamp `summary.effective_tokens` to the ceiling and MUST emit a warning |
+| R-SAFE-003A | §8.5 S-1, S-6a | When ET capping occurs, MUST record a deterministic overflow condition (`flagged.code = "ET_OVERFLOW"`) including the ceiling value |
+| R-SAFE-004 | §8.5 S-1, S-6b | For long multi-agent chains, SHOULD aggregate ET incrementally and SHOULD emit an early warning at 80% of ceiling |
+| R-SAFE-005 | §8.5 S-6c | MUST serialize unobservable invocation node token fields as numeric zero; MUST NOT omit fields |
+| R-SAFE-006 | §8.5 | MUST include a `flagged` object with `code = "UNOBSERVABLE_INVOCATION"` for incomplete/unobservable nodes |
+| R-SAFE-007 | §8.5 S-4 | MUST validate the active model multiplier registry before ET computation begins |
+| R-SAFE-008 | §8.5 S-2, S-4 | Every token class weight and model multiplier MUST be finite numeric data; `NaN`, infinite values, strings, `null`, and negative multipliers MUST be rejected |
+| R-SAFE-009 | §8.5 S-5 | If registry validation fails, MUST NOT continue with partially parsed data; MUST fail deterministically with field-level diagnostics |
+| R-SAFE-010 | §8.5 S-2, S-5 | Runtime override/custom multiplier merges MUST pass the same validation rules as registry values |
+| R-SAFE-011 | §8.5 S-3 | Aggregation logic MUST detect parent/child cycles before post-order traversal; MUST fail deterministically and MUST NOT emit partial ET totals |
+
+### Registry Norms (Model Multiplier Registry)
+
+| ID | Section | Normative Requirement |
+|---|---|---|
+| R-REG-001 | Registry | MUST declare a `version` field that changes whenever any multiplier value is added, removed, or modified |
+| R-REG-002 | Registry | MUST declare a `reference_model` field identifying the baseline model whose multiplier equals 1.0 |
+| R-REG-003 | Registry | MUST include `token_class_weights` for all four standard token classes; conforming implementations MUST use these as the default weights for §4.2 |
+| R-REG-004 | Registry | Implementations MUST embed or bundle the registry at build time |
+| R-REG-005 | Registry | Unknown model name MUST use multiplier 1.0 and SHOULD emit a warning |
+| R-REG-006 | Registry | Custom multipliers MUST be merged with registry values; custom values take precedence and MUST be disclosed in reports |
+| R-REG-007 | Registry | MUST NOT contain placeholder values (`TBD`, `null`, empty strings) for any model multiplier entry |
+| R-REG-008 | Registry | New model support MUST register the model with a concrete numeric multiplier before release; incomplete calibration MUST result in omission from the registry |
+| R-REG-009 | Registry | MUST preserve complete model history; deprecated models MUST remain unless explicitly deleted |
+
+---
+
 ## References
 
 ### Normative References
@@ -946,6 +995,8 @@ NaN, or Inf multiplier values before any release.
 - **Added**: Compliance test skeleton file `pkg/cli/effective_tokens_compliance_test.go` with Go test stubs for T-ET-001..T-ET-031
 - **Added**: T-ET-032 requirement for deterministic post-order aggregation in deep (3+ level) partially observed execution graphs
 - **Updated**: Compliance checklist §10.2 status column from "Required" to "Implemented" for all test IDs T-ET-001–T-ET-031 (all tests now implemented and passing)
+- **Added**: Norms section with reference tables for R-OTL-001–R-OTL-006 (§7.1), R-SAFE-001–R-SAFE-011 (§8.5), and R-REG-001–R-REG-009 (Model Multiplier Registry).
+- **Updated**: Table of Contents to include the new Norms section.
 - **Audit (Appendix C — Security)**: Verified Appendix C requirements against `pkg/cli/effective_tokens.go` and `pkg/cli/data/model_multipliers.json`. Findings:
   - _Sensitive usage patterns_ (Appendix C §1): Per-invocation token data is not exposed directly by the CLI; only aggregate `TotalEffectiveTokens` is surfaced in the audit output. Access control is delegated to GitHub repository permissions. **No gaps found.**
   - _Aggregate vs. detailed data separation_ (Appendix C §2): The `TokenUsageSummary.ByModel` map contains per-model breakdowns but is only logged at DEBUG level, not included in default CLI output. **No gaps found.**

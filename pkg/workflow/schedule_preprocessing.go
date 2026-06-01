@@ -82,11 +82,12 @@ func (c *Compiler) normalizeScheduleString(scheduleStr string, itemIndex int) (p
 
 	// Validate final cron expression has correct syntax (5 fields)
 	// FUZZY cron expressions are not supported by GitHub Actions
+	// R-SAFE-003: missing workflow identifier causes fuzzy schedule to remain unscattered; fail with a descriptive error.
 	if parser.IsFuzzyCron(parsedCron) {
 		if itemIndex >= 0 {
-			return "", "", fmt.Errorf("fuzzy cron expression '%s' in item %d must be scattered to proper cron format before compilation (ensure workflow identifier is set)", parsedCron, itemIndex)
+			return "", "", fmt.Errorf("fuzzy cron expression '%s' in item %d must be scattered to proper cron format before compilation (missing workflow identifier: ensure the workflow identifier is set)", parsedCron, itemIndex)
 		}
-		return "", "", fmt.Errorf("fuzzy cron expression '%s' must be scattered to proper cron format before compilation (ensure workflow identifier is set)", parsedCron)
+		return "", "", fmt.Errorf("fuzzy cron expression '%s' must be scattered to proper cron format before compilation (missing workflow identifier: ensure the workflow identifier is set)", parsedCron)
 	}
 	if !parser.IsCronExpression(parsedCron) {
 		if itemIndex >= 0 {
