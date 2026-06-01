@@ -1408,11 +1408,6 @@ permissions:
   # (optional)
   checks: "read"
 
-  # Permission level for Copilot requests (write/none only). Set to write to allow
-  # Copilot inference via the GitHub Actions token.
-  # (optional)
-  copilot-requests: "write"
-
   # Permission for repository contents (read: view files, write: modify
   # files/branches, none: no access)
   # (optional)
