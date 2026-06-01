@@ -414,11 +414,11 @@ func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
 	os.Stderr = w
+	defer func() { os.Stderr = oldStderr }()
 
 	validateErr := compiler.validateToolConfiguration(workflowData, markdownPath, &Permissions{})
 
 	require.NoError(t, w.Close())
-	os.Stderr = oldStderr
 
 	var stderr bytes.Buffer
 	_, err = io.Copy(&stderr, r)
