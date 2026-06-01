@@ -184,7 +184,7 @@ on:
   workflow_dispatch:
   stale-check: false
 env:
-  GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: 5000000
+  GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "5000000"
 safe-outputs:
   add-comment:
     max: 1
