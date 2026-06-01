@@ -104,7 +104,11 @@ func (c *Compiler) newActivationJobBuildContext(
 		activationSetupParentSpanID = setupParentSpanNeedsExpr(constants.PreActivationJobName)
 	}
 	enableArtifactClient := hasMaxDailyEffectiveTokensGuardrail(ctx.data)
-	ctx.steps = append(ctx.steps, c.generateSetupStep(ctx.data, setupActionRef, SetupActionDestination, enableArtifactClient, activationSetupTraceID, activationSetupParentSpanID)...)
+	artifactClientCondition := ""
+	if enableArtifactClient {
+		artifactClientCondition = maxDailyEffectiveTokensConfiguredIfExpr
+	}
+	ctx.steps = append(ctx.steps, c.generateSetupStep(ctx.data, setupActionRef, SetupActionDestination, enableArtifactClient, activationSetupTraceID, activationSetupParentSpanID, artifactClientCondition)...)
 	ctx.outputs["setup-trace-id"] = "${{ steps.setup.outputs.trace-id }}"
 	ctx.outputs["setup-span-id"] = "${{ steps.setup.outputs.span-id }}"
 	ctx.outputs["setup-parent-span-id"] = "${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}"
@@ -259,6 +263,7 @@ func (c *Compiler) buildActivationDailyEffectiveWorkflowGuardrailStep(data *Work
 	var steps []string
 	steps = append(steps, "      - name: Check daily workflow token guardrail\n")
 	steps = append(steps, "        id: daily-effective-workflow-guardrail\n")
+	steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyEffectiveTokensConfiguredIfExpr))
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 	steps = append(steps, "        env:\n")
 	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))

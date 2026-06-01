@@ -10,6 +10,8 @@ import (
 )
 
 const maxDailyEffectiveTokensField = "max-daily-effective-tokens"
+const maxDailyEffectiveTokensEnvVar = "GH_AW_MAX_DAILY_EFFECTIVE_TOKENS"
+const maxDailyEffectiveTokensConfiguredIfExpr = "${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}"
 
 // parseMaxDailyEffectiveTokensValue normalizes max-daily-effective-tokens
 // frontmatter values into a runtime-ready string.
@@ -89,5 +91,11 @@ func resolveMaxDailyEffectiveTokens(frontmatter map[string]any, importedJSON str
 }
 
 func hasMaxDailyEffectiveTokensGuardrail(data *WorkflowData) bool {
-	return data != nil && data.MaxDailyEffectiveTokens != nil && strings.TrimSpace(*data.MaxDailyEffectiveTokens) != ""
+	if data == nil {
+		return false
+	}
+	if data.MaxDailyEffectiveTokens != nil && strings.TrimSpace(*data.MaxDailyEffectiveTokens) != "" {
+		return true
+	}
+	return strings.Contains(data.Env, maxDailyEffectiveTokensEnvVar+":")
 }
