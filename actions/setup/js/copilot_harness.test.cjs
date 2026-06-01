@@ -310,6 +310,34 @@ describe("copilot_harness.cjs", () => {
       );
     });
 
+    it("uses engine-generated serverArgs directly when provided", async () => {
+      const child = new EventEmitter();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      child.pid = 5680;
+      child.exitCode = null;
+      child.signalCode = null;
+      child.kill = vi.fn();
+      const spawnImpl = vi.fn(() => child);
+      const waitForReady = vi.fn().mockResolvedValue(undefined);
+
+      const engineGeneratedArgs = ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"];
+      await startCopilotSDKServer({
+        command: "copilot",
+        env: { COPILOT_SDK_URI: "http://127.0.0.1:3002" },
+        serverArgs: engineGeneratedArgs,
+        logger: () => {},
+        spawnImpl,
+        waitForReady,
+      });
+
+      expect(spawnImpl).toHaveBeenCalledWith(
+        "copilot",
+        engineGeneratedArgs,
+        expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"] })
+      );
+    });
+
     it("uses only base headless args when extraArgs is empty or omitted", async () => {
       const child = new EventEmitter();
       child.stdout = new PassThrough();
@@ -1417,29 +1445,29 @@ describe("copilot_harness.cjs", () => {
       expect(result).toEqual({ promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt" });
     });
 
-    it("parses full payload with promptFile, sidecarArgs, and addWorkspaceDir", async () => {
+    it("parses full payload with promptFile, serverArgs, and addWorkspaceDir", async () => {
       const payload = JSON.stringify({
         promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
-        sidecarArgs: ["--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
+        serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
         addWorkspaceDir: true,
       });
       const result = await runWithFakeStdin(payload);
       expect(result).toEqual({
         promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
-        sidecarArgs: ["--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
+        serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
         addWorkspaceDir: true,
       });
     });
 
-    it("parses payload with sidecarArgs but no addWorkspaceDir (non-sandbox mode)", async () => {
+    it("parses payload with serverArgs but no addWorkspaceDir (non-sandbox mode)", async () => {
       const payload = JSON.stringify({
         promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
-        sidecarArgs: ["--add-dir", "/tmp/", "--log-level", "all"],
+        serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/", "--log-level", "all"],
       });
       const result = await runWithFakeStdin(payload);
       expect(result).toMatchObject({
         promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
-        sidecarArgs: ["--add-dir", "/tmp/", "--log-level", "all"],
+        serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/", "--log-level", "all"],
       });
       expect(result.addWorkspaceDir).toBeUndefined();
     });

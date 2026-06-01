@@ -40,10 +40,13 @@ import (
 type copilotSDKStdinOptions struct {
 	// PromptFile is the path on disk to the prompt text file.
 	PromptFile string `json:"promptFile"`
-	// SidecarArgs are the Copilot CLI flags to pass to the headless server at startup.
-	SidecarArgs []string `json:"sidecarArgs,omitempty"`
+	// ServerArgs is the complete CLI argument list for the headless Copilot CLI server process.
+	// It includes the server control flags (--headless, --no-auto-update, --port) followed by
+	// all configuration flags (--add-dir, --log-level, --disable-builtin-mcps, etc.).
+	// The JS harness passes these directly to the spawned process without any parsing.
+	ServerArgs []string `json:"serverArgs,omitempty"`
 	// AddWorkspaceDir instructs the harness to append --add-dir ${GITHUB_WORKSPACE} to the
-	// sidecar args at runtime.  This is needed in sandbox (AWF) mode where the workspace is
+	// server args at runtime.  This is needed in sandbox (AWF) mode where the workspace is
 	// only known via the environment variable at execution time.
 	AddWorkspaceDir bool `json:"addWorkspaceDir,omitempty"`
 }
@@ -225,12 +228,17 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// This avoids passing copilot CLI flags as harness CLI args and lets the harness pass
 		// them directly to the headless sidecar server without any argument parsing.
 		//
-		// sidecarArgs: the full set of Copilot CLI flags for the headless server.
+		// serverArgs: the complete CLI argument list for the headless Copilot CLI server process.
+		//   Includes the server control flags followed by all configuration flags.
 		// addWorkspaceDir: signals the harness to append --add-dir $GITHUB_WORKSPACE at runtime
 		//   (needed in sandbox/AWF mode; $GITHUB_WORKSPACE is only known at execution time).
+		serverArgs := append(
+			[]string{"--headless", "--no-auto-update", "--port", strconv.Itoa(constants.DefaultCopilotSDKPort)},
+			copilotArgs...,
+		)
 		sdkOptions := copilotSDKStdinOptions{
 			PromptFile:      "/tmp/gh-aw/aw-prompts/prompt.txt",
-			SidecarArgs:     copilotArgs,
+			ServerArgs:      serverArgs,
 			AddWorkspaceDir: sandboxEnabled,
 		}
 		optionsJSON, err := json.Marshal(sdkOptions)
