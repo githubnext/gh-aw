@@ -84,6 +84,9 @@ These keywords expand to curated lists of domains maintained by gh-aw:
 | `zig` | Zig packages | `ziglang.org` |
 | `dev-tools` | CI/CD tools | Renovate, Codecov, shields.io, and other dev tooling |
 | `chrome` | Chrome / Chromium | `*.googleapis.com`, `*.gvt1.com` |
+| `latex` | LaTeX / TeX | `ctan.org`, `mirror.ctan.org`, `miktex.org`, `tug.org` |
+| `lean` | Lean theorem prover | `lean-lang.org`, `elan.lean-lang.org`, `reservoir.lean-lang.org` |
+| `python-native` | Python native build deps | Native toolchain mirrors for building Python packages from source |
 
 ## Invalid Shorthands
 

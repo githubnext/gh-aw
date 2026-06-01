@@ -59,7 +59,6 @@ description: GitHub context expression variables and Handlebars-style template c
 - **`${{ github.actor }}`** - Username of the person who initiated the workflow
 - **`${{ github.event_name }}`** - Name of the event that triggered the workflow
 - **`${{ github.job }}`** - Job ID of the current workflow run
-- **`${{ github.owner }}`** - Owner of the repository
 - **`${{ github.repository }}`** - Repository name in "owner/name" format
 - **`${{ github.repository_owner }}`** - Owner of the repository (organization or user)
 - **`${{ github.run_id }}`** - Unique ID of the workflow run

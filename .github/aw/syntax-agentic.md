@@ -479,8 +479,8 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     ```
 
-- **`slash_command:`** - Command trigger configuration for /mention workflows
+- **`slash_command:`** - Command trigger configuration for /mention workflows (under `on:`)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
-- **`cache-memory:`** - Memory MCP server with persistent cache storage (boolean or object)
-- **`repo-memory:`** - Repository-specific memory storage (boolean)
+- **`cache-memory:`** - Memory MCP server with persistent cache storage (boolean or object, under `tools:`)
+- **`repo-memory:`** - Repository-specific memory storage (boolean, under `tools:`)
 - **`comment-memory:`** - Managed issue/PR comment memory with file-based agent editing (boolean or object, under `tools:`)

@@ -77,7 +77,7 @@ gh aw run <workflow-name>           # Run by short name
 gh aw run <workflow-name>.md        # Alternative: explicit .md extension
 gh aw run <workflow-name> --ref main              # Run on a specific branch/tag/SHA
 gh aw run <workflow-name> --repeat 3              # Run 4 times total (1 + 3 repeats)
-gh aw run <workflow-name> --input key=value       # Pass a specific input
+gh aw run <workflow-name> -F key=value            # Pass a specific input (alias: --raw-field)
 ```
 
 **MCP equivalent**: Not available in the agentic-workflows MCP tool. If you cannot access the CLI, use the GitHub MCP server to dispatch the workflow:

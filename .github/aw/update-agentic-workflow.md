@@ -91,11 +91,7 @@ After a frontmatter change:
 
 ## Safer-Alternatives Pattern
 
-When a requested change raises risk:
-
-1. explain the risk
-2. suggest the safer pattern first
-3. require explicit confirmation before weakening safeguards
+Follow the "Safer Alternatives First" pattern in [workflow-constraints.md](workflow-constraints.md) when a requested change raises risk.
 
 ## Minimal Examples
 

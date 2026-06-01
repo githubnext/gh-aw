@@ -4,9 +4,6 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
 
 # Safe Outputs: Automation and Orchestration
 
-      labels: [automated]      # restrict to PRs carrying all these labels
-  ```
-
 - `update-discussion:` - Update discussion title, body, or labels
 
   ```yaml

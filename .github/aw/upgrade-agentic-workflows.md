@@ -75,7 +75,7 @@ Before upgrading, always review what's new:
 
 2. **Optional Flags**
 
-   - `gh aw upgrade --push` - Automatically commit and push changes after successful upgrade
+   - `gh aw upgrade --create-pull-request` - Open a pull request with the upgrade changes (alias: `--pr`)
    - `gh aw upgrade --no-fix` - Update agent files only (skip codemods, actions, and compilation)
    - `gh aw upgrade --no-actions` - Skip updating GitHub Actions versions
    - `gh aw upgrade --dir custom/workflows` - Upgrade workflows in custom directory
