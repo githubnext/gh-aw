@@ -214,6 +214,14 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 		// Extract engine from content (if specified in frontmatter)
 		engine := ExtractWorkflowEngine(string(fetched.Content))
 
+		if spec.FromRepositoryManifest {
+			privateValue, hasPrivate := ExtractWorkflowPrivateSetting(string(fetched.Content))
+			if hasPrivate && privateValue {
+				manifestPath := joinRepositoryPackagePath(spec.PackagePath, repositoryPackageManifestFileName)
+				return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: true and cannot be included because private workflows cannot be added", manifestPath, resolvedSpec.WorkflowPath)
+			}
+		}
+
 		// Check if workflow is private - private workflows cannot be added to other repositories
 		isPrivate := ExtractWorkflowPrivate(string(fetched.Content))
 		if isPrivate {
