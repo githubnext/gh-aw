@@ -13,6 +13,63 @@ const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /**
+ * Parse allowed repos configuration into normalized full-name list.
+ *
+ * @param {string} input
+ * @param {string} currentRepo
+ * @returns {string[]}
+ */
+function normalizeAllowedRepos(input, currentRepo) {
+  const raw = typeof input === "string" ? input : "";
+  const values = raw
+    .split(/[\s,]+/)
+    .map(v => v.trim())
+    .filter(Boolean);
+
+  const normalizedCurrent = String(currentRepo || "")
+    .trim()
+    .toLowerCase();
+  const set = new Set(values.map(v => v.toLowerCase()));
+  if (normalizedCurrent) {
+    set.add(normalizedCurrent);
+  }
+
+  return [...set];
+}
+
+/**
+ * Validate optional target repo against allowed list.
+ *
+ * @param {string} targetRepo
+ * @param {string[]} allowedRepos
+ * @param {string} contextRepo
+ * @returns {{ok: boolean, reason?: string}}
+ */
+function validateTargetRepo(targetRepo, allowedRepos, contextRepo) {
+  const target = String(targetRepo || "").trim();
+  if (!target) {
+    return { ok: true };
+  }
+  const lcTarget = target.toLowerCase();
+  const lcContext = String(contextRepo || "")
+    .trim()
+    .toLowerCase();
+  if (lcTarget === lcContext) {
+    return { ok: true };
+  }
+  if (!Array.isArray(allowedRepos) || allowedRepos.length === 0) {
+    return { ok: false, reason: "allowed-target-repos is empty" };
+  }
+  if (!allowedRepos.map(v => String(v).toLowerCase()).includes(lcTarget)) {
+    return {
+      ok: false,
+      reason: `target repo ${target} is not in allowed-target-repos`,
+    };
+  }
+  return { ok: true };
+}
+
+/**
  * Update the activation comment with a link to the created pull request or issue
  * @param {any} github - GitHub REST API instance
  * @param {any} context - GitHub Actions context
@@ -195,8 +252,18 @@ async function updateActivationCommentWithMessage(github, context, core, message
       // so the fallback comment is created in the correct repository
       let fallbackOwner = repoOwner;
       let fallbackRepo = repoName;
+      const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+      const allowedReposInput = typeof options.allowedTargetRepos === "string" ? options.allowedTargetRepos : process.env.GHAW_ALLOWED_TARGET_REPOS || process.env.INPUT_ALLOWED_TARGET_REPOS || "";
+      const allowedRepos = normalizeAllowedRepos(allowedReposInput, contextRepo);
       if (options.targetRepo) {
-        const parts = options.targetRepo.split("/");
+        const targetRepo = String(options.targetRepo).trim();
+        const targetValidation = validateTargetRepo(targetRepo, allowedRepos, contextRepo);
+        if (!targetValidation.ok) {
+          core.warning(`Skipping cross-repo fallback comment to ${targetRepo}: ${targetValidation.reason}`);
+          return;
+        }
+
+        const parts = targetRepo.split("/");
         if (parts.length === 2) {
           fallbackOwner = parts[0];
           fallbackRepo = parts[1];
@@ -320,4 +387,7 @@ async function updateActivationCommentWithMessage(github, context, core, message
 module.exports = {
   updateActivationComment,
   updateActivationCommentWithCommit,
+  updateActivationCommentWithMessage,
+  normalizeAllowedRepos,
+  validateTargetRepo,
 };

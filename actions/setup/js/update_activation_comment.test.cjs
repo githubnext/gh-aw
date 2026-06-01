@@ -382,6 +382,45 @@ describe("update_activation_comment.cjs", () => {
         );
         expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully created comment with commit link on #225");
       }),
+        it("should skip cross-repo fallback comment when targetRepo is not allowlisted", async () => {
+          mockDependencies.process.env.GH_AW_COMMENT_ID = "";
+          const { updateActivationCommentWithCommit } = createFunctionFromScript(mockDependencies);
+          await updateActivationCommentWithCommit(
+            mockDependencies.github,
+            mockDependencies.context,
+            mockDependencies.core,
+            "41b061a0abc1c574c8ca4344bb69961efee7b45c",
+            "https://github.com/testowner/testrepo/commit/41b061a0abc1c574c8ca4344bb69961efee7b45c",
+            { targetIssueNumber: 225, targetRepo: "external/repo", allowedTargetRepos: "allowed/repo" }
+          );
+
+          expect(mockDependencies.github.request).not.toHaveBeenCalled();
+          expect(mockDependencies.core.warning).toHaveBeenCalledWith("Skipping cross-repo fallback comment to external/repo: target repo external/repo is not in allowed-target-repos");
+        }),
+        it("should allow cross-repo fallback comment when targetRepo is allowlisted", async () => {
+          mockDependencies.process.env.GH_AW_COMMENT_ID = "";
+          mockDependencies.github.request.mockResolvedValue({
+            data: { id: 789015, html_url: "https://github.com/external/repo/issues/225#issuecomment-789015" },
+          });
+          const { updateActivationCommentWithCommit } = createFunctionFromScript(mockDependencies);
+          await updateActivationCommentWithCommit(
+            mockDependencies.github,
+            mockDependencies.context,
+            mockDependencies.core,
+            "41b061a0abc1c574c8ca4344bb69961efee7b45c",
+            "https://github.com/testowner/testrepo/commit/41b061a0abc1c574c8ca4344bb69961efee7b45c",
+            { targetIssueNumber: 225, targetRepo: "external/repo", allowedTargetRepos: "external/repo" }
+          );
+
+          expect(mockDependencies.github.request).toHaveBeenCalledWith(
+            "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
+            expect.objectContaining({
+              owner: "external",
+              repo: "repo",
+              issue_number: 225,
+            })
+          );
+        }),
         it("should use context.payload.pull_request.number when no targetIssueNumber", async () => {
           mockDependencies.process.env.GH_AW_COMMENT_ID = "";
           mockDependencies.context.payload = { pull_request: { number: 100 } };
