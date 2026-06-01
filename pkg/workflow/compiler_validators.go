@@ -150,24 +150,25 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, markdownPath string) error {
 	validations := []struct {
 		logMessage string
-		errPrefix  string
-		fn         func() error
+		validateFn func() error
 	}{
-		{logMessage: "Validating sandbox configuration", fn: func() error { return validateSandboxConfig(workflowData) }},
-		{logMessage: "Validating safe-outputs target fields", fn: func() error { return validateSafeOutputsTarget(workflowData.SafeOutputs) }},
-		{logMessage: "Validating safe-outputs max fields", fn: func() error { return validateSafeOutputsMax(workflowData.SafeOutputs) }},
-		{logMessage: "Validating safe-outputs allowed-domains", fn: func() error { return c.validateSafeOutputsAllowedDomains(workflowData.SafeOutputs) }},
-		{logMessage: "Validating safe-outputs merge-pull-request", fn: func() error { return validateSafeOutputsMergePullRequest(workflowData.SafeOutputs) }},
-		{logMessage: "Validating safe-outputs needs declarations", fn: func() error { return validateSafeOutputsNeeds(workflowData) }},
-		{logMessage: "Validating on.needs declarations", fn: func() error { return c.validateOnNeeds(workflowData) }},
-		{logMessage: "Validating safe-job needs declarations", fn: func() error { return validateSafeJobNeeds(workflowData) }},
-		{logMessage: "Validating safe-outputs allowed-labels glob scope", fn: func() error { return c.validateSafeOutputsAllowedLabelsGlobScope(workflowData.SafeOutputs) }},
-		{logMessage: "Validating network allowed domains", fn: func() error { return c.validateNetworkAllowedDomains(workflowData.NetworkPermissions) }},
-		{logMessage: "Validating network firewall configuration", fn: func() error { return validateNetworkFirewallConfig(workflowData.NetworkPermissions) }},
-		{logMessage: "Validating safe-outputs allow-workflows", fn: func() error { return validateSafeOutputsAllowWorkflows(workflowData.SafeOutputs) }},
-		{logMessage: "Validating labels", fn: func() error { return validateLabels(workflowData) }},
-		{logMessage: "Validating workflow_dispatch input requirements for command triggers", fn: func() error { return validateCommandWorkflowDispatchInputs(workflowData) }},
+		{logMessage: "Validating sandbox configuration", validateFn: func() error { return validateSandboxConfig(workflowData) }},
+		{logMessage: "Validating safe-outputs target fields", validateFn: func() error { return validateSafeOutputsTarget(workflowData.SafeOutputs) }},
+		{logMessage: "Validating safe-outputs max fields", validateFn: func() error { return validateSafeOutputsMax(workflowData.SafeOutputs) }},
+		{logMessage: "Validating safe-outputs allowed-domains", validateFn: func() error { return c.validateSafeOutputsAllowedDomains(workflowData.SafeOutputs) }},
+		{logMessage: "Validating safe-outputs merge-pull-request", validateFn: func() error { return validateSafeOutputsMergePullRequest(workflowData.SafeOutputs) }},
+		{logMessage: "Validating safe-outputs needs declarations", validateFn: func() error { return validateSafeOutputsNeeds(workflowData) }},
+		{logMessage: "Validating on.needs declarations", validateFn: func() error { return c.validateOnNeeds(workflowData) }},
+		{logMessage: "Validating safe-job needs declarations", validateFn: func() error { return validateSafeJobNeeds(workflowData) }},
+		{logMessage: "Validating safe-outputs allowed-labels glob scope", validateFn: func() error { return c.validateSafeOutputsAllowedLabelsGlobScope(workflowData.SafeOutputs) }},
+		{logMessage: "Validating network allowed domains", validateFn: func() error { return c.validateNetworkAllowedDomains(workflowData.NetworkPermissions) }},
+		{logMessage: "Validating network firewall configuration", validateFn: func() error { return validateNetworkFirewallConfig(workflowData.NetworkPermissions) }},
+		{logMessage: "Validating safe-outputs allow-workflows", validateFn: func() error { return validateSafeOutputsAllowWorkflows(workflowData.SafeOutputs) }},
+		{logMessage: "Validating labels", validateFn: func() error { return validateLabels(workflowData) }},
+		{logMessage: "Validating workflow_dispatch input requirements for command triggers", validateFn: func() error { return validateCommandWorkflowDispatchInputs(workflowData) }},
 	}
+	// This validation is intentionally outside the table below because strict mode
+	// turns the same validation result into either an error or a warning.
 	workflowLog.Printf("Validating safe-outputs steps for shell expansion patterns")
 	if err := validateSafeOutputsStepsShellExpansion(workflowData.SafeOutputs); err != nil {
 		if c.strictMode {
@@ -180,11 +181,8 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 	c.validatePushToPullRequestBranchWarnings(workflowData.SafeOutputs, workflowData.CheckoutConfigs)
 	for _, validation := range validations {
 		workflowLog.Printf("%s", validation.logMessage)
-		if err := validation.fn(); err != nil {
-			if validation.errPrefix == "" {
-				return formatCompilerError(markdownPath, "error", err.Error(), err)
-			}
-			return formatCompilerError(markdownPath, "error", validation.errPrefix+err.Error(), err)
+		if err := validation.validateFn(); err != nil {
+			return formatCompilerError(markdownPath, "error", err.Error(), err)
 		}
 	}
 	return c.validateThreatDetectionSandboxRequirement(workflowData, markdownPath)
@@ -364,16 +362,16 @@ func (c *Compiler) validateResourcesAndDispatches(workflowData *WorkflowData, ma
 	dispatchValidators := []struct {
 		logMessage string
 		errPrefix  string
-		fn         func(*WorkflowData, string) error
+		validateFn func(*WorkflowData, string) error
 	}{
-		{logMessage: "Validating dispatch-workflow configuration", errPrefix: "dispatch-workflow validation failed: ", fn: c.validateDispatchWorkflow},
-		{logMessage: "Validating dispatch_repository configuration", errPrefix: "dispatch_repository validation failed: ", fn: c.validateDispatchRepository},
-		{logMessage: "Validating call-workflow configuration", errPrefix: "call-workflow validation failed: ", fn: c.validateCallWorkflow},
+		{logMessage: "Validating dispatch-workflow configuration", errPrefix: "dispatch-workflow validation failed: ", validateFn: c.validateDispatchWorkflow},
+		{logMessage: "Validating dispatch_repository configuration", errPrefix: "dispatch_repository validation failed: ", validateFn: c.validateDispatchRepository},
+		{logMessage: "Validating call-workflow configuration", errPrefix: "call-workflow validation failed: ", validateFn: c.validateCallWorkflow},
 	}
 	for _, validator := range dispatchValidators {
 		workflowLog.Print(validator.logMessage)
-		if err := validator.fn(workflowData, markdownPath); err != nil {
-			return formatCompilerError(markdownPath, "error", validator.errPrefix+fmt.Sprintf("%v", err), err)
+		if err := validator.validateFn(workflowData, markdownPath); err != nil {
+			return formatCompilerError(markdownPath, "error", validator.errPrefix+err.Error(), err)
 		}
 	}
 	return nil

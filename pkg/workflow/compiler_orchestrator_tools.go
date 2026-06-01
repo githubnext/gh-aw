@@ -81,7 +81,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 
 	return &toolsProcessingResult{
 		tools:                 toolsData.tools,
-		resolvedMCPServers:    toolsData.allMCPServers,
+		resolvedMCPServers:    toolsData.resolvedMCPServers,
 		runtimes:              runtimes,
 		runInstallScripts:     runInstallScripts,
 		toolsTimeout:          toolsData.toolsTimeout,
@@ -104,15 +104,22 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	}, nil
 }
 
+// mergedToolsData is the consolidated tool-resolution output produced before
+// markdown include expansion. It carries the effective tools map, fully merged
+// mcp-servers map, include metadata, and derived timeout/tool flags.
 type mergedToolsData struct {
 	tools                 map[string]any
-	allMCPServers         map[string]any
+	resolvedMCPServers    map[string]any
 	includedToolFiles     []string
 	toolsTimeout          string
 	toolsStartupTimeout   string
 	hasExplicitGitHubTool bool
 }
 
+// markdownArtifacts holds markdown-derived compilation artifacts after include
+// expansion. markdownContent is the combined content used for prompt generation,
+// importedMarkdown contains only frontmatter imports-with-inputs prepended content,
+// and mainWorkflowMarkdown is the expanded main body before importedMarkdown prepending.
 type markdownArtifacts struct {
 	markdownContent      string
 	importedMarkdown     string
@@ -173,19 +180,19 @@ func (c *Compiler) resolveToolsConfiguration(
 		orchestratorToolsLog.Printf("Failed to expand includes for tools: %v", err)
 		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
 	}
-	allIncludedTools := strings.Join(compactStrings(importsResult.MergedTools, includedTools), "\n")
+	allIncludedTools := strings.Join(nonEmptyStrings(importsResult.MergedTools, includedTools), "\n")
 	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
-	allMCPServers, err := c.mergeImportedMCPServers(mcpServers, importsResult.MergedMCPServers)
+	resolvedMCPServers, err := c.mergeImportedMCPServers(mcpServers, importsResult.MergedMCPServers)
 	if err != nil {
 		return nil, err
 	}
 	orchestratorToolsLog.Printf("Merging tools and MCP servers")
-	tools, err := c.mergeToolsAndMCPServers(topTools, allMCPServers, allIncludedTools)
+	tools, err := c.mergeToolsAndMCPServers(topTools, resolvedMCPServers, allIncludedTools)
 	if err != nil {
 		orchestratorToolsLog.Printf("Tools merge failed: %v", err)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
-	hasExplicitGitHubTool := hasExplicitGitHubTool(tools, topTools)
+	githubToolExplicit := hasExplicitGitHubTool(tools, topTools)
 	toolsTimeout, toolsStartupTimeout, err := c.extractToolTimeouts(tools)
 	if err != nil {
 		return nil, err
@@ -201,15 +208,15 @@ func (c *Compiler) resolveToolsConfiguration(
 	}
 	return &mergedToolsData{
 		tools:                 tools,
-		allMCPServers:         allMCPServers,
+		resolvedMCPServers:    resolvedMCPServers,
 		includedToolFiles:     includedToolFiles,
 		toolsTimeout:          toolsTimeout,
 		toolsStartupTimeout:   toolsStartupTimeout,
-		hasExplicitGitHubTool: hasExplicitGitHubTool,
+		hasExplicitGitHubTool: githubToolExplicit,
 	}, nil
 }
 
-func compactStrings(values ...string) []string {
+func nonEmptyStrings(values ...string) []string {
 	out := make([]string, 0, len(values))
 	for _, value := range values {
 		if value != "" {

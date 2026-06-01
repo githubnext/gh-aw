@@ -36,7 +36,7 @@ type engineSetupResult struct {
 func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, cleanPath string, content []byte, markdownDir string) (*engineSetupResult, error) {
 	orchestratorEngineLog.Printf("Setting up engine and processing imports")
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
-	preservedMaxEffectiveTokens, preservedMaxRuns := preserveEngineBudget(engineConfig)
+	preservedMaxEffectiveTokens, preservedMaxRuns := extractEngineBudgetLimits(engineConfig)
 	if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	if err != nil {
 		return nil, err
 	}
-	c.applyEngineImportDefaults(engineConfig, engineSetting, importsResult, preservedMaxEffectiveTokens, preservedMaxRuns)
+	engineConfig = c.applyEngineImportDefaults(engineConfig, engineSetting, importsResult, preservedMaxEffectiveTokens, preservedMaxRuns)
 	agenticEngine, configSteps, err := c.resolveEngineRuntimeConfig(engineSetting, engineConfig)
 	if err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	}, nil
 }
 
-func preserveEngineBudget(engineConfig *EngineConfig) (int64, int) {
+func extractEngineBudgetLimits(engineConfig *EngineConfig) (int64, int) {
 	if engineConfig == nil {
 		return 0, 0
 	}
@@ -282,13 +282,17 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 	return engineSetting, engineConfig, nil
 }
 
+// applyEngineImportDefaults merges import-derived engine defaults into engineConfig.
+// It mutates the provided config when non-nil and returns the effective pointer.
+// Callers must always use the returned value because a new config may be allocated
+// when the input engineConfig is nil.
 func (c *Compiler) applyEngineImportDefaults(
 	engineConfig *EngineConfig,
 	engineSetting string,
 	importsResult *parser.ImportsResult,
 	preservedMaxEffectiveTokens int64,
 	preservedMaxRuns int,
-) {
+) *EngineConfig {
 	if engineConfig == nil {
 		engineConfig = &EngineConfig{ID: engineSetting}
 	}
@@ -328,6 +332,7 @@ func (c *Compiler) applyEngineImportDefaults(
 		engineConfig.Model = importsResult.MergedEngineModel
 		orchestratorEngineLog.Printf("Applied engine.model preference from import: %s", engineConfig.Model)
 	}
+	return engineConfig
 }
 
 func (c *Compiler) resolveEngineRuntimeConfig(engineSetting string, engineConfig *EngineConfig) (CodingAgentEngine, []map[string]any, error) {
