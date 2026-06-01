@@ -28,7 +28,8 @@ const os = require("os");
 // Default timeout for a single sendAndWait call: 10 minutes.
 // This is intentionally generous — the headless Copilot CLI has its own internal
 // timeouts for individual tool calls and model inference.
-const SDK_SEND_TIMEOUT_MS = 10 * 60 * 1000;
+// Override via the COPILOT_SDK_SEND_TIMEOUT_MS environment variable.
+const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
 
 /**
  * Extract the prompt text from a resolved args array.
@@ -81,9 +82,11 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0 }) {
   // /tmp/gh-aw/sandbox/agent/logs/copilot-session-state/{sessionId}/events.jsonl
   const sessionStateBase = path.join(os.tmpdir(), "gh-aw", "sandbox", "agent", "logs", "copilot-session-state");
 
-  const rawLogLevel = process.env.COPILOT_SDK_LOG_LEVEL;
+  /** @type {ReadonlyArray<NonNullable<import("@github/copilot-sdk").CopilotClientOptions["logLevel"]>>} */
+  const VALID_LOG_LEVELS = ["none", "error", "warning", "info", "debug", "all"];
+  const rawLogLevel = process.env.COPILOT_SDK_LOG_LEVEL ?? "";
   /** @type {import("@github/copilot-sdk").CopilotClientOptions["logLevel"]} */
-  const logLevel = rawLogLevel === "none" || rawLogLevel === "error" || rawLogLevel === "warning" || rawLogLevel === "info" || rawLogLevel === "debug" || rawLogLevel === "all" ? rawLogLevel : "warning";
+  const logLevel = /** @type {any} */ VALID_LOG_LEVELS.includes(/** @type {any} */ rawLogLevel) ? rawLogLevel : "warning";
 
   const client = new CopilotClient({
     connection: RuntimeConnection.forUri(sdkUri, {}),
@@ -178,7 +181,8 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0 }) {
     });
 
     log("sending prompt...");
-    const result = await session.sendAndWait({ prompt }, SDK_SEND_TIMEOUT_MS);
+    const sendTimeoutMs = Number(process.env.COPILOT_SDK_SEND_TIMEOUT_MS) || SDK_SEND_TIMEOUT_MS_DEFAULT;
+    const result = await session.sendAndWait({ prompt }, sendTimeoutMs);
 
     // sendAndWait returns the last assistant.message event; capture its content
     // as a fallback in case the on() handler missed it.
