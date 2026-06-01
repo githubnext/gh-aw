@@ -14,11 +14,12 @@ import (
 
 var preconditionsLog = logger.New("cli:preconditions")
 
-// checkGHAuthStatusShared verifies the user is logged in to GitHub CLI
-func checkGHAuthStatusShared(verbose bool) error {
+// checkGHAuthStatusShared verifies the user is logged in to GitHub CLI.
+// ghHost is the GitHub Enterprise Server hostname; pass "" for public GitHub.
+func checkGHAuthStatusShared(verbose bool, ghHost string) error {
 	preconditionsLog.Print("Checking GitHub CLI authentication status")
 
-	output, err := workflow.RunGHCombined("Checking GitHub authentication...", "auth", "status")
+	output, err := workflow.RunGHCombinedWithHost("Checking GitHub authentication...", ghHost, "auth", "status")
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("You are not logged in to GitHub CLI."))
@@ -39,12 +40,13 @@ func checkGHAuthStatusShared(verbose bool) error {
 }
 
 // checkActionsEnabledShared verifies that GitHub Actions is enabled for the repository
-// and that the allowed actions settings permit running agentic workflows
-func checkActionsEnabledShared(repoSlug string, verbose bool) error {
+// and that the allowed actions settings permit running agentic workflows.
+// ghHost is the GitHub Enterprise Server hostname; pass "" for public GitHub.
+func checkActionsEnabledShared(repoSlug string, verbose bool, ghHost string) error {
 	preconditionsLog.Print("Checking if GitHub Actions is enabled")
 
 	// Use gh api to check Actions permissions - get the full JSON response
-	output, err := workflow.RunGH("Checking GitHub Actions status...", "api", fmt.Sprintf("/repos/%s/actions/permissions", repoSlug))
+	output, err := workflow.RunGHWithHost("Checking GitHub Actions status...", ghHost, "api", fmt.Sprintf("/repos/%s/actions/permissions", repoSlug))
 	if err != nil {
 		preconditionsLog.Printf("Failed to check Actions status: %v", err)
 		// If we can't check, warn but continue - actual operations will fail if Actions is disabled
@@ -95,7 +97,7 @@ func checkActionsEnabledShared(repoSlug string, verbose bool) error {
 		return errors.New("repository action permissions prevent agentic workflows from running")
 	case "selected":
 		// Selected actions - need to check if GitHub-owned actions are allowed
-		if err := checkSelectedActionsPermissions(permissions.SelectedActionsURL, verbose); err != nil {
+		if err := checkSelectedActionsPermissions(permissions.SelectedActionsURL, verbose, ghHost); err != nil {
 			return err
 		}
 	default:
@@ -107,8 +109,9 @@ func checkActionsEnabledShared(repoSlug string, verbose bool) error {
 	return nil
 }
 
-// checkSelectedActionsPermissions checks if GitHub-owned actions are allowed when using selected actions
-func checkSelectedActionsPermissions(selectedActionsURL string, verbose bool) error {
+// checkSelectedActionsPermissions checks if GitHub-owned actions are allowed when using selected actions.
+// ghHost is the GitHub Enterprise Server hostname; pass "" for public GitHub.
+func checkSelectedActionsPermissions(selectedActionsURL string, verbose bool, ghHost string) error {
 	if selectedActionsURL == "" {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not verify selected actions settings. Proceeding anyway..."))
 		return nil
@@ -116,7 +119,7 @@ func checkSelectedActionsPermissions(selectedActionsURL string, verbose bool) er
 
 	preconditionsLog.Printf("Checking selected actions permissions at: %s", selectedActionsURL)
 
-	output, err := workflow.RunGH("Checking selected actions...", "api", selectedActionsURL)
+	output, err := workflow.RunGHWithHost("Checking selected actions...", ghHost, "api", selectedActionsURL)
 	if err != nil {
 		preconditionsLog.Printf("Failed to check selected actions: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not verify selected actions settings. Proceeding anyway..."))
@@ -161,7 +164,8 @@ func parseJSON(data []byte, v any) error {
 
 // checkUserPermissionsShared verifies the user has write/admin access.
 // Returns (hasWriteAccess, error) to allow callers to track write access status.
-func checkUserPermissionsShared(repoSlug string, verbose bool) (bool, error) {
+// ghHost is the GitHub Enterprise Server hostname; pass "" for public GitHub.
+func checkUserPermissionsShared(repoSlug string, verbose bool, ghHost string) (bool, error) {
 	preconditionsLog.Print("Checking user permissions")
 
 	parts := strings.Split(repoSlug, "/")
@@ -170,7 +174,7 @@ func checkUserPermissionsShared(repoSlug string, verbose bool) (bool, error) {
 	}
 	owner, repo := parts[0], parts[1]
 
-	hasAccess, err := checkRepositoryAccess(owner, repo)
+	hasAccess, err := checkRepositoryAccess(owner, repo, ghHost)
 	if err != nil {
 		preconditionsLog.Printf("Failed to check repository access: %v", err)
 		// If we can't verify permissions, assume no write access to avoid
@@ -192,12 +196,13 @@ func checkUserPermissionsShared(repoSlug string, verbose bool) (bool, error) {
 	return hasAccess, nil
 }
 
-// checkRepoVisibilityShared checks if the repository is public or private
-func checkRepoVisibilityShared(repoSlug string) bool {
+// checkRepoVisibilityShared checks if the repository is public or private.
+// ghHost is the GitHub Enterprise Server hostname; pass "" for public GitHub.
+func checkRepoVisibilityShared(repoSlug string, ghHost string) bool {
 	preconditionsLog.Print("Checking repository visibility")
 
 	// Use gh api to check repository visibility
-	output, err := workflow.RunGH("Checking repository visibility...", "api", "/repos/"+repoSlug, "--jq", ".visibility")
+	output, err := workflow.RunGHWithHost("Checking repository visibility...", ghHost, "api", "/repos/"+repoSlug, "--jq", ".visibility")
 	if err != nil {
 		preconditionsLog.Printf("Could not check repository visibility: %v", err)
 		// Default to public if we can't determine

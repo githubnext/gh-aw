@@ -105,12 +105,13 @@ The command will:
 	return cmd
 }
 
-// checkRepositoryAccess checks if the current user has write access to the target repository
-func checkRepositoryAccess(owner, repo string) (bool, error) {
+// checkRepositoryAccess checks if the current user has write access to the target repository.
+// ghHost is the GitHub Enterprise Server hostname; pass "" for public GitHub.
+func checkRepositoryAccess(owner, repo string, ghHost string) (bool, error) {
 	prLog.Printf("Checking repository access: %s/%s", owner, repo)
 
 	// Get current user
-	output, err := workflow.RunGH("Fetching user info...", "api", "/user", "--jq", ".login")
+	output, err := workflow.RunGHWithHost("Fetching user info...", ghHost, "api", "/user", "--jq", ".login")
 	if err != nil {
 		prLog.Printf("Failed to get current user: %s", err)
 		return false, fmt.Errorf("failed to get current user: %w", err)
@@ -119,7 +120,7 @@ func checkRepositoryAccess(owner, repo string) (bool, error) {
 	prLog.Printf("Current user: %s", username)
 
 	// Check user's permission level for the repository
-	output, err = workflow.RunGH("Checking repository permissions...", "api", fmt.Sprintf("/repos/%s/%s/collaborators/%s/permission", owner, repo, username))
+	output, err = workflow.RunGHWithHost("Checking repository permissions...", ghHost, "api", fmt.Sprintf("/repos/%s/%s/collaborators/%s/permission", owner, repo, username))
 	if err != nil {
 		// If we get an error, it likely means we don't have access or the repo doesn't exist
 		prLog.Print("Repository access denied or repository not found")
@@ -410,7 +411,7 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 // createTransferPR creates a new PR in the target repository
 func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName string, verbose bool) error {
 	// Check if user has write access to target repository
-	hasWriteAccess, err := checkRepositoryAccess(targetOwner, targetRepo)
+	hasWriteAccess, err := checkRepositoryAccess(targetOwner, targetRepo, "")
 	if err != nil && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not check repository access: %v", err)))
 	}

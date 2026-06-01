@@ -13,7 +13,7 @@ import (
 
 // checkGHAuthStatus verifies the user is logged in to GitHub CLI
 func (c *AddInteractiveConfig) checkGHAuthStatus() error {
-	return checkGHAuthStatusShared(c.Verbose)
+	return checkGHAuthStatusShared(c.Verbose, c.ghHost)
 }
 
 // checkGitRepository verifies we're in a git repo and gets org/repo info
@@ -72,19 +72,19 @@ func (c *AddInteractiveConfig) checkGitRepository() error {
 	addInteractiveLog.Printf("Target repository: %s", repoSlug)
 
 	// Check if repository is public or private
-	c.isPublicRepo = checkRepoVisibilityShared(c.RepoOverride)
+	c.isPublicRepo = checkRepoVisibilityShared(c.RepoOverride, c.ghHost)
 
 	return nil
 }
 
 // checkActionsEnabled verifies that GitHub Actions is enabled for the repository
 func (c *AddInteractiveConfig) checkActionsEnabled() error {
-	return checkActionsEnabledShared(c.RepoOverride, c.Verbose)
+	return checkActionsEnabledShared(c.RepoOverride, c.Verbose, c.ghHost)
 }
 
 // checkUserPermissions verifies the user has write/admin access
 func (c *AddInteractiveConfig) checkUserPermissions() error {
-	hasWrite, err := checkUserPermissionsShared(c.RepoOverride, c.Verbose)
+	hasWrite, err := checkUserPermissionsShared(c.RepoOverride, c.Verbose, c.ghHost)
 	if err != nil {
 		return err
 	}
