@@ -94,10 +94,19 @@ func hasMaxDailyEffectiveTokensGuardrail(data *WorkflowData) bool {
 	if data == nil {
 		return false
 	}
-	if data.MaxDailyEffectiveTokens != nil && strings.TrimSpace(*data.MaxDailyEffectiveTokens) != "" {
+	if hasMaxDailyEffectiveTokensFrontmatterConfig(data) {
 		return true
 	}
 	return hasMaxDailyEffectiveTokensEnvConfig(data.Env)
+}
+
+// hasMaxDailyEffectiveTokensFrontmatterConfig reports whether the daily ET threshold
+// is configured via the max-daily-effective-tokens frontmatter field. When true, the
+// threshold is emitted into the step env block rather than the workflow-level env, so
+// runtime expressions referencing env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS must not be
+// used to gate step execution or setup inputs.
+func hasMaxDailyEffectiveTokensFrontmatterConfig(data *WorkflowData) bool {
+	return data != nil && data.MaxDailyEffectiveTokens != nil && strings.TrimSpace(*data.MaxDailyEffectiveTokens) != ""
 }
 
 func hasMaxDailyEffectiveTokensEnvConfig(envYAML string) bool {

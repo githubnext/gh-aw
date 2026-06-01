@@ -105,10 +105,10 @@ func (c *Compiler) newActivationJobBuildContext(
 	}
 	enableArtifactClient := hasMaxDailyEffectiveTokensGuardrail(ctx.data)
 	artifactClientCondition := ""
-	if enableArtifactClient && (ctx.data.MaxDailyEffectiveTokens == nil || strings.TrimSpace(*ctx.data.MaxDailyEffectiveTokens) == "") {
+	if enableArtifactClient && !hasMaxDailyEffectiveTokensFrontmatterConfig(ctx.data) {
 		// Only gate on the env expression when the threshold comes from the workflow-level env var.
-		// When configured via frontmatter, the threshold is placed in the step env block rather than
-		// the workflow env, so the conditional expression would evaluate false and skip installation.
+		// When configured via frontmatter, the threshold is placed in the step env block (not workflow
+		// env), so the expression would evaluate false and skip installation; pass unconditional 'true'.
 		artifactClientCondition = maxDailyEffectiveTokensConfiguredIfExpr
 	}
 	ctx.steps = append(ctx.steps, c.generateSetupStepWithArtifactClientCondition(ctx.data, setupActionRef, SetupActionDestination, enableArtifactClient, activationSetupTraceID, activationSetupParentSpanID, artifactClientCondition)...)
@@ -268,8 +268,9 @@ func (c *Compiler) buildActivationDailyEffectiveWorkflowGuardrailStep(data *Work
 	steps = append(steps, "        id: daily-effective-workflow-guardrail\n")
 	// Only gate on the env expression when the threshold comes from the workflow-level env var.
 	// When configured via frontmatter, the threshold is placed in the step env block and is not
-	// available in the workflow env context, so the condition would evaluate false and skip the step.
-	if data.MaxDailyEffectiveTokens == nil || strings.TrimSpace(*data.MaxDailyEffectiveTokens) == "" {
+	// available in the workflow env context, so the condition would evaluate false and skip the step;
+	// in that case the step runs unconditionally since the threshold is guaranteed to be present.
+	if !hasMaxDailyEffectiveTokensFrontmatterConfig(data) {
 		steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyEffectiveTokensConfiguredIfExpr))
 	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
