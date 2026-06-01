@@ -2,8 +2,8 @@
 
 package console
 
-import "fmt"
+import "errors"
 
 func ConfirmAction(title, affirmative, negative string) (bool, error) {
-	return false, fmt.Errorf("interactive confirmation not available in Wasm")
+	return false, errors.New("interactive confirmation not available in Wasm")
 }

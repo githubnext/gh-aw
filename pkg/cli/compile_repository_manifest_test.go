@@ -180,6 +180,36 @@ name: Repo Assist
 	assert.Contains(t, err.Error(), "missing required README.md")
 }
 
+func TestCompileWorkflows_RejectsManifestWorkflowWithPrivateTrue(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "aw-manifest-private-true-*")
+	originalWd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(originalWd) })
+	require.NoError(t, os.Chdir(tmpDir))
+
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tmpDir
+	require.NoError(t, cmd.Run())
+
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "workflows"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "workflows", "review.md"), []byte(`---
+private: true
+---
+
+# Review
+`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Repo Assist\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "aw.yml"), []byte(`manifest-version: "1"
+name: Repo Assist
+files:
+  - workflows/review.md
+`), 0o644))
+
+	_, err = CompileWorkflows(context.Background(), CompileConfig{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `workflow "workflows/review.md" sets private: true`)
+}
+
 func TestValidateRepositoryManifestForCompilation_PropagatesGitRootErrors(t *testing.T) {
 	originalFindGitRoot := findGitRootForManifestValidation
 	t.Cleanup(func() {

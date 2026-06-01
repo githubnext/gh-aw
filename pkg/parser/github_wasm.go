@@ -3,7 +3,7 @@
 package parser
 
 import (
-	"fmt"
+	"errors"
 	"os"
 )
 
@@ -14,5 +14,5 @@ func GetGitHubToken() (string, error) {
 	if token := os.Getenv("GH_TOKEN"); token != "" {
 		return token, nil
 	}
-	return "", fmt.Errorf("GitHub token not available in Wasm (set GITHUB_TOKEN or GH_TOKEN environment variable)")
+	return "", errors.New("GitHub token not available in Wasm (set GITHUB_TOKEN or GH_TOKEN environment variable)")
 }

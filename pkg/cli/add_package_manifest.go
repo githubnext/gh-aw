@@ -705,6 +705,26 @@ func normalizePackageInstallablePaths(paths []string, packagePath string) []stri
 	return normalized
 }
 
+func validateManifestInstallableWorkflowPrivacy(manifestPath string, installationSources []string, readWorkflow func(string) ([]byte, error)) error {
+	for _, installationSource := range installationSources {
+		if isActionWorkflowPath(installationSource) {
+			continue
+		}
+
+		content, err := readWorkflow(installationSource)
+		if err != nil {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: %w", manifestPath, err)
+		}
+
+		privateValue, hasPrivate := ExtractWorkflowPrivateSetting(string(content))
+		if hasPrivate && privateValue {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: true and cannot be included because private workflows cannot be added", manifestPath, installationSource)
+		}
+	}
+
+	return nil
+}
+
 func isSupportedPackageInstallablePath(p string) bool {
 	// Normalize separators to forward slashes (consistent with joinRepositoryPackagePath) then
 	// clean to reject path traversal (e.g. "workflows/../README.md" → "README.md").

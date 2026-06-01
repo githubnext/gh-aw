@@ -448,7 +448,7 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 		return nil
 	}
 
-	managedPatterns := []string{c.effectiveActionsRepo() + "/**"}
+	managedPatterns := []string{c.effectiveActionsRepo()}
 	changed := false
 	originalStr := string(original)
 	managedPatternsWithComment := managedPatternsWithInlineComment(originalStr, managedPatterns)
