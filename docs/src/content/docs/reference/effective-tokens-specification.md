@@ -927,7 +927,7 @@ NaN, or Inf multiplier values before any release.
 
 ## Norms
 
-This section provides a normative reference table for all `R-OTL-*`, `R-SAFE-*`, and `R-REG-*` identifiers used in this specification. Use this table to locate the section defining each rule and verify implementation compliance.
+This section provides a normative reference table for all `R-OTL-*`, `R-SAFE-*`, and `R-REG-*` identifiers used in this specification. Each table maps an identifier to the section where it is defined and summarizes the MUST/SHALL clause it represents. Use this section as a quick-reference index for verifying implementation compliance, tracking which rules are exercised by a given test, or identifying the definitive section for a given requirement.
 
 ### OTel Attribute Norms (§7.1)
 

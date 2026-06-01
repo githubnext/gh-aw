@@ -265,7 +265,7 @@ This section defines normative safeguards that conforming implementations MUST a
 
 ## 11. Norms
 
-This section provides a normative reference table mapping every `R-PKG-*` identifier used in this specification to the section where it is defined and the MUST/SHALL clause it represents.
+This section provides a normative reference table for all MUST/SHALL requirements defined in §§4–10 of this specification. Requirements that have been assigned an explicit `R-PKG-*` identifier are listed with that identifier; requirements that do not yet carry an explicit identifier are shown with `—` in the ID column and may be assigned identifiers in a future revision.
 
 ### 11.1 Manifest Format Norms (§4)
 

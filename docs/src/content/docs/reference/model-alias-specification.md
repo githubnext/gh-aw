@@ -803,7 +803,7 @@ The compile-time loop-detection safeguard (§8.6.1 / V-MAF-010) is tested in:
 
 ## 15. Norms
 
-This section provides a normative reference table mapping every `R-MAF-*` identifier used in this specification to the section where it is defined and the MUST/SHALL clause it represents.
+This section provides a normative reference table for all MUST/SHALL requirements defined in §§4–13 of this specification. The table covers both validation rule identifiers (`V-MAF-*`, defined in §11) and safeguard identifiers (`R-MAF-S*`, defined in §13). Use this section as a quick-reference index for verifying implementation compliance or mapping a requirement to its definitive section.
 
 ### 15.1 Validation Rule Norms (§11)
 
