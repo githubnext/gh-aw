@@ -6,6 +6,34 @@ const { REACTION_MAP } = require("./add_reaction.cjs");
 // Update when GitHub advances the recommended version to avoid sunset/deprecation warnings.
 const GITHUB_API_VERSION = "2022-11-28";
 
+/**
+ * Appends centralized command routing details to the current step summary.
+ * @param {string[]} existingCommands
+ * @param {string} selectedCommand
+ * @returns {Promise<void>}
+ */
+async function appendRoutingSummary(existingCommands, selectedCommand) {
+  const summary = core.summary;
+  if (!summary || typeof summary.addHeading !== "function" || typeof summary.addRaw !== "function" || typeof summary.write !== "function") {
+    return;
+  }
+
+  const normalizedCommands = existingCommands
+    .filter(command => typeof command === "string" && command.trim())
+    .map(command => `/${command.trim()}`)
+    .sort();
+
+  const existingCommandsText = normalizedCommands.length ? normalizedCommands.join(", ") : "<none>";
+  const selectedCommandText = selectedCommand ? `/${selectedCommand}` : "<none>";
+
+  try {
+    summary.addHeading("Agentic Commands Router", 3).addRaw(`- Existing commands: ${existingCommandsText}`, true).addEOL().addRaw(`- Selected command: ${selectedCommandText}`, true).addEOL();
+    await summary.write({ overwrite: false });
+  } catch (error) {
+    core.warning(`Failed to write centralized routing details to step summary: ${String(error)}`);
+  }
+}
+
 function eventIdentifier() {
   if (context.eventName !== "issue_comment") {
     return context.eventName;
@@ -224,6 +252,10 @@ async function main() {
   const labelRouteMap = JSON.parse(process.env.GH_AW_LABEL_ROUTING || "{}");
   core.info(`Configured centralized slash commands: ${Object.keys(slashRouteMap).length}.`);
   core.info(`Configured decentralized label commands: ${Object.keys(labelRouteMap).length}.`);
+  const text = resolveBodyText();
+  const firstWord = String(text).trim().split(/\s+/)[0] ?? "";
+  const selectedCommand = firstWord.startsWith("/") ? firstWord.slice(1) : "";
+  await appendRoutingSummary(Object.keys(slashRouteMap), selectedCommand);
 
   const identifier = eventIdentifier();
   const { buildAwContext } = require("./aw_context.cjs");
@@ -269,16 +301,14 @@ async function main() {
     return;
   }
 
-  const text = resolveBodyText();
   core.info(`Resolved payload text length: ${String(text).length}.`);
-  const firstWord = String(text).trim().split(/\s+/)[0] ?? "";
   core.info(`First token in payload: '${firstWord || "<empty>"}'.`);
   if (!firstWord.startsWith("/")) {
     core.info("No slash command found at start of payload text; skipping dispatch.");
     return;
   }
 
-  const commandName = firstWord.slice(1);
+  const commandName = selectedCommand;
   core.info(`Resolved command '/${commandName}' for event identifier '${identifier}'.`);
   const configuredRoutes = slashRouteMap[commandName] ?? [];
   core.info(`Configured routes for '/${commandName}': ${configuredRoutes.length}.`);

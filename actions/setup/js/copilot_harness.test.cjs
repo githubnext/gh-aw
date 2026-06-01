@@ -35,7 +35,9 @@ const {
   GEMINI_MODEL_NAME_PREFIX,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
+  runWithCopilotSDK,
   writeCopilotOutputs,
+  readSDKOptionsFromStdin,
 } = require("./copilot_harness.cjs");
 
 describe("copilot_harness.cjs", () => {
@@ -197,6 +199,84 @@ describe("copilot_harness.cjs", () => {
       ).toBe("3002");
     });
 
+    describe("copilot-sdk driver lifecycle", () => {
+      it("disconnects session and stops client on success", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        let onEvent = () => {};
+        const session = {
+          sessionId: "session-success",
+          on: handler => {
+            onEvent = handler;
+          },
+          sendAndWait: vi.fn().mockImplementation(async () => {
+            onEvent({
+              type: "assistant.message",
+              ephemeral: false,
+              timestamp: new Date().toISOString(),
+              data: { content: "hello from sdk" },
+            });
+            return { data: { content: "hello from sdk" } };
+          }),
+          disconnect,
+        };
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = vi.fn().mockResolvedValue(session);
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.hasOutput).toBe(true);
+        expect(result.output).toContain("hello from sdk");
+        expect(disconnect).toHaveBeenCalledTimes(1);
+        expect(stop).toHaveBeenCalledTimes(1);
+      });
+
+      it("disconnects session and stops client on send failure", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const session = {
+          sessionId: "session-failure",
+          on: () => {},
+          sendAndWait: vi.fn().mockRejectedValue(new Error("send failed")),
+          disconnect,
+        };
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = vi.fn().mockResolvedValue(session);
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(1);
+        expect(result.output).toContain("send failed");
+        expect(disconnect).toHaveBeenCalledTimes(1);
+        expect(stop).toHaveBeenCalledTimes(1);
+      });
+    });
+
     it("builds headless Copilot CLI sidecar args", () => {
       expect(
         buildCopilotSDKServerArgs({
@@ -280,6 +360,80 @@ describe("copilot_harness.cjs", () => {
       });
       expect(child.listenerCount("error")).toBe(0);
       expect(child.listenerCount("exit")).toBe(0);
+    });
+
+    it("forwards extraArgs to the headless server when provided", async () => {
+      const child = new EventEmitter();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      child.pid = 5678;
+      child.exitCode = null;
+      child.signalCode = null;
+      child.kill = vi.fn();
+      const spawnImpl = vi.fn(() => child);
+      const waitForReady = vi.fn().mockResolvedValue(undefined);
+
+      await startCopilotSDKServer({
+        command: "copilot",
+        env: { COPILOT_SDK_URI: "http://127.0.0.1:3002" },
+        extraArgs: ["--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps"],
+        logger: () => {},
+        spawnImpl,
+        waitForReady,
+      });
+
+      expect(spawnImpl).toHaveBeenCalledWith(
+        "copilot",
+        ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps"],
+        expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"] })
+      );
+    });
+
+    it("uses engine-generated serverArgs directly when provided", async () => {
+      const child = new EventEmitter();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      child.pid = 5680;
+      child.exitCode = null;
+      child.signalCode = null;
+      child.kill = vi.fn();
+      const spawnImpl = vi.fn(() => child);
+      const waitForReady = vi.fn().mockResolvedValue(undefined);
+
+      const engineGeneratedArgs = ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"];
+      await startCopilotSDKServer({
+        command: "copilot",
+        env: { COPILOT_SDK_URI: "http://127.0.0.1:3002" },
+        serverArgs: engineGeneratedArgs,
+        logger: () => {},
+        spawnImpl,
+        waitForReady,
+      });
+
+      expect(spawnImpl).toHaveBeenCalledWith("copilot", engineGeneratedArgs, expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"] }));
+    });
+
+    it("uses only base headless args when extraArgs is empty or omitted", async () => {
+      const child = new EventEmitter();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      child.pid = 5679;
+      child.exitCode = null;
+      child.signalCode = null;
+      child.kill = vi.fn();
+      const spawnImpl = vi.fn(() => child);
+      const waitForReady = vi.fn().mockResolvedValue(undefined);
+
+      await startCopilotSDKServer({
+        command: "copilot",
+        env: { COPILOT_SDK_URI: "http://127.0.0.1:3002" },
+        extraArgs: [],
+        logger: () => {},
+        spawnImpl,
+        waitForReady,
+      });
+
+      expect(spawnImpl).toHaveBeenCalledWith("copilot", ["--headless", "--no-auto-update", "--port", "3002"], expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"] }));
     });
 
     it("stops the headless Copilot CLI sidecar with SIGTERM", async () => {
@@ -1225,6 +1379,183 @@ describe("copilot_harness.cjs", () => {
       await enrichReflectModels(reflectData, 500, msg => logs.push(msg));
       expect(reflectData.endpoints[0].models).toBeNull();
       expect(logs.some(l => l.includes("models fetch error"))).toBe(true);
+    });
+  });
+
+  describe("SDK mode retry policy", () => {
+    // In SDK mode, --continue is a CLI concept and must never be used.
+    // Retries always restart the session fresh.
+    // The retry eligibility rules (hasOutput, MAX_RETRIES) are otherwise shared.
+    const MAX_RETRIES = 3;
+
+    /**
+     * Mirrors the blended retry decision from copilot_harness.cjs (the
+     * `attempt < MAX_RETRIES && result.hasOutput` branch plus the
+     * `useContinueOnRetry = !copilotSDKMode && !continueDisabledPermanently` assignment).
+     * Keep this helper in sync with the production logic.
+     *
+     * @param {{hasOutput: boolean, exitCode: number, output: string}} result
+     * @param {number} attempt
+     * @param {boolean} copilotSDKMode
+     * @param {boolean} continueDisabledPermanently
+     * @returns {{ shouldRetry: boolean, useContinueOnRetry: boolean }}
+     */
+    function blendedRetryDecision(result, attempt, copilotSDKMode, continueDisabledPermanently = false) {
+      if (result.exitCode === 0) return { shouldRetry: false, useContinueOnRetry: false };
+      if (hasNumerousPermissionDeniedIssues(result.output)) return { shouldRetry: false, useContinueOnRetry: false };
+      if (isMaxEffectiveTokensExceededError(result.output)) return { shouldRetry: false, useContinueOnRetry: false };
+      if (attempt >= MAX_RETRIES || !result.hasOutput) return { shouldRetry: false, useContinueOnRetry: false };
+      // --continue is only enabled in CLI mode and only when not permanently disabled.
+      const useContinueOnRetry = !copilotSDKMode && !continueDisabledPermanently;
+      return { shouldRetry: true, useContinueOnRetry };
+    }
+
+    it("retries on partial execution in SDK mode (fresh run, not --continue)", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Error: connection reset" };
+      const { shouldRetry, useContinueOnRetry } = blendedRetryDecision(result, 0, true);
+      expect(shouldRetry).toBe(true);
+      expect(useContinueOnRetry).toBe(false);
+    });
+
+    it("retries on CAPIError 400 in SDK mode (fresh run, not --continue)", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "CAPIError: 400 Bad Request" };
+      const { shouldRetry, useContinueOnRetry } = blendedRetryDecision(result, 0, true);
+      expect(shouldRetry).toBe(true);
+      expect(useContinueOnRetry).toBe(false);
+    });
+
+    it("never sets useContinueOnRetry=true in SDK mode regardless of error type", () => {
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        const result = { exitCode: 1, hasOutput: true, output: "Error: partial execution" };
+        const { useContinueOnRetry } = blendedRetryDecision(result, attempt, /* copilotSDKMode */ true);
+        expect(useContinueOnRetry).toBe(false);
+      }
+    });
+
+    it("does not retry in SDK mode when no output was produced", () => {
+      const result = { exitCode: 1, hasOutput: false, output: "" };
+      const { shouldRetry } = blendedRetryDecision(result, 0, true);
+      expect(shouldRetry).toBe(false);
+    });
+
+    it("does not retry in SDK mode after retries are exhausted", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Error: partial execution" };
+      const { shouldRetry } = blendedRetryDecision(result, MAX_RETRIES, true);
+      expect(shouldRetry).toBe(false);
+    });
+
+    it("CLI mode still enables --continue on partial execution when not disabled", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Error: connection reset" };
+      const { shouldRetry, useContinueOnRetry } = blendedRetryDecision(result, 0, /* copilotSDKMode */ false);
+      expect(shouldRetry).toBe(true);
+      expect(useContinueOnRetry).toBe(true);
+    });
+
+    it("CLI mode respects continueDisabledPermanently", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Error: connection reset" };
+      const { shouldRetry, useContinueOnRetry } = blendedRetryDecision(result, 0, /* copilotSDKMode */ false, /* continueDisabledPermanently */ true);
+      expect(shouldRetry).toBe(true);
+      expect(useContinueOnRetry).toBe(false);
+    });
+
+    it("currentArgs never appends --continue in SDK mode", () => {
+      const resolvedArgs = ["--prompt", "hello"];
+      // Simulate the blended loop's currentArgs logic for multiple attempts in SDK mode
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        const useContinueOnRetry = false; // always false in SDK mode
+        const copilotSDKMode = true;
+        const currentArgs = !copilotSDKMode && attempt > 0 && useContinueOnRetry ? [...resolvedArgs, "--continue"] : resolvedArgs;
+        expect(currentArgs).not.toContain("--continue");
+      }
+    });
+
+    it("currentArgs appends --continue in CLI mode when useContinueOnRetry=true", () => {
+      const resolvedArgs = ["--prompt", "hello"];
+      const copilotSDKMode = false;
+      const useContinueOnRetry = true;
+      // attempt > 0 is when --continue kicks in
+      const currentArgs = !copilotSDKMode && 1 > 0 && useContinueOnRetry ? [...resolvedArgs, "--continue"] : resolvedArgs;
+      expect(currentArgs).toContain("--continue");
+    });
+  });
+
+  describe("readSDKOptionsFromStdin", () => {
+    const { PassThrough } = require("stream");
+
+    /**
+     * Helper: run readSDKOptionsFromStdin with a fake stdin backed by a PassThrough stream.
+     * @param {string | null} data - JSON string to push into stdin, or null to simulate TTY.
+     * @param {boolean} [isTTY]
+     */
+    async function runWithFakeStdin(data, isTTY = false) {
+      const fakeStdin = new PassThrough();
+      fakeStdin.isTTY = isTTY;
+
+      const originalStdin = process.stdin;
+      // Replace process.stdin temporarily by patching the relevant properties
+      Object.defineProperty(process, "stdin", { value: fakeStdin, writable: true, configurable: true });
+      try {
+        const promise = readSDKOptionsFromStdin();
+        if (data !== null) {
+          fakeStdin.push(data);
+        }
+        fakeStdin.end();
+        return await promise;
+      } finally {
+        Object.defineProperty(process, "stdin", { value: originalStdin, writable: true, configurable: true });
+      }
+    }
+
+    it("returns null when stdin is a TTY", async () => {
+      const result = await runWithFakeStdin(null, /* isTTY */ true);
+      expect(result).toBeNull();
+    });
+
+    it("parses valid JSON payload with promptFile", async () => {
+      const result = await runWithFakeStdin('{"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt"}');
+      expect(result).toEqual({ promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt" });
+    });
+
+    it("parses full payload with promptFile, serverArgs, and addWorkspaceDir", async () => {
+      const payload = JSON.stringify({
+        promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
+        serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
+        addWorkspaceDir: true,
+      });
+      const result = await runWithFakeStdin(payload);
+      expect(result).toEqual({
+        promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
+        serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
+        addWorkspaceDir: true,
+      });
+    });
+
+    it("parses payload with serverArgs but no addWorkspaceDir (non-sandbox mode)", async () => {
+      const payload = JSON.stringify({
+        promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
+        serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/", "--log-level", "all"],
+      });
+      const result = await runWithFakeStdin(payload);
+      expect(result).toMatchObject({
+        promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
+        serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/", "--log-level", "all"],
+      });
+      expect(result.addWorkspaceDir).toBeUndefined();
+    });
+
+    it("returns null on empty stdin", async () => {
+      const result = await runWithFakeStdin("");
+      expect(result).toBeNull();
+    });
+
+    it("returns null on invalid JSON", async () => {
+      const result = await runWithFakeStdin("not-json{");
+      expect(result).toBeNull();
+    });
+
+    it("handles extra whitespace around JSON", async () => {
+      const result = await runWithFakeStdin('\n  {"promptFile":"/tmp/prompt.txt"}  \n');
+      expect(result).toEqual({ promptFile: "/tmp/prompt.txt" });
     });
   });
 
