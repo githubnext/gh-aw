@@ -60,6 +60,7 @@ safe-outputs:
   close-issue:
     max: 10
     required-title-prefix: "[lint-monster] "
+    state-reason: duplicate
   update-issue:
     max: 10
     title-prefix: "[lint-monster] "
@@ -119,14 +120,14 @@ Convert fused guidance into clear, actionable instructions that Copilot can exec
    - Do **not** open separate issues for `pkg/workflow`, `pkg/cli`, "part 1 / part 2", or differing count snapshots of the same function-length backlog.
    - Use the current lint run as the single source of truth for the current function-length finding count.
    - Search open and recent closed `lint-monster` issues for matching function-length tracking work before creating anything new.
-   - Pick one authoritative issue (prefer an existing open issue if it already tracks the same backlog); otherwise create one new epic-style issue.
+   - Pick one authoritative issue (prefer an existing open issue if it already tracks the same backlog); otherwise create one new consolidated tracking issue.
    - If an authoritative issue already exists, use `update_issue` to refresh it with the current count, affected paths, and a checklist of next slices to refactor.
-   - For any older open duplicates that cover the same function-length backlog, close them with `close_issue` using a pointer comment to the authoritative issue and `state_reason: "duplicate"`.
+   - For any older open duplicates that cover the same function-length backlog, close them with `close_issue` using a pointer comment to the authoritative issue.
 4. For each selected group:
    - Create or update one issue summarizing findings (paths, representative diagnostics, expected outcome).
    - Include a concise remediation checklist using fused skill guidance.
    - For the `function-length refactoring` group, explicitly mention the current authoritative count and list any duplicate issues that were linked/closed.
-   - Only assign a Copilot agent when you created a new issue that needs execution work right now; do not create a fresh assignment just to duplicate an already-open tracking epic.
+   - Only assign a Copilot agent when you created a new issue that needs execution work right now; do not create a fresh assignment just to duplicate an already-open tracking issue.
 5. If at least one assignment succeeded **or** you updated/closed an existing function-length tracking issue, create one discussion report containing:
    - Daily lint scan summary
    - Group definitions and finding counts
