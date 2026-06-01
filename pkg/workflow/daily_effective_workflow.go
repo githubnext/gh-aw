@@ -97,5 +97,20 @@ func hasMaxDailyEffectiveTokensGuardrail(data *WorkflowData) bool {
 	if data.MaxDailyEffectiveTokens != nil && strings.TrimSpace(*data.MaxDailyEffectiveTokens) != "" {
 		return true
 	}
-	return strings.Contains(data.Env, maxDailyEffectiveTokensEnvVar+":")
+	return hasMaxDailyEffectiveTokensEnvConfig(data.Env)
+}
+
+func hasMaxDailyEffectiveTokensEnvConfig(envYAML string) bool {
+	for _, line := range strings.Split(envYAML, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, maxDailyEffectiveTokensEnvVar+":") ||
+			strings.HasPrefix(trimmed, `"`+maxDailyEffectiveTokensEnvVar+`":`) ||
+			strings.HasPrefix(trimmed, `'`+maxDailyEffectiveTokensEnvVar+`':`) {
+			return true
+		}
+	}
+	return false
 }
