@@ -3,7 +3,10 @@
 package workflow
 
 import (
+	"bytes"
 	"errors"
+	"io"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -387,6 +390,44 @@ func TestValidatePermissions_UsesCachedPermissionScopeValidation(t *testing.T) {
 	_, err := compiler.validatePermissions(workflowData, markdownPath)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), cachedErr.Error())
+}
+
+func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "tool-warning-test")
+	markdownPath := filepath.Join(tmpDir, "test.md")
+
+	compiler := NewCompiler()
+	compiler.SetStrictMode(false)
+
+	workflowData := &WorkflowData{
+		Name: "Test",
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{Disabled: true},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	initialWarnings := compiler.GetWarningCount()
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+
+	validateErr := compiler.validateToolConfiguration(workflowData, markdownPath, &Permissions{})
+
+	require.NoError(t, w.Close())
+	os.Stderr = oldStderr
+
+	var stderr bytes.Buffer
+	_, err = io.Copy(&stderr, r)
+	require.NoError(t, err)
+
+	require.Error(t, validateErr)
+	assert.Contains(t, validateErr.Error(), "threat detection requires sandbox.agent")
+	assert.Contains(t, stderr.String(), "Agent sandbox disabled (sandbox.agent: false)")
+	assert.Equal(t, initialWarnings+1, compiler.GetWarningCount())
 }
 
 // TestWarnPromptTmpPaths tests the /tmp path heuristic used by the compiler.

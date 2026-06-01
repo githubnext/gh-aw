@@ -141,6 +141,9 @@ func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdow
 		return err
 	}
 	c.emitGeneralToolWarnings(workflowData, markdownPath)
+	if err := c.validateThreatDetectionSandboxRequirement(workflowData, markdownPath); err != nil {
+		return err
+	}
 	if err := c.validateGitHubToolsAndPermissions(workflowData, markdownPath, workflowPermissions); err != nil {
 		return err
 	}
@@ -185,7 +188,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 			return formatCompilerError(markdownPath, "error", err.Error(), err)
 		}
 	}
-	return c.validateThreatDetectionSandboxRequirement(workflowData, markdownPath)
+	return nil
 }
 
 func (c *Compiler) validateThreatDetectionSandboxRequirement(workflowData *WorkflowData, markdownPath string) error {
