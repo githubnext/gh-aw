@@ -11,6 +11,8 @@ describe("route_slash_command", () => {
   let dispatchCalls;
   /** @type {any[]} */
   let reactionCalls;
+  /** @type {any} */
+  let summaryMock;
 
   beforeEach(() => {
     savedGlobals = {
@@ -23,9 +25,15 @@ describe("route_slash_command", () => {
     };
     dispatchCalls = [];
     reactionCalls = [];
+    summaryMock = {};
+    summaryMock.addHeading = vi.fn(() => summaryMock);
+    summaryMock.addRaw = vi.fn(() => summaryMock);
+    summaryMock.addEOL = vi.fn(() => summaryMock);
+    summaryMock.write = vi.fn(async () => undefined);
     globals.core = {
       info: vi.fn(),
       warning: vi.fn(),
+      summary: summaryMock,
     };
     globals.github = {
       request: vi.fn(async (...args) => {
@@ -89,6 +97,19 @@ describe("route_slash_command", () => {
     const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
     expect(awContext.command_name).toBe("archie");
     expect(awContext.desired_ai_reaction).toBe("eyes");
+    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Existing commands: /archie", true);
+    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Selected command: /archie", true);
+    expect(summaryMock.write).toHaveBeenCalledWith({ overwrite: false });
+  });
+
+  it("logs empty selected command in summary when no slash command is present", async () => {
+    globals.context.payload.comment.body = "hello there";
+
+    await main();
+
+    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Existing commands: /archie", true);
+    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Selected command: <none>", true);
+    expect(summaryMock.write).toHaveBeenCalledWith({ overwrite: false });
   });
 
   it("treats issue_comment on pull requests as pull_request_comment", async () => {
