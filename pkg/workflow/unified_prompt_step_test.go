@@ -523,3 +523,86 @@ func TestCollectPromptSections_CliProxy(t *testing.T) {
 		}
 	})
 }
+
+func TestCollectPromptSections_PRCommentPushToPRBranchGuidance(t *testing.T) {
+	compiler := &Compiler{}
+
+	t.Run("includes guidance when PR comment triggers and push-to-pr-branch is configured", func(t *testing.T) {
+		data := &WorkflowData{
+			On:          "issue_comment",
+			Permissions: "contents: read",
+			SafeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+			},
+		}
+
+		sections := compiler.collectPromptSections(data)
+
+		var guidanceSection *PromptSection
+		for i := range sections {
+			if sections[i].IsFile && sections[i].Content == prContextPushToPRBranchGuidanceFile {
+				guidanceSection = &sections[i]
+				break
+			}
+		}
+
+		require.NotNil(t, guidanceSection, "Should include push-to-PR-branch guidance for PR comment workflows")
+		assert.NotEmpty(t, guidanceSection.ShellCondition, "Guidance should be conditionally injected for PR-comment events")
+		assert.Contains(t, guidanceSection.ShellCondition, "issue_comment")
+		assert.Equal(t, "${{ github.event.issue.pull_request && 'true' || '' }}", guidanceSection.EnvVars["GH_AW_IS_PR_COMMENT"])
+	})
+
+	t.Run("includes guidance when pull_request_review_comment triggers and push-to-pr-branch is configured", func(t *testing.T) {
+		data := &WorkflowData{
+			On:          "pull_request_review_comment",
+			Permissions: "contents: read",
+			SafeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+			},
+		}
+
+		sections := compiler.collectPromptSections(data)
+
+		var guidanceSection *PromptSection
+		for i := range sections {
+			if sections[i].IsFile && sections[i].Content == prContextPushToPRBranchGuidanceFile {
+				guidanceSection = &sections[i]
+				break
+			}
+		}
+
+		require.NotNil(t, guidanceSection, "Should include push-to-PR-branch guidance for pull_request_review_comment workflows")
+		assert.NotEmpty(t, guidanceSection.ShellCondition, "Guidance should be conditionally injected for PR-comment events")
+		assert.Contains(t, guidanceSection.ShellCondition, "pull_request_review_comment")
+	})
+
+	t.Run("does not include guidance when push-to-pr-branch is not configured", func(t *testing.T) {
+		data := &WorkflowData{
+			On:          "issue_comment",
+			Permissions: "contents: read",
+			SafeOutputs: &SafeOutputsConfig{},
+		}
+
+		sections := compiler.collectPromptSections(data)
+
+		for _, section := range sections {
+			assert.NotEqual(t, prContextPushToPRBranchGuidanceFile, section.Content,
+				"Should not include push-to-PR-branch guidance unless tool is configured")
+		}
+	})
+
+	t.Run("does not include guidance when SafeOutputs is nil", func(t *testing.T) {
+		data := &WorkflowData{
+			On:          "issue_comment",
+			Permissions: "contents: read",
+			SafeOutputs: nil,
+		}
+
+		sections := compiler.collectPromptSections(data)
+
+		for _, section := range sections {
+			assert.NotEqual(t, prContextPushToPRBranchGuidanceFile, section.Content,
+				"Should not include push-to-PR-branch guidance when SafeOutputs is nil")
+		}
+	})
+}
