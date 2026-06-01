@@ -2,16 +2,16 @@
 
 package console
 
-import "fmt"
+import "errors"
 
 func PromptInput(title, description, placeholder string) (string, error) {
-	return "", fmt.Errorf("interactive input not available in Wasm")
+	return "", errors.New("interactive input not available in Wasm")
 }
 
 func PromptSecretInput(title, description string) (string, error) {
-	return "", fmt.Errorf("interactive input not available in Wasm")
+	return "", errors.New("interactive input not available in Wasm")
 }
 
 func PromptInputWithValidation(title, description, placeholder string, validate func(string) error) (string, error) {
-	return "", fmt.Errorf("interactive input not available in Wasm")
+	return "", errors.New("interactive input not available in Wasm")
 }
