@@ -4,6 +4,7 @@
 package ctxbackground
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 
@@ -24,11 +25,14 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	if !ok {
+		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
+	}
 
 	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
-		call := cur.Node().(*ast.CallExpr)
-		if !isContextBackgroundCall(call) {
+		call, ok := cur.Node().(*ast.CallExpr)
+		if !ok || !isContextBackgroundCall(call) {
 			continue
 		}
 
@@ -38,7 +42,10 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		for encl := range cur.Enclosing((*ast.FuncDecl)(nil)) {
-			fn := encl.Node().(*ast.FuncDecl)
+			fn, ok := encl.Node().(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
 			ctxParamName, ok := contextParamName(pass, fn)
 			if !ok {
 				break
