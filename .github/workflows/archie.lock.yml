@@ -126,7 +126,7 @@ jobs:
           job-name: ${{ github.job }}
           trace-id: ${{ needs.pre_activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.pre_activation.outputs.setup-parent-span-id || needs.pre_activation.outputs.setup-span-id }}
-          safe-output-artifact-client: 'true'
+          safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Archie"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/archie.lock.yml@${{ github.ref }}
@@ -163,6 +163,7 @@ jobs:
             await main(core, context);
       - name: Check daily workflow token guardrail
         id: daily-effective-workflow-guardrail
+        if: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Archie"

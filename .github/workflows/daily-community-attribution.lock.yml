@@ -121,7 +121,7 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
-          safe-output-artifact-client: 'true'
+          safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Community Attribution Updater"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-community-attribution.lock.yml@${{ github.ref }}
@@ -158,6 +158,7 @@ jobs:
             await main(core, context);
       - name: Check daily workflow token guardrail
         id: daily-effective-workflow-guardrail
+        if: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Daily Community Attribution Updater"
