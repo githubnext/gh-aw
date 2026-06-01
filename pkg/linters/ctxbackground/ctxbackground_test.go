@@ -12,5 +12,5 @@ import (
 
 func TestCtxBackground(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, ctxbackground.Analyzer, "ctxbackground")
+	analysistest.RunWithSuggestedFixes(t, testdata, ctxbackground.Analyzer, "ctxbackground")
 }
