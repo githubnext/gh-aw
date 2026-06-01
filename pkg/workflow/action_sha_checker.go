@@ -44,59 +44,66 @@ func ExtractActionsFromLockFile(lockFilePath string) ([]ActionUsage, error) {
 	if err := ValidateLockSchemaCompatibility(string(content), lockFilePath); err != nil {
 		return nil, err
 	}
+	if err := validateLockYAML(content); err != nil {
+		return nil, err
+	}
+	return extractActionsFromContent(string(content)), nil
+}
 
-	// Parse YAML to extract actions from "uses" fields
+func validateLockYAML(content []byte) error {
 	var workflowData map[string]any
 	if err := yaml.Unmarshal(content, &workflowData); err != nil {
-		return nil, fmt.Errorf("failed to parse lock file YAML: %w", err)
+		return fmt.Errorf("failed to parse lock file YAML: %w", err)
 	}
+	return nil
+}
 
-	// Convert to string and extract all uses fields
-	contentStr := string(content)
+func extractActionsFromContent(content string) []ActionUsage {
 	actions := make(map[string]ActionUsage) // Use map to deduplicate
-	matches := actionUsesPattern.FindAllStringSubmatch(contentStr, -1)
+	matches := actionUsesPattern.FindAllStringSubmatch(content, -1)
 
 	for _, match := range matches {
-		if len(match) >= 3 {
-			repo := match[1]
-			sha := match[2]
-
-			// Skip if we've already seen this action
-			if _, exists := actions[repo+"@"+sha]; exists {
-				continue
-			}
-
-			// Extract version from comment if present (match[3])
-			version := ""
-			if len(match) >= 4 && match[3] != "" {
-				version = match[3]
-				actionSHACheckerLog.Printf("Found action: %s@%s (version: %s)", repo, sha, version)
-			} else {
-				// Fallback: try to determine the version tag from action_pins.json
-				if pin, found := getLatestActionPinByRepo(repo); found {
-					version = pin.Version
-					actionSHACheckerLog.Printf("Found action: %s@%s (version from pins: %s)", repo, sha, version)
-				} else {
-					actionSHACheckerLog.Printf("Found action: %s@%s (no version)", repo, sha)
-				}
-			}
-
-			actions[repo+"@"+sha] = ActionUsage{
-				Repo:    repo,
-				SHA:     sha,
-				Version: version,
-			}
+		action, ok := parseActionUsageMatch(match)
+		if !ok {
+			continue
 		}
+		actionKey := action.Repo + "@" + action.SHA
+		if _, exists := actions[actionKey]; exists {
+			continue
+		}
+		actions[actionKey] = action
 	}
 
-	// Convert map to slice
 	result := make([]ActionUsage, 0, len(actions))
 	for _, action := range actions {
 		result = append(result, action)
 	}
 
 	actionSHACheckerLog.Printf("Extracted %d unique actions", len(result))
-	return result, nil
+	return result
+}
+
+func parseActionUsageMatch(match []string) (ActionUsage, bool) {
+	if len(match) < 3 {
+		return ActionUsage{}, false
+	}
+	repo := match[1]
+	sha := match[2]
+	version := resolveActionUsageVersion(repo, sha, match)
+	return ActionUsage{Repo: repo, SHA: sha, Version: version}, true
+}
+
+func resolveActionUsageVersion(repo, sha string, match []string) string {
+	if len(match) >= 4 && match[3] != "" {
+		actionSHACheckerLog.Printf("Found action: %s@%s (version: %s)", repo, sha, match[3])
+		return match[3]
+	}
+	if pin, found := getLatestActionPinByRepo(repo); found {
+		actionSHACheckerLog.Printf("Found action: %s@%s (version from pins: %s)", repo, sha, pin.Version)
+		return pin.Version
+	}
+	actionSHACheckerLog.Printf("Found action: %s@%s (no version)", repo, sha)
+	return ""
 }
 
 // CheckActionSHAUpdates checks if actions need updating by comparing with latest SHAs

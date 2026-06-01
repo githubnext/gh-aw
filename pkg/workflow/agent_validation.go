@@ -234,54 +234,54 @@ func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine Co
 // validateWorkflowRunBranches validates workflow_run trigger requirements.
 // It enforces required workflows and branch restrictions guidance.
 func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markdownPath string) error {
-	// Fast path: skip expensive YAML parsing when the On field cannot possibly contain
-	// a workflow_run trigger (including when it is empty). This avoids yaml.Unmarshal
-	// on every validateWorkflowData call for the common case of non-workflow_run workflows.
 	if !strings.Contains(workflowData.On, "workflow_run") {
 		return nil
 	}
-
 	agentValidationLog.Print("Validating workflow_run trigger requirements")
-
-	// Parse the On field as YAML to check for workflow_run
-	// The On field is a YAML string that starts with "on:" key
-	var parsedData map[string]any
-	if err := yaml.Unmarshal([]byte(workflowData.On), &parsedData); err != nil {
-		// If we can't parse the YAML, skip this validation
-		agentValidationLog.Printf("Could not parse On field as YAML: %v", err)
+	workflowRunMap, ok := parseWorkflowRunTrigger(workflowData.On)
+	if !ok {
 		return nil
 	}
+	if err := validateWorkflowRunHasWorkflows(workflowRunMap, markdownPath); err != nil {
+		return err
+	}
+	if _, hasBranches := workflowRunMap["branches"]; hasBranches {
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("✓ workflow_run trigger has branch restrictions"))
+		}
+		return nil
+	}
+	return c.emitWorkflowRunMissingBranches(markdownPath)
+}
 
-	// Extract the actual "on" section from the parsed data
+func parseWorkflowRunTrigger(onYAML string) (map[string]any, bool) {
+	var parsedData map[string]any
+	if err := yaml.Unmarshal([]byte(onYAML), &parsedData); err != nil {
+		agentValidationLog.Printf("Could not parse On field as YAML: %v", err)
+		return nil, false
+	}
 	onData, hasOn := parsedData["on"]
 	if !hasOn {
-		// No "on" key found, skip validation
-		return nil
+		return nil, false
 	}
-
 	onMap, isMap := onData.(map[string]any)
 	if !isMap {
-		// "on" is not a map, skip validation
-		return nil
+		return nil, false
 	}
-
-	// Check if workflow_run is present
 	workflowRunVal, hasWorkflowRun := onMap["workflow_run"]
 	if !hasWorkflowRun {
-		// No workflow_run trigger, no validation needed
-		return nil
+		return nil, false
 	}
+	workflowRunMap, ok := workflowRunVal.(map[string]any)
+	return workflowRunMap, ok
+}
 
-	workflowRunMap, isMap := workflowRunVal.(map[string]any)
-	if !isMap {
-		// workflow_run is not a map (unusual), skip validation
-		return nil
-	}
-
-	// workflow_run requires workflows to be present and non-empty.
+func validateWorkflowRunHasWorkflows(workflowRunMap map[string]any, markdownPath string) error {
 	workflowsVal, hasWorkflows := workflowRunMap["workflows"]
-	if !hasWorkflows || !hasNonEmptyWorkflowRunWorkflows(workflowsVal) {
-		message := `workflow_run trigger must include a non-empty workflows field.
+	if hasWorkflows && hasNonEmptyWorkflowRunWorkflows(workflowsVal) {
+		return nil
+	}
+	message := `workflow_run trigger must include a non-empty workflows field.
 
 GitHub Actions requires on.workflow_run.workflows to reference at least one workflow.
 Without it, the compiled workflow is invalid and will be rejected.
@@ -291,20 +291,10 @@ on:
   workflow_run:
     workflows: ["your-workflow"]
     types: [completed]`
-		return formatCompilerError(markdownPath, "error", message, nil)
-	}
+	return formatCompilerError(markdownPath, "error", message, nil)
+}
 
-	// Check if workflow_run has branches field
-	_, hasBranches := workflowRunMap["branches"]
-	if hasBranches {
-		// Has branch restrictions, validation passed
-		if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("✓ workflow_run trigger has branch restrictions"))
-		}
-		return nil
-	}
-
-	// workflow_run without branches - this is a warning or error depending on mode
+func (c *Compiler) emitWorkflowRunMissingBranches(markdownPath string) error {
 	message := "workflow_run trigger should include branch restrictions for security and performance.\n\n" +
 		"Without branch restrictions, the workflow will run for workflow runs on ALL branches,\n" +
 		"which can cause unexpected behavior and security issues.\n\n" +
@@ -318,15 +308,11 @@ on:
 		"      - develop"
 
 	if c.strictMode {
-		// In strict mode, this is an error
 		return formatCompilerError(markdownPath, "error", message, nil)
 	}
-
-	// In normal mode, this is a warning
 	formattedWarning := formatCompilerMessage(markdownPath, "warning", message)
 	fmt.Fprintln(os.Stderr, formattedWarning)
 	c.IncrementWarningCount()
-
 	return nil
 }
 

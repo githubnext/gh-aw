@@ -42,23 +42,15 @@ func (c *Compiler) validateCallWorkflow(data *WorkflowData, workflowPath string)
 	// Get the current workflow name for self-reference check
 	currentWorkflowName := getCurrentWorkflowName(workflowPath)
 	callWorkflowValidationLog.Printf("Current workflow name: %s", currentWorkflowName)
-
-	// Collect all validation errors using ErrorCollector
 	collector := NewErrorCollector(c.failFast)
-
 	for _, workflowName := range config.Workflows {
 		callWorkflowValidationLog.Printf("Validating workflow: %s", workflowName)
-
-		// Check for self-reference
-		if workflowName == currentWorkflowName {
-			selfRefErr := fmt.Errorf("call-workflow: self-reference not allowed (workflow '%s' cannot call itself)\n\nA workflow cannot call itself to prevent infinite loops.\nUse a separate worker workflow for the task instead", workflowName)
-			if returnErr := collector.Add(selfRefErr); returnErr != nil {
+		if err := validateNotSelfReference(workflowName, currentWorkflowName); err != nil {
+			if returnErr := collector.Add(err); returnErr != nil {
 				return returnErr
 			}
 			continue
 		}
-
-		// Find the workflow file in multiple locations
 		fileResult, err := findWorkflowFile(workflowName, workflowPath)
 		if err != nil {
 			findErr := fmt.Errorf("call-workflow: error finding workflow '%s': %w", workflowName, err)
@@ -67,116 +59,81 @@ func (c *Compiler) validateCallWorkflow(data *WorkflowData, workflowPath string)
 			}
 			continue
 		}
-
-		// Check if any workflow file exists
-		if !fileResult.mdExists && !fileResult.lockExists && !fileResult.ymlExists {
-			currentDir := filepath.Dir(workflowPath)
-			githubDir := filepath.Dir(currentDir)
-			repoRoot := filepath.Dir(githubDir)
-			workflowsDir := filepath.Join(repoRoot, constants.GetWorkflowDir())
-
-			notFoundErr := fmt.Errorf("call-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in %s/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, workflowName, workflowsDir)
-			if returnErr := collector.Add(notFoundErr); returnErr != nil {
+		if err := validateWorkflowFileExists(fileResult, workflowName, workflowPath); err != nil {
+			if returnErr := collector.Add(err); returnErr != nil {
 				return returnErr
 			}
 			continue
 		}
-
-		// Validate that the workflow supports workflow_call.
-		// Priority: .lock.yml > .yml > .md (same-batch compilation target)
-		if fileResult.lockExists {
-			workflowContent, readErr := os.ReadFile(fileResult.lockPath) // #nosec G304 -- lockPath is validated via isPathWithinDir() in findWorkflowFile() before being returned
-			if readErr != nil {
-				fileReadErr := fmt.Errorf("call-workflow: failed to read workflow file %s: %w", fileResult.lockPath, readErr)
-				if returnErr := collector.Add(fileReadErr); returnErr != nil {
-					return returnErr
-				}
-				continue
+		if err := validateWorkflowSupportsCallTrigger(workflowName, fileResult); err != nil {
+			if returnErr := collector.Add(err); returnErr != nil {
+				return returnErr
 			}
-			var workflow map[string]any
-			if err := yaml.Unmarshal(workflowContent, &workflow); err != nil {
-				parseErr := fmt.Errorf("call-workflow: failed to parse workflow file %s: %w", fileResult.lockPath, err)
-				if returnErr := collector.Add(parseErr); returnErr != nil {
-					return returnErr
-				}
-				continue
-			}
-			onSection, hasOn := workflow["on"]
-			if !hasOn {
-				onErr := fmt.Errorf("call-workflow: workflow '%s' does not have an 'on' trigger section", workflowName)
-				if returnErr := collector.Add(onErr); returnErr != nil {
-					return returnErr
-				}
-				continue
-			}
-			if !containsWorkflowCall(onSection) {
-				callErr := fmt.Errorf("call-workflow: workflow '%s' does not support workflow_call trigger (must include 'workflow_call' in the 'on' section)", workflowName)
-				if returnErr := collector.Add(callErr); returnErr != nil {
-					return returnErr
-				}
-				continue
-			}
-		} else if fileResult.ymlExists {
-			workflowContent, readErr := os.ReadFile(fileResult.ymlPath) // #nosec G304 -- ymlPath is validated via isPathWithinDir() in findWorkflowFile() before being returned
-			if readErr != nil {
-				fileReadErr := fmt.Errorf("call-workflow: failed to read workflow file %s: %w", fileResult.ymlPath, readErr)
-				if returnErr := collector.Add(fileReadErr); returnErr != nil {
-					return returnErr
-				}
-				continue
-			}
-			var workflow map[string]any
-			if err := yaml.Unmarshal(workflowContent, &workflow); err != nil {
-				parseErr := fmt.Errorf("call-workflow: failed to parse workflow file %s: %w", fileResult.ymlPath, err)
-				if returnErr := collector.Add(parseErr); returnErr != nil {
-					return returnErr
-				}
-				continue
-			}
-			onSection, hasOn := workflow["on"]
-			if !hasOn {
-				onErr := fmt.Errorf("call-workflow: workflow '%s' does not have an 'on' trigger section", workflowName)
-				if returnErr := collector.Add(onErr); returnErr != nil {
-					return returnErr
-				}
-				continue
-			}
-			if !containsWorkflowCall(onSection) {
-				callErr := fmt.Errorf("call-workflow: workflow '%s' does not support workflow_call trigger (must include 'workflow_call' in the 'on' section)", workflowName)
-				if returnErr := collector.Add(callErr); returnErr != nil {
-					return returnErr
-				}
-				continue
-			}
-		} else {
-			// Only .md exists — it may be a same-batch compilation target.
-			// Validate via the .md frontmatter so a second compile pass is not required.
-			mdHasCall, checkErr := mdHasWorkflowCall(fileResult.mdPath)
-			if checkErr != nil {
-				readErr := fmt.Errorf("call-workflow: failed to read workflow source %s: %w", fileResult.mdPath, checkErr)
-				if returnErr := collector.Add(readErr); returnErr != nil {
-					return returnErr
-				}
-				continue
-			}
-			if !mdHasCall {
-				callErr := fmt.Errorf("call-workflow: workflow '%s' does not support workflow_call trigger (must include 'workflow_call' in the 'on' section)", workflowName)
-				if returnErr := collector.Add(callErr); returnErr != nil {
-					return returnErr
-				}
-				continue
-			}
-			// .md exists with workflow_call — valid same-batch compilation target.
-			callWorkflowValidationLog.Printf("Workflow '%s' is valid for call-workflow (found .md source at %s with workflow_call trigger)", workflowName, fileResult.mdPath)
 			continue
 		}
-
 		callWorkflowValidationLog.Printf("Workflow '%s' is valid for call-workflow", workflowName)
 	}
-
 	callWorkflowValidationLog.Printf("Call workflow validation completed: error_count=%d, total_workflows=%d", collector.Count(), len(config.Workflows))
-
 	return collector.FormattedError("call-workflow")
+}
+
+func validateNotSelfReference(workflowName, currentWorkflowName string) error {
+	if workflowName == currentWorkflowName {
+		return fmt.Errorf("call-workflow: self-reference not allowed (workflow '%s' cannot call itself)\n\nA workflow cannot call itself to prevent infinite loops.\nUse a separate worker workflow for the task instead", workflowName)
+	}
+	return nil
+}
+
+func validateWorkflowFileExists(fileResult *findWorkflowFileResult, workflowName, workflowPath string) error {
+	if fileResult.mdExists || fileResult.lockExists || fileResult.ymlExists {
+		return nil
+	}
+	currentDir := filepath.Dir(workflowPath)
+	githubDir := filepath.Dir(currentDir)
+	repoRoot := filepath.Dir(githubDir)
+	workflowsDir := filepath.Join(repoRoot, constants.GetWorkflowDir())
+	return fmt.Errorf("call-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in %s/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, workflowName, workflowsDir)
+}
+
+func validateWorkflowSupportsCallTrigger(workflowName string, fileResult *findWorkflowFileResult) error {
+	if fileResult.lockExists {
+		return validateYAMLWorkflowHasCallTrigger(fileResult.lockPath, workflowName)
+	}
+	if fileResult.ymlExists {
+		return validateYAMLWorkflowHasCallTrigger(fileResult.ymlPath, workflowName)
+	}
+	return validateMarkdownWorkflowHasCallTrigger(fileResult.mdPath, workflowName)
+}
+
+func validateYAMLWorkflowHasCallTrigger(path, workflowName string) error {
+	workflowContent, err := os.ReadFile(path) // #nosec G304 -- path is validated via isPathWithinDir() in findWorkflowFile() before being returned
+	if err != nil {
+		return fmt.Errorf("call-workflow: failed to read workflow file %s: %w", path, err)
+	}
+	var workflow map[string]any
+	if err = yaml.Unmarshal(workflowContent, &workflow); err != nil {
+		return fmt.Errorf("call-workflow: failed to parse workflow file %s: %w", path, err)
+	}
+	onSection, hasOn := workflow["on"]
+	if !hasOn {
+		return fmt.Errorf("call-workflow: workflow '%s' does not have an 'on' trigger section", workflowName)
+	}
+	if containsWorkflowCall(onSection) {
+		return nil
+	}
+	return fmt.Errorf("call-workflow: workflow '%s' does not support workflow_call trigger (must include 'workflow_call' in the 'on' section)", workflowName)
+}
+
+func validateMarkdownWorkflowHasCallTrigger(path, workflowName string) error {
+	mdHasCall, checkErr := mdHasWorkflowCall(path)
+	if checkErr != nil {
+		return fmt.Errorf("call-workflow: failed to read workflow source %s: %w", path, checkErr)
+	}
+	if !mdHasCall {
+		return fmt.Errorf("call-workflow: workflow '%s' does not support workflow_call trigger (must include 'workflow_call' in the 'on' section)", workflowName)
+	}
+	callWorkflowValidationLog.Printf("Workflow '%s' is valid for call-workflow (found .md source at %s with workflow_call trigger)", workflowName, path)
+	return nil
 }
 
 // extractWorkflowCallInputs parses a workflow file and extracts the workflow_call inputs schema.
