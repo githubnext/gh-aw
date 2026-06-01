@@ -368,6 +368,8 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 // safe-outputs config placeholders. The prefix avoids accidental collisions between a workflow
 // secret name and a pre-existing step env var (e.g. a secret named DEBUG or
 // GH_AW_SAFE_OUTPUTS_CONFIG_PATH would silently override those step vars without the prefix).
+// The prefixed env vars are written into the step env: block and resolved in memory at runtime
+// by the JavaScript safe-outputs loader (resolveEnvPlaceholders in safe_outputs_config.cjs).
 const safeOutputsSecretEnvPrefix = "GH_AW_SECRET_"
 
 func buildSafeOutputsConfigRuntimeEnvVars(safeOutputConfig string) ([]string, map[string]string) {

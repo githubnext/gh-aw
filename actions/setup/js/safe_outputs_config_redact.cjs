@@ -2,6 +2,8 @@
 
 /**
  * Returns true when a config key should be treated as sensitive (e.g. tokens).
+ * The check is intentionally scoped to keys containing "token" because those are
+ * the only secret-bearing fields produced by the safe-outputs compiler today.
  * @param {string} key
  * @returns {boolean}
  */
