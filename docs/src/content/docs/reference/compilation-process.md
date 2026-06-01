@@ -170,7 +170,7 @@ updates:
   - package-ecosystem: github-actions
     directory: "/.github/workflows"
     ignore:
-      - dependency-name: "github/gh-aw-actions/**" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
+      - dependency-name: "github/gh-aw-actions" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
 ```
 
 ## Artifacts Created
