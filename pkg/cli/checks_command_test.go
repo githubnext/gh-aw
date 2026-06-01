@@ -7,11 +7,17 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// captureOutputMu guards os.Stdout/os.Stderr reassignment in captureOutput.
+// This intentionally serializes tests using captureOutput because stdout/stderr
+// are global process state.
+var captureOutputMu sync.Mutex
 
 // ---------------------------------------------------------------------------
 // classifyCheckState – fixture-based unit tests
@@ -558,6 +564,8 @@ func TestPrintChecksText(t *testing.T) {
 
 func captureOutput(t *testing.T, fn func() error) (string, string) {
 	t.Helper()
+	captureOutputMu.Lock()
+	defer captureOutputMu.Unlock()
 
 	stdoutReader, stdoutWriter, err := os.Pipe()
 	require.NoError(t, err, "should create stdout pipe")
@@ -567,15 +575,19 @@ func captureOutput(t *testing.T, fn func() error) (string, string) {
 
 	origStdout := os.Stdout
 	origStderr := os.Stderr
-	os.Stdout = stdoutWriter
-	os.Stderr = stderrWriter
+	var runErr error
+	func() {
+		os.Stdout = stdoutWriter
+		os.Stderr = stderrWriter
+		defer func() {
+			os.Stdout = origStdout
+			os.Stderr = origStderr
+			_ = stdoutWriter.Close()
+			_ = stderrWriter.Close()
+		}()
 
-	runErr := fn()
-
-	require.NoError(t, stdoutWriter.Close(), "should close stdout writer")
-	require.NoError(t, stderrWriter.Close(), "should close stderr writer")
-	os.Stdout = origStdout
-	os.Stderr = origStderr
+		runErr = fn()
+	}()
 	require.NoError(t, runErr, "output function should not return an error")
 
 	var stdoutBuf bytes.Buffer
