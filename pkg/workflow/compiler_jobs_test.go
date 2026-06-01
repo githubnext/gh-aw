@@ -3393,6 +3393,36 @@ func TestBuildCustomJobsTimeoutMinutesExpressionViaWorkflowData(t *testing.T) {
 	}
 }
 
+func TestBuildCustomJobsTimeoutMinutesInvalidStringViaWorkflowData(t *testing.T) {
+	t.Parallel()
+
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:   "Test Workflow",
+		AI:     "copilot",
+		RunsOn: "runs-on: ubuntu-latest",
+		Jobs: map[string]any{
+			"invalid_timeout_job": map[string]any{
+				"runs-on":         "ubuntu-latest",
+				"timeout-minutes": "not-an-expression",
+				"steps": []any{
+					map[string]any{"run": "echo 'test'"},
+				},
+			},
+		},
+	}
+
+	err := compiler.buildCustomJobs(data, false)
+	if err == nil {
+		t.Fatal("expected error for non-expression timeout-minutes string")
+	}
+	if !strings.Contains(err.Error(), "timeout-minutes must be an integer or a GitHub Actions expression") {
+		t.Fatalf("expected timeout-minutes validation error, got: %v", err)
+	}
+}
+
 // TestPushRepoMemoryJobConditionalDetection verifies that push_repo_memory already uses
 // always() and buildDetectionPassedCondition() (accepting 'success' or 'skipped') when
 // detection is expression-controlled, so the job still runs when detection is skipped at runtime.

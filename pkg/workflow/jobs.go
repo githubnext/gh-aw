@@ -281,6 +281,7 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 
 	// Add timeout-minutes if specified
 	if job.TimeoutMinutesExpression != "" {
+		// TimeoutMinutesExpression is validated when parsed from frontmatter in compiler_jobs.go.
 		fmt.Fprintf(b, "    timeout-minutes: %s\n", job.TimeoutMinutesExpression)
 	} else if job.TimeoutMinutes > 0 {
 		fmt.Fprintf(b, "    timeout-minutes: %d\n", job.TimeoutMinutes)

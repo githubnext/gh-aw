@@ -36,6 +36,15 @@ func validateJobDefinition(job *Job) error {
 		)
 	}
 
+	if job.TimeoutMinutes > 0 && job.TimeoutMinutesExpression != "" {
+		return fmt.Errorf(
+			"job '%s' has timeout-minutes set as both integer (%d) and expression (%q); specify only one",
+			job.Name,
+			job.TimeoutMinutes,
+			job.TimeoutMinutesExpression,
+		)
+	}
+
 	return nil
 }
 
