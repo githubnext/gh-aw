@@ -139,8 +139,8 @@ Guardrail test workflow`
 	if !strings.Contains(lockStr, "id: daily-effective-workflow-guardrail") {
 		t.Fatal("expected activation job to include the daily workflow ET guardrail step")
 	}
-	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
-		t.Fatal("expected activation guardrail step to run only when GH_AW_MAX_DAILY_EFFECTIVE_TOKENS is configured")
+	if strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
+		t.Fatal("expected frontmatter-configured guardrail step to run unconditionally (threshold is in step env, not workflow env)")
 	}
 	if !strings.Contains(lockStr, "check_daily_effective_workflow_guardrail.cjs") {
 		t.Fatal("expected activation job to call check_daily_effective_workflow_guardrail.cjs")
@@ -172,8 +172,8 @@ Guardrail test workflow`
 	if strings.Contains(activationSection, "issues: write") {
 		t.Fatal("expected activation permissions to avoid issues: write for the daily ET guardrail")
 	}
-	if !strings.Contains(activationSection, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}") {
-		t.Fatal("expected setup step to conditionally install @actions/artifact when the daily ET guardrail is configured")
+	if !strings.Contains(activationSection, "safe-output-artifact-client: 'true'") {
+		t.Fatal("expected frontmatter-configured guardrail to install @actions/artifact unconditionally")
 	}
 }
 

@@ -105,7 +105,10 @@ func (c *Compiler) newActivationJobBuildContext(
 	}
 	enableArtifactClient := hasMaxDailyEffectiveTokensGuardrail(ctx.data)
 	artifactClientCondition := ""
-	if enableArtifactClient {
+	if enableArtifactClient && (ctx.data.MaxDailyEffectiveTokens == nil || strings.TrimSpace(*ctx.data.MaxDailyEffectiveTokens) == "") {
+		// Only gate on the env expression when the threshold comes from the workflow-level env var.
+		// When configured via frontmatter, the threshold is placed in the step env block rather than
+		// the workflow env, so the conditional expression would evaluate false and skip installation.
 		artifactClientCondition = maxDailyEffectiveTokensConfiguredIfExpr
 	}
 	ctx.steps = append(ctx.steps, c.generateSetupStepWithArtifactClientCondition(ctx.data, setupActionRef, SetupActionDestination, enableArtifactClient, activationSetupTraceID, activationSetupParentSpanID, artifactClientCondition)...)
@@ -263,7 +266,12 @@ func (c *Compiler) buildActivationDailyEffectiveWorkflowGuardrailStep(data *Work
 	var steps []string
 	steps = append(steps, "      - name: Check daily workflow token guardrail\n")
 	steps = append(steps, "        id: daily-effective-workflow-guardrail\n")
-	steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyEffectiveTokensConfiguredIfExpr))
+	// Only gate on the env expression when the threshold comes from the workflow-level env var.
+	// When configured via frontmatter, the threshold is placed in the step env block and is not
+	// available in the workflow env context, so the condition would evaluate false and skip the step.
+	if data.MaxDailyEffectiveTokens == nil || strings.TrimSpace(*data.MaxDailyEffectiveTokens) == "" {
+		steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyEffectiveTokensConfiguredIfExpr))
+	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 	steps = append(steps, "        env:\n")
 	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
