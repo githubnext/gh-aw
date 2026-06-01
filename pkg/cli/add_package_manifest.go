@@ -717,13 +717,9 @@ func validateManifestInstallableWorkflowPrivacy(manifestPath string, installatio
 		}
 
 		privateValue, hasPrivate := ExtractWorkflowPrivateSetting(string(content))
-		if !hasPrivate {
-			continue
-		}
-		if privateValue {
+		if hasPrivate && privateValue {
 			return fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: true and cannot be included because private workflows cannot be added", manifestPath, installationSource)
 		}
-		return fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: false; remove the private field because manifest-listed workflows must not declare it", manifestPath, installationSource)
 	}
 
 	return nil

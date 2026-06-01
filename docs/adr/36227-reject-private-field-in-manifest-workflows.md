@@ -1,37 +1,37 @@
-# ADR-36227: Reject the `private` Field in Manifest-Listed Installable Workflows
+# ADR-36227: Enforce `private: true` for Add/Package Blocking
 
 **Date**: 2026-06-01
 **Status**: Draft
 
 ## Context
 
-`aw.yml` package manifests can list installable workflows that other repositories add via `gh aw add` / `gh aw add-wizard`. The `private` frontmatter field was designed to block a standalone workflow from being installed elsewhere (`private: true`), but the manifest resolution path only consulted `ExtractWorkflowPrivate`, which returned `false` for both an absent field and an explicit `private: false`. As a result, a manifest could list a workflow declaring `private: false`, and that declaration would silently pass — leaking an installation-control field into package manifests where it has no coherent meaning. A workflow that is listed in a manifest is, by definition, meant to be installed, so any `private` declaration on it (true *or* false) is contradictory and should be surfaced rather than ignored.
+`aw.yml` package manifests can list installable workflows that other repositories add via `gh aw add` / `gh aw add-wizard`. The `private` frontmatter field is intended to block installation only when it is explicitly set to `true`. Manifest-backed resolution and compile-time validation must preserve that semantics consistently, so package workflows only fail when they declare `private: true`.
 
 ## Decision
 
-We will treat the presence of a `private` field on a manifest-listed installable workflow as a manifest validation error, distinguishing presence from value. We split `ExtractWorkflowPrivate(content) bool` into a presence-aware `ExtractWorkflowPrivateSetting(content) (value, present bool)`, keeping `ExtractWorkflowPrivate` as a thin wrapper for the existing standalone-add behavior. Both manifest-backed resolution (`ResolveWorkflows` for `FromRepositoryManifest` specs) and compile-time local manifest validation (`validateLocalRepositoryPackageContents`) now reject any listed workflow that declares `private`, emitting manifest-scoped errors that name the offending workflow path: `private: true` reports that private workflows cannot be added, and `private: false` instructs the author to remove the field.
+We keep `ExtractWorkflowPrivateSetting(content) (value, present bool)` for frontmatter parsing, but manifest-backed resolution (`ResolveWorkflows` for `FromRepositoryManifest` specs) and compile-time local manifest validation reject only `private: true`. `private: false` remains installable.
 
 ## Alternatives Considered
 
-### Alternative 1: Keep value-only extraction and reject only `private: true`
-Continue using the boolean-only `ExtractWorkflowPrivate` and reject manifest workflows only when it returns `true`. This was rejected because it cannot distinguish an absent field from `private: false`, so the originally-reported leak (`private: false` slipping into a manifest) would remain silently accepted, and authors would get no signal that the field is meaningless in a manifest context.
+### Alternative 1: Reject any manifest-listed `private` declaration
+Reject `private: true` and `private: false` equally for manifest-listed workflows. This was rejected because `private: false` is not a disable signal and should not block install/package behavior.
 
-### Alternative 2: Strip or normalize the `private` field during manifest install instead of erroring
-Silently drop the `private` field when resolving manifest workflows so installation proceeds regardless. This was rejected because silent normalization hides author intent and conflicts with the project's fail-loud manifest-validation posture; an explicit, path-scoped error is more debuggable and prevents shipping manifests that encode contradictory intent.
+### Alternative 2: Strip or normalize the `private` field during manifest install instead of respecting value
+Silently normalize `private` during manifest resolution. This was rejected because it hides intent; explicit `private: true` should continue to fail loudly.
 
 ## Consequences
 
 ### Positive
-- Closes the leak where `private: false` in a manifest-listed workflow was silently accepted; the field is now rejected at both add time and compile time.
-- Error messages are presence- and value-aware and name the offending workflow path, making the fix obvious to manifest authors.
+- Add/package and compile-time validation consistently reject only workflows that declare `private: true`.
+- Error messages continue to name the offending workflow path when rejection occurs.
 
 ### Negative
-- Existing published manifests that list workflows carrying any `private` declaration will now fail to add/compile until the field is removed — a breaking change for those packages.
-- Introduces a second extraction function (`ExtractWorkflowPrivateSetting` alongside `ExtractWorkflowPrivate`) and parallel rejection logic in both the resolution and compile-time paths that must stay in sync.
+- Existing manifests using `private: false` remain installable; only `private: true` workflows are blocked.
+- Introduces a second extraction function (`ExtractWorkflowPrivateSetting` alongside `ExtractWorkflowPrivate`) and parallel checks in both the resolution and compile-time paths that must stay in sync.
 
 ### Neutral
 - Standalone (non-manifest) workflow adds are unchanged: `private: true` still blocks installation via the preserved `ExtractWorkflowPrivate` path.
-- Compile-time validation now scans manifest-listed installable paths (explicit `files:`/`includes:` entries, or discovered package directories) to apply the rule uniformly.
+- Compile-time validation scans manifest-listed installable paths (explicit `files:`/`includes:` entries, or discovered package directories) using the same `private: true` semantics.
 
 ---
 

@@ -216,12 +216,9 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 
 		if spec.FromRepositoryManifest {
 			privateValue, hasPrivate := ExtractWorkflowPrivateSetting(string(fetched.Content))
-			if hasPrivate {
+			if hasPrivate && privateValue {
 				manifestPath := joinRepositoryPackagePath(spec.PackagePath, repositoryPackageManifestFileName)
-				if privateValue {
-					return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: true and cannot be included because private workflows cannot be added", manifestPath, resolvedSpec.WorkflowPath)
-				}
-				return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: false; remove the private field because manifest-listed workflows must not declare it", manifestPath, resolvedSpec.WorkflowPath)
+				return nil, fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: true and cannot be included because private workflows cannot be added", manifestPath, resolvedSpec.WorkflowPath)
 			}
 		}
 

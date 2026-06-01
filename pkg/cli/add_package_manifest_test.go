@@ -473,7 +473,7 @@ files:
 	assert.Equal(t, ".github/workflows/nightly-review.md", resolved.Workflows[1].Spec.WorkflowPath)
 }
 
-func TestResolveWorkflows_RepositoryPackageRejectsPrivateFalse(t *testing.T) {
+func TestResolveWorkflows_RepositoryPackageRejectsPrivateTrue(t *testing.T) {
 	originalFetchFn := fetchWorkflowFromSourceWithContextFn
 	originalDownload := downloadPackageFileFromGitHubForHost
 	originalList := listPackageWorkflowFilesForHost
@@ -504,7 +504,7 @@ func TestResolveWorkflows_RepositoryPackageRejectsPrivateFalse(t *testing.T) {
 		case "README.md":
 			return []byte("# Repo Assist\n"), nil
 		case "workflows/review.md":
-			return []byte("---\nprivate: false\n---\n\n# Review\n"), nil
+			return []byte("---\nprivate: true\n---\n\n# Review\n"), nil
 		default:
 			return nil, createRepositoryPackageNotFoundError(path)
 		}
@@ -515,7 +515,7 @@ func TestResolveWorkflows_RepositoryPackageRejectsPrivateFalse(t *testing.T) {
 	}
 	fetchWorkflowFromSourceWithContextFn = func(_ context.Context, spec *WorkflowSpec, _ bool) (*FetchedWorkflow, error) {
 		return &FetchedWorkflow{
-			Content:    []byte("---\nprivate: false\n---\n\n# Review\n"),
+			Content:    []byte("---\nprivate: true\n---\n\n# Review\n"),
 			CommitSHA:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			IsLocal:    false,
 			SourcePath: spec.WorkflowPath,
@@ -524,7 +524,7 @@ func TestResolveWorkflows_RepositoryPackageRejectsPrivateFalse(t *testing.T) {
 
 	_, err := ResolveWorkflows(context.Background(), []string{"owner/repo"}, false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `workflow "workflows/review.md" sets private: false`)
+	assert.Contains(t, err.Error(), `workflow "workflows/review.md" sets private: true`)
 }
 
 func TestResolveWorkflows_NestedRepositoryPackage(t *testing.T) {
