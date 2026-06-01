@@ -113,7 +113,7 @@ async function getRunEffectiveTokens(artifactClient, runId, token, owner, repo) 
   if (!artifact.id) {
     logDailyGuardrail("Skipping guardrail artifact without an id", {
       runId,
-      artifact,
+      artifactName: artifact.name,
     });
     return 0;
   }
@@ -325,7 +325,6 @@ async function main() {
     threshold,
     rateLimitRemaining: rateLimit.remaining,
     rateLimitLimit: rateLimit.limit,
-    currentEffectiveTokens: 0,
   });
   const maxInspectableRuns = computeMaxInspectableRuns(rateLimit.remaining);
   if (maxInspectableRuns <= 0) {
