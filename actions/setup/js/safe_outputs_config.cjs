@@ -1,28 +1,10 @@
 // @ts-check
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
 
 const fs = require("fs");
 const path = require("path");
-
-function isSensitiveConfigKey(key) {
-  return /token/i.test(key);
-}
-
-function redactSensitiveConfig(value) {
-  if (Array.isArray(value)) {
-    return value.map(redactSensitiveConfig);
-  }
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, nestedValue]) => [
-        key,
-        isSensitiveConfigKey(key) ? "***REDACTED***" : redactSensitiveConfig(nestedValue),
-      ]),
-    );
-  }
-  return value;
-}
 
 function resolveEnvPlaceholders(value) {
   if (Array.isArray(value)) {

@@ -26,6 +26,7 @@ const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCu
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
 const { listCommentMemoryFiles, COMMENT_MEMORY_DIR } = require("./comment_memory_helpers.cjs");
 const { checkRateLimitHeadroom } = require("./rate_limit_helpers.cjs");
+const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
 const nodePath = require("path");
 const fs = require("fs");
 
@@ -255,21 +256,6 @@ function normalizeCommentMemoryId(memoryId, fallback = "default") {
   }
   const normalized = memoryId.trim();
   return normalized.length > 0 ? normalized : fallback;
-}
-
-function redactSensitiveConfig(value) {
-  if (Array.isArray(value)) {
-    return value.map(redactSensitiveConfig);
-  }
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, nestedValue]) => [
-        key,
-        /token/i.test(key) ? "***REDACTED***" : redactSensitiveConfig(nestedValue),
-      ]),
-    );
-  }
-  return value;
 }
 
 /**

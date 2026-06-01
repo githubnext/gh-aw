@@ -364,6 +364,12 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	yaml.WriteString("          \n")
 }
 
+// safeOutputsSecretEnvPrefix is prepended to secret names when generating step env var names for
+// safe-outputs config placeholders. The prefix avoids accidental collisions between a workflow
+// secret name and a pre-existing step env var (e.g. a secret named DEBUG or
+// GH_AW_SAFE_OUTPUTS_CONFIG_PATH would silently override those step vars without the prefix).
+const safeOutputsSecretEnvPrefix = "GH_AW_SECRET_"
+
 func buildSafeOutputsConfigRuntimeEnvVars(safeOutputConfig string) ([]string, map[string]string) {
 	configSecrets := ExtractSecretsFromValue(safeOutputConfig)
 	configContextVars := ExtractGitHubContextExpressionsFromValue(safeOutputConfig)
@@ -379,7 +385,8 @@ func buildSafeOutputsConfigRuntimeEnvVars(safeOutputConfig string) ([]string, ma
 		addEnvValue(k, v)
 	}
 	for k, v := range configSecrets {
-		addEnvValue(k, v)
+		// Prefix secret env vars to avoid colliding with reserved/known step env var names.
+		addEnvValue(safeOutputsSecretEnvPrefix+k, v)
 	}
 	return sortedMapKeys(envValues), envValues
 }

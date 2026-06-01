@@ -106,12 +106,12 @@ Test workflow
 	require.NoError(t, err, "Failed to read compiled workflow")
 	compiled := string(compiledBytes)
 
-	assert.Contains(t, compiled, "WRITE_PROJECT_PAT: ${{ secrets.WRITE_PROJECT_PAT }}",
-		"Generate Safe Outputs Config step should map secret expressions to env vars")
-	assert.GreaterOrEqual(t, strings.Count(compiled, "WRITE_PROJECT_PAT: ${{ secrets.WRITE_PROJECT_PAT }}"), 2,
+	assert.Contains(t, compiled, "GH_AW_SECRET_WRITE_PROJECT_PAT: ${{ secrets.WRITE_PROJECT_PAT }}",
+		"Generate Safe Outputs Config step should map secret expressions to prefixed env vars")
+	assert.GreaterOrEqual(t, strings.Count(compiled, "GH_AW_SECRET_WRITE_PROJECT_PAT: ${{ secrets.WRITE_PROJECT_PAT }}"), 2,
 		"Secret env vars should be available anywhere the runtime needs to resolve the placeholder in memory")
-	assert.Contains(t, compiled, `"github-token":"${WRITE_PROJECT_PAT}"`,
-		"config.json payload should preserve the secret placeholder instead of the secret value")
+	assert.Contains(t, compiled, `"github-token":"${GH_AW_SECRET_WRITE_PROJECT_PAT}"`,
+		"config.json payload should preserve the prefixed secret placeholder instead of the secret value")
 
 	quotedHeredocPattern := regexp.MustCompile(`cat > "\$\{RUNNER_TEMP\}/gh-aw/safeoutputs/config\.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_[0-9a-f]{16}_EOF'`)
 	assert.True(t, quotedHeredocPattern.MatchString(compiled),
