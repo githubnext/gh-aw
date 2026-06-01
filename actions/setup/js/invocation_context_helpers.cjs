@@ -161,6 +161,33 @@ function checkAllowedRepo(workflowRepo, targetRepo) {
   const defaultRepo = `${workflowRepo.owner}/${workflowRepo.repo}`;
   const targetRepoSlug = `${targetRepo.owner}/${targetRepo.repo}`;
   const allowedRepos = parseAllowedRepos(process.env.GH_AW_ALLOWED_REPOS);
+
+  // Fall back to per-handler safe-output allowlists when a global allowlist is
+  // not provided. This prevents post-action context resolution from rejecting
+  // a repository that was already allowed by the active safe-output handler.
+  if (allowedRepos.size === 0) {
+    const handlerConfigRaw = process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG;
+    if (typeof handlerConfigRaw === "string" && handlerConfigRaw.trim() !== "") {
+      try {
+        const handlerConfig = JSON.parse(handlerConfigRaw);
+        if (handlerConfig && typeof handlerConfig === "object" && !Array.isArray(handlerConfig)) {
+          for (const value of Object.values(handlerConfig)) {
+            if (!value || typeof value !== "object" || Array.isArray(value)) {
+              continue;
+            }
+            const parsed = parseAllowedRepos(value.allowed_repos);
+            for (const repo of parsed) {
+              allowedRepos.add(repo);
+            }
+          }
+        }
+      } catch (_error) {
+        // Best-effort only. If the handler config cannot be parsed, continue
+        // with the global allowlist (if any).
+      }
+    }
+  }
+
   const validation = validateTargetRepo(targetRepoSlug, defaultRepo, allowedRepos);
   if (!validation.valid) {
     throw new Error(`${ERR_VALIDATION}: ${validation.error}`);

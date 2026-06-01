@@ -118,6 +118,42 @@ describe("invocation_context_helpers", () => {
     }
   });
 
+  it("allows workflow_dispatch target_repo when handler allowlist includes it", () => {
+    const originalAllowedRepos = process.env.GH_AW_ALLOWED_REPOS;
+    const originalHandlerConfig = process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG;
+    try {
+      delete process.env.GH_AW_ALLOWED_REPOS;
+      process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG = JSON.stringify({
+        create_pull_request: {
+          allowed_repos: ["target-owner/target-repo"],
+        },
+      });
+
+      const resolved = resolveInvocationContext({
+        eventName: "workflow_dispatch",
+        repo: { owner: "side-owner", repo: "side-repo" },
+        payload: {
+          inputs: {
+            target_repo: "target-owner/target-repo",
+          },
+        },
+      });
+
+      expect(resolved.eventRepo).toEqual({ owner: "target-owner", repo: "target-repo" });
+    } finally {
+      if (originalAllowedRepos === undefined) {
+        delete process.env.GH_AW_ALLOWED_REPOS;
+      } else {
+        process.env.GH_AW_ALLOWED_REPOS = originalAllowedRepos;
+      }
+      if (originalHandlerConfig === undefined) {
+        delete process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG;
+      } else {
+        process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG = originalHandlerConfig;
+      }
+    }
+  });
+
   it("allows workflow_dispatch without target_repo inputs", () => {
     const resolved = resolveInvocationContext({
       eventName: "workflow_dispatch",
