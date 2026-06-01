@@ -9,7 +9,6 @@ on:
   github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 permissions:
   contents: read
-  issues: write
 name: Smoke Copilot SDK
 engine:
   id: copilot
