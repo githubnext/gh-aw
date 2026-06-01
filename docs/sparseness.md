@@ -37,7 +37,7 @@ This means `git checkout <fetched-branch>` prompts for a username or fails with 
 
 ### Fix: `blob:limit` filter plus post-checkout repair
 
-The compiled workflow passes `filter: 'blob:limit=1073741824'` (1 GB) in the `actions/checkout` `with:` block when sparse-checkout is configured. This ensures all blobs are fetched during the initial checkout, since no blob exceeds 1 GB. We use a large `blob:limit` instead of an empty string because `actions/checkout@v6.0.2` treats `filter: ''` as unset and falls back to `--filter=blob:none` when sparse-checkout is present.
+The compiled workflow passes `filter: 'blob:limit=1073741824'` (1 GB) in the `actions/checkout` `with:` block when sparse-checkout is configured. This effectively fetches all blobs during the initial checkout for GitHub-hosted repositories (GitHub rejects blobs > 100 MB). We use a large `blob:limit` instead of an empty string because `actions/checkout@v6.0.2` treats `filter: ''` as unset and falls back to `--filter=blob:none` when sparse-checkout is present.
 
 As an additional safety measure, gh-aw emits a post-checkout repair step that clears the partial-clone markers written by `actions/checkout`:
 
