@@ -35,11 +35,20 @@ Agent jobs always set `persist-credentials: false` to prevent credential exfiltr
 
 This means `git checkout <fetched-branch>` prompts for a username or fails with "unable to read tree", even though the branch ref is correctly available as `origin/<branch>`.
 
-### Fix: `filter: ''`
+### Fix: `blob:limit` filter plus post-checkout repair
 
-The compiled workflow passes `filter: ''` (empty string) in the `actions/checkout` `with:` block when sparse-checkout is configured. This prevents `actions/checkout` from adding `--filter=blob:none`, ensuring the repository is never configured as a partial clone. All blobs within the shallow window are downloaded upfront.
+The compiled workflow passes `filter: 'blob:limit=1073741824'` (1 GB) in the `actions/checkout` `with:` block when sparse-checkout is configured. This effectively fetches all blobs during the initial checkout for GitHub-hosted repositories (GitHub rejects blobs > 100 MB). We use a large `blob:limit` instead of an empty string because `actions/checkout@v6.0.2` treats `filter: ''` as unset and falls back to `--filter=blob:none` when sparse-checkout is present.
 
-This is only emitted when sparse-checkout patterns are present, since that is the condition under which `actions/checkout@v6` would automatically add the blobless filter.
+As an additional safety measure, gh-aw emits a post-checkout repair step that clears the partial-clone markers written by `actions/checkout`:
+
+```bash
+git config --local --unset-all remote.origin.promisor || true
+git config --local --unset-all remote.origin.partialclonefilter || true
+```
+
+This step runs after sparse checkouts in agent jobs and before any follow-up `git fetch`. It transitions the repo from a technically-partial-clone state to a clean non-partial-clone state, so downstream git operations behave identically to a normal clone.
+
+The belt-and-suspenders approach ensures blobs are present even when there are no additional refs to fetch — the `blob:limit` filter handles blob availability at checkout time, and the repair step handles the repo state.
 
 **Size impact**: For a large repository (e.g. github/github) with a typical sparse-checkout pattern, removing blobless increases the initial checkout from ~500 MB to ~1.3 GB (~800 MB extra, ~8-15 seconds on a GH runner). This is far preferable to agent failures and 4+ minutes of wasted retry time.
 
@@ -72,7 +81,7 @@ The safe_outputs job's "Fetch additional refs" step (in `compiler_safe_outputs_s
 
 | Job | `persist-credentials` | Credentials after checkout | Blobless safe? | Action taken |
 |-----|----------------------|---------------------------|----------------|--------------|
-| Agent | `false` | None | **No** | Emit `filter: ''` to prevent blobless |
+| Agent | `false` | None | **No** | Emit `filter: 'blob:limit=1073741824'` + repair step |
 | Safe outputs | `false` | Re-added via `git remote set-url` | Yes | Allow blobless (bandwidth optimization) |
 | Activation | `false` | None | Yes* | No action needed |
 

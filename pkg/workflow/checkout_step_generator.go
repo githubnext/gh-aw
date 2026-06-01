@@ -195,9 +195,13 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		}
 		// Prevent actions/checkout from adding --filter=blob:none when sparse-checkout
 		// is specified. Blobless clones require credentials for lazy blob fetches, but
-		// agent jobs intentionally do not retain git credentials after checkout, making offline git operations fail.
+		// agent jobs intentionally do not retain git credentials after checkout, making
+		// offline git operations fail. Using blob:limit=1073741824 (1 GiB) effectively
+		// fetches all blobs up front on GitHub-hosted repos (GitHub rejects blobs > 100 MiB),
+		// while keeping the filter non-empty so actions/checkout won't substitute blob:none.
+		// The subsequent repair step then clears partial-clone markers entirely.
 		if len(override.sparsePatterns) > 0 {
-			sb.WriteString("          filter: ''\n")
+			sb.WriteString("          filter: 'blob:limit=1073741824'\n")
 		}
 		// Determine effective token: github-app-minted token takes precedence
 		effectiveOverrideToken := override.token
@@ -235,6 +239,9 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	}
 
 	steps := []string{sb.String()}
+	if override != nil && len(override.sparsePatterns) > 0 {
+		steps = append(steps, generateSparseCheckoutPartialCloneResetStep(""))
+	}
 	if cleanCreds {
 		steps = append(steps, generateCheckoutCredentialsCleanupStep())
 	}
@@ -309,8 +316,12 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 		}
 		// Prevent actions/checkout from adding --filter=blob:none when sparse-checkout
 		// is specified. Blobless clones require credentials for lazy blob fetches, but
-		// agent jobs intentionally do not retain git credentials after checkout, making offline git operations fail.
-		sb.WriteString("          filter: ''\n")
+		// agent jobs intentionally do not retain git credentials after checkout, making
+		// offline git operations fail. Using blob:limit=1073741824 (1 GiB) effectively
+		// fetches all blobs up front on GitHub-hosted repos (GitHub rejects blobs > 100 MiB),
+		// while keeping the filter non-empty so actions/checkout won't substitute blob:none. The subsequent repair step then
+		// clears partial-clone markers entirely.
+		sb.WriteString("          filter: 'blob:limit=1073741824'\n")
 	}
 	if entry.submodules != "" {
 		fmt.Fprintf(&sb, "          submodules: %s\n", entry.submodules)
@@ -320,6 +331,9 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	}
 
 	steps := []string{sb.String()}
+	if len(entry.sparsePatterns) > 0 {
+		steps = append(steps, generateSparseCheckoutPartialCloneResetStep(entry.key.path))
+	}
 	if entry.cleanCreds {
 		steps = append(steps, generateCheckoutCredentialsCleanupStep())
 	}
@@ -334,6 +348,19 @@ func generateCheckoutCredentialsCleanupStep() string {
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_checkout.sh"
 `
+}
+
+func generateSparseCheckoutPartialCloneResetStep(path string) string {
+	gitPrefix := "git"
+	if path != "" {
+		gitPrefix = fmt.Sprintf(`git -C "${{ github.workspace }}/%s"`, path)
+	}
+	return fmt.Sprintf(`      - name: Clear partial clone markers after sparse checkout
+        continue-on-error: true
+        run: |
+          %s config --local --unset-all remote.origin.promisor || true
+          %s config --local --unset-all remote.origin.partialclonefilter || true
+`, gitPrefix, gitPrefix)
 }
 
 // checkoutStepName returns a human-readable description for a checkout step.
