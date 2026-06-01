@@ -2,8 +2,8 @@
 
 package console
 
-import "fmt"
+import "errors"
 
 func ShowInteractiveList(title string, items []ListItem) (string, error) {
-	return "", fmt.Errorf("interactive list not available in Wasm")
+	return "", errors.New("interactive list not available in Wasm")
 }
