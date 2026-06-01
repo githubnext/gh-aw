@@ -96,6 +96,7 @@ async function waitForCopilotSDKServer(options) {
  *   command: string,
  *   env?: NodeJS.ProcessEnv,
  *   logger?: (message: string) => void,
+ *   extraArgs?: string[], // Additional Copilot CLI flags to forward to the headless server (e.g. --add-dir, --log-level).
  *   spawnImpl?: typeof spawn,
  *   waitForReady?: typeof waitForCopilotSDKServer
  * }} options
@@ -106,10 +107,13 @@ async function startCopilotSDKServer(options) {
   const logger = options.logger ?? (() => {});
   const serverURL = getCopilotSDKServerURL(env);
   if (!serverURL) return null;
-  const args = buildCopilotSDKServerArgs(env);
-  if (args.length === 0) {
+  const baseArgs = buildCopilotSDKServerArgs(env);
+  if (baseArgs.length === 0) {
     throw new Error("copilot-sdk enabled but COPILOT_SDK_URI does not include a usable port");
   }
+  // Append caller-supplied flags (e.g. --add-dir, --log-level, --disable-builtin-mcps) after
+  // the standard headless flags so they configure the server the same way the CLI would be.
+  const args = options.extraArgs && options.extraArgs.length > 0 ? [...baseArgs, ...options.extraArgs] : baseArgs;
 
   const spawnImpl = options.spawnImpl ?? spawn;
   const waitForReady = options.waitForReady ?? waitForCopilotSDKServer;

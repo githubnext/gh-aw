@@ -396,9 +396,10 @@ async function checkCommandAccessible(command) {
 
 /**
  * Read and parse the JSON options payload piped to stdin by the engine command.
- * Called in SDK mode where the Go engine pipes options via `printf '%s' '{"promptFile":"..."}' | node harness`.
+ * Called in SDK mode where the Go engine pipes options via `printf '%s' '{"promptFile":"...","sidecarArgs":[...]}'
+ * | node harness`.
  * Returns null when stdin is a TTY, empty, or contains invalid JSON.
- * @returns {Promise<{promptFile?: string} | null>}
+ * @returns {Promise<{promptFile?: string, sidecarArgs?: string[], addWorkspaceDir?: boolean} | null>}
  */
 async function readSDKOptionsFromStdin() {
   if (process.stdin.isTTY) return null;
@@ -510,15 +511,16 @@ async function main() {
   const childEnv = Object.keys(sdkEnv).length > 0 ? { ...process.env, ...sdkEnv } : undefined;
 
   // In SDK mode, the engine pipes a JSON options payload via stdin containing the promptFile
-  // path.  Read it before doing anything else so stdin is consumed before the process runs.
+  // path, sidecarArgs (Copilot CLI flags for the headless server), and optionally addWorkspaceDir.
+  // Read it before doing anything else so stdin is consumed before the process runs.
   // In CLI mode, args are resolved normally (--prompt-file is inlined into -p <text>).
-  /** @type {{promptFile?: string} | null} */
+  /** @type {{promptFile?: string, sidecarArgs?: string[], addWorkspaceDir?: boolean} | null} */
   let sdkOptions = null;
   let resolvedArgs;
   if (copilotSDKMode) {
     sdkOptions = await readSDKOptionsFromStdin();
     if (sdkOptions) {
-      log(`sdk-options: promptFile=${sdkOptions.promptFile || "(none)"}`);
+      log(`sdk-options: promptFile=${sdkOptions.promptFile || "(none)"} sidecarArgs=${(sdkOptions.sidecarArgs || []).length} addWorkspaceDir=${!!sdkOptions.addWorkspaceDir}`);
     }
     // SDK mode does not use CLI prompt args; pass args through unmodified.
     resolvedArgs = args;
@@ -581,9 +583,18 @@ async function main() {
         log("copilot-sdk mode: no prompt found (expected promptFile in stdin JSON payload or -p/--prompt in args)");
         lastExitCode = 1;
       } else {
+        // Build the sidecar's extra args from the stdin JSON payload.
+        // sidecarArgs carries the Copilot CLI flags (--add-dir, --log-level, etc.) that the
+        // Go engine previously passed as harness CLI args.  addWorkspaceDir signals that the
+        // GITHUB_WORKSPACE env var should be appended as an --add-dir at runtime.
+        const sidecarArgs = [...(sdkOptions?.sidecarArgs ?? [])];
+        if (sdkOptions?.addWorkspaceDir && process.env.GITHUB_WORKSPACE) {
+          sidecarArgs.push("--add-dir", process.env.GITHUB_WORKSPACE);
+        }
         copilotSDKServer = await startCopilotSDKServer({
           command,
           env: childEnv ?? process.env,
+          extraArgs: sidecarArgs.length > 0 ? sidecarArgs : undefined,
           logger: log,
         });
       }

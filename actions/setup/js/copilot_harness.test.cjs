@@ -283,6 +283,60 @@ describe("copilot_harness.cjs", () => {
       expect(child.listenerCount("exit")).toBe(0);
     });
 
+    it("forwards extraArgs to the headless server when provided", async () => {
+      const child = new EventEmitter();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      child.pid = 5678;
+      child.exitCode = null;
+      child.signalCode = null;
+      child.kill = vi.fn();
+      const spawnImpl = vi.fn(() => child);
+      const waitForReady = vi.fn().mockResolvedValue(undefined);
+
+      await startCopilotSDKServer({
+        command: "copilot",
+        env: { COPILOT_SDK_URI: "http://127.0.0.1:3002" },
+        extraArgs: ["--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps"],
+        logger: () => {},
+        spawnImpl,
+        waitForReady,
+      });
+
+      expect(spawnImpl).toHaveBeenCalledWith(
+        "copilot",
+        ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps"],
+        expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"] })
+      );
+    });
+
+    it("uses only base headless args when extraArgs is empty or omitted", async () => {
+      const child = new EventEmitter();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      child.pid = 5679;
+      child.exitCode = null;
+      child.signalCode = null;
+      child.kill = vi.fn();
+      const spawnImpl = vi.fn(() => child);
+      const waitForReady = vi.fn().mockResolvedValue(undefined);
+
+      await startCopilotSDKServer({
+        command: "copilot",
+        env: { COPILOT_SDK_URI: "http://127.0.0.1:3002" },
+        extraArgs: [],
+        logger: () => {},
+        spawnImpl,
+        waitForReady,
+      });
+
+      expect(spawnImpl).toHaveBeenCalledWith(
+        "copilot",
+        ["--headless", "--no-auto-update", "--port", "3002"],
+        expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"] })
+      );
+    });
+
     it("stops the headless Copilot CLI sidecar with SIGTERM", async () => {
       const child = new EventEmitter();
       child.pid = 4321;
@@ -1361,6 +1415,33 @@ describe("copilot_harness.cjs", () => {
     it("parses valid JSON payload with promptFile", async () => {
       const result = await runWithFakeStdin('{"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt"}');
       expect(result).toEqual({ promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt" });
+    });
+
+    it("parses full payload with promptFile, sidecarArgs, and addWorkspaceDir", async () => {
+      const payload = JSON.stringify({
+        promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
+        sidecarArgs: ["--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
+        addWorkspaceDir: true,
+      });
+      const result = await runWithFakeStdin(payload);
+      expect(result).toEqual({
+        promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
+        sidecarArgs: ["--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
+        addWorkspaceDir: true,
+      });
+    });
+
+    it("parses payload with sidecarArgs but no addWorkspaceDir (non-sandbox mode)", async () => {
+      const payload = JSON.stringify({
+        promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
+        sidecarArgs: ["--add-dir", "/tmp/", "--log-level", "all"],
+      });
+      const result = await runWithFakeStdin(payload);
+      expect(result).toMatchObject({
+        promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
+        sidecarArgs: ["--add-dir", "/tmp/", "--log-level", "all"],
+      });
+      expect(result.addWorkspaceDir).toBeUndefined();
     });
 
     it("returns null on empty stdin", async () => {

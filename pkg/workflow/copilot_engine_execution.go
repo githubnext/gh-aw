@@ -22,6 +22,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"strconv"
@@ -32,6 +33,20 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
+
+// copilotSDKStdinOptions is the JSON payload piped to the harness via stdin when copilot-sdk: true.
+// All options needed to start and configure the headless Copilot CLI sidecar are included so that
+// the JS harness does not need to parse Copilot CLI argument syntax itself.
+type copilotSDKStdinOptions struct {
+	// PromptFile is the path on disk to the prompt text file.
+	PromptFile string `json:"promptFile"`
+	// SidecarArgs are the Copilot CLI flags to pass to the headless server at startup.
+	SidecarArgs []string `json:"sidecarArgs,omitempty"`
+	// AddWorkspaceDir instructs the harness to append --add-dir ${GITHUB_WORKSPACE} to the
+	// sidecar args at runtime.  This is needed in sandbox (AWF) mode where the workspace is
+	// only known via the environment variable at execution time.
+	AddWorkspaceDir bool `json:"addWorkspaceDir,omitempty"`
+}
 
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 
@@ -205,24 +220,35 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	isCopilotSDKMode := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK
 
-	if sandboxEnabled {
-		if isCopilotSDKMode {
-			// SDK mode: pipe a JSON options payload via stdin so the harness reads the
-			// prompt file directly from disk instead of parsing --prompt-file CLI args back.
-			copilotCommand = fmt.Sprintf(`printf '%%s' '{"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt"}' | %s %s --add-dir "${GITHUB_WORKSPACE}"`, execPrefix, shellJoinArgs(copilotArgs))
-		} else {
-			// Sandbox mode: add workspace dir and pass prompt file path directly
-			copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
+	if isCopilotSDKMode {
+		// SDK mode: all Copilot CLI options are bundled into a JSON payload piped via stdin.
+		// This avoids passing copilot CLI flags as harness CLI args and lets the harness pass
+		// them directly to the headless sidecar server without any argument parsing.
+		//
+		// sidecarArgs: the full set of Copilot CLI flags for the headless server.
+		// addWorkspaceDir: signals the harness to append --add-dir $GITHUB_WORKSPACE at runtime
+		//   (needed in sandbox/AWF mode; $GITHUB_WORKSPACE is only known at execution time).
+		sdkOptions := copilotSDKStdinOptions{
+			PromptFile:      "/tmp/gh-aw/aw-prompts/prompt.txt",
+			SidecarArgs:     copilotArgs,
+			AddWorkspaceDir: sandboxEnabled,
 		}
+		optionsJSON, err := json.Marshal(sdkOptions)
+		if err != nil {
+			// This should never happen; fall back to minimal payload.
+			optionsJSON = []byte(`{"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt"}`)
+		}
+		// Escape any single quotes in the JSON so it is safe to embed in a single-quoted shell string.
+		jsonStr := strings.ReplaceAll(string(optionsJSON), "'", `'\''`)
+		// No copilot CLI args are appended to the harness invocation: all options live in the
+		// JSON payload, so the harness command is simply `node harness copilot`.
+		copilotCommand = fmt.Sprintf(`printf '%%s' '%s' | %s`, jsonStr, execPrefix)
+	} else if sandboxEnabled {
+		// Sandbox mode: add workspace dir and pass prompt file path directly
+		copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
 	} else {
-		if isCopilotSDKMode {
-			// SDK mode: pipe a JSON options payload via stdin so the harness reads the
-			// prompt file directly from disk instead of parsing --prompt-file CLI args back.
-			copilotCommand = fmt.Sprintf(`printf '%%s' '{"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt"}' | %s %s`, execPrefix, shellJoinArgs(copilotArgs))
-		} else {
-			// Non-sandbox mode: pass prompt file path directly
-			copilotCommand = fmt.Sprintf(`%s %s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
-		}
+		// Non-sandbox mode: pass prompt file path directly
+		copilotCommand = fmt.Sprintf(`%s %s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
 	}
 
 	// Conditionally wrap with sandbox (AWF only)

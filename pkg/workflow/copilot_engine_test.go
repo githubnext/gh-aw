@@ -249,12 +249,37 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 		t.Fatalf("Expected %s in step env, got:\n%s", expectedURI, stepContent)
 	}
 
-	// SDK mode pipes a JSON options payload via stdin instead of --prompt-file
-	if !strings.Contains(stepContent, `printf '%s' '{"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt"}'`) {
-		t.Fatalf("Expected SDK mode to pipe JSON options via stdin, got:\n%s", stepContent)
+	// SDK mode pipes a JSON options payload via stdin.
+	// The payload must include promptFile and sidecarArgs (Copilot CLI flags for the headless server).
+	if !strings.Contains(stepContent, `"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt"`) {
+		t.Fatalf("Expected SDK mode JSON payload to include promptFile, got:\n%s", stepContent)
 	}
+	if !strings.Contains(stepContent, `"sidecarArgs":[`) {
+		t.Fatalf("Expected SDK mode JSON payload to include sidecarArgs, got:\n%s", stepContent)
+	}
+	// Known sidecar flags must appear inside the JSON payload.
+	if !strings.Contains(stepContent, `"--disable-builtin-mcps"`) {
+		t.Fatalf("Expected sidecarArgs to include --disable-builtin-mcps, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, `"--no-ask-user"`) {
+		t.Fatalf("Expected sidecarArgs to include --no-ask-user, got:\n%s", stepContent)
+	}
+	// --prompt-file must never appear: the prompt is read from the promptFile path.
 	if strings.Contains(stepContent, "--prompt-file") {
 		t.Fatalf("Expected SDK mode to omit --prompt-file CLI arg (prompt is read from stdin JSON), got:\n%s", stepContent)
+	}
+	// Copilot CLI args must NOT be passed as CLI args to the harness after the command name.
+	// In SDK mode the harness invocation is `... copilot` with no trailing flags.
+	// Verify by checking that known CLI flags do not appear *after* the pipe character.
+	pipeIdx := strings.LastIndex(stepContent, "| ")
+	if pipeIdx >= 0 {
+		afterPipe := stepContent[pipeIdx:]
+		if strings.Contains(afterPipe, "--add-dir") {
+			t.Fatalf("Expected SDK mode to not pass --add-dir as a harness CLI arg (should be in sidecarArgs JSON), got:\n%s", afterPipe)
+		}
+		if strings.Contains(afterPipe, "--log-level") {
+			t.Fatalf("Expected SDK mode to not pass --log-level as a harness CLI arg (should be in sidecarArgs JSON), got:\n%s", afterPipe)
+		}
 	}
 }
 
