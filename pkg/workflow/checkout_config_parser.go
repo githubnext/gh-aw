@@ -343,7 +343,7 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 	// so any operation that requires network access to the remote will fail.
 	sb.WriteString("  - **Warning: No git credentials are available to the agent.** " +
 		"Credentials are intentionally removed after the checkout step for security. " +
-		"This means all git operations that require network access will fail, including:\n" +
+		"This means any git operation that needs to authenticate to the remote will fail. In private repositories, that includes:\n" +
 		"    - `git fetch`, `git pull`, `git clone`, and `git push` (direct push, not via safe-output tools)\n" +
 		"    - Checking out or switching to a remote branch that is not already fetched\n" +
 		"    - Deepening a shallow clone (`git fetch --unshallow`)\n" +
