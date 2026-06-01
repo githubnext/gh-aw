@@ -204,9 +204,6 @@ func parseCacheMemoryRetentionDays(cacheMap map[string]any, entry *CacheMemoryEn
 //   - uint64 values larger than math.MaxInt
 //   - unsupported types
 func parseOptionalInt(value any) *int {
-	maxInt := int(^uint(0) >> 1)
-	minInt := -maxInt - 1
-
 	// YAML unmarshaling can yield int, float64, or uint64 depending on parser/input.
 	if intValue, ok := value.(int); ok {
 		return &intValue
@@ -223,7 +220,7 @@ func parseOptionalInt(value any) *int {
 		if floatValue < -maxExactFloatInt || floatValue > maxExactFloatInt {
 			return nil
 		}
-		if floatValue < float64(minInt) || floatValue > float64(maxInt) {
+		if floatValue < float64(math.MinInt) || floatValue > float64(math.MaxInt) {
 			return nil
 		}
 		intValue := int(floatValue)
