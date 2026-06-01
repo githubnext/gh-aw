@@ -421,6 +421,30 @@ describe("update_activation_comment.cjs", () => {
             })
           );
         }),
+        it("should allow fallback comment to current repo even when allowlist is empty", async () => {
+          mockDependencies.process.env.GH_AW_COMMENT_ID = "";
+          mockDependencies.github.request.mockResolvedValue({
+            data: { id: 789016, html_url: "https://github.com/testowner/testrepo/issues/225#issuecomment-789016" },
+          });
+          const { updateActivationCommentWithCommit } = createFunctionFromScript(mockDependencies);
+          await updateActivationCommentWithCommit(
+            mockDependencies.github,
+            mockDependencies.context,
+            mockDependencies.core,
+            "41b061a0abc1c574c8ca4344bb69961efee7b45c",
+            "https://github.com/testowner/testrepo/commit/41b061a0abc1c574c8ca4344bb69961efee7b45c",
+            { targetIssueNumber: 225, targetRepo: "testowner/testrepo", allowedTargetRepos: "" }
+          );
+
+          expect(mockDependencies.github.request).toHaveBeenCalledWith(
+            "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
+            expect.objectContaining({
+              owner: "testowner",
+              repo: "testrepo",
+              issue_number: 225,
+            })
+          );
+        }),
         it("should use context.payload.pull_request.number when no targetIssueNumber", async () => {
           mockDependencies.process.env.GH_AW_COMMENT_ID = "";
           mockDependencies.context.payload = { pull_request: { number: 100 } };

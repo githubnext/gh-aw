@@ -255,8 +255,8 @@ async function updateActivationCommentWithMessage(github, context, core, message
       const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
       const allowedReposInput = typeof options.allowedTargetRepos === "string" ? options.allowedTargetRepos : process.env.GHAW_ALLOWED_TARGET_REPOS || process.env.INPUT_ALLOWED_TARGET_REPOS || "";
       const allowedRepos = normalizeAllowedRepos(allowedReposInput, contextRepo);
-      if (options.targetRepo) {
-        const targetRepo = String(options.targetRepo).trim();
+      if (typeof options.targetRepo === "string" && options.targetRepo.trim()) {
+        const targetRepo = options.targetRepo.trim();
         const targetValidation = validateTargetRepo(targetRepo, allowedRepos, contextRepo);
         if (!targetValidation.ok) {
           core.warning(`Skipping cross-repo fallback comment to ${targetRepo}: ${targetValidation.reason}`);
