@@ -23,8 +23,14 @@ func NormalizeUTCOffset(raw string) (string, error) {
 		return "", fmt.Errorf("must be a numeric UTC offset like +00:00 or -08:00")
 	}
 
-	hours, _ := strconv.Atoi(matches[2])
-	minutes, _ := strconv.Atoi(matches[3])
+	hours, err := strconv.Atoi(matches[2])
+	if err != nil {
+		return "", fmt.Errorf("must be a numeric UTC offset like +00:00 or -08:00")
+	}
+	minutes, err := strconv.Atoi(matches[3])
+	if err != nil {
+		return "", fmt.Errorf("must be a numeric UTC offset like +00:00 or -08:00")
+	}
 	if hours > 14 || minutes > 59 || (hours == 14 && minutes != 0) {
 		utcOffsetLog.Printf("UTC offset %q out of range (hours=%d, minutes=%d)", trimmed, hours, minutes)
 		return "", fmt.Errorf("must be a numeric UTC offset like +00:00 or -08:00")
@@ -42,8 +48,14 @@ func ParseUTCOffsetLocation(raw string) (*time.Location, error) {
 		return nil, err
 	}
 
-	hours, _ := strconv.Atoi(normalized[1:3])
-	minutes, _ := strconv.Atoi(normalized[4:6])
+	hours, err := strconv.Atoi(normalized[1:3])
+	if err != nil {
+		return nil, fmt.Errorf("invalid UTC offset format: %w", err)
+	}
+	minutes, err := strconv.Atoi(normalized[4:6])
+	if err != nil {
+		return nil, fmt.Errorf("invalid UTC offset format: %w", err)
+	}
 	offsetSeconds := hours*60*60 + minutes*60
 	if normalized[0] == '-' {
 		offsetSeconds = -offsetSeconds
