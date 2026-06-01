@@ -4,10 +4,8 @@
 package ctxbackground
 
 import (
-	"fmt"
 	"go/ast"
 	"go/types"
-	"slices"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -26,39 +24,24 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	if !ok {
-		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
-	}
+	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
-	}
-
-	insp.WithStack(nodeFilter, func(n ast.Node, push bool, stack []ast.Node) bool {
-		if !push {
-			return true
-		}
-
-		call, ok := n.(*ast.CallExpr)
-		if !ok || !isContextBackgroundCall(call) {
-			return true
+	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
+		call := cur.Node().(*ast.CallExpr)
+		if !isContextBackgroundCall(call) {
+			continue
 		}
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
 		if filecheck.IsTestFile(pos.Filename) {
-			return true
+			continue
 		}
 
-		for i := range slices.Backward(stack) {
-			fn, ok := stack[i].(*ast.FuncDecl)
-			if !ok {
-				continue
-			}
-
+		for encl := range cur.Enclosing((*ast.FuncDecl)(nil)) {
+			fn := encl.Node().(*ast.FuncDecl)
 			ctxParamName, ok := contextParamName(pass, fn)
 			if !ok {
-				return true
+				break
 			}
 
 			pass.Report(analysis.Diagnostic{
@@ -78,10 +61,9 @@ func run(pass *analysis.Pass) (any, error) {
 					},
 				},
 			})
-			return true
+			break
 		}
-		return true
-	})
+	}
 
 	return nil, nil
 }

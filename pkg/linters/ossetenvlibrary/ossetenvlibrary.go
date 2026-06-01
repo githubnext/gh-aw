@@ -3,7 +3,6 @@
 package ossetenvlibrary
 
 import (
-	"fmt"
 	"go/ast"
 	"go/types"
 	"strings"
@@ -30,10 +29,7 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, nil
 	}
 
-	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	if !ok {
-		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
-	}
+	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),

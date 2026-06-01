@@ -3,7 +3,6 @@
 package errormessage
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"path/filepath"
@@ -43,10 +42,7 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, nil
 	}
 
-	insp, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	if !ok {
-		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
-	}
+	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	noLintLinesByFile := nolint.BuildLineIndex(pass, "errormessage")
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
