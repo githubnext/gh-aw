@@ -66,6 +66,19 @@ describe("check_daily_effective_workflow_guardrail", () => {
     expect(exports.computeMaxInspectableRuns(120)).toBeGreaterThan(0);
   });
 
+  it("formats structured daily ET log messages", () => {
+    expect(
+      exports.formatDailyGuardrailLogMessage("Resolved current workflow ET guardrail context", {
+        currentRunId: 123,
+        workflowId: 456,
+        currentEffectiveTokens: 789,
+      })
+    ).toBe(
+      '[daily-workflow-et] Resolved current workflow ET guardrail context: {"currentRunId":123,"workflowId":456,"currentEffectiveTokens":789}'
+    );
+    expect(exports.formatDailyGuardrailLogMessage("Completed ET inspection window")).toBe("[daily-workflow-et] Completed ET inspection window");
+  });
+
   it("renders a daily ET details summary with stats and prior runs", () => {
     const markdown = exports.renderDailyEffectiveWorkflowSummary(
       "Nightly triage",
