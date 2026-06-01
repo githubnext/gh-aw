@@ -196,10 +196,10 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		// Prevent actions/checkout from adding --filter=blob:none when sparse-checkout
 		// is specified. Blobless clones require credentials for lazy blob fetches, but
 		// agent jobs intentionally do not retain git credentials after checkout, making
-		// offline git operations fail. Using blob:limit=1073741824 (1 GB) ensures all
-		// blobs are fetched during checkout (since none exceed 1 GB) while keeping the
-		// filter non-empty so actions/checkout won't substitute blob:none. The
-		// subsequent repair step then clears partial-clone markers entirely.
+		// offline git operations fail. Using blob:limit=1073741824 (1 GiB) effectively
+		// fetches all blobs up front on GitHub-hosted repos (GitHub rejects blobs > 100 MiB),
+		// while keeping the filter non-empty so actions/checkout won't substitute blob:none.
+		// The subsequent repair step then clears partial-clone markers entirely.
 		if len(override.sparsePatterns) > 0 {
 			sb.WriteString("          filter: 'blob:limit=1073741824'\n")
 		}
