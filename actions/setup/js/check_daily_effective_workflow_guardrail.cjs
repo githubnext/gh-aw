@@ -102,7 +102,7 @@ async function getRunEffectiveTokens(artifactClient, runId, token, owner, repo) 
     artifacts: artifactSummaries,
   });
 
-  const artifact = artifacts.find(item => matchesGuardrailArtifactName(item?.name || ""));
+  const artifact = artifacts.find(item => item?.name && matchesGuardrailArtifactName(item.name));
   if (!artifact) {
     logDailyGuardrail("No matching guardrail artifact found", {
       runId,
@@ -110,8 +110,8 @@ async function getRunEffectiveTokens(artifactClient, runId, token, owner, repo) 
     });
     return 0;
   }
-  if (!artifact.id || !artifact.name) {
-    logDailyGuardrail("Skipping malformed guardrail artifact", {
+  if (!artifact.id) {
+    logDailyGuardrail("Skipping guardrail artifact without an id", {
       runId,
       artifact,
     });
