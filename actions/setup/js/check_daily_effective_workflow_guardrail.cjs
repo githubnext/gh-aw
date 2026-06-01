@@ -39,6 +39,8 @@ function formatDailyGuardrailLogMessage(message, details) {
 }
 
 /**
+ * Emit a consistently prefixed daily workflow ET diagnostic log line.
+ *
  * @param {string} message
  * @param {Record<string, unknown>} [details]
  * @returns {void}
