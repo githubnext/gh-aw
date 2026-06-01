@@ -1236,10 +1236,6 @@ function detectZeroTokenEarlyCliExit(options) {
     return false;
   }
 
-  if (hasAgentTerminalReasonCompleted()) {
-    return false;
-  }
-
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
   try {
@@ -1248,6 +1244,9 @@ function detectZeroTokenEarlyCliExit(options) {
     }
     const logContent = fs.readFileSync(stdioLogPath, "utf8");
     if (!logContent.trim()) {
+      return false;
+    }
+    if (/"terminal_reason"[ ]?:[ ]?"completed"/.test(logContent)) {
       return false;
     }
     return ZERO_TOKEN_EARLY_CLI_EXIT_SHUTDOWN_RE.test(logContent);

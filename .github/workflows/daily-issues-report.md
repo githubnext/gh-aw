@@ -74,7 +74,7 @@ Generate a daily report analyzing up to 1000 issues from the repository (see `is
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
-- **Date**: Generated daily at 6 AM UTC
+- **Date**: Triggered manually via workflow_dispatch
 
 ## Phase 1: Load and Prepare Data
 
