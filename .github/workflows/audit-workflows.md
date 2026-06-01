@@ -54,9 +54,9 @@ Daily audit all agentic workflow runs from the last 24 hours to identify issues,
 Generate 2 charts from past 30 days workflow data:
 
 1. **Workflow Health**: Success/failure counts and success rate (green/red lines, secondary y-axis for %)
-2. **Token & Cost**: Daily tokens (bar/area) + cost line + 7-day moving average
+2. **Token Usage**: Daily tokens (bar/area) + 7-day moving average
 
-Save to: `/tmp/gh-aw/python/charts/{workflow_health,token_cost}_trends.png`
+Save to: `/tmp/gh-aw/python/charts/{workflow_health,token}_trends.png`
 Upload charts and embed them in the discussion with 2-3 sentence analysis each. Call the `upload_asset` safe-output tool for each chart using the absolute chart path. Record the returned asset URLs and include them in the discussion body.
 
 ---
@@ -79,7 +79,7 @@ Output is saved to: /tmp/gh-aw/aw-mcp/logs
 **Analyze**: Review logs for:
 - Missing tools (patterns, frequency, legitimacy)
 - Errors (tool execution, MCP failures, auth, timeouts, resources)
-- Performance (token usage, costs, timeouts, efficiency)
+- Performance (token usage, timeouts, efficiency)
 - Patterns (recurring issues, frequent failures)
 
 **Repo Memory**: Store findings in `/tmp/gh-aw/repo-memory/default/`:
