@@ -349,7 +349,8 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"contains(needs.agent.outputs.output_types, 'create_pull_request')",
 				// Depth flag must mirror the checkout fetch-depth to avoid expanding the shallow clone
 				"--depth=1",
-				// Blob filter avoids downloading blobs for refs that are only used as prerequisites
+			},
+			checkNotContains: []string{
 				"--filter=blob:none",
 			},
 		},
@@ -410,12 +411,13 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')",
 				// Depth flag must mirror the checkout fetch-depth to avoid expanding the shallow clone
 				"--depth=1",
-				// Blob filter avoids downloading blobs for refs that are only used as prerequisites
+			},
+			checkNotContains: []string{
 				"--filter=blob:none",
 			},
 		},
 		{
-			name: "cross-repo fetch refs with full clone (fetch-depth: 0) omits blob filter",
+			name: "cross-repo fetch refs omits blob filter even for full clone",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -436,7 +438,6 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				"+refs/heads/main:refs/remotes/origin/main",
 			},
 			checkNotContains: []string{
-				// Full clone: all objects already present; filter is unnecessary
 				"--filter=blob:none",
 				// Full clone: no depth restriction
 				"--depth=",
