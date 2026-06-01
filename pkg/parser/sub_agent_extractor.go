@@ -259,7 +259,7 @@ func ExtractInlineSubAgents(markdown string) (mainMarkdown string, agents []Inli
 
 func validateUniqueSubAgentNames(markdown string, allStarts [][]int) error {
 	return validateUniqueInlineSectionNames(markdown, allStarts, func(name string) error {
-			subAgentLog.Printf("Duplicate sub-agent name: %q", name)
-			return fmt.Errorf("duplicate inline sub-agent name %q", name)
+		subAgentLog.Printf("Duplicate sub-agent name: %q", name)
+		return fmt.Errorf("duplicate inline sub-agent name %q", name)
 	})
 }
