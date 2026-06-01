@@ -98,7 +98,6 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModul
     workingDirectory: process.env.GITHUB_WORKSPACE || process.cwd(),
     logLevel,
   });
-  /** @type {Awaited<ReturnType<typeof client.createSession>> | null} */
   let session = null;
   /** @type {fs.WriteStream | null} */
   let eventsStream = null;
