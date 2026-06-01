@@ -179,10 +179,22 @@ func TestGenerateDefaultCheckoutStep(t *testing.T) {
 		assert.Contains(t, combined, "sparse-checkout: |", "should include sparse-checkout header")
 		assert.Contains(t, combined, ".github/", "should include first pattern")
 		assert.Contains(t, combined, "src/", "should include second pattern")
-		assert.Contains(t, combined, "filter: ''", "sparse-checkout should emit filter:'' to prevent blobless clone")
+		assert.Contains(t, combined, "filter: 'blob:limit=1073741824'", "sparse-checkout should emit blob:limit filter to ensure blobs are fetched")
 		assert.Contains(t, combined, "Clear partial clone markers after sparse checkout", "sparse-checkout should repair partial clone state after checkout")
 		assert.Contains(t, combined, "git config --local --unset-all remote.origin.promisor || true", "default checkout repair should target workspace root")
 		assert.Contains(t, combined, "git config --local --unset-all remote.origin.partialclonefilter || true", "default checkout repair should clear partial clone filter")
+	})
+
+	t.Run("sparse-checkout without fetch refs still ensures blobs present", func(t *testing.T) {
+		cm := NewCheckoutManager([]*CheckoutConfig{
+			{SparseCheckout: ".github/\nsrc/"},
+		})
+		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
+		combined := strings.Join(lines, "")
+		// blob:limit filter ensures all blobs are fetched during checkout even without additional refs
+		assert.Contains(t, combined, "filter: 'blob:limit=1073741824'", "sparse-checkout should use blob:limit to fetch all blobs")
+		assert.Contains(t, combined, "Clear partial clone markers after sparse checkout", "repair step should run even without fetch refs")
+		assert.NotContains(t, combined, "Fetch additional refs", "should not emit fetch step when no refs configured")
 	})
 
 	t.Run("no filter emitted without sparse-checkout", func(t *testing.T) {
@@ -292,7 +304,7 @@ func TestGenerateAdditionalCheckoutSteps(t *testing.T) {
 		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
 		combined := strings.Join(lines, "")
 		assert.Contains(t, combined, "sparse-checkout: |", "should include sparse-checkout header")
-		assert.Contains(t, combined, "filter: ''", "sparse-checkout should emit filter:'' to prevent blobless clone")
+		assert.Contains(t, combined, "filter: 'blob:limit=1073741824'", "sparse-checkout should emit blob:limit filter to ensure blobs are fetched")
 		assert.Contains(t, combined, "Clear partial clone markers after sparse checkout", "sparse-checkout should repair partial clone state after checkout")
 		assert.Contains(t, combined, `git -C "${{ github.workspace }}/./libs" config --local --unset-all remote.origin.promisor || true`, "additional checkout repair should target checkout path")
 		assert.Contains(t, combined, `git -C "${{ github.workspace }}/./libs" config --local --unset-all remote.origin.partialclonefilter || true`, "additional checkout repair should clear partial clone filter")
