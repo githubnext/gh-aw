@@ -1228,6 +1228,101 @@ describe("copilot_harness.cjs", () => {
     });
   });
 
+  describe("SDK mode retry policy", () => {
+    // In SDK mode, --continue is a CLI concept and must never be used.
+    // Retries always restart the session fresh.
+    // The retry eligibility rules (hasOutput, MAX_RETRIES) are otherwise shared.
+    const MAX_RETRIES = 3;
+
+    /**
+     * Mirrors the blended retry decision: in SDK mode useContinueOnRetry must never
+     * become true.
+     *
+     * @param {{hasOutput: boolean, exitCode: number, output: string}} result
+     * @param {number} attempt
+     * @param {boolean} copilotSDKMode
+     * @param {boolean} continueDisabledPermanently
+     * @returns {{ shouldRetry: boolean, useContinueOnRetry: boolean }}
+     */
+    function blendedRetryDecision(result, attempt, copilotSDKMode, continueDisabledPermanently = false) {
+      if (result.exitCode === 0) return { shouldRetry: false, useContinueOnRetry: false };
+      if (hasNumerousPermissionDeniedIssues(result.output)) return { shouldRetry: false, useContinueOnRetry: false };
+      if (isMaxEffectiveTokensExceededError(result.output)) return { shouldRetry: false, useContinueOnRetry: false };
+      if (attempt >= MAX_RETRIES || !result.hasOutput) return { shouldRetry: false, useContinueOnRetry: false };
+      // --continue is only enabled in CLI mode and only when not permanently disabled.
+      const useContinueOnRetry = !copilotSDKMode && !continueDisabledPermanently;
+      return { shouldRetry: true, useContinueOnRetry };
+    }
+
+    it("retries on partial execution in SDK mode (fresh run, not --continue)", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Error: connection reset" };
+      const { shouldRetry, useContinueOnRetry } = blendedRetryDecision(result, 0, true);
+      expect(shouldRetry).toBe(true);
+      expect(useContinueOnRetry).toBe(false);
+    });
+
+    it("retries on CAPIError 400 in SDK mode (fresh run, not --continue)", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "CAPIError: 400 Bad Request" };
+      const { shouldRetry, useContinueOnRetry } = blendedRetryDecision(result, 0, true);
+      expect(shouldRetry).toBe(true);
+      expect(useContinueOnRetry).toBe(false);
+    });
+
+    it("never sets useContinueOnRetry=true in SDK mode regardless of error type", () => {
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        const result = { exitCode: 1, hasOutput: true, output: "Error: partial execution" };
+        const { useContinueOnRetry } = blendedRetryDecision(result, attempt, /* copilotSDKMode */ true);
+        expect(useContinueOnRetry).toBe(false);
+      }
+    });
+
+    it("does not retry in SDK mode when no output was produced", () => {
+      const result = { exitCode: 1, hasOutput: false, output: "" };
+      const { shouldRetry } = blendedRetryDecision(result, 0, true);
+      expect(shouldRetry).toBe(false);
+    });
+
+    it("does not retry in SDK mode after retries are exhausted", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Error: partial execution" };
+      const { shouldRetry } = blendedRetryDecision(result, MAX_RETRIES, true);
+      expect(shouldRetry).toBe(false);
+    });
+
+    it("CLI mode still enables --continue on partial execution when not disabled", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Error: connection reset" };
+      const { shouldRetry, useContinueOnRetry } = blendedRetryDecision(result, 0, /* copilotSDKMode */ false);
+      expect(shouldRetry).toBe(true);
+      expect(useContinueOnRetry).toBe(true);
+    });
+
+    it("CLI mode respects continueDisabledPermanently", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Error: connection reset" };
+      const { shouldRetry, useContinueOnRetry } = blendedRetryDecision(result, 0, /* copilotSDKMode */ false, /* continueDisabledPermanently */ true);
+      expect(shouldRetry).toBe(true);
+      expect(useContinueOnRetry).toBe(false);
+    });
+
+    it("currentArgs never appends --continue in SDK mode", () => {
+      const resolvedArgs = ["--prompt", "hello"];
+      // Simulate the blended loop's currentArgs logic for multiple attempts in SDK mode
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        const useContinueOnRetry = false; // always false in SDK mode
+        const copilotSDKMode = true;
+        const currentArgs = !copilotSDKMode && attempt > 0 && useContinueOnRetry ? [...resolvedArgs, "--continue"] : resolvedArgs;
+        expect(currentArgs).not.toContain("--continue");
+      }
+    });
+
+    it("currentArgs appends --continue in CLI mode when useContinueOnRetry=true", () => {
+      const resolvedArgs = ["--prompt", "hello"];
+      const copilotSDKMode = false;
+      const useContinueOnRetry = true;
+      // attempt > 0 is when --continue kicks in
+      const currentArgs = !copilotSDKMode && 1 > 0 && useContinueOnRetry ? [...resolvedArgs, "--continue"] : resolvedArgs;
+      expect(currentArgs).toContain("--continue");
+    });
+  });
+
   describe("fetchAWFReflect enriches models via fallback", () => {
     afterEach(() => {
       vi.unstubAllGlobals();

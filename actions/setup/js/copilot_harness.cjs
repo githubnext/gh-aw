@@ -1,16 +1,17 @@
 // @ts-check
 
 /**
- * Copilot CLI Harness with Retry Logic
+ * Copilot Harness with Retry Logic
  *
- * Wraps the Copilot CLI command with retry logic for failures that occur after the session
- * has been partially executed.  Passes all arguments to the copilot subprocess, transparently
- * forwarding stdin/stdout/stderr.
+ * Wraps the Copilot CLI command (or @github/copilot-sdk session in SDK mode) with retry logic
+ * for failures that occur after the session has been partially executed.  Passes all arguments
+ * to the copilot subprocess, transparently forwarding stdin/stdout/stderr.
  *
- * Retry policy:
+ * Retry policy (shared by CLI and SDK modes):
  *   - If the process produced any output (hasOutput) and exits with a non-zero code, the
- *     session is considered partially executed.  The driver retries with --continue so the
- *     Copilot CLI can continue from where it left off.
+ *     session is considered partially executed and is retried.
+ *     - CLI mode: retries with --continue so the Copilot CLI can continue from on-disk state.
+ *     - SDK mode: retries always restart the session fresh (--continue is a CLI concept).
  *   - CAPIError 400 is a well-known transient failure mode and is logged explicitly, but
  *     any partial-execution failure is retried — not just CAPIError 400.
  *   - If the process produced no output (failed to start / auth error before any work), the
@@ -504,39 +505,35 @@ async function main() {
     agenticEngineTimeout: false,
     modelNotSupportedError: false,
   };
+  // In SDK mode the prompt is required; extract it early so the retry loop can use it.
+  const sdkPrompt = copilotSDKMode ? extractPromptFromArgs(resolvedArgs) : null;
   /** @type {Awaited<ReturnType<typeof startCopilotSDKServer>>} */
   let copilotSDKServer = null;
   try {
     if (copilotSDKMode) {
-      copilotSDKServer = await startCopilotSDKServer({
-        command,
-        env: childEnv ?? process.env,
-        logger: log,
-      });
-
-      // SDK mode: drive the session via @github/copilot-sdk instead of the CLI retry loop.
-      const prompt = extractPromptFromArgs(resolvedArgs);
-      if (!prompt) {
+      if (!sdkPrompt) {
         log("copilot-sdk mode: no prompt found in args (-p/--prompt is required for SDK mode)");
         lastExitCode = 1;
       } else {
-        const sdkUri = sdkEnv.COPILOT_SDK_URI ?? process.env.COPILOT_SDK_URI ?? "";
-        const sdkResult = await runWithCopilotSDK({ sdkUri, prompt, logger: log, attempt: 0 });
-        lastExitCode = sdkResult.exitCode;
-        if (sdkResult.exitCode === 0) {
-          log(`success: totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
-        } else {
-          log(`failed: exitCode=${sdkResult.exitCode} totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
-        }
+        copilotSDKServer = await startCopilotSDKServer({
+          command,
+          env: childEnv ?? process.env,
+          logger: log,
+        });
       }
-    } else {
-      // CLI path: retry loop with --continue support.
+    }
+
+    if (!copilotSDKMode || sdkPrompt) {
+      const sdkUri = copilotSDKMode ? (sdkEnv.COPILOT_SDK_URI ?? process.env.COPILOT_SDK_URI ?? "") : "";
+
+      // Unified retry loop for both SDK and CLI modes.
+      // --continue is a CLI concept; in SDK mode retries always restart the session fresh.
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        // Add --continue flag on retries so the copilot session continues from where it left off
-        const currentArgs = attempt > 0 && useContinueOnRetry ? [...resolvedArgs, "--continue"] : resolvedArgs;
+        // Add --continue flag on CLI retries so the copilot session continues from where it left off
+        const currentArgs = !copilotSDKMode && attempt > 0 && useContinueOnRetry ? [...resolvedArgs, "--continue"] : resolvedArgs;
 
         if (attempt > 0) {
-          const retryMode = useContinueOnRetry ? "--continue" : "fresh run";
+          const retryMode = !copilotSDKMode && useContinueOnRetry ? "--continue" : "fresh run";
           log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt (${retryMode})`);
           await sleep(delay);
           delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
@@ -545,7 +542,9 @@ async function main() {
 
         // Redact --prompt / -p value from logs to avoid leaking prompt content
         const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
-        const result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
+        const result = copilotSDKMode
+          ? await runWithCopilotSDK({ sdkUri, prompt: sdkPrompt, logger: log, attempt })
+          : await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
         lastExitCode = result.exitCode;
         const attemptDetections = detectCopilotErrors(result.output);
         detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;
@@ -561,9 +560,11 @@ async function main() {
         }
 
         // Determine whether to retry.
-        // Retry whenever the session was partially executed (hasOutput), using --continue so that
-        // the Copilot CLI can continue from where it left off.  CAPIError 400 is the well-known
-        // transient case, but any partial-execution failure is eligible for a continue retry.
+        // Retry whenever the session was partially executed (hasOutput).
+        //   - CLI mode: retry with --continue so the Copilot CLI can continue from on-disk state.
+        //   - SDK mode: retry always restarts fresh — there is no CLI on-disk state to resume.
+        // CAPIError 400 is the well-known transient case, but any partial-execution failure is
+        // eligible for a retry.
         // Exceptions:
         //   - MCP policy errors and model-not-supported errors are persistent configuration issues.
         //   - Auth errors trigger a one-time fallback to a fresh run; after that --continue is
@@ -637,7 +638,7 @@ async function main() {
           break;
         }
 
-        // Auth error: behavior depends on whether this was a --continue attempt.
+        // Auth error: behavior depends on whether this was a --continue attempt (CLI mode only).
         // On a --continue attempt: the Copilot CLI's on-disk session credential written by the
         // interrupted run may be incomplete/invalid.  Fall back to a fresh run (without --continue)
         // once so env-var auth can succeed.  Mid-stream context is lost but the job can recover.
@@ -683,8 +684,9 @@ async function main() {
 
         if (attempt < MAX_RETRIES && result.hasOutput) {
           const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
-          useContinueOnRetry = !continueDisabledPermanently;
-          const retryMode = useContinueOnRetry ? "--continue" : "fresh run (--continue permanently disabled)";
+          // --continue is only meaningful in CLI mode; SDK mode always restarts fresh.
+          useContinueOnRetry = !copilotSDKMode && !continueDisabledPermanently;
+          const retryMode = useContinueOnRetry ? "--continue" : copilotSDKMode ? "fresh run" : "fresh run (--continue permanently disabled)";
           log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
           continue;
         }
@@ -702,7 +704,7 @@ async function main() {
       if (isScheduledRun && lastExitCode === 2 && scheduledExit2RetryAttempted) {
         emitInfrastructureIncomplete("Copilot API interruption (exit code 2) persisted after automatic retry in scheduled workflow run.");
       }
-    } // end else (CLI path)
+    }
 
     // Fetch AWF API proxy reflection data and persist to disk for post-run step summary.
     // This is best-effort: failures are logged but do not affect the agent exit code.
