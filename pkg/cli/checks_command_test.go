@@ -575,6 +575,10 @@ func captureOutput(t *testing.T, fn func() error) (string, string) {
 
 	stderrReader, stderrWriter, err := os.Pipe()
 	require.NoError(t, err, "should create stderr pipe")
+	t.Cleanup(func() {
+		_ = stdoutReader.Close()
+		_ = stderrReader.Close()
+	})
 
 	origStdout := os.Stdout
 	origStderr := os.Stderr
@@ -596,12 +600,10 @@ func captureOutput(t *testing.T, fn func() error) (string, string) {
 	var stdoutBuf bytes.Buffer
 	_, err = io.Copy(&stdoutBuf, stdoutReader)
 	require.NoError(t, err, "should read stdout output")
-	require.NoError(t, stdoutReader.Close(), "should close stdout reader")
 
 	var stderrBuf bytes.Buffer
 	_, err = io.Copy(&stderrBuf, stderrReader)
 	require.NoError(t, err, "should read stderr output")
-	require.NoError(t, stderrReader.Close(), "should close stderr reader")
 
 	return stdoutBuf.String(), stderrBuf.String()
 }
