@@ -415,7 +415,6 @@ func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError
 	require.NoError(t, err)
 	os.Stderr = w
 	t.Cleanup(func() { os.Stderr = oldStderr })
-	t.Cleanup(func() { _ = r.Close() })
 
 	validateErr := compiler.validateToolConfiguration(workflowData, markdownPath, &Permissions{})
 
@@ -424,6 +423,7 @@ func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError
 	var stderr bytes.Buffer
 	_, err = io.Copy(&stderr, r)
 	require.NoError(t, err)
+	require.NoError(t, r.Close())
 
 	require.Error(t, validateErr)
 	assert.Contains(t, validateErr.Error(), "threat detection requires sandbox.agent")
