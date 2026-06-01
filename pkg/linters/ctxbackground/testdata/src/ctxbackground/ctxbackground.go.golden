@@ -1,0 +1,32 @@
+package ctxbackground
+
+import (
+	"context"
+)
+
+// flagged: function receives ctx context.Context but calls context.Background()
+func DoWork(ctx context.Context) {
+	_ = ctx // want `use the context.Context parameter instead of context.Background\(\)`
+}
+
+// not flagged: no context parameter
+func DoWorkNoCtx() {
+	_ = context.Background()
+}
+
+// not flagged: blank identifier context parameter
+func DoWorkBlank(_ context.Context) {
+	_ = context.Background()
+}
+
+// flagged: method with context param
+type Worker struct{}
+
+func (w *Worker) Run(ctx context.Context) {
+	_ = ctx // want `use the context.Context parameter instead of context.Background\(\)`
+}
+
+// not flagged: init function
+func init() {
+	_ = context.Background()
+}
