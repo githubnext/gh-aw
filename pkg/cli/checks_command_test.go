@@ -16,7 +16,8 @@ import (
 
 // captureOutputMu guards os.Stdout/os.Stderr reassignment in captureOutput.
 // This intentionally serializes tests using captureOutput because stdout/stderr
-// are global process state.
+// are global process state. Tests that call captureOutput should not use
+// t.Parallel.
 var captureOutputMu sync.Mutex
 
 // ---------------------------------------------------------------------------
