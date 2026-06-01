@@ -257,6 +257,21 @@ function normalizeCommentMemoryId(memoryId, fallback = "default") {
   return normalized.length > 0 ? normalized : fallback;
 }
 
+function redactSensitiveConfig(value) {
+  if (Array.isArray(value)) {
+    return value.map(redactSensitiveConfig);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [
+        key,
+        /token/i.test(key) ? "***REDACTED***" : redactSensitiveConfig(nestedValue),
+      ]),
+    );
+  }
+  return value;
+}
+
 /**
  * Load configuration for safe outputs
  * Reads configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable
@@ -269,7 +284,7 @@ function loadConfig() {
 
   try {
     const config = JSON.parse(process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG);
-    core.info(`Loaded config from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${JSON.stringify(config)}`);
+    core.info(`Loaded config from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${JSON.stringify(redactSensitiveConfig(config))}`);
     // Normalize config keys: convert hyphens to underscores
     return Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v]));
   } catch (error) {
