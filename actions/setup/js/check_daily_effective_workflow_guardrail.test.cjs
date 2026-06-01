@@ -72,10 +72,9 @@ describe("check_daily_effective_workflow_guardrail", () => {
       workflowId: 456,
       currentEffectiveTokens: 789,
     });
-    const payloadMatch = message.match(/: (\{.*\})$/);
-    expect(message).toContain("[daily-workflow-et] Resolved current workflow ET guardrail context: ");
-    expect(payloadMatch).not.toBeNull();
-    expect(JSON.parse(payloadMatch[1])).toEqual({
+    const prefix = "[daily-workflow-et] Resolved current workflow ET guardrail context: ";
+    expect(message).toContain(prefix);
+    expect(JSON.parse(message.slice(prefix.length))).toEqual({
       currentRunId: 123,
       workflowId: 456,
       currentEffectiveTokens: 789,

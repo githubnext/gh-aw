@@ -35,7 +35,13 @@ function formatDailyGuardrailLogMessage(message, details) {
   if (!details || Object.keys(details).length === 0) {
     return `[daily-workflow-et] ${message}`;
   }
-  return `[daily-workflow-et] ${message}: ${JSON.stringify(details)}`;
+  let serializedDetails = "";
+  try {
+    serializedDetails = JSON.stringify(details);
+  } catch {
+    serializedDetails = JSON.stringify({ error: "failed to serialize log details" });
+  }
+  return `[daily-workflow-et] ${message}: ${serializedDetails}`;
 }
 
 /**
@@ -89,18 +95,25 @@ async function getRunEffectiveTokens(artifactClient, runId, token, owner, repo) 
       repositoryName: repo,
     },
   });
-  const artifactSummaries = artifacts.map(item => ({ id: item.id, name: item.name }));
+  const artifactSummaries = artifacts.map(item => ({ id: item?.id ?? null, name: item?.name || "" }));
   logDailyGuardrail("Listed workflow artifacts", {
     runId,
     artifactCount: artifacts.length,
     artifacts: artifactSummaries,
   });
 
-  const artifact = artifacts.find(item => matchesGuardrailArtifactName(item.name));
+  const artifact = artifacts.find(item => matchesGuardrailArtifactName(item?.name || ""));
   if (!artifact) {
     logDailyGuardrail("No matching guardrail artifact found", {
       runId,
       availableArtifacts: artifactSummaries,
+    });
+    return 0;
+  }
+  if (!artifact.id || !artifact.name) {
+    logDailyGuardrail("Skipping malformed guardrail artifact", {
+      runId,
+      artifact,
     });
     return 0;
   }
