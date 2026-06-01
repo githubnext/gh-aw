@@ -42,13 +42,11 @@ emoji: "🤖"
 
 ### Labels (`labels:`)
 
-Optional array of strings for categorizing and organizing workflows. Labels are displayed in `gh aw status` command output and can be filtered using the `--label` flag.
+Optional array of strings for categorizing workflows by purpose, team, or functionality. Labels appear in `gh aw status` output as `[automation ci diagnostics]` (or a JSON array in `--json` mode) and can be filtered with `gh aw status --label automation`.
 
 ```yaml wrap
 labels: ["automation", "ci", "diagnostics"]
 ```
-
-Labels help organize workflows by purpose, team, or functionality. They appear in status command table output as `[automation ci diagnostics]` and as a JSON array in `--json` mode. Filter workflows by label using `gh aw status --label automation`.
 
 ### Metadata (`metadata:`)
 
@@ -61,13 +59,7 @@ metadata:
   category: automation
 ```
 
-**Constraints:**
-
-- Keys: 1-64 characters
-- Values: Maximum 1024 characters
-- Only string values are supported
-
-Metadata provides a flexible way to add descriptive information to workflows without affecting execution.
+Keys must be 1–64 characters; values are string-only, up to 1024 characters.
 
 ### Trigger Events (`on:`)
 
@@ -203,17 +195,7 @@ timeout-minutes: 30                  # Defaults to 20 minutes
 
 `runs-on` applies to the main agent job only. `runs-on-slim` applies to all framework/generated jobs (activation, safe-outputs, unlock, etc.) and defaults to `ubuntu-slim`. `safe-outputs.runs-on` takes precedence over `runs-on-slim` for safe-output jobs specifically.
 
-`timeout-minutes` accepts either an integer or a GitHub Actions expression string. This allows a compiled workflow that defines `workflow_call` inputs to parameterize its own timeout via caller inputs:
-
-```yaml wrap
-# Literal integer
-timeout-minutes: 30
-
-# Expression — useful inside a reusable (workflow_call) workflow definition
-timeout-minutes: ${{ inputs.timeout }}
-```
-
-This frontmatter setting applies to the workflow being compiled. It does **not** apply to plain GitHub Actions caller jobs that invoke a reusable workflow with job-level `uses:` — GitHub rejects `timeout-minutes` on those caller jobs.
+`timeout-minutes` accepts an integer or a GitHub Actions expression string (e.g. `${{ inputs.timeout }}`), letting a reusable `workflow_call` workflow parameterize its own timeout from caller inputs. It applies to the workflow being compiled, **not** to plain caller jobs that invoke a reusable workflow with job-level `uses:` — GitHub rejects `timeout-minutes` there.
 
 **Supported runners for `runs-on:`**
 
@@ -305,12 +287,7 @@ secrets:
     description: "Production database connection string"
 ```
 
-**Security best practices:**
-
-- Always use GitHub Actions secret expressions (`${{ secrets.NAME }}`)
-- Never commit plaintext secrets to workflow files
-- Use environment-specific secrets when possible (via `environment:` field)
-- Limit secret access to only the components that need them
+Always reference secrets through `${{ secrets.NAME }}` expressions, never plaintext; prefer environment-specific secrets (via the `environment:` field) and limit access to the components that need them.
 
 **Note:** For passing secrets to reusable workflows, use the `jobs.<job_id>.secrets` field instead. The top-level `secrets:` field is for workflow-level secret configuration.
 
@@ -355,9 +332,7 @@ See [GitHub Actions service docs](https://docs.github.com/en/actions/using-conta
 
 ### Observability (`observability:`)
 
-Use `observability.otlp` to export distributed traces from
-workflow runs to an OpenTelemetry Protocol (OTLP)
-compatible backend.
+Use `observability.otlp` to export distributed traces from workflow runs to an OpenTelemetry Protocol (OTLP) compatible backend.
 
 ```yaml wrap
 observability:
@@ -368,19 +343,7 @@ observability:
       X-Tenant: my-org
 ```
 
-`endpoint` accepts a string, a `{url, headers}` object,
-or an array of endpoint objects for fan-out.
-`headers` accepts a map or comma-separated `key=value`
-string.
-`if-missing` supports `error` (default), `warn`, and
-`ignore`.
-`attributes` is an optional map of custom span attributes
-attached to gh-aw job spans; values support GitHub Actions
-expressions.
-
-For full OpenTelemetry reference details, including runtime
-variables, endpoint forms, span attributes, and artifact
-files, see [OpenTelemetry](/gh-aw/reference/open-telemetry/).
+`endpoint` accepts a string, a `{url, headers}` object, or an array of endpoint objects for fan-out; `headers` accepts a map or comma-separated `key=value` string; `if-missing` supports `error` (default), `warn`, and `ignore`; and `attributes` is an optional map of custom span attributes (values support GitHub Actions expressions). See [OpenTelemetry](/gh-aw/reference/open-telemetry/) for runtime variables, endpoint forms, span attributes, and artifact files.
 
 ### Resources (`resources:`)
 
@@ -393,25 +356,13 @@ resources:
   - shared/helper-action.yml # supporting GitHub Action
 ```
 
-Entries are relative paths from the workflow's location in the source repository. GitHub Actions expression syntax (`${{`) is not allowed in resource paths.
-
-When a user runs `gh aw add` to install this workflow, each listed file is also downloaded and placed alongside the main workflow in the target repository. This ensures companion workflows and custom actions the main workflow depends on are available after installation.
-
-In addition to files explicitly listed in `resources:`, `gh aw add` automatically fetches workflows referenced in the [`dispatch-workflow`](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow) safe output.
+Entries are relative paths from the workflow's location in the source repository (GitHub Actions expression syntax `${{` is not allowed). When `gh aw add` installs this workflow, each listed file is downloaded alongside it so dependencies are available after installation. `gh aw add` also automatically fetches workflows referenced in the [`dispatch-workflow`](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow) safe output, even when not listed here.
 
 ### Runtimes (`runtimes:`)
 
-Override default runtime versions for languages and tools used in workflows. The compiler automatically detects runtime requirements from tool configurations and workflow steps, then installs the specified versions.
+Override default runtime versions for languages and tools used in workflows. The compiler detects which runtimes are needed from tool configurations (e.g. `bash: ["node"]`) and workflow steps, then installs the specified versions. Pin versions for reproducibility, opt into preview releases, or point at custom setup actions (forks, enterprise mirrors).
 
-**Format**: Object with runtime name as key and configuration as value
-
-**Fields per runtime**:
-
-- `version`: Runtime version string (required)
-- `action-repo`: Custom GitHub Actions setup action (optional, overrides default)
-- `action-version`: Version of the setup action (optional, overrides default)
-
-**Supported runtimes**:
+Each runtime takes a required `version` string, plus optional `action-repo` and `action-version` to override the default setup action:
 
 | Runtime | Default Version | Default Setup Action |
 |---------|----------------|---------------------|
@@ -427,48 +378,19 @@ Override default runtime versions for languages and tools used in workflows. The
 | `elixir` | 1.17 | `erlef/setup-beam@v1` |
 | `haskell` | 9.10 | `haskell-actions/setup@v2` |
 
-**Examples**:
-
-Override Node.js version:
-
-```yaml wrap
-runtimes:
-  node:
-    version: "22"
-```
-
-Use specific Python version with custom setup action:
-
-```yaml wrap
-runtimes:
-  python:
-    version: "3.12"
-    action-repo: "actions/setup-python"
-    action-version: "v5"
-```
-
-Multiple runtime overrides:
+Override one or more runtimes, optionally with a custom setup action:
 
 ```yaml wrap
 runtimes:
   node:
     version: "20"
   python:
-    version: "3.11"
-  go:
-    version: "1.22"
+    version: "3.12"
+    action-repo: "actions/setup-python"
+    action-version: "v5"
 ```
 
-**Default Behavior**: If not specified, workflows use default runtime versions as defined in the system. The compiler automatically detects which runtimes are needed based on tool configurations (e.g., `bash: ["node"]`, `bash: ["python"]`) and workflow steps.
-
-**Use Cases**:
-
-- Pin specific runtime versions for reproducibility
-- Use preview/beta runtime versions for testing
-- Use custom setup actions (forks, enterprise mirrors)
-- Override system defaults for compatibility requirements
-
-**Note**: Runtimes from imported shared workflows are automatically merged with your workflow's runtime configuration.
+Omitted runtimes use the defaults above. Runtimes from imported shared workflows are merged with your workflow's configuration.
 
 ### Source Tracking (`source:`)
 
@@ -480,17 +402,13 @@ source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
 
 ### Redirect (`redirect:`)
 
-Specifies a new canonical location when a workflow has been moved or renamed. `gh aw add`, `gh aw add-wizard`, and `gh aw update` follow redirect chains to the resolved location for remote workflows. During add/update flows, the local `source` field is written (or rewritten) to the resolved location, and redirect loops are detected and reported as errors.
+Specifies a new canonical location, using the same `owner/repo/path@ref` format as `source:`, when a workflow has been moved or renamed. `gh aw add`, `gh aw add-wizard`, and `gh aw update` follow redirect chains transitively (up to a depth limit) to the resolved location, rewrite the local `source` field accordingly, and report redirect loops as errors. `gh aw compile` emits an informational message when a `redirect` is configured.
 
 ```yaml wrap
 redirect: "githubnext/agentics/workflows/new-workflow-name.md@main"
 ```
 
-Use `gh aw update --no-redirect` to refuse updates when the source workflow has a `redirect` field — the update fails rather than following the redirect. This is useful for auditing or when you want to explicitly control when redirects are followed.
-
-`gh aw compile` emits an informational message when a workflow has a `redirect` field configured, so the redirect is visible during local development.
-
-The `redirect` field uses the same `owner/repo/path@ref` format as `source:`. Redirect chains are followed transitively (up to a depth limit).
+Use `gh aw update --no-redirect` to fail the update instead of following the redirect — useful for auditing or controlling exactly when redirects are applied.
 
 > [!NOTE]
 > The `redirect` field is set by workflow *authors* to signal that a workflow has moved. It is not typically set by end-users. If you see a redirect when running `gh aw update`, it means the upstream workflow has been relocated.
@@ -521,15 +439,9 @@ Mark a workflow as private to prevent it from being installed into other reposit
 private: true
 ```
 
-When `private: true` is set, attempting to add the workflow from another repository will fail with an error:
+Adding the workflow from another repository then fails with `workflow 'owner/repo/internal-tooling' is private and cannot be added to other repositories`. Use this for internal tooling, sensitive automation, or repository-specific workflows not intended for reuse.
 
-```
-workflow 'owner/repo/internal-tooling' is private and cannot be added to other repositories
-```
-
-Use this field for internal tooling, sensitive automation, or workflows that depend on repository-specific context and are not intended for external reuse.
-
-The `private:` field only blocks installation via `gh aw add`. It does not affect the visibility of the workflow file itself — that is controlled by your repository's access settings.
+This only blocks installation via `gh aw add`; the visibility of the workflow file itself is controlled by your repository's access settings.
 
 ### Feature Flags (`features:`)
 
