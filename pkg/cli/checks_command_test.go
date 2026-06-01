@@ -565,6 +565,8 @@ func TestPrintChecksText(t *testing.T) {
 
 func captureOutput(t *testing.T, fn func() error) (string, string) {
 	t.Helper()
+	// Do not call this helper from tests using t.Parallel; it manipulates
+	// process-global stdout/stderr and must be serialized.
 	captureOutputMu.Lock()
 	defer captureOutputMu.Unlock()
 
