@@ -235,6 +235,9 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 	}
 
 	steps := []string{sb.String()}
+	if override != nil && len(override.sparsePatterns) > 0 {
+		steps = append(steps, generateSparseCheckoutPartialCloneResetStep(""))
+	}
 	if cleanCreds {
 		steps = append(steps, generateCheckoutCredentialsCleanupStep())
 	}
@@ -320,6 +323,9 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	}
 
 	steps := []string{sb.String()}
+	if len(entry.sparsePatterns) > 0 {
+		steps = append(steps, generateSparseCheckoutPartialCloneResetStep(entry.key.path))
+	}
 	if entry.cleanCreds {
 		steps = append(steps, generateCheckoutCredentialsCleanupStep())
 	}
@@ -334,6 +340,19 @@ func generateCheckoutCredentialsCleanupStep() string {
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_checkout.sh"
 `
+}
+
+func generateSparseCheckoutPartialCloneResetStep(path string) string {
+	gitPrefix := "git"
+	if path != "" {
+		gitPrefix = fmt.Sprintf(`git -C "${{ github.workspace }}/%s"`, path)
+	}
+	return fmt.Sprintf(`      - name: Clear partial clone markers after sparse checkout
+        continue-on-error: true
+        run: |
+          %s config --local --unset-all remote.origin.promisor || true
+          %s config --local --unset-all remote.origin.partialclonefilter || true
+`, gitPrefix, gitPrefix)
 }
 
 // checkoutStepName returns a human-readable description for a checkout step.

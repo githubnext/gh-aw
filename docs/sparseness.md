@@ -35,11 +35,20 @@ Agent jobs always set `persist-credentials: false` to prevent credential exfiltr
 
 This means `git checkout <fetched-branch>` prompts for a username or fails with "unable to read tree", even though the branch ref is correctly available as `origin/<branch>`.
 
-### Fix: `filter: ''`
+### Fix: `filter: ''` plus post-checkout repair
 
-The compiled workflow passes `filter: ''` (empty string) in the `actions/checkout` `with:` block when sparse-checkout is configured. This prevents `actions/checkout` from adding `--filter=blob:none`, ensuring the repository is never configured as a partial clone. All blobs within the shallow window are downloaded upfront.
+The compiled workflow passes `filter: ''` (empty string) in the `actions/checkout` `with:` block when sparse-checkout is configured. However, `actions/checkout@v6.0.2` still falls back to `--filter=blob:none` because it treats the empty string as unset when sparse-checkout is present.
 
-This is only emitted when sparse-checkout patterns are present, since that is the condition under which `actions/checkout@v6` would automatically add the blobless filter.
+To compensate, gh-aw now emits a post-checkout repair step that clears the partial-clone markers written by `actions/checkout`:
+
+```bash
+git config --local --unset-all remote.origin.promisor || true
+git config --local --unset-all remote.origin.partialclonefilter || true
+```
+
+This step runs after sparse checkouts in agent jobs and before any follow-up `git fetch`, so later fetches download full blobs instead of silently inheriting `blob:none` from the persisted git config.
+
+The `filter: ''` input is still emitted because it documents the intent in the generated workflow and will become sufficient again if `actions/checkout` fixes its empty-string handling upstream.
 
 **Size impact**: For a large repository (e.g. github/github) with a typical sparse-checkout pattern, removing blobless increases the initial checkout from ~500 MB to ~1.3 GB (~800 MB extra, ~8-15 seconds on a GH runner). This is far preferable to agent failures and 4+ minutes of wasted retry time.
 
