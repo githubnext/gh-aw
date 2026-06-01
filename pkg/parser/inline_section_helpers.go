@@ -35,27 +35,27 @@ func nextH2After(offset int, h2Positions []int, markdownLength int) int {
 	return markdownLength
 }
 
-func validateUniqueInlineSectionNames(markdown string, allStarts [][]int, duplicateErr func(name string) error) error {
+func validateUniqueInlineSectionNames(markdown string, allStarts [][]int, createDuplicateError func(name string) error) error {
 	seen := make(map[string]struct{})
 	for _, m := range allStarts {
 		name := markdown[m[2]:m[3]]
 		if _, exists := seen[name]; exists {
-			return duplicateErr(name)
+			return createDuplicateError(name)
 		}
 		seen[name] = struct{}{}
 	}
 	return nil
 }
 
-func engineConfigDir(engineID string, subdir string) string {
+func engineConfigDir(engineID string, resourceType string) string {
 	switch strings.ToLower(engineID) {
 	case "claude":
-		return ".claude/" + subdir
+		return ".claude/" + resourceType
 	case "codex":
-		return ".codex/" + subdir
+		return ".codex/" + resourceType
 	case "gemini":
-		return ".gemini/" + subdir
+		return ".gemini/" + resourceType
 	default:
-		return ".github/" + subdir
+		return ".github/" + resourceType
 	}
 }
