@@ -9,7 +9,6 @@ To push changes to the branch of a pull request:
 **Multi-checkout workflows (`checkout:` with multiple repositories):**
 - `push_to_pull_request_branch` operates on the checkout for the target repository (for example `$GITHUB_WORKSPACE/github` when `path: ./github`).
 - Run all `git` commands from that checkout directory before calling the tool (for example `cd <target-checkout-path>`).
-- If needed, check out the PR branch locally from the fetched remote branch first (for example `git checkout <pr-branch>` from `origin/<pr-branch>`), then edit/add/commit, and finally call `push_to_pull_request_branch`.
 
 **Important constraints:**
 - This tool is **append-only**: it adds new commits on top of the existing PR branch. Force-push is NOT supported.
