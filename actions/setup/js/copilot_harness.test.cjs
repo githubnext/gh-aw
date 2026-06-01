@@ -1235,8 +1235,10 @@ describe("copilot_harness.cjs", () => {
     const MAX_RETRIES = 3;
 
     /**
-     * Mirrors the blended retry decision: in SDK mode useContinueOnRetry must never
-     * become true.
+     * Mirrors the blended retry decision from copilot_harness.cjs (the
+     * `attempt < MAX_RETRIES && result.hasOutput` branch plus the
+     * `useContinueOnRetry = !copilotSDKMode && !continueDisabledPermanently` assignment).
+     * Keep this helper in sync with the production logic.
      *
      * @param {{hasOutput: boolean, exitCode: number, output: string}} result
      * @param {number} attempt

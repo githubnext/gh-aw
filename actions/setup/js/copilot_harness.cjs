@@ -523,9 +523,9 @@ async function main() {
       }
     }
 
+    // CLI mode always enters the retry loop.  SDK mode only enters when a prompt was found;
+    // the missing-prompt case is handled above and results in lastExitCode=1 with no loop.
     if (!copilotSDKMode || sdkPrompt) {
-      const sdkUri = copilotSDKMode ? (sdkEnv.COPILOT_SDK_URI ?? process.env.COPILOT_SDK_URI ?? "") : "";
-
       // Unified retry loop for both SDK and CLI modes.
       // --continue is a CLI concept; in SDK mode retries always restart the session fresh.
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -543,7 +543,7 @@ async function main() {
         // Redact --prompt / -p value from logs to avoid leaking prompt content
         const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
         const result = copilotSDKMode
-          ? await runWithCopilotSDK({ sdkUri, prompt: sdkPrompt, logger: log, attempt })
+          ? await runWithCopilotSDK({ sdkUri: sdkEnv.COPILOT_SDK_URI ?? process.env.COPILOT_SDK_URI ?? "", prompt: sdkPrompt, logger: log, attempt })
           : await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
         lastExitCode = result.exitCode;
         const attemptDetections = detectCopilotErrors(result.output);
