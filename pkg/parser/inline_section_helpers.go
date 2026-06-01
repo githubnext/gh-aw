@@ -5,11 +5,6 @@ import (
 	"strings"
 )
 
-type inlineSection struct {
-	Name    string
-	Content string
-}
-
 var h2HeadingRegex = regexp.MustCompile(`(?m)^##[ \t]`)
 
 func collectH2Positions(markdown string) []int {
