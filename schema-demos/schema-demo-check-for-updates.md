@@ -5,6 +5,7 @@ on:
 permissions:
   contents: read
 engine: codex
+strict: false
 check-for-updates: false
 timeout-minutes: 5
 ---
