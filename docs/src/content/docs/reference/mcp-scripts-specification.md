@@ -1639,7 +1639,7 @@ sandbox with the following constraints:
   tool's `env:` field. No other environment variables from the runner are forwarded into
   the Go sandbox.
 
-### Norms Audit (2026-05-08)
+### Norms Audit (2026-06-01)
 
 The following is an audit of normative coverage for tool execution ordering, retry semantics,
 and error propagation — three areas that implementations commonly need explicit guidance on.
@@ -1665,6 +1665,8 @@ retry budgets, backoff strategy guidance, and idempotency responsibilities.
 
 Section §5.3 now defines a required `data.recoverable` boolean with normative semantics,
 and §5.7 defines how callers MUST/SHOULD interpret that signal for retries.
+
+_All open action items from the 2026-05-08 audit have been resolved. No outstanding gaps remain._
 
 ---
 
