@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
-	"slices"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -31,34 +30,25 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, fmt.Errorf("inspect analyzer result has unexpected type %T", pass.ResultOf[inspect.Analyzer])
 	}
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
-	}
-
-	insp.WithStack(nodeFilter, func(n ast.Node, push bool, stack []ast.Node) bool {
-		if !push {
-			return true
-		}
-
-		call, ok := n.(*ast.CallExpr)
+	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
+		call, ok := cur.Node().(*ast.CallExpr)
 		if !ok || !isContextBackgroundCall(call) {
-			return true
+			continue
 		}
 
 		pos := pass.Fset.PositionFor(call.Pos(), false)
 		if filecheck.IsTestFile(pos.Filename) {
-			return true
+			continue
 		}
 
-		for i := range slices.Backward(stack) {
-			fn, ok := stack[i].(*ast.FuncDecl)
+		for encl := range cur.Enclosing((*ast.FuncDecl)(nil)) {
+			fn, ok := encl.Node().(*ast.FuncDecl)
 			if !ok {
 				continue
 			}
-
 			ctxParamName, ok := contextParamName(pass, fn)
 			if !ok {
-				return true
+				break
 			}
 
 			pass.Report(analysis.Diagnostic{
@@ -78,10 +68,9 @@ func run(pass *analysis.Pass) (any, error) {
 					},
 				},
 			})
-			return true
+			break
 		}
-		return true
-	})
+	}
 
 	return nil, nil
 }
