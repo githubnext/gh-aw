@@ -55,7 +55,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 	assert.Equal(t, []string{"copilot/gpt-5.2*", "openai/gpt-5.2*"}, aliases["gpt-5.2"], "gpt-5.2 should map to copilot/openai gpt-5.2 family")
 	assert.Equal(t, []string{"copilot/gemini-3.5*flash*", "google/gemini-3.5*flash*", "gemini/gemini-3.5*flash*"}, aliases["gemini-3.5-flash"], "gemini-3.5-flash should map to provider-specific Gemini 3.5 Flash patterns")
 	assert.Contains(t, aliases["antigravity"], "copilot/antigravity*", "antigravity should include copilot/ provider pattern")
-	assert.Equal(t, []string{"copilot/*sonnet-4-5-*", "anthropic/*sonnet-4-5-*", "copilot/*sonnet-4-6*", "anthropic/*sonnet-4-6*"}, aliases["sonnet-6x"], "sonnet-6x should target Sonnet 4.5/4.6 dated model families")
+	assert.Equal(t, []string{"copilot/*sonnet-4.5*", "copilot/*sonnet-4.6*", "copilot/*sonnet-4-5-*", "anthropic/*sonnet-4-5-*", "copilot/*sonnet-4-6*", "anthropic/*sonnet-4-6*"}, aliases["sonnet-6x"], "sonnet-6x should target Sonnet 4.5/4.6 model families across dot and dated variants")
 	assert.Equal(t, []string{"opus?effort=high"}, aliases["opusplan"], "opusplan should map to opus with high reasoning effort")
 	assert.Contains(t, aliases["deep-research"], "gemini/deep-research*", "deep-research should support direct gemini/ provider models")
 
