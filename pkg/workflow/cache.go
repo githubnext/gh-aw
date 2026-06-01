@@ -200,9 +200,13 @@ func parseCacheMemoryRetentionDays(cacheMap map[string]any, entry *CacheMemoryEn
 //   - NaN/Inf float64 values
 //   - fractional float64 values
 //   - float64 values outside the exact-integer range [-2^53, 2^53]
+//   - float64 values outside the current architecture int range
 //   - uint64 values larger than math.MaxInt
 //   - unsupported types
 func parseOptionalInt(value any) *int {
+	maxInt := int(^uint(0) >> 1)
+	minInt := -maxInt - 1
+
 	// YAML unmarshaling can yield int, float64, or uint64 depending on parser/input.
 	if intValue, ok := value.(int); ok {
 		return &intValue
@@ -217,6 +221,9 @@ func parseOptionalInt(value any) *int {
 		// float64 can exactly represent integers only in [-2^53, 2^53].
 		const maxExactFloatInt = float64(1 << 53)
 		if floatValue < -maxExactFloatInt || floatValue > maxExactFloatInt {
+			return nil
+		}
+		if floatValue < float64(minInt) || floatValue > float64(maxInt) {
 			return nil
 		}
 		intValue := int(floatValue)
