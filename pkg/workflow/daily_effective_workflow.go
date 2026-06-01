@@ -118,7 +118,7 @@ func hasMaxDailyEffectiveTokensFrontmatterConfig(data *WorkflowData) bool {
 }
 
 func hasMaxDailyEffectiveTokensEnvConfig(envYAML string) bool {
-	for _, line := range strings.Split(envYAML, "\n") {
+	for line := range strings.SplitSeq(envYAML, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue

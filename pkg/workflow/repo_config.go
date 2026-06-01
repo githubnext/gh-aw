@@ -235,7 +235,7 @@ func validateRepoConfigValues(cfg *RepoConfig) error {
 	if cfg.UTC != "" {
 		normalized, err := NormalizeUTCOffset(cfg.UTC)
 		if err != nil {
-			return fmt.Errorf("invalid %s: utc %s", RepoConfigFileName, err)
+			return fmt.Errorf("invalid %s: utc %w", RepoConfigFileName, err)
 		}
 		cfg.UTC = normalized
 	}
