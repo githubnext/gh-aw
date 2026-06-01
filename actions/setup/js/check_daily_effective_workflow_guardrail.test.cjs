@@ -67,13 +67,17 @@ describe("check_daily_effective_workflow_guardrail", () => {
   });
 
   it("formats structured daily ET log messages", () => {
-    expect(
-      exports.formatDailyGuardrailLogMessage("Resolved current workflow ET guardrail context", {
-        currentRunId: 123,
-        workflowId: 456,
-        currentEffectiveTokens: 789,
-      })
-    ).toBe('[daily-workflow-et] Resolved current workflow ET guardrail context: {"currentRunId":123,"workflowId":456,"currentEffectiveTokens":789}');
+    const message = exports.formatDailyGuardrailLogMessage("Resolved current workflow ET guardrail context", {
+      currentRunId: 123,
+      workflowId: 456,
+      currentEffectiveTokens: 789,
+    });
+    expect(message).toContain("[daily-workflow-et] Resolved current workflow ET guardrail context: ");
+    expect(JSON.parse(message.split(": ", 2)[1])).toEqual({
+      currentRunId: 123,
+      workflowId: 456,
+      currentEffectiveTokens: 789,
+    });
     expect(exports.formatDailyGuardrailLogMessage("Completed ET inspection window")).toBe("[daily-workflow-et] Completed ET inspection window");
   });
 
