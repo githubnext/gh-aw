@@ -31,6 +31,7 @@ const DEFAULT_OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
 // - retry wrapper text that includes the canonical "Failed to get response..." phrase
 const ENGINE_RATE_LIMIT_429_RE =
   /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|rate_limit_(?:error|exceeded)|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
+const ZERO_TOKEN_EARLY_CLI_EXIT_SHUTDOWN_RE = /Shutdown signal received, initiating graceful shutdown(?:\s*\+\d+(?:\.\d+)?s)?/i;
 
 /**
  * Parse action failure issue expiration from environment.
@@ -169,6 +170,7 @@ function buildFailureMatchCategories(options) {
   if (options.mcpPolicyError) categories.push("mcp_policy_error");
   if (options.modelNotSupportedError) categories.push("model_not_supported_error");
   if (options.effectiveTokensRateLimitError) categories.push("effective_tokens_rate_limit_error");
+  if (options.zeroTokenEarlyCliExit) categories.push("zero_token_early_cli_exit");
   if (options.hasAppTokenMintingFailed) categories.push("app_token_minting_failed");
   if (options.hasLockdownCheckFailed) categories.push("lockdown_check_failed");
   if (options.hasStaleLockFileFailed) categories.push("stale_lock_file_failed");
@@ -1210,6 +1212,75 @@ function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
 }
 
 /**
+ * Detect the "zero-token early CLI exit" signature.
+ * @param {Object} options
+ * @param {string} options.agentConclusion
+ * @param {string} options.effectiveTokens
+ * @param {boolean} options.effectiveTokensRateLimitError
+ * @param {boolean} options.inferenceAccessError
+ * @param {boolean} options.mcpPolicyError
+ * @param {boolean} options.agenticEngineTimeout
+ * @param {boolean} options.modelNotSupportedError
+ * @returns {boolean}
+ */
+function detectZeroTokenEarlyCliExit(options) {
+  if (options.agentConclusion !== "failure") {
+    return false;
+  }
+  if (options.effectiveTokensRateLimitError || options.inferenceAccessError || options.mcpPolicyError || options.agenticEngineTimeout || options.modelNotSupportedError) {
+    return false;
+  }
+
+  const parsedEffectiveTokens = Number.parseInt(options.effectiveTokens || "", 10);
+  if (Number.isInteger(parsedEffectiveTokens) && parsedEffectiveTokens > 0) {
+    return false;
+  }
+
+  if (hasAgentTerminalReasonCompleted()) {
+    return false;
+  }
+
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+  const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
+  try {
+    if (!fs.existsSync(stdioLogPath)) {
+      return false;
+    }
+    const logContent = fs.readFileSync(stdioLogPath, "utf8");
+    if (!logContent.trim()) {
+      return false;
+    }
+    return ZERO_TOKEN_EARLY_CLI_EXIT_SHUTDOWN_RE.test(logContent);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Build context for zero-token early CLI exits.
+ * @param {boolean} hasZeroTokenEarlyCliExit
+ * @param {string} runUrl
+ * @returns {string}
+ */
+function buildZeroTokenEarlyCliExitContext(hasZeroTokenEarlyCliExit, runUrl) {
+  if (!hasZeroTokenEarlyCliExit) {
+    return "";
+  }
+
+  const templatePath = getPromptPath("zero_token_early_cli_exit.md");
+  try {
+    return "\n" + renderTemplateFromFile(templatePath, { run_line: runUrl ? `\n- Run: [${runUrl}](${runUrl})` : "" });
+  } catch {
+    const runLine = runUrl ? `\n- Run: [${runUrl}](${runUrl})` : "";
+    return (
+      "\n**⚠️ Zero-Token Early CLI Exit**: The Copilot CLI exited before any model inference turn started (no effective token usage recorded).\n\n" +
+      "This usually indicates an early startup/auth/config rejection rather than a rate-limit or timeout failure." +
+      `${runLine}\n`
+    );
+  }
+}
+
+/**
  * Detect HTTP 429/rate-limit engine failures in text payloads.
  * @param {string} content
  * @returns {boolean}
@@ -2048,6 +2119,15 @@ async function main() {
     const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
     const agenticEngineTimeout = process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT === "true";
     const modelNotSupportedError = process.env.GH_AW_MODEL_NOT_SUPPORTED_ERROR === "true";
+    const zeroTokenEarlyCliExit = detectZeroTokenEarlyCliExit({
+      agentConclusion,
+      effectiveTokens,
+      effectiveTokensRateLimitError,
+      inferenceAccessError,
+      mcpPolicyError,
+      agenticEngineTimeout,
+      modelNotSupportedError,
+    });
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
     const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
     // Feature flags: control whether missing_tool/missing_data signals trigger agent failure handling.
@@ -2113,6 +2193,7 @@ async function main() {
     core.info(`MCP policy error: ${mcpPolicyError}`);
     core.info(`Agentic engine timeout: ${agenticEngineTimeout}`);
     core.info(`Model not supported error: ${modelNotSupportedError}`);
+    core.info(`Zero-token early CLI exit: ${zeroTokenEarlyCliExit}`);
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
@@ -2375,6 +2456,7 @@ async function main() {
       mcpPolicyError,
       modelNotSupportedError,
       effectiveTokensRateLimitError,
+      zeroTokenEarlyCliExit,
       hasAppTokenMintingFailed,
       hasLockdownCheckFailed,
       hasStaleLockFileFailed,
@@ -2489,6 +2571,7 @@ async function main() {
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
         const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens, runUrl);
+        const zeroTokenEarlyCliExitContext = buildZeroTokenEarlyCliExitContext(zeroTokenEarlyCliExit, runUrl);
 
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
@@ -2537,6 +2620,7 @@ async function main() {
           mcp_policy_error_context: mcpPolicyErrorContext,
           model_not_supported_error_context: modelNotSupportedErrorContext,
           effective_tokens_rate_limit_error_context: effectiveTokensRateLimitErrorContext,
+          zero_token_early_cli_exit_context: zeroTokenEarlyCliExitContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
@@ -2677,6 +2761,7 @@ async function main() {
         // Build model not supported error context
         const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
         const effectiveTokensRateLimitErrorContext = buildEffectiveTokensRateLimitErrorContext(effectiveTokensRateLimitError, effectiveTokens, maxEffectiveTokens, runUrl);
+        const zeroTokenEarlyCliExitContext = buildZeroTokenEarlyCliExitContext(zeroTokenEarlyCliExit, runUrl);
 
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
@@ -2726,6 +2811,7 @@ async function main() {
           mcp_policy_error_context: mcpPolicyErrorContext,
           model_not_supported_error_context: modelNotSupportedErrorContext,
           effective_tokens_rate_limit_error_context: effectiveTokensRateLimitErrorContext,
+          zero_token_early_cli_exit_context: zeroTokenEarlyCliExitContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
@@ -2817,6 +2903,8 @@ module.exports = {
   buildPermissionDeniedContext,
   buildCredentialAuthErrorContext,
   buildEffectiveTokensRateLimitErrorContext,
+  detectZeroTokenEarlyCliExit,
+  buildZeroTokenEarlyCliExitContext,
   hasEngineRateLimit429Signal,
   hasEngineRateLimit429InOTELMirror,
   buildEngineRateLimit429Context,

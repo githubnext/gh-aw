@@ -1,7 +1,8 @@
 ---
 emoji: "📅"
-description: Daily report analyzing repository issues with clustering, metrics, and trend charts
-on: daily
+description: Daily report analyzing repository issues with clustering, metrics, and trend charts. Schedule disabled due to persistent zero-token early CLI exits; run manually with workflow_dispatch until fixed.
+on:
+  workflow_dispatch:
 max-daily-effective-tokens: 100M
 permissions:
   contents: read

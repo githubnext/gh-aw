@@ -11,6 +11,8 @@ describe("handle_agent_failure", () => {
   let buildPushRepoMemoryFailureContext;
   let buildReportIncompleteContext;
   let getActionFailureIssueExpiresHours;
+  let detectZeroTokenEarlyCliExit;
+  let buildZeroTokenEarlyCliExitContext;
 
   beforeEach(() => {
     // Provide minimal GitHub Actions globals expected by require-time code
@@ -27,7 +29,15 @@ describe("handle_agent_failure", () => {
 
     // Reset module registry so each test gets a fresh require
     vi.resetModules();
-    ({ main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildReportIncompleteContext, getActionFailureIssueExpiresHours } = require("./handle_agent_failure.cjs"));
+    ({
+      main,
+      buildCodePushFailureContext,
+      buildPushRepoMemoryFailureContext,
+      buildReportIncompleteContext,
+      getActionFailureIssueExpiresHours,
+      detectZeroTokenEarlyCliExit,
+      buildZeroTokenEarlyCliExitContext,
+    } = require("./handle_agent_failure.cjs"));
   });
 
   afterEach(() => {
@@ -765,6 +775,7 @@ describe("handle_agent_failure", () => {
         mcp_policy_error_context: "",
         model_not_supported_error_context: "",
         effective_tokens_rate_limit_error_context: "",
+        zero_token_early_cli_exit_context: "",
         app_token_minting_failed_context: "",
         lockdown_check_failed_context: "",
         stale_lock_file_failed_context: "",
@@ -789,6 +800,65 @@ describe("handle_agent_failure", () => {
 
       expect(renderTemplate(commentTemplate, templateContext)).toContain(reportIncompleteMarker);
       expect(renderTemplate(issueTemplate, templateContext)).toContain(reportIncompleteMarker);
+    });
+  });
+
+  describe("zero-token early CLI exit classifier", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const path = require("path");
+    let tmpDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-zero-token-"));
+      const agentOutputPath = path.join(tmpDir, "agent_output.json");
+      process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
+      fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), "[DEBUG] Shutdown signal received, initiating graceful shutdown +30.7s\n");
+    });
+
+    afterEach(() => {
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      delete process.env.RUNNER_TEMP;
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("detects zero-token early exit when known classifiers are false", () => {
+      const result = detectZeroTokenEarlyCliExit({
+        agentConclusion: "failure",
+        effectiveTokens: "",
+        effectiveTokensRateLimitError: false,
+        inferenceAccessError: false,
+        mcpPolicyError: false,
+        agenticEngineTimeout: false,
+        modelNotSupportedError: false,
+      });
+      expect(result).toBe(true);
+    });
+
+    it("does not detect when effective tokens are present", () => {
+      const result = detectZeroTokenEarlyCliExit({
+        agentConclusion: "failure",
+        effectiveTokens: "1234",
+        effectiveTokensRateLimitError: false,
+        inferenceAccessError: false,
+        mcpPolicyError: false,
+        agenticEngineTimeout: false,
+        modelNotSupportedError: false,
+      });
+      expect(result).toBe(false);
+    });
+
+    it("builds zero-token early exit context from template", () => {
+      const promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      fs.writeFileSync(path.join(promptsDir, "zero_token_early_cli_exit.md"), "zero-token marker{run_line}");
+      process.env.RUNNER_TEMP = tmpDir;
+
+      const context = buildZeroTokenEarlyCliExitContext(true, "https://github.com/owner/repo/actions/runs/1");
+      expect(context).toContain("zero-token marker");
+      expect(context).toContain("actions/runs/1");
     });
   });
 

@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"0777a2218d84d055b5124576bbd2bdf55da5fe42007b7b982f8ca78e18c6fb38","body_hash":"1115b6f306b9fbe3b4bd3f74f71ef884a5c66bd5a61b0ea37ee85d24ab4e5531","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"6819a827a9504fce2cd200e948a2c4d85bcdead7833cffc1c80232abb4c18b73","body_hash":"1115b6f306b9fbe3b4bd3f74f71ef884a5c66bd5a61b0ea37ee85d24ab4e5531","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/setup-python","sha":"a309ff8b426b58ec0e2a45f0f869d46889d02405","version":"v6.2.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.58"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.22"},{"image":"ghcr.io/github/github-mcp-server:v1.1.0"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -22,7 +22,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Daily report analyzing repository issues with clustering, metrics, and trend charts
+# Daily report analyzing repository issues with clustering, metrics, and trend charts. Schedule disabled due to persistent zero-token early CLI exits; run manually with workflow_dispatch until fixed.
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -68,9 +68,6 @@
 
 name: "Daily Issues Report Generator"
 on:
-  schedule:
-  - cron: "24 14 * * *"
-    # Friendly format: daily (scattered)
   workflow_dispatch:
     inputs:
       aw_context:
@@ -273,23 +270,23 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_b321ad5b5d946e2b_EOF'
+          cat << 'GH_AW_PROMPT_17c9db9d1cee3c68_EOF'
           <system>
-          GH_AW_PROMPT_b321ad5b5d946e2b_EOF
+          GH_AW_PROMPT_17c9db9d1cee3c68_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_b321ad5b5d946e2b_EOF'
+          cat << 'GH_AW_PROMPT_17c9db9d1cee3c68_EOF'
           <safe-output-tools>
           Tools: create_discussion, upload_asset(max:5), missing_tool, missing_data, noop
           
           upload_asset: provide a file path; returns a URL; assets are published after the workflow completes (safeoutputs).
           </safe-output-tools>
-          GH_AW_PROMPT_b321ad5b5d946e2b_EOF
+          GH_AW_PROMPT_17c9db9d1cee3c68_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_b321ad5b5d946e2b_EOF'
+          cat << 'GH_AW_PROMPT_17c9db9d1cee3c68_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -318,9 +315,9 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_b321ad5b5d946e2b_EOF
+          GH_AW_PROMPT_17c9db9d1cee3c68_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_b321ad5b5d946e2b_EOF'
+          cat << 'GH_AW_PROMPT_17c9db9d1cee3c68_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/skills/jqschema/SKILL.md}}
@@ -333,7 +330,7 @@ jobs:
           {{#runtime-import .github/shared/editorial.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-issues-report.md}}
-          GH_AW_PROMPT_b321ad5b5d946e2b_EOF
+          GH_AW_PROMPT_17c9db9d1cee3c68_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -431,9 +428,6 @@ jobs:
       discussions: read
       issues: read
       pull-requests: read
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
-      queue: max
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg,.svg"
@@ -756,9 +750,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << GH_AW_SAFE_OUTPUTS_CONFIG_7143f2c4ad7b4617_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << GH_AW_SAFE_OUTPUTS_CONFIG_297131da2a8c3efa_EOF
           {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":72,"fallback_to_issue":true,"max":1,"title_prefix":"[daily issues] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"upload_asset":{"allowed-exts":[".png",".jpg",".jpeg",".svg"],"branch":"assets/${GITHUB_WORKFLOW}","max":5,"max-size":10240}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_7143f2c4ad7b4617_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_297131da2a8c3efa_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -969,7 +963,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_ab25539d71c3bcf6_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_65208d4d10241ff4_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "safeoutputs": {
@@ -999,7 +993,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_ab25539d71c3bcf6_EOF
+          GH_AW_MCP_CONFIG_65208d4d10241ff4_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1578,7 +1572,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           WORKFLOW_NAME: "Daily Issues Report Generator"
-          WORKFLOW_DESCRIPTION: "Daily report analyzing repository issues with clustering, metrics, and trend charts"
+          WORKFLOW_DESCRIPTION: "Daily report analyzing repository issues with clustering, metrics, and trend charts. Schedule disabled due to persistent zero-token early CLI exits; run manually with workflow_dispatch until fixed."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
