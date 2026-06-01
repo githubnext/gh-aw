@@ -238,7 +238,7 @@ func TestParseDeployCommandOptions_EngineValidationError(t *testing.T) {
 		return expectedErr
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, expectedErr)
+	require.ErrorIs(t, err, expectedErr)
 	assert.Equal(t, "custom-engine", validatedEngine)
 	assert.Equal(t, AddOptions{}, opts)
 	assert.Zero(t, coolDown)
