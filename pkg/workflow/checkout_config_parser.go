@@ -348,7 +348,7 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 		"    - Checking out or switching to a remote branch that is not already fetched\n" +
 		"    - Deepening a shallow clone (`git fetch --unshallow`)\n" +
 		"    - On-demand blob fetches in partial/blobless clones (operations on files not in the initial checkout)\n" +
-		"  Do NOT attempt to configure credentials, run `git credential fill`, or modify `.gitconfig` — " +
+		"    Do NOT attempt to configure credentials, run `git credential fill`, or modify `.gitconfig` — " +
 		"authentication will not succeed. If you encounter credential prompts or authentication errors, " +
 		"stop immediately and report the limitation rather than spending turns trying to work around it.\n")
 
