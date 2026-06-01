@@ -3,10 +3,7 @@
 package workflow
 
 import (
-	"bytes"
 	"errors"
-	"io"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -410,24 +407,14 @@ func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError
 	}
 
 	initialWarnings := compiler.GetWarningCount()
-	oldStderr := os.Stderr
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
-	os.Stderr = w
-	t.Cleanup(func() { os.Stderr = oldStderr })
-
-	validateErr := compiler.validateToolConfiguration(workflowData, markdownPath, &Permissions{})
-
-	require.NoError(t, w.Close())
-
-	var stderr bytes.Buffer
-	_, err = io.Copy(&stderr, r)
-	require.NoError(t, err)
-	require.NoError(t, r.Close())
+	var validateErr error
+	stderr := testutil.CaptureStderr(t, func() {
+		validateErr = compiler.validateToolConfiguration(workflowData, markdownPath, &Permissions{})
+	})
 
 	require.Error(t, validateErr)
 	assert.Contains(t, validateErr.Error(), "threat detection requires sandbox.agent")
-	assert.Contains(t, stderr.String(), "Agent sandbox disabled (sandbox.agent: false)")
+	assert.Contains(t, stderr, "Agent sandbox disabled (sandbox.agent: false)")
 	assert.Equal(t, initialWarnings+1, compiler.GetWarningCount())
 }
 
