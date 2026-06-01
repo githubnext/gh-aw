@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -632,7 +632,7 @@ func TestAddSkillFileWithTracking_PreservesPathFromSkillsRoot(t *testing.T) {
 	err := addSkillFileWithTracking(resolved, nil, AddOptions{Quiet: true}, gitRoot)
 	require.NoError(t, err)
 
-	skillRoot := filepath.Join(gitRoot, parser.GetEngineSkillDir(""), "foo")
+	skillRoot := filepath.Join(gitRoot, workflow.GetEngineSkillDir(""), "foo")
 	expectedFile := filepath.Join(skillRoot, "scripts", "run.sh")
 	unexpectedFile := filepath.Join(skillRoot, "skills", "foo", "scripts", "run.sh")
 

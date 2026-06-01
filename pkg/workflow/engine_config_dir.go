@@ -1,0 +1,54 @@
+package workflow
+
+import "strings"
+
+// engineConfigBaseDir returns the base config directory for the given engine ID,
+// determined by looking up the engine in the global registry and reading the first
+// AgentManifestPathPrefix from the AgentFileProvider interface.
+// Falls back to ".github" when the engine is not found or provides no path prefixes.
+func engineConfigBaseDir(engineID string) string {
+	registry := GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine(strings.ToLower(engineID))
+	if err == nil {
+		if provider, ok := engine.(AgentFileProvider); ok {
+			if prefixes := provider.GetAgentManifestPathPrefixes(); len(prefixes) > 0 {
+				return strings.TrimSuffix(prefixes[0], "/")
+			}
+		}
+	}
+	return ".github"
+}
+
+// GetEngineSkillDir returns the relative directory (from repo root / tmp base) used
+// to store inline skill files for a given engine.
+//
+// The directory is derived from the engine's AgentManifestPathPrefixes:
+//
+//	claude       → .claude/skills
+//	codex        → .codex/skills
+//	gemini       → .gemini/skills
+//	crush        → .crush/skills
+//	opencode     → .opencode/skills
+//	antigravity  → .antigravity/skills
+//	pi           → .pi/skills
+//	others       → .github/skills  (Copilot default)
+func GetEngineSkillDir(engineID string) string {
+	return engineConfigBaseDir(engineID) + "/skills"
+}
+
+// GetEngineSubAgentDir returns the relative directory (from repo root / tmp base) used
+// to store inline sub-agent files for a given engine.
+//
+// The directory is derived from the engine's AgentManifestPathPrefixes:
+//
+//	claude       → .claude/agents
+//	codex        → .codex/agents
+//	gemini       → .gemini/agents
+//	crush        → .crush/agents
+//	opencode     → .opencode/agents
+//	antigravity  → .antigravity/agents
+//	pi           → .pi/agents
+//	others       → .github/agents  (Copilot default)
+func GetEngineSubAgentDir(engineID string) string {
+	return engineConfigBaseDir(engineID) + "/agents"
+}

@@ -12,7 +12,6 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -629,7 +628,7 @@ func addActionWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTrac
 // skill directory. The file's path relative to the skill directory is preserved so that
 // nested files (e.g. scripts/ subdirectories) are written with their full structure intact.
 func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, gitRoot string) error {
-	engineSkillDir := parser.GetEngineSkillDir(opts.EngineOverride)
+	engineSkillDir := workflow.GetEngineSkillDir(opts.EngineOverride)
 	skillDir := filepath.Join(gitRoot, engineSkillDir, resolved.SkillName)
 
 	// Determine the relative path under the skill directory so nested files preserve
@@ -715,7 +714,7 @@ func addSkillFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, 
 // addAgentFileWithTracking installs a single agent file from a package to the agentic engine
 // agents directory.
 func addAgentFileWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions, gitRoot string) error {
-	engineAgentsDir := parser.GetEngineSubAgentDir(opts.EngineOverride)
+	engineAgentsDir := workflow.GetEngineSubAgentDir(opts.EngineOverride)
 	agentsDir := filepath.Join(gitRoot, engineAgentsDir)
 	if err := os.MkdirAll(agentsDir, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create agents directory %s: %w", agentsDir, err)

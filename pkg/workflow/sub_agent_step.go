@@ -24,7 +24,7 @@ func generateRestoreInlineSubAgentsStep(yaml *strings.Builder, data *WorkflowDat
 	if data.EngineConfig != nil {
 		engineID = data.EngineConfig.ID
 	}
-	subAgentDir := parser.GetEngineSubAgentDir(engineID)
+	subAgentDir := GetEngineSubAgentDir(engineID)
 	subAgentExt := parser.GetEngineSubAgentExt(engineID)
 	subAgentStepLog.Printf("Generating restore inline sub-agents step: engine=%s, dir=%s, ext=%s", engineID, subAgentDir, subAgentExt)
 

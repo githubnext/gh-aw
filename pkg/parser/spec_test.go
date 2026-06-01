@@ -130,48 +130,6 @@ func TestSpec_PublicAPI_IsWorkflowSpec(t *testing.T) {
 	}
 }
 
-// TestSpec_InlineSubAgents_GetEngineSubAgentDir validates the documented
-// behavior of GetEngineSubAgentDir as described in the package README.md.
-//
-// Specification: Returns the relative directory used for sub-agent files for
-// a given engine (claude → .claude/agents, etc.).
-func TestSpec_InlineSubAgents_GetEngineSubAgentDir(t *testing.T) {
-	tests := []struct {
-		name     string
-		engineID string
-		expected string
-	}{
-		{
-			name:     "claude engine uses .claude/agents",
-			engineID: "claude",
-			expected: ".claude/agents",
-		},
-		{
-			name:     "codex engine uses .codex/agents",
-			engineID: "codex",
-			expected: ".codex/agents",
-		},
-		{
-			name:     "gemini engine uses .gemini/agents",
-			engineID: "gemini",
-			expected: ".gemini/agents",
-		},
-		{
-			name:     "unknown engine falls back to .github/agents",
-			engineID: "copilot",
-			expected: ".github/agents",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := GetEngineSubAgentDir(tt.engineID)
-			assert.Equal(t, tt.expected, result,
-				"GetEngineSubAgentDir(%q) should return documented sub-agent directory", tt.engineID)
-		})
-	}
-}
-
 // TestSpec_InlineSubAgents_GetEngineSubAgentExt validates the documented
 // behavior of GetEngineSubAgentExt as described in the package README.md.
 //

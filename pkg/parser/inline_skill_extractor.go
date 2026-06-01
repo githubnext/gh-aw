@@ -67,10 +67,6 @@ func validateInlineSkillFrontmatterFields(skill InlineSkill) []string {
 	)}
 }
 
-func GetEngineSkillDir(engineID string) string {
-	return engineConfigDir(engineID, "skills")
-}
-
 type InlineSkill struct {
 	Name    string
 	Content string

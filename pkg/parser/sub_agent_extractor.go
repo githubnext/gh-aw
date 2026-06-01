@@ -166,19 +166,6 @@ func validateSubAgentFrontmatterFields(agent InlineSubAgent) []string {
 	)}
 }
 
-// GetEngineSubAgentDir returns the relative directory (from repo root / tmp base) used
-// to store inline sub-agent files for a given engine.
-//
-// Each engine has a dedicated config directory:
-//
-//	claude   → .claude/agents
-//	codex    → .codex/agents
-//	gemini   → .gemini/agents
-//	others   → .github/agents  (Copilot default)
-func GetEngineSubAgentDir(engineID string) string {
-	return engineConfigDir(engineID, "agents")
-}
-
 // GetEngineSubAgentExt returns the file extension used for inline sub-agent files
 // for a given engine.
 //

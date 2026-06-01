@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -570,8 +569,8 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 		if ctx.data.EngineConfig != nil {
 			engineID = ctx.data.EngineConfig.ID
 		}
-		subAgentDir := parser.GetEngineSubAgentDir(engineID)
-		skillDir := parser.GetEngineSkillDir(engineID)
+		subAgentDir := GetEngineSubAgentDir(engineID)
+		skillDir := GetEngineSkillDir(engineID)
 		ctx.steps = append(ctx.steps, fmt.Sprintf("            /tmp/gh-aw/%s\n", subAgentDir))
 		ctx.steps = append(ctx.steps, fmt.Sprintf("            /tmp/gh-aw/%s\n", skillDir))
 	}

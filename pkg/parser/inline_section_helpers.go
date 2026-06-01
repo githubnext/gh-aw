@@ -46,16 +46,3 @@ func validateUniqueInlineSectionNames(markdown string, allStarts [][]int, create
 	}
 	return nil
 }
-
-func engineConfigDir(engineID string, resourceType string) string {
-	switch strings.ToLower(engineID) {
-	case "claude":
-		return ".claude/" + resourceType
-	case "codex":
-		return ".codex/" + resourceType
-	case "gemini":
-		return ".gemini/" + resourceType
-	default:
-		return ".github/" + resourceType
-	}
-}

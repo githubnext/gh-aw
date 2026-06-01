@@ -250,8 +250,8 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt-import-tree.json
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/base
-            /tmp/gh-aw/.github/agents
-            /tmp/gh-aw/.github/skills
+            /tmp/gh-aw/.pi/agents
+            /tmp/gh-aw/.pi/skills
           if-no-files-found: ignore
           retention-days: 1
 
@@ -360,12 +360,12 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh"
       - name: Restore inline sub-agents from activation artifact
         env:
-          GH_AW_SUB_AGENT_DIR: ".github/agents"
+          GH_AW_SUB_AGENT_DIR: ".pi/agents"
           GH_AW_SUB_AGENT_EXT: ".agent.md"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh"
       - name: Restore inline skills from activation artifact
         env:
-          GH_AW_SKILL_DIR: ".github/skills"
+          GH_AW_SKILL_DIR: ".pi/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
         run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.58 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.58 ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.58 ghcr.io/github/gh-aw-firewall/squid:0.25.58 ghcr.io/github/gh-aw-mcpg:v0.3.22 ghcr.io/github/github-mcp-server:v1.1.0
