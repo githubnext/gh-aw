@@ -13,7 +13,9 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: daily-agent-of-the-day-blog-writer
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: true
 timeout-minutes: 45
 network:

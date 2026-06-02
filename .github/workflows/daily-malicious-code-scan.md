@@ -11,7 +11,9 @@ permissions:
   security-events: read
   copilot-requests: write
 tracker-id: malicious-code-scan
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 safe-outputs:
   create-code-scanning-alert:
     driver: "Malicious Code Scanner"

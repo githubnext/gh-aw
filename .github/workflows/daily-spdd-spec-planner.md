@@ -13,7 +13,9 @@ permissions:
 
   copilot-requests: write
 tracker-id: daily-spdd-spec-planner
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: true
 
 imports:

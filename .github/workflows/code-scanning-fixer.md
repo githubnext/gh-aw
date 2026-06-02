@@ -10,7 +10,9 @@ permissions:
   pull-requests: read
   security-events: read
   copilot-requests: write
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 imports:
   - uses: shared/skip-if-issue-open.md
     with:

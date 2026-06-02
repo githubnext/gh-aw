@@ -16,7 +16,9 @@ permissions:
   actions: read
   pull-requests: read
   copilot-requests: write
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 tools:
   bash:
     - "gh agent-task create *"
