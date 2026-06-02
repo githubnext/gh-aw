@@ -163,6 +163,15 @@ func TestModelMultipliersInventoryUpdate20260530(t *testing.T) {
 	assert.InDelta(t, 57.0, loadedMultipliers["gpt-5.5-2026-04-23"], 1e-9, "gpt-5.5-2026-04-23 should match the documented multiplier")
 }
 
+func TestModelMultipliersInventoryUpdate20260602(t *testing.T) {
+	loadedMultipliers = nil
+	initMultipliers()
+
+	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
+	assert.InDelta(t, 1.0, loadedMultipliers["antigravity-preview-05-2026"], 1e-9, "antigravity-preview-05-2026 should match inferred pro-tier multiplier")
+	assert.InDelta(t, 0.2, loadedMultipliers["nano-banana-pro-preview"], 1e-9, "nano-banana-pro-preview should match inferred lightweight multiplier")
+}
+
 func TestModelMultipliersRemovedCopilotAliases(t *testing.T) {
 	loadedMultipliers = nil
 	initMultipliers()
