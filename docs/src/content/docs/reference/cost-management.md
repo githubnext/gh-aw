@@ -207,6 +207,40 @@ When the budget is approached, gh-aw emits steering warnings before
 the run reaches the limit. Set a negative value only when budget
 enforcement must be disabled explicitly.
 
+### Cap Turns per Run
+
+Use the top-level `max-turns` frontmatter field to cap the number
+of chat iterations (model responses and tool calls) for a single
+workflow run. Each additional turn consumes more tokens and Actions
+compute time, so a turn limit bounds both runaway loops and cost.
+
+```aw wrap
+max-turns: 20
+```
+
+`max-turns` is supported across Claude, Codex, Copilot, and
+Antigravity engines. When set, gh-aw exports the compiled value as
+`GH_AW_MAX_TURNS` for the engine runtime — you do not need to set
+`CLAUDE_CODE_MAX_TURNS` or an equivalent variable separately.
+
+The field accepts integer literals or GitHub Actions expressions,
+making it composable with `workflow_call` inputs:
+
+```aw wrap
+max-turns: ${{ inputs.max-turns || 15 }}
+```
+
+> [!NOTE]
+> `engine.max-turns` is a deprecated alias for the top-level field
+> and continues to compile for backward compatibility. Use
+> `gh aw fix engine-max-turns-to-top-level` to migrate existing
+> workflows automatically.
+
+An enterprise-wide default can be set via the compiler process
+environment variable `GH_AW_DEFAULT_MAX_TURNS`. Individual
+workflows override this default by setting `max-turns` in
+frontmatter.
+
 ### Cap Daily Effective Tokens per Workflow
 
 Use `max-daily-effective-tokens` to set a 24-hour effective-token
@@ -325,6 +359,7 @@ tools:
 | Signal | Automatic action |
 |--------|-----------------|
 | High token count per run | Switch to a smaller model (`gpt-4.1-mini`, `claude-haiku-4-5`) |
+| High turn count per run | Set `max-turns` to cap iterations and prevent runaway loops |
 | Frequent runs with no safe-output produced | Add or tighten `skip-if-match` |
 | Long queue times due to concurrency | Lower `user-rate-limit.max-runs-per-window` or add a `concurrency` group |
 | Workflow running too often | Change trigger to `schedule` or add `workflow_dispatch` |

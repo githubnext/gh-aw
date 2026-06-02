@@ -23,7 +23,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | Alias | Fallback patterns (tried in order) |
 |-------|-------------------------------------|
 | `sonnet` | `copilot/*sonnet*`, `anthropic/*sonnet*` |
-| `sonnet-6x` | `copilot/*sonnet-4-5-*`, `anthropic/*sonnet-4-5-*`, `copilot/*sonnet-4-6*`, `anthropic/*sonnet-4-6*` |
+| `sonnet-6x` | `copilot/*sonnet-4.5*`, `copilot/*sonnet-4.6*`, `copilot/*sonnet-4-5-*`, `anthropic/*sonnet-4-5-*`, `copilot/*sonnet-4-6*`, `anthropic/*sonnet-4-6*` |
 | `haiku` | `copilot/*haiku*`, `anthropic/*haiku*` |
 | `opus` | `copilot/*opus*`, `anthropic/*opus*` |
 | `gpt-5` | `copilot/gpt-5*`, `openai/gpt-5*` |
@@ -156,7 +156,7 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gpt-5.1-chat-latest` | 3 |
 | `gpt-5-codex` | 1 |
 | `gpt-5.1-codex` | 3 |
-| `gpt-5.1-codex-mini` | 0.33 |
+| `gpt-5.1-codex-mini` | 3 |
 | `gpt-5.1-codex-max` | 3 |
 | `gpt-5.1-codex-max-customsummarizer` | 3 |
 | `gpt-5.2` | 3 |
@@ -168,6 +168,7 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gpt-5.3-chat-latest` | 3 |
 | `gpt-5.3-codex` | 6 |
 | `gpt-5.3-codex-api-preview` | 6 |
+| `gpt-5.3-codex-api-preview-preambles` | 6 |
 | `gpt-5.4` | 6 |
 | `gpt-5.4-2026-03-05` | 6 |
 | `gpt-5.4-mini` | 6 |
@@ -175,8 +176,8 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gpt-5.4-nano-2026-03-17` | 6 |
 | `gpt-5.4-pro` | 6 |
 | `gpt-5.4-pro-2026-03-05` | 6 |
-| `gpt-5.5` | 57 |
-| `gpt-5.5-2026-04-23` | 57 |
+| `gpt-5.5` | 7.5 |
+| `gpt-5.5-2026-04-23` | 7.5 |
 | `gpt-5.5-pro` | 2 |
 | `gpt-5.5-pro-2026-04-23` | 2 |
 
@@ -224,17 +225,16 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gemini-flash-latest` | 0.2 |
 | `gemini-flash-lite-latest` | 0.1 |
 | `gemini-pro-latest` | 1 |
-| `gemini-3-flash` | 0.33 |
 | `gemini-3-flash-preview` | 0.33 |
-| `gemini-3-pro` | 6 |
 | `gemini-3-pro-preview` | 6 |
+| `gemini-3-pro-image` | 6 |
 | `gemini-3-pro-image-preview` | 6 |
-| `gemini-3.1-pro` | 6 |
 | `gemini-3.1-pro-preview` | 6 |
 | `gemini-3.1-pro-preview-customtools` | 6 |
 | `gemini-3.1-flash-live-preview` | 0.1 |
 | `gemini-3.1-flash-lite` | 0.1 |
 | `gemini-3.1-flash-lite-preview` | 0.1 |
+| `gemini-3.1-flash-image` | 0.33 |
 | `gemini-3.1-flash-image-preview` | 0.33 |
 | `gemini-3.1-flash-tts-preview` | 0.1 |
 | `gemini-3.5-flash` | 14 |
@@ -247,6 +247,8 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 
 | Model | Multiplier |
 |-------|-----------|
+| `antigravity-preview-05-2026` | 1 |
+| `nano-banana-pro-preview` | 0.2 |
 | `deep-research-max-preview-04-2026` | 1 |
 | `deep-research-preview-04-2026` | 1 |
 | `deep-research-pro-preview-12-2025` | 1 |
