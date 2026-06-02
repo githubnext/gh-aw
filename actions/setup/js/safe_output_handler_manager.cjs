@@ -1475,7 +1475,9 @@ async function main() {
     const skippedStandaloneResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
     const skippedCustomJobResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by custom safe output job");
     const skippedNoHandlerResults = processingResult.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded"));
-    const skippedHandlerResults = processingResult.results.filter(r => r.skipped && !r.reason && !r.deferred && !r.cancelled);
+    const skippedHandlerResults = processingResult.results.filter(
+      r => r.skipped && !r.deferred && !r.cancelled && r.reason !== "Handled by standalone step" && r.reason !== "Handled by custom safe output job"
+    );
 
     core.info(`\n=== Processing Summary ===`);
     core.info(`Total messages: ${processingResult.results.length}`);
@@ -1515,7 +1517,7 @@ async function main() {
 
     if (failureCount > 0) {
       if (tolerateFatalFailures) {
-        core.warning(`${failureCount} message(s) were skipped with warning because ${successCount} other message(s) succeeded`);
+        core.warning(`${failureCount} message(s) were skipped because ${successCount} other message(s) succeeded`);
       } else {
         core.warning(`${failureCount} message(s) failed to process`);
       }
