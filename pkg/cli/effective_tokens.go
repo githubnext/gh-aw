@@ -271,7 +271,9 @@ func computeBaseWeightedTokensForUsage(w types.TokenClassWeights, provider strin
 	if cacheReadTokens > 0 && providerIncludesCacheReadsInInput(provider) {
 		// Providers like Anthropic/OpenAI report cache_read_tokens as part of input_tokens.
 		// Deduct once so cache reads are weighted only by w.CachedInput, not double-counted.
-		// This may change ET versus previously stored effective_tokens values.
+		// This may change ET versus previously stored effective_tokens values when older
+		// runs were computed with the legacy double-counted input behavior.
+		// Recomputing from raw usage intentionally applies current ET semantics.
 		effectiveInput = max(inputTokens-cacheReadTokens, 0)
 	}
 
@@ -283,6 +285,14 @@ func computeBaseWeightedTokensForUsage(w types.TokenClassWeights, provider strin
 }
 
 func providerIncludesCacheReadsInInput(provider string) bool {
+	// Cache read accounting is provider-specific:
+	// - bundled semantics: cache_read_tokens are already included in input_tokens,
+	//   so we subtract once before applying input weight.
+	// - additive semantics: cache_read_tokens are separate from input_tokens,
+	//   so no subtraction is applied.
+	//
+	// Known providers currently using bundled semantics are listed below. Unknown
+	// providers default to additive semantics to avoid under-counting input tokens.
 	switch strings.ToLower(strings.TrimSpace(provider)) {
 	case "", "anthropic", "openai", "azure-openai", "azure_openai":
 		return true
