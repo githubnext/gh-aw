@@ -9,6 +9,10 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+network:
+  allowed:
+    - defaults
+    - python
 tracker-id: agentic-token-audit
 safe-outputs:
   create-issue:
