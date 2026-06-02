@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var piLog = logger.New("workflow:pi_engine")
@@ -39,7 +40,7 @@ func NewPiEngine() *PiEngine {
 			experimental: true,
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
-				MaxTurns:         false,
+				MaxTurns:         true,
 				MaxContinuations: false,
 				WebSearch:        false,
 				NativeAgentFile:  false,
@@ -428,6 +429,12 @@ touch %s
 
 	// Apply safe-outputs env
 	applySafeOutputEnvToMap(env, workflowData)
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	} else {
+		env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
+	}
 
 	// Apply custom env overrides from engine.env
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {

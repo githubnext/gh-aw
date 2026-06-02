@@ -6,6 +6,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var antigravityLog = logger.New("workflow:antigravity_engine")
@@ -24,7 +25,7 @@ func NewAntigravityEngine() *AntigravityEngine {
 			experimental: true,
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
-				MaxTurns:         false,
+				MaxTurns:         true,
 				MaxContinuations: false, // Antigravity CLI does not support --max-autopilot-continues-style continuation mode
 				WebSearch:        false,
 				NativeAgentFile:  false, // Antigravity does not support agent file natively; the compiler prepends the agent file content to prompt.txt
@@ -287,6 +288,12 @@ touch %s
 
 	// Add safe outputs env
 	applySafeOutputEnvToMap(env, workflowData)
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	} else {
+		env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
+	}
 
 	// Set the model environment variable only when explicitly configured.
 	// When model is configured, use the native ANTIGRAVITY_MODEL env var - the Antigravity CLI reads it

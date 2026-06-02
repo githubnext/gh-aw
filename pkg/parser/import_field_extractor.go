@@ -71,10 +71,12 @@ type importAccumulator struct {
 	// First engine.model found in imports that have no engine.id (first-wins strategy).
 	// These express a model preference without selecting a specific engine.
 	mergedEngineModel string
-	// First top-level max-runs / max-effective-tokens / max-daily-effective-tokens
+	// First top-level max-turns / max-runs / max-effective-tokens /
+	// max-daily-effective-tokens
 	// found across imports (first-wins).
 	// Values are stored as JSON-encoded raw values so numeric literals and strings
 	// round-trip consistently through import processing.
+	mergedMaxTurns                string
 	mergedMaxRuns                 string
 	mergedMaxEffectiveTokens      string
 	mergedMaxDailyEffectiveTokens string
@@ -346,12 +348,21 @@ func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath st
 // extractConfigFields extracts scalar and builder-based configuration fields from the
 // frontmatter map and writes them into the appropriate accumulator builders and slices.
 //
-// Side effects: acc.mergedMaxRuns, acc.mergedMaxEffectiveTokens,
+// Side effects: acc.mergedMaxTurns, acc.mergedMaxRuns, acc.mergedMaxEffectiveTokens,
 // acc.mergedMaxDailyEffectiveTokens, acc.mcpServersBuilder,
 // acc.safeOutputs, acc.mcpScripts, acc.stepsBuilder, acc.runtimesBuilder,
 // acc.servicesBuilder, acc.networkBuilder, acc.permissionsBuilder,
 // acc.secretMaskingBuilder.
 func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath string) {
+	// Extract max-turns (first-wins across imports).
+	if acc.mergedMaxTurns == "" {
+		if maxTurnsJSON, merr := extractFieldJSONFromMap(fm, "max-turns", ""); merr == nil &&
+			maxTurnsJSON != "" && maxTurnsJSON != "null" {
+			acc.mergedMaxTurns = maxTurnsJSON
+			parserLog.Printf("Extracted max-turns from import: %s", fullPath)
+		}
+	}
+
 	// Extract max-runs (first-wins across imports).
 	if acc.mergedMaxRuns == "" {
 		if maxRunsJSON, merr := extractFieldJSONFromMap(fm, "max-runs", ""); merr == nil &&
@@ -740,6 +751,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedEngineMCPToolTimeout:    acc.mergedEngineMCPToolTimeout,
 		MergedEngineMCPSessionTimeout: acc.mergedEngineMCPSessionTimeout,
 		MergedEngineModel:             acc.mergedEngineModel,
+		MergedMaxTurns:                acc.mergedMaxTurns,
 		MergedMaxRuns:                 acc.mergedMaxRuns,
 		MergedMaxEffectiveTokens:      acc.mergedMaxEffectiveTokens,
 		MergedMaxDailyEffectiveTokens: acc.mergedMaxDailyEffectiveTokens,

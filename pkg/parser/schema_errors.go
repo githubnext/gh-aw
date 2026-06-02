@@ -137,7 +137,7 @@ var typeConflictGotWantPattern = regexp.MustCompile(`(?:^|: )got (\w+), want (\w
 // The engine list mirrors the built-in engines in NewEngineCatalog.
 // Update this list when built-in engines change.
 var knownOneOfFieldHints = map[string]string{
-	"/engine":                "Valid engine names: claude, codex, copilot, gemini.\n\nExample:\nengine: copilot\n# or with options:\nengine:\n  id: copilot\n  max-turns: 15",
+	"/engine":                "Valid engine names: antigravity, claude, codex, copilot, crush, gemini, opencode, pi.\n\nExample:\nengine: copilot\n# or with options:\nengine:\n  id: copilot\nmax-turns: 15  # top-level field, not nested under engine",
 	"/tools/github/toolsets": "Valid toolsets: all, default, action-friendly, context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, search, secret_protection, security_advisories, stargazers, users.\n\nExample:\ntools:\n  github:\n    toolsets: default\n    # or as an array:\n    toolsets: [default, repos]",
 }
 

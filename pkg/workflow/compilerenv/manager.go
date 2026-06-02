@@ -20,7 +20,7 @@ const (
 	// max-daily-effective-tokens guardrail when it is not explicitly configured in
 	// workflow frontmatter.
 	DefaultMaxDailyEffectiveTokens = "GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS"
-	// DefaultMaxTurns is the enterprise override for engine.max-turns when it is not
+	// DefaultMaxTurns is the enterprise override for max-turns when it is not
 	// explicitly configured in workflow frontmatter.
 	DefaultMaxTurns = "GH_AW_DEFAULT_MAX_TURNS"
 	// DefaultTimeoutMinutes is the enterprise override for top-level timeout-minutes
@@ -134,6 +134,13 @@ func parsePositiveIntEnvVar(name string) (int64, bool) {
 		return 0, false
 	}
 	return parsed, true
+}
+
+// BuildDefaultMaxTurnsExpression builds a vars expression that resolves max-turns
+// at runtime from the GH_AW_DEFAULT_MAX_TURNS GitHub variable. An empty string is
+// returned as the fallback so that an unset variable is treated as "no limit".
+func BuildDefaultMaxTurnsExpression() string {
+	return fmt.Sprintf("${{ vars.%s || '' }}", DefaultMaxTurns)
 }
 
 // BuildModelOverrideExpression builds a vars expression with primary model var, enterprise

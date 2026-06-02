@@ -13,7 +13,7 @@ Use these variables to set organization- or repository-wide defaults without edi
 | --- | --- | --- | --- |
 | `GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS` | Compiler process environment | Default AWF `apiProxy.maxEffectiveTokens` budget | `max-effective-tokens` is not set in frontmatter |
 | `GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS` | Compiler process environment | Default `max-daily-effective-tokens` guardrail | `max-daily-effective-tokens` is not set in frontmatter |
-| `GH_AW_DEFAULT_MAX_TURNS` | Compiler process environment | Default `engine.max-turns` | `engine.max-turns` is not set in frontmatter and the selected engine supports max-turns |
+| `GH_AW_DEFAULT_MAX_TURNS` | Compiler process environment | Default top-level `max-turns` | `max-turns` is not set in frontmatter and the selected engine supports max-turns |
 | `GH_AW_DEFAULT_TIMEOUT_MINUTES` | Compiler process environment | Default top-level `timeout-minutes` | `timeout-minutes` is not set in frontmatter |
 | `GH_AW_DEFAULT_DETECTION_MODEL` | Compiler process environment | Default threat-detection model | `safe-outputs.threat-detection.engine.model` is not set |
 | `GH_AW_DEFAULT_UTC` | Compiler process environment | Default project home UTC offset for rendered CLI timestamps | `utc` is not set in `.github/workflows/aw.json` |
