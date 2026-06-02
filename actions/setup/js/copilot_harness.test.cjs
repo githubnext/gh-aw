@@ -406,6 +406,39 @@ describe("copilot_harness.cjs", () => {
           feedback: "Tool invocation is not allowed by workflow tool permissions.",
         });
       });
+
+      it("uses SDK default permission behavior when no permissionConfig is provided", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-default-permissions",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        const approveAll = vi.fn(() => ({ kind: "approve-once" }));
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll,
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        const sessionConfig = createSession.mock.calls[0][0];
+        expect(sessionConfig).not.toHaveProperty("onPermissionRequest");
+        expect(approveAll).not.toHaveBeenCalled();
+      });
     });
 
     it("builds headless Copilot CLI sidecar args", () => {

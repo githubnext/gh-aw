@@ -40,13 +40,18 @@ const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
 
 /**
  * Build a scoped SDK permission handler from Copilot CLI allow-tool rules.
- * When no explicit permission rules exist, preserve legacy approve-all behavior.
+ * When no explicit permission rules exist, return undefined so the SDK uses
+ * its default permission behavior (matching CLI mode semantics).
  *
  * @param {CopilotSDKPermissionConfig | undefined} permissionConfig
  * @param {import("@github/copilot-sdk").PermissionHandler} approveAll
- * @returns {import("@github/copilot-sdk").PermissionHandler}
+ * @returns {import("@github/copilot-sdk").PermissionHandler | undefined}
  */
 function buildCopilotSDKPermissionHandler(permissionConfig, approveAll) {
+  if (!permissionConfig) {
+    return undefined;
+  }
+
   const allowAll = permissionConfig?.allowAllTools === true;
   const allowedTools = Array.isArray(permissionConfig?.allowedTools) ? permissionConfig.allowedTools : [];
   const normalizedAllowedTools = allowedTools
@@ -55,10 +60,14 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll) {
     .filter(tool => tool.length > 0);
   const allowedToolEntries = new Set(normalizedAllowedTools);
 
-  // Backward-compatibility fallback: when no explicit rules are present,
-  // keep the previous approve-all behavior to avoid unexpectedly blocking runs.
-  if (!allowAll && allowedToolEntries.size === 0) {
+  // Keep explicit allow-all behavior when requested by the engine config.
+  if (allowAll) {
     return approveAll;
+  }
+
+  // No explicit rules: use SDK defaults to mirror CLI behavior when no toolsets are set.
+  if (allowedToolEntries.size === 0) {
+    return undefined;
   }
 
   const shellRules = [...allowedToolEntries]
@@ -71,8 +80,6 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll) {
    * @returns {boolean}
    */
   function isAllowed(request) {
-    if (allowAll) return true;
-
     switch (request.kind) {
       case "shell": {
         if (allowedToolEntries.has("shell")) return true;
@@ -217,17 +224,19 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
 
     /**
      * Build a scoped permission handler from allow-tool entries.
-     * Falls back to SDK approveAll when no explicit allow rules were generated.
-     * @type {import("@github/copilot-sdk").PermissionHandler}
+     * Leaves permissions to SDK defaults when no explicit rules were generated.
+     * @type {import("@github/copilot-sdk").PermissionHandler | undefined}
      */
     const onPermissionRequest = buildCopilotSDKPermissionHandler(permissionConfig, approveAll);
 
     /** @type {import("@github/copilot-sdk").SessionConfig} */
     const sessionConfig = {
       model: model || process.env.COPILOT_MODEL || undefined,
-      onPermissionRequest,
       provider,
     };
+    if (onPermissionRequest) {
+      sessionConfig.onPermissionRequest = onPermissionRequest;
+    }
     session = await client.createSession(sessionConfig);
     log(`session created: sessionId=${session.sessionId}`);
 
