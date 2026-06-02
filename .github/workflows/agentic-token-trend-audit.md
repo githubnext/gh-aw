@@ -168,10 +168,10 @@ Handle null/missing `token_usage` by treating them as 0.
 
 ## Phase 2 — Generate Charts
 
-Create two chart images in `/tmp/gh-aw/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling (the daily trend chart is conditional based on data availability):
+Create chart images in `/tmp/gh-aw/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling:
 
 1. **Token usage by workflow** (`token_by_workflow.png`): a horizontal bar chart of the top 15 workflows by total tokens from `audit_snapshot.json`.
-2. **Daily token usage trend** (`daily_token_trend.png`): a line chart that aggregates completed-run token usage by UTC day across the requested date range (skip this chart if fewer than 2 daily points exist).
+2. **Daily token usage trend** (`daily_token_trend.png`, optional): a line chart that aggregates completed-run token usage by UTC day across the requested date range (skip this chart if fewer than 2 daily points exist).
 
 Chart requirements:
 
