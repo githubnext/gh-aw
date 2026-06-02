@@ -345,6 +345,14 @@
           "description": "Review decision: APPROVE to approve the PR, REQUEST_CHANGES to request changes, or COMMENT for general feedback. Defaults to COMMENT when omitted.",
           "enum": ["APPROVE", "REQUEST_CHANGES", "COMMENT"],
           "default": "COMMENT"
+        },
+        "pull_request_number": {
+          "type": ["number", "string"],
+          "description": "Pull request number to submit the review on (optional - uses triggering PR if not provided). Required when the workflow target is '*' (any PR)."
+        },
+        "repo": {
+          "type": "string",
+          "description": "Target repository in 'owner/repo' format (optional - uses configured target repository if not provided)."
         }
       },
       "required": ["type"],

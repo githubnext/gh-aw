@@ -258,6 +258,12 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			if templatableIntValue(config.Max) > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum %d review(s) can be submitted.", templatableIntValue(config.Max)))
 			}
+			if config.Target != "" {
+				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
+			}
+			if config.TargetRepoSlug != "" {
+				constraints = append(constraints, fmt.Sprintf("Reviews will be submitted in repository %q.", config.TargetRepoSlug))
+			}
 		}
 
 	case "reply_to_pull_request_review_comment":
