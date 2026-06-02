@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       date_range:
-        description: "Date range for logs (format: <start>..<end>, e.g. 2026-05-01..2026-05-31 or -30d..now)"
+        description: "Date range for logs (format: <start>..<end>, where each side is YYYY-MM-DD or a delta like -30d; e.g. 2026-05-01..2026-05-31 or -30d..-0d)"
         required: true
         type: string
-        default: "-30d..now"
+        default: "-30d..-0d"
 permissions:
   contents: read
   actions: read
