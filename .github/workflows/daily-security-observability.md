@@ -59,6 +59,8 @@ safe-outputs:
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 
 timeout-minutes: 60
+env:
+  COPILOT_SDK_SEND_TIMEOUT_MS: "3300000"
 
 imports:
   - uses: shared/meta-analysis-base.md
