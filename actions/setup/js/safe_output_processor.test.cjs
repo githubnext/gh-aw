@@ -231,6 +231,30 @@ describe("safe_output_processor", () => {
       expect(mockCore.setFailed).toHaveBeenCalled();
     });
 
+    it("should mark unsupported triggering target as skipped instead of failed", async () => {
+      const agentOutput = {
+        items: [{ type: "test_type", value: "test_value" }],
+      };
+      fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
+      process.env.GH_AW_AGENT_OUTPUT = outputFile;
+      process.env.GH_AW_TEST_TARGET = "triggering";
+      global.context = {
+        eventName: "schedule",
+        repo: {
+          owner: "testowner",
+          repo: "testrepo",
+        },
+        payload: {},
+      };
+
+      const result = await processor.processSafeOutput(defaultConfig, defaultStagedOptions);
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.reason).toContain('Target is "triggering"');
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
     it("should find multiple items when findMultiple is true", async () => {
       const agentOutput = {
         items: [

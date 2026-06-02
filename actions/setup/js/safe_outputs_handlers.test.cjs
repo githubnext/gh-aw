@@ -207,6 +207,78 @@ describe("safe_outputs_handlers", () => {
       expect(mockAppendSafeOutput).toHaveBeenCalledWith({ type: "test-type" });
       expect(result.content[0].text).toBe(JSON.stringify({ result: "success" }));
     });
+
+    it("should reject triggering target at emit time outside issue or pull request events", () => {
+      global.context = {
+        repo: {
+          owner: "test-owner",
+          repo: "test-repo",
+        },
+        eventName: "schedule",
+        payload: {},
+      };
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        test_type: { target: "triggering" },
+      });
+
+      const handler = handlers.defaultHandler("test-type");
+      const result = handler({ body: "hello" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain('Configured target for \'test_type\' is "triggering"');
+      expect(responseData.error).toContain("issue or pull request event");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it('should reject "*" target at emit time when no explicit target number is provided', () => {
+      global.context = {
+        repo: {
+          owner: "test-owner",
+          repo: "test-repo",
+        },
+        eventName: "schedule",
+        payload: {},
+      };
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        test_type: { target: "*" },
+      });
+
+      const handler = handlers.defaultHandler("test-type");
+      const result = handler({ body: "hello" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain('Configured target for \'test_type\' is "*"');
+      expect(responseData.error).toContain("did not include an explicit target number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it('should allow "*" target at emit time when an explicit target number is provided', () => {
+      global.context = {
+        repo: {
+          owner: "test-owner",
+          repo: "test-repo",
+        },
+        eventName: "schedule",
+        payload: {},
+      };
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        test_type: { target: "*" },
+      });
+
+      const handler = handlers.defaultHandler("test-type");
+      const result = handler({ issue_number: 123, body: "hello" });
+
+      expect(result.isError).toBeUndefined();
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith({
+        issue_number: 123,
+        body: "hello",
+        type: "test-type",
+      });
+    });
   });
 
   describe("uploadAssetHandler", () => {

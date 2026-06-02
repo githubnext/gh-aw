@@ -40,6 +40,7 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
  * @property {number} [targetResult.number] - Target issue/PR number
  * @property {string} [targetResult.contextType] - Type of context (issue or pull request)
  * @property {string} [reason] - Reason why processing should not continue
+ * @property {boolean} [skipped] - Whether processing was intentionally skipped without failure
  */
 
 /**
@@ -187,7 +188,7 @@ async function processSafeOutput(config, stagedPreviewOptions, handlerConfig = n
     } else {
       core.info(targetResult.error);
     }
-    return { success: false, reason: targetResult.error };
+    return { success: false, skipped: !targetResult.shouldFail, reason: targetResult.error };
   }
 
   return {

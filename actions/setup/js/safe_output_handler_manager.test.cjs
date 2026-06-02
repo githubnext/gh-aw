@@ -13,6 +13,7 @@ import {
   isFailedProcessingResult,
   isReportOnlyFailureResult,
   partitionFailureResults,
+  shouldTolerateFatalFailures,
 } from "./safe_output_handler_manager.cjs";
 
 const require = createRequire(import.meta.url);
@@ -145,6 +146,24 @@ describe("Safe Output Handler Manager", () => {
 
       expect(reportOnlyFailures).toEqual([{ type: "assign_to_agent", success: false, error: "Insufficient permissions" }]);
       expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Validation failed" }]);
+    });
+
+    it("tolerates fatal failures when another safe output succeeded", () => {
+      expect(
+        shouldTolerateFatalFailures([
+          { type: "create_issue", success: true },
+          { type: "update_issue", success: false, error: "Target is invalid" },
+        ])
+      ).toBe(true);
+    });
+
+    it("does not tolerate fatal failures when nothing succeeded", () => {
+      expect(
+        shouldTolerateFatalFailures([
+          { type: "update_issue", success: false, error: "Target is invalid" },
+          { type: "assign_to_agent", success: false, error: "No permission" },
+        ])
+      ).toBe(false);
     });
   });
 

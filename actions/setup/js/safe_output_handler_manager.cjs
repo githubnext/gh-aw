@@ -568,6 +568,19 @@ function partitionFailureResults(results) {
 }
 
 /**
+ * Determine whether fatal safe-output item failures should be tolerated as warnings.
+ * This keeps the job green-with-warning when at least one item succeeded in the batch.
+ *
+ * @param {Array<{success?: boolean}>} results
+ * @returns {boolean}
+ */
+function shouldTolerateFatalFailures(results) {
+  const successCount = results.filter(r => r?.success).length;
+  const { fatalFailures } = partitionFailureResults(results);
+  return successCount > 0 && fatalFailures.length > 0;
+}
+
+/**
  * Process all messages from agent output in the order they appear
  * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
  * Tracks outputs created with unresolved temporary IDs and generates synthetic updates after resolution
@@ -1455,6 +1468,7 @@ async function main() {
     const successCount = processingResult.results.filter(r => r.success).length;
     const { fatalFailures, reportOnlyFailures } = partitionFailureResults(processingResult.results);
     const failureCount = fatalFailures.length;
+    const tolerateFatalFailures = shouldTolerateFatalFailures(processingResult.results);
     const reportOnlyFailureCount = reportOnlyFailures.length;
     const cancelledCount = processingResult.results.filter(r => r.cancelled).length;
     const deferredCount = processingResult.results.filter(r => r.deferred).length;
@@ -1500,10 +1514,16 @@ async function main() {
     core.info(`Synthetic updates: ${syntheticUpdateCount}`);
 
     if (failureCount > 0) {
-      core.warning(`${failureCount} message(s) failed to process`);
+      if (tolerateFatalFailures) {
+        core.warning(`${failureCount} message(s) were skipped with warning because ${successCount} other message(s) succeeded`);
+      } else {
+        core.warning(`${failureCount} message(s) failed to process`);
+      }
       const failedItemLines = fatalFailures.map(r => `  - ${r.type}: ${r.error || "Unknown error"}`);
       const failedItems = failedItemLines.join("\n");
-      core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);
+      if (!tolerateFatalFailures) {
+        core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);
+      }
     }
     if (reportOnlyFailureCount > 0) {
       core.warning(`${reportOnlyFailureCount} agent assignment(s) failed but were reported without failing safe_outputs`);
@@ -1627,4 +1647,5 @@ module.exports = {
   isFailedProcessingResult,
   isReportOnlyFailureResult,
   partitionFailureResults,
+  shouldTolerateFatalFailures,
 };

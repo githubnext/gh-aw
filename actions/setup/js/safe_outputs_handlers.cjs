@@ -132,6 +132,83 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   const TOKEN_THRESHOLD = 16000;
 
   /**
+   * @param {string} eventName
+   * @param {any} payload
+   * @returns {boolean}
+   */
+  const isIssueOrPullRequestContext = (eventName, payload) => {
+    const prEventNames = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
+    const isIssueCommentOnPR = eventName === "issue_comment" && Boolean(payload?.issue?.pull_request);
+    const isIssueContext = eventName === "issues" || (eventName === "issue_comment" && !isIssueCommentOnPR);
+    const isPRContext = prEventNames.has(eventName) || isIssueCommentOnPR;
+    return isIssueContext || isPRContext;
+  };
+
+  /**
+   * @param {Record<string, any>} entry
+   * @returns {boolean}
+   */
+  const hasExplicitTargetNumber = entry => {
+    const candidateFields = [
+      "item_number",
+      "issue_number",
+      "pull_request_number",
+      "pr_number",
+      "pr",
+      "pull_number",
+      "discussion_number",
+      "comment_id",
+      "thread_id",
+      "review_id",
+    ];
+
+    return candidateFields.some(field => {
+      const value = entry?.[field];
+      if (value === undefined || value === null || value === "") return false;
+      const parsed = typeof value === "number" ? value : parseInt(String(value), 10);
+      return Number.isInteger(parsed) && parsed > 0;
+    });
+  };
+
+  /**
+   * Reject target="triggering" or target="*" at emit time when the current event
+   * cannot provide an implicit issue/PR target and the item does not supply one.
+   *
+   * @param {Record<string, any>} entry
+   * @returns {string|null}
+   */
+  const validateEmitBoundaryTarget = entry => {
+    const normalizedType = String(entry?.type || "").replace(/-/g, "_");
+    const configuredTarget = typeof config?.[normalizedType]?.target === "string" ? config[normalizedType].target.trim() : "";
+    if (configuredTarget !== "triggering" && configuredTarget !== "*") {
+      return null;
+    }
+
+    const eventName = context?.eventName || "unknown";
+    if (isIssueOrPullRequestContext(eventName, context?.payload)) {
+      return null;
+    }
+
+    if (configuredTarget === "*") {
+      if (hasExplicitTargetNumber(entry)) {
+        return null;
+      }
+      return `Configured target for '${normalizedType}' is "*" but the current event '${eventName}' is not an issue or pull request event, and this MCP call did not include an explicit target number. Include item_number, issue_number, or pull_request_number in the tool call, use an explicit numeric target, or run the workflow from an issue or pull request event.`;
+    }
+
+    return `Configured target for '${normalizedType}' is "triggering" but the current event '${eventName}' is not an issue or pull request event. Use an explicit numeric target, switch to target "*" with an item_number/issue_number/pull_request_number in the tool call, or run the workflow from an issue or pull request event.`;
+  };
+
+  /**
+   * @param {Record<string, any>} entry
+   * @returns {{content: Array<{type: "text", text: string}>, isError: true}|null}
+   */
+  const maybeRejectEmitBoundaryTarget = entry => {
+    const targetError = validateEmitBoundaryTarget(entry);
+    return targetError ? buildIntentErrorResponse(targetError) : null;
+  };
+
+  /**
    * Detect and offload large string fields to files.
    * @param {Record<string, any>} entry
    * @returns {Object | null} MCP response if large content was handled, else null
@@ -158,6 +235,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     const fileInfo = writeLargeContentToFile(largeContent);
     entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
+    const targetValidationResponse = maybeRejectEmitBoundaryTarget(entry);
+    if (targetValidationResponse) return targetValidationResponse;
     appendSafeOutput(entry);
 
     return {
@@ -182,6 +261,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (largeContentResponse) return largeContentResponse;
 
     // Normal case - no large content
+    const targetValidationResponse = maybeRejectEmitBoundaryTarget(entry);
+    if (targetValidationResponse) return targetValidationResponse;
     appendSafeOutput(entry);
     return {
       content: [
@@ -310,6 +391,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       targetFileName: targetFileName,
     };
 
+    const targetValidationResponse = maybeRejectEmitBoundaryTarget(entry);
+    if (targetValidationResponse) return targetValidationResponse;
     appendSafeOutput(entry);
 
     return {
@@ -501,6 +584,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (allowEmpty) {
       server.debug(`allow-empty is enabled for create_pull_request - skipping patch generation`);
       // Append the safe output entry without generating a patch
+      const targetValidationResponse = maybeRejectEmitBoundaryTarget(entry);
+      if (targetValidationResponse) return targetValidationResponse;
       appendSafeOutput(entry);
       return {
         content: [
@@ -638,6 +723,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         entry.base_commit = bundleResult.baseCommit;
       }
 
+      const targetValidationResponse = maybeRejectEmitBoundaryTarget(entry);
+      if (targetValidationResponse) return targetValidationResponse;
       appendSafeOutput(entry);
       return {
         content: [
@@ -660,6 +747,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
+    const targetValidationResponse = maybeRejectEmitBoundaryTarget(entry);
+    if (targetValidationResponse) return targetValidationResponse;
     appendSafeOutput(entry);
     return {
       content: [
@@ -968,6 +1057,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         entry.base_commit = bundleResult.baseCommit;
       }
 
+      const targetValidationResponse = maybeRejectEmitBoundaryTarget(entry);
+      if (targetValidationResponse) return targetValidationResponse;
       appendSafeOutput(entry);
       return {
         content: [
@@ -990,6 +1081,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
+    const targetValidationResponse = maybeRejectEmitBoundaryTarget(entry);
+    if (targetValidationResponse) return targetValidationResponse;
     appendSafeOutput(entry);
     return {
       content: [
@@ -1260,6 +1353,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const largeContentResponse = maybeHandleLargeContent(entry);
     if (largeContentResponse) return largeContentResponse;
 
+    const targetValidationResponse = maybeRejectEmitBoundaryTarget(entry);
+    if (targetValidationResponse) return targetValidationResponse;
     appendSafeOutput(entry);
     return {
       content: [
@@ -1291,6 +1386,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     server.debug(`temporary_id for create_project: ${entry.temporary_id}`);
 
     // Append to safe outputs
+    const targetValidationResponse = maybeRejectEmitBoundaryTarget(entry);
+    if (targetValidationResponse) return targetValidationResponse;
     appendSafeOutput(entry);
 
     // Return the temporary_id to the agent so it can reference this project
@@ -1350,6 +1447,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     server.debug(`temporary_id for add_comment: ${entry.temporary_id}`);
 
     // Append to safe outputs
+    const targetValidationResponse = maybeRejectEmitBoundaryTarget(entry);
+    if (targetValidationResponse) return targetValidationResponse;
     appendSafeOutput(entry);
 
     // Return the temporary_id to the agent so it can reference this comment
