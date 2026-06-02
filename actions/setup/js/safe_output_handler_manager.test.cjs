@@ -149,21 +149,24 @@ describe("Safe Output Handler Manager", () => {
     });
 
     it("tolerates fatal failures when another safe output succeeded", () => {
-      expect(
-        shouldTolerateFatalFailures([
-          { type: "create_issue", success: true },
-          { type: "update_issue", success: false, error: "Target is invalid" },
-        ])
-      ).toBe(true);
+      const successCount = 1;
+      const fatalFailures = [{ type: "update_issue", success: false, error: "Target is invalid" }];
+      expect(shouldTolerateFatalFailures(successCount, fatalFailures)).toBe(true);
     });
 
     it("does not tolerate fatal failures when nothing succeeded", () => {
-      expect(
-        shouldTolerateFatalFailures([
-          { type: "update_issue", success: false, error: "Target is invalid" },
-          { type: "assign_to_agent", success: false, error: "No permission" },
-        ])
-      ).toBe(false);
+      const successCount = 0;
+      const fatalFailures = [
+        { type: "update_issue", success: false, error: "Target is invalid" },
+        { type: "assign_to_agent", success: false, error: "No permission" },
+      ];
+      expect(shouldTolerateFatalFailures(successCount, fatalFailures)).toBe(false);
+    });
+
+    it("does not tolerate when there are no fatal failures", () => {
+      const successCount = 2;
+      const fatalFailures = [];
+      expect(shouldTolerateFatalFailures(successCount, fatalFailures)).toBe(false);
     });
   });
 

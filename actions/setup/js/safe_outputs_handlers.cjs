@@ -149,18 +149,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * @returns {boolean}
    */
   const hasExplicitTargetNumber = entry => {
-    const candidateFields = [
-      "item_number",
-      "issue_number",
-      "pull_request_number",
-      "pr_number",
-      "pr",
-      "pull_number",
-      "discussion_number",
-      "comment_id",
-      "thread_id",
-      "review_id",
-    ];
+    const candidateFields = ["item_number", "issue_number", "pull_request_number", "pr_number", "pr", "pull_number", "discussion_number"];
 
     return candidateFields.some(field => {
       const value = entry?.[field];
@@ -184,8 +173,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       return null;
     }
 
-    const eventName = context?.eventName || "unknown";
-    if (isIssueOrPullRequestContext(eventName, context?.payload)) {
+    const ctx = typeof context !== "undefined" ? context : null;
+    const eventName = ctx?.eventName || "unknown";
+    if (isIssueOrPullRequestContext(eventName, ctx?.payload)) {
       return null;
     }
 
@@ -193,10 +183,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       if (hasExplicitTargetNumber(entry)) {
         return null;
       }
-      return `Configured target for '${normalizedType}' is "*" but the current event '${eventName}' is not an issue or pull request event, and this MCP call did not include an explicit target number. Include item_number, issue_number, or pull_request_number in the tool call, use an explicit numeric target, or run the workflow from an issue or pull request event.`;
+      return `Configured target for '${normalizedType}' is "*" but the current event '${eventName}' is not an issue or pull request event, and this MCP call did not include an explicit target number. Include one of item_number, issue_number, pull_request_number, pr_number, pr, pull_number, or discussion_number in the tool call, use an explicit numeric target, or run the workflow from an issue or pull request event.`;
     }
 
-    return `Configured target for '${normalizedType}' is "triggering" but the current event '${eventName}' is not an issue or pull request event. Use an explicit numeric target, switch to target "*" with an item_number/issue_number/pull_request_number in the tool call, or run the workflow from an issue or pull request event.`;
+    return `Configured target for '${normalizedType}' is "triggering" but the current event '${eventName}' is not an issue or pull request event. Use an explicit numeric target, switch to target "*" with one of item_number, issue_number, pull_request_number, pr_number, pr, pull_number, or discussion_number in the tool call, or run the workflow from an issue or pull request event.`;
   };
 
   /**
@@ -233,10 +223,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       return null;
     }
 
-    const fileInfo = writeLargeContentToFile(largeContent);
-    entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
     const targetValidationResponse = maybeRejectEmitBoundaryTarget(entry);
     if (targetValidationResponse) return targetValidationResponse;
+
+    const fileInfo = writeLargeContentToFile(largeContent);
+    entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
     appendSafeOutput(entry);
 
     return {

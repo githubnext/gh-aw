@@ -571,12 +571,11 @@ function partitionFailureResults(results) {
  * Determine whether fatal safe-output item failures should be tolerated as warnings.
  * This keeps the job green-with-warning when at least one item succeeded in the batch.
  *
- * @param {Array<{success?: boolean}>} results
+ * @param {number} successCount
+ * @param {Array<any>} fatalFailures
  * @returns {boolean}
  */
-function shouldTolerateFatalFailures(results) {
-  const successCount = results.filter(r => r?.success).length;
-  const { fatalFailures } = partitionFailureResults(results);
+function shouldTolerateFatalFailures(successCount, fatalFailures) {
   return successCount > 0 && fatalFailures.length > 0;
 }
 
@@ -1468,16 +1467,15 @@ async function main() {
     const successCount = processingResult.results.filter(r => r.success).length;
     const { fatalFailures, reportOnlyFailures } = partitionFailureResults(processingResult.results);
     const failureCount = fatalFailures.length;
-    const tolerateFatalFailures = shouldTolerateFatalFailures(processingResult.results);
+    const tolerateFatalFailures = shouldTolerateFatalFailures(successCount, fatalFailures);
     const reportOnlyFailureCount = reportOnlyFailures.length;
     const cancelledCount = processingResult.results.filter(r => r.cancelled).length;
     const deferredCount = processingResult.results.filter(r => r.deferred).length;
     const skippedStandaloneResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
     const skippedCustomJobResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by custom safe output job");
     const skippedNoHandlerResults = processingResult.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded"));
-    const skippedHandlerResults = processingResult.results.filter(
-      r => r.skipped && !r.deferred && !r.cancelled && r.reason !== "Handled by standalone step" && r.reason !== "Handled by custom safe output job"
-    );
+    const skippedHandlerResults = processingResult.results.filter(r => r.skipped && !r.deferred && !r.cancelled && !r.reason);
+    const skippedTargetResults = processingResult.results.filter(r => r.skipped && !r.deferred && !r.cancelled && r.reason && r.reason !== "Handled by standalone step" && r.reason !== "Handled by custom safe output job");
 
     core.info(`\n=== Processing Summary ===`);
     core.info(`Total messages: ${processingResult.results.length}`);
@@ -1496,6 +1494,11 @@ async function main() {
       core.info(`Skipped (no context or limit reached): ${skippedHandlerResults.length}`);
       const skippedHandlerTypes = [...new Set(skippedHandlerResults.map(r => r.type))];
       core.info(`  Types: ${skippedHandlerTypes.join(", ")}`);
+    }
+    if (skippedTargetResults.length > 0) {
+      core.info(`Skipped (target not resolvable): ${skippedTargetResults.length}`);
+      const skippedTargetLines = skippedTargetResults.map(r => `  - ${r.type}: ${r.reason}`);
+      core.info(skippedTargetLines.join("\n"));
     }
     if (skippedStandaloneResults.length > 0) {
       core.info(`Skipped (standalone step): ${skippedStandaloneResults.length}`);
@@ -1517,13 +1520,13 @@ async function main() {
 
     if (failureCount > 0) {
       if (tolerateFatalFailures) {
-        core.warning(`${failureCount} message(s) were skipped because ${successCount} other message(s) succeeded`);
+        const failedItemLines = fatalFailures.map(r => `  - ${r.type}: ${r.error || "Unknown error"}`);
+        const failedItems = failedItemLines.join("\n");
+        core.warning(`${failureCount} message(s) failed but were tolerated because ${successCount} other message(s) succeeded:\n${failedItems}`);
       } else {
         core.warning(`${failureCount} message(s) failed to process`);
-      }
-      const failedItemLines = fatalFailures.map(r => `  - ${r.type}: ${r.error || "Unknown error"}`);
-      const failedItems = failedItemLines.join("\n");
-      if (!tolerateFatalFailures) {
+        const failedItemLines = fatalFailures.map(r => `  - ${r.type}: ${r.error || "Unknown error"}`);
+        const failedItems = failedItemLines.join("\n");
         core.setFailed(`${failureCount} safe output(s) failed:\n${failedItems}`);
       }
     }

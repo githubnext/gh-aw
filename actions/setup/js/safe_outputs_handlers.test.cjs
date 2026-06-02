@@ -87,6 +87,7 @@ describe("safe_outputs_handlers", () => {
     delete process.env.GH_AW_ASSETS_BRANCH;
     delete process.env.GH_AW_ASSETS_MAX_SIZE_KB;
     delete process.env.GH_AW_ASSETS_ALLOWED_EXTS;
+    global.context = mockContext;
   });
 
   describe("probe intent helpers", () => {
@@ -227,8 +228,24 @@ describe("safe_outputs_handlers", () => {
       expect(result.isError).toBe(true);
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
-      expect(responseData.error).toContain('Configured target for \'test_type\' is "triggering"');
+      expect(responseData.error).toContain("Configured target for 'test_type' is \"triggering\"");
       expect(responseData.error).toContain("issue or pull request event");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should gracefully reject unsupported triggering target when github-script context is unavailable", () => {
+      delete global.context;
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        test_type: { target: "triggering" },
+      });
+
+      const handler = handlers.defaultHandler("test-type");
+      const result = handler({ body: "hello" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("current event 'unknown'");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
@@ -251,7 +268,7 @@ describe("safe_outputs_handlers", () => {
       expect(result.isError).toBe(true);
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
-      expect(responseData.error).toContain('Configured target for \'test_type\' is "*"');
+      expect(responseData.error).toContain("Configured target for 'test_type' is \"*\"");
       expect(responseData.error).toContain("did not include an explicit target number");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
