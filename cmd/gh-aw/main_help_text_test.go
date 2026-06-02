@@ -24,6 +24,7 @@ func TestCompileScheduleSeedHelpUsesConsistentQuotes(t *testing.T) {
 	require.NotNil(t, scheduleSeedFlag, "compile command should define --schedule-seed")
 	assert.Contains(t, scheduleSeedFlag.Usage, "\"github/gh-aw\"", "--schedule-seed example should use double quotes")
 	assert.Contains(t, scheduleSeedFlag.Usage, "\"origin\"", "--schedule-seed remote example should use double quotes")
+	assert.Contains(t, scheduleSeedFlag.Usage, "(e.g.,", "--schedule-seed example should use standard e.g., punctuation")
 }
 
 func TestCompileStagedFlagHelpText(t *testing.T) {
