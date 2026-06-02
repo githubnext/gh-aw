@@ -137,13 +137,14 @@ Write a Python script to `/tmp/gh-aw/token-audit/process_audit.py` and run it. T
 1. Load `/tmp/gh-aw/token-audit/workflow-logs.json` and extract `.runs` for the requested input range `${{ github.event.inputs.date_range }}`.
 2. Filter to `status == "completed"` runs only.
 3. Recompute each run's effective tokens from `token_usage_summary.by_model` raw usage using current token weights and model multipliers (do not trust historical precomputed totals):
-   - Load token-class weights and multipliers with this precedence:
+   - Load `token_class_weights` and the `multipliers` map from JSON with this precedence:
      1) `/tmp/gh-aw/model_multipliers.json` when present, otherwise
      2) `pkg/cli/data/model_multipliers.json`.
    - For each model row, compute base weighted tokens as:
+     - Normalize `provider` with `(provider or "").strip().lower()` before applying the rules below.
      - `effective_input = max(input_tokens - cache_read_tokens, 0)` for providers `""`, `anthropic`, `openai`, `azure-openai`, `azure_openai` (both Azure variants supported due to historical spelling variations in records)
      - `effective_input = input_tokens` for all other providers
-     - `base = (1.0 * effective_input) + (0.1 * cache_read_tokens) + (4.0 * output_tokens) + (4.0 * reasoning_tokens) + (1.0 * cache_write_tokens)`
+     - `base = (w_input * effective_input) + (w_cached_input * cache_read_tokens) + (w_output * output_tokens) + (w_reasoning * reasoning_tokens) + (w_cache_write * cache_write_tokens)` where the weights come from `token_class_weights` (defaults: `input=1.0`, `cached_input=0.1`, `output=4.0`, `reasoning=4.0`, `cache_write=1.0`).
      - Multiply `base` by the best matching model multiplier from the loaded multiplier map (case-insensitive exact match first, then longest lowercase prefix match, fallback `1.0`) and round to nearest integer.
    - Sum all model rows to get run-level effective tokens.
    - Fallback order when raw model usage is unavailable: legacy run metadata `effective_tokens` → legacy run metadata `token_usage` → `0`.
