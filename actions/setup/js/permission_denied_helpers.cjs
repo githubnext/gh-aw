@@ -27,7 +27,7 @@ function hasNumerousPermissionDeniedIssues(output) {
 
 /**
  * Extract the commands that were denied from process output.
- * Scans for lines using the CLI pipe marker (│) that appear
+ * Scans for lines using the pipe marker (│) that appear
  * within three lines before each "permission denied" occurrence.
  * Returns a deduplicated array of command strings (may be empty if
  * the output format does not contain extractable commands).
@@ -41,7 +41,7 @@ function extractDeniedCommands(output) {
   for (let i = 0; i < lines.length; i++) {
     if (/\bpermission denied\b/i.test(lines[i])) {
       // Look back up to 3 lines for a command displayed with the
-      // CLI box-drawing pipe marker (│ U+2502) or plain pipe (|).
+      // box-drawing pipe marker (│ U+2502) or plain pipe (|).
       for (let j = i - 1; j >= Math.max(0, i - 3); j--) {
         const cmdMatch = lines[j].match(/^\s*[\u2502|]\s+(.+)\s*$/);
         if (cmdMatch && cmdMatch[1].trim()) {
