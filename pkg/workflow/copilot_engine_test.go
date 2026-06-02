@@ -267,6 +267,9 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	if !strings.Contains(stepContent, `npm root -g`) || !strings.Contains(stepContent, `export NODE_PATH=`) {
 		t.Fatalf("Expected SDK mode command to configure NODE_PATH from npm global root, got:\n%s", stepContent)
 	}
+	if !strings.Contains(stepContent, `${NODE_PATH:+:${NODE_PATH}}`) {
+		t.Fatalf("Expected SDK mode command to preserve existing NODE_PATH entries, got:\n%s", stepContent)
+	}
 
 	// SDK mode pipes a JSON options payload via stdin.
 	// The payload must include promptFile and serverArgs (complete CLI arg list for the headless server).
