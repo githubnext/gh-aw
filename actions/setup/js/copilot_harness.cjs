@@ -326,15 +326,19 @@ function parseProviderAuthFailure(output) {
  */
 function isLikelyAWFAPIProxyURL(providerUrl) {
   try {
-    const hostname = new URL(providerUrl).hostname.toLowerCase();
+    const { hostname, port } = new URL(providerUrl);
+    const normalizedHostname = hostname.toLowerCase();
+    if (port !== "10002") {
+      return false;
+    }
     return (
-      hostname === "api-proxy" ||
-      hostname === "host.docker.internal" ||
-      hostname === "localhost" ||
-      /^127(?:\.\d{1,3}){3}$/.test(hostname) ||
-      /^10(?:\.\d{1,3}){3}$/.test(hostname) ||
-      /^192\.168(?:\.\d{1,3}){2}$/.test(hostname) ||
-      /^172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}$/.test(hostname)
+      normalizedHostname === "api-proxy" ||
+      normalizedHostname === "host.docker.internal" ||
+      normalizedHostname === "localhost" ||
+      /^127(?:\.\d{1,3}){3}$/.test(normalizedHostname) ||
+      /^10(?:\.\d{1,3}){3}$/.test(normalizedHostname) ||
+      /^192\.168(?:\.\d{1,3}){2}$/.test(normalizedHostname) ||
+      /^172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}$/.test(normalizedHostname)
     );
   } catch {
     return false;

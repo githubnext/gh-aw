@@ -925,6 +925,12 @@ describe("copilot_harness.cjs", () => {
 
       expect(diagnostic).toBe("");
     });
+
+    it("ignores local BYOK provider auth failures on non-proxy ports", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://host.docker.internal:11434/v1 (HTTP 401).", { COPILOT_MODEL: "qwen2.5:0.5b" });
+
+      expect(diagnostic).toBe("");
+    });
   });
 
   describe("auth error prevents retry", () => {
