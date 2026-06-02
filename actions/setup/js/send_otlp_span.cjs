@@ -1668,7 +1668,8 @@ function normalizeRuntimeTokenUsage(rawUsage) {
       return rawValue;
     }
     if (typeof rawValue === "string" && rawValue.trim()) {
-      const parsed = Number(rawValue.trim());
+      const trimmed = rawValue.trim();
+      const parsed = Number(trimmed);
       if (Number.isFinite(parsed) && parsed >= 0) {
         return parsed;
       }
