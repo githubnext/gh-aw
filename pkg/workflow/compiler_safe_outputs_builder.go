@@ -1,6 +1,10 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"math"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var safeOutputsBuilderLog = logger.New("workflow:safe_outputs_builder")
 
@@ -80,7 +84,13 @@ func (b *handlerConfigBuilder) AddBoolOrInt(key string, value any) *handlerConfi
 	case bool, int, int64, uint64:
 		b.config[key] = v
 	case float64:
-		b.config[key] = int(v)
+		if math.Trunc(v) == v {
+			b.config[key] = int(v)
+			return b
+		}
+		safeOutputsBuilderLog.Printf("Ignoring non-integer float for %s: %v", key, v)
+	default:
+		safeOutputsBuilderLog.Printf("Ignoring unsupported bool-or-int value for %s: %T", key, value)
 	}
 	return b
 }
