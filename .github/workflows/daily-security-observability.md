@@ -60,6 +60,7 @@ safe-outputs:
 
 timeout-minutes: 60
 env:
+  # 55 minutes, leaving headroom under the 60-minute workflow timeout.
   COPILOT_SDK_SEND_TIMEOUT_MS: "3300000"
 
 imports:
