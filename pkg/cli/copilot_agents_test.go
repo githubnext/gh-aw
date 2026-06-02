@@ -3,14 +3,18 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestDeleteLegacyAgentFiles tests deletion of old agent files.
@@ -316,19 +320,9 @@ func TestCheckedInAgenticWorkflowsAgentMatchesGeneratedContent(t *testing.T) {
 }
 
 func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
-	tempDir := testutil.TempDir(t, "test-*")
-	awDir := filepath.Join(tempDir, ".github", "aw")
-	if err := os.MkdirAll(awDir, 0o755); err != nil {
-		t.Fatalf("Failed to create .github/aw directory: %v", err)
-	}
+	withMockAWMarkdownFileList(t, []string{"workflow-z.md", "workflow-a.md"}, nil)
 
-	for _, name := range []string{"workflow-z.md", "workflow-a.md", "ignore.txt"} {
-		if err := os.WriteFile(filepath.Join(awDir, name), []byte("# test"), 0o644); err != nil {
-			t.Fatalf("Failed to create %s: %v", name, err)
-		}
-	}
-
-	content, err := buildAgenticWorkflowsSkillContent(tempDir)
+	content, err := buildAgenticWorkflowsSkillContent()
 	if err != nil {
 		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
 	}
@@ -342,29 +336,39 @@ func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
 	if content != expected {
 		t.Fatalf("Expected exact skill content:\n%s\ngot:\n%s", expected, content)
 	}
-	if strings.Contains(content, "ignore.txt") {
-		t.Fatalf("expected non-markdown files to be excluded from generated skill content:\n%s", content)
-	}
 	if strings.Contains(content, ".github/agents/agentic-workflows") {
 		t.Fatalf("expected generated skill content to avoid agent cross-references:\n%s", content)
 	}
 }
 
 func TestBuildAgenticWorkflowsSkillContentWithoutAWDirectory(t *testing.T) {
-	tempDir := testutil.TempDir(t, "test-*")
+	withMockAWMarkdownFileList(t, []string{"workflow-a.md"}, nil)
 
-	content, err := buildAgenticWorkflowsSkillContent(tempDir)
+	content, err := buildAgenticWorkflowsSkillContent()
 	if err != nil {
 		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
 	}
 
-	expected := strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, "", 1)
+	expected := strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, "- `.github/aw/workflow-a.md`\n", 1)
 	if content != expected {
 		t.Fatalf("Expected exact skill content without .github/aw directory:\n%s\ngot:\n%s", expected, content)
 	}
 	if strings.Contains(content, agenticWorkflowsSkillFileListPlaceholder) {
 		t.Fatalf("expected generated skill content to replace the file-list placeholder:\n%s", content)
 	}
+	if !strings.Contains(content, "- `.github/aw/workflow-a.md`") {
+		t.Fatalf("expected generated skill content to include remotely sourced markdown files:\n%s", content)
+	}
+}
+
+func TestBuildAgenticWorkflowsSkillContentFallsBackToEmbeddedFileList(t *testing.T) {
+	withMockAWMarkdownFileList(t, nil, assert.AnError)
+
+	content, err := buildAgenticWorkflowsSkillContent()
+	require.NoError(t, err, "buildAgenticWorkflowsSkillContent() returned error")
+
+	assert.NotContains(t, content, agenticWorkflowsSkillFileListPlaceholder, "expected generated skill content to replace the file-list placeholder")
+	assert.Contains(t, content, "- `.github/aw/create-agentic-workflow.md`\n", "expected embedded fallback markdown file list to be used")
 }
 
 func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
@@ -374,7 +378,19 @@ func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
 	}
 
 	gitRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
-	expected, err := buildAgenticWorkflowsSkillContent(gitRoot)
+	awEntries, err := os.ReadDir(filepath.Join(gitRoot, ".github", "aw"))
+	require.NoError(t, err, "failed to read .github/aw for test fixture")
+	awFiles := make([]string, 0, len(awEntries))
+	for _, entry := range awEntries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		awFiles = append(awFiles, entry.Name())
+	}
+	sort.Strings(awFiles)
+	withMockAWMarkdownFileList(t, awFiles, nil)
+
+	expected, err := buildAgenticWorkflowsSkillContent()
 	if err != nil {
 		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
 	}
@@ -387,4 +403,16 @@ func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
 	if strings.TrimSpace(string(actual)) != strings.TrimSpace(expected) {
 		t.Fatalf("Checked-in skill file is out of sync with generated content\nexpected:\n%s\nactual:\n%s", expected, string(actual))
 	}
+}
+
+func withMockAWMarkdownFileList(t *testing.T, files []string, err error) {
+	t.Helper()
+	previous := listAgenticWorkflowsMarkdownFiles
+	listAgenticWorkflowsMarkdownFiles = func(context.Context) ([]string, error) {
+		// Return a copy so tests can't mutate shared backing arrays across invocations.
+		return append([]string(nil), files...), err
+	}
+	t.Cleanup(func() {
+		listAgenticWorkflowsMarkdownFiles = previous
+	})
 }

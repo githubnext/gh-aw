@@ -372,7 +372,7 @@ Maps PR check rollups to one of the following normalized states:
 Returns JSON with two state fields:
   state          - aggregate state across all check runs and commit statuses
   required_state - state derived from check runs and policy commit statuses only;
-                   ignores optional third-party commit statuses (e.g. Vercel,
+                   ignores optional third-party commit statuses (e.g., Vercel,
                    Netlify deployments) but still surfaces policy_blocked when
                    branch-protection or account-gate statuses fail
 
