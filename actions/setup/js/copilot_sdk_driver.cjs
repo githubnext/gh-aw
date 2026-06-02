@@ -17,10 +17,25 @@
  *   /tmp/gh-aw/sandbox/agent/logs/copilot-session-state/{sessionId}/events.jsonl
  * which mirrors the path that copy_copilot_session_state.sh produces and that
  * unified_timeline.cjs reads.
+ *
+ * When run as a standalone program (require.main === module), the driver reads
+ * configuration from environment variables and starts the sidecar itself:
+ *
+ *   process.argv[2]               — path to the Copilot CLI binary
+ *   GH_AW_PROMPT                  — path to the prompt file
+ *   COPILOT_SDK_URI               — SDK server URI (determines the port)
+ *   GH_AW_COPILOT_SDK_SERVER_ARGS — JSON array of CLI args for the headless server
+ *   GITHUB_WORKSPACE              — workspace directory appended as --add-dir (optional)
+ *   COPILOT_MODEL                 — model override (optional)
+ *
+ * This makes the driver a self-contained command that can be started by the
+ * harness like any other command, while also serving as a sample showing how
+ * to create a Copilot SDK driver extension in agentic-workflows.
  */
 
 "use strict";
 
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -265,3 +280,132 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
 }
 
 module.exports = { extractPromptFromArgs, runWithCopilotSDK };
+
+// ---------------------------------------------------------------------------
+// Standalone entry point
+// ---------------------------------------------------------------------------
+
+/**
+ * Log a message prefixed with [copilot-sdk-driver] to stderr.
+ * @param {string} msg
+ */
+function log(msg) {
+  process.stderr.write(`[copilot-sdk-driver] ${msg}\n`);
+}
+
+/**
+ * Generate a random connection token for the SDK session.
+ * @returns {string}
+ */
+function generateConnectionToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+/**
+ * Entry point when the driver is run directly with Node:
+ *   node copilot_sdk_driver.cjs <copilot-binary-path>
+ *
+ * Reads configuration from environment variables, starts the Copilot CLI sidecar,
+ * runs a single SDK session, stops the sidecar, and exits with the session's exit
+ * code.  Any unhandled error causes a non-zero exit.
+ */
+async function main() {
+  const { startCopilotSDKServer, stopCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
+
+  // --- Read configuration from environment / argv ---------------------
+
+  const copilotBin = process.argv[2];
+  if (!copilotBin) {
+    process.stderr.write("[copilot-sdk-driver] error: missing argument: <copilot-binary-path>\n");
+    process.exit(1);
+  }
+
+  const promptFile = process.env.GH_AW_PROMPT;
+  if (!promptFile) {
+    process.stderr.write("[copilot-sdk-driver] error: GH_AW_PROMPT is not set\n");
+    process.exit(1);
+  }
+
+  const sdkUri = process.env.COPILOT_SDK_URI;
+  if (!sdkUri) {
+    process.stderr.write("[copilot-sdk-driver] error: COPILOT_SDK_URI is not set\n");
+    process.exit(1);
+  }
+
+  const serverArgsEnv = process.env.GH_AW_COPILOT_SDK_SERVER_ARGS;
+  /** @type {string[]} */
+  let serverArgs;
+  try {
+    serverArgs = serverArgsEnv ? JSON.parse(serverArgsEnv) : [];
+  } catch (err) {
+    process.stderr.write(`[copilot-sdk-driver] error: failed to parse GH_AW_COPILOT_SDK_SERVER_ARGS: ${err}\n`);
+    process.exit(1);
+  }
+
+  // Append the workspace directory to the sidecar args so the Copilot CLI can
+  // access the repository.  $GITHUB_WORKSPACE is only known at runtime.
+  if (process.env.GITHUB_WORKSPACE) {
+    serverArgs = [...serverArgs, "--add-dir", process.env.GITHUB_WORKSPACE];
+  }
+
+  const model = process.env.COPILOT_MODEL || undefined;
+  const connectionToken = generateConnectionToken();
+
+  // --- Read the prompt -------------------------------------------------
+
+  let prompt;
+  try {
+    prompt = fs.readFileSync(promptFile, "utf8");
+  } catch (err) {
+    process.stderr.write(`[copilot-sdk-driver] error: failed to read prompt file ${promptFile}: ${err}\n`);
+    process.exit(1);
+  }
+
+  log(`starting sidecar (${copilotBin})`);
+
+  // --- Start sidecar ---------------------------------------------------
+
+  let sidecar = null;
+  try {
+    sidecar = await startCopilotSDKServer({
+      command: copilotBin,
+      serverArgs,
+      logger: log,
+    });
+  } catch (err) {
+    process.stderr.write(`[copilot-sdk-driver] error: failed to start sidecar: ${err}\n`);
+    process.exit(1);
+  }
+
+  // --- Run SDK session -------------------------------------------------
+
+  let exitCode = 1;
+  try {
+    const result = await runWithCopilotSDK({
+      sdkUri,
+      prompt,
+      logger: log,
+      model,
+      connectionToken,
+    });
+    exitCode = result.exitCode;
+  } finally {
+    // Always stop the sidecar, even if the SDK session throws.
+    if (sidecar) {
+      try {
+        await stopCopilotSDKServer(sidecar, { logger: log });
+      } catch {
+        // best-effort cleanup
+      }
+    }
+  }
+
+  process.exit(exitCode);
+}
+
+if (require.main === module) {
+  main().catch(err => {
+    process.stderr.write(`[copilot-sdk-driver] unhandled error: ${err instanceof Error ? err.stack : String(err)}\n`);
+    process.exit(1);
+  });
+}

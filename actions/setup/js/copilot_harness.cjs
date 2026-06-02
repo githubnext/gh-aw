@@ -596,33 +596,45 @@ async function main() {
   // correct SDK endpoint URI.
   const sdkEnv = buildCopilotSDKEnv();
   const copilotSDKMode = isCopilotSDKEnabled();
+  // Driver mode: the engine started copilot_sdk_driver.cjs as a standalone command.
+  // The harness runs it like any other subprocess; sidecar management and SDK session
+  // handling are entirely the driver's responsibility.
+  const copilotSDKDriverMode = copilotSDKMode && process.env.GH_AW_COPILOT_SDK_DRIVER === "1";
   let copilotConnectionToken;
   if (copilotSDKMode) {
-    copilotConnectionToken = generateCopilotConnectionToken();
-    log(`copilot-sdk mode active: COPILOT_SDK_URI=${sdkEnv.COPILOT_SDK_URI || "(not set)"}`);
-    log("copilot-sdk mode active: generated per-run COPILOT_CONNECTION_TOKEN");
+    // In legacy inline-SDK mode the harness generates the token and injects it into
+    // the child process env so the sidecar and the SDK client share the same token.
+    // In driver mode the driver generates its own token internally.
+    if (!copilotSDKDriverMode) {
+      copilotConnectionToken = generateCopilotConnectionToken();
+      log("copilot-sdk mode active: generated per-run COPILOT_CONNECTION_TOKEN");
+    }
+    log(`copilot-sdk mode active: COPILOT_SDK_URI=${sdkEnv.COPILOT_SDK_URI || "(not set)"} driverMode=${copilotSDKDriverMode}`);
   }
   // Merge SDK env additions into the child process env only when the SDK helper
   // returned at least one variable; otherwise leave the env undefined so that
   // runProcess inherits the full process.env (the common case).
   // sdkEnv already contains SDK-mode variables (e.g. COPILOT_SDK_URI) when enabled.
-  // In SDK mode, also attach the generated per-run COPILOT_CONNECTION_TOKEN.
-  const sdkChildEnv = copilotSDKMode ? { ...sdkEnv, COPILOT_CONNECTION_TOKEN: copilotConnectionToken } : sdkEnv;
+  // In inline SDK mode, also attach the generated per-run COPILOT_CONNECTION_TOKEN.
+  const sdkChildEnv = copilotSDKMode && !copilotSDKDriverMode ? { ...sdkEnv, COPILOT_CONNECTION_TOKEN: copilotConnectionToken } : sdkEnv;
   const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
 
-  // In SDK mode, the engine pipes a JSON options payload via stdin containing the promptFile
+  // In inline SDK mode, the engine pipes a JSON options payload via stdin containing the promptFile
   // path, serverArgs (complete CLI argument list for the headless server), and optionally addWorkspaceDir.
   // Read it before doing anything else so stdin is consumed before the process runs.
-  // In CLI mode, args are resolved normally (--prompt-file is inlined into -p <text>).
+  // In driver mode and CLI mode, args are resolved normally.
   /** @type {{promptFile?: string, serverArgs?: string[], addWorkspaceDir?: boolean} | null} */
   let sdkOptions = null;
   let resolvedArgs;
-  if (copilotSDKMode) {
+  if (copilotSDKMode && !copilotSDKDriverMode) {
     sdkOptions = await readSDKOptionsFromStdin();
     if (sdkOptions) {
       log(`sdk-options: promptFile=${sdkOptions.promptFile || "(none)"} serverArgs=${(sdkOptions.serverArgs || []).length} addWorkspaceDir=${!!sdkOptions.addWorkspaceDir}`);
     }
-    // SDK mode does not use CLI prompt args; pass args through unmodified.
+    // Inline SDK mode does not use CLI prompt args; pass args through unmodified.
+    resolvedArgs = args;
+  } else if (copilotSDKMode) {
+    // Driver mode: args are the driver command + copilot binary path; no stdin payload.
     resolvedArgs = args;
   } else {
     resolvedArgs = resolvePromptFileArgs(args);
@@ -652,12 +664,13 @@ async function main() {
     agenticEngineTimeout: false,
     modelNotSupportedError: false,
   };
-  // In SDK mode the prompt is required; read it from the promptFile in sdkOptions (piped via
-  // stdin by the engine command).  Fall back to extracting from CLI args for backward compatibility.
+  // In inline SDK mode the prompt is required; read it from the promptFile in sdkOptions (piped
+  // via stdin by the engine command).  Fall back to extracting from CLI args for backward compatibility.
+  // In driver mode, the driver reads the prompt directly from GH_AW_PROMPT; no prompt needed here.
   let sdkPrompt = null;
   /** @type {{ model: string, provider: { type: "openai", baseUrl: string } } | null} */
   let sdkCustomProviderConfig = null;
-  if (copilotSDKMode) {
+  if (copilotSDKMode && !copilotSDKDriverMode) {
     if (sdkOptions && sdkOptions.promptFile) {
       try {
         sdkPrompt = fs.readFileSync(sdkOptions.promptFile, "utf8");
@@ -686,7 +699,8 @@ async function main() {
   /** @type {Awaited<ReturnType<typeof startCopilotSDKServer>>} */
   let copilotSDKServer = null;
   try {
-    if (copilotSDKMode) {
+    if (copilotSDKMode && !copilotSDKDriverMode) {
+      // Inline SDK mode: harness manages the sidecar and SDK session directly.
       if (!sdkPrompt) {
         log("copilot-sdk mode: no prompt found (expected promptFile in stdin JSON payload or -p/--prompt in args)");
         lastExitCode = 1;
@@ -708,10 +722,11 @@ async function main() {
       }
     }
 
-    // CLI mode always enters the retry loop.  SDK mode only enters when a prompt was found;
-    // the missing-prompt case is handled above and results in lastExitCode=1 with no loop.
-    if (!copilotSDKMode || sdkPrompt) {
-      // Unified retry loop for both SDK and CLI modes.
+    // CLI mode always enters the retry loop.
+    // Inline SDK mode only enters when a prompt was found; the missing-prompt case above sets lastExitCode=1.
+    // Driver mode always enters — the driver is responsible for its own prompt/sidecar handling.
+    if (!copilotSDKMode || copilotSDKDriverMode || sdkPrompt) {
+      // Unified retry loop for CLI, driver, and inline-SDK modes.
       // --continue is a CLI concept; in SDK mode retries always restart the session fresh.
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         // Add --continue flag on CLI retries so the copilot session continues from where it left off
@@ -728,7 +743,11 @@ async function main() {
         // Redact --prompt / -p value from logs to avoid leaking prompt content
         const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
         let result;
-        if (copilotSDKMode) {
+        if (copilotSDKDriverMode) {
+          // Driver mode: run copilot_sdk_driver.cjs as a normal subprocess. The driver manages
+          // the sidecar and SDK session itself; we just run it and collect the exit code.
+          result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
+        } else if (copilotSDKMode) {
           if (!sdkPrompt) {
             throw new Error("sdk-mode invariant violated: prompt must be resolved before execution");
           }
@@ -917,7 +936,10 @@ async function main() {
       await fetchAWFReflect({ logger: log });
     }
   } finally {
-    await stopCopilotSDKServer(copilotSDKServer, { logger: log });
+    // In driver mode the sidecar is managed by the driver process itself; don't stop it here.
+    if (!copilotSDKDriverMode) {
+      await stopCopilotSDKServer(copilotSDKServer, { logger: log });
+    }
   }
   log(`done: exitCode=${lastExitCode} totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
   process.exit(lastExitCode);

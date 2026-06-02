@@ -34,23 +34,6 @@ import (
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
-// copilotSDKStdinOptions is the JSON payload piped to the harness via stdin when copilot-sdk: true.
-// All options needed to start and configure the headless Copilot CLI sidecar are included so that
-// the JS harness does not need to parse Copilot CLI argument syntax itself.
-type copilotSDKStdinOptions struct {
-	// PromptFile is the path on disk to the prompt text file.
-	PromptFile string `json:"promptFile"`
-	// ServerArgs is the complete CLI argument list for the headless Copilot CLI server process.
-	// It includes the server control flags (--headless, --no-auto-update, --port) followed by
-	// all configuration flags (--add-dir, --log-level, --disable-builtin-mcps, etc.).
-	// The JS harness passes these directly to the spawned process without any parsing.
-	ServerArgs []string `json:"serverArgs,omitempty"`
-	// AddWorkspaceDir instructs the harness to append --add-dir ${GITHUB_WORKSPACE} to the
-	// server args at runtime.  This is needed in sandbox (AWF) mode where the workspace is
-	// only known via the environment variable at execution time.
-	AddWorkspaceDir bool `json:"addWorkspaceDir,omitempty"`
-}
-
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 
 const customEngineCommandScriptPath = "/tmp/gh-aw/engine-command.sh"
@@ -218,6 +201,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 	isCopilotSDKMode := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK
 
+	// copilotSDKServerArgsJSON holds the JSON-encoded server-args array set in
+	// GH_AW_COPILOT_SDK_SERVER_ARGS when copilot-sdk: true. Computed here alongside
+	// the command so the env-block section below can reference it without re-computing.
+	var copilotSDKServerArgsJSON string
+
 	var execPrefix string
 	if harnessScriptName != "" {
 		// Harness wraps the copilot subprocess; ${RUNNER_TEMP} and ${GH_AW_NODE_BIN} expand in the shell context.
@@ -225,46 +213,48 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		if isCopilotSDKMode {
 			runtimeResolutionCommand = nodeRuntimeResolutionCommandForCopilotSDK
 		}
-		execPrefix = fmt.Sprintf(`%s %s/%s %s`, runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
+		if isCopilotSDKMode {
+			// Driver mode: the harness receives "$GH_AW_NODE_EXEC" and copilot_sdk_driver.cjs
+			// as its argv, so it calls runProcess("$GH_AW_NODE_EXEC",
+			// ["copilot_sdk_driver.cjs", commandName]) — treating the driver like any other command.
+			// The shell expands $GH_AW_NODE_EXEC before the harness process starts, so the
+			// harness sees the absolute path to the node binary in its argv.
+			execPrefix = fmt.Sprintf(`%s %s/%s "$GH_AW_NODE_EXEC" %s/copilot_sdk_driver.cjs %s`,
+				runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName,
+				SetupActionDestinationShell, commandName)
+		} else {
+			execPrefix = fmt.Sprintf(`%s %s/%s %s`, runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
+		}
 	} else {
 		execPrefix = commandName
 	}
 
 	if isCopilotSDKMode {
-		// SDK mode: all Copilot CLI options are bundled into a JSON payload piped via stdin.
-		// This avoids passing copilot CLI flags as harness CLI args and lets the harness pass
-		// them directly to the headless sidecar server without any argument parsing.
+		// SDK driver mode: configuration is passed via environment variables so that
+		// copilot_sdk_driver.cjs is a self-contained program started by the harness
+		// like any other command.
 		//
-		// serverArgs: the complete CLI argument list for the headless Copilot CLI server process.
-		//   Includes the server control flags followed by all configuration flags.
-		// addWorkspaceDir: signals the harness to append --add-dir $GITHUB_WORKSPACE at runtime
-		//   (needed in sandbox/AWF mode; $GITHUB_WORKSPACE is only known at execution time).
+		// GH_AW_COPILOT_SDK_SERVER_ARGS carries the JSON-encoded CLI argument list for
+		// the headless Copilot CLI sidecar (--headless, --no-auto-update, --port, and all
+		// configuration flags). The driver reads this at runtime and passes the args
+		// directly to the spawned sidecar process without any argument parsing.
+		//
+		// The driver appends --add-dir $GITHUB_WORKSPACE automatically when that env var
+		// is set, so addWorkspaceDir does not need to be signalled separately.
 		serverArgs := append(
 			[]string{"--headless", "--no-auto-update", "--port", strconv.Itoa(constants.DefaultCopilotSDKPort)},
 			copilotArgs...,
 		)
-		sdkOptions := copilotSDKStdinOptions{
-			PromptFile:      "/tmp/gh-aw/aw-prompts/prompt.txt",
-			ServerArgs:      serverArgs,
-			AddWorkspaceDir: sandboxEnabled,
-		}
-		optionsJSON, err := json.Marshal(sdkOptions)
+		serverArgsJSON, err := json.Marshal(serverArgs)
 		if err != nil {
-			// This should never happen with a plain struct of strings and booleans,
-			// but log and fall back to a minimal payload so the run is not blocked.
-			copilotExecLog.Printf("warning: failed to marshal SDK stdin options: %v; falling back to minimal payload", err)
-			optionsJSON = []byte(`{"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt"}`)
+			// This should never happen with a plain string slice, but fall back to an
+			// empty array so the run is not blocked.
+			copilotExecLog.Printf("warning: failed to marshal SDK server args: %v; falling back to empty array", err)
+			serverArgsJSON = []byte(`[]`)
 		}
-		// Escape single quotes in the JSON for safe embedding in a single-quoted shell string.
-		// JSON marshaling never produces actual newlines, null bytes, or backslash sequences that
-		// would confuse `printf '%s'`; single quotes are the only character that can appear in a
-		// JSON string (from user-supplied args) and that breaks single-quote shell quoting.
-		jsonStr := strings.ReplaceAll(string(optionsJSON), "'", `'\''`)
-		// No copilot CLI args are appended to the harness invocation: all options live in the
-		// JSON payload, so the harness command is simply `node harness copilot`.
-		// Wrap the right-hand side in a shell group so stdin from the pipe reaches the harness
-		// command after node runtime resolution statements execute.
-		copilotCommand = fmt.Sprintf(`printf '%%s' '%s' | { %s; }`, jsonStr, execPrefix)
+		copilotSDKServerArgsJSON = string(serverArgsJSON)
+		// No CLI args are appended; all options are in env vars.
+		copilotCommand = execPrefix
 	} else if sandboxEnabled {
 		// Sandbox mode: add workspace dir and pass prompt file path directly
 		copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
@@ -565,6 +555,13 @@ touch %s
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
 		env[constants.CopilotSDKURIEnvVar] = fmt.Sprintf("http://127.0.0.1:%d", constants.DefaultCopilotSDKPort)
 		copilotExecLog.Printf("copilot-sdk enabled: set %s=%s", constants.CopilotSDKURIEnvVar, env[constants.CopilotSDKURIEnvVar])
+		// Signal the harness to start the driver as a normal subprocess rather than
+		// managing the sidecar and SDK session inline.
+		env[constants.CopilotSDKDriverEnvVar] = "1"
+		// Provide the complete CLI argument list for the headless sidecar so the
+		// driver can start it without any argument parsing.
+		env[constants.CopilotSDKServerArgsEnvVar] = copilotSDKServerArgsJSON
+		copilotExecLog.Printf("copilot-sdk driver mode: set %s and %s", constants.CopilotSDKDriverEnvVar, constants.CopilotSDKServerArgsEnvVar)
 	}
 
 	// Add HTTP MCP header secrets to env for passthrough
