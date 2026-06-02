@@ -3684,11 +3684,15 @@
         },
         {
           "id": "claude",
-          "model": "claude-3-5-sonnet-20241022",
-          "max-turns": 15
+          "model": "claude-3-5-sonnet-20241022"
         }
       ],
       "$ref": "#/$defs/engine_config"
+    },
+    "max-turns": {
+      "$ref": "#/$defs/templatable_integer",
+      "description": "AWF turn cap (`max_turns`) applied consistently across all agentic engines. Supports GitHub Actions expressions (e.g. '${{ inputs.max-turns }}') for reusable workflow_call workflows.",
+      "examples": [15, "${{ inputs.max-turns }}"]
     },
     "max-effective-tokens": {
       "oneOf": [
@@ -10607,17 +10611,10 @@
               "description": "Claude permission mode override. Defaults to acceptEdits (or auto when tools.edit is false)."
             },
             "max-turns": {
-              "oneOf": [
-                {
-                  "type": "integer",
-                  "description": "Maximum number of chat iterations per run as an integer value"
-                },
-                {
-                  "type": "string",
-                  "description": "Maximum number of chat iterations per run as a string value"
-                }
-              ],
-              "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted. Note: Only supported by the claude engine."
+              "$ref": "#/$defs/templatable_integer",
+              "deprecated": true,
+              "description": "Deprecated: use the top-level 'max-turns' field instead. This engine-level alias is kept for backward compatibility but may be removed in a future major version. Migration: move 'engine.max-turns: 15' to top-level 'max-turns: 15' so the AWF turn cap applies consistently across all agentic engines.",
+              "examples": [15, "${{ inputs.max-turns }}"]
             },
             "max-continuations": {
               "type": "integer",

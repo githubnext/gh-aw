@@ -195,8 +195,32 @@ func parseMaxRunsValue(raw any) int {
 	return 0
 }
 
+func parseMaxTurnsValue(raw any) string {
+	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
+		return strconv.Itoa(val)
+	}
+	if rawStr, ok := raw.(string); ok {
+		trimmed := strings.TrimSpace(rawStr)
+		if trimmed == "" {
+			return ""
+		}
+		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed > 0 {
+			return strconv.Itoa(parsed)
+		}
+		// Match the same GitHub Actions expression wrapper accepted by the schema.
+		// The schema and GitHub Actions runtime are responsible for validating the
+		// expression body itself; this helper only needs to preserve templated values.
+		if strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}") {
+			return trimmed
+		}
+		engineLog.Printf("Ignoring invalid max-turns value: %q", rawStr)
+	}
+	return ""
+}
+
 // ExtractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
 func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *EngineConfig) {
+	topLevelMaxTurns := parseMaxTurnsValue(frontmatter["max-turns"])
 	topLevelMaxEffectiveTokens := parseMaxEffectiveTokensValue(frontmatter["max-effective-tokens"])
 	topLevelMaxRuns := parseMaxRunsValue(frontmatter["max-runs"])
 
@@ -208,6 +232,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			engineLog.Printf("Found engine in string format: %s", engineStr)
 			return engineStr, &EngineConfig{
 				ID:                 engineStr,
+				MaxTurns:           topLevelMaxTurns,
 				MaxRuns:            topLevelMaxRuns,
 				MaxEffectiveTokens: topLevelMaxEffectiveTokens,
 			}
@@ -279,6 +304,9 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 						config.PermissionMode = permissionModeStr
 					}
 				}
+				if topLevelMaxTurns != "" {
+					config.MaxTurns = topLevelMaxTurns
+				}
 				config.MaxRuns = topLevelMaxRuns
 				config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
 
@@ -312,13 +340,14 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
-			// Extract optional 'max-turns' field
+			// Extract optional 'max-turns' field (deprecated alias for top-level max-turns).
+			// Use parseMaxTurnsValue for consistent validation: rejects negative values and
+			// arbitrary strings while preserving valid integers and GitHub Actions expressions.
 			if maxTurns, hasMaxTurns := engineObj["max-turns"]; hasMaxTurns {
-				if val, ok := typeutil.ParseIntValue(maxTurns); ok {
-					config.MaxTurns = strconv.Itoa(val)
-				} else if maxTurnsStr, ok := maxTurns.(string); ok {
-					config.MaxTurns = maxTurnsStr
-				}
+				config.MaxTurns = parseMaxTurnsValue(maxTurns)
+			}
+			if topLevelMaxTurns != "" {
+				config.MaxTurns = topLevelMaxTurns
 			}
 
 			// Extract optional 'max-continuations' field
@@ -504,6 +533,9 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			}
 
 			// Return the ID as the engineSetting for backwards compatibility
+			if topLevelMaxTurns != "" {
+				config.MaxTurns = topLevelMaxTurns
+			}
 			config.MaxRuns = topLevelMaxRuns
 			config.MaxEffectiveTokens = topLevelMaxEffectiveTokens
 
@@ -520,8 +552,9 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 		}
 	}
 
-	if topLevelMaxEffectiveTokens != 0 || topLevelMaxRuns > 0 {
+	if topLevelMaxTurns != "" || topLevelMaxEffectiveTokens != 0 || topLevelMaxRuns > 0 {
 		return "", &EngineConfig{
+			MaxTurns:           topLevelMaxTurns,
 			MaxRuns:            topLevelMaxRuns,
 			MaxEffectiveTokens: topLevelMaxEffectiveTokens,
 		}

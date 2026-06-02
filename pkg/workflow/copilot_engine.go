@@ -40,7 +40,7 @@ func NewCopilotEngine() *CopilotEngine {
 			experimental: false,
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
-				MaxTurns:         false, // Copilot CLI does not support max-turns feature yet
+				MaxTurns:         true,  // AWF max-turns is supported for Copilot runs
 				MaxContinuations: true,  // Copilot CLI supports --autopilot with --max-autopilot-continues
 				WebSearch:        false, // Copilot CLI does not have built-in web-search support
 				BareMode:         true,  // Copilot CLI supports --no-custom-instructions

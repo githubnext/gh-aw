@@ -55,6 +55,7 @@ type ImportsResult struct {
 	MergedEngineMCPToolTimeout    string                // First engine.mcp.tool-timeout found across all imports (Go duration string, e.g. "10m")
 	MergedEngineMCPSessionTimeout string                // First engine.mcp.session-timeout found across all imports (Go duration string, e.g. "4h")
 	MergedEngineModel             string                // First engine.model found in imports that have no engine.id (model preference without engine selection)
+	MergedMaxTurns                string                // First max-turns value found across all imports (JSON-encoded, first-wins)
 	MergedMaxRuns                 string                // First max-runs value found across all imports (JSON-encoded, first-wins)
 	MergedMaxEffectiveTokens      string                // First max-effective-tokens value found across all imports (JSON-encoded, first-wins)
 	MergedMaxDailyEffectiveTokens string                // First max-daily-effective-tokens value found across all imports (JSON-encoded, first-wins)

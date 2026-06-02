@@ -23,7 +23,7 @@ func TestAntigravityEngine(t *testing.T) {
 	t.Run("capabilities", func(t *testing.T) {
 		capabilities := engine.GetCapabilities()
 		assert.True(t, capabilities.ToolsAllowlist, "Should support tools allowlist")
-		assert.False(t, capabilities.MaxTurns, "Should not support max turns")
+		assert.True(t, capabilities.MaxTurns, "Should support max turns")
 		assert.False(t, capabilities.WebSearch, "Should not support built-in web search")
 	})
 

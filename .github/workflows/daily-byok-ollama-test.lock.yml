@@ -807,6 +807,7 @@ jobs:
           COPILOT_MODEL: qwen2.5:0.5b
           COPILOT_PROVIDER_API_KEY: ${{ env.OLLAMA_API_KEY }}
           COPILOT_PROVIDER_BASE_URL: http://host.docker.internal:11434/v1
+          GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1316,6 +1317,7 @@ jobs:
           COPILOT_MODEL: qwen2.5:0.5b
           COPILOT_PROVIDER_API_KEY: ${{ env.OLLAMA_API_KEY }}
           COPILOT_PROVIDER_BASE_URL: http://host.docker.internal:11434/v1
+          GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
           GH_AW_PHASE: detection
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_VERSION: dev

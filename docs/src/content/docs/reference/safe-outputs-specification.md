@@ -5135,6 +5135,40 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 
 ---
 
+## Sync Notes
+
+This section maps normative specification requirements (§3–§11) to implementation files, enabling traceability between specification and code.
+
+| Specification Section | Normative Requirements | Implementation File(s) |
+|---|---|---|
+| §3 Security Architecture | Privilege separation, threat mitigations (SP1–SP7), cross-repo rules | `pkg/workflow/safe_outputs_permissions.go`, `pkg/workflow/compiler_safe_outputs.go` |
+| §3.1 Privilege Separation Model | Permission computation, `computePermissionsForSafeOutputs()` | `pkg/workflow/safe_outputs_permissions.go` |
+| §3.2 Threat Model and Mitigations | Content sanitization, staged mode, permission scoping | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_output_processor.cjs` |
+| §4 Structural Components | MCP server configuration, data flow | `pkg/workflow/mcp_renderer_guard.go`, `pkg/workflow/mcp_github_config.go` |
+| §4.2 Data Flow Sequence | Safe output processing phases (Phase 1–8) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_output_handler_manager.cjs` |
+| §4.3 Configuration Propagation | Compiler-to-runtime config passing | `pkg/workflow/compiler_safe_outputs.go`, `pkg/workflow/compiler_safe_outputs_builder.go` |
+| §5 Configuration Semantics | Frontmatter YAML parsing, type-specific config | `pkg/workflow/compiler_safe_outputs.go`, `pkg/workflow/safe_output_handlers.go` |
+| §5.2 Global Parameters | `footer`, `staged`, global max limits | `actions/setup/js/safe_outputs_config.cjs`, `pkg/workflow/compiler_safe_outputs.go` |
+| §6 Universal Feature Interpretation | Max limit semantics (MR1–MR4), staged mode (SM1–SM4), footer attribution (FA1–FA6) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_mcp_server.cjs` |
+| §7 Safe Output Type Definitions | Handler implementations for each type | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_tools.json` |
+| §7.1 Core Issue Operations | `create_issue`, `add_comment`, `hide_comment`, `close_issue` | `actions/setup/js/add_comment.cjs`, `actions/setup/js/safe_outputs_handlers.cjs` |
+| §8 Protocol Exchange Patterns | HTTP transport, tool invocation, MCP server constraint enforcement | `actions/setup/js/safe_outputs_mcp_server.cjs`, `actions/setup/js/safe_outputs_mcp_server_http.cjs` |
+| §9 Content Integrity Mechanisms | Content sanitization pipeline | `actions/setup/js/safe_output_validator.cjs`, `actions/setup/js/safe_output_type_validator.cjs` |
+| §10 Execution Guarantees | Idempotency, staged mode enforcement | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_output_action_handler.cjs` |
+| §11 Cache Memory Integrity | Cache key format, integrity branches, git-backed branching | `pkg/workflow/compiler_safe_outputs.go`, `actions/setup/js/safe_outputs_bootstrap.cjs` |
+
+Sync procedure:
+1. Update this specification when changing safe output handlers, permission computation, or MCP server constraint logic.
+2. Update corresponding implementation files in `actions/setup/js/`, `pkg/workflow/`, and `pkg/cli/` in the same change.
+3. Re-run safe output tests to verify normative parity: `make test-safe-outputs`.
+
+Sync follow-up tasks:
+
+- **[Open]** Add cross-references from §7 handler definitions to exact function names in `actions/setup/js/safe_outputs_handlers.cjs` for all 15+ safe output types.
+- **[Open]** Map §8.3 MCP Server Constraint Enforcement requirements (MCE1–MCE5) to specific validation calls in `actions/setup/js/safe_outputs_mcp_server.cjs`.
+
+---
+
 **End of Specification**
 
 Copyright © 2025 GitHub, Inc. All rights reserved.

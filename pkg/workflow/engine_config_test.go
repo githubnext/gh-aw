@@ -45,6 +45,38 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{MaxRuns: 25},
 		},
 		{
+			name: "top-level max-turns without engine",
+			frontmatter: map[string]any{
+				"max-turns": 25,
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        &EngineConfig{MaxTurns: "25"},
+		},
+		{
+			name: "top-level max-turns expression without engine",
+			frontmatter: map[string]any{
+				"max-turns": "${{ inputs.max-turns }}",
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        &EngineConfig{MaxTurns: "${{ inputs.max-turns }}"},
+		},
+		{
+			name: "top-level max-turns zero is ignored",
+			frontmatter: map[string]any{
+				"max-turns": 0,
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        nil,
+		},
+		{
+			name: "top-level max-turns negative is ignored",
+			frontmatter: map[string]any{
+				"max-turns": -1,
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        nil,
+		},
+		{
 			name: "top-level negative max-effective-tokens disables budget and steering",
 			frontmatter: map[string]any{
 				"max-effective-tokens": -1,
@@ -173,6 +205,29 @@ func TestExtractEngineConfig(t *testing.T) {
 			},
 			expectedEngineSetting: "claude",
 			expectedConfig:        &EngineConfig{ID: "claude", MaxRuns: 12},
+		},
+		{
+			name: "object format - with top-level max-turns",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "codex",
+				},
+				"max-turns": 12,
+			},
+			expectedEngineSetting: "codex",
+			expectedConfig:        &EngineConfig{ID: "codex", MaxTurns: "12"},
+		},
+		{
+			name: "object format - top-level max-turns overrides engine max-turns",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":        "codex",
+					"max-turns": 3,
+				},
+				"max-turns": "${{ inputs.max-turns }}",
+			},
+			expectedEngineSetting: "codex",
+			expectedConfig:        &EngineConfig{ID: "codex", MaxTurns: "${{ inputs.max-turns }}"},
 		},
 		{
 			name: "object format - with top-level max-runs as string",

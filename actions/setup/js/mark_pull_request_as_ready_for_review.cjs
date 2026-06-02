@@ -63,7 +63,7 @@ async function addPullRequestComment(github, owner, repo, prNumber, commentBody)
 /** @type {string} GraphQL mutation to mark a pull request as ready for review */
 const MARK_PR_READY_MUTATION = /* GraphQL */ `
   mutation ($pullRequestId: ID!) {
-    markPullRequestAsReadyForReview(input: { pullRequestId: $pullRequestId }) {
+    markPullRequestReadyForReview(input: { pullRequestId: $pullRequestId }) {
       pullRequest {
         number
         isDraft
@@ -77,7 +77,7 @@ const MARK_PR_READY_MUTATION = /* GraphQL */ `
 /**
  * Mark a pull request as ready for review using the GraphQL API.
  * The REST API `pulls.update` silently ignores `draft: false`, so the GraphQL
- * mutation `markPullRequestAsReadyForReview` must be used instead.
+ * mutation `markPullRequestReadyForReview` must be used instead.
  * @param {any} github - GitHub GraphQL instance
  * @param {string} pullRequestNodeId - The PR's GraphQL node ID (e.g., 'PR_kwDO...')
  * @returns {Promise<{number: number, html_url: string, title: string, isDraft: boolean}>} Pull request details
@@ -85,7 +85,7 @@ const MARK_PR_READY_MUTATION = /* GraphQL */ `
 async function markPullRequestAsReadyForReview(github, pullRequestNodeId) {
   const result = await github.graphql(MARK_PR_READY_MUTATION, { pullRequestId: pullRequestNodeId });
 
-  const pr = result.markPullRequestAsReadyForReview.pullRequest;
+  const pr = result.markPullRequestReadyForReview.pullRequest;
   return {
     number: pr.number,
     html_url: pr.url,

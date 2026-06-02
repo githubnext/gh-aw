@@ -67,7 +67,7 @@ function setupDefaultMocks(prNumber = 42) {
   mockRestPullsGet.mockResolvedValue({ data: makePR(prNumber, { draft: true }) });
 
   mockGraphql.mockResolvedValue({
-    markPullRequestAsReadyForReview: {
+    markPullRequestReadyForReview: {
       pullRequest: {
         number: prNumber,
         isDraft: false,
@@ -122,7 +122,7 @@ describe("mark_pull_request_as_ready_for_review", () => {
       expect(result.success).toBe(true);
       expect(result.number).toBe(42);
       // GraphQL mutation must have been called (not REST pulls.update)
-      expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("markPullRequestAsReadyForReview"), expect.objectContaining({ pullRequestId: "PR_kwDOABCD123456" }));
+      expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("markPullRequestReadyForReview"), expect.objectContaining({ pullRequestId: "PR_kwDOABCD123456" }));
     });
 
     it("should NOT call REST pulls.update (the broken endpoint)", async () => {
@@ -172,7 +172,7 @@ describe("mark_pull_request_as_ready_for_review", () => {
 
     it("should return failure when GraphQL mutation reports PR is still a draft", async () => {
       mockGraphql.mockResolvedValue({
-        markPullRequestAsReadyForReview: {
+        markPullRequestReadyForReview: {
           pullRequest: {
             number: 42,
             isDraft: true,
@@ -312,7 +312,7 @@ describe("mark_pull_request_as_ready_for_review", () => {
 
       await handler({ pull_request_number: 42, reason: "Ready" }, {});
 
-      expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("markPullRequestAsReadyForReview"), expect.objectContaining({ pullRequestId: "PR_kwDOCustomNodeId" }));
+      expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("markPullRequestReadyForReview"), expect.objectContaining({ pullRequestId: "PR_kwDOCustomNodeId" }));
     });
 
     it("should use staged mode without executing GraphQL mutation", async () => {
