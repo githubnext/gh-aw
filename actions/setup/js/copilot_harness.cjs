@@ -121,10 +121,10 @@ function log(message) {
 
 /**
  * Build a best-effort GitHub Actions core logger adapter for SDK permission warnings.
- * @param {(message: string) => void} logger
+ * @param {(message: string) => void} harnessLogger
  * @returns {{info?: (message: string) => void, warning?: (message: string) => void} | undefined}
  */
-function buildCoreLogger(logger) {
+function buildCoreLogger(harnessLogger) {
   try {
     // eslint-disable-next-line global-require
     const core = require("@actions/core");
@@ -133,7 +133,7 @@ function buildCoreLogger(logger) {
       warning: message => core.warning(message),
     };
   } catch {
-    logger("sdk-mode: @actions/core unavailable; permission-denied events will be logged to harness output only");
+    harnessLogger("sdk-mode: @actions/core unavailable; permission-denied events will be logged to harness output only");
     return undefined;
   }
 }

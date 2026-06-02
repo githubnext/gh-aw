@@ -46,6 +46,9 @@ const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
  */
 
 /**
+ * Create a compact, human-readable permission-request summary for diagnostics.
+ * Examples: shell(git status), mcp(github.get_file_contents), url(https://example.com).
+ *
  * @param {import("@github/copilot-sdk").PermissionRequest} request
  * @returns {string}
  */
