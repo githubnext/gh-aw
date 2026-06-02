@@ -71,6 +71,20 @@ func (b *handlerConfigBuilder) AddBoolPtr(key string, value *bool) *handlerConfi
 	return b
 }
 
+// AddBoolOrInt adds a boolean-or-integer field when the value is set.
+// This preserves explicit false/0 values, which differ from an omitted field.
+func (b *handlerConfigBuilder) AddBoolOrInt(key string, value any) *handlerConfigBuilder {
+	switch v := value.(type) {
+	case nil:
+		return b
+	case bool, int, int64, uint64:
+		b.config[key] = v
+	case float64:
+		b.config[key] = int(v)
+	}
+	return b
+}
+
 // AddBoolPtrOrDefault adds a boolean field, using default if pointer is nil
 func (b *handlerConfigBuilder) AddBoolPtrOrDefault(key string, value *bool, defaultValue bool) *handlerConfigBuilder {
 	if value != nil {

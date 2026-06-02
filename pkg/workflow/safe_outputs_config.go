@@ -800,10 +800,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("group_by_day", c.GroupByDay).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddIfNotEmpty("github-token", c.GitHubToken).
-			AddIfTrue("staged", c.Staged)
-		if c.DeduplicateByTitle != nil {
-			builder.AddDefault("deduplicate_by_title", c.DeduplicateByTitle)
-		}
+			AddIfTrue("staged", c.Staged).
+			AddBoolOrInt("deduplicate_by_title", c.DeduplicateByTitle)
 		return builder.Build()
 	},
 	"add_comment": func(cfg *SafeOutputsConfig) map[string]any {
