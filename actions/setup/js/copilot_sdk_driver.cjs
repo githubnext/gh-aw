@@ -92,10 +92,13 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, p
   /** @type {ReadonlyArray<NonNullable<import("@github/copilot-sdk").CopilotClientOptions["logLevel"]>>} */
   const VALID_LOG_LEVELS = ["none", "error", "warning", "info", "debug", "all"];
   const rawLogLevel = process.env.COPILOT_SDK_LOG_LEVEL ?? "";
+  /**
+   * @param {string} value
+   * @returns {value is NonNullable<import("@github/copilot-sdk").CopilotClientOptions["logLevel"]>}
+   */
+  const isValidLogLevel = value => VALID_LOG_LEVELS.includes(/** @type {any} */ (value));
   /** @type {import("@github/copilot-sdk").CopilotClientOptions["logLevel"]} */
-  const logLevel = VALID_LOG_LEVELS.includes(/** @type {any} */ (rawLogLevel))
-    ? /** @type {import("@github/copilot-sdk").CopilotClientOptions["logLevel"]} */ (rawLogLevel)
-    : "warning";
+  const logLevel = isValidLogLevel(rawLogLevel) ? rawLogLevel : "warning";
 
   const client = new CopilotClient({
     connection: RuntimeConnection.forUri(sdkUri, {}),
@@ -126,6 +129,8 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, p
     fs.mkdirSync(sessionDir, { recursive: true });
     const eventsPath = path.join(sessionDir, "events.jsonl");
     eventsStream = fs.createWriteStream(eventsPath, { flags: "a" });
+    // Snapshot to a non-null local for closure-safe writes (JSDoc nullability narrowing).
+    const stream = eventsStream;
     log(`serialising SDK events to ${eventsPath}`);
 
     /**
@@ -144,9 +149,8 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, p
      * @param {string | undefined} [timestamp]
      */
     function writeEvent(type, data, timestamp) {
-      if (!eventsStream) return;
       const entry = { type, timestamp: timestamp ?? new Date().toISOString(), data };
-      eventsStream.write(JSON.stringify(entry) + "\n");
+      stream.write(JSON.stringify(entry) + "\n");
     }
 
     // Subscribe to all session events and serialise the ones we care about.
@@ -226,6 +230,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, p
       durationMs,
     };
   } finally {
+    // Snapshot for null-safe cleanup in this scope.
     const stream = eventsStream;
     if (stream) {
       await new Promise(resolve => stream.end(resolve));

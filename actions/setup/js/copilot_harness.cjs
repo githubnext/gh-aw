@@ -698,10 +698,14 @@ async function main() {
 
         // Redact --prompt / -p value from logs to avoid leaking prompt content
         const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
+        if (copilotSDKMode && !sdkPrompt) {
+          throw new Error("sdk-mode invariant violated: prompt must be resolved before execution");
+        }
+        const sdkPromptForRun = /** @type {string} */ (sdkPrompt);
         const result = copilotSDKMode
           ? await runWithCopilotSDK({
               sdkUri: sdkEnv.COPILOT_SDK_URI ?? process.env.COPILOT_SDK_URI ?? "",
-              prompt: /** @type {string} */ (sdkPrompt),
+              prompt: sdkPromptForRun,
               logger: log,
               attempt,
               model: sdkCustomProviderConfig?.model,
