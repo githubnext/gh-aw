@@ -1,5 +1,5 @@
 ---
-description: On-demand token audit for a user-specified date range with historical trend output
+description: On-demand token audit for a user-specified date range
 on:
   workflow_dispatch:
     inputs:
@@ -27,12 +27,6 @@ tools:
   agentic-workflows:
   bash:
     - "*"
-  repo-memory:
-    branch-name: "memory/token-audit"
-    description: "Historical workflow token usage snapshots (shared with agentic-token-optimizer)"
-    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
-    max-file-size: 102400
-    max-patch-size: 51200
 steps:
   - name: Setup Python runtime
     uses: actions/setup-python@v6.2.0
@@ -89,13 +83,12 @@ timeout-minutes: 25
 
 # On-Demand Agentic Workflow Token Trend Audit
 
-You are the Agentic Workflow Token Trend Auditor — a workflow that analyzes token consumption across a caller-specified date range and updates historical trend data.
+You are the Agentic Workflow Token Trend Auditor — a workflow that analyzes token consumption across a caller-specified date range.
 
 ## Mission
 
 1. Parse the pre-downloaded agentic workflow logs and compute per-workflow token usage metrics.
-2. Persist this run's snapshot to repo-memory so future runs can maintain historical trend data.
-3. Publish a concise audit issue emphasizing the historical token trend chart.
+2. Publish a concise audit issue with token usage findings for the requested range.
 
 ## Data Sources
 
@@ -132,10 +125,6 @@ Each element of `.runs` is a `RunData` object with (among others):
 | `error_count` | int | Errors encountered |
 | `warning_count` | int | Warnings encountered |
 | `token_usage_summary` | object or null | Firewall-level breakdown by model |
-
-### Repo-memory (historical snapshots)
-
-Previous snapshots live at `/tmp/gh-aw/repo-memory/default/`. Each daily snapshot is stored as a JSON file named `YYYY-MM-DD.json` with the schema below.
 
 ## Phase 1 — Process Logs
 
@@ -177,27 +166,11 @@ Write a Python script to `/tmp/gh-aw/token-audit/process_audit.py` and run it. T
 
 Handle null/missing `token_usage` by treating them as 0.
 
-## Phase 2 — Persist Snapshot to Repo-Memory
+## Phase 2 — Generate Charts
 
-1. Read the snapshot from `/tmp/gh-aw/token-audit/audit_snapshot.json`.
-2. Copy it to `/tmp/gh-aw/repo-memory/default/YYYY-MM-DD.json` (today's UTC date).
-3. This file is what the optimizer workflow reads to identify high-usage workflows.
-
-Also maintain a rolling summary file at `/tmp/gh-aw/repo-memory/default/rolling-summary.json` that contains an array of daily overall totals (date, total_tokens, total_runs, total_action_minutes) for the last 90 entries. Load the existing file, append today's entry, de-duplicate by `date` (keep the newest entry for a duplicated date), sort ascending by date, trim the oldest items if there are more than 90 entries, and save.
-
-Do not append a synthetic zero-valued entry to `rolling-summary.json` when either of these conditions is true:
-
-- the raw `.runs` array is empty
-- the raw `.runs` array is non-empty but there are zero completed runs in the current window
-
-Report those two cases differently in the issue as described below so the empty-window diagnosis stays precise while the historical trend remains unchanged.
-
-## Phase 3 — Generate Charts
-
-Create up to two chart images in `/tmp/gh-aw/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling:
+Create one chart image in `/tmp/gh-aw/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling:
 
 1. **Token usage by workflow** (`token_by_workflow.png`): a horizontal bar chart of the top 15 workflows by total tokens from `audit_snapshot.json`.
-2. **Historical token trend** (`token_trend.png`): a line chart from `rolling-summary.json`.
 
 Chart requirements:
 
@@ -205,13 +178,10 @@ Chart requirements:
 - Use 300 DPI and a white background.
 - Add clear axis labels and titles.
 - Save only PNG files.
-- If there are fewer than 2 rolling-summary points, skip the trend chart and explain why in the issue.
 - After generating each chart, call `upload_asset` with its file path.
 - In the issue template below, replace `UPLOAD_URL_WORKFLOW_PLACEHOLDER` with the URL returned for `token_by_workflow.png`.
-- In the issue template below, replace `UPLOAD_URL_TREND_PLACEHOLDER` with the URL returned for `token_trend.png`.
-- If a chart is skipped, omit that image markdown line entirely instead of leaving a placeholder behind.
 
-## Phase 4 — Publish Audit Issue
+## Phase 3 — Publish Audit Issue
 
 Create an issue with these sections:
 
@@ -245,10 +215,6 @@ Embed chart images using uploaded asset URLs when available:
 
 ![Token Usage by Workflow](UPLOAD_URL_WORKFLOW_PLACEHOLDER)
 
-![Historical Token Trend](UPLOAD_URL_TREND_PLACEHOLDER)
-
-Summarize token changes from `rolling-summary.json` when historical data is available, with explicit reference to the historical token trend chart.
-
 <details>
 <summary><b>Full Per-Workflow Breakdown</b></summary>
 
@@ -262,7 +228,7 @@ Summarize token changes from `rolling-summary.json` when historical data is avai
 - Note workflows with high error/warning counts relative to runs
 - Flag any workflow whose avg tokens per run exceeds 100,000
 
-**Data snapshot**: `memory/token-audit/YYYY-MM-DD.json`
+**Data snapshot**: `/tmp/gh-aw/token-audit/audit_snapshot.json`
 ```
 
 ## Important Notes
@@ -276,4 +242,3 @@ Summarize token changes from `rolling-summary.json` when historical data is avai
   - if `len(runs) > 0` and there are zero completed runs, say the collection window had runs but none completed yet
 - Do not claim the raw log file was empty unless you verified `len(runs) == 0` (or `jq '.runs | length' == 0`).
 - Keep the issue concise — the optimizer workflow will do the deep analysis.
-
