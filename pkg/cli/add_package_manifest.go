@@ -34,7 +34,7 @@ var packageSourceDirectories = []string{"workflows", ".github/workflows"}
 
 const repositoryPackageManifestFileName = "aw.yml"
 const repositoryPackageManifestVersion = "1"
-const repositoryPackageLatestReleaseRepo = "github/gh-aw"
+const ghAwRepositorySlug = "github/gh-aw"
 const packageSkillsDirectory = "skills"
 const packageAgentsDirectory = "agents"
 const packageSkillMarkerFile = "SKILL.md"
@@ -83,7 +83,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 	repo := parts[1]
 	ref := repoSpec.Version
 	if ref == "" {
-		if shouldResolveRepositoryPackageLatestRelease(repoSpec.RepoSlug) {
+		if isGhAwRepository(repoSpec.RepoSlug) {
 			if latestRelease, err := getRepositoryPackageLatestRelease(repoSpec.RepoSlug, host); err == nil {
 				ref = latestRelease
 			} else {
@@ -918,8 +918,8 @@ func resolveRepositoryPackageDefaultBranch(repoSlug, host string) (string, error
 	return branch, nil
 }
 
-func shouldResolveRepositoryPackageLatestRelease(repoSlug string) bool {
-	return strings.EqualFold(strings.TrimSpace(repoSlug), repositoryPackageLatestReleaseRepo)
+func isGhAwRepository(repoSlug string) bool {
+	return strings.EqualFold(strings.TrimSpace(repoSlug), ghAwRepositorySlug)
 }
 
 // resolveRepositoryPackageLatestRelease resolves the latest stable release tag

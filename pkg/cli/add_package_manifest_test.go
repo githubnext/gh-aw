@@ -1709,7 +1709,7 @@ files:
 	assert.Equal(t, agentMD, agent.Content)
 }
 
-func TestShouldResolveRepositoryPackageLatestRelease(t *testing.T) {
+func TestIsGhAwRepository(t *testing.T) {
 	tests := []struct {
 		name     string
 		repoSlug string
@@ -1718,11 +1718,13 @@ func TestShouldResolveRepositoryPackageLatestRelease(t *testing.T) {
 		{name: "exact match", repoSlug: "github/gh-aw", want: true},
 		{name: "case-insensitive with whitespace", repoSlug: "  GitHub/GH-AW  ", want: true},
 		{name: "different repository", repoSlug: "github/other", want: false},
+		{name: "fork-like suffix does not match", repoSlug: "github/gh-aw-fork", want: false},
+		{name: "different owner does not match", repoSlug: "other/gh-aw", want: false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := shouldResolveRepositoryPackageLatestRelease(tt.repoSlug)
+			got := isGhAwRepository(tt.repoSlug)
 			assert.Equal(t, tt.want, got)
 		})
 	}
