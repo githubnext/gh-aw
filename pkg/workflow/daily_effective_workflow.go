@@ -98,6 +98,9 @@ func resolveMaxDailyEffectiveTokens(frontmatter map[string]any, importedJSON str
 	return parseMaxDailyEffectiveTokensValue(defaultValue)
 }
 
+// hasMaxDailyEffectiveTokensGuardrail reports whether compiler should emit the
+// daily effective-token guardrail wiring. The guardrail is enabled by default
+// and can only be suppressed by an explicit workflow-level negative value (-1).
 func hasMaxDailyEffectiveTokensGuardrail(data *WorkflowData) bool {
 	return !hasWorkflowExplicitMaxDailyEffectiveTokensDisable(data)
 }

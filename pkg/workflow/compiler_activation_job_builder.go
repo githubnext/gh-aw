@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -653,7 +653,7 @@ func (c *Compiler) buildActivationEnvironment(ctx *activationJobBuildContext) st
 	return "environment: " + stringutil.StripANSI(ctx.data.ManualApproval)
 }
 
-func buildActivationJobEnv(data *WorkflowData) map[string]string {
+func buildDailyEffectiveWorkflowActivationJobEnv(data *WorkflowData) map[string]string {
 	if !hasMaxDailyEffectiveTokensGuardrail(data) || !hasMaxDailyEffectiveTokensFrontmatterConfig(data) {
 		return nil
 	}

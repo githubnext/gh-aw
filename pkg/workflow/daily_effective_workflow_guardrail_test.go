@@ -176,7 +176,7 @@ Guardrail test workflow`
 	}
 }
 
-func TestDailyEffectiveWorkflowGuardrailAlwaysEmittedWithDynamicGate(t *testing.T) {
+func TestDailyETGuardrailDynamicGate(t *testing.T) {
 	testDir := testutil.TempDir(t, "daily-effective-workflow-no-guardrail-*")
 	workflowFile := filepath.Join(testDir, "no-daily-guardrail.md")
 
@@ -265,7 +265,7 @@ Daily guardrail via env var`
 	}
 }
 
-func TestDailyEffectiveWorkflowGuardrailExplicitNegativeDisablesEmission(t *testing.T) {
+func TestDailyETGuardrailNegativeDisable(t *testing.T) {
 	testDir := testutil.TempDir(t, "daily-effective-workflow-explicit-disable-*")
 	workflowFile := filepath.Join(testDir, "daily-guardrail-explicit-disable.md")
 
