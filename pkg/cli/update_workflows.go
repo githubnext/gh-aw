@@ -139,7 +139,7 @@ func findWorkflowsWithSource(workflowsDir string, filterNames []string, verbose 
 	var workflows []*workflowWithSource
 
 	var fileCount int
-	err := filepath.WalkDir(workflowsDir, func(workflowPath string, d os.DirEntry, walkErr error) error {
+	walkErr := filepath.WalkDir(workflowsDir, func(workflowPath string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -210,8 +210,8 @@ func findWorkflowsWithSource(workflowsDir string, filterNames []string, verbose 
 		})
 		return nil
 	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to walk workflows directory: %w", err)
+	if walkErr != nil {
+		return nil, fmt.Errorf("failed to walk workflows directory: %w", walkErr)
 	}
 	updateLog.Printf("Scanned %d markdown file(s) in workflows directory", fileCount)
 
