@@ -555,7 +555,7 @@ function buildCopilotSDKPermissionConfigFromServerArgs(serverArgs) {
     config.allowAllTools = true;
   }
   if (allowedTools.size > 0) {
-    config.allowedTools = [...allowedTools].sort();
+    config.allowedTools = [...allowedTools].sort((a, b) => a.localeCompare(b));
   }
   return config;
 }

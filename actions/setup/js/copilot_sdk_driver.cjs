@@ -48,7 +48,12 @@ const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
  */
 function buildCopilotSDKPermissionHandler(permissionConfig, approveAll) {
   const allowAll = permissionConfig?.allowAllTools === true;
-  const allowedToolEntries = new Set(Array.isArray(permissionConfig?.allowedTools) ? permissionConfig.allowedTools.filter(tool => typeof tool === "string" && tool.trim().length > 0).map(tool => tool.trim()) : []);
+  const allowedTools = Array.isArray(permissionConfig?.allowedTools) ? permissionConfig.allowedTools : [];
+  const normalizedAllowedTools = allowedTools
+    .filter(tool => typeof tool === "string")
+    .map(tool => tool.trim())
+    .filter(tool => tool.length > 0);
+  const allowedToolEntries = new Set(normalizedAllowedTools);
 
   // Backward-compatibility fallback: when no explicit rules are present,
   // keep the previous approve-all behavior to avoid unexpectedly blocking runs.
@@ -92,6 +97,8 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll) {
       case "url":
         return allowedToolEntries.has("web_fetch");
       case "mcp":
+        // Server-only entries (for example: "github") allow all tools from that server.
+        // Server+tool entries (for example: "github(get_file_contents)") allow only that tool.
         return allowedToolEntries.has(request.serverName) || allowedToolEntries.has(`${request.serverName}(${request.toolName})`);
       case "custom-tool":
         return allowedToolEntries.has(request.toolName);
