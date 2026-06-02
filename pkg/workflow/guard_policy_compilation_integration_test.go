@@ -152,7 +152,7 @@ tools:
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := testutil.TempDir(t, "guard-policy-compilation-test-*")
 			workflowPath := filepath.Join(tmpDir, "test-workflow.md")
-			if err := os.WriteFile(workflowPath, []byte(tt.workflowMD), 0644); err != nil {
+			if err := os.WriteFile(workflowPath, []byte(tt.workflowMD), 0o644); err != nil {
 				t.Fatalf("Failed to write workflow file: %v", err)
 			}
 
