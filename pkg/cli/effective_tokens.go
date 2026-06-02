@@ -267,12 +267,14 @@ func getModelMultiplier(model string, multipliers map[string]float64) float64 {
 }
 
 func computeBaseWeightedTokensForUsage(w types.TokenClassWeights, provider string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens int) float64 {
+	normalizedProvider := strings.ToLower(strings.TrimSpace(provider))
 	effectiveInput := inputTokens
-	if cacheReadTokens > 0 && providerIncludesCacheReadsInInput(provider) {
+	if cacheReadTokens > 0 && providerIncludesCacheReadsInInput(normalizedProvider) {
 		// Providers like Anthropic/OpenAI report cache_read_tokens as part of input_tokens.
 		// Deduct once so cache reads are weighted only by w.CachedInput, not double-counted.
 		// This may change ET versus previously stored effective_tokens values when older
-		// runs were computed with the legacy double-counted input behavior.
+		// runs were computed with the legacy behavior that always treated input_tokens as
+		// fully non-cached input while also adding cache_read_tokens as a separate class.
 		// Recomputing from raw usage intentionally applies current ET semantics.
 		effectiveInput = max(inputTokens-cacheReadTokens, 0)
 	}
@@ -284,7 +286,7 @@ func computeBaseWeightedTokensForUsage(w types.TokenClassWeights, provider strin
 		w.CacheWrite*float64(cacheWriteTokens)
 }
 
-func providerIncludesCacheReadsInInput(provider string) bool {
+func providerIncludesCacheReadsInInput(normalizedProvider string) bool {
 	// Cache read accounting is provider-specific:
 	// - bundled semantics: cache_read_tokens are already included in input_tokens,
 	//   so we subtract once before applying input weight.
@@ -293,10 +295,10 @@ func providerIncludesCacheReadsInInput(provider string) bool {
 	//
 	// Known providers currently using bundled semantics are listed below. Unknown
 	// providers default to additive semantics to avoid under-counting input tokens.
-	p := strings.TrimSpace(provider)
-	return p == "" ||
-		strings.EqualFold(p, "anthropic") ||
-		strings.EqualFold(p, "openai") ||
-		strings.EqualFold(p, "azure-openai") ||
-		strings.EqualFold(p, "azure_openai")
+	switch normalizedProvider {
+	case "", "anthropic", "openai", "azure-openai", "azure_openai":
+		return true
+	default:
+		return false
+	}
 }
