@@ -10,6 +10,21 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: daily-agentrx-trace-optimizer
+experiments:
+  sub_agent_strategy:
+    variants: [sub_agents, single_agent]
+    description: "Test whether delegating trajectory-builder, artifacts-summarizer, and failure-pattern-classifier to small-model sub-agents improves recommendation quality vs. inline analysis by the main agent"
+    hypothesis: "H0: no change in issue quality or run success rate. H1: sub_agents variant yields higher evidence completeness score with equal or lower token cost"
+    metric: issue_evidence_completeness
+    secondary_metrics: [run_success_rate, effective_tokens_total, run_duration_ms]
+    guardrail_metrics:
+      - name: empty_output_rate
+        threshold: "<=0.10"
+      - name: noop_rate
+        threshold: "<=0.30"
+    min_samples: 20
+    weight: [50, 50]
+    start_date: "2026-06-02"
 engine: claude
 strict: true
 network:
@@ -67,11 +82,21 @@ Focus on:
 
 ### 1) Build AgentRx input trajectory
 
+{{#if experiments.sub_agent_strategy == 'sub_agents'}}
 Invoke `trajectory-builder` by passing this exact input block:
 ```text
 run_data_path: /tmp/gh-aw/agent/agentrx/mcp-runs.json
 ```
 It must produce `/tmp/gh-aw/agent/agentrx/trajectory.json`.
+{{/if}}
+
+{{#if experiments.sub_agent_strategy == 'single_agent'}}
+Build `/tmp/gh-aw/agent/agentrx/trajectory.json` directly in this main agent using this exact input:
+```text
+run_data_path: /tmp/gh-aw/agent/agentrx/mcp-runs.json
+```
+Do not invoke `trajectory-builder` in this variant.
+{{/if}}
 
 ### 2) Run AgentRx pipeline
 
@@ -96,12 +121,23 @@ If a later stage fails (for example due to endpoint/auth constraints), continue 
 
 ### 3) Derive one optimization recommendation
 
+{{#if experiments.sub_agent_strategy == 'sub_agents'}}
 First, invoke `failure-pattern-classifier` by passing this exact input block:
 ```text
 check_path: /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily/check.json
 judge_path: /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily/judge.json
 ```
 Capture its markdown table output as the labeled violations list for this section. Then read that labeled table and pick the single highest-impact fix.
+{{/if}}
+
+{{#if experiments.sub_agent_strategy == 'single_agent'}}
+First, classify violations directly in this main agent using this exact input:
+```text
+check_path: /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily/check.json
+judge_path: /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily/judge.json
+```
+Label every violation with exactly one fix type from the provided taxonomy and produce the same markdown table (`violation`, `evidence`, `fix_type`, `rationale`) inline. Do not invoke `failure-pattern-classifier` in this variant.
+{{/if}}
 
 Use AgentRx outputs to identify:
 - the most frequent or most expensive failure pattern
@@ -135,11 +171,21 @@ Body structure:
 <details>
 <summary>AgentRx Artifacts</summary>
 
+{{#if experiments.sub_agent_strategy == 'sub_agents'}}
 Invoke `artifacts-summarizer` by passing this exact input block:
 ```text
 run_dir: /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily
 ```
 Paste its markdown output as the body of this details block.
+{{/if}}
+
+{{#if experiments.sub_agent_strategy == 'single_agent'}}
+Summarize AgentRx artifacts inline in this main agent using this exact input:
+```text
+run_dir: /tmp/gh-aw/agent/agentrx/runs/gh-aw-daily
+```
+Cover the same sections (IR summary, invariant/checker highlights, judge classification output when available, and known limitations). Do not invoke `artifacts-summarizer` in this variant.
+{{/if}}
 
 </details>
 
