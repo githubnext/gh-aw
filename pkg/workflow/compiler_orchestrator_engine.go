@@ -36,7 +36,7 @@ type engineSetupResult struct {
 func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, cleanPath string, content []byte, markdownDir string) (*engineSetupResult, error) {
 	orchestratorEngineLog.Printf("Setting up engine and processing imports")
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
-	preservedMaxEffectiveTokens, preservedMaxRuns := extractEngineBudgetLimits(engineConfig)
+	preservedMaxTurns, preservedMaxEffectiveTokens, preservedMaxRuns := extractEngineBudgetLimits(engineConfig)
 	if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	if err != nil {
 		return nil, err
 	}
-	engineConfig = c.applyEngineImportDefaults(engineConfig, engineSetting, importsResult, preservedMaxEffectiveTokens, preservedMaxRuns)
+	engineConfig = c.applyEngineImportDefaults(engineConfig, engineSetting, importsResult, preservedMaxTurns, preservedMaxEffectiveTokens, preservedMaxRuns)
 	agenticEngine, configSteps, err := c.resolveEngineRuntimeConfig(engineSetting, engineConfig)
 	if err != nil {
 		return nil, err
@@ -74,11 +74,11 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	}, nil
 }
 
-func extractEngineBudgetLimits(engineConfig *EngineConfig) (int64, int) {
+func extractEngineBudgetLimits(engineConfig *EngineConfig) (string, int64, int) {
 	if engineConfig == nil {
-		return 0, 0
+		return "", 0, 0
 	}
-	return engineConfig.MaxEffectiveTokens, engineConfig.MaxRuns
+	return engineConfig.MaxTurns, engineConfig.MaxEffectiveTokens, engineConfig.MaxRuns
 }
 
 func defaultNetworkPermissions(networkPermissions *NetworkPermissions) *NetworkPermissions {
@@ -290,17 +290,30 @@ func (c *Compiler) applyEngineImportDefaults(
 	engineConfig *EngineConfig,
 	engineSetting string,
 	importsResult *parser.ImportsResult,
+	preservedMaxTurns string,
 	preservedMaxEffectiveTokens int64,
 	preservedMaxRuns int,
 ) *EngineConfig {
 	if engineConfig == nil {
 		engineConfig = &EngineConfig{ID: engineSetting}
 	}
+	if preservedMaxTurns != "" {
+		engineConfig.MaxTurns = preservedMaxTurns
+	}
 	if preservedMaxEffectiveTokens != 0 {
 		engineConfig.MaxEffectiveTokens = preservedMaxEffectiveTokens
 	}
 	if preservedMaxRuns > 0 {
 		engineConfig.MaxRuns = preservedMaxRuns
+	}
+	if engineConfig.MaxTurns == "" && importsResult.MergedMaxTurns != "" {
+		var importedMaxTurns any
+		if err := json.Unmarshal([]byte(importsResult.MergedMaxTurns), &importedMaxTurns); err == nil {
+			if parsed := parseMaxTurnsValue(importedMaxTurns); parsed != "" {
+				engineConfig.MaxTurns = parsed
+				orchestratorEngineLog.Printf("Applied max-turns from import")
+			}
+		}
 	}
 	if engineConfig.MaxRuns <= 0 && importsResult.MergedMaxRuns != "" {
 		var importedMaxRuns any

@@ -506,6 +506,8 @@ touch %s
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	} else {
+		env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
 	}
 
 	// Set the model environment variable.
