@@ -207,6 +207,9 @@ func parseMaxTurnsValue(raw any) string {
 		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed >= 0 {
 			return strconv.Itoa(parsed)
 		}
+		// Match the same GitHub Actions expression wrapper accepted by the schema.
+		// The schema and GitHub Actions runtime are responsible for validating the
+		// expression body itself; this helper only needs to preserve templated values.
 		if strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}") {
 			return trimmed
 		}

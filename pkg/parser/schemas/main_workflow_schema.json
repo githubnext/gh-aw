@@ -10621,7 +10621,7 @@
                   "description": "Maximum number of chat iterations per run as a string value"
                 }
               ],
-              "description": "Deprecated alias for the top-level 'max-turns' field. Prefer the top-level AWF turn cap so the value applies consistently across all agentic engines."
+              "description": "Deprecated: use the top-level 'max-turns' field instead. This engine-level alias is kept for backward compatibility but may be removed in a future major version. Migration: move 'engine.max-turns: 15' to top-level 'max-turns: 15' so the AWF turn cap applies consistently across all agentic engines."
             },
             "max-continuations": {
               "type": "integer",
