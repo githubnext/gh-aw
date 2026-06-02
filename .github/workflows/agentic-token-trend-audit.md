@@ -85,7 +85,6 @@ steps:
         echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/workflow-logs.json
       fi
 timeout-minutes: 25
-source: githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473
 ---
 
 # On-Demand Agentic Workflow Token Trend Audit
@@ -278,28 +277,3 @@ Summarize token changes from `rolling-summary.json` when historical data is avai
 - Do not claim the raw log file was empty unless you verified `len(runs) == 0` (or `jq '.runs | length' == 0`).
 - Keep the issue concise — the optimizer workflow will do the deep analysis.
 
-## Experiment OTEL Span Attributes
-
-If the file `/tmp/gh-aw/experiments/assignments.json` exists, read it and emit one OTEL span
-attribute per experiment using the `otlp.cjs` `logSpan` helper:
-
-```javascript
-const fs = require('fs');
-const assignmentsFile = '/tmp/gh-aw/experiments/assignments.json';
-if (fs.existsSync(assignmentsFile)) {
-  const assignments = JSON.parse(fs.readFileSync(assignmentsFile, 'utf8'));
-  const names = Object.keys(assignments).sort();
-  if (names.length > 0) {
-    const attrs = { 'gh_aw.experiment.names': names.join(',') };
-    for (const name of names) {
-      attrs[`gh_aw.experiment.${name}`] = assignments[name];
-    }
-    const otlp = require('/tmp/gh-aw/actions/otlp.cjs');
-    await otlp.logSpan('experiment', attrs);
-  }
-}
-```
-
-This enables filtering workflow runs by experiment variant in Datadog, Honeycomb, or any
-OTLP-compatible backend. Attribute keys follow the pattern `gh_aw.experiment.<name>` with the
-assigned variant as the value, plus `gh_aw.experiment.names` as a comma-separated index.
