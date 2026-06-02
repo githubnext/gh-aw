@@ -64,6 +64,7 @@ function extractPromptFromArgs(args) {
  *   logger: (msg: string) => void,
  *   attempt?: number,
  *   model?: string,
+ *   connectionToken?: string,
  *   provider?: import("@github/copilot-sdk").ProviderConfig,
  *   sdkModule?: {
  *     CopilotClient: typeof import("@github/copilot-sdk").CopilotClient,
@@ -73,7 +74,7 @@ function extractPromptFromArgs(args) {
  * }} options
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, provider, sdkModule }) {
+async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, sdkModule }) {
   // Lazy-require to avoid loading the SDK when it is not needed.
   // The SDK is large and has side-effects on import (worker threads, etc.).
   const { CopilotClient, RuntimeConnection, approveAll } = sdkModule ?? require("@github/copilot-sdk");
@@ -105,7 +106,14 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, p
   const logLevel = isValidLogLevel(rawLogLevel) ? rawLogLevel : "warning";
 
   const client = new CopilotClient({
-    connection: RuntimeConnection.forUri(sdkUri, {}),
+    connection: RuntimeConnection.forUri(
+      sdkUri,
+      connectionToken
+        ? {
+            connectionToken,
+          }
+        : {}
+    ),
     workingDirectory: process.env.GITHUB_WORKSPACE || process.cwd(),
     logLevel,
   });

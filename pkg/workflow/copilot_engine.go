@@ -69,6 +69,7 @@ func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []str
 	copilotLog.Print("Collecting required secrets for Copilot engine")
 	secrets := []string{
 		"COPILOT_GITHUB_TOKEN",
+		constants.CopilotConnectionTokenEnvVar,
 		// BYOK provider variables that may carry secrets in engine.env.
 		// Listed unconditionally: checking for their presence in the current workflow's
 		// EngineConfig.Env would add complexity without security benefit, since these

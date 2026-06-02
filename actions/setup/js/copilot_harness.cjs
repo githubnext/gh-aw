@@ -719,6 +719,7 @@ async function main() {
             logger: log,
             attempt,
             model: sdkCustomProviderConfig?.model,
+            connectionToken: process.env.COPILOT_CONNECTION_TOKEN,
             provider: sdkCustomProviderConfig?.provider,
           });
         } else {

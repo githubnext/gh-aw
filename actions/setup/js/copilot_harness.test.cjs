@@ -281,6 +281,7 @@ describe("copilot_harness.cjs", () => {
       it("passes custom provider and model through to SDK createSession", async () => {
         const disconnect = vi.fn().mockResolvedValue(undefined);
         const stop = vi.fn().mockResolvedValue(undefined);
+        const forUri = vi.fn(() => ({}));
         const createSession = vi.fn().mockResolvedValue({
           sessionId: "session-provider",
           on: () => {},
@@ -301,7 +302,7 @@ describe("copilot_harness.cjs", () => {
           provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
           sdkModule: {
             CopilotClient: FakeCopilotClient,
-            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            RuntimeConnection: { forUri },
             approveAll: () => "allow",
           },
         });
@@ -313,6 +314,39 @@ describe("copilot_harness.cjs", () => {
             provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
           })
         );
+        expect(forUri).toHaveBeenCalledWith("http://127.0.0.1:3002", {});
+      });
+
+      it("passes COPILOT_CONNECTION_TOKEN to RuntimeConnection.forUri", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const forUri = vi.fn(() => ({}));
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-connection-token",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          connectionToken: "token-123",
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(forUri).toHaveBeenCalledWith("http://127.0.0.1:3002", { connectionToken: "token-123" });
       });
     });
 
