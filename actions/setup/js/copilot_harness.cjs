@@ -244,12 +244,7 @@ function resolveCopilotSDKCustomProviderFromReflect(options) {
       return null;
     }
 
-    const endpoint =
-      (configuredModel
-        ? endpoints.find(ep => Array.isArray(ep.models) && ep.models.includes(configuredModel))
-        : null) ||
-      endpoints.find(ep => String(ep.provider || "").toLowerCase() === "copilot") ||
-      endpoints[0];
+    const endpoint = (configuredModel ? endpoints.find(ep => Array.isArray(ep.models) && ep.models.includes(configuredModel)) : null) || endpoints.find(ep => String(ep.provider || "").toLowerCase() === "copilot") || endpoints[0];
 
     let baseUrl = "";
     if (typeof endpoint?.models_url === "string" && endpoint.models_url) {
@@ -477,7 +472,9 @@ async function readSDKOptionsFromStdin() {
   return new Promise(resolve => {
     /** @type {Buffer[]} */
     const chunks = [];
-    process.stdin.on("data", chunk => chunks.push(/** @type {Buffer} */ (chunk)));
+    process.stdin.on("data", chunk => {
+      chunks.push(Buffer.from(chunk));
+    });
     process.stdin.on("end", () => {
       const text = Buffer.concat(chunks).toString("utf8").trim();
       if (!text) {
@@ -701,7 +698,8 @@ async function main() {
         if (copilotSDKMode && !sdkPrompt) {
           throw new Error("sdk-mode invariant violated: prompt must be resolved before execution");
         }
-        const sdkPromptForRun = /** @type {string} */ (sdkPrompt);
+        /** @type {string} */
+        const sdkPromptForRun = sdkPrompt;
         const result = copilotSDKMode
           ? await runWithCopilotSDK({
               sdkUri: sdkEnv.COPILOT_SDK_URI ?? process.env.COPILOT_SDK_URI ?? "",

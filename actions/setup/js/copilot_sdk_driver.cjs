@@ -96,7 +96,11 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, p
    * @param {string} value
    * @returns {value is NonNullable<import("@github/copilot-sdk").CopilotClientOptions["logLevel"]>}
    */
-  const isValidLogLevel = value => VALID_LOG_LEVELS.includes(/** @type {any} */ (value));
+  const isValidLogLevel = value => {
+    /** @type {readonly string[]} */
+    const validLogLevels = VALID_LOG_LEVELS;
+    return validLogLevels.includes(value);
+  };
   /** @type {import("@github/copilot-sdk").CopilotClientOptions["logLevel"]} */
   const logLevel = isValidLogLevel(rawLogLevel) ? rawLogLevel : "warning";
 
