@@ -111,6 +111,15 @@ tools:
 
 When GitHub guard policies are configured, the compiler automatically derives a linked guard-policy for the safe-outputs MCP server. This ensures that safe output operations work correctly with guard policies by creating a write-sink configuration.
 
+**Normative Requirements for `deriveSafeOutputsGuardPolicyFromGitHub()`:**
+
+- **MUST derive a `write-sink` guard policy** for the safe-outputs MCP server whenever a GitHub guard policy (`allowed-repos` or `min-integrity`) is present in the workflow frontmatter. The derived policy MUST be applied before the workflow is executed.
+- **MUST map `allowed-repos: "all"` or `allowed-repos: "public"` to `accept: ["*"]`**, allowing all safe output operations. Implementations MUST NOT restrict the write-sink scope when the GitHub guard policy already permits all repositories.
+- **MUST transform each repository pattern** in an `allowed-repos` array to a `private:`-prefixed accept entry. Owner-wildcard patterns (`owner/*`) MUST be transformed to `private:owner` (the trailing `/*` is stripped). Prefix-wildcard patterns (`owner/prefix*`) MUST be transformed to `private:owner/prefix*` (the prefix is preserved). Exact repository patterns (`owner/repo`) MUST be transformed to `private:owner/repo`.
+- **MUST NOT include duplicate accept entries** in the derived `write-sink` policy. If multiple input patterns resolve to the same `private:` value, the implementation MUST deduplicate before emitting the accept list.
+- **SHOULD log a debug-level message** when a guard policy is derived, identifying the source GitHub `allowed-repos` value and the resulting accept list. This assists operators in diagnosing unexpected policy behavior.
+- **MUST return `nil`** (no derived policy) when no GitHub guard policy fields are present on the tool configuration. The absence of a guard policy MUST NOT be treated as an implicit `accept: ["*"]` — the decision to omit the policy is intentional and MUST be preserved.
+
 **Derivation Rules:**
 
 - **`allowed-repos: "all"` or `allowed-repos: "public"`**: Creates `accept: ["*"]` to allow all safe output operations
@@ -316,10 +325,14 @@ tools:
    - `TestValidateReposScopeWithStringSlice`: 4 cases covering `[]string` and `[]any` input types
    - Tests live in `pkg/workflow/tools_validation_test.go`
 
-2. **Integration Tests** (Pending):
-   - Test end-to-end workflow compilation with guard policies
-   - Test that guard policies appear in compiled workflow YAML
-   - Test that guard policies are passed to MCP gateway configuration
+2. **Integration Tests** (Complete):
+   - `TestGuardPolicyYAMLCompilationIntegration`: 5 round-trip tests in `pkg/workflow/guard_policy_compilation_integration_test.go`
+     - `allowed-repos: all` → `accept: ["*"]` write-sink in compiled YAML
+     - `allowed-repos: public` → `accept: ["*"]` write-sink in compiled YAML
+     - Single specific repo → `"private:owner/repo"` in compiled YAML
+     - Owner-wildcard repo (`owner/*`) → `"private:owner"` (stripped wildcard) in compiled YAML
+     - Multiple repos → multiple `"private:..."` accept entries in compiled YAML
+   - These tests verify that guard policies appear in the compiled lock YAML at the correct structure
 
 ## Next Steps
 
@@ -350,10 +363,27 @@ tools:
 
 ## Open Questions
 
-1. Should we support negative patterns (e.g., exclude certain repos)?
-2. Should we support combining multiple policies (AND/OR logic)?
-3. How should conflicts between lockdown and guard policies be resolved?
-4. Should we add a "dry-run" mode to test policies before enforcement?
+> **Status**: All four open questions below have been resolved with decision records.
+
+1. **Should we support negative patterns (e.g., exclude certain repos)?**
+
+   **Decision**: No, negative patterns (e.g., `!owner/repo`) are **not supported** in the initial implementation.
+   *Rationale*: Negative patterns introduce ordering complexity and ambiguity when combined with wildcard rules (e.g., `"owner/*"` and `"!owner/private-repo"` create a subtraction model that is hard to reason about safely). The preferred approach is to use an explicit allowlist — specify only what is permitted rather than excluding items from a broader grant. If a workflow requires fine-grained exclusions, it SHOULD use a narrower `allowed-repos` pattern. Negative patterns may be revisited in a future version if a clear security use-case emerges.
+
+2. **Should we support combining multiple policies (AND/OR logic)?**
+
+   **Decision**: Policies within a single MCP server are evaluated as **AND** conjunctions. Multiple `allowed-repos` entries in an array are evaluated as **OR** (any match grants access).
+   *Rationale*: AND semantics for the combination of `allowed-repos` + `min-integrity` is the only safe default — a request must satisfy both the repository scope constraint AND the integrity constraint to proceed. Within `allowed-repos`, OR semantics (any matching pattern) is the standard allowlist behavior and consistent with how `roles` and other list-valued fields work throughout the compiler. Explicit cross-policy AND/OR combinators are deferred as unnecessary complexity; the current model covers all known production use-cases.
+
+3. **How should conflicts between lockdown and guard policies be resolved?**
+
+   **Decision**: `lockdown: true` takes **absolute precedence** over guard policies. When `lockdown: true` is set, all tool invocations are blocked regardless of any `allowed-repos` or `min-integrity` configuration. Guard policies are not evaluated when lockdown is active.
+   *Rationale*: Lockdown is an emergency/security stop; it MUST NOT be weakened by other configuration. Guard policies narrow access within an otherwise-open tool session; they do not grant access that lockdown has revoked. The compiler SHOULD warn operators at compilation time when both `lockdown: true` and guard-policy fields (`allowed-repos`, `min-integrity`) are present, as the combination is likely a misconfiguration. A future enhancement to `pkg/workflow/tools_validation.go` (`validateGitHubGuardPolicy`) SHOULD add this cross-field validation check.
+
+4. **Should we add a "dry-run" mode to test policies before enforcement?**
+
+   **Decision**: Dry-run enforcement mode is **deferred** to a future release. A compile-time validation (`gh aw compile --strict`) that reports which repositories would be permitted or denied under the configured guard policy SHOULD be implemented instead.
+   *Rationale*: A runtime dry-run mode requires MCP Gateway support for pass-through logging of policy decisions, which is out of scope for the initial implementation. Compile-time policy analysis covers the majority of the validation need (catching misconfigured patterns before deployment) at lower implementation cost. Runtime dry-run may be added when MCP Gateway observability tooling matures.
 
 ## Conclusion
 
