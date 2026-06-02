@@ -100,6 +100,22 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 	if len(stepsWithVersion) != 1 {
 		t.Errorf("Expected 1 installation step with version (install), got %d", len(stepsWithVersion))
 	}
+
+	workflowDataWithSDK := &WorkflowData{
+		EngineConfig: &EngineConfig{CopilotSDK: true},
+	}
+	stepsWithSDK := engine.GetInstallationSteps(workflowDataWithSDK)
+	if len(stepsWithSDK) != 2 {
+		t.Fatalf("Expected 2 installation steps with copilot-sdk enabled, got %d", len(stepsWithSDK))
+	}
+	sdkInstallStep := strings.Join(stepsWithSDK[1], "\n")
+	if !strings.Contains(sdkInstallStep, "name: Install GitHub Copilot SDK") {
+		t.Fatalf("Expected SDK install step name, got:\n%s", sdkInstallStep)
+	}
+	expectedSDKInstall := "npm install --ignore-scripts -g @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion)
+	if !strings.Contains(sdkInstallStep, expectedSDKInstall) {
+		t.Fatalf("Expected SDK install command %q, got:\n%s", expectedSDKInstall, sdkInstallStep)
+	}
 }
 
 func TestCopilotEngineExecutionSteps(t *testing.T) {
