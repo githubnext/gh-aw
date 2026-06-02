@@ -82,12 +82,19 @@ engine:
 		},
 	}
 
+	want := `---
+on: push
+max-turns: 42
+engine:
+  id: copilot
+---
+
+# Body`
+
 	result, applied, err := codemod.Apply(content, frontmatter)
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "\nmax-turns: 42\nengine:")
-	assert.NotContains(t, result, "\n  max-turns:")
-	assert.Contains(t, result, "\n# Body")
+	assert.Equal(t, want, result)
 }
 
 func TestEngineMaxTurnsToTopLevelCodemod_PreservesExpressionCommentsAndBody(t *testing.T) {

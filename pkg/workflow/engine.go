@@ -196,7 +196,7 @@ func parseMaxRunsValue(raw any) int {
 }
 
 func parseMaxTurnsValue(raw any) string {
-	if val, ok := typeutil.ParseIntValue(raw); ok && val >= 0 {
+	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
 		return strconv.Itoa(val)
 	}
 	if rawStr, ok := raw.(string); ok {
@@ -204,7 +204,7 @@ func parseMaxTurnsValue(raw any) string {
 		if trimmed == "" {
 			return ""
 		}
-		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed >= 0 {
+		if parsed, err := strconv.Atoi(trimmed); err == nil && parsed > 0 {
 			return strconv.Itoa(parsed)
 		}
 		// Match the same GitHub Actions expression wrapper accepted by the schema.

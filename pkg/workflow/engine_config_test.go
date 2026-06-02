@@ -61,6 +61,22 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{MaxTurns: "${{ inputs.max-turns }}"},
 		},
 		{
+			name: "top-level max-turns zero is ignored",
+			frontmatter: map[string]any{
+				"max-turns": 0,
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        nil,
+		},
+		{
+			name: "top-level max-turns negative is ignored",
+			frontmatter: map[string]any{
+				"max-turns": -1,
+			},
+			expectedEngineSetting: "",
+			expectedConfig:        nil,
+		},
+		{
 			name: "top-level negative max-effective-tokens disables budget and steering",
 			frontmatter: map[string]any{
 				"max-effective-tokens": -1,
