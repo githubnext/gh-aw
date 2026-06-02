@@ -764,7 +764,7 @@ gh aw domains weekly-research --json    # Output workflow domains in JSON format
 
 **Options:** `--json/-j`
 
-When no workflow is specified, lists all workflows with a summary of allowed and blocked domain counts. When a workflow is specified, lists all effective allowed and blocked domains including domains expanded from ecosystem identifiers (e.g. `node`, `python`, `github`) and engine defaults.
+When no workflow is specified, lists all workflows with a summary of allowed and blocked domain counts. When a workflow is specified, lists all effective allowed and blocked domains including domains expanded from ecosystem identifiers (e.g., `node`, `python`, `github`) and engine defaults.
 
 ### Utility Commands
 

@@ -198,7 +198,7 @@ guardrail across all supported engines. The field accepts plain
 integers or `K`/`M` suffixes such as `100M`.
 
 ```aw wrap
-max-effective-tokens: 5000000
+max-effective-tokens: 5M
 ```
 
 Effective tokens are the normalized usage metric described in the
@@ -214,7 +214,7 @@ cap for one workflow. The guardrail sums runs from the past 24 hours of the same
 workflow started by the same triggering user.
 
 ```aw wrap
-max-daily-effective-tokens: 15000000
+max-daily-effective-tokens: 15M
 ```
 
 You can also configure the same threshold via environment variable
@@ -252,8 +252,8 @@ gh aw env get defaults.yml --scope org --org MY_ORG
 2. Update and apply shared defaults in batch:
 
 ```yaml
-default_max_effective_tokens: "5000000"
-default_max_daily_effective_tokens: "15000000"
+default_max_effective_tokens: "5M"
+default_max_daily_effective_tokens: "15M"
 default_model_copilot: "gpt-5-mini"
 default_model_claude: "claude-haiku-4-5"
 default_model_codex: "gpt-5.4-mini"
