@@ -1669,7 +1669,7 @@ experiments:
   # Storage backend for experiment state. 'repo' (default) persists state to a git
   # branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with
   # hyphens removed, e.g. 'my-workflow' -> 'experiments/myworkflow') for durability
-  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behaviour).
+  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behavior).
   # Repo storage is recommended because experiment data is valuable and more durable
   # than cache.
   # (optional)
@@ -6895,7 +6895,7 @@ safe-outputs:
     # Default values injected when the model omits a field
     # (optional)
     defaults:
-      # Behaviour when no files match: 'error' (default) or 'ignore'
+      # Behavior when no files match: 'error' (default) or 'ignore'
       # (optional)
       if-no-files: "error"
 
