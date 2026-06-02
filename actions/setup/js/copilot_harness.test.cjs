@@ -1755,16 +1755,7 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("extracts allow-all and allow-tool entries", () => {
-      expect(
-        buildCopilotSDKPermissionConfigFromServerArgs([
-          "--headless",
-          "--allow-tool",
-          "shell(git:*)",
-          "--allow-tool",
-          "github(get_file_contents)",
-          "--allow-all-tools",
-        ])
-      ).toEqual({
+      expect(buildCopilotSDKPermissionConfigFromServerArgs(["--headless", "--allow-tool", "shell(git:*)", "--allow-tool", "github(get_file_contents)", "--allow-all-tools"])).toEqual({
         allowAllTools: true,
         allowedTools: ["github(get_file_contents)", "shell(git:*)"],
       });

@@ -48,11 +48,7 @@ const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
  */
 function buildCopilotSDKPermissionHandler(permissionConfig, approveAll) {
   const allowAll = permissionConfig?.allowAllTools === true;
-  const allowedToolEntries = new Set(
-    Array.isArray(permissionConfig?.allowedTools)
-      ? permissionConfig.allowedTools.filter(tool => typeof tool === "string" && tool.trim().length > 0).map(tool => tool.trim())
-      : []
-  );
+  const allowedToolEntries = new Set(Array.isArray(permissionConfig?.allowedTools) ? permissionConfig.allowedTools.filter(tool => typeof tool === "string" && tool.trim().length > 0).map(tool => tool.trim()) : []);
 
   // Backward-compatibility fallback: when no explicit rules are present,
   // keep the previous approve-all behavior to avoid unexpectedly blocking runs.
