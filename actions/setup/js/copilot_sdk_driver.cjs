@@ -39,6 +39,50 @@ const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
  */
 
 /**
+ * @typedef {{
+ *   info?: (message: string) => void,
+ *   warning?: (message: string) => void,
+ * }} CopilotSDKCoreLogger
+ */
+
+/**
+ * @param {import("@github/copilot-sdk").PermissionRequest} request
+ * @returns {string}
+ */
+function summarizePermissionRequest(request) {
+  switch (request.kind) {
+    case "shell":
+      return `shell(${String(request.fullCommandText || "").trim() || "unknown"})`;
+    case "mcp":
+      return `mcp(${request.serverName || "unknown"}.${request.toolName || "unknown"})`;
+    case "url":
+      return `url(${request.url || "unknown"})`;
+    case "write":
+      return `write(${request.fileName || "unknown"})`;
+    case "custom-tool":
+      return `custom-tool(${request.toolName || "unknown"})`;
+    default:
+      return request.kind;
+  }
+}
+
+/**
+ * @param {CopilotSDKCoreLogger | undefined} coreLogger
+ * @param {(msg: string) => void} logger
+ * @param {import("@github/copilot-sdk").PermissionRequest} request
+ */
+function logPermissionDenied(coreLogger, logger, request) {
+  const requestSummary = summarizePermissionRequest(request);
+  logger(`permission denied by workflow tool permissions: ${requestSummary}`);
+  if (coreLogger?.info) {
+    coreLogger.info(`Copilot SDK permission denied: ${requestSummary}`);
+  }
+  if (coreLogger?.warning) {
+    coreLogger.warning(`Copilot SDK permission denied by workflow tool permissions: ${requestSummary}`);
+  }
+}
+
+/**
  * Build a scoped SDK permission handler from Copilot CLI allow-tool rules.
  * When no explicit permission rules exist, return undefined so the SDK applies
  * its built-in policy instead of an AWF override. This mirrors CLI mode where
@@ -46,9 +90,10 @@ const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
  *
  * @param {CopilotSDKPermissionConfig | undefined} permissionConfig
  * @param {import("@github/copilot-sdk").PermissionHandler} approveAll
+ * @param {{coreLogger?: CopilotSDKCoreLogger, logger?: (msg: string) => void}=} logOptions
  * @returns {import("@github/copilot-sdk").PermissionHandler | undefined}
  */
-function buildCopilotSDKPermissionHandler(permissionConfig, approveAll) {
+function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptions) {
   if (!permissionConfig) {
     return undefined;
   }
@@ -119,6 +164,8 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll) {
     if (isAllowed(request)) {
       return { kind: "approve-once" };
     }
+    const logger = logOptions?.logger ?? (() => {});
+    logPermissionDenied(logOptions?.coreLogger, logger, request);
     return { kind: "reject", feedback: "Tool invocation is not allowed by workflow tool permissions." };
   };
 }
@@ -162,6 +209,7 @@ function extractPromptFromArgs(args) {
  *     allowAllTools?: boolean,
  *     allowedTools?: string[],
  *   },
+ *   coreLogger?: CopilotSDKCoreLogger,
  *   sdkModule?: {
  *     CopilotClient: typeof import("@github/copilot-sdk").CopilotClient,
  *     RuntimeConnection: typeof import("@github/copilot-sdk").RuntimeConnection,
@@ -170,7 +218,7 @@ function extractPromptFromArgs(args) {
  * }} options
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, permissionConfig, sdkModule }) {
+async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, permissionConfig, coreLogger, sdkModule }) {
   // Lazy-require to avoid loading the SDK when it is not needed.
   // The SDK is large and has side-effects on import (worker threads, etc.).
   const { CopilotClient, RuntimeConnection, approveAll } = sdkModule ?? require("@github/copilot-sdk");
@@ -228,7 +276,10 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
      * Leaves permissions to SDK defaults when no explicit rules were generated.
      * @type {import("@github/copilot-sdk").PermissionHandler | undefined}
      */
-    const onPermissionRequest = buildCopilotSDKPermissionHandler(permissionConfig, approveAll);
+    const onPermissionRequest = buildCopilotSDKPermissionHandler(permissionConfig, approveAll, {
+      coreLogger,
+      logger: log,
+    });
 
     /** @type {import("@github/copilot-sdk").SessionConfig} */
     const sessionConfig = {

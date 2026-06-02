@@ -120,6 +120,25 @@ function log(message) {
 }
 
 /**
+ * Build a best-effort GitHub Actions core logger adapter for SDK permission warnings.
+ * @param {(message: string) => void} logger
+ * @returns {{info?: (message: string) => void, warning?: (message: string) => void} | undefined}
+ */
+function buildCoreLogger(logger) {
+  try {
+    // eslint-disable-next-line global-require
+    const core = require("@actions/core");
+    return {
+      info: message => core.info(message),
+      warning: message => core.warning(message),
+    };
+  } catch {
+    logger("sdk-mode: @actions/core unavailable; permission denials will be logged to harness output only");
+    return undefined;
+  }
+}
+
+/**
  * Generate a per-run connection token for Copilot SDK headless authentication.
  * Produces 32 random bytes encoded as a 64-character hexadecimal string.
  * @param {{ randomBytes?: (size: number) => Buffer }} [options]
@@ -621,7 +640,9 @@ async function main() {
   if (copilotSDKMode) {
     sdkOptions = await readSDKOptionsFromStdin();
     if (sdkOptions) {
-      log(`sdk-options: promptFile=${sdkOptions.promptFile || "(none)"} serverArgs=${(sdkOptions.serverArgs || []).length} addWorkspaceDir=${!!sdkOptions.addWorkspaceDir} permissionRules=${(sdkOptions.permissionConfig?.allowedTools || []).length} allowAllTools=${sdkOptions.permissionConfig?.allowAllTools === true}`);
+      log(
+        `sdk-options: promptFile=${sdkOptions.promptFile || "(none)"} serverArgs=${(sdkOptions.serverArgs || []).length} addWorkspaceDir=${!!sdkOptions.addWorkspaceDir} permissionRules=${(sdkOptions.permissionConfig?.allowedTools || []).length} allowAllTools=${sdkOptions.permissionConfig?.allowAllTools === true}`
+      );
     }
     // SDK mode does not use CLI prompt args; pass args through unmodified.
     resolvedArgs = args;
@@ -658,6 +679,7 @@ async function main() {
   let sdkPrompt = null;
   /** @type {{ model: string, provider: { type: "openai", baseUrl: string } } | null} */
   let sdkCustomProviderConfig = null;
+  const sdkCoreLogger = copilotSDKMode ? buildCoreLogger(log) : undefined;
   if (copilotSDKMode) {
     if (sdkOptions && sdkOptions.promptFile) {
       try {
@@ -742,6 +764,7 @@ async function main() {
             connectionToken: copilotConnectionToken,
             provider: sdkCustomProviderConfig?.provider,
             permissionConfig: sdkOptions?.permissionConfig,
+            coreLogger: sdkCoreLogger,
           });
         } else {
           result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });

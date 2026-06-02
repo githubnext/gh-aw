@@ -345,6 +345,56 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKPermissionConfig(t *testing.T)
 	}
 }
 
+func TestBuildCopilotSDKPermissionConfig(t *testing.T) {
+	t.Run("returns nil when no permission flags are present", func(t *testing.T) {
+		config := buildCopilotSDKPermissionConfig([]string{"--headless", "--port", "3002"})
+		if config != nil {
+			t.Fatalf("Expected nil permission config when no allow flags are present, got %#v", config)
+		}
+	})
+
+	t.Run("converts and normalizes allow-tool flags", func(t *testing.T) {
+		config := buildCopilotSDKPermissionConfig([]string{
+			"--allow-tool", "write",
+			"--allow-tool", " shell(git:*) ",
+			"--allow-tool", "--headless", // malformed entry should be ignored
+			"--allow-tool", "write", // duplicate should be deduped
+		})
+		if config == nil {
+			t.Fatal("Expected non-nil permission config")
+		}
+		if config.AllowAllTools {
+			t.Fatal("Expected AllowAllTools=false")
+		}
+		expected := []string{"shell(git:*)", "write"}
+		if len(config.AllowedTools) != len(expected) {
+			t.Fatalf("Expected %d allowed tools, got %d (%v)", len(expected), len(config.AllowedTools), config.AllowedTools)
+		}
+		for i := range expected {
+			if config.AllowedTools[i] != expected[i] {
+				t.Fatalf("Expected allowedTools[%d]=%q, got %q", i, expected[i], config.AllowedTools[i])
+			}
+		}
+	})
+
+	t.Run("preserves allow-all when present", func(t *testing.T) {
+		config := buildCopilotSDKPermissionConfig([]string{
+			"--allow-all-tools",
+			"--allow-tool", "write",
+		})
+		if config == nil {
+			t.Fatal("Expected non-nil permission config")
+		}
+		if !config.AllowAllTools {
+			t.Fatal("Expected AllowAllTools=true")
+		}
+		expected := []string{"write"}
+		if len(config.AllowedTools) != len(expected) || config.AllowedTools[0] != expected[0] {
+			t.Fatalf("Expected allowed tools %v, got %v", expected, config.AllowedTools)
+		}
+	})
+}
+
 func TestCopilotEngineExecutionStepsAlwaysInjectsIntegrationIDAfterEnvMerges(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
