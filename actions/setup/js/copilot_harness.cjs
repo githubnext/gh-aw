@@ -89,7 +89,7 @@ const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
 // credential (written by a mid-stream interrupted run) is incomplete or invalid.  In that
 // case the driver falls back to a fresh run (without --continue) to re-do env-var auth.
 // On a fresh run the token is genuinely absent — retrying will not help.
-const NO_AUTH_INFO_PATTERN = /No authentication information found/;
+const NO_AUTH_INFO_PATTERN = /No authentication information found|Session was not created with authentication info or custom provider/;
 // Pattern to detect authentication failures returned by Copilot API.
 // After a first-attempt auth failure, retrying is futile because the entrypoint unsets
 // COPILOT_GITHUB_TOKEN between attempts.
@@ -214,6 +214,78 @@ function isModelAvailableInReflectFile(model, options) {
     const err = /** @type {Error} */ error;
     logger(`awf-reflect: unable to read model availability from ${reflectPath}: ${err.message}`);
     return false;
+  }
+}
+
+/**
+ * Resolve Copilot SDK BYOK custom provider configuration from saved AWF /reflect data.
+ * Chooses a configured endpoint and maps it to an OpenAI-compatible provider base URL.
+ *
+ * @param {{
+ *   model?: string,
+ *   reflectPath?: string,
+ *   readFileSync?: (path: string, encoding: string) => string,
+ *   logger?: (msg: string) => void,
+ * }} [options]
+ * @returns {{ model: string, provider: { type: "openai", baseUrl: string } } | null}
+ */
+function resolveCopilotSDKCustomProviderFromReflect(options) {
+  const configuredModel = typeof options?.model === "string" ? options.model.trim() : "";
+  const reflectPath = (options && options.reflectPath) || AWF_REFLECT_OUTPUT_PATH;
+  const readFile = (options && options.readFileSync) || fs.readFileSync;
+  const logger = (options && options.logger) || log;
+
+  try {
+    const raw = readFile(reflectPath, "utf8");
+    const reflectData = JSON.parse(raw);
+    const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints.filter(ep => ep && ep.configured === true) : [];
+    if (endpoints.length === 0) {
+      logger(`sdk-mode: no configured endpoints in ${reflectPath}; skipping custom provider config`);
+      return null;
+    }
+
+    const endpoint =
+      (configuredModel
+        ? endpoints.find(ep => Array.isArray(ep.models) && ep.models.includes(configuredModel))
+        : null) ||
+      endpoints.find(ep => String(ep.provider || "").toLowerCase() === "copilot") ||
+      endpoints[0];
+
+    let baseUrl = "";
+    if (typeof endpoint?.models_url === "string" && endpoint.models_url) {
+      try {
+        baseUrl = new URL(endpoint.models_url).origin;
+      } catch {
+        // ignore malformed URL and fall back to port-based construction below
+      }
+    }
+    if (!baseUrl && endpoint?.port != null) {
+      baseUrl = `http://api-proxy:${String(endpoint.port)}`;
+    }
+    if (!baseUrl) {
+      logger("sdk-mode: unable to derive provider baseUrl from awf-reflect endpoint data; skipping custom provider config");
+      return null;
+    }
+
+    let model = configuredModel;
+    if (!model && Array.isArray(endpoint?.models)) {
+      const firstModel = endpoint.models.find(m => typeof m === "string" && m.trim().length > 0);
+      model = typeof firstModel === "string" ? firstModel.trim() : "";
+    }
+    if (!model) {
+      logger("sdk-mode: unable to derive model for custom provider from awf-reflect; skipping custom provider config");
+      return null;
+    }
+
+    logger(`sdk-mode: custom provider resolved from awf-reflect (provider=${String(endpoint.provider || "unknown")} baseUrl=${baseUrl} model=${model})`);
+    return {
+      model,
+      provider: { type: "openai", baseUrl },
+    };
+  } catch (error) {
+    const err = /** @type {Error} */ error;
+    logger(`sdk-mode: unable to read custom provider config from ${reflectPath}: ${err.message}`);
+    return null;
   }
 }
 
@@ -405,7 +477,7 @@ async function readSDKOptionsFromStdin() {
   return new Promise(resolve => {
     /** @type {Buffer[]} */
     const chunks = [];
-    process.stdin.on("data", chunk => chunks.push(/** @type {Buffer} */ chunk));
+    process.stdin.on("data", chunk => chunks.push(/** @type {Buffer} */ (chunk)));
     process.stdin.on("end", () => {
       const text = Buffer.concat(chunks).toString("utf8").trim();
       if (!text) {
@@ -554,6 +626,8 @@ async function main() {
   // In SDK mode the prompt is required; read it from the promptFile in sdkOptions (piped via
   // stdin by the engine command).  Fall back to extracting from CLI args for backward compatibility.
   let sdkPrompt = null;
+  /** @type {{ model: string, provider: { type: "openai", baseUrl: string } } | null} */
+  let sdkCustomProviderConfig = null;
   if (copilotSDKMode) {
     if (sdkOptions && sdkOptions.promptFile) {
       try {
@@ -572,6 +646,12 @@ async function main() {
       } else {
         log("sdk-mode: no prompt found in stdin JSON payload or CLI args");
       }
+    }
+    if (process.env.AWF_REFLECT_ENABLED === "1") {
+      sdkCustomProviderConfig = resolveCopilotSDKCustomProviderFromReflect({
+        model: process.env.COPILOT_MODEL,
+        logger: log,
+      });
     }
   }
   /** @type {Awaited<ReturnType<typeof startCopilotSDKServer>>} */
@@ -619,7 +699,14 @@ async function main() {
         // Redact --prompt / -p value from logs to avoid leaking prompt content
         const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
         const result = copilotSDKMode
-          ? await runWithCopilotSDK({ sdkUri: sdkEnv.COPILOT_SDK_URI ?? process.env.COPILOT_SDK_URI ?? "", prompt: sdkPrompt, logger: log, attempt })
+          ? await runWithCopilotSDK({
+              sdkUri: sdkEnv.COPILOT_SDK_URI ?? process.env.COPILOT_SDK_URI ?? "",
+              prompt: /** @type {string} */ (sdkPrompt),
+              logger: log,
+              attempt,
+              model: sdkCustomProviderConfig?.model,
+              provider: sdkCustomProviderConfig?.provider,
+            })
           : await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
         lastExitCode = result.exitCode;
         const attemptDetections = detectCopilotErrors(result.output);
@@ -819,6 +906,7 @@ if (typeof module !== "undefined" && module.exports) {
     isDetectionPhase,
     isModelAvailableInReflectData,
     isModelAvailableInReflectFile,
+    resolveCopilotSDKCustomProviderFromReflect,
     countPermissionDeniedIssues,
     detectCopilotErrors,
     hasNumerousPermissionDeniedIssues,

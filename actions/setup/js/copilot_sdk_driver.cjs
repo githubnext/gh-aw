@@ -63,6 +63,8 @@ function extractPromptFromArgs(args) {
  *   prompt: string,
  *   logger: (msg: string) => void,
  *   attempt?: number,
+ *   model?: string,
+ *   provider?: import("@github/copilot-sdk").ProviderConfig,
  *   sdkModule?: {
  *     CopilotClient: typeof import("@github/copilot-sdk").CopilotClient,
  *     RuntimeConnection: typeof import("@github/copilot-sdk").RuntimeConnection,
@@ -71,7 +73,7 @@ function extractPromptFromArgs(args) {
  * }} options
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModule }) {
+async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, provider, sdkModule }) {
   // Lazy-require to avoid loading the SDK when it is not needed.
   // The SDK is large and has side-effects on import (worker threads, etc.).
   const { CopilotClient, RuntimeConnection, approveAll } = sdkModule ?? require("@github/copilot-sdk");
@@ -91,7 +93,9 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModul
   const VALID_LOG_LEVELS = ["none", "error", "warning", "info", "debug", "all"];
   const rawLogLevel = process.env.COPILOT_SDK_LOG_LEVEL ?? "";
   /** @type {import("@github/copilot-sdk").CopilotClientOptions["logLevel"]} */
-  const logLevel = /** @type {any} */ VALID_LOG_LEVELS.includes(/** @type {any} */ rawLogLevel) ? rawLogLevel : "warning";
+  const logLevel = VALID_LOG_LEVELS.includes(/** @type {any} */ (rawLogLevel))
+    ? /** @type {import("@github/copilot-sdk").CopilotClientOptions["logLevel"]} */ (rawLogLevel)
+    : "warning";
 
   const client = new CopilotClient({
     connection: RuntimeConnection.forUri(sdkUri, {}),
@@ -108,10 +112,13 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModul
     clientStarted = true;
     log("client started");
 
-    session = await client.createSession({
-      model: process.env.COPILOT_MODEL || undefined,
+    /** @type {import("@github/copilot-sdk").SessionConfig} */
+    const sessionConfig = {
+      model: model || process.env.COPILOT_MODEL || undefined,
       onPermissionRequest: approveAll,
-    });
+      provider,
+    };
+    session = await client.createSession(sessionConfig);
     log(`session created: sessionId=${session.sessionId}`);
 
     // Prepare JSONL output file for this session.
@@ -137,6 +144,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModul
      * @param {string | undefined} [timestamp]
      */
     function writeEvent(type, data, timestamp) {
+      if (!eventsStream) return;
       const entry = { type, timestamp: timestamp ?? new Date().toISOString(), data };
       eventsStream.write(JSON.stringify(entry) + "\n");
     }
@@ -218,8 +226,9 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModul
       durationMs,
     };
   } finally {
-    if (eventsStream) {
-      await new Promise(resolve => eventsStream.end(resolve));
+    const stream = eventsStream;
+    if (stream) {
+      await new Promise(resolve => stream.end(resolve));
     }
     if (session) {
       try {
