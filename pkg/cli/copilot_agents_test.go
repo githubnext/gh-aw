@@ -385,9 +385,7 @@ func TestBuildAgenticWorkflowsSkillContentWithEmptyAWDirectory(t *testing.T) {
 	expected, err := buildAgenticWorkflowsSkillContent(withoutAWDir)
 	require.NoError(t, err, "buildAgenticWorkflowsSkillContent() without .github/aw directory returned error")
 	assert.Equal(t, expected, content, "skill content with empty .github/aw should match content without .github/aw")
-	if strings.Contains(content, agenticWorkflowsSkillFileListPlaceholder) {
-		t.Fatalf("expected generated skill content to replace the file-list placeholder:\n%s", content)
-	}
+	assert.NotContains(t, content, agenticWorkflowsSkillFileListPlaceholder, "expected generated skill content to replace the file-list placeholder")
 }
 
 func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {

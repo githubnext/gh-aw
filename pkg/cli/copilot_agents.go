@@ -148,13 +148,17 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 	return agenticWorkflowsAgentTemplate, nil
 }
 
+func minimalAgenticWorkflowsSkillContent() string {
+	return strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, "", 1)
+}
+
 func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
 	awRoot := filepath.Join(gitRoot, ".github", "aw")
 	entries, err := os.ReadDir(awRoot)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// No .github/aw directory yet — emit a minimal skill without the file list.
-			return strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, "", 1), nil
+			return minimalAgenticWorkflowsSkillContent(), nil
 		}
 		return "", fmt.Errorf("failed to read .github/aw directory for skill generation (%s): %w", awRoot, err)
 	}
@@ -171,7 +175,8 @@ func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
 	if len(awFiles) == 0 {
 		// .github/aw may exist for non-markdown artifacts (e.g. actions-lock.json, logs/).
 		// Emit a minimal skill without an explicit file list in that case.
-		return strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, "", 1), nil
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(".github/aw exists but contains no markdown workflow files — emitting minimal skill"))
+		return minimalAgenticWorkflowsSkillContent(), nil
 	}
 
 	var fileList strings.Builder
