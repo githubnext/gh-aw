@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var safeOutputsBuilderLog = logger.New("workflow:safe_outputs_builder")
@@ -81,17 +82,20 @@ func (b *handlerConfigBuilder) AddBoolOrInt(key string, value any) *handlerConfi
 	switch v := value.(type) {
 	case nil:
 		return b
-	case bool, int, int64, uint64:
+	case bool:
 		b.config[key] = v
+		return b
 	case float64:
-		if math.Trunc(v) == v {
-			b.config[key] = int(v)
+		if math.Trunc(v) != v {
+			safeOutputsBuilderLog.Printf("Ignoring non-integer float for %s: %v", key, v)
 			return b
 		}
-		safeOutputsBuilderLog.Printf("Ignoring non-integer float for %s: %v", key, v)
-	default:
-		safeOutputsBuilderLog.Printf("Ignoring unsupported bool-or-int value for %s: %T", key, value)
 	}
+	if intValue, ok := typeutil.ParseIntValue(value); ok {
+		b.config[key] = intValue
+		return b
+	}
+	safeOutputsBuilderLog.Printf("Ignoring unsupported bool-or-int value for %s: %T", key, value)
 	return b
 }
 

@@ -16,7 +16,7 @@ type CreateIssuesConfig struct {
 	AllowedLabels        []string `yaml:"allowed-labels,omitempty"`       // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	AllowedFields        []string `yaml:"allowed-fields,omitempty"`       // Optional list of allowed issue field names. If omitted or empty, any issue fields are allowed. Use ["*"] to explicitly allow all.
 	Assignees            []string `yaml:"assignees,omitempty"`            // List of users/bots to assign the issue to
-	DeduplicateByTitle   any      `yaml:"deduplicate-by-title,omitempty"` // When set to true, false, or a non-negative integer, enables title-based issue deduplication (exact or fuzzy by edit distance).
+	DeduplicateByTitle   any      `yaml:"deduplicate-by-title,omitempty"` // When true or 0, deduplicate by exact title match. When set to a positive integer N, also allow fuzzy matches up to edit distance N. When false or omitted, disable title-based deduplication.
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`          // Target repository in format "owner/repo" for cross-repository issues
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`        // List of additional repositories that issues can be created in
 	CloseOlderIssues     *string  `yaml:"close-older-issues,omitempty"`   // When true, close older issues with same title prefix or labels as "not planned"
