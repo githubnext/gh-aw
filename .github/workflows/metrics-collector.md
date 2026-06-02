@@ -8,7 +8,9 @@ permissions:
   pull-requests: read
   discussions: read
   actions: read
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 imports:
   - uses: shared/meta-analysis-base.md
     with:

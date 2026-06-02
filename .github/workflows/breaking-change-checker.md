@@ -9,7 +9,9 @@ permissions:
   contents: read
   actions: read
   copilot-requests: write
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 tracker-id: breaking-change-checker
 tools:
   cli-proxy: true

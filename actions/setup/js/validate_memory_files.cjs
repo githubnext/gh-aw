@@ -32,7 +32,7 @@ function validateMemoryFiles(memoryDir, memoryType = "cache", allowedExtensions)
     return { valid: true, invalidFiles: [] };
   }
 
-  const extensions = allowedExtensions.map(ext => ext.trim().toLowerCase());
+  const extensions = new Set(allowedExtensions.map(ext => ext.trim().toLowerCase()));
   const invalidFiles = [];
 
   /**
@@ -56,7 +56,7 @@ function validateMemoryFiles(memoryDir, memoryType = "cache", allowedExtensions)
         scanDirectory(fullPath, relativeFilePath);
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();
-        if (!extensions.includes(ext)) {
+        if (!extensions.has(ext)) {
           invalidFiles.push(relativeFilePath);
         }
       }
@@ -73,11 +73,11 @@ function validateMemoryFiles(memoryDir, memoryType = "cache", allowedExtensions)
 
   if (invalidFiles.length > 0) {
     core.error(`Found ${invalidFiles.length} file(s) with invalid extensions in ${memoryType}-memory:`);
-    invalidFiles.forEach(file => {
+    for (const file of invalidFiles) {
       const ext = path.extname(file).toLowerCase() || "(no extension)";
       core.error(`  - ${file} (extension: ${ext})`);
-    });
-    core.error(`Allowed extensions: ${extensions.join(", ")}`);
+    }
+    core.error(`Allowed extensions: ${[...extensions].join(", ")}`);
     return { valid: false, invalidFiles };
   }
 

@@ -167,4 +167,30 @@ strict: false
 		assert.False(t, applied, "codemod should not apply when strict is false")
 		assert.Equal(t, content, result, "content should remain unchanged")
 	})
+
+	t.Run("does not modify when checkout is a mapping with sub-keys", func(t *testing.T) {
+		content := `---
+description: "Review Azure SDK management-plane PRs"
+on:
+  pull_request_target:
+checkout:
+  sparse-checkout: |
+    .github
+inlined-imports: true
+---
+`
+		frontmatter := map[string]any{
+			"on": map[string]any{
+				"pull_request_target": map[string]any{},
+			},
+			"checkout": map[string]any{
+				"sparse-checkout": ".github\n",
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should not return an error")
+		assert.False(t, applied, "codemod should not apply when checkout is a mapping")
+		assert.Equal(t, content, result, "content should remain unchanged and not corrupt the mapping")
+	})
 }

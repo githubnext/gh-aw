@@ -26,7 +26,9 @@ safe-outputs:
     title-prefix: "[copilot-cli-research] "
 description: Deep research analyzing Copilot CLI current state, available features, and missed optimization opportunities
 emoji: 🔬
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: true
 timeout-minutes: 20
 tools:

@@ -27,7 +27,9 @@ tools:
     description: "Historical sentrux quality signal and architecture metrics"
     file-glob: ["*.json", "*.jsonl"]
     max-file-size: 51200
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 
 ---
 

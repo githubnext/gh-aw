@@ -11,7 +11,9 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: daily-skill-optimizer
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: true
 timeout-minutes: 45
 
