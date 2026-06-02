@@ -60,8 +60,8 @@ safe-outputs:
 
 timeout-minutes: 60
 env:
-  # 55 minutes, leaving headroom under the 60-minute workflow timeout.
-  COPILOT_SDK_SEND_TIMEOUT_MS: "3300000"
+  # 59m30s (agent timeout minus 30 seconds).
+  COPILOT_SDK_SEND_TIMEOUT_MS: "3570000"
 
 imports:
   - uses: shared/meta-analysis-base.md
