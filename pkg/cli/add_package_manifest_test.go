@@ -38,6 +38,7 @@ func TestResolveRepositoryPackage(t *testing.T) {
 	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
 		return "main", nil
 	}
+
 	getRepositoryPackageLatestRelease = func(repoSlug, host string) (string, error) {
 		return "", errors.New("no releases found")
 	}
@@ -1660,4 +1661,23 @@ files:
 	assert.False(t, agent.IsPackageSkillFile)
 	assert.True(t, agent.IsPackageAgentFile)
 	assert.Equal(t, agentMD, agent.Content)
+}
+
+func TestShouldResolveRepositoryPackageLatestRelease(t *testing.T) {
+	tests := []struct {
+		name     string
+		repoSlug string
+		want     bool
+	}{
+		{name: "exact match", repoSlug: "github/gh-aw", want: true},
+		{name: "case-insensitive with whitespace", repoSlug: "  GitHub/GH-AW  ", want: true},
+		{name: "different repository", repoSlug: "github/other", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldResolveRepositoryPackageLatestRelease(tt.repoSlug)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
