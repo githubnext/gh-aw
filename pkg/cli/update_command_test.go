@@ -436,6 +436,51 @@ func TestFindWorkflowsWithSource_CustomDirectory(t *testing.T) {
 		t.Fatalf("Failed to create custom workflow directory: %v", err)
 	}
 
+	func TestFindWorkflowsWithSource_RecursiveIncludesPinnedSHA(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "test-*")
+		customWorkflowDir := filepath.Join(tmpDir, "custom", "workflows")
+		nestedDir := filepath.Join(customWorkflowDir, "shared")
+		require.NoError(t, os.MkdirAll(nestedDir, 0755))
+
+		topLevelWorkflow := `---
+	on: push
+	engine: claude
+	source: test/repo/top-level.md@v1.0.0
+	---
+
+	# Top Level`
+		require.NoError(t, os.WriteFile(filepath.Join(customWorkflowDir, "top-level.md"), []byte(topLevelWorkflow), 0644))
+
+		nestedSHAWorkflow := `---
+	on: push
+	engine: claude
+	source: test/repo/nested.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d
+	---
+
+	# Nested`
+		require.NoError(t, os.WriteFile(filepath.Join(nestedDir, "nested-workflow.md"), []byte(nestedSHAWorkflow), 0644))
+
+		nestedWithoutSource := `---
+	on: push
+	engine: claude
+	---
+
+	# No Source`
+		require.NoError(t, os.WriteFile(filepath.Join(nestedDir, "no-source.md"), []byte(nestedWithoutSource), 0644))
+
+		workflows, err := findWorkflowsWithSource(customWorkflowDir, nil, false)
+		require.NoError(t, err)
+		require.Len(t, workflows, 2, "expected recursive discovery to include all source workflows")
+
+		found := make(map[string]string, len(workflows))
+		for _, wf := range workflows {
+			found[wf.Name] = wf.SourceSpec
+		}
+
+		assert.Equal(t, "test/repo/top-level.md@v1.0.0", found["top-level"])
+		assert.Equal(t, "test/repo/nested.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d", found["nested-workflow"])
+	}
+
 	// Create a workflow file with source field
 	workflowContent := `---
 on: push
