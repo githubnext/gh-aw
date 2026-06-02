@@ -40,8 +40,9 @@ const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
 
 /**
  * Build a scoped SDK permission handler from Copilot CLI allow-tool rules.
- * When no explicit permission rules exist, return undefined so the SDK uses
- * its default permission behavior (matching CLI mode semantics).
+ * When no explicit permission rules exist, return undefined so the SDK applies
+ * its built-in policy instead of an AWF override. This mirrors CLI mode where
+ * no --allow-tool/--allow-all-tools flags are emitted when no toolsets are configured.
  *
  * @param {CopilotSDKPermissionConfig | undefined} permissionConfig
  * @param {import("@github/copilot-sdk").PermissionHandler} approveAll

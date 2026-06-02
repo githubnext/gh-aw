@@ -436,6 +436,8 @@ describe("copilot_harness.cjs", () => {
 
         expect(result.exitCode).toBe(0);
         const sessionConfig = createSession.mock.calls[0][0];
+        // The SDK's default policy is exercised by omitting onPermissionRequest entirely.
+        // This assertion verifies we do not force approve-all in the no-toolset path.
         expect(sessionConfig).not.toHaveProperty("onPermissionRequest");
         expect(approveAll).not.toHaveBeenCalled();
       });
