@@ -369,6 +369,7 @@ func TestBuildAgenticWorkflowsSkillContentWithoutAWDirectory(t *testing.T) {
 
 func TestBuildAgenticWorkflowsSkillContentWithEmptyAWDirectory(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
+	withoutAWDir := testutil.TempDir(t, "test-*")
 	awDir := filepath.Join(tempDir, ".github", "aw")
 	if err := os.MkdirAll(filepath.Join(awDir, "logs"), 0o755); err != nil {
 		t.Fatalf("Failed to create .github/aw/logs directory: %v", err)
@@ -382,9 +383,12 @@ func TestBuildAgenticWorkflowsSkillContentWithEmptyAWDirectory(t *testing.T) {
 		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
 	}
 
-	expected := strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, "", 1)
+	expected, err := buildAgenticWorkflowsSkillContent(withoutAWDir)
+	if err != nil {
+		t.Fatalf("buildAgenticWorkflowsSkillContent() without .github/aw directory returned error: %v", err)
+	}
 	if content != expected {
-		t.Fatalf("Expected exact skill content with empty .github/aw directory:\n%s\ngot:\n%s", expected, content)
+		t.Fatalf("Expected skill content with empty .github/aw directory to match content without .github/aw directory:\nexpected:\n%s\ngot:\n%s", expected, content)
 	}
 	if strings.Contains(content, agenticWorkflowsSkillFileListPlaceholder) {
 		t.Fatalf("expected generated skill content to replace the file-list placeholder:\n%s", content)
