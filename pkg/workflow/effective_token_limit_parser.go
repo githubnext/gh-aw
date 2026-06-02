@@ -14,6 +14,9 @@ import (
 //   - positive integers
 //   - positive numeric strings with optional K/M suffixes
 //
+// K/M suffix strings are expanded to plain base-10 (for example, "100M"
+// becomes "100000000").
+//
 // It returns the normalized base-10 value and true when parsing succeeds.
 // It returns an empty string and false when the value is not a valid positive
 // effective-token limit.

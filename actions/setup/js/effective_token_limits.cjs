@@ -1,6 +1,6 @@
 // @ts-check
 
-const POSITIVE_TOKEN_LIMIT_WITH_SUFFIX_RE = /^([1-9]\d*)([kKmM])?$/;
+const POSITIVE_TOKEN_LIMIT_WITH_SUFFIX_REGEX = /^([1-9]\d*)([kKmM])?$/;
 
 /**
  * @param {unknown} value
@@ -16,7 +16,7 @@ function parsePositiveEffectiveTokenLimitBigInt(value) {
   }
 
   const trimmed = value.trim();
-  const match = POSITIVE_TOKEN_LIMIT_WITH_SUFFIX_RE.exec(trimmed);
+  const match = POSITIVE_TOKEN_LIMIT_WITH_SUFFIX_REGEX.exec(trimmed);
   if (!match) {
     return null;
   }
