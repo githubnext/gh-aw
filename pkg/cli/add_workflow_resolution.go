@@ -269,9 +269,9 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 		return parsedSpecs
 	}
 	host := explicitHostForRepo(repoSpec.RepoSlug)
-	resolvedVersion := repoSpec.Version
-	if resolvedVersion == "" {
-		resolvedVersion = pkg.ResolvedRef
+	effectiveVersion := repoSpec.Version
+	if effectiveVersion == "" {
+		effectiveVersion = pkg.ResolvedRef
 	}
 	for _, installationSource := range pkg.InstallationSource {
 		// installationSource is guaranteed by isSupportedPackageInstallablePath to be
@@ -283,7 +283,7 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
 			RepoSpec: RepoSpec{
 				RepoSlug:    repoSpec.RepoSlug,
-				Version:     resolvedVersion,
+				Version:     effectiveVersion,
 				PackagePath: repoSpec.PackagePath,
 			},
 			WorkflowPath:           installationSource,
@@ -302,7 +302,7 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
 			RepoSpec: RepoSpec{
 				RepoSlug:    repoSpec.RepoSlug,
-				Version:     resolvedVersion,
+				Version:     effectiveVersion,
 				PackagePath: repoSpec.PackagePath,
 			},
 			WorkflowPath:       skillFile.SourcePath,
@@ -321,7 +321,7 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
 			RepoSpec: RepoSpec{
 				RepoSlug:    repoSpec.RepoSlug,
-				Version:     resolvedVersion,
+				Version:     effectiveVersion,
 				PackagePath: repoSpec.PackagePath,
 			},
 			WorkflowPath:       agentFile,

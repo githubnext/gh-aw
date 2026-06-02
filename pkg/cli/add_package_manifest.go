@@ -918,6 +918,8 @@ func resolveRepositoryPackageDefaultBranch(repoSlug, host string) (string, error
 	return branch, nil
 }
 
+// isGhAwRepository reports whether repoSlug identifies github/gh-aw.
+// Matching is case-insensitive and ignores surrounding whitespace.
 func isGhAwRepository(repoSlug string) bool {
 	return strings.EqualFold(strings.TrimSpace(repoSlug), ghAwRepositorySlug)
 }
