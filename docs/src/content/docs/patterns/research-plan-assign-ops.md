@@ -104,57 +104,19 @@ Copilot's pull request is reviewed by a human maintainer. The maintainer checks 
 
 ## End-to-End Example
 
-The following trace shows the full cycle using `go-fan` as the research driver.
+A full cycle driven by `go-fan`:
 
-**Monday 7 AM** — `go-fan` runs and creates a discussion:
-
-> **[go-fan] Go Module Review: spf13/cobra**
->
-> Current usage creates a new `Command` per invocation. cobra v1.8 introduced
-> `SetContext` for propagating cancellation. Quick wins: pass context through
-> subcommands, use `PersistentPreRunE` for shared setup.
-
-**Monday afternoon** — Developer reads the discussion and types:
-
-```
-/plan
-```
-
-The planner creates a parent tracking issue `[plan] cobra improvements` with three sub-issues:
-
-- `[plan] Pass context through subcommands using cobra SetContext`
-- `[plan] Refactor shared setup into PersistentPreRunE`
-- `[plan] Add context cancellation tests`
-
-**Monday afternoon** — Developer assigns the first two issues to Copilot. Both open PRs within minutes.
-
-**Tuesday** — Developer reviews PRs, requests a minor change on one, approves the other. Both merge by end of day. The tracking issue closes.
+- **Monday 7 AM** — `go-fan` posts a discussion *"[go-fan] Go Module Review: spf13/cobra"* recommending context propagation via cobra's `SetContext` and shared setup via `PersistentPreRunE`.
+- **Monday afternoon** — A developer types `/plan` on the discussion. The planner opens a `[plan] cobra improvements` tracking issue with three sub-issues (context propagation, `PersistentPreRunE` refactor, cancellation tests), then assigns the first two to Copilot, which opens PRs within minutes.
+- **Tuesday** — The developer reviews the PRs, requests one minor change, and merges both. The tracking issue closes automatically.
 
 ## Workflow Configuration Patterns
 
-### Research: produce one discussion per run
+The Phase 1 example already shows the core research config (`create-discussion` with `close-older-discussions: true`, plus `cache-memory`). Two more safe-output knobs shape the later phases.
 
-```aw wrap
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    category: "research"
-    max: 1
-    close-older-discussions: true
-```
+### Plan: group sub-issues
 
-`close-older-discussions: true` prevents discussion accumulation—only the latest finding stays open for the planner.
-
-### Research: maintain memory across runs
-
-```aw wrap
-tools:
-  cache-memory: true
-```
-
-Use `cache-memory` to track state between scheduled runs—which items have been reviewed, trend data, or historical baselines.
-
-### Plan: issue grouping
+`group: true` creates the parent tracking issue automatically—do not create it manually:
 
 ```aw wrap
 safe-outputs:
@@ -166,11 +128,9 @@ safe-outputs:
     group: true
 ```
 
-`group: true` creates a parent tracking issue automatically. Do not create the parent manually—the workflow handles it.
+### Assign: skip planning with `assignees`
 
-### Assign: pre-assign via `assignees`
-
-For research workflows that produce self-contained, well-scoped issues, skip the manual plan phase and assign directly:
+When research produces self-contained, well-scoped issues, assign directly and skip the manual plan phase—as `duplicate-code-detector` does for narrow duplication fixes:
 
 ```aw wrap
 safe-outputs:
@@ -180,17 +140,9 @@ safe-outputs:
     assignees: copilot
 ```
 
-The `duplicate-code-detector` workflow uses this approach—duplication fixes are narrow enough that a planning phase adds no value.
-
 ## Customization
 
-Adapt this pattern by varying:
-
-- **Research focus**: static analysis, performance metrics, documentation quality, security, code duplication, test coverage
-- **Frequency**: daily, weekly, on-demand
-- **Report format**: discussions (for open-ended findings), issues (for self-contained tasks)
-- **Planning approach**: automatic (well-scoped research goes straight to Copilot via `assignees: copilot`) vs. manual (developer reviews before assigning)
-- **Assignment method**: pre-assign in the research workflow, bulk-assign via an orchestrator workflow, or assign individually through the GitHub UI
+Adapt the pattern by varying the **research focus** (static analysis, performance, documentation quality, security, code duplication, test coverage), the **frequency** (daily, weekly, on-demand), the **report format** (discussions for open-ended findings, issues for self-contained tasks), and the **assignment method** (pre-assign in the research workflow, bulk-assign via an orchestrator, or assign individually through the GitHub UI).
 
 ## Limitations
 
