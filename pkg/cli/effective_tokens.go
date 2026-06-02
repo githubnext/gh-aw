@@ -31,6 +31,8 @@ import (
 	"encoding/json"
 	"maps"
 	"math"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -41,6 +43,12 @@ var effectiveTokensLog = logger.New("cli:effective_tokens")
 
 //go:embed data/model_multipliers.json
 var modelMultipliersJSON []byte
+
+const (
+	defaultMergedModelMultipliersPath = "/tmp/gh-aw/model_multipliers.json"
+	mergedModelMultipliersPathEnvVar  = "GH_AW_MERGED_MODEL_MULTIPLIERS_PATH"
+	modelMultipliersEnvVar            = "GH_AW_MODEL_MULTIPLIERS"
+)
 
 // modelMultipliersData is the top-level structure of model_multipliers.json.
 type modelMultipliersData struct {
@@ -66,9 +74,9 @@ func initMultipliers() {
 		return
 	}
 
-	var data modelMultipliersData
-	if err := json.Unmarshal(modelMultipliersJSON, &data); err != nil {
-		effectiveTokensLog.Printf("Failed to parse model_multipliers.json: %v", err)
+	data, ok := loadModelMultipliersData()
+	if !ok {
+		effectiveTokensLog.Print("Failed to load model multipliers from all sources; falling back to defaults")
 		loadedMultipliers = make(map[string]float64)
 		loadedTokenWeights = defaultTokenClassWeights()
 		return
@@ -103,6 +111,42 @@ func initMultipliers() {
 		loadedTokenWeights.Input, loadedTokenWeights.CachedInput, loadedTokenWeights.Output)
 }
 
+func loadModelMultipliersData() (modelMultipliersData, bool) {
+	mergedPath := strings.TrimSpace(os.Getenv(mergedModelMultipliersPathEnvVar))
+	if mergedPath == "" {
+		mergedPath = defaultMergedModelMultipliersPath
+	}
+	if data, ok := parseModelMultipliersFile(mergedPath); ok {
+		return data, true
+	}
+
+	if raw := strings.TrimSpace(os.Getenv(modelMultipliersEnvVar)); raw != "" {
+		if data, ok := parseModelMultipliersJSON([]byte(raw)); ok {
+			return data, true
+		}
+	}
+
+	return parseModelMultipliersJSON(modelMultipliersJSON)
+}
+
+func parseModelMultipliersFile(filePath string) (modelMultipliersData, bool) {
+	cleanPath := filepath.Clean(filePath)
+	raw, err := os.ReadFile(cleanPath)
+	if err != nil {
+		return modelMultipliersData{}, false
+	}
+	return parseModelMultipliersJSON(raw)
+}
+
+func parseModelMultipliersJSON(raw []byte) (modelMultipliersData, bool) {
+	var data modelMultipliersData
+	if err := json.Unmarshal(raw, &data); err != nil {
+		effectiveTokensLog.Printf("Failed to parse model multipliers JSON: %v", err)
+		return modelMultipliersData{}, false
+	}
+	return data, true
+}
+
 // defaultTokenClassWeights returns the specification-mandated default weights.
 func defaultTokenClassWeights() types.TokenClassWeights {
 	return types.TokenClassWeights{
@@ -131,7 +175,7 @@ func populateEffectiveTokensWithCustomWeights(summary *TokenUsageSummary, custom
 			continue
 		}
 		eff := computeModelEffectiveTokensWithWeights(model, usage.InputTokens, usage.OutputTokens,
-			usage.CacheReadTokens, usage.CacheWriteTokens, multipliers, classWeights)
+			usage.CacheReadTokens, usage.CacheWriteTokens, usage.ReasoningTokens, multipliers, classWeights)
 		usage.EffectiveTokens = eff
 		total += eff
 	}
@@ -185,31 +229,45 @@ func resolveEffectiveWeights(custom *types.TokenWeights) (map[string]float64, ty
 
 // computeModelEffectiveTokensWithWeights computes effective tokens using caller-provided
 // multiplier table and token class weights instead of the global defaults.
-func computeModelEffectiveTokensWithWeights(model string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int, multipliers map[string]float64, w types.TokenClassWeights) int {
-	base := w.Input*float64(inputTokens) +
-		w.CachedInput*float64(cacheReadTokens) +
-		w.Output*float64(outputTokens) +
-		w.CacheWrite*float64(cacheWriteTokens)
+func computeModelEffectiveTokensWithWeights(model string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens int, multipliers map[string]float64, w types.TokenClassWeights) int {
+	base := computeBaseWeightedTokens(w, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens)
 	if base == 0 {
 		return 0
 	}
 
+	mult := getModelMultiplier(model, multipliers)
+	return int(math.Round(base * mult))
+}
+
+func getModelMultiplier(model string, multipliers map[string]float64) float64 {
 	key := strings.ToLower(strings.TrimSpace(model))
-	mult := 1.0
-	if key != "" {
-		if m, ok := multipliers[key]; ok {
-			mult = m
-		} else {
-			// Longest prefix match
-			best := ""
-			for name, m := range multipliers {
-				if strings.HasPrefix(key, name) && len(name) > len(best) {
-					best = name
-					mult = m
-				}
-			}
-		}
+	if key == "" {
+		return 1.0
+	}
+	if m, ok := multipliers[key]; ok {
+		return m
 	}
 
-	return int(math.Round(base * mult))
+	best := ""
+	bestMultiplier := 1.0
+	for name, m := range multipliers {
+		if strings.HasPrefix(key, name) && len(name) > len(best) {
+			best = name
+			bestMultiplier = m
+		}
+	}
+	return bestMultiplier
+}
+
+func computeBaseWeightedTokens(w types.TokenClassWeights, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens int) float64 {
+	effectiveInput := inputTokens - cacheReadTokens
+	if effectiveInput < 0 {
+		effectiveInput = 0
+	}
+
+	return w.Input*float64(effectiveInput) +
+		w.CachedInput*float64(cacheReadTokens) +
+		w.Output*float64(outputTokens) +
+		w.Reasoning*float64(reasoningTokens) +
+		w.CacheWrite*float64(cacheWriteTokens)
 }

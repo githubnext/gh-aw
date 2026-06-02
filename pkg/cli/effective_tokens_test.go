@@ -5,6 +5,8 @@ package cli
 import (
 	"encoding/json"
 	"math"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/types"
@@ -263,4 +265,61 @@ func TestPopulateEffectiveTokensWithCustomWeightsNilSummary(t *testing.T) {
 	assert.NotPanics(t, func() {
 		populateEffectiveTokensWithCustomWeights(nil, nil)
 	})
+}
+
+func TestModelMultiplierSourcePrecedence(t *testing.T) {
+	tmpDir := t.TempDir()
+	mergedPath := filepath.Join(tmpDir, "merged_model_multipliers.json")
+	envJSON := `{"token_class_weights":{"input":1,"cached_input":0.1,"output":4,"reasoning":4,"cache_write":1},"multipliers":{"model-x":2}}`
+	mergedJSON := `{"token_class_weights":{"input":1,"cached_input":0.1,"output":4,"reasoning":4,"cache_write":1},"multipliers":{"model-x":7}}`
+	require.NoError(t, os.WriteFile(mergedPath, []byte(mergedJSON), 0o644))
+
+	t.Setenv(mergedModelMultipliersPathEnvVar, mergedPath)
+	t.Setenv(modelMultipliersEnvVar, envJSON)
+	loadedMultipliers = nil
+
+	multipliers, _ := resolveEffectiveWeights(nil)
+	assert.InDelta(t, 7.0, multipliers["model-x"], 1e-9, "merged multipliers file should take precedence over env var")
+
+	require.NoError(t, os.Remove(mergedPath))
+	loadedMultipliers = nil
+	multipliers, _ = resolveEffectiveWeights(nil)
+	assert.InDelta(t, 2.0, multipliers["model-x"], 1e-9, "env var should take precedence when merged file is unavailable")
+}
+
+func TestComputeModelEffectiveTokensWithWeights_UnknownModelFallbackAndEffectiveInput(t *testing.T) {
+	w := defaultTokenClassWeights()
+	multipliers := map[string]float64{"known-model": 2.0}
+
+	// effective_input=max(50-100,0)=0
+	// base=(1.0*0)+(0.1*100)+(4.0*80)+(4.0*10)+(1.0*0)=370
+	// unknown model fallback multiplier=1.0 -> ET=370
+	et := computeModelEffectiveTokensWithWeights("unknown-model", 50, 80, 100, 0, 10, multipliers, w)
+	assert.Equal(t, 370, et)
+}
+
+func TestPopulateEffectiveTokensWithCustomWeightsRecomputesFromRawUsage(t *testing.T) {
+	summary := &TokenUsageSummary{
+		ByModel: map[string]*ModelTokenUsage{
+			"unknown": {
+				InputTokens:     10,
+				OutputTokens:    5,
+				EffectiveTokens: 9999, // stale precomputed value should be ignored
+			},
+		},
+	}
+
+	customA := &types.TokenWeights{
+		TokenClassWeights: &types.TokenClassWeights{Output: 4.0},
+	}
+	customB := &types.TokenWeights{
+		TokenClassWeights: &types.TokenClassWeights{Output: 8.0},
+	}
+
+	populateEffectiveTokensWithCustomWeights(summary, customA)
+	assert.Equal(t, 30, summary.TotalEffectiveTokens, "ET should be recomputed from raw usage under initial weights")
+
+	populateEffectiveTokensWithCustomWeights(summary, customB)
+	assert.Equal(t, 50, summary.TotalEffectiveTokens, "ET should be recomputed from raw usage when token class weights change")
+	assert.Equal(t, 50, summary.ByModel["unknown"].EffectiveTokens, "stale stored ET must not be reused")
 }
