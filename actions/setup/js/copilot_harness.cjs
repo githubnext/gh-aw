@@ -633,12 +633,10 @@ async function main() {
         if (copilotSDKMode && !sdkPrompt) {
           throw new Error("sdk-mode invariant violated: prompt must be resolved before execution");
         }
-        /** @type {string} */
-        const sdkPromptForRun = sdkPrompt;
         const result = copilotSDKMode
           ? await runWithCopilotSDK({
               sdkUri: sdkEnv.COPILOT_SDK_URI ?? process.env.COPILOT_SDK_URI ?? "",
-              prompt: sdkPromptForRun,
+              prompt: sdkPrompt ?? "",
               logger: log,
               attempt,
               model: sdkCustomProviderConfig?.model,
