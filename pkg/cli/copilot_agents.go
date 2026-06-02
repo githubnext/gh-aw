@@ -159,10 +159,6 @@ func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {
 	return agenticWorkflowsAgentTemplate, nil
 }
 
-func minimalAgenticWorkflowsSkillContent() string {
-	return strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, "", 1)
-}
-
 func buildAgenticWorkflowsSkillContent() (string, error) {
 	awFiles, err := listAgenticWorkflowsMarkdownFiles(context.Background())
 	if err != nil {
@@ -171,7 +167,7 @@ func buildAgenticWorkflowsSkillContent() (string, error) {
 	}
 	sort.Strings(awFiles)
 	if len(awFiles) == 0 {
-		return "", fmt.Errorf("no .github/aw markdown files available from remote or embedded fallback")
+		return "", errors.New("no .github/aw markdown files available from remote or embedded fallback")
 	}
 
 	var fileList strings.Builder
@@ -228,7 +224,7 @@ func fetchAgenticWorkflowsMarkdownFiles(ctx context.Context) ([]string, error) {
 	}
 
 	if len(awFiles) == 0 {
-		return nil, fmt.Errorf("github API returned no markdown files")
+		return nil, errors.New("github API returned no markdown files")
 	}
 
 	sort.Strings(awFiles)
