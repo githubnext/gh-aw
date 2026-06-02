@@ -135,6 +135,9 @@ func TestModelMultipliersInventoryUpdate20260521(t *testing.T) {
 	assert.InDelta(t, 0.33, loadedMultipliers["gemini-3-flash-preview"], 1e-9, "gemini-3-flash-preview should be present with official billing multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3-pro-preview"], 1e-9, "gemini-3-pro-preview should be present with official billing multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3.1-pro-preview"], 1e-9, "gemini-3.1-pro-preview should be present with official billing multiplier")
+	assert.NotContains(t, loadedMultipliers, "gemini-3-flash", "gemini-3-flash should not be present when only preview variant is defined")
+	assert.NotContains(t, loadedMultipliers, "gemini-3-pro", "gemini-3-pro should not be present when only preview variant is defined")
+	assert.NotContains(t, loadedMultipliers, "gemini-3.1-pro", "gemini-3.1-pro should not be present when only preview variant is defined")
 }
 
 func TestModelMultipliersInventoryUpdate20260525(t *testing.T) {
@@ -161,6 +164,9 @@ func TestModelMultipliersInventoryUpdate20260530(t *testing.T) {
 	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4-7"], 1e-9, "claude-opus-4-7 should match documented multiplier")
 	assert.InDelta(t, 7.5, loadedMultipliers["gpt-5.5"], 1e-9, "gpt-5.5 should match the documented multiplier")
 	assert.InDelta(t, 7.5, loadedMultipliers["gpt-5.5-2026-04-23"], 1e-9, "gpt-5.5-2026-04-23 should match the documented multiplier")
+	assert.NotContains(t, loadedMultipliers, "claude-opus-4-8", "claude-opus-4-8 should not be present in current registry")
+	assert.NotContains(t, loadedMultipliers, "claude-opus-4.7", "claude-opus-4.7 alias should not be present in current registry")
+	assert.NotContains(t, loadedMultipliers, "claude-opus-4.8", "claude-opus-4.8 alias should not be present in current registry")
 }
 
 func TestModelMultipliersInventoryUpdate20260602(t *testing.T) {
