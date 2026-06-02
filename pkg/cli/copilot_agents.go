@@ -4,7 +4,9 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -56,7 +58,7 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 		return fmt.Errorf("failed to create .github/skills/agentic-workflows directory: %w", err)
 	}
 
-	skillContent, err := buildAgenticWorkflowsSkillContent(gitRoot)
+	skillContent, err := buildAgenticWorkflowsSkillContent()
 	if err != nil {
 		copilotAgentsLog.Printf("Failed to build dispatcher skill: %v", err)
 		return fmt.Errorf("failed to build dispatcher skill: %w", err)
@@ -161,9 +163,7 @@ func minimalAgenticWorkflowsSkillContent() string {
 	return strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, "", 1)
 }
 
-func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
-	_ = gitRoot
-
+func buildAgenticWorkflowsSkillContent() (string, error) {
 	awFiles, err := listAgenticWorkflowsMarkdownFiles(context.Background())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch .github/aw markdown file list from github/gh-aw: %v. Falling back to embedded list.", err)))
@@ -202,6 +202,10 @@ func fetchAgenticWorkflowsMarkdownFiles(ctx context.Context) ([]string, error) {
 	client := &http.Client{Timeout: constants.DefaultHTTPClientTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			return nil, fmt.Errorf("github API request timed out after %s: %w", constants.DefaultHTTPClientTimeout, err)
+		}
 		return nil, fmt.Errorf("github API request failed: %w", err)
 	}
 	defer resp.Body.Close()
@@ -234,6 +238,7 @@ func fetchAgenticWorkflowsMarkdownFiles(ctx context.Context) ([]string, error) {
 func embeddedFallbackAWMarkdownFiles() []string {
 	var awFiles []string
 	if err := json.Unmarshal([]byte(agenticWorkflowsFallbackAWFiles), &awFiles); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse embedded .github/aw fallback markdown file list: %v", err)))
 		return nil
 	}
 	sort.Strings(awFiles)

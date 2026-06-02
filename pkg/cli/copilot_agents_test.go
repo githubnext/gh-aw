@@ -320,10 +320,9 @@ func TestCheckedInAgenticWorkflowsAgentMatchesGeneratedContent(t *testing.T) {
 }
 
 func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
-	tempDir := testutil.TempDir(t, "test-*")
 	withMockAWMarkdownFileList(t, []string{"workflow-z.md", "workflow-a.md"}, nil)
 
-	content, err := buildAgenticWorkflowsSkillContent(tempDir)
+	content, err := buildAgenticWorkflowsSkillContent()
 	if err != nil {
 		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
 	}
@@ -343,10 +342,9 @@ func TestBuildAgenticWorkflowsSkillContent(t *testing.T) {
 }
 
 func TestBuildAgenticWorkflowsSkillContentWithoutAWDirectory(t *testing.T) {
-	tempDir := testutil.TempDir(t, "test-*")
 	withMockAWMarkdownFileList(t, []string{"workflow-a.md"}, nil)
 
-	content, err := buildAgenticWorkflowsSkillContent(tempDir)
+	content, err := buildAgenticWorkflowsSkillContent()
 	if err != nil {
 		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
 	}
@@ -364,10 +362,9 @@ func TestBuildAgenticWorkflowsSkillContentWithoutAWDirectory(t *testing.T) {
 }
 
 func TestBuildAgenticWorkflowsSkillContentFallsBackToEmbeddedFileList(t *testing.T) {
-	tempDir := testutil.TempDir(t, "test-*")
 	withMockAWMarkdownFileList(t, nil, assert.AnError)
 
-	content, err := buildAgenticWorkflowsSkillContent(tempDir)
+	content, err := buildAgenticWorkflowsSkillContent()
 	require.NoError(t, err, "buildAgenticWorkflowsSkillContent() returned error")
 
 	assert.NotContains(t, content, agenticWorkflowsSkillFileListPlaceholder, "expected generated skill content to replace the file-list placeholder")
@@ -393,7 +390,7 @@ func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
 	sort.Strings(awFiles)
 	withMockAWMarkdownFileList(t, awFiles, nil)
 
-	expected, err := buildAgenticWorkflowsSkillContent(gitRoot)
+	expected, err := buildAgenticWorkflowsSkillContent()
 	if err != nil {
 		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
 	}
@@ -412,6 +409,7 @@ func withMockAWMarkdownFileList(t *testing.T, files []string, err error) {
 	t.Helper()
 	previous := listAgenticWorkflowsMarkdownFiles
 	listAgenticWorkflowsMarkdownFiles = func(context.Context) ([]string, error) {
+		// Return a copy so tests can't mutate shared backing arrays across invocations.
 		return append([]string(nil), files...), err
 	}
 	t.Cleanup(func() {
