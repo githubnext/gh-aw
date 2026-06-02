@@ -207,6 +207,29 @@ When the budget is approached, gh-aw emits steering warnings before
 the run reaches the limit. Set a negative value only when budget
 enforcement must be disabled explicitly.
 
+### Cap Daily Effective Tokens per Workflow
+
+Use `max-daily-effective-tokens` to set a 24-hour effective-token
+cap for one workflow. The guardrail sums recent runs of the same
+workflow started by the same triggering user.
+
+```aw wrap
+max-daily-effective-tokens: 15000000
+```
+
+When the prior 24 hours already exceed this threshold, the activation
+job warns, creates an issue, skips the agent job, and lets the
+conclusion job report the failure context.
+
+The guardrail is disabled by default when omitted. Set `-1` to disable
+it explicitly. Positive values accept plain integers or `K`/`M`
+suffixes such as `100M`.
+
+> [!NOTE]
+> The daily guardrail is skipped for `workflow_call`,
+> `repository_dispatch`, and `workflow_dispatch` runs carrying internal
+> `aw_context` dispatch metadata.
+
 ### Roll out org/repo defaults with enterprise controls
 
 For large installations, set baseline model and token guardrails
