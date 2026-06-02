@@ -210,14 +210,14 @@ enforcement must be disabled explicitly.
 ### Cap Daily Effective Tokens per Workflow
 
 Use `max-daily-effective-tokens` to set a 24-hour effective-token
-cap for one workflow. The guardrail sums recent runs of the same
+cap for one workflow. The guardrail sums runs from the past 24 hours of the same
 workflow started by the same triggering user.
 
 ```aw wrap
 max-daily-effective-tokens: 15000000
 ```
 
-When the prior 24 hours already exceed this threshold, the activation
+When the total from the past 24 hours already meets or exceeds this threshold, the activation
 job warns, creates an issue, skips the agent job, and lets the
 conclusion job report the failure context.
 
