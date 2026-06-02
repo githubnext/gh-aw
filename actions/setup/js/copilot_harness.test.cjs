@@ -34,6 +34,7 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  generateCopilotConnectionToken,
   GEMINI_MODEL_NAME_PREFIX,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
@@ -73,6 +74,21 @@ describe("copilot_harness.cjs", () => {
       expect(CAPI_ERROR_400_PATTERN.test("Error: ENOENT: no such file")).toBe(false);
       expect(CAPI_ERROR_400_PATTERN.test("Fatal: out of memory")).toBe(false);
       expect(CAPI_ERROR_400_PATTERN.test("")).toBe(false);
+    });
+  });
+
+  describe("generateCopilotConnectionToken", () => {
+    it("generates a 32-byte hex token", () => {
+      const token = generateCopilotConnectionToken();
+      expect(token).toMatch(/^[a-f0-9]{64}$/);
+    });
+
+    it("uses a pluggable random byte source", () => {
+      const randomBytes = vi.fn(() => Buffer.alloc(32, 0xab));
+      const token = generateCopilotConnectionToken({ randomBytes });
+      expect(token).toMatch(/^[a-f0-9]{64}$/);
+      expect(token).toBe("ab".repeat(32));
+      expect(randomBytes).toHaveBeenCalledWith(32);
     });
   });
 

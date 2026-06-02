@@ -41,6 +41,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { runProcess, formatDuration, sleep, isCopilotSDKEnabled, buildCopilotSDKEnv } = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
 const { extractPromptFromArgs, runWithCopilotSDK } = require("./copilot_sdk_driver.cjs");
@@ -116,6 +117,18 @@ const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
  */
 function log(message) {
   process.stderr.write(`[copilot-harness] ${message}\n`);
+}
+
+/**
+ * Generate a per-run connection token for Copilot SDK headless authentication.
+ * Produces 32 random bytes encoded as a 64-character hexadecimal string.
+ * @param {{ randomBytes?: (size: number) => Buffer }} [options]
+ * @returns {string} 64-character hexadecimal token (32 random bytes).
+ */
+function generateCopilotConnectionToken(options) {
+  // randomBytes injection exists only for unit tests; production uses crypto.randomBytes.
+  const randomBytes = options?.randomBytes ?? crypto.randomBytes;
+  return randomBytes(32).toString("hex");
 }
 
 /**
@@ -583,13 +596,19 @@ async function main() {
   // correct SDK endpoint URI.
   const sdkEnv = buildCopilotSDKEnv();
   const copilotSDKMode = isCopilotSDKEnabled();
+  let copilotConnectionToken;
   if (copilotSDKMode) {
+    copilotConnectionToken = generateCopilotConnectionToken();
     log(`copilot-sdk mode active: COPILOT_SDK_URI=${sdkEnv.COPILOT_SDK_URI || "(not set)"}`);
+    log("copilot-sdk mode active: generated per-run COPILOT_CONNECTION_TOKEN");
   }
   // Merge SDK env additions into the child process env only when the SDK helper
   // returned at least one variable; otherwise leave the env undefined so that
   // runProcess inherits the full process.env (the common case).
-  const childEnv = Object.keys(sdkEnv).length > 0 ? { ...process.env, ...sdkEnv } : undefined;
+  // sdkEnv already contains SDK-mode variables (e.g. COPILOT_SDK_URI) when enabled.
+  // In SDK mode, also attach the generated per-run COPILOT_CONNECTION_TOKEN.
+  const sdkChildEnv = copilotSDKMode ? { ...sdkEnv, COPILOT_CONNECTION_TOKEN: copilotConnectionToken } : sdkEnv;
+  const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
 
   // In SDK mode, the engine pipes a JSON options payload via stdin containing the promptFile
   // path, serverArgs (complete CLI argument list for the headless server), and optionally addWorkspaceDir.
@@ -719,7 +738,7 @@ async function main() {
             logger: log,
             attempt,
             model: sdkCustomProviderConfig?.model,
-            connectionToken: process.env.COPILOT_CONNECTION_TOKEN,
+            connectionToken: copilotConnectionToken,
             provider: sdkCustomProviderConfig?.provider,
           });
         } else {
@@ -924,6 +943,7 @@ if (typeof module !== "undefined" && module.exports) {
     fetchAWFReflect,
     fetchModelsFromUrl,
     buildCopilotProxyAuthFailureDiagnostic,
+    generateCopilotConnectionToken,
     buildCopilotSDKServerArgs,
     getCopilotSDKServerPort,
     isDetectionPhase,

@@ -269,12 +269,6 @@ const (
 	// library can locate the running Copilot HTTP server.
 	CopilotSDKURIEnvVar = "COPILOT_SDK_URI"
 
-	// CopilotConnectionTokenEnvVar is the environment variable name used by the
-	// Copilot CLI to enforce loopback authentication for headless/TCP connections.
-	// When set, the same token must be provided by SDK clients in the initial
-	// connect handshake.
-	CopilotConnectionTokenEnvVar = "COPILOT_CONNECTION_TOKEN"
-
 	// CopilotBYOKDummyAPIKey is the placeholder API key used to trigger AWF's
 	// runtime BYOK detection for Copilot offline mode. The real credential remains
 	// isolated in the AWF API proxy sidecar.

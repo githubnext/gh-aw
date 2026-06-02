@@ -1928,28 +1928,6 @@ func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
 			t.Errorf("Expected engine.env to add CUSTOM_VAR, got:\n%s", stepContent)
 		}
 	})
-
-	t.Run("engine env preserves COPILOT_CONNECTION_TOKEN secret expression", func(t *testing.T) {
-		workflowData := &WorkflowData{
-			Name: "test-workflow",
-			EngineConfig: &EngineConfig{
-				Env: map[string]string{
-					constants.CopilotConnectionTokenEnvVar: "${{ secrets.MY_COPILOT_CONNECTION_TOKEN }}",
-				},
-			},
-		}
-
-		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-		if len(steps) != 1 {
-			t.Fatalf("Expected 1 step, got %d", len(steps))
-		}
-
-		stepContent := strings.Join([]string(steps[0]), "\n")
-		expected := constants.CopilotConnectionTokenEnvVar + ": ${{ secrets.MY_COPILOT_CONNECTION_TOKEN }}"
-		if !strings.Contains(stepContent, expected) {
-			t.Errorf("Expected engine.env to preserve %s secret expression, got:\n%s", constants.CopilotConnectionTokenEnvVar, stepContent)
-		}
-	})
 }
 
 // TestCopilotEngineBYOKOmitsCopilotGitHubToken verifies that COPILOT_GITHUB_TOKEN is
