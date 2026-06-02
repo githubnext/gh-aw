@@ -1374,7 +1374,7 @@ func TestDetectionJobPermissionsIndentation(t *testing.T) {
 				Name: "test-workflow",
 				AI:   "claude",
 				EngineConfig: &EngineConfig{
-					ID: "claude",
+					ID:   "claude",
 					Auth: &EngineAuthConfig{Type: "github-oidc"},
 				},
 				SafeOutputs: &SafeOutputsConfig{
@@ -1386,7 +1386,7 @@ func TestDetectionJobPermissionsIndentation(t *testing.T) {
 			wantNotContains: []string{},
 		},
 		{
-			name: "otlp github-oidc auth adds id-token: write to detection job",
+			name: "observability.otlp.github-app auth adds id-token: write to detection job",
 			data: &WorkflowData{
 				Name: "test-workflow",
 				AI:   "copilot",

@@ -973,8 +973,8 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	//   to mint a GitHub OIDC token for the token exchange. Without id-token: write,
 	//   ACTIONS_ID_TOKEN_REQUEST_URL/TOKEN are not set in the runner environment and the
 	//   api-proxy returns HTTP 401 on every request (mirrors validateOIDCPermissions logic).
-	// - When observability.otlp is configured with GitHub App auth, id-token: write is
-	//   also needed (mirrors validateOIDCPermissions).
+	// - When observability.otlp.github-app is configured without app-id/private-key
+	//   credentials, id-token: write is also needed (mirrors validateOIDCPermissions).
 	copilotRequestsEnabled := hasCopilotRequestsWritePermission(data)
 	perms := NewPermissionsContentsRead()
 	if copilotRequestsEnabled {
