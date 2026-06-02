@@ -149,6 +149,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * @returns {boolean}
    */
   const hasExplicitTargetNumber = entry => {
+    // Only top-level target identifiers are valid here. Sub-resource IDs
+    // (e.g. comment/thread/review IDs) cannot resolve the parent item target.
     const candidateFields = ["item_number", "issue_number", "pull_request_number", "pr_number", "pr", "pull_number", "discussion_number"];
 
     return candidateFields.some(field => {

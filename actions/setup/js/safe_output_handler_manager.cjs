@@ -1474,7 +1474,9 @@ async function main() {
     const skippedStandaloneResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
     const skippedCustomJobResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by custom safe output job");
     const skippedNoHandlerResults = processingResult.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded"));
+    // Handler-level skips without a reason usually represent no-context/limit conditions.
     const skippedHandlerResults = processingResult.results.filter(r => r.skipped && !r.deferred && !r.cancelled && !r.reason);
+    // Processor-level target misses carry explicit reasons and are summarized separately.
     const skippedTargetResults = processingResult.results.filter(r => r.skipped && !r.deferred && !r.cancelled && r.reason && r.reason !== "Handled by standalone step" && r.reason !== "Handled by custom safe output job");
 
     core.info(`\n=== Processing Summary ===`);
