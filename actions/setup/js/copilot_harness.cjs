@@ -507,6 +507,47 @@ async function readSDKOptionsFromStdin() {
         resolve(null);
         return;
       }
+
+      /**
+       * Build scoped SDK permission config from Copilot CLI server args.
+       * Extracts --allow-all-tools and --allow-tool entries emitted by the compiler.
+       *
+       * @param {string[] | undefined} serverArgs
+       * @returns {{allowAllTools?: boolean, allowedTools?: string[]} | null}
+       */
+      function buildCopilotSDKPermissionConfigFromServerArgs(serverArgs) {
+        if (!Array.isArray(serverArgs) || serverArgs.length === 0) return null;
+
+        let allowAllTools = false;
+        /** @type {Set<string>} */
+        const allowedTools = new Set();
+
+        for (let i = 0; i < serverArgs.length; i++) {
+          const arg = serverArgs[i];
+          if (arg === "--allow-all-tools") {
+            allowAllTools = true;
+            continue;
+          }
+          if (arg === "--allow-tool" && i + 1 < serverArgs.length) {
+            const value = String(serverArgs[i + 1]).trim();
+            if (value) {
+              allowedTools.add(value);
+            }
+            i++;
+          }
+        }
+
+        if (!allowAllTools && allowedTools.size === 0) return null;
+
+        const config = {};
+        if (allowAllTools) {
+          config.allowAllTools = true;
+        }
+        if (allowedTools.size > 0) {
+          config.allowedTools = [...allowedTools].sort();
+        }
+        return config;
+      }
       try {
         resolve(JSON.parse(text));
       } catch {
@@ -740,6 +781,7 @@ async function main() {
             model: sdkCustomProviderConfig?.model,
             connectionToken: copilotConnectionToken,
             provider: sdkCustomProviderConfig?.provider,
+            permissionConfig: buildCopilotSDKPermissionConfigFromServerArgs(sdkOptions?.serverArgs),
           });
         } else {
           result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
@@ -965,6 +1007,7 @@ if (typeof module !== "undefined" && module.exports) {
     resolvePromptFileArgs,
     extractPromptFromArgs,
     readSDKOptionsFromStdin,
+    buildCopilotSDKPermissionConfigFromServerArgs,
     runWithCopilotSDK,
   };
 }

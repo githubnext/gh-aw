@@ -41,6 +41,7 @@ const {
   runWithCopilotSDK,
   writeCopilotOutputs,
   readSDKOptionsFromStdin,
+  buildCopilotSDKPermissionConfigFromServerArgs,
 } = require("./copilot_harness.cjs");
 
 describe("copilot_harness.cjs", () => {
@@ -363,6 +364,48 @@ describe("copilot_harness.cjs", () => {
 
         expect(result.exitCode).toBe(0);
         expect(forUri).toHaveBeenCalledWith("http://127.0.0.1:3002", { connectionToken: "token-123" });
+      });
+
+      it("uses scoped permission handler from SDK permission config", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-permissions",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["shell(git:*)", "github(get_file_contents)", "web_fetch", "write"],
+          },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        const sessionConfig = createSession.mock.calls[0][0];
+        const onPermissionRequest = sessionConfig.onPermissionRequest;
+        expect(onPermissionRequest({ kind: "shell", commands: [{ identifier: "git" }], fullCommandText: "git status" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "mcp", serverName: "github", toolName: "get_file_contents" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "url", url: "https://example.com" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "write", fileName: "a.txt", diff: "", intention: "" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
       });
     });
 
@@ -1703,6 +1746,28 @@ describe("copilot_harness.cjs", () => {
     it("handles extra whitespace around JSON", async () => {
       const result = await runWithFakeStdin('\n  {"promptFile":"/tmp/prompt.txt"}  \n');
       expect(result).toEqual({ promptFile: "/tmp/prompt.txt" });
+    });
+  });
+
+  describe("buildCopilotSDKPermissionConfigFromServerArgs", () => {
+    it("returns null when no permission flags are present", () => {
+      expect(buildCopilotSDKPermissionConfigFromServerArgs(["--headless", "--port", "3002"])).toBeNull();
+    });
+
+    it("extracts allow-all and allow-tool entries", () => {
+      expect(
+        buildCopilotSDKPermissionConfigFromServerArgs([
+          "--headless",
+          "--allow-tool",
+          "shell(git:*)",
+          "--allow-tool",
+          "github(get_file_contents)",
+          "--allow-all-tools",
+        ])
+      ).toEqual({
+        allowAllTools: true,
+        allowedTools: ["github(get_file_contents)", "shell(git:*)"],
+      });
     });
   });
 

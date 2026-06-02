@@ -32,6 +32,87 @@ const os = require("os");
 const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
 
 /**
+ * @typedef {{
+ *   allowAllTools?: boolean,
+ *   allowedTools?: string[],
+ * }} CopilotSDKPermissionConfig
+ */
+
+/**
+ * Build a scoped SDK permission handler from Copilot CLI allow-tool rules.
+ * When no explicit permission rules exist, preserve legacy approve-all behavior.
+ *
+ * @param {CopilotSDKPermissionConfig | undefined} permissionConfig
+ * @param {import("@github/copilot-sdk").PermissionHandler} approveAll
+ * @returns {import("@github/copilot-sdk").PermissionHandler}
+ */
+function buildCopilotSDKPermissionHandler(permissionConfig, approveAll) {
+  const allowAll = permissionConfig?.allowAllTools === true;
+  const allowedToolEntries = new Set(
+    Array.isArray(permissionConfig?.allowedTools)
+      ? permissionConfig.allowedTools.filter(tool => typeof tool === "string" && tool.trim().length > 0).map(tool => tool.trim())
+      : []
+  );
+
+  // Backward-compatibility fallback: when no explicit rules are present,
+  // keep the previous approve-all behavior to avoid unexpectedly blocking runs.
+  if (!allowAll && allowedToolEntries.size === 0) {
+    return approveAll;
+  }
+
+  const shellRules = [...allowedToolEntries]
+    .filter(tool => tool.startsWith("shell(") && tool.endsWith(")"))
+    .map(tool => tool.slice("shell(".length, -1).trim())
+    .filter(Boolean);
+
+  /**
+   * @param {import("@github/copilot-sdk").PermissionRequest} request
+   * @returns {boolean}
+   */
+  function isAllowed(request) {
+    if (allowAll) return true;
+
+    switch (request.kind) {
+      case "shell": {
+        if (allowedToolEntries.has("shell")) return true;
+        const commandIdentifiers = Array.isArray(request.commands) ? request.commands.map(cmd => cmd?.identifier).filter(Boolean) : [];
+        const fullCommand = String(request.fullCommandText || "").trim();
+        return shellRules.some(rule => {
+          if (rule.endsWith(":*")) {
+            const prefix = rule.slice(0, -2).trim();
+            return prefix.length > 0 && commandIdentifiers.includes(prefix);
+          }
+          if (!rule.includes(" ")) {
+            return commandIdentifiers.includes(rule);
+          }
+          return fullCommand === rule;
+        });
+      }
+      case "write":
+        return allowedToolEntries.has("write");
+      case "read":
+        // Read permissions are low-risk and are broadly expected by the agent flow.
+        return true;
+      case "url":
+        return allowedToolEntries.has("web_fetch");
+      case "mcp":
+        return allowedToolEntries.has(request.serverName) || allowedToolEntries.has(`${request.serverName}(${request.toolName})`);
+      case "custom-tool":
+        return allowedToolEntries.has(request.toolName);
+      default:
+        return false;
+    }
+  }
+
+  return request => {
+    if (isAllowed(request)) {
+      return { kind: "approve-once" };
+    }
+    return { kind: "reject", feedback: "Tool invocation is not allowed by workflow tool permissions." };
+  };
+}
+
+/**
  * Extract the prompt text from a resolved args array.
  * Looks for the first occurrence of "-p <value>" or "--prompt <value>".
  *
@@ -66,6 +147,10 @@ function extractPromptFromArgs(args) {
  *   model?: string,
  *   connectionToken?: string,
  *   provider?: import("@github/copilot-sdk").ProviderConfig,
+ *   permissionConfig?: {
+ *     allowAllTools?: boolean,
+ *     allowedTools?: string[],
+ *   },
  *   sdkModule?: {
  *     CopilotClient: typeof import("@github/copilot-sdk").CopilotClient,
  *     RuntimeConnection: typeof import("@github/copilot-sdk").RuntimeConnection,
@@ -74,7 +159,7 @@ function extractPromptFromArgs(args) {
  * }} options
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, sdkModule }) {
+async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, permissionConfig, sdkModule }) {
   // Lazy-require to avoid loading the SDK when it is not needed.
   // The SDK is large and has side-effects on import (worker threads, etc.).
   const { CopilotClient, RuntimeConnection, approveAll } = sdkModule ?? require("@github/copilot-sdk");
@@ -127,10 +212,17 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     clientStarted = true;
     log("client started");
 
+    /**
+     * Build a scoped permission handler from allow-tool entries.
+     * Falls back to SDK approveAll when no explicit allow rules were generated.
+     * @type {import("@github/copilot-sdk").PermissionHandler}
+     */
+    const onPermissionRequest = buildCopilotSDKPermissionHandler(permissionConfig, approveAll);
+
     /** @type {import("@github/copilot-sdk").SessionConfig} */
     const sessionConfig = {
       model: model || process.env.COPILOT_MODEL || undefined,
-      onPermissionRequest: approveAll,
+      onPermissionRequest,
       provider,
     };
     session = await client.createSession(sessionConfig);
