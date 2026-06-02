@@ -138,7 +138,7 @@ weights := types.TokenWeights{
 
 ## Design Notes
 
-- This package keeps internal dependencies minimal and currently only imports `pkg/logger` for debug logging, which keeps it safe to import broadly without introducing package cycles.
+- This package keeps internal dependencies minimal and currently only imports `pkg/logger` for debug logging. This minimal dependency footprint keeps it safe to import broadly without introducing package cycles.
 - All struct fields use both `json` and `yaml` struct tags so they can be round-tripped through both serialization formats.
 - `BaseMCPServerConfig` is designed to be embedded — packages add domain-specific fields and validation on top of the shared base.
 
