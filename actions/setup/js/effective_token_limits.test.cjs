@@ -6,6 +6,9 @@ describe("effective_token_limits", () => {
 
     expect(parsePositiveEffectiveTokenLimitString("100M")).toBe("100000000");
     expect(parsePositiveEffectiveTokenLimitString("100000k")).toBe("100000000");
+    expect(parsePositiveEffectiveTokenLimitString(" 100M ")).toBe("100000000");
+    expect(parsePositiveEffectiveTokenLimitString(2500)).toBe("2500");
+    expect(parsePositiveEffectiveTokenLimitString(9007199254740992)).toBe("");
     expect(parsePositiveEffectiveTokenLimitString("2500")).toBe("2500");
     expect(parsePositiveEffectiveTokenLimitString("0")).toBe("");
     expect(parsePositiveEffectiveTokenLimitString("-1")).toBe("");

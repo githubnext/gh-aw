@@ -35,6 +35,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/seenmapbool"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
+	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
 	"github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion"
 )
 
@@ -59,6 +60,7 @@ func main() {
 		seenmapbool.Analyzer,
 		strconvparseignorederror.Analyzer,
 		jsonmarshalignoredeerror.Analyzer,
+		tolowerequalfold.Analyzer,
 		uncheckedtypeassertion.Analyzer,
 	)
 }

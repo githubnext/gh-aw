@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"encoding/json"
-	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -28,8 +27,8 @@ const maxDailyEffectiveTokensConfiguredIfExpr = "${{ env.GH_AW_MAX_DAILY_EFFECTI
 // Returns a pointer to the normalized runtime string when valid; nil means the
 // field is unset, explicitly disabled, or invalid for runtime use.
 func parseMaxDailyEffectiveTokensValue(raw any) *string {
-	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
-		s := strconv.Itoa(val)
+	if normalized, ok := normalizePositiveEffectiveTokenLimit(raw); ok {
+		s := normalized
 		return &s
 	}
 
@@ -44,10 +43,6 @@ func parseMaxDailyEffectiveTokensValue(raw any) *string {
 	}
 	if isExpression(rawStr) {
 		return &rawStr
-	}
-	if normalized, ok := typeutil.NormalizeInt64KMSuffix(rawStr); ok {
-		s := normalized
-		return &s
 	}
 	return nil
 }

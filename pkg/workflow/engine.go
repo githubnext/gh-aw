@@ -164,18 +164,11 @@ func (e *EngineConfig) GetMaxRuns() int {
 // passed through as-is and signal that budget enforcement and token steering
 // should be disabled.
 func parseMaxEffectiveTokensValue(raw any) int64 {
-	if val, ok := typeutil.ParseIntValue(raw); ok && val != 0 {
-		return int64(val)
+	if parsed, ok := parseMaxEffectiveTokenLimitValue(raw); ok {
+		return parsed
 	}
-	if rawStr, ok := raw.(string); ok {
-		trimmed := strings.TrimSpace(rawStr)
-		if trimmed == "-1" {
-			return -1
-		}
-		if parsed, ok := typeutil.ParseInt64KMSuffix(trimmed); ok {
-			return parsed
-		}
-		engineLog.Printf("Ignoring invalid max-effective-tokens value: %q", rawStr)
+	if raw != nil {
+		engineLog.Printf("Ignoring invalid max-effective-tokens value of type %T: %v", raw, raw)
 	}
 	return 0
 }
