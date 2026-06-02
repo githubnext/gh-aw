@@ -304,11 +304,11 @@ func TestMaxTurnsFromSharedImport(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "max-turns-import-test")
 
-	// Create the shared import file with engine config including max-turns
+	// Create the shared import file with top-level max-turns
 	sharedContent := `---
+max-turns: 100
 engine:
   id: claude
-  max-turns: 100
 permissions:
   contents: read
   issues: read

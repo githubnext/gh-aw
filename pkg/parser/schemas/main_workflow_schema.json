@@ -10611,17 +10611,10 @@
               "description": "Claude permission mode override. Defaults to acceptEdits (or auto when tools.edit is false)."
             },
             "max-turns": {
-              "oneOf": [
-                {
-                  "type": "integer",
-                  "description": "Maximum number of chat iterations per run as an integer value"
-                },
-                {
-                  "type": "string",
-                  "description": "Maximum number of chat iterations per run as a string value"
-                }
-              ],
-              "description": "Deprecated: use the top-level 'max-turns' field instead. This engine-level alias is kept for backward compatibility but may be removed in a future major version. Migration: move 'engine.max-turns: 15' to top-level 'max-turns: 15' so the AWF turn cap applies consistently across all agentic engines."
+              "$ref": "#/$defs/templatable_integer",
+              "deprecated": true,
+              "description": "Deprecated: use the top-level 'max-turns' field instead. This engine-level alias is kept for backward compatibility but may be removed in a future major version. Migration: move 'engine.max-turns: 15' to top-level 'max-turns: 15' so the AWF turn cap applies consistently across all agentic engines.",
+              "examples": [15, "${{ inputs.max-turns }}"]
             },
             "max-continuations": {
               "type": "integer",

@@ -306,6 +306,15 @@ func (c *Compiler) applyEngineImportDefaults(
 	if preservedMaxRuns > 0 {
 		engineConfig.MaxRuns = preservedMaxRuns
 	}
+	if engineConfig.MaxTurns == "" && importsResult.MergedMaxTurns != "" {
+		var importedMaxTurns any
+		if err := json.Unmarshal([]byte(importsResult.MergedMaxTurns), &importedMaxTurns); err == nil {
+			if parsed := parseMaxTurnsValue(importedMaxTurns); parsed != "" {
+				engineConfig.MaxTurns = parsed
+				orchestratorEngineLog.Printf("Applied max-turns from import")
+			}
+		}
+	}
 	if engineConfig.MaxRuns <= 0 && importsResult.MergedMaxRuns != "" {
 		var importedMaxRuns any
 		if err := json.Unmarshal([]byte(importsResult.MergedMaxRuns), &importedMaxRuns); err == nil {
