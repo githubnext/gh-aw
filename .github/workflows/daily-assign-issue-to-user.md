@@ -11,7 +11,9 @@ permissions:
   pull-requests: read
   contents: read
   copilot-requests: write
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 tools:
   cli-proxy: true
   github:

@@ -8,7 +8,9 @@ permissions:
   contents: read
   actions: read
 tracker-id: jsweep-daily
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 runtimes:
   node:
     version: "20"

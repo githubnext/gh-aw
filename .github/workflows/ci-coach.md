@@ -12,7 +12,9 @@ permissions:
   issues: read
   copilot-requests: write
 tracker-id: ci-coach-daily
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 tools:
   cli-proxy: true
   github:

@@ -9,7 +9,9 @@ permissions:
   pull-requests: read
   issues: read
   copilot-requests: write
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 imports:
   - uses: shared/skip-if-issue-open.md
     with:
