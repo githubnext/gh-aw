@@ -16,7 +16,9 @@ permissions:
   security-events: read
 
 tracker-id: daily-security-observability
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 
 steps:
   - name: Install gh-aw CLI
