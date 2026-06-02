@@ -266,6 +266,9 @@ func getModelMultiplier(model string, multipliers map[string]float64) float64 {
 	return bestMultiplier
 }
 
+// computeBaseWeightedTokensForUsage computes ET base tokens for one usage row.
+// The provider parameter controls whether cache reads should be deducted from
+// input first (bundled semantics) or left additive (additive semantics).
 func computeBaseWeightedTokensForUsage(w types.TokenClassWeights, provider string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens int) float64 {
 	normalizedProvider := strings.ToLower(strings.TrimSpace(provider))
 	effectiveInput := inputTokens
@@ -298,6 +301,8 @@ func providerIncludesCacheReadsInInput(normalizedProvider string) bool {
 	// under-counting input tokens. Empty provider values are treated as bundled
 	// semantics for backward compatibility with older usage records that omitted
 	// the provider field.
+	// We include both "azure-openai" and "azure_openai" to handle observed
+	// provider naming variants in historical logs.
 	switch normalizedProvider {
 	case "", "anthropic", "openai", "azure-openai", "azure_openai":
 		return true
