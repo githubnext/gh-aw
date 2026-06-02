@@ -446,79 +446,61 @@ function buildGitHubActionsResourceAttributes({
 function parseOTELResourceAttributes(raw) {
   if (!raw || !raw.trim()) return [];
 
-  /** @type {string[]} */
-  const pairs = [];
-  let current = "";
-  let escaping = false;
-  for (const char of raw) {
-    if (escaping) {
-      current += char;
-      escaping = false;
-      continue;
-    }
-    if (char === "\\") {
-      escaping = true;
-      continue;
-    }
-    if (char === ",") {
-      if (current.trim()) {
-        pairs.push(current);
-      }
-      current = "";
-      continue;
-    }
-    current += char;
-  }
-  if (escaping) {
-    current += "\\";
-  }
-  if (current.trim()) {
-    pairs.push(current);
-  }
+  /** @type {Array<{key: string, value: object}>} */
+  const attributes = [];
+  let key = "";
+  let value = "";
+  let seenEquals = false;
+  let escaped = false;
 
-  const splitPair = pair => {
-    let key = "";
-    let value = "";
-    let seenEquals = false;
-    let escaped = false;
-    for (const char of pair) {
-      if (escaped) {
-        if (seenEquals) {
-          value += char;
-        } else {
-          key += char;
-        }
-        escaped = false;
-        continue;
-      }
-      if (char === "\\") {
-        escaped = true;
-        continue;
-      }
-      if (char === "=" && !seenEquals) {
-        seenEquals = true;
-        continue;
-      }
+  const pushCurrent = () => {
+    const trimmedKey = key.trim();
+    if (trimmedKey) {
+      attributes.push(buildAttr(trimmedKey, value.trim()));
+    }
+    key = "";
+    value = "";
+    seenEquals = false;
+  };
+
+  for (const char of raw) {
+    if (escaped) {
       if (seenEquals) {
         value += char;
       } else {
         key += char;
       }
+      escaped = false;
+      continue;
     }
-    if (escaped) {
-      if (seenEquals) {
-        value += "\\";
-      } else {
-        key += "\\";
-      }
+    if (char === "\\") {
+      escaped = true;
+      continue;
     }
-    return { key: key.trim(), value: value.trim() };
-  };
+    if (char === ",") {
+      pushCurrent();
+      continue;
+    }
+    if (char === "=" && !seenEquals) {
+      seenEquals = true;
+      continue;
+    }
+    if (seenEquals) {
+      value += char;
+    } else {
+      key += char;
+    }
+  }
+  if (escaped) {
+    if (seenEquals) {
+      value += "\\";
+    } else {
+      key += "\\";
+    }
+  }
+  pushCurrent();
 
-  return pairs
-    .map(splitPair)
-    .filter(pair => pair.key)
-    .map(pair => buildAttr(pair.key, pair.value));
+  return attributes;
 }
 
 /**
@@ -1686,16 +1668,12 @@ function normalizeRuntimeTokenUsage(rawUsage) {
     normalized.output_tokens = outputTokens;
   }
 
-  const cacheReadTokens =
-    normalizeTokenCounter(usage.cache_read_tokens) ??
-    normalizeTokenCounter(usage.cache_read_input_tokens);
+  const cacheReadTokens = normalizeTokenCounter(usage.cache_read_tokens) ?? normalizeTokenCounter(usage.cache_read_input_tokens);
   if (typeof cacheReadTokens === "number") {
     normalized.cache_read_tokens = cacheReadTokens;
   }
 
-  const cacheWriteTokens =
-    normalizeTokenCounter(usage.cache_write_tokens) ??
-    normalizeTokenCounter(usage.cache_creation_input_tokens);
+  const cacheWriteTokens = normalizeTokenCounter(usage.cache_write_tokens) ?? normalizeTokenCounter(usage.cache_creation_input_tokens);
   if (typeof cacheWriteTokens === "number") {
     normalized.cache_write_tokens = cacheWriteTokens;
   }
