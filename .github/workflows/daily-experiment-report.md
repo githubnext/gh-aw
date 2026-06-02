@@ -10,9 +10,7 @@ permissions:
   contents: read
   actions: read
   issues: read
-  pull-requests: read
   discussions: read
-
   copilot-requests: write
 engine: copilot
 tools:
@@ -44,7 +42,6 @@ safe-outputs:
     max: 10
   mentions: false
   allowed-github-references: []
-  max-bot-mentions: 1
 
 timeout-minutes: 30
 
@@ -588,3 +585,63 @@ not removed automatically; the person concluding the experiment can remove them 
 Use the `add-labels` safe-output tool to apply labels to the tracking issue.
 If a label does not exist in the repository, create it with `create_label` GitHub MCP tool
 before applying it, using a neutral gray color (e.g. `#808080`) and a short description.
+
+## Step 10 — Feature Readiness Assessment
+
+Using the data already gathered in Steps 1–9, assess whether the A/B experiments feature
+itself is ready to graduate from **experimental** to **generally available** status, based on
+the graduation criteria defined in the
+[experiments specification](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/experimental/experiments-specification.md).
+
+### Criterion 1 — Interoperability evidence
+
+From the `experiments analyze` output collected in Step 1, count the number of distinct
+workflows that satisfy both conditions:
+
+- Declares `experiments:` in frontmatter (already confirmed in Step 1)
+- Has `total_runs >= 500` for at least one experiment
+
+If **at least two** workflows satisfy both conditions, mark criterion 1 as **MET**.
+
+### Criterion 2 — CI stability window
+
+List recent runs of this workflow (`daily-experiment-report`) using the GitHub MCP tools and
+count the longest unbroken streak of `success` conclusions ending today (or the most recent
+completed run). If the streak is **≥ 30 days**, mark criterion 2 as **MET**.
+
+### Criteria 3–5 — Manual review required
+
+The following criteria cannot be automatically verified from run data alone. Mark each as
+**NEEDS MANUAL REVIEW** and include the tracking issue link.
+
+| # | Criterion | Tracking |
+|---|-----------|---------|
+| 3 | **Implementation completeness** — 100% of normative §§4–12 requirements implemented | [#31983](https://github.com/github/gh-aw/issues/31983) |
+| 4 | **Compliance coverage** — ≥95% of normative requirements covered by automated tests | [#31983](https://github.com/github/gh-aw/issues/31983) |
+| 5 | **Review sign-off** — written approval from ≥2 gh-aw maintainers | [#31983](https://github.com/github/gh-aw/issues/31983) |
+
+### Append to discussion
+
+Append the following section to the discussion body created in Step 7, after the summary
+table:
+
+```markdown
+---
+
+### 🏁 Feature Readiness: A/B Experiments → GA
+
+| # | Criterion | Status | Details |
+|---|-----------|--------|---------|
+| 1 | Interoperability evidence (≥2 workflows, ≥500 runs each) | 🟢 MET / 🔴 NOT MET | N workflows qualify |
+| 2 | CI stability window (30 consecutive successful days) | 🟢 MET / 🔴 NOT MET | N-day streak |
+| 3 | Implementation completeness | ⚪ NEEDS MANUAL REVIEW | [#31983](https://github.com/github/gh-aw/issues/31983) |
+| 4 | Compliance coverage (≥95% test coverage) | ⚪ NEEDS MANUAL REVIEW | [#31983](https://github.com/github/gh-aw/issues/31983) |
+| 5 | Review sign-off (≥2 maintainers) | ⚪ NEEDS MANUAL REVIEW | [#31983](https://github.com/github/gh-aw/issues/31983) |
+
+**Overall:** 🟡 PARTIAL — N/5 criteria met automatically; criteria 3–5 require maintainer
+sign-off at [#31983](https://github.com/github/gh-aw/issues/31983) before the feature can
+graduate to GA.
+```
+
+Replace the status cells with live values computed above. Show `🟢 MET` or `🔴 NOT MET`
+for criteria 1–2 and always `⚪ NEEDS MANUAL REVIEW` for criteria 3–5.
