@@ -43,12 +43,10 @@ func TestInitAndUpgradeWithEmptyAWDirectory(t *testing.T) {
 	initCmd.Dir = setup.tempDir
 	initOutput, initErr := initCmd.CombinedOutput()
 	require.NoError(t, initErr, "init command should succeed with empty .github/aw directory, output: %s", string(initOutput))
-	if _, err := os.Stat(filepath.Join(awDir, "actions-lock.json")); err != nil {
-		t.Fatalf("expected actions-lock.json to be preserved after init: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(awDir, "logs")); err != nil {
-		t.Fatalf("expected .github/aw/logs to be preserved after init: %v", err)
-	}
+	_, err := os.Stat(filepath.Join(awDir, "actions-lock.json"))
+	require.NoError(t, err, "expected actions-lock.json to be preserved after init")
+	_, err = os.Stat(filepath.Join(awDir, "logs"))
+	require.NoError(t, err, "expected .github/aw/logs to be preserved after init")
 
 	skillPath := filepath.Join(setup.tempDir, ".github", "skills", "agentic-workflows", "SKILL.md")
 	if _, err := os.Stat(skillPath); err != nil {
@@ -78,10 +76,8 @@ Say hello.
 	upgradeOutputStr := string(upgradeOutput)
 	require.NoError(t, upgradeErr, "upgrade command should succeed with empty .github/aw directory, output: %s", upgradeOutputStr)
 	assert.Contains(t, upgradeOutputStr, "Upgrade complete", "Should report upgrade complete")
-	if _, err := os.Stat(filepath.Join(awDir, "actions-lock.json")); err != nil {
-		t.Fatalf("expected actions-lock.json to be preserved after upgrade: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(awDir, "logs")); err != nil {
-		t.Fatalf("expected .github/aw/logs to be preserved after upgrade: %v", err)
-	}
+	_, err = os.Stat(filepath.Join(awDir, "actions-lock.json"))
+	require.NoError(t, err, "expected actions-lock.json to be preserved after upgrade")
+	_, err = os.Stat(filepath.Join(awDir, "logs"))
+	require.NoError(t, err, "expected .github/aw/logs to be preserved after upgrade")
 }

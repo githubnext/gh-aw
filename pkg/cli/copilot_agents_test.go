@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 // TestDeleteLegacyAgentFiles tests deletion of old agent files.
@@ -374,22 +375,14 @@ func TestBuildAgenticWorkflowsSkillContentWithEmptyAWDirectory(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 	withoutAWDir := testutil.TempDir(t, "test-*")
 	awDir := filepath.Join(tempDir, ".github", "aw")
-	if err := os.MkdirAll(filepath.Join(awDir, "logs"), 0o755); err != nil {
-		t.Fatalf("Failed to create .github/aw/logs directory: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(awDir, "actions-lock.json"), []byte("{}"), 0o644); err != nil {
-		t.Fatalf("Failed to create actions-lock.json: %v", err)
-	}
+	require.NoError(t, os.MkdirAll(filepath.Join(awDir, "logs"), 0o755), "Failed to create .github/aw/logs directory")
+	require.NoError(t, os.WriteFile(filepath.Join(awDir, "actions-lock.json"), []byte("{}"), 0o644), "Failed to create actions-lock.json")
 
 	content, err := buildAgenticWorkflowsSkillContent(tempDir)
-	if err != nil {
-		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
-	}
+	require.NoError(t, err, "buildAgenticWorkflowsSkillContent() returned error")
 
 	expected, err := buildAgenticWorkflowsSkillContent(withoutAWDir)
-	if err != nil {
-		t.Fatalf("buildAgenticWorkflowsSkillContent() without .github/aw directory returned error: %v", err)
-	}
+	require.NoError(t, err, "buildAgenticWorkflowsSkillContent() without .github/aw directory returned error")
 	if content != expected {
 		t.Fatalf("Expected skill content with empty .github/aw directory to match content without .github/aw directory:\nexpected:\n%s\ngot:\n%s", expected, content)
 	}
