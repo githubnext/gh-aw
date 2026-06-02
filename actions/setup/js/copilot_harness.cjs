@@ -635,7 +635,7 @@ async function main() {
   if (process.env.AWF_REFLECT_ENABLED === "1") {
     const reflectResult = await fetchAWFReflect({ logger: log });
     if (copilotSDKMode) {
-      const serializedReflectData = reflectResult.ok && reflectResult.reflectData ? JSON.stringify(reflectResult.reflectData) : "";
+      const serializedReflectData = reflectResult?.ok && reflectResult.reflectData ? JSON.stringify(reflectResult.reflectData) : "";
       if (serializedReflectData) {
         sdkChildEnv[COPILOT_SDK_REFLECT_DATA_ENV_VAR] = serializedReflectData;
         if (childEnv) {

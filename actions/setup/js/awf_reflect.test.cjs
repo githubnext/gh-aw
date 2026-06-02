@@ -246,6 +246,8 @@ describe("awf_reflect.cjs", () => {
           bytesWritten: expect.any(Number),
           reflectData: expect.any(Object),
         });
+        expect(Array.isArray(result.reflectData.endpoints)).toBe(true);
+        expect(result.reflectData.endpoints.length).toBeGreaterThan(0);
         expect(result.reflectData.endpoints[0].models).toEqual(["gpt-4o", "gpt-4o-mini"]);
         const saved = JSON.parse(fs.readFileSync(outputPath, "utf8"));
         expect(saved.endpoints[0].models).toEqual(["gpt-4o", "gpt-4o-mini"]);
