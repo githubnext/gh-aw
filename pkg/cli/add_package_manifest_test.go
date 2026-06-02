@@ -173,6 +173,52 @@ files:
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
 	})
 
+	t.Run("falls back to default branch for github/gh-aw when latest release lookup fails", func(t *testing.T) {
+		previousDefaultBranch := getRepositoryPackageDefaultBranch
+		previousLatestRelease := getRepositoryPackageLatestRelease
+		t.Cleanup(func() {
+			getRepositoryPackageDefaultBranch = previousDefaultBranch
+			getRepositoryPackageLatestRelease = previousLatestRelease
+		})
+		getRepositoryPackageLatestRelease = func(repoSlug, host string) (string, error) {
+			assert.Equal(t, "github/gh-aw", repoSlug)
+			assert.Equal(t, "github.com", host)
+			return "", errors.New("release lookup failed")
+		}
+		getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+			assert.Equal(t, "github/gh-aw", repoSlug)
+			assert.Equal(t, "github.com", host)
+			return "main", nil
+		}
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			assert.Equal(t, "main", ref)
+			switch path {
+			case "aw.yml":
+				return []byte("name: gh-aw package\n"), nil
+			case "README.md":
+				return []byte("# gh-aw package\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			assert.Equal(t, "main", ref)
+			switch workflowPath {
+			case "workflows":
+				return []string{"workflows/review.md"}, nil
+			case ".github/workflows":
+				return nil, createRepositoryPackageNotFoundError(workflowPath)
+			default:
+				return nil, fmt.Errorf("unexpected workflow path %s", workflowPath)
+			}
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "github/gh-aw"}, "github.com")
+		require.NoError(t, err)
+		assert.Equal(t, "main", pkg.ResolvedRef)
+		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+	})
+
 	t.Run("uses slash branch ref from manifest route", func(t *testing.T) {
 		previousDefaultBranch := getRepositoryPackageDefaultBranch
 		t.Cleanup(func() {

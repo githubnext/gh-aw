@@ -921,6 +921,12 @@ func shouldResolveRepositoryPackageLatestRelease(repoSlug string) bool {
 	return strings.EqualFold(strings.TrimSpace(repoSlug), "github/gh-aw")
 }
 
+// resolveRepositoryPackageLatestRelease resolves the latest stable release tag
+// for a repository package source.
+//
+// repoSlug must be in "owner/repo" format. host is an optional explicit GitHub
+// hostname (for example "github.com" or a GHES host); when provided, gh API
+// calls are executed against that host.
 func resolveRepositoryPackageLatestRelease(repoSlug, host string) (string, error) {
 	deps := workflowUpdateDeps{
 		runReleasesAPI: func(ctx context.Context, repo string) ([]byte, error) {
