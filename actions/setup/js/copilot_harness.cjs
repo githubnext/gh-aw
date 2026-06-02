@@ -630,19 +630,22 @@ async function main() {
 
         // Redact --prompt / -p value from logs to avoid leaking prompt content
         const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
-        if (copilotSDKMode && !sdkPrompt) {
-          throw new Error("sdk-mode invariant violated: prompt must be resolved before execution");
+        let result;
+        if (copilotSDKMode) {
+          if (!sdkPrompt) {
+            throw new Error("sdk-mode invariant violated: prompt must be resolved before execution");
+          }
+          result = await runWithCopilotSDK({
+            sdkUri: sdkEnv.COPILOT_SDK_URI ?? process.env.COPILOT_SDK_URI ?? "",
+            prompt: sdkPrompt,
+            logger: log,
+            attempt,
+            model: sdkCustomProviderConfig?.model,
+            provider: sdkCustomProviderConfig?.provider,
+          });
+        } else {
+          result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
         }
-        const result = copilotSDKMode
-          ? await runWithCopilotSDK({
-              sdkUri: sdkEnv.COPILOT_SDK_URI ?? process.env.COPILOT_SDK_URI ?? "",
-              prompt: sdkPrompt ?? "",
-              logger: log,
-              attempt,
-              model: sdkCustomProviderConfig?.model,
-              provider: sdkCustomProviderConfig?.provider,
-            })
-          : await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
         lastExitCode = result.exitCode;
         const attemptDetections = detectCopilotErrors(result.output);
         detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;
