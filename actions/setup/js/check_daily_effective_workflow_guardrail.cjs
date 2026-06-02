@@ -276,6 +276,13 @@ async function appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, thr
  * @returns {Promise<void>}
  *
  * Requires github-script globals (`core`, `github`, `context`) provided by setupGlobals().
+ *
+ * Error handling: all GitHub API interactions after the initial guard checks are wrapped
+ * in a top-level try-catch.  Any unexpected error (network failure, permission error, etc.)
+ * is logged as a warning and the function returns cleanly with `daily_effective_workflow_exceeded`
+ * left at its default value of `"false"`.  This design ensures the step never fails the
+ * activation job — a guardrail error results in a safe bypass (agent allowed to run) rather
+ * than a confusing workflow failure that blocks the agent entirely.
  */
 async function main() {
   core.setOutput("daily_effective_workflow_exceeded", "false");
@@ -296,167 +303,179 @@ async function main() {
     return;
   }
 
-  const githubClient = createRateLimitAwareGithub(github);
-  const { owner, repo } = context.repo;
-  const currentRun = await githubClient.rest.actions.getWorkflowRun({
-    owner,
-    repo,
-    run_id: context.runId,
-  });
-  const rateLimit = await getCoreRateLimitSnapshot(githubClient);
-
-  const workflowID = process.env.GH_AW_WORKFLOW_ID || "";
-  const workflowName = process.env.GH_AW_WORKFLOW_NAME || workflowID || "workflow";
-  const runUrl = process.env.GH_AW_RUN_URL || currentRun.data.html_url || "";
-  const actorLogin = process.env.GITHUB_TRIGGERING_ACTOR || currentRun.data.triggering_actor?.login || currentRun.data.actor?.login || process.env.GITHUB_ACTOR || "";
-
-  if (!currentRun.data.workflow_id || !actorLogin) {
-    core.warning("Skipping daily workflow ET guardrail because the current workflow or actor could not be resolved.");
-    return;
-  }
-
-  logDailyGuardrail("Resolved current workflow ET guardrail context", {
-    owner,
-    repo,
-    currentRunId: context.runId,
-    workflowId: currentRun.data.workflow_id,
-    workflowName,
-    actorLogin,
-    threshold,
-    rateLimitRemaining: rateLimit.remaining,
-    rateLimitLimit: rateLimit.limit,
-  });
-  const maxInspectableRuns = computeMaxInspectableRuns(rateLimit.remaining);
-  if (maxInspectableRuns <= 0) {
-    core.warning(`Skipping daily workflow ET guardrail because the GitHub API rate limit is too low (${rateLimit.remaining} remaining, reserve ${RATE_LIMIT_RESERVE}).`);
-    return;
-  }
-
-  const cutoffMs = Date.now() - DAILY_WORKFLOW_WINDOW_MS;
-  /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string}>} */
-  const candidateRuns = [];
-  /** @type {Array<any>} */
-  let runs = [];
-  let page = 1;
-  let truncatedByRateLimit = false;
-  while (page <= MAX_WORKFLOW_RUN_PAGES) {
-    logDailyGuardrail("Querying completed workflow runs", {
-      workflowId: currentRun.data.workflow_id,
-      actorLogin,
-      page,
-      perPage: 100,
-      cutoff: new Date(cutoffMs).toISOString(),
-    });
-    const response = await githubClient.rest.actions.listWorkflowRuns({
+  // Wrap all GitHub API interactions in a top-level try-catch so that transient API
+  // errors, permission failures, or unexpected exceptions never fail the activation
+  // job step.  A failure here would leave `daily_effective_workflow_exceeded` at its
+  // default "false" value, which is the safe fallback: the agent is allowed to run
+  // and the guardrail is effectively bypassed for this invocation rather than causing
+  // a confusing workflow failure.
+  try {
+    const githubClient = createRateLimitAwareGithub(github);
+    const { owner, repo } = context.repo;
+    const currentRun = await githubClient.rest.actions.getWorkflowRun({
       owner,
       repo,
-      workflow_id: currentRun.data.workflow_id,
-      actor: actorLogin,
-      status: "completed",
-      per_page: 100,
-      page,
+      run_id: context.runId,
     });
-    runs = response.data.workflow_runs || [];
-    logDailyGuardrail("Received workflow runs page", {
-      page,
-      runCount: runs.length,
-      runIds: runs.map(run => run?.id).filter(Boolean),
-    });
-    if (runs.length === 0) {
-      break;
+    const rateLimit = await getCoreRateLimitSnapshot(githubClient);
+
+    const workflowID = process.env.GH_AW_WORKFLOW_ID || "";
+    const workflowName = process.env.GH_AW_WORKFLOW_NAME || workflowID || "workflow";
+    const actorLogin = process.env.GITHUB_TRIGGERING_ACTOR || currentRun.data.triggering_actor?.login || currentRun.data.actor?.login || process.env.GITHUB_ACTOR || "";
+
+    if (!currentRun.data.workflow_id || !actorLogin) {
+      core.warning("Skipping daily workflow ET guardrail because the current workflow or actor could not be resolved.");
+      return;
     }
-    for (const run of runs) {
-      if (!run || run.id === context.runId) {
-        continue;
+
+    logDailyGuardrail("Resolved current workflow ET guardrail context", {
+      owner,
+      repo,
+      currentRunId: context.runId,
+      workflowId: currentRun.data.workflow_id,
+      workflowName,
+      actorLogin,
+      threshold,
+      rateLimitRemaining: rateLimit.remaining,
+      rateLimitLimit: rateLimit.limit,
+    });
+    const maxInspectableRuns = computeMaxInspectableRuns(rateLimit.remaining);
+    if (maxInspectableRuns <= 0) {
+      core.warning(`Skipping daily workflow ET guardrail because the GitHub API rate limit is too low (${rateLimit.remaining} remaining, reserve ${RATE_LIMIT_RESERVE}).`);
+      return;
+    }
+
+    const cutoffMs = Date.now() - DAILY_WORKFLOW_WINDOW_MS;
+    /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string}>} */
+    const candidateRuns = [];
+    /** @type {Array<any>} */
+    let runs = [];
+    let page = 1;
+    let truncatedByRateLimit = false;
+    while (page <= MAX_WORKFLOW_RUN_PAGES) {
+      logDailyGuardrail("Querying completed workflow runs", {
+        workflowId: currentRun.data.workflow_id,
+        actorLogin,
+        page,
+        perPage: 100,
+        cutoff: new Date(cutoffMs).toISOString(),
+      });
+      const response = await githubClient.rest.actions.listWorkflowRuns({
+        owner,
+        repo,
+        workflow_id: currentRun.data.workflow_id,
+        actor: actorLogin,
+        status: "completed",
+        per_page: 100,
+        page,
+      });
+      runs = response.data.workflow_runs || [];
+      logDailyGuardrail("Received workflow runs page", {
+        page,
+        runCount: runs.length,
+        runIds: runs.map(run => run?.id).filter(Boolean),
+      });
+      if (runs.length === 0) {
+        break;
       }
-      const createdAtMs = Date.parse(run.created_at || "");
-      if (!Number.isFinite(createdAtMs) || createdAtMs < cutoffMs) {
-        continue;
+      for (const run of runs) {
+        if (!run || run.id === context.runId) {
+          continue;
+        }
+        const createdAtMs = Date.parse(run.created_at || "");
+        if (!Number.isFinite(createdAtMs) || createdAtMs < cutoffMs) {
+          continue;
+        }
+        candidateRuns.push(run);
+        if (candidateRuns.length >= maxInspectableRuns) {
+          truncatedByRateLimit = true;
+          break;
+        }
       }
-      candidateRuns.push(run);
-      if (candidateRuns.length >= maxInspectableRuns) {
+      if (candidateRuns.length >= maxInspectableRuns || runs.length < 100) {
+        break;
+      }
+      page += 1;
+    }
+    logDailyGuardrail("Prepared candidate workflow runs for artifact inspection", {
+      candidateRunsCount: candidateRuns.length,
+      candidateRunIds: candidateRuns.map(run => run.id),
+      maxInspectableRuns,
+      truncatedByRateLimit,
+    });
+
+    const artifactClient = await getArtifactClient();
+    let totalEffectiveTokens = 0;
+    /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string, effective_tokens:number}>} */
+    const countedRuns = [];
+    for (const run of candidateRuns) {
+      if (countedRuns.length >= maxInspectableRuns) {
         truncatedByRateLimit = true;
         break;
       }
-    }
-    if (candidateRuns.length >= maxInspectableRuns || runs.length < 100) {
-      break;
-    }
-    page += 1;
-  }
-  logDailyGuardrail("Prepared candidate workflow runs for artifact inspection", {
-    candidateRunsCount: candidateRuns.length,
-    candidateRunIds: candidateRuns.map(run => run.id),
-    maxInspectableRuns,
-    truncatedByRateLimit,
-  });
-
-  const artifactClient = await getArtifactClient();
-  let totalEffectiveTokens = 0;
-  /** @type {Array<{id:number, html_url:string, created_at:string, conclusion:string, effective_tokens:number}>} */
-  const countedRuns = [];
-  for (const run of candidateRuns) {
-    if (countedRuns.length >= maxInspectableRuns) {
-      truncatedByRateLimit = true;
-      break;
-    }
-    try {
-      const runEffectiveTokens = await getRunEffectiveTokens(artifactClient, run.id, token, owner, repo);
-      if (runEffectiveTokens <= 0) {
-        logDailyGuardrail("Skipping run without ET usage artifact data", {
+      try {
+        const runEffectiveTokens = await getRunEffectiveTokens(artifactClient, run.id, token, owner, repo);
+        if (runEffectiveTokens <= 0) {
+          logDailyGuardrail("Skipping run without ET usage artifact data", {
+            runId: run.id,
+            currentEffectiveTokens: totalEffectiveTokens,
+            threshold,
+          });
+          continue;
+        }
+        totalEffectiveTokens += runEffectiveTokens;
+        countedRuns.push({
+          id: run.id,
+          html_url: run.html_url || "",
+          created_at: run.created_at || "",
+          conclusion: run.conclusion || "",
+          effective_tokens: runEffectiveTokens,
+        });
+        logDailyGuardrail("Updated current ET state", {
           runId: run.id,
+          runEffectiveTokens,
           currentEffectiveTokens: totalEffectiveTokens,
           threshold,
+          countedRunIds: countedRuns.map(item => item.id),
         });
-        continue;
+      } catch (error) {
+        core.warning(`Failed to inspect token usage for run ${run.id}: ${getErrorMessage(error)}`);
       }
-      totalEffectiveTokens += runEffectiveTokens;
-      countedRuns.push({
-        id: run.id,
-        html_url: run.html_url || "",
-        created_at: run.created_at || "",
-        conclusion: run.conclusion || "",
-        effective_tokens: runEffectiveTokens,
-      });
-      logDailyGuardrail("Updated current ET state", {
-        runId: run.id,
-        runEffectiveTokens,
-        currentEffectiveTokens: totalEffectiveTokens,
-        threshold,
-        countedRunIds: countedRuns.map(item => item.id),
-      });
-    } catch (error) {
-      core.warning(`Failed to inspect token usage for run ${run.id}: ${getErrorMessage(error)}`);
     }
-  }
 
-  core.setOutput("daily_effective_workflow_total_effective_tokens", String(totalEffectiveTokens));
-  core.setOutput("daily_effective_workflow_threshold", String(threshold));
+    core.setOutput("daily_effective_workflow_total_effective_tokens", String(totalEffectiveTokens));
+    core.setOutput("daily_effective_workflow_threshold", String(threshold));
 
-  /** @type {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} */
-  const summaryMeta = {
-    candidateRunsCount: candidateRuns.length,
-    inspectedRunsCount: countedRuns.length,
-    truncatedByRateLimit,
-  };
-  logDailyGuardrail("Completed ET inspection window", {
-    candidateRunsCount: summaryMeta.candidateRunsCount,
-    inspectedRunsCount: summaryMeta.inspectedRunsCount,
-    countedRunIds: countedRuns.map(run => run.id),
-    currentEffectiveTokens: totalEffectiveTokens,
-    threshold,
-    exceeded: totalEffectiveTokens > threshold,
-  });
+    /** @type {{candidateRunsCount:number,inspectedRunsCount:number,truncatedByRateLimit:boolean}} */
+    const summaryMeta = {
+      candidateRunsCount: candidateRuns.length,
+      inspectedRunsCount: countedRuns.length,
+      truncatedByRateLimit,
+    };
+    logDailyGuardrail("Completed ET inspection window", {
+      candidateRunsCount: summaryMeta.candidateRunsCount,
+      inspectedRunsCount: summaryMeta.inspectedRunsCount,
+      countedRunIds: countedRuns.map(run => run.id),
+      currentEffectiveTokens: totalEffectiveTokens,
+      threshold,
+      exceeded: totalEffectiveTokens > threshold,
+    });
 
-  if (totalEffectiveTokens <= threshold) {
+    if (totalEffectiveTokens <= threshold) {
+      await appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
+      core.info(`Daily workflow ET guardrail not exceeded (${totalEffectiveTokens}/${threshold}).`);
+      return;
+    }
+
+    core.setOutput("daily_effective_workflow_exceeded", "true");
     await appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
-    core.info(`Daily workflow ET guardrail not exceeded (${totalEffectiveTokens}/${threshold}).`);
-    return;
+    core.warning(`Daily workflow ET guardrail exceeded for ${workflowName}: ${totalEffectiveTokens}/${threshold}.`);
+  } catch (error) {
+    // Treat any unexpected error as a non-blocking skip so the step never fails the
+    // activation job.  The output stays at the default "false", allowing the agent to
+    // run.  The guardrail is effectively bypassed for this invocation.
+    core.warning(`Daily workflow ET guardrail encountered an unexpected error and will be skipped: ${getErrorMessage(error)}`);
   }
-
-  core.setOutput("daily_effective_workflow_exceeded", "true");
-  await appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, threshold, countedRuns, rateLimit, summaryMeta);
-  core.warning(`Daily workflow ET guardrail exceeded for ${workflowName}: ${totalEffectiveTokens}/${threshold}.`);
 }
 
 module.exports = {

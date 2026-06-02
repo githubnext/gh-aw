@@ -124,4 +124,64 @@ describe("check_daily_effective_workflow_guardrail", () => {
     expect(markdown).toContain("Stopped early to preserve GitHub API rate limit headroom");
     expect(markdown).not.toContain("Guardrail issue:");
   });
+
+  it("main() does not fail the step when GitHub API calls throw", async () => {
+    // Simulate a scenario where the GitHub API throws during workflow run lookup.
+    // The step should catch the error and NOT rethrow it, keeping daily_effective_workflow_exceeded at "false".
+    const coreOutputs = {};
+    const coreWarnings = [];
+    const mockCore = {
+      setOutput: (key, value) => {
+        coreOutputs[key] = value;
+      },
+      info: () => {},
+      warning: msg => coreWarnings.push(msg),
+    };
+
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: async () => {
+            throw new Error("API rate limit exceeded");
+          },
+        },
+        actions: {
+          getWorkflowRun: async () => {
+            throw new Error("Network error");
+          },
+          listWorkflowRuns: async () => {
+            throw new Error("Unexpected error");
+          },
+        },
+      },
+    };
+
+    const mockContext = {
+      repo: { owner: "test-owner", repo: "test-repo" },
+      runId: 42,
+    };
+
+    // Inject globals so the module can use them
+    global.core = mockCore;
+    global.github = mockGithub;
+    global.context = mockContext;
+
+    process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS = "1000000";
+    process.env.GH_AW_GITHUB_TOKEN = "fake-token";
+
+    try {
+      // Should resolve without throwing even though the API calls throw
+      await expect(exports.main()).resolves.toBeUndefined();
+      // The default "false" output must be set
+      expect(coreOutputs["daily_effective_workflow_exceeded"]).toBe("false");
+      // A warning must be emitted describing the error
+      expect(coreWarnings.some(w => /unexpected error.*skipped/i.test(w))).toBe(true);
+    } finally {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+    }
+  });
 });

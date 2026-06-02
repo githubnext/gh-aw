@@ -3695,60 +3695,12 @@
       "examples": [15, "${{ inputs.max-turns }}"]
     },
     "max-effective-tokens": {
-      "oneOf": [
-        {
-          "type": "integer",
-          "not": {
-            "enum": [0]
-          },
-          "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Use a negative value to disable budget enforcement and token steering."
-        },
-        {
-          "type": "string",
-          "oneOf": [
-            {
-              "pattern": "^[1-9][0-9]*([kKmM])?$"
-            },
-            {
-              "pattern": "^\\$\\{\\{.*\\}\\}$"
-            }
-          ],
-          "description": "Maximum effective-token (ET) budget as a numeric string or GitHub Actions expression."
-        }
-      ],
+      "$ref": "#/$defs/max_effective_tokens_limit",
       "default": 25000000,
       "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted. Set to a negative value to disable budget enforcement and token steering."
     },
     "max-daily-effective-tokens": {
-      "oneOf": [
-        {
-          "type": "integer",
-          "oneOf": [
-            {
-              "const": -1
-            },
-            {
-              "minimum": 1
-            }
-          ],
-          "description": "Maximum effective-token budget allowed across the last 24 hours for runs of this workflow by the triggering user. Set to -1 to disable."
-        },
-        {
-          "type": "string",
-          "oneOf": [
-            {
-              "pattern": "^-1$"
-            },
-            {
-              "pattern": "^[1-9][0-9]*([kKmM])?$"
-            },
-            {
-              "pattern": "^\\$\\{\\{.*\\}\\}$"
-            }
-          ],
-          "description": "Maximum 24-hour per-workflow effective-token budget as a numeric string or GitHub Actions expression. Use -1 to disable."
-        }
-      ],
+      "$ref": "#/$defs/max_daily_effective_tokens_limit",
       "description": "When set, activation checks the triggering user's runs of this workflow over the last 24 hours and prevents execution once the aggregated effective-token total exceeds this threshold. Omit the field or set it to -1 to leave the guardrail disabled."
     },
     "max-runs": {
@@ -10486,6 +10438,65 @@
           "type": "string",
           "pattern": "^\\$\\{\\{.*\\}\\}$",
           "description": "GitHub Actions expression that resolves to an integer at runtime"
+        }
+      ]
+    },
+    "positive_integer_with_km_suffix_or_expression": {
+      "type": "string",
+      "oneOf": [
+        {
+          "pattern": "^[1-9][0-9]*([kKmM])?$"
+        },
+        {
+          "pattern": "^\\$\\{\\{.*\\}\\}$"
+        }
+      ],
+      "description": "Positive integer as a string (supports optional K/M suffix) or a GitHub Actions expression."
+    },
+    "max_effective_tokens_limit": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "not": {
+            "enum": [0]
+          },
+          "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Use a negative value to disable budget enforcement and token steering."
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
+            }
+          ],
+          "description": "Maximum effective-token (ET) budget as a numeric string (supports K/M suffix) or GitHub Actions expression."
+        }
+      ]
+    },
+    "max_daily_effective_tokens_limit": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "oneOf": [
+            {
+              "const": -1
+            },
+            {
+              "minimum": 1
+            }
+          ],
+          "description": "Maximum effective-token budget allowed across the last 24 hours for runs of this workflow by the triggering user. Set to -1 to disable."
+        },
+        {
+          "type": "string",
+          "oneOf": [
+            {
+              "pattern": "^-1$"
+            },
+            {
+              "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
+            }
+          ],
+          "description": "Maximum 24-hour per-workflow effective-token budget as a numeric string (supports K/M suffix) or GitHub Actions expression. Use -1 to disable."
         }
       ]
     },
