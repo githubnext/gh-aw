@@ -340,13 +340,11 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
-			// Extract optional 'max-turns' field
+			// Extract optional 'max-turns' field (deprecated alias for top-level max-turns).
+			// Use parseMaxTurnsValue for consistent validation: rejects negative values and
+			// arbitrary strings while preserving valid integers and GitHub Actions expressions.
 			if maxTurns, hasMaxTurns := engineObj["max-turns"]; hasMaxTurns {
-				if val, ok := typeutil.ParseIntValue(maxTurns); ok {
-					config.MaxTurns = strconv.Itoa(val)
-				} else if maxTurnsStr, ok := maxTurns.(string); ok {
-					config.MaxTurns = maxTurnsStr
-				}
+				config.MaxTurns = parseMaxTurnsValue(maxTurns)
 			}
 			if topLevelMaxTurns != "" {
 				config.MaxTurns = topLevelMaxTurns
