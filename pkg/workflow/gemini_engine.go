@@ -24,7 +24,7 @@ func NewGeminiEngine() *GeminiEngine {
 			experimental: false,
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
-				MaxTurns:         false,
+				MaxTurns:         true,
 				MaxContinuations: false, // Gemini CLI does not support --max-autopilot-continues-style continuation mode
 				WebSearch:        false,
 				NativeAgentFile:  false, // Gemini does not support agent file natively; the compiler prepends the agent file content to prompt.txt
@@ -299,6 +299,10 @@ touch %s
 
 	// Add safe outputs env
 	applySafeOutputEnvToMap(env, workflowData)
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	}
 
 	// Set the model environment variable only when explicitly configured.
 	// When model is configured, use the native GEMINI_MODEL env var - the Gemini CLI reads it

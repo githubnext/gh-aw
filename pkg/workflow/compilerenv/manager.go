@@ -20,7 +20,7 @@ const (
 	// max-daily-effective-tokens guardrail when it is not explicitly configured in
 	// workflow frontmatter.
 	DefaultMaxDailyEffectiveTokens = "GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS"
-	// DefaultMaxTurns is the enterprise override for engine.max-turns when it is not
+	// DefaultMaxTurns is the enterprise override for max-turns when it is not
 	// explicitly configured in workflow frontmatter.
 	DefaultMaxTurns = "GH_AW_DEFAULT_MAX_TURNS"
 	// DefaultTimeoutMinutes is the enterprise override for top-level timeout-minutes

@@ -39,7 +39,7 @@ func NewPiEngine() *PiEngine {
 			experimental: true,
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
-				MaxTurns:         false,
+				MaxTurns:         true,
 				MaxContinuations: false,
 				WebSearch:        false,
 				NativeAgentFile:  false,
@@ -428,6 +428,10 @@ touch %s
 
 	// Apply safe-outputs env
 	applySafeOutputEnvToMap(env, workflowData)
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	}
 
 	// Apply custom env overrides from engine.env
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {

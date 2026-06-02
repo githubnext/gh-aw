@@ -27,7 +27,7 @@ func NewOpenCodeEngine() *OpenCodeEngine {
 				experimental: true,
 				capabilities: EngineCapabilities{
 					ToolsAllowlist: false,
-					MaxTurns:       false,
+					MaxTurns:       true,
 					WebSearch:      false,
 				},
 			},
@@ -172,6 +172,10 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 	}
 
 	applySafeOutputEnvToMap(env, workflowData)
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	}
 
 	if modelConfigured {
 		openCodeLog.Printf("Setting %s env var for model: %s",

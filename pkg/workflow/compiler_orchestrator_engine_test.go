@@ -167,6 +167,31 @@ engine:
 	assert.Equal(t, "4", result.engineConfig.MaxTurns)
 }
 
+func TestSetupEngineAndImports_TopLevelMaxTurnsOverridesEnvDefault(t *testing.T) {
+	t.Setenv(compilerenv.DefaultMaxTurns, "9")
+
+	tmpDir := testutil.TempDir(t, "engine-top-level-max-turns")
+	testContent := "---\n" +
+		"on: push\n" +
+		"engine: codex\n" +
+		`max-turns: "${{ inputs.max-turns }}"` + "\n" +
+		"---\n\n" +
+		"# Test Workflow\n"
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	content := []byte(testContent)
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(string(content))
+	require.NoError(t, err)
+
+	result, err := compiler.setupEngineAndImports(frontmatterResult, testFile, content, tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.engineConfig)
+	assert.Equal(t, "${{ inputs.max-turns }}", result.engineConfig.MaxTurns)
+}
+
 // TestSetupEngineAndImports_EngineOverride tests command-line engine override
 func TestSetupEngineAndImports_EngineOverride(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "engine-override")
