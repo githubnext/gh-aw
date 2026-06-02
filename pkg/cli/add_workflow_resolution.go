@@ -266,6 +266,10 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 
 func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec *RepoSpec, pkg *resolvedRepositoryPackage) []*WorkflowSpec {
 	host := explicitHostForRepo(repoSpec.RepoSlug)
+	resolvedVersion := repoSpec.Version
+	if resolvedVersion == "" && pkg != nil {
+		resolvedVersion = pkg.ResolvedRef
+	}
 	for _, installationSource := range pkg.InstallationSource {
 		// installationSource is guaranteed by isSupportedPackageInstallablePath to be
 		// either a .md agentic workflow or a .yml action workflow file; no other
@@ -276,7 +280,7 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
 			RepoSpec: RepoSpec{
 				RepoSlug:    repoSpec.RepoSlug,
-				Version:     repoSpec.Version,
+				Version:     resolvedVersion,
 				PackagePath: repoSpec.PackagePath,
 			},
 			WorkflowPath:           installationSource,
@@ -295,7 +299,7 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
 			RepoSpec: RepoSpec{
 				RepoSlug:    repoSpec.RepoSlug,
-				Version:     repoSpec.Version,
+				Version:     resolvedVersion,
 				PackagePath: repoSpec.PackagePath,
 			},
 			WorkflowPath:       skillFile.SourcePath,
@@ -314,7 +318,7 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
 			RepoSpec: RepoSpec{
 				RepoSlug:    repoSpec.RepoSlug,
-				Version:     repoSpec.Version,
+				Version:     resolvedVersion,
 				PackagePath: repoSpec.PackagePath,
 			},
 			WorkflowPath:       agentFile,
