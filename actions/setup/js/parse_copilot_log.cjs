@@ -301,6 +301,19 @@ function parsePrettyPrintFormat(logContent) {
         if (inputTokens === 0) inputTokens = parseTokenCount(tokenMatch[1]);
         if (outputTokens === 0) outputTokens = parseTokenCount(tokenMatch[2]);
         if (tokenMatch[3] && cacheReadTokens === 0) cacheReadTokens = parseTokenCount(tokenMatch[3]);
+      } else {
+        // Newer footer variant where the cached count is shown inline after the
+        // up-arrow rather than trailing the line:
+        //   "Tokens    ↑ 422.2k (375.0k cached) • ↓ 2.4k"
+        // (emitted by Copilot CLI 1.0.55). The trailing-cached regex above does
+        // not match this ordering, so handle it explicitly to avoid dropping the
+        // token totals from the Information section.
+        const inlineCachedMatch = trimmed.match(/^Tokens\s+↑\s*([\d.]+k?)\s*\(\s*([\d.]+k?)\s+cached\s*\)\s*[•·]\s*↓\s*([\d.]+k?)/);
+        if (inlineCachedMatch) {
+          if (inputTokens === 0) inputTokens = parseTokenCount(inlineCachedMatch[1]);
+          if (cacheReadTokens === 0) cacheReadTokens = parseTokenCount(inlineCachedMatch[2]);
+          if (outputTokens === 0) outputTokens = parseTokenCount(inlineCachedMatch[3]);
+        }
       }
       i++;
       continue;

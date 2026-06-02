@@ -285,6 +285,28 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("149,200");
     });
 
+    it("extracts token counts when cached is shown inline after the up-arrow (Tokens ↑X (Y cached) • ↓Z)", () => {
+      // Format emitted by Copilot CLI 1.0.55: the cached count appears inline in
+      // parentheses after the up-arrow rather than trailing the line.
+      const prettyLog = ["● Bash", "    └ ok", "The work is done.", "", "Changes    +0 -0", "Duration   3m 13s", "Tokens     ↑ 422.2k (375.0k cached) • ↓ 2.4k"].join("\n");
+
+      const result = parseCopilotLog(prettyLog);
+      const resultEntry = result.logEntries.find(e => e.type === "result");
+
+      expect(resultEntry).toBeDefined();
+      expect(resultEntry.usage).toEqual(
+        expect.objectContaining({
+          input_tokens: 422200,
+          output_tokens: 2400,
+          cache_read_input_tokens: 375000,
+        })
+      );
+      expect(result.markdown).toContain("Token Usage");
+      expect(result.markdown).toContain("422,200");
+      expect(result.markdown).toContain("2,400");
+      expect(result.markdown).toContain("375,000");
+    });
+
     it("handles the new footer without a cached segment", () => {
       const prettyLog = ["● Bash", "    └ ok", "", "Tokens    ↑ 1.2k • ↓ 50"].join("\n");
 

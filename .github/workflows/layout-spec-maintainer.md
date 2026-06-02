@@ -29,7 +29,9 @@ cache:
     layout-spec-cache-
 description: Maintains scratchpad/layout.md with patterns of file paths, folder names, and artifact names used in lock.yml files
 emoji: 📐
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 name: Layout Specification Maintainer
 strict: true
 timeout-minutes: 20

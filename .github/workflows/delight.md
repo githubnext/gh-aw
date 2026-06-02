@@ -37,7 +37,9 @@ safe-outputs:
     run-success: ✅ Analysis complete! [{workflow_name}]({run_url}) has identified targeted improvements for user experience.
 description: Targeted scan of user-facing aspects to improve clarity, usability, and professionalism in enterprise software context
 emoji: ✨
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 name: Delight
 pre-agent-steps:
 - name: Sample files and load memory

@@ -26,7 +26,9 @@ safe-outputs:
     title-prefix: "[compiler-threat-spec] "
 description: Daily optimizer that reconciles compiler threat coverage with W3C specification-driven detection rules
 emoji: 🔒
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 name: Daily Compiler Threat Spec Optimizer
 strict: true
 timeout-minutes: 30

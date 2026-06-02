@@ -12,7 +12,9 @@ permissions:
   actions: read
   copilot-requests: write
 tracker-id: linter-miner
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 network:
   allowed:
     - defaults
