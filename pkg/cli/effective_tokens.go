@@ -293,8 +293,11 @@ func providerIncludesCacheReadsInInput(normalizedProvider string) bool {
 	// - additive semantics: cache_read_tokens are separate from input_tokens,
 	//   so no subtraction is applied.
 	//
-	// Known providers currently using bundled semantics are listed below. Unknown
-	// providers default to additive semantics to avoid under-counting input tokens.
+	// Known providers currently using bundled semantics are listed below.
+	// Unknown non-empty providers default to additive semantics to avoid
+	// under-counting input tokens. Empty provider values are treated as bundled
+	// semantics for backward compatibility with older usage records that omitted
+	// the provider field.
 	switch normalizedProvider {
 	case "", "anthropic", "openai", "azure-openai", "azure_openai":
 		return true
