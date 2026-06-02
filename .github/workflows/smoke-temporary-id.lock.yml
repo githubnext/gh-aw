@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"2abbcf6a9919caec3282b00f1ce91bbdd7c9daedc90f9daee5c824dfd06864bd","body_hash":"837357879ba43b6a872a306ef6aa48f02a2b63b43cf0a142dd3860175463961b","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"047362b91ac3045ef5a1ccfc7df8b289acb5c95539d0bfb7f57e4e724d674d24","body_hash":"837357879ba43b6a872a306ef6aa48f02a2b63b43cf0a142dd3860175463961b","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.58"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.22"},{"image":"ghcr.io/github/github-mcp-server:v1.1.0"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -56,32 +56,11 @@
 
 name: "Smoke Temporary ID"
 on:
-  discussion:
-    types:
-    - created
-    - edited
-  discussion_comment:
-    types:
-    - created
-    - edited
-  issue_comment:
-    types:
-    - created
-    - edited
-  issues:
-    types:
-    - opened
-    - edited
-    - reopened
   pull_request:
     # names: # Label filtering applied via job conditions
     # - water # Label filtering applied via job conditions
     types:
     - labeled
-  pull_request_review_comment:
-    types:
-    - created
-    - edited
   workflow_dispatch:
     inputs:
       aw_context:
@@ -108,12 +87,13 @@ env:
 jobs:
   activation:
     needs: pre_activation
-    if: "needs.pre_activation.outputs.activated == 'true' && ((((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') && (github.event_name == 'issues' && (startsWith(github.event.issue.body, '/smoke-temporary-id ') || startsWith(github.event.issue.body, '/smoke-temporary-id\n') || github.event.issue.body == '/smoke-temporary-id') || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/smoke-temporary-id ') || startsWith(github.event.comment.body, '/smoke-temporary-id\n') || github.event.comment.body == '/smoke-temporary-id') && github.event.issue.pull_request == null || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/smoke-temporary-id ') || startsWith(github.event.comment.body, '/smoke-temporary-id\n') || github.event.comment.body == '/smoke-temporary-id') && github.event.issue.pull_request != null || github.event_name == 'pull_request_review_comment' && (startsWith(github.event.comment.body, '/smoke-temporary-id ') || startsWith(github.event.comment.body, '/smoke-temporary-id\n') || github.event.comment.body == '/smoke-temporary-id') || github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/smoke-temporary-id ') || startsWith(github.event.pull_request.body, '/smoke-temporary-id\n') || github.event.pull_request.body == '/smoke-temporary-id') || github.event_name == 'discussion' && (startsWith(github.event.discussion.body, '/smoke-temporary-id ') || startsWith(github.event.discussion.body, '/smoke-temporary-id\n') || github.event.discussion.body == '/smoke-temporary-id') || github.event_name == 'discussion_comment' && (startsWith(github.event.comment.body, '/smoke-temporary-id ') || startsWith(github.event.comment.body, '/smoke-temporary-id\n') || github.event.comment.body == '/smoke-temporary-id')) || (!(github.event_name == 'issues')) && (!(github.event_name == 'issue_comment')) && (!(github.event_name == 'pull_request')) && (!(github.event_name == 'pull_request_review_comment')) && (!(github.event_name == 'discussion')) && (!(github.event_name == 'discussion_comment'))) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)) && (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'water'))"
+    if: >
+      needs.pre_activation.outputs.activated == 'true' && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'water'))
     runs-on: ubuntu-slim
     permissions:
       actions: read
       contents: read
-      discussions: write
       issues: write
       pull-requests: write
     outputs:
@@ -207,7 +187,7 @@ jobs:
             await main();
       - name: Add eyes reaction for immediate feedback
         id: react
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id || github.event_name == 'workflow_dispatch' && (fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issue_comment' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request_review_comment' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion_comment')
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_REACTION: "eyes"
@@ -271,7 +251,7 @@ jobs:
             await main();
       - name: Add comment with workflow run link
         id: add-comment
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id || github.event_name == 'workflow_dispatch' && (fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issue_comment' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request_review_comment' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion_comment')
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Smoke Temporary ID"
@@ -334,20 +314,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_536d697b2c0f378d_EOF'
+          cat << 'GH_AW_PROMPT_31df2bb07b420d68_EOF'
           <system>
-          GH_AW_PROMPT_536d697b2c0f378d_EOF
+          GH_AW_PROMPT_31df2bb07b420d68_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_536d697b2c0f378d_EOF'
+          cat << 'GH_AW_PROMPT_31df2bb07b420d68_EOF'
           <safe-output-tools>
           Tools: add_comment(max:2), create_issue(max:5), link_sub_issue(max:3), missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_536d697b2c0f378d_EOF
+          GH_AW_PROMPT_31df2bb07b420d68_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_536d697b2c0f378d_EOF'
+          cat << 'GH_AW_PROMPT_31df2bb07b420d68_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -376,17 +356,17 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_536d697b2c0f378d_EOF
+          GH_AW_PROMPT_31df2bb07b420d68_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
             cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md"
           fi
-          cat << 'GH_AW_PROMPT_536d697b2c0f378d_EOF'
+          cat << 'GH_AW_PROMPT_31df2bb07b420d68_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/smoke-temporary-id.md}}
-          GH_AW_PROMPT_536d697b2c0f378d_EOF
+          GH_AW_PROMPT_31df2bb07b420d68_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -614,9 +594,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_414d615f26333a8e_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_6e986c10f85e9835_EOF'
           {"add_comment":{"hide_older_comments":true,"max":2},"create_issue":{"close_older_issues":true,"expires":2,"group":true,"labels":["ai-generated","automation","testing"],"max":5,"title_prefix":"[smoke-temporary-id] "},"create_report_incomplete_issue":{},"link_sub_issue":{"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_414d615f26333a8e_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_6e986c10f85e9835_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -868,7 +848,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_6d047c1bf86c5136_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_988dc6ca371e3f7b_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -914,7 +894,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_6d047c1bf86c5136_EOF
+          GH_AW_MCP_CONFIG_988dc6ca371e3f7b_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1585,7 +1565,9 @@ jobs:
             }
 
   pre_activation:
-    if: "(github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment' || contains(fromJSON('[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]'), github.event.comment.author_association)) && ((((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') && (github.event_name == 'issues' && (startsWith(github.event.issue.body, '/smoke-temporary-id ') || startsWith(github.event.issue.body, '/smoke-temporary-id\n') || github.event.issue.body == '/smoke-temporary-id') || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/smoke-temporary-id ') || startsWith(github.event.comment.body, '/smoke-temporary-id\n') || github.event.comment.body == '/smoke-temporary-id') && github.event.issue.pull_request == null || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/smoke-temporary-id ') || startsWith(github.event.comment.body, '/smoke-temporary-id\n') || github.event.comment.body == '/smoke-temporary-id') && github.event.issue.pull_request != null || github.event_name == 'pull_request_review_comment' && (startsWith(github.event.comment.body, '/smoke-temporary-id ') || startsWith(github.event.comment.body, '/smoke-temporary-id\n') || github.event.comment.body == '/smoke-temporary-id') || github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/smoke-temporary-id ') || startsWith(github.event.pull_request.body, '/smoke-temporary-id\n') || github.event.pull_request.body == '/smoke-temporary-id') || github.event_name == 'discussion' && (startsWith(github.event.discussion.body, '/smoke-temporary-id ') || startsWith(github.event.discussion.body, '/smoke-temporary-id\n') || github.event.discussion.body == '/smoke-temporary-id') || github.event_name == 'discussion_comment' && (startsWith(github.event.comment.body, '/smoke-temporary-id ') || startsWith(github.event.comment.body, '/smoke-temporary-id\n') || github.event.comment.body == '/smoke-temporary-id')) || (!(github.event_name == 'issues')) && (!(github.event_name == 'issue_comment')) && (!(github.event_name == 'pull_request')) && (!(github.event_name == 'pull_request_review_comment')) && (!(github.event_name == 'discussion')) && (!(github.event_name == 'discussion_comment'))) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)) && (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'water'))"
+    if: >
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'water')
     runs-on: ubuntu-slim
     permissions:
       contents: read
