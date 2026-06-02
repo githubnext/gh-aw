@@ -7,9 +7,16 @@ import (
 	"github.com/github/gh-aw/pkg/typeutil"
 )
 
-// normalizePositiveEffectiveTokenLimit converts positive integer-like values into
-// a canonical base-10 string. Supported inputs are positive integers and numeric
-// strings with optional K/M suffixes.
+// normalizePositiveEffectiveTokenLimit converts positive integer-like values
+// into a canonical base-10 string.
+//
+// Supported inputs:
+//   - positive integers
+//   - positive numeric strings with optional K/M suffixes
+//
+// It returns the normalized base-10 value and true when parsing succeeds.
+// It returns an empty string and false when the value is not a valid positive
+// effective-token limit.
 func normalizePositiveEffectiveTokenLimit(raw any) (string, bool) {
 	if val, ok := typeutil.ParseIntValue(raw); ok && val > 0 {
 		return strconv.Itoa(val), true
@@ -34,6 +41,9 @@ func normalizePositiveEffectiveTokenLimit(raw any) (string, bool) {
 
 // parseMaxEffectiveTokenLimitValue parses max-effective-tokens from either an
 // integer, -1 string sentinel, or positive K/M-suffixed string.
+//
+// It returns the parsed limit value and a success boolean. A false success
+// value means the input was not a supported max-effective-tokens value.
 func parseMaxEffectiveTokenLimitValue(raw any) (int64, bool) {
 	if val, ok := typeutil.ParseIntValue(raw); ok && val != 0 {
 		return int64(val), true

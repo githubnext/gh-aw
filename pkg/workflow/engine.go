@@ -167,8 +167,8 @@ func parseMaxEffectiveTokensValue(raw any) int64 {
 	if parsed, ok := parseMaxEffectiveTokenLimitValue(raw); ok {
 		return parsed
 	}
-	if rawStr, ok := raw.(string); ok {
-		engineLog.Printf("Ignoring invalid max-effective-tokens value: %q", rawStr)
+	if raw != nil {
+		engineLog.Printf("Ignoring invalid max-effective-tokens value of type %T: %v", raw, raw)
 	}
 	return 0
 }

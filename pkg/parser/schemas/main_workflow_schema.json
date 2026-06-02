@@ -10459,7 +10459,11 @@
           "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Use a negative value to disable budget enforcement and token steering."
         },
         {
-          "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression",
+          "allOf": [
+            {
+              "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
+            }
+          ],
           "description": "Maximum effective-token (ET) budget as a numeric string (supports K/M suffix) or GitHub Actions expression."
         }
       ]
