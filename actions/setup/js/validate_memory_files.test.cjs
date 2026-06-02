@@ -206,4 +206,47 @@ describe("validateMemoryFiles", () => {
     expect(result.valid).toBe(true); // undefined means allow all
     expect(result.invalidFiles).toEqual([]);
   });
+
+  it("skips .git directory during scan", () => {
+    const gitDir = path.join(tempDir, ".git");
+    fs.mkdirSync(gitDir);
+    // These would fail validation (no extension) but should be skipped
+    fs.writeFileSync(path.join(gitDir, "HEAD"), "ref: refs/heads/main");
+    fs.writeFileSync(path.join(gitDir, "packed-refs"), "");
+    fs.writeFileSync(path.join(tempDir, "valid.json"), "{}");
+    const result = validateMemoryFiles(tempDir, "cache", [".json"]);
+    expect(result.valid).toBe(true);
+    expect(result.invalidFiles).toEqual([]);
+  });
+
+  it("rejects invalid files in subdirectories with custom extensions", () => {
+    const subdir = path.join(tempDir, "subdir");
+    fs.mkdirSync(subdir);
+    fs.writeFileSync(path.join(subdir, "valid.json"), "{}");
+    fs.writeFileSync(path.join(subdir, "invalid.log"), "log");
+    const result = validateMemoryFiles(tempDir, "cache", [".json"]);
+    expect(result.valid).toBe(false);
+    expect(result.invalidFiles).toContain(path.join("subdir", "invalid.log"));
+  });
+
+  it("validates files with no extension against custom extensions", () => {
+    fs.writeFileSync(path.join(tempDir, "noext"), "content");
+    const result = validateMemoryFiles(tempDir, "cache", [".json"]);
+    expect(result.valid).toBe(false);
+    expect(result.invalidFiles).toEqual(["noext"]);
+  });
+
+  it("trims and normalizes extension casing in custom allowed list", () => {
+    fs.writeFileSync(path.join(tempDir, "data.JSON"), "{}");
+    const result = validateMemoryFiles(tempDir, "cache", [" .json "]);
+    expect(result.valid).toBe(true);
+    expect(result.invalidFiles).toEqual([]);
+  });
+
+  it("uses repo as memoryType in error messages", () => {
+    fs.writeFileSync(path.join(tempDir, "invalid.log"), "log");
+    const result = validateMemoryFiles(tempDir, "repo", [".txt"]);
+    expect(result.valid).toBe(false);
+    expect(result.invalidFiles).toEqual(["invalid.log"]);
+  });
 });

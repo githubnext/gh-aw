@@ -25,7 +25,9 @@ imports:
 - shared/otlp.md
 description: Daily expert that analyzes one test file and creates an issue with testify-based improvements
 emoji: 🧪
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 name: Daily Testify Uber Super Expert
 strict: true
 timeout-minutes: 20

@@ -9,7 +9,9 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 runs-on: aw-gpu-runner-T4
 strict: true
 tracker-id: daily-issues-report

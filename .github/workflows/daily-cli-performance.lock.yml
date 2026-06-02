@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"8e1bf4e7d21f4fc1c1f0caefdee7e77968391c5c7741218f969e3fd60e3baf6f","body_hash":"f7a7b544da49197efeb47bbc29754283785afbc1c3c69ff78334d1d079ee3d9f","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"98bc2372e748508a7f13d7b8992ee761915ba4c56135138207c7ed855ee992ba","body_hash":"f7a7b544da49197efeb47bbc29754283785afbc1c3c69ff78334d1d079ee3d9f","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.58"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.22"},{"image":"ghcr.io/github/github-mcp-server:v1.1.0"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -256,21 +256,21 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_c7fd1662556f7775_EOF'
+          cat << 'GH_AW_PROMPT_1d4980c68b89294b_EOF'
           <system>
-          GH_AW_PROMPT_c7fd1662556f7775_EOF
+          GH_AW_PROMPT_1d4980c68b89294b_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_c7fd1662556f7775_EOF'
+          cat << 'GH_AW_PROMPT_1d4980c68b89294b_EOF'
           <safe-output-tools>
           Tools: add_comment(max:5), create_issue(max:3), create_discussion, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_c7fd1662556f7775_EOF
+          GH_AW_PROMPT_1d4980c68b89294b_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_c7fd1662556f7775_EOF'
+          cat << 'GH_AW_PROMPT_1d4980c68b89294b_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -299,16 +299,16 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_c7fd1662556f7775_EOF
+          GH_AW_PROMPT_1d4980c68b89294b_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_c7fd1662556f7775_EOF'
+          cat << 'GH_AW_PROMPT_1d4980c68b89294b_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/go-make.md}}
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/daily-cli-performance.md}}
-          GH_AW_PROMPT_c7fd1662556f7775_EOF
+          GH_AW_PROMPT_1d4980c68b89294b_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -523,6 +523,8 @@ jobs:
           GH_HOST: github.com
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.58
+      - name: Install GitHub Copilot SDK
+        run: cd "${GITHUB_WORKSPACE}" && npm install --ignore-scripts --no-save @github/copilot-sdk@1.0.0-beta.9
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
@@ -560,9 +562,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_e3b9202cd8288622_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_c3ee2e64fc1886e6_EOF'
           {"add_comment":{"max":5},"create_discussion":{"category":"audits","close_older_discussions":true,"expires":72,"fallback_to_issue":true,"max":1,"title_prefix":"[daily-cli-performance] "},"create_issue":{"expires":48,"group":true,"labels":["performance","automation","cookie"],"max":3,"title_prefix":"[performance] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":131072,"max_patch_size":10240}]},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_e3b9202cd8288622_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_c3ee2e64fc1886e6_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -786,7 +788,7 @@ jobs:
       - name: Write MCP Scripts Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_8337b5e1c2b098b2_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_f8b43b77cf9a7e9d_EOF'
           {
             "serverName": "mcpscripts",
             "version": "1.0.0",
@@ -830,8 +832,8 @@ jobs:
               }
             ]
           }
-          GH_AW_MCP_SCRIPTS_TOOLS_8337b5e1c2b098b2_EOF
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs" << 'GH_AW_MCP_SCRIPTS_SERVER_c7e6f3a30dad5eb7_EOF'
+          GH_AW_MCP_SCRIPTS_TOOLS_f8b43b77cf9a7e9d_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs" << 'GH_AW_MCP_SCRIPTS_SERVER_150ede032d2129be_EOF'
             const path = require("path");
             const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
@@ -845,12 +847,12 @@ jobs:
               console.error("Failed to start mcp-scripts HTTP server:", error);
               process.exit(1);
             });
-          GH_AW_MCP_SCRIPTS_SERVER_c7e6f3a30dad5eb7_EOF
+          GH_AW_MCP_SCRIPTS_SERVER_150ede032d2129be_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs"
           
       - name: Write MCP Scripts Tool Files
         run: |
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh" << 'GH_AW_MCP_SCRIPTS_SH_GO_48d39fdc82277b48_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh" << 'GH_AW_MCP_SCRIPTS_SH_GO_20cb74d328cc19af_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: go
           # Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -862,9 +864,9 @@ jobs:
           go $INPUT_ARGS
           
           
-          GH_AW_MCP_SCRIPTS_SH_GO_48d39fdc82277b48_EOF
+          GH_AW_MCP_SCRIPTS_SH_GO_20cb74d328cc19af_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh" << 'GH_AW_MCP_SCRIPTS_SH_MAKE_a5b9b72c90083ca1_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh" << 'GH_AW_MCP_SCRIPTS_SH_MAKE_fb652b1542790640_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: make
           # Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -876,7 +878,7 @@ jobs:
           make $INPUT_ARGS
           
           
-          GH_AW_MCP_SCRIPTS_SH_MAKE_a5b9b72c90083ca1_EOF
+          GH_AW_MCP_SCRIPTS_SH_MAKE_fb652b1542790640_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh"
           
       - name: Generate MCP Scripts Server Config
@@ -950,7 +952,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_394e5791d40ebded_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_4eeb6b6429a7fd92_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "mcpscripts": {
@@ -994,7 +996,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_394e5791d40ebded_EOF
+          GH_AW_MCP_CONFIG_4eeb6b6429a7fd92_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1054,13 +1056,14 @@ jobs:
           fi
           # shellcheck disable=SC1003
           sudo -E awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" ${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"} ${GH_AW_DOCKER_HOST_PATH_PREFIX_ARGS} --env-all --exclude-env COPILOT_GITHUB_TOKEN --exclude-env GH_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --allow-host-ports 80,443,8080 --skip-pull --difc-proxy-host host.docker.internal:18443 --difc-proxy-ca-cert /tmp/gh-aw/difc-proxy-tls/ca.crt \
-            -- /bin/bash -c 'set +o histexpand; export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH" && GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"; export PATH="$(find "$GH_AW_TOOL_CACHE" /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null || true)"; if [ -n "$GH_AW_NPM_GLOBAL_ROOT" ]; then export NODE_PATH="${GH_AW_NPM_GLOBAL_ROOT}${NODE_PATH:+:${NODE_PATH}}"; fi; "$GH_AW_NODE_EXEC" ${RUNNER_TEMP}/gh-aw/actions/copilot_harness.cjs /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --no-ask-user --allow-all-tools --allow-all-paths --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+            -- /bin/bash -c 'set +o histexpand; export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH" && GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"; export PATH="$(find "$GH_AW_TOOL_CACHE" /opt/hostedtoolcache /home/runner/work/_tool -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && printf '\''%s'\'' '\''{"promptFile":"/tmp/gh-aw/aw-prompts/prompt.txt","serverArgs":["--headless","--no-auto-update","--port","3002","--add-dir","/tmp/gh-aw/","--log-level","all","--log-dir","/tmp/gh-aw/sandbox/agent/logs/","--disable-builtin-mcps","--no-ask-user","--allow-all-tools","--allow-all-paths"],"addWorkspaceDir":true}'\'' | { GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; GH_AW_WORKSPACE_NODE_MODULES="${GITHUB_WORKSPACE:-$PWD}/node_modules"; if [ -d "$GH_AW_WORKSPACE_NODE_MODULES" ]; then export NODE_PATH="${GH_AW_WORKSPACE_NODE_MODULES}${NODE_PATH:+:${NODE_PATH}}"; fi; GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null || true)"; if [ -n "$GH_AW_NPM_GLOBAL_ROOT" ]; then export NODE_PATH="${GH_AW_NPM_GLOBAL_ROOT}${NODE_PATH:+:${NODE_PATH}}"; fi; "$GH_AW_NODE_EXEC" ${RUNNER_TEMP}/gh-aw/actions/copilot_harness.cjs /usr/local/bin/copilot; }' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ github.token }}
           COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'claude-sonnet-4.6' }}
+          COPILOT_SDK_URI: http://127.0.0.1:3002
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt

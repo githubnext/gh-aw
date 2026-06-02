@@ -40,7 +40,9 @@ safe-outputs:
     run-success: ✅ Task mining complete! [{workflow_name}]({run_url}) has identified actionable code quality tasks. 📊
 description: Scans AI-generated discussions to extract actionable code quality improvement tasks
 emoji: ⛏️
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: true
 timeout-minutes: 20
 tools:

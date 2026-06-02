@@ -12,7 +12,9 @@ permissions:
   issues: read
   pull-requests: read
   copilot-requests: write
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: true
 imports:
   - shared/mcp/brave.md

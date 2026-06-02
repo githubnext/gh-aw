@@ -36,7 +36,9 @@ safe-outputs:
     title-prefix: "[concurrency] "
 description: Performs deep-dive concurrency analysis on each safe-outputs MCP server tool to ensure thread-safety and detect race conditions
 emoji: 📊
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 name: Daily MCP Tool Concurrency Analysis
 strict: true
 timeout-minutes: 45
