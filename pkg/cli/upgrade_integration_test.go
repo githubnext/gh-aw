@@ -49,9 +49,8 @@ func TestInitAndUpgradeWithEmptyAWDirectory(t *testing.T) {
 	require.NoError(t, err, "expected .github/aw/logs to be preserved after init")
 
 	skillPath := filepath.Join(setup.tempDir, ".github", "skills", "agentic-workflows", "SKILL.md")
-	if _, err := os.Stat(skillPath); err != nil {
-		t.Fatalf("expected dispatcher skill file to exist after init: %v", err)
-	}
+	_, err = os.Stat(skillPath)
+	require.NoError(t, err, "expected dispatcher skill file to exist after init")
 
 	workflowPath := filepath.Join(setup.tempDir, ".github", "workflows", "example.md")
 	workflowContent := `---

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -383,9 +384,7 @@ func TestBuildAgenticWorkflowsSkillContentWithEmptyAWDirectory(t *testing.T) {
 
 	expected, err := buildAgenticWorkflowsSkillContent(withoutAWDir)
 	require.NoError(t, err, "buildAgenticWorkflowsSkillContent() without .github/aw directory returned error")
-	if content != expected {
-		t.Fatalf("Expected skill content with empty .github/aw directory to match content without .github/aw directory:\nexpected:\n%s\ngot:\n%s", expected, content)
-	}
+	assert.Equal(t, expected, content, "skill content with empty .github/aw should match content without .github/aw")
 	if strings.Contains(content, agenticWorkflowsSkillFileListPlaceholder) {
 		t.Fatalf("expected generated skill content to replace the file-list placeholder:\n%s", content)
 	}
