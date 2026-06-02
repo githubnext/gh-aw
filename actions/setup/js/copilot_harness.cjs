@@ -664,7 +664,11 @@ async function main() {
       const serializedReflectData = readSerializedReflectData({ logger: log });
       if (serializedReflectData) {
         sdkChildEnv[COPILOT_SDK_REFLECT_DATA_ENV_VAR] = serializedReflectData;
-        childEnv = { ...process.env, ...sdkChildEnv };
+        if (childEnv) {
+          childEnv[COPILOT_SDK_REFLECT_DATA_ENV_VAR] = serializedReflectData;
+        } else {
+          childEnv = { ...process.env, ...sdkChildEnv };
+        }
         log(`sdk-mode: attached serialized reflect data (${serializedReflectData.length} bytes) to ${COPILOT_SDK_REFLECT_DATA_ENV_VAR}`);
       }
     }
