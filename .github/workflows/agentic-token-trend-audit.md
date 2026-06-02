@@ -168,10 +168,10 @@ Handle null/missing `token_usage` by treating them as 0.
 
 ## Phase 2 — Generate Charts
 
-Create up to two chart images in `/tmp/gh-aw/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling:
+Attempt to create two chart images in `/tmp/gh-aw/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling:
 
 1. **Token usage by workflow** (`token_by_workflow.png`): a horizontal bar chart of the top 15 workflows by total tokens from `audit_snapshot.json`.
-2. **Daily token usage trend** (`daily_token_trend.png`): a line chart that aggregates completed-run token usage by UTC day across the requested date range.
+2. **Daily token usage trend** (`daily_token_trend.png`): a line chart that aggregates completed-run token usage by UTC day across the requested date range (skip this chart if fewer than 2 daily points exist).
 
 Chart requirements:
 
@@ -179,10 +179,11 @@ Chart requirements:
 - Use 300 DPI and a white background.
 - Add clear axis labels and titles.
 - Save only PNG files.
-- If there are fewer than 2 daily points for the requested range, skip the daily trend chart and explain why in the issue.
+- Always generate `token_by_workflow.png`.
+- If there are fewer than 2 daily points for the requested range, skip `daily_token_trend.png` and explain why in the issue.
 - After generating each chart, call `upload_asset` with its file path.
-- In the issue template below, replace `UPLOAD_URL_WORKFLOW_PLACEHOLDER` with the URL returned for `token_by_workflow.png`.
-- In the issue template below, replace `UPLOAD_URL_DAILY_TREND_PLACEHOLDER` with the URL returned for `daily_token_trend.png`.
+- Replace `UPLOAD_URL_WORKFLOW_PLACEHOLDER` only after `token_by_workflow.png` is uploaded.
+- Replace `UPLOAD_URL_DAILY_TREND_PLACEHOLDER` only after `daily_token_trend.png` is uploaded.
 - If a chart is skipped, omit its image markdown line entirely instead of leaving a placeholder behind.
 
 ## Phase 3 — Publish Audit Issue
