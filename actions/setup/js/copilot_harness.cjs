@@ -108,6 +108,7 @@ const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 // re-injects the same broken history, producing the same 400 on every subsequent attempt.
 // A fresh restart is required to discard the poisoned history.
 const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
+const COPILOT_SDK_REFLECT_DATA_ENV_VAR = "COPILOT_SDK_REFLECT_DATA";
 
 /**
  * Emit a diagnostic log line to stderr.
@@ -129,6 +130,32 @@ function generateCopilotConnectionToken(options) {
   // randomBytes injection exists only for unit tests; production uses crypto.randomBytes.
   const randomBytes = options?.randomBytes ?? crypto.randomBytes;
   return randomBytes(32).toString("hex");
+}
+
+/**
+ * Read AWF /reflect output and return it as a single-line serialized JSON string.
+ * Returns an empty string when the file cannot be read or parsed.
+ *
+ * @param {{
+ *   reflectPath?: string,
+ *   readFileSync?: (path: string, encoding: BufferEncoding) => string,
+ *   logger?: (msg: string) => void,
+ * }} [options]
+ * @returns {string}
+ */
+function readSerializedReflectData(options) {
+  const reflectPath = options?.reflectPath || AWF_REFLECT_OUTPUT_PATH;
+  const readFile = options?.readFileSync || fs.readFileSync;
+  const logger = options?.logger || log;
+  try {
+    const raw = readFile(reflectPath, "utf8");
+    const parsed = JSON.parse(raw);
+    return JSON.stringify(parsed);
+  } catch (error) {
+    const err = /** @type {Error} */ error;
+    logger(`sdk-mode: unable to load serialized reflect data from ${reflectPath}: ${err.message}`);
+    return "";
+  }
 }
 
 /**
@@ -608,7 +635,7 @@ async function main() {
   // sdkEnv already contains SDK-mode variables (e.g. COPILOT_SDK_URI) when enabled.
   // In SDK mode, also attach the generated per-run COPILOT_CONNECTION_TOKEN.
   const sdkChildEnv = copilotSDKMode ? { ...sdkEnv, COPILOT_CONNECTION_TOKEN: copilotConnectionToken } : sdkEnv;
-  const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
+  let childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
 
   // In SDK mode, the engine pipes a JSON options payload via stdin containing the promptFile
   // path, serverArgs (complete CLI argument list for the headless server), and optionally addWorkspaceDir.
@@ -633,6 +660,14 @@ async function main() {
   // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. sandbox.agent: false — no api-proxy running).
   if (process.env.AWF_REFLECT_ENABLED === "1") {
     await fetchAWFReflect({ logger: log });
+    if (copilotSDKMode) {
+      const serializedReflectData = readSerializedReflectData({ logger: log });
+      if (serializedReflectData) {
+        sdkChildEnv[COPILOT_SDK_REFLECT_DATA_ENV_VAR] = serializedReflectData;
+        childEnv = { ...process.env, ...sdkChildEnv };
+        log(`sdk-mode: attached serialized reflect data (${serializedReflectData.length} bytes) to ${COPILOT_SDK_REFLECT_DATA_ENV_VAR}`);
+      }
+    }
   }
 
   let delay = INITIAL_DELAY_MS;
@@ -944,6 +979,7 @@ if (typeof module !== "undefined" && module.exports) {
     fetchModelsFromUrl,
     buildCopilotProxyAuthFailureDiagnostic,
     generateCopilotConnectionToken,
+    readSerializedReflectData,
     buildCopilotSDKServerArgs,
     getCopilotSDKServerPort,
     isDetectionPhase,

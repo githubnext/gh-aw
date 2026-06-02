@@ -41,6 +41,7 @@ const {
   runWithCopilotSDK,
   writeCopilotOutputs,
   readSDKOptionsFromStdin,
+  readSerializedReflectData,
 } = require("./copilot_harness.cjs");
 
 describe("copilot_harness.cjs", () => {
@@ -1467,6 +1468,28 @@ describe("copilot_harness.cjs", () => {
       } finally {
         fs.unlinkSync(reflectFile);
       }
+    });
+
+    it("serializes reflect data for SDK client env propagation", () => {
+      const reflectFile = path.join(os.tmpdir(), `awf-reflect-serialized-${Date.now()}.json`);
+      try {
+        fs.writeFileSync(
+          reflectFile,
+          JSON.stringify({
+            endpoints: [{ provider: "copilot", configured: true, models: ["gpt-5.4"] }],
+          }),
+          "utf8"
+        );
+        expect(readSerializedReflectData({ reflectPath: reflectFile })).toBe('{"endpoints":[{"provider":"copilot","configured":true,"models":["gpt-5.4"]}]}');
+      } finally {
+        fs.unlinkSync(reflectFile);
+      }
+    });
+
+    it("returns empty string when reflect data cannot be read", () => {
+      const logs = [];
+      expect(readSerializedReflectData({ reflectPath: "/tmp/does-not-exist.json", logger: msg => logs.push(msg) })).toBe("");
+      expect(logs.some(msg => msg.includes("unable to load serialized reflect data"))).toBe(true);
     });
   });
 
