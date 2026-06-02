@@ -367,6 +367,30 @@ func TestBuildAgenticWorkflowsSkillContentWithoutAWDirectory(t *testing.T) {
 	}
 }
 
+func TestBuildAgenticWorkflowsSkillContentWithEmptyAWDirectory(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+	awDir := filepath.Join(tempDir, ".github", "aw")
+	if err := os.MkdirAll(filepath.Join(awDir, "logs"), 0o755); err != nil {
+		t.Fatalf("Failed to create .github/aw/logs directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(awDir, "actions-lock.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("Failed to create actions-lock.json: %v", err)
+	}
+
+	content, err := buildAgenticWorkflowsSkillContent(tempDir)
+	if err != nil {
+		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
+	}
+
+	expected := strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, "", 1)
+	if content != expected {
+		t.Fatalf("Expected exact skill content with empty .github/aw directory:\n%s\ngot:\n%s", expected, content)
+	}
+	if strings.Contains(content, agenticWorkflowsSkillFileListPlaceholder) {
+		t.Fatalf("expected generated skill content to replace the file-list placeholder:\n%s", content)
+	}
+}
+
 func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {

@@ -169,7 +169,9 @@ func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
 	sort.Strings(awFiles)
 
 	if len(awFiles) == 0 {
-		return "", fmt.Errorf("no markdown files found in %s - ensure .github/aw contains workflow documentation files", awRoot)
+		// .github/aw may exist for non-markdown artifacts (e.g. actions-lock.json, logs/).
+		// Emit a minimal skill without an explicit file list in that case.
+		return strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, "", 1), nil
 	}
 
 	var fileList strings.Builder
