@@ -40,6 +40,16 @@ tools:
   - grep -r *
   - git log --oneline
   - git diff
+  - grep
+  - sort
+  - wc
+  - xargs
+  - basename
+  - echo
+  - cat
+  - ls
+  - head
+  - tail
   cli-proxy: true
   github:
     mode: gh-proxy
