@@ -527,13 +527,13 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.58 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.58 ghcr.io/github/gh-aw-firewall/squid:0.25.58 ghcr.io/github/gh-aw-mcpg:v0.3.22 ghcr.io/github/github-mcp-server:v1.1.0 node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14
       - name: Generate Safe Outputs Config
         env:
-          GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+          GH_AW_SECRET_GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << GH_AW_SAFE_OUTPUTS_CONFIG_9d63ba68f8b9d8f1_EOF
-          {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-project"]},"create_issue":{"close_older_issues":true,"expires":2,"group":true,"labels":["ai-generated","automation","testing"],"max":1},"create_project_status_update":{"github-token":"${GH_AW_PROJECT_GITHUB_TOKEN}","max":1,"project":"https://github.com/orgs/github/projects/24068"},"create_pull_request":{"expires":2,"if_no_changes":"warn","labels":["ai-generated"],"max":1,"max_patch_files":100,"max_patch_size":1024,"protect_top_level_dot_folders":true,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","DESIGN.md","README.md","CONTRIBUTING.md","CHANGELOG.md","SECURITY.md","CODE_OF_CONDUCT.md","AGENTS.md","CLAUDE.md","GEMINI.md"],"protected_files_policy":"request_review","title_prefix":"[smoke-project] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke-project"]},"report_incomplete":{},"update_project":{"github-token":"${GH_AW_PROJECT_GITHUB_TOKEN}","max":20,"project":"https://github.com/orgs/github/projects/24068","views":[{"name":"Smoke Test Board","layout":"board","filter":"is:open"}]}}
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_9d63ba68f8b9d8f1_EOF'
+          {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-project"]},"create_issue":{"close_older_issues":true,"expires":2,"group":true,"labels":["ai-generated","automation","testing"],"max":1},"create_project_status_update":{"github-token":"${GH_AW_SECRET_GH_AW_PROJECT_GITHUB_TOKEN}","max":1,"project":"https://github.com/orgs/github/projects/24068"},"create_pull_request":{"expires":2,"if_no_changes":"warn","labels":["ai-generated"],"max":1,"max_patch_files":100,"max_patch_size":1024,"protect_top_level_dot_folders":true,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","DESIGN.md","README.md","CONTRIBUTING.md","CHANGELOG.md","SECURITY.md","CODE_OF_CONDUCT.md","AGENTS.md","CLAUDE.md","GEMINI.md"],"protected_files_policy":"request_review","title_prefix":"[smoke-project] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke-project"]},"report_incomplete":{},"update_project":{"github-token":"${GH_AW_SECRET_GH_AW_PROJECT_GITHUB_TOKEN}","max":20,"project":"https://github.com/orgs/github/projects/24068","views":[{"name":"Smoke Test Board","layout":"board","filter":"is:open"}]}}
           GH_AW_SAFE_OUTPUTS_CONFIG_9d63ba68f8b9d8f1_EOF
       - name: Generate Safe Outputs Tools
         env:
@@ -881,6 +881,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS_TOOLS_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/tools.json
           GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/config.json
           GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+          GH_AW_SECRET_GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
         run: |
           # Environment variables are set above to prevent template injection
           export DEBUG
@@ -890,6 +891,7 @@ jobs:
           export GH_AW_SAFE_OUTPUTS_TOOLS_PATH
           export GH_AW_SAFE_OUTPUTS_CONFIG_PATH
           export GH_AW_MCP_LOG_DIR
+          export GH_AW_SECRET_GH_AW_PROJECT_GITHUB_TOKEN
           
           bash "${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh"
           

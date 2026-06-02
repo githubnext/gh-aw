@@ -26,6 +26,7 @@ const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCu
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
 const { listCommentMemoryFiles, COMMENT_MEMORY_DIR } = require("./comment_memory_helpers.cjs");
 const { checkRateLimitHeadroom } = require("./rate_limit_helpers.cjs");
+const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
 const nodePath = require("path");
 const fs = require("fs");
 
@@ -269,7 +270,7 @@ function loadConfig() {
 
   try {
     const config = JSON.parse(process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG);
-    core.info(`Loaded config from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${JSON.stringify(config)}`);
+    core.info(`Loaded config from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${JSON.stringify(redactSensitiveConfig(config))}`);
     // Normalize config keys: convert hyphens to underscores
     return Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v]));
   } catch (error) {

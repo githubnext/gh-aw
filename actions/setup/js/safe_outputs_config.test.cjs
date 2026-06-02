@@ -45,6 +45,8 @@ describe("safe_outputs_config", () => {
     // Clear environment variables
     delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
     delete process.env.GH_AW_SAFE_OUTPUTS;
+    delete process.env.WRITE_PROJECT_PAT;
+    delete process.env.GH_AW_INPUT_TARGET_REPO;
   });
 
   describe("loadConfig", () => {
@@ -186,6 +188,33 @@ describe("safe_outputs_config", () => {
       expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Config file exists"));
       expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Successfully parsed config"));
       expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Final processed config"));
+    });
+
+    it("should resolve env placeholders in memory without logging token values", () => {
+      const configDir = path.dirname(testConfigPath);
+      fs.mkdirSync(configDir, { recursive: true });
+      process.env.WRITE_PROJECT_PAT = "runtime-project-token";
+      process.env.GH_AW_INPUT_TARGET_REPO = "github/docs";
+
+      fs.writeFileSync(
+        testConfigPath,
+        JSON.stringify({
+          "update-project": {
+            "github-token": "${WRITE_PROJECT_PAT}",
+            "target-repo": "${GH_AW_INPUT_TARGET_REPO}",
+          },
+        })
+      );
+
+      /** @type {import("./safe_outputs_config.cjs").LoadConfigResult} */
+      const result = loadConfig(mockServer);
+
+      expect(result.config.update_project["github-token"]).toBe("runtime-project-token");
+      expect(result.config.update_project["target-repo"]).toBe("github/docs");
+
+      const debugOutput = mockServer.debug.mock.calls.map(call => String(call[0])).join("\n");
+      expect(debugOutput).toContain("***REDACTED***");
+      expect(debugOutput).not.toContain("runtime-project-token");
     });
   });
 });
