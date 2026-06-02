@@ -2045,10 +2045,21 @@ Conforming implementations MUST pass the following test categories:
 
 #### 11.1.8 Blocked-User Tests
 
-- **T-GH-047**: Deny content when author is in `blocked-users`
-- **T-GH-048**: Allow content when author is not in `blocked-users`
-- **T-GH-049**: Blocked user cannot be promoted by `approval-labels`
-- **T-GH-050**: Blocked-user check occurs before label evaluation
+Implementation file: `pkg/workflow/tools_validation_test.go` — function `TestValidateGitHubGuardPolicy`
+
+| Test ID | Description | Go Test Name (subtest) |
+|---|---|---|
+| **T-GH-047** | Deny content when author is in `blocked-users` | `TestValidateGitHubGuardPolicy/"valid guard policy with blocked-users"` |
+| **T-GH-048** | Allow content when author is not in `blocked-users` | `TestValidateGitHubGuardPolicy/"valid guard policy with both blocked-users and approval-labels"` |
+| **T-GH-049** | Blocked user cannot be promoted by `approval-labels` | `TestValidateGitHubGuardPolicy/"blocked-users expression without min-integrity fails"` |
+| **T-GH-050** | Blocked-user check occurs before label evaluation | `TestValidateGitHubGuardPolicy/"blocked-users without min-integrity fails"` |
+
+Additional blocked-user validation tests in `TestValidateGitHubGuardPolicy`:
+- `"blocked-users with empty string entry fails"` — validates that empty-string usernames are rejected
+- `"blocked-users with allowed-repos but without min-integrity fails"` — validates required co-field
+- `"blocked-users as GitHub Actions expression is valid"` — validates expression-valued field
+- `"blocked-users as comma-separated static string is valid"` — validates multi-value string syntax
+- `"blocked-users as newline-separated static string is valid"` — validates newline-delimited syntax
 
 #### 11.1.9 Integrity Level Tests
 
@@ -2605,6 +2616,27 @@ GitHub API rate limits apply to:
 **Runtime Validation**: Handles dynamic conditions (repository visibility changes, permission changes)
 
 **Recommendation**: Always compile workflows after configuration changes to catch errors early.
+
+---
+
+## Sync Notes
+
+This section maps all seven §4.4 access control extension fields to their implementation files, enabling traceability between specification and code.
+
+| §4.4 Field | Description | Implementation File(s) |
+|---|---|---|
+| §4.4.1 `repos` | Repository scope — wildcard and exact patterns | `pkg/workflow/tools_types.go` (`GitHubReposScope`), `pkg/workflow/tools_parser.go` (`parseGitHubTool()`), `pkg/workflow/tools_validation.go` (`validateReposScope()`, `validateRepoPattern()`) |
+| §4.4.2 `roles` | Role-based filtering (`read`, `write`, `admin`, `maintain`, `triage`) | `pkg/workflow/tools_types.go` (`GitHubRoles`), `pkg/workflow/tools_validation_github.go` |
+| §4.4.3 `private-repos` | Private repository visibility control | `pkg/workflow/tools_types.go` (`GitHubToolConfig.PrivateRepos`), `pkg/workflow/tools_parser.go` |
+| §4.4.4 `min-integrity` | Minimum content integrity level (`none`/`unapproved`/`approved`/`merged`) | `pkg/workflow/tools_types.go` (`GitHubIntegrityLevel`), `pkg/workflow/tools_validation.go` (`validateGitHubGuardPolicy()`), `pkg/workflow/tools_validation_github_integrity_reactions.go` |
+| §4.4.5 `blocked-users` | Unconditional block list for specific GitHub usernames | `pkg/workflow/tools_types.go` (`GitHubToolConfig.BlockedUsers`), `pkg/workflow/tools_validation.go` (`validateGitHubGuardPolicy()`) |
+| §4.4.6 `trusted-users` | Trusted users promoted above `author_association` baseline | `pkg/workflow/tools_types.go` (`GitHubToolConfig.TrustedUsers`), `pkg/workflow/tools_validation.go` |
+| §4.4.7 `approval-labels` | Labels that promote item integrity to `approved` | `pkg/workflow/tools_types.go` (`GitHubToolConfig.ApprovalLabels`), `pkg/workflow/tools_validation.go` (`validateGitHubGuardPolicy()`) |
+
+Sync procedure:
+1. Update this specification when changing any of the above files (`tools_types.go`, `tools_parser.go`, `tools_validation.go`, `tools_validation_github.go`).
+2. Update the §4.4 field definitions and §11 compliance test references in the same change.
+3. Re-run validation tests: `go test ./pkg/workflow/ -run TestValidateGitHub`.
 
 ---
 
