@@ -338,7 +338,8 @@ async function main() {
   try {
     serverArgs = serverArgsEnv ? JSON.parse(serverArgsEnv) : [];
   } catch (err) {
-    process.stderr.write(`[copilot-sdk-driver] error: failed to parse GH_AW_COPILOT_SDK_SERVER_ARGS: ${err}\n`);
+    const preview = serverArgsEnv && serverArgsEnv.length > 120 ? serverArgsEnv.slice(0, 120) + "…" : serverArgsEnv;
+    process.stderr.write(`[copilot-sdk-driver] error: failed to parse GH_AW_COPILOT_SDK_SERVER_ARGS: ${err} (value: ${preview})\n`);
     process.exit(1);
   }
 

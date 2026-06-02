@@ -602,9 +602,10 @@ async function main() {
   const copilotSDKDriverMode = copilotSDKMode && process.env.GH_AW_COPILOT_SDK_DRIVER === "1";
   let copilotConnectionToken;
   if (copilotSDKMode) {
-    // In legacy inline-SDK mode the harness generates the token and injects it into
-    // the child process env so the sidecar and the SDK client share the same token.
-    // In driver mode the driver generates its own token internally.
+    // In harness-managed SDK mode (copilotSDKDriverMode=false) the harness generates the
+    // connection token and injects it into the child process env so the sidecar and the SDK
+    // client share the same token.  In driver mode (copilotSDKDriverMode=true) the driver
+    // process is self-contained and generates its own token internally.
     if (!copilotSDKDriverMode) {
       copilotConnectionToken = generateCopilotConnectionToken();
       log("copilot-sdk mode active: generated per-run COPILOT_CONNECTION_TOKEN");
@@ -615,7 +616,7 @@ async function main() {
   // returned at least one variable; otherwise leave the env undefined so that
   // runProcess inherits the full process.env (the common case).
   // sdkEnv already contains SDK-mode variables (e.g. COPILOT_SDK_URI) when enabled.
-  // In inline SDK mode, also attach the generated per-run COPILOT_CONNECTION_TOKEN.
+  // In harness-managed SDK mode, also attach the generated per-run COPILOT_CONNECTION_TOKEN.
   const sdkChildEnv = copilotSDKMode && !copilotSDKDriverMode ? { ...sdkEnv, COPILOT_CONNECTION_TOKEN: copilotConnectionToken } : sdkEnv;
   const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
 

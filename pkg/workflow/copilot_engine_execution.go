@@ -201,9 +201,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 	isCopilotSDKMode := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK
 
-	// copilotSDKServerArgsJSON holds the JSON-encoded server-args array set in
-	// GH_AW_COPILOT_SDK_SERVER_ARGS when copilot-sdk: true. Computed here alongside
-	// the command so the env-block section below can reference it without re-computing.
+	// copilotSDKServerArgsJSON holds the JSON-encoded server-args array that will be set in
+	// GH_AW_COPILOT_SDK_SERVER_ARGS when copilot-sdk: true. It is declared here so that the
+	// env-block section further down can reference the same value that was computed while
+	// building the command, avoiding the need to re-derive it separately.
 	var copilotSDKServerArgsJSON string
 
 	var execPrefix string
