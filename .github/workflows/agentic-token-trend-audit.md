@@ -220,9 +220,10 @@ Embed chart images using uploaded asset URLs when available:
 
 ![Token Usage by Workflow](UPLOAD_URL_WORKFLOW_PLACEHOLDER)
 
+<!-- Optional: include only if daily_token_trend.png was generated and uploaded; otherwise remove this line -->
 ![Daily Token Usage Trend](UPLOAD_URL_DAILY_TREND_PLACEHOLDER)
 
-Summarize daily token movement across the requested range (up/down days, spikes, and overall direction) when daily historical points are available.
+Summarize daily token movement across the requested range (up/down days, spikes, and overall direction) when daily historical points are available; if the chart was skipped, explicitly state why.
 
 <details>
 <summary><b>Full Per-Workflow Breakdown</b></summary>
