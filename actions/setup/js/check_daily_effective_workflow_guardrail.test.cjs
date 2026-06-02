@@ -140,10 +140,18 @@ describe("check_daily_effective_workflow_guardrail", () => {
 
     const mockGithub = {
       rest: {
-        rateLimit: { get: async () => { throw new Error("API rate limit exceeded"); } },
+        rateLimit: {
+          get: async () => {
+            throw new Error("API rate limit exceeded");
+          },
+        },
         actions: {
-          getWorkflowRun: async () => { throw new Error("Network error"); },
-          listWorkflowRuns: async () => { throw new Error("Unexpected error"); },
+          getWorkflowRun: async () => {
+            throw new Error("Network error");
+          },
+          listWorkflowRuns: async () => {
+            throw new Error("Unexpected error");
+          },
         },
       },
     };
