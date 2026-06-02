@@ -27,7 +27,8 @@ Commit and push the updated `.lock.yml` file.
 > [!NOTE]
 > Raising the limit increases the number of AI inference calls the workflow can make
 > per 24-hour window per triggering user. Review your Copilot or model provider billing
-> before increasing significantly.
+> before significantly increasing the threshold (for example, before doubling the current
+> value or setting it above 10M tokens).
 
 </details>
 

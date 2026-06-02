@@ -276,6 +276,13 @@ async function appendDailyEffectiveWorkflowSummary(workflowName, actorLogin, thr
  * @returns {Promise<void>}
  *
  * Requires github-script globals (`core`, `github`, `context`) provided by setupGlobals().
+ *
+ * Error handling: all GitHub API interactions after the initial guard checks are wrapped
+ * in a top-level try-catch.  Any unexpected error (network failure, permission error, etc.)
+ * is logged as a warning and the function returns cleanly with `daily_effective_workflow_exceeded`
+ * left at its default value of `"false"`.  This design ensures the step never fails the
+ * activation job — a guardrail error results in a safe bypass (agent allowed to run) rather
+ * than a confusing workflow failure that blocks the agent entirely.
  */
 async function main() {
   core.setOutput("daily_effective_workflow_exceeded", "false");
