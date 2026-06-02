@@ -7,7 +7,7 @@ const POSITIVE_TOKEN_LIMIT_WITH_SUFFIX_REGEX = /^([1-9]\d*)([kKmM])?$/;
  * @returns {bigint|null}
  */
 function parsePositiveEffectiveTokenLimitBigInt(value) {
-  if (typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value > 0) {
+  if (typeof value === "number" && Number.isFinite(value) && Number.isSafeInteger(value) && value > 0) {
     return BigInt(value);
   }
 

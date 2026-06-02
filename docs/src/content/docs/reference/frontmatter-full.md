@@ -2536,7 +2536,7 @@ engine:
 
 # Format 1: Maximum effective-token (ET) budget for AWF API proxy enforcement. Use
 # a negative value to disable budget enforcement and token steering.
-max-effective-tokens: 1M
+max-effective-tokens: 1
 
 # Format 2: Maximum effective-token (ET) budget as a numeric string or GitHub
 # Actions expression.
