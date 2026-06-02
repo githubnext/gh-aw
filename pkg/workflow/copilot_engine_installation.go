@@ -98,7 +98,7 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		copilotInstallLog.Printf("copilot-sdk enabled; adding @github/copilot-sdk install step: version=%s", constants.DefaultCopilotSDKVersion)
 		npmSteps = append(npmSteps, GitHubActionStep{
 			"      - name: Install GitHub Copilot SDK",
-			"        run: cd \"${RUNNER_TEMP}/gh-aw/actions/setup/js\" && npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
+			"        run: cd \"${GITHUB_WORKSPACE}\" && npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
 		})
 	}
 	steps := BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
