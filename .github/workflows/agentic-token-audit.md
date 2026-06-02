@@ -4,7 +4,6 @@ on:
   schedule:
     - cron: "daily around 12:00 on weekdays"
   workflow_dispatch:
-max-daily-effective-tokens: 100M
 permissions:
   contents: read
   actions: read
@@ -37,16 +36,16 @@ steps:
       python-version: "3.12"
   - name: Setup local chart workspace
     run: |
-      mkdir -p /tmp/gh-aw/agent/token-audit/charts /tmp/gh-aw/agent/token-audit/site-packages
+      mkdir -p /tmp/gh-aw/token-audit/charts /tmp/gh-aw/token-audit/site-packages
   - name: Install Python chart dependencies
     run: |
-      python3 -m pip install --quiet --target /tmp/gh-aw/agent/token-audit/site-packages pandas matplotlib seaborn
+      python3 -m pip install --quiet --target /tmp/gh-aw/token-audit/site-packages pandas matplotlib seaborn
   - name: Download agentic workflow logs
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -euo pipefail
-      mkdir -p /tmp/gh-aw/agent/token-audit
+      mkdir -p /tmp/gh-aw/token-audit
 
       # Download last 24 hours of agentic workflow logs as JSON
       # Allow partial results — gh aw logs streams incrementally, so even if
@@ -57,22 +56,20 @@ steps:
         --start-date -1d \
         --json \
         -c 100 \
-        > /tmp/gh-aw/agent/token-audit/workflow-logs.json || LOGS_EXIT=$?
+        > /tmp/gh-aw/token-audit/workflow-logs.json || LOGS_EXIT=$?
 
-      if [ -s /tmp/gh-aw/agent/token-audit/workflow-logs.json ]; then
-        TOTAL=$(jq '.runs | length' /tmp/gh-aw/agent/token-audit/workflow-logs.json)
+      if [ -s /tmp/gh-aw/token-audit/workflow-logs.json ]; then
+        TOTAL=$(jq '.runs | length' /tmp/gh-aw/token-audit/workflow-logs.json)
         echo "✅ Downloaded $TOTAL agentic workflow runs (last 24 hours)"
         if [ "$LOGS_EXIT" -ne 0 ]; then
           echo "⚠️ gh aw logs exited with code $LOGS_EXIT (partial results — likely API rate limit)"
         fi
       else
         echo "❌ No log data downloaded (exit code $LOGS_EXIT)"
-        echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/agent/token-audit/workflow-logs.json
+        echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/workflow-logs.json
       fi
 timeout-minutes: 25
-imports:
-  - shared/pmg.md
-source: githubnext/agentic-ops/workflows/agentic-token-audit.md@e10687ae8f19a5b37b061db524be27948568c411
+source: githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473
 ---
 
 # Daily Agentic Workflow Token Usage Audit
@@ -83,17 +80,17 @@ You are the Agentic Workflow Token Auditor — a workflow that tracks daily toke
 
 1. Parse the pre-downloaded agentic workflow logs and compute per-workflow token usage metrics.
 2. Persist today's snapshot to repo-memory so the optimizer (and future runs of this audit) can read historical data.
-3. Publish a concise audit issue summarizing today's usage, trends, and cost highlights.
+3. Publish a concise audit issue summarizing today's usage and trend highlights.
 
 ## Data Sources
 
 ### Pre-downloaded logs
 
-The workflow logs are at `/tmp/gh-aw/agent/token-audit/workflow-logs.json`. The file is the raw JSON output of `gh aw logs --json` with this top-level shape:
+The workflow logs are at `/tmp/gh-aw/token-audit/workflow-logs.json`. The file is the raw JSON output of `gh aw logs --json` with this top-level shape:
 
 ```json
 {
-  "summary": { "total_runs": N, "total_tokens": N, "total_cost": F, ... },
+  "summary": { "total_runs": N, "total_tokens": N, ... },
   "runs": [ ... ],
   "tool_usage": [ ... ],
   "mcp_tool_usage": { ... },
@@ -108,8 +105,7 @@ Each element of `.runs` is a `RunData` object with (among others):
 | `workflow_name` | string | Human-readable name |
 | `workflow_path` | string | `.github/workflows/....lock.yml` |
 | `token_usage` | int | Total tokens (`omitempty` — treat missing/null as 0) |
-| `effective_tokens` | int | Cost-normalized tokens |
-| `estimated_cost` | float | USD cost (`omitempty` — treat missing/null as 0) |
+| `effective_tokens` | int | Normalized token metric |
 | `action_minutes` | float | Billable GitHub Actions minutes |
 | `turns` | int | Number of agent turns |
 | `duration` | string | Human-readable duration |
@@ -128,15 +124,15 @@ Previous snapshots live at `/tmp/gh-aw/repo-memory/default/`. Each daily snapsho
 
 ## Phase 1 — Process Logs
 
-Write a Python script to `/tmp/gh-aw/agent/token-audit/process_audit.py` and run it. The script must:
+Write a Python script to `/tmp/gh-aw/token-audit/process_audit.py` and run it. The script must:
 
-1. Load `/tmp/gh-aw/agent/token-audit/workflow-logs.json` and extract `.runs`.
+1. Load `/tmp/gh-aw/token-audit/workflow-logs.json` and extract `.runs`.
 2. Filter to `status == "completed"` runs only.
 3. Group by `workflow_name` and compute per-workflow aggregates:
-   - `run_count`, `total_tokens`, `avg_tokens`, `total_cost`, `avg_cost`, `total_turns`, `avg_turns`, `total_action_minutes`, `error_count`, `warning_count`
-4. Compute an overall summary: total runs, total tokens, total cost, total action minutes.
+   - `run_count`, `total_tokens`, `avg_tokens`, `total_turns`, `avg_turns`, `total_action_minutes`, `error_count`, `warning_count`
+4. Compute an overall summary: total runs, total tokens, total action minutes.
 5. Sort workflows descending by `total_tokens`.
-6. Save the result to `/tmp/gh-aw/agent/token-audit/audit_snapshot.json` with this shape:
+6. Save the result to `/tmp/gh-aw/token-audit/audit_snapshot.json` with this shape:
 
 ```json
 {
@@ -145,7 +141,6 @@ Write a Python script to `/tmp/gh-aw/agent/token-audit/process_audit.py` and run
   "overall": {
     "total_runs": N,
     "total_tokens": N,
-    "total_cost": F,
     "total_action_minutes": F
   },
   "workflows": [
@@ -154,8 +149,6 @@ Write a Python script to `/tmp/gh-aw/agent/token-audit/process_audit.py` and run
       "run_count": N,
       "total_tokens": N,
       "avg_tokens": N,
-      "total_cost": F,
-      "avg_cost": F,
       "total_turns": N,
       "avg_turns": F,
       "total_action_minutes": F,
@@ -167,15 +160,15 @@ Write a Python script to `/tmp/gh-aw/agent/token-audit/process_audit.py` and run
 }
 ```
 
-Handle null/missing `token_usage` and `estimated_cost` by treating them as 0.
+Handle null/missing `token_usage` by treating them as 0.
 
 ## Phase 2 — Persist Snapshot to Repo-Memory
 
-1. Read the snapshot from `/tmp/gh-aw/agent/token-audit/audit_snapshot.json`.
+1. Read the snapshot from `/tmp/gh-aw/token-audit/audit_snapshot.json`.
 2. Copy it to `/tmp/gh-aw/repo-memory/default/YYYY-MM-DD.json` (today's UTC date).
 3. This file is what the optimizer workflow reads to identify high-usage workflows.
 
-Also maintain a rolling summary file at `/tmp/gh-aw/repo-memory/default/rolling-summary.json` that contains an array of daily overall totals (date, total_tokens, total_cost, total_runs, total_action_minutes) for the last 90 entries. Load the existing file, append today's entry, trim to 90, and save.
+Also maintain a rolling summary file at `/tmp/gh-aw/repo-memory/default/rolling-summary.json` that contains an array of daily overall totals (date, total_tokens, total_runs, total_action_minutes) for the last 90 entries. Load the existing file, append today's entry, trim to 90, and save.
 
 Do not append a synthetic zero-valued entry to `rolling-summary.json` when either of these conditions is true:
 
@@ -186,14 +179,14 @@ Report those two cases differently in the issue as described below so the empty-
 
 ## Phase 3 — Generate Charts
 
-Create up to two chart images in `/tmp/gh-aw/agent/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling:
+Create up to two chart images in `/tmp/gh-aw/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling:
 
 1. **Token usage by workflow** (`token_by_workflow.png`): a horizontal bar chart of the top 15 workflows by total tokens from `audit_snapshot.json`.
 2. **Historical token trend** (`token_trend.png`): a line chart from `rolling-summary.json`.
 
 Chart requirements:
 
-- The preinstalled Python packages live in `/tmp/gh-aw/agent/token-audit/site-packages`. Set `PYTHONPATH=/tmp/gh-aw/agent/token-audit/site-packages${PYTHONPATH:+:$PYTHONPATH}` for every Python command that imports `pandas`, `matplotlib`, or `seaborn`, for example: `PYTHONPATH=/tmp/gh-aw/agent/token-audit/site-packages${PYTHONPATH:+:$PYTHONPATH} python3 /tmp/gh-aw/agent/token-audit/process_audit.py`.
+- The preinstalled Python packages live in `/tmp/gh-aw/token-audit/site-packages`. Set `PYTHONPATH=/tmp/gh-aw/token-audit/site-packages${PYTHONPATH:+:$PYTHONPATH}` for every Python command that imports `pandas`, `matplotlib`, or `seaborn`, for example: `PYTHONPATH=/tmp/gh-aw/token-audit/site-packages${PYTHONPATH:+:$PYTHONPATH} python3 /tmp/gh-aw/token-audit/process_audit.py`.
 - Use 300 DPI and a white background.
 - Add clear axis labels and titles.
 - Save only PNG files.
@@ -222,15 +215,14 @@ Create an issue with these sections:
 - **Period**: last 24 hours (YYYY-MM-DD to YYYY-MM-DD)
 - **Total runs**: N
 - **Total tokens**: N (formatted with commas)
-- **Total cost**: $X.XX
 - **Total Actions minutes**: X.X min
 - **Active workflows**: N
 
 ### 🏆 Top 5 Workflows by Token Usage
 
-| Workflow | Runs | Total Tokens | Avg Tokens | Total Cost | Avg Cost |
-|---|---|---|---|---|---|
-| ... | ... | ... | ... | ... | ... |
+| Workflow | Runs | Total Tokens | Avg Tokens |
+|---|---|---|---|
+| ... | ... | ... | ... |
 
 ### 📈 Trends
 
@@ -240,7 +232,7 @@ Embed chart images using uploaded asset URLs when available:
 
 ![Historical Token Trend](UPLOAD_URL_TREND_PLACEHOLDER)
 
-Summarize token and cost changes from `rolling-summary.json` when historical data is available.
+Summarize token changes from `rolling-summary.json` when historical data is available.
 
 <details>
 <summary><b>Full Per-Workflow Breakdown</b></summary>
@@ -272,12 +264,12 @@ Summarize token and cost changes from `rolling-summary.json` when historical dat
 
 ## Experiment OTEL Span Attributes
 
-If the file `/tmp/gh-aw/agent/experiments/assignments.json` exists, read it and emit one OTEL span
+If the file `/tmp/gh-aw/experiments/assignments.json` exists, read it and emit one OTEL span
 attribute per experiment using the `otlp.cjs` `logSpan` helper:
 
 ```javascript
 const fs = require('fs');
-const assignmentsFile = '/tmp/gh-aw/agent/experiments/assignments.json';
+const assignmentsFile = '/tmp/gh-aw/experiments/assignments.json';
 if (fs.existsSync(assignmentsFile)) {
   const assignments = JSON.parse(fs.readFileSync(assignmentsFile, 'utf8'));
   const names = Object.keys(assignments).sort();
@@ -286,7 +278,7 @@ if (fs.existsSync(assignmentsFile)) {
     for (const name of names) {
       attrs[`gh_aw.experiment.${name}`] = assignments[name];
     }
-    const otlp = require('/tmp/gh-aw/agent/actions/otlp.cjs');
+    const otlp = require('/tmp/gh-aw/actions/otlp.cjs');
     await otlp.logSpan('experiment', attrs);
   }
 }
