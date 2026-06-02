@@ -29,7 +29,7 @@ type ImportsResult struct {
 	MergedPreSteps                string                // Merged pre-steps configuration from all imports (prepended in order)
 	MergedPreAgentSteps           string                // Merged pre-agent-steps configuration from all imports (prepended in order)
 	MergedRuntimes                string                // Merged runtimes configuration from all imports
-	MergedRunInstallScripts       bool                  // true if any imported workflow sets run-install-scripts: true (global or node-level)
+	MergedRunInstallScripts       bool                  // true if any imported workflow sets runtimes.node.run-install-scripts: true
 	MergedServices                string                // Merged services configuration from all imports
 	MergedNetwork                 string                // Merged network configuration from all imports
 	MergedPermissions             string                // Merged permissions configuration from all imports
