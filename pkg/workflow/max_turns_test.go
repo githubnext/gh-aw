@@ -163,9 +163,9 @@ This workflow tests max-turns with timeout.`,
 					t.Error("Expected max_turns NOT to be included when not specified in frontmatter")
 				}
 
-				// Verify GH_AW_MAX_TURNS is NOT included when not specified
-				if strings.Contains(lockContentStr, "GH_AW_MAX_TURNS:") {
-					t.Error("Expected GH_AW_MAX_TURNS NOT to be included when max-turns not specified in frontmatter")
+				// Verify GH_AW_MAX_TURNS falls back to the vars expression when not specified
+				if !strings.Contains(lockContentStr, "GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS") {
+					t.Errorf("Expected GH_AW_MAX_TURNS to include vars fallback expression when max-turns not specified in frontmatter.\nLock content:\n%s", lockContentStr)
 				}
 			}
 		})

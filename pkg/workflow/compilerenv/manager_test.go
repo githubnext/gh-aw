@@ -65,6 +65,13 @@ func TestResolveDefaultMaxDailyEffectiveTokens(t *testing.T) {
 	})
 }
 
+func TestBuildDefaultMaxTurnsExpression(t *testing.T) {
+	assert.Equal(t,
+		"${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}",
+		BuildDefaultMaxTurnsExpression(),
+	)
+}
+
 func TestBuildModelOverrideExpression(t *testing.T) {
 	assert.Equal(
 		t,

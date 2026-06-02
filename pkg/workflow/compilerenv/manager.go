@@ -136,6 +136,13 @@ func parsePositiveIntEnvVar(name string) (int64, bool) {
 	return parsed, true
 }
 
+// BuildDefaultMaxTurnsExpression builds a vars expression that resolves max-turns
+// at runtime from the GH_AW_DEFAULT_MAX_TURNS GitHub variable. An empty string is
+// returned as the fallback so that an unset variable is treated as "no limit".
+func BuildDefaultMaxTurnsExpression() string {
+	return fmt.Sprintf("${{ vars.%s || '' }}", DefaultMaxTurns)
+}
+
 // BuildModelOverrideExpression builds a vars expression with primary model var, enterprise
 // default model var, and built-in fallback model.
 func BuildModelOverrideExpression(primaryVar, enterpriseDefaultVar, builtinFallback string) string {
