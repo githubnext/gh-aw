@@ -2,6 +2,7 @@
 emoji: "🧪"
 description: Smoke test workflow that validates Gemini engine functionality twice daily
 on:
+  slash_command: smoke-gemini
   workflow_dispatch:
   pull_request:
     types: [labeled]

@@ -2,6 +2,7 @@
 emoji: "🧪"
 description: Smoke test workflow that validates OpenCode engine functionality
 on:
+  slash_command: smoke-opencode
   workflow_dispatch:
   pull_request:
     types: [labeled]

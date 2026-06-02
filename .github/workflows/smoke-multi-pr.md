@@ -3,6 +3,7 @@ emoji: "🧪"
 name: Smoke Multi PR
 description: Test creating multiple pull requests in a single workflow run
 on:
+  slash_command: smoke-multi-pr
   workflow_dispatch:
   pull_request:
     types: [labeled]

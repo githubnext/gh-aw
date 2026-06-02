@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"fd80843f44c564e8bf326e422c2ba961efb7e63309d34a97af41a45f898290af","body_hash":"3f86f90be7b76e4f629470b1e5dbf494f15ff00577f4598b6782cfb26007f947","agent_id":"codex"}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"8b7f8ab2c767056b1db2e66a2fab46ac4bb7a076a2d43a6ae8a2987d37230d3c","body_hash":"3f86f90be7b76e4f629470b1e5dbf494f15ff00577f4598b6782cfb26007f947","agent_id":"codex"}
 # gh-aw-manifest: {"version":1,"secrets":["CODEX_API_KEY","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN","OPENAI_API_KEY"],"actions":[{"repo":"actions-ecosystem/action-add-labels","sha":"c96b68fec76a0987cd93957189e9abd0b9a72ff1","version":"v1.1.3"},{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.58"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.22"},{"image":"ghcr.io/github/github-mcp-server:v1.1.0"},{"image":"ghcr.io/github/serena-mcp-server:latest","digest":"sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5","pinned_image":"ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -69,11 +69,32 @@
 
 name: "Smoke Codex"
 on:
+  discussion:
+    types:
+    - created
+    - edited
+  discussion_comment:
+    types:
+    - created
+    - edited
+  issue_comment:
+    types:
+    - created
+    - edited
+  issues:
+    types:
+    - opened
+    - edited
+    - reopened
   pull_request:
     # names: # Label filtering applied via job conditions
     # - smoke # Label filtering applied via job conditions
     types:
     - labeled
+  pull_request_review_comment:
+    types:
+    - created
+    - edited
   workflow_dispatch:
     inputs:
       aw_context:
@@ -85,8 +106,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}"
-  cancel-in-progress: true
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"
 
 run-name: "Smoke Codex"
 
@@ -101,13 +121,12 @@ env:
 jobs:
   activation:
     needs: pre_activation
-    if: >
-      needs.pre_activation.outputs.activated == 'true' && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
-      (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'smoke'))
+    if: "needs.pre_activation.outputs.activated == 'true' && ((((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') && (github.event_name == 'issues' && (startsWith(github.event.issue.body, '/smoke-codex ') || startsWith(github.event.issue.body, '/smoke-codex\n') || github.event.issue.body == '/smoke-codex') || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/smoke-codex ') || startsWith(github.event.comment.body, '/smoke-codex\n') || github.event.comment.body == '/smoke-codex') && github.event.issue.pull_request == null || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/smoke-codex ') || startsWith(github.event.comment.body, '/smoke-codex\n') || github.event.comment.body == '/smoke-codex') && github.event.issue.pull_request != null || github.event_name == 'pull_request_review_comment' && (startsWith(github.event.comment.body, '/smoke-codex ') || startsWith(github.event.comment.body, '/smoke-codex\n') || github.event.comment.body == '/smoke-codex') || github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/smoke-codex ') || startsWith(github.event.pull_request.body, '/smoke-codex\n') || github.event.pull_request.body == '/smoke-codex') || github.event_name == 'discussion' && (startsWith(github.event.discussion.body, '/smoke-codex ') || startsWith(github.event.discussion.body, '/smoke-codex\n') || github.event.discussion.body == '/smoke-codex') || github.event_name == 'discussion_comment' && (startsWith(github.event.comment.body, '/smoke-codex ') || startsWith(github.event.comment.body, '/smoke-codex\n') || github.event.comment.body == '/smoke-codex')) || (!(github.event_name == 'issues')) && (!(github.event_name == 'issue_comment')) && (!(github.event_name == 'pull_request')) && (!(github.event_name == 'pull_request_review_comment')) && (!(github.event_name == 'discussion')) && (!(github.event_name == 'discussion_comment'))) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)) && (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'smoke'))"
     runs-on: ubuntu-slim
     permissions:
       actions: read
       contents: read
+      discussions: write
       issues: write
       pull-requests: write
     outputs:
@@ -125,6 +144,7 @@ jobs:
       setup-parent-span-id: ${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}
       setup-span-id: ${{ steps.setup.outputs.span-id }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
+      slash_command: ${{ needs.pre_activation.outputs.matched_command }}
       stale_lock_file_failed: ${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}
       text: ${{ steps.sanitized.outputs.text }}
       title: ${{ steps.sanitized.outputs.title }}
@@ -288,29 +308,30 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || '' }}
         # poutine:ignore untrusted_checkout_exec
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_34aea7870de2ff9c_EOF'
+          cat << 'GH_AW_PROMPT_3c0f916e92f35f20_EOF'
           <system>
-          GH_AW_PROMPT_34aea7870de2ff9c_EOF
+          GH_AW_PROMPT_3c0f916e92f35f20_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/playwright_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_34aea7870de2ff9c_EOF'
+          cat << 'GH_AW_PROMPT_3c0f916e92f35f20_EOF'
           <safe-output-tools>
           Tools: add_comment(max:2), create_issue, add_labels, remove_labels, unassign_from_user, hide_comment(max:5), set_issue_field, missing_tool, missing_data, noop, add_smoked_label
-          GH_AW_PROMPT_34aea7870de2ff9c_EOF
+          GH_AW_PROMPT_3c0f916e92f35f20_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_comment_memory.md"
-          cat << 'GH_AW_PROMPT_34aea7870de2ff9c_EOF'
+          cat << 'GH_AW_PROMPT_3c0f916e92f35f20_EOF'
           </safe-output-tools>
-          GH_AW_PROMPT_34aea7870de2ff9c_EOF
+          GH_AW_PROMPT_3c0f916e92f35f20_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_34aea7870de2ff9c_EOF'
+          cat << 'GH_AW_PROMPT_3c0f916e92f35f20_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -352,9 +373,12 @@ jobs:
               stop immediately and report the limitation rather than spending turns trying to work around it.
           </github-context>
           
-          GH_AW_PROMPT_34aea7870de2ff9c_EOF
+          GH_AW_PROMPT_3c0f916e92f35f20_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_34aea7870de2ff9c_EOF'
+          if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
+            cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md"
+          fi
+          cat << 'GH_AW_PROMPT_3c0f916e92f35f20_EOF'
           </system>
           ## Serena Code Analysis
           
@@ -395,7 +419,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/noop-reminder.md}}
           {{#runtime-import .github/workflows/smoke-codex.md}}
-          GH_AW_PROMPT_34aea7870de2ff9c_EOF
+          GH_AW_PROMPT_3c0f916e92f35f20_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -430,8 +454,10 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || '' }}
           GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -456,8 +482,10 @@ jobs:
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
                 GH_AW_GITHUB_SERVER_URL: process.env.GH_AW_GITHUB_SERVER_URL,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
+                GH_AW_IS_PR_COMMENT: process.env.GH_AW_IS_PR_COMMENT,
                 GH_AW_MCP_CLI_SERVERS_LIST: process.env.GH_AW_MCP_CLI_SERVERS_LIST,
-                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND
               }
             });
       - name: Validate prompt placeholders
@@ -672,9 +700,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_3ec85175bbd18228_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_c479273e2e422054_EOF'
           {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-codex"]},"add_smoked_label":true,"comment_memory":{"max":1,"memory_id":"default"},"create_issue":{"close_older_issues":true,"close_older_key":"smoke-codex","expires":2,"labels":["automation","testing"],"max":1},"create_report_incomplete_issue":{},"hide_comment":{"max":5},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke"]},"report_incomplete":{},"set_issue_field":{"allowed_fields":["*"],"max":1},"unassign_from_user":{"allowed":["githubactionagent"],"max":1}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_3ec85175bbd18228_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_c479273e2e422054_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -1068,7 +1096,7 @@ jobs:
           DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -e CODEX_HOME -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.22'
           
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_6e05fde6dfa55c7d_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_d52abf101afed3c0_EOF
           [history]
           persistence = "none"
           
@@ -1110,11 +1138,11 @@ jobs:
           
           [mcp_servers.serena."guard-policies".write-sink]
           accept = ["*"]
-          GH_AW_MCP_CONFIG_6e05fde6dfa55c7d_EOF
+          GH_AW_MCP_CONFIG_d52abf101afed3c0_EOF
           
           # Generate JSON config for MCP gateway
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_6e05fde6dfa55c7d_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_d52abf101afed3c0_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -1185,11 +1213,11 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_6e05fde6dfa55c7d_EOF
+          GH_AW_MCP_CONFIG_d52abf101afed3c0_EOF
           
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_6300826564158277_EOF
+          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_74055f55fd38d036_EOF
 
           model_provider = "openai-proxy"
 
@@ -1201,7 +1229,7 @@ jobs:
           [shell_environment_policy]
           inherit = "core"
           include_only = ["^CODEX_API_KEY$", "^GH_AW_ASSETS_ALLOWED_EXTS$", "^GH_AW_ASSETS_BRANCH$", "^GH_AW_ASSETS_MAX_SIZE_KB$", "^GH_AW_SAFE_OUTPUTS$", "^GITHUB_PERSONAL_ACCESS_TOKEN$", "^GITHUB_REPOSITORY$", "^GITHUB_SERVER_URL$", "^HOME$", "^OPENAI_API_KEY$", "^PATH$"]
-          GH_AW_CODEX_SHELL_POLICY_6300826564158277_EOF
+          GH_AW_CODEX_SHELL_POLICY_74055f55fd38d036_EOF
           awk '
             BEGIN { skip_openai_proxy = 0 }
             /^[[:space:]]*model_provider[[:space:]]*=/ { next }
@@ -1336,6 +1364,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,*.grafana.net,*.sentry.io,127.0.0.1,172.30.0.1,::1,api.openai.com,api.snapcraft.io,app.renovatebot.com,appveyor.com,archive.ubuntu.com,azure.archive.ubuntu.com,badgen.net,cdn.playwright.dev,chatgpt.com,circleci.com,codacy.com,codeclimate.com,codecov.io,codeload.github.com,coveralls.io,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deepsource.io,docs.github.com,drone.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,go.dev,golang.org,goproxy.io,host.docker.internal,img.shields.io,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,localhost,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,patch-diff.githubusercontent.com,pkg.go.dev,playwright.download.prss.microsoft.com,ppa.launchpad.net,proxy.golang.org,raw.githubusercontent.com,readthedocs.io,readthedocs.org,renovatebot.com,s.symcb.com,s.symcd.com,security.ubuntu.com,semaphoreci.com,shields.io,snyk.io,sonarcloud.io,sonarqube.com,storage.googleapis.com,sum.golang.org,travis-ci.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
+          GH_AW_COMMANDS: "[\"smoke-codex\"]"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -1833,18 +1862,18 @@ jobs:
           DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK_PATH" 2>/dev/null || echo '0')
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e CODEX_HOME -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.22'
           
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_2d1c1f435eb379d2_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_0505282866bf8277_EOF
           [history]
           persistence = "none"
           
           [shell_environment_policy]
           inherit = "core"
           include_only = ["^CODEX_API_KEY$", "^HOME$", "^OPENAI_API_KEY$", "^PATH$"]
-          GH_AW_MCP_CONFIG_2d1c1f435eb379d2_EOF
+          GH_AW_MCP_CONFIG_0505282866bf8277_EOF
           
           # Generate JSON config for MCP gateway
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_8eb092e2863adc9a_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_ddb2bad4f2e72e1d_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
             },
@@ -1855,11 +1884,11 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_8eb092e2863adc9a_EOF
+          GH_AW_MCP_CONFIG_ddb2bad4f2e72e1d_EOF
           
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_3111c960c0860363_EOF
+          cat > "/tmp/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_SHELL_POLICY_4c16ccbbcf589a2e_EOF
           model_provider = "openai-proxy"
           [model_providers.openai-proxy]
           name = "OpenAI AWF proxy"
@@ -1869,7 +1898,7 @@ jobs:
           [shell_environment_policy]
           inherit = "core"
           include_only = ["^CODEX_API_KEY$", "^HOME$", "^OPENAI_API_KEY$", "^PATH$"]
-          GH_AW_CODEX_SHELL_POLICY_3111c960c0860363_EOF
+          GH_AW_CODEX_SHELL_POLICY_4c16ccbbcf589a2e_EOF
           awk '
             BEGIN { skip_openai_proxy = 0 }
             /^[[:space:]]*model_provider[[:space:]]*=/ { next }
@@ -1968,15 +1997,13 @@ jobs:
             }
 
   pre_activation:
-    if: >
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
-      (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'smoke')
+    if: "(github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment' || contains(fromJSON('[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]'), github.event.comment.author_association)) && ((((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') && (github.event_name == 'issues' && (startsWith(github.event.issue.body, '/smoke-codex ') || startsWith(github.event.issue.body, '/smoke-codex\n') || github.event.issue.body == '/smoke-codex') || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/smoke-codex ') || startsWith(github.event.comment.body, '/smoke-codex\n') || github.event.comment.body == '/smoke-codex') && github.event.issue.pull_request == null || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/smoke-codex ') || startsWith(github.event.comment.body, '/smoke-codex\n') || github.event.comment.body == '/smoke-codex') && github.event.issue.pull_request != null || github.event_name == 'pull_request_review_comment' && (startsWith(github.event.comment.body, '/smoke-codex ') || startsWith(github.event.comment.body, '/smoke-codex\n') || github.event.comment.body == '/smoke-codex') || github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/smoke-codex ') || startsWith(github.event.pull_request.body, '/smoke-codex\n') || github.event.pull_request.body == '/smoke-codex') || github.event_name == 'discussion' && (startsWith(github.event.discussion.body, '/smoke-codex ') || startsWith(github.event.discussion.body, '/smoke-codex\n') || github.event.discussion.body == '/smoke-codex') || github.event_name == 'discussion_comment' && (startsWith(github.event.comment.body, '/smoke-codex ') || startsWith(github.event.comment.body, '/smoke-codex\n') || github.event.comment.body == '/smoke-codex')) || (!(github.event_name == 'issues')) && (!(github.event_name == 'issue_comment')) && (!(github.event_name == 'pull_request')) && (!(github.event_name == 'pull_request_review_comment')) && (!(github.event_name == 'discussion')) && (!(github.event_name == 'discussion_comment'))) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)) && (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'smoke'))"
     runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
-      matched_command: ''
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.check_command_position.outputs.command_position_ok == 'true' }}
+      matched_command: ${{ steps.check_command_position.outputs.matched_command }}
       setup-parent-span-id: ${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}
       setup-span-id: ${{ steps.setup.outputs.span-id }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
@@ -2000,7 +2027,7 @@ jobs:
           GH_AW_INFO_VERSION: "0.135.0"
           GH_AW_INFO_AWF_VERSION: "v0.25.58"
           GH_AW_INFO_ENGINE_ID: "codex"
-      - name: Check team membership for workflow
+      - name: Check team membership for command workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -2011,6 +2038,17 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
+            await main();
+      - name: Check command position
+        id: check_command_position
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_COMMANDS: "[\"smoke-codex\"]"
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_command_position.cjs');
             await main();
 
   safe_outputs:
@@ -2028,6 +2066,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/smoke-codex"
+      GH_AW_COMMANDS: "[\"smoke-codex\"]"
       GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
       GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}

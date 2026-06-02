@@ -2,6 +2,7 @@
 emoji: "🧪"
 description: "Guard policy smoke test: repos=[github/gh-aw, github/*], min-integrity=approved (scoped patterns)"
 on:
+  slash_command: smoke-agent-scoped-approved
   workflow_dispatch:
   pull_request:
     types: [labeled]

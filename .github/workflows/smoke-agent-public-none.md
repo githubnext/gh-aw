@@ -2,6 +2,7 @@
 emoji: "🧪"
 description: "Guard policy smoke test: repos=public, min-integrity=none"
 on:
+  slash_command: smoke-agent-public-none
   workflow_dispatch:
   pull_request:
     types: [labeled]

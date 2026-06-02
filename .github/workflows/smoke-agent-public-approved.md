@@ -2,6 +2,7 @@
 emoji: "🧪"
 description: Smoke test that validates assign-to-agent with the agentic-workflows custom agent
 on:
+  slash_command: smoke-agent-public-approved
   workflow_dispatch:
   pull_request:
     types: [labeled]

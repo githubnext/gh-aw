@@ -2,6 +2,7 @@
 emoji: "🧪"
 description: Smoke test that validates OTEL span export and query access for Sentry, Grafana, and Datadog
 on:
+  slash_command: smoke-otel-backends
   workflow_dispatch:
   label_command:
     name: smoke

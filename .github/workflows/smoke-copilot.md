@@ -2,6 +2,7 @@
 emoji: "🧪"
 description: Smoke Copilot
 on: 
+  slash_command: smoke-copilot
   workflow_dispatch:
   label_command:
     name: smoke

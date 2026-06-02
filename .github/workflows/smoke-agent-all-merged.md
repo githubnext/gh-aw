@@ -2,6 +2,7 @@
 emoji: "🧪"
 description: "Guard policy smoke test: repos=all, min-integrity=merged (most restrictive)"
 on:
+  slash_command: smoke-agent-all-merged
   workflow_dispatch:
   pull_request:
     types: [labeled]

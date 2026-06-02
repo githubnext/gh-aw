@@ -3,6 +3,7 @@ emoji: "🧪"
 name: Smoke Project
 description: Smoke Project - Test project operations
 on: 
+  slash_command: smoke-project
   workflow_dispatch:
   #schedule: every 12h
   pull_request:

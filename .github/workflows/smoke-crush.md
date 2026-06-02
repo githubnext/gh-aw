@@ -2,6 +2,7 @@
 emoji: "🧪"
 description: Smoke test workflow that validates Crush engine functionality
 on:
+  slash_command: smoke-crush
   workflow_dispatch:
   pull_request:
     types: [labeled]

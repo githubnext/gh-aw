@@ -2,6 +2,7 @@
 emoji: "🧪"
 description: Smoke Copilot ARM64
 on:
+  slash_command: smoke-copilot-arm
   workflow_dispatch:
   pull_request:
     types: [labeled]

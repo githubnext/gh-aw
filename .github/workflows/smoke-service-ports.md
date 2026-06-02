@@ -2,6 +2,7 @@
 emoji: "🧪"
 description: Smoke test to validate --allow-host-service-ports with Redis service container
 on:
+  slash_command: smoke-service-ports
   workflow_dispatch:
   status-comment: true
 permissions:

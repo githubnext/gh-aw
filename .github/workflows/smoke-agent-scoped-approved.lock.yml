@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"4425f240a39b34f972f4f9cc508e969873ab5082fca9a867ac03f278b75d6053","body_hash":"2b9a4cb382ef451c5d8c0c0d3c70a40962955115a3e0abd100761b22bf0d08d2","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"10e648d92c6ada0babeb696973d9fabd12c6196f4bd038450d927557972a6a03","body_hash":"2b9a4cb382ef451c5d8c0c0d3c70a40962955115a3e0abd100761b22bf0d08d2","strict":true,"agent_id":"claude"}
 # gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e","version":"v6.4.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.58"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.58"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.3.22"},{"image":"ghcr.io/github/github-mcp-server:v1.1.0"},{"image":"node:lts-alpine","digest":"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14","pinned_image":"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -56,11 +56,32 @@
 
 name: "Smoke Agent: scoped/approved"
 on:
+  discussion:
+    types:
+    - created
+    - edited
+  discussion_comment:
+    types:
+    - created
+    - edited
+  issue_comment:
+    types:
+    - created
+    - edited
+  issues:
+    types:
+    - opened
+    - edited
+    - reopened
   pull_request:
     # names: # Label filtering applied via job conditions
     # - metal # Label filtering applied via job conditions
     types:
     - labeled
+  pull_request_review_comment:
+    types:
+    - created
+    - edited
   workflow_dispatch:
     inputs:
       aw_context:
@@ -72,8 +93,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}"
-  cancel-in-progress: true
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"
 
 run-name: "Smoke Agent: scoped/approved"
 
@@ -88,14 +108,14 @@ env:
 jobs:
   activation:
     needs: pre_activation
-    if: >
-      needs.pre_activation.outputs.activated == 'true' && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
-      (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'metal'))
+    if: "needs.pre_activation.outputs.activated == 'true' && ((((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') && (github.event_name == 'issues' && (startsWith(github.event.issue.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.issue.body, '/smoke-agent-scoped-approved\n') || github.event.issue.body == '/smoke-agent-scoped-approved') || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.comment.body, '/smoke-agent-scoped-approved\n') || github.event.comment.body == '/smoke-agent-scoped-approved') && github.event.issue.pull_request == null || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.comment.body, '/smoke-agent-scoped-approved\n') || github.event.comment.body == '/smoke-agent-scoped-approved') && github.event.issue.pull_request != null || github.event_name == 'pull_request_review_comment' && (startsWith(github.event.comment.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.comment.body, '/smoke-agent-scoped-approved\n') || github.event.comment.body == '/smoke-agent-scoped-approved') || github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.pull_request.body, '/smoke-agent-scoped-approved\n') || github.event.pull_request.body == '/smoke-agent-scoped-approved') || github.event_name == 'discussion' && (startsWith(github.event.discussion.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.discussion.body, '/smoke-agent-scoped-approved\n') || github.event.discussion.body == '/smoke-agent-scoped-approved') || github.event_name == 'discussion_comment' && (startsWith(github.event.comment.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.comment.body, '/smoke-agent-scoped-approved\n') || github.event.comment.body == '/smoke-agent-scoped-approved')) || (!(github.event_name == 'issues')) && (!(github.event_name == 'issue_comment')) && (!(github.event_name == 'pull_request')) && (!(github.event_name == 'pull_request_review_comment')) && (!(github.event_name == 'discussion')) && (!(github.event_name == 'discussion_comment'))) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)) && (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'metal'))"
     runs-on: ubuntu-slim
     permissions:
       actions: read
       contents: read
+      discussions: write
       issues: write
+      pull-requests: write
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
@@ -111,6 +131,7 @@ jobs:
       setup-parent-span-id: ${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}
       setup-span-id: ${{ steps.setup.outputs.span-id }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
+      slash_command: ${{ needs.pre_activation.outputs.matched_command }}
       stale_lock_file_failed: ${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}
       text: ${{ steps.sanitized.outputs.text }}
       title: ${{ steps.sanitized.outputs.title }}
@@ -181,6 +202,19 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_daily_effective_workflow_guardrail.cjs');
+            await main();
+      - name: Add eyes reaction for immediate feedback
+        id: react
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_REACTION: "eyes"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/add_reaction.cjs');
             await main();
       - name: Validate ANTHROPIC_API_KEY secret
         id: validate-secret
@@ -258,24 +292,25 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || '' }}
         # poutine:ignore untrusted_checkout_exec
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_fc57962803600efe_EOF'
+          cat << 'GH_AW_PROMPT_b60ef821e5d6084d_EOF'
           <system>
-          GH_AW_PROMPT_fc57962803600efe_EOF
+          GH_AW_PROMPT_b60ef821e5d6084d_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_fc57962803600efe_EOF'
+          cat << 'GH_AW_PROMPT_b60ef821e5d6084d_EOF'
           <safe-output-tools>
           Tools: add_comment(max:2), missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_fc57962803600efe_EOF
+          GH_AW_PROMPT_b60ef821e5d6084d_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_fc57962803600efe_EOF'
+          cat << 'GH_AW_PROMPT_b60ef821e5d6084d_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -304,14 +339,17 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_fc57962803600efe_EOF
+          GH_AW_PROMPT_b60ef821e5d6084d_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_fc57962803600efe_EOF'
+          if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
+            cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md"
+          fi
+          cat << 'GH_AW_PROMPT_b60ef821e5d6084d_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/github-guard-policy.md}}
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/smoke-agent-scoped-approved.md}}
-          GH_AW_PROMPT_fc57962803600efe_EOF
+          GH_AW_PROMPT_b60ef821e5d6084d_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -337,8 +375,10 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || '' }}
           GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
+          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -358,8 +398,10 @@ jobs:
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
+                GH_AW_IS_PR_COMMENT: process.env.GH_AW_IS_PR_COMMENT,
                 GH_AW_MCP_CLI_SERVERS_LIST: process.env.GH_AW_MCP_CLI_SERVERS_LIST,
-                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND
               }
             });
       - name: Validate prompt placeholders
@@ -530,9 +572,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_37dff9adbe9b9994_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_5d30cc919b6aed51_EOF'
           {"add_comment":{"hide_older_comments":true,"max":2},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_37dff9adbe9b9994_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_5d30cc919b6aed51_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -723,7 +765,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.3.22'
           
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_1e192e2b0c15df86_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_437c312df32e4ae2_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -775,7 +817,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_1e192e2b0c15df86_EOF
+          GH_AW_MCP_CONFIG_437c312df32e4ae2_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -982,6 +1024,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,*.grafana.net,*.sentry.io,127.0.0.1,::1,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,app.renovatebot.com,appveyor.com,archive.ubuntu.com,azure.archive.ubuntu.com,badgen.net,cdn.playwright.dev,circleci.com,codacy.com,codeclimate.com,codecov.io,codeload.github.com,coveralls.io,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deepsource.io,docs.github.com,drone.io,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,host.docker.internal,img.shields.io,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,localhost,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,patch-diff.githubusercontent.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,readthedocs.io,readthedocs.org,registry.npmjs.org,renovatebot.com,s.symcb.com,s.symcd.com,security.ubuntu.com,semaphoreci.com,sentry.io,shields.io,snyk.io,sonarcloud.io,sonarqube.com,statsig.anthropic.com,travis-ci.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
+          GH_AW_COMMANDS: "[\"smoke-agent-scoped-approved\"]"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -1505,15 +1548,13 @@ jobs:
             }
 
   pre_activation:
-    if: >
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
-      (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'metal')
+    if: "(github.event_name != 'issue_comment' && github.event_name != 'pull_request_review_comment' || contains(fromJSON('[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]'), github.event.comment.author_association)) && ((((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') && (github.event_name == 'issues' && (startsWith(github.event.issue.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.issue.body, '/smoke-agent-scoped-approved\n') || github.event.issue.body == '/smoke-agent-scoped-approved') || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.comment.body, '/smoke-agent-scoped-approved\n') || github.event.comment.body == '/smoke-agent-scoped-approved') && github.event.issue.pull_request == null || github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.comment.body, '/smoke-agent-scoped-approved\n') || github.event.comment.body == '/smoke-agent-scoped-approved') && github.event.issue.pull_request != null || github.event_name == 'pull_request_review_comment' && (startsWith(github.event.comment.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.comment.body, '/smoke-agent-scoped-approved\n') || github.event.comment.body == '/smoke-agent-scoped-approved') || github.event_name == 'pull_request' && (startsWith(github.event.pull_request.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.pull_request.body, '/smoke-agent-scoped-approved\n') || github.event.pull_request.body == '/smoke-agent-scoped-approved') || github.event_name == 'discussion' && (startsWith(github.event.discussion.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.discussion.body, '/smoke-agent-scoped-approved\n') || github.event.discussion.body == '/smoke-agent-scoped-approved') || github.event_name == 'discussion_comment' && (startsWith(github.event.comment.body, '/smoke-agent-scoped-approved ') || startsWith(github.event.comment.body, '/smoke-agent-scoped-approved\n') || github.event.comment.body == '/smoke-agent-scoped-approved')) || (!(github.event_name == 'issues')) && (!(github.event_name == 'issue_comment')) && (!(github.event_name == 'pull_request')) && (!(github.event_name == 'pull_request_review_comment')) && (!(github.event_name == 'discussion')) && (!(github.event_name == 'discussion_comment'))) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)) && (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'metal'))"
     runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
-      matched_command: ''
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.check_command_position.outputs.command_position_ok == 'true' }}
+      matched_command: ${{ steps.check_command_position.outputs.matched_command }}
       setup-parent-span-id: ${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}
       setup-span-id: ${{ steps.setup.outputs.span-id }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
@@ -1537,7 +1578,7 @@ jobs:
           GH_AW_INFO_VERSION: "2.1.156"
           GH_AW_INFO_AWF_VERSION: "v0.25.58"
           GH_AW_INFO_ENGINE_ID: "claude"
-      - name: Check team membership for workflow
+      - name: Check team membership for command workflow
         id: check_membership
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -1548,6 +1589,17 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_membership.cjs');
+            await main();
+      - name: Check command position
+        id: check_command_position
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_COMMANDS: "[\"smoke-agent-scoped-approved\"]"
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_command_position.cjs');
             await main();
 
   safe_outputs:
@@ -1565,6 +1617,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/smoke-agent-scoped-approved"
+      GH_AW_COMMANDS: "[\"smoke-agent-scoped-approved\"]"
       GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
       GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
