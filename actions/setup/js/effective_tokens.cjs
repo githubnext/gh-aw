@@ -332,11 +332,20 @@ function reduceModelNameToIdentifier(modelName) {
  */
 function extractKnownModelTierSuffix(normalizedModelName, familyPrefix) {
   if (familyPrefix !== "gpt") return "";
-  if (normalizedModelName.includes("mini")) return "mini";
-  if (normalizedModelName.includes("nano")) return "nano";
-  if (normalizedModelName.includes("codex")) return "codex";
-  if (/(^|[-_\s])pro($|[-_\s])/.test(normalizedModelName)) return "pro";
+  if (hasDelimitedModelQualifier(normalizedModelName, "mini")) return "mini";
+  if (hasDelimitedModelQualifier(normalizedModelName, "nano")) return "nano";
+  if (hasDelimitedModelQualifier(normalizedModelName, "codex")) return "codex";
+  if (hasDelimitedModelQualifier(normalizedModelName, "pro")) return "pro";
   return "";
+}
+
+/**
+ * @param {string} normalizedModelName
+ * @param {string} qualifier
+ * @returns {boolean}
+ */
+function hasDelimitedModelQualifier(normalizedModelName, qualifier) {
+  return new RegExp(`(^|[-_\\s])${qualifier}($|[-_\\s])`).test(normalizedModelName);
 }
 
 /**
