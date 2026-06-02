@@ -473,7 +473,9 @@ func TestModelTokenUsageReasoningTokensJSONRoundTrip(t *testing.T) {
 
 	raw, err := json.Marshal(original)
 	require.NoError(t, err)
-	assert.Contains(t, string(raw), `"reasoning_tokens":30`, "reasoning tokens should be persisted for ET recomputation")
+	var encoded map[string]any
+	require.NoError(t, json.Unmarshal(raw, &encoded))
+	assert.EqualValues(t, 30, encoded["reasoning_tokens"], "reasoning tokens should be persisted for ET recomputation")
 
 	var decoded ModelTokenUsage
 	require.NoError(t, json.Unmarshal(raw, &decoded))
