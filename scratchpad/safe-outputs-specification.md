@@ -5,10 +5,22 @@ sidebar:
   order: 100
 ---
 
+> ⚠️ **DEPRECATED — v1.1.0 (Stale)**
+>
+> This scratchpad file (v1.1.0) is significantly outdated relative to the canonical specification.
+> **Do not use this document for implementation reference.**
+>
+> **Canonical version**: [Safe Outputs MCP Gateway Specification v1.21.0](/gh-aw/reference/safe-outputs-specification/)
+> (`docs/src/content/docs/reference/safe-outputs-specification.md`)
+>
+> This file is retained for historical reference only. It documents the original v1.x architecture
+> prior to the MCP Gateway refactor. For all normative requirements, conformance testing, and
+> implementation guidance, refer to the canonical v1.21.0 specification linked above.
+
 # Safe Outputs System Specification
 
 **Version**: 1.1.0  
-**Status**: Recommendation  
+**Status**: ~~Recommendation~~ **DEPRECATED** (superseded by v1.21.0)  
 **Latest Version**: https://github.github.com/gh-aw/scratchpad/safe-outputs-specification/  
 **Editors**: GitHub Next Team
 
