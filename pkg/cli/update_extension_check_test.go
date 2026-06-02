@@ -361,11 +361,25 @@ func TestParseInstalledVersionOutput(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "could not parse installed gh-aw version")
 	})
+
+	t.Run("uses first version match when multiple exist", func(t *testing.T) {
+		got, err := parseInstalledVersionOutput("current=v0.77.5 latest=v0.77.6")
+		require.NoError(t, err)
+		assert.Equal(t, "v0.77.5", got)
+	})
+
+	t.Run("returns error for empty output", func(t *testing.T) {
+		_, err := parseInstalledVersionOutput("")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "could not parse installed gh-aw version")
+	})
 }
 
 func TestNormalizeVersion(t *testing.T) {
 	assert.Equal(t, "0.77.5", normalizeVersion("v0.77.5"))
 	assert.Equal(t, "0.77.5", normalizeVersion("0.77.5"))
+	assert.Equal(t, "1.0.0-beta.1", normalizeVersion("v1.0.0-beta.1"))
+	assert.Equal(t, "", normalizeVersion(""))
 }
 
 // TestGhCmdForExtension verifies that ghCmdForExtension always pins
