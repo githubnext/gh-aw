@@ -5,6 +5,8 @@ package cli
 import (
 	"encoding/json"
 	"math"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/types"
@@ -92,7 +94,7 @@ func TestModelMultipliersInventoryUpdate20260517(t *testing.T) {
 	assert.InDelta(t, 1.0, loadedMultipliers["gpt-5-2025-08-07"], 1e-9, "gpt-5-2025-08-07 should be present")
 	assert.InDelta(t, 3.0, loadedMultipliers["gpt-5.2-chat-latest"], 1e-9, "gpt-5.2-chat-latest should be present")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.3-codex-api-preview"], 1e-9, "gpt-5.3-codex-api-preview should be present")
-	assert.InDelta(t, 57.0, loadedMultipliers["gpt-5.5-2026-04-23"], 1e-9, "gpt-5.5-2026-04-23 should match documented multiplier")
+	assert.InDelta(t, 7.5, loadedMultipliers["gpt-5.5-2026-04-23"], 1e-9, "gpt-5.5-2026-04-23 should match documented multiplier")
 	assert.InDelta(t, 3.0, loadedMultipliers["o3-deep-research-2025-06-26"], 1e-9, "o3-deep-research-2025-06-26 should be present")
 	assert.InDelta(t, 0.5, loadedMultipliers["o4-mini-deep-research-2025-06-26"], 1e-9, "o4-mini-deep-research-2025-06-26 should be present")
 	assert.InDelta(t, 0.2, loadedMultipliers["gemini-2.5-flash-native-audio-preview-12-2025"], 1e-9, "gemini-2.5-flash-native-audio-preview-12-2025 should be present")
@@ -125,14 +127,17 @@ func TestModelMultipliersInventoryUpdate20260521(t *testing.T) {
 	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
 	assert.InDelta(t, 1.0, loadedMultipliers["gpt-4.1-mini"], 1e-9, "gpt-4.1-mini should match documented multiplier")
 	assert.InDelta(t, 1.0, loadedMultipliers["gpt-4.1-nano"], 1e-9, "gpt-4.1-nano should match documented multiplier")
-	assert.InDelta(t, 0.33, loadedMultipliers["gpt-5.1-codex-mini"], 1e-9, "gpt-5.1-codex-mini should match documented multiplier of 0.33 (mini tier)")
+	assert.InDelta(t, 3.0, loadedMultipliers["gpt-5.1-codex-mini"], 1e-9, "gpt-5.1-codex-mini should match documented multiplier")
 	assert.InDelta(t, 3.0, loadedMultipliers["gpt-5.2-pro"], 1e-9, "gpt-5.2-pro should match documented multiplier")
 	assert.InDelta(t, 3.0, loadedMultipliers["gpt-5.2-pro-2025-12-11"], 1e-9, "gpt-5.2-pro-2025-12-11 should match documented multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-nano-2026-03-17"], 1e-9, "gpt-5.4-nano-2026-03-17 should match documented multiplier")
 	assert.InDelta(t, 6.0, loadedMultipliers["gpt-5.4-pro-2026-03-05"], 1e-9, "gpt-5.4-pro-2026-03-05 should match documented multiplier")
-	assert.InDelta(t, 0.33, loadedMultipliers["gemini-3-flash"], 1e-9, "gemini-3-flash should be present with official billing multiplier")
-	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3-pro"], 1e-9, "gemini-3-pro should be present with official billing multiplier")
-	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3.1-pro"], 1e-9, "gemini-3.1-pro should be present with official billing multiplier")
+	assert.InDelta(t, 0.33, loadedMultipliers["gemini-3-flash-preview"], 1e-9, "gemini-3-flash-preview should be present with official billing multiplier")
+	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3-pro-preview"], 1e-9, "gemini-3-pro-preview should be present with official billing multiplier")
+	assert.InDelta(t, 6.0, loadedMultipliers["gemini-3.1-pro-preview"], 1e-9, "gemini-3.1-pro-preview should be present with official billing multiplier")
+	assert.NotContains(t, loadedMultipliers, "gemini-3-flash", "gemini-3-flash should not be present when only preview variant is defined")
+	assert.NotContains(t, loadedMultipliers, "gemini-3-pro", "gemini-3-pro should not be present when only preview variant is defined")
+	assert.NotContains(t, loadedMultipliers, "gemini-3.1-pro", "gemini-3.1-pro should not be present when only preview variant is defined")
 }
 
 func TestModelMultipliersInventoryUpdate20260525(t *testing.T) {
@@ -156,11 +161,12 @@ func TestModelMultipliersInventoryUpdate20260530(t *testing.T) {
 	initMultipliers()
 
 	require.NotNil(t, loadedMultipliers, "multipliers should be loaded from embedded JSON")
-	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4-8"], 1e-9, "claude-opus-4-8 should match documented multiplier")
-	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4.7"], 1e-9, "claude-opus-4.7 should match the hyphenated claude-opus-4-7 multiplier")
-	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4.8"], 1e-9, "claude-opus-4.8 should match the hyphenated claude-opus-4-8 multiplier")
-	assert.InDelta(t, 57.0, loadedMultipliers["gpt-5.5"], 1e-9, "gpt-5.5 should match the documented multiplier")
-	assert.InDelta(t, 57.0, loadedMultipliers["gpt-5.5-2026-04-23"], 1e-9, "gpt-5.5-2026-04-23 should match the documented multiplier")
+	assert.InDelta(t, 27.0, loadedMultipliers["claude-opus-4-7"], 1e-9, "claude-opus-4-7 should match documented multiplier")
+	assert.InDelta(t, 7.5, loadedMultipliers["gpt-5.5"], 1e-9, "gpt-5.5 should match the documented multiplier")
+	assert.InDelta(t, 7.5, loadedMultipliers["gpt-5.5-2026-04-23"], 1e-9, "gpt-5.5-2026-04-23 should match the documented multiplier")
+	assert.NotContains(t, loadedMultipliers, "claude-opus-4-8", "claude-opus-4-8 should not be present in current registry")
+	assert.NotContains(t, loadedMultipliers, "claude-opus-4.7", "claude-opus-4.7 alias should not be present in current registry")
+	assert.NotContains(t, loadedMultipliers, "claude-opus-4.8", "claude-opus-4.8 alias should not be present in current registry")
 }
 
 func TestModelMultipliersInventoryUpdate20260602(t *testing.T) {
@@ -263,4 +269,84 @@ func TestPopulateEffectiveTokensWithCustomWeightsNilSummary(t *testing.T) {
 	assert.NotPanics(t, func() {
 		populateEffectiveTokensWithCustomWeights(nil, nil)
 	})
+}
+
+func TestModelMultiplierSourcePrecedence(t *testing.T) {
+	tmpDir := t.TempDir()
+	mergedPath := filepath.Join(tmpDir, "merged_model_multipliers.json")
+	envJSON := `{"token_class_weights":{"input":1,"cached_input":0.1,"output":4,"reasoning":4,"cache_write":1},"multipliers":{"model-x":2}}`
+	mergedJSON := `{"token_class_weights":{"input":1,"cached_input":0.1,"output":4,"reasoning":4,"cache_write":1},"multipliers":{"model-x":7}}`
+	require.NoError(t, os.WriteFile(mergedPath, []byte(mergedJSON), 0o644))
+
+	t.Setenv(mergedModelMultipliersPathEnvVar, mergedPath)
+	t.Setenv(modelMultipliersEnvVar, envJSON)
+	loadedMultipliers = nil
+
+	multipliers, _ := resolveEffectiveWeights(nil)
+	assert.InDelta(t, 7.0, multipliers["model-x"], 1e-9, "merged multipliers file should take precedence over env var")
+
+	require.NoError(t, os.Remove(mergedPath))
+	loadedMultipliers = nil
+	multipliers, _ = resolveEffectiveWeights(nil)
+	assert.InDelta(t, 2.0, multipliers["model-x"], 1e-9, "env var should take precedence when merged file is unavailable")
+
+	t.Setenv(modelMultipliersEnvVar, "{bad json")
+	loadedMultipliers = nil
+	multipliers, _ = resolveEffectiveWeights(nil)
+	_, hasModelX := multipliers["model-x"]
+	assert.False(t, hasModelX, "built-in defaults should be used when env var JSON is malformed")
+	_, hasBuiltin := multipliers["claude-sonnet-4.5"]
+	assert.True(t, hasBuiltin, "built-in defaults should still load when env var JSON is malformed")
+}
+
+func TestComputeModelEffectiveTokensWithWeights_UnknownModelFallbackAndEffectiveInput(t *testing.T) {
+	w := defaultTokenClassWeights()
+	multipliers := map[string]float64{"known-model": 2.0}
+
+	// effective_input=max(50-100,0)=0
+	// base=(1.0*0)+(0.1*100)+(4.0*80)+(4.0*10)+(1.0*0)=370
+	// unknown model fallback multiplier=1.0 -> ET=370
+	et := computeModelEffectiveTokensWithWeights("unknown-model", "anthropic", 50, 80, 100, 0, 10, multipliers, w)
+	assert.Equal(t, 370, et)
+}
+
+func TestComputeModelEffectiveTokensWithWeights_NoCacheReadSubtractionForUnknownProvider(t *testing.T) {
+	w := defaultTokenClassWeights()
+	multipliers := map[string]float64{"known-model": 2.0}
+
+	// Provider "test-provider" is treated as additive cache semantics by default:
+	// effective_input=50 (no subtraction), base=(1.0*50)+(0.1*100)+(4.0*80)+(4.0*10)=420
+	// unknown model fallback multiplier=1.0 -> ET=420
+	et := computeModelEffectiveTokensWithWeights("unknown-model", "test-provider", 50, 80, 100, 0, 10, multipliers, w)
+	assert.Equal(t, 420, et)
+
+	// Contrast with a known bundled provider where subtraction applies.
+	etBundled := computeModelEffectiveTokensWithWeights("unknown-model", "anthropic", 50, 80, 100, 0, 10, multipliers, w)
+	assert.Equal(t, 370, etBundled)
+}
+
+func TestPopulateEffectiveTokensWithCustomWeightsRecomputesFromRawUsage(t *testing.T) {
+	summary := &TokenUsageSummary{
+		ByModel: map[string]*ModelTokenUsage{
+			"unknown": {
+				InputTokens:     10,
+				OutputTokens:    5,
+				EffectiveTokens: 9999, // stale precomputed value should be ignored
+			},
+		},
+	}
+
+	customA := &types.TokenWeights{
+		TokenClassWeights: &types.TokenClassWeights{Output: 4.0},
+	}
+	customB := &types.TokenWeights{
+		TokenClassWeights: &types.TokenClassWeights{Output: 8.0},
+	}
+
+	populateEffectiveTokensWithCustomWeights(summary, customA)
+	assert.Equal(t, 30, summary.TotalEffectiveTokens, "ET should be recomputed from raw usage under initial weights")
+
+	populateEffectiveTokensWithCustomWeights(summary, customB)
+	assert.Equal(t, 50, summary.TotalEffectiveTokens, "ET should be recomputed from raw usage when token class weights change")
+	assert.Equal(t, 50, summary.ByModel["unknown"].EffectiveTokens, "stale stored ET must not be reused")
 }

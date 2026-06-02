@@ -304,6 +304,84 @@ function isAuthenticationFailedError(output) {
 }
 
 /**
+ * Extract provider auth failure details from Copilot output when available.
+ * @param {string} output
+ * @returns {{ providerUrl: string, statusCode: string } | null}
+ */
+function parseProviderAuthFailure(output) {
+  const match = output.match(/Authentication failed with provider at (\S+) \(HTTP (\d+)\)\.?/i);
+  if (!match) {
+    return null;
+  }
+  return {
+    providerUrl: match[1],
+    statusCode: match[2],
+  };
+}
+
+/**
+ * Determine whether a provider URL likely points at the gh-aw API proxy sidecar.
+ * @param {string} providerUrl
+ * @returns {boolean}
+ */
+function isLikelyAWFAPIProxyURL(providerUrl) {
+  try {
+    const { hostname, port } = new URL(providerUrl);
+    const normalizedHostname = hostname.toLowerCase();
+    if (port !== "10002") {
+      return false;
+    }
+    return (
+      normalizedHostname === "api-proxy" ||
+      normalizedHostname === "host.docker.internal" ||
+      normalizedHostname === "localhost" ||
+      /^127(?:\.\d{1,3}){3}$/.test(normalizedHostname) ||
+      /^10(?:\.\d{1,3}){3}$/.test(normalizedHostname) ||
+      /^192\.168(?:\.\d{1,3}){2}$/.test(normalizedHostname) ||
+      /^172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}$/.test(normalizedHostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Infer which Copilot auth stage failed without exposing secrets.
+ * @param {string} output
+ * @returns {string}
+ */
+function detectCopilotAuthFailureStage(output) {
+  if (/\b(?:validating|validate|validation)\b[\s\S]{0,40}\b(?:token|auth|authentication)\b/i.test(output)) {
+    return "validating the token";
+  }
+  if (/\b(?:list|listing)\b[\s\S]{0,40}\bmodels?\b/i.test(output) || /\/models\b/i.test(output)) {
+    return "listing models";
+  }
+  return "starting the Copilot CLI request";
+}
+
+/**
+ * Build a more actionable Copilot auth diagnostic when a 401 came from the gh-aw API proxy.
+ * @param {string} output
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {string}
+ */
+function buildCopilotProxyAuthFailureDiagnostic(output, env = process.env) {
+  const authFailure = parseProviderAuthFailure(output);
+  if (!authFailure || authFailure.statusCode !== "401" || !isLikelyAWFAPIProxyURL(authFailure.providerUrl)) {
+    return "";
+  }
+
+  const selectedModel = typeof env.COPILOT_MODEL === "string" && env.COPILOT_MODEL.trim() ? env.COPILOT_MODEL.trim() : "(unset)";
+  const stage = detectCopilotAuthFailureStage(output);
+  return (
+    `Copilot authentication failed through the gh-aw API proxy (HTTP 401, model=${selectedModel}, stage=${stage}). ` +
+    "Check that COPILOT_GITHUB_TOKEN is present, unexpired, and authorized for the selected COPILOT_MODEL. " +
+    "If you configured GH_AW_MODEL_AGENT_COPILOT or GH_AW_DEFAULT_MODEL_COPILOT, verify that the token has access to that model."
+  );
+}
+
+/**
  * Detect known Copilot error patterns for workflow outputs.
  * @param {string} output
  * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean }}
@@ -677,6 +755,7 @@ async function main() {
         const isModelNotSupported = isModelNotSupportedError(result.output);
         const isAuthErr = isNoAuthInfoError(result.output);
         const isAuthenticationFailed = isAuthenticationFailedError(result.output);
+        const proxyAuthDiagnostic = buildCopilotProxyAuthFailureDiagnostic(result.output, process.env);
         const isNullTypeToolCall = isNullTypeToolCallError(result.output);
         const isMaxEffectiveTokensExceeded = isMaxEffectiveTokensExceededError(result.output);
         const permissionDeniedCount = countPermissionDeniedIssues(result.output);
@@ -698,7 +777,11 @@ async function main() {
         );
 
         if (attempt === 0 && isAuthenticationFailed) {
-          log(`attempt ${attempt + 1}: authentication failed — not retrying (first-attempt auth failure is non-retryable)`);
+          if (proxyAuthDiagnostic) {
+            log(`attempt ${attempt + 1}: ${proxyAuthDiagnostic} — not retrying (first-attempt auth failure is non-retryable)`);
+          } else {
+            log(`attempt ${attempt + 1}: authentication failed — not retrying (first-attempt auth failure is non-retryable)`);
+          }
           break;
         }
 
@@ -839,6 +922,7 @@ if (typeof module !== "undefined" && module.exports) {
     extractDeniedCommands,
     fetchAWFReflect,
     fetchModelsFromUrl,
+    buildCopilotProxyAuthFailureDiagnostic,
     buildCopilotSDKServerArgs,
     getCopilotSDKServerPort,
     isDetectionPhase,

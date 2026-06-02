@@ -13,6 +13,7 @@ const {
   generateSpanId,
   toNanoString,
   buildAttr,
+  buildGitHubActionsResourceAttributes,
   buildOTLPSpan,
   buildOTLPBatchPayload,
   buildOTLPBatchPayloads,
@@ -1133,6 +1134,37 @@ describe("sendOTLPSpan with OTEL_EXPORTER_OTLP_HEADERS", () => {
 });
 
 // ---------------------------------------------------------------------------
+// buildGitHubActionsResourceAttributes
+// ---------------------------------------------------------------------------
+
+describe("buildGitHubActionsResourceAttributes", () => {
+  const savedOTELResourceAttributes = process.env.OTEL_RESOURCE_ATTRIBUTES;
+
+  afterEach(() => {
+    if (savedOTELResourceAttributes === undefined) {
+      delete process.env.OTEL_RESOURCE_ATTRIBUTES;
+    } else {
+      process.env.OTEL_RESOURCE_ATTRIBUTES = savedOTELResourceAttributes;
+    }
+  });
+
+  it("parses escaped commas, equals signs, and backslashes in OTEL_RESOURCE_ATTRIBUTES", () => {
+    process.env.OTEL_RESOURCE_ATTRIBUTES = "gh\\=aw.workflow.name=Daily\\\\ Token\\, Report,service.version=1.2.3";
+
+    const attrs = Object.fromEntries(
+      buildGitHubActionsResourceAttributes({
+        repository: "owner/repo",
+        runId: "987654321",
+        staged: false,
+      }).map(attr => [attr.key, attr.value.stringValue])
+    );
+
+    expect(attrs["gh=aw.workflow.name"]).toBe("Daily\\ Token, Report");
+    expect(attrs["service.version"]).toBe("1.2.3");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // sendJobSetupSpan
 // ---------------------------------------------------------------------------
 
@@ -1169,6 +1201,7 @@ describe("sendJobSetupSpan", () => {
     "GH_AW_INFO_VERSION",
     "GH_AW_INFO_CLI_VERSION",
     "GH_AW_INFO_STAGED",
+    "OTEL_RESOURCE_ATTRIBUTES",
   ];
   let mkdirSpy, appendSpy;
 
@@ -1484,6 +1517,27 @@ describe("sendJobSetupSpan", () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "github.repository", value: { stringValue: "owner/repo" } });
+    expect(resourceAttrs).toContainEqual({ key: "github.run_id", value: { stringValue: "987654321" } });
+  });
+
+  it("merges OTEL_RESOURCE_ATTRIBUTES into resource attributes", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.GITHUB_REPOSITORY = "owner/repo";
+    process.env.GITHUB_RUN_ID = "987654321";
+    process.env.OTEL_RESOURCE_ATTRIBUTES = "gh-aw.workflow.name=Daily\\, Token\\= Report,gh-aw.run.id=987654321,gh-aw.engine.id=claude,service.version=1.2.3";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({ key: "gh-aw.workflow.name", value: { stringValue: "Daily, Token= Report" } });
+    expect(resourceAttrs).toContainEqual({ key: "gh-aw.run.id", value: { stringValue: "987654321" } });
+    expect(resourceAttrs).toContainEqual({ key: "gh-aw.engine.id", value: { stringValue: "claude" } });
+    expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "1.2.3" } });
     expect(resourceAttrs).toContainEqual({ key: "github.repository", value: { stringValue: "owner/repo" } });
     expect(resourceAttrs).toContainEqual({ key: "github.run_id", value: { stringValue: "987654321" } });
   });
@@ -2482,6 +2536,7 @@ describe("sendJobConclusionSpan", () => {
     "GH_AW_TRACKER_ID",
     "GH_AW_INFO_WORKFLOW_NAME",
     "GITHUB_WORKFLOW",
+    "OTEL_RESOURCE_ATTRIBUTES",
   ];
   let mkdirSpy, appendSpy;
 
@@ -4859,6 +4914,32 @@ describe("sendJobConclusionSpan", () => {
       expect(attrs["gen_ai.usage.total_tokens"]).toBe(48200 + 1350);
     });
 
+    it("normalizes string token counters from agent_usage.json on the agent span", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      const usage = { input_tokens: "48200", output_tokens: "1350", cache_read_tokens: "41000", cache_write_tokens: "3100" };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return JSON.stringify(usage);
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+
+      const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(agentSpan.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      expect(attrs["gen_ai.usage.input_tokens"]).toBe(48200);
+      expect(attrs["gen_ai.usage.output_tokens"]).toBe(1350);
+      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(41000);
+      expect(attrs["gen_ai.usage.cache_creation.input_tokens"]).toBe(3100);
+      expect(attrs["gen_ai.usage.total_tokens"]).toBe(48200 + 1350);
+    });
+
     it("omits all gen_ai token breakdown attributes when agent_usage.json is absent", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
@@ -5236,6 +5317,39 @@ describe("sendJobConclusionSpan", () => {
       expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(200);
       expect(attrs["gen_ai.usage.cache_creation.input_tokens"]).toBe(75);
       expect(attrs["gen_ai.usage.total_tokens"]).toBe(3150);
+    });
+
+    it("falls back to agent-stdio.log usage when agent_usage.json has no recognized token counters", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.INPUT_JOB_NAME = "agent";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      statSpy.mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return JSON.stringify({ model: "claude-3" });
+        }
+        if (filePath === "/tmp/gh-aw/agent-stdio.log") {
+          return '{"type":"result","usage":{"input_tokens":48200,"output_tokens":1350,"cache_read_input_tokens":41000,"cache_creation_input_tokens":3100}}\n';
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.agent.conclusion");
+
+      expect(mockFetch.mock.calls.length).toBe(1);
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const attrs = Object.fromEntries(body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      expect(attrs["gen_ai.usage.input_tokens"]).toBe(48200);
+      expect(attrs["gen_ai.usage.output_tokens"]).toBe(1350);
+      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(41000);
+      expect(attrs["gen_ai.usage.cache_creation.input_tokens"]).toBe(3100);
+      expect(attrs["gen_ai.usage.total_tokens"]).toBe(48200 + 1350);
     });
 
     it("omits gen_ai tokens from downstream job even when all agent files are readable from artifact", async () => {

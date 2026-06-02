@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -301,8 +302,40 @@ func TestAnalyzeTokenUsage(t *testing.T) {
 		require.NotNil(t, summary, "should return summary from agent_usage.json")
 		assert.Equal(t, 5944, summary.TotalInputTokens, "input tokens should match agent usage")
 		assert.Equal(t, 8698, summary.TotalOutputTokens, "output tokens should match agent usage")
-		assert.Equal(t, 243846, summary.TotalEffectiveTokens, "effective tokens should match agent usage")
+		assert.Equal(t, 237902, summary.TotalEffectiveTokens, "effective tokens should be recomputed from raw usage, not copied from stored ET")
 		assert.Equal(t, 1, summary.TotalRequests, "agent usage fallback should synthesize one request")
+	})
+
+	t.Run("recomputes ET from raw usage even when agent_usage has stale effective_tokens", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-agent-usage-recompute")
+		agentUsageFile := filepath.Join(tmpDir, "agent_usage.json")
+		content := `{"model":"unknown","input_tokens":10,"output_tokens":5,"cache_read_tokens":0,"cache_write_tokens":0,"effective_tokens":9999}`
+		require.NoError(t, os.WriteFile(agentUsageFile, []byte(content), 0o644))
+
+		summary, err := analyzeTokenUsage(tmpDir, false)
+		require.NoError(t, err, "should parse agent_usage.json without error")
+		require.NotNil(t, summary, "should return summary from agent_usage.json")
+		assert.Equal(t, 30, summary.TotalEffectiveTokens, "ET should be recomputed from raw usage")
+		require.Contains(t, summary.ByModel, "unknown")
+		assert.Equal(t, 30, summary.ByModel["unknown"].EffectiveTokens, "per-model ET should ignore stored effective_tokens when raw exists")
+	})
+
+	t.Run("unknown model falls back to multiplier 1.0 when recomputing ET", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "analyze-agent-usage-unknown-model")
+		awInfoFile := filepath.Join(tmpDir, "aw_info.json")
+		awInfoContent := `{"token_weights":{"multipliers":{"known-model":5}}}`
+		require.NoError(t, os.WriteFile(awInfoFile, []byte(awInfoContent), 0o644))
+
+		agentUsageFile := filepath.Join(tmpDir, "agent_usage.json")
+		agentUsageContent := `{"model":"mystery-model","input_tokens":10,"output_tokens":5,"cache_read_tokens":0,"cache_write_tokens":0}`
+		require.NoError(t, os.WriteFile(agentUsageFile, []byte(agentUsageContent), 0o644))
+
+		summary, err := analyzeTokenUsage(tmpDir, false)
+		require.NoError(t, err, "should parse agent_usage.json with unknown model")
+		require.NotNil(t, summary, "should return summary from agent_usage.json")
+		assert.Equal(t, 30, summary.TotalEffectiveTokens, "unknown model should use 1.0 multiplier fallback")
+		require.Contains(t, summary.ByModel, "mystery-model")
+		assert.Equal(t, 30, summary.ByModel["mystery-model"].EffectiveTokens, "per-model ET should use fallback multiplier")
 	})
 
 	t.Run("applies custom weights from aw_info when agent_usage effective_tokens is missing", func(t *testing.T) {
@@ -428,4 +461,23 @@ func TestCacheEfficiency(t *testing.T) {
 		require.NotNil(t, summary)
 		assert.InDelta(t, 0.0, summary.CacheEfficiency, 0.001, "cache efficiency should remain unset")
 	})
+}
+
+func TestModelTokenUsageReasoningTokensJSONRoundTrip(t *testing.T) {
+	original := ModelTokenUsage{
+		Provider:        "anthropic",
+		InputTokens:     10,
+		OutputTokens:    20,
+		ReasoningTokens: 30,
+	}
+
+	raw, err := json.Marshal(original)
+	require.NoError(t, err)
+	var encoded map[string]any
+	require.NoError(t, json.Unmarshal(raw, &encoded))
+	assert.EqualValues(t, 30, encoded["reasoning_tokens"], "reasoning tokens should be persisted for ET recomputation")
+
+	var decoded ModelTokenUsage
+	require.NoError(t, json.Unmarshal(raw, &decoded))
+	assert.Equal(t, 30, decoded.ReasoningTokens, "reasoning tokens should survive JSON round-trip")
 }

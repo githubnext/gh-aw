@@ -371,55 +371,136 @@ function buildGitHubActionsResourceAttributes({
   staged,
   runAttempt = "1",
 }) {
-  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId), buildAttr("github.run_attempt", runAttempt)];
+  const resourceAttributes = parseOTELResourceAttributes(process.env.OTEL_RESOURCE_ATTRIBUTES || "");
+  const upsertResourceAttr = attr => {
+    const existingIdx = resourceAttributes.findIndex(existing => existing.key === attr.key);
+    if (existingIdx >= 0) {
+      resourceAttributes[existingIdx] = attr;
+    } else {
+      resourceAttributes.push(attr);
+    }
+  };
+
+  upsertResourceAttr(buildAttr("github.repository", repository));
+  upsertResourceAttr(buildAttr("github.run_id", runId));
+  upsertResourceAttr(buildAttr("github.run_attempt", runAttempt));
   const runUrlAttr = buildGitHubActionsRunUrlAttribute(repository, runId);
   if (runUrlAttr) {
-    resourceAttributes.push(runUrlAttr);
+    upsertResourceAttr(runUrlAttr);
   }
   if (eventName) {
-    resourceAttributes.push(buildAttr("github.event_name", eventName));
+    upsertResourceAttr(buildAttr("github.event_name", eventName));
   }
   if (ref) {
-    resourceAttributes.push(buildAttr("github.ref", ref));
+    upsertResourceAttr(buildAttr("github.ref", ref));
   }
   if (refName) {
-    resourceAttributes.push(buildAttr("github.ref_name", refName));
+    upsertResourceAttr(buildAttr("github.ref_name", refName));
   }
   if (headRef) {
-    resourceAttributes.push(buildAttr("github.head_ref", headRef));
+    upsertResourceAttr(buildAttr("github.head_ref", headRef));
   }
   if (sha) {
-    resourceAttributes.push(buildAttr("github.sha", sha));
+    upsertResourceAttr(buildAttr("github.sha", sha));
   }
   if (job) {
-    resourceAttributes.push(buildAttr("github.job", job));
+    upsertResourceAttr(buildAttr("github.job", job));
   }
   if (workflowRef) {
-    resourceAttributes.push(buildAttr("github.workflow_ref", workflowRef));
+    upsertResourceAttr(buildAttr("github.workflow_ref", workflowRef));
   }
   if (actorId) {
-    resourceAttributes.push(buildAttr("github.actor_id", actorId));
+    upsertResourceAttr(buildAttr("github.actor_id", actorId));
   }
   if (runnerOs) {
-    resourceAttributes.push(buildAttr("runner.os", runnerOs));
+    upsertResourceAttr(buildAttr("runner.os", runnerOs));
   }
   if (runnerArch) {
-    resourceAttributes.push(buildAttr("runner.arch", runnerArch));
+    upsertResourceAttr(buildAttr("runner.arch", runnerArch));
   }
   if (runnerName) {
-    resourceAttributes.push(buildAttr("runner.name", runnerName));
+    upsertResourceAttr(buildAttr("runner.name", runnerName));
   }
   if (runnerEnvironment) {
-    resourceAttributes.push(buildAttr("runner.environment", runnerEnvironment));
+    upsertResourceAttr(buildAttr("runner.environment", runnerEnvironment));
   }
   if (awfVersion) {
-    resourceAttributes.push(buildAttr("gh-aw.awf.version", awfVersion));
+    upsertResourceAttr(buildAttr("gh-aw.awf.version", awfVersion));
   }
   if (awmgVersion) {
-    resourceAttributes.push(buildAttr("gh-aw.awmg.version", awmgVersion));
+    upsertResourceAttr(buildAttr("gh-aw.awmg.version", awmgVersion));
   }
-  resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
+  upsertResourceAttr(buildAttr("deployment.environment", staged ? "staging" : "production"));
   return resourceAttributes;
+}
+
+/**
+ * Parse an `OTEL_RESOURCE_ATTRIBUTES` value into OTLP resource attributes.
+ *
+ * Supports the OpenTelemetry escaping rules for commas, equals signs, and
+ * backslashes (`\,`, `\=`, `\\`).
+ *
+ * @param {string} raw
+ * @returns {Array<{key: string, value: object}>}
+ */
+function parseOTELResourceAttributes(raw) {
+  if (!raw || !raw.trim()) return [];
+
+  /** @type {Array<{key: string, value: object}>} */
+  const attributes = [];
+  let key = "";
+  let value = "";
+  let seenEquals = false;
+  let escaped = false;
+
+  const pushCurrent = () => {
+    const trimmedKey = key.trim();
+    if (trimmedKey) {
+      attributes.push(buildAttr(trimmedKey, value.trim()));
+    }
+    key = "";
+    value = "";
+    seenEquals = false;
+  };
+
+  for (const char of raw) {
+    if (escaped) {
+      if (seenEquals) {
+        value += char;
+      } else {
+        key += char;
+      }
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === ",") {
+      pushCurrent();
+      continue;
+    }
+    if (char === "=" && !seenEquals) {
+      seenEquals = true;
+      continue;
+    }
+    if (seenEquals) {
+      value += char;
+    } else {
+      key += char;
+    }
+  }
+  if (escaped) {
+    if (seenEquals) {
+      value += "\\";
+    } else {
+      key += "\\";
+    }
+  }
+  pushCurrent();
+
+  return attributes;
 }
 
 /**
@@ -1563,29 +1644,36 @@ function normalizeRuntimeTokenUsage(rawUsage) {
   const usage = rawUsage;
   /** @type {{input_tokens?: number, output_tokens?: number, cache_read_tokens?: number, cache_write_tokens?: number}} */
   const normalized = {};
-  if (typeof usage.input_tokens === "number" && Number.isFinite(usage.input_tokens) && usage.input_tokens >= 0) {
-    normalized.input_tokens = usage.input_tokens;
+
+  const normalizeTokenCounter = rawValue => {
+    if (typeof rawValue === "number" && Number.isFinite(rawValue) && rawValue >= 0) {
+      return rawValue;
+    }
+    if (typeof rawValue === "string" && rawValue.trim()) {
+      const trimmed = rawValue.trim();
+      const parsed = Number(trimmed);
+      if (Number.isFinite(parsed) && parsed >= 0) {
+        return parsed;
+      }
+    }
+    return undefined;
+  };
+
+  const inputTokens = normalizeTokenCounter(usage.input_tokens);
+  if (typeof inputTokens === "number") {
+    normalized.input_tokens = inputTokens;
   }
-  if (typeof usage.output_tokens === "number" && Number.isFinite(usage.output_tokens) && usage.output_tokens >= 0) {
-    normalized.output_tokens = usage.output_tokens;
+  const outputTokens = normalizeTokenCounter(usage.output_tokens);
+  if (typeof outputTokens === "number") {
+    normalized.output_tokens = outputTokens;
   }
 
-  const cacheReadTokens =
-    typeof usage.cache_read_tokens === "number" && Number.isFinite(usage.cache_read_tokens) && usage.cache_read_tokens >= 0
-      ? usage.cache_read_tokens
-      : typeof usage.cache_read_input_tokens === "number" && Number.isFinite(usage.cache_read_input_tokens) && usage.cache_read_input_tokens >= 0
-        ? usage.cache_read_input_tokens
-        : undefined;
+  const cacheReadTokens = normalizeTokenCounter(usage.cache_read_tokens) ?? normalizeTokenCounter(usage.cache_read_input_tokens);
   if (typeof cacheReadTokens === "number") {
     normalized.cache_read_tokens = cacheReadTokens;
   }
 
-  const cacheWriteTokens =
-    typeof usage.cache_write_tokens === "number" && Number.isFinite(usage.cache_write_tokens) && usage.cache_write_tokens >= 0
-      ? usage.cache_write_tokens
-      : typeof usage.cache_creation_input_tokens === "number" && Number.isFinite(usage.cache_creation_input_tokens) && usage.cache_creation_input_tokens >= 0
-        ? usage.cache_creation_input_tokens
-        : undefined;
+  const cacheWriteTokens = normalizeTokenCounter(usage.cache_write_tokens) ?? normalizeTokenCounter(usage.cache_creation_input_tokens);
   if (typeof cacheWriteTokens === "number") {
     normalized.cache_write_tokens = cacheWriteTokens;
   }
@@ -2089,7 +2177,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // to avoid double-counting in backends that sum gen_ai.usage.* across all spans.
   // When no agent span is emitted the attributes fall through to the conclusion span
   // so a single query is still sufficient for observability.
-  const agentUsage = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || runtimeMetrics.tokenUsage || {};
+  const agentUsage = normalizeRuntimeTokenUsage(readJSONIfExists("/tmp/gh-aw/agent_usage.json")) || runtimeMetrics.tokenUsage || {};
   const usageAttrs = [];
   if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
     usageAttrs.push(buildAttr("gen_ai.usage.input_tokens", agentUsage.input_tokens));

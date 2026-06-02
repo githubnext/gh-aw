@@ -131,9 +131,14 @@ weights := types.TokenWeights{
 }
 ```
 
+## Dependencies
+
+**Internal**:
+- `github.com/github/gh-aw/pkg/logger` — package-scoped debug logging for input-definition fallback coercion
+
 ## Design Notes
 
-- This package has no dependencies on other `gh-aw` packages, making it safe to import from anywhere.
+- This package keeps internal dependencies minimal and currently only imports `pkg/logger` for debug logging. This minimal dependency footprint keeps it safe to import broadly without introducing package cycles.
 - All struct fields use both `json` and `yaml` struct tags so they can be round-tripped through both serialization formats.
 - `BaseMCPServerConfig` is designed to be embedded — packages add domain-specific fields and validation on top of the shared base.
 

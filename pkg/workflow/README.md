@@ -520,6 +520,7 @@ pkg/workflow ── FrontmatterConfig (typed structs)
 - `github.com/github/gh-aw/pkg/semverutil` — semantic version helpers
 - `github.com/github/gh-aw/pkg/typeutil` — safe type conversions
 - `github.com/github/gh-aw/pkg/tty` — terminal capability detection
+- `github.com/github/gh-aw/pkg/workflow/compilerenv` — enterprise compiler-default and model-override helpers
 - `github.com/github/gh-aw/pkg/stringutil`, `github.com/github/gh-aw/pkg/fileutil`, `github.com/github/gh-aw/pkg/gitutil`, `github.com/github/gh-aw/pkg/sliceutil` — utilities
 - `github.com/github/gh-aw/pkg/syncutil` — thread-safe one-shot caching (used for repository feature cache)
 - `github.com/github/gh-aw/pkg/types` — shared MCP types

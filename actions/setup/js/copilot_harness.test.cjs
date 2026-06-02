@@ -14,6 +14,7 @@ const {
   buildMissingToolPermissionIssuePayload,
   buildMissingToolAlternatives,
   buildInfrastructureIncompletePayload,
+  buildCopilotProxyAuthFailureDiagnostic,
   buildPromptFileFallbackInstruction,
   countPermissionDeniedIssues,
   detectCopilotErrors,
@@ -889,6 +890,46 @@ describe("copilot_harness.cjs", () => {
 
     it("does not match no-auth-info error", () => {
       expect(isAuthenticationFailedError("Error: No authentication information found.")).toBe(false);
+    });
+  });
+
+  describe("gh-aw API proxy auth diagnostics", () => {
+    it("rewrites local proxy 401 errors to COPILOT_GITHUB_TOKEN guidance", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 401).\nCheck your COPILOT_PROVIDER_API_KEY or COPILOT_PROVIDER_BEARER_TOKEN.", {
+        COPILOT_MODEL: "claude-sonnet-4.5",
+      });
+
+      expect(diagnostic).toContain("gh-aw API proxy");
+      expect(diagnostic).toContain("HTTP 401");
+      expect(diagnostic).toContain("model=claude-sonnet-4.5");
+      expect(diagnostic).toContain("stage=starting the Copilot CLI request");
+      expect(diagnostic).toContain("COPILOT_GITHUB_TOKEN");
+      expect(diagnostic).toContain("GH_AW_MODEL_AGENT_COPILOT");
+      expect(diagnostic).not.toContain("COPILOT_PROVIDER_API_KEY");
+    });
+
+    it("reports token-validation stage when present in the output", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Validating token with provider.\nAuthentication failed with provider at http://localhost:10002 (HTTP 401).", { COPILOT_MODEL: "gpt-4.1" });
+
+      expect(diagnostic).toContain("stage=validating the token");
+    });
+
+    it("reports model-listing stage when present in the output", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Listing models from /models endpoint.\nAuthentication failed with provider at http://api-proxy:10002 (HTTP 401).", { COPILOT_MODEL: "o4-mini" });
+
+      expect(diagnostic).toContain("stage=listing models");
+    });
+
+    it("ignores non-proxy provider auth failures", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at https://api.openai.com/v1 (HTTP 401).", { COPILOT_MODEL: "gpt-4.1" });
+
+      expect(diagnostic).toBe("");
+    });
+
+    it("ignores local BYOK provider auth failures on non-proxy ports", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://host.docker.internal:11434/v1 (HTTP 401).", { COPILOT_MODEL: "qwen2.5:0.5b" });
+
+      expect(diagnostic).toBe("");
     });
   });
 

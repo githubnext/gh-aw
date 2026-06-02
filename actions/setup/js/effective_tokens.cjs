@@ -316,10 +316,36 @@ function reduceModelNameToIdentifier(modelName) {
   for (const { familyPattern, versionPattern, prefix } of shortcuts) {
     if (!familyPattern.test(normalized)) continue;
     const version = extractModelVersionDigits(normalized, versionPattern);
-    return `${prefix}${version}`;
+    return `${prefix}${version}${extractKnownModelTierSuffix(normalized, prefix)}`;
   }
 
   return buildFallbackModelIdentifier(normalized, FALLBACK_LETTER_LENGTH, FALLBACK_DIGIT_LENGTH, FALLBACK_PADDING_CHAR);
+}
+
+/**
+ * Preserve useful tier qualifiers for families where the compact numeric identifier
+ * would otherwise hide an important distinction (for example gpt-5.4-mini vs gpt-5.4).
+ *
+ * @param {string} normalizedModelName
+ * @param {string} familyPrefix
+ * @returns {string}
+ */
+function extractKnownModelTierSuffix(normalizedModelName, familyPrefix) {
+  if (familyPrefix !== "gpt") return "";
+  if (hasDelimitedModelQualifier(normalizedModelName, "mini")) return "mini";
+  if (hasDelimitedModelQualifier(normalizedModelName, "nano")) return "nano";
+  if (hasDelimitedModelQualifier(normalizedModelName, "codex")) return "codex";
+  if (hasDelimitedModelQualifier(normalizedModelName, "pro")) return "pro";
+  return "";
+}
+
+/**
+ * @param {string} normalizedModelName
+ * @param {string} qualifier
+ * @returns {boolean}
+ */
+function hasDelimitedModelQualifier(normalizedModelName, qualifier) {
+  return new RegExp(`(^|[-_\\s])${qualifier}($|[-_\\s])`).test(normalizedModelName);
 }
 
 /**

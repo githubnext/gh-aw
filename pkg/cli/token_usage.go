@@ -33,6 +33,7 @@ type TokenUsageEntry struct {
 	OutputTokens     int    `json:"output_tokens"`
 	CacheReadTokens  int    `json:"cache_read_tokens"`
 	CacheWriteTokens int    `json:"cache_write_tokens"`
+	ReasoningTokens  int    `json:"reasoning_tokens"`
 	// EffectiveTokens is populated by agent_usage.json fallback data. token-usage.jsonl
 	// entries usually omit this field and rely on computed effective token totals.
 	EffectiveTokens int `json:"effective_tokens"`
@@ -69,6 +70,7 @@ type ModelTokenUsage struct {
 	OutputTokens     int    `json:"output_tokens" console:"header:Output,format:number"`
 	CacheReadTokens  int    `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
 	CacheWriteTokens int    `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
+	ReasoningTokens  int    `json:"reasoning_tokens,omitempty"`
 	Requests         int    `json:"requests" console:"header:Requests"`
 	DurationMs       int    `json:"duration_ms"`
 	ResponseBytes    int    `json:"response_bytes"`
@@ -163,6 +165,7 @@ func parseTokenUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 		m.OutputTokens += entry.OutputTokens
 		m.CacheReadTokens += entry.CacheReadTokens
 		m.CacheWriteTokens += entry.CacheWriteTokens
+		m.ReasoningTokens += entry.ReasoningTokens
 		m.Requests++
 		m.DurationMs += entry.DurationMs
 		m.ResponseBytes += entry.ResponseBytes
@@ -334,28 +337,34 @@ func parseAgentUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 		return nil, fmt.Errorf("failed to parse agent usage file: %w", err)
 	}
 
+	model := strings.TrimSpace(entry.Model)
+	if model == "" {
+		model = "unknown"
+	}
+
 	summary := &TokenUsageSummary{
 		TotalInputTokens:      entry.InputTokens,
 		TotalOutputTokens:     entry.OutputTokens,
 		TotalCacheReadTokens:  entry.CacheReadTokens,
 		TotalCacheWriteTokens: entry.CacheWriteTokens,
-		TotalEffectiveTokens:  entry.EffectiveTokens,
 		ByModel:               make(map[string]*ModelTokenUsage),
 	}
 
-	hasTokenData := summary.TotalInputTokens > 0 ||
+	hasRawTokenData := summary.TotalInputTokens > 0 ||
 		summary.TotalOutputTokens > 0 ||
 		summary.TotalCacheReadTokens > 0 ||
 		summary.TotalCacheWriteTokens > 0 ||
-		summary.TotalEffectiveTokens > 0
+		entry.ReasoningTokens > 0
+	hasTokenData := hasRawTokenData || entry.EffectiveTokens > 0
 	if hasTokenData {
 		summary.TotalRequests = 1
-		summary.ByModel["unknown"] = &ModelTokenUsage{
+		summary.ByModel[model] = &ModelTokenUsage{
 			Provider:         entry.Provider,
 			InputTokens:      entry.InputTokens,
 			OutputTokens:     entry.OutputTokens,
 			CacheReadTokens:  entry.CacheReadTokens,
 			CacheWriteTokens: entry.CacheWriteTokens,
+			ReasoningTokens:  entry.ReasoningTokens,
 			EffectiveTokens:  entry.EffectiveTokens,
 			Requests:         1,
 		}
@@ -367,10 +376,12 @@ func parseAgentUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 		EffectiveTokens: entry.InputTokens + entry.CacheReadTokens,
 	}
 
-	// If the file does not include effective_tokens, compute it using resolved
-	// token weights (custom aw_info weights when available, otherwise defaults).
-	if summary.TotalEffectiveTokens == 0 {
+	// Effective tokens are derived data; recompute from raw token usage whenever
+	// raw usage exists, otherwise keep fallback effective_tokens from the file.
+	if hasRawTokenData {
 		populateEffectiveTokensWithCustomWeights(summary, customWeights)
+	} else {
+		summary.TotalEffectiveTokens = entry.EffectiveTokens
 	}
 
 	tokenUsageLog.Printf("Parsed agent usage file: input=%d, output=%d, cache_read=%d, cache_write=%d, effective=%d",
@@ -526,7 +537,7 @@ func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, tokenUsageFile st
 			continue
 		}
 		et := computeModelEffectiveTokensWithWeights(
-			e.Model, e.InputTokens, e.OutputTokens, e.CacheReadTokens, e.CacheWriteTokens,
+			e.Model, e.Provider, e.InputTokens, e.OutputTokens, e.CacheReadTokens, e.CacheWriteTokens, e.ReasoningTokens,
 			multipliers, classWeights,
 		)
 		etEntries = append(etEntries, entryWithET{ts: ts, et: et})

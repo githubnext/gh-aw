@@ -42,7 +42,7 @@ const DefaultClaudeCodeVersion Version = "2.1.156"
 const DefaultCopilotVersion Version = "1.0.55"
 
 // DefaultCopilotSDKVersion is the default version of the @github/copilot-sdk package.
-const DefaultCopilotSDKVersion Version = "1.0.0-beta.9"
+const DefaultCopilotSDKVersion Version = "1.0.0"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion Version = "0.135.0"
