@@ -133,7 +133,7 @@ function buildCoreLogger(logger) {
       warning: message => core.warning(message),
     };
   } catch {
-    logger("sdk-mode: @actions/core unavailable; permission denials will be logged to harness output only");
+    logger("sdk-mode: @actions/core unavailable; permission-denied events will be logged to harness output only");
     return undefined;
   }
 }

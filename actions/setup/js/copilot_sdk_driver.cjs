@@ -97,6 +97,7 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
   if (!permissionConfig) {
     return undefined;
   }
+  const logger = logOptions?.logger ?? (() => {});
 
   const allowAll = permissionConfig?.allowAllTools === true;
   const allowedTools = Array.isArray(permissionConfig?.allowedTools) ? permissionConfig.allowedTools : [];
@@ -164,7 +165,6 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
     if (isAllowed(request)) {
       return { kind: "approve-once" };
     }
-    const logger = logOptions?.logger ?? (() => {});
     logPermissionDenied(logOptions?.coreLogger, logger, request);
     return { kind: "reject", feedback: "Tool invocation is not allowed by workflow tool permissions." };
   };
