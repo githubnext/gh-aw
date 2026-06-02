@@ -18,6 +18,8 @@ func (c *Compiler) validateOnNeeds(data *WorkflowData) error {
 		return nil
 	}
 
+	onNeedsValidationLog.Printf("Validating on.needs: %d target(s), %d job(s)", len(data.OnNeeds), len(data.Jobs))
+
 	if err := validateOnNeedsTargets(data); err != nil {
 		return err
 	}
@@ -90,6 +92,8 @@ func (c *Compiler) validateOnGitHubAppNeedsExpressions(data *WorkflowData) error
 		allowed[j] = true
 	}
 
+	onNeedsValidationLog.Printf("Validating on.github-app needs expressions against %d allowed pre-activation job(s)", len(allowed))
+
 	fields := map[string]string{
 		"client-id":   data.ActivationGitHubApp.AppID,
 		"private-key": data.ActivationGitHubApp.PrivateKey,
@@ -135,6 +139,8 @@ func (c *Compiler) validateOnNeedsDependencyChains(data *WorkflowData) error {
 	for _, job := range c.getCustomJobsReferencedInPromptWithNoActivationDep(data) {
 		promptReferencedSet[job] = true
 	}
+
+	onNeedsValidationLog.Printf("Validating on.needs dependency chains for %d root job(s)", len(data.OnNeeds))
 
 	visited := make(map[string]bool, len(data.Jobs))
 	visiting := make(map[string]bool, len(data.Jobs))
