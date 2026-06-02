@@ -15,7 +15,9 @@ permissions:
 
   copilot-requests: write
 tracker-id: daily-workflow-updater
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: true
 
 network:

@@ -34,7 +34,9 @@ permissions:
   pull-requests: read
   copilot-requests: write
 tracker-id: daily-cli-performance
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 tools:
   cli-proxy: true
   repo-memory:

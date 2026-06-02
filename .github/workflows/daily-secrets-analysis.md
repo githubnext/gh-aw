@@ -10,7 +10,9 @@ permissions:
   pull-requests: read
   discussions: read
   copilot-requests: write
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: true
 tracker-id: daily-secrets-analysis
 tools:
