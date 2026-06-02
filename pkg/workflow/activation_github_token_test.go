@@ -196,8 +196,8 @@ func TestActivationGitHubApp(t *testing.T) {
 		// Both steps should use the same app token
 		assert.Contains(t, stepsStr, "id: react", "Reaction step should be present")
 		assert.Contains(t, stepsStr, "id: add-comment", "Add-comment step should be present")
-		// Both reaction and comment steps should use the same app token, and the hash check step too
-		assert.Equal(t, 3, strings.Count(stepsStr, "github-token: ${{ steps.activation-app-token.outputs.token }}"), "Reaction, comment, and hash check steps should all use app token")
+		// Reaction, comment, hash check, and daily guardrail steps should all use the same app token
+		assert.Equal(t, 4, strings.Count(stepsStr, "github-token: ${{ steps.activation-app-token.outputs.token }}"), "Reaction, comment, hash check, and daily guardrail steps should all use app token")
 	})
 	t.Run("app_token_minted_for_hash_check_even_without_reaction_or_comment", func(t *testing.T) {
 		// Regression test: when ActivationGitHubApp is set but no reaction/comment/label step

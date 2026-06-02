@@ -56,7 +56,7 @@ func NewCodexEngine() *CodexEngine {
 			experimental: false,
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
-				MaxTurns:         false, // Codex does not support max-turns feature
+				MaxTurns:         true,  // AWF max-turns is supported for Codex runs
 				MaxContinuations: false, // Codex does not support --max-autopilot-continues-style continuation mode
 				WebSearch:        true,  // Codex has built-in web-search support
 				NativeAgentFile:  false, // Codex does not support agent file natively; the compiler prepends the agent file content to prompt.txt
@@ -432,6 +432,12 @@ mkdir -p "$CODEX_HOME/logs"
 	// Supports both literal integers and GitHub Actions expressions (e.g. "${{ inputs.tool-timeout }}")
 	if workflowData.ToolsTimeout != "" {
 		env["GH_AW_TOOL_TIMEOUT"] = workflowData.ToolsTimeout
+	}
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	} else {
+		env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
 	}
 
 	// Set the model environment variable.

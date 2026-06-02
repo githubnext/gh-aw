@@ -20,7 +20,7 @@ func TestOpenCodeEngine(t *testing.T) {
 		assert.Equal(t, "OpenCode", engine.GetDisplayName(), "Display name should be 'OpenCode'")
 		assert.True(t, engine.IsExperimental(), "OpenCode engine should be experimental")
 		assert.False(t, capabilities.ToolsAllowlist, "Should not support tools allowlist")
-		assert.False(t, capabilities.MaxTurns, "Should not support max turns")
+		assert.True(t, capabilities.MaxTurns, "Should support max turns")
 		assert.False(t, capabilities.WebSearch, "Should not support built-in web search")
 	})
 

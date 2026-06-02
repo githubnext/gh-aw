@@ -5,22 +5,18 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-func TestMaxTurnsValidationWithUnsupportedEngine(t *testing.T) {
+func TestMaxTurnsValidationWithSupportedEngines(t *testing.T) {
 	tests := []struct {
-		name        string
-		content     string
-		engine      string
-		expectError bool
-		errorMsg    string
+		name    string
+		content string
 	}{
 		{
-			name: "max-turns with codex engine should fail",
+			name: "max-turns with codex engine should succeed",
 			content: `---
 on:
   workflow_dispatch:
@@ -35,10 +31,7 @@ engine:
 
 # Test Workflow
 
-This should fail because codex doesn't support max-turns.`,
-			engine:      "codex",
-			expectError: true,
-			errorMsg:    "max-turns not supported: engine 'codex' does not support the max-turns feature",
+This should succeed because AWF max-turns is supported across engines.`,
 		},
 		{
 			name: "max-turns with claude engine should succeed",
@@ -56,12 +49,10 @@ engine:
 
 # Test Workflow
 
-This should succeed because claude supports max-turns.`,
-			engine:      "claude",
-			expectError: false,
+This should succeed because AWF max-turns is supported across engines.`,
 		},
 		{
-			name: "codex engine without max-turns should succeed",
+			name: "top-level max-turns expression with copilot engine should succeed",
 			content: `---
 on:
   workflow_dispatch:
@@ -69,32 +60,13 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine: codex
+engine: copilot
+max-turns: "${{ inputs.max-turns }}"
 ---
 
 # Test Workflow
 
-This should succeed because no max-turns is specified.`,
-			engine:      "codex",
-			expectError: false,
-		},
-		{
-			name: "claude engine without max-turns should succeed",
-			content: `---
-on:
-  workflow_dispatch:
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-engine: claude
----
-
-# Test Workflow
-
-This should succeed because no max-turns is specified.`,
-			engine:      "claude",
-			expectError: false,
+This should succeed because top-level max-turns supports expressions.`,
 		},
 	}
 
@@ -116,22 +88,8 @@ This should succeed because no max-turns is specified.`,
 			// Try to compile the workflow
 			err := compiler.CompileWorkflow(testFile)
 
-			if tt.expectError {
-				// We expect an error
-				if err == nil {
-					t.Errorf("Expected error but compilation succeeded")
-					return
-				}
-
-				// Check if the error message contains the expected text
-				if !strings.Contains(err.Error(), tt.errorMsg) {
-					t.Errorf("Expected error message to contain '%s', but got: %s", tt.errorMsg, err.Error())
-				}
-			} else {
-				// We don't expect an error
-				if err != nil {
-					t.Errorf("Expected compilation to succeed but got error: %v", err)
-				}
+			if err != nil {
+				t.Errorf("Expected compilation to succeed but got error: %v", err)
 			}
 		})
 	}
@@ -149,9 +107,39 @@ func TestEngineSupportsMaxTurns(t *testing.T) {
 			expectedSupport: true,
 		},
 		{
-			name:            "codex engine does not support max-turns",
+			name:            "codex engine supports max-turns",
 			engineID:        "codex",
-			expectedSupport: false,
+			expectedSupport: true,
+		},
+		{
+			name:            "copilot engine supports max-turns",
+			engineID:        "copilot",
+			expectedSupport: true,
+		},
+		{
+			name:            "gemini engine supports max-turns",
+			engineID:        "gemini",
+			expectedSupport: true,
+		},
+		{
+			name:            "opencode engine supports max-turns",
+			engineID:        "opencode",
+			expectedSupport: true,
+		},
+		{
+			name:            "crush engine supports max-turns",
+			engineID:        "crush",
+			expectedSupport: true,
+		},
+		{
+			name:            "pi engine supports max-turns",
+			engineID:        "pi",
+			expectedSupport: true,
+		},
+		{
+			name:            "antigravity engine supports max-turns",
+			engineID:        "antigravity",
+			expectedSupport: true,
 		},
 	}
 
