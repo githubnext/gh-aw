@@ -119,18 +119,3 @@ func hasWorkflowExplicitMaxDailyEffectiveTokensDisable(data *WorkflowData) bool 
 func hasMaxDailyEffectiveTokensFrontmatterConfig(data *WorkflowData) bool {
 	return data != nil && data.MaxDailyEffectiveTokens != nil && strings.TrimSpace(*data.MaxDailyEffectiveTokens) != ""
 }
-
-func hasMaxDailyEffectiveTokensEnvConfig(envYAML string) bool {
-	for line := range strings.SplitSeq(envYAML, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if strings.HasPrefix(trimmed, maxDailyEffectiveTokensEnvVar+":") ||
-			strings.HasPrefix(trimmed, `"`+maxDailyEffectiveTokensEnvVar+`":`) ||
-			strings.HasPrefix(trimmed, `'`+maxDailyEffectiveTokensEnvVar+`':`) {
-			return true
-		}
-	}
-	return false
-}
