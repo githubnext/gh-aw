@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
+const { runProcess, formatDuration, sleep, buildCopilotSDKEnv, isCopilotSDKEnabled } = require("./process_runner.cjs");
 
 describe("process_runner.cjs", () => {
   describe("formatDuration", () => {
@@ -196,6 +196,59 @@ describe("process_runner.cjs", () => {
       // chars the spawn log line must end with at most 200 consecutive x's.
       const trailingXs = spawnLog?.match(/x+$/)?.[0] ?? "";
       expect(trailingXs.length).toBeLessThanOrEqual(200);
+    });
+
+    describe("copilot sdk env helpers", () => {
+      it("detects copilot sdk mode from COPILOT_SDK_URI", () => {
+        expect(isCopilotSDKEnabled({ COPILOT_SDK_URI: "http://127.0.0.1:3000" })).toBe(true);
+        expect(isCopilotSDKEnabled({})).toBe(false);
+      });
+
+      it("returns empty env when sdk mode is disabled", () => {
+        expect(buildCopilotSDKEnv({})).toEqual({});
+      });
+
+      it("forwards COPILOT_SDK_URI in sdk mode", () => {
+        expect(buildCopilotSDKEnv({ COPILOT_SDK_URI: "http://127.0.0.1:3000" })).toEqual({
+          COPILOT_SDK_URI: "http://127.0.0.1:3000",
+        });
+      });
+
+      it("derives COPILOT_SDK_SEND_TIMEOUT_MS from GH_AW_TIMEOUT_MINUTES", () => {
+        expect(
+          buildCopilotSDKEnv({
+            COPILOT_SDK_URI: "http://127.0.0.1:3000",
+            GH_AW_TIMEOUT_MINUTES: "60",
+          })
+        ).toEqual({
+          COPILOT_SDK_URI: "http://127.0.0.1:3000",
+          COPILOT_SDK_SEND_TIMEOUT_MS: "3570000",
+        });
+      });
+
+      it("respects an explicit COPILOT_SDK_SEND_TIMEOUT_MS override", () => {
+        expect(
+          buildCopilotSDKEnv({
+            COPILOT_SDK_URI: "http://127.0.0.1:3000",
+            GH_AW_TIMEOUT_MINUTES: "60",
+            COPILOT_SDK_SEND_TIMEOUT_MS: "1234",
+          })
+        ).toEqual({
+          COPILOT_SDK_URI: "http://127.0.0.1:3000",
+          COPILOT_SDK_SEND_TIMEOUT_MS: "1234",
+        });
+      });
+
+      it("ignores invalid GH_AW_TIMEOUT_MINUTES values", () => {
+        expect(
+          buildCopilotSDKEnv({
+            COPILOT_SDK_URI: "http://127.0.0.1:3000",
+            GH_AW_TIMEOUT_MINUTES: "not-a-number",
+          })
+        ).toEqual({
+          COPILOT_SDK_URI: "http://127.0.0.1:3000",
+        });
+      });
     });
   });
 });
