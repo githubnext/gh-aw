@@ -365,6 +365,9 @@ func TestBuildAgenticWorkflowsSkillContentWithoutAWDirectory(t *testing.T) {
 	if strings.Contains(content, agenticWorkflowsSkillFileListPlaceholder) {
 		t.Fatalf("expected generated skill content to replace the file-list placeholder:\n%s", content)
 	}
+	if strings.Contains(content, "- `.github/aw/") {
+		t.Fatalf("expected generated skill content without .github/aw markdown file list when none exist:\n%s", content)
+	}
 }
 
 func TestBuildAgenticWorkflowsSkillContentWithEmptyAWDirectory(t *testing.T) {

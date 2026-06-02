@@ -27,7 +27,7 @@ func TestUpgradeCommand_OnExistingRepository(t *testing.T) {
 	assert.Contains(t, outputStr, "Upgrade complete", "Should report upgrade complete")
 }
 
-func TestInitAndUpgrade_WithEmptyAWDirectory(t *testing.T) {
+func TestInitAndUpgradeWithEmptyAWDirectory(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
