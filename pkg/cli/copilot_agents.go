@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -17,12 +20,18 @@ import (
 var copilotAgentsLog = logger.New("cli:copilot_agents")
 
 const agenticWorkflowsSkillFileListPlaceholder = "{{AW_FILE_LIST}}"
+const ghAWMarkdownFilesAPIURL = "https://api.github.com/repos/github/gh-aw/contents/.github/aw?ref=main"
 
 //go:embed data/agentic_workflows_agent.md
 var agenticWorkflowsAgentTemplate string
 
 //go:embed data/agentic_workflows_skill.md
 var agenticWorkflowsSkillTemplate string
+
+//go:embed data/agentic_workflows_fallback_aw_files.json
+var agenticWorkflowsFallbackAWFiles string
+
+var listAgenticWorkflowsMarkdownFiles = fetchAgenticWorkflowsMarkdownFiles
 
 // ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md
 // exists and contains the routing instructions loaded by the Agentic Workflows agent.
@@ -153,30 +162,16 @@ func minimalAgenticWorkflowsSkillContent() string {
 }
 
 func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
-	awRoot := filepath.Join(gitRoot, ".github", "aw")
-	entries, err := os.ReadDir(awRoot)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// No .github/aw directory yet — emit a minimal skill without the file list.
-			return minimalAgenticWorkflowsSkillContent(), nil
-		}
-		return "", fmt.Errorf("failed to read .github/aw directory for skill generation (%s): %w", awRoot, err)
-	}
+	_ = gitRoot
 
-	awFiles := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
-			continue
-		}
-		awFiles = append(awFiles, entry.Name())
+	awFiles, err := listAgenticWorkflowsMarkdownFiles(context.Background())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch .github/aw markdown file list from github/gh-aw: %v. Falling back to embedded list.", err)))
+		awFiles = embeddedFallbackAWMarkdownFiles()
 	}
 	sort.Strings(awFiles)
-
 	if len(awFiles) == 0 {
-		// .github/aw may exist for non-markdown artifacts (e.g. actions-lock.json, logs/).
-		// Emit a minimal skill without an explicit file list in that case.
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(".github/aw exists but contains no markdown workflow files — emitting minimal skill"))
-		return minimalAgenticWorkflowsSkillContent(), nil
+		return "", fmt.Errorf("no .github/aw markdown files available from remote or embedded fallback")
 	}
 
 	var fileList strings.Builder
@@ -189,6 +184,60 @@ func buildAgenticWorkflowsSkillContent(gitRoot string) (string, error) {
 	}
 
 	return strings.Replace(agenticWorkflowsSkillTemplate, agenticWorkflowsSkillFileListPlaceholder, fileList.String(), 1), nil
+}
+
+type gitHubRepositoryContentEntry struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+func fetchAgenticWorkflowsMarkdownFiles(ctx context.Context) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ghAWMarkdownFilesAPIURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build github API request: %w", err)
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "gh-aw")
+
+	client := &http.Client{Timeout: constants.DefaultHTTPClientTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("github API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("github API returned %s", resp.Status)
+	}
+
+	var entries []gitHubRepositoryContentEntry
+	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
+		return nil, fmt.Errorf("failed to decode github API response: %w", err)
+	}
+
+	awFiles := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Type != "file" || !strings.HasSuffix(entry.Name, ".md") {
+			continue
+		}
+		awFiles = append(awFiles, entry.Name)
+	}
+
+	if len(awFiles) == 0 {
+		return nil, fmt.Errorf("github API returned no markdown files")
+	}
+
+	sort.Strings(awFiles)
+	return awFiles, nil
+}
+
+func embeddedFallbackAWMarkdownFiles() []string {
+	var awFiles []string
+	if err := json.Unmarshal([]byte(agenticWorkflowsFallbackAWFiles), &awFiles); err != nil {
+		return nil
+	}
+	sort.Strings(awFiles)
+	return awFiles
 }
 
 // cleanupOldPromptFile removes an old prompt file from .github/prompts/ if it exists
