@@ -47,11 +47,12 @@ steps:
   - name: Download agentic workflow logs
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DATE_RANGE_INPUT: ${{ github.event.inputs.date_range }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/token-audit
 
-      DATE_RANGE="${{ github.event.inputs.date_range || '-30d..now' }}"
+      DATE_RANGE="$DATE_RANGE_INPUT"
       if [[ "$DATE_RANGE" != *".."* ]]; then
         echo "❌ Invalid date_range input: $DATE_RANGE"
         echo "Expected format: <start>..<end> (for example 2026-05-01..2026-05-31 or -30d..now)"
@@ -183,7 +184,7 @@ Handle null/missing `token_usage` by treating them as 0.
 2. Copy it to `/tmp/gh-aw/repo-memory/default/YYYY-MM-DD.json` (today's UTC date).
 3. This file is what the optimizer workflow reads to identify high-usage workflows.
 
-Also maintain a rolling summary file at `/tmp/gh-aw/repo-memory/default/rolling-summary.json` that contains an array of daily overall totals (date, total_tokens, total_runs, total_action_minutes) for the last 90 entries. Load the existing file, append today's entry, trim to 90, and save.
+Also maintain a rolling summary file at `/tmp/gh-aw/repo-memory/default/rolling-summary.json` that contains an array of daily overall totals (date, total_tokens, total_runs, total_action_minutes) for the last 90 entries. Load the existing file, append today's entry, de-duplicate by `date` (keep the newest entry for a duplicated date), sort ascending by date, trim the oldest items if there are more than 90 entries, and save.
 
 Do not append a synthetic zero-valued entry to `rolling-summary.json` when either of these conditions is true:
 
@@ -201,7 +202,7 @@ Create up to two chart images in `/tmp/gh-aw/token-audit/charts/` using Python, 
 
 Chart requirements:
 
-- The preinstalled Python packages live in `/tmp/gh-aw/token-audit/site-packages`. Set `PYTHONPATH=/tmp/gh-aw/token-audit/site-packages${PYTHONPATH:+:$PYTHONPATH}` for every Python command that imports `pandas`, `matplotlib`, or `seaborn`, for example: `PYTHONPATH=/tmp/gh-aw/token-audit/site-packages${PYTHONPATH:+:$PYTHONPATH} python3 /tmp/gh-aw/token-audit/process_audit.py`.
+- The preinstalled Python packages live in `/tmp/gh-aw/token-audit/site-packages`. Set `PYTHONPATH=/tmp/gh-aw/token-audit/site-packages${PYTHONPATH:+:$PYTHONPATH}` for every Python command you write in Phase 1 or Phase 3 that imports `pandas`, `matplotlib`, or `seaborn`, for example: `PYTHONPATH=/tmp/gh-aw/token-audit/site-packages${PYTHONPATH:+:$PYTHONPATH} python3 /tmp/gh-aw/token-audit/process_audit.py`.
 - Use 300 DPI and a white background.
 - Add clear axis labels and titles.
 - Save only PNG files.
