@@ -217,6 +217,14 @@ workflow started by the same triggering user.
 max-daily-effective-tokens: 15000000
 ```
 
+You can also configure the same threshold via environment variable
+to make the guardrail configurable per environment or workflow call:
+
+```aw wrap
+env:
+  GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: ${{ vars.AWF_DAILY_ET_LIMIT }}
+```
+
 When the total from the past 24 hours already meets or exceeds this threshold, the activation
 job warns, creates an issue, skips the agent job, and lets the
 conclusion job report the failure context.
