@@ -41,7 +41,6 @@ const {
   runWithCopilotSDK,
   writeCopilotOutputs,
   readSDKOptionsFromStdin,
-  buildCopilotSDKPermissionConfigFromServerArgs,
 } = require("./copilot_harness.cjs");
 
 describe("copilot_harness.cjs", () => {
@@ -1706,17 +1705,25 @@ describe("copilot_harness.cjs", () => {
       expect(result).toEqual({ promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt" });
     });
 
-    it("parses full payload with promptFile, serverArgs, and addWorkspaceDir", async () => {
+    it("parses full payload with promptFile, serverArgs, addWorkspaceDir, and permissionConfig", async () => {
       const payload = JSON.stringify({
         promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
         serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
         addWorkspaceDir: true,
+        permissionConfig: {
+          allowAllTools: false,
+          allowedTools: ["github(get_file_contents)", "shell(git:*)"],
+        },
       });
       const result = await runWithFakeStdin(payload);
       expect(result).toEqual({
         promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
         serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
         addWorkspaceDir: true,
+        permissionConfig: {
+          allowAllTools: false,
+          allowedTools: ["github(get_file_contents)", "shell(git:*)"],
+        },
       });
     });
 
@@ -1746,19 +1753,6 @@ describe("copilot_harness.cjs", () => {
     it("handles extra whitespace around JSON", async () => {
       const result = await runWithFakeStdin('\n  {"promptFile":"/tmp/prompt.txt"}  \n');
       expect(result).toEqual({ promptFile: "/tmp/prompt.txt" });
-    });
-  });
-
-  describe("buildCopilotSDKPermissionConfigFromServerArgs", () => {
-    it("returns null when no permission flags are present", () => {
-      expect(buildCopilotSDKPermissionConfigFromServerArgs(["--headless", "--port", "3002"])).toBeNull();
-    });
-
-    it("extracts allow-all and allow-tool entries", () => {
-      expect(buildCopilotSDKPermissionConfigFromServerArgs(["--headless", "--allow-tool", "shell(git:*)", "--allow-tool", "github(get_file_contents)", "--allow-all-tools"])).toEqual({
-        allowAllTools: true,
-        allowedTools: ["github(get_file_contents)", "shell(git:*)"],
-      });
     });
   });
 

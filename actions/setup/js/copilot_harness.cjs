@@ -488,10 +488,10 @@ async function checkCommandAccessible(command) {
 
 /**
  * Read and parse the JSON options payload piped to stdin by the engine command.
- * Called in SDK mode where the Go engine pipes options via `printf '%s' '{"promptFile":"...","serverArgs":[...]}'
+ * Called in SDK mode where the Go engine pipes options via `printf '%s' '{"promptFile":"...","serverArgs":[...],"permissionConfig":{...}}'
  * | node harness`.
  * Returns null when stdin is a TTY, empty, or contains invalid JSON.
- * @returns {Promise<{promptFile?: string, serverArgs?: string[], addWorkspaceDir?: boolean} | null>}
+ * @returns {Promise<{promptFile?: string, serverArgs?: string[], addWorkspaceDir?: boolean, permissionConfig?: {allowAllTools?: boolean, allowedTools?: string[]}} | null>}
  */
 async function readSDKOptionsFromStdin() {
   if (process.stdin.isTTY) return null;
@@ -517,47 +517,6 @@ async function readSDKOptionsFromStdin() {
     });
     process.stdin.on("error", () => resolve(null));
   });
-}
-
-/**
- * Build scoped SDK permission config from Copilot CLI server args.
- * Extracts --allow-all-tools and --allow-tool entries emitted by the compiler.
- *
- * @param {string[] | undefined} serverArgs
- * @returns {{allowAllTools?: boolean, allowedTools?: string[]} | null}
- */
-function buildCopilotSDKPermissionConfigFromServerArgs(serverArgs) {
-  if (!Array.isArray(serverArgs) || serverArgs.length === 0) return null;
-
-  let allowAllTools = false;
-  /** @type {Set<string>} */
-  const allowedTools = new Set();
-
-  for (let i = 0; i < serverArgs.length; i++) {
-    const arg = serverArgs[i];
-    if (arg === "--allow-all-tools") {
-      allowAllTools = true;
-      continue;
-    }
-    if (arg === "--allow-tool" && i + 1 < serverArgs.length) {
-      const value = String(serverArgs[i + 1]).trim();
-      if (value) {
-        allowedTools.add(value);
-      }
-      i++;
-    }
-  }
-
-  if (!allowAllTools && allowedTools.size === 0) return null;
-
-  const config = {};
-  if (allowAllTools) {
-    config.allowAllTools = true;
-  }
-  if (allowedTools.size > 0) {
-    config.allowedTools = [...allowedTools].sort((a, b) => a.localeCompare(b));
-  }
-  return config;
 }
 
 /**
@@ -656,13 +615,13 @@ async function main() {
   // path, serverArgs (complete CLI argument list for the headless server), and optionally addWorkspaceDir.
   // Read it before doing anything else so stdin is consumed before the process runs.
   // In CLI mode, args are resolved normally (--prompt-file is inlined into -p <text>).
-  /** @type {{promptFile?: string, serverArgs?: string[], addWorkspaceDir?: boolean} | null} */
+  /** @type {{promptFile?: string, serverArgs?: string[], addWorkspaceDir?: boolean, permissionConfig?: {allowAllTools?: boolean, allowedTools?: string[]}} | null} */
   let sdkOptions = null;
   let resolvedArgs;
   if (copilotSDKMode) {
     sdkOptions = await readSDKOptionsFromStdin();
     if (sdkOptions) {
-      log(`sdk-options: promptFile=${sdkOptions.promptFile || "(none)"} serverArgs=${(sdkOptions.serverArgs || []).length} addWorkspaceDir=${!!sdkOptions.addWorkspaceDir}`);
+      log(`sdk-options: promptFile=${sdkOptions.promptFile || "(none)"} serverArgs=${(sdkOptions.serverArgs || []).length} addWorkspaceDir=${!!sdkOptions.addWorkspaceDir} permissionRules=${(sdkOptions.permissionConfig?.allowedTools || []).length} allowAllTools=${sdkOptions.permissionConfig?.allowAllTools === true}`);
     }
     // SDK mode does not use CLI prompt args; pass args through unmodified.
     resolvedArgs = args;
@@ -782,7 +741,7 @@ async function main() {
             model: sdkCustomProviderConfig?.model,
             connectionToken: copilotConnectionToken,
             provider: sdkCustomProviderConfig?.provider,
-            permissionConfig: buildCopilotSDKPermissionConfigFromServerArgs(sdkOptions?.serverArgs),
+            permissionConfig: sdkOptions?.permissionConfig,
           });
         } else {
           result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
@@ -1008,7 +967,6 @@ if (typeof module !== "undefined" && module.exports) {
     resolvePromptFileArgs,
     extractPromptFromArgs,
     readSDKOptionsFromStdin,
-    buildCopilotSDKPermissionConfigFromServerArgs,
     runWithCopilotSDK,
   };
 }

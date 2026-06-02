@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -49,6 +50,14 @@ type copilotSDKStdinOptions struct {
 	// server args at runtime.  This is needed in sandbox (AWF) mode where the workspace is
 	// only known via the environment variable at execution time.
 	AddWorkspaceDir bool `json:"addWorkspaceDir,omitempty"`
+	// PermissionConfig carries a normalized SDK permission model derived by the Go engine.
+	// This avoids JS-side parsing of Copilot CLI flags such as --allow-tool/--allow-all-tools.
+	PermissionConfig *copilotSDKPermissionConfig `json:"permissionConfig,omitempty"`
+}
+
+type copilotSDKPermissionConfig struct {
+	AllowAllTools bool     `json:"allowAllTools,omitempty"`
+	AllowedTools  []string `json:"allowedTools,omitempty"`
 }
 
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
@@ -244,9 +253,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			copilotArgs...,
 		)
 		sdkOptions := copilotSDKStdinOptions{
-			PromptFile:      "/tmp/gh-aw/aw-prompts/prompt.txt",
-			ServerArgs:      serverArgs,
-			AddWorkspaceDir: sandboxEnabled,
+			PromptFile:       "/tmp/gh-aw/aw-prompts/prompt.txt",
+			ServerArgs:       serverArgs,
+			AddWorkspaceDir:  sandboxEnabled,
+			PermissionConfig: buildCopilotSDKPermissionConfig(toolArgs),
 		}
 		optionsJSON, err := json.Marshal(sdkOptions)
 		if err != nil {
@@ -680,6 +690,51 @@ cat > %s <<'%s'
 %s
 %s
 chmod 700 %s`, customEngineCommandScriptPath, heredocDelimiter, scriptContent, heredocDelimiter, customEngineCommandScriptPath)
+}
+
+func buildCopilotSDKPermissionConfig(toolArgs []string) *copilotSDKPermissionConfig {
+	if len(toolArgs) == 0 {
+		return nil
+	}
+
+	allowAllTools := false
+	allowedToolsSet := map[string]struct{}{}
+	for i := 0; i < len(toolArgs); i++ {
+		switch toolArgs[i] {
+		case "--allow-all-tools":
+			allowAllTools = true
+		case "--allow-tool":
+			if i+1 >= len(toolArgs) {
+				continue
+			}
+			value := strings.TrimSpace(toolArgs[i+1])
+			if strings.HasPrefix(value, "--") {
+				continue
+			}
+			if value != "" {
+				allowedToolsSet[value] = struct{}{}
+			}
+			i++
+		}
+	}
+
+	if !allowAllTools && len(allowedToolsSet) == 0 {
+		return nil
+	}
+
+	config := &copilotSDKPermissionConfig{}
+	if allowAllTools {
+		config.AllowAllTools = true
+	}
+	if len(allowedToolsSet) > 0 {
+		config.AllowedTools = make([]string, 0, len(allowedToolsSet))
+		for tool := range allowedToolsSet {
+			config.AllowedTools = append(config.AllowedTools, tool)
+		}
+		sort.Strings(config.AllowedTools)
+	}
+
+	return config
 }
 
 // generateCopilotSessionFileCopyStep generates a step to copy the entire Copilot

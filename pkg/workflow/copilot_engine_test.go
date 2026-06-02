@@ -318,6 +318,33 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	}
 }
 
+func TestCopilotEngineExecutionStepsWithCopilotSDKPermissionConfig(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			CopilotSDK: true,
+		},
+		Tools: map[string]any{
+			"bash": []any{"git"},
+			"edit": nil,
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, `"permissionConfig":{`) {
+		t.Fatalf("Expected SDK mode JSON payload to include permissionConfig, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, `"allowedTools":["shell(git:*)","write"]`) {
+		t.Fatalf("Expected SDK mode permissionConfig.allowedTools to include normalized rules, got:\n%s", stepContent)
+	}
+}
+
 func TestCopilotEngineExecutionStepsAlwaysInjectsIntegrationIDAfterEnvMerges(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
