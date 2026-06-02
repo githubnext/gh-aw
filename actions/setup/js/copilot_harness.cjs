@@ -133,32 +133,6 @@ function generateCopilotConnectionToken(options) {
 }
 
 /**
- * Read AWF /reflect output and return it as a single-line serialized JSON string.
- * Returns an empty string when the file cannot be read or parsed.
- *
- * @param {{
- *   reflectPath?: string,
- *   readFileSync?: (path: string, encoding: BufferEncoding) => string,
- *   logger?: (msg: string) => void,
- * }} [options]
- * @returns {string}
- */
-function readSerializedReflectData(options) {
-  const reflectPath = options?.reflectPath || AWF_REFLECT_OUTPUT_PATH;
-  const readFile = options?.readFileSync || fs.readFileSync;
-  const logger = options?.logger || log;
-  try {
-    const raw = readFile(reflectPath, "utf8");
-    const parsed = JSON.parse(raw);
-    return JSON.stringify(parsed);
-  } catch (error) {
-    const err = /** @type {Error} */ error;
-    logger(`sdk-mode: unable to load serialized reflect data from ${reflectPath}: ${err.message}`);
-    return "";
-  }
-}
-
-/**
  * Determines if the collected output contains a transient CAPIError 400
  * @param {string} output - Collected stdout+stderr from the process
  * @returns {boolean}
@@ -659,9 +633,9 @@ async function main() {
   // This is best-effort: failures are logged but do not affect the agent run.
   // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. sandbox.agent: false — no api-proxy running).
   if (process.env.AWF_REFLECT_ENABLED === "1") {
-    await fetchAWFReflect({ logger: log });
+    const reflectResult = await fetchAWFReflect({ logger: log });
     if (copilotSDKMode) {
-      const serializedReflectData = readSerializedReflectData({ logger: log });
+      const serializedReflectData = reflectResult.ok && reflectResult.reflectData ? JSON.stringify(reflectResult.reflectData) : "";
       if (serializedReflectData) {
         sdkChildEnv[COPILOT_SDK_REFLECT_DATA_ENV_VAR] = serializedReflectData;
         if (childEnv) {
@@ -983,7 +957,6 @@ if (typeof module !== "undefined" && module.exports) {
     fetchModelsFromUrl,
     buildCopilotProxyAuthFailureDiagnostic,
     generateCopilotConnectionToken,
-    readSerializedReflectData,
     buildCopilotSDKServerArgs,
     getCopilotSDKServerPort,
     isDetectionPhase,

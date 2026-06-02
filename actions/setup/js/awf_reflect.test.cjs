@@ -239,12 +239,14 @@ describe("awf_reflect.cjs", () => {
           logger: msg => logs.push(msg),
         });
 
-        expect(result).toEqual({
+        expect(result).toMatchObject({
           ok: true,
           reflectUrl: "http://api-proxy:10000/reflect",
           outputPath,
           bytesWritten: expect.any(Number),
+          reflectData: expect.any(Object),
         });
+        expect(result.reflectData.endpoints[0].models).toEqual(["gpt-4o", "gpt-4o-mini"]);
         const saved = JSON.parse(fs.readFileSync(outputPath, "utf8"));
         expect(saved.endpoints[0].models).toEqual(["gpt-4o", "gpt-4o-mini"]);
         expect(logs.some(l => l.includes("saved "))).toBe(true);

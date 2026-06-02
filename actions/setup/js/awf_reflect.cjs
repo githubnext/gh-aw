@@ -226,6 +226,7 @@ async function enrichReflectModels(reflectData, timeoutMs, logger) {
  *   reflectUrl: string,
  *   outputPath: string,
  *   bytesWritten?: number,
+ *   reflectData?: object,
  *   reason?: "unexpected_status"|"timeout"|"request_failed",
  *   status?: number,
  *   error?: string,
@@ -275,6 +276,7 @@ async function fetchAWFReflect(options) {
       reflectUrl,
       outputPath,
       bytesWritten: enrichedBody.length,
+      reflectData,
     };
   } catch (err) {
     const e = /** @type {Error} */ err;
