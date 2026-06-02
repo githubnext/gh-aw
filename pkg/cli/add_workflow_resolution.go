@@ -265,9 +265,12 @@ func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*R
 }
 
 func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec *RepoSpec, pkg *resolvedRepositoryPackage) []*WorkflowSpec {
+	if pkg == nil {
+		return parsedSpecs
+	}
 	host := explicitHostForRepo(repoSpec.RepoSlug)
 	resolvedVersion := repoSpec.Version
-	if resolvedVersion == "" && pkg != nil {
+	if resolvedVersion == "" {
 		resolvedVersion = pkg.ResolvedRef
 	}
 	for _, installationSource := range pkg.InstallationSource {
