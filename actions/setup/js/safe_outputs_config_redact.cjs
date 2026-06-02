@@ -22,12 +22,7 @@ function redactSensitiveConfig(value) {
     return value.map(redactSensitiveConfig);
   }
   if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(/** @type {Record<string, unknown>} */ (value)).map(([key, nestedValue]) => [
-        key,
-        isSensitiveConfigKey(key) ? "***REDACTED***" : redactSensitiveConfig(nestedValue),
-      ]),
-    );
+    return Object.fromEntries(Object.entries(/** @type {Record<string, unknown>} */ value).map(([key, nestedValue]) => [key, isSensitiveConfigKey(key) ? "***REDACTED***" : redactSensitiveConfig(nestedValue)]));
   }
   return value;
 }

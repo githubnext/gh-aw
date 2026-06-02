@@ -203,7 +203,7 @@ describe("safe_outputs_config", () => {
             "github-token": "${WRITE_PROJECT_PAT}",
             "target-repo": "${GH_AW_INPUT_TARGET_REPO}",
           },
-        }),
+        })
       );
 
       /** @type {import("./safe_outputs_config.cjs").LoadConfigResult} */
