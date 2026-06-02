@@ -513,7 +513,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.58
       - name: Install GitHub Copilot SDK
-        run: cd "${GITHUB_WORKSPACE}" && npm install --ignore-scripts --no-save @github/copilot-sdk@1.0.0-beta.9
+        run: cd "${GITHUB_WORKSPACE}" && npm install --ignore-scripts --no-save @github/copilot-sdk@1.0.0
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
