@@ -230,7 +230,7 @@ func resolveEffectiveWeights(custom *types.TokenWeights) (map[string]float64, ty
 // computeModelEffectiveTokensWithWeights computes effective tokens using caller-provided
 // multiplier table and token class weights instead of the global defaults.
 func computeModelEffectiveTokensWithWeights(model string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens int, multipliers map[string]float64, w types.TokenClassWeights) int {
-	base := computeBaseWeightedTokens(w, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens)
+	base := computeBaseWeightedTokensForUsage(w, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens)
 	if base == 0 {
 		return 0
 	}
@@ -259,11 +259,9 @@ func getModelMultiplier(model string, multipliers map[string]float64) float64 {
 	return bestMultiplier
 }
 
-func computeBaseWeightedTokens(w types.TokenClassWeights, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens int) float64 {
-	effectiveInput := inputTokens - cacheReadTokens
-	if effectiveInput < 0 {
-		effectiveInput = 0
-	}
+func computeBaseWeightedTokensForUsage(w types.TokenClassWeights, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens int) float64 {
+	// Providers may report cache reads as part of input; subtract once before applying input weight.
+	effectiveInput := max(inputTokens-cacheReadTokens, 0)
 
 	return w.Input*float64(effectiveInput) +
 		w.CachedInput*float64(cacheReadTokens) +
