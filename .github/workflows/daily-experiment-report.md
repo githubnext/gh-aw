@@ -632,8 +632,8 @@ table:
 
 | # | Criterion | Status | Details |
 |---|-----------|--------|---------|
-| 1 | Interoperability evidence (≥2 workflows, ≥500 runs each) | 🟢 MET / 🔴 NOT MET | N workflows qualify |
-| 2 | CI stability window (30 consecutive successful days) | 🟢 MET / 🔴 NOT MET | N-day streak |
+| 1 | Interoperability evidence (≥2 workflows, ≥500 runs each) | <🟢 MET \| 🔴 NOT MET> | N workflows qualify |
+| 2 | CI stability window (30 consecutive successful days) | <🟢 MET \| 🔴 NOT MET> | N-day streak |
 | 3 | Implementation completeness | ⚪ NEEDS MANUAL REVIEW | [#31983](https://github.com/github/gh-aw/issues/31983) |
 | 4 | Compliance coverage (≥95% test coverage) | ⚪ NEEDS MANUAL REVIEW | [#31983](https://github.com/github/gh-aw/issues/31983) |
 | 5 | Review sign-off (≥2 maintainers) | ⚪ NEEDS MANUAL REVIEW | [#31983](https://github.com/github/gh-aw/issues/31983) |
