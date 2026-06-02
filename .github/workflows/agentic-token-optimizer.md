@@ -4,7 +4,6 @@ on:
   schedule:
     - cron: "daily around 14:00 on weekdays"
   workflow_dispatch:
-max-daily-effective-tokens: 100M
 permissions:
   contents: read
   actions: read
@@ -37,7 +36,7 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -euo pipefail
-      mkdir -p /tmp/gh-aw/agent/token-audit
+      mkdir -p /tmp/gh-aw/token-audit
 
       echo "📥 Downloading agentic workflow logs (last 7 days)..."
 
@@ -46,23 +45,23 @@ steps:
         --start-date -7d \
         --json \
         -c 50 \
-        > /tmp/gh-aw/agent/token-audit/all-runs.json || LOGS_EXIT=$?
+        > /tmp/gh-aw/token-audit/all-runs.json || LOGS_EXIT=$?
 
-      if [ -s /tmp/gh-aw/agent/token-audit/all-runs.json ]; then
-        TOTAL=$(jq '.runs | length' /tmp/gh-aw/agent/token-audit/all-runs.json)
+      if [ -s /tmp/gh-aw/token-audit/all-runs.json ]; then
+        TOTAL=$(jq '.runs | length' /tmp/gh-aw/token-audit/all-runs.json)
         echo "✅ Downloaded $TOTAL agentic workflow runs (last 7 days)"
         if [ "$LOGS_EXIT" -ne 0 ]; then
           echo "⚠️ gh aw logs exited with code $LOGS_EXIT (partial results — likely API rate limit)"
         fi
       else
         echo "❌ No log data downloaded (exit code $LOGS_EXIT)"
-        echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/agent/token-audit/all-runs.json
+        echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/all-runs.json
       fi
 
   - name: Aggregate top workflows by token usage
     run: |
       set -euo pipefail
-      mkdir -p /tmp/gh-aw/agent/token-audit
+      mkdir -p /tmp/gh-aw/token-audit
 
       jq '{
         generated_at: (now | todateiso8601),
@@ -73,7 +72,6 @@ steps:
             | {
                 workflow_name: .workflow_name,
                 tokens: (.token_usage // 0),
-                cost: (.estimated_cost // 0),
                 turns: (.turns // 0),
                 action_minutes: (.action_minutes // 0)
               }
@@ -84,7 +82,6 @@ steps:
               run_count: length,
               total_tokens: (map(.tokens) | add),
               avg_tokens: ((map(.tokens) | add) / length),
-              total_cost: (map(.cost) | add),
               total_turns: (map(.turns) | add),
               total_action_minutes: (map(.action_minutes) | add)
             })
@@ -92,10 +89,10 @@ steps:
           | reverse
           | .[:10]
         )
-      }' /tmp/gh-aw/agent/token-audit/all-runs.json > /tmp/gh-aw/agent/token-audit/top-workflows.json
+      }' /tmp/gh-aw/token-audit/all-runs.json > /tmp/gh-aw/token-audit/top-workflows.json
 
-      echo "✅ Generated top workflow summary at /tmp/gh-aw/agent/token-audit/top-workflows.json"
-      jq '.top_workflows' /tmp/gh-aw/agent/token-audit/top-workflows.json
+      echo "✅ Generated top workflow summary at /tmp/gh-aw/token-audit/top-workflows.json"
+      jq '.top_workflows' /tmp/gh-aw/token-audit/top-workflows.json
 
   - name: Load optimization history
     run: |
@@ -108,12 +105,12 @@ steps:
       else
         echo "ℹ️ No previous optimization history found."
       fi
-source: githubnext/agentic-ops/workflows/agentic-token-optimizer.md@e10687ae8f19a5b37b061db524be27948568c411
+source: githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473
 ---
 
 # Agentic Workflow Token Usage Optimizer
 
-You are the Agentic Workflow Token Optimizer. Pick one high-cost workflow, audit recent runs, and create a conservative optimization issue with measurable savings. Your recommendations may include prompt, tool, reliability, setup-prefix, and inline sub-agent improvements when the evidence supports them.
+You are the Agentic Workflow Token Optimizer. Pick one high-token workflow, audit recent runs, and create a conservative optimization issue with measurable improvements. Your recommendations may include prompt, tool, reliability, setup-prefix, and inline sub-agent improvements when the evidence supports them.
 
 ## Objectives
 
@@ -151,12 +148,12 @@ Prefer `--jq` on `gh api` calls over a separate `| jq` step when the filter is s
 
 ## Data Inputs
 
-- `/tmp/gh-aw/agent/token-audit/all-runs.json`: full 7-day run data (`gh aw logs --json`).
-- `/tmp/gh-aw/agent/token-audit/top-workflows.json`: pre-aggregated top 10 workflows by total tokens.
+- `/tmp/gh-aw/token-audit/all-runs.json`: full 7-day run data (`gh aw logs --json`).
+- `/tmp/gh-aw/token-audit/top-workflows.json`: pre-aggregated top 10 workflows by total tokens.
 - `/tmp/gh-aw/repo-memory/default/YYYY-MM-DD.json`: daily audit snapshots.
 - `/tmp/gh-aw/repo-memory/default/optimization-log.json`: prior optimizations (if present).
 
-Treat missing numeric fields (`token_usage`, `estimated_cost`, `turns`, `action_minutes`) as `0`.
+Treat missing numeric fields (`token_usage`, `turns`, `action_minutes`) as `0`.
 
 ## Phase 1 — Select Target
 
@@ -170,7 +167,6 @@ Then collect run-level data for the selected workflow:
 
 - run count
 - total and average tokens
-- total and average cost
 - total and average turns
 - conclusions/error patterns
 
@@ -284,7 +280,7 @@ Create one issue with:
 
 - **Target workflow + reason selected**
 - **Analysis period + runs analyzed**
-- **Token profile table** (total tokens, avg tokens/run, total cost, avg turns/run, cache efficiency)
+- **Token profile table** (total tokens, avg tokens/run, avg turns/run, cache efficiency)
 - **Ranked recommendations** with:
   - title
   - estimated token savings per run

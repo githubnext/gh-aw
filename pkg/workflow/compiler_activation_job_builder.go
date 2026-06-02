@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -104,10 +105,7 @@ func (c *Compiler) newActivationJobBuildContext(
 	}
 	enableArtifactClient := hasMaxDailyEffectiveTokensGuardrail(ctx.data)
 	artifactClientCondition := ""
-	if enableArtifactClient && !hasMaxDailyEffectiveTokensFrontmatterConfig(ctx.data) {
-		// Only gate on the env expression when the threshold comes from the workflow-level env var.
-		// When configured via frontmatter, the threshold is placed in the step env block (not workflow
-		// env), so the expression would evaluate false and skip installation; pass unconditional 'true'.
+	if enableArtifactClient {
 		artifactClientCondition = maxDailyEffectiveTokensConfiguredIfExpr
 	}
 	ctx.steps = append(ctx.steps, c.generateSetupStepWithArtifactClientCondition(ctx.data, setupActionRef, SetupActionDestination, enableArtifactClient, activationSetupTraceID, activationSetupParentSpanID, artifactClientCondition)...)
@@ -265,13 +263,7 @@ func (c *Compiler) buildActivationDailyEffectiveWorkflowGuardrailStep(data *Work
 	var steps []string
 	steps = append(steps, "      - name: Check daily workflow token guardrail\n")
 	steps = append(steps, "        id: daily-effective-workflow-guardrail\n")
-	// Only gate on the env expression when the threshold comes from the workflow-level env var.
-	// When configured via frontmatter, the threshold is placed in the step env block and is not
-	// available in the workflow env context, so the condition would evaluate false and skip the step;
-	// in that case the step runs unconditionally since the threshold is guaranteed to be present.
-	if !hasMaxDailyEffectiveTokensFrontmatterConfig(data) {
-		steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyEffectiveTokensConfiguredIfExpr))
-	}
+	steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyEffectiveTokensConfiguredIfExpr))
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 	steps = append(steps, "        env:\n")
 	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
@@ -659,4 +651,18 @@ func (c *Compiler) buildActivationEnvironment(ctx *activationJobBuildContext) st
 	}
 	compilerActivationJobLog.Print("Activation job uses manual-approval environment gate")
 	return "environment: " + stringutil.StripANSI(ctx.data.ManualApproval)
+}
+
+func buildDailyEffectiveWorkflowActivationJobEnv(data *WorkflowData) map[string]string {
+	if !hasMaxDailyEffectiveTokensGuardrail(data) || !hasMaxDailyEffectiveTokensFrontmatterConfig(data) {
+		return nil
+	}
+	value := strings.TrimSpace(*data.MaxDailyEffectiveTokens)
+	if value == "" {
+		return nil
+	}
+	if isExpression(value) {
+		return map[string]string{maxDailyEffectiveTokensEnvVar: value}
+	}
+	return map[string]string{maxDailyEffectiveTokensEnvVar: strconv.Quote(value)}
 }

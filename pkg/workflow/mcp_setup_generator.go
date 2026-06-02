@@ -260,35 +260,10 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 		return
 	}
 	yaml.WriteString("      - name: Generate Safe Outputs Config\n")
-	configSecrets := ExtractSecretsFromValue(safeOutputConfig)
-	configContextVars := ExtractGitHubContextExpressionsFromValue(safeOutputConfig)
-	configWorkflowInputs := ExtractWorkflowInputExpressionsFromValue(safeOutputConfig)
-	hasEnvVars := len(configSecrets) > 0 || len(configContextVars) > 0 || len(configWorkflowInputs) > 0
-	if hasEnvVars {
+	sanitizedConfig, envKeys, envValues := buildSafeOutputsConfigRuntimeData(safeOutputConfig)
+	if len(envKeys) > 0 {
 		yaml.WriteString("        env:\n")
-		envKeys := make([]string, 0, safeAllocationCapacity(len(configSecrets), len(configContextVars), len(configWorkflowInputs)))
-		envValues := make(map[string]string, safeAllocationCapacity(len(configSecrets), len(configContextVars), len(configWorkflowInputs)))
-		// addEnvValue deduplicates envKeys while allowing later sources to override
-		// the value in envValues for duplicate keys.
-		addEnvValue := func(key, value string) {
-			if _, exists := envValues[key]; !exists {
-				envKeys = append(envKeys, key)
-			}
-			envValues[key] = value
-		}
-		for k, v := range configWorkflowInputs {
-			addEnvValue(k, v)
-		}
-		for k, v := range configContextVars {
-			addEnvValue(k, v)
-		}
-		for k, v := range configSecrets {
-			addEnvValue(k, v)
-		}
-		sort.Strings(envKeys)
-		for _, varName := range envKeys {
-			yaml.WriteString("          " + varName + ": " + envValues[varName] + "\n")
-		}
+		writeStepEnvVars(yaml, envKeys, envValues)
 	}
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/safeoutputs\"\n")
@@ -300,25 +275,9 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 
 	delimiter := GenerateHeredocDelimiterFromSeed("SAFE_OUTPUTS_CONFIG", workflowData.FrontmatterHash)
 	if safeOutputConfig != "" {
-		if hasEnvVars {
-			sanitizedConfig := safeOutputConfig
-			for varName, secretExpr := range configSecrets {
-				sanitizedConfig = strings.ReplaceAll(sanitizedConfig, secretExpr, "${"+varName+"}")
-			}
-			for varName, ctxExpr := range configContextVars {
-				sanitizedConfig = strings.ReplaceAll(sanitizedConfig, ctxExpr, "${"+varName+"}")
-			}
-			for varName, inputExpr := range configWorkflowInputs {
-				sanitizedConfig = strings.ReplaceAll(sanitizedConfig, inputExpr, "${"+varName+"}")
-			}
-			yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << " + delimiter + "\n")
-			yaml.WriteString("          " + sanitizedConfig + "\n")
-			yaml.WriteString("          " + delimiter + "\n")
-		} else {
-			yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << '" + delimiter + "'\n")
-			yaml.WriteString("          " + safeOutputConfig + "\n")
-			yaml.WriteString("          " + delimiter + "\n")
-		}
+		yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << '" + delimiter + "'\n")
+		yaml.WriteString("          " + sanitizedConfig + "\n")
+		yaml.WriteString("          " + delimiter + "\n")
 	}
 
 	toolsMetaJSON, err := generateToolsMetaJSON(workflowData, c.markdownPath)
@@ -386,6 +345,8 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS_TOOLS_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/tools.json\n")
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/config.json\n")
 	yaml.WriteString("          GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs\n")
+	safeOutputsConfigEnvKeys, safeOutputsConfigEnvValues := buildSafeOutputsConfigRuntimeEnvVars(safeOutputConfig)
+	writeStepEnvVars(yaml, safeOutputsConfigEnvKeys, safeOutputsConfigEnvValues)
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          # Environment variables are set above to prevent template injection\n")
 	yaml.WriteString("          export DEBUG\n")
@@ -395,9 +356,57 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_TOOLS_PATH\n")
 	yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_CONFIG_PATH\n")
 	yaml.WriteString("          export GH_AW_MCP_LOG_DIR\n")
+	for _, varName := range safeOutputsConfigEnvKeys {
+		yaml.WriteString("          export " + varName + "\n")
+	}
 	yaml.WriteString("          \n")
 	yaml.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh\"\n")
 	yaml.WriteString("          \n")
+}
+
+// safeOutputsSecretEnvPrefix is prepended to secret names when generating step env var names for
+// safe-outputs config placeholders. The prefix avoids accidental collisions between a workflow
+// secret name and a pre-existing step env var (e.g. a secret named DEBUG or
+// GH_AW_SAFE_OUTPUTS_CONFIG_PATH would silently override those step vars without the prefix).
+// The prefixed env vars are written into the step env: block and resolved in memory at runtime
+// by the JavaScript safe-outputs loader (resolveEnvPlaceholders in safe_outputs_config.cjs).
+const safeOutputsSecretEnvPrefix = "GH_AW_SECRET_"
+
+func buildSafeOutputsConfigRuntimeEnvVars(safeOutputConfig string) ([]string, map[string]string) {
+	configSecrets := ExtractSecretsFromValue(safeOutputConfig)
+	configContextVars := ExtractGitHubContextExpressionsFromValue(safeOutputConfig)
+	configWorkflowInputs := ExtractWorkflowInputExpressionsFromValue(safeOutputConfig)
+	envValues := make(map[string]string, safeAllocationCapacity(len(configSecrets), len(configContextVars), len(configWorkflowInputs)))
+	addEnvValue := func(key, value string) {
+		envValues[key] = value
+	}
+	for k, v := range configWorkflowInputs {
+		addEnvValue(k, v)
+	}
+	for k, v := range configContextVars {
+		addEnvValue(k, v)
+	}
+	for k, v := range configSecrets {
+		// Prefix secret env vars to avoid colliding with reserved/known step env var names.
+		addEnvValue(safeOutputsSecretEnvPrefix+k, v)
+	}
+	return sortedMapKeys(envValues), envValues
+}
+
+func buildSafeOutputsConfigRuntimeData(safeOutputConfig string) (string, []string, map[string]string) {
+	sanitizedConfig := safeOutputConfig
+	envKeys, envValues := buildSafeOutputsConfigRuntimeEnvVars(safeOutputConfig)
+	for _, varName := range envKeys {
+		value := envValues[varName]
+		sanitizedConfig = strings.ReplaceAll(sanitizedConfig, value, "${"+varName+"}")
+	}
+	return sanitizedConfig, envKeys, envValues
+}
+
+func writeStepEnvVars(yaml *strings.Builder, envKeys []string, envValues map[string]string) {
+	for _, varName := range envKeys {
+		yaml.WriteString("          " + varName + ": " + envValues[varName] + "\n")
+	}
 }
 
 func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) error {

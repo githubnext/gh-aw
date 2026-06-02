@@ -53,7 +53,7 @@ type importAccumulator struct {
 	caches                   []string
 	features                 []map[string]any
 	models                   []map[string][]string // model alias maps from each imported file (appended in import order)
-	runInstallScripts        bool                  // true if any imported workflow sets run-install-scripts: true (global or node-level)
+	runInstallScripts        bool                  // true if any imported workflow sets runtimes.node.run-install-scripts: true
 	agentFile                string
 	agentImportSpec          string
 	repositoryImports        []string

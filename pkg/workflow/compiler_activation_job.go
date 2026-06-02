@@ -80,6 +80,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		RunsOn:                     c.formatFrameworkJobRunsOn(data),
 		Permissions:                permissions,
 		Environment:                c.buildActivationEnvironment(ctx),
+		Env:                        buildDailyEffectiveWorkflowActivationJobEnv(data),
 		Steps:                      ctx.steps,
 		Outputs:                    ctx.outputs,
 		Needs:                      ctx.activationNeeds,

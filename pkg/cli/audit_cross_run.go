@@ -325,6 +325,8 @@ func buildCrossRunMCPHealth(mcpServerMap map[string]*crossRunMCPServerAgg, total
 		return nil
 	}
 
+	auditCrossRunLog.Printf("Building MCP health for %d server(s) across %d run(s)", len(mcpServerMap), totalRuns)
+
 	sortedServers := make([]string, 0, len(mcpServerMap))
 	for name := range mcpServerMap {
 		sortedServers = append(sortedServers, name)
@@ -373,6 +375,8 @@ func buildCrossRunDomainInventory(
 		sortedDomains = append(sortedDomains, domain)
 	}
 	sort.Strings(sortedDomains)
+
+	auditCrossRunLog.Printf("Building domain inventory: %d unique domain(s) across %d run(s)", len(sortedDomains), len(runIDs))
 
 	report.Summary.UniqueDomains = len(sortedDomains)
 	for _, domain := range sortedDomains {
@@ -499,6 +503,7 @@ func buildDrain3InsightsFromCrossRunInputs(inputs []crossRunInput) []Observabili
 	if len(inputs) == 0 {
 		return nil
 	}
+	auditCrossRunLog.Printf("Building drain3 insights from %d cross-run input(s)", len(inputs))
 	runs := make([]ProcessedRun, 0, len(inputs))
 	for _, in := range inputs {
 		pr := ProcessedRun{

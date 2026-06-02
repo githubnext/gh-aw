@@ -2,7 +2,7 @@
 name: "Chaos PR Bundle Fuzzer"
 description: Stress-tests safe-output create-pull-request git patch/bundle handling with randomized small-change personas
 on:
-  schedule: "every 4 hours"
+  schedule: "every 7 days"
   workflow_dispatch:
 max-daily-effective-tokens: 100M
 permissions:

@@ -24,6 +24,7 @@ func TestResolveRepositoryPackage(t *testing.T) {
 	originalDirFiles := listPackageDirFilesForHost
 	originalDirSubdirs := listPackageDirSubdirsForHost
 	originalDefaultBranch := getRepositoryPackageDefaultBranch
+	originalLatestRelease := getRepositoryPackageLatestRelease
 	t.Cleanup(func() {
 		SetVersionInfo(originalVersion)
 		downloadPackageFileFromGitHubForHost = originalDownload
@@ -31,10 +32,15 @@ func TestResolveRepositoryPackage(t *testing.T) {
 		listPackageDirFilesForHost = originalDirFiles
 		listPackageDirSubdirsForHost = originalDirSubdirs
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
+		getRepositoryPackageLatestRelease = originalLatestRelease
 	})
 	SetVersionInfo("v1.2.3")
 	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
 		return "main", nil
+	}
+
+	getRepositoryPackageLatestRelease = func(repoSlug, host string) (string, error) {
+		return "", errors.New("no releases found")
 	}
 	listPackageDirFilesForHost = func(owner, repo, ref, dirPath, host string) ([]string, error) {
 		return nil, createRepositoryPackageNotFoundError(dirPath)
@@ -79,9 +85,16 @@ files:
 
 	t.Run("uses repository default branch when version is omitted", func(t *testing.T) {
 		previousDefaultBranch := getRepositoryPackageDefaultBranch
+		previousLatestRelease := getRepositoryPackageLatestRelease
 		t.Cleanup(func() {
 			getRepositoryPackageDefaultBranch = previousDefaultBranch
+			getRepositoryPackageLatestRelease = previousLatestRelease
 		})
+		getRepositoryPackageLatestRelease = func(repoSlug, host string) (string, error) {
+			assert.Equal(t, "owner/repo", repoSlug)
+			assert.Equal(t, "github.com", host)
+			return "", errors.New("no releases found")
+		}
 		getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
 			assert.Equal(t, "owner/repo", repoSlug)
 			assert.Equal(t, "github.com", host)
@@ -112,6 +125,97 @@ files:
 
 		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "github.com")
 		require.NoError(t, err)
+		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+	})
+
+	t.Run("uses latest release for github/gh-aw when version is omitted", func(t *testing.T) {
+		previousDefaultBranch := getRepositoryPackageDefaultBranch
+		previousLatestRelease := getRepositoryPackageLatestRelease
+		t.Cleanup(func() {
+			getRepositoryPackageDefaultBranch = previousDefaultBranch
+			getRepositoryPackageLatestRelease = previousLatestRelease
+		})
+		getRepositoryPackageLatestRelease = func(repoSlug, host string) (string, error) {
+			assert.Equal(t, "github/gh-aw", repoSlug)
+			assert.Equal(t, "github.com", host)
+			return "v1.2.3", nil
+		}
+		getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+			t.Fatalf("default branch lookup should not be called when latest release is available")
+			return "", nil
+		}
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			assert.Equal(t, "v1.2.3", ref)
+			switch path {
+			case "aw.yml":
+				return []byte("name: gh-aw package\n"), nil
+			case "README.md":
+				return []byte("# gh-aw package\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			assert.Equal(t, "v1.2.3", ref)
+			switch workflowPath {
+			case "workflows":
+				return []string{"workflows/review.md"}, nil
+			case ".github/workflows":
+				return nil, createRepositoryPackageNotFoundError(workflowPath)
+			default:
+				return nil, fmt.Errorf("unexpected workflow path %s", workflowPath)
+			}
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "github/gh-aw"}, "github.com")
+		require.NoError(t, err)
+		assert.Equal(t, "v1.2.3", pkg.ResolvedRef)
+		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+	})
+
+	t.Run("falls back to default branch for github/gh-aw when latest release lookup fails", func(t *testing.T) {
+		previousDefaultBranch := getRepositoryPackageDefaultBranch
+		previousLatestRelease := getRepositoryPackageLatestRelease
+		t.Cleanup(func() {
+			getRepositoryPackageDefaultBranch = previousDefaultBranch
+			getRepositoryPackageLatestRelease = previousLatestRelease
+		})
+		getRepositoryPackageLatestRelease = func(repoSlug, host string) (string, error) {
+			assert.Equal(t, "github/gh-aw", repoSlug)
+			assert.Equal(t, "github.com", host)
+			return "", errors.New("release lookup failed")
+		}
+		getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+			assert.Equal(t, "github/gh-aw", repoSlug)
+			assert.Equal(t, "github.com", host)
+			return "main", nil
+		}
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			assert.Equal(t, "main", ref)
+			switch path {
+			case "aw.yml":
+				return []byte("name: gh-aw package\n"), nil
+			case "README.md":
+				return []byte("# gh-aw package\n"), nil
+			default:
+				return nil, createRepositoryPackageNotFoundError(path)
+			}
+		}
+		listPackageWorkflowFilesForHost = func(owner, repo, ref, workflowPath, host string) ([]string, error) {
+			assert.Equal(t, "main", ref)
+			switch workflowPath {
+			case "workflows":
+				return []string{"workflows/review.md"}, nil
+			case ".github/workflows":
+				return nil, createRepositoryPackageNotFoundError(workflowPath)
+			default:
+				return nil, fmt.Errorf("unexpected workflow path %s", workflowPath)
+			}
+		}
+
+		pkg, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "github/gh-aw"}, "github.com")
+		require.NoError(t, err)
+		assert.Equal(t, "main", pkg.ResolvedRef)
 		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
 	})
 
@@ -1603,4 +1707,25 @@ files:
 	assert.False(t, agent.IsPackageSkillFile)
 	assert.True(t, agent.IsPackageAgentFile)
 	assert.Equal(t, agentMD, agent.Content)
+}
+
+func TestIsGhAwRepository(t *testing.T) {
+	tests := []struct {
+		name     string
+		repoSlug string
+		want     bool
+	}{
+		{name: "exact match", repoSlug: "github/gh-aw", want: true},
+		{name: "case-insensitive with whitespace", repoSlug: "  GitHub/GH-AW  ", want: true},
+		{name: "different repository", repoSlug: "github/other", want: false},
+		{name: "fork-like suffix does not match", repoSlug: "github/gh-aw-fork", want: false},
+		{name: "different owner does not match", repoSlug: "other/gh-aw", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isGhAwRepository(tt.repoSlug)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

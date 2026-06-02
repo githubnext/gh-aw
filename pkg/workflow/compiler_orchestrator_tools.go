@@ -18,7 +18,7 @@ type toolsProcessingResult struct {
 	tools                 map[string]any
 	resolvedMCPServers    map[string]any // fully merged mcp-servers from main workflow and all imports
 	runtimes              map[string]any
-	runInstallScripts     bool // true when run-install-scripts: true is set (globally or per node runtime, from main + imports)
+	runInstallScripts     bool // true when runtimes.node.run-install-scripts: true is set (from main + imports)
 	toolsTimeout          string
 	toolsStartupTimeout   string
 	markdownContent       string

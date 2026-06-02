@@ -1,9 +1,23 @@
 // @ts-check
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
 
 const fs = require("fs");
 const path = require("path");
+
+function resolveEnvPlaceholders(value) {
+  if (Array.isArray(value)) {
+    return value.map(resolveEnvPlaceholders);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, nestedValue]) => [key, resolveEnvPlaceholders(nestedValue)]));
+  }
+  if (typeof value !== "string") {
+    return value;
+  }
+  return value.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (match, envName) => process.env[envName] ?? match);
+}
 
 /**
  * @typedef {Object} LoadConfigResult
@@ -30,7 +44,7 @@ function loadConfig(server) {
       server.debug(`Config file content length: ${configFileContent.length} characters`);
       // Don't log raw content to avoid exposing sensitive configuration data
       server.debug(`Config file read successfully, attempting to parse JSON`);
-      safeOutputsConfigRaw = JSON.parse(configFileContent);
+      safeOutputsConfigRaw = resolveEnvPlaceholders(JSON.parse(configFileContent));
       server.debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
     } else {
       server.debug(`Config file does not exist at: ${configPath}`);
@@ -44,7 +58,7 @@ function loadConfig(server) {
   }
 
   const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
-  server.debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
+  server.debug(`Final processed config: ${JSON.stringify(redactSensitiveConfig(safeOutputsConfig))}`);
 
   // Handle GH_AW_SAFE_OUTPUTS with default fallback
   // Default is /opt (read-only mount for agent container)

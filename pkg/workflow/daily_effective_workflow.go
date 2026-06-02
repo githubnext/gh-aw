@@ -98,21 +98,24 @@ func resolveMaxDailyEffectiveTokens(frontmatter map[string]any, importedJSON str
 	return parseMaxDailyEffectiveTokensValue(defaultValue)
 }
 
+// hasMaxDailyEffectiveTokensGuardrail reports whether compiler should emit the
+// daily effective-token guardrail wiring. The guardrail is enabled by default
+// and can only be suppressed by an explicit workflow-level negative value (-1).
 func hasMaxDailyEffectiveTokensGuardrail(data *WorkflowData) bool {
-	if data == nil {
+	return !hasWorkflowExplicitMaxDailyEffectiveTokensDisable(data)
+}
+
+func hasWorkflowExplicitMaxDailyEffectiveTokensDisable(data *WorkflowData) bool {
+	if data == nil || data.RawFrontmatter == nil {
 		return false
 	}
-	if hasMaxDailyEffectiveTokensFrontmatterConfig(data) {
-		return true
-	}
-	return hasMaxDailyEffectiveTokensEnvConfig(data.Env)
+	return isMaxDailyEffectiveTokensDisabled(data.RawFrontmatter[maxDailyEffectiveTokensField])
 }
 
 // hasMaxDailyEffectiveTokensFrontmatterConfig reports whether the daily ET threshold
-// is configured via the max-daily-effective-tokens frontmatter field. When true, the
-// threshold is emitted into the step env block rather than the workflow-level env, so
-// runtime expressions referencing env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS must not be
-// used to gate step execution or setup inputs.
+// is configured via the max-daily-effective-tokens frontmatter/import/default resolution.
+// The resolved value is propagated to activation job env so runtime expressions can gate
+// setup and guardrail execution consistently.
 func hasMaxDailyEffectiveTokensFrontmatterConfig(data *WorkflowData) bool {
 	return data != nil && data.MaxDailyEffectiveTokens != nil && strings.TrimSpace(*data.MaxDailyEffectiveTokens) != ""
 }

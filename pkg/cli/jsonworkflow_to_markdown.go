@@ -305,6 +305,8 @@ func ConvertJSONWorkflowToMarkdown(a *JSONWorkflow, opts ConvertOptions) (*Gener
 
 	markdown := fm.String() + "\n" + body.String()
 
+	jsonWorkflowLog.Printf("Generated workflow %q: %d byte(s), %d warning(s)", filename, len(markdown), len(warnings))
+
 	return &GeneratedWorkflow{
 		Filename: filename,
 		Markdown: markdown,
@@ -395,6 +397,9 @@ func convertTriggersToOn(t *JSONWorkflowTriggers) (any, []string) {
 	if t == nil {
 		return nil, nil
 	}
+
+	jsonWorkflowLog.Printf("Converting triggers: interval=%t issues=%t workflow_run=%t",
+		t.Interval != nil, t.Issues != nil, t.WorkflowRun != nil)
 
 	var warnings []string
 	// parts accumulates the trigger map entries.
@@ -577,5 +582,7 @@ func convertToolsToConfig(tools []string) (map[string]any, []string) {
 		config["bash"] = "*"
 		warnings = append(warnings, `tool "execute" was mapped to bash: "*"; review the bash permissions`)
 	}
+	jsonWorkflowLog.Printf("Converted %d tool(s): %d toolset(s), bash=%t, %d warning(s)",
+		len(tools), len(toolsets), needsBash, len(warnings))
 	return config, warnings
 }

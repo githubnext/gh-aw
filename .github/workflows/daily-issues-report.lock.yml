@@ -100,6 +100,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+    env:
+      GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "100000000"
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -130,7 +132,7 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
-          safe-output-artifact-client: 'true'
+          safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily Issues Report Generator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/daily-issues-report.lock.yml@${{ github.ref }}
@@ -167,6 +169,7 @@ jobs:
             await main(core, context);
       - name: Check daily workflow token guardrail
         id: daily-effective-workflow-guardrail
+        if: ${{ env.GH_AW_MAX_DAILY_EFFECTIVE_TOKENS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Daily Issues Report Generator"
@@ -756,7 +759,7 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << GH_AW_SAFE_OUTPUTS_CONFIG_7143f2c4ad7b4617_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_7143f2c4ad7b4617_EOF'
           {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":72,"fallback_to_issue":true,"max":1,"title_prefix":"[daily issues] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"upload_asset":{"allowed-exts":[".png",".jpg",".jpeg",".svg"],"branch":"assets/${GITHUB_WORKFLOW}","max":5,"max-size":10240}}
           GH_AW_SAFE_OUTPUTS_CONFIG_7143f2c4ad7b4617_EOF
       - name: Generate Safe Outputs Tools
@@ -917,6 +920,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS_TOOLS_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/tools.json
           GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/config.json
           GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+          GITHUB_WORKFLOW: ${{ github.workflow }}
         run: |
           # Environment variables are set above to prevent template injection
           export DEBUG
@@ -926,6 +930,7 @@ jobs:
           export GH_AW_SAFE_OUTPUTS_TOOLS_PATH
           export GH_AW_SAFE_OUTPUTS_CONFIG_PATH
           export GH_AW_MCP_LOG_DIR
+          export GITHUB_WORKFLOW
           
           bash "${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh"
           

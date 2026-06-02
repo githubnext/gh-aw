@@ -9906,12 +9906,6 @@
       "description": "Control whether the compile-agentic version update check runs in the activation job. When true (default), the activation job downloads config.json from the gh-aw repository and verifies the compiled version is not blocked and meets the minimum supported version. Set to false to disable the check (not allowed in strict mode). See: https://github.github.com/gh-aw/reference/frontmatter/#check-for-updates",
       "examples": [true, false]
     },
-    "run-install-scripts": {
-      "type": "boolean",
-      "default": false,
-      "description": "Allow npm pre/post install scripts to execute during package installation. By default, --ignore-scripts is added to all generated npm install commands to prevent supply chain attacks via malicious install hooks. Setting run-install-scripts: true disables this protection globally (all runtimes). A supply chain security warning is emitted at compile time; in strict mode this is an error. Per-runtime control is also available via runtimes.<runtime>.run-install-scripts. See: https://github.github.com/gh-aw/reference/frontmatter/#run-install-scripts",
-      "examples": [false, true]
-    },
     "mcp-scripts": {
       "type": "object",
       "description": "MCP Scripts configuration for defining custom lightweight MCP tools as JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server and have access to secrets specified by the user. Only one of 'script' (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.",
@@ -10135,7 +10129,7 @@
             "run-install-scripts": {
               "type": "boolean",
               "default": false,
-              "description": "Allow npm pre/post install scripts to execute for this runtime during package installation. Overrides the global run-install-scripts setting for this specific runtime. Only affects runtimes that generate npm install commands (node). A supply chain security warning is emitted at compile time; in strict mode this is an error. See: https://github.github.com/gh-aw/reference/frontmatter/#run-install-scripts",
+              "description": "Allow npm pre/post install scripts to execute during package installation. A supply chain security warning is emitted at compile time; in strict mode this is an error. See: https://github.github.com/gh-aw/reference/frontmatter/#run-install-scripts",
               "examples": [false, true]
             }
           },
