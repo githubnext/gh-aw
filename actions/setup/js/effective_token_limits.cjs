@@ -1,22 +1,24 @@
 // @ts-check
 
+const POSITIVE_EFFECTIVE_TOKEN_LIMIT_RE = /^([1-9]\d*)([kKmM])?$/;
+
 /**
  * @param {unknown} value
- * @returns {string}
+ * @returns {bigint|null}
  */
-function parsePositiveEffectiveTokenLimitString(value) {
+function parsePositiveEffectiveTokenLimitBigInt(value) {
   if (typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value > 0) {
-    return String(value);
+    return BigInt(value);
   }
 
   if (typeof value !== "string") {
-    return "";
+    return null;
   }
 
   const trimmed = value.trim();
-  const match = /^([1-9]\d*)([kKmM])?$/.exec(trimmed);
+  const match = POSITIVE_EFFECTIVE_TOKEN_LIMIT_RE.exec(trimmed);
   if (!match) {
-    return "";
+    return null;
   }
 
   let parsed = BigInt(match[1]);
@@ -25,6 +27,19 @@ function parsePositiveEffectiveTokenLimitString(value) {
     parsed *= 1000n;
   } else if (suffix === "m") {
     parsed *= 1000000n;
+  }
+
+  return parsed;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function parsePositiveEffectiveTokenLimitString(value) {
+  const parsed = parsePositiveEffectiveTokenLimitBigInt(value);
+  if (parsed == null) {
+    return "";
   }
   return parsed.toString();
 }

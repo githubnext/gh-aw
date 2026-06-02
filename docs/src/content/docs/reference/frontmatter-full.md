@@ -2528,7 +2528,7 @@ engine:
   # the default engine when engine.id is not specified.
   model: "example-value"
 
-# Explicit ET budget control for firewall cost enforcement. Defaults to 25000000
+# Explicit ET budget control for firewall cost enforcement. Defaults to 25M
 # when omitted. Set to a negative value to disable budget enforcement and token
 # steering.
 # (optional)
@@ -2536,7 +2536,7 @@ engine:
 
 # Format 1: Maximum effective-token (ET) budget for AWF API proxy enforcement. Use
 # a negative value to disable budget enforcement and token steering.
-max-effective-tokens: 1
+max-effective-tokens: 1M
 
 # Format 2: Maximum effective-token (ET) budget as a numeric string or GitHub
 # Actions expression.

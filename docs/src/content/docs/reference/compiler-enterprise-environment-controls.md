@@ -107,7 +107,7 @@ gh variable set GH_AW_DEFAULT_MODEL_CODEX --org my-org --body "gpt-5.5"
 Set an org-wide default max-effective-tokens guardrail:
 
 ```bash
-gh variable set GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS --org my-org --body "15000000"
+gh variable set GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS --org my-org --body "15M"
 ```
 
 ```bash
@@ -117,13 +117,13 @@ gh variable set GH_AW_DEFAULT_MAX_EFFECTIVE_TOKENS --org my-org --body "100M"
 Set an org-wide default daily workflow ET guardrail:
 
 ```bash
-gh variable set GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS --org my-org --body "15000000"
+gh variable set GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS --org my-org --body "15M"
 ```
 
 Set compiler process defaults for timeout and max-turns:
 
 ```bash
-export GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS=15000000
+export GH_AW_DEFAULT_MAX_DAILY_EFFECTIVE_TOKENS=15M
 export GH_AW_DEFAULT_TIMEOUT_MINUTES=30
 export GH_AW_DEFAULT_MAX_TURNS=12
 export GH_AW_DEFAULT_DETECTION_MODEL=gpt-5.5-mini
