@@ -187,8 +187,8 @@ Treat any missing numeric raw usage field as 0 during recomputation.
 
 Create chart images in `/tmp/gh-aw/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling:
 
-1. **Token usage by workflow** (`token_by_workflow.png`): a horizontal bar chart of the top 15 workflows by total recomputed effective tokens from `audit_snapshot.json`.
-2. **Daily token usage trend** (`daily_token_trend.png`, optional): a line chart that aggregates completed-run recomputed effective tokens by UTC day across the requested date range (skip this chart if fewer than 2 daily points exist).
+1. **Effective tokens by workflow** (`token_by_workflow.png`): a horizontal bar chart of the top 15 workflows by total recomputed effective tokens from `audit_snapshot.json`.
+2. **Daily effective-token trend** (`daily_token_trend.png`, optional): a line chart that aggregates completed-run recomputed effective tokens by UTC day across the requested date range (skip this chart if fewer than 2 daily points exist).
 
 Chart requirements:
 
