@@ -269,10 +269,7 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 		return parsedSpecs
 	}
 	host := explicitHostForRepo(repoSpec.RepoSlug)
-	effectiveVersion := repoSpec.Version
-	if effectiveVersion == "" {
-		effectiveVersion = pkg.ResolvedRef
-	}
+	effectiveVersion := repositoryPackageEffectiveRef(repoSpec, pkg)
 	for _, installationSource := range pkg.InstallationSource {
 		// installationSource is guaranteed by isSupportedPackageInstallablePath to be
 		// either a .md agentic workflow or a .yml action workflow file; no other

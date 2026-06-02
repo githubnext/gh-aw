@@ -27,3 +27,22 @@ func TestAppendRepositoryPackageWorkflowSpecs_PropagatesResolvedRef(t *testing.T
 		}
 	}
 }
+
+func TestAppendRepositoryPackageWorkflowSpecs_PrefersExplicitVersion(t *testing.T) {
+	repoSpec := &RepoSpec{
+		RepoSlug: "owner/repo",
+		Version:  "v9.9.9",
+	}
+	pkg := &resolvedRepositoryPackage{
+		ResolvedRef:        "v1.2.3",
+		InstallationSource: []string{"workflows/review.md"},
+	}
+
+	specs := appendRepositoryPackageWorkflowSpecs(nil, repoSpec, pkg)
+	if len(specs) != 1 {
+		t.Fatalf("expected 1 workflow spec, got %d", len(specs))
+	}
+	if specs[0].Version != "v9.9.9" {
+		t.Fatalf("expected explicit version v9.9.9, got %q", specs[0].Version)
+	}
+}

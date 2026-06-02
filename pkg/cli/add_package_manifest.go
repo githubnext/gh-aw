@@ -81,7 +81,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 
 	owner := parts[0]
 	repo := parts[1]
-	ref := repoSpec.Version
+	ref := repositoryPackageEffectiveRef(repoSpec, nil)
 	if ref == "" {
 		if isGhAwRepository(repoSpec.RepoSlug) {
 			if latestRelease, err := getRepositoryPackageLatestRelease(repoSpec.RepoSlug, host); err == nil {
@@ -916,6 +916,19 @@ func resolveRepositoryPackageDefaultBranch(repoSlug, host string) (string, error
 		return "", fmt.Errorf("repository %s on %s returned an empty default branch; ensure the repository exists and is accessible", repoSlug, targetHost)
 	}
 	return branch, nil
+}
+
+// repositoryPackageEffectiveRef returns the effective ref for repository package
+// operations. Explicit user-provided versions always win; otherwise this uses a
+// previously resolved package ref when available.
+func repositoryPackageEffectiveRef(repoSpec *RepoSpec, pkg *resolvedRepositoryPackage) string {
+	if repoSpec != nil && repoSpec.Version != "" {
+		return repoSpec.Version
+	}
+	if pkg != nil && pkg.ResolvedRef != "" {
+		return pkg.ResolvedRef
+	}
+	return ""
 }
 
 // isGhAwRepository reports whether repoSlug identifies github/gh-aw.
