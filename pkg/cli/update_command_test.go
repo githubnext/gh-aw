@@ -524,7 +524,7 @@ engine: claude
 	require.NoError(t, err)
 	require.Len(t, workflows, 2, "expected recursive discovery to include all source workflows")
 
-	found := make(map[string]string, len(workflows))
+	found := make(map[string]string)
 	for _, wf := range workflows {
 		found[wf.Name] = wf.SourceSpec
 	}
