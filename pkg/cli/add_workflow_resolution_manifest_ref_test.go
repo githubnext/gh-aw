@@ -4,7 +4,7 @@ package cli
 
 import "testing"
 
-func TestAppendRepositoryPackageWorkflowSpecs_UsesResolvedRefWhenVersionOmitted(t *testing.T) {
+func TestAppendRepositoryPackageWorkflowSpecs_PropagatesResolvedRef(t *testing.T) {
 	repoSpec := &RepoSpec{
 		RepoSlug: "owner/repo",
 	}
