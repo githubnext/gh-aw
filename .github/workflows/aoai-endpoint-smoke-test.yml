@@ -1,0 +1,76 @@
+name: AOAI Endpoint Smoke Test
+
+# AOAI endpoint smoke test that hits an Azure OpenAI (AOAI) model two ways:
+#   1. Entra ID / OIDC, via a user-assigned managed identity (no secrets).
+#   2. A static API key stored as a repository secret.
+# Both jobs run in parallel and issue a raw curl against the same endpoint.
+# NOTE: this only checks connectivity to responses API, it does not test Copilot CLI nor end-to-end Agentic workflows
+#   Since there are no agentics in this workflow, it does not use gh-aw-firewall.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AOAI_ENDPOINT: https://githubnext-eastus2.openai.azure.com/openai/responses?api-version=2025-04-01-preview
+  AOAI_MODEL: gpt-5.5
+
+jobs:
+  oidc:
+    name: AOAI via OIDC (managed identity)
+    runs-on: ubuntu-latest
+    environment: aoai-model
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_CLIENT_ID: adb907fd-188c-4029-b67f-2559d96b2f1b
+      AZURE_TENANT_ID: 398a6654-997b-47e9-b12b-9515b896b4de
+      AZURE_SUBSCRIPTION_ID: 606c8d64-a781-4e22-94d6-937f051e26e9
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AOAI access token
+        run: |
+          TOKEN=$(az account get-access-token \
+            --resource https://cognitiveservices.azure.com \
+            --query accessToken \
+            --output tsv)
+          echo "::add-mask::$TOKEN"
+          echo "AOAI_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
+      - name: Query AOAI model
+        run: |
+          curl --fail-with-body -sS -X POST "${AOAI_ENDPOINT}" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $AOAI_TOKEN" \
+            -d "$(jq -n --arg model "$AOAI_MODEL" '{
+              model: $model,
+              input: "Write a random sentence.",
+              max_output_tokens: 1024
+            }')"
+
+  api-key:
+    name: AOAI via API key
+    runs-on: ubuntu-latest
+    environment: aoai-model
+    steps:
+      - name: Query AOAI model
+        env:
+          AOAI_KEY_GITHUBNEXT_EASTUS2: ${{ secrets.AOAI_KEY_GITHUBNEXT_EASTUS2 }}
+        run: |
+          curl --fail-with-body -sS -X POST "${AOAI_ENDPOINT}" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $AOAI_KEY_GITHUBNEXT_EASTUS2" \
+            -d "$(jq -n --arg model "$AOAI_MODEL" '{
+              model: $model,
+              input: "Write a random sentence.",
+              max_output_tokens: 1024
+            }')"
