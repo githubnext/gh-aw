@@ -81,6 +81,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 
 	owner := parts[0]
 	repo := parts[1]
+	// At manifest-fetch time there is no resolved package metadata yet.
 	ref := repositoryPackageEffectiveRef(repoSpec, nil)
 	if ref == "" {
 		if isGhAwRepository(repoSpec.RepoSlug) {
