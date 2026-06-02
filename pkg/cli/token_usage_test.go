@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -460,4 +461,21 @@ func TestCacheEfficiency(t *testing.T) {
 		require.NotNil(t, summary)
 		assert.InDelta(t, 0.0, summary.CacheEfficiency, 0.001, "cache efficiency should remain unset")
 	})
+}
+
+func TestModelTokenUsageReasoningTokensJSONRoundTrip(t *testing.T) {
+	original := ModelTokenUsage{
+		Provider:        "anthropic",
+		InputTokens:     10,
+		OutputTokens:    20,
+		ReasoningTokens: 30,
+	}
+
+	raw, err := json.Marshal(original)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), `"reasoning_tokens":30`, "reasoning tokens should be persisted for ET recomputation")
+
+	var decoded ModelTokenUsage
+	require.NoError(t, json.Unmarshal(raw, &decoded))
+	assert.Equal(t, 30, decoded.ReasoningTokens, "reasoning tokens should survive JSON round-trip")
 }

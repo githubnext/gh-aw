@@ -70,7 +70,7 @@ type ModelTokenUsage struct {
 	OutputTokens     int    `json:"output_tokens" console:"header:Output,format:number"`
 	CacheReadTokens  int    `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
 	CacheWriteTokens int    `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
-	ReasoningTokens  int    `json:"-"`
+	ReasoningTokens  int    `json:"reasoning_tokens,omitempty"`
 	Requests         int    `json:"requests" console:"header:Requests"`
 	DurationMs       int    `json:"duration_ms"`
 	ResponseBytes    int    `json:"response_bytes"`
@@ -537,7 +537,7 @@ func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, tokenUsageFile st
 			continue
 		}
 		et := computeModelEffectiveTokensWithWeights(
-			e.Model, e.InputTokens, e.OutputTokens, e.CacheReadTokens, e.CacheWriteTokens, e.ReasoningTokens,
+			e.Model, e.Provider, e.InputTokens, e.OutputTokens, e.CacheReadTokens, e.CacheWriteTokens, e.ReasoningTokens,
 			multipliers, classWeights,
 		)
 		etEntries = append(etEntries, entryWithET{ts: ts, et: et})

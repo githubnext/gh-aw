@@ -289,6 +289,12 @@ func TestModelMultiplierSourcePrecedence(t *testing.T) {
 	loadedMultipliers = nil
 	multipliers, _ = resolveEffectiveWeights(nil)
 	assert.InDelta(t, 2.0, multipliers["model-x"], 1e-9, "env var should take precedence when merged file is unavailable")
+
+	t.Setenv(modelMultipliersEnvVar, "{bad json")
+	loadedMultipliers = nil
+	multipliers, _ = resolveEffectiveWeights(nil)
+	_, hasModelX := multipliers["model-x"]
+	assert.False(t, hasModelX, "built-in defaults should be used when env var JSON is malformed")
 }
 
 func TestComputeModelEffectiveTokensWithWeights_UnknownModelFallbackAndEffectiveInput(t *testing.T) {
@@ -298,8 +304,19 @@ func TestComputeModelEffectiveTokensWithWeights_UnknownModelFallbackAndEffective
 	// effective_input=max(50-100,0)=0
 	// base=(1.0*0)+(0.1*100)+(4.0*80)+(4.0*10)+(1.0*0)=370
 	// unknown model fallback multiplier=1.0 -> ET=370
-	et := computeModelEffectiveTokensWithWeights("unknown-model", 50, 80, 100, 0, 10, multipliers, w)
+	et := computeModelEffectiveTokensWithWeights("unknown-model", "", 50, 80, 100, 0, 10, multipliers, w)
 	assert.Equal(t, 370, et)
+}
+
+func TestComputeModelEffectiveTokensWithWeights_NoCacheReadSubtractionForUnknownProvider(t *testing.T) {
+	w := defaultTokenClassWeights()
+	multipliers := map[string]float64{"known-model": 2.0}
+
+	// Provider "test-provider" is treated as additive cache semantics by default:
+	// effective_input=50 (no subtraction), base=(1.0*50)+(0.1*100)+(4.0*80)+(4.0*10)=420
+	// unknown model fallback multiplier=1.0 -> ET=420
+	et := computeModelEffectiveTokensWithWeights("unknown-model", "test-provider", 50, 80, 100, 0, 10, multipliers, w)
+	assert.Equal(t, 420, et)
 }
 
 func TestPopulateEffectiveTokensWithCustomWeightsRecomputesFromRawUsage(t *testing.T) {

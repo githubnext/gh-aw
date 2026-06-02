@@ -117,16 +117,23 @@ func loadModelMultipliersData() (modelMultipliersData, bool) {
 		mergedPath = defaultMergedModelMultipliersPath
 	}
 	if data, ok := parseModelMultipliersFile(mergedPath); ok {
+		effectiveTokensLog.Printf("Loaded model multipliers from file: %s", mergedPath)
 		return data, true
 	}
 
 	if raw := strings.TrimSpace(os.Getenv(modelMultipliersEnvVar)); raw != "" {
 		if data, ok := parseModelMultipliersJSON([]byte(raw)); ok {
+			effectiveTokensLog.Printf("Loaded model multipliers from env var: %s", modelMultipliersEnvVar)
 			return data, true
 		}
+		effectiveTokensLog.Printf("Env var %s contained invalid JSON; falling back to built-in multipliers", modelMultipliersEnvVar)
 	}
 
-	return parseModelMultipliersJSON(modelMultipliersJSON)
+	data, ok := parseModelMultipliersJSON(modelMultipliersJSON)
+	if ok {
+		effectiveTokensLog.Print("Loaded model multipliers from embedded defaults")
+	}
+	return data, ok
 }
 
 func parseModelMultipliersFile(filePath string) (modelMultipliersData, bool) {
@@ -174,7 +181,7 @@ func populateEffectiveTokensWithCustomWeights(summary *TokenUsageSummary, custom
 		if usage == nil {
 			continue
 		}
-		eff := computeModelEffectiveTokensWithWeights(model, usage.InputTokens, usage.OutputTokens,
+		eff := computeModelEffectiveTokensWithWeights(model, usage.Provider, usage.InputTokens, usage.OutputTokens,
 			usage.CacheReadTokens, usage.CacheWriteTokens, usage.ReasoningTokens, multipliers, classWeights)
 		usage.EffectiveTokens = eff
 		total += eff
@@ -229,8 +236,8 @@ func resolveEffectiveWeights(custom *types.TokenWeights) (map[string]float64, ty
 
 // computeModelEffectiveTokensWithWeights computes effective tokens using caller-provided
 // multiplier table and token class weights instead of the global defaults.
-func computeModelEffectiveTokensWithWeights(model string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens int, multipliers map[string]float64, w types.TokenClassWeights) int {
-	base := computeBaseWeightedTokensForUsage(w, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens)
+func computeModelEffectiveTokensWithWeights(model, provider string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens int, multipliers map[string]float64, w types.TokenClassWeights) int {
+	base := computeBaseWeightedTokensForUsage(w, provider, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens)
 	if base == 0 {
 		return 0
 	}
@@ -259,13 +266,27 @@ func getModelMultiplier(model string, multipliers map[string]float64) float64 {
 	return bestMultiplier
 }
 
-func computeBaseWeightedTokensForUsage(w types.TokenClassWeights, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens int) float64 {
-	// Providers may report cache reads as part of input; subtract once before applying input weight.
-	effectiveInput := max(inputTokens-cacheReadTokens, 0)
+func computeBaseWeightedTokensForUsage(w types.TokenClassWeights, provider string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens int) float64 {
+	effectiveInput := inputTokens
+	if cacheReadTokens > 0 && providerIncludesCacheReadsInInput(provider) {
+		// Providers like Anthropic/OpenAI report cache_read_tokens as part of input_tokens.
+		// Deduct once so cache reads are weighted only by w.CachedInput, not double-counted.
+		// This may change ET versus previously stored effective_tokens values.
+		effectiveInput = max(inputTokens-cacheReadTokens, 0)
+	}
 
 	return w.Input*float64(effectiveInput) +
 		w.CachedInput*float64(cacheReadTokens) +
 		w.Output*float64(outputTokens) +
 		w.Reasoning*float64(reasoningTokens) +
 		w.CacheWrite*float64(cacheWriteTokens)
+}
+
+func providerIncludesCacheReadsInInput(provider string) bool {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "", "anthropic", "openai", "azure-openai", "azure_openai":
+		return true
+	default:
+		return false
+	}
 }
