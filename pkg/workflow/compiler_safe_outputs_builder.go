@@ -90,6 +90,10 @@ func (b *handlerConfigBuilder) AddBoolOrInt(key string, value any) *handlerConfi
 			safeOutputsBuilderLog.Printf("Ignoring non-integer float for %s: %v", key, v)
 			return b
 		}
+		if intValue, ok := typeutil.ParseIntValue(v); ok {
+			b.config[key] = intValue
+			return b
+		}
 	}
 	if intValue, ok := typeutil.ParseIntValue(value); ok {
 		b.config[key] = intValue
