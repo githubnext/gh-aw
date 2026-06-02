@@ -293,10 +293,10 @@ func providerIncludesCacheReadsInInput(provider string) bool {
 	//
 	// Known providers currently using bundled semantics are listed below. Unknown
 	// providers default to additive semantics to avoid under-counting input tokens.
-	switch strings.ToLower(strings.TrimSpace(provider)) {
-	case "", "anthropic", "openai", "azure-openai", "azure_openai":
-		return true
-	default:
-		return false
-	}
+	p := strings.TrimSpace(provider)
+	return p == "" ||
+		strings.EqualFold(p, "anthropic") ||
+		strings.EqualFold(p, "openai") ||
+		strings.EqualFold(p, "azure-openai") ||
+		strings.EqualFold(p, "azure_openai")
 }

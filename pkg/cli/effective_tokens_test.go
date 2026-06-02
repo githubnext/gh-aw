@@ -295,6 +295,8 @@ func TestModelMultiplierSourcePrecedence(t *testing.T) {
 	multipliers, _ = resolveEffectiveWeights(nil)
 	_, hasModelX := multipliers["model-x"]
 	assert.False(t, hasModelX, "built-in defaults should be used when env var JSON is malformed")
+	_, hasBuiltin := multipliers["claude-sonnet-4.5"]
+	assert.True(t, hasBuiltin, "built-in defaults should still load when env var JSON is malformed")
 }
 
 func TestComputeModelEffectiveTokensWithWeights_UnknownModelFallbackAndEffectiveInput(t *testing.T) {
