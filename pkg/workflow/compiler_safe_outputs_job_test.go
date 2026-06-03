@@ -554,8 +554,9 @@ func TestJobWithGitHubApp(t *testing.T) {
 	// Should include app token minting step
 	assert.Contains(t, stepsContent, "Generate GitHub App token")
 
-	// Should include app token invalidation step
-	assert.Contains(t, stepsContent, "Invalidate GitHub App token")
+	// Explicit app token invalidation step should not be generated.
+	// actions/create-github-app-token handles revocation in its post step.
+	assert.NotContains(t, stepsContent, "Invalidate GitHub App token")
 }
 
 // TestAssignToAgentWithGitHubAppUsesAgentToken tests that when github-app: is configured,
@@ -799,9 +800,9 @@ func TestGitHubAppWithPushToPRBranch(t *testing.T) {
 	tokenMintCount := strings.Count(stepsContent, "Generate GitHub App token")
 	assert.Equal(t, 1, tokenMintCount, "App token minting step should appear exactly once, found %d times", tokenMintCount)
 
-	// Should include app token invalidation step exactly once
+	// Explicit app token invalidation step should not be generated
 	tokenInvalidateCount := strings.Count(stepsContent, "Invalidate GitHub App token")
-	assert.Equal(t, 1, tokenInvalidateCount, "App token invalidation step should appear exactly once, found %d times", tokenInvalidateCount)
+	assert.Equal(t, 0, tokenInvalidateCount, "App token invalidation step should not be generated, found %d times", tokenInvalidateCount)
 
 	// Token step should come before checkout step (checkout references the token)
 	tokenIndex := strings.Index(stepsContent, "Generate GitHub App token")
