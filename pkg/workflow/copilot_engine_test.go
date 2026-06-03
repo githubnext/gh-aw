@@ -444,7 +444,6 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKArbitraryDriver(t *testing.T) 
 	}
 }
 
-
 func TestCopilotEngineExecutionStepsWithCopilotSDKPermissionConfig(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
