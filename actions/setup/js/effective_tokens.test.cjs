@@ -12,6 +12,7 @@ const {
   computeBaseWeightedTokens,
   computeEffectiveTokens,
   formatET,
+  formatModelEmojiAlias,
   reduceModelNameToIdentifier,
   resolveActualModelName,
   getEffectiveTokensSuffix,
@@ -420,6 +421,24 @@ describe("effective_tokens", () => {
       });
     });
 
+    describe("formatModelEmojiAlias", () => {
+      test("uses a purple alias for Claude-family models", () => {
+        expect(formatModelEmojiAlias("claude-sonnet-4.6")).toBe("🟣sonnet46");
+      });
+
+      test("uses a blue alias for OpenAI-family models", () => {
+        expect(formatModelEmojiAlias("gpt-5.5")).toBe("🔵gpt55");
+      });
+
+      test("uses a green alias for Gemini-family models", () => {
+        expect(formatModelEmojiAlias("gemini-2.5-pro")).toBe("🟢gem25");
+      });
+
+      test("uses an orange alias fallback for unknown models", () => {
+        expect(formatModelEmojiAlias("my-custom-engine-v2")).toBe("🟠myc20");
+      });
+    });
+
     describe("resolveActualModelName", () => {
       let originalAgentUsagePath;
 
@@ -570,10 +589,12 @@ describe("effective_tokens", () => {
       expect(result).toContain("<details>");
       expect(result).toContain("</details>");
       expect(result).toContain("ET computation details");
+      expect(result).not.toContain("<summary>ET computation details (formula:");
       expect(result).toContain("Input");
       expect(result).toContain("Output");
       expect(result).toContain("| Token class | Weight |");
       expect(result).not.toContain("| Token class | Count | Weight | Weighted tokens |");
+      expect(result).toContain("<sub>ET formula:");
     });
 
     it("shows aggregated weighted table when agent_usage.json is present and no tokenUsageMarkdown", () => {
@@ -601,15 +622,19 @@ describe("effective_tokens", () => {
 
     it("uses tokenUsageMarkdown directly when provided, ignoring agent_usage.json", () => {
       const { buildETComputationTable } = require("./effective_tokens.cjs");
-      const mockTable = "| Model | Input |\n|-------|------:|\n| claude-sonnet-4.5 | 100,000 |";
-      const result = buildETComputationTable("200000", mockTable);
+      const mockTable = "| Alias | Input |\n|-------|------:|\n| 🟣sonnet45 | 100,000 |";
+      const result = buildETComputationTable("200000", {
+        markdown: mockTable,
+        modelNames: ["claude-sonnet-4.5"],
+      });
       expect(result).toContain("<details>");
       expect(result).toContain("ET computation details");
-      expect(result).toContain("claude-sonnet-4.5");
+      expect(result).toContain("🟣sonnet45");
       expect(result).toContain("100,000");
       // Should not include the fallback aggregated table headers
       expect(result).not.toContain("Token class");
       expect(result).not.toContain("Weighted tokens");
+      expect(result).toContain("Model aliases: 🟣sonnet45=claude-sonnet-4.5");
     });
   });
 });
