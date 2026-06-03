@@ -192,7 +192,7 @@ resolve_version_from_compat() {
 
   compat_source="${compat_file}.source"
   if ! download_compat_json "$compat_file" "$compat_source"; then
-    echo "Could not resolve compatibility matrix from network or bundled fallback; using release latest fallback." >&2
+    echo "Could not resolve compatibility matrix from network or bundled fallback." >&2
     return 1
   fi
 
@@ -306,12 +306,12 @@ for i, row in enumerate(rows):
 print("")
 PY
   )"; then
-    echo "Compatibility matrix resolver failed unexpectedly; using release latest fallback." >&2
+    echo "Compatibility matrix resolver failed unexpectedly." >&2
     return 1
   fi
 
   if [ -z "$resolved_info" ]; then
-    echo "Compatibility matrix lookup found no matching copilot window for gh-aw ${compiled_version}; using release latest fallback." >&2
+    echo "Compatibility matrix lookup found no matching copilot window for gh-aw ${compiled_version}." >&2
     return 1
   fi
 
@@ -459,8 +459,9 @@ if [ -z "$VERSION" ]; then
     echo "Using compat-resolved Copilot CLI window: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT}"
     echo "Will install compat max-agent ${VERSION} if no cached version satisfies the window."
   else
-    REQUESTED_VERSION="latest"
-    echo "Falling back to latest Copilot CLI release because compat resolution did not produce a version."
+    echo "ERROR: Failed to resolve Copilot CLI version from compatibility matrix." >&2
+    echo "ERROR: Cannot install without a compatible version. Please provide an explicit version or fix the compatibility matrix." >&2
+    exit 1
   fi
 else
   echo "Explicit Copilot CLI version argument provided (${VERSION}); skipping compat matrix resolution."
