@@ -111,10 +111,9 @@ Test workflow with GitHub MCP app token minting.
 	// (masked values are silently dropped by the runner when used as job outputs)
 	assert.NotContains(t, lockContent, "github_mcp_app_token: ${{ steps.github-mcp-app-token.outputs.token }}", "Activation job must not expose github_mcp_app_token output")
 
-	// Verify token invalidation step is present in the agent job and references the step output
-	assert.Contains(t, lockContent, "Invalidate GitHub App token", "Token invalidation step should be present")
-	assert.Contains(t, lockContent, "if: always()", "Invalidation step should always run")
-	assert.Contains(t, lockContent, "steps.github-mcp-app-token.outputs.token", "Invalidation step should reference agent job step output")
+	// Explicit token invalidation step should not be generated in the agent job.
+	// actions/create-github-app-token handles revocation in its post step.
+	assert.NotContains(t, lockContent, "Invalidate GitHub App token", "Token invalidation step should not be present")
 
 	// Verify the app token is consumed from the step output within the agent job
 	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "Should use agent job step token for GitHub MCP Server")

@@ -109,25 +109,20 @@ function updateBody(params) {
   if (operation === "replace-island") {
     // Try to find existing island for this workflow ID
     const island = findIsland(currentBody, workflowId);
+    const startMarker = buildIslandStartMarker(workflowId);
+    const endMarker = buildIslandEndMarker(workflowId);
+    const islandContent = `${startMarker}\n${contentWithCaution}${aiFooter}${workflowIdMarker}\n${endMarker}`;
 
     if (island.found) {
       // Replace the island content
       core.info(`Operation: replace-island (updating existing island for workflow ${workflowId})`);
-      const startMarker = buildIslandStartMarker(workflowId);
-      const endMarker = buildIslandEndMarker(workflowId);
-      const islandContent = `${startMarker}\n${contentWithCaution}${aiFooter}${workflowIdMarker}\n${endMarker}`;
-
       const before = currentBody.substring(0, island.startIndex);
       const after = currentBody.substring(island.endIndex);
       return before + islandContent + after;
     } else {
       // Island not found, fall back to append mode
       core.info(`Operation: replace-island (island not found for workflow ${workflowId}, falling back to append)`);
-      const startMarker = buildIslandStartMarker(workflowId);
-      const endMarker = buildIslandEndMarker(workflowId);
-      const islandContent = `${startMarker}\n${contentWithCaution}${aiFooter}${workflowIdMarker}\n${endMarker}`;
-      const appendSection = `\n\n---\n\n${islandContent}`;
-      return currentBody + appendSection;
+      return currentBody + `\n\n---\n\n${islandContent}`;
     }
   }
 

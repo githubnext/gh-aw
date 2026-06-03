@@ -51,32 +51,6 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 	return steps
 }
 
-// GenerateCheckoutAppTokenInvalidationSteps generates token invalidation steps
-// for all checkout entries that use app authentication.
-// The tokens were minted in the agent job and are referenced via
-// steps.checkout-app-token-{index}.outputs.token.
-func (cm *CheckoutManager) GenerateCheckoutAppTokenInvalidationSteps(c *Compiler) []string {
-	checkoutManagerLog.Printf("Building app token invalidation steps for %d checkout entries", len(cm.ordered))
-	var steps []string
-	for i, entry := range cm.ordered {
-		if entry.githubApp == nil {
-			continue
-		}
-		checkoutManagerLog.Printf("Generating app token invalidation step for checkout index=%d", i)
-		rawSteps := c.buildGitHubAppTokenInvalidationStep()
-		stepID := fmt.Sprintf("checkout-app-token-%d", i)
-		for _, step := range rawSteps {
-			// Replace all references to safe-outputs-app-token with the checkout-specific step ID.
-			// This covers both the `if:` condition and the `env:` token reference in one pass.
-			modified := strings.ReplaceAll(step, "steps.safe-outputs-app-token.outputs.token", "steps."+stepID+".outputs.token")
-			// Update step name to indicate it's for checkout
-			modified = strings.ReplaceAll(modified, "Invalidate GitHub App token", fmt.Sprintf("Invalidate checkout app token (%d)", i))
-			steps = append(steps, modified)
-		}
-	}
-	return steps
-}
-
 // GenerateAdditionalCheckoutSteps generates YAML step lines for all non-default
 // (additional) checkouts — those that target a specific path other than the root.
 // The caller is responsible for emitting the default workspace checkout separately.

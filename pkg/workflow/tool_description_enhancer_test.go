@@ -176,3 +176,29 @@ func TestEnhanceToolDescriptionMarkPRReadyForReviewMaxCount(t *testing.T) {
 		t.Fatalf("expected max count constraint in description, got: %s", description)
 	}
 }
+
+func TestEnhanceToolDescriptionSubmitPullRequestReviewTarget(t *testing.T) {
+	description := enhanceToolDescription("submit_pull_request_review", "Submit a PR review.", &SafeOutputsConfig{
+		SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+			BaseSafeOutputConfig:   BaseSafeOutputConfig{Max: defaultIntStr(1)},
+			SafeOutputTargetConfig: SafeOutputTargetConfig{Target: "*"},
+		},
+	})
+
+	if !strings.Contains(description, "Target: *.") {
+		t.Fatalf("expected target constraint in description, got: %s", description)
+	}
+}
+
+func TestEnhanceToolDescriptionSubmitPullRequestReviewTargetRepo(t *testing.T) {
+	description := enhanceToolDescription("submit_pull_request_review", "Submit a PR review.", &SafeOutputsConfig{
+		SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+			BaseSafeOutputConfig:   BaseSafeOutputConfig{Max: defaultIntStr(1)},
+			SafeOutputTargetConfig: SafeOutputTargetConfig{TargetRepoSlug: "myorg/myrepo"},
+		},
+	})
+
+	if !strings.Contains(description, `"myorg/myrepo"`) {
+		t.Fatalf("expected target repo constraint in description, got: %s", description)
+	}
+}

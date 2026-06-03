@@ -364,6 +364,128 @@ describe("copilot_harness.cjs", () => {
         expect(result.exitCode).toBe(0);
         expect(forUri).toHaveBeenCalledWith("http://127.0.0.1:3002", { connectionToken: "token-123" });
       });
+
+      it("uses scoped permission handler from SDK permission config", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-permissions",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["shell(git:*)", "github(get_file_contents)", "web_fetch", "write"],
+          },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        const sessionConfig = createSession.mock.calls[0][0];
+        const onPermissionRequest = sessionConfig.onPermissionRequest;
+        expect(onPermissionRequest({ kind: "shell", commands: [{ identifier: "git" }], fullCommandText: "git status" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "mcp", serverName: "github", toolName: "get_file_contents" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "url", url: "https://example.com" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "write", fileName: "a.txt", diff: "", intention: "" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+      });
+
+      it("logs permission-denied SDK requests as core warnings", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-permission-warnings",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+        const coreLogger = {
+          info: vi.fn(),
+          warning: vi.fn(),
+        };
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["shell(git:*)"],
+          },
+          coreLogger,
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        const sessionConfig = createSession.mock.calls[0][0];
+        const onPermissionRequest = sessionConfig.onPermissionRequest;
+        expect(onPermissionRequest({ kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+        expect(coreLogger.info).toHaveBeenCalledWith(expect.stringContaining("shell(rm -rf /tmp/x)"));
+        expect(coreLogger.warning).toHaveBeenCalledWith(expect.stringContaining("shell(rm -rf /tmp/x)"));
+      });
+
+      it("uses SDK default permission behavior when no permissionConfig is provided", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-default-permissions",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        const approveAll = vi.fn(() => ({ kind: "approve-once" }));
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll,
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        const sessionConfig = createSession.mock.calls[0][0];
+        // The SDK's default policy is exercised by omitting onPermissionRequest entirely.
+        // This assertion verifies we do not force approve-all in the no-toolset path.
+        expect(sessionConfig).not.toHaveProperty("onPermissionRequest");
+        expect(approveAll).not.toHaveBeenCalled();
+      });
     });
 
     it("builds headless Copilot CLI sidecar args", () => {
@@ -1663,17 +1785,25 @@ describe("copilot_harness.cjs", () => {
       expect(result).toEqual({ promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt" });
     });
 
-    it("parses full payload with promptFile, serverArgs, and addWorkspaceDir", async () => {
+    it("parses full payload with promptFile, serverArgs, addWorkspaceDir, and permissionConfig", async () => {
       const payload = JSON.stringify({
         promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
         serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
         addWorkspaceDir: true,
+        permissionConfig: {
+          allowAllTools: false,
+          allowedTools: ["github(get_file_contents)", "shell(git:*)"],
+        },
       });
       const result = await runWithFakeStdin(payload);
       expect(result).toEqual({
         promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
         serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
         addWorkspaceDir: true,
+        permissionConfig: {
+          allowAllTools: false,
+          allowedTools: ["github(get_file_contents)", "shell(git:*)"],
+        },
       });
     });
 
@@ -1688,6 +1818,22 @@ describe("copilot_harness.cjs", () => {
         serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/", "--log-level", "all"],
       });
       expect(result.addWorkspaceDir).toBeUndefined();
+    });
+
+    it("parses payload with allow-all permission config", async () => {
+      const payload = JSON.stringify({
+        promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
+        permissionConfig: {
+          allowAllTools: true,
+        },
+      });
+      const result = await runWithFakeStdin(payload);
+      expect(result).toEqual({
+        promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
+        permissionConfig: {
+          allowAllTools: true,
+        },
+      });
     });
 
     it("returns null on empty stdin", async () => {

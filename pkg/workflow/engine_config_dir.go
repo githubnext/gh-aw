@@ -1,6 +1,12 @@
 package workflow
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var engineConfigDirLog = logger.New("workflow:engine_config_dir")
 
 // engineConfigBaseDir returns the base config directory for the given engine ID,
 // determined by looking up the engine in the global registry and reading the first
@@ -12,10 +18,13 @@ func engineConfigBaseDir(engineID string) string {
 	if err == nil {
 		if provider, ok := engine.(AgentFileProvider); ok {
 			if prefixes := provider.GetAgentManifestPathPrefixes(); len(prefixes) > 0 {
-				return strings.TrimSuffix(prefixes[0], "/")
+				baseDir := strings.TrimSuffix(prefixes[0], "/")
+				engineConfigDirLog.Printf("Resolved config base dir for engine %q to %q", engineID, baseDir)
+				return baseDir
 			}
 		}
 	}
+	engineConfigDirLog.Printf("Falling back to .github config base dir for engine %q (lookup err=%v)", engineID, err)
 	return ".github"
 }
 

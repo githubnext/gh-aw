@@ -39,6 +39,8 @@
 
 "use strict";
 
+require("./shim.cjs");
+
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -108,7 +110,6 @@ const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 // re-injects the same broken history, producing the same 400 on every subsequent attempt.
 // A fresh restart is required to discard the poisoned history.
 const NULL_TYPE_TOOL_CALL_PATTERN = /tool_calls\[.*?\]\.type.*null/;
-
 /**
  * Emit a diagnostic log line to stderr.
  * All driver messages are prefixed with "[copilot-harness]" so they are easy to
@@ -488,10 +489,10 @@ async function checkCommandAccessible(command) {
 
 /**
  * Read and parse the JSON options payload piped to stdin by the engine command.
- * Called in SDK mode where the Go engine pipes options via `printf '%s' '{"promptFile":"...","serverArgs":[...]}'
+ * Called in SDK mode where the Go engine pipes options via `printf '%s' '{"promptFile":"...","serverArgs":[...],"permissionConfig":{...}}'
  * | node harness`.
  * Returns null when stdin is a TTY, empty, or contains invalid JSON.
- * @returns {Promise<{promptFile?: string, serverArgs?: string[], addWorkspaceDir?: boolean} | null>}
+ * @returns {Promise<{promptFile?: string, serverArgs?: string[], addWorkspaceDir?: boolean, permissionConfig?: {allowAllTools?: boolean, allowedTools?: string[]}} | null>}
  */
 async function readSDKOptionsFromStdin() {
   if (process.stdin.isTTY) return null;
@@ -507,6 +508,7 @@ async function readSDKOptionsFromStdin() {
         resolve(null);
         return;
       }
+
       try {
         resolve(JSON.parse(text));
       } catch {
@@ -622,13 +624,15 @@ async function main() {
   // path, serverArgs (complete CLI argument list for the headless server), and optionally addWorkspaceDir.
   // Read it before doing anything else so stdin is consumed before the process runs.
   // In driver mode and CLI mode, args are resolved normally.
-  /** @type {{promptFile?: string, serverArgs?: string[], addWorkspaceDir?: boolean} | null} */
+  /** @type {{promptFile?: string, serverArgs?: string[], addWorkspaceDir?: boolean, permissionConfig?: {allowAllTools?: boolean, allowedTools?: string[]}} | null} */
   let sdkOptions = null;
   let resolvedArgs;
   if (copilotSDKMode && !copilotSDKDriverMode) {
     sdkOptions = await readSDKOptionsFromStdin();
     if (sdkOptions) {
-      log(`sdk-options: promptFile=${sdkOptions.promptFile || "(none)"} serverArgs=${(sdkOptions.serverArgs || []).length} addWorkspaceDir=${!!sdkOptions.addWorkspaceDir}`);
+      log(
+        `sdk-options: promptFile=${sdkOptions.promptFile || "(none)"} serverArgs=${(sdkOptions.serverArgs || []).length} addWorkspaceDir=${!!sdkOptions.addWorkspaceDir} permissionRules=${(sdkOptions.permissionConfig?.allowedTools || []).length} allowAllTools=${sdkOptions.permissionConfig?.allowAllTools === true}`
+      );
     }
     // Inline SDK mode does not use CLI prompt args; pass args through unmodified.
     resolvedArgs = args;
@@ -669,6 +673,7 @@ async function main() {
   let sdkPrompt = null;
   /** @type {{ model: string, provider: { type: "openai", baseUrl: string } } | null} */
   let sdkCustomProviderConfig = null;
+  const sdkCoreLogger = copilotSDKMode ? global.core : undefined;
   if (copilotSDKMode && !copilotSDKDriverMode) {
     if (sdkOptions && sdkOptions.promptFile) {
       try {
@@ -791,6 +796,8 @@ async function main() {
             model: sdkCustomProviderConfig?.model,
             connectionToken: copilotConnectionToken,
             provider: sdkCustomProviderConfig?.provider,
+            permissionConfig: sdkOptions?.permissionConfig,
+            coreLogger: sdkCoreLogger,
           });
         } else {
           result = await runProcess({ command, args: currentArgs, attempt, log, logArgs: safeArgs, env: childEnv });
