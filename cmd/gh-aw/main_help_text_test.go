@@ -38,3 +38,9 @@ func TestCompileShowAllFlagHelpText(t *testing.T) {
 	require.NotNil(t, showAllFlag, "compile command should define --show-all")
 	assert.Equal(t, "Display all prioritized compilation errors instead of the default top five", showAllFlag.Usage)
 }
+
+func TestCompileWorkflowNameFlagHelpText(t *testing.T) {
+	workflowNameFlag := compileCmd.Flags().Lookup("workflow-name")
+	require.NotNil(t, workflowNameFlag, "compile command should define --workflow-name")
+	assert.Contains(t, workflowNameFlag.Usage, "alias for positional workflow arguments")
+}

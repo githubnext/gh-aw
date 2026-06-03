@@ -230,7 +230,8 @@ Pre-activation runs gating checks sequentially before any AI execution. Any fail
 | `gh aw compile --no-emit` | Validate without generating files |
 | `gh aw compile --actionlint --zizmor --poutine` | Run security scanners |
 | `gh aw compile --purge` | Remove orphaned `.lock.yml` files |
-| `gh aw compile --output /path/to/output` | Custom output directory |
+| `gh aw compile --workflow-name ci-doctor` | Compile a specific workflow via flag |
+| `gh aw compile --workflows-dir .github/workflows` | Deprecated alias for `--dir` |
 | `gh aw compile --action-mode action --actions-repo owner/repo` | Compile using a custom actions repository (requires `--action-mode action`) |
 | `gh aw compile --action-mode action --actions-repo owner/repo --action-tag branch-or-sha` | Compile against a specific branch or SHA in a fork |
 | `gh aw compile --action-tag v1.2.3` | Pin action references to a specific tag or SHA (implies release mode) |

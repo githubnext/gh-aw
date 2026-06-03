@@ -253,6 +253,8 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` compile                    # Compile all Markdown files
   ` + string(constants.CLIExtensionPrefix) + ` compile ci-doctor          # Compile a specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` compile ci-doctor daily-plan  # Compile multiple workflows
+  ` + string(constants.CLIExtensionPrefix) + ` compile --workflow-name ci-doctor  # Compile a specific workflow via flag
+  ` + string(constants.CLIExtensionPrefix) + ` compile --workflow-name ci-doctor --workflow-name daily-plan  # Compile multiple workflows via repeatable flag
   ` + string(constants.CLIExtensionPrefix) + ` compile workflow.md        # Compile by file path
   ` + string(constants.CLIExtensionPrefix) + ` compile .github/workflows  # Compile all workflows in a directory
   ` + string(constants.CLIExtensionPrefix) + ` compile --dir custom/workflows  # Compile from custom directory
@@ -295,7 +297,9 @@ Examples:
 		validateImages, _ := cmd.Flags().GetBool("validate-images")
 		priorManifestFile, _ := cmd.Flags().GetString("prior-manifest-file")
 		ghes, _ := cmd.Flags().GetBool("ghes")
+		workflowNames, _ := cmd.Flags().GetStringArray("workflow-name")
 		verbose, _ := cmd.Flags().GetBool("verbose")
+		workflowArgs := append(args, workflowNames...)
 		if err := validateEngine(engineOverride); err != nil {
 			return err
 		}
@@ -322,7 +326,7 @@ Examples:
 			workflowDir = workflowsDir
 		}
 		config := cli.CompileConfig{
-			MarkdownFiles:          args,
+			MarkdownFiles:          workflowArgs,
 			Verbose:                verbose,
 			EngineOverride:         engineOverride,
 			ActionMode:             actionMode,
@@ -689,6 +693,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	compileCmd.Flags().String("workflows-dir", "", "Deprecated: use --dir instead")
 	_ = compileCmd.Flags().MarkDeprecated("workflows-dir", "use --dir instead")
+	compileCmd.Flags().StringArray("workflow-name", nil, "Workflow ID or file path to compile (repeatable; alias for positional workflow arguments)")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
 	compileCmd.Flags().Bool("strict", false, "Override frontmatter to enforce strict mode validation for all workflows (enforces action pinning, network config, safe-outputs, refuses write permissions and deprecated fields). Note: Workflows default to strict mode unless frontmatter sets strict: false")
