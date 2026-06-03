@@ -332,6 +332,49 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineHarnessPatte
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineCopilotSDKDriverPattern(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id":                 "copilot",
+			"copilot-sdk-driver": "custom_copilot_sdk_driver.cjs",
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/engine-copilot-sdk-driver-valid-pattern-test.md")
+	if err != nil {
+		t.Fatalf("expected valid engine.copilot-sdk-driver pattern to pass schema validation, got: %v", err)
+	}
+
+	invalidFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id":                 "copilot",
+			"copilot-sdk-driver": "../driver.cjs",
+		},
+	}
+
+	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/engine-copilot-sdk-driver-invalid-pattern-test.md")
+	if err == nil {
+		t.Fatal("expected invalid engine.copilot-sdk-driver pattern to fail schema validation")
+	}
+
+	invalidFlagLikeFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id":                 "copilot",
+			"copilot-sdk-driver": "-driver.cjs",
+		},
+	}
+
+	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFlagLikeFrontmatter, "/tmp/gh-aw/engine-copilot-sdk-driver-invalid-flaglike-pattern-test.md")
+	if err == nil {
+		t.Fatal("expected flag-like engine.copilot-sdk-driver pattern to fail schema validation")
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EnginePermissionMode(t *testing.T) {
 	t.Parallel()
 

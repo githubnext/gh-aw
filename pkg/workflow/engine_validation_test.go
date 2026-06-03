@@ -448,6 +448,109 @@ func TestValidateEngineHarnessScript(t *testing.T) {
 	}
 }
 
+func TestValidateEngineCopilotSDKDriver(t *testing.T) {
+	tests := []struct {
+		name        string
+		workflow    *WorkflowData
+		expectError bool
+		errorSubstr string
+	}{
+		{
+			name: "no engine config",
+			workflow: &WorkflowData{
+				EngineConfig: nil,
+			},
+			expectError: false,
+		},
+		{
+			name: "no copilot sdk driver configured",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid cjs copilot sdk driver",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "custom_copilot_sdk_driver.cjs"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid mjs copilot sdk driver",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "custom_copilot_sdk_driver.mjs"},
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid extension",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "driver.sh"},
+			},
+			expectError: true,
+			errorSubstr: "must be a Node.js script",
+		},
+		{
+			name: "invalid path traversal",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "../driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "safe basename",
+		},
+		{
+			name: "invalid path separator",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "nested/driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "safe basename",
+		},
+		{
+			name: "invalid shell metacharacter",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "driver;rm -rf /.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "safe basename",
+		},
+		{
+			name: "invalid leading whitespace",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: " driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "leading/trailing whitespace",
+		},
+		{
+			name: "invalid leading hyphen",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "-driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "safe basename",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			err := compiler.validateEngineCopilotSDKDriver(tt.workflow)
+
+			if tt.expectError {
+				require.Error(t, err, "Expected validation error")
+				if tt.errorSubstr != "" {
+					assert.Contains(t, err.Error(), tt.errorSubstr, "Expected error substring mismatch")
+				}
+				return
+			}
+
+			assert.NoError(t, err, "Expected copilot-sdk-driver validation to pass")
+		})
+	}
+}
+
 // TestValidateEngineMCPSessionTimeout tests the validateEngineMCPSessionTimeout function.
 func TestValidateEngineMCPSessionTimeout(t *testing.T) {
 	tests := []struct {

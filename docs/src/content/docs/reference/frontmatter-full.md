@@ -2308,6 +2308,12 @@ engine:
   # (optional)
   copilot-sdk: true
 
+  # Custom Node.js Copilot SDK driver script filename (copilot engine only). This is
+  # only used when copilot-sdk: true is set and must be a safe basename ending with
+  # .js, .cjs, or .mjs.
+  # (optional)
+  copilot-sdk-driver: "example-value"
+
 # Format 3: Inline engine definition: specifies a runtime adapter and optional
 # provider settings directly in the workflow frontmatter, without requiring a
 # named catalog entry

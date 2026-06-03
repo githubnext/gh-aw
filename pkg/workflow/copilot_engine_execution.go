@@ -200,6 +200,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		harnessScriptName = workflowData.EngineConfig.HarnessScript
 	}
 	isCopilotSDKMode := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK
+	sdkDriverScriptName := "copilot_sdk_driver.cjs"
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDKDriver != "" {
+		sdkDriverScriptName = workflowData.EngineConfig.CopilotSDKDriver
+	}
 
 	// copilotSDKServerArgsJSON holds the JSON-encoded server-args array that will be set in
 	// GH_AW_COPILOT_SDK_SERVER_ARGS when copilot-sdk: true. It is declared here so that the
@@ -220,9 +224,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// ["copilot_sdk_driver.cjs", commandName]) — treating the driver like any other command.
 			// The shell expands $GH_AW_NODE_EXEC before the harness process starts, so the
 			// harness sees the absolute path to the node binary in its argv.
-			execPrefix = fmt.Sprintf(`%s %s/%s "$GH_AW_NODE_EXEC" %s/copilot_sdk_driver.cjs %s`,
+			execPrefix = fmt.Sprintf(`%s %s/%s "$GH_AW_NODE_EXEC" %s/%s %s`,
 				runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName,
-				SetupActionDestinationShell, commandName)
+				SetupActionDestinationShell, sdkDriverScriptName, commandName)
 		} else {
 			execPrefix = fmt.Sprintf(`%s %s/%s %s`, runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
 		}

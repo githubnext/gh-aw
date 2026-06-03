@@ -323,6 +323,30 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	}
 }
 
+func TestCopilotEngineExecutionStepsWithCopilotSDKCustomDriver(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			CopilotSDK:       true,
+			CopilotSDKDriver: "custom_copilot_sdk_driver.cjs",
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, "custom_copilot_sdk_driver.cjs") {
+		t.Fatalf("Expected SDK driver mode command to include custom_copilot_sdk_driver.cjs, got:\n%s", stepContent)
+	}
+	if strings.Contains(stepContent, "/actions/copilot_sdk_driver.cjs") {
+		t.Fatalf("Expected built-in SDK driver to be replaced, got:\n%s", stepContent)
+	}
+}
+
 func TestCopilotEngineExecutionStepsWithCopilotSDKPermissionConfig(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{

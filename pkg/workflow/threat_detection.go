@@ -614,6 +614,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 			APITarget:          detectionEngineConfig.APITarget,
 			MaxEffectiveTokens: detectionEngineConfig.MaxEffectiveTokens,
 			HarnessScript:      detectionEngineConfig.HarnessScript,
+			CopilotSDKDriver:   detectionEngineConfig.CopilotSDKDriver,
 		}
 	}
 	if detectionEngineConfig.ID == "" {

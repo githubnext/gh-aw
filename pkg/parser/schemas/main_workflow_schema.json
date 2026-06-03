@@ -10687,6 +10687,7 @@
         },
         {
           "id": "copilot",
+          "copilot-sdk-driver": "custom_copilot_sdk_driver.cjs",
           "copilot-sdk": true,
           "version": "latest"
         }
@@ -10931,6 +10932,11 @@
             "copilot-sdk": {
               "type": "boolean",
               "description": "Enables the experimental GitHub Copilot SDK integration (copilot engine only). When true, the harness starts a separate headless Copilot CLI sidecar on the configured localhost port and sets COPILOT_SDK_URI on child processes."
+            },
+            "copilot-sdk-driver": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_][A-Za-z0-9._-]*\\.(?:js|cjs|mjs)$",
+              "description": "Custom Node.js Copilot SDK driver script filename (copilot engine only). Used only when `copilot-sdk: true` is set; must be a safe basename ending with .js, .cjs, or .mjs."
             }
           },
           "required": ["id"],

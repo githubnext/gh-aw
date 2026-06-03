@@ -39,6 +39,7 @@ type EngineConfig struct {
 	UserAgent          string
 	Command            string // Custom executable path (when set, skip installation steps)
 	HarnessScript      string // Custom Node.js harness script filename (replaces engine default harness script when supported)
+	CopilotSDKDriver   string // Custom Node.js Copilot SDK driver script filename (copilot engine only; used when copilot-sdk=true)
 	Env                map[string]string
 	Auth               *EngineAuthConfig // Engine-level auth config (mapped to AWF_AUTH_* env vars for API proxy sidecar auth)
 	Config             string
@@ -405,6 +406,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			if harness, hasHarness := engineObj["harness"]; hasHarness {
 				if harnessStr, ok := harness.(string); ok {
 					config.HarnessScript = harnessStr
+				}
+			}
+
+			// Extract optional 'copilot-sdk-driver' field (string - validated separately)
+			if sdkDriver, hasSDKDriver := engineObj["copilot-sdk-driver"]; hasSDKDriver {
+				if sdkDriverStr, ok := sdkDriver.(string); ok {
+					config.CopilotSDKDriver = sdkDriverStr
 				}
 			}
 

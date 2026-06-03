@@ -263,6 +263,19 @@ The value must be a bare filename — no directory separators, no `..`, and no s
 | Must start with `[A-Za-z0-9_]` | `harness.js` | `-harness.cjs` |
 | Must end with `.js`, `.cjs`, or `.mjs` | `wrapper.cjs` | `harness.sh` |
 
+### Copilot SDK Driver Override (`copilot-sdk-driver`)
+
+When `engine.copilot-sdk: true` is enabled, gh-aw runs a Node.js driver script (`copilot_sdk_driver.cjs`) under the harness. Use `engine.copilot-sdk-driver` to replace that built-in SDK driver with your own script filename.
+
+```yaml wrap
+engine:
+  id: copilot
+  copilot-sdk: true
+  copilot-sdk-driver: custom_copilot_sdk_driver.cjs
+```
+
+`copilot-sdk-driver` follows the same filename safety rules as `harness`: it must be a bare filename ending with `.js`, `.cjs`, or `.mjs` (no paths, no `..`, no shell metacharacters).
+
 ### Bare Mode (`bare`)
 
 Set `engine.bare: true` to disable automatic loading of context and custom instructions by the engine. Use this when the workflow prompt is fully self-contained and you want to prevent the engine from reading memory files, AGENTS.md, or built-in system prompts that would otherwise be loaded automatically.

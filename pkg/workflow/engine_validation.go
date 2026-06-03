@@ -51,6 +51,28 @@ import (
 var engineValidationLog = newValidationLogger("engine")
 var safeHarnessScriptPattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*$`)
 
+func validateEngineScriptFilename(fieldName, scriptName string) error {
+	if strings.TrimSpace(scriptName) != scriptName {
+		return fmt.Errorf("%s must be a safe basename without leading/trailing whitespace (found: %s).\n\nSee: %s", fieldName, scriptName, constants.DocsEnginesURL)
+	}
+
+	if filepath.IsAbs(scriptName) ||
+		strings.Contains(scriptName, "/") ||
+		strings.Contains(scriptName, `\`) ||
+		strings.Contains(scriptName, "..") ||
+		!safeHarnessScriptPattern.MatchString(scriptName) {
+		return fmt.Errorf("%s must be a safe basename (no path separators, '..', or shell metacharacters) ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", fieldName, scriptName, constants.DocsEnginesURL)
+	}
+
+	ext := strings.ToLower(filepath.Ext(scriptName))
+	switch ext {
+	case ".js", ".cjs", ".mjs":
+		return nil
+	default:
+		return fmt.Errorf("%s must be a Node.js script ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", fieldName, scriptName, constants.DocsEnginesURL)
+	}
+}
+
 // validateEngineVersion warns when the workflow explicitly pins the engine CLI
 // to "latest". Unpinned "latest" versions change unpredictably and undermine
 // supply chain security guarantees.
@@ -107,26 +129,17 @@ func (c *Compiler) validateEngineHarnessScript(workflowData *WorkflowData) error
 		return nil
 	}
 
-	harnessScript := workflowData.EngineConfig.HarnessScript
-	if strings.TrimSpace(harnessScript) != harnessScript {
-		return fmt.Errorf("engine.harness must be a safe basename without leading/trailing whitespace (found: %s).\n\nSee: %s", workflowData.EngineConfig.HarnessScript, constants.DocsEnginesURL)
-	}
+	return validateEngineScriptFilename("engine.harness", workflowData.EngineConfig.HarnessScript)
+}
 
-	if filepath.IsAbs(harnessScript) ||
-		strings.Contains(harnessScript, "/") ||
-		strings.Contains(harnessScript, `\`) ||
-		strings.Contains(harnessScript, "..") ||
-		!safeHarnessScriptPattern.MatchString(harnessScript) {
-		return fmt.Errorf("engine.harness must be a safe basename (no path separators, '..', or shell metacharacters) ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", workflowData.EngineConfig.HarnessScript, constants.DocsEnginesURL)
-	}
-
-	ext := strings.ToLower(filepath.Ext(harnessScript))
-	switch ext {
-	case ".js", ".cjs", ".mjs":
+// validateEngineCopilotSDKDriver validates optional engine.copilot-sdk-driver configuration.
+// engine.copilot-sdk-driver must point to a Node.js script.
+func (c *Compiler) validateEngineCopilotSDKDriver(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.CopilotSDKDriver == "" {
 		return nil
-	default:
-		return fmt.Errorf("engine.harness must be a Node.js script ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", workflowData.EngineConfig.HarnessScript, constants.DocsEnginesURL)
 	}
+
+	return validateEngineScriptFilename("engine.copilot-sdk-driver", workflowData.EngineConfig.CopilotSDKDriver)
 }
 
 // validateEngineMCPSessionTimeout validates optional engine.mcp.session-timeout configuration.
