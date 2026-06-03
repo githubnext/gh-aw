@@ -47,7 +47,7 @@
 #   - ghcr.io/github/gh-aw-firewall/api-proxy:0.25.58
 #   - ghcr.io/github/gh-aw-firewall/squid:0.25.58
 #   - ghcr.io/github/gh-aw-mcpg:v0.3.22
-#   - ghcr.io/github/github-mcp-server:v1.1.0
+#   - ghcr.io/github/github-mcp-server:v1.1.2
 #   - node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14
 
 name: "On-Demand Agentic Workflow Token Trend Audit"
@@ -110,7 +110,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "On-Demand Agentic Workflow Token Trend Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-trend-audit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.55"
+          GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AWF_VERSION: "v0.25.58"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Generate agentic run info
@@ -119,8 +119,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'claude-sonnet-4.6' }}
-          GH_AW_INFO_VERSION: "1.0.55"
-          GH_AW_INFO_AGENT_VERSION: "1.0.55"
+          GH_AW_INFO_VERSION: "1.0.57"
+          GH_AW_INFO_AGENT_VERSION: "1.0.57"
           GH_AW_INFO_WORKFLOW_NAME: "On-Demand Agentic Workflow Token Trend Audit"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -393,7 +393,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "On-Demand Agentic Workflow Token Trend Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-trend-audit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.55"
+          GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AWF_VERSION: "v0.25.58"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Set runtime paths
@@ -496,7 +496,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.55
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.57
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -532,7 +532,7 @@ jobs:
           GH_AW_SKILL_DIR: ".github/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.58 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.58 ghcr.io/github/gh-aw-firewall/squid:0.25.58 ghcr.io/github/gh-aw-mcpg:v0.3.22 ghcr.io/github/github-mcp-server:v1.1.0 node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.58 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.58 ghcr.io/github/gh-aw-firewall/squid:0.25.58 ghcr.io/github/gh-aw-mcpg:v0.3.22 ghcr.io/github/github-mcp-server:v1.1.2 node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14
       - name: Build and install gh-aw CLI from source
         run: |
           gh extension remove aw || true
@@ -822,7 +822,7 @@ jobs:
               },
               "github": {
                 "type": "stdio",
-                "container": "ghcr.io/github/github-mcp-server:v1.1.0",
+                "container": "ghcr.io/github/github-mcp-server:v1.1.2",
                 "env": {
                   "GITHUB_HOST": "\${GITHUB_SERVER_URL}",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
@@ -1151,7 +1151,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "On-Demand Agentic Workflow Token Trend Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-trend-audit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.55"
+          GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AWF_VERSION: "v0.25.58"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
@@ -1311,7 +1311,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "On-Demand Agentic Workflow Token Trend Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-trend-audit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.55"
+          GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AWF_VERSION: "v0.25.58"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
@@ -1401,7 +1401,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.55
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.57
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -1521,7 +1521,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
-      GH_AW_ENGINE_VERSION: "1.0.55"
+      GH_AW_ENGINE_VERSION: "1.0.57"
       GH_AW_TRACKER_ID: "agentic-token-trend-audit"
       GH_AW_WORKFLOW_ID: "agentic-token-trend-audit"
       GH_AW_WORKFLOW_NAME: "On-Demand Agentic Workflow Token Trend Audit"
@@ -1554,7 +1554,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "On-Demand Agentic Workflow Token Trend Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-trend-audit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.55"
+          GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AWF_VERSION: "v0.25.58"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Download agent output artifact
@@ -1638,7 +1638,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "On-Demand Agentic Workflow Token Trend Audit"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agentic-token-trend-audit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.55"
+          GH_AW_INFO_VERSION: "1.0.57"
           GH_AW_INFO_AWF_VERSION: "v0.25.58"
           GH_AW_INFO_ENGINE_ID: "copilot"
       - name: Checkout repository
@@ -1696,7 +1696,7 @@ jobs:
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/agentic-token-trend-audit.md"
           GH_AW_TRACKER_ID: "agentic-token-trend-audit"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_ENGINE_VERSION: "1.0.55"
+          GH_AW_ENGINE_VERSION: "1.0.57"
           GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
