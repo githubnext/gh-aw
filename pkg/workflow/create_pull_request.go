@@ -18,7 +18,8 @@ func getFallbackAsIssue(config *CreatePullRequestsConfig) bool {
 }
 
 // isCloseOlderPullRequestsEnabled returns true when close-older-pull-requests is
-// configured and not explicitly set to false or a GitHub Actions expression.
+// configured and not explicitly set to false ("false" or "0"). Any other non-empty
+// value, including GitHub Actions expressions like "${{ ... }}", is treated as enabled.
 // Used for compile-time permission calculation.
 func isCloseOlderPullRequestsEnabled(config *CreatePullRequestsConfig) bool {
 	if config == nil || config.CloseOlderPullRequests == nil {

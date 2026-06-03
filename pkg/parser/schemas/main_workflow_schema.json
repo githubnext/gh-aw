@@ -6365,6 +6365,21 @@
                   "description": "When true (default), automatically appends a closing keyword (\"Fixes #N\") to the PR description when the workflow is triggered from an issue and no closing keyword is already present. This causes GitHub to auto-close the triggering issue when the PR is merged. Set to false to prevent this behavior, e.g., for partial-work PRs or multi-PR workflows. Accepts a boolean or a GitHub Actions expression.",
                   "default": true
                 },
+                "close-older-pull-requests": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/templatable_boolean"
+                    }
+                  ],
+                  "description": "When true, automatically close older open pull requests with the same workflow-id marker (or close-older-key when set) with a comment linking to the new PR. Maximum 10 PRs will be closed. Only runs if PR creation succeeds.",
+                  "default": false
+                },
+                "close-older-key": {
+                  "type": "string",
+                  "description": "Optional explicit deduplication key for close-older-pull-requests matching. When set, a `<!-- gh-aw-close-key: <value> -->` marker is embedded in the PR body and used as the primary key for searching and filtering older PRs instead of the workflow-id markers. The value is normalized to identifier style (lowercase alphanumeric, dashes, underscores).",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
                 "github-token-for-extra-empty-commit": {
                   "type": "string",
                   "description": "Token used to push an empty commit after PR creation to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Defaults to the magic secret GH_AW_CI_TRIGGER_TOKEN if set in the repository. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}') for a custom token, or 'app' for GitHub App auth."
