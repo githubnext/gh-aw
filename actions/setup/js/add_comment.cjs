@@ -618,6 +618,26 @@ async function main(config = {}) {
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
 
+    // Compute caution first so prefix assembly preserves the original execution order.
+    const detectionCaution = assembleMarkdownBodyParts({
+      includeFooter: false,
+      workflowName,
+      runUrl,
+    }).detectionCaution;
+
+    // Inject body header if configured (placed after caution, before user content)
+    const bodyHeader = getBodyHeader({ workflowName, runUrl });
+
+    // Build prefix: caution (if any) → body header (if any) → user content
+    const prefixParts = [detectionCaution, bodyHeader].filter(Boolean);
+    if (prefixParts.length > 0) processedBody = prefixParts.join("\n\n") + "\n\n" + processedBody;
+
+    // Add tracker ID and footer
+    const trackerIDComment = getTrackerID("markdown");
+    if (trackerIDComment) {
+      processedBody += "\n\n" + trackerIDComment;
+    }
+
     // Get triggering context for footer
     const triggeringIssueNumber = context.payload.issue?.number;
     const triggeringPRNumber = context.payload.pull_request?.number;
@@ -646,22 +666,6 @@ async function main(config = {}) {
       historyUrl,
       markerWhenFooterDisabled: "xml",
     });
-
-    // Inject CAUTION at top of body if threat detection warning was raised
-    const detectionCaution = markdownParts.detectionCaution;
-
-    // Inject body header if configured (placed after caution, before user content)
-    const bodyHeader = getBodyHeader({ workflowName, runUrl });
-
-    // Build prefix: caution (if any) → body header (if any) → user content
-    const prefixParts = [detectionCaution, bodyHeader].filter(Boolean);
-    if (prefixParts.length > 0) processedBody = prefixParts.join("\n\n") + "\n\n" + processedBody;
-
-    // Add tracker ID and footer
-    const trackerIDComment = getTrackerID("markdown");
-    if (trackerIDComment) {
-      processedBody += "\n\n" + trackerIDComment;
-    }
 
     if (includeFooter) {
       // When footer is enabled, add full footer with attribution and XML markers.

@@ -557,16 +557,16 @@ async function main(config = {}) {
       triggeringIssueNumber,
       triggeringPRNumber,
       triggeringDiscussionNumber,
-      historyUrl:
-        includeFooter &&
-        generateHistoryUrl({
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          itemType: "discussion",
-          workflowCallId: callerWorkflowId,
-          workflowId,
-          serverUrl: context.serverUrl,
-        }),
+      historyUrl: includeFooter
+        ? generateHistoryUrl({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            itemType: "discussion",
+            workflowCallId: callerWorkflowId,
+            workflowId,
+            serverUrl: context.serverUrl,
+          })
+        : undefined,
       workflowId,
       markerWhenFooterDisabled: "workflow-id",
     });
