@@ -53,7 +53,9 @@ Map to:
 
 ### Phase 4: Data Strategy
 
-Ask: **"What data does the agent need to make decisions? Can we pre-fetch and aggregate it with shell commands so the agent only reads compact JSON?"**
+Ask:
+- **"What data does the agent need to make decisions?"**
+- Follow up: **"Can we pre-fetch and aggregate that data with shell commands so the agent only reads compact JSON?"**
 
 Capture:
 - Whether `steps:` should pre-fetch GitHub data with `gh` + `jq`
@@ -160,7 +162,7 @@ Present a structured summary and ask for approval before generation.
 
 Apply these defaults unless the user explicitly asks otherwise:
 
-1. Use DataOps by default for GitHub reads: pre-fetch with `gh` + `jq` in `steps:`, store compact JSON in `/tmp/gh-aw/data/`, and point the prompt to those files.
+1. Use DataOps by default for GitHub reads: pre-fetch/aggregate with `gh` + `jq` in `steps:`, store compact JSON in `/tmp/gh-aw/data/`, and point the prompt to those files (see `.github/aw/token-optimization.md` for details).
 2. Keep tool surface minimal: default to `tools.github.mode: gh-proxy`, include only required toolsets, and prefer `bash` + `gh` for simple reads.
 3. For batch workloads, split items into compact data and suggest sub-agent processing with `model: small`.
 4. Keep prompts compact: concise imperative instructions, explicit file paths, single-line `noop` guidance, and stable instructions before dynamic content.
@@ -226,7 +228,7 @@ network:
 ## Task
 
 <clear instructions tied to trigger context>
-Use pre-fetched data files from `/tmp/gh-aw/data/` when available instead of re-fetching broadly.
+If `steps:` includes pre-fetch commands, read the resulting `/tmp/gh-aw/data/*.json` files instead of broad live re-fetches.
 
 ## Safe Outputs
 
