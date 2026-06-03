@@ -27,6 +27,11 @@ COPILOT_TOOLCACHE_MAX_DEPTH=4
 COMPAT_URL_PRIMARY="${COPILOT_COMPAT_URL:-https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json}"
 COMPAT_URL_FALLBACK="${COPILOT_COMPAT_FALLBACK_URL:-https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/compat.json}"
 COMPILED_GH_AW_VERSION="${GH_AW_COMPILED_VERSION:-}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+COMPAT_BUNDLED_PATH="${COPILOT_COMPAT_BUNDLED_PATH:-${REPO_ROOT}/.github/aw/compat.json}"
+COMPAT_MATCHED_MIN_AGENT=""
+COMPAT_MATCHED_MAX_AGENT=""
 
 # Fix directory ownership before installation
 # This is needed because a previous AWF run on the same runner may have used
@@ -156,6 +161,14 @@ download_compat_json() {
     echo "Compatibility matrix download failed from ${url}" >&2
   done
 
+  if [ -f "$COMPAT_BUNDLED_PATH" ]; then
+    echo "Falling back to bundled compatibility matrix at ${COMPAT_BUNDLED_PATH}" >&2
+    cp "$COMPAT_BUNDLED_PATH" "$compat_file"
+    echo "bundled:${COMPAT_BUNDLED_PATH}" > "$source_file"
+    return 0
+  fi
+
+  echo "Bundled compatibility matrix not found at ${COMPAT_BUNDLED_PATH}" >&2
   return 1
 }
 
@@ -178,11 +191,16 @@ resolve_version_from_compat() {
 
   compat_source="${compat_file}.source"
   if ! download_compat_json "$compat_file" "$compat_source"; then
-    echo "Could not download compatibility matrix from primary or fallback URL; using release latest fallback." >&2
+    echo "Could not resolve compatibility matrix from network or bundled fallback; using release latest fallback." >&2
     return 1
   fi
 
-  resolved_info="$(python3 - "$compat_file" "$compiled_version" <<'PY'
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "python3 is unavailable; skipping compatibility matrix resolution." >&2
+    return 1
+  fi
+
+  if ! resolved_info="$(python3 - "$compat_file" "$compiled_version" <<'PY'
 import json
 import re
 import sys
@@ -240,8 +258,16 @@ if parse(compiled_no_v) is None:
     print("")
     sys.exit(0)
 
-with open(compat_path, "r", encoding="utf-8") as f:
-    data = json.load(f)
+try:
+    with open(compat_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+except Exception:
+    print("")
+    sys.exit(0)
+
+if not isinstance(data, dict):
+    print("")
+    sys.exit(0)
 
 rows = (
     data.get("agent-compat-v1", {})
@@ -277,7 +303,10 @@ for i, row in enumerate(rows):
 
 print("")
 PY
-)"
+  )"; then
+    echo "Compatibility matrix resolver failed unexpectedly; using release latest fallback." >&2
+    return 1
+  fi
 
   if [ -z "$resolved_info" ]; then
     echo "Compatibility matrix lookup found no matching copilot window for gh-aw ${compiled_version}; using release latest fallback." >&2
@@ -288,13 +317,15 @@ PY
   echo "Compatibility matrix source: $(cat "$compat_source")" >&2
   echo "Compatibility matrix matched row ${row_index}: gh-aw ${row_min_aw}..${row_max_aw}, copilot ${row_min_agent}..${row_max_agent}" >&2
   echo "Resolved Copilot CLI version from compatibility matrix: ${resolved_version}" >&2
-  printf '%s\n' "$resolved_version"
+  printf '%s|%s|%s\n' "$resolved_version" "$row_min_agent" "$row_max_agent"
   return 0
 }
 
 # Look up a compatible Copilot CLI from the Actions toolcache before downloading a release tarball.
 find_cached_copilot_bin() {
   local requested_version="${1:-latest}"
+  local min_version="${2:-}"
+  local max_version="${3:-}"
   local requested_version_normalized=""
   local tool_cache_root=""
   local candidate=""
@@ -305,7 +336,7 @@ find_cached_copilot_bin() {
   local best_candidate=""
   local best_version=""
 
-  echo "Searching toolcache for GitHub Copilot CLI (requested: ${requested_version}, arch: ${ARCH_NAME})..." >&2
+  echo "Searching toolcache for GitHub Copilot CLI (requested: ${requested_version}, arch: ${ARCH_NAME}, range: ${min_version:-none}..${max_version:-none})..." >&2
 
   if [ "$requested_version" != "latest" ]; then
     requested_version_normalized="$(normalize_version "$requested_version")"
@@ -352,6 +383,16 @@ find_cached_copilot_bin() {
           return 0
         fi
         echo "  Skipping candidate (version mismatch: want ${requested_version_normalized}, got ${candidate_version_normalized})" >&2
+        continue
+      fi
+
+      if [ -n "$min_version" ] && version_is_greater "$min_version" "$candidate_version_normalized"; then
+        echo "  Skipping candidate (below compat minimum: ${candidate_version_normalized} < ${min_version})" >&2
+        continue
+      fi
+
+      if [ -n "$max_version" ] && version_is_greater "$candidate_version_normalized" "$max_version"; then
+        echo "  Skipping candidate (above compat maximum: ${candidate_version_normalized} > ${max_version})" >&2
         continue
       fi
 
@@ -409,10 +450,12 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 # Resolve a compatible Copilot version from compat matrix unless the caller passed an explicit version.
 if [ -z "$VERSION" ]; then
   echo "No explicit Copilot CLI version requested. Attempting compat-driven version resolution..."
-  if RESOLVED_COMPAT_VERSION="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
+  if RESOLVED_COMPAT_INFO="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
+    IFS='|' read -r RESOLVED_COMPAT_VERSION COMPAT_MATCHED_MIN_AGENT COMPAT_MATCHED_MAX_AGENT <<< "$RESOLVED_COMPAT_INFO"
     VERSION="$RESOLVED_COMPAT_VERSION"
-    REQUESTED_VERSION="$RESOLVED_COMPAT_VERSION"
-    echo "Using compat-resolved Copilot CLI version: ${REQUESTED_VERSION}"
+    REQUESTED_VERSION="latest"
+    echo "Using compat-resolved Copilot CLI window: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT}"
+    echo "Will install compat max-agent ${VERSION} if no cached version satisfies the window."
   else
     REQUESTED_VERSION="latest"
     echo "Falling back to latest Copilot CLI release because compat resolution did not produce a version."
@@ -422,7 +465,7 @@ else
 fi
 
 # Prefer the runner toolcache when a compatible Copilot CLI is already available.
-if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION")"; then
+if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION" "${COMPAT_MATCHED_MIN_AGENT}" "${COMPAT_MATCHED_MAX_AGENT}")"; then
   echo "Using cached GitHub Copilot CLI from ${CACHED_COPILOT_BIN}"
   activate_cached_copilot_bin "$CACHED_COPILOT_BIN"
 

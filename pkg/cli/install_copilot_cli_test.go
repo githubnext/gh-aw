@@ -65,6 +65,8 @@ exit 97
 
 func TestInstallCopilotCLIScriptResolvesCompatVersionBeforeToolcacheLookup(t *testing.T) {
 	const compatVersion = "1.0.51"
+	const cachedCompatibleVersion = "1.0.40"
+	const cachedTooNewVersion = "1.0.60"
 
 	wd, err := os.Getwd()
 	require.NoError(t, err, "Failed to get working directory")
@@ -73,11 +75,15 @@ func TestInstallCopilotCLIScriptResolvesCompatVersionBeforeToolcacheLookup(t *te
 	installScript := filepath.Join(projectRoot, "actions", "setup", "sh", "install_copilot_cli.sh")
 
 	tempDir := t.TempDir()
-	toolcacheBin := filepath.Join(tempDir, "toolcache", "copilot-cli", compatVersion, "x64", "bin")
+	toolcacheBin := filepath.Join(tempDir, "toolcache", "copilot-cli", cachedCompatibleVersion, "x64", "bin")
+	tooNewToolcacheBin := filepath.Join(tempDir, "toolcache", "copilot-cli", cachedTooNewVersion, "x64", "bin")
 	require.NoError(t, os.MkdirAll(toolcacheBin, 0o755))
+	require.NoError(t, os.MkdirAll(tooNewToolcacheBin, 0o755))
 
 	cachedCopilot := filepath.Join(toolcacheBin, "copilot")
-	require.NoError(t, os.WriteFile(cachedCopilot, []byte("#!/usr/bin/env bash\necho 'copilot "+compatVersion+"'\n"), 0o755))
+	tooNewCachedCopilot := filepath.Join(tooNewToolcacheBin, "copilot")
+	require.NoError(t, os.WriteFile(cachedCopilot, []byte("#!/usr/bin/env bash\necho 'copilot "+cachedCompatibleVersion+"'\n"), 0o755))
+	require.NoError(t, os.WriteFile(tooNewCachedCopilot, []byte("#!/usr/bin/env bash\necho 'copilot "+cachedTooNewVersion+"'\n"), 0o755))
 
 	fakeBinDir := filepath.Join(tempDir, "fake-bin")
 	require.NoError(t, os.MkdirAll(fakeBinDir, 0o755))
@@ -143,7 +149,9 @@ exit 97
 	require.NoError(t, err, "install_copilot_cli.sh should resolve compat version and use toolcache: %s", output)
 
 	assert.Contains(t, string(output), "Resolved Copilot CLI version from compatibility matrix: "+compatVersion)
-	assert.Contains(t, string(output), "Using compat-resolved Copilot CLI version: "+compatVersion)
+	assert.Contains(t, string(output), "Using compat-resolved Copilot CLI window: 1.0.21.."+compatVersion)
+	assert.Contains(t, string(output), "Skipping candidate (above compat maximum: "+cachedTooNewVersion+" > "+compatVersion+")")
+	assert.Contains(t, string(output), "Selected best cached version: "+cachedCompatibleVersion)
 	assert.Contains(t, string(output), "Using cached GitHub Copilot CLI")
 
 	curlLogContent, err := os.ReadFile(curlLog)
