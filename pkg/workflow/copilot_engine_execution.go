@@ -269,10 +269,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			if driverArg != "" {
 				driverPathPrefix := SetupActionDestinationShell
 				if customSDKDriverConfigured {
-					driverPathPrefix = `"${GITHUB_WORKSPACE}/.github/drivers"`
+					driverPathPrefix = `${GITHUB_WORKSPACE}/.github/drivers`
 				}
 				// Language script: harness runs <runtime> <setup-action-dir>/<driver> <copilot-binary>
-				execPrefix = fmt.Sprintf(`%s %s/%s %s %s/%s %s`,
+				execPrefix = fmt.Sprintf(`%s %s/%s %s "%s/%s" %s`,
 					runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName,
 					driverRuntimeCmd,
 					driverPathPrefix, sdkDriverScriptName, commandName)
