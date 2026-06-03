@@ -548,6 +548,16 @@ async function main(config = {}) {
     const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
     const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
     const triggeringDiscussionNumber = context.payload?.discussion?.number;
+    const historyUrl = includeFooter
+      ? (generateHistoryUrl({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          itemType: "discussion",
+          workflowCallId: callerWorkflowId,
+          workflowId,
+          serverUrl: context.serverUrl,
+        }) ?? undefined)
+      : undefined;
     const markdownParts = assembleMarkdownBodyParts({
       includeFooter,
       workflowName,
@@ -557,16 +567,7 @@ async function main(config = {}) {
       triggeringIssueNumber,
       triggeringPRNumber,
       triggeringDiscussionNumber,
-      historyUrl: includeFooter
-        ? (generateHistoryUrl({
-            owner: repoParts.owner,
-            repo: repoParts.repo,
-            itemType: "discussion",
-            workflowCallId: callerWorkflowId,
-            workflowId,
-            serverUrl: context.serverUrl,
-          }) ?? undefined)
-        : undefined,
+      historyUrl,
     });
 
     // Inject CAUTION at top of body if threat detection warning was raised
