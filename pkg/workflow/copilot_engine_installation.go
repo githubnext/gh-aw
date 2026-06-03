@@ -34,15 +34,6 @@ type copilotSDKInstallSpec struct {
 
 const workspaceCommandPrefix = `cd "${GITHUB_WORKSPACE}" && `
 
-var supportedCopilotSDKRuntimes = map[string]struct{}{
-	"node":   {},
-	"python": {},
-	"go":     {},
-	"rust":   {},
-	"dotnet": {},
-	"java":   {},
-}
-
 // GetSecretValidationStep returns the secret validation step for the Copilot engine.
 // Returns an empty step if:
 //   - permissions.copilot-requests is set to write (uses GitHub Actions token instead), or
@@ -182,9 +173,7 @@ func detectRuntimeFromCopilotCommand(command string) string {
 
 	runtime, found := commandToRuntime[token]
 	if found {
-		if _, ok := supportedCopilotSDKRuntimes[runtime.ID]; ok {
-			return runtime.ID
-		}
+		return runtime.ID
 	}
 
 	switch token {
