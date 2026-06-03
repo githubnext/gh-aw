@@ -1,14 +1,28 @@
 // @ts-check
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, afterAll } from "vitest";
 import { createRequire } from "module";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const require = createRequire(import.meta.url);
 const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
 
 describe("markdown_body_helpers", () => {
+  const promptsDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
+  const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+  process.env.GH_AW_PROMPTS_DIR = promptsDir;
+
   afterEach(() => {
     delete process.env.GH_AW_DETECTION_CONCLUSION;
     delete process.env.GH_AW_DETECTION_REASON;
+  });
+
+  afterAll(() => {
+    if (originalPromptsDir === undefined) {
+      delete process.env.GH_AW_PROMPTS_DIR;
+      return;
+    }
+    process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
   });
 
   it("builds workflow-id fallback marker when footer is disabled", () => {

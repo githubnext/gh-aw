@@ -618,6 +618,22 @@ async function main(config = {}) {
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
 
+    // Get triggering context for footer
+    const triggeringIssueNumber = context.payload.issue?.number;
+    const triggeringPRNumber = context.payload.pull_request?.number;
+    const triggeringDiscussionNumber = context.payload.discussion?.number;
+
+    // Generate history URL with type= based on execution context
+    const historyUrl =
+      generateHistoryUrl({
+        owner: repoParts.owner,
+        repo: repoParts.repo,
+        itemType: isDiscussion ? "discussion_comment" : "comment",
+        workflowCallId: callerWorkflowId,
+        workflowId,
+        serverUrl: context.serverUrl,
+      }) || undefined;
+
     const markdownParts = assembleMarkdownBodyParts({
       includeFooter,
       workflowName,
@@ -646,22 +662,6 @@ async function main(config = {}) {
     if (trackerIDComment) {
       processedBody += "\n\n" + trackerIDComment;
     }
-
-    // Get triggering context for footer
-    const triggeringIssueNumber = context.payload.issue?.number;
-    const triggeringPRNumber = context.payload.pull_request?.number;
-    const triggeringDiscussionNumber = context.payload.discussion?.number;
-
-    // Generate history URL with type= based on execution context
-    const historyUrl =
-      generateHistoryUrl({
-        owner: repoParts.owner,
-        repo: repoParts.repo,
-        itemType: isDiscussion ? "discussion_comment" : "comment",
-        workflowCallId: callerWorkflowId,
-        workflowId,
-        serverUrl: context.serverUrl,
-      }) || undefined;
 
     if (includeFooter) {
       // When footer is enabled, add full footer with attribution and XML markers.

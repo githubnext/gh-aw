@@ -18,27 +18,8 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
  * @returns {string}
  */
 function buildGeneratedFooter(params) {
-  const {
-    workflowName,
-    runUrl,
-    workflowSource = "",
-    workflowSourceURL = "",
-    triggeringIssueNumber,
-    triggeringPRNumber,
-    triggeringDiscussionNumber,
-    historyUrl,
-  } = params;
-  return generateFooterWithMessages(
-    workflowName,
-    runUrl,
-    workflowSource,
-    workflowSourceURL,
-    triggeringIssueNumber,
-    triggeringPRNumber,
-    triggeringDiscussionNumber,
-    historyUrl || undefined,
-    { skipDetectionCaution: true }
-  ).trimEnd();
+  const { workflowName, runUrl, workflowSource = "", workflowSourceURL = "", triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl } = params;
+  return generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl || undefined, { skipDetectionCaution: true }).trimEnd();
 }
 
 /**
@@ -58,19 +39,7 @@ function buildGeneratedFooter(params) {
  * @returns {{ detectionCaution: string, footer: string, noFooterMarker: string }}
  */
 function assembleMarkdownBodyParts(params) {
-  const {
-    includeFooter,
-    workflowName,
-    runUrl,
-    workflowSource = "",
-    workflowSourceURL = "",
-    triggeringIssueNumber,
-    triggeringPRNumber,
-    triggeringDiscussionNumber,
-    historyUrl,
-    workflowId = "",
-    markerWhenFooterDisabled = "none",
-  } = params;
+  const { includeFooter, workflowName, runUrl, workflowSource = "", workflowSourceURL = "", triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, workflowId = "", markerWhenFooterDisabled = "none" } = params;
 
   const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
   const footer = includeFooter
