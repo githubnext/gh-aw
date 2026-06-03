@@ -22,8 +22,8 @@ func TestMainWorkflowSchema_SafeOutputsTargetProperties(t *testing.T) {
 		}
 	}
 
-	// All safe output types that embed SafeOutputTargetConfig and should accept
-	// target, target-repo, and allowed-repos properties.
+	// Safe output types that should accept target, target-repo, and allowed-repos
+	// properties in the JSON schema.
 	tests := []struct {
 		name        string
 		safeOutputs map[string]any
