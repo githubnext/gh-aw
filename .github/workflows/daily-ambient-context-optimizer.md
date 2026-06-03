@@ -168,7 +168,7 @@ Assess whether the request size is likely driven by:
 
 ## Sub-Agent Usage
 
-After the deterministic Python script finishes, invoke `request-optimizer` for **at most 2 sampled runs** using compact JSON summaries (never raw full prompts), and only when at least 2 sampled runs exist.
+After the deterministic Python script finishes, invoke `request-optimizer` for **at most 2 sampled runs** using compact JSON summaries (never raw full prompts), and only when at least 2 sampled runs exist (including exactly 2).
 
 Each sub-agent invocation may return at most 3 opportunities for its run. Aggregate and deduplicate those opportunities, then do the final prioritization yourself.
 
@@ -177,7 +177,7 @@ Each sub-agent invocation may return at most 3 opportunities for its run. Aggreg
 - Keep the workflow bounded and avoid exploratory loops.
 - Do not repeatedly re-open or re-parse the same artifacts once required metrics are extracted.
 - Keep the final issue body concise and evidence-based, with short bullets and compact explanations.
-- Use at most 2 run links in the final References section.
+- Use at most 3 run links in the final References section.
 - Create the issue by calling the safe output tool directly once you have the final body.
 
 ## Recommendation Rules
@@ -257,7 +257,7 @@ Summarize the Python script outputs and cite only the most relevant metrics.
 #### Agents
 
 ### References
-- Include up to 2 sampled run links in `[§12345](https://github.com/owner/repo/actions/runs/12345)` format
+- Include up to 3 sampled run links in `[§12345](https://github.com/owner/repo/actions/runs/12345)` format
 
 ## Reduced-Data Behavior
 
