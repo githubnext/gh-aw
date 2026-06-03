@@ -1828,6 +1828,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
             manifestProtectionFallback = protection.files;
             manifestProtectionRequestReview = null;
             manifestProtectionPushFailedError = new Error("Protected file policy blocked branch push after apply");
+            skipBranchPushForAppliedFallback = true;
             core.warning(`Protected file protection triggered after apply (fallback-to-issue): ${protection.files.join(", ")}. Will create review issue instead of pushing.`);
           }
           if (protection.action === "request_review") {
