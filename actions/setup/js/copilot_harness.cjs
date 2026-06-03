@@ -127,13 +127,18 @@ function log(message) {
 function buildCoreLogger(harnessLogger) {
   try {
     // eslint-disable-next-line global-require
-    const core = require("@actions/core");
+    require("./shim.cjs");
+    const core = global.core;
+    if (!core || typeof core.info !== "function" || typeof core.warning !== "function") {
+      harnessLogger("sdk-mode: core logger unavailable after shim initialization; permission-denied events will be logged to harness output only");
+      return undefined;
+    }
     return {
       info: message => core.info(message),
       warning: message => core.warning(message),
     };
   } catch {
-    harnessLogger("sdk-mode: @actions/core unavailable; permission-denied events will be logged to harness output only");
+    harnessLogger("sdk-mode: failed to initialize shim core logger; permission-denied events will be logged to harness output only");
     return undefined;
   }
 }
