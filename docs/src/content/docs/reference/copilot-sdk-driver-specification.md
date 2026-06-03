@@ -153,7 +153,9 @@ if (!promptPath || !sdkUri || !connectionToken) {
   throw new Error("Missing required standalone environment variables.");
 }
 
-const rawTimeout = Number.parseInt(process.env.COPILOT_SDK_SEND_TIMEOUT_MS ?? "600000", 10);
+const rawTimeout = process.env.COPILOT_SDK_SEND_TIMEOUT_MS
+  ? Number.parseInt(process.env.COPILOT_SDK_SEND_TIMEOUT_MS, 10)
+  : 600000;
 const sendTimeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 600000;
 const allowedLogLevels = new Set(["none", "error", "warning", "info", "debug", "all"]);
 const rawLogLevel = process.env.COPILOT_SDK_LOG_LEVEL ?? "warning";
@@ -171,9 +173,8 @@ const client = new CopilotClient({
 
 await client.start();
 try {
-  const session = await client.createSession({
-    model: process.env.COPILOT_MODEL,
-  });
+  const sessionOptions = process.env.COPILOT_MODEL ? { model: process.env.COPILOT_MODEL } : {};
+  const session = await client.createSession(sessionOptions);
   const response = await session.sendAndWait({ prompt }, { timeoutMs: sendTimeoutMs });
   console.log(response);
   await session.disconnect();
