@@ -130,32 +130,51 @@ In standalone mode, the implementation MUST enforce the following contract:
 | `COPILOT_SDK_URI` | Yes | SDK endpoint URI | MUST be non-empty |
 | `COPILOT_CONNECTION_TOKEN` | Yes | Shared connection token | MUST be non-empty |
 | `COPILOT_MODEL` | No | Model override | OPTIONAL |
-| `COPILOT_SDK_SEND_TIMEOUT_MS` | No | Send timeout in milliseconds | Default `600000`; invalid values SHOULD fall back to default |
+| `COPILOT_SDK_SEND_TIMEOUT_MS` | No | Send timeout in milliseconds | MUST be a positive integer; default `600000`; invalid values SHOULD fall back to default |
 | `COPILOT_SDK_LOG_LEVEL` | No | SDK client log level | Valid values: `none`, `error`, `warning`, `info`, `debug`, `all`; invalid values MUST fall back to `warning` |
 | `GITHUB_WORKSPACE` | No | Working directory hint | SHOULD be used when present |
 
-### 4.2 TypeScript Example (Non-Normative)
+### 4.2 Timeout Environment Variable
+
+`COPILOT_SDK_SEND_TIMEOUT_MS` controls maximum send wait duration for prompt completion in standalone mode. Implementations MUST treat this value as milliseconds and MUST apply the default value (`600000`) when unset, non-numeric, or non-positive.
+
+### 4.3 TypeScript Example (Non-Normative)
 
 Prerequisite: install [`@github/copilot-sdk`](https://www.npmjs.com/package/@github/copilot-sdk) in the runtime where this example executes.
 
 ```ts
+import { readFile } from "node:fs/promises";
 import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
 
+const promptPath = process.env.GH_AW_PROMPT;
+const sdkUri = process.env.COPILOT_SDK_URI;
+const connectionToken = process.env.COPILOT_CONNECTION_TOKEN;
+if (!promptPath || !sdkUri || !connectionToken) {
+  throw new Error("Missing required standalone environment variables.");
+}
+
+const rawTimeout = Number.parseInt(process.env.COPILOT_SDK_SEND_TIMEOUT_MS ?? "600000", 10);
+const sendTimeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 600000;
+const allowedLogLevels = new Set(["none", "error", "warning", "info", "debug", "all"]);
+const rawLogLevel = process.env.COPILOT_SDK_LOG_LEVEL ?? "warning";
+const logLevel = allowedLogLevels.has(rawLogLevel) ? rawLogLevel : "warning";
+const workingDirectory = process.env.GITHUB_WORKSPACE ?? process.cwd();
+const prompt = await readFile(promptPath, "utf8");
+
 const client = new CopilotClient({
-  connection: RuntimeConnection.forUri("http://127.0.0.1:3002", {
-    connectionToken: "example-token",
+  connection: RuntimeConnection.forUri(sdkUri, {
+    connectionToken,
   }),
-  workingDirectory: process.cwd(),
-  logLevel: "warning",
+  workingDirectory,
+  logLevel,
 });
 
 await client.start();
 try {
   const session = await client.createSession({
-    model: "gpt-4o-mini",
+    model: process.env.COPILOT_MODEL,
   });
-  // Simplified inline prompt for demonstration purposes.
-  const response = await session.sendAndWait({ prompt: "Summarize this repository." });
+  const response = await session.sendAndWait({ prompt }, { timeoutMs: sendTimeoutMs });
   console.log(response);
   await session.disconnect();
 } finally {
@@ -300,6 +319,8 @@ Implementations MUST provide automated tests for all Level 1 and Level 2 require
 - **T-CSD-002**: Missing `COPILOT_SDK_URI` fails with non-zero exit.
 - **T-CSD-003**: Missing `COPILOT_CONNECTION_TOKEN` fails with non-zero exit.
 - **T-CSD-004**: Invalid log level falls back to `warning`.
+- **T-CSD-005**: Unset `COPILOT_SDK_SEND_TIMEOUT_MS` falls back to default `600000`.
+- **T-CSD-006**: Non-numeric or non-positive `COPILOT_SDK_SEND_TIMEOUT_MS` falls back to default `600000`.
 
 #### 8.1.2 Permission Tests
 
@@ -325,7 +346,7 @@ Implementations MUST provide automated tests for all Level 1 and Level 2 require
 | Requirement | Test ID | Level | Status |
 | --- | --- | --- | --- |
 | Required standalone variables enforced | T-CSD-001..003 | 1 | Required |
-| Log-level fallback behavior | T-CSD-004 | 1 | Required |
+| Log-level and timeout fallback behavior | T-CSD-004..006 | 1 | Required |
 | Default permission delegation | T-CSD-101 | 2 | Required |
 | Allow-all permission behavior | T-CSD-102 | 2 | Required |
 | Scoped `read` default-deny and explicit allow | T-CSD-103..104 | 2 | Required |
