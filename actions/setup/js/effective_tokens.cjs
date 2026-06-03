@@ -344,17 +344,17 @@ function formatModelEmojiAlias(modelName) {
     .toLowerCase();
 
   let emoji = "○";
-  if (/sonnet/.test(normalized) || identifier.startsWith("sonnet")) {
+  if (/sonnet|^sonnet/.test(normalized)) {
     emoji = "◉";
-  } else if (/opus/.test(normalized) || identifier.startsWith("opus")) {
+  } else if (/opus|^opus/.test(normalized)) {
     emoji = "◆";
-  } else if (/haiku/.test(normalized) || identifier.startsWith("haiku")) {
+  } else if (/haiku|^haiku/.test(normalized)) {
     emoji = "▲";
-  } else if (/gpt|openai/.test(normalized) || identifier.startsWith("gpt")) {
-    emoji = "■";
   } else if (/^o[0-9](?:$|[-_])/.test(normalized)) {
     emoji = "●";
-  } else if (/gemini|gemma|google/.test(normalized) || /^gem[0-9]/.test(identifier)) {
+  } else if (/gpt|openai|^gpt/.test(normalized)) {
+    emoji = "■";
+  } else if (/gemini|gemma|google|^gem[0-9]/.test(normalized)) {
     emoji = "★";
   }
 
