@@ -2,7 +2,57 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const globals = /** @type {any} */ global;
-const { main, GITHUB_API_VERSION } = require("./route_slash_command.cjs");
+const { main, parseSlashCommand, GITHUB_API_VERSION } = require("./route_slash_command.cjs");
+
+describe("parseSlashCommand", () => {
+  it("extracts a simple command name", () => {
+    expect(parseSlashCommand("/archie")).toBe("archie");
+  });
+
+  it("extracts a command name with dashes", () => {
+    expect(parseSlashCommand("/smoke-copilot-sdk")).toBe("smoke-copilot-sdk");
+  });
+
+  it("extracts only the command name from text with arguments", () => {
+    expect(parseSlashCommand("/archie please do this")).toBe("archie");
+  });
+
+  it("extracts a command with dashes from text with arguments", () => {
+    expect(parseSlashCommand("/smoke-copilot-sdk run tests")).toBe("smoke-copilot-sdk");
+  });
+
+  it("returns empty string when text does not start with a slash command", () => {
+    expect(parseSlashCommand("hello /archie")).toBe("");
+  });
+
+  it("returns empty string for text starting with just a slash", () => {
+    expect(parseSlashCommand("/")).toBe("");
+  });
+
+  it("returns empty string for empty string", () => {
+    expect(parseSlashCommand("")).toBe("");
+  });
+
+  it("trims leading whitespace before matching", () => {
+    expect(parseSlashCommand("  /smoke-copilot-sdk")).toBe("smoke-copilot-sdk");
+  });
+
+  it("does not include trailing punctuation in the command name", () => {
+    expect(parseSlashCommand("/smoke-copilot-sdk!")).toBe("smoke-copilot-sdk");
+  });
+
+  it("does not match a slash command in the middle of text", () => {
+    expect(parseSlashCommand("some text /archie")).toBe("");
+  });
+
+  it("extracts a command name with underscores", () => {
+    expect(parseSlashCommand("/code_review")).toBe("code_review");
+  });
+
+  it("does not match a command starting with a dash", () => {
+    expect(parseSlashCommand("/-command")).toBe("");
+  });
+});
 
 describe("route_slash_command", () => {
   /** @type {{ core: any, github: any, context: any, exec: any, io: any, getOctokit: any }} */
