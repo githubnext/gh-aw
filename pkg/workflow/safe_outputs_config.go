@@ -557,6 +557,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.Mentions = parseMentionsConfig(mentions)
 			}
 
+			// Handle normalize-closing-keywords flag
+			if normalizeClosingKeywords, exists := outputMap["normalize-closing-keywords"]; exists {
+				if normalizeClosingKeywordsBool, ok := normalizeClosingKeywords.(bool); ok {
+					config.NormalizeClosingKeywords = &normalizeClosingKeywordsBool
+				}
+			}
+
 			// Handle global footer flag
 			if footer, exists := outputMap["footer"]; exists {
 				if footerBool, ok := footer.(bool); ok {

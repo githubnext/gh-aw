@@ -469,6 +469,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if result.MaxBotMentions == nil && importedConfig.MaxBotMentions != nil {
 		result.MaxBotMentions = importedConfig.MaxBotMentions
 	}
+	if result.NormalizeClosingKeywords == nil && importedConfig.NormalizeClosingKeywords != nil {
+		result.NormalizeClosingKeywords = importedConfig.NormalizeClosingKeywords
+	}
 	if result.Mentions == nil && importedConfig.Mentions != nil {
 		result.Mentions = importedConfig.Mentions
 	}

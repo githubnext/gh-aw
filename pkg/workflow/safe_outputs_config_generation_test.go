@@ -186,6 +186,23 @@ func TestGenerateSafeOutputsConfigMentions(t *testing.T) {
 	assert.InDelta(t, float64(5), mentions["max"], 0.0001, "max should be 5")
 }
 
+func TestGenerateSafeOutputsConfigNormalizeClosingKeywords(t *testing.T) {
+	enabled := true
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			NormalizeClosingKeywords: &enabled,
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+	assert.Equal(t, true, parsed["normalize_closing_keywords"], "normalize_closing_keywords should be true")
+}
+
 // TestPopulateDispatchWorkflowFilesNoSafeOutputs tests that the function handles nil SafeOutputs gracefully.
 func TestPopulateDispatchWorkflowFilesNoSafeOutputs(t *testing.T) {
 	data := &WorkflowData{SafeOutputs: nil}

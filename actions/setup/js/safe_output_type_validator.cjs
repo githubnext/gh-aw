@@ -26,8 +26,30 @@ const MAX_BODY_LENGTH = 65000;
 const MAX_GITHUB_USERNAME_LENGTH = 39;
 
 /**
- * @typedef {{ allowedAliases?: string[], maxBotMentions?: number }} ValidateOptions
+ * @typedef {{ allowedAliases?: string[], maxBotMentions?: number, normalizeIssueClosingKeywords?: boolean }} ValidateOptions
  */
+
+const ISSUE_CLOSING_KEYWORD_PATTERN = /(`?\b(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\b`?)\s+(`?(?:[a-z0-9_.-]+\/[a-z0-9_.-]+)?#\d+`?)/gi;
+const NORMALIZE_CLOSER_BODY_TYPES = new Set(["create_issue", "add_comment", "create_pull_request"]);
+
+/**
+ * Remove markdown backticks around recognized issue-closing keyword references.
+ * Only applied to body fields for configured safe output types.
+ * @param {string} content
+ * @returns {string}
+ */
+function normalizeIssueClosingKeywordBackticks(content) {
+  if (typeof content !== "string" || content.length === 0) {
+    return content;
+  }
+
+  return content.replace(ISSUE_CLOSING_KEYWORD_PATTERN, match => {
+    if (!match.includes("`")) {
+      return match;
+    }
+    return match.replaceAll("`", "");
+  });
+}
 
 /**
  * @typedef {Object} FieldValidation
@@ -358,6 +380,9 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
         allowedAliases: options?.allowedAliases || [],
         maxBotMentions: options?.maxBotMentions,
       });
+    }
+    if (options?.normalizeIssueClosingKeywords && fieldName === "body" && NORMALIZE_CLOSER_BODY_TYPES.has(itemType)) {
+      finalValue = normalizeIssueClosingKeywordBackticks(finalValue);
     }
 
     // Check minimum length after any sanitization (trim before checking to reject whitespace-padded placeholders)

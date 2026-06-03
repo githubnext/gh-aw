@@ -41,6 +41,8 @@ async function main() {
     // maxBotMentions is populated after safeOutputsConfig is read below
     /** @type {number | undefined} */
     let maxBotMentions;
+    /** @type {boolean} */
+    let normalizeIssueClosingKeywords = false;
 
     function validateFieldWithInputSchema(value, fieldName, inputSchema, lineNum) {
       if (inputSchema.required && (value === undefined || value === null)) {
@@ -206,8 +208,10 @@ async function main() {
         if (rawMaxBotMentions > 0) {
           maxBotMentions = rawMaxBotMentions;
         }
+        normalizeIssueClosingKeywords = expectedOutputTypes.normalize_closing_keywords === true;
         // Remove global config keys so they are not treated as valid output types
         delete expectedOutputTypes.max_bot_mentions;
+        delete expectedOutputTypes.normalize_closing_keywords;
       } catch (error) {
         const errorMsg = getErrorMessage(error);
         core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
@@ -309,7 +313,11 @@ async function main() {
 
         // Use the validation engine to validate the item
         if (hasValidationConfig(itemType)) {
-          const validationResult = validateItem(item, itemType, i + 1, { allowedAliases: allowedMentions, maxBotMentions });
+          const validationResult = validateItem(item, itemType, i + 1, {
+            allowedAliases: allowedMentions,
+            maxBotMentions,
+            normalizeIssueClosingKeywords,
+          });
           if (!validationResult.isValid) {
             if (validationResult.error) {
               errors.push(validationResult.error);

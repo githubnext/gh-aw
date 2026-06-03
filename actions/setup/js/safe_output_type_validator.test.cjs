@@ -215,6 +215,37 @@ describe("safe_output_type_validator", () => {
       expect(result.normalizedItem.title).toContain("`@mention`");
     });
 
+    it("should normalize backticked closing references when enabled", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_pull_request", title: "Test", body: "Closes `#123`\n`Resolves github/gh-aw#321`", branch: "fix/test" }, "create_pull_request", 1, { normalizeIssueClosingKeywords: true });
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.body).toContain("Closes #123");
+      expect(result.normalizedItem.body).toContain("Resolves github/gh-aw#321");
+      expect(result.normalizedItem.body).not.toContain("`#123`");
+      expect(result.normalizedItem.body).not.toContain("`Resolves github/gh-aw#321`");
+    });
+
+    it("should not normalize backticked closing references when disabled", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_issue", title: "Test", body: "Closes `#123`" }, "create_issue", 1, { normalizeIssueClosingKeywords: false });
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.body).toContain("`#123`");
+    });
+
+    it("should not modify unrelated backticked text when normalization is enabled", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "add_comment", body: "Use `#123` for docs reference.\nThen Closes `#456`." }, "add_comment", 1, { normalizeIssueClosingKeywords: true });
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.body).toContain("Use `#123` for docs reference.");
+      expect(result.normalizedItem.body).toContain("Then Closes #456.");
+    });
+
     it("should validate submit_pull_request_review with pull_request_number and repo", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 

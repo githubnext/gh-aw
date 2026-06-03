@@ -173,6 +173,12 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 		}
 	}
 
+	// normalize-closing-keywords: when enabled, strip backticks around recognized
+	// issue-closing keyword references (e.g., Closes `#123`) during ingestion.
+	if data.SafeOutputs.NormalizeClosingKeywords != nil && *data.SafeOutputs.NormalizeClosingKeywords {
+		safeOutputsConfig["normalize_closing_keywords"] = true
+	}
+
 	// Push-repo-memory configuration: enables the push_repo_memory MCP tool for early
 	// size validation during the agent session.
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {

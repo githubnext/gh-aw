@@ -141,8 +141,8 @@ func TestSafeOutputsConfigYAMLTags(t *testing.T) {
 // Meta field merges in MergeSafeOutputs
 // ========================================
 
-// TestMergeSafeOutputsMetaFieldsUnit verifies that the five previously-unmerged meta fields
-// (Footer, AllowGitHubReferences, GroupReports, MaxBotMentions, Mentions) are correctly
+// TestMergeSafeOutputsMetaFieldsUnit verifies that meta fields
+// (Footer, AllowGitHubReferences, GroupReports, MaxBotMentions, NormalizeClosingKeywords, Mentions) are correctly
 // merged from imported workflow configs when absent in the top-level config.
 func TestMergeSafeOutputsMetaFieldsUnit(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
@@ -227,6 +227,26 @@ func TestMergeSafeOutputsMetaFieldsUnit(t *testing.T) {
 			verify: func(t *testing.T, result *SafeOutputsConfig) {
 				require.NotNil(t, result.MaxBotMentions, "MaxBotMentions should be present")
 				assert.Equal(t, "10", *result.MaxBotMentions, "Main MaxBotMentions should take precedence")
+			},
+		},
+		{
+			name:      "NormalizeClosingKeywords imported when nil in main",
+			topConfig: nil,
+			imported:  `{"normalize-closing-keywords":true}`,
+			verify: func(t *testing.T, result *SafeOutputsConfig) {
+				require.NotNil(t, result.NormalizeClosingKeywords, "NormalizeClosingKeywords should be imported")
+				assert.True(t, *result.NormalizeClosingKeywords, "NormalizeClosingKeywords should be true")
+			},
+		},
+		{
+			name: "NormalizeClosingKeywords not overridden when set in main",
+			topConfig: &SafeOutputsConfig{
+				NormalizeClosingKeywords: boolPtr(false),
+			},
+			imported: `{"normalize-closing-keywords":true}`,
+			verify: func(t *testing.T, result *SafeOutputsConfig) {
+				require.NotNil(t, result.NormalizeClosingKeywords, "NormalizeClosingKeywords should be present")
+				assert.False(t, *result.NormalizeClosingKeywords, "Main NormalizeClosingKeywords should take precedence")
 			},
 		},
 		{
