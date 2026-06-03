@@ -254,30 +254,26 @@ describe("route_slash_command", () => {
   });
 
   it("skips slash routes when target workflow is disabled", async () => {
-    globals.github.rest.actions.listRepoWorkflows = vi.fn(async () => ({
-      data: {
-        workflows: [{ path: ".github/workflows/archie.lock.yml", state: "disabled_manually" }],
-      },
-    }));
+    globals.github.rest.actions.createWorkflowDispatch = vi.fn(async () => {
+      throw Object.assign(new Error("Workflow was disabled"), {
+        response: { data: { message: "Workflow was disabled" } },
+      });
+    });
     globals.context.payload.comment.body = "/archie please";
 
     await main();
 
     expect(dispatchCalls).toHaveLength(0);
-    expect(globals.github.rest.actions.listRepoWorkflows).toHaveBeenCalledWith(
-      expect.objectContaining({ owner: "github", repo: "gh-aw", per_page: 100, page: 1 })
-    );
-    expect(globals.core.info).toHaveBeenCalledWith(
-      expect.stringContaining("Skipping slash route 'archie.lock.yml' because workflow is disabled or missing.")
-    );
+    expect(globals.github.rest.actions.listRepoWorkflows).not.toHaveBeenCalled();
+    expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Skipping workflow 'archie.lock.yml' because it is disabled."));
   });
 
   it("skips label routes when target workflow is disabled", async () => {
-    globals.github.rest.actions.listRepoWorkflows = vi.fn(async () => ({
-      data: {
-        workflows: [{ path: ".github/workflows/ci-doctor.lock.yml", state: "disabled_manually" }],
-      },
-    }));
+    globals.github.rest.actions.createWorkflowDispatch = vi.fn(async () => {
+      throw Object.assign(new Error("Workflow is disabled"), {
+        response: { data: { message: "Workflow is disabled" } },
+      });
+    });
     globals.context.eventName = "pull_request";
     globals.context.payload = {
       action: "labeled",
@@ -291,12 +287,8 @@ describe("route_slash_command", () => {
     await main();
 
     expect(dispatchCalls).toHaveLength(0);
-    expect(globals.github.rest.actions.listRepoWorkflows).toHaveBeenCalledWith(
-      expect.objectContaining({ owner: "github", repo: "gh-aw", per_page: 100, page: 1 })
-    );
-    expect(globals.core.info).toHaveBeenCalledWith(
-      expect.stringContaining("Skipping label route 'ci-doctor.lock.yml' because workflow is disabled or missing.")
-    );
+    expect(globals.github.rest.actions.listRepoWorkflows).not.toHaveBeenCalled();
+    expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Skipping workflow 'ci-doctor.lock.yml' because it is disabled."));
   });
 
   it("skips centralized routing when PR is closed at workflow start", async () => {

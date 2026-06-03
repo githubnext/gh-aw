@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { REACTION_MAP } = require("./add_reaction.cjs");
+const nodePath = require("node:path");
 // Keep this aligned with the current default stable GitHub REST API version used by workflows.
 // Update when GitHub advances the recommended version to avoid sunset/deprecation warnings.
 const GITHUB_API_VERSION = "2022-11-28";
@@ -225,7 +226,7 @@ async function addImmediateReaction(reaction) {
  * @param {string} workflowId
  * @param {string} ref
  * @param {Record<string, string>} inputs
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>}
  */
 async function dispatchWorkflow(workflowId, ref, inputs) {
   try {
@@ -239,7 +240,12 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
         "X-GitHub-Api-Version": GITHUB_API_VERSION,
       },
     });
+    return true;
   } catch (error) {
+    if (isDisabledWorkflowDispatchError(error)) {
+      core.info(`Skipping workflow '${workflowId}' because it is disabled.`);
+      return false;
+    }
     throw new Error(`Failed to dispatch workflow '${workflowId}' on ref '${ref}': ${String(error)}`);
   }
 }
@@ -248,70 +254,24 @@ function toWorkflowDispatchID(route) {
   if (!route?.workflow || typeof route.workflow !== "string" || !route.workflow.trim()) {
     return "";
   }
-  return `${route.workflow}.lock.yml`;
-}
-
-function basename(path) {
-  if (typeof path !== "string") {
+  const baseName = nodePath.posix.basename(route.workflow.trim());
+  if (!baseName) {
     return "";
   }
-  const parts = path.split("/");
-  return parts[parts.length - 1] || "";
+  return baseName.endsWith(".lock.yml") ? baseName : `${baseName}.lock.yml`;
 }
 
-async function loadActiveWorkflowDispatchIDs() {
-  const activeWorkflowDispatchIDs = new Set();
-  let page = 1;
-  const maxPages = 10;
+function isDisabledWorkflowDispatchError(error) {
+  const message = [error?.message, error?.response?.data?.message]
+    .filter(value => typeof value === "string" && value.trim())
+    .join(" ")
+    .toLowerCase();
 
-  while (page <= maxPages) {
-    const response = await github.rest.actions.listRepoWorkflows({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      per_page: 100,
-      page,
-      headers: {
-        "X-GitHub-Api-Version": GITHUB_API_VERSION,
-      },
-    });
-
-    const workflows = response?.data?.workflows ?? [];
-    for (const workflow of workflows) {
-      if (workflow?.state !== "active") {
-        continue;
-      }
-      const workflowFilename = basename(workflow?.path);
-      if (workflowFilename) {
-        activeWorkflowDispatchIDs.add(workflowFilename);
-      }
-    }
-
-    if (workflows.length < 100) {
-      break;
-    }
-    page += 1;
+  if (!message) {
+    return false;
   }
 
-  if (page > maxPages) {
-    core.warning(`Workflow state pagination exceeded ${maxPages} pages; continuing with partial workflow list.`);
-  }
-
-  return activeWorkflowDispatchIDs;
-}
-
-function filterActiveRoutes(routes, activeWorkflowDispatchIDs, routeKind) {
-  return routes.filter(route => {
-    const dispatchID = toWorkflowDispatchID(route);
-    if (!dispatchID) {
-      core.warning(`Skipping ${routeKind} route with missing workflow identifier.`);
-      return false;
-    }
-    if (!activeWorkflowDispatchIDs.has(dispatchID)) {
-      core.info(`Skipping ${routeKind} route '${dispatchID}' because workflow is disabled or missing.`);
-      return false;
-    }
-    return true;
-  });
+  return message.includes("workflow is disabled") || message.includes("workflow was disabled");
 }
 
 async function main() {
@@ -348,30 +308,31 @@ async function main() {
       core.info(`No decentralized label routes matched label '${labelName}' for event '${identifier}'.`);
       return;
     }
-    const activeWorkflowDispatchIDs = await loadActiveWorkflowDispatchIDs();
-    const activeRoutes = filterActiveRoutes(routes, activeWorkflowDispatchIDs, "label");
-    if (activeRoutes.length === 0) {
-      core.info(`No active decentralized label routes matched label '${labelName}' for event '${identifier}'.`);
-      return;
-    }
-    core.info(`Matched active routes for label '${labelName}' on '${identifier}': ${activeRoutes.map(route => route.workflow).join(", ")}.`);
-    const immediateReaction = resolveImmediateReaction(activeRoutes);
+    core.info(`Matched routes for label '${labelName}' on '${identifier}': ${routes.map(route => route.workflow).join(", ")}.`);
+    const immediateReaction = resolveImmediateReaction(routes);
     if (immediateReaction) {
       core.info(`Adding immediate '${immediateReaction}' reaction for label '${labelName}'.`);
       await addImmediateReaction(immediateReaction);
     }
-    for (const route of activeRoutes) {
+    for (const route of routes) {
+      const workflowID = toWorkflowDispatchID(route);
+      if (!workflowID) {
+        core.warning("Skipping label route with missing workflow identifier.");
+        continue;
+      }
       const routeReaction = normalizeReaction(route?.ai_reaction);
       const awContext = {
         ...buildAwContext(),
         command_name: "",
         ...(routeReaction ? { desired_ai_reaction: routeReaction } : {}),
       };
-      core.info(`Dispatching workflow '${route.workflow}.lock.yml' for label '${labelName}'.`);
-      await dispatchWorkflow(`${route.workflow}.lock.yml`, ref, {
+      core.info(`Dispatching workflow '${workflowID}' for label '${labelName}'.`);
+      const dispatched = await dispatchWorkflow(workflowID, ref, {
         aw_context: JSON.stringify(awContext),
       });
-      core.info(`Dispatched '${route.workflow}' for label '${labelName}'`);
+      if (dispatched) {
+        core.info(`Dispatched '${workflowID}' for label '${labelName}'`);
+      }
     }
     core.info(`Completed decentralized label routing for '${labelName}'.`);
     return;
@@ -393,32 +354,33 @@ async function main() {
     core.info(`No centralized routes matched command '/${commandName}' for event '${identifier}'.`);
     return;
   }
-  const activeWorkflowDispatchIDs = await loadActiveWorkflowDispatchIDs();
-  const activeRoutes = filterActiveRoutes(routes, activeWorkflowDispatchIDs, "slash");
-  if (activeRoutes.length === 0) {
-    core.info(`No active centralized routes matched command '/${commandName}' for event '${identifier}'.`);
-    return;
-  }
-  core.info(`Matched active routes for '/${commandName}' on '${identifier}': ${activeRoutes.map(route => route.workflow).join(", ")}.`);
-  const immediateReaction = resolveImmediateReaction(activeRoutes);
+  core.info(`Matched routes for '/${commandName}' on '${identifier}': ${routes.map(route => route.workflow).join(", ")}.`);
+  const immediateReaction = resolveImmediateReaction(routes);
   if (immediateReaction) {
     core.info(`Adding immediate '${immediateReaction}' reaction for '/${commandName}'.`);
     await addImmediateReaction(immediateReaction);
   }
 
   core.info(`Dispatch ref resolved to '${ref}'.`);
-  for (const route of activeRoutes) {
+  for (const route of routes) {
+    const workflowID = toWorkflowDispatchID(route);
+    if (!workflowID) {
+      core.warning("Skipping slash route with missing workflow identifier.");
+      continue;
+    }
     const routeReaction = normalizeReaction(route?.ai_reaction);
     const awContext = {
       ...buildAwContext(),
       command_name: commandName,
       ...(routeReaction ? { desired_ai_reaction: routeReaction } : {}),
     };
-    core.info(`Dispatching workflow '${route.workflow}.lock.yml' for '/${commandName}'.`);
-    await dispatchWorkflow(`${route.workflow}.lock.yml`, ref, {
+    core.info(`Dispatching workflow '${workflowID}' for '/${commandName}'.`);
+    const dispatched = await dispatchWorkflow(workflowID, ref, {
       aw_context: JSON.stringify(awContext),
     });
-    core.info(`Dispatched '${route.workflow}' for '/${commandName}'`);
+    if (dispatched) {
+      core.info(`Dispatched '${workflowID}' for '/${commandName}'`);
+    }
   }
   core.info(`Completed centralized routing for '/${commandName}'.`);
 }
