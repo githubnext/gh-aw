@@ -126,11 +126,37 @@ func buildCopilotSDKInstallStep(workflowData *WorkflowData) GitHubActionStep {
 	if workflowData == nil || workflowData.EngineConfig == nil || !workflowData.EngineConfig.CopilotSDK {
 		return GitHubActionStep{}
 	}
-	spec := getCopilotSDKInstallSpec(workflowData.EngineConfig.Command)
+	// When a custom SDK driver is configured without a custom engine command, use the driver's
+	// file extension to determine which language SDK to install. This ensures the correct SDK
+	// package manager command is generated (e.g., pip for .py drivers, ruby/gem for .rb drivers).
+	command := workflowData.EngineConfig.Command
+	if command == "" && workflowData.EngineConfig.CopilotSDKDriver != "" {
+		command = sdkDriverInstallCommand(workflowData.EngineConfig.CopilotSDKDriver)
+	}
+	spec := getCopilotSDKInstallSpec(command)
 	copilotInstallLog.Printf("copilot-sdk enabled; runtime=%s; install command=%s", spec.runtimeID, spec.command)
 	return GitHubActionStep{
 		"      - name: " + spec.stepName,
 		"        run: " + spec.command,
+	}
+}
+
+// sdkDriverInstallCommand returns a synthetic command string for the given driver filename
+// that can be passed to getCopilotSDKInstallSpec/detectRuntimeFromCopilotCommand to select
+// the correct SDK package manager. Only non-JS language extensions need special handling;
+// JS drivers and arbitrary commands (no extension) fall back to the Node.js default.
+func sdkDriverInstallCommand(driverName string) string {
+	ext := strings.ToLower(filepath.Ext(driverName))
+	switch ext {
+	case ".py":
+		return "python3 " + driverName
+	case ".rb":
+		return "ruby " + driverName
+	case ".ts", ".mts":
+		return "ts-node " + driverName
+	default:
+		// .js/.cjs/.mjs and no-extension (arbitrary commands) default to Node.js.
+		return ""
 	}
 }
 
