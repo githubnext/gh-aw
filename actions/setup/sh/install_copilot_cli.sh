@@ -175,6 +175,48 @@ download_compat_json() {
   return 1
 }
 
+# Resolve compat using jq (faster and more portable than python3).
+# Returns: "max_agent|row_index|min_aw|max_aw|min_agent|max_agent|cache_ttl_days"
+resolve_compat_with_jq() {
+  local compat_file="$1"
+  local compiled_version="$2"
+  local compiled_no_v="${compiled_version#v}"
+  
+  jq -r --arg compiled "$compiled_no_v" '
+    # Semver comparison: returns -1 if a<b, 0 if equal, 1 if a>b
+    def semver_cmp(a; b):
+      (a | split(".") | map(tonumber)) as $a_parts |
+      (b | split(".") | map(tonumber)) as $b_parts |
+      if ($a_parts[0] < $b_parts[0]) then -1
+      elif ($a_parts[0] > $b_parts[0]) then 1
+      elif ($a_parts[1] < $b_parts[1]) then -1
+      elif ($a_parts[1] > $b_parts[1]) then 1
+      elif ($a_parts[2] < $b_parts[2]) then -1
+      elif ($a_parts[2] > $b_parts[2]) then 1
+      else 0 end;
+    
+    .["agent-compat-v1"] as $compat |
+    ($compat["cache-ttl-days"] // "") as $cache_ttl |
+    ($compat.copilot // []) as $rows |
+    
+    # Find first matching row
+    $rows | to_entries | map(
+      .value as $row |
+      .key as $idx |
+      $row["min-gh-aw"] as $min_aw |
+      $row["max-gh-aw"] as $max_aw |
+      $row["min-agent"] as $min_agent |
+      $row["max-agent"] as $max_agent |
+      
+      # Check if gh-aw version is in range
+      if (semver_cmp($compiled; $min_aw) >= 0) and
+         (($max_aw == "*") or (semver_cmp($compiled; $max_aw) <= 0)) then
+        "\($max_agent)|\($idx)|\($min_aw)|\($max_aw)|\($min_agent)|\($max_agent)|\($cache_ttl)"
+      else empty end
+    ) | first // ""
+  ' "$compat_file" 2>&1 || echo ""
+}
+
 # Resolve Copilot version from compat matrix using GH_AW_COMPILED_VERSION.
 resolve_version_from_compat() {
   local compiled_version="${1:-}"
@@ -198,8 +240,36 @@ resolve_version_from_compat() {
     return 1
   fi
 
+  # Try jq first (more commonly available than python3 on minimal runners)
+  if command -v jq >/dev/null 2>&1; then
+    if resolved_info="$(resolve_compat_with_jq "$compat_file" "$compiled_version" 2>&1)"; then
+      if [ -n "$resolved_info" ]; then
+        # Parse the 7-field jq output
+        IFS='|' read -r resolved_version row_index row_min_aw row_max_aw row_min_agent row_max_agent cache_ttl_days <<< "$resolved_info"
+        
+        # Display the same logging as python path
+        echo "Compatibility matrix source: $(cat "$compat_source")" >&2
+        echo "Compatibility matrix matched row ${row_index}: gh-aw ${row_min_aw}..${row_max_aw}, copilot ${row_min_agent}..${row_max_agent}" >&2
+        echo "Resolved Copilot CLI version from compatibility matrix: ${resolved_version}" >&2
+        if [ -n "$cache_ttl_days" ]; then
+          echo "Cache TTL: ${cache_ttl_days} days" >&2
+        fi
+        
+        # Return the same 4-field format as python path
+        printf '%s|%s|%s|%s\n' "$resolved_version" "$row_min_agent" "$row_max_agent" "$cache_ttl_days"
+        return 0
+      else
+        echo "Compatibility matrix lookup found no matching copilot window for gh-aw ${compiled_version}." >&2
+        return 1
+      fi
+    fi
+    echo "jq-based compat resolution failed, trying python3 fallback..." >&2
+  fi
+
+  # Fall back to python3 if jq is unavailable or failed
   if ! command -v python3 >/dev/null 2>&1; then
-    echo "python3 is unavailable; skipping compatibility matrix resolution." >&2
+    echo "ERROR: Neither jq nor python3 is available for compatibility matrix resolution." >&2
+    echo "ERROR: Install jq or python3, or pass an explicit Copilot CLI version to bypass compat resolution." >&2
     return 1
   fi
 
