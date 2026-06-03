@@ -161,7 +161,7 @@ func NewExperimentsAnalyzeSubcommand() *cobra.Command {
 		Long: `Analyze a specific experiment workflow in detail.
 
 The experiment argument is the workflow ID (branch name without the "experiments/"
-prefix, e.g. "my-workflow" for the "experiments/my-workflow" branch).
+prefix, e.g., "my-workflow" for the "experiments/my-workflow" branch).
 
 Reads the state.json file from the branch and shows per-variant counts, total
 runs, and the most recent run assignments.
