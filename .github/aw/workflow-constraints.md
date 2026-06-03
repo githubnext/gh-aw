@@ -63,6 +63,20 @@ When a requested feature increases risk:
 - unbounded bash allowlists for untrusted input
 - using `post-steps:` for agent-driven write actions
 
+## Self-Hosted Runner Compatibility
+
+When a workflow targets a self-hosted runner (any `runs-on` other than the default hosted labels), keep the generated workflow compatible with self-hosted constraints:
+
+- Set `runs-on` explicitly (it is not inherited from imports) to the runner label the user's setup provides. Framework/generated jobs (activation, safe-outputs, unlock, etc.) default to the hosted `ubuntu-slim`, so also set the `runs-on-slim` field to that same self-hosted label, otherwise those jobs try to run on a hosted runner.
+- Write transient state, tool downloads, and intermediate outputs under `$RUNNER_TEMP`, not `/tmp`, which can persist across jobs on shared runners.
+- The agent job's own steps run as the runner user, not root — don't write steps that assume root (for example, installing to system-wide paths). Separately, the egress firewall needs host-level privileges (sudo) on the runner; if the host cannot provide that, the firewall can be disabled, which removes egress filtering. Surface that trade-off to the user rather than encoding it in the workflow.
+- Declare every outbound domain the workflow contacts in `network.allowed` (keep `defaults` for the core GitHub/Copilot/registry endpoints). Self-hosted runs sit behind an egress firewall, so any domain that is not allow-listed is blocked.
+- Do not install to system-wide paths such as `/usr/local` or the toolcache — they may be read-only or shared across runners. Install into job-scoped writable paths instead.
+- Do not hardcode `HOME` or `/home/runner` — use `$HOME` or `$RUNNER_TEMP`.
+- For GitHub Enterprise Server, enable GHES compatibility so generated workflows use artifact action versions that work on GHES, and configure the enterprise API endpoint.
+
+For the full set of requirements (Docker socket, ARC / Docker-in-Docker, network egress, GHES specifics), follow the [Self-Hosted Runners](https://github.github.com/gh-aw/reference/self-hosted-runners/) reference page.
+
 ## Shared Reminder
 
 Reference this file from creator, updater, and debugger prompts instead of repeating the same architectural explanation.
