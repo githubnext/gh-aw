@@ -32,7 +32,7 @@ NODE_DRIVER = <<~'JS'
     const promptPath = requiredEnv("GH_AW_PROMPT");
     const sdkUri = requiredEnv("COPILOT_SDK_URI");
     const connectionToken = requiredEnv("COPILOT_CONNECTION_TOKEN");
-    const model = process.env.COPILOT_MODEL || undefined;
+    const model = requiredEnv("COPILOT_MODEL");
     const prompt = fs.readFileSync(promptPath, "utf8");
 
     const client = new CopilotClient({
@@ -45,7 +45,7 @@ NODE_DRIVER = <<~'JS'
     try {
       session = await client.createSession({
         onPermissionRequest: approveAll,
-        ...(model ? { model } : {}),
+        model,
       });
       const response = await session.sendAndWait({ prompt });
       const content = extractAssistantContent(response);

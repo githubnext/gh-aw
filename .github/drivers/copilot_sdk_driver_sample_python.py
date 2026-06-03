@@ -29,7 +29,7 @@ async def main() -> int:
     prompt_path = read_required_env("GH_AW_PROMPT")
     sdk_uri = read_required_env("COPILOT_SDK_URI")
     connection_token = read_required_env("COPILOT_CONNECTION_TOKEN")
-    model = os.getenv("COPILOT_MODEL")
+    model = read_required_env("COPILOT_MODEL")
 
     with open(prompt_path, "r", encoding="utf-8") as prompt_file:
         prompt = prompt_file.read()
@@ -42,10 +42,7 @@ async def main() -> int:
     await client.start()
     session = None
     try:
-        create_kwargs = {"on_permission_request": PermissionHandler.approve_all}
-        if model:
-            create_kwargs["model"] = model
-        session = await client.create_session(**create_kwargs)
+        session = await client.create_session(on_permission_request=PermissionHandler.approve_all, model=model)
         response = await session.send_and_wait(prompt)
         content = extract_assistant_content(response)
         if content:

@@ -28,7 +28,7 @@ async function main(): Promise<void> {
   const promptPath = readRequiredEnv("GH_AW_PROMPT");
   const sdkUri = readRequiredEnv("COPILOT_SDK_URI");
   const connectionToken = readRequiredEnv("COPILOT_CONNECTION_TOKEN");
-  const model = process.env.COPILOT_MODEL;
+  const model = readRequiredEnv("COPILOT_MODEL");
   const prompt = readFileSync(promptPath, "utf8");
 
   const client = new CopilotClient({
@@ -41,7 +41,7 @@ async function main(): Promise<void> {
   try {
     session = await client.createSession({
       onPermissionRequest: approveAll,
-      ...(model ? { model } : {}),
+      model,
     });
 
     const response = await session.sendAndWait({ prompt });
