@@ -2950,7 +2950,7 @@ describe("handle_agent_failure", () => {
         ({ readTokenUsageMarkdown } = require("./handle_agent_failure.cjs"));
         const result = readTokenUsageMarkdown();
         expect(result).not.toBeNull();
-        expect(result.markdown).toContain("🟣sonnet45");
+        expect(result.markdown).toContain("◉ sonnet45");
         expect(result.markdown).toContain("1,000");
         expect(result.markdown).toContain("Alias");
         expect(result.modelNames).toEqual(["claude-sonnet-4.5"]);

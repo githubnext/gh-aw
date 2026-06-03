@@ -328,9 +328,9 @@ function reduceModelNameToIdentifier(modelName) {
  * Uses distinct symbols for each compact model kind so aliases remain scannable.
  *
  * Examples:
- * - claude-sonnet-4.6 -> ◉sonnet46
- * - gpt-5.5 -> ■gpt55
- * - gemini-2.5-pro -> ★gem25
+ * - claude-sonnet-4.6 -> ◉ sonnet46
+ * - gpt-5.5 -> ■ gpt55
+ * - gemini-2.5-pro -> ★ gem25
  *
  * @param {string|undefined|null} modelName
  * @returns {string}
@@ -358,7 +358,7 @@ function formatModelEmojiAlias(modelName) {
     emoji = "★";
   }
 
-  return `${emoji}${identifier}`;
+  return `${emoji} ${identifier}`;
 }
 
 /**
