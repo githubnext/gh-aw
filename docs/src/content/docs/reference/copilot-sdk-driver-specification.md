@@ -16,7 +16,7 @@ sidebar:
 
 ## Abstract
 
-This specification defines the normative behavior of a Copilot SDK driver that runs an agent session against a Copilot SDK endpoint and emits session telemetry. The specification is language agnostic and focuses on configuration inputs, environment variable contracts, permission-checking policy, and required logging behavior. Conforming implementations provide deterministic permission enforcement, auditable diagnostics, and interoperable runtime behavior across host environments.
+This specification defines the normative behavior of a Copilot SDK driver that runs an agent session against a Copilot SDK endpoint and emits session telemetry. The specification is language agnostic and focuses on environment variable contracts, permission-checking policy, and required logging behavior. Non-normative examples use TypeScript. Conforming implementations provide deterministic permission enforcement, auditable diagnostics, and interoperable runtime behavior across host environments.
 
 ## Status of This Document
 
@@ -96,12 +96,9 @@ Implementations MUST support:
 
 ## 3. Driver Execution Model
 
-### 3.1 Runtime Modes
+### 3.1 Runtime Mode
 
-A driver implementation MUST support:
-
-1. **Embedded mode**: callable API surface where host code passes configuration objects.
-2. **Standalone mode**: executable entry point that reads configuration from environment variables.
+For extension integrations, a driver implementation MUST support **standalone mode** (executable entry point that reads configuration from environment variables). Embedded callable APIs are out of scope for this specification.
 
 ### 3.2 Session Lifecycle
 
@@ -123,22 +120,7 @@ A complete implementation (Level 3) SHOULD serialize non-ephemeral session event
 
 ## 4. Configuration and Environment Variables
 
-### 4.1 Core Configuration Inputs
-
-The embedded-mode configuration object MUST support:
-
-| Field | Required | Description |
-| --- | --- | --- |
-| `sdkUri` | Yes | URI of the Copilot SDK server endpoint |
-| `prompt` | Yes | Prompt text to send with `sendAndWait` |
-| `logger` | Yes | Driver log sink |
-| `connectionToken` | No* | Shared connection token; REQUIRED when host policy requires authenticated runtime connections |
-| `model` | No | Model override |
-| `provider` | No | Provider-specific SDK configuration |
-| `permissionConfig` | No | Permission ruleset (see Section 5) |
-| `coreLogger` | No | Secondary structured logger for policy diagnostics |
-
-### 4.2 Standalone Environment Variables
+### 4.1 Standalone Environment Variables
 
 In standalone mode, the implementation MUST enforce the following contract:
 
@@ -152,16 +134,26 @@ In standalone mode, the implementation MUST enforce the following contract:
 | `COPILOT_SDK_LOG_LEVEL` | No | SDK client log level | Valid values: `none`, `error`, `warning`, `info`, `debug`, `all`; invalid values MUST fall back to `warning` |
 | `GITHUB_WORKSPACE` | No | Working directory hint | SHOULD be used when present |
 
-### 4.3 Host Integration Variables
+### 4.2 TypeScript Example (Non-Normative)
 
-When orchestrated by a host harness, the following variables MAY be provided:
+```ts
+import { spawnSync } from "node:child_process";
 
-| Variable | Description |
-| --- | --- |
-| `GH_AW_COPILOT_SDK_DRIVER` | Driver-mode enablement flag |
-| `GH_AW_COPILOT_SDK_SERVER_ARGS` | JSON-encoded sidecar server argument list |
+const env = {
+  ...process.env,
+  GH_AW_PROMPT: "/tmp/prompt.txt",
+  COPILOT_SDK_URI: "http://127.0.0.1:3002",
+  COPILOT_CONNECTION_TOKEN: "example-token",
+  COPILOT_SDK_LOG_LEVEL: "warning",
+};
 
-Implementations MUST treat malformed host integration input as non-fatal and SHOULD fall back to safe defaults where possible.
+const result = spawnSync("node", ["actions/setup/js/copilot_sdk_driver.cjs"], {
+  env,
+  stdio: "inherit",
+});
+
+process.exit(result.status ?? 1);
+```
 
 ---
 
@@ -169,7 +161,7 @@ Implementations MUST treat malformed host integration input as non-fatal and SHO
 
 ### 5.1 Permission Configuration
 
-`permissionConfig` supports:
+The effective permission configuration supports:
 
 - `allowAllTools` (boolean)
 - `allowedTools` (string array)
@@ -178,7 +170,7 @@ Implementations MUST treat malformed host integration input as non-fatal and SHO
 
 The permission handler MUST resolve as follows:
 
-1. If `permissionConfig` is absent, the driver MUST defer to SDK default policy.
+1. If effective permission configuration is absent, the driver MUST defer to SDK default policy.
 2. If `allowAllTools` is `true`, the driver MUST approve all permission requests.
 3. If `allowedTools` is empty after normalization, the driver MUST defer to SDK default policy.
 4. Otherwise, the driver MUST enforce the scoped allow rules below.
@@ -211,6 +203,20 @@ For `shell(<rule>)` entries:
 ### 5.5 Rejection Contract
 
 On rejection, the handler MUST return a reject decision with feedback indicating that invocation is not allowed by workflow tool permissions.
+
+### 5.6 TypeScript Example (Non-Normative)
+
+```ts
+type PermissionConfig = {
+  allowAllTools?: boolean;
+  allowedTools?: string[];
+};
+
+export function canUseWriteTool(config: PermissionConfig): boolean {
+  if (config.allowAllTools) return true;
+  return (config.allowedTools ?? []).includes("write");
+}
+```
 
 ---
 
@@ -350,6 +356,8 @@ A conforming implementation SHOULD:
 
 ### Informative References
 
+- **[Copilot SDK (npm)]** https://www.npmjs.com/package/@github/copilot-sdk
+- **[Copilot SDK Repository]** https://github.com/github/copilot-sdk
 - **[Copilot SDK Driver Source]** `actions/setup/js/copilot_sdk_driver.cjs`
 - **[Copilot Harness Source]** `actions/setup/js/copilot_harness.cjs`
 - **[Environment Variables Reference]** [Environment Variables](/gh-aw/reference/environment-variables/)
@@ -364,4 +372,3 @@ A conforming implementation SHOULD:
 - Defined language-agnostic configuration and environment variable contract.
 - Formalized permission checking semantics and deny behavior.
 - Formalized required runtime and policy logging requirements.
-
