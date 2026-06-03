@@ -1039,6 +1039,10 @@ jobs:
     - name: Run custom linters
       run: make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -manualmutexunlock -osexitinlibrary -rawloginlib -regexpcompileinfunction -fprintlnsprintf -strconvparseignorederror -jsonmarshalignoredeerror -uncheckedtypeassertion -fmterrorfnoverbs -test=false"
 
+      # Ensure no action shell scripts invoke python or python3
+    - name: Lint action shell scripts
+      run: make lint-action-sh
+
   actions-build:
     runs-on: ubuntu-latest
     timeout-minutes: 10

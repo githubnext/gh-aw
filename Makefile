@@ -658,9 +658,15 @@ check-file-sizes:
 check-validator-sizes:
 	@bash scripts/check-validator-sizes.sh
 
+# Lint action shell scripts — ensure no python/python3 invocations in actions/**/*.sh
+.PHONY: lint-action-sh
+lint-action-sh:
+	@echo "Checking action shell scripts for python/python3 invocations..."
+	@bash scripts/check-action-sh-no-python.sh
+
 # Validate all project files
 .PHONY: lint
-lint: fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains
+lint: fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh
 	@echo "✓ All validations passed"
 
 # Install the binary locally
@@ -894,6 +900,7 @@ help:
 	@echo "  lint-cjs         - Lint JavaScript (.cjs) and JSON files in actions/setup/js"
 	@echo "  lint-json        - Lint JSON files in pkg directory (excluding actions/setup/js)"
 	@echo "  lint-errors      - Lint error messages for quality compliance"
+	@echo "  lint-action-sh   - Lint action shell scripts for python/python3 invocations"
 	@echo "  check-file-sizes - Check Go file sizes and function counts (informational)"
 	@echo "  check-validator-sizes - Check *_validation.go files against the 768-line hard limit"
 	@echo "  security-scan    - Run all security scans (gosec, govulncheck)"
