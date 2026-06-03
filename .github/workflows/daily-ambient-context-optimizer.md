@@ -168,7 +168,7 @@ Assess whether the request size is likely driven by:
 
 ## Sub-Agent Usage
 
-After the deterministic Python script finishes, invoke `request-optimizer` for **at most 2 sampled runs** using compact JSON summaries (never raw full prompts), and only when at least 3 sampled runs exist.
+After the deterministic Python script finishes, invoke `request-optimizer` for **at most 2 sampled runs** using compact JSON summaries (never raw full prompts), and only when at least 2 sampled runs exist.
 
 Each sub-agent invocation may return at most 3 opportunities for its run. Aggregate and deduplicate those opportunities, then do the final prioritization yourself.
 
