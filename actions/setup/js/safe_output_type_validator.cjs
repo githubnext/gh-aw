@@ -29,6 +29,8 @@ const MAX_GITHUB_USERNAME_LENGTH = 39;
  * @typedef {{ allowedAliases?: string[], maxBotMentions?: number, normalizeIssueClosingKeywords?: boolean }} ValidateOptions
  */
 
+// GitHub issue-closing keywords:
+// https://docs.github.com/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue
 const ISSUE_CLOSING_KEYWORDS = "fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved";
 const ISSUE_REFERENCE_PATTERN = "(?:[a-zA-Z0-9_.-]+\\/[a-zA-Z0-9_.-]+)?#\\d+";
 const ISSUE_CLOSING_WHOLE_SPAN_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b\\s+${ISSUE_REFERENCE_PATTERN})\``, "gi");
