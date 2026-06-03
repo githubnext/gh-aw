@@ -1653,6 +1653,81 @@ describe("copilot_harness.cjs", () => {
         fs.unlinkSync(reflectFile);
       }
     });
+
+    it("resolveCopilotSDKCustomProviderFromReflect is also exported from awf_reflect.cjs", () => {
+      const { resolveCopilotSDKCustomProviderFromReflect: resolveFromReflect } = require("./awf_reflect.cjs");
+      const reflectFile = path.join(os.tmpdir(), `awf-reflect-direct-${Date.now()}.json`);
+      try {
+        fs.writeFileSync(
+          reflectFile,
+          JSON.stringify({
+            endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.4"] }],
+          }),
+          "utf8"
+        );
+        expect(resolveFromReflect({ reflectPath: reflectFile })).toEqual({
+          model: "gpt-5.4",
+          provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+        });
+      } finally {
+        fs.unlinkSync(reflectFile);
+      }
+    });
+
+    it("copilot_sdk_driver passes provider from reflect to runWithCopilotSDK when AWF_REFLECT_ENABLED=1", async () => {
+      // Verify that the driver's runWithCopilotSDK call receives the resolved provider
+      // when AWF_REFLECT_ENABLED is set and a reflect file with a configured endpoint exists.
+      const reflectFile = path.join(os.tmpdir(), `awf-reflect-driver-${Date.now()}.json`);
+      const disconnect = vi.fn().mockResolvedValue(undefined);
+      const stop = vi.fn().mockResolvedValue(undefined);
+      const forUri = vi.fn(() => ({}));
+      const createSession = vi.fn().mockResolvedValue({
+        sessionId: "session-driver-provider",
+        on: () => {},
+        sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+        disconnect,
+      });
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = createSession;
+        stop = stop;
+      }
+      try {
+        fs.writeFileSync(
+          reflectFile,
+          JSON.stringify({
+            endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.4"] }],
+          }),
+          "utf8"
+        );
+        // Simulate what the driver's main() does when AWF_REFLECT_ENABLED=1
+        const { resolveCopilotSDKCustomProviderFromReflect: resolve } = require("./awf_reflect.cjs");
+        const customProviderConfig = resolve({ model: "gpt-5.4", reflectPath: reflectFile });
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          model: customProviderConfig?.model ?? "gpt-5.4",
+          connectionToken: "test-token",
+          provider: customProviderConfig?.provider,
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri },
+            approveAll: () => "allow",
+          },
+        });
+        expect(result.exitCode).toBe(0);
+        expect(createSession).toHaveBeenCalledWith(
+          expect.objectContaining({
+            model: "gpt-5.4",
+            provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+          })
+        );
+        expect(forUri).toHaveBeenCalledWith("http://127.0.0.1:3002", { connectionToken: "test-token" });
+      } finally {
+        fs.unlinkSync(reflectFile);
+      }
+    });
   });
 
   describe("enrichReflectModels", () => {

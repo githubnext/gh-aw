@@ -39,6 +39,7 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { AWF_REFLECT_OUTPUT_PATH, resolveCopilotSDKCustomProviderFromReflect } = require("./awf_reflect.cjs");
 
 // Default timeout for a single sendAndWait call: 10 minutes.
 // This is intentionally generous — the headless Copilot CLI has its own internal
@@ -484,6 +485,22 @@ async function main() {
     process.exit(1);
   }
 
+  // --- Resolve custom provider from AWF reflect data -------------------
+  // When the AWF api-proxy sidecar is present, the Copilot SDK session must use
+  // a custom provider (OpenAI-compatible endpoint on the proxy) so that inference
+  // requests are routed through the proxy rather than directly to the Copilot API.
+  // Without this, createSession succeeds but sendAndWait fails with
+  // "Session was not created with authentication info or custom provider".
+  /** @type {{ model: string, provider: { type: "openai", baseUrl: string } } | null} */
+  let customProviderConfig = null;
+  if (process.env.AWF_REFLECT_ENABLED === "1") {
+    customProviderConfig = resolveCopilotSDKCustomProviderFromReflect({
+      model,
+      reflectPath: AWF_REFLECT_OUTPUT_PATH,
+      logger: log,
+    });
+  }
+
   // --- Read the prompt -------------------------------------------------
 
   let prompt;
@@ -502,8 +519,9 @@ async function main() {
     sdkUri,
     prompt,
     logger: log,
-    model,
+    model: customProviderConfig?.model ?? model,
     connectionToken,
+    provider: customProviderConfig?.provider,
   });
 
   process.exit(result.exitCode);
