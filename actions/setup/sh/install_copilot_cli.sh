@@ -24,6 +24,9 @@ COPILOT_REPO="github/copilot-cli"
 INSTALL_DIR="/usr/local/bin"
 COPILOT_DIR="${HOME}/.copilot"
 COPILOT_TOOLCACHE_MAX_DEPTH=4
+COMPAT_URL_PRIMARY="${COPILOT_COMPAT_URL:-https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json}"
+COMPAT_URL_FALLBACK="${COPILOT_COMPAT_FALLBACK_URL:-https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/compat.json}"
+COMPILED_GH_AW_VERSION="${GH_AW_COMPILED_VERSION:-}"
 
 # Fix directory ownership before installation
 # This is needed because a previous AWF run on the same runner may have used
@@ -130,6 +133,165 @@ version_is_greater() {
   done
 
   return 1
+}
+
+# Download compatibility matrix with fallback URLs.
+download_compat_json() {
+  local compat_file="$1"
+  local source_file="$2"
+  local url=""
+  local urls=("$COMPAT_URL_PRIMARY")
+
+  if [ "$COMPAT_URL_FALLBACK" != "$COMPAT_URL_PRIMARY" ]; then
+    urls+=("$COMPAT_URL_FALLBACK")
+  fi
+
+  for url in "${urls[@]}"; do
+    echo "Attempting to download compatibility matrix from ${url}..." >&2
+    if curl -fsSL --retry 3 --retry-delay 5 -o "$compat_file" "$url"; then
+      echo "$url" > "$source_file"
+      echo "Successfully downloaded compatibility matrix from ${url}" >&2
+      return 0
+    fi
+    echo "Compatibility matrix download failed from ${url}" >&2
+  done
+
+  return 1
+}
+
+# Resolve Copilot version from compat matrix using GH_AW_COMPILED_VERSION.
+resolve_version_from_compat() {
+  local compiled_version="${1:-}"
+  local compat_file="$2"
+  local resolved_info=""
+  local compat_source=""
+
+  if [ -z "$compiled_version" ]; then
+    echo "No GH_AW_COMPILED_VERSION provided, skipping compatibility matrix resolution." >&2
+    return 1
+  fi
+
+  if [[ ! "$compiled_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "GH_AW_COMPILED_VERSION '${compiled_version}' is not in vMAJOR.MINOR.PATCH format; skipping compatibility matrix resolution." >&2
+    return 1
+  fi
+
+  compat_source="${compat_file}.source"
+  if ! download_compat_json "$compat_file" "$compat_source"; then
+    echo "Could not download compatibility matrix from primary or fallback URL; using release latest fallback." >&2
+    return 1
+  fi
+
+  resolved_info="$(python3 - "$compat_file" "$compiled_version" <<'PY'
+import json
+import re
+import sys
+
+compat_path = sys.argv[1]
+compiled = sys.argv[2]
+semver_re = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
+
+def parse(v):
+    m = re.match(r"^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z.-]+))?$", v)
+    if not m:
+        return None
+    pre = m.group(4).split(".") if m.group(4) else None
+    return (int(m.group(1)), int(m.group(2)), int(m.group(3)), pre)
+
+def cmp(a, b):
+    pa = parse(a)
+    pb = parse(b)
+    if pa is None or pb is None:
+        return 0
+    for i in range(3):
+        if pa[i] != pb[i]:
+            return pa[i] - pb[i]
+    apre = pa[3]
+    bpre = pb[3]
+    if apre is None and bpre is None:
+        return 0
+    if apre is None:
+        return 1
+    if bpre is None:
+        return -1
+    length = max(len(apre), len(bpre))
+    for i in range(length):
+        if i >= len(apre):
+            return -1
+        if i >= len(bpre):
+            return 1
+        ai = apre[i]
+        bi = bpre[i]
+        ai_n = ai.isdigit()
+        bi_n = bi.isdigit()
+        if ai_n and bi_n:
+            da = int(ai)
+            db = int(bi)
+            if da != db:
+                return da - db
+        elif ai_n:
+            return -1
+        elif bi_n:
+            return 1
+        elif ai != bi:
+            return -1 if ai < bi else 1
+    return 0
+
+compiled_no_v = compiled[1:]
+if parse(compiled_no_v) is None:
+    print("")
+    sys.exit(0)
+
+with open(compat_path, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+rows = (
+    data.get("agent-compat-v1", {})
+        .get("copilot", [])
+)
+if not isinstance(rows, list):
+    print("")
+    sys.exit(0)
+
+for i, row in enumerate(rows):
+    if not isinstance(row, dict):
+        continue
+    min_aw = row.get("min-gh-aw")
+    max_aw = row.get("max-gh-aw")
+    min_agent = row.get("min-agent")
+    max_agent = row.get("max-agent")
+    if not all(isinstance(v, str) for v in [min_aw, max_aw, min_agent, max_agent]):
+        continue
+    if parse(min_aw) is None:
+        continue
+    if max_aw != "*" and parse(max_aw) is None:
+        continue
+    if not semver_re.match(max_agent):
+        continue
+
+    if cmp(compiled_no_v, min_aw) < 0:
+        continue
+    if max_aw != "*" and cmp(compiled_no_v, max_aw) > 0:
+        continue
+
+    print(f"{max_agent}|{i}|{min_aw}|{max_aw}|{min_agent}|{max_agent}")
+    sys.exit(0)
+
+print("")
+PY
+)"
+
+  if [ -z "$resolved_info" ]; then
+    echo "Compatibility matrix lookup found no matching copilot window for gh-aw ${compiled_version}; using release latest fallback." >&2
+    return 1
+  fi
+
+  IFS='|' read -r resolved_version row_index row_min_aw row_max_aw row_min_agent row_max_agent <<< "$resolved_info"
+  echo "Compatibility matrix source: $(cat "$compat_source")" >&2
+  echo "Compatibility matrix matched row ${row_index}: gh-aw ${row_min_aw}..${row_max_aw}, copilot ${row_min_agent}..${row_max_agent}" >&2
+  echo "Resolved Copilot CLI version from compatibility matrix: ${resolved_version}" >&2
+  printf '%s\n' "$resolved_version"
+  return 0
 }
 
 # Look up a compatible Copilot CLI from the Actions toolcache before downloading a release tarball.
@@ -245,6 +407,21 @@ EOF
 # Create temp directory with cleanup on exit
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
+
+# Resolve a compatible Copilot version from compat matrix unless the caller passed an explicit version.
+if [ -z "$VERSION" ]; then
+  echo "No explicit Copilot CLI version requested. Attempting compat-driven version resolution..."
+  if RESOLVED_COMPAT_VERSION="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
+    VERSION="$RESOLVED_COMPAT_VERSION"
+    REQUESTED_VERSION="$RESOLVED_COMPAT_VERSION"
+    echo "Using compat-resolved Copilot CLI version: ${REQUESTED_VERSION}"
+  else
+    REQUESTED_VERSION="latest"
+    echo "Falling back to latest Copilot CLI release because compat resolution did not produce a version."
+  fi
+else
+  echo "Explicit Copilot CLI version argument provided (${VERSION}); skipping compat matrix resolution."
+fi
 
 # Prefer the runner toolcache when a compatible Copilot CLI is already available.
 if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION")"; then
