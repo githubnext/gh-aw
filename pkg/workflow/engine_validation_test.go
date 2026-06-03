@@ -489,7 +489,7 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "driver.sh"},
 			},
 			expectError: true,
-			errorSubstr: "must be a Node.js script",
+			errorSubstr: "unsupported extension",
 		},
 		{
 			name: "invalid path traversal",
@@ -530,6 +530,56 @@ func TestValidateEngineCopilotSDKDriver(t *testing.T) {
 			},
 			expectError: true,
 			errorSubstr: "safe basename",
+		},
+		{
+			name: "valid python driver",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "my_driver.py"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid typescript driver",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "my_driver.ts"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid mts typescript driver",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "my_driver.mts"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid ruby driver",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "my_driver.rb"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid arbitrary command no extension",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "my-copilot-driver"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid arbitrary command underscore no extension",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "my_driver"},
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid java extension",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", CopilotSDKDriver: "driver.java"},
+			},
+			expectError: true,
+			errorSubstr: "unsupported extension",
 		},
 	}
 
