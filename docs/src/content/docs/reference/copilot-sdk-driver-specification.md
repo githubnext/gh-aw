@@ -137,22 +137,27 @@ In standalone mode, the implementation MUST enforce the following contract:
 ### 4.2 TypeScript Example (Non-Normative)
 
 ```ts
-import { spawnSync } from "node:child_process";
+import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
 
-const env = {
-  ...process.env,
-  GH_AW_PROMPT: "/tmp/prompt.txt",
-  COPILOT_SDK_URI: "http://127.0.0.1:3002",
-  COPILOT_CONNECTION_TOKEN: "example-token",
-  COPILOT_SDK_LOG_LEVEL: "warning",
-};
-
-const result = spawnSync("node", ["actions/setup/js/copilot_sdk_driver.cjs"], {
-  env,
-  stdio: "inherit",
+const client = new CopilotClient({
+  connection: RuntimeConnection.forUri("http://127.0.0.1:3002", {
+    connectionToken: "example-token",
+  }),
+  workingDirectory: process.cwd(),
+  logLevel: "warning",
 });
 
-process.exit(result.status ?? 1);
+await client.start();
+try {
+  const session = await client.createSession({
+    model: "gpt-4o-mini",
+  });
+  const result = await session.sendAndWait({ prompt: "Summarize this repository." }, 600_000);
+  console.log(result.data?.content ?? "");
+  await session.disconnect();
+} finally {
+  await client.stop();
+}
 ```
 
 ---
@@ -165,6 +170,8 @@ The effective permission configuration supports:
 
 - `allowAllTools` (boolean)
 - `allowedTools` (string array)
+
+In scoped allowlist mode, `read` is treated as a configured permission and MUST be denied unless explicitly allowed.
 
 ### 5.2 Handler Resolution
 
@@ -179,7 +186,7 @@ The permission handler MUST resolve as follows:
 
 When scoped rules are active, the implementation MUST evaluate requests as follows:
 
-- `read`: MUST be approved.
+- `read`: MUST be approved only when `allowedTools` contains `read`.
 - `write`: MUST be approved only when `allowedTools` contains `write`.
 - `url`: MUST be approved only when `allowedTools` contains `web_fetch`.
 - `custom-tool`: MUST be approved only when `allowedTools` contains the request tool name.
@@ -295,8 +302,15 @@ Implementations MUST provide automated tests for all Level 1 and Level 2 require
 
 - **T-CSD-101**: Absent `permissionConfig` defers to SDK default policy.
 - **T-CSD-102**: `allowAllTools=true` approves all requests.
-- **T-CSD-103**: Scoped `allowedTools` enforces shell, MCP, URL, write, and custom-tool rules.
-- **T-CSD-104**: Rejected requests include policy feedback and denial logs.
+- **T-CSD-103**: Scoped allowlist denies `read` by default when `allowedTools` does not include `read`.
+- **T-CSD-104**: Scoped allowlist approves `read` when `allowedTools` includes `read`.
+- **T-CSD-105**: Scoped allowlist approves `write` only when `allowedTools` includes `write`.
+- **T-CSD-106**: Scoped allowlist approves `url` only when `allowedTools` includes `web_fetch`.
+- **T-CSD-107**: Scoped allowlist approves `custom-tool` only when `allowedTools` includes the requested tool name.
+- **T-CSD-108**: Scoped allowlist approves `mcp` by server entry (`<serverName>`) and by server-tool entry (`<serverName>(<toolName>)`).
+- **T-CSD-109**: Scoped allowlist enforces shell matching for `shell`, `shell(<rule>)`, and exact full-command entries.
+- **T-CSD-110**: Unknown request kinds are rejected.
+- **T-CSD-111**: Rejected requests include policy feedback and denial logs.
 
 #### 8.1.3 Logging Tests
 
@@ -311,8 +325,11 @@ Implementations MUST provide automated tests for all Level 1 and Level 2 require
 | Log-level fallback behavior | T-CSD-004 | 1 | Required |
 | Default permission delegation | T-CSD-101 | 2 | Required |
 | Allow-all permission behavior | T-CSD-102 | 2 | Required |
-| Scoped permission enforcement | T-CSD-103 | 2 | Required |
-| Permission denial diagnostics | T-CSD-104, T-CSD-202 | 2 | Required |
+| Scoped `read` default-deny and explicit allow | T-CSD-103..104 | 2 | Required |
+| Scoped write/url/custom-tool enforcement | T-CSD-105..107 | 2 | Required |
+| Scoped MCP/shell enforcement | T-CSD-108..109 | 2 | Required |
+| Unknown-kind rejection | T-CSD-110 | 2 | Required |
+| Permission denial diagnostics | T-CSD-111, T-CSD-202 | 2 | Required |
 | Lifecycle logging coverage | T-CSD-201 | 3 | Recommended |
 
 ---
