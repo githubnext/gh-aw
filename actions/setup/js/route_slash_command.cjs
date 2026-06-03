@@ -43,7 +43,7 @@ async function appendRoutingSummary(existingCommands, selectedCommand) {
  * @returns {string}
  */
 function parseSlashCommand(text) {
-  const match = /^\/([a-zA-Z0-9][a-zA-Z0-9\-_]*)/.exec(String(text).trim());
+  const match = /^\/([a-zA-Z0-9][a-zA-Z0-9\-_]*)\b/.exec(String(text).trim());
   return match ? match[1] : "";
 }
 

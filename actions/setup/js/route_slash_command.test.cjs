@@ -52,6 +52,10 @@ describe("parseSlashCommand", () => {
   it("does not match a command starting with a dash", () => {
     expect(parseSlashCommand("/-command")).toBe("");
   });
+
+  it("enforces word boundary: command followed by a colon", () => {
+    expect(parseSlashCommand("/archie:more")).toBe("archie");
+  });
 });
 
 describe("route_slash_command", () => {
