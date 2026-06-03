@@ -294,9 +294,9 @@ describe("safe_output_type_validator", () => {
     it("should only normalize body fields of configured tool types", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const discussionResult = validateItem({ type: "update_issue", body: "Closes `#321`", issue_number: 7 }, "update_issue", 1, { normalizeIssueClosingKeywords: true });
-      expect(discussionResult.isValid).toBe(true);
-      expect(discussionResult.normalizedItem.body).toContain("`#321`");
+      const updateIssueResult = validateItem({ type: "update_issue", body: "Closes `#321`", issue_number: 7 }, "update_issue", 1, { normalizeIssueClosingKeywords: true });
+      expect(updateIssueResult.isValid).toBe(true);
+      expect(updateIssueResult.normalizedItem.body).toContain("`#321`");
 
       const prResult = validateItem({ type: "create_pull_request", title: "Closes `#654`", body: "Body text", branch: "feature/test" }, "create_pull_request", 1, { normalizeIssueClosingKeywords: true });
       expect(prResult.isValid).toBe(true);
@@ -315,13 +315,13 @@ describe("safe_output_type_validator", () => {
       it("is idempotent and preserves non-closing backticked references for fuzz seed cases", async () => {
         const keywords = ["fixes", "resolves", "closed", "FIXED"];
         const references = ["#1", "#42", "Owner/Repo#987", "team.repo/service_name#9001"];
-        const wrappers = ["", "Before: ", "  ", "- ", "Start\n", "prefix `code` "];
+        const prefixes = ["", "Before: ", "  ", "- ", "Start\n", "prefix `code` "];
         const suffixes = ["", ".", " now", "\nTrailing line", " -- done"];
         const seedBodies = [];
 
         for (const keyword of keywords) {
           for (const reference of references) {
-            for (const prefix of wrappers) {
+            for (const prefix of prefixes) {
               for (const suffix of suffixes) {
                 seedBodies.push(`${prefix}\`${keyword} ${reference}\`${suffix}\nUse \`${reference}\` for docs`);
                 seedBodies.push(`${prefix}\`${keyword}\` \`${reference}\`${suffix}\nUse \`${reference}\` for docs`);
