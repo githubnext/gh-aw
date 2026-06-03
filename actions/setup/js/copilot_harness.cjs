@@ -93,7 +93,11 @@ const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
 // credential (written by a mid-stream interrupted run) is incomplete or invalid.  In that
 // case the driver falls back to a fresh run (without --continue) to re-do env-var auth.
 // On a fresh run the token is genuinely absent — retrying will not help.
-const NO_AUTH_INFO_PATTERN = /No authentication information found|Session was not created with authentication info or custom provider/;
+const NO_AUTH_INFO_PATTERN = /No authentication information found/;
+// Pattern to detect a driver/bootstrap failure where the SDK session was created
+// without the expected auth/custom-provider context. This is distinct from absent
+// env-var credentials and should not be classified as a token provisioning error.
+const SDK_SESSION_MISSING_AUTH_OR_PROVIDER_PATTERN = /Session was not created with authentication info or custom provider/;
 // Pattern to detect authentication failures returned by Copilot API.
 // After a first-attempt auth failure, retrying is futile because the entrypoint unsets
 // COPILOT_GITHUB_TOKEN between attempts.
@@ -306,6 +310,16 @@ function resolveCopilotSDKCustomProviderFromReflect(options) {
  */
 function isNoAuthInfoError(output) {
   return NO_AUTH_INFO_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains the SDK driver session bootstrap error
+ * where the session is missing auth/custom-provider context.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isSessionMissingAuthOrCustomProviderError(output) {
+  return SDK_SESSION_MISSING_AUTH_OR_PROVIDER_PATTERN.test(output);
 }
 
 /**
@@ -726,6 +740,7 @@ async function main() {
         const isMCPPolicy = isMCPPolicyError(result.output);
         const isModelNotSupported = isModelNotSupportedError(result.output);
         const isAuthErr = isNoAuthInfoError(result.output);
+        const isSDKSessionBootstrapError = isSessionMissingAuthOrCustomProviderError(result.output);
         const isAuthenticationFailed = isAuthenticationFailedError(result.output);
         const proxyAuthDiagnostic = buildCopilotProxyAuthFailureDiagnostic(result.output, process.env);
         const isNullTypeToolCall = isNullTypeToolCallError(result.output);
@@ -741,6 +756,7 @@ async function main() {
             ` isNullTypeToolCallError=${isNullTypeToolCall}` +
             ` isMaxEffectiveTokensExceededError=${isMaxEffectiveTokensExceeded}` +
             ` isAuthError=${isAuthErr}` +
+            ` isSDKSessionBootstrapError=${isSDKSessionBootstrapError}` +
             ` isAuthenticationFailedError=${isAuthenticationFailed}` +
             ` permissionDeniedCount=${permissionDeniedCount}` +
             ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
@@ -909,7 +925,9 @@ if (typeof module !== "undefined" && module.exports) {
     AGENTIC_ENGINE_TIMEOUT_PATTERN,
     buildMissingToolPermissionIssuePayload,
     isMaxEffectiveTokensExceededError,
+    isNoAuthInfoError,
     isAuthenticationFailedError,
+    isSessionMissingAuthOrCustomProviderError,
     startCopilotSDKServer,
     stopCopilotSDKServer,
     waitForCopilotSDKServer,

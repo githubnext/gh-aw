@@ -25,8 +25,10 @@ const {
   INFERENCE_ACCESS_ERROR_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
   isMaxEffectiveTokensExceededError,
+  isNoAuthInfoError,
   isDetectionPhase,
   isAuthenticationFailedError,
+  isSessionMissingAuthOrCustomProviderError,
   isModelAvailableInReflectData,
   isModelAvailableInReflectFile,
   resolveCopilotSDKCustomProviderFromReflect,
@@ -73,6 +75,18 @@ describe("copilot_harness.cjs", () => {
       expect(CAPI_ERROR_400_PATTERN.test("Error: ENOENT: no such file")).toBe(false);
       expect(CAPI_ERROR_400_PATTERN.test("Fatal: out of memory")).toBe(false);
       expect(CAPI_ERROR_400_PATTERN.test("")).toBe(false);
+    });
+  });
+
+  describe("authentication error classification", () => {
+    it("keeps missing env auth separate from missing custom-provider session bootstrap", () => {
+      expect(isNoAuthInfoError("Error: No authentication information found")).toBe(true);
+      expect(isNoAuthInfoError("Error: Session was not created with authentication info or custom provider")).toBe(false);
+    });
+
+    it("detects the SDK session bootstrap error separately", () => {
+      expect(isSessionMissingAuthOrCustomProviderError("Error: Session was not created with authentication info or custom provider")).toBe(true);
+      expect(isSessionMissingAuthOrCustomProviderError("Error: No authentication information found")).toBe(false);
     });
   });
 

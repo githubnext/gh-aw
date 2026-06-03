@@ -2,9 +2,54 @@ import { describe, it, expect, vi } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { runWithCopilotSDK } = require("./copilot_sdk_driver.cjs");
+const { resolveStandaloneSDKSessionConfig, runWithCopilotSDK } = require("./copilot_sdk_driver.cjs");
 
 describe("copilot_sdk_driver.cjs", () => {
+  describe("resolveStandaloneSDKSessionConfig", () => {
+    it("restores custom provider config from reflect data when reflect mode is enabled", () => {
+      const resolveCustomProviderFromReflect = vi.fn().mockReturnValue({
+        model: "gpt-5.4",
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+      });
+
+      const result = resolveStandaloneSDKSessionConfig({
+        env: {
+          AWF_REFLECT_ENABLED: "1",
+          COPILOT_MODEL: "gpt-5.4",
+        },
+        logger: () => {},
+        resolveCustomProviderFromReflect,
+      });
+
+      expect(result).toEqual({
+        model: "gpt-5.4",
+        provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+      });
+      expect(resolveCustomProviderFromReflect).toHaveBeenCalledWith({
+        model: "gpt-5.4",
+        logger: expect.any(Function),
+      });
+    });
+
+    it("leaves provider unset when reflect mode is disabled", () => {
+      const resolveCustomProviderFromReflect = vi.fn();
+
+      const result = resolveStandaloneSDKSessionConfig({
+        env: {
+          COPILOT_MODEL: "gpt-5.4",
+        },
+        logger: () => {},
+        resolveCustomProviderFromReflect,
+      });
+
+      expect(result).toEqual({
+        model: "gpt-5.4",
+        provider: undefined,
+      });
+      expect(resolveCustomProviderFromReflect).not.toHaveBeenCalled();
+    });
+  });
+
   describe("runWithCopilotSDK", () => {
     it("disconnects session and stops client on success", async () => {
       const disconnect = vi.fn().mockResolvedValue(undefined);
