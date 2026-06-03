@@ -708,13 +708,13 @@ func buildCopilotSDKPermissionConfig(toolArgs []string) *copilotSDKPermissionCon
 				continue
 			}
 			value := strings.TrimSpace(toolArgs[i+1])
+			i++
 			if strings.HasPrefix(value, "--") {
 				continue
 			}
 			if value != "" {
 				allowedToolsSet[value] = struct{}{}
 			}
-			i++
 		}
 	}
 

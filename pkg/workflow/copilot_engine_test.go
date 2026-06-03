@@ -377,6 +377,23 @@ func TestBuildCopilotSDKPermissionConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("does not reinterpret malformed allow-tool values as flags", func(t *testing.T) {
+		config := buildCopilotSDKPermissionConfig([]string{
+			"--allow-tool", "--allow-all-tools",
+			"--allow-tool", "write",
+		})
+		if config == nil {
+			t.Fatal("Expected non-nil permission config")
+		}
+		if config.AllowAllTools {
+			t.Fatal("Expected AllowAllTools=false for malformed allow-tool value")
+		}
+		expected := []string{"write"}
+		if len(config.AllowedTools) != len(expected) || config.AllowedTools[0] != expected[0] {
+			t.Fatalf("Expected allowed tools %v, got %v", expected, config.AllowedTools)
+		}
+	})
+
 	t.Run("preserves allow-all when present", func(t *testing.T) {
 		config := buildCopilotSDKPermissionConfig([]string{
 			"--allow-all-tools",
