@@ -171,7 +171,7 @@ describe("route_slash_command", () => {
 
     await main();
 
-    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Selected command: <none>", true);
+    expect(summaryMock.addRaw).toHaveBeenCalledWith("- Selected command: `<none>`", true);
     expect(summaryMock.addRaw).toHaveBeenCalledWith("- Configured commands: 1", true);
     expect(summaryMock.addRaw).toHaveBeenCalledWith("<details><summary>Configured commands</summary>\n\n- `/archie`\n\n</details>", true);
     expect(summaryMock.write).toHaveBeenCalledWith({ overwrite: false });

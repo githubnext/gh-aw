@@ -24,7 +24,7 @@ async function appendRoutingSummary(existingCommands, selectedCommand) {
     .map(command => `/${command.trim()}`)
     .sort();
 
-  const selectedCommandText = selectedCommand ? `\`/${selectedCommand}\`` : "<none>";
+  const selectedCommandText = selectedCommand ? `\`/${selectedCommand}\`` : "`<none>`";
   const existingCommandsList = normalizedCommands.map(command => `- \`${command}\``).join("\n");
 
   try {
