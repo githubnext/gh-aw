@@ -5654,6 +5654,13 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository operations. Takes precedence over trial target repo settings."
                 },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that discussions can be closed in. The target repository is always implicitly allowed."
+                },
                 "staged": {
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
@@ -5725,6 +5732,13 @@
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository discussion updates. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that discussions can be updated in. The target repository is always implicitly allowed."
                 },
                 "footer": {
                   "type": "boolean",
@@ -5879,6 +5893,13 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository operations. Takes precedence over trial target repo settings."
                 },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that pull requests can be closed in. The target repository is always implicitly allowed."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -5952,6 +5973,13 @@
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository operations. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that pull requests can be marked as ready in. The target repository is always implicitly allowed."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -6705,7 +6733,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for resolving review threads on pull requests. Resolution is scoped to the triggering PR only \u2014 threads on other PRs cannot be resolved.",
+              "description": "Configuration for resolving review threads on pull requests. By default, resolution is scoped to the triggering PR only. When target, target-repo, or allowed-repos are specified, cross-repository thread resolution is supported.",
               "properties": {
                 "max": {
                   "description": "Maximum number of review threads to resolve (default: 10) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
@@ -6721,6 +6749,21 @@
                       "description": "GitHub Actions expression that resolves to an integer at runtime"
                     }
                   ]
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target PR for thread resolution: 'triggering' (default, current PR), '*' (any PR, requires pull_request_number in agent output), or explicit PR number (e.g. ${{ github.event.inputs.pr_number }}). Required when workflow is not triggered by a pull request (e.g. workflow_dispatch)."
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository PR review thread resolution. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that PR review threads can be resolved in. When specified, the agent can use a 'repo' field in the output to specify which repository to resolve threads in. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -6750,7 +6793,7 @@
               "description": "Enable review thread resolution with default configuration"
             }
           ],
-          "description": "Enable AI agents to resolve review threads on the triggering pull request after addressing feedback."
+          "description": "Enable AI agents to resolve review threads on pull requests after addressing feedback. Supports cross-repository resolution via target, target-repo, and allowed-repos."
         },
         "create-code-scanning-alert": {
           "oneOf": [
@@ -7165,6 +7208,13 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository reviewer addition. Takes precedence over trial target repo settings."
                 },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that reviewers can be added in. The target repository is always implicitly allowed."
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -7224,9 +7274,20 @@
                     }
                   ]
                 },
+                "target": {
+                  "type": "string",
+                  "description": "Target for milestone assignment: 'triggering' (default, current issue/PR), '*' (any issue/PR), or explicit number."
+                },
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository milestone assignment. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that milestone assignments can target. The target repository is always implicitly allowed."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -7308,6 +7369,13 @@
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository agent assignment. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that agents can be assigned in. The target repository is always implicitly allowed."
                 },
                 "pull-request-repo": {
                   "type": "string",
@@ -7532,6 +7600,10 @@
                     }
                   ]
                 },
+                "target": {
+                  "type": "string",
+                  "description": "Target for sub-issue linking: 'triggering' (default, current issue), '*' (any issue), or explicit issue number."
+                },
                 "parent-required-labels": {
                   "type": "array",
                   "description": "Optional list of labels that parent issues must have to be eligible for linking",
@@ -7561,6 +7633,13 @@
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository sub-issue linking. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that sub-issue linking can target. The target repository is always implicitly allowed."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -7715,6 +7794,13 @@
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository pull request updates. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that pull requests can be updated in. The target repository is always implicitly allowed."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -8076,9 +8162,20 @@
                     }
                   ]
                 },
+                "target": {
+                  "type": "string",
+                  "description": "Target for comment hiding: 'triggering' (default, current issue/PR), '*' (any item), or explicit number."
+                },
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository comment hiding. Takes precedence over trial target repo settings."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories in format 'owner/repo' that comment hiding can target. The target repository is always implicitly allowed."
                 },
                 "allowed-reasons": {
                   "type": "array",
