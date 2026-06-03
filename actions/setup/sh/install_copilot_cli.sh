@@ -32,6 +32,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 COMPAT_BUNDLED_PATH="${COPILOT_COMPAT_BUNDLED_PATH:-${REPO_ROOT}/.github/aw/compat.json}"
 COMPAT_MATCHED_MIN_AGENT=""
 COMPAT_MATCHED_MAX_AGENT=""
+COMPAT_CACHE_TTL_DAYS=""
 
 # Fix directory ownership before installation
 # This is needed because a previous AWF run on the same runner may have used
@@ -271,10 +272,9 @@ if not isinstance(data, dict):
     print("")
     sys.exit(0)
 
-rows = (
-    data.get("agent-compat-v1", {})
-        .get("copilot", [])
-)
+agent_compat = data.get("agent-compat-v1", {})
+cache_ttl_days = agent_compat.get("cache-ttl-days", "")
+rows = agent_compat.get("copilot", [])
 if not isinstance(rows, list):
     print("")
     sys.exit(0)
@@ -300,7 +300,7 @@ for i, row in enumerate(rows):
     if max_aw != "*" and cmp(compiled_no_v, max_aw) > 0:
         continue
 
-    print(f"{max_agent}|{i}|{min_aw}|{max_aw}|{min_agent}|{max_agent}")
+    print(f"{max_agent}|{i}|{min_aw}|{max_aw}|{min_agent}|{max_agent}|{cache_ttl_days}")
     sys.exit(0)
 
 print("")
@@ -315,12 +315,53 @@ PY
     return 1
   fi
 
-  IFS='|' read -r resolved_version row_index row_min_aw row_max_aw row_min_agent row_max_agent <<< "$resolved_info"
+  IFS='|' read -r resolved_version row_index row_min_aw row_max_aw row_min_agent row_max_agent cache_ttl_days <<< "$resolved_info"
   echo "Compatibility matrix source: $(cat "$compat_source")" >&2
   echo "Compatibility matrix matched row ${row_index}: gh-aw ${row_min_aw}..${row_max_aw}, copilot ${row_min_agent}..${row_max_agent}" >&2
   echo "Resolved Copilot CLI version from compatibility matrix: ${resolved_version}" >&2
-  printf '%s|%s|%s\n' "$resolved_version" "$row_min_agent" "$row_max_agent"
+  if [ -n "$cache_ttl_days" ]; then
+    echo "Cache TTL: ${cache_ttl_days} days" >&2
+  fi
+  printf '%s|%s|%s|%s\n' "$resolved_version" "$row_min_agent" "$row_max_agent" "$cache_ttl_days"
   return 0
+}
+
+# Check if a cached binary has exceeded the cache TTL (in days).
+# Returns 0 (expired) or 1 (not expired).
+is_cache_expired() {
+  local cached_binary="$1"
+  local ttl_days="$2"
+  local now_epoch=""
+  local file_epoch=""
+  local age_days=""
+  
+  # If TTL is not set or not numeric, consider cache as not expired
+  if [ -z "$ttl_days" ] || ! [[ "$ttl_days" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+  
+  # Get current time and file modification time as epoch seconds
+  now_epoch="$(date +%s)"
+  
+  # Try to get file modification time (platform-portable)
+  if file_epoch="$(stat -c %Y "$cached_binary" 2>/dev/null)"; then
+    : # Linux stat format worked
+  elif file_epoch="$(stat -f %m "$cached_binary" 2>/dev/null)"; then
+    : # macOS stat format worked
+  else
+    # Cannot determine file age, consider not expired
+    return 1
+  fi
+  
+  age_days=$(( (now_epoch - file_epoch) / 86400 ))
+  
+  if [ "$age_days" -ge "$ttl_days" ]; then
+    echo "  Cache age: ${age_days} days (exceeds TTL of ${ttl_days} days)" >&2
+    return 0  # Expired
+  else
+    echo "  Cache age: ${age_days} days (within TTL of ${ttl_days} days)" >&2
+    return 1  # Not expired
+  fi
 }
 
 # Look up a compatible Copilot CLI from the Actions toolcache before downloading a release tarball.
@@ -328,6 +369,7 @@ find_cached_copilot_bin() {
   local requested_version="${1:-latest}"
   local min_version="${2:-}"
   local max_version="${3:-}"
+  local cache_ttl_days="${4:-}"
   local requested_version_normalized=""
   local tool_cache_root=""
   local candidate=""
@@ -339,6 +381,9 @@ find_cached_copilot_bin() {
   local best_version=""
 
   echo "Searching toolcache for GitHub Copilot CLI (requested: ${requested_version}, arch: ${ARCH_NAME}, range: ${min_version:-none}..${max_version:-none})..." >&2
+  if [ -n "$cache_ttl_days" ]; then
+    echo "  Cache TTL enabled: ${cache_ttl_days} days" >&2
+  fi
 
   if [ "$requested_version" != "latest" ]; then
     requested_version_normalized="$(normalize_version "$requested_version")"
@@ -398,6 +443,21 @@ find_cached_copilot_bin() {
         continue
       fi
 
+      # Apply cache TTL expiry check UNLESS:
+      # 1. Cached version equals max-agent (already latest in compat window), OR
+      # 2. Explicit version was requested (requested_version != "latest")
+      if [ -n "$cache_ttl_days" ] && [ "$requested_version" = "latest" ]; then
+        # Check if this candidate is NOT the max-agent version
+        if [ -n "$max_version" ] && [ "$candidate_version_normalized" != "$max_version" ]; then
+          if is_cache_expired "$candidate" "$cache_ttl_days"; then
+            echo "  Skipping candidate (cache expired and not max-agent: ${candidate_version_normalized} != ${max_version})" >&2
+            continue
+          fi
+        else
+          echo "  Cache TTL skipped (candidate equals max-agent: ${candidate_version_normalized})" >&2
+        fi
+      fi
+
       if [ -z "$best_candidate" ] || version_is_greater "$candidate_version_normalized" "$best_version"; then
         echo "  New best candidate: ${candidate} (${candidate_version_normalized} > ${best_version:-none})" >&2
         best_candidate="$candidate"
@@ -453,7 +513,7 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 if [ -z "$VERSION" ]; then
   echo "No explicit Copilot CLI version requested. Attempting compat-driven version resolution..."
   if RESOLVED_COMPAT_INFO="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
-    IFS='|' read -r RESOLVED_COMPAT_VERSION COMPAT_MATCHED_MIN_AGENT COMPAT_MATCHED_MAX_AGENT <<< "$RESOLVED_COMPAT_INFO"
+    IFS='|' read -r RESOLVED_COMPAT_VERSION COMPAT_MATCHED_MIN_AGENT COMPAT_MATCHED_MAX_AGENT COMPAT_CACHE_TTL_DAYS <<< "$RESOLVED_COMPAT_INFO"
     VERSION="$RESOLVED_COMPAT_VERSION"
     REQUESTED_VERSION="latest"
     echo "Using compat-resolved Copilot CLI window: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT}"
@@ -470,7 +530,7 @@ else
 fi
 
 # Prefer the runner toolcache when a compatible Copilot CLI is already available.
-if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION" "${COMPAT_MATCHED_MIN_AGENT}" "${COMPAT_MATCHED_MAX_AGENT}")"; then
+if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION" "${COMPAT_MATCHED_MIN_AGENT}" "${COMPAT_MATCHED_MAX_AGENT}" "${COMPAT_CACHE_TTL_DAYS}")"; then
   echo "Using cached GitHub Copilot CLI from ${CACHED_COPILOT_BIN}"
   activate_cached_copilot_bin "$CACHED_COPILOT_BIN"
 
