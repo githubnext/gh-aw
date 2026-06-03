@@ -44,7 +44,7 @@ The timeline merges events from three sources:
 
 The result simulates what you would see when watching a Copilot CLI session
 live, providing a readable, complete log of all agentic activity, followed
-by any safe outputs created during the run (e.g. issues, pull requests,
+by any safe outputs created during the run (e.g., issues, pull requests,
 comments) and a link to the GitHub Actions workflow run page.
 
 The run argument accepts the same formats as the "audit" command:

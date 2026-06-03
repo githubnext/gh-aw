@@ -17,6 +17,18 @@ func getFallbackAsIssue(config *CreatePullRequestsConfig) bool {
 	return *config.FallbackAsIssue
 }
 
+// isCloseOlderPullRequestsEnabled returns true when close-older-pull-requests is
+// configured and not explicitly set to false ("false" or "0"). Any other non-empty
+// value, including GitHub Actions expressions like "${{ ... }}", is treated as enabled.
+// Used for compile-time permission calculation.
+func isCloseOlderPullRequestsEnabled(config *CreatePullRequestsConfig) bool {
+	if config == nil || config.CloseOlderPullRequests == nil {
+		return false
+	}
+	v := *config.CloseOlderPullRequests
+	return v != "" && v != "false" && v != "0"
+}
+
 // CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
 type CreatePullRequestsConfig struct {
 	BaseSafeOutputConfig           `yaml:",inline"`
@@ -53,6 +65,8 @@ type CreatePullRequestsConfig struct {
 	PatchFormat                    string   `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "bundle" (default, uses git bundle and preserves merge topology/per-commit metadata) or "am" (uses git format-patch).
 	SignedCommits                  *bool    `yaml:"signed-commits,omitempty"`                      // When false, skips GitHub GraphQL signed commits and pushes the local git history directly. Default is true.
 	AllowWorkflows                 bool     `yaml:"allow-workflows,omitempty"`                     // When true, adds workflows: write to the GitHub App token. Requires safe-outputs.github-app to be configured.
+	CloseOlderPullRequests         *string  `yaml:"close-older-pull-requests,omitempty"`           // When true, close older open pull requests with the same workflow-id marker when a new one is created. Capped at 10 closures per run.
+	CloseOlderKey                  string   `yaml:"close-older-key,omitempty"`                     // Optional explicit deduplication key for close-older matching. When set, uses gh-aw-close-key marker instead of workflow-id markers.
 }
 
 // parseCreatePullRequestsConfig handles only create-pull-request (singular) configuration
@@ -68,7 +82,7 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 		outputMap,
 		"create-pull-request",
 		CreateParseOptions{
-			BoolFields:    []string{"draft", "allow-empty", "auto-merge", "footer", "auto-close-issue"},
+			BoolFields:    []string{"draft", "allow-empty", "auto-merge", "footer", "auto-close-issue", "close-older-pull-requests"},
 			IntFields:     []string{"max"},
 			HandleExpires: true,
 		},

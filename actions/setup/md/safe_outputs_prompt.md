@@ -10,10 +10,7 @@ Safe-output calls are write-once declarations for real downstream side effects. 
 
 **Do not inspect infrastructure internals.** When a tool or command fails, do not inspect Docker sockets (`/var/run/docker.sock`), mount tables (`/proc/self/mounts`), container networking (`/proc/net`), `/host` paths, git object storage internals, or container-runtime environment internals. These are outside your control; use `report_incomplete` after the retry limit.
 
-When no action is needed, call noop like this:
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why no action was required]"}}
-```
+When no action is needed, call `noop` with a short status message explaining what you checked and why no action was required.
 
 temporary_id: optional cross-reference field. Canonical form: '#aw_' followed by 3–12 alphanumeric or underscore characters — e.g., '#aw_abc1', '#aw_pr_fix'. Pattern: /^#?aw_[A-Za-z0-9_]{3,12}$/i (the '#' prefix is optional; bare 'aw_abc1' is accepted and normalised to '#aw_abc1' automatically). Use this form for all field values (temporary_id, item_number, issue_number, parent, etc.). In body/markdown text, '#aw_abc1' references are replaced with the real issue/PR number after creation. Omit entirely when not needed.
 
