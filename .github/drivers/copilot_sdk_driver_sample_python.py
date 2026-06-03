@@ -49,7 +49,10 @@ async def main() -> int:
         response = await session.send_and_wait(prompt)
         content = extract_assistant_content(response)
         if content:
-            print(content)
+            if content.endswith("\n"):
+                sys.stdout.write(content)
+            else:
+                sys.stdout.write(f"{content}\n")
         return 0
     finally:
         if session is not None:
@@ -60,6 +63,6 @@ async def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(asyncio.run(main()))
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:
         sys.stderr.write(f"[copilot-sdk-driver-sample-python] {type(error).__name__}: {error}\n")
         raise SystemExit(1)

@@ -36,7 +36,7 @@ async function main(): Promise<void> {
     workingDirectory: process.env.GITHUB_WORKSPACE || process.cwd(),
   });
 
-  let session: Awaited<ReturnType<CopilotClient["createSession"]>> | undefined;
+  let session;
   await client.start();
   try {
     session = await client.createSession({

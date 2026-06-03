@@ -66,7 +66,12 @@ NODE_DRIVER = <<~'JS'
   });
 JS
 
-stdout_str, stderr_str, status = Open3.capture3("node", "-e", NODE_DRIVER)
-$stdout.write(stdout_str)
-$stderr.write(stderr_str)
-exit(status.exitstatus || 1)
+begin
+  stdout_str, stderr_str, status = Open3.capture3("node", "-e", NODE_DRIVER)
+  $stdout.write(stdout_str)
+  $stderr.write(stderr_str)
+  exit(status.exitstatus || 1)
+rescue StandardError => error
+  $stderr.write("[copilot-sdk-driver-sample-ruby] #{error.class}: #{error}\n")
+  exit(1)
+end
