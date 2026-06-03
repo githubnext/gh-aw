@@ -275,6 +275,91 @@ describe("safe_output_type_validator", () => {
       expect(result.normalizedItem.body).toContain("Closes` #123");
     });
 
+    it("should normalize all supported closing keywords in whole and split backtick forms", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+      const keywords = ["fix", "fixes", "fixed", "close", "closes", "closed", "resolve", "resolves", "resolved"];
+
+      for (const keyword of keywords) {
+        const mixedCase = keyword[0].toUpperCase() + keyword.slice(1);
+        const wholeResult = validateItem({ type: "add_comment", body: `\`${mixedCase} #12\`` }, "add_comment", 1, { normalizeIssueClosingKeywords: true });
+        expect(wholeResult.isValid).toBe(true);
+        expect(wholeResult.normalizedItem.body).toBe(`${mixedCase} #12`);
+
+        const splitResult = validateItem({ type: "add_comment", body: `\`${mixedCase}\` \`owner/repo#12\`` }, "add_comment", 1, { normalizeIssueClosingKeywords: true });
+        expect(splitResult.isValid).toBe(true);
+        expect(splitResult.normalizedItem.body).toBe(`${mixedCase} owner/repo#12`);
+      }
+    });
+
+    it("should only normalize body fields of configured tool types", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const discussionResult = validateItem({ type: "update_issue", body: "Closes `#321`", issue_number: 7 }, "update_issue", 1, { normalizeIssueClosingKeywords: true });
+      expect(discussionResult.isValid).toBe(true);
+      expect(discussionResult.normalizedItem.body).toContain("`#321`");
+
+      const prResult = validateItem({ type: "create_pull_request", title: "Closes `#654`", body: "Body text", branch: "feature/test" }, "create_pull_request", 1, { normalizeIssueClosingKeywords: true });
+      expect(prResult.isValid).toBe(true);
+      expect(prResult.normalizedItem.title).toContain("`#654`");
+      expect(prResult.normalizedItem.body).toBe("Body text");
+    });
+
+    describe("fuzz: normalizeIssueClosingKeywords invariants", () => {
+      async function normalizeBody(body, options = { normalizeIssueClosingKeywords: true }) {
+        const { validateItem } = await import("./safe_output_type_validator.cjs");
+        const result = validateItem({ type: "add_comment", body }, "add_comment", 1, options);
+        expect(result.isValid).toBe(true);
+        return result.normalizedItem.body;
+      }
+
+      it("is idempotent and preserves non-closing backticked references for fuzz seed cases", async () => {
+        const keywords = ["fixes", "resolves", "closed", "FIXED"];
+        const references = ["#1", "#42", "Owner/Repo#987", "team.repo/service_name#9001"];
+        const wrappers = ["", "Before: ", "  ", "- ", "Start\n", "prefix `code` "];
+        const suffixes = ["", ".", " now", "\nTrailing line", " -- done"];
+        const seedBodies = [];
+
+        for (const keyword of keywords) {
+          for (const reference of references) {
+            for (const prefix of wrappers) {
+              for (const suffix of suffixes) {
+                seedBodies.push(`${prefix}\`${keyword} ${reference}\`${suffix}\nUse \`${reference}\` for docs`);
+                seedBodies.push(`${prefix}\`${keyword}\` \`${reference}\`${suffix}\nUse \`${reference}\` for docs`);
+                seedBodies.push(`${prefix}\`${keyword}\` ${reference}${suffix}\nUse \`${reference}\` for docs`);
+                seedBodies.push(`${prefix}${keyword} \`${reference}\`${suffix}\nUse \`${reference}\` for docs`);
+              }
+            }
+          }
+        }
+
+        for (const body of seedBodies) {
+          const once = await normalizeBody(body);
+          const twice = await normalizeBody(once);
+          expect(twice).toBe(once);
+          expect(once).toMatch(/Use `[^`]*#\d+` for docs/);
+          expect(once).not.toMatch(/`(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\b[^`]*#\d+`/i);
+          expect(once).not.toMatch(/(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\b\s+`(?:[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)?#\d+`/i);
+          expect(once).not.toMatch(/`(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)`\s+`(?:[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)?#\d+`/i);
+        }
+      });
+
+      it("never throws and always returns a string for adversarial backtick-heavy inputs", async () => {
+        const adversarial = [
+          "`".repeat(200),
+          "```Closes `#1`",
+          "`Fixes`" + " `#".repeat(50) + "1" + "`".repeat(50),
+          "\0Closes `#123`\0",
+          "Resolves `owner/repo#1` and `close #2` and ````",
+          "\n".repeat(20) + "`Fixed` `#99999`",
+          "👾 `resolves #42` 👾",
+        ];
+
+        for (const body of adversarial) {
+          await expect(normalizeBody(body)).resolves.toEqual(expect.any(String));
+        }
+      });
+    });
+
     it("should validate submit_pull_request_review with pull_request_number and repo", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
