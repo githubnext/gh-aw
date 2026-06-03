@@ -14,7 +14,7 @@ Use this before `create-agentic-workflow.md` when requirements are unclear or in
 
 - Use `workflow-designer.md` to discover and confirm requirements.
 - Use `create-agentic-workflow.md` once requirements are clear and ready for implementation.
-- Use `agentic-chat.md` when the user wants a specification/pseudo-code instead of a runnable workflow file.
+- Use `.github/aw/agentic-chat.md` when the user wants a specification/pseudo-code instead of a runnable workflow file.
 
 ## Interview Framework
 
@@ -92,8 +92,8 @@ Present a structured summary and ask for approval before generation.
 |---|---|
 | "when someone opens a PR" | `on: pull_request:` with `types: [opened]` |
 | "when a PR is updated" | `on: pull_request:` with `types: [opened, synchronize]` |
-| "every morning", "daily" | fuzzy `on: schedule: daily` |
-| "every Monday", "weekly" | fuzzy `on: schedule: weekly` |
+| "every morning", "daily" | fuzzy schedule shorthand `on: schedule: daily` (compiler expands to cron) |
+| "every Monday", "weekly" | fuzzy schedule shorthand `on: schedule: weekly` (compiler expands to cron) |
 | "when I say /review" | `on: slash_command:` with `name: review` (or requested command) |
 | "when an issue is labeled bug" | `on: issues:` with `types: [labeled]` and label filter guidance |
 | "manually", "on demand" | `on: workflow_dispatch:` |
@@ -198,7 +198,7 @@ network:
 
 ## Validation Checklist
 
-Before final output, verify:
+Before final output, run this internal self-check:
 
 - [ ] Agent job permissions remain read-only (writes only via safe outputs)
 - [ ] `safe-outputs:` covers every write action mentioned in prompt/instructions
