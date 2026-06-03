@@ -4,6 +4,7 @@ package logger
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"testing"
 	"time"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestNewSlogLoggerWithHandler(t *testing.T) {
-	setDebugEnvForSlogTest(t, "*")
+	setupDebugEnv(t, "*")
 
 	logger := New("test:handler")
 	slogLogger := NewSlogLoggerWithHandler(logger)
@@ -26,7 +27,7 @@ func TestNewSlogLoggerWithHandler(t *testing.T) {
 }
 
 func TestSlogHandlerEnabled_DisabledLogger(t *testing.T) {
-	setDebugEnvForSlogTest(t, "")
+	setupDebugEnv(t, "")
 
 	logger := New("test:disabled")
 	handler := NewSlogHandler(logger)
@@ -35,7 +36,7 @@ func TestSlogHandlerEnabled_DisabledLogger(t *testing.T) {
 }
 
 func TestSlogHandlerHandle_WithAttrs(t *testing.T) {
-	setDebugEnvForSlogTest(t, "*")
+	setupDebugEnv(t, "*")
 
 	handler := NewSlogHandler(New("test:attrs"))
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "processing request", 0)
@@ -56,7 +57,7 @@ func TestSlogHandlerHandle_WithAttrs(t *testing.T) {
 }
 
 func TestSlogHandlerHandle_LevelPrefixes(t *testing.T) {
-	setDebugEnvForSlogTest(t, "*")
+	setupDebugEnv(t, "*")
 
 	tests := []struct {
 		name   string
@@ -76,16 +77,16 @@ func TestSlogHandlerHandle_LevelPrefixes(t *testing.T) {
 
 			output := captureStderr(func() {
 				err := handler.Handle(context.Background(), record)
-				assert.NoError(t, err, "Handle should succeed for %s level records", tt.level.String())
+				assert.NoError(t, err, fmt.Sprintf("Handle should succeed for %s level records", tt.level.String()))
 			})
 
-			assert.Contains(t, output, "test:levels", "output should include logger namespace for %s level", tt.level.String())
-			assert.Contains(t, output, tt.prefix+"level message", "output should include expected %s prefix", tt.level.String())
+			assert.Contains(t, output, "test:levels", fmt.Sprintf("output should include logger namespace for %s level", tt.level.String()))
+			assert.Contains(t, output, tt.prefix+"level message", fmt.Sprintf("output should include expected %s prefix", tt.level.String()))
 		})
 	}
 }
 
-func setDebugEnvForSlogTest(t *testing.T, debugValue string) {
+func setupDebugEnv(t *testing.T, debugValue string) {
 	t.Helper()
 	t.Setenv("DEBUG", debugValue)
 	t.Setenv("ACTIONS_RUNNER_DEBUG", "")
