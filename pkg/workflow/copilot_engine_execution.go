@@ -557,10 +557,10 @@ touch %s
 		env[constants.CopilotSDKURIEnvVar] = fmt.Sprintf("http://127.0.0.1:%d", constants.DefaultCopilotSDKPort)
 		copilotExecLog.Printf("copilot-sdk enabled: set %s=%s", constants.CopilotSDKURIEnvVar, env[constants.CopilotSDKURIEnvVar])
 		// Signal the harness to start the driver as a normal subprocess rather than
-		// managing the sidecar and SDK session inline.
+		// managing the SDK session inline.
 		env[constants.CopilotSDKDriverEnvVar] = "1"
 		// Provide the complete CLI argument list for the headless sidecar so the
-		// driver can start it without any argument parsing.
+		// harness can start it in driver mode without any argument parsing.
 		env[constants.CopilotSDKServerArgsEnvVar] = copilotSDKServerArgsJSON
 		copilotExecLog.Printf("copilot-sdk driver mode: set %s and %s", constants.CopilotSDKDriverEnvVar, constants.CopilotSDKServerArgsEnvVar)
 	}

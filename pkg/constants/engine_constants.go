@@ -280,8 +280,8 @@ const (
 
 	// CopilotSDKDriverEnvVar is set to "1" when the copilot_sdk_driver.cjs program
 	// is used as the execution command instead of inline SDK handling inside the harness.
-	// The harness checks this flag to skip its own sidecar-management and SDK-session
-	// code paths and instead start the driver as a regular subprocess via runProcess.
+	// The harness checks this flag to run the driver as a regular subprocess via runProcess
+	// while still managing sidecar start/stop itself.
 	CopilotSDKDriverEnvVar = "GH_AW_COPILOT_SDK_DRIVER"
 
 	// CopilotBYOKDummyAPIKey is the placeholder API key used to trigger AWF's

@@ -515,9 +515,40 @@ async function readSDKOptionsFromStdin() {
         log(`warning: failed to parse SDK options from stdin: ${text.slice(0, 100)}`);
         resolve(null);
       }
+
     });
     process.stdin.on("error", () => resolve(null));
   });
+}
+
+/**
+ * Parse GH_AW_COPILOT_SDK_SERVER_ARGS for SDK driver mode.
+ * Returns [] when unset or invalid so sidecar defaults remain available.
+ *
+ * @param {string | undefined} serverArgsEnv
+ * @param {{ logger?: (msg: string) => void }} [options]
+ * @returns {string[]}
+ */
+function parseCopilotSDKServerArgsFromEnv(serverArgsEnv, options) {
+  const logger = options?.logger ?? log;
+  if (!serverArgsEnv) {
+    logger("copilot-sdk driver mode: GH_AW_COPILOT_SDK_SERVER_ARGS is not set; using sidecar default args");
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(serverArgsEnv);
+    if (!Array.isArray(parsed) || parsed.some(arg => typeof arg !== "string")) {
+      logger("copilot-sdk driver mode: GH_AW_COPILOT_SDK_SERVER_ARGS must be a JSON string array; using sidecar default args");
+      return [];
+    }
+    logger(`copilot-sdk driver mode: parsed ${parsed.length} sidecar args from GH_AW_COPILOT_SDK_SERVER_ARGS`);
+    return parsed;
+  } catch (parseErr) {
+    const preview = serverArgsEnv.length > 120 ? serverArgsEnv.slice(0, 120) + "…" : serverArgsEnv;
+    logger(`copilot-sdk driver mode: failed to parse GH_AW_COPILOT_SDK_SERVER_ARGS: ${parseErr} (value: ${preview})`);
+    return [];
+  }
 }
 
 /**
@@ -714,20 +745,12 @@ async function main() {
           log("copilot-sdk driver mode: missing copilot binary path in args[1]");
           lastExitCode = 1;
         } else {
-          // Parse the server args from the environment variable set by the Go engine.
-          const serverArgsEnv = process.env.GH_AW_COPILOT_SDK_SERVER_ARGS;
-          /** @type {string[]} */
-          let driverServerArgs;
-          try {
-            driverServerArgs = serverArgsEnv ? JSON.parse(serverArgsEnv) : [];
-          } catch (parseErr) {
-            const preview = serverArgsEnv && serverArgsEnv.length > 120 ? serverArgsEnv.slice(0, 120) + "…" : serverArgsEnv;
-            log(`copilot-sdk driver mode: failed to parse GH_AW_COPILOT_SDK_SERVER_ARGS: ${parseErr} (value: ${preview})`);
-            driverServerArgs = [];
-          }
+          let driverServerArgs = parseCopilotSDKServerArgsFromEnv(process.env.GH_AW_COPILOT_SDK_SERVER_ARGS, { logger: log });
           if (process.env.GITHUB_WORKSPACE) {
             driverServerArgs = [...driverServerArgs, "--add-dir", process.env.GITHUB_WORKSPACE];
+            log(`copilot-sdk driver mode: appended workspace --add-dir ${process.env.GITHUB_WORKSPACE}`);
           }
+          log(`copilot-sdk driver mode: starting sidecar command=${copilotBin} args=${driverServerArgs.length}`);
           copilotSDKServer = await startCopilotSDKServer({
             command: copilotBin,
             env: childEnv ?? process.env,
@@ -1023,6 +1046,7 @@ if (typeof module !== "undefined" && module.exports) {
     resolvePromptFileArgs,
     extractPromptFromArgs,
     readSDKOptionsFromStdin,
+    parseCopilotSDKServerArgsFromEnv,
     runWithCopilotSDK,
   };
 }
