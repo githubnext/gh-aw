@@ -342,6 +342,9 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKCustomDriver(t *testing.T) {
 	if !strings.Contains(stepContent, "custom_copilot_sdk_driver.cjs") {
 		t.Fatalf("Expected SDK driver mode command to include custom_copilot_sdk_driver.cjs, got:\n%s", stepContent)
 	}
+	if !strings.Contains(stepContent, `${GITHUB_WORKSPACE}/.github/drivers`) {
+		t.Fatalf("Expected custom SDK driver to resolve from ${GITHUB_WORKSPACE}/.github/drivers, got:\n%s", stepContent)
+	}
 	if strings.Contains(stepContent, "/actions/copilot_sdk_driver.cjs") {
 		t.Fatalf("Expected built-in SDK driver to be replaced, got:\n%s", stepContent)
 	}
@@ -2156,10 +2159,10 @@ func TestCopilotEngineInstallationWithCopilotSDKDriver(t *testing.T) {
 			expectedRun:  "pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
 		},
 		{
-			name:         "typescript driver uses npm sdk install",
+			name:         "typescript driver installs ts-node toolchain and sdk",
 			driver:       "my_driver.ts",
-			expectedName: "name: Install GitHub Copilot SDK (Node.js)",
-			expectedRun:  "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
+			expectedName: "name: Install GitHub Copilot SDK (TypeScript)",
+			expectedRun:  "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion) + " ts-node typescript",
 		},
 		{
 			name:         "ruby driver uses npm sdk install fallback",

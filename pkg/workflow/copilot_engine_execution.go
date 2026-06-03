@@ -232,6 +232,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 	isCopilotSDKMode := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK
 	sdkDriverScriptName := "copilot_sdk_driver.cjs"
+	customSDKDriverConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDKDriver != ""
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDKDriver != "" {
 		sdkDriverScriptName = workflowData.EngineConfig.CopilotSDKDriver
 	}
@@ -253,9 +254,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// Driver mode: the harness receives the driver runtime command and the driver path (or just
 			// the arbitrary command) as its argv, then calls runProcess(command, args) on the driver.
 			//
-			// For language scripts (.js/.cjs/.mjs, .py, .ts/.mts, .rb), the driver lives in the
-			// setup action directory and is prefixed with SetupActionDestinationShell. The runtime
-			// command is determined by the file extension:
+			// For language scripts (.js/.cjs/.mjs, .py, .ts/.mts, .rb), the runtime command is
+			// determined by extension. Built-in drivers resolve from the setup action directory;
+			// custom drivers resolve from ${GITHUB_WORKSPACE}/.github/drivers:
 			//   .js/.cjs/.mjs → "$GH_AW_NODE_EXEC" driver.cjs copilot-binary
 			//   .py            → python3             driver.py  copilot-binary
 			//   .ts/.mts       → ts-node             driver.ts  copilot-binary
@@ -266,11 +267,15 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			//   my-driver copilot-binary
 			driverRuntimeCmd, driverArg := copilotSDKDriverExecArgs(sdkDriverScriptName)
 			if driverArg != "" {
+				driverPathPrefix := SetupActionDestinationShell
+				if customSDKDriverConfigured {
+					driverPathPrefix = `"${GITHUB_WORKSPACE}/.github/drivers"`
+				}
 				// Language script: harness runs <runtime> <setup-action-dir>/<driver> <copilot-binary>
 				execPrefix = fmt.Sprintf(`%s %s/%s %s %s/%s %s`,
 					runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName,
 					driverRuntimeCmd,
-					SetupActionDestinationShell, sdkDriverScriptName, commandName)
+					driverPathPrefix, sdkDriverScriptName, commandName)
 			} else {
 				// Arbitrary command: harness runs <driver-cmd> <copilot-binary> directly
 				execPrefix = fmt.Sprintf(`%s %s/%s %s %s`,
