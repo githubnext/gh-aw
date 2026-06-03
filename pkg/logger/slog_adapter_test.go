@@ -4,7 +4,6 @@ package logger
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"testing"
 	"time"
@@ -77,11 +76,11 @@ func TestSlogHandlerHandle_LevelPrefixes(t *testing.T) {
 
 			output := captureStderr(func() {
 				err := handler.Handle(context.Background(), record)
-				assert.NoError(t, err, fmt.Sprintf("Handle should succeed for %s level records", tt.level.String()))
+				assert.NoError(t, err, "Handle should succeed for %s level records", tt.level.String())
 			})
 
-			assert.Contains(t, output, "test:levels", fmt.Sprintf("output should include logger namespace for %s level", tt.level.String()))
-			assert.Contains(t, output, tt.prefix+"level message", fmt.Sprintf("output should include expected %s prefix", tt.level.String()))
+			assert.Contains(t, output, "test:levels", "output should include logger namespace for %s level", tt.level.String())
+			assert.Contains(t, output, tt.prefix+"level message", "output should include expected %s prefix", tt.level.String())
 		})
 	}
 }
