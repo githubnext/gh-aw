@@ -2778,6 +2778,59 @@ func TestProtectTopLevelDotFolders(t *testing.T) {
 	}
 }
 
+func TestInjectCheckoutMappingForWildcardTargetRepo(t *testing.T) {
+	t.Run("injects mapping when target-repo is wildcard", func(t *testing.T) {
+		data := &WorkflowData{
+			CheckoutConfigs: []*CheckoutConfig{
+				{Repository: "octocat/Hello-World", Path: "./hello-world"},
+				{Repository: "octocat/Spoon-Knife", Path: "./spoon-knife"},
+			},
+		}
+		handlerCfg := map[string]any{"target-repo": "*"}
+		injectCheckoutMapping("create_pull_request", handlerCfg, data)
+		mapping, ok := handlerCfg["checkout_mapping"].(map[string]string)
+		require.True(t, ok, "checkout_mapping should be a map[string]string")
+		assert.Equal(t, "hello-world", mapping["octocat/hello-world"])
+		assert.Equal(t, "spoon-knife", mapping["octocat/spoon-knife"])
+	})
+
+	t.Run("skips when target-repo is not wildcard", func(t *testing.T) {
+		data := &WorkflowData{
+			CheckoutConfigs: []*CheckoutConfig{
+				{Repository: "octocat/Hello-World", Path: "./hello-world"},
+			},
+		}
+		handlerCfg := map[string]any{"target-repo": "octocat/Hello-World"}
+		injectCheckoutMapping("create_pull_request", handlerCfg, data)
+		_, ok := handlerCfg["checkout_mapping"]
+		assert.False(t, ok, "checkout_mapping should not be injected for non-wildcard")
+	})
+
+	t.Run("skips wiki checkouts", func(t *testing.T) {
+		data := &WorkflowData{
+			CheckoutConfigs: []*CheckoutConfig{
+				{Repository: "octocat/Hello-World", Path: "./hello-world", Wiki: true},
+			},
+		}
+		handlerCfg := map[string]any{"target-repo": "*"}
+		injectCheckoutMapping("create_pull_request", handlerCfg, data)
+		_, ok := handlerCfg["checkout_mapping"]
+		assert.False(t, ok, "checkout_mapping should not include wiki checkouts")
+	})
+
+	t.Run("skips unrelated handlers", func(t *testing.T) {
+		data := &WorkflowData{
+			CheckoutConfigs: []*CheckoutConfig{
+				{Repository: "octocat/Hello-World", Path: "./hello-world"},
+			},
+		}
+		handlerCfg := map[string]any{"target-repo": "*"}
+		injectCheckoutMapping("create_issue", handlerCfg, data)
+		_, ok := handlerCfg["checkout_mapping"]
+		assert.False(t, ok, "checkout_mapping should not be injected for unrelated handlers")
+	})
+}
+
 func TestHandlerConfigInjectsCurrentCheckoutPatchWorkspacePath(t *testing.T) {
 	compiler := NewCompiler()
 	workflowData := &WorkflowData{

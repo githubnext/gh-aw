@@ -96,8 +96,8 @@ If the base branch advances between agent start and `safe_outputs` apply, the PR
 
 An older **patch transport** (`git format-patch` / `git am --3way`) is used when bundle data is unavailable. `--3way` resolves cleanly against an updated base when there are no conflicts; if it cannot, the patch is applied at the agent's original base commit and the PR UI shows the conflicts for manual resolution.
 
-:::note[Single cross-repo target]
-`safe_outputs` supports exactly **one** cross-repo target per run — the repository named in `target-repo`. Workflows that need to commit to multiple repositories in a single run are not currently supported.
+:::note[Cross-repo targets]
+When `target-repo` names a specific repository, `safe_outputs` checks out and applies changes to that single repository. When `target-repo: "*"` is used, the agent chooses the target repository at runtime and the `safe_outputs` job checks out **all** repositories listed in `checkout:` frontmatter into subdirectories (mirroring the agent job layout), enabling pull requests to multiple repositories in a single run.
 :::
 
 ## Pull Request Updates (`update-pull-request:`)
@@ -281,7 +281,7 @@ By default, pushes are replayed through GitHub's signed commit API because `sign
 
 ### Cross-repo usage
 
-`push-to-pull-request-branch` supports pushing to pull requests in a different repository via `target-repo` (and optionally `allowed-repos`). When `target-repo` is set, **the target repository must be checked out into the workflow workspace** using the `checkout:` frontmatter field with a `path:` specified.
+`push-to-pull-request-branch` supports pushing to pull requests in a different repository via `target-repo` (and optionally `allowed-repos`). When `target-repo` is set, **the target repository must be checked out into the workflow workspace** using the `checkout:` frontmatter field with a `path:` specified. Use `target-repo: "*"` to let the agent choose the target repository at runtime (the safe_outputs job will check out all `checkout:` repositories into subdirectories automatically).
 
 ```yaml wrap
 checkout:

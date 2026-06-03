@@ -6254,7 +6254,7 @@
                 },
                 "target-repo": {
                   "type": "string",
-                  "description": "Target repository in format 'owner/repo' for cross-repository pull request creation. Takes precedence over trial target repo settings."
+                  "description": "Target repository in format 'owner/repo' for cross-repository pull request creation, or '*' to let the agent choose the target repository at runtime (requires checkout: configs with path: for each possible target). Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
                   "description": "List of additional repositories in format 'owner/repo' that pull requests can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the pull request in. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
@@ -8040,7 +8040,7 @@
                 },
                 "target-repo": {
                   "type": "string",
-                  "description": "Target repository in format 'owner/repo' for cross-repository push to pull request branch. Takes precedence over trial target repo settings."
+                  "description": "Target repository in format 'owner/repo' for cross-repository push to pull request branch, or '*' to let the agent choose the target repository at runtime (requires checkout: configs with path: for each possible target). Takes precedence over trial target repo settings."
                 },
                 "allowed-repos": {
                   "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed. Accepts an array or a GitHub Actions expression resolving to a comma-separated list (e.g. '${{ inputs[\\'allowed-repos\\'] }}').",
