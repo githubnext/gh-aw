@@ -314,6 +314,13 @@ const (
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	ClaudeCLIModelEnvVar = "ANTHROPIC_MODEL"
 
+	// ClaudeCodeOAuthTokenEnvVar is the environment variable that the Claude Code CLI reads for
+	// OAuth-based subscription authentication (Claude Pro/Max/Teams). This token type is NOT
+	// supported by gh-aw — only ANTHROPIC_API_KEY (pay-as-you-go) is accepted. The compiler
+	// explicitly strips this variable from generated lock files and excludes it from the AWF
+	// container environment to prevent silent misuse.
+	ClaudeCodeOAuthTokenEnvVar = "CLAUDE_CODE_OAUTH_TOKEN"
+
 	// GeminiCLIModelEnvVar is the native environment variable name supported by the Gemini CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	GeminiCLIModelEnvVar = "GEMINI_MODEL"

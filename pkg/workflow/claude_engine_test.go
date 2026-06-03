@@ -894,6 +894,26 @@ func TestClaudeEngineEnvOverridesTokenExpression(t *testing.T) {
 			t.Errorf("Expected engine.env to add CUSTOM_VAR, got:\n%s", stepContent)
 		}
 	})
+
+	t.Run("CLAUDE_CODE_OAUTH_TOKEN is stripped from generated env", func(t *testing.T) {
+		// OAuth subscription tokens are not supported by gh-aw; the compiler must
+		// strip CLAUDE_CODE_OAUTH_TOKEN even when a user injects it via engine.env.
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"CLAUDE_CODE_OAUTH_TOKEN": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		require.Len(t, steps, 1, "expected exactly one execution step")
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		assert.NotContains(t, stepContent, "CLAUDE_CODE_OAUTH_TOKEN",
+			"CLAUDE_CODE_OAUTH_TOKEN must not appear in generated lock file")
+	})
 }
 
 func TestClaudeEngineWithExpressionVersion(t *testing.T) {

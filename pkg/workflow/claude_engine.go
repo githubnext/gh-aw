@@ -328,7 +328,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			PathSetup:      "touch " + AgentStepSummaryPath, // Runs BEFORE AWF on the host
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"ANTHROPIC_API_KEY"}),
+			// Also unconditionally exclude CLAUDE_CODE_OAUTH_TOKEN: subscription
+			// OAuth tokens are not supported; excluding via --exclude-env ensures
+			// the token is never forwarded into the container even if it is set
+			// in the runner environment.
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"ANTHROPIC_API_KEY", constants.ClaudeCodeOAuthTokenEnvVar}),
 		})
 	} else {
 		// Run Claude command without AWF wrapper
@@ -507,6 +511,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// This is a security measure to prevent exposing unnecessary secrets to the AWF container
 	allowedSecrets := e.GetRequiredSecretNames(workflowData)
 	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
+
+	// Strip CLAUDE_CODE_OAUTH_TOKEN unconditionally: subscription OAuth tokens (Claude
+	// Pro/Max/Teams) are not supported by gh-aw.  Removing it here ensures the token
+	// never appears in the generated lock file even if a user adds it via engine.env.
+	delete(filteredEnv, constants.ClaudeCodeOAuthTokenEnvVar)
 
 	// Inject GH_TOKEN for CLI proxy (added after filtering since it uses a special
 	// fallback expression that is always allowed when cli-proxy is enabled)
