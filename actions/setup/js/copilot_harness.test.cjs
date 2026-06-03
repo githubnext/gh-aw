@@ -28,7 +28,7 @@ const {
   isNoAuthInfoError,
   isDetectionPhase,
   isAuthenticationFailedError,
-  isSessionMissingAuthOrCustomProviderError,
+  isSDKSessionBootstrapError,
   isModelAvailableInReflectData,
   isModelAvailableInReflectFile,
   resolveCopilotSDKCustomProviderFromReflect,
@@ -85,8 +85,8 @@ describe("copilot_harness.cjs", () => {
     });
 
     it("detects the SDK session bootstrap error separately", () => {
-      expect(isSessionMissingAuthOrCustomProviderError("Error: Session was not created with authentication info or custom provider")).toBe(true);
-      expect(isSessionMissingAuthOrCustomProviderError("Error: No authentication information found")).toBe(false);
+      expect(isSDKSessionBootstrapError("Error: Session was not created with authentication info or custom provider")).toBe(true);
+      expect(isSDKSessionBootstrapError("Error: No authentication information found")).toBe(false);
     });
   });
 

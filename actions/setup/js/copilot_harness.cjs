@@ -318,7 +318,7 @@ function isNoAuthInfoError(output) {
  * @param {string} output - Collected stdout+stderr from the process
  * @returns {boolean}
  */
-function isSessionMissingAuthOrCustomProviderError(output) {
+function isSDKSessionBootstrapError(output) {
   return SDK_SESSION_MISSING_AUTH_OR_PROVIDER_PATTERN.test(output);
 }
 
@@ -740,7 +740,7 @@ async function main() {
         const isMCPPolicy = isMCPPolicyError(result.output);
         const isModelNotSupported = isModelNotSupportedError(result.output);
         const isAuthErr = isNoAuthInfoError(result.output);
-        const isSDKSessionBootstrapError = isSessionMissingAuthOrCustomProviderError(result.output);
+        const hasSDKSessionBootstrapError = isSDKSessionBootstrapError(result.output);
         const isAuthenticationFailed = isAuthenticationFailedError(result.output);
         const proxyAuthDiagnostic = buildCopilotProxyAuthFailureDiagnostic(result.output, process.env);
         const isNullTypeToolCall = isNullTypeToolCallError(result.output);
@@ -756,7 +756,7 @@ async function main() {
             ` isNullTypeToolCallError=${isNullTypeToolCall}` +
             ` isMaxEffectiveTokensExceededError=${isMaxEffectiveTokensExceeded}` +
             ` isAuthError=${isAuthErr}` +
-            ` isSDKSessionBootstrapError=${isSDKSessionBootstrapError}` +
+            ` isSDKSessionBootstrapError=${hasSDKSessionBootstrapError}` +
             ` isAuthenticationFailedError=${isAuthenticationFailed}` +
             ` permissionDeniedCount=${permissionDeniedCount}` +
             ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
@@ -927,7 +927,7 @@ if (typeof module !== "undefined" && module.exports) {
     isMaxEffectiveTokensExceededError,
     isNoAuthInfoError,
     isAuthenticationFailedError,
-    isSessionMissingAuthOrCustomProviderError,
+    isSDKSessionBootstrapError,
     startCopilotSDKServer,
     stopCopilotSDKServer,
     waitForCopilotSDKServer,
