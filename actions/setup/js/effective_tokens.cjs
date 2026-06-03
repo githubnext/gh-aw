@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { escape: escapeHtml } = require("html-escaper");
 const { TMP_GH_AW_PATH } = require("./constants.cjs");
 
 /**
@@ -359,32 +360,6 @@ function formatModelEmojiAlias(modelName) {
   }
 
   return `${emoji} ${identifier}`;
-}
-
-/**
- * Escapes HTML-sensitive characters in a string for safe embedding in HTML content or attributes.
- * Single-pass replacement covering the five standard HTML escape sequences.
- *
- * @param {unknown} value
- * @returns {string}
- */
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, ch => {
-    switch (ch) {
-      case "&":
-        return "&amp;";
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case '"':
-        return "&quot;";
-      case "'":
-        return "&#39;";
-      default:
-        return ch;
-    }
-  });
 }
 
 /**
