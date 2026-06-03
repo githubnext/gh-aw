@@ -536,6 +536,16 @@ Create a GitHub discussion titled "Daily Status - <today's date>".
   * Date range of data analyzed
   * Any data limitations encountered
 
+Use h3 (`###`) or lower for all headers in the discussion. Never use h1 (`#`) or h2 (`##`) inside discussion bodies — these are reserved for the discussion title.
+
+Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.
+
+Suggested structure:
+- Brief summary (always visible)
+- Key metrics or highlights (always visible)
+- Detailed analysis (in `<details>` tags)
+- Recommendations (always visible)
+
 Create a new GitHub discussion with a title containing today's date (e.g., "Daily Status - 2024-10-10") containing a markdown report with your findings. Use links where appropriate.
 
 Only a new discussion should be created, do not close or update any existing discussions.
