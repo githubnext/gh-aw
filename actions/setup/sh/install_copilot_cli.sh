@@ -354,6 +354,7 @@ is_cache_expired() {
     return 1
   fi
   
+  # Calculate age in days (integer division truncates partial days, e.g., 1.9 days → 1 day)
   age_days=$(( (now_epoch - file_epoch) / SECONDS_PER_DAY ))
   
   if [ "$age_days" -ge "$ttl_days" ]; then
