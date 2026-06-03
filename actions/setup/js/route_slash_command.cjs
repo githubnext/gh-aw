@@ -245,6 +245,9 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
 }
 
 function toWorkflowDispatchID(route) {
+  if (!route?.workflow || typeof route.workflow !== "string" || !route.workflow.trim()) {
+    return "";
+  }
   return `${route.workflow}.lock.yml`;
 }
 
@@ -259,8 +262,9 @@ function basename(path) {
 async function loadActiveWorkflowDispatchIDs() {
   const activeWorkflowDispatchIDs = new Set();
   let page = 1;
+  const maxPages = 10;
 
-  while (true) {
+  while (page <= maxPages) {
     const response = await github.rest.actions.listRepoWorkflows({
       owner: context.repo.owner,
       repo: context.repo.repo,
@@ -288,12 +292,20 @@ async function loadActiveWorkflowDispatchIDs() {
     page += 1;
   }
 
+  if (page > maxPages) {
+    core.warning(`Workflow state pagination exceeded ${maxPages} pages; continuing with partial workflow list.`);
+  }
+
   return activeWorkflowDispatchIDs;
 }
 
 function filterActiveRoutes(routes, activeWorkflowDispatchIDs, routeKind) {
   return routes.filter(route => {
     const dispatchID = toWorkflowDispatchID(route);
+    if (!dispatchID) {
+      core.warning(`Skipping ${routeKind} route with missing workflow identifier.`);
+      return false;
+    }
     if (!activeWorkflowDispatchIDs.has(dispatchID)) {
       core.info(`Skipping ${routeKind} route '${dispatchID}' because workflow is disabled or missing.`);
       return false;

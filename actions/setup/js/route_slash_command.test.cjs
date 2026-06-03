@@ -264,7 +264,12 @@ describe("route_slash_command", () => {
     await main();
 
     expect(dispatchCalls).toHaveLength(0);
-    expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Skipping slash route 'archie.lock.yml'"));
+    expect(globals.github.rest.actions.listRepoWorkflows).toHaveBeenCalledWith(
+      expect.objectContaining({ owner: "github", repo: "gh-aw", per_page: 100, page: 1 })
+    );
+    expect(globals.core.info).toHaveBeenCalledWith(
+      expect.stringContaining("Skipping slash route 'archie.lock.yml' because workflow is disabled or missing.")
+    );
   });
 
   it("skips label routes when target workflow is disabled", async () => {
@@ -286,7 +291,12 @@ describe("route_slash_command", () => {
     await main();
 
     expect(dispatchCalls).toHaveLength(0);
-    expect(globals.core.info).toHaveBeenCalledWith(expect.stringContaining("Skipping label route 'ci-doctor.lock.yml'"));
+    expect(globals.github.rest.actions.listRepoWorkflows).toHaveBeenCalledWith(
+      expect.objectContaining({ owner: "github", repo: "gh-aw", per_page: 100, page: 1 })
+    );
+    expect(globals.core.info).toHaveBeenCalledWith(
+      expect.stringContaining("Skipping label route 'ci-doctor.lock.yml' because workflow is disabled or missing.")
+    );
   });
 
   it("skips centralized routing when PR is closed at workflow start", async () => {
