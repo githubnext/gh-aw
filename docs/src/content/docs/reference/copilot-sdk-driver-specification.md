@@ -139,6 +139,8 @@ In standalone mode, the implementation MUST enforce the following contract:
 ```ts
 import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
 
+const SEND_TIMEOUT_MS = 600_000; // 10 minutes
+
 const client = new CopilotClient({
   connection: RuntimeConnection.forUri("http://127.0.0.1:3002", {
     connectionToken: "example-token",
@@ -152,8 +154,9 @@ try {
   const session = await client.createSession({
     model: "gpt-4o-mini",
   });
-  const result = await session.sendAndWait({ prompt: "Summarize this repository." }, 600_000);
-  console.log(result.data?.content ?? "");
+  const result = await session.sendAndWait({ prompt: "Summarize this repository." }, SEND_TIMEOUT_MS);
+  const content = result.data?.content;
+  console.log(content ?? "(no assistant output)");
   await session.disconnect();
 } finally {
   await client.stop();
