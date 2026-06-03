@@ -443,6 +443,24 @@ Adding the workflow from another repository then fails with `workflow 'owner/rep
 
 This only blocks installation via `gh aw add`; the visibility of the workflow file itself is controlled by your repository's access settings.
 
+### Version Update Check (`check-for-updates:`)
+
+Controls whether the compile-agentic version update check runs in the activation job. Defaults to `true`.
+
+```yaml wrap
+check-for-updates: false
+```
+
+When enabled (the default), the activation job downloads `config.json` from the gh-aw repository and verifies that the compiled version is not blocked and meets the minimum supported version. This ensures your workflow uses a supported version of gh-aw.
+
+Set to `false` to disable the check — for example, in air-gapped environments where the activation job cannot reach GitHub.com.
+
+> [!WARNING]
+> Disabling the version update check is strongly discouraged. Your workflow will not verify that it was compiled with a supported version of gh-aw.
+>
+> - **Non-strict mode**: setting `check-for-updates: false` emits a compilation warning (CTR-018).
+> - **Strict mode**: setting `check-for-updates: false` is a compilation error and is not allowed.
+
 ### Feature Flags (`features:`)
 
 Enable experimental or optional compiler and runtime behaviors as key-value pairs. See [Feature Flags](/gh-aw/reference/feature-flags/) for complete documentation.
