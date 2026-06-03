@@ -262,6 +262,8 @@ describe("safe_output_type_validator", () => {
       expect(result.isValid).toBe(true);
       expect(result.normalizedItem.body).toContain("Use `#123` for docs reference.");
       expect(result.normalizedItem.body).toContain("Then Closes #456.");
+      expect(result.normalizedItem.body).toContain("`#123`");
+      expect(result.normalizedItem.body).not.toContain("`#456`");
     });
 
     it("should leave malformed backticks unchanged", async () => {

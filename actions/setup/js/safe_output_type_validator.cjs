@@ -50,6 +50,13 @@ function normalizeIssueClosingKeywordBackticks(content) {
     return content;
   }
 
+  // Order matters:
+  // 1) whole-span backticks: `Closes #1`
+  // 2) both parts backticked: `Closes` `#1`
+  // 3) keyword only: `Closes` #1
+  // 4) reference only: Closes `#1`
+  // Each step removes one specific form without reintroducing backticks, so later steps
+  // only need to handle the remaining unmatched variants.
   let normalized = content.replace(ISSUE_CLOSING_WHOLE_SPAN_PATTERN, "$1");
   normalized = normalized.replace(ISSUE_CLOSING_BOTH_BACKTICK_PATTERN, "$1$2$3");
   normalized = normalized.replace(ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN, "$1$2$3");
