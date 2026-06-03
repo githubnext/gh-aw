@@ -70,6 +70,8 @@ The tool downloads run data under `/tmp/gh-aw/aw-mcp/logs/`.
 
 Sample **4 runs** when available. If fewer than 4 eligible runs exist, sample all eligible runs down to a minimum of 2 before falling back to a reduced-data report.
 
+These limits are intentional to keep token usage bounded and avoid model budget failures.
+
 Eligibility rules:
 
 - `status == "completed"`
@@ -168,7 +170,7 @@ Assess whether the request size is likely driven by:
 
 ## Sub-Agent Usage
 
-After the deterministic Python script finishes, invoke `request-optimizer` for **at most 2 sampled runs** using compact JSON summaries (never raw full prompts), and only when at least 2 sampled runs exist (including exactly 2).
+After the deterministic Python script finishes, invoke `request-optimizer` for **at most 2 sampled runs** using compact JSON summaries (never raw full prompts), and only when at least 2 sampled runs exist (minimum threshold is 2).
 
 Each sub-agent invocation may return at most 3 opportunities for its run. Aggregate and deduplicate those opportunities, then do the final prioritization yourself.
 
