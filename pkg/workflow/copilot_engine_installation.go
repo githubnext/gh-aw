@@ -17,11 +17,21 @@
 package workflow
 
 import (
+	"fmt"
+	"path/filepath"
+	"strings"
+
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var copilotInstallLog = logger.New("workflow:copilot_engine_installation")
+
+type copilotSDKInstallSpec struct {
+	runtimeID string
+	stepName  string
+	command   string
+}
 
 // GetSecretValidationStep returns the secret validation step for the Copilot engine.
 // Returns an empty step if:
@@ -61,6 +71,7 @@ func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitH
 // runtime installation steps required for harness execution.
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	copilotInstallLog.Printf("Generating installation steps for Copilot engine: workflow=%s", workflowData.Name)
+	sdkInstallStep := buildCopilotSDKInstallStep(workflowData)
 
 	// Skip standard Copilot CLI installation if custom command is specified.
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
@@ -68,7 +79,15 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		// custom engine command still runs inside the AWF harness.
 		if isFirewallEnabled(workflowData) {
 			copilotInstallLog.Printf("Skipping Copilot CLI installation: custom command specified (%s); keeping AWF runtime installation because firewall is enabled", workflowData.EngineConfig.Command)
-			return BuildNpmEngineInstallStepsWithAWF([]GitHubActionStep{}, workflowData)
+			var steps []GitHubActionStep
+			if len(sdkInstallStep) > 0 {
+				steps = append(steps, sdkInstallStep)
+			}
+			return BuildNpmEngineInstallStepsWithAWF(steps, workflowData)
+		}
+		if len(sdkInstallStep) > 0 {
+			copilotInstallLog.Printf("Skipping Copilot CLI installation: custom command specified (%s); keeping Copilot SDK install step", workflowData.EngineConfig.Command)
+			return []GitHubActionStep{sdkInstallStep}
 		}
 		copilotInstallLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
 		return []GitHubActionStep{}
@@ -94,16 +113,104 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	// Use the installer script for global installation
 	copilotInstallLog.Print("Using new installer script for Copilot installation")
 	npmSteps := GenerateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI")
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
-		copilotInstallLog.Printf("copilot-sdk enabled; adding @github/copilot-sdk install step: version=%s", constants.DefaultCopilotSDKVersion)
-		npmSteps = append(npmSteps, GitHubActionStep{
-			"      - name: Install GitHub Copilot SDK",
-			"        run: cd \"${GITHUB_WORKSPACE}\" && npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
-		})
+	if len(sdkInstallStep) > 0 {
+		npmSteps = append(npmSteps, sdkInstallStep)
 	}
 	steps := BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 
 	return steps
+}
+
+func buildCopilotSDKInstallStep(workflowData *WorkflowData) GitHubActionStep {
+	if workflowData == nil || workflowData.EngineConfig == nil || !workflowData.EngineConfig.CopilotSDK {
+		return GitHubActionStep{}
+	}
+	spec := getCopilotSDKInstallSpec(workflowData.EngineConfig.Command)
+	copilotInstallLog.Printf("copilot-sdk enabled; runtime=%s; install command=%s", spec.runtimeID, spec.command)
+	return GitHubActionStep{
+		"      - name: " + spec.stepName,
+		"        run: " + spec.command,
+	}
+}
+
+func getCopilotSDKInstallSpec(command string) copilotSDKInstallSpec {
+	runtimeID := detectRuntimeFromCopilotCommand(command)
+	version := string(constants.DefaultCopilotSDKVersion)
+
+	spec := copilotSDKInstallSpec{
+		runtimeID: runtimeID,
+		stepName:  "Install GitHub Copilot SDK (Node.js)",
+		command:   "cd \"${GITHUB_WORKSPACE}\" && npm install --ignore-scripts --no-save @github/copilot-sdk@" + version,
+	}
+
+	switch runtimeID {
+	case "python":
+		spec.stepName = "Install GitHub Copilot SDK (Python)"
+		spec.command = "cd \"${GITHUB_WORKSPACE}\" && pip install --disable-pip-version-check github-copilot-sdk==" + version
+	case "go":
+		spec.stepName = "Install GitHub Copilot SDK (Go)"
+		spec.command = "cd \"${GITHUB_WORKSPACE}\" && go get github.com/github/copilot-sdk/go@v" + version
+	case "rust":
+		spec.stepName = "Install GitHub Copilot SDK (Rust)"
+		spec.command = "cd \"${GITHUB_WORKSPACE}\" && cargo add github-copilot-sdk@" + version
+	case "dotnet":
+		spec.stepName = "Install GitHub Copilot SDK (.NET)"
+		spec.command = "cd \"${GITHUB_WORKSPACE}\" && dotnet add package GitHub.Copilot.SDK --version " + version
+	case "java":
+		spec.stepName = "Install GitHub Copilot SDK (Java)"
+		spec.command = fmt.Sprintf("cd \"${GITHUB_WORKSPACE}\" && mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get -Dartifact=com.github:copilot-sdk-java:%s", version)
+	}
+
+	return spec
+}
+
+func detectRuntimeFromCopilotCommand(command string) string {
+	token := firstCommandToken(command)
+	if token == "" {
+		return "node"
+	}
+	switch token {
+	case "node", "npm", "npx", "pnpm", "yarn", "ts-node":
+		return "node"
+	case "python", "python3", "pip", "pip3":
+		return "python"
+	case "go":
+		return "go"
+	case "cargo", "rustc":
+		return "rust"
+	case "dotnet":
+		return "dotnet"
+	case "mvn", "mvnw", "java", "javac":
+		return "java"
+	default:
+		return "node"
+	}
+}
+
+func firstCommandToken(command string) string {
+	fields := strings.Fields(command)
+	if len(fields) == 0 {
+		return ""
+	}
+	token := normalizeCommandToken(fields[0])
+	if token != "env" {
+		return token
+	}
+	for _, field := range fields[1:] {
+		if strings.Contains(field, "=") || strings.HasPrefix(field, "-") {
+			continue
+		}
+		return normalizeCommandToken(field)
+	}
+	return ""
+}
+
+func normalizeCommandToken(token string) string {
+	trimmed := strings.Trim(token, `"'`)
+	if trimmed == "" {
+		return ""
+	}
+	return strings.ToLower(filepath.Base(trimmed))
 }
 
 // generateAWFInstallationStep creates a GitHub Actions step to install the AWF binary

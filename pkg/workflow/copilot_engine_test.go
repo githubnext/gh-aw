@@ -109,7 +109,7 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 		t.Fatalf("Expected 2 installation steps with copilot-sdk enabled, got %d", len(stepsWithSDK))
 	}
 	sdkInstallStep := strings.Join(stepsWithSDK[1], "\n")
-	if !strings.Contains(sdkInstallStep, "name: Install GitHub Copilot SDK") {
+	if !strings.Contains(sdkInstallStep, "name: Install GitHub Copilot SDK (Node.js)") {
 		t.Fatalf("Expected SDK install step name, got:\n%s", sdkInstallStep)
 	}
 	expectedSDKInstall := "cd \"${GITHUB_WORKSPACE}\" && npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion)
@@ -1887,6 +1887,113 @@ func TestCopilotEngineSkipInstallationWithCommand(t *testing.T) {
 	installContent := strings.Join([]string(steps[0]), "\n")
 	if !strings.Contains(installContent, "Install AWF binary") {
 		t.Errorf("Expected AWF installation step when firewall is enabled with custom command, got:\n%s", installContent)
+	}
+}
+
+func TestCopilotEngineInstallationWithCommandAndCopilotSDK(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name          string
+		command       string
+		expectedName  string
+		expectedRun   string
+		withFirewall  bool
+		expectedSteps int
+	}{
+		{
+			name:          "node command uses npm sdk install",
+			command:       "node ./agent.js",
+			expectedName:  "name: Install GitHub Copilot SDK (Node.js)",
+			expectedRun:   "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
+			expectedSteps: 1,
+		},
+		{
+			name:          "python command uses pip sdk install",
+			command:       "python3 main.py",
+			expectedName:  "name: Install GitHub Copilot SDK (Python)",
+			expectedRun:   "pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
+			expectedSteps: 1,
+		},
+		{
+			name:          "go command uses go get sdk install",
+			command:       "go run ./cmd/agent",
+			expectedName:  "name: Install GitHub Copilot SDK (Go)",
+			expectedRun:   "go get github.com/github/copilot-sdk/go@v" + string(constants.DefaultCopilotSDKVersion),
+			expectedSteps: 1,
+		},
+		{
+			name:          "rust command uses cargo sdk install",
+			command:       "cargo run --bin agent",
+			expectedName:  "name: Install GitHub Copilot SDK (Rust)",
+			expectedRun:   "cargo add github-copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
+			expectedSteps: 1,
+		},
+		{
+			name:          "dotnet command uses nuget sdk install",
+			command:       "dotnet run --project src/Agent",
+			expectedName:  "name: Install GitHub Copilot SDK (.NET)",
+			expectedRun:   "dotnet add package GitHub.Copilot.SDK --version " + string(constants.DefaultCopilotSDKVersion),
+			expectedSteps: 1,
+		},
+		{
+			name:          "java command uses maven sdk install",
+			command:       "mvn test",
+			expectedName:  "name: Install GitHub Copilot SDK (Java)",
+			expectedRun:   "mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get -Dartifact=com.github:copilot-sdk-java:" + string(constants.DefaultCopilotSDKVersion),
+			expectedSteps: 1,
+		},
+		{
+			name:          "env wrapper command is detected",
+			command:       "env FOO=bar python script.py",
+			expectedName:  "name: Install GitHub Copilot SDK (Python)",
+			expectedRun:   "pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
+			expectedSteps: 1,
+		},
+		{
+			name:          "custom command with firewall keeps awf and sdk installs",
+			command:       "python script.py",
+			expectedName:  "name: Install GitHub Copilot SDK (Python)",
+			expectedRun:   "pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
+			withFirewall:  true,
+			expectedSteps: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Command:    tt.command,
+					CopilotSDK: true,
+				},
+			}
+			if tt.withFirewall {
+				workflowData.NetworkPermissions = &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				}
+			}
+
+			steps := engine.GetInstallationSteps(workflowData)
+			if len(steps) != tt.expectedSteps {
+				t.Fatalf("Expected %d installation steps, got %d", tt.expectedSteps, len(steps))
+			}
+
+			sdkStepContent := strings.Join(steps[0], "\n")
+			if !strings.Contains(sdkStepContent, tt.expectedName) {
+				t.Fatalf("Expected SDK install step name %q, got:\n%s", tt.expectedName, sdkStepContent)
+			}
+			if !strings.Contains(sdkStepContent, tt.expectedRun) {
+				t.Fatalf("Expected SDK install command %q, got:\n%s", tt.expectedRun, sdkStepContent)
+			}
+
+			if tt.withFirewall {
+				awfStepContent := strings.Join(steps[1], "\n")
+				if !strings.Contains(awfStepContent, "Install AWF binary") {
+					t.Fatalf("Expected AWF installation step with firewall enabled, got:\n%s", awfStepContent)
+				}
+			}
+		})
 	}
 }
 
