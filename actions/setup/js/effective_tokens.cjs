@@ -362,13 +362,29 @@ function formatModelEmojiAlias(modelName) {
 }
 
 /**
- * Escapes HTML-sensitive characters in a string for safe embedding in HTML attributes or content.
+ * Escapes HTML-sensitive characters in a string for safe embedding in HTML content or attributes.
+ * Single-pass replacement covering the five standard HTML escape sequences.
  *
- * @param {string} value
+ * @param {unknown} value
  * @returns {string}
  */
 function escapeHtml(value) {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(value ?? "").replace(/[&<>"']/g, ch => {
+    switch (ch) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      case "'":
+        return "&#39;";
+      default:
+        return ch;
+    }
+  });
 }
 
 /**
