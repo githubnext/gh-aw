@@ -311,7 +311,7 @@ List all reports and data sources analyzed:
 ## agent: `issues-analyst`
 ---
 model: small
-description: Analyzes repository issues JSON and produces a structured markdown summary covering counts, labels, unlabeled items, stale issues, and top authors
+description: Analyzes repository issues JSON and produces a structured markdown summary of counts, labels, unlabeled/stale items, and top authors
 ---
 You are an issues analysis assistant. Read `/tmp/gh-aw/agent/weekly-issues-data/issues.json` using bash and produce a concise markdown summary with these sections:
 
