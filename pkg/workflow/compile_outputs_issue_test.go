@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 // assertTokenInProcessSafeOutputsEnv verifies that a given environment variable name
@@ -149,6 +150,7 @@ engine: claude
 strict: false
 safe-outputs:
   create-issue:
+    deduplicate-by-title: 1
     title-prefix: "[genai] "
     labels: [copilot, automation]
 ---
@@ -196,6 +198,11 @@ This workflow tests the output configuration parsing.
 		if i >= len(workflowData.SafeOutputs.CreateIssues.Labels) || workflowData.SafeOutputs.CreateIssues.Labels[i] != expectedLabel {
 			t.Errorf("Expected label '%s' at index %d, got '%s'", expectedLabel, i, workflowData.SafeOutputs.CreateIssues.Labels[i])
 		}
+	}
+
+	deduplicateByTitle, ok := typeutil.ParseIntValue(workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle)
+	if !ok || deduplicateByTitle != 1 {
+		t.Errorf("Expected deduplicate-by-title to parse as 1, got %#v", workflowData.SafeOutputs.CreateIssues.DeduplicateByTitle)
 	}
 }
 
@@ -344,6 +351,7 @@ engine: claude
 strict: false
 safe-outputs:
   create-issue:
+    deduplicate-by-title: 1
     title-prefix: "[genai] "
     labels: [copilot]
 ---
@@ -408,6 +416,10 @@ This workflow tests the create-issue job generation.
 
 	if !strings.Contains(lockContent, `\"labels\":[\"copilot\"]`) {
 		t.Error("Expected copilot label in handler config")
+	}
+
+	if !strings.Contains(lockContent, `\"deduplicate_by_title\":1`) {
+		t.Error("Expected deduplicate_by_title in handler config")
 	}
 
 	// Verify job dependencies

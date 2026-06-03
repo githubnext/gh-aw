@@ -7,7 +7,7 @@
  * @module update_pr_description_helpers
  */
 
-const { generateFooterWithMessages, getDetectionCautionAlert } = require("./messages_footer.cjs");
+const { assembleMarkdownBodyParts, buildGeneratedFooter } = require("./markdown_body_helpers.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
@@ -25,10 +25,16 @@ function buildAIFooter(workflowName, runUrl, historyUrl) {
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
   // Use typeof guard since context is a global injected by the Actions Script runtime
   const ctx = typeof context !== "undefined" ? context : null;
-  const triggeringIssueNumber = ctx?.payload?.issue?.number;
-  const triggeringPRNumber = ctx?.payload?.pull_request?.number;
-  const triggeringDiscussionNumber = ctx?.payload?.discussion?.number;
-  return generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl || undefined, { skipDetectionCaution: true }).trimEnd();
+  return buildGeneratedFooter({
+    workflowName,
+    runUrl,
+    workflowSource,
+    workflowSourceURL,
+    triggeringIssueNumber: ctx?.payload?.issue?.number,
+    triggeringPRNumber: ctx?.payload?.pull_request?.number,
+    triggeringDiscussionNumber: ctx?.payload?.discussion?.number,
+    historyUrl,
+  });
 }
 
 /**
@@ -97,7 +103,11 @@ function updateBody(params) {
   const sanitizedNewContent = sanitizeContent(newContent);
 
   // Inject CAUTION at top of new content if threat detection warning was raised
-  const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+  const detectionCaution = assembleMarkdownBodyParts({
+    includeFooter: false,
+    workflowName,
+    runUrl,
+  }).detectionCaution;
   const contentWithCaution = detectionCaution ? detectionCaution + "\n\n" + sanitizedNewContent : sanitizedNewContent;
 
   if (operation === "replace") {
@@ -109,25 +119,20 @@ function updateBody(params) {
   if (operation === "replace-island") {
     // Try to find existing island for this workflow ID
     const island = findIsland(currentBody, workflowId);
+    const startMarker = buildIslandStartMarker(workflowId);
+    const endMarker = buildIslandEndMarker(workflowId);
+    const islandContent = `${startMarker}\n${contentWithCaution}${aiFooter}${workflowIdMarker}\n${endMarker}`;
 
     if (island.found) {
       // Replace the island content
       core.info(`Operation: replace-island (updating existing island for workflow ${workflowId})`);
-      const startMarker = buildIslandStartMarker(workflowId);
-      const endMarker = buildIslandEndMarker(workflowId);
-      const islandContent = `${startMarker}\n${contentWithCaution}${aiFooter}${workflowIdMarker}\n${endMarker}`;
-
       const before = currentBody.substring(0, island.startIndex);
       const after = currentBody.substring(island.endIndex);
       return before + islandContent + after;
     } else {
       // Island not found, fall back to append mode
       core.info(`Operation: replace-island (island not found for workflow ${workflowId}, falling back to append)`);
-      const startMarker = buildIslandStartMarker(workflowId);
-      const endMarker = buildIslandEndMarker(workflowId);
-      const islandContent = `${startMarker}\n${contentWithCaution}${aiFooter}${workflowIdMarker}\n${endMarker}`;
-      const appendSection = `\n\n---\n\n${islandContent}`;
-      return currentBody + appendSection;
+      return currentBody + `\n\n---\n\n${islandContent}`;
     }
   }
 

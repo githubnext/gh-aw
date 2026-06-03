@@ -2,6 +2,10 @@
 emoji: "🧪"
 description: Smoke Copilot ARM64
 on:
+  slash_command:
+    name: smoke-copilot-arm
+    strategy: centralized
+    events: [issues, issue_comment, pull_request, pull_request_comment]
   workflow_dispatch:
   pull_request:
     types: [labeled]

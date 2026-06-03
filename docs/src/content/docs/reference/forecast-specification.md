@@ -40,7 +40,7 @@ date, and outcome. Criteria 2 and 3 are evaluated at promotion-review time and a
 
 | `run_id` | `repo` | `date` | `outcome` |
 |---|---|---|---|
-| — | — | — | No production uses documented yet |
+| [26836211632](https://github.com/github/gh-aw/actions/runs/26836211632) | `github/gh-aw` | 2026-06-02 | Confirmed — daily SPDD spec planner run; forecast engine executed, episode analysis output captured. Referenced in [daily spec work plan issue #2026-06-02](https://github.com/github/gh-aw/issues). |
 
 Update this table when a production use is confirmed. Each entry MUST reference a GitHub issue or
 PR that documents the use. Once three **Confirmed** entries are present and criteria 2–3 are

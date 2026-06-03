@@ -2,6 +2,10 @@
 emoji: "🧪"
 description: Smoke Copilot
 on: 
+  slash_command:
+    name: smoke-copilot
+    strategy: centralized
+    events: [issues, issue_comment, pull_request, pull_request_comment]
   workflow_dispatch:
   label_command:
     name: smoke

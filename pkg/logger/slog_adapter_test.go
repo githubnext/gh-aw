@@ -3,45 +3,97 @@
 package logger
 
 import (
-	"bytes"
-	"io"
-	"os"
-	"strings"
+	"context"
+	"fmt"
+	"log/slog"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewSlogLoggerWithHandler(t *testing.T) {
-	// Only run if DEBUG is enabled
-	if os.Getenv("DEBUG") == "" {
-		t.Skip("Skipping test: DEBUG environment variable not set")
-	}
+	setupDebugEnv(t, "*")
 
-	// Capture stderr output
-	oldStderr := os.Stderr
-	r, w, _ := os.Pipe()
-	os.Stderr = w
-
-	// Create logger and then slog logger from it
 	logger := New("test:handler")
 	slogLogger := NewSlogLoggerWithHandler(logger)
 
-	// Test logging
-	slogLogger.Info("test message from handler")
+	output := captureStderr(func() {
+		slogLogger.Info("test message from handler")
+	})
 
-	// Close write end and read output
-	w.Close()
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
+	assert.Contains(t, output, "test:handler", "slog logger output should include logger namespace")
+	assert.Contains(t, output, "· test message from handler", "info output should include dot prefix and message")
+}
 
-	// Restore stderr
-	os.Stderr = oldStderr
+func TestSlogHandlerEnabled_DisabledLogger(t *testing.T) {
+	setupDebugEnv(t, "")
 
-	// Verify output contains expected message
-	if !strings.Contains(output, "test:handler") {
-		t.Errorf("Expected 'test:handler' namespace in output, got: %s", output)
+	logger := New("test:disabled")
+	handler := NewSlogHandler(logger)
+
+	assert.False(t, handler.Enabled(context.Background(), slog.LevelInfo), "handler should be disabled when DEBUG does not match namespace")
+}
+
+func TestSlogHandlerHandle_WithAttrs(t *testing.T) {
+	setupDebugEnv(t, "*")
+
+	handler := NewSlogHandler(New("test:attrs"))
+	record := slog.NewRecord(time.Now(), slog.LevelInfo, "processing request", 0)
+	record.AddAttrs(
+		slog.String("user", "alice"),
+		slog.Int("attempt", 3),
+	)
+
+	output := captureStderr(func() {
+		err := handler.Handle(context.Background(), record)
+		assert.NoError(t, err, "Handle should not return an error for a valid slog record")
+	})
+
+	assert.Contains(t, output, "test:attrs", "output should include namespace")
+	assert.Contains(t, output, "· processing request", "info records should include dot prefix and message")
+	assert.Contains(t, output, "user=alice", "output should render string slog attributes")
+	assert.Contains(t, output, "attempt=3", "output should render numeric slog attributes")
+}
+
+func TestSlogHandlerHandle_LevelPrefixes(t *testing.T) {
+	setupDebugEnv(t, "*")
+
+	tests := []struct {
+		name   string
+		level  slog.Level
+		prefix string
+	}{
+		{name: "debug uses dot prefix", level: slog.LevelDebug, prefix: "· "},
+		{name: "info uses dot prefix", level: slog.LevelInfo, prefix: "· "},
+		{name: "warn uses warning prefix", level: slog.LevelWarn, prefix: "⚠ "},
+		{name: "error uses error prefix", level: slog.LevelError, prefix: "✗ "},
 	}
-	if !strings.Contains(output, "· test message from handler") {
-		t.Errorf("Expected info message in output, got: %s", output)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := NewSlogHandler(New("test:levels"))
+			record := slog.NewRecord(time.Now(), tt.level, "level message", 0)
+
+			output := captureStderr(func() {
+				err := handler.Handle(context.Background(), record)
+				assert.NoError(t, err, fmt.Sprintf("Handle should succeed for %s level records", tt.level.String()))
+			})
+
+			assert.Contains(t, output, "test:levels", fmt.Sprintf("output should include logger namespace for %s level", tt.level.String()))
+			assert.Contains(t, output, tt.prefix+"level message", fmt.Sprintf("output should include expected %s prefix", tt.level.String()))
+		})
 	}
+}
+
+func setupDebugEnv(t *testing.T, debugValue string) {
+	t.Helper()
+	t.Setenv("DEBUG", debugValue)
+	t.Setenv("ACTIONS_RUNNER_DEBUG", "")
+
+	originalDebugEnv := debugEnv
+	debugEnv = initDebugEnv()
+	t.Cleanup(func() {
+		debugEnv = originalDebugEnv
+	})
 }

@@ -94,6 +94,13 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	// Use the installer script for global installation
 	copilotInstallLog.Print("Using new installer script for Copilot installation")
 	npmSteps := GenerateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI")
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
+		copilotInstallLog.Printf("copilot-sdk enabled; adding @github/copilot-sdk install step: version=%s", constants.DefaultCopilotSDKVersion)
+		npmSteps = append(npmSteps, GitHubActionStep{
+			"      - name: Install GitHub Copilot SDK",
+			"        run: cd \"${GITHUB_WORKSPACE}\" && npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
+		})
+	}
 	steps := BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 
 	return steps

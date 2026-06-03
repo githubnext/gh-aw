@@ -812,6 +812,22 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			expectedKeys: []string{"merge_pull_request"},
 		},
 		{
+			name: "create_check_run config",
+			safeOutputs: &SafeOutputsConfig{
+				CreateCheckRun: &CreateCheckRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+					Name: "Copilot Analysis",
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"create_check_run"},
+		},
+		{
 			name: "comment_memory config",
 			safeOutputs: &SafeOutputsConfig{
 				CommentMemory: &CommentMemoryConfig{

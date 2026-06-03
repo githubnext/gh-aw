@@ -46,6 +46,7 @@ func GetAllCodemods() []Codemod {
 		getBotsToOnBotsCodemod(),                        // Move top-level bots to on.bots
 		getEngineStepsToTopLevelCodemod(),               // Move engine.steps to top-level steps
 		getEngineMaxRunsToTopLevelCodemod(),             // Move engine.max-runs to top-level max-runs
+		getEngineMaxTurnsToTopLevelCodemod(),            // Move engine.max-turns to top-level max-turns
 		getStepsRunSecretsToEnvCodemod(),                // Move all ${{ ... }} expressions in step run fields to step env bindings
 		getEngineEnvSecretsCodemod(),                    // Remove unsafe secret-bearing engine.env entries
 		getAssignToAgentDefaultAgentCodemod(),           // Rename deprecated default-agent to name in assign-to-agent

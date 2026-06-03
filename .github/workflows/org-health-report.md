@@ -10,7 +10,9 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 tools:
   cli-proxy: true
   github:

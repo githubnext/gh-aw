@@ -3,7 +3,9 @@
 package cli
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,4 +25,58 @@ func TestUpgradeCommand_OnExistingRepository(t *testing.T) {
 
 	require.NoError(t, err, "upgrade command should succeed on existing repository, output: %s", outputStr)
 	assert.Contains(t, outputStr, "Upgrade complete", "Should report upgrade complete")
+}
+
+func TestInitAndUpgradeWithEmptyAWDirectory(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	initGit := exec.Command("git", "init", "--quiet")
+	initGit.Dir = setup.tempDir
+	require.NoError(t, initGit.Run(), "git init should succeed")
+
+	awDir := filepath.Join(setup.tempDir, ".github", "aw")
+	require.NoError(t, os.MkdirAll(filepath.Join(awDir, "logs"), 0o755), "should create .github/aw/logs")
+	require.NoError(t, os.WriteFile(filepath.Join(awDir, "actions-lock.json"), []byte("{}\n"), 0o644), "should create actions-lock.json")
+
+	initCmd := exec.Command(setup.binaryPath, "init")
+	initCmd.Dir = setup.tempDir
+	initOutput, initErr := initCmd.CombinedOutput()
+	require.NoError(t, initErr, "init command should succeed with empty .github/aw directory, output: %s", string(initOutput))
+	_, err := os.Stat(filepath.Join(awDir, "actions-lock.json"))
+	require.NoError(t, err, "expected actions-lock.json to be preserved after init")
+	_, err = os.Stat(filepath.Join(awDir, "logs"))
+	require.NoError(t, err, "expected .github/aw/logs to be preserved after init")
+
+	skillPath := filepath.Join(setup.tempDir, ".github", "skills", "agentic-workflows", "SKILL.md")
+	_, err = os.Stat(skillPath)
+	require.NoError(t, err, "expected dispatcher skill file to exist after init")
+
+	workflowPath := filepath.Join(setup.tempDir, ".github", "workflows", "example.md")
+	workflowContent := `---
+name: Example Agentic Workflow
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+engine: copilot
+strict: true
+timeout-minutes: 5
+---
+
+Say hello.
+`
+	require.NoError(t, os.WriteFile(workflowPath, []byte(workflowContent), 0o644), "should create sample workflow")
+
+	upgradeCmd := exec.Command(setup.binaryPath, "upgrade", "--no-fix", "--skip-extension-upgrade")
+	upgradeCmd.Dir = setup.tempDir
+	upgradeOutput, upgradeErr := upgradeCmd.CombinedOutput()
+	upgradeOutputStr := string(upgradeOutput)
+	require.NoError(t, upgradeErr, "upgrade command should succeed with empty .github/aw directory, output: %s", upgradeOutputStr)
+	assert.Contains(t, upgradeOutputStr, "Upgrade complete", "Should report upgrade complete")
+	_, err = os.Stat(filepath.Join(awDir, "actions-lock.json"))
+	require.NoError(t, err, "expected actions-lock.json to be preserved after upgrade")
+	_, err = os.Stat(filepath.Join(awDir, "logs"))
+	require.NoError(t, err, "expected .github/aw/logs to be preserved after upgrade")
 }

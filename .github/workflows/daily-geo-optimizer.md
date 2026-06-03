@@ -12,7 +12,9 @@ permissions:
   discussions: read
   copilot-requests: write
 tracker-id: daily-geo-optimizer
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: true
 timeout-minutes: 30
 tools:

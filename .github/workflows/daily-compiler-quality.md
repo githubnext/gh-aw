@@ -27,7 +27,9 @@ safe-outputs:
     title-prefix: "[daily-compiler-quality] "
 description: Analyzes compiler code daily to assess if it meets human-written quality standards, creates discussion reports, and uses cache memory to avoid re-analyzing unchanged files
 emoji: 📊
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 experiments:
   output_format:
     analysis_type: mann_whitney

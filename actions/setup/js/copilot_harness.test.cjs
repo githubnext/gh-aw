@@ -14,6 +14,7 @@ const {
   buildMissingToolPermissionIssuePayload,
   buildMissingToolAlternatives,
   buildInfrastructureIncompletePayload,
+  buildCopilotProxyAuthFailureDiagnostic,
   buildPromptFileFallbackInstruction,
   countPermissionDeniedIssues,
   detectCopilotErrors,
@@ -28,16 +29,19 @@ const {
   isAuthenticationFailedError,
   isModelAvailableInReflectData,
   isModelAvailableInReflectFile,
+  resolveCopilotSDKCustomProviderFromReflect,
   enrichReflectModels,
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  generateCopilotConnectionToken,
   GEMINI_MODEL_NAME_PREFIX,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
   runWithCopilotSDK,
   writeCopilotOutputs,
   readSDKOptionsFromStdin,
+  parseCopilotSDKServerArgsFromEnv,
 } = require("./copilot_harness.cjs");
 
 describe("copilot_harness.cjs", () => {
@@ -71,6 +75,21 @@ describe("copilot_harness.cjs", () => {
       expect(CAPI_ERROR_400_PATTERN.test("Error: ENOENT: no such file")).toBe(false);
       expect(CAPI_ERROR_400_PATTERN.test("Fatal: out of memory")).toBe(false);
       expect(CAPI_ERROR_400_PATTERN.test("")).toBe(false);
+    });
+  });
+
+  describe("generateCopilotConnectionToken", () => {
+    it("generates a 32-byte hex token", () => {
+      const token = generateCopilotConnectionToken();
+      expect(token).toMatch(/^[a-f0-9]{64}$/);
+    });
+
+    it("uses a pluggable random byte source", () => {
+      const randomBytes = vi.fn(() => Buffer.alloc(32, 0xab));
+      const token = generateCopilotConnectionToken({ randomBytes });
+      expect(token).toMatch(/^[a-f0-9]{64}$/);
+      expect(token).toBe("ab".repeat(32));
+      expect(randomBytes).toHaveBeenCalledWith(32);
     });
   });
 
@@ -199,6 +218,29 @@ describe("copilot_harness.cjs", () => {
       ).toBe("3002");
     });
 
+    describe("parseCopilotSDKServerArgsFromEnv", () => {
+      it("returns parsed server args and logs count", () => {
+        const logger = vi.fn();
+        const result = parseCopilotSDKServerArgsFromEnv('["--headless","--port","3002"]', { logger });
+        expect(result).toEqual(["--headless", "--port", "3002"]);
+        expect(logger).toHaveBeenCalledWith("copilot-sdk driver mode: parsed 3 sidecar args from GH_AW_COPILOT_SDK_SERVER_ARGS");
+      });
+
+      it("falls back to empty args when value is not a string array", () => {
+        const logger = vi.fn();
+        const result = parseCopilotSDKServerArgsFromEnv('{"port":3002}', { logger });
+        expect(result).toEqual([]);
+        expect(logger).toHaveBeenCalledWith("copilot-sdk driver mode: GH_AW_COPILOT_SDK_SERVER_ARGS must be a JSON string array; using sidecar default args");
+      });
+
+      it("falls back to empty args when json is invalid", () => {
+        const logger = vi.fn();
+        const result = parseCopilotSDKServerArgsFromEnv("not-json", { logger });
+        expect(result).toEqual([]);
+        expect(logger).toHaveBeenCalledWith(expect.stringContaining("failed to parse GH_AW_COPILOT_SDK_SERVER_ARGS"));
+      });
+    });
+
     describe("copilot-sdk driver lifecycle", () => {
       it("disconnects session and stops client on success", async () => {
         const disconnect = vi.fn().mockResolvedValue(undefined);
@@ -274,6 +316,238 @@ describe("copilot_harness.cjs", () => {
         expect(result.output).toContain("send failed");
         expect(disconnect).toHaveBeenCalledTimes(1);
         expect(stop).toHaveBeenCalledTimes(1);
+      });
+
+      it("passes custom provider and model through to SDK createSession", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const forUri = vi.fn(() => ({}));
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-provider",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          model: "gpt-5.4",
+          provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(createSession).toHaveBeenCalledWith(
+          expect.objectContaining({
+            model: "gpt-5.4",
+            provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+          })
+        );
+        expect(forUri).toHaveBeenCalledWith("http://127.0.0.1:3002", {});
+      });
+
+      it("passes COPILOT_CONNECTION_TOKEN to RuntimeConnection.forUri", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const forUri = vi.fn(() => ({}));
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-connection-token",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          connectionToken: "token-123",
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri },
+            approveAll: () => "allow",
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        expect(forUri).toHaveBeenCalledWith("http://127.0.0.1:3002", { connectionToken: "token-123" });
+      });
+
+      it("uses scoped permission handler from SDK permission config", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-permissions",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["shell(git:*)", "github(get_file_contents)", "web_fetch", "write"],
+          },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        const sessionConfig = createSession.mock.calls[0][0];
+        const onPermissionRequest = sessionConfig.onPermissionRequest;
+        expect(onPermissionRequest({ kind: "shell", commands: [{ identifier: "git" }], fullCommandText: "git status" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "mcp", serverName: "github", toolName: "get_file_contents" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "url", url: "https://example.com" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "write", fileName: "a.txt", diff: "", intention: "" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "read", fileName: "a.txt" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+        expect(onPermissionRequest({ kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+      });
+
+      it("allows read requests when read is explicitly allowlisted", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-read-allowed",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["read"],
+          },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        const sessionConfig = createSession.mock.calls[0][0];
+        const onPermissionRequest = sessionConfig.onPermissionRequest;
+        expect(onPermissionRequest({ kind: "read", fileName: "a.txt" })).toEqual({ kind: "approve-once" });
+      });
+
+      it("logs permission-denied SDK requests as core warnings", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-permission-warnings",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+        const coreLogger = {
+          info: vi.fn(),
+          warning: vi.fn(),
+        };
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          permissionConfig: {
+            allowedTools: ["shell(git:*)"],
+          },
+          coreLogger,
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        const sessionConfig = createSession.mock.calls[0][0];
+        const onPermissionRequest = sessionConfig.onPermissionRequest;
+        expect(onPermissionRequest({ kind: "shell", commands: [{ identifier: "rm" }], fullCommandText: "rm -rf /tmp/x" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+        expect(coreLogger.info).toHaveBeenCalledWith(expect.stringContaining("shell(rm -rf /tmp/x)"));
+        expect(coreLogger.warning).toHaveBeenCalledWith(expect.stringContaining("shell(rm -rf /tmp/x)"));
+      });
+
+      it("uses SDK default permission behavior when no permissionConfig is provided", async () => {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-default-permissions",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        const approveAll = vi.fn(() => ({ kind: "approve-once" }));
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+
+        const result = await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll,
+          },
+        });
+
+        expect(result.exitCode).toBe(0);
+        const sessionConfig = createSession.mock.calls[0][0];
+        // The SDK's default policy is exercised by omitting onPermissionRequest entirely.
+        // This assertion verifies we do not force approve-all in the no-toolset path.
+        expect(sessionConfig).not.toHaveProperty("onPermissionRequest");
+        expect(approveAll).not.toHaveBeenCalled();
       });
     });
 
@@ -854,6 +1128,46 @@ describe("copilot_harness.cjs", () => {
     });
   });
 
+  describe("gh-aw API proxy auth diagnostics", () => {
+    it("rewrites local proxy 401 errors to COPILOT_GITHUB_TOKEN guidance", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://172.30.0.30:10002 (HTTP 401).\nCheck your COPILOT_PROVIDER_API_KEY or COPILOT_PROVIDER_BEARER_TOKEN.", {
+        COPILOT_MODEL: "claude-sonnet-4.5",
+      });
+
+      expect(diagnostic).toContain("gh-aw API proxy");
+      expect(diagnostic).toContain("HTTP 401");
+      expect(diagnostic).toContain("model=claude-sonnet-4.5");
+      expect(diagnostic).toContain("stage=starting the Copilot CLI request");
+      expect(diagnostic).toContain("COPILOT_GITHUB_TOKEN");
+      expect(diagnostic).toContain("GH_AW_MODEL_AGENT_COPILOT");
+      expect(diagnostic).not.toContain("COPILOT_PROVIDER_API_KEY");
+    });
+
+    it("reports token-validation stage when present in the output", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Validating token with provider.\nAuthentication failed with provider at http://localhost:10002 (HTTP 401).", { COPILOT_MODEL: "gpt-4.1" });
+
+      expect(diagnostic).toContain("stage=validating the token");
+    });
+
+    it("reports model-listing stage when present in the output", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Listing models from /models endpoint.\nAuthentication failed with provider at http://api-proxy:10002 (HTTP 401).", { COPILOT_MODEL: "o4-mini" });
+
+      expect(diagnostic).toContain("stage=listing models");
+    });
+
+    it("ignores non-proxy provider auth failures", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at https://api.openai.com/v1 (HTTP 401).", { COPILOT_MODEL: "gpt-4.1" });
+
+      expect(diagnostic).toBe("");
+    });
+
+    it("ignores local BYOK provider auth failures on non-proxy ports", () => {
+      const diagnostic = buildCopilotProxyAuthFailureDiagnostic("Authentication failed with provider at http://host.docker.internal:11434/v1 (HTTP 401).", { COPILOT_MODEL: "qwen2.5:0.5b" });
+
+      expect(diagnostic).toBe("");
+    });
+  });
+
   describe("auth error prevents retry", () => {
     // Inline the same retry logic as the driver, including auth error check
     const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
@@ -1204,11 +1518,10 @@ describe("copilot_harness.cjs", () => {
   });
 
   describe("log format", () => {
-    it("log lines include [copilot-harness] prefix and ISO timestamp", () => {
+    it("log lines include [copilot-harness] prefix without rendered timestamp", () => {
       // Verify the format matches what we expect in agent-stdio.log
-      const ts = new Date().toISOString();
-      const logLine = `[copilot-harness] ${ts} test message`;
-      expect(logLine).toMatch(/^\[copilot-harness\] \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      const logLine = "[copilot-harness] test message";
+      expect(logLine).toBe("[copilot-harness] test message");
     });
   });
 
@@ -1317,6 +1630,25 @@ describe("copilot_harness.cjs", () => {
         const logs = [];
         expect(isModelAvailableInReflectFile("claude-sonnet-4.6", { reflectPath: reflectFile, logger: msg => logs.push(msg) })).toBe(true);
         expect(isModelAvailableInReflectFile("gpt-4.1", { reflectPath: reflectFile, logger: msg => logs.push(msg) })).toBe(false);
+      } finally {
+        fs.unlinkSync(reflectFile);
+      }
+    });
+
+    it("derives SDK custom provider and model from reflect data", () => {
+      const reflectFile = path.join(os.tmpdir(), `awf-reflect-provider-${Date.now()}.json`);
+      try {
+        fs.writeFileSync(
+          reflectFile,
+          JSON.stringify({
+            endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-5.4", "claude-sonnet-4.6"] }],
+          }),
+          "utf8"
+        );
+        expect(resolveCopilotSDKCustomProviderFromReflect({ reflectPath: reflectFile })).toEqual({
+          model: "gpt-5.4",
+          provider: { type: "openai", baseUrl: "http://api-proxy:10002" },
+        });
       } finally {
         fs.unlinkSync(reflectFile);
       }
@@ -1516,17 +1848,25 @@ describe("copilot_harness.cjs", () => {
       expect(result).toEqual({ promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt" });
     });
 
-    it("parses full payload with promptFile, serverArgs, and addWorkspaceDir", async () => {
+    it("parses full payload with promptFile, serverArgs, addWorkspaceDir, and permissionConfig", async () => {
       const payload = JSON.stringify({
         promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
         serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
         addWorkspaceDir: true,
+        permissionConfig: {
+          allowAllTools: false,
+          allowedTools: ["github(get_file_contents)", "shell(git:*)"],
+        },
       });
       const result = await runWithFakeStdin(payload);
       expect(result).toEqual({
         promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
         serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--disable-builtin-mcps", "--no-ask-user"],
         addWorkspaceDir: true,
+        permissionConfig: {
+          allowAllTools: false,
+          allowedTools: ["github(get_file_contents)", "shell(git:*)"],
+        },
       });
     });
 
@@ -1541,6 +1881,22 @@ describe("copilot_harness.cjs", () => {
         serverArgs: ["--headless", "--no-auto-update", "--port", "3002", "--add-dir", "/tmp/", "--log-level", "all"],
       });
       expect(result.addWorkspaceDir).toBeUndefined();
+    });
+
+    it("parses payload with allow-all permission config", async () => {
+      const payload = JSON.stringify({
+        promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
+        permissionConfig: {
+          allowAllTools: true,
+        },
+      });
+      const result = await runWithFakeStdin(payload);
+      expect(result).toEqual({
+        promptFile: "/tmp/gh-aw/aw-prompts/prompt.txt",
+        permissionConfig: {
+          allowAllTools: true,
+        },
+      });
     });
 
     it("returns null on empty stdin", async () => {

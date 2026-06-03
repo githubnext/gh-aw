@@ -20,6 +20,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       group-by-day: true              # Optional: group same-day runs into one issue by posting as comments (default: false)
       close-older-issues: true        # Optional: close previous issues from same workflow (default: false)
       close-older-key: "my-key"       # Optional: explicit deduplication key for close-older matching (uses gh-aw-close-key marker)
+      deduplicate-by-title: true      # Optional: skip creating an issue when one with the same title exists; integer N allows fuzzy matches up to edit distance N (default: off)
       footer: false                   # Optional: omit AI-generated footer while preserving XML markers (default: true)
       target-repo: "owner/repo"       # Optional: cross-repository
       allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)

@@ -167,7 +167,22 @@ function buildCopilotSDKEnv(env) {
   if (!isCopilotSDKEnabled(sourceEnv)) return {};
   const uri = sourceEnv.COPILOT_SDK_URI;
   if (!uri) return {};
-  return { COPILOT_SDK_URI: uri };
+  /** @type {NodeJS.ProcessEnv} */
+  const sdkEnv = { COPILOT_SDK_URI: uri };
+  if (sourceEnv.COPILOT_SDK_SEND_TIMEOUT_MS) {
+    sdkEnv.COPILOT_SDK_SEND_TIMEOUT_MS = sourceEnv.COPILOT_SDK_SEND_TIMEOUT_MS;
+    return sdkEnv;
+  }
+
+  const timeoutMinutes = Number(sourceEnv.GH_AW_TIMEOUT_MINUTES);
+  if (!Number.isFinite(timeoutMinutes) || timeoutMinutes <= 0) {
+    return sdkEnv;
+  }
+
+  // Keep SDK sendAndWait timeout below the job step timeout by 30 seconds.
+  const timeoutMs = Math.max(Math.floor(timeoutMinutes * 60 * 1000) - 30 * 1000, 1000);
+  sdkEnv.COPILOT_SDK_SEND_TIMEOUT_MS = String(timeoutMs);
+  return sdkEnv;
 }
 
 if (typeof module !== "undefined" && module.exports) {

@@ -12,7 +12,9 @@ permissions:
   discussions: read
   copilot-requests: write
 tracker-id: daily-repo-chronicle
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 
 timeout-minutes: 45
 

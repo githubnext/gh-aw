@@ -6,6 +6,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var openCodeLog = logger.New("workflow:opencode_engine")
@@ -27,7 +28,7 @@ func NewOpenCodeEngine() *OpenCodeEngine {
 				experimental: true,
 				capabilities: EngineCapabilities{
 					ToolsAllowlist: false,
-					MaxTurns:       false,
+					MaxTurns:       true,
 					WebSearch:      false,
 				},
 			},
@@ -172,6 +173,12 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 	}
 
 	applySafeOutputEnvToMap(env, workflowData)
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	} else {
+		env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
+	}
 
 	if modelConfigured {
 		openCodeLog.Printf("Setting %s env var for model: %s",

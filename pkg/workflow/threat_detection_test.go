@@ -1368,6 +1368,42 @@ func TestDetectionJobPermissionsIndentation(t *testing.T) {
 			wantContains:    []string{},
 			wantNotContains: []string{"copilot-requests: write"},
 		},
+		{
+			name: "github-oidc engine auth adds id-token: write to detection job",
+			data: &WorkflowData{
+				Name: "test-workflow",
+				AI:   "claude",
+				EngineConfig: &EngineConfig{
+					ID:   "claude",
+					Auth: &EngineAuthConfig{Type: "github-oidc"},
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+				Permissions: "permissions:\n  id-token: write",
+			},
+			wantContains:    []string{"      id-token: write"},
+			wantNotContains: []string{},
+		},
+		{
+			name: "observability.otlp.github-app auth adds id-token: write to detection job",
+			data: &WorkflowData{
+				Name: "test-workflow",
+				AI:   "copilot",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+				RawFrontmatter: map[string]any{
+					"observability": map[string]any{
+						"otlp": map[string]any{
+							"github-app": map[string]any{},
+						},
+					},
+				},
+			},
+			wantContains:    []string{"      id-token: write"},
+			wantNotContains: []string{},
+		},
 	}
 
 	for _, tt := range tests {

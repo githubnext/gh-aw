@@ -956,7 +956,7 @@ Model parameters are compile-time configuration values and are not derived from 
 
 ### Version 1.2.0 (Draft)
 
-- **Added**: §13 Safeguards covering max alias-chain depth (R-MAF-S001), UTF-8 validity requirements (R-MAF-S002, R-MAF-S003), out-of-range `effort`/`temperature` handling (R-MAF-S004, R-MAF-S005), and corrupt builtin-alias-map behaviour (R-MAF-S006, R-MAF-S007).
+- **Added**: §13 Safeguards covering max alias-chain depth (R-MAF-S001), UTF-8 validity requirements (R-MAF-S002, R-MAF-S003), out-of-range `effort`/`temperature` handling (R-MAF-S004, R-MAF-S005), and corrupt builtin-alias-map behavior (R-MAF-S006, R-MAF-S007).
 - **Added**: §14 Sync Notes mapping §§4–11 to implementation files in `pkg/workflow/` with loop-detection test references (last verified 2026-06-01).
 - **Added**: §15 Norms reference table (`V-MAF-*` and `R-MAF-S*` IDs) for all MUST/SHALL requirements in §§4–13.
 - **Updated**: Table of Contents to include §§13–15.

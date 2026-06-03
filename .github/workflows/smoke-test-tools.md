@@ -2,6 +2,10 @@
 emoji: "🧪"
 description: Smoke test to validate common development tools are available in the agent container
 on: 
+  slash_command:
+    name: smoke-test-tools
+    strategy: centralized
+    events: [issues, issue_comment, pull_request, pull_request_comment]
   workflow_dispatch:
   pull_request:
     types: [labeled]

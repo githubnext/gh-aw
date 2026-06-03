@@ -14,6 +14,16 @@ import (
 	"github.com/github/gh-aw/pkg/syncutil"
 )
 
+// SPEC_MISMATCH: The syncutil README.md documents a `Reset` method on
+// OnceLoader[T] ("Clears the cached result and error so that the next Get call
+// re-invokes loader", shown in the Methods table, the Usage Examples section
+// (`cache.Reset()`), and the Design Notes ("Reset acquires the same mutex...")).
+// The implementation in onceloader.go does NOT provide a `Reset` method — only
+// `Get` and `Override` are implemented. No specification test can be written for
+// `Reset` because referencing it would fail to compile. Either the method should
+// be implemented or the README.md should drop the `Reset` documentation. This
+// mismatch is reported in the enforcement PR body rather than tested here.
+
 // TestSpec_Types_OnceLoader validates the documented contract of the
 // OnceLoader[T] type as described in the syncutil README.md.
 //

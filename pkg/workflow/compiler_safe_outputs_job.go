@@ -478,11 +478,6 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 		steps = newSteps
 	}
 
-	// Add GitHub App token invalidation step at the end if app is configured
-	if data.SafeOutputs.GitHubApp != nil {
-		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
-	}
-
 	// Upload the safe output items manifest as an artifact (non-staged mode only).
 	// This step runs even if previous steps fail, ensuring the audit trail
 	// is always available for the audit command to display.

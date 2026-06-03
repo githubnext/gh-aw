@@ -51,7 +51,7 @@ and blocked domain counts.
 
 When a workflow ID or file is specified, lists all effective allowed and blocked
 domains for that workflow, including domains expanded from ecosystem identifiers
-(e.g. "node", "python", "github") and engine defaults.
+(e.g., "node", "python", "github") and engine defaults.
 
 The workflow argument can be:
 - A workflow ID (basename without .md extension, e.g., "weekly-research")

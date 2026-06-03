@@ -496,4 +496,62 @@ describe("update_pr_description_helpers.cjs", () => {
       expect(result).toContain("<!-- gh-aw-island-end:test-workflow -->");
     });
   });
+
+  describe("historyUrl parameter", () => {
+    it("should pass historyUrl to the footer when provided", () => {
+      const result = updateBody({
+        currentBody: "Original",
+        newContent: "New content",
+        operation: "append",
+        workflowName: "Test",
+        runUrl: "https://github.com/test/actions/runs/123",
+        workflowId: "test-workflow",
+        historyUrl: "https://github.com/search?q=test",
+      });
+      expect(result).toContain("New content");
+      // historyUrl should be included in the footer
+      expect(result).toContain("https://github.com/search?q=test");
+    });
+
+    it("should work without historyUrl (optional parameter)", () => {
+      const result = updateBody({
+        currentBody: "Original",
+        newContent: "New content",
+        operation: "append",
+        workflowName: "Test",
+        runUrl: "https://github.com/test/actions/runs/123",
+        workflowId: "test-workflow",
+      });
+      expect(result).toContain("New content");
+      expect(result).toContain("Original");
+    });
+  });
+
+  describe("workflowIdMarker - includeFooter false", () => {
+    it("should include workflow ID marker when includeFooter is false and workflowId is provided", () => {
+      const result = updateBody({
+        currentBody: "Original",
+        newContent: "New content",
+        operation: "append",
+        workflowName: "Test",
+        runUrl: "https://github.com/test/actions/runs/123",
+        workflowId: "my-workflow",
+        includeFooter: false,
+      });
+      expect(result).toContain("<!-- gh-aw-workflow-id: my-workflow -->");
+    });
+
+    it("should not include workflow ID marker when includeFooter is false and workflowId is empty", () => {
+      const result = updateBody({
+        currentBody: "Original",
+        newContent: "New content",
+        operation: "append",
+        workflowName: "Test",
+        runUrl: "https://github.com/test/actions/runs/123",
+        workflowId: "",
+        includeFooter: false,
+      });
+      expect(result).not.toContain("gh-aw-workflow-id");
+    });
+  });
 });

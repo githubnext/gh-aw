@@ -441,6 +441,10 @@ Summarize this issue in a **${{ experiments.prompt_style }}** way.
 
 A frontmatter section that enables experimental or optional compiler and runtime behaviors as key-value pairs. Feature flags provide controlled access to new capabilities before they become defaults or are fully stabilized. Common flags include `action-mode` (controls how custom action references are compiled), `copilot-requests` (enables GitHub Actions token authentication for Copilot; currently in **private preview** — will not work unless your account has been onboarded), `mcp-gateway` (enables the MCP gateway proxy), `integrity-reactions` (enables reaction-based integrity promotion and demotion), `cli-proxy` (enables CLI proxy mode for integrity enforcement at the network boundary), and `awf-diagnostic-logs` (enables AWF Docker operational diagnostics collection on failure). `byok-copilot` is deprecated because Copilot BYOK behavior is now the default for `engine: copilot`. See [Feature Flags Reference](/gh-aw/reference/feature-flags/).
 
+### Force Clean Git Credentials (`force-clean-git-credentials`)
+
+A `checkout:` option that opts into an explicit credential cleanup step instead of relying on `actions/checkout`'s `persist-credentials: false` post-step cleanup. When set to `true`, the compiler emits the checkout with `persist-credentials: true` and injects a dedicated `Clean git credentials after checkout` step immediately after it. That step scrubs the credential helper and `http.*.extraheader` entries from `.git/config` and all nested submodule configs. Use this for submodule-heavy or sparse checkouts where the default post-step cleanup fails. See [Checkout Reference](/gh-aw/reference/checkout/).
+
 ### Fuzzy Scheduling
 
 Natural language schedule syntax that automatically distributes workflow execution times to avoid load spikes. Instead of specifying exact times with cron expressions, fuzzy schedules like `daily`, `weekly`, or `daily on weekdays` are converted by the compiler into deterministic but scattered cron expressions. The compiler automatically adds `workflow_dispatch:` trigger for manual runs. Example: `schedule: daily on weekdays` compiles to something like `43 5 * * 1-5` with varied execution times across different workflows.
@@ -489,10 +493,10 @@ A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to 
 
 ### Max Effective Tokens (`max-effective-tokens`)
 
-A top-level frontmatter field that caps the total effective-token (ET) budget the AWF proxy will spend within a single workflow run. Effective tokens are weighted by model multipliers and are the primary cost proxy for Copilot. Applies to all engines and maps to `apiProxy.maxEffectiveTokens` in the compiled lock file. Defaults to `25000000` when omitted. Accepts an integer or a GitHub Actions expression that resolves to an integer at runtime. Example:
+A top-level frontmatter field that caps the total effective-token (ET) budget the AWF proxy will spend within a single workflow run. Effective tokens are weighted by model multipliers and are the primary cost proxy for Copilot. Applies to all engines and maps to `apiProxy.maxEffectiveTokens` in the compiled lock file. Defaults to `25M` when omitted. Accepts an integer, an optional `K`/`M` suffix string (for example, `100M`), or a GitHub Actions expression that resolves to an integer at runtime. Example:
 
 ```aw wrap
-max-effective-tokens: 5000000
+max-effective-tokens: 5M
 ```
 
 See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) and [Cost Management](/gh-aw/reference/cost-management/).
@@ -502,7 +506,7 @@ See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specifica
 A top-level frontmatter field that sets a 24-hour effective-token cap for a single workflow, aggregated across recent runs of the same workflow triggered by the same user. When the activation job detects that the previous 24 hours already exceed this threshold, it warns, creates an issue, skips the agent job, and reports a specialized failure. Disabled by default when omitted. Set to `-1` to explicitly disable it. Accepts plain integers or `K`/`M` suffixes (e.g., `100M`). Skipped for `workflow_call`, `repository_dispatch`, and `workflow_dispatch` runs carrying internal `aw_context` dispatch metadata. Example:
 
 ```aw wrap
-max-daily-effective-tokens: 15000000
+max-daily-effective-tokens: 15M
 ```
 
 See [Cost Management](/gh-aw/reference/cost-management/) and [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/).
@@ -516,6 +520,16 @@ max-runs: 10
 ```
 
 See [Engines Reference](/gh-aw/reference/engines/).
+
+### Max Turns (`max-turns`)
+
+A top-level frontmatter field that caps the number of chat iterations (model responses and tool calls) for a single workflow run. Each additional turn consumes more tokens and Actions compute time, so a turn limit bounds runaway loops and cost. Supported across Claude, Codex, Copilot, and Antigravity engines. Compiles to the `GH_AW_MAX_TURNS` environment variable for the engine runtime. Accepts an integer or a GitHub Actions expression. The deprecated alias `engine.max-turns` continues to compile; use `gh aw fix engine-max-turns-to-top-level` to migrate. Example:
+
+```aw wrap
+max-turns: 20
+```
+
+See [Cost Management](/gh-aw/reference/cost-management/).
 
 ### Network Permissions
 

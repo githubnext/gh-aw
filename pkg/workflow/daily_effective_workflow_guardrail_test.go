@@ -56,45 +56,6 @@ func TestResolveMaxDailyEffectiveTokens(t *testing.T) {
 	})
 }
 
-func TestHasMaxDailyEffectiveTokensEnvConfig(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		env  string
-		want bool
-	}{
-		{
-			name: "detects unquoted key",
-			env: `GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "1234"
-OTHER_KEY: "x"`,
-			want: true,
-		},
-		{
-			name: "detects quoted key",
-			env:  `"GH_AW_MAX_DAILY_EFFECTIVE_TOKENS": "1234"`,
-			want: true,
-		},
-		{
-			name: "ignores comments and substrings",
-			env: `# GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: "1234"
-SOME_GH_AW_MAX_DAILY_EFFECTIVE_TOKENS_SUFFIX: "1234"
-NOTE: "GH_AW_MAX_DAILY_EFFECTIVE_TOKENS configured elsewhere"`,
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := hasMaxDailyEffectiveTokensEnvConfig(tt.env)
-			if got != tt.want {
-				t.Fatalf("hasMaxDailyEffectiveTokensEnvConfig() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestDailyEffectiveWorkflowGuardrailInCompiledWorkflow(t *testing.T) {
 	testDir := testutil.TempDir(t, "daily-effective-workflow-guardrail-*")
 	workflowFile := filepath.Join(testDir, "daily-guardrail.md")

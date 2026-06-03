@@ -9,7 +9,9 @@ permissions:
   contents: read
   actions: read
   deployments: read
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 imports:
   - shared/reporting.md
   - shared/otlp.md

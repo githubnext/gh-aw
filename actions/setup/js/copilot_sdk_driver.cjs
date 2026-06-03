@@ -17,6 +17,21 @@
  *   /tmp/gh-aw/sandbox/agent/logs/copilot-session-state/{sessionId}/events.jsonl
  * which mirrors the path that copy_copilot_session_state.sh produces and that
  * unified_timeline.cjs reads.
+ *
+ * When run as a standalone program (require.main === module), the driver reads
+ * configuration from environment variables and connects to the sidecar server
+ * that has already been started by copilot_harness.cjs:
+ *
+ *   GH_AW_PROMPT              — path to the prompt file
+ *   COPILOT_SDK_URI            — SDK server URI (set by the harness)
+ *   COPILOT_CONNECTION_TOKEN   — shared secret for the SDK session (set by the harness)
+ *   COPILOT_MODEL              — model override (optional)
+ *
+ * The sidecar is started and stopped by the harness; the driver only opens a
+ * client connection, runs the session, and exits.  This makes the driver a
+ * simple client extension that can be started by the harness like any other
+ * command, while serving as a sample showing how to create a Copilot SDK driver
+ * extension in agentic-workflows.
  */
 
 "use strict";
@@ -30,6 +45,149 @@ const os = require("os");
 // timeouts for individual tool calls and model inference.
 // Override via the COPILOT_SDK_SEND_TIMEOUT_MS environment variable.
 const SDK_SEND_TIMEOUT_MS_DEFAULT = 10 * 60 * 1000;
+
+/**
+ * @typedef {{
+ *   allowAllTools?: boolean,
+ *   allowedTools?: string[],
+ * }} CopilotSDKPermissionConfig
+ */
+
+/**
+ * @typedef {{
+ *   info?: (message: string) => void,
+ *   warning?: (message: string) => void,
+ * }} CopilotSDKCoreLogger
+ */
+
+/**
+ * Create a compact, human-readable permission-request summary for diagnostics.
+ * Examples: shell(git status), mcp(github.get_file_contents), url(https://example.com).
+ *
+ * @param {import("@github/copilot-sdk").PermissionRequest} request
+ * @returns {string}
+ */
+function summarizePermissionRequest(request) {
+  switch (request.kind) {
+    case "shell":
+      return `shell(${String(request.fullCommandText || "").trim() || "unknown"})`;
+    case "mcp":
+      return `mcp(${request.serverName || "unknown"}.${request.toolName || "unknown"})`;
+    case "url":
+      return `url(${request.url || "unknown"})`;
+    case "write":
+      return `write(${request.fileName || "unknown"})`;
+    case "read":
+      return "read";
+    case "custom-tool":
+      return `custom-tool(${request.toolName || "unknown"})`;
+    default:
+      return request.kind;
+  }
+}
+
+/**
+ * @param {CopilotSDKCoreLogger | undefined} coreLogger
+ * @param {(msg: string) => void} logger
+ * @param {import("@github/copilot-sdk").PermissionRequest} request
+ */
+function logPermissionDenied(coreLogger, logger, request) {
+  const requestSummary = summarizePermissionRequest(request);
+  logger(`permission denied by workflow tool permissions: ${requestSummary}`);
+  if (coreLogger?.info) {
+    coreLogger.info(`Copilot SDK permission denied: ${requestSummary}`);
+  }
+  if (coreLogger?.warning) {
+    coreLogger.warning(`Copilot SDK permission denied by workflow tool permissions: ${requestSummary}`);
+  }
+}
+
+/**
+ * Build a scoped SDK permission handler from Copilot CLI allow-tool rules.
+ * When no explicit permission rules exist, return undefined so the SDK applies
+ * its built-in policy instead of an AWF override. This mirrors CLI mode where
+ * no --allow-tool/--allow-all-tools flags are emitted when no toolsets are configured.
+ *
+ * @param {CopilotSDKPermissionConfig | undefined} permissionConfig
+ * @param {import("@github/copilot-sdk").PermissionHandler} approveAll
+ * @param {{coreLogger?: CopilotSDKCoreLogger, logger?: (msg: string) => void}=} logOptions
+ * @returns {import("@github/copilot-sdk").PermissionHandler | undefined}
+ */
+function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptions) {
+  if (!permissionConfig) {
+    return undefined;
+  }
+  const logger = logOptions?.logger ?? (() => {});
+
+  const allowAll = permissionConfig?.allowAllTools === true;
+  const allowedTools = Array.isArray(permissionConfig?.allowedTools) ? permissionConfig.allowedTools : [];
+  const normalizedAllowedTools = allowedTools
+    .filter(tool => typeof tool === "string")
+    .map(tool => tool.trim())
+    .filter(tool => tool.length > 0);
+  const allowedToolEntries = new Set(normalizedAllowedTools);
+
+  // Keep explicit allow-all behavior when requested by the engine config.
+  if (allowAll) {
+    return approveAll;
+  }
+
+  // No explicit rules: use SDK defaults to mirror CLI behavior when no toolsets are set.
+  if (allowedToolEntries.size === 0) {
+    return undefined;
+  }
+
+  const shellRules = [...allowedToolEntries]
+    .filter(tool => tool.startsWith("shell(") && tool.endsWith(")"))
+    .map(tool => tool.slice("shell(".length, -1).trim())
+    .filter(Boolean);
+
+  /**
+   * @param {import("@github/copilot-sdk").PermissionRequest} request
+   * @returns {boolean}
+   */
+  function isAllowed(request) {
+    switch (request.kind) {
+      case "shell": {
+        if (allowedToolEntries.has("shell")) return true;
+        const commandIdentifiers = Array.isArray(request.commands) ? request.commands.map(cmd => cmd?.identifier).filter(Boolean) : [];
+        const fullCommand = String(request.fullCommandText || "").trim();
+        return shellRules.some(rule => {
+          if (rule.endsWith(":*")) {
+            const prefix = rule.slice(0, -2).trim();
+            return prefix.length > 0 && commandIdentifiers.includes(prefix);
+          }
+          if (!rule.includes(" ")) {
+            return commandIdentifiers.includes(rule);
+          }
+          return fullCommand === rule;
+        });
+      }
+      case "write":
+        return allowedToolEntries.has("write");
+      case "read":
+        return allowedToolEntries.has("read");
+      case "url":
+        return allowedToolEntries.has("web_fetch");
+      case "mcp":
+        // Server-only entries (for example: "github") allow all tools from that server.
+        // Server+tool entries (for example: "github(get_file_contents)") allow only that tool.
+        return allowedToolEntries.has(request.serverName) || allowedToolEntries.has(`${request.serverName}(${request.toolName})`);
+      case "custom-tool":
+        return allowedToolEntries.has(request.toolName);
+      default:
+        return false;
+    }
+  }
+
+  return request => {
+    if (isAllowed(request)) {
+      return { kind: "approve-once" };
+    }
+    logPermissionDenied(logOptions?.coreLogger, logger, request);
+    return { kind: "reject", feedback: "Tool invocation is not allowed by workflow tool permissions." };
+  };
+}
 
 /**
  * Extract the prompt text from a resolved args array.
@@ -63,6 +221,14 @@ function extractPromptFromArgs(args) {
  *   prompt: string,
  *   logger: (msg: string) => void,
  *   attempt?: number,
+ *   model?: string,
+ *   connectionToken?: string,
+ *   provider?: import("@github/copilot-sdk").ProviderConfig,
+ *   permissionConfig?: {
+ *     allowAllTools?: boolean,
+ *     allowedTools?: string[],
+ *   },
+ *   coreLogger?: CopilotSDKCoreLogger,
  *   sdkModule?: {
  *     CopilotClient: typeof import("@github/copilot-sdk").CopilotClient,
  *     RuntimeConnection: typeof import("@github/copilot-sdk").RuntimeConnection,
@@ -71,7 +237,7 @@ function extractPromptFromArgs(args) {
  * }} options
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModule }) {
+async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, connectionToken, provider, permissionConfig, coreLogger, sdkModule }) {
   // Lazy-require to avoid loading the SDK when it is not needed.
   // The SDK is large and has side-effects on import (worker threads, etc.).
   const { CopilotClient, RuntimeConnection, approveAll } = sdkModule ?? require("@github/copilot-sdk");
@@ -90,11 +256,27 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModul
   /** @type {ReadonlyArray<NonNullable<import("@github/copilot-sdk").CopilotClientOptions["logLevel"]>>} */
   const VALID_LOG_LEVELS = ["none", "error", "warning", "info", "debug", "all"];
   const rawLogLevel = process.env.COPILOT_SDK_LOG_LEVEL ?? "";
+  /**
+   * @param {string} value
+   * @returns {value is NonNullable<import("@github/copilot-sdk").CopilotClientOptions["logLevel"]>}
+   */
+  const isValidLogLevel = value => {
+    /** @type {readonly string[]} */
+    const validLogLevels = VALID_LOG_LEVELS;
+    return validLogLevels.includes(value);
+  };
   /** @type {import("@github/copilot-sdk").CopilotClientOptions["logLevel"]} */
-  const logLevel = /** @type {any} */ VALID_LOG_LEVELS.includes(/** @type {any} */ rawLogLevel) ? rawLogLevel : "warning";
+  const logLevel = isValidLogLevel(rawLogLevel) ? rawLogLevel : "warning";
 
   const client = new CopilotClient({
-    connection: RuntimeConnection.forUri(sdkUri, {}),
+    connection: RuntimeConnection.forUri(
+      sdkUri,
+      connectionToken
+        ? {
+            connectionToken,
+          }
+        : {}
+    ),
     workingDirectory: process.env.GITHUB_WORKSPACE || process.cwd(),
     logLevel,
   });
@@ -108,10 +290,25 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModul
     clientStarted = true;
     log("client started");
 
-    session = await client.createSession({
-      model: process.env.COPILOT_MODEL || undefined,
-      onPermissionRequest: approveAll,
+    /**
+     * Build a scoped permission handler from allow-tool entries.
+     * Leaves permissions to SDK defaults when no explicit rules were generated.
+     * @type {import("@github/copilot-sdk").PermissionHandler | undefined}
+     */
+    const onPermissionRequest = buildCopilotSDKPermissionHandler(permissionConfig, approveAll, {
+      coreLogger,
+      logger: log,
     });
+
+    /** @type {import("@github/copilot-sdk").SessionConfig} */
+    const sessionConfig = {
+      model: model || process.env.COPILOT_MODEL || undefined,
+      provider,
+    };
+    if (onPermissionRequest) {
+      sessionConfig.onPermissionRequest = onPermissionRequest;
+    }
+    session = await client.createSession(sessionConfig);
     log(`session created: sessionId=${session.sessionId}`);
 
     // Prepare JSONL output file for this session.
@@ -119,6 +316,8 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModul
     fs.mkdirSync(sessionDir, { recursive: true });
     const eventsPath = path.join(sessionDir, "events.jsonl");
     eventsStream = fs.createWriteStream(eventsPath, { flags: "a" });
+    // Snapshot to a non-null local for closure-safe writes (JSDoc nullability narrowing).
+    const stream = eventsStream;
     log(`serialising SDK events to ${eventsPath}`);
 
     /**
@@ -138,7 +337,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModul
      */
     function writeEvent(type, data, timestamp) {
       const entry = { type, timestamp: timestamp ?? new Date().toISOString(), data };
-      eventsStream.write(JSON.stringify(entry) + "\n");
+      stream.write(JSON.stringify(entry) + "\n");
     }
 
     // Subscribe to all session events and serialise the ones we care about.
@@ -218,8 +417,10 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModul
       durationMs,
     };
   } finally {
-    if (eventsStream) {
-      await new Promise(resolve => eventsStream.end(resolve));
+    // Snapshot for null-safe cleanup in this scope.
+    const stream = eventsStream;
+    if (stream) {
+      await new Promise(resolve => stream.end(resolve));
     }
     if (session) {
       try {
@@ -239,3 +440,78 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, sdkModul
 }
 
 module.exports = { extractPromptFromArgs, runWithCopilotSDK };
+
+// ---------------------------------------------------------------------------
+// Standalone entry point
+// ---------------------------------------------------------------------------
+
+/**
+ * Log a message prefixed with [copilot-sdk-driver] to stderr.
+ * @param {string} msg
+ */
+function log(msg) {
+  process.stderr.write(`[copilot-sdk-driver] ${msg}\n`);
+}
+
+/**
+ * Entry point when the driver is run directly with Node:
+ *   node copilot_sdk_driver.cjs
+ *
+ * Reads configuration from environment variables and connects to the headless
+ * Copilot CLI sidecar that has already been started by copilot_harness.cjs.
+ * Runs a single SDK session and exits with the session's exit code.
+ * Any unhandled error causes a non-zero exit.
+ */
+async function main() {
+  // --- Read configuration from environment ---------------------
+
+  const promptFile = process.env.GH_AW_PROMPT;
+  if (!promptFile) {
+    process.stderr.write("[copilot-sdk-driver] error: GH_AW_PROMPT is not set\n");
+    process.exit(1);
+  }
+
+  const sdkUri = process.env.COPILOT_SDK_URI;
+  if (!sdkUri) {
+    process.stderr.write("[copilot-sdk-driver] error: COPILOT_SDK_URI is not set\n");
+    process.exit(1);
+  }
+
+  const model = process.env.COPILOT_MODEL || undefined;
+  const connectionToken = process.env.COPILOT_CONNECTION_TOKEN;
+  if (!connectionToken) {
+    process.stderr.write("[copilot-sdk-driver] error: COPILOT_CONNECTION_TOKEN is required. This token is generated by copilot_harness.cjs and must be passed to the driver environment\n");
+    process.exit(1);
+  }
+
+  // --- Read the prompt -------------------------------------------------
+
+  let prompt;
+  try {
+    prompt = fs.readFileSync(promptFile, "utf8");
+  } catch (err) {
+    process.stderr.write(`[copilot-sdk-driver] error: failed to read prompt file ${promptFile}: ${err}\n`);
+    process.exit(1);
+  }
+
+  log(`connecting to sidecar at ${sdkUri}`);
+
+  // --- Run SDK session -------------------------------------------------
+
+  const result = await runWithCopilotSDK({
+    sdkUri,
+    prompt,
+    logger: log,
+    model,
+    connectionToken,
+  });
+
+  process.exit(result.exitCode);
+}
+
+if (require.main === module) {
+  main().catch(err => {
+    process.stderr.write(`[copilot-sdk-driver] unhandled error: ${err instanceof Error ? err.stack : String(err)}\n`);
+    process.exit(1);
+  });
+}

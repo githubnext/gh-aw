@@ -246,6 +246,43 @@ func TestValidateSafeOutputsTarget(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "valid wildcard target for submit-pull-request-review",
+			config: &SafeOutputsConfig{
+				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{},
+					SafeOutputTargetConfig: SafeOutputTargetConfig{
+						Target: "*",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid numeric target for submit-pull-request-review",
+			config: &SafeOutputsConfig{
+				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{},
+					SafeOutputTargetConfig: SafeOutputTargetConfig{
+						Target: "99",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid target for submit-pull-request-review",
+			config: &SafeOutputsConfig{
+				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{},
+					SafeOutputTargetConfig: SafeOutputTargetConfig{
+						Target: "invalid-value",
+					},
+				},
+			},
+			wantErr: true,
+			errText: "invalid target value for submit-pull-request-review: \"invalid-value\"",
+		},
 	}
 
 	for _, tt := range tests {

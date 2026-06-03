@@ -3684,67 +3684,23 @@
         },
         {
           "id": "claude",
-          "model": "claude-3-5-sonnet-20241022",
-          "max-turns": 15
+          "model": "claude-3-5-sonnet-20241022"
         }
       ],
       "$ref": "#/$defs/engine_config"
     },
+    "max-turns": {
+      "$ref": "#/$defs/templatable_integer",
+      "description": "AWF turn cap (`max_turns`) applied consistently across all agentic engines. Supports GitHub Actions expressions (e.g. '${{ inputs.max-turns }}') for reusable workflow_call workflows.",
+      "examples": [15, "${{ inputs.max-turns }}"]
+    },
     "max-effective-tokens": {
-      "oneOf": [
-        {
-          "type": "integer",
-          "not": {
-            "enum": [0]
-          },
-          "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Use a negative value to disable budget enforcement and token steering."
-        },
-        {
-          "type": "string",
-          "oneOf": [
-            {
-              "pattern": "^[1-9][0-9]*([kKmM])?$"
-            },
-            {
-              "pattern": "^\\$\\{\\{.*\\}\\}$"
-            }
-          ],
-          "description": "Maximum effective-token (ET) budget as a numeric string or GitHub Actions expression."
-        }
-      ],
+      "$ref": "#/$defs/max_effective_tokens_limit",
       "default": 25000000,
       "description": "Explicit ET budget control for firewall cost enforcement. Defaults to 25000000 when omitted. Set to a negative value to disable budget enforcement and token steering."
     },
     "max-daily-effective-tokens": {
-      "oneOf": [
-        {
-          "type": "integer",
-          "oneOf": [
-            {
-              "const": -1
-            },
-            {
-              "minimum": 1
-            }
-          ],
-          "description": "Maximum effective-token budget allowed across the last 24 hours for runs of this workflow by the triggering user. Set to -1 to disable."
-        },
-        {
-          "type": "string",
-          "oneOf": [
-            {
-              "pattern": "^-1$"
-            },
-            {
-              "pattern": "^[1-9][0-9]*([kKmM])?$"
-            },
-            {
-              "pattern": "^\\$\\{\\{.*\\}\\}$"
-            }
-          ],
-          "description": "Maximum 24-hour per-workflow effective-token budget as a numeric string or GitHub Actions expression. Use -1 to disable."
-        }
-      ],
+      "$ref": "#/$defs/max_daily_effective_tokens_limit",
       "description": "When set, activation checks the triggering user's runs of this workflow over the last 24 hours and prevents execution once the aggregated effective-token total exceeds this threshold. Omit the field or set it to -1 to leave the guardrail disabled."
     },
     "max-runs": {
@@ -10485,6 +10441,65 @@
         }
       ]
     },
+    "positive_integer_with_km_suffix_or_expression": {
+      "type": "string",
+      "oneOf": [
+        {
+          "pattern": "^[1-9][0-9]*([kKmM])?$"
+        },
+        {
+          "pattern": "^\\$\\{\\{.*\\}\\}$"
+        }
+      ],
+      "description": "Positive integer as a string (supports optional K/M suffix) or a GitHub Actions expression."
+    },
+    "max_effective_tokens_limit": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "not": {
+            "enum": [0]
+          },
+          "description": "Maximum effective-token (ET) budget for AWF API proxy enforcement. Use a negative value to disable budget enforcement and token steering."
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
+            }
+          ],
+          "description": "Maximum effective-token (ET) budget as a numeric string (supports K/M suffix) or GitHub Actions expression."
+        }
+      ]
+    },
+    "max_daily_effective_tokens_limit": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "oneOf": [
+            {
+              "const": -1
+            },
+            {
+              "minimum": 1
+            }
+          ],
+          "description": "Maximum effective-token budget allowed across the last 24 hours for runs of this workflow by the triggering user. Set to -1 to disable."
+        },
+        {
+          "type": "string",
+          "oneOf": [
+            {
+              "pattern": "^-1$"
+            },
+            {
+              "$ref": "#/$defs/positive_integer_with_km_suffix_or_expression"
+            }
+          ],
+          "description": "Maximum 24-hour per-workflow effective-token budget as a numeric string (supports K/M suffix) or GitHub Actions expression. Use -1 to disable."
+        }
+      ]
+    },
     "job_strategy": {
       "type": "object",
       "description": "Matrix strategy for the job. Defines multiple job configurations using matrix variables.",
@@ -10607,17 +10622,10 @@
               "description": "Claude permission mode override. Defaults to acceptEdits (or auto when tools.edit is false)."
             },
             "max-turns": {
-              "oneOf": [
-                {
-                  "type": "integer",
-                  "description": "Maximum number of chat iterations per run as an integer value"
-                },
-                {
-                  "type": "string",
-                  "description": "Maximum number of chat iterations per run as a string value"
-                }
-              ],
-              "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted. Note: Only supported by the claude engine."
+              "$ref": "#/$defs/templatable_integer",
+              "deprecated": true,
+              "description": "Deprecated: use the top-level 'max-turns' field instead. This engine-level alias is kept for backward compatibility but may be removed in a future major version. Migration: move 'engine.max-turns: 15' to top-level 'max-turns: 15' so the AWF turn cap applies consistently across all agentic engines.",
+              "examples": [15, "${{ inputs.max-turns }}"]
             },
             "max-continuations": {
               "type": "integer",

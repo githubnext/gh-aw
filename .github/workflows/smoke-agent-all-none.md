@@ -2,6 +2,10 @@
 emoji: "🧪"
 description: "Guard policy smoke test: repos=all, min-integrity=none (most permissive)"
 on:
+  slash_command:
+    name: smoke-agent-all-none
+    strategy: centralized
+    events: [issues, issue_comment, pull_request, pull_request_comment]
   workflow_dispatch:
   pull_request:
     types: [labeled]

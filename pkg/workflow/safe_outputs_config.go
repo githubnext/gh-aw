@@ -784,7 +784,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			return nil
 		}
 		c := cfg.CreateIssues
-		return newHandlerConfigBuilder().
+		builder := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("allowed_labels", c.AllowedLabels).
 			AddStringSlice("allowed_fields", c.AllowedFields).
@@ -801,7 +801,8 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
-			Build()
+			AddBoolOrInt("deduplicate_by_title", c.DeduplicateByTitle)
+		return builder.Build()
 	},
 	"add_comment": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.AddComments == nil {

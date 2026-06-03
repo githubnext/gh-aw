@@ -25,6 +25,7 @@ network:
     - defaults
     - pypi.org
     - files.pythonhosted.org
+    - semgrep.dev
 
 tools:
   cli-proxy: true

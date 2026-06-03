@@ -27,6 +27,11 @@ func getPullRequestTargetCheckoutFalseCodemod() Codemod {
 				return content, false, nil
 			}
 
+			if isCheckoutMapping(frontmatter) {
+				pullRequestTargetCheckoutFalseCodemodLog.Print("Skipping pull_request_target checkout codemod: checkout is already a mapping with sub-keys")
+				return content, false, nil
+			}
+
 			if hasExplicitCheckoutCommands(content) {
 				pullRequestTargetCheckoutFalseCodemodLog.Print("Skipping pull_request_target checkout codemod: explicit checkout command detected")
 				return content, false, nil
@@ -81,6 +86,19 @@ func isPullRequestTargetCheckoutDisabled(frontmatter map[string]any) bool {
 	return ok && !checkoutDisabled
 }
 
+// isCheckoutMapping returns true when the frontmatter "checkout" key is a YAML
+// mapping (e.g. sparse-checkout:, fetch-depth:) rather than a scalar or absent.
+// Overwriting a mapping with a scalar would orphan the child keys and produce
+// invalid YAML, so callers should skip the codemod in this case.
+func isCheckoutMapping(frontmatter map[string]any) bool {
+	checkoutAny, hasCheckout := frontmatter["checkout"]
+	if !hasCheckout {
+		return false
+	}
+	_, isMap := checkoutAny.(map[string]any)
+	return isMap
+}
+
 func hasExplicitCheckoutCommands(content string) bool {
 	lowerContent := strings.ToLower(content)
 
@@ -112,7 +130,23 @@ func ensureCheckoutFalseForPullRequestTarget(lines []string) ([]string, bool) {
 			continue
 		}
 
-		if strings.HasPrefix(trimmed, "checkout:") {
+		if inlineCheckoutValue, ok := strings.CutPrefix(trimmed, "checkout:"); ok {
+			// If the checkout line has no inline value, the next indented line
+			// would make this a YAML mapping block.  Replacing it with a scalar
+			// would orphan those child keys and produce invalid YAML.
+			inlineValue := strings.TrimSpace(inlineCheckoutValue)
+			if inlineValue == "" {
+				for j := i + 1; j < len(lines); j++ {
+					next := lines[j]
+					if strings.TrimSpace(next) == "" {
+						continue
+					}
+					if len(next) > 0 && (next[0] == ' ' || next[0] == '\t') {
+						return lines, false
+					}
+					break
+				}
+			}
 			checkoutLine, modified := normalizeCheckoutFalseLine(line)
 			if !modified {
 				return lines, false

@@ -969,10 +969,22 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	// - In dev/script mode, contents: read is also needed for the actions folder checkout.
 	// - When permissions.copilot-requests is set to write, the detection job runs the Copilot CLI
 	//   and requires copilot-requests: write for authentication.
+	// - When the engine uses GitHub OIDC (WIF) auth, the detection job's api-proxy also needs
+	//   to mint a GitHub OIDC token for the token exchange. Without id-token: write,
+	//   ACTIONS_ID_TOKEN_REQUEST_URL/TOKEN are not set in the runner environment and the
+	//   api-proxy returns HTTP 401 on every request (mirrors validateOIDCPermissions logic).
+	// - When observability.otlp.github-app is configured without app-id/private-key
+	//   credentials, id-token: write is also needed (mirrors validateOIDCPermissions).
 	copilotRequestsEnabled := hasCopilotRequestsWritePermission(data)
 	perms := NewPermissionsContentsRead()
 	if copilotRequestsEnabled {
 		perms.Set(PermissionCopilotRequests, PermissionWrite)
+	}
+	if data.EngineConfig != nil && data.EngineConfig.Auth != nil && data.EngineConfig.Auth.Type == "github-oidc" {
+		perms.Set(PermissionIdToken, PermissionWrite)
+	}
+	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
+		perms.Set(PermissionIdToken, PermissionWrite)
 	}
 	permissions := perms.RenderToYAML()
 

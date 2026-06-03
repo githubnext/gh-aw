@@ -11,7 +11,9 @@ permissions:
   pull-requests: read
   copilot-requests: write
 tracker-id: daily-syntax-error-quality
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 tools:
   cli-proxy: true
   bash:

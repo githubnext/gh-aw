@@ -56,6 +56,7 @@ func TestResolveRepositoryPackage(t *testing.T) {
 				return []byte(`name: Repo Assist
 emoji: 🤖
 description: Friendly repository automation
+license: MIT
 files:
   - workflows/review.md
   - .github/workflows/nightly-review.md
@@ -77,6 +78,7 @@ files:
 		assert.Equal(t, "aw.yml", pkg.ManifestPath)
 		assert.Equal(t, "Repo Assist", pkg.Name)
 		assert.Equal(t, "🤖", pkg.Emoji)
+		assert.Equal(t, "MIT", pkg.License)
 		assert.Equal(t, "README.md", pkg.DocsPath)
 		assert.Equal(t, []string{"workflows/review.md", ".github/workflows/nightly-review.md"}, pkg.InstallationSource)
 		require.NotEmpty(t, pkg.Warnings)
@@ -419,6 +421,22 @@ emoji:
 		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `emoji`)
+	})
+
+	t.Run("rejects non-string license field", func(t *testing.T) {
+		downloadPackageFileFromGitHubForHost = func(owner, repo, path, ref, host string) ([]byte, error) {
+			if path == "aw.yml" {
+				return []byte(`name: Repo Assist
+license:
+  id: MIT
+`), nil
+			}
+			return nil, createRepositoryPackageNotFoundError(path)
+		}
+
+		_, err := resolveRepositoryPackage(&RepoSpec{RepoSlug: "owner/repo"}, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `license`)
 	})
 
 	t.Run("rejects incompatible min-version", func(t *testing.T) {

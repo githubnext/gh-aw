@@ -28,6 +28,9 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 - **`max-runs:`** - Maximum number of LLM invocations allowed per workflow run (integer or numeric string, minimum: 1)
   - Top-level field mapped to `apiProxy.maxRuns`
   - Supported by all engines
+- **`max-turns:`** - AWF turn cap applied consistently across all agentic engines (integer or expression, e.g. `${{ inputs.max-turns }}`). The engine-level `engine.max-turns` is a deprecated alias kept for backward compatibility — prefer this top-level field. Not supported by the `gemini` engine.
+- **`max-effective-tokens:`** - Per-run effective-token (ET) budget enforced by the AWF firewall (integer or `K`/`M` short-form string like `100M`; default `25000000`). Set a negative value to disable enforcement and token steering. See [token-optimization.md](token-optimization.md).
+- **`max-daily-effective-tokens:`** - Per-user 24-hour ET guardrail: activation blocks execution once the triggering user's aggregated ET for this workflow over the last 24h exceeds the threshold (integer or `K`/`M` short-form string, or `-1`). Enabled by default with a system default threshold; set `-1` to disable or an explicit value to override. See [token-optimization.md](token-optimization.md).
 - **`user-rate-limit:`** - Rate limiting configuration to prevent users from triggering the workflow too frequently (object)
   - **`max-runs-per-window:`** - Maximum runs allowed per user per time window (required, integer 1-10)
   - **`window:`** - Time window in minutes (integer 1-180, default: 60)
@@ -267,7 +270,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
       version: beta                     # Optional: version of the action (has sensible default); also accepts GitHub Actions expressions: ${{ inputs.engine-version }}
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       agent: technical-doc-writer       # Optional: custom agent file (Copilot only, references .github/agents/{agent}.agent.md)
-      max-turns: 5                      # Optional: maximum chat iterations per run (has sensible default)
+      max-turns: 5                      # Deprecated alias for the top-level `max-turns`; prefer the top-level field
       max-continuations: 3              # Optional: max autopilot continuations (copilot only; >1 enables --autopilot mode, default: 1)
       concurrency: "gh-aw-${{ github.workflow }}"  # Optional: agent job concurrency group (string or GitHub Actions concurrency object)
       env:                              # Optional: custom environment variables (object)
@@ -288,7 +291,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
           cached-input: 0.05            # Override cached input weight (default: 0.1)
     ```
 
-  - **Note**: The `version`, `model`, and `max-turns` fields have sensible defaults and can typically be omitted unless you need specific customization.
+  - **Note**: The `version` and `model` fields have sensible defaults and can typically be omitted unless you need specific customization. For turn caps, prefer the top-level `max-turns` field over the deprecated engine-level alias shown above.
   - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `max-turns`, `web-fetch`, or `web-search`. Supports AWF firewall and LLM gateway.
   - **`opencode` engine** (experimental): Provider-agnostic, open-source AI coding agent (BYOK). Defaults to Copilot routing via `COPILOT_GITHUB_TOKEN` (or `${{ github.token }}` with `copilot-requests` feature). Supports 75+ models via `provider/model` format. Supports AWF firewall and LLM gateway.
 

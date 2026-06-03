@@ -16,7 +16,9 @@ permissions:
   security-events: read
 
 tracker-id: daily-security-observability
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 
 steps:
   - name: Install gh-aw CLI
@@ -57,6 +59,9 @@ safe-outputs:
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 
 timeout-minutes: 60
+env:
+  # 59m30s (agent timeout minus 30 seconds).
+  COPILOT_SDK_SEND_TIMEOUT_MS: "3570000"
 
 imports:
   - uses: shared/meta-analysis-base.md

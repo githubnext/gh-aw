@@ -45,6 +45,7 @@ type resolvedRepositoryPackage struct {
 	Name               string
 	Emoji              string
 	Description        string
+	License            string
 	DocsPath           string
 	InstallationSource []string
 	SkillFiles         []resolvedPackageSkillFile
@@ -159,6 +160,7 @@ func resolveRepositoryPackage(repoSpec *RepoSpec, host string) (*resolvedReposit
 		Name:               manifest.Name,
 		Emoji:              manifest.Emoji,
 		Description:        manifest.Description,
+		License:            manifest.License,
 		DocsPath:           docsPath,
 		InstallationSource: installationSources,
 		SkillFiles:         skillFiles,
@@ -191,6 +193,7 @@ type repositoryPackageManifest struct {
 	Name            string
 	Emoji           string
 	Description     string
+	License         string
 	Includes        []string
 	Files           []string
 	Skills          []string // skill directory paths (e.g. "skills/my-skill")
@@ -253,6 +256,10 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 
 	if emoji, ok := stringValue(root["emoji"]); ok {
 		manifest.Emoji = emoji
+	}
+
+	if license, ok := stringValue(root["license"]); ok {
+		manifest.License = license
 	}
 
 	if includesValue, ok := root["includes"]; ok {

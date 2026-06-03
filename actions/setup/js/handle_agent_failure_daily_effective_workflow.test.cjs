@@ -25,6 +25,11 @@ describe("handle_agent_failure daily workflow ET context", () => {
     expect(rendered).toContain("2500");
     expect(rendered).toContain("2000");
     expect(rendered).not.toContain("Activation Issue:");
+    // Progressive disclosure sections
+    expect(rendered).toContain("How to raise the daily limit");
+    expect(rendered).toContain("max-daily-effective-tokens");
+    expect(rendered).toContain("What is the daily effective token guardrail");
+    expect(rendered).toContain("How to disable this guardrail");
   });
 
   it("returns empty string when the guardrail did not trigger", () => {

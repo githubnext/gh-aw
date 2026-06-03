@@ -85,6 +85,8 @@ func validateSharedWorkflowOnField(onValue any) error {
 		}
 	}
 
+	schemaValidationLog.Printf("Validating shared workflow 'on' field: %d key(s), %d disallowed", len(onMap), len(disallowed))
+
 	if len(disallowed) > 0 {
 		return fmt.Errorf(
 			"field 'on' in shared workflows can only include import-safe fields (%s); found unsupported keys: %s",

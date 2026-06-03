@@ -385,6 +385,12 @@ describe("effective_tokens", () => {
         expect(reduceModelNameToIdentifier("gpt-5.5")).toBe("gpt55");
       });
 
+      test("preserves gpt tier qualifiers when present", () => {
+        expect(reduceModelNameToIdentifier("gpt-5.4-mini-2026-03-17")).toBe("gpt54mini");
+        expect(reduceModelNameToIdentifier("gpt-5-nano")).toBe("gpt50nano");
+        expect(reduceModelNameToIdentifier("gpt-5.3-codex")).toBe("gpt53codex");
+      });
+
       test("uses well-known opus shortcut", () => {
         expect(reduceModelNameToIdentifier("claude-opus-4-7")).toBe("opus47");
       });
@@ -501,6 +507,14 @@ describe("effective_tokens", () => {
         fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
         fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify({ primary_model: "claude-sonnet-4.6", effective_tokens: 12500 }) + "\n");
         expect(getEffectiveTokensSuffix()).toBe(" · sonnet46 12.5K");
+      });
+
+      test("preserves mini-tier gpt identifiers from agent_usage.json primary_model", () => {
+        process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
+        process.env.GH_AW_ENGINE_MODEL = "gpt-5-mini";
+        fs.mkdirSync(path.dirname(AGENT_USAGE_PATH), { recursive: true });
+        fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify({ primary_model: "gpt-5.4-mini-2026-03-17", effective_tokens: 12500 }) + "\n");
+        expect(getEffectiveTokensSuffix()).toBe(" · gpt54mini 12.5K");
       });
 
       test("falls back to token-only suffix when model is unavailable", () => {

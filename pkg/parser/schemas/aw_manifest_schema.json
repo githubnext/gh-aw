@@ -23,6 +23,9 @@
     "description": {
       "type": "string"
     },
+    "license": {
+      "type": "string"
+    },
     "includes": {
       "type": "array",
       "description": "Installable package entries. Use folder naming conventions to infer type: workflows under workflows/, agentic-workflows/, or .github/workflows/; skill directories under skills/ or .github/skills/; agent files under agents/ or .github/agents/.",

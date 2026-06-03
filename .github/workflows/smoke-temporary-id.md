@@ -3,6 +3,10 @@ emoji: "🧪"
 name: Smoke Temporary ID
 description: Test temporary ID functionality for issue chaining and cross-references
 on: 
+  slash_command:
+    name: smoke-temporary-id
+    strategy: centralized
+    events: [issues, issue_comment, pull_request, pull_request_comment]
   workflow_dispatch:
   #schedule: every 24h
   pull_request:

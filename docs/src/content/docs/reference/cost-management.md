@@ -198,7 +198,7 @@ guardrail across all supported engines. The field accepts plain
 integers or `K`/`M` suffixes such as `100M`.
 
 ```aw wrap
-max-effective-tokens: 5000000
+max-effective-tokens: 5M
 ```
 
 Effective tokens are the normalized usage metric described in the
@@ -206,6 +206,71 @@ Effective tokens are the normalized usage metric described in the
 When the budget is approached, gh-aw emits steering warnings before
 the run reaches the limit. Set a negative value only when budget
 enforcement must be disabled explicitly.
+
+### Cap Turns per Run
+
+Use the top-level `max-turns` frontmatter field to cap the number
+of chat iterations (model responses and tool calls) for a single
+workflow run. Each additional turn consumes more tokens and Actions
+compute time, so a turn limit bounds both runaway loops and cost.
+
+```aw wrap
+max-turns: 20
+```
+
+`max-turns` is supported across Claude, Codex, Copilot, and
+Antigravity engines. When set, gh-aw exports the compiled value as
+`GH_AW_MAX_TURNS` for the engine runtime — you do not need to set
+`CLAUDE_CODE_MAX_TURNS` or an equivalent variable separately.
+
+The field accepts integer literals or GitHub Actions expressions,
+making it composable with `workflow_call` inputs:
+
+```aw wrap
+max-turns: ${{ inputs.max-turns || 15 }}
+```
+
+> [!NOTE]
+> `engine.max-turns` is a deprecated alias for the top-level field
+> and continues to compile for backward compatibility. Use
+> `gh aw fix engine-max-turns-to-top-level` to migrate existing
+> workflows automatically.
+
+An enterprise-wide default can be set via the compiler process
+environment variable `GH_AW_DEFAULT_MAX_TURNS`. Individual
+workflows override this default by setting `max-turns` in
+frontmatter.
+
+### Cap Daily Effective Tokens per Workflow
+
+Use `max-daily-effective-tokens` to set a 24-hour effective-token
+cap for one workflow. The guardrail sums runs from the past 24 hours of the same
+workflow started by the same triggering user.
+
+```aw wrap
+max-daily-effective-tokens: 15M
+```
+
+You can also configure the same threshold via environment variable
+to make the guardrail configurable per environment or workflow call:
+
+```aw wrap
+env:
+  GH_AW_MAX_DAILY_EFFECTIVE_TOKENS: ${{ vars.AWF_DAILY_ET_LIMIT }}
+```
+
+When the total from the past 24 hours already meets or exceeds this threshold, the activation
+job warns, creates an issue, skips the agent job, and lets the
+conclusion job report the failure context.
+
+The guardrail is disabled by default when omitted. Set `-1` to disable
+it explicitly. Positive values accept plain integers or `K`/`M`
+suffixes such as `100M`.
+
+> [!NOTE]
+> The daily guardrail is skipped for `workflow_call`,
+> `repository_dispatch`, and `workflow_dispatch` runs carrying internal
+> `aw_context` dispatch metadata.
 
 ### Roll out org/repo defaults with enterprise controls
 
@@ -221,8 +286,8 @@ gh aw env get defaults.yml --scope org --org MY_ORG
 2. Update and apply shared defaults in batch:
 
 ```yaml
-default_max_effective_tokens: "5000000"
-default_max_daily_effective_tokens: "15000000"
+default_max_effective_tokens: "5M"
+default_max_daily_effective_tokens: "15M"
 default_model_copilot: "gpt-5-mini"
 default_model_claude: "claude-haiku-4-5"
 default_model_codex: "gpt-5.4-mini"
@@ -294,6 +359,7 @@ tools:
 | Signal | Automatic action |
 |--------|-----------------|
 | High token count per run | Switch to a smaller model (`gpt-4.1-mini`, `claude-haiku-4-5`) |
+| High turn count per run | Set `max-turns` to cap iterations and prevent runaway loops |
 | Frequent runs with no safe-output produced | Add or tighten `skip-if-match` |
 | Long queue times due to concurrency | Lower `user-rate-limit.max-runs-per-window` or add a `concurrency` group |
 | Workflow running too often | Change trigger to `schedule` or add `workflow_dispatch` |

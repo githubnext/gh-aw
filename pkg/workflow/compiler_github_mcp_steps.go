@@ -147,36 +147,6 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingSteps(data *WorkflowData) []s
 	return steps
 }
 
-// generateGitHubMCPAppTokenInvalidationStep generates a step to invalidate the GitHub App token for GitHub MCP server
-// This step always runs (even on failure) to ensure tokens are properly cleaned up.
-// The token was minted in the agent job and is referenced via steps.github-mcp-app-token.outputs.token.
-func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Builder, data *WorkflowData) {
-	// Check if GitHub tool has app configuration
-	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.GitHubApp == nil {
-		githubConfigLog.Print("Skipping GitHub MCP app token invalidation: no github-app configuration on GitHub tool")
-		return
-	}
-
-	githubConfigLog.Print("Generating GitHub App token invalidation step for GitHub MCP server")
-
-	// The token was minted in the agent job; reference it via steps output.
-	const tokenExpr = "steps.github-mcp-app-token.outputs.token"
-
-	yaml.WriteString("      - name: Invalidate GitHub App token\n")
-	fmt.Fprintf(yaml, "        if: always() && %s != ''\n", tokenExpr)
-	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          TOKEN: ${{ %s }}\n", tokenExpr)
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          echo \"Revoking GitHub App installation token...\"\n")
-	yaml.WriteString("          # GitHub CLI will auth with the token being revoked.\n")
-	yaml.WriteString("          gh api \\\n")
-	yaml.WriteString("            --method DELETE \\\n")
-	yaml.WriteString("            -H \"Authorization: token $TOKEN\" \\\n")
-	yaml.WriteString("            /installation/token || echo \"Token revoke may already be expired.\"\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          echo \"Token invalidation step complete.\"\n")
-}
-
 // generateParseGuardVarsStep generates a step that parses the blocked-users, trusted-users, and
 // approval-labels variables at runtime into proper JSON arrays.
 //

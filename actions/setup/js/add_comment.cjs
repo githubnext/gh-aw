@@ -5,7 +5,7 @@
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
  */
 
-const { generateFooterWithMessages, getDetectionCautionAlert, generateXMLMarker } = require("./messages_footer.cjs");
+const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
 const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, resolveSafeOutputIssueTarget } = require("./temporary_id.cjs");
@@ -618,8 +618,12 @@ async function main(config = {}) {
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
 
-    // Inject CAUTION at top of body if threat detection warning was raised
-    const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+    // Compute caution first so prefix assembly preserves the original execution order.
+    const detectionCaution = assembleMarkdownBodyParts({
+      includeFooter: false,
+      workflowName,
+      runUrl,
+    }).detectionCaution;
 
     // Inject body header if configured (placed after caution, before user content)
     const bodyHeader = getBodyHeader({ workflowName, runUrl });
@@ -650,14 +654,25 @@ async function main(config = {}) {
         serverUrl: context.serverUrl,
       }) || undefined;
 
+    const markdownParts = assembleMarkdownBodyParts({
+      includeFooter,
+      workflowName,
+      runUrl,
+      workflowSource,
+      workflowSourceURL,
+      triggeringIssueNumber,
+      triggeringPRNumber,
+      triggeringDiscussionNumber,
+      historyUrl,
+      markerWhenFooterDisabled: "xml",
+    });
+
     if (includeFooter) {
       // When footer is enabled, add full footer with attribution and XML markers.
-      // Pass skipDetectionCaution:true to avoid duplicating the caution already prepended above.
-      processedBody +=
-        "\n\n" + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, { skipDetectionCaution: true }).trimEnd();
+      processedBody += "\n\n" + markdownParts.footer;
     } else {
       // When footer is disabled, only add XML marker for searchability (no visible attribution text)
-      processedBody += "\n\n" + generateXMLMarker(workflowName, runUrl);
+      processedBody += "\n\n" + markdownParts.noFooterMarker;
     }
 
     // Add workflow-call-id marker when available to allow close-older-comments to

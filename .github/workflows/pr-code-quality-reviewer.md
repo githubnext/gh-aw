@@ -9,7 +9,9 @@ on:
     strategy: centralized
     name: review
     events: [pull_request_comment, pull_request_review_comment]
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 permissions:
   contents: read
   pull-requests: read

@@ -3,6 +3,10 @@ emoji: "🧪"
 name: Smoke Create Cross-Repo PR
 description: Smoke test validating cross-repo pull request creation in github/gh-aw-side-repo
 on:
+  slash_command:
+    name: smoke-create-cross-repo-pr
+    strategy: centralized
+    events: [issues, issue_comment, pull_request, pull_request_comment]
   workflow_dispatch:
   pull_request:
     types: [labeled]

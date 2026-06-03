@@ -163,9 +163,9 @@ This workflow tests max-turns with timeout.`,
 					t.Error("Expected max_turns NOT to be included when not specified in frontmatter")
 				}
 
-				// Verify GH_AW_MAX_TURNS is NOT included when not specified
-				if strings.Contains(lockContentStr, "GH_AW_MAX_TURNS:") {
-					t.Error("Expected GH_AW_MAX_TURNS NOT to be included when max-turns not specified in frontmatter")
+				// Verify GH_AW_MAX_TURNS falls back to the vars expression when not specified
+				if !strings.Contains(lockContentStr, "GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS") {
+					t.Errorf("Expected GH_AW_MAX_TURNS to include vars fallback expression when max-turns not specified in frontmatter.\nLock content:\n%s", lockContentStr)
 				}
 			}
 		})
@@ -196,7 +196,7 @@ engine:
 			expectError: false,
 		},
 		{
-			name: "valid string max-turns",
+			name: "invalid string max-turns",
 			content: `---
 on:
   workflow_dispatch:
@@ -204,13 +204,12 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine:
-  id: claude
-  max-turns: "5"
+engine: claude
+max-turns: "5"
 ---
 
-# Valid String Max Turns`,
-			expectError: false,
+# Invalid String Max Turns`,
+			expectError: true,
 		},
 		{
 			name: "zero max-turns",
@@ -255,8 +254,48 @@ engine:
 	}
 }
 
+func TestTopLevelMaxTurnsCompilationForCodex(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "top-level-max-turns-codex")
+
+	testContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: codex
+max-turns: "${{ inputs.max-turns }}"
+---
+
+# Test Top-Level Max Turns
+`
+
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+	if !strings.Contains(lockContentStr, `GH_AW_MAX_TURNS: "${{ inputs.max-turns }}"`) &&
+		!strings.Contains(lockContentStr, "GH_AW_MAX_TURNS: ${{ inputs.max-turns }}") {
+		t.Errorf("Expected top-level max-turns to compile into GH_AW_MAX_TURNS.\nLock file content:\n%s", lockContentStr)
+	}
+}
+
 func TestMaxTurnsFromSharedImport(t *testing.T) {
-	// This test verifies that engine.max-turns is correctly propagated when
+	// This test verifies that max-turns is correctly propagated when
 	// the engine config is sourced from a shared import rather than defined inline.
 	// The bug was that max-turns was silently dropped because it was serialized as
 	// JSON (int -> float64) but only int/uint64/string types were handled.
@@ -264,11 +303,11 @@ func TestMaxTurnsFromSharedImport(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "max-turns-import-test")
 
-	// Create the shared import file with engine config including max-turns
+	// Create the shared import file with top-level max-turns
 	sharedContent := `---
+max-turns: 100
 engine:
   id: claude
-  max-turns: 100
 permissions:
   contents: read
   issues: read

@@ -6,6 +6,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 var crushLog = logger.New("workflow:crush_engine")
@@ -28,7 +29,7 @@ func NewCrushEngine() *CrushEngine {
 				experimental: true, // Start as experimental until smoke tests pass consistently
 				capabilities: EngineCapabilities{
 					ToolsAllowlist: false, // Crush manages its own tool permissions via .crush.json
-					MaxTurns:       false, // No --max-turns flag in crush run
+					MaxTurns:       true,  // AWF max-turns is supported for Crush runs
 					WebSearch:      false, // Has built-in websearch but not exposed via gh-aw neutral tools yet
 				},
 			},
@@ -217,6 +218,12 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 	// Safe outputs env
 	applySafeOutputEnvToMap(env, workflowData)
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	} else {
+		env["GH_AW_MAX_TURNS"] = compilerenv.BuildDefaultMaxTurnsExpression()
+	}
 
 	// Model env var (only when explicitly configured)
 	if modelConfigured {

@@ -4,6 +4,10 @@ name: Smoke Update Cross-Repo PR
 description: Smoke test validating cross-repo pull request updates in github/gh-aw-side-repo by adding lines from Homer's Odyssey to the README
 
 on:
+  slash_command:
+    name: smoke-update-cross-repo-pr
+    strategy: centralized
+    events: [issues, issue_comment, pull_request, pull_request_comment]
   workflow_dispatch:
   pull_request:
     types: [labeled]

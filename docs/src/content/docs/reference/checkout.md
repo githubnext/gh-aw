@@ -98,6 +98,17 @@ checkout:
 If a branch you need is not available after checkout and is not covered by a `fetch:` pattern, and you're in a private or internal repo, then the agent cannot access its Git history except inefficiently, file by file, via the GitHub MCP. For private repositories, it will be unable to fetch or explore additional branches. If the branch is required and unavailable, configure the appropriate pattern in `fetch:` (e.g., `fetch: ["*"]` for all branches, or `fetch: ["refs/pulls/open/*"]` for PR branches) and recompile the workflow.
 :::
 
+## Git Credentials After Checkout
+
+The generated checkout step uses `persist-credentials: false`, so the git credentials that `actions/checkout` used are removed once checkout completes. The agent then runs without credentials for the checked-out repository, and any git operation that must authenticate to the remote fails. In private repositories this includes:
+
+- `git fetch`, `git pull`, `git clone`, and direct `git push`
+- Checking out or switching to a remote branch that was not already fetched
+- Deepening a shallow clone (`git fetch --unshallow`)
+- On-demand blob fetches in partial (blobless) clones — operations on files absent from the initial checkout
+
+Fetch everything the workflow needs at checkout time using `fetch-depth` and [`fetch:`](#fetching-additional-refs), and write changes through safe-output tools such as [`push-to-pull-request-branch`](/gh-aw/reference/safe-outputs-pull-requests/) rather than a direct `git push`. The agent is instructed not to configure credential helpers or run `git credential fill`, because authentication cannot succeed; credential errors are reported as a limitation instead of worked around.
+
 ## Disabling Checkout (`checkout: false`)
 
 Set `checkout: false` to suppress the default `actions/checkout` step entirely. Use this for workflows that access repositories through MCP servers or other mechanisms that do not require a local clone:

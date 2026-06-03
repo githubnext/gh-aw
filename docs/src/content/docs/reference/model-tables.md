@@ -23,7 +23,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | Alias | Fallback patterns (tried in order) |
 |-------|-------------------------------------|
 | `sonnet` | `copilot/*sonnet*`, `anthropic/*sonnet*` |
-| `sonnet-6x` | `copilot/*sonnet-4-5-*`, `anthropic/*sonnet-4-5-*`, `copilot/*sonnet-4-6*`, `anthropic/*sonnet-4-6*` |
+| `sonnet-6x` | `copilot/*sonnet-4.5*`, `copilot/*sonnet-4.6*`, `copilot/*sonnet-4-5-*`, `anthropic/*sonnet-4-5-*`, `copilot/*sonnet-4-6*`, `anthropic/*sonnet-4-6*` |
 | `haiku` | `copilot/*haiku*`, `anthropic/*haiku*` |
 | `opus` | `copilot/*opus*`, `anthropic/*opus*` |
 | `gpt-5` | `copilot/gpt-5*`, `openai/gpt-5*` |
@@ -35,6 +35,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gpt-5-nano` | `copilot/gpt-5*nano*`, `openai/gpt-5*nano*` |
 | `gpt-5-codex` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*` |
 | `coding` | `copilot/gpt-5*codex*`, `openai/gpt-5*codex*`, `gpt-5-codex` |
+| `mai-code` | `copilot/MAI-Code*`, `copilot/mai-code*`, `openai/MAI-Code*` |
 | `gpt-5-pro` | `copilot/gpt-5*pro*`, `openai/gpt-5*pro*` |
 | `reasoning` | `copilot/o1*`, `copilot/o3*`, `copilot/o4*`, `openai/o1*`, `openai/o3*`, `openai/o4*` |
 | `gemini-flash` | `copilot/gemini-*flash*`, `google/gemini-*flash*`, `gemini/gemini-*flash*` |
@@ -44,12 +45,13 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gemma` | `copilot/gemma*`, `google/gemma*`, `gemini/gemma*` |
 | `deep-research` | `copilot/deep-research*`, `copilot/o3-deep-research*`, `copilot/o4-mini-deep-research*`, `google/deep-research*`, `gemini/deep-research*`, `openai/o3-deep-research*`, `openai/o4-mini-deep-research*` |
 | `any` | `copilot/*`, `anthropic/*`, `openai/*`, `google/*`, `gemini/*` |
-| `gemini-3-pro` | `copilot/gemini-3*pro*`, `google/gemini-3*pro*`, `gemini/gemini-3*pro*` |
+| `gemini-3-pro` | `copilot/gemini-3*pro*`, `google/gemini-3*pro*`, `google/nano-banana*`, `gemini/gemini-3*pro*` |
 | `gemini-3-flash` | `copilot/gemini-3*flash*`, `google/gemini-3*flash*`, `gemini/gemini-3*flash*` |
 | `gemini-3.1-pro` | `copilot/gemini-3.1*pro*`, `google/gemini-3.1*pro*`, `gemini/gemini-3.1*pro*` |
 | `gemini-3.1-flash` | `copilot/gemini-3.1*flash*`, `google/gemini-3.1*flash*`, `gemini/gemini-3.1*flash*` |
 | `gemini-3.5-flash` | `copilot/gemini-3.5*flash*`, `google/gemini-3.5*flash*`, `gemini/gemini-3.5*flash*` |
 | `antigravity` | `copilot/antigravity*`, `google/antigravity*`, `gemini/antigravity*` |
+| `nano-banana` | `copilot/nano-banana*`, `google/nano-banana*`, `gemini/nano-banana*` |
 | `computer-use` | `copilot/*computer-use*`, `google/*computer-use*`, `gemini/*computer-use*`, `openai/*computer-use*` |
 | `robotics` | `copilot/*robotics*`, `google/*robotics*`, `gemini/*robotics*` |
 
@@ -117,8 +119,12 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `claude-opus-4-5-20251101` | 15 |
 | `claude-opus-4-6` | 27 |
 | `claude-opus-4-7` | 27 |
+| `claude-opus-4-8` | 27 |
 | `claude-opus-4.5` | 15 |
 | `claude-opus-4.6` | 27 |
+| `claude-opus-4.6-fast` | 27 |
+| `claude-opus-4.7` | 27 |
+| `claude-opus-4.8` | 27 |
 | `claude-3-5-opus` | 5 |
 | `claude-3-opus` | 5 |
 
@@ -168,6 +174,7 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gpt-5.3-chat-latest` | 3 |
 | `gpt-5.3-codex` | 6 |
 | `gpt-5.3-codex-api-preview` | 6 |
+| `gpt-5.3-codex-api-preview-preambles` | 6 |
 | `gpt-5.4` | 6 |
 | `gpt-5.4-2026-03-05` | 6 |
 | `gpt-5.4-mini` | 6 |
@@ -224,17 +231,16 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 | `gemini-flash-latest` | 0.2 |
 | `gemini-flash-lite-latest` | 0.1 |
 | `gemini-pro-latest` | 1 |
-| `gemini-3-flash` | 0.33 |
 | `gemini-3-flash-preview` | 0.33 |
-| `gemini-3-pro` | 6 |
 | `gemini-3-pro-preview` | 6 |
+| `gemini-3-pro-image` | 6 |
 | `gemini-3-pro-image-preview` | 6 |
-| `gemini-3.1-pro` | 6 |
 | `gemini-3.1-pro-preview` | 6 |
 | `gemini-3.1-pro-preview-customtools` | 6 |
 | `gemini-3.1-flash-live-preview` | 0.1 |
 | `gemini-3.1-flash-lite` | 0.1 |
 | `gemini-3.1-flash-lite-preview` | 0.1 |
+| `gemini-3.1-flash-image` | 0.33 |
 | `gemini-3.1-flash-image-preview` | 0.33 |
 | `gemini-3.1-flash-tts-preview` | 0.1 |
 | `gemini-3.5-flash` | 14 |
@@ -247,9 +253,12 @@ Before per-model multipliers are applied, raw token counts are weighted by token
 
 | Model | Multiplier |
 |-------|-----------|
+| `antigravity-preview-05-2026` | 1 |
+| `nano-banana-pro-preview` | 0.2 |
 | `deep-research-max-preview-04-2026` | 1 |
 | `deep-research-preview-04-2026` | 1 |
 | `deep-research-pro-preview-12-2025` | 1 |
+| `MAI-Code-1-Flash` | 0.33 |
 | `gemma-4-26b-a4b-it` | 0.1 |
 | `gemma-4-31b-it` | 0.2 |
 | `grok-code-fast-1` | 0.33 |

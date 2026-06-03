@@ -3,6 +3,10 @@ emoji: "🧪"
 name: Smoke Call Workflow
 description: Smoke test for the call-workflow safe output - orchestrator that calls a worker via workflow_call at compile-time fan-out
 on:
+  slash_command:
+    name: smoke-call-workflow
+    strategy: centralized
+    events: [issues, issue_comment, pull_request, pull_request_comment]
   workflow_dispatch:
   pull_request:
     types: [labeled]

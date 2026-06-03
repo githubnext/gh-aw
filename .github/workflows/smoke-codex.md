@@ -2,6 +2,10 @@
 emoji: "🧪"
 description: Smoke test workflow that validates Codex engine functionality by reviewing recent PRs twice daily
 on:
+  slash_command:
+    name: smoke-codex
+    strategy: centralized
+    events: [issues, issue_comment, pull_request, pull_request_comment]
   workflow_dispatch:
     inputs:
       aw_context:

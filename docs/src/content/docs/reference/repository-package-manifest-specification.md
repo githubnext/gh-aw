@@ -46,6 +46,7 @@ The manifest document MUST be a YAML mapping. Unknown top-level fields MUST be r
 | `name` | string | Yes | Human-readable package name. |
 | `emoji` | string | No | Optional package emoji for display in package metadata. |
 | `description` | string | No | Human-readable package description. |
+| `license` | string | No | SPDX license identifier or license name for the package. |
 | `files` | array of strings | No | Explicit installable workflow file list. |
 
 ### 4.2 `manifest-version`
@@ -76,7 +77,11 @@ If present, `description` MUST be a string.
 
 Implementations SHOULD warn if `description` exceeds 255 characters.
 
-### 4.7 `files`
+### 4.7 `license`
+
+If present, `license` MUST be a string. Use an [SPDX license identifier](https://spdx.org/licenses/) such as `MIT` or `Apache-2.0`, or a license name. Non-string values MUST be rejected.
+
+### 4.8 `files`
 
 If present, `files` MUST be an array of strings.
 
