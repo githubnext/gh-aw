@@ -1280,13 +1280,14 @@ async function main(config = {}) {
     // When footer is disabled, only add XML markers (no visible footer content)
     const footerParts = [];
     if (includeFooter) {
-      const historyUrl = generateHistoryUrl({
-        owner: repoParts.owner,
-        repo: repoParts.repo,
-        itemType: "pull_request",
-        workflowId,
-        serverUrl: context.serverUrl,
-      });
+      const historyUrl =
+        generateHistoryUrl({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          itemType: "pull_request",
+          workflowId,
+          serverUrl: context.serverUrl,
+        }) ?? undefined;
       // The footer builder skips detection caution so the caution already prepended at
       // the top of the body is not duplicated in the footer.
       let footer = assembleMarkdownBodyParts({
