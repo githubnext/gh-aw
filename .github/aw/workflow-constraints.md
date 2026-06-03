@@ -65,17 +65,17 @@ When a requested feature increases risk:
 
 ## Self-Hosted Runner Compatibility
 
-When a workflow targets a self-hosted runner (any `runs-on` other than the default hosted labels), keep the generated workflow compatible with self-hosted constraints:
+When a workflow targets a self-hosted runner (any `runs-on` value other than GitHub-hosted labels such as `ubuntu-latest`, `ubuntu-slim`, `windows-latest`, or `macos-latest`), keep the generated workflow compatible with self-hosted constraints:
 
-- Set `runs-on` explicitly (it is not inherited from imports) to the runner label the user's setup provides. Framework/generated jobs (activation, safe-outputs, unlock, etc.) default to the hosted `ubuntu-slim`, so also set the `runs-on-slim` field to that same self-hosted label, otherwise those jobs try to run on a hosted runner.
+- Set `runs-on` explicitly (it is not inherited from imports) to the runner the user's setup provides; `runs-on` accepts a string, array, or runner-group object. Framework/generated jobs (activation, safe-outputs, unlock, etc.) default to the hosted `ubuntu-slim`, so also set `runs-on-slim` to route them to the self-hosted runner, otherwise they try to run on a hosted runner. `runs-on-slim` takes a single string label, so give it a self-hosted label the runner answers to (it cannot mirror an array or object value).
 - Write transient state, tool downloads, and intermediate outputs under `$RUNNER_TEMP`, not `/tmp`, which can persist across jobs on shared runners.
 - The agent job's own steps run as the runner user, not root — don't write steps that assume root (for example, installing to system-wide paths). Separately, the egress firewall needs host-level privileges (sudo) on the runner; if the host cannot provide that, the firewall can be disabled, which removes egress filtering. Surface that trade-off to the user rather than encoding it in the workflow.
-- Declare every outbound domain the workflow contacts in `network.allowed` (keep `defaults` for the core GitHub/Copilot/registry endpoints). Self-hosted runs sit behind an egress firewall, so any domain that is not allow-listed is blocked.
+- Declare every outbound domain the workflow contacts in `network.allowed` (keep `defaults` for the core GitHub/Copilot/registry endpoints). When the egress firewall is enabled (the default once network permissions are set), any domain that is not allow-listed is blocked.
 - Do not install to system-wide paths such as `/usr/local` or the toolcache — they may be read-only or shared across runners. Install into job-scoped writable paths instead.
-- Do not hardcode `HOME` or `/home/runner` — use `$HOME` or `$RUNNER_TEMP`.
+- Do not hardcode `/home/runner` or any literal home path — read `$HOME` from the environment instead, and use `$RUNNER_TEMP` for transient state since it is guaranteed writable.
 - For GitHub Enterprise Server, enable GHES compatibility so generated workflows use artifact action versions that work on GHES, and configure the enterprise API endpoint.
 
-For the full set of requirements (Docker socket, ARC / Docker-in-Docker, network egress, GHES specifics), follow the [Self-Hosted Runners](https://github.github.com/gh-aw/reference/self-hosted-runners/) reference page.
+For the full set of requirements (Docker socket, ARC / Docker-in-Docker, network egress, GHES specifics), follow the [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) reference page.
 
 ## Shared Reminder
 
