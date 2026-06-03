@@ -86,6 +86,8 @@ The `.lock.yml` file is the compiled GitHub Actions workflow generated from the 
 > 1. Create an API key in [Anthropic Console](https://console.anthropic.com/settings/keys).
 > 2. Add it as a repository secret from your repository root with `gh secret set ANTHROPIC_API_KEY < /path/to/key.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#anthropic_api_key) for more detail.
 >
+> [!WARNING]
+> **Claude Code / Max / Pro subscription OAuth tokens are not supported.** gh-aw requires a separate Anthropic API key (billed per use). If you have set `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret, it will be silently ignored — configure `ANTHROPIC_API_KEY` instead.
 
 > [!TIP]
 > **Having trouble?** Check your [repository secrets](/gh-aw/reference/auth/), see the [FAQ](/gh-aw/reference/faq/) and [Common Issues](/gh-aw/troubleshooting/common-issues/).
